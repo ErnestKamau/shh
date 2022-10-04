@@ -1,0 +1,345 @@
+@extends('layouts.crm.layout.app', ['dataTable'=>true, 'select2'=>true])
+
+@section('title2')
+<title>Customer List | CRM</title>
+@endsection
+@section('content2')
+<main>
+	<?php
+	$items = array(
+		array(
+			'link' => route('customers-list'),
+			'name' => 'CRM',
+			'icon' => null
+		),
+		array(
+			'link' => route('customers-list'),
+			'name' => 'Customer List',
+			'icon' => null
+		)
+	);
+	?>
+	<x-bread-crumb :items="$items"></x-bread-crumb>
+	<h2 class="p-4">
+		<i class="mdi mdi-account-group"></i> Customer List
+		@if(isset($account_settings->id))
+		<button class="btn btn-primary btn-sm float-right" data-toggle="modal" data-target="#add-customer"><i class="mdi mdi-plus"></i> Add</button>
+		@else
+		<a href="{{ route('add-config-customer') }}" class="btn btn-sm btn-outline-primary float-right"><i class="mdi mdi-plus"></i> Add</a>
+		@endif
+	</h2>
+	<br>
+	<div class="table-responsive bg-light p-4">
+		<table class="table table-condensed my-small-text table-striped table-hover table-bordered table-sm">
+			<thead class="bg-light p-2">
+				<tr>
+					<th style="min-width: 70px !important;"></th>
+
+					<th>Code</th>
+					<th>Name</th>
+					<th>Postal Address</th>
+					<th>Physical Address</th>
+					<th>Website</th>
+					<th>Fax</th>
+					<th>KRA Pin</th>
+					<th>Email</th>
+					<th>Phone 1</th>
+					<th>Phone 2</th>
+					<th>Country</th>
+					<th>Active?</th>
+				</tr>
+			</thead>
+			<tbody>
+				@if(count($customers) > 0)
+				@foreach($customers as $customer)
+				<tr>
+					<td nowrap>
+						<span class="btn btn-outline-primary btn-sm" data-customer="{{json_encode($customer)}}" data-target="#edit-customer" data-toggle="modal" data-toggle="tooltip" title="Edit"><i class="mdi mdi-pencil-outline"></i> <small class="hidden-sm-up">Edit</small> </span>
+						<a class="btn btn-outline-success btn-sm" href="{{ route('show-customer', ['id'=>$customer->id]) }}" data-toggle="tooltip" title="View"><i class="mdi mdi-eye-outline"></i> <small class="hidden-sm-up">Show</small> </a>
+						<span class="btn btn-outline-danger btn-sm {{auth()->user()->is_support_staff == 0 ? 'hidden' : ''}}" data-toggle="modal" data-customer="{{json_encode($customer)}}" data-target="#delete-customer" data-toggle="tooltip" title="Delete"><i class="mdi mdi-delete-empty"></i></span>
+						
+					</td>
+					<td>
+						<a href="{{ route('show-customer', ['id'=>$customer->id]) }}">{{ $customer->code }} </a>
+					</td>
+					<td>{{ $customer->name }}</td>
+					<td>{{ $customer->postal_address }}</td>
+					<td>{{ $customer->physical_address }}</td>
+					<td>{{ $customer->website }}</td>
+					<td>{{ $customer->fax ?? '-' }}</td>
+					<td>{{$customer->vat_no}}</td>
+					<td>{{ $customer->email }}</td>
+					<td>{{ $customer->telephone1 ?? '-' }}</td>
+					<td>{{ $customer->telephone2 ?? '-' }}</td>
+					<td>{{ $customer->country->name }}</td>
+					<td class="text-small">{!! $customer->active == '1' ? '<i class="mdi mdi-marker-check text-success"></i>' : '<i class="mdi mdi-close-circle text-danger"></i>' !!}</td>
+
+				</tr>
+				@endforeach
+				@endif
+			</tbody>
+		</table>
+		@if(count($customers) == 0)
+		<div class="alert alert-info">
+			<i class="mdi mdi-alert"></i> No Customers added yet.
+		</div>
+		@endif
+	</div>
+</main>
+@endsection
+
+@section('script2')
+<div id="edit-customer" data-account="{{json_encode($accounts)}}" data-country="{{json_encode($countries)}}" class="modal fade" role="dialog">
+	<div class="modal-dialog modal-lg">
+		<!-- Modal content-->
+		<form class="modal-content" method="POST" action="" enctype="multipart/form-data">
+			@csrf
+			<div class="modal-header">
+				<h4 class="modal-title"></h4>
+			</div>
+			<div class="modal-body row">
+				
+			</div>
+			<div class="modal-footer">
+				<button type="submit" class="btn btn-primary"><i class="mdi mdi-content-save"></i> Save</button>
+				<button type="button" class="btn btn-default" data-dismiss="modal">Close</button>
+			</div>
+		</form>
+	</div>
+</div>
+<div class="modal fade" id="delete-customer" role="dialog">
+	<div class="modal-dialog">
+		<div class="modal-content">
+			<form action="{{ route('delete_customer') }}" method="post">
+				@csrf
+				<div class="modal-body">
+
+				</div>
+				<div class="modal-footer">
+					<button type="submit" class="btn btn-outline-primary btn-sm"><i class="mdi mdi-content-save"></i> Delete</button>
+					<button type="button" class="btn btn-outline-danger btn-sm" data-dismiss="modal">Close</button>
+				</div>
+			</form>
+		</div>
+	</div>
+</div>
+<div id="add-customer" class="modal fade" role="dialog">
+	<div class="modal-dialog modal-lg">
+		<!-- Modal content-->
+		<form class="modal-content" method="POST" action="{{ route('add-customers') }}" enctype="multipart/form-data">
+			@csrf
+			<div class="modal-header">
+				<h4 class="modal-title"><i class="mdi mdi-plus"></i> Add Customer</h4>
+			</div>
+			<div class="modal-body row">
+				<div class="col-sm-6">
+					<div class="form-group">
+						<label class="control-label">Name <span class="text-danger">*</span></label>
+						<input type="text" class="form-control" name="name" placeholder="Name..." required />
+					</div>
+					<div class="form-group">
+						<label class="control-label">Postal Address <span class="text-danger">*</span></label>
+						<textarea class="form-control" name="postal_address" placeholder="Postal Address..."></textarea>
+					</div>
+					<div class="form-group">
+						<label class="control-label">Physical Address <span class="text-danger">*</span></label>
+						<input type="text" class="form-control" name="physical_address" placeholder="Location..." required />
+					</div>
+					<div class="form-group">
+						<label class="control-label">Website </label>
+						<input type="text" class="form-control" name="website" placeholder="Website..." />
+					</div>
+					<div class="form-group">
+						<label class="control-label">Country</label>
+						<select class="form-control" name="country_id" data-placeholder>
+							@foreach ($countries as $c)
+							<option value="{{ $c->id }}">{{ $c->name }}</option>
+							@endforeach
+						</select>
+					</div>
+					<div class="form-group">
+						<label for="" class="control-label">KRA PIN </label>
+						<input type="text" name="vat_no" class="form-control">
+					</div>
+					<div class="row">
+						<div class="col-sm-6">
+							<div class="form-check">
+								<input class="form-check-input" type="checkbox" class="form-control" name="lpos_required" value="1" />
+								<label class="form-check-label">
+									Lpo Required?
+								</label>
+							</div>
+						</div>
+						<div class="col-sm-6">
+							<div class="form-check">
+								<input type="checkbox" class="form-check-input" value="1" checked name="active" />
+								<label class="form-check-label"> Is Active?</label>
+							</div>
+						</div>
+					</div>
+
+
+				</div>
+				<div class="col-sm-6">
+					<div class="form-group">
+						<label class="control-label">Fax</label>
+						<input type="text" class="form-control" name="fax" placeholder="Fax..." />
+					</div>
+					<div class="form-group">
+						<label class="control-label">Email <span class="text-danger">*</span></label>
+						<input type="email" class="form-control" name="email" placeholder="Email..." required />
+					</div>
+					<div class="form-group">
+						<label class="control-label">Phone 1 <span class="text-danger">*</span></label>
+						<input type="tel" class="form-control" name="phone1" value="" placeholder="Phone 1..." required />
+					</div>
+					<div class="form-group">
+						<label class="control-label">Phone 2 </label>
+						<input type="tel" class="form-control" name="phone2" value="" placeholder="Phone 2..." />
+					</div>
+					<div class="form-group">
+						<label class="control-label">Credit days</label>
+						<input type="number" name="credit_day" class="form-control" />
+					</div>
+					<div class="form-group">
+						<label class="control-label">Account Setting <span class="text-danger">*</span></label>
+						<select class="form-control" name="account_id" required data-placeholder>
+							<option value="">Choose Account Settings</option>
+							@foreach ($accounts as $account)
+							<option value="{{ $account->id }}">{{ $account->key }}</option>
+							@endforeach
+						</select>
+					</div>
+
+
+				</div>
+			</div>
+			<div class="modal-footer">
+				<button type="submit" class="btn btn-primary"><i class="mdi mdi-content-save"></i> Save</button>
+				<button type="button" class="btn btn-default" data-dismiss="modal">Close</button>
+			</div>
+		</form>
+	</div>
+</div>
+
+
+<script>
+
+	$(function() {
+		var edit_body = function(customer){
+			var body_ = $(`
+				<div class="col-sm-6">
+					<div class="form-group">
+						<label class="control-label">Name</label>
+						<input type="text" class="form-control" name="name" value="${customer.name }" placeholder="Name..." required />
+					</div>
+					<div class="form-group">
+						<label class="control-label">Postal Address</label>
+						<textarea class="form-control" name="postal_address" placeholder="Postal Address..." required>${customer.postal_address }</textarea>
+					</div>
+					<div class="form-group">
+						<label class="control-label">Physical Address</label>
+						<input type="text" class="form-control" name="physical_address" value="${customer.physical_address }" placeholder="Location..." required />
+					</div>
+					<div class="form-group">
+						<label class="control-label">Website</label>
+						<input type="text" class="form-control" name="website" value="${ customer.website }" placeholder="Website..." required />
+					</div>
+					<div class="form-group">
+						<label class="control-label">Country</label>
+						<select class="form-control" name="country_id" data-placeholder>
+
+						</select>
+					</div>
+					<div class="form-group">
+						<label for="" class="control-label">KRA PIN </label>
+						<input type="text" name="vat_no" value="${customer.vat_no}" class="form-control">
+					</div>
+					<div class="row">
+						<div class="col-sm-6">
+							<div class="form-check">
+								<input class="form-check-input" type="checkbox" class="form-control" name="lpos_required" value="1" ${customer.lpos_required==1 ? `checked`: ``} />
+								<label class="form-check-label">
+									Lpo Required?
+								</label>
+							</div>
+
+						</div>
+						<div class="col-sm-6">
+							<div class="form-check">
+								<input type="checkbox" value="1" class="form-check-input" name="active" ${customer.active == 1 ? `checked` : `` } />
+								<label class="form-check-label"> Is Active?</label>
+							</div>
+						</div>
+					</div>
+
+				</div>
+				<div class="col-sm-6">
+					<div class="form-group">
+						<label class="control-label">Fax</label>
+						<input type="fax" class="form-control" name="fax" value="${customer.fax }" placeholder="Fax..." />
+					</div>
+					<div class="form-group">
+						<label class="control-label">Email</label>
+						<input type="email" class="form-control" name="email" value="${customer.email}" placeholder="Email..." required />
+					</div>
+					<div class="form-group">
+						<label class="control-label">Phone 1</label>
+						<input type="tel" class="form-control" name="phone1" value="${customer.telephone1}" placeholder="Phone 1..." required />
+					</div>
+					<div class="form-group">
+						<label class="control-label">Phone 2</label>
+						<input type="tel" class="form-control" name="phone2" value="${customer.telephone2}" placeholder="Phone 2..." required />
+					</div>
+					<div class="form-group">
+						<label class="control-label">Credit days</label>
+						<input type="number" name="credit_day" value="${customer.credit_days}" class="form-control" />
+					</div>
+					<div class="form-group">
+						<label class="control-label">Account Setting</label>
+						<select class="form-control" name="account_id" data-placeholder>
+
+						</select>
+					</div>
+
+				</div>
+			`).clone()
+			return body_
+		}
+		$('#edit-customer').on('show.bs.modal',function(e){
+			$('#edit-customer').find('.modal-body').empty();
+			var customer = $(e.relatedTarget).data('customer');
+			var account = $(this).data('account');
+			var countries = $(this).data('country');
+			var editBody = edit_body(customer);
+			$('#edit-customer').find('form').attr('action','/customer/'+customer.id);
+			$(this).find('.modal-title').empty();
+			var header_ = `<i class="mdi mdi-pencil-outline"></i> Edit Customer ${customer.name}`;
+			$(this).find('.modal-title').append(header_);
+			$.each(account,function(i,j){
+				var option_ =  $(`<option value="${j.id}" ${j.id == customer.account_status ? `selected` : ``}>${j.value}</option>`).clone();
+				$(editBody).find('select[name="account_id"]').append(option_);
+			})
+			$(editBody).find('select[name="account_id"]').select2();
+			$.each(countries,function(i,c){
+				var option_ =  $(`<option value="${c.id}" ${c.id == customer.country_id ? `selected` : ``}>${c.name}</option>`).clone();
+				$(editBody).find('select[name="country_id"]').append(option_);
+			});
+			$(editBody).find('select[name="country_id"]').select2();
+			$('#edit-customer').find('.modal-body').append(editBody);
+		})
+		$('#delete-customer').on('show.bs.modal', function(e) {
+			var customer = $(e.relatedTarget).data('customer');
+			$(this).find('.modal-body').empty();
+			var text_ = `
+			<div class="alert alert-danger p-3">
+				<input type="hidden" name="customer_id" value="${customer.id}">
+				<i class="mdi mdi-alert-decagram ml-3"></i> Confirm you want to delete <b>Customer ${customer.name}</b>
+			</div>
+			`;
+			$(this).find('.modal-body').append(text_);
+			// console.log(customer);
+		})
+	})
+</script>
+@endsection

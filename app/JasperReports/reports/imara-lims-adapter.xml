@@ -1,0 +1,2 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<jdbcDataAdapter class="net.sf.jasperreports.data.jdbc.JdbcDataAdapterImpl"><name>imara-lims-adapter</name><driver>com.mysql.jdbc.Driver</driver><username>root</username><password>root@2019</password><savePassword>true</savePassword><url>jdbc:mysql://localhost/imara-lims</url><database></database><serverAddress></serverAddress><classpath>/Users/devcole/projects/imara-lims-v2/app/JasperReports/jdbc/mysql-connector-java-8.0.18/mysql-connector-java-8.0.18.jar</classpath></jdbcDataAdapter>

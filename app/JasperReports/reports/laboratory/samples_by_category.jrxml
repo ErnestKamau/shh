@@ -1,0 +1,315 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- Created with Jaspersoft Studio version 6.11.0.final using JasperReports Library version 6.11.0-0c4056ccaa4d25a5a8c45672d2f764ea3498bebb  -->
+<jasperReport xmlns="http://jasperreports.sourceforge.net/jasperreports" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://jasperreports.sourceforge.net/jasperreports http://jasperreports.sourceforge.net/xsd/jasperreport.xsd" name="samples_by_category" pageWidth="842" pageHeight="595" orientation="Landscape" columnWidth="802" leftMargin="20" rightMargin="20" topMargin="20" bottomMargin="20" isFloatColumnFooter="true" uuid="5ed70bad-affa-4aa7-bb83-fba07efbe304">
+	<property name="com.jaspersoft.studio.data.sql.tables" value=""/>
+	<property name="com.jaspersoft.studio.data.defaultdataadapter" value="imara-lims-mssql.xml"/>
+	<property name="com.jaspersoft.studio.unit." value="pixel"/>
+	<property name="com.jaspersoft.studio.unit.pageHeight" value="pixel"/>
+	<property name="com.jaspersoft.studio.unit.pageWidth" value="pixel"/>
+	<property name="com.jaspersoft.studio.unit.topMargin" value="pixel"/>
+	<property name="com.jaspersoft.studio.unit.bottomMargin" value="pixel"/>
+	<property name="com.jaspersoft.studio.unit.leftMargin" value="pixel"/>
+	<property name="com.jaspersoft.studio.unit.rightMargin" value="pixel"/>
+	<property name="com.jaspersoft.studio.unit.columnWidth" value="pixel"/>
+	<property name="com.jaspersoft.studio.unit.columnSpacing" value="pixel"/>
+	<property name="com.jaspersoft.studio.report.description" value=""/>
+	<style name="Zebra" mode="Transparent">
+		<conditionalStyle>
+			<conditionExpression><![CDATA[$V{REPORT_COUNT}%2 == 1]]></conditionExpression>
+			<style backcolor="#CAC5BB"/>
+		</conditionalStyle>
+	</style>
+	<parameter name="VAR_CATEGORY_TYPE" class="java.lang.String" evaluationTime="Early"/>
+	<parameter name="VAR_CATEGORY_VALUE" class="java.lang.String"/>
+	<parameter name="VAR_INCLAUSE" class="java.lang.String" isForPrompting="false">
+		<defaultValueExpression><![CDATA[LEN($P{VAR_CATEGORY_TYPE} ) > 0 ? " AND "+ $P{VAR_CATEGORY_TYPE} +" IN (" + $P{VAR_CATEGORY_VALUE} +") " : " "]]></defaultValueExpression>
+	</parameter>
+	<parameter name="VAR_START_DATE" class="java.lang.String">
+		<defaultValueExpression><![CDATA["01-12-2019"]]></defaultValueExpression>
+	</parameter>
+	<parameter name="VAR_END_DATE" class="java.lang.String">
+		<defaultValueExpression><![CDATA["31-12-9999"]]></defaultValueExpression>
+	</parameter>
+	<parameter name="WHERE_CLAUSE" class="java.lang.String" isForPrompting="false">
+		<defaultValueExpression><![CDATA[" WHERE receipt_date BETWEEN '"+$P{VAR_START_DATE} + "' AND '" + $P{VAR_END_DATE} + "' " + $P{VAR_INCLAUSE}]]></defaultValueExpression>
+	</parameter>
+	<queryString language="SQL">
+		<![CDATA[Select * from samples_by_category 
+		ORDER BY priority, receipt_date DESC]]>
+	</queryString>
+	<field name="batch_code" class="java.lang.String"/>
+	<field name="receipt_date" class="java.util.Date"/>
+	<field name="date_collected" class="java.util.Date"/>
+	<field name="reference_number" class="java.lang.String"/>
+	<field name="workflow_stage" class="java.lang.String"/>
+	<field name="priority" class="java.lang.String"/>
+	<field name="crm_name" class="java.lang.String"/>
+	<field name="crm_unit_name" class="java.lang.String"/>
+	<field name="sample_type_code" class="java.lang.String"/>
+	<field name="sample_type_name" class="java.lang.String"/>
+	<field name="sample_tracking_stage" class="java.lang.String"/>
+	<field name="company_name" class="java.lang.String"/>
+	<field name="no_of_samples" class="java.lang.Integer"/>
+	<field name="target_date" class="java.util.Date"/>
+	<field name="status_days" class="java.lang.Integer"/>
+	<group name="customer_group" keepTogether="true">
+		<groupExpression><![CDATA[$F{crm_name}]]></groupExpression>
+		<groupHeader>
+			<band height="50">
+				<property name="com.jaspersoft.studio.unit.height" value="px"/>
+				<rectangle>
+					<reportElement x="0" y="22" width="810" height="27" uuid="79e01d0e-b5d2-4565-9d4e-3c992bebf934">
+						<property name="com.jaspersoft.studio.unit.height" value="px"/>
+						<property name="com.jaspersoft.studio.unit.y" value="px"/>
+					</reportElement>
+				</rectangle>
+				<textField>
+					<reportElement x="4" y="27" width="59" height="18" uuid="0e71132d-669e-4afa-8ad7-249c8c02fddd">
+						<property name="com.jaspersoft.studio.unit.height" value="px"/>
+					</reportElement>
+					<textElement>
+						<font fontName="Century Gothic" size="10" isBold="true"/>
+					</textElement>
+					<textFieldExpression><![CDATA["Batch"]]></textFieldExpression>
+				</textField>
+				<textField>
+					<reportElement x="490" y="27" width="118" height="18" uuid="e8d38a41-2b5f-4f5d-b2b4-327d46f99814">
+						<property name="com.jaspersoft.studio.unit.height" value="px"/>
+						<property name="com.jaspersoft.studio.unit.y" value="px"/>
+					</reportElement>
+					<textElement>
+						<font fontName="Century Gothic" size="10" isBold="true"/>
+					</textElement>
+					<textFieldExpression><![CDATA["Tracking Stage"]]></textFieldExpression>
+				</textField>
+				<textField>
+					<reportElement x="105" y="27" width="100" height="18" uuid="c4ace183-5c0c-47a3-bda0-dd812bca841f">
+						<property name="com.jaspersoft.studio.unit.height" value="px"/>
+						<property name="com.jaspersoft.studio.unit.y" value="px"/>
+					</reportElement>
+					<textElement>
+						<font fontName="Century Gothic" size="10" isBold="true"/>
+					</textElement>
+					<textFieldExpression><![CDATA["Sample Type"]]></textFieldExpression>
+				</textField>
+				<textField>
+					<reportElement x="280" y="27" width="62" height="18" uuid="aefa2fdb-280a-4828-9d6b-d7c736dcb9c9">
+						<property name="com.jaspersoft.studio.unit.height" value="px"/>
+					</reportElement>
+					<textElement>
+						<font fontName="Century Gothic" size="10" isBold="true"/>
+					</textElement>
+					<textFieldExpression><![CDATA["Ref No"]]></textFieldExpression>
+				</textField>
+				<textField>
+					<reportElement x="355" y="27" width="125" height="18" uuid="841bb45e-956f-41d6-96d2-3d0582a584a8">
+						<property name="com.jaspersoft.studio.unit.height" value="px"/>
+					</reportElement>
+					<textElement>
+						<font fontName="Century Gothic" size="10" isBold="true"/>
+					</textElement>
+					<textFieldExpression><![CDATA["Workflow Stage"]]></textFieldExpression>
+				</textField>
+				<textField>
+					<reportElement x="214" y="27" width="70" height="18" uuid="7fc70516-8f5a-4203-af99-f23f31893db1">
+						<property name="com.jaspersoft.studio.unit.height" value="px"/>
+						<property name="com.jaspersoft.studio.unit.y" value="px"/>
+					</reportElement>
+					<textElement>
+						<font fontName="Century Gothic" size="10" isBold="true"/>
+					</textElement>
+					<textFieldExpression><![CDATA["No of Samp"]]></textFieldExpression>
+				</textField>
+				<textField>
+					<reportElement x="616" y="27" width="50" height="18" uuid="430b3d4d-c1d2-4bc3-9dff-8daaaa472eb1">
+						<property name="com.jaspersoft.studio.unit.height" value="px"/>
+						<property name="com.jaspersoft.studio.unit.y" value="px"/>
+					</reportElement>
+					<textElement>
+						<font fontName="Century Gothic" size="10" isBold="true"/>
+					</textElement>
+					<textFieldExpression><![CDATA["Receipt"]]></textFieldExpression>
+				</textField>
+				<textField>
+					<reportElement x="675" y="27" width="50" height="18" uuid="256f4f30-9864-4889-83b6-3bf39102d71e">
+						<property name="com.jaspersoft.studio.unit.height" value="px"/>
+						<property name="com.jaspersoft.studio.unit.y" value="px"/>
+					</reportElement>
+					<textElement>
+						<font fontName="Century Gothic" size="10" isBold="true"/>
+					</textElement>
+					<textFieldExpression><![CDATA["Target"]]></textFieldExpression>
+				</textField>
+				<textField>
+					<reportElement x="736" y="28" width="71" height="18" uuid="9ae74df1-45e4-4e29-96b9-e2bf5db4b93f">
+						<property name="com.jaspersoft.studio.unit.height" value="px"/>
+						<property name="com.jaspersoft.studio.unit.y" value="px"/>
+					</reportElement>
+					<textElement>
+						<font fontName="Century Gothic" size="10" isBold="true"/>
+					</textElement>
+					<textFieldExpression><![CDATA["Status Days"]]></textFieldExpression>
+				</textField>
+				<textField>
+					<reportElement x="1" y="5" width="519" height="17" uuid="39224d16-1986-4aaf-9d77-d2c95a0382e8"/>
+					<textElement>
+						<font fontName="Century Gothic" size="11" isBold="true"/>
+					</textElement>
+					<textFieldExpression><![CDATA[$F{crm_name}]]></textFieldExpression>
+				</textField>
+			</band>
+		</groupHeader>
+		<groupFooter>
+			<band>
+				<property name="com.jaspersoft.studio.unit.height" value="px"/>
+			</band>
+		</groupFooter>
+	</group>
+	<background>
+		<band splitType="Stretch"/>
+	</background>
+	<title>
+		<band height="97" splitType="Stretch">
+			<property name="com.jaspersoft.studio.unit.height" value="pixel"/>
+			<rectangle>
+				<reportElement x="0" y="0" width="810" height="81" uuid="7d9f8f10-fe7a-4a01-ba7f-2a88d3e81fa3">
+					<property name="com.jaspersoft.studio.unit.width" value="px"/>
+				</reportElement>
+			</rectangle>
+			<textField>
+				<reportElement x="2" y="10" width="798" height="30" uuid="6c1afada-7ee9-4096-a88a-3620545681c4"/>
+				<textElement textAlignment="Center">
+					<font fontName="Century Gothic" size="22" isBold="true"/>
+				</textElement>
+				<textFieldExpression><![CDATA["Samples Report"]]></textFieldExpression>
+			</textField>
+			<textField pattern="MMMMM dd, yyyy">
+				<reportElement x="331" y="42" width="141" height="21" uuid="8a76d6c3-1f89-4ce4-88e6-211efd172d1c"/>
+				<textElement textAlignment="Center"/>
+				<textFieldExpression><![CDATA[new java.util.Date()]]></textFieldExpression>
+			</textField>
+		</band>
+	</title>
+	<pageHeader>
+		<band splitType="Stretch">
+			<property name="com.jaspersoft.studio.unit.height" value="px"/>
+		</band>
+	</pageHeader>
+	<columnHeader>
+		<band splitType="Stretch">
+			<property name="com.jaspersoft.studio.unit.height" value="px"/>
+		</band>
+	</columnHeader>
+	<detail>
+		<band height="26" splitType="Stretch">
+			<property name="com.jaspersoft.studio.unit.height" value="px"/>
+			<rectangle>
+				<reportElement x="0" y="1" width="810" height="25" backcolor="#EDEDED" uuid="c58e2bc4-4759-4e94-8ac5-52c540e18be4">
+					<property name="com.jaspersoft.studio.unit.width" value="px"/>
+					<property name="com.jaspersoft.studio.unit.y" value="px"/>
+					<property name="com.jaspersoft.studio.unit.height" value="px"/>
+					<printWhenExpression><![CDATA[$V{REPORT_COUNT}%2 == 1]]></printWhenExpression>
+				</reportElement>
+				<graphicElement>
+					<pen lineWidth="0.0" lineColor="#FFFFFF"/>
+				</graphicElement>
+			</rectangle>
+			<textField>
+				<reportElement x="3" y="5" width="98" height="17" uuid="2b5bbe50-508d-4f10-863a-792cab400cd7"/>
+				<textElement>
+					<font fontName="Century Gothic" size="9"/>
+				</textElement>
+				<textFieldExpression><![CDATA[$F{batch_code}]]></textFieldExpression>
+			</textField>
+			<textField>
+				<reportElement x="105" y="5" width="105" height="17" uuid="2d0b13b3-e9c9-4dd6-90cb-eb654b9174dc"/>
+				<textElement>
+					<font fontName="Century Gothic" size="9"/>
+				</textElement>
+				<textFieldExpression><![CDATA[$F{sample_type_name}]]></textFieldExpression>
+			</textField>
+			<textField>
+				<reportElement x="214" y="5" width="60" height="17" uuid="6c121e5c-7c2a-4106-99d8-cca7029a431b"/>
+				<textElement textAlignment="Center">
+					<font fontName="Century Gothic" size="9"/>
+				</textElement>
+				<textFieldExpression><![CDATA[$F{no_of_samples}]]></textFieldExpression>
+			</textField>
+			<textField>
+				<reportElement x="279" y="5" width="73" height="17" uuid="4e509352-b796-465c-84aa-3471e57be8b7"/>
+				<textElement textAlignment="Left">
+					<font fontName="Century Gothic" size="9"/>
+				</textElement>
+				<textFieldExpression><![CDATA[$F{reference_number}]]></textFieldExpression>
+			</textField>
+			<textField>
+				<reportElement x="354" y="5" width="135" height="17" uuid="7773f16c-7aca-4a94-8882-0e32a30df1b2"/>
+				<textElement textAlignment="Left">
+					<font fontName="Century Gothic" size="9"/>
+				</textElement>
+				<textFieldExpression><![CDATA[$F{workflow_stage}]]></textFieldExpression>
+			</textField>
+			<textField>
+				<reportElement x="490" y="5" width="127" height="17" uuid="e8d0ffe4-5dd2-4611-890d-1401bb3d733b"/>
+				<textElement textAlignment="Left">
+					<font fontName="Century Gothic" size="9"/>
+				</textElement>
+				<textFieldExpression><![CDATA[$F{sample_tracking_stage}]]></textFieldExpression>
+			</textField>
+			<textField>
+				<reportElement x="616" y="5" width="57" height="17" uuid="e2ab8e91-4e21-44f1-ac40-498600253253"/>
+				<textElement textAlignment="Left">
+					<font fontName="Century Gothic" size="9"/>
+				</textElement>
+				<textFieldExpression><![CDATA[DATEFORMAT($F{receipt_date}, "dd/M/yyyy")]]></textFieldExpression>
+			</textField>
+			<textField>
+				<reportElement x="676" y="5" width="57" height="17" uuid="2129aa6c-448e-4f48-868a-ae12d0c57794"/>
+				<textElement textAlignment="Left">
+					<font fontName="Century Gothic" size="9"/>
+				</textElement>
+				<textFieldExpression><![CDATA[DATEFORMAT($F{target_date}, "dd/M/yyyy")]]></textFieldExpression>
+			</textField>
+			<textField>
+				<reportElement x="733" y="4" width="73" height="17" uuid="65e68f50-2915-4a25-9098-5a496b0625cd"/>
+				<textElement textAlignment="Center">
+					<font fontName="Century Gothic" size="9"/>
+				</textElement>
+				<textFieldExpression><![CDATA[$F{status_days}]]></textFieldExpression>
+			</textField>
+			<line>
+				<reportElement x="0" y="0" width="1" height="26" uuid="0780ed1f-0b1c-4307-9de0-8157e5ab2f39">
+					<property name="com.jaspersoft.studio.unit.x" value="px"/>
+					<property name="com.jaspersoft.studio.unit.height" value="px"/>
+					<property name="com.jaspersoft.studio.unit.y" value="px"/>
+				</reportElement>
+			</line>
+			<line>
+				<reportElement x="810" y="0" width="1" height="26" uuid="5a9541e6-9ad0-40eb-970b-186806db29c7">
+					<property name="com.jaspersoft.studio.unit.height" value="px"/>
+					<property name="com.jaspersoft.studio.unit.x" value="px"/>
+					<property name="com.jaspersoft.studio.unit.y" value="px"/>
+				</reportElement>
+			</line>
+		</band>
+	</detail>
+	<columnFooter>
+		<band height="22" splitType="Stretch">
+			<line>
+				<reportElement x="0" y="0" width="810" height="1" uuid="ef8fe7fd-49f5-4076-b3f8-0ee27d330d6d">
+					<property name="com.jaspersoft.studio.unit.width" value="px"/>
+					<property name="com.jaspersoft.studio.unit.y" value="px"/>
+				</reportElement>
+			</line>
+		</band>
+	</columnFooter>
+	<pageFooter>
+		<band height="27" splitType="Stretch">
+			<textField>
+				<reportElement x="1" y="4" width="100" height="16" uuid="b67f9423-e6f4-471d-baa9-5f0e511fbf50"/>
+				<textElement textAlignment="Left"/>
+				<textFieldExpression><![CDATA["Page " + $V{PAGE_NUMBER}]]></textFieldExpression>
+			</textField>
+		</band>
+	</pageFooter>
+</jasperReport>

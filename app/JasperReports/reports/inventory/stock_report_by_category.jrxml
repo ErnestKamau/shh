@@ -1,0 +1,336 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- Created with Jaspersoft Studio version 6.11.0.final using JasperReports Library version 6.11.0-0c4056ccaa4d25a5a8c45672d2f764ea3498bebb  -->
+<jasperReport xmlns="http://jasperreports.sourceforge.net/jasperreports" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://jasperreports.sourceforge.net/jasperreports http://jasperreports.sourceforge.net/xsd/jasperreport.xsd" name="stock_report_by_category" pageWidth="595" pageHeight="595" columnWidth="585" leftMargin="5" rightMargin="5" topMargin="5" bottomMargin="5" isFloatColumnFooter="true" uuid="5ed70bad-affa-4aa7-bb83-fba07efbe304">
+	<property name="com.jaspersoft.studio.data.sql.tables" value=""/>
+	<property name="com.jaspersoft.studio.data.defaultdataadapter" value="imara-lims-mssql.xml"/>
+	<property name="com.jaspersoft.studio.unit." value="pixel"/>
+	<property name="com.jaspersoft.studio.unit.pageHeight" value="pixel"/>
+	<property name="com.jaspersoft.studio.unit.pageWidth" value="pixel"/>
+	<property name="com.jaspersoft.studio.unit.topMargin" value="pixel"/>
+	<property name="com.jaspersoft.studio.unit.bottomMargin" value="pixel"/>
+	<property name="com.jaspersoft.studio.unit.leftMargin" value="pixel"/>
+	<property name="com.jaspersoft.studio.unit.rightMargin" value="pixel"/>
+	<property name="com.jaspersoft.studio.unit.columnWidth" value="pixel"/>
+	<property name="com.jaspersoft.studio.unit.columnSpacing" value="pixel"/>
+	<property name="com.jaspersoft.studio.report.description" value=""/>
+	<style name="Zebra" mode="Transparent">
+		<conditionalStyle>
+			<conditionExpression><![CDATA[$V{REPORT_COUNT}%2 == 1]]></conditionExpression>
+			<style backcolor="#CAC5BB"/>
+		</conditionalStyle>
+	</style>
+	<parameter name="VAR_CATEGORY_TYPE" class="java.lang.String" evaluationTime="Early"/>
+	<parameter name="VAR_CATEGORY_VALUE" class="java.lang.String"/>
+	<parameter name="VAR_INCLAUSE" class="java.lang.String" isForPrompting="false">
+		<defaultValueExpression><![CDATA[LEN($P{VAR_CATEGORY_TYPE} ) > 0 ? " AND "+ $P{VAR_CATEGORY_TYPE} +" IN (" + $P{VAR_CATEGORY_VALUE} +") " : " "]]></defaultValueExpression>
+	</parameter>
+	<parameter name="VAR_START_DATE" class="java.lang.String">
+		<defaultValueExpression><![CDATA["01-12-2019"]]></defaultValueExpression>
+	</parameter>
+	<parameter name="VAR_END_DATE" class="java.lang.String">
+		<defaultValueExpression><![CDATA["31-12-9999"]]></defaultValueExpression>
+	</parameter>
+	<parameter name="WHERE_CLAUSE" class="java.lang.String" isForPrompting="false">
+		<defaultValueExpression><![CDATA[" WHERE created_at BETWEEN '"+$P{VAR_START_DATE} + "' AND '" + $P{VAR_END_DATE} + "' " + $P{VAR_INCLAUSE}]]></defaultValueExpression>
+	</parameter>
+	<queryString language="SQL">
+		<![CDATA[Select * from Inventory_Items_View 
+		$P!{WHERE_CLAUSE} 
+		ORDER BY inventory_sub_category_name asc, inventory_category_id asc, inventory_sub_category_id asc, 
+created_at desc]]>
+	</queryString>
+	<field name="batch_code" class="java.lang.String"/>
+	<field name="created_at" class="java.util.Date"/>
+	<field name="expiry" class="java.util.Date"/>
+	<field name="inventory_category_name" class="java.lang.String"/>
+	<field name="inventory_sub_category_name" class="java.lang.String"/>
+	<field name="inventory_department" class="java.lang.String"/>
+	<field name="unit_type" class="java.lang.String"/>
+	<field name="stock_in" class="java.lang.Float"/>
+	<field name="stock_out" class="java.lang.Float"/>
+	<field name="status" class="java.lang.String"/>
+	<field name="inventory_store" class="java.lang.String"/>
+	<field name="inventory_store_slot" class="java.lang.String"/>
+	<field name="po_number" class="java.lang.String"/>
+	<field name="barcode" class="java.lang.String"/>
+	<field name="created_by_name" class="java.lang.String"/>
+	<field name="price" class="java.lang.Float"/>
+	<field name="previous_batch_code" class="java.lang.String"/>
+	<field name="received_by_name" class="java.lang.String"/>
+	<group name="inventory_category" isStartNewPage="true" isReprintHeaderOnEachPage="true" keepTogether="true">
+		<groupExpression><![CDATA[$F{inventory_category_name}]]></groupExpression>
+		<groupHeader>
+			<band height="50">
+				<property name="com.jaspersoft.studio.unit.height" value="px"/>
+				<rectangle>
+					<reportElement x="0" y="22" width="585" height="27" uuid="79e01d0e-b5d2-4565-9d4e-3c992bebf934">
+						<property name="com.jaspersoft.studio.unit.height" value="px"/>
+						<property name="com.jaspersoft.studio.unit.y" value="px"/>
+						<property name="com.jaspersoft.studio.unit.width" value="px"/>
+					</reportElement>
+				</rectangle>
+				<textField>
+					<reportElement x="2" y="27" width="59" height="18" uuid="0e71132d-669e-4afa-8ad7-249c8c02fddd">
+						<property name="com.jaspersoft.studio.unit.height" value="px"/>
+					</reportElement>
+					<textElement>
+						<font fontName="Century Gothic" size="10" isBold="true"/>
+					</textElement>
+					<textFieldExpression><![CDATA["Name"]]></textFieldExpression>
+				</textField>
+				<textField>
+					<reportElement x="529" y="27" width="45" height="18" uuid="e8d38a41-2b5f-4f5d-b2b4-327d46f99814">
+						<property name="com.jaspersoft.studio.unit.height" value="px"/>
+						<property name="com.jaspersoft.studio.unit.y" value="px"/>
+					</reportElement>
+					<textElement>
+						<font fontName="Century Gothic" size="10" isBold="true"/>
+					</textElement>
+					<textFieldExpression><![CDATA["Status"]]></textFieldExpression>
+				</textField>
+				<textField>
+					<reportElement x="173" y="27" width="35" height="18" uuid="aefa2fdb-280a-4828-9d6b-d7c736dcb9c9">
+						<property name="com.jaspersoft.studio.unit.height" value="px"/>
+						<property name="com.jaspersoft.studio.unit.width" value="px"/>
+					</reportElement>
+					<textElement textAlignment="Center">
+						<font fontName="Century Gothic" size="10" isBold="true"/>
+					</textElement>
+					<textFieldExpression><![CDATA["Out"]]></textFieldExpression>
+				</textField>
+				<textField>
+					<reportElement x="276" y="27" width="52" height="18" uuid="841bb45e-956f-41d6-96d2-3d0582a584a8">
+						<property name="com.jaspersoft.studio.unit.height" value="px"/>
+						<property name="com.jaspersoft.studio.unit.width" value="px"/>
+					</reportElement>
+					<textElement>
+						<font fontName="Century Gothic" size="10" isBold="true"/>
+					</textElement>
+					<textFieldExpression><![CDATA["Dept"]]></textFieldExpression>
+				</textField>
+				<textField>
+					<reportElement x="125" y="27" width="41" height="18" uuid="7fc70516-8f5a-4203-af99-f23f31893db1">
+						<property name="com.jaspersoft.studio.unit.height" value="px"/>
+						<property name="com.jaspersoft.studio.unit.y" value="px"/>
+					</reportElement>
+					<textElement textAlignment="Right">
+						<font fontName="Century Gothic" size="10" isBold="true"/>
+					</textElement>
+					<textFieldExpression><![CDATA["In"]]></textFieldExpression>
+				</textField>
+				<textField isBlankWhenNull="true">
+					<reportElement x="2" y="5" width="298" height="17" uuid="39224d16-1986-4aaf-9d77-d2c95a0382e8">
+						<property name="com.jaspersoft.studio.unit.width" value="px"/>
+					</reportElement>
+					<textElement>
+						<font fontName="Century Gothic" size="11" isBold="true"/>
+					</textElement>
+					<textFieldExpression><![CDATA[LEN($F{inventory_category_name} ) > 0 ? $F{inventory_category_name} : LEN($F{inventory_sub_category_name} ) > 0 ? $F{inventory_sub_category_name} : ""]]></textFieldExpression>
+				</textField>
+				<textField>
+					<reportElement x="339" y="27" width="71" height="18" uuid="c2d4161c-5473-42c6-8695-775844a74224">
+						<property name="com.jaspersoft.studio.unit.height" value="px"/>
+						<property name="com.jaspersoft.studio.unit.y" value="px"/>
+					</reportElement>
+					<textElement>
+						<font fontName="Century Gothic" size="10" isBold="true"/>
+					</textElement>
+					<textFieldExpression><![CDATA["Store"]]></textFieldExpression>
+				</textField>
+				<textField>
+					<reportElement x="427" y="27" width="83" height="18" uuid="b070ec91-00f9-4d44-8c62-118ebcc86c43">
+						<property name="com.jaspersoft.studio.unit.height" value="px"/>
+						<property name="com.jaspersoft.studio.unit.y" value="px"/>
+						<property name="com.jaspersoft.studio.unit.x" value="px"/>
+					</reportElement>
+					<textElement>
+						<font fontName="Century Gothic" size="10" isBold="true"/>
+					</textElement>
+					<textFieldExpression><![CDATA["Slot/Sub Store"]]></textFieldExpression>
+				</textField>
+				<textField>
+					<reportElement x="213" y="27" width="60" height="18" uuid="6f0ee235-5d15-4a57-ad8c-3cfcd2d028e3">
+						<property name="com.jaspersoft.studio.unit.height" value="px"/>
+						<property name="com.jaspersoft.studio.unit.width" value="px"/>
+					</reportElement>
+					<textElement textAlignment="Left">
+						<font fontName="Century Gothic" size="10" isBold="true"/>
+					</textElement>
+					<textFieldExpression><![CDATA["Trans Date"]]></textFieldExpression>
+				</textField>
+				<textField isBlankWhenNull="true">
+					<reportElement x="470" y="5" width="116" height="17" uuid="952553fd-6034-4f3b-9c39-08361c0bb601">
+						<property name="com.jaspersoft.studio.unit.width" value="px"/>
+					</reportElement>
+					<textElement textAlignment="Right">
+						<font fontName="Century Gothic" size="11" isBold="true"/>
+					</textElement>
+					<textFieldExpression><![CDATA[$F{unit_type}]]></textFieldExpression>
+				</textField>
+			</band>
+		</groupHeader>
+		<groupFooter>
+			<band>
+				<property name="com.jaspersoft.studio.unit.height" value="px"/>
+			</band>
+		</groupFooter>
+	</group>
+	<background>
+		<band splitType="Stretch"/>
+	</background>
+	<title>
+		<band height="83" splitType="Stretch">
+			<property name="com.jaspersoft.studio.unit.height" value="pixel"/>
+			<rectangle>
+				<reportElement x="0" y="0" width="585" height="81" uuid="7d9f8f10-fe7a-4a01-ba7f-2a88d3e81fa3">
+					<property name="com.jaspersoft.studio.unit.width" value="px"/>
+				</reportElement>
+			</rectangle>
+			<textField>
+				<reportElement x="2" y="10" width="553" height="30" uuid="6c1afada-7ee9-4096-a88a-3620545681c4">
+					<property name="com.jaspersoft.studio.unit.width" value="px"/>
+				</reportElement>
+				<textElement textAlignment="Center">
+					<font fontName="Century Gothic" size="22" isBold="true"/>
+				</textElement>
+				<textFieldExpression><![CDATA["Stock Report"]]></textFieldExpression>
+			</textField>
+			<textField pattern="MMMMM dd, yyyy">
+				<reportElement x="213" y="42" width="141" height="21" uuid="8a76d6c3-1f89-4ce4-88e6-211efd172d1c"/>
+				<textElement textAlignment="Center"/>
+				<textFieldExpression><![CDATA[new java.util.Date()]]></textFieldExpression>
+			</textField>
+		</band>
+	</title>
+	<pageHeader>
+		<band splitType="Stretch">
+			<property name="com.jaspersoft.studio.unit.height" value="px"/>
+		</band>
+	</pageHeader>
+	<columnHeader>
+		<band splitType="Stretch">
+			<property name="com.jaspersoft.studio.unit.height" value="px"/>
+		</band>
+	</columnHeader>
+	<detail>
+		<band height="26" splitType="Stretch">
+			<property name="com.jaspersoft.studio.unit.height" value="px"/>
+			<rectangle>
+				<reportElement x="0" y="0" width="585" height="26" backcolor="#EDEDED" uuid="c58e2bc4-4759-4e94-8ac5-52c540e18be4">
+					<property name="com.jaspersoft.studio.unit.width" value="px"/>
+					<property name="com.jaspersoft.studio.unit.y" value="px"/>
+					<property name="com.jaspersoft.studio.unit.height" value="px"/>
+					<printWhenExpression><![CDATA[$V{REPORT_COUNT}%2 == 1]]></printWhenExpression>
+				</reportElement>
+				<graphicElement>
+					<pen lineWidth="0.0" lineColor="#FFFFFF"/>
+				</graphicElement>
+			</rectangle>
+			<textField isBlankWhenNull="true">
+				<reportElement x="2" y="5" width="118" height="17" uuid="2b5bbe50-508d-4f10-863a-792cab400cd7">
+					<property name="com.jaspersoft.studio.unit.width" value="px"/>
+				</reportElement>
+				<textElement>
+					<font fontName="Century Gothic" size="8"/>
+				</textElement>
+				<textFieldExpression><![CDATA[LEN($F{inventory_sub_category_name} ) > 0 ? $F{inventory_sub_category_name} : LEN($F{inventory_category_name} ) > 0 ? $F{inventory_category_name} : ""]]></textFieldExpression>
+			</textField>
+			<textField pattern="#,##0.00#" isBlankWhenNull="true">
+				<reportElement x="118" y="5" width="50" height="17" uuid="6c121e5c-7c2a-4106-99d8-cca7029a431b">
+					<property name="com.jaspersoft.studio.unit.width" value="px"/>
+				</reportElement>
+				<textElement textAlignment="Right">
+					<font fontName="Century Gothic" size="8"/>
+				</textElement>
+				<textFieldExpression><![CDATA[$F{stock_in}]]></textFieldExpression>
+			</textField>
+			<textField pattern="#,##0.00#" isBlankWhenNull="true">
+				<reportElement x="155" y="5" width="50" height="17" uuid="4e509352-b796-465c-84aa-3471e57be8b7">
+					<property name="com.jaspersoft.studio.unit.width" value="px"/>
+				</reportElement>
+				<textElement textAlignment="Right">
+					<font fontName="Century Gothic" size="8"/>
+				</textElement>
+				<textFieldExpression><![CDATA[$F{stock_out}]]></textFieldExpression>
+			</textField>
+			<textField isBlankWhenNull="true">
+				<reportElement x="273" y="5" width="65" height="17" uuid="7773f16c-7aca-4a94-8882-0e32a30df1b2">
+					<property name="com.jaspersoft.studio.unit.width" value="px"/>
+				</reportElement>
+				<textElement textAlignment="Left">
+					<font fontName="Century Gothic" size="8"/>
+				</textElement>
+				<textFieldExpression><![CDATA[$F{inventory_department}]]></textFieldExpression>
+			</textField>
+			<textField isBlankWhenNull="true">
+				<reportElement x="530" y="5" width="53" height="17" uuid="e8d0ffe4-5dd2-4611-890d-1401bb3d733b">
+					<property name="com.jaspersoft.studio.unit.width" value="px"/>
+				</reportElement>
+				<textElement textAlignment="Left">
+					<font fontName="Century Gothic" size="8"/>
+				</textElement>
+				<textFieldExpression><![CDATA[$F{status}]]></textFieldExpression>
+			</textField>
+			<line>
+				<reportElement x="0" y="0" width="1" height="26" uuid="0780ed1f-0b1c-4307-9de0-8157e5ab2f39">
+					<property name="com.jaspersoft.studio.unit.x" value="px"/>
+					<property name="com.jaspersoft.studio.unit.height" value="px"/>
+					<property name="com.jaspersoft.studio.unit.y" value="px"/>
+				</reportElement>
+			</line>
+			<line>
+				<reportElement x="585" y="0" width="1" height="26" uuid="5a9541e6-9ad0-40eb-970b-186806db29c7">
+					<property name="com.jaspersoft.studio.unit.height" value="px"/>
+					<property name="com.jaspersoft.studio.unit.y" value="px"/>
+					<property name="com.jaspersoft.studio.unit.x" value="px"/>
+				</reportElement>
+			</line>
+			<textField isBlankWhenNull="true">
+				<reportElement x="428" y="5" width="100" height="17" uuid="9216bdee-d871-4c97-82d5-3dbfd6cb67c4">
+					<property name="com.jaspersoft.studio.unit.y" value="px"/>
+				</reportElement>
+				<textElement textAlignment="Left">
+					<font fontName="Century Gothic" size="8"/>
+				</textElement>
+				<textFieldExpression><![CDATA[$F{inventory_store_slot}]]></textFieldExpression>
+			</textField>
+			<textField isBlankWhenNull="true">
+				<reportElement x="341" y="5" width="84" height="17" uuid="a2d5f0e9-f925-48ee-bcbd-314da92df6b7">
+					<property name="com.jaspersoft.studio.unit.width" value="px"/>
+				</reportElement>
+				<textElement textAlignment="Left">
+					<font fontName="Century Gothic" size="8"/>
+				</textElement>
+				<textFieldExpression><![CDATA[$F{inventory_store}]]></textFieldExpression>
+			</textField>
+			<textField pattern="dd/MM/yyyy" isBlankWhenNull="true">
+				<reportElement x="216" y="5" width="54" height="17" uuid="d4197d4b-1469-4d1a-9a9b-814fd556cc25">
+					<property name="com.jaspersoft.studio.unit.width" value="px"/>
+				</reportElement>
+				<textElement textAlignment="Left">
+					<font fontName="Century Gothic" size="8"/>
+				</textElement>
+				<textFieldExpression><![CDATA[$F{created_at}]]></textFieldExpression>
+			</textField>
+		</band>
+	</detail>
+	<columnFooter>
+		<band height="22" splitType="Stretch">
+			<line>
+				<reportElement x="0" y="0" width="585" height="1" uuid="ef8fe7fd-49f5-4076-b3f8-0ee27d330d6d">
+					<property name="com.jaspersoft.studio.unit.y" value="px"/>
+					<property name="com.jaspersoft.studio.unit.width" value="px"/>
+				</reportElement>
+			</line>
+		</band>
+	</columnFooter>
+	<pageFooter>
+		<band height="27" splitType="Stretch">
+			<textField>
+				<reportElement x="1" y="4" width="69" height="16" uuid="b67f9423-e6f4-471d-baa9-5f0e511fbf50"/>
+				<textElement textAlignment="Left"/>
+				<textFieldExpression><![CDATA["Page " + $V{PAGE_NUMBER}]]></textFieldExpression>
+			</textField>
+		</band>
+	</pageFooter>
+</jasperReport>

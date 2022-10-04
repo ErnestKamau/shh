@@ -1,0 +1,88 @@
+<?php
+
+use Illuminate\Database\Seeder;
+
+class DatabaseSeeder extends Seeder
+{
+    /**
+     * Seed the application's database.
+     *
+     * @return void
+     */
+    public function run()
+    {
+        // $this->call(UserSeeder::class);
+        $this->call(AnalysisElementsTableSeeder::class);
+        $this->call(AnalysisGuidesTableSeeder::class);
+        $this->call(AnalysisMethodElementsTableSeeder::class);
+        $this->call(AnalysisMethodsTableSeeder::class);
+        $this->call(AnalysisTypesTableSeeder::class);
+        $this->call(AnalytesTableSeeder::class);
+        $this->call(ApprovalsTableSeeder::class);
+        $this->call(AuditsTableSeeder::class);
+        $this->call(BatchCommentsTableSeeder::class);
+        $this->call(CapturedResultsTableSeeder::class);
+        $this->call(ChainOfCustodiesTableSeeder::class);
+        $this->call(CompaniesTableSeeder::class);
+        $this->call(CompanyProductsTableSeeder::class);
+        $this->call(CountriesTableSeeder::class);
+        $this->call(CrmCompanyUnitsTableSeeder::class);
+        $this->call(CrmCustomerContactsTableSeeder::class);
+        $this->call(CrmCustomersTableSeeder::class);
+        $this->call(CurrencyConversionsTableSeeder::class);
+        $this->call(EntityApprovalsTableSeeder::class);
+        $this->call(EntityAttachmentsTableSeeder::class);
+        $this->call(EntityNotesTableSeeder::class);
+        $this->call(EquipmentTableSeeder::class);
+        $this->call(EquipmentOperatorsTableSeeder::class);
+        $this->call(EquipmentUsageTableSeeder::class);
+        $this->call(FailedJobsTableSeeder::class);
+        $this->call(InventoryCategoriesTableSeeder::class);
+        $this->call(InventoryDepartmentsTableSeeder::class);
+        $this->call(InventoryItemNotesTableSeeder::class);
+        $this->call(InventoryItemsTableSeeder::class);
+        $this->call(InventoryLocationUsersTableSeeder::class);
+        $this->call(InventoryLocationsTableSeeder::class);
+        $this->call(InventoryOrderItemToInventoryItemsTableSeeder::class);
+        $this->call(InventoryOrderItemsTableSeeder::class);
+        $this->call(InventoryOrdersTableSeeder::class);
+        $this->call(InventoryStoreSlotContentsTableSeeder::class);
+        $this->call(InventoryStoreSlotsTableSeeder::class);
+        $this->call(InventoryStoresTableSeeder::class);
+        $this->call(InventorySubCategoriesTableSeeder::class);
+        $this->call(InventorySupplierRatingsTableSeeder::class);
+        $this->call(LabsTableSeeder::class);
+        $this->call(MaintainanceCalibrationLogsTableSeeder::class);
+        $this->call(MethodReagentsTableSeeder::class);
+        $this->call(ModulePreConfigsTableSeeder::class);
+        $this->call(NamingConvensionConsensusesTableSeeder::class);
+        $this->call(PasswordResetsTableSeeder::class);
+        $this->call(PersonnelWorkHistoriesTableSeeder::class);
+        $this->call(PhoneContactsTableSeeder::class);
+        $this->call(ReportHeaderDetailsTableSeeder::class);
+        $this->call(ReportingUnitsTableSeeder::class);
+        $this->call(RequestEntitiesTableSeeder::class);
+        $this->call(RequestEntityItemsTableSeeder::class);
+        $this->call(RequestTypesTableSeeder::class);
+        $this->call(ResultsTableSeeder::class);
+        $this->call(RolesTableSeeder::class);
+        $this->call(SampleAnalysisStagesTableSeeder::class);
+        $this->call(SampleConditionsTableSeeder::class);
+        $this->call(SampleDatesTableSeeder::class);
+        $this->call(SampleDetailsTableSeeder::class);
+        $this->call(SampleHeadersTableSeeder::class);
+        $this->call(SamplePointsTableSeeder::class);
+        $this->call(SampleToSampleAnalysisStagesTableSeeder::class);
+        $this->call(SampleTypesTableSeeder::class);
+        $this->call(StockTakingSheetsTableSeeder::class);
+        $this->call(StockTakingsTableSeeder::class);
+        $this->call(StockTransfersTableSeeder::class);
+        $this->call(SupplierCategoriesTableSeeder::class);
+        $this->call(SupplierQuotesTableSeeder::class);
+        $this->call(SupplierRFQSTableSeeder::class);
+        $this->call(SuppliersTableSeeder::class);
+        $this->call(UserAlertsTableSeeder::class);
+        $this->call(UserRolesTableSeeder::class);
+        $this->call(UsersTableSeeder::class);
+    }
+}

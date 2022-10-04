@@ -1,0 +1,63 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- Created with Jaspersoft Studio version 6.11.0.final using JasperReports Library version 6.11.0-0c4056ccaa4d25a5a8c45672d2f764ea3498bebb  -->
+<jasperReport xmlns="http://jasperreports.sourceforge.net/jasperreports" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://jasperreports.sourceforge.net/jasperreports http://jasperreports.sourceforge.net/xsd/jasperreport.xsd" name="aqualytic_report_header" pageWidth="595" pageHeight="842" whenNoDataType="AllSectionsNoDetail" columnWidth="595" leftMargin="0" rightMargin="0" topMargin="0" bottomMargin="0" uuid="4d2a1816-b554-45f0-865e-4a003c6be12f">
+	<property name="com.jaspersoft.studio.data.sql.tables" value=""/>
+	<property name="com.jaspersoft.studio.data.defaultdataadapter" value=""/>
+	<parameter name="LOGO_DIR_HEADER" class="java.lang.String" isForPrompting="false">
+		<defaultValueExpression><![CDATA["../logos/"]]></defaultValueExpression>
+	</parameter>
+	<queryString language="SQL">
+		<![CDATA[]]>
+	</queryString>
+	<group name="report_header">
+		<groupHeader>
+			<band height="99">
+				<property name="com.jaspersoft.studio.unit.height" value="px"/>
+				<line>
+					<reportElement x="-2" y="96" width="598" height="1" forecolor="#0066CC" uuid="7d659df3-2fbd-464d-94df-ec18db113fb2">
+						<property name="com.jaspersoft.studio.unit.x" value="px"/>
+						<property name="com.jaspersoft.studio.unit.width" value="px"/>
+					</reportElement>
+				</line>
+				<textField>
+					<reportElement x="29" y="77" width="549" height="22" forecolor="#0066CC" uuid="68f6af90-7c2f-496a-aeef-87c0a0cacc2b"/>
+					<textElement textAlignment="Center" verticalAlignment="Middle">
+						<font fontName="SansSerif" size="8" isBold="true"/>
+					</textElement>
+					<textFieldExpression><![CDATA["LABORATORY TEST REPORT"]]></textFieldExpression>
+				</textField>
+				<image scaleImage="RetainShape" hAlign="Center" vAlign="Middle" onErrorType="Blank">
+					<reportElement x="246" y="2" width="117" height="71" uuid="9cde268c-fc09-4f6e-834c-9e191d058f53"/>
+					<imageExpression><![CDATA["/reports/logos/kenas.png"]]></imageExpression>
+				</image>
+				<staticText>
+					<reportElement x="398" y="3" width="183" height="79" uuid="3e1369b5-be59-4569-b197-6c2825bad232"/>
+					<textElement textAlignment="Right">
+						<font size="7.5"/>
+					</textElement>
+					<text><![CDATA[AQUALYTIC LABORATORIES LIMITED
+P.O. Box 4600 - 00506 Nairobi
+Ramco Court
+Off Mombasa Road
+Email: lab@aqualyticlab.com
+Website: www.aqualyticlab.com
+Tel: (20) 5249675 Cell: 0722 54 73 44]]></text>
+				</staticText>
+				<image scaleImage="RetainShape" hAlign="Center" vAlign="Middle">
+					<reportElement x="16" y="0" width="189" height="71" uuid="9df420a1-b019-4d54-9384-da589707c81f"/>
+					<imageExpression><![CDATA["/reports/logos/aqualyticlogo2.png"]]></imageExpression>
+				</image>
+				<staticText>
+					<reportElement x="18" y="61" width="197" height="20" uuid="5e14e076-2963-465e-8de6-b568f6048e4d"/>
+					<textElement textAlignment="Left" verticalAlignment="Middle">
+						<font size="7.5"/>
+					</textElement>
+					<text><![CDATA[LABORATORY TEST REPORT: AQL-LMS-A-780-001]]></text>
+				</staticText>
+			</band>
+		</groupHeader>
+	</group>
+	<background>
+		<band splitType="Stretch"/>
+	</background>
+</jasperReport>

@@ -1,0 +1,17 @@
+<?php
+
+namespace App;
+
+use Illuminate\Database\Eloquent\Model;
+use OwenIt\Auditing\Contracts\Auditable;
+
+class AnalysisMethodElements extends Model implements Auditable
+{
+	use \OwenIt\Auditing\Auditable;
+  public function analysis_method(){
+    return $this->belongsTo('App\AnalysisMethod');
+  }
+  public function analyte(){
+    return $this->belongsTo('App\Analyte');
+  }
+}

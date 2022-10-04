@@ -1,0 +1,2 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<jdbcDataAdapter class="net.sf.jasperreports.data.jdbc.JdbcDataAdapterImpl"><name>New Data Adapter 1</name><driver>com.microsoft.sqlserver.jdbc.SQLServerDriver</driver><username>sa</username><password>Nuvemite@2020</password><savePassword>true</savePassword><url>jdbc:sqlserver://localhost:1433;databaseName=imara_lims</url><database></database><serverAddress></serverAddress><classpath>/Users/devcole/projects/imara-lims-v2/app/JasperReports/jdbc/mssql-jdbc-8.2.2.jre8.jar</classpath></jdbcDataAdapter>
