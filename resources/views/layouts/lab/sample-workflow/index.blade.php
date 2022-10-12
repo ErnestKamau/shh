@@ -2,6 +2,7 @@
 
 @section('title2')
 <title>{{ $status }} | Sample WorkFlow</title>
+
 <style>
 	.form-part-toggler {
 		margin: 0px 0px 5px 0px !important;
@@ -49,8 +50,12 @@
 	.upfront-bg-color {
 		background-color: skyblue !important;
 	}
-	.ammend-bg-color{
+
+	.ammend-bg-color {
 		background-color: #fef764 !important;
+	}
+	.btn-white{
+		background-color: white !important;
 	}
 </style>
 @endsection
@@ -59,10 +64,10 @@
 	<?php
 	$items = array(
 		array(
-            'link' => route('dashboard-lab'),
-            'name' => 'Dashboard',
-            'icon' => null
-        ),
+			'link' => route('dashboard-lab'),
+			'name' => 'Dashboard',
+			'icon' => null
+		),
 		array(
 			'link' => route('sample-workflow', ['status' => 'All Samples']),
 			'name' => 'Sample Workflow',
@@ -76,34 +81,94 @@
 	);
 	?>
 	<x-bread-crumb :items="$items"></x-bread-crumb>
-	<h2 class="p-4">
+	<h4 class="p-4">
 		<span class="float-left"><i class="mdi mdi-file-document-edit"></i> Sample Workflow</span>
 		<small> <i class="mdi mdi-circle-medium"></i> {{ $status }}</small>
+		<div class="btn-group float-right">
+			<button type="button" class="btn btn-white dropdown-toggle" style="box-shadow: rgba(0, 0, 0, 0.15) 1.95px 1.95px 2.6px;"  type="button" id="dropdownMenuButton" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
+				Actions
+			</button>
+			<div class="dropdown-menu dropdown-menu-right">
+				@if ($status=="Samples Reception")
+				<li>
+					<span class="btn btn-sm dropdown-item" data-toggle="modal" disabled data-target="#delete-batch">
+						<i class="mdi mdi-delete-empty mr-2"></i> Delete Batch
+					</span>
+				</li>
+				<li>
+					<a class="btn btn-sm dropdown-item" href="{{ route('view-batch-details', ['batch'=>time()]) }}"><i class="mdi mdi-plus mr-2"></i> Batch</a>
+				</li>
+				<li>
+					<span class="btn btn-sm dropdown-item" data-target="#print-labels-modal" data-toggle="modal"><i class="mdi mdi-printer mr-2"></i> Labels</span>
+				</li>
+				<li>
+					<span class="btn btn-sm dropdown-item" disabled data-target="#dispatch-to-labs-modal" data-toggle="modal"><i class="mdi mdi-file-send mr-2"></i> Request Review</span>
+				</li>
+				<li>
+					<span class="btn btn-sm dropdown-item" disabled data-target="#dispatch-to-labs-modal-approve" data-toggle="modal"><i class="mdi mdi-check-decagram mr-2"></i> Generate Invoice</span>
+				</li>
+				<li>
+					<span class="btn btn-sm dropdown-item" disabled data-target="#approve-begin-process" data-toggle="modal"><i class="mdi mdi-checkbox-marked-circle-outline mr-2"></i> Approve For Analysis</span>
+				</li>
+				<li>
+					<span class="btn btn-sm dropdown-item" disabled data-target="#dispatch-to-labs-modal-payment-reminder" data-toggle="modal" title="Dispatch Labeled"><i class="mdi mdi-bell-ring mr-2"></i> Payment Reminder</span>
+				</li>
+				@endif
+
+				@if ($status=="Reports for Collection")
+				<li>
+					<span class="btn btn-sm dropdown-item" disabled data-target="#send-email-reports-modal" data-toggle="modal" title="Email Report(s)"><i class="mdi mdi-email mr-2"></i> Email Report(s)</span>
+
+				</li>
+				@endif
+				@if($status == "Samples Request Review")
+				<li>
+					<span class="btn btn-sm dropdown-item" disabled data-target="#dispatch-to-labs-modal-approve" data-toggle="modal"><i class="mdi mdi-check-decagram mr-2"></i> Generate Invoice</span>
+				</li>
+				<li>
+					<span class="btn btn-sm dropdown-item" disabled data-target="#dispatch-to-labs-modal-review" data-toggle="modal" title="Approve Request"><i class="mdi mdi-clipboard-arrow-right mr-2"></i> Approve Request</span>
+				</li>
+				<li>
+					` <span class="btn btn-sm dropdown-item" disabled data-target="#dispatch-to-labs-modal-review-reject" data-toggle="modal" title="Request Request">
+						<i class="mdi mdi-clipboard-arrow-right mr-2"></i> Reject Request
+					</span>
+				</li>
+				<li>
+
+					<span class="btn btn-sm dropdown-item" data-target="#print-labels-modal" data-toggle="modal"><i class="mdi mdi-printer mr-2"></i>Print Labels</span>
+				</li>
+				@endif
+				@if($status == "Samples In Lab")
+				<li>
+
+					<span class="btn btn-sm dropdown-item" data-target="#print-labels-modal" data-toggle="modal"><i class="mdi mdi-printe mr-2r"></i>Print Labels</span>
+				</li>
+				@endif
+
+			</div>
+		</div>
 		@if ($status=="Samples Reception")
-		<button class="btn btn-outline-danger btn-sm float-right ml-2" data-toggle="modal" disabled data-target="#delete-batch"><i class="mdi mdi-delete"></i>Delete</button>
-		<a class="btn btn-outline-primary btn-sm float-right ml-sm-2" href="{{ route('view-batch-details', ['batch'=>time()]) }}" data-target="#add-newz-samples" id="add-new-samples-btn"><i class="mdi mdi-plus"></i> Batch</a>
-		<button class="btn btn-outline-dark btn-sm float-right ml-sm-2" data-target="#print-labels-modal" data-toggle="modal"><i class="mdi mdi-printer"></i> Labels</button>
-		<button class="btn btn-outline-warning btn-sm float-right" disabled data-target="#dispatch-to-labs-modal" data-toggle="modal"><i class="mdi mdi-file-send"></i> Request Review</button>
-		<button class="btn btn-outline-success btn-sm mr-2 float-right" disabled data-target="#dispatch-to-labs-modal-approve" data-toggle="modal"><i class="mdi mdi-check-decagram"></i> Generate Invoice</button>
-		<button class="btn btn-default btn-sm mr-2 float-right" disabled data-target="#approve-begin-process" data-toggle="modal"><i class="mdi mdi-checkbox-marked-circle-outline"></i> Approve For Analysis</button>
-		<button class="btn btn-outline-info btn-sm mr-2 float-right" disabled data-target="#dispatch-to-labs-modal-payment-reminder" data-toggle="modal" title="Dispatch Labeled"><i class="mdi mdi-bell-ring"></i> Payment Reminder</button>
-		@endif
-		@if ($status=="Reports for Collection")
-		<button class="btn btn-outline-primary btn-sm float-right" disabled data-target="#send-email-reports-modal" data-toggle="modal" title="Email Report(s)"><i class="mdi mdi-email"></i> Email Report(s)</button>
-		@endif
+		<div class="btn-group float-right mr-2">
+			<button type="button" style="box-shadow: rgba(0, 0, 0, 0.15) 1.95px 1.95px 2.6px;" class="btn btn-white text-primary dropdown-toggle" type="button" id="dropdownMenuButton" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
+				Add Batch
+			</button>
+			<div class="dropdown-menu dropdown-menu-right">
+				<li>
+					<a class="btn btn-sm dropdown-item" href="{{ route('view-batch-details', ['batch'=>time()]) }}"><i class="text-primary mdi mdi-plus mr-2"></i> Normal Batch</a>
+				</li>
+				<li>
+					<a class="btn btn-sm dropdown-item" href="{{ route('view-batch-details', ['batch'=>time()]) }}"><i class="text-warning mdi mdi-plus mr-2"></i>  Qc Batch</a>
+				</li>
+				
 
-		@if($status == "Samples Request Review")
-		<button class="btn btn-outline-success btn-sm ml-1 float-right" disabled data-target="#dispatch-to-labs-modal-approve" data-toggle="modal"><i class="mdi mdi-check-decagram"></i> Generate Invoice</button>
-		<button class="btn btn-outline-primary btn-sm float-right" disabled data-target="#dispatch-to-labs-modal-review" data-toggle="modal" title="Approve Request"><i class="mdi mdi-clipboard-arrow-right"></i> Approve Request</button>
-		<button class="btn btn-outline-danger btn-sm float-right mr-1" disabled data-target="#dispatch-to-labs-modal-review-reject" data-toggle="modal" title="Request Request"><i class="mdi mdi-clipboard-arrow-right"></i> Reject Request</button>
-		<button class="btn btn-outline-dark btn-sm float-right ml-sm-2" data-target="#print-labels-modal" data-toggle="modal"><i class="mdi mdi-printer"></i>Print Labels</button>
+			</div>
+		</div>
 		@endif
-		@if($status == "Samples In Lab")
-		<button class="btn btn-outline-dark btn-sm float-right ml-sm-2" data-target="#print-labels-modal" data-toggle="modal"><i class="mdi mdi-printer"></i>Print Labels</button>
-		@endif
+		
 
-	</h2>
-	<br>
+
+
+	</h4>
 	<div class="table-responsive bg-light p-4">
 		<table class="table table-condensed my-small-text table-bordered table-sm">
 			<thead>
@@ -122,7 +187,7 @@
 				<th nowrap>Target Date</th>
 				<th nowrap>Status Days</th>
 				<th>Samples</th>
-				
+
 				<th>Client Unit</th>
 				<th>Lab</th>
 				<th nowrap>Sample Type</th>
@@ -143,7 +208,7 @@
 					$diff = $now->diffInDays($target_date);
 
 					if ($target_date->greaterThan($now)) {
-						$diff = 0 - $diff-1;
+						$diff = 0 - $diff - 1;
 					}
 				} else {
 					$target_date = "1970-01-01";
@@ -152,9 +217,9 @@
 				?>
 				@if($item->current_account_status == 'Account Holder(Overdue)')
 				<tr class="batch-row overdue-bg-color {{ $diff > 0 ? 'text-danger' : '' }} crm-customer-{{ $item->client->id }}" data-class="{{ $item->client->id }}">
-				@elseif($item->current_account_status == 'Pay Upfront')
+					@elseif($item->current_account_status == 'Pay Upfront')
 				<tr class="batch-row upfront-bg-color {{ $diff > 0 ? 'text-danger' : '' }} crm-customer-{{ $item->client->id }}" data-class="{{ $item->client->id }}">
-				@elseif($item->in_ammendment_proccess)
+					@elseif($item->in_ammendment_proccess)
 				<tr class="batch-row ammend-bg-color {{ $diff > 0 ? 'text-danger' : '' }} crm-customer-{{ $item->client->id }}" data-class="{{ $item->client->id }}">
 					@else
 				<tr class="batch-row {{ $diff > 0 ? 'text-danger' : '' }} crm-customer-{{ $item->client->id }}" data-class="{{ $item->client->id }}">
@@ -175,7 +240,7 @@
 					<td nowrap>{{ date('Y-m-d', strtotime($target_date)) }}</td>
 					<td nowrap>{{ number_format($diff, 0) }} Day(s)</td>
 					<td>{{ $item->samples->count() }}</td>
-					
+
 					<td nowrap>{{ $item->crm_unit_name }}</td>
 					<td nowrap>{{ implode(", ", $item->labs(true)) }}</td>
 					<td nowrap>{{ $item->sample_type->name ?? '' }}</td>
@@ -255,7 +320,7 @@
 					<label class="control-label">Batches</label>
 					<div class="selected-batches-request"></div>
 				</div>
-				
+
 				<div class="form-check">
 					<input class="form-check-input" type="checkbox" class="form-control" name="notification" />
 					<label class="form-check-label">
@@ -664,7 +729,7 @@
 				<h4 class="modal-title"><i class="mdi mdi-clipboard-arrow-right"></i> Approve Request</h4>
 			</div>
 			<div class="modal-body">
-			
+
 
 				<input type="hidden" name="status" value="Samples In Lab" />
 				<input type="hidden" name="tracking_stage" value="20008" />
@@ -730,15 +795,16 @@
 	</div>
 </div>
 @endif
+<script src="https://cdn.jsdelivr.net/gh/gitbrent/bootstrap4-toggle@3.6.1/js/bootstrap4-toggle.min.js"></script>
 <script type="text/javascript">
 	var selectedSampleIDs = [];
 	var sampleAnalysisByType = [];
 	var sampleCondtions = [];
 	var defaultClass = '';
-	var notPaid=[];
-	$('#dispatch-to-labs-modal').on('show.bs.modal',function(){
+	var notPaid = [];
+	$('#dispatch-to-labs-modal').on('show.bs.modal', function() {
 		$('#not-paid-parent').empty();
-		if(notPaid.length > 0)	{
+		if (notPaid.length > 0) {
 			var bodyNot = `<div class="alert alert-danger p-2">
 							<span class="text-center"><i class="mdi mdi-alert-decagram"></i> The following Batch(es) have not been paid fully </span>
 							
@@ -748,7 +814,7 @@
 							</div>
 						</div>`;
 			$('#not-paid-parent').append(bodyNot);
-			$.each(notPaid,function(j,k){
+			$.each(notPaid, function(j, k) {
 				var batch_body = `
 					<div class="col-md-6 col-sm-6 col-lg-6"><i class="mdi mdi-chevron-right"></i> ${k}</div>
 				`
@@ -765,7 +831,7 @@
 			$('[data-target="#dispatch-to-labs-modal-approve"]').removeAttr('disabled').addClass('btn-success').removeClass('btn-outline-success');
 			$('[data-target="#dispatch-to-labs-modal-payment-reminder"]').removeAttr('disabled', true).removeClass('btn-outline-info').addClass('btn-info');
 			$('[data-target = "#approve-begin-process"]').removeAttr('disabled').addClass('btn-outline-success').removeClass('btn-default');
-			
+
 
 		} else {
 			$('[data-target="#delete-batch"]').attr('disabled', true).removeClass('btn-danger').addClass('btn-outline-danger');
@@ -777,13 +843,13 @@
 		$('.selected-batches-review').empty();
 		$('.selected-batches-request').empty();
 		$('.selected-batches-request-approve').empty();
-		
+
 		selectedBatchesIDs = $("input[name='table_sample_id[]']:checked")
 			.map(function() {
 				var $value = $(this).val();
 				var batch = $(this).data('batch');
-				
-				if(batch.customer_paid == 0){
+
+				if (batch.customer_paid == 0) {
 					notPaid.push(batch.batch_code);
 				}
 				$('.selected-batches-review').append(
@@ -806,8 +872,8 @@
 				)
 				return $value;
 			}).get();
-			
-		
+
+
 
 	});
 	@endif
@@ -818,21 +884,21 @@
 			$('[data-target="#dispatch-to-labs-modal-approve"]').removeAttr('disabled').addClass('btn-success').removeClass('btn-outline-success');
 			$('[data-target = "#dispatch-to-labs-modal-review-reject"]').removeAttr('disabled').addClass('btn-danger').removeClass('btn-outline-danger');
 			var $custID = $(this).parents('tr').data('class');
-			
+
 			console.log($custID);
 			$("input[name='customer_id']").val($custID);
 		} else {
-			$('[data-target="#dispatch-to-labs-modal-review-reject"]').attr('disabled',true).removeClass('btn-danger').addClass('btn-outline-danger');
+			$('[data-target="#dispatch-to-labs-modal-review-reject"]').attr('disabled', true).removeClass('btn-danger').addClass('btn-outline-danger');
 			$('[data-target="#dispatch-to-labs-modal-review"]').attr('disabled', true).removeClass('btn-primary').addClass('btn-outline-primary');
-			$('[data-target="#dispatch-to-labs-modal-approve"]').attr('disabled',true).removeClass('btn-success').addClass('btn-outline-success');
+			$('[data-target="#dispatch-to-labs-modal-approve"]').attr('disabled', true).removeClass('btn-success').addClass('btn-outline-success');
 		}
 		$('.selected-batches-review').empty();
 		$('.selected-batches-request-approve').empty();
-		
+
 		selectedBatchesIDs = $("input[name='table_sample_id[]']:checked")
 			.map(function() {
 				var $value = $(this).val();
-				
+
 				$('.selected-batches-review').append(
 					`<span class="p-2 mr-2">
 						<input type="checkbox" name="batch_code[]" value="${ $value }"  checked >${ $value }
@@ -847,7 +913,7 @@
 				return $value;
 			}).get();
 
-		
+
 	});
 	@endif
 	@if($status == "Reports for Collection")
@@ -950,12 +1016,6 @@
 			$('[name="routine_frequency"]').removeAttr('required');
 			$('[name="routine_frequency"]').removeProp('required');
 		}
-	});
-
-	$('#add-new-samples-btn').on('mouseup', function() {
-		$('#add-new-samples-form').trigger("reset");
-		$('[name="sample_header_id"]').remove();
-		$('#sample-detail-rows').empty();
 	});
 
 	$('.edit-sample-details').on('mouseup', function() {

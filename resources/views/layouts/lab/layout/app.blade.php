@@ -150,6 +150,28 @@
 				</div>
 
 			</div>
+			<a href="#qc-workflow-menu" data-toggle="collapse" aria-expanded="false" class="bg-dark list-group-item list-group-item-action flex-column align-items-start">
+				<div class="d-flex w-100 justify-content-start align-items-center">
+					<span class="mdi mdi-file-certificate-outline mr-3"></span>
+					<span class="menu-collapsed">Qc Workflow</span>
+					<span class="submenu-icon ml-auto"></span>
+				</div>
+			</a>
+			<div id="qc-workflow-menu" class="collapse sidebar-submenu">
+				<a href="" class="list-group-item list-group-item-action bg-dark text-white">
+					<span class="menu-collapsed"><i class="mdi mdi-circle-medium"></i> Dashboard
+						<small class="float-right badge badge-pill"></small></span>
+				</a>
+				<a href="" class="list-group-item list-group-item-action bg-dark text-white">
+					<span class="menu-collapsed"><i class="mdi mdi-circle-medium"></i> Qc History
+						<small class="float-right badge badge-pill"></small></span>
+				</a>
+				<a href="{{route('qc_configuration_index')}}" class="list-group-item list-group-item-action bg-dark text-white">
+					<span class="menu-collapsed"><i class="mdi mdi-circle-medium"></i> Configurations
+						<small class="float-right badge badge-pill"></small></span>
+				</a>
+
+			</div>
 			<a href="/analytes" class="bg-dark list-group-item list-group-item-action">
 				<div class="d-flex w-100 justify-content-start align-items-center">
 					<span class="mdi mdi-molecule fa-fw mr-3"></span>
