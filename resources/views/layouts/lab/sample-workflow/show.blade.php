@@ -177,17 +177,22 @@
 			@if(isset($batch->status) && in_array($batch->status, array("Sample Verification","Sample Approval","Reports for Collection","Reports In Payment")) && Auth::user()->is_client == 0)
 				@if($batch->status == "Sample Verification")
 					@if($batch->processed_results()->count() > 0)
+						@if(auth()->user()->checkVerifyLabSampleRole())
 						<button class="btn btn-outline-primary btn-sm float-right ml-1" data-target="#send-for-approval-modal" data-toggle="modal" title="Send for Approval"><i class="mdi mdi-check-decagram"></i> Send for Approval</button>
+						@endif
 						<?php
 						$path = '/storage'.$batch->batch_report_url;
 							?>
 						<a href="{{$path}}" target="_blank" class="float-right ml-1  btn-sm btn btn-outline-dark"><i class="mdi mdi-eye"></i> View Report</a>
 					@else
-					<?php
-						$path = '/storage'.$batch->batch_report_url;
-							?>
-					<a href="{{$path}}" target="_blank" class="float-right ml-1  btn-sm btn btn-outline-dark"><i class="mdi mdi-eye"></i> View Report</a>
+						<?php
+							$path = '/storage'.$batch->batch_report_url;
+								?>
+						<a href="{{$path}}" target="_blank" class="float-right ml-1  btn-sm btn btn-outline-dark"><i class="mdi mdi-eye"></i> View Report</a>
+						@if(auth()->user()->checkVerifyLabSampleRole())
 						<button class="btn btn-outline-primary btn-sm float-right ml-1" disabled ><i class="mdi mdi-check-decagram"></i> Send for Approval</button>
+						@endif
+						
 					@endif
 					<button class="btn btn-outline-success btn-sm float-right"  data-target="#process-results-modal" data-toggle="modal" title="Process Results"><i class="mdi mdi-file-cog-outline"></i> Process Results</button>
 				@endif
@@ -205,12 +210,14 @@
 						<button class="btn btn-outline-dark btn-sm float-right ml-1" data-target="#prompt-report-modal" data-toggle="modal" title="Send for Payment"><i class="mdi mdi-credit-card-outline"></i> Send for Payment</button>
 					@endif
 					@if($batch->approve_user_id <= 0 && $batch->verify_user_id != auth()->user()->id)
-					<a href="{{ route('approve-batch-analysis',['id'=>$batch->id]) }}" class="btn btn-info btn-sm float-right ml-1" ><i class="mdi mdi-check-circle"></i> Approve</a>
-					<button class="btn btn-outline-success btn-sm float-right" data-target="#process-results-modal" data-toggle="modal" title="Process Results"><i class="mdi mdi-file-cog-outline"></i> Process Results</button>
+						@if(auth()->user()->checkApproveLabSampleRole())
+							<a href="{{ route('approve-batch-analysis',['id'=>$batch->id]) }}" class="btn btn-info btn-sm float-right ml-1" ><i class="mdi mdi-check-circle"></i> Approve</a>
+						@endif
+						<button class="btn btn-outline-success btn-sm float-right" data-target="#process-results-modal" data-toggle="modal" title="Process Results"><i class="mdi mdi-file-cog-outline"></i> Process Results</button>
 
 					 @else
-					<button disabled class="btn btn-info btn-sm float-right ml-1" ><i class="mdi mdi-check-circle"></i> Approve</button>
-					<button class="btn btn-success btn-sm float-right" data-target="#process-results-modal" data-toggle="modal" title="Process Results"><i class="mdi mdi-file-cog-outline"></i> Process Results</button>
+						<button disabled class="btn btn-info btn-sm float-right ml-1" ><i class="mdi mdi-check-circle"></i> Approve</button>
+						<button class="btn btn-success btn-sm float-right" data-target="#process-results-modal" data-toggle="modal" title="Process Results"><i class="mdi mdi-file-cog-outline"></i> Process Results</button>
 					@endif
 
 				@endif

@@ -90,7 +90,7 @@
 				<table style="border-collapse: collapse; width:99.9%; margin:1px 0.05%; border:1px solid #000; text-align: left">
 					<tr>
 						<th colspan="7" style="padding: 7px 2px;  border-right:1px solid #000;  border-bottom:1px solid #000">Product Description</th>
-						<th colspan="3" style="padding: 7px 2px; border-right:1px solid #000;  border-bottom:1px solid #000">Product ID</th>
+						<th colspan="3" style="padding: 7px 2px; border-right:1px solid #000;  border-bottom:1px solid #000">Cat/Lot No</th>
 						<th colspan="1" style="padding: 7px 2px; border-right:1px solid #000; text-align: right;  border-bottom:1px solid #000">Qty.</th>
 						<th colspan="2" style="padding: 7px 2px; border-right:1px solid #000; text-align: right;  border-bottom:1px solid #000">Unit Cost</th>
 						<th colspan="2" style="padding: 7px 2px; text-align: right; border-bottom:1px solid #000">Ext. Cost</th>
@@ -100,7 +100,7 @@
 						@php($total += floatval($item->net_value))
 						<tr style="border-top:1px solid #000">
 							<td colspan="7" style="padding: 7px 2px; font-family: monospace; border-right:1px solid #000;  border-bottom:1px solid #000">{{ $item->item_name }}</td>
-							<td colspan="3" style="padding: 7px 2px; font-family: monospace; border-right:1px solid #000;  border-bottom:1px solid #000">{{ $item->code }}</td>
+							<td colspan="3" style="padding: 7px 2px; font-family: monospace; border-right:1px solid #000;  border-bottom:1px solid #000">{{ $item->sap_code }}</td>
 							<td colspan="1" style="padding: 7px 2px; font-family: monospace; border-right:1px solid #000; text-align: right;  border-bottom:1px solid #000">{{ number_format($item->quantity,2) }}</td>
 							<td colspan="2" style="padding: 7px 2px; font-family: monospace; border-right:1px solid #000; text-align: right;  border-bottom:1px solid #000">{{ number_format($item->net_value/$item->quantity,2) }}</td>
 							<td colspan="2" style="padding: 7px 2px; font-family: monospace; border-right:1px solid #000; text-align: right;  border-bottom:1px solid #000">{{ number_format($item->net_value, 2) }}</td>

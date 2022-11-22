@@ -84,7 +84,7 @@
 							<th>No</th>
 							<th nowrap>Image</th>
 							<th nowrap>Name</th>
-							<th nowrap>Code</th>
+							<th nowrap>Cat/Lot No</th>
 							<th nowrap>Sub Category</th>
 							<th nowrap>Stock</th>
 							<th nowrap>Classification</th>
@@ -103,8 +103,10 @@
 								<tr>
 									<td valign="center">{{ $loop->iteration }}</td>
 									<td><img src="{{ $element->image }}" style="width: 100px" /></td>
-									<td nowrap>{{ $element->name }}</td>
-									<td>{{ $element->code }} <small class="text-muted">{{ trim($element->sap_code) != "" ? "SAP:".$element->sap_code : "" }}</small></td>
+									<td nowrap>
+									<a class="" href="{{ route('show-inventory-items', ['category'=>$category->id,'id'=>$element->id]) }}"> {{ $element->name }}</a>
+									</td>
+									<td>{{ $element->sap_code ?? '-'}}</small></td>
 									<td>{{getsystemconfigbyid($element->sub_category_id)->value ?? '-'}}</td>
 									<td nowrap>
 										<span class="badge badge-primary" style="margin-right: 10px; padding: 3px 5px !important; font-size: 11px!important">

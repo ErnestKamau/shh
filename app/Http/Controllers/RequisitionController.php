@@ -1568,7 +1568,6 @@ class RequisitionController extends Controller
 					$quoteItems[] = '<tr style=" border: 1px solid #aaa !important">
 						<td style="text-align: center; vertical-align: middle;border: 1px solid #aaa !important">'.$o.'</td>
 						<td style="text-align: center; vertical-align: middle;border: 1px solid #aaa !important">'.$req->request_code.'</td>
-						<td style="text-align: center; vertical-align: middle;border: 1px solid #aaa !important">'.$q->code.'</td>
 						<td style="text-align: center; vertical-align: middle;border: 1px solid #aaa !important">'.$q->sap_code.'</td>
 						<td style="text-align: center; vertical-align: middle;border: 1px solid #aaa !important">'.$q->name.'</td>
 						<td style="text-align: center; vertical-align: middle;border: 1px solid #aaa !important">'.number_format($q->quantity).$q->unit_type.'</td>
@@ -1583,7 +1582,6 @@ class RequisitionController extends Controller
 							<tr>
 								<th style="text-align: center; vertical-align: middle;border: 1px solid #aaa !important">No</th>
 								<th style="text-align: center; vertical-align: middle;border: 1px solid #aaa !important">RFQ Code</th>
-								<th style="text-align: center; vertical-align: middle;border: 1px solid #aaa !important">Item Code</th>
 								<th style="text-align: center; vertical-align: middle;border: 1px solid #aaa !important">CAT No</th>
 								<th style="text-align: center; vertical-align: middle;border: 1px solid #aaa !important">Item Description</th>
 								<th style="text-align: center; vertical-align: middle;border: 1px solid #aaa !important">Quantity</th>

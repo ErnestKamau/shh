@@ -491,6 +491,7 @@
 								<thead>
 									<tr>
 										<th>#</th>
+										<th>Cat/Lot No</th>
 										<th nowrap>Item</th>
 										<th nowrap>Brand</th>
 										<th nowrap>Comments</th>
@@ -547,6 +548,7 @@
 												{{ $loop->iteration }}
 												<input type="hidden" name="items[req_item_id][]" value="{{ $req_item->id }}" />
 											</td>
+											<td>{{$req_item->sap_code}}</td>
 											<td>
 												<div class="form-group">
 													<?php
@@ -2112,6 +2114,7 @@
 			var $row = `
 				<tr class="item-row new">
 					<td class="item-id"></td>
+					<td>-</td>
 					<td>
 						<div class="form-group">
 							<select name="items[item_id][]" style="min-width: 200px; font-size: 12px" class="form-control selected-item" placeholder="Select Item..." required><option></option></select>

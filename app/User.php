@@ -2,6 +2,7 @@
 
 namespace App;
 
+use App\Models\System\SystemConfiguration;
 use Illuminate\Contracts\Auth\MustVerifyEmail;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
@@ -166,5 +167,25 @@ class User extends Authenticatable
 		// }else{
 		// 	return false;
 		// }
+	}
+	public function checkApproveLabSampleRole(){
+		$approve_role_id =SystemConfiguration::where('key','approve_lab_sample_role_id')->first();
+		if(isset($approve_role_id->id)){
+			if(isset(UserRole::where('user_id',$this->id)->where('role_id',$approve_role_id->value)->first()->id)){
+				return True;
+			}
+			return False;
+		}
+		return False;
+	}
+	public function checkVerifyLabSampleRole(){
+		$approve_role_id =SystemConfiguration::where('key','verify_lab_samples_role_id')->first();
+		if(isset($approve_role_id->id)){
+			if(isset(UserRole::where('user_id',$this->id)->where('role_id',$approve_role_id->value)->first()->id)){
+				return True;
+			}
+			return False;
+		}
+		return False;
 	}
 }

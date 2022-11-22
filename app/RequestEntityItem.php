@@ -39,4 +39,5 @@ class RequestEntityItem extends Model implements Auditable
 			->selectRaw('inventory_categories.*')
 			->where('isc.id', $this->inventory_sub_category_id)->first();
 	}
+	
 }
