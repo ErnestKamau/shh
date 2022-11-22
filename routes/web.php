@@ -503,6 +503,8 @@ Route::get('/req/{stage}/{id}/{ammendement?}', 'RequisitionController@show')->na
 Route::post('/req/{stage}/{id}/{ammendement?}', 'RequisitionController@update')->name('save-request-details');
 Route::get('/req-report-generate/{id}/{supply?}', 'ReportGeneratorController@generate_report')->name('req-report-generate');
 
+Route::get('/download-request-items/{id}/{isPDF?}', 'ReportGeneratorController@download_items_xlsx')->name('download-request-items');
+
 Route::post('/create-lpo-from-mr/{id}', 'RequisitionController@create_lpo_from_mr')->name('create-lpo-from-mr');
 Route::post('/change-req-approver/{id}', 'RequisitionController@change_req_approver')->name('change-req-approver');
 
