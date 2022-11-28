@@ -30,11 +30,12 @@ class BatchCommentController extends Controller
 			array_push($contacts,$comment->reminder_for);
 			foreach($contacts as $contact){
 				$user = getUserById((int)$contact);
-				$message = 'There is a new note for batch '.$batch->batch_code.'. Kindly review the notes.';
+				
+				$message = 'There is a new note for batch '.$batch->batch_code.'.';
 				$body = 'Hi '.$user->name.',<br><br>'
 						.$message.'<br>
 						Regards, <br><br>'
-						.$companyDetails['name'].' ';
+						.\Auth::user()->name.' ';
 				$subject = '['.$companyDetails['name'].'] Batch Notes Notification';
 				$notify = notify_user($body,$user->email,$subject);
 

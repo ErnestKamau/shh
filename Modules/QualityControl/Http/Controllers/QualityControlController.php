@@ -3,11 +3,15 @@
 namespace Modules\QualityControl\Http\Controllers;
 
 use App\Analyte;
+use App\Models\System\SystemConfiguration;
+use App\SampleDetails;
+use App\SampleHeader;
 use App\StandardAnalytes;
 use App\Standards;
 use Illuminate\Contracts\Support\Renderable;
 use Illuminate\Http\Request;
 use Illuminate\Routing\Controller;
+use Modules\QualityControl\Entities\Configurations\QcSchemes;
 use Modules\QualityControl\Entities\Configurations\QcTypes;
 
 class QualityControlController extends Controller
@@ -48,7 +52,8 @@ class QualityControlController extends Controller
     public function configuration_index(){
         $qc_types = QcTypes::all();
         $standards = Standards::where('is_qc_standard',1)->get();
-        return view('qualitycontrol::configurations.index',compact('qc_types','standards'));
+        $qc_schemes = QcSchemes::all();
+        return view('qualitycontrol::configurations.index',compact('qc_types','standards','qc_schemes'));
     }
     public function addQcStandard(Request $request){
         $standard = Standards::find($request->standard_id) ?? new Standards();
@@ -58,6 +63,7 @@ class QualityControlController extends Controller
         $standard->qc_type_id =  $request->qc_type_id;
         $standard->status = isset($request->is_active)  ? 1 :0;
         $standard->edited_by = auth()->user()->id;
+        $standard->qc_scheme_ids = implode(',',$request->qc_scheme_ids);
         $standard->save();
         return redirect()->back()->with('success','Qc standard added successfully!');
     }
@@ -81,14 +87,20 @@ class QualityControlController extends Controller
         $analyte->standard_id = $request->standard_id;
         $analyte->analyte_id = $request->analyte_id;
         $analyte->absolute_tolerance = isset($request->use_absolute) ? 1 : 0;
-        $analyte->low = $request->tolerance_1;
-        $analyte->high = $request->tolerance_2;
+        $analyte->tolerance_1 = $request->tolerance_1;
+        $analyte->low = isset($request->use_absolute) ? $request->tolerance_1 : $request->expected_value -  $request->tolerance_1 ;
+
+        $analyte->tolerance_2 = $request->tolerance_2;
+        $analyte->high = isset($request->use_absolute) ? $request->tolerance_2 : $request->expected_value +  $request->tolerance_1 ; 
+
         $analyte->mean_value = $request->mean_value;
         $analyte->rel_std_dev = $request->rel_std_dev;
         $analyte->recommendations = $request->recomendation;
         $analyte->comments = $request->comment;
         $analyte->is_active = isset($request->is_active ) ? 1 : 0;
         $analyte->expected_value = $request->expected_value;
+        $analyte->standard_value_id = 0;
+        $analyte->standard_value_type = 'is_range';
         $analyte->save();
         return redirect()->back()->with('success','Standard analyte record updated successfully!');
     }
@@ -97,5 +109,33 @@ class QualityControlController extends Controller
         $analyte->is_active = 0;
         $analyte->save();
         return redirect()->back()->with('success','Standard analyte record deleted  successfully!');
+    }
+    public function MaintainQcSchemes(Request $request){
+        $scheme = QcSchemes::find($request->scheme_id) ?? new QcSchemes();
+        $scheme->name = $request->name;
+        $scheme->code = $request->code;
+        $scheme->is_active = isset($request->is_active) ? 1 : 0;
+        $scheme->save();
+        return redirect()->back()->with('success','Qc Scheme records updated successfully!');
+    }
+    public function DeleteQcSchemes(Request $request){
+        $scheme = QcSchemes::find($request->scheme_id);
+        $scheme->delete();
+        return redirect()->back()->with('success','Qc scheme deleted successfully!');
+    }
+    public function qcWorkflowIndex(){
+		// return response()->json('test');
+		$batches = SampleHeader::where('isactive', 1)->orderBy('receipt_date', 'desc')->where('status','Qc Approved')->get();
+		foreach ($batches as $b) {
+			$sample_codes = SampleDetails::where('sample_header_id', $b->id)->pluck('sample_code')->toArray();
+			// return response()->json()
+			$b['sample_codes'] = implode(',', $sample_codes);
+		}
+        $status = 'Qc Approved';
+
+		return view('qualitycontrol::qchistory.index', compact('batches', 'status'));
+    }
+    public function qcWorkflowShow($id){
+        
     }
 }

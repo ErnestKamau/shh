@@ -134,10 +134,9 @@
                             @if($filter['group_by'] == 'none' && $filter['report_name'] != 'profit_report')
                                 @if($filter['report_name'] == 'batch_report')
                                 <tr>
-                                    <td>{{$data->priority}}</td>
+                                    <td>{{$data->receipt_date}}</td>
                                     <td>{{$data->batch_code}}</td>
                                     <td>{{$data->crm_name}}</td>
-                                    <td>{{$data->receipt_date}}</td>
                                     <td>{{$data->date_collected}}</td>
                                     <td>{{$data->approval_date}}</td>
                                     <td>{{$data->batch_scope}}</td>
@@ -145,22 +144,23 @@
                                     <td>{{$data->invoice_number}}</td>
                                     <td>{{$data->sample_type_name}}</td>
                                     <td>{{$data->workflow_stage}}</td>
+                                    <td>{{$data->priority}}</td>
                                     
                                 </tr>
                                 @endif
                                 @if($filter['report_name'] == 'sample_report')
                                 <tr>
-                                    <td>{{$data->priority}}</td>
+                                    <td>{{$data->receipt_date}}</td>
                                     <td>{{$data->sample_code}}</td>
                                     <td>{{$data->crm_name}}</td>
                                     <td>{{$data->sample_type_name}}</td>
                                     <td>{{$data->analysis_name}}</td>
                                     <td>{{$data->analyte_name}}</td>
-                                    <td>{{$data->receipt_date}}</td>
                                     <td>{{$data->date_collected}}</td>
                                     <td>{{$data->invoice_number}}</td>
                                     <td>{{$data->batch_scope}}</td>
                                     <td>{{$data->workflow_stage}}</td>
+                                    <td>{{$data->priority}}</td>
                                 </tr>
                                 @endif
                             @else

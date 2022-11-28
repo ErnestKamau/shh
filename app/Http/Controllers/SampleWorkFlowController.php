@@ -47,6 +47,9 @@ use Illuminate\Support\Facades\Storage;
 
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Modules\QualityControl\Entities\Configurations\QcSchemes;
+use Modules\QualityControl\Entities\Configurations\QcTypes;
+use Modules\QualityControl\Entities\Data\QcResults;
 use PhpParser\PrettyPrinter\Standard;
 
 class SampleWorkFlowController extends Controller
@@ -396,6 +399,9 @@ class SampleWorkFlowController extends Controller
 		$header->date_collected = $request->date_collected;
 		$header->batch_scope = $request->batch_scope;
 		$header->customer_survey = $request->customer_survey;
+		$header->is_qc_batch = isset($request->is_qc_batch);
+		$header->qc_type_id = $request->qc_type_id;
+		$header->qc_scheme_id = $request->qc_scheme_id;
 
 		if ($isInReception) {
 			$header->crm_customer_id = $request->crm_customer_id;
@@ -953,6 +959,8 @@ class SampleWorkFlowController extends Controller
 		$methods = AnalysisMethod::where('active', 1)->get();
 		$account_settings = getConfigTypeByName('Account Settings');
 		$atachment_type = SystemConfiguration::where('key', 'attachment_type')->get();
+		$qc_types = QcTypes::all();
+		$qc_schemes = QcSchemes::all();
 		if (isset($account_settings->id)) {
 			$accounts = getconfigByID($account_settings->id);
 		} else {
@@ -985,7 +993,20 @@ class SampleWorkFlowController extends Controller
 		}
 
 		$selectedSampleType = \App\SampleType::find($batch->sample_type_id ?? 0) ?? false;
-		$standards = Standards::where('status', 1)->get();
+		if(isset($batch->id)){
+			if($batch->is_qc_batch){
+				$qc_type = QcTypes::find($batch->qc_type_id);
+				if($qc_type->has_standards){
+					$standards = Standards::where('status', 1)->where('qc_type_id',$qc_type->id)->get();
+				}else{
+					$standards = Standards::where('status', 1)->get();
+				}
+			}else{
+				$standards = Standards::where('status', 1)->get();
+			}
+		}else{
+			$standards =[];
+		}
 		$defaultClient = $client;
 		$client_portal = $portal;
 		if (isset($batch->id)) {
@@ -1028,7 +1049,7 @@ class SampleWorkFlowController extends Controller
 		$analysts = User::orderBy('name')->join('user_roles as ur', 'ur.user_id', '=', 'users.id')
 			->join('roles as r', 'r.id', '=', 'ur.role_id')
 			->where('r.id', $role_a->value)->where('users.active', 1)->where('users.is_support_staff', 0)->selectRaw('users.*')->get();
-		return view('layouts.lab.sample-workflow.show', compact('batch', 'batchID', 'defaultClient', 'selectedSampleType', 'client_portal', 'ammendable', 'standards', 'attachments', 'not_captured', 'analysts', 'countries', 'accounts', 'methods', 'atachment_type', 'check_perm_view', 'check_perm_delete', 'batch_scope', 'customer_survey'));
+		return view('layouts.lab.sample-workflow.show', compact('batch', 'batchID', 'defaultClient', 'selectedSampleType', 'client_portal', 'ammendable', 'standards', 'attachments', 'not_captured', 'analysts', 'countries', 'accounts', 'methods', 'atachment_type', 'check_perm_view', 'check_perm_delete', 'batch_scope', 'customer_survey','qc_types','qc_schemes'));
 	}
 
 	public function fetch_unit_stuff($name, $client)
@@ -2295,12 +2316,61 @@ class SampleWorkFlowController extends Controller
 	public function approve_batch($id)
 	{
 		$batch  = getSampleHeaderByID($id);
+		if($batch->is_qc_batch){
+			$results = Result::where('sample_header_id',$id)->get();
+			foreach($results as $r){
+				$qc_res = QcResults::where('result_id',$r->id)->first() ?? new QcResults();
+				$qc_res->captured_result_id = $r->captured_result_id;
+				$qc_res->sample_detail_code = $r->sample_detail_code;
+				$qc_res->sample_detail_id = $r->sample_detail_id;
+				$qc_res->sample_header_id = $r->sample_header_id;
+				$qc_res->analyte_id = $r->analyte_id;
+				$qc_res->analyte_code = $r->analyte_code;
+				$qc_res->result = $r->result;
+				$qc_res->guide = $r->guide;
+				$qc_res->comments = $r->comments;
+				$qc_res->recheck = $r->recheck;
+				$qc_res->guide_low = $r->guide_low;
+				$qc_res->guide_high = $r->guide_high;
+				$qc_res->unit_code = $r->unit_code;
+				$qc_res->status_code = $r->status_code;
+				$qc_res->reporting_symbol = $r->reporting_symbol;
+				$qc_res->correct_target = $r->correct_target;
+				$qc_res->standard_target = $r->standard_target;
+				$qc_res->recommendations = $r->recommendations;
+				$qc_res->initial_result = $r->initial_result;
+				$qc_res->initial_reporting_symbol = $r->initial_reporting_symbol;
+				$qc_res->very_low_guide = $r->very_low_guide;
+				$qc_res->very_high_guide = $r->very_high_guide;
+				$qc_res->analysis_type_id = $r->analysis_type_id;
+				$qc_res->seond_guide = $r->seond_guide;
+				$qc_res->remark =$r->remark;
+				$qc_res->analyte_status_contracted = $r->analyte_status_contracted;
+				$qc_res->analyte_accreditted = $r->analyte_accredited;
+				$qc_res->result_id = $r->id;
+				$qc_res->qc_scheme_id = $batch->qc_scheme_id;
+				$qc_res->qc_type_id = $batch->qc_type_id;
+				$qc_res->standard_value = $
+				$qc_res->save();
+	
+			}
+		}
 		if ($batch->verify_user_id == auth()->user()->id) {
 			return redirect()->back()->with('error', 'You are not allowed to approve this batch');
 		}
 		$batch->approve_user_id = auth()->user()->id;
 		$batch->approval_date = getTodayDate();
+		$current_stage = $batch->status;
+		if($batch->is_qc_batch){
+			$batch->status = "Qc Approved";
+		}
 		$batch->save();
+
+		if($batch->is_qc_batch){
+			return redirect()->route('sample-workflow', ['status' => $current_stage])->with('success', 'Approval was successful');
+		}
+
+
 		return redirect()->back()->with('success', 'Batch approved successfully');
 	}
 	public function delete_batch(Request $request)

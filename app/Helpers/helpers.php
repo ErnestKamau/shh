@@ -1050,7 +1050,7 @@ function getModulePermissions()
 	return array(
 		"Laboratory" => array(
 			"permission" => false,
-			"components" => array_merge(array_diff(getSampleWorflowStages(), array("All Samples")), array("Analytes", "Labs", "Sample-Types", "Reporting-Units", "Methods", "Sample-Tracking-Stages", "Analysis Types", "Proforma Invoices", "Tax Regime", "Pricelists", "Quotation", "Approve For Analysis", "Generate Invoice", "RFT Form"))
+			"components" => array_merge(array_diff(getSampleWorflowStages(), array("All Samples")), array("Analytes", "Labs", "Sample-Types", "Reporting-Units", "Methods", "Sample-Tracking-Stages", "Analysis Types", "Proforma Invoices", "Tax Regime", "Pricelists", "Quotation", "Approve For Analysis", "Generate Invoice", "RFT Form","Qc Sample"))
 		),
 		"Inventory" => array(
 			"permission" => false,

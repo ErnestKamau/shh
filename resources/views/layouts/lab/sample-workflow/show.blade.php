@@ -154,7 +154,7 @@
     <h4 class="pt-4 pr-4 pl-4 pb-3">
 			@if(isset($batch->status) && in_array($batch->status, array("Sample Verification","Sample Approval","Reports for Collection","Reports In Payment")))
 				@if($batch->status == "Sample Verification")
-				<i class="mdi mdi-layers-triple"></i> <span class="badge badge-pill bg-white pt-2 pb-2 pr-3 pl-3" style="font-weight: 400!important">{!! isset($batch->priority) && $batch->priority != "Normal" ? '<i class="mdi mdi-star text-danger"></i>' : '' !!} {{ $batch->priority ?? '' }}</span>
+				<i class="mdi mdi-layers-triple"></i> <span class="badge badge-pill bg-white pt-2 pb-2 pr-3 pl-3"  style="font-weight: 400!important;font-size: 11px">{!! isset($batch->priority) && $batch->priority != "Normal" ? '<i class="mdi mdi-star text-danger"></i>' : '' !!} {{ $batch->priority ?? '' }}</span>
 						{{ isset($batch->batch_code) ? $batch->batch_code.' Batch Info' : 'New Batch' }} <small class="text-muted">{!! sizeof($not_captured) > 0 ? '<span style="font-size: 11px;" class="badge badge-pill bg-white text-danger p-2"><i class="mdi mdi-alert-decagram"></i> Data Partially Captured</span>' : '<span style="font-size: 11px;" class="badge badge-pill bg-white text-success p-2"><i class="mdi mdi-alert-decagram"></i> Data Fully Captured</span>' !!}</small>
 				@else
 					<i class="mdi mdi-layers-triple"></i> <span class="badge badge-pill bg-white pt-2 pb-2 pr-3 pl-3" style="font-weight: 400!important">{!! isset($batch->priority) && $batch->priority != "Normal" ? '<i class="mdi mdi-star text-danger"></i>' : '' !!} {{ $batch->priority ?? '' }}</span>
@@ -199,15 +199,18 @@
 				@if($batch->status == "Sample Approval")
 					@if ($batch->batch_report_url != '' && $batch->approve_user_id > 0 )
 						
+						@if($batch->is_qc_batch == 0)
 
 						<button class="btn btn-outline-primary btn-sm float-right ml-1" data-target="#send-to-payments-modal" data-toggle="modal" title="Send for  Payment"><i class="mdi mdi-credit-card-outline"></i> Send for Payment</button>
+						@endif
 						<?php
 							$path = '/storage'.$batch->batch_report_url;
 						?>
 						<a href="{{$path}}" target="_blank" class="float-right ml-1 btn-sm btn btn-outline-dark"><i class="mdi mdi-eye"></i> View Report</a>
 					@else
-						
-						<button class="btn btn-outline-dark btn-sm float-right ml-1" data-target="#prompt-report-modal" data-toggle="modal" title="Send for Payment"><i class="mdi mdi-credit-card-outline"></i> Send for Payment</button>
+						@if($batch->is_qc_batch == 0)
+							<button class="btn btn-outline-dark btn-sm float-right ml-1" data-target="#prompt-report-modal" data-toggle="modal" title="Send for Payment"><i class="mdi mdi-credit-card-outline"></i> Send for Payment</button>
+						@endif
 					@endif
 					@if($batch->approve_user_id <= 0 && $batch->verify_user_id != auth()->user()->id)
 						@if(auth()->user()->checkApproveLabSampleRole())
@@ -216,7 +219,9 @@
 						<button class="btn btn-outline-success btn-sm float-right" data-target="#process-results-modal" data-toggle="modal" title="Process Results"><i class="mdi mdi-file-cog-outline"></i> Process Results</button>
 
 					 @else
-						<button disabled class="btn btn-info btn-sm float-right ml-1" ><i class="mdi mdi-check-circle"></i> Approve</button>
+					 	@if(auth()->user()->checkApproveLabSampleRole())
+							<button disabled class="btn btn-info btn-sm float-right ml-1" ><i class="mdi mdi-check-circle"></i> Approve</button>
+						@endif
 						<button class="btn btn-success btn-sm float-right" data-target="#process-results-modal" data-toggle="modal" title="Process Results"><i class="mdi mdi-file-cog-outline"></i> Process Results</button>
 					@endif
 
@@ -299,6 +304,13 @@
           <div class="card-body">
 						<h5 class="card-title">
 							<i class="mdi mdi-pencil-outline"></i> Batch Info
+							@if(auth()->user()->CheckViewQcSample())
+								@if(isset($batch->id) && $batch->is_qc_batch == 1)
+									
+									<span class="badge badge-pill p-2 badge-primary float-right" style="font-size: 10px !important;"><i class="mdi mdi-alert-decagram"></i> Is Qc Batch</span>
+									
+								@endif
+							@endif
 							@if(isset($batch->report_file_path) && trim($batch->report_file_path) != "")
 								<a class="float-right btn btn-outline-danger btn-sm rounded-pill pl-3 pr-3" href="{{ $batch->report_file_path }}">
 									<i class="mdi mdi-download"></i> View Report
@@ -444,6 +456,31 @@
 								</select> -->
 							</div>
 
+							<div class="form-group">
+								<label for="" class="control-label"><input type="checkbox" name="is_qc_batch" class="is_qc_batch" {{isset($batch->id) && $batch->is_qc_batch == 1 ? 'checked' : ''}} id=""> Is Qc Batch</label>
+							</div>
+							<div class="form-group {{isset($batch->id) && $batch->is_qc_batch == 1 ? '' : 'hidden'}} qc-type-field">
+								<label for="" class="control-label">Qc Type <span class="text-danger">*</span></label>
+								<select name="qc_type_id" id="" class="form-control">
+									<option value="">Choose Qc Type</option>
+									@foreach($qc_types as $q_type)
+										@if(isset($batch->id) && $batch->qc_type_id == $q_type->id)
+											<option value="{{$q_type->id}}" selected>{{$q_type->code}}</option>
+										@else
+											<option value="{{$q_type->id}}" selected>{{$q_type->code}}</option>	
+										@endif
+									
+									@endforeach
+								</select>
+							</div>
+							<div class="form-group {{isset($batch->id) && $batch->is_qc_batch == 1 ? '' : 'hidden'}} qc-type-field">
+								<label for="" class="control-label">Qc Scheme <span class="text-danger">*</span></label>
+								<select name="qc_scheme_id" id="" class="form-control">
+									@foreach($qc_schemes as $scheme)
+									<option value="{{$scheme->id}}" {{isset($batch->id) && $batch->qc_scheme_id == $scheme->id ? 'selected' : ''}}>{{$scheme->code}}</option>
+									@endforeach
+								</select>
+							</div>
 
 							
 							<div class="form-group btn-group-sm">
@@ -563,6 +600,8 @@
 								</div>
 								@endif
 							@endforeach
+							
+							
 						</div>
 					</div>
 				</div>
@@ -3056,6 +3095,15 @@
 			$('#batch-info-sample-type').on('change', function(){
 				fetchSampleAnalysis($(this));
 			});
+			$('.is_qc_batch').on('change',(e)=>{
+				if($(e.currentTarget).is(':checked')){
+					$('.qc-type-field').removeClass('hidden')
+
+				}else{
+					$('.qc-type-field').addClass('hidden')
+				}
+				
+			})
 
 		});
 
@@ -3389,5 +3437,7 @@
 			
 
 		</tr>`;
+
+		
 	</script>
 @endsection

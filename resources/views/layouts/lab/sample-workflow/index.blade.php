@@ -85,7 +85,7 @@
 		<span class="float-left"><i class="mdi mdi-file-document-edit"></i> Sample Workflow</span>
 		<small> <i class="mdi mdi-circle-medium"></i> {{ $status }}</small>
 		<div class="btn-group float-right">
-			<button type="button" class="btn btn-white dropdown-toggle" style="box-shadow: rgba(0, 0, 0, 0.15) 1.95px 1.95px 2.6px;"  type="button" id="dropdownMenuButton" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
+			<button type="button" class="btn btn-sm btn-white dropdown-toggle" style="box-shadow: rgba(0, 0, 0, 0.15) 1.95px 1.95px 2.6px;"  type="button" id="dropdownMenuButton" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
 				Actions
 			</button>
 			<div class="dropdown-menu dropdown-menu-right">
@@ -148,21 +148,8 @@
 			</div>
 		</div>
 		@if ($status=="Samples Reception")
-		<div class="btn-group float-right mr-2">
-			<button type="button" style="box-shadow: rgba(0, 0, 0, 0.15) 1.95px 1.95px 2.6px;" class="btn btn-white text-primary dropdown-toggle" type="button" id="dropdownMenuButton" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
-				Add Batch
-			</button>
-			<div class="dropdown-menu dropdown-menu-right">
-				<li>
-					<a class="btn btn-sm dropdown-item" href="{{ route('view-batch-details', ['batch'=>time()]) }}"><i class="text-primary mdi mdi-plus mr-2"></i> Normal Batch</a>
-				</li>
-				<li>
-					<a class="btn btn-sm dropdown-item" href="{{ route('view-batch-details', ['batch'=>time()]) }}"><i class="text-warning mdi mdi-plus mr-2"></i>  Qc Batch</a>
-				</li>
-				
-
-			</div>
-		</div>
+		<a class="btn btn-sm btn-info float-right mr-2" href="{{ route('view-batch-details', ['batch'=>time()]) }}"><i class="mdi mdi-plus mr-2"></i> Add Batch</a>
+		
 		@endif
 		
 
@@ -175,6 +162,10 @@
 				<th></th>
 				<th>Priority</th>
 				<th>Batch Code</th>
+				@if(auth()->user()->CheckViewQcSample())
+				<th>Is Qc</th>
+				@endif
+				
 				<th>Sample Codes</th>
 				<th>Stage</th>
 				@if($status == 'Samples In Lab')
@@ -227,6 +218,9 @@
 					<td><input type="checkbox" data-batch="{{json_encode($item)}}" value="{{ $item->batch_code }}" name="table_sample_id[]"></td>
 					<td nowrap>{!! $item->priority != "Normal" ? '<i class="mdi mdi-star text-danger"></i>' : '' !!} {{ $item->priority }}</td>
 					<td><a href="{{ route('view-batch-details', ['batch'=>$item->id]) }}">{{ $item->batch_code }}</a></td>
+					@if(auth()->user()->CheckViewQcSample())
+						<td>{!! $item->is_qc_batch == 1 ? '<span class="text-success"><i class="mdi mdi-checkbox-marked-circle-outline"></i></span>' : '-' !!}</td>
+					@endif
 					<td style="min-width: 200px !important;">{{$item->sample_codes}}</td>
 					<td style="min-width: 200px !important;">{{$item->status}}</td>
 					@if($status == 'Samples In Lab')

@@ -2,6 +2,11 @@
 
 @section('title2')
 <title>Qc Standards</title>
+<style>
+    .text-bold {
+        font-weight: 600;
+    }
+</style>
 @endsection
 @section('content2')
 <main>
@@ -66,10 +71,20 @@
                             <td>{{$s_analyte->rel_std_dev ?? '0'}}</td>
                             <td class="text-center">{!! $s_analyte->is_active == 1 ? '<span class="text-success"><i class="mdi mdi-checkbox-marked-circle-outline mdi-24px"></i></span>' : '-'  !!}</td>
                             <td class="text-center">
-                            {!! $s_analyte->comments != '' ? '<span class="btn btn-sm btn-info" data-target="#analyte-comment" data-record="{{json_encode($s_analyte)}}"><i class="mdi mdi-arrow-expand"></i></span>' : '-'  !!}
+                                @if($s_analyte->comments != '')
+                                <span class="btn btn-sm btn-info" data-toggle="modal" data-target="#analyte-comment"  data-mode="0"  data-record="{{json_encode($s_analyte)}}"><i class="mdi mdi-arrow-expand"></i></span>
+                                @else
+                                -
+                                @endif
+                            
                             </td>
                             <td class="text-center">
-                            {!! $s_analyte->recommendations != '' ? '<span class="btn btn-sm btn-info" data-target="#analyte-recomendations" data-record="{{json_encode($s_analyte)}}"><i class="mdi mdi-arrow-expand"></i></span>' : '-'  !!}
+                                @if($s_analyte->recommendations != '')
+                                    <span class="btn btn-sm btn-info" data-toggle="modal" data-mode="1" data-target="#analyte-comment" data-record="{{json_encode($s_analyte)}}" ><i class="mdi mdi-arrow-expand"></i></span>
+                                @else
+                                    -
+                                @endif
+                            
                             </td>
 
                         </tr>
@@ -120,12 +135,10 @@
         </div>
     </div>
 </div>
-<div class="modal fade" id="view-comment-std" role="dialog">
+<div class="modal fade" id="analyte-comment" role="dialog">
     <div class="modal-dialog">
         <div class="modal-content">
-            <div class="modal-header bg-info text-center">
-               <i class="mdi mdi-arrow-expand"></i> Standard Analyte Comment
-            </div>
+            
             <div class="modal-body">
                 
             </div>
@@ -236,6 +249,23 @@
             var body = addAnalyteBody(data);
             $('#add-analyte').find('.modal-body').empty();
             $('#add-analyte').find('.modal-body').append(body);
+        });
+        let viewAnalyteComment = (data,mode)=>{
+            var body = $(`
+                <div class="alert alert-primary p-2 d-flex">
+                    <i class="mdi mdi-information-outline" style="font-size: 24px;"></i>
+                    <span class="p-2">${mode== "0" ? data.comments : data.recommendations}</span>
+                </div>
+            `).clone();
+            return body;
+        }
+        $('#analyte-comment').on('show.bs.modal',(e)=>{
+            var data = $(e.relatedTarget).data('record');
+            var mode = $(e.relatedTarget).data('mode');
+            var body = viewAnalyteComment(data,mode);
+            $('#analyte-comment').find('.modal-body').empty();
+            $('#analyte-comment').find('.modal-body').append(body);
+           
         })
     })
 </script>

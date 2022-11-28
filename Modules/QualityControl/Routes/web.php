@@ -25,4 +25,8 @@ Route::prefix('qualitycontrol')->group(function() {
     Route::get('/qc-standard/show/{id}','QualityControlController@qcStandardShow')->name('qc_StandardShow');
     Route::post('/add/Qc-Standard/Analyte','QualityControlController@addQcStandardAnalyte')->name('qc_addQcStandardAnalyte');
     Route::post('/delete/Qc-Standard/Analyte','QualityControlController@deleteQcStandardAnalyte')->name('qc_deleteQcStandardAnalyte');
+
+    Route::post('/Maintain-Qc-Schemes','QualityControlController@MaintainQcSchemes')->name('MaintainQcSchemes');
+    Route::post('/Delete-Qc-Schemes','QualityControlController@DeleteQcSchemes')->name('DeleteQcSchemes');
+
 });

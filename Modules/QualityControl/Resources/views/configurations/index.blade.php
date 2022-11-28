@@ -32,6 +32,10 @@
                 <li class="nav-item">
                     <a href="#qc-types-tab" class="nav-link " id="qc-types-tabs" data-toggle="tab" role="tab" aria-controls="qc-types-tab" aria-selected="true"> <i class="mdi mdi-compare-vertical" style="color: black;font-size:15px"></i> Qc Types</a>
                 </li>
+                <li class="nav-item">
+                    <a href="#qc-schemes-tabs" class="nav-link " id="qc-schemes-tab" data-toggle="tab" role="tab" aria-controls="qc-schemes-tabs" aria-selected="true"> <i class="mdi mdi-file-tree" style="color: black;font-size:15px"></i> Qc Schemes</a>
+                </li>
+                
             </ul>
         </div>
         <div class="tab-content" id="sample-type-tabs-content">
@@ -52,8 +56,9 @@
                                 <th>Code</th>
                                 <th>Name</th>
                                 <th>Created By</th>
-                                <th>Active</th>
                                 <th>Qc Type</th>
+                                <th>Qc Schemes</th>
+                                <th>Active</th>
                             </tr>
                         </thead>
                         <tbody>
@@ -68,8 +73,9 @@
                                 <a href="{{route('qc_StandardShow',['id'=>$standard->id])}}" class="">{{$standard->code}}</a></td>
                                 <td>{{$standard->name}}</td>
                                 <td>{{$standard->creator()->name ?? '-'}}</td>
-                                <td>{!! $standard->status == 1 ? '<span class="text-success"><i class="mdi mdi-checkbox-marked-circle-outline"></i></span>' : '-' !!}</td>
                                 <td>{{$standard->getQcType()->name}}</td>
+                                <td>{{$standard->qcschemenames}}</td>
+                                <td>{!! $standard->status == 1 ? '<span class="text-success"><i class="mdi mdi-checkbox-marked-circle-outline"></i></span>' : '-' !!}</td>
                             </tr>
                             @endforeach
                         </tbody>
@@ -78,7 +84,7 @@
             </div>
             <!-- end standard tab  -->
 
-            <!-- standard value tab -->
+            <!-- qc types tab -->
             <div class="tab-pane fade p-3" id="qc-types-tab" role="tabpanel" aria-labelledby="one-tab">
                 <h5 class="card-title">
                     <i class="mdi mdi-compare-vertical"></i> Qc Types
@@ -118,7 +124,38 @@
                     </table>
                 </div>
             </div>
-            <!-- end inactive assets  -->
+            <!--  qc schemes  -->
+            <div class="tagb-pane fade p-3" id="qc-schemes-tabs" role="tabpanel" aria-labelledby="one-tab">
+                <h5 class="card-title">
+                    <i class="mdi mdi-file-tree"></i> Qc Schemes
+                    <span class="btn btn-default text-primary btn-sm float-right" style="box-shadow: rgba(0, 0, 0, 0.35) 0px 5px 15px" data-mode="add" data-toggle="modal" data-target="#add-scheme"><i class="mdi mdi-plus"></i> Add Qc Schemes</span>
+                </h5>
+                <div class="table-responsive mt-4">
+                    <table class="table table-sm table-condensed table-bordered table-hover table-striped">
+                        <thead>
+                            <tr>
+                                <th>#</th>
+                                <th>Code</th>
+                                <th>Name</th>
+                                <th>Status</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @foreach($qc_schemes as $scheme)
+                            <tr>
+                                <td>
+                                    <span class="btn btn-sm btn-default text-primary" data-mode="edit" data-record="{{json_encode($scheme)}}" data-toggle="modal" data-target="#add-scheme"><i class="mdi mdi-pencil"></i></span>
+                                    <span class="btn btn-sm btn-default text-danger" data-toggle="modal"data-record="{{json_encode($scheme)}}"  data-target="#delete-scheme"><i class="mdi mdi-delete-empty"></i></span>
+                                </td>
+                                <td>{{$scheme->code}}</td>
+                                <td>{{$scheme->name}}</td>
+                                <td  class="text-center" style="width:5% !important">{!! $scheme->is_active == 1 ? '<span class="text-success"><i class="mdi mdi-checkbox-marked-circle-outline mdi-24px"></i></span>' : '-' !!}</td>
+                            </tr>
+                            @endforeach
+                        </tbody>
+                    </table>
+                </div>
+            </div>
         </div>
     </div>
 
@@ -126,8 +163,44 @@
 @endsection
 
 @section('script2')
+<div class="modal fade" id="add-scheme" role="dialog">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <form action="{{route('MaintainQcSchemes')}}" method="POST" enctype="multipart/form-data">
+                @csrf 
+                <div class="modal-header">
+                
+                </div>
+                <div class="modal-body">
+    
+                   
+                </div>
+                <div class="modal-footer">
+                    <button type="submit" class="btn btn-sm btn-outline-info"><i class="mdi mdi-content-save"></i> Save</button>
+                    <span class="btn btn-sm btn-default" data-dismiss="modal">Close</span>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+<div class="modal fade" id="delete-scheme" role="dialog">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <form action="{{route('DeleteQcSchemes')}}" method="POST" enctype="multipart/form-data">
+                @csrf 
 
-<div class="modal fade" id="add-standard" data-qctypes="{{json_encode($qc_types)}}" role="dialog">
+                <div class="modal-body">
+                    
+                </div>
+                <div class="modal-footer">
+                    <button type="submit" class="btn btn-sm btn-outline-danger"><i class="mdi mdi-delete-empty"></i> Yes, Delete</button>
+                    <span class="btn btn-sm btn-default" data-dismiss="modal">Close</span>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+<div class="modal fade" id="add-standard" data-schemes="{{json_encode($qc_schemes)}}" data-qctypes="{{json_encode($qc_types)}}" role="dialog">
     <div class="modal-dialog">
         <div class="modal-content">
             <form action="{{route('qc_addQcStandard')}}" method="post">
@@ -201,6 +274,8 @@
         </div>
     </div>
 </div>
+
+
 
 <script>
     $(()=>{
@@ -284,7 +359,9 @@
             $('#add-qctypes').find('.modal-body').append(body);
         })
         let addStandardBody = (data=false)=>{
+            console.log(data);
             var qcTypes = $('#add-standard').data('qctypes');
+            var qcSchemes = $('#add-standard').data('schemes')
             var body = $(`
                 <div class="form-group">
                     <label for="" class="control-label">Name</label>
@@ -299,6 +376,10 @@
                     <select name="qc_type_id" id="" class="form-control qc-select"></select>
                 </div>
                 <div class="form-group">
+                    <label for="" class="control-label">Qc Schemes</label>
+                    <select name="qc_scheme_ids[]" multiple id="" class="form-control qc_scheme_id"></select>
+                </div>
+                <div class="form-group">
                     <label for="" class="control-label"><input type="checkbox" name="is_active" id="is_active"> Is Active</label>
                 </div>
                 <input type="hidden" name="standard_id" value="${data ? data.id : 0}">
@@ -310,11 +391,17 @@
             }else{
                 $(body).find('#is_active').prop('checked',true)
             }
+            $.each(qcSchemes,(i,obj)=>{
+                var idQcSch = obj.id + '';
+                var option = `<option value="${obj.id}" ${data && data.qcschemeidsarr.indexOf(idQcSch) >= 0 ? `selected` : ''} >${obj.name}</option>`;
+                $(body).find('.qc_scheme_id').append(option)
+            })
             $.each(qcTypes,(i,obj)=>{
                 var option = `<option value="${obj.id}" ${data && data.qc_type_id == obj.id ? `selected` : ''} >${obj.name}</option>`;
                 $(body).find('.qc-select').append(option)
             });
             $(body).find('.qc-select').select2()
+            $(body).find('.qc_scheme_id').select2()
             return body;
 
         }
@@ -325,6 +412,51 @@
             $('#add-standard').find('.modal-body').empty();
             $('#add-standard').find('.modal-body').append(body);
         });
+
+        let addSchemeBody = (data)=>{
+            var body = $(`
+                <div class="form-group">
+                    <label for="" class="control-label">Name</label>
+                    <input type="text" name="name" value="${data ? data.name : ''}" class="form-control">
+                </div>
+                <div class="form-group">
+                    <label for="" class="control-label">Code</label>
+                    <input type="text" name="code" value="${data ? data.code : ''}" class="form-control">
+                </div>
+                <div class="form-group">
+                    <label for="" class="control-label"><input type="checkbox" ${data && data.is_active == 1 ? 'checked' : ''} name="is_active" id=""> Is Active</label>
+                </div>
+                <input type="hidden" name="scheme_id" value="${data ? data.id : 0}">
+            `).clone();
+            return body;
+        }
+        let DeleteSchemeBody = (data)=>{
+           var body = $(`
+                <div class="alert alert-danger p-2 d-flex">
+                    <i class="mdi mdi-delete-empty" style="font-size: 24px;"></i>
+                    <span class="p-2">Confirm you want to delete ${data.name} Qc Scheme</span>
+                </div>
+                <input type="hidden" name="scheme_id" value="${data.id}">
+           `).clone()
+           return body;
+        }
+
+        $('#add-scheme').on('show.bs.modal',(e)=>{
+            var mode = $(e.relatedTarget).data('mode');
+            var data  = mode == 'edit' ? $(e.relatedTarget).data('record') : false;
+            var body = addSchemeBody(data);
+            $('#add-scheme').find('.modal-body').empty();
+            $('#add-scheme').find('.modal-body').append(body);
+            $header = mode == 'add' ? `<h5 class="modal-title"><i class="mdi mdi-plus"></i> Add Qc Scheme</h5>` : `<h5 class="modal-title"><i class="mdi mdi-pencil"></i> Edit ${data.name} QC Scheme</h5>`
+            $('#add-scheme').find('.modal-header').empty();
+            $('#add-scheme').find('.modal-header').append($header);
+        });
+        $('#delete-scheme').on('show.bs.modal',(e)=>{
+            var record = $(e.relatedTarget).data('record');
+            var body = DeleteSchemeBody(record);
+            $('delete-scheme').find('.modal-body').empty();
+            $('delete-scheme').find('.modal-body').append(body);
+        })
 
 
     })

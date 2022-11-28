@@ -172,20 +172,32 @@ class User extends Authenticatable
 		$approve_role_id =SystemConfiguration::where('key','approve_lab_sample_role_id')->first();
 		if(isset($approve_role_id->id)){
 			if(isset(UserRole::where('user_id',$this->id)->where('role_id',$approve_role_id->value)->first()->id)){
-				return True;
+				return true;
 			}
-			return False;
+			return false;
 		}
-		return False;
+		return false;
 	}
 	public function checkVerifyLabSampleRole(){
 		$approve_role_id =SystemConfiguration::where('key','verify_lab_samples_role_id')->first();
 		if(isset($approve_role_id->id)){
 			if(isset(UserRole::where('user_id',$this->id)->where('role_id',$approve_role_id->value)->first()->id)){
-				return True;
+				return true;
 			}
-			return False;
+			return false;
 		}
-		return False;
+		return false;
 	}
+	public function CheckViewQcSample(){
+		$view_qc = SystemConfiguration::where('key','can_view_qc')->first();
+		if(isset($view_qc->id)){
+			if(isset(UserRole::where('user_id',$this->id)->where('role_id',$view_qc->value)->first()->id)){
+				return true;
+			}else{
+				return false;
+			}
+		}
+		return false;
+	}
+
 }
