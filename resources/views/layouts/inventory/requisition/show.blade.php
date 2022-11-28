@@ -471,6 +471,7 @@
 					</div>
 					<div class="tab-pane fade p-3" id="Items" role="tabpanel" aria-labelledby="one-tab">
 						<h5 class="card-title mb-3">Items
+							<a href="{{ route('download-request-items', ['id'=>$request->id ?? 0]) }}" class="btn btn-transparent btn-sm text-primary"><i class="mdi mdi-download"></i> Download</a>
 							@if (isset($request->status) && ($request->status == "In Preparation" || !isset($request->status) ))
 								@if(in_array($stage, ["Material Requisition", "Request to Store", "Request for Quotation"]))
 									<span class="btn btn-default text-primary btn-sm float-right add-item-row"><i class="mdi mdi-plus"></i> Add</span>
