@@ -2344,13 +2344,13 @@ class SampleWorkFlowController extends Controller
 				$qc_res->very_high_guide = $r->very_high_guide;
 				$qc_res->analysis_type_id = $r->analysis_type_id;
 				$qc_res->seond_guide = $r->seond_guide;
-				$qc_res->remark =$r->remark;
+				$qc_res->remarks =$r->remarks;
 				$qc_res->analyte_status_contracted = $r->analyte_status_contracted;
-				$qc_res->analyte_accreditted = $r->analyte_accredited;
+				$qc_res->analyte_accredited = $r->analyte_accredited;
 				$qc_res->result_id = $r->id;
 				$qc_res->qc_scheme_id = $batch->qc_scheme_id;
 				$qc_res->qc_type_id = $batch->qc_type_id;
-				$qc_res->standard_value = $
+				$qc_res->standard_value = $r->guide;
 				$qc_res->save();
 	
 			}
@@ -2361,9 +2361,7 @@ class SampleWorkFlowController extends Controller
 		$batch->approve_user_id = auth()->user()->id;
 		$batch->approval_date = getTodayDate();
 		$current_stage = $batch->status;
-		if($batch->is_qc_batch){
-			$batch->status = "Qc Approved";
-		}
+		
 		$batch->save();
 
 		if($batch->is_qc_batch){

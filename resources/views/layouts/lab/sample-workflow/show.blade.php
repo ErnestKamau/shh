@@ -219,10 +219,13 @@
 						<button class="btn btn-outline-success btn-sm float-right" data-target="#process-results-modal" data-toggle="modal" title="Process Results"><i class="mdi mdi-file-cog-outline"></i> Process Results</button>
 
 					 @else
-					 	@if(auth()->user()->checkApproveLabSampleRole())
+					 	@if(auth()->user()->checkApproveLabSampleRole() && $batch->approve_user_id <= 0)
 							<button disabled class="btn btn-info btn-sm float-right ml-1" ><i class="mdi mdi-check-circle"></i> Approve</button>
 						@endif
 						<button class="btn btn-success btn-sm float-right" data-target="#process-results-modal" data-toggle="modal" title="Process Results"><i class="mdi mdi-file-cog-outline"></i> Process Results</button>
+					@endif
+					@if($batch->approve_user_id > 0 && $batch->verify_user_id > 0 && auth()->user()->checkApproveLabSampleRole())
+					<a href="" class="btn btn-sm btn-default text-primary float-right">Mark As Complete</a>
 					@endif
 
 				@endif

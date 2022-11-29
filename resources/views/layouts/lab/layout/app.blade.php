@@ -166,7 +166,7 @@
 					<span class="menu-collapsed"><i class="mdi mdi-circle-medium"></i> Qc History
 						<small class="float-right badge badge-pill"></small></span>
 				</a>
-				<a href="" class="list-group-item list-group-item-action bg-dark text-white">
+				<a href="{{route('qc_configuration_index')}}" class="list-group-item list-group-item-action bg-dark text-white">
 					<span class="menu-collapsed"><i class="mdi mdi-circle-medium"></i> Configurations
 						<small class="float-right badge badge-pill"></small></span>
 				</a>
