@@ -2816,4 +2816,10 @@ class SampleWorkFlowController extends Controller
 		}
 		return response()->json('success');
 	}
+	public function markQcSampleComplete($id){
+		$header = SampleHeader::find($id);
+		$header->status = "QC Approved";
+		$header->save();
+		return redirect()->back()->with('success','Batch marked complete successfully!');
+	}
 }

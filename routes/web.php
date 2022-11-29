@@ -707,6 +707,10 @@ Route::post('/get/confirmation/Callback-Url/Payload-wertyasdfgh','Mpesa\MpesaCon
 Route::post('/get/Validation/Callback-Url/payload-ghfjdks','Mpesa\MpesaController@mpesaValidationCallbackUrl')->name('mpesaValidationCallbackUrl');
 Route::get('/displayMpesaValidation/gvdasdsgdud','Mpesa\MpesaController@displayMpesaValidation')->name('displayMpesaValidation');
 
+#############################################QC Module###########################################
+Route::get('Qc/mark-Qc-Sample/Complete/{id}','SampleWorkFlowController@markQcSampleComplete')->name('markQcSampleComplete');
+#############################################QC Module###########################################
+
 #STORAGE ROUTES
 Route::get('storage/{type}/{filename}', function ($type, $filename)
 {

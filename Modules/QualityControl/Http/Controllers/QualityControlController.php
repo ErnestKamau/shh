@@ -6,6 +6,7 @@ use App\Analyte;
 use App\Models\System\SystemConfiguration;
 use App\SampleDetails;
 use App\SampleHeader;
+use App\SampleType;
 use App\StandardAnalytes;
 use App\Standards;
 use Illuminate\Contracts\Support\Renderable;
@@ -125,17 +126,13 @@ class QualityControlController extends Controller
     }
     public function qcWorkflowIndex(){
 		// return response()->json('test');
-		$batches = SampleHeader::where('isactive', 1)->orderBy('receipt_date', 'desc')->where('status','Qc Approved')->get();
-		foreach ($batches as $b) {
-			$sample_codes = SampleDetails::where('sample_header_id', $b->id)->pluck('sample_code')->toArray();
-			// return response()->json()
-			$b['sample_codes'] = implode(',', $sample_codes);
-		}
-        $status = 'Qc Approved';
+		$sample_types = SampleType::where('active',1)->get();
+        $qc_types = QcTypes::where('is_active',1)->get();
+        $qc_schemes = QcSchemes::where('is_active',1)->get();
+        $standards = Standards::where('is_qc_standard',1)->where('status',1)->get();
+        $analytes = Analyte::where('active',1)->get();
 
-		return view('qualitycontrol::qchistory.index', compact('batches', 'status'));
+		return view('qualitycontrol::qchistory.index', compact('sample_types', 'qc_types','qc_schemes','standards','analytes'));
     }
-    public function qcWorkflowShow($id){
-        
-    }
+    
 }

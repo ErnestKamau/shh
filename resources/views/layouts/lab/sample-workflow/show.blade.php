@@ -66,6 +66,9 @@
 		.select2-selection{
 			min-width: 200px !important;
 		}
+		.bg-white{
+			background-color: white !important;
+		}
 
 	</style>
 @endsection
@@ -152,155 +155,100 @@
     ?>
     <x-bread-crumb :items="$items"></x-bread-crumb>
     <h4 class="pt-4 pr-4 pl-4 pb-3">
-			@if(isset($batch->status) && in_array($batch->status, array("Sample Verification","Sample Approval","Reports for Collection","Reports In Payment")))
-				@if($batch->status == "Sample Verification")
-				<i class="mdi mdi-layers-triple"></i> <span class="badge badge-pill bg-white pt-2 pb-2 pr-3 pl-3"  style="font-weight: 400!important;font-size: 11px">{!! isset($batch->priority) && $batch->priority != "Normal" ? '<i class="mdi mdi-star text-danger"></i>' : '' !!} {{ $batch->priority ?? '' }}</span>
-						{{ isset($batch->batch_code) ? $batch->batch_code.' Batch Info' : 'New Batch' }} <small class="text-muted">{!! sizeof($not_captured) > 0 ? '<span style="font-size: 11px;" class="badge badge-pill bg-white text-danger p-2"><i class="mdi mdi-alert-decagram"></i> Data Partially Captured</span>' : '<span style="font-size: 11px;" class="badge badge-pill bg-white text-success p-2"><i class="mdi mdi-alert-decagram"></i> Data Fully Captured</span>' !!}</small>
-				@else
-					<i class="mdi mdi-layers-triple"></i> <span class="badge badge-pill bg-white pt-2 pb-2 pr-3 pl-3" style="font-weight: 400!important">{!! isset($batch->priority) && $batch->priority != "Normal" ? '<i class="mdi mdi-star text-danger"></i>' : '' !!} {{ $batch->priority ?? '' }}</span>
-						{{ isset($batch->batch_code) ? $batch->batch_code.' Batch Info' : 'New Batch' }} <small class=""> {!! $batch->verify_user_id > 0 && $batch->verify_user_id != '' ? '<span style="font-size: 11px;" class="badge badge-pill bg-white text-success p-2"><i class="mdi mdi-checkbox-multiple-marked-circle"></i> Verified</span>' : '' !!}  {!! $batch->approve_user_id > 0 && $batch->approve_user_id != '' ? '<span style="font-size: 11px;" class="badge badge-pill bg-white p-2 text-success"><i class="mdi mdi-account-check"></i> Approved</span>' : '' !!}</small>
+		<i class="mdi mdi-layers-triple"></i> <span class="badge badge-pill bg-white pt-2 pb-2 pr-3 pl-3" style="font-weight: 400!important">{!! isset($batch->priority) && $batch->priority != "Normal" ? '<i class="mdi mdi-star text-danger"></i>' : '' !!} {{ $batch->priority ?? '' }}</span>
+		{{ isset($batch->batch_code) ? $batch->batch_code.' Batch Info' : 'New Batch' }} <small class="text-muted"> {!! isset($batch->batch_code) ? '<i class="mdi mdi-sitemap"></i> '.$batch->tracking_stage()->name : '' !!}</small>
+		
+		<div class="btn-group float-right">
+			<button type="button" class="btn btn-sm bg-white dropdown-toggle" style="box-shadow: rgba(0, 0, 0, 0.15) 1.95px 1.95px 2.6px;" type="button" id="dropdownMenuButton" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
+				Actions
+			</button>
+			<div class="dropdown-menu dropdown-menu-right">
+
+				@if(isset($batch->status) && $batch->status=="Samples In Lab" && Auth::user()->is_client == 0)
+				<li>
+					<span class="btn btn-sm dropdown-item" data-toggle="modal" data-target="#send-to-verification-modal">
+					<i class="mdi mdi-subdirectory-arrow-right mr-2"></i> Send for Verification
+					</span>
+				</li>
 				@endif
-			@else
-				<i class="mdi mdi-layers-triple"></i> <span class="badge badge-pill bg-white pt-2 pb-2 pr-3 pl-3" style="font-weight: 400!important">{!! isset($batch->priority) && $batch->priority != "Normal" ? '<i class="mdi mdi-star text-danger"></i>' : '' !!} {{ $batch->priority ?? '' }}</span>
-				{{ isset($batch->batch_code) ? $batch->batch_code.' Batch Info' : 'New Batch' }} <small class="text-muted"> {!! isset($batch->batch_code) ? '<i class="mdi mdi-sitemap"></i> '.$batch->tracking_stage()->name : '' !!}</small>
-			@endif
-			@if(isset($batch->status) && $batch->status=="Samples Request Review")
-				<!-- <button class="btn btn-outline-primary btn-sm float-right"  data-target="#dispatch-to-labs-modal" data-toggle="modal" title="Approve Request"><i class="mdi mdi-clipboard-arrow-right"></i> Approve Request</button> -->
-			@endif
-			@if(isset($batch->status) && $batch->status=="Samples In Lab" && Auth::user()->is_client == 0)
-				{{-- @if($equipment_data['captured'] > 0) --}}
-					<button class="btn btn-outline-danger btn-sm float-right" data-target="#send-to-verification-modal" data-toggle="modal" title="Send To Verification"><i class="mdi mdi-check-decagram"></i> Send To Verification</button>
-				{{-- @else
-					<button class="btn btn-outline-dark btn-sm float-right" disabled><i class="mdi mdi-check-decagram"></i> Send To Verification</button>
-				@endif --}}
-			@endif
-			@if(isset($batch->status) && in_array($batch->status, array("Sample Verification","Sample Approval","Reports for Collection","Reports In Payment")) && Auth::user()->is_client == 0)
-				@if($batch->status == "Sample Verification")
-					@if($batch->processed_results()->count() > 0)
-						@if(auth()->user()->checkVerifyLabSampleRole())
-						<button class="btn btn-outline-primary btn-sm float-right ml-1" data-target="#send-for-approval-modal" data-toggle="modal" title="Send for Approval"><i class="mdi mdi-check-decagram"></i> Send for Approval</button>
+				@if(isset($batch->status) && in_array($batch->status, array("Sample Verification","Sample Approval","Reports for Collection","Reports In Payment")) && Auth::user()->is_client == 0)
+					@if($batch->status == "Sample Verification")
+						@if($batch->processed_results()->count() > 0)
+							@if(auth()->user()->checkVerifyLabSampleRole())
+							<li>
+								<span class="btn btn-sm dropdown-item" data-toggle="modal" data-target="#send-for-approval-modal">
+									<i class="mdi mdi-subdirectory-arrow-right mr-2"></i> Send for Approval
+								</span>
+							</li>
+							@endif
+							<li>
+								<?php $path = '/storage'.$batch->batch_report_url; ?>
+								<a href="{{$path}}" target="_blank" class="btn btn-sm dropdown-item"><i class="mdi mdi-subdirectory-arrow-right mr-2"></i> View Report</a>
+							</li>
+						@else
+							<li>
+								<?php $path = '/storage'.$batch->batch_report_url; ?>
+								<a href="{{$path}}" target="_blank" class="btn btn-sm dropdown-item"><i class="mdi mdi-subdirectory-arrow-right mr-2"></i> View Report</a>
+							</li>
 						@endif
-						<?php
-						$path = '/storage'.$batch->batch_report_url;
-							?>
-						<a href="{{$path}}" target="_blank" class="float-right ml-1  btn-sm btn btn-outline-dark"><i class="mdi mdi-eye"></i> View Report</a>
-					@else
-						<?php
-							$path = '/storage'.$batch->batch_report_url;
-								?>
-						<a href="{{$path}}" target="_blank" class="float-right ml-1  btn-sm btn btn-outline-dark"><i class="mdi mdi-eye"></i> View Report</a>
-						@if(auth()->user()->checkVerifyLabSampleRole())
-						<button class="btn btn-outline-primary btn-sm float-right ml-1" disabled ><i class="mdi mdi-check-decagram"></i> Send for Approval</button>
-						@endif
-						
+						<li>
+							<span class="btn btn-sm dropdown-item"  data-target="#process-results-modal" data-toggle="modal" title="Process Results"><i class="mdi mdi-subdirectory-arrow-right mr-2"></i> Process Results</span>
+						</li>
 					@endif
-					<button class="btn btn-outline-success btn-sm float-right"  data-target="#process-results-modal" data-toggle="modal" title="Process Results"><i class="mdi mdi-file-cog-outline"></i> Process Results</button>
-				@endif
-				@if($batch->status == "Sample Approval")
-					@if ($batch->batch_report_url != '' && $batch->approve_user_id > 0 )
-						
-						@if($batch->is_qc_batch == 0)
+					@if($batch->status == "Sample Approval")
+						@if ($batch->batch_report_url != '' && $batch->approve_user_id > 0 )
+							@if($batch->is_qc_batch == 0)
+								<li>
+									<span class="btn btn-sm dropdown-item" data-target="#send-to-payments-modal" data-toggle="modal" title="Send for  Payment"><i class="mdi mdi-subdirectory-arrow-right mr-2"></i> Send for Payment</span>
+								</li>
 
-						<button class="btn btn-outline-primary btn-sm float-right ml-1" data-target="#send-to-payments-modal" data-toggle="modal" title="Send for  Payment"><i class="mdi mdi-credit-card-outline"></i> Send for Payment</button>
+							@endif
+							<li>
+								<?php $path = '/storage'.$batch->batch_report_url; ?>
+								<a href="{{$path}}" target="_blank" class="btn btn-sm dropdown-item"><i class="mdi mdi-subdirectory-arrow-right mr-2"></i> View Report</a>
+							</li>
+
 						@endif
-						<?php
-							$path = '/storage'.$batch->batch_report_url;
-						?>
-						<a href="{{$path}}" target="_blank" class="float-right ml-1 btn-sm btn btn-outline-dark"><i class="mdi mdi-eye"></i> View Report</a>
-					@else
-						@if($batch->is_qc_batch == 0)
-							<button class="btn btn-outline-dark btn-sm float-right ml-1" data-target="#prompt-report-modal" data-toggle="modal" title="Send for Payment"><i class="mdi mdi-credit-card-outline"></i> Send for Payment</button>
+						@if($batch->approve_user_id <= 0 && $batch->verify_user_id != auth()->user()->id)
+							@if(auth()->user()->checkApproveLabSampleRole())
+								<li>
+									<a href="{{ route('approve-batch-analysis',['id'=>$batch->id]) }}" class="btn btn-sm dropdown-item text-success" ><i class="mdi mdi-check-circle mr-2"></i> Approve</a>
+								</li>
+							@endif
+							<li>
+								<span class="btn btn-sm dropdown-item" data-target="#process-results-modal" data-toggle="modal" title="Process Results"><i class="mdi mdi-subdirectory-arrow-right mr-2"></i> Process Results</span>
+							</li>
+						@else
+							<li>
+								<span class="btn btn-sm dropdown-item" data-target="#process-results-modal" data-toggle="modal" title="Process Results"><i class="mdi mdi-subdirectory-arrow-right mr-2"></i> Process Results</span>
+							</li>
 						@endif
+						@if($batch->approve_user_id > 0 && $batch->verify_user_id > 0 && $batch->is_qc_batch > 0 && auth()->user()->checkApproveLabSampleRole())
+							<li>
+								<a href="{{route('markQcSampleComplete',['id'=>$batch->id])}}" class="btn btn-sm dropdown-item"><i class="mdi mdi-subdirectory-arrow-right mr-2"></i> Mark As Complete</a>
+
+							</li>
+						@endif
+
 					@endif
-					@if($batch->approve_user_id <= 0 && $batch->verify_user_id != auth()->user()->id)
-						@if(auth()->user()->checkApproveLabSampleRole())
-							<a href="{{ route('approve-batch-analysis',['id'=>$batch->id]) }}" class="btn btn-info btn-sm float-right ml-1" ><i class="mdi mdi-check-circle"></i> Approve</a>
-						@endif
-						<button class="btn btn-outline-success btn-sm float-right" data-target="#process-results-modal" data-toggle="modal" title="Process Results"><i class="mdi mdi-file-cog-outline"></i> Process Results</button>
-
-					 @else
-					 	@if(auth()->user()->checkApproveLabSampleRole() && $batch->approve_user_id <= 0)
-							<button disabled class="btn btn-info btn-sm float-right ml-1" ><i class="mdi mdi-check-circle"></i> Approve</button>
-						@endif
-						<button class="btn btn-success btn-sm float-right" data-target="#process-results-modal" data-toggle="modal" title="Process Results"><i class="mdi mdi-file-cog-outline"></i> Process Results</button>
+					@if(isset($batch->status) && $batch->status == 'Reports In Payment')
+						<li>
+							<span class="btn btn-sm dropdown-item" data-target="#send-to-email-modal" data-toggle="modal" title="Send for Collection"><i class="mdi mdi-email mr-2"></i> Send for Collection</span>
+						</li>
 					@endif
-					@if($batch->approve_user_id > 0 && $batch->verify_user_id > 0 && auth()->user()->checkApproveLabSampleRole())
-					<a href="" class="btn btn-sm btn-default text-primary float-right">Mark As Complete</a>
+					@if($batch->status == 'Reports In Payment' || $batch->status == 'Reports for Collection')
+						<li>
+							<?php $path = '/storage'.$batch->batch_report_url; ?>
+							<a href="{{$path}}" target="_blank" class="btn btn-sm dropdown-item"><i class="mdi mdi-subdirectory-arrow-right mr-2"></i> View Report</a>
+						</li>
 					@endif
-
-				@endif
-				@if(isset($batch->status) && $batch->status == 'Reports In Payment')
-				<button class="btn btn-primary btn-sm float-right ml-1" data-target="#send-to-email-modal" data-toggle="modal" title="Send for Collection"><i class="mdi mdi-email"></i> Send for Collection</button>
-				@endif
-				@if($batch->status == 'Reports In Payment' || $batch->status == 'Reports for Collection')
-				<?php 
-					$path = '/storage'.$batch->batch_report_url;
-				?>
-				<a href="{{$path}}" target="_blank" class="float-right ml-1 btn-sm btn btn-outline-dark"><i class="mdi mdi-eye"></i> View Report</a>
-				@endif
-				
-				
-				
-				<!-- <button class="btn btn-outline-success btn-sm float-right" data-target="#process-results-modal" data-toggle="modal" title="Process Results"><i class="mdi mdi-file-cog-outline"></i>  $batch->status == "Sample Verification" ? "Process Results" : "" }}</button> -->
-				<!-- <a href="{{ route('certificate-analysis',['id'=>$batch->id]) }}" class="btn btn-outline-warning btn-sm mr-1 float-right"> Certificate of Analysis</a> -->
 				@endif
 
 
-			@if(isset($batch->id) && !$defaultClient)
-				<div class="btn-group mt-2">
-					<button class="btn btn-transparent btn-sm dropdown-toggle" type="button" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
-						<i class="mdi mdi-swap-vertical"></i> Move To Workflow
-					</button>
-					<div class="dropdown-menu" id="status-selector">
-						@foreach (getSampleWorflowStages() as $item)
-							<form class="dropdown-item" method="POST" style="cursor: pointer" action="{{ route('move-to-workflow', ['status'=>$item, 'batch_id'=>$batch->id]) }}">
-								@csrf
-								<small class="text-muted"><i class="mdi mdi-subdirectory-arrow-right"></i></small> {{ $item }}
-							</form>
-						@endforeach
-					</div>
-				</div>
-				<div class="btn-group mt-2">
-					<button class="btn btn-transparent btn-sm dropdown-toggle" type="button" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
-						<i class="mdi mdi-swap-vertical"></i> Move To Stage
-					</button>
-					<div class="dropdown-menu" id="stage-selector">
-						@foreach (getWorkflowStage_Stages($batch->status) as $item)
-							<form class="dropdown-item" method="POST" style="cursor: pointer" action="{{ route('move-to-stage', ['stage'=>$item->id, 'batch_id'=>$batch->id]) }}">
-								@csrf
-								<small class="text-muted"><i class="mdi mdi-subdirectory-arrow-right"></i></small> {{ $item->name }}
-							</form>
-						@endforeach
-					</div>
-				</div>
-			@endif
 
-		</h4>
-		<div class="pl-2 pr-2 pb-3 row">
-			@if($batch->specialist_analyst ?? '')
-				<div class="col-sm-4" style="font-size: 16px">
-					<span class="badge bg-white badge-pill p-2" style="margin-right: 5px">
-						<i class="mdi mdi-account"></i> SPECIALIST ANALYST
-					</span> {{ $batch->specialist_analyst->name }}
-				</div>
-			@endif
-			@if(isset($batch->id) && $batch->get_request_types()->count() > 0)
-				<?php
-					$types = $batch->get_request_types();
-
-					$arrT = array();
-
-					foreach ($types as $type) {
-						$arrT[] = $type->name;
-					}
-				?>
-				<div class="col-sm-8" style="font-size: 14px">
-					<span class="badge bg-white badge-pill p-2" style="font-size: 13px; margin-right: 5px">
-						<i class="mdi mdi-beaker-question"></i> REQUEST TYPE
-					</span> {{ implode(',', $arrT) }}
-				</div>
-			@endif
+			</div>
 		</div>
+	</h4>
     <div class="row no-gutters">
       <div class="col-sm-4 p-2">
         <div class="card">
@@ -587,28 +535,107 @@
         </div>
       </div>
       <div class="col-sm-8 p-2">
-				@if(isset($batch->id))
-				<div class="card mb-2">
-					<div class="card-header">
-						<header style="font-size: large"><i class="mdi mdi-calendar-month"></i> Batch Dates</header>
-					</div>
-					<div class="card-body">
-						<div class="row no-gutters">
-							@foreach (getSampleDateTypes() as $date)
-								@if($date == 'Login Date' || $date == 'Target Date' || $date == 'Processing Date')
-								<div class="col-sm-4 p-1">
-									<b style="color: rgb(68, 68, 68)"><i class="mdi mdi-calendar-outline"></i> {{ $date }}</b>
-									<span class="float-right mr-2"
-										style="padding: 3px 9px; font-size:12px; border-radius: 15px; background-color: #f0f0f0; border: 1px solid #eeeeee; color:rgb(68, 68, 68)">{{ $batch->get_date($date) ? date('Y-m-d', strtotime($batch->get_date($date)['date'])) : '-' }}</span>
-								</div>
-								@endif
-							@endforeach
-							
-							
-						</div>
+		@if(isset($batch->id) && !$defaultClient)
+			<div class="alert alert-primary p-2">
+				<div class="btn-group">
+					<button class="btn btn-transparent btn-sm dropdown-toggle" type="button" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
+						<i class="mdi mdi-swap-vertical"></i> Move To Stage
+					</button>
+					<div class="dropdown-menu" id="stage-selector">
+						@foreach (getWorkflowStage_Stages($batch->status) as $item)
+						<form class="dropdown-item" method="POST" style="cursor: pointer" action="{{ route('move-to-stage', ['stage'=>$item->id, 'batch_id'=>$batch->id]) }}">
+							@csrf
+							<small class="text-muted"><i class="mdi mdi-subdirectory-arrow-right"></i></small> {{ $item->name }}
+						</form>
+						@endforeach
 					</div>
 				</div>
-				@endif
+				<div class="btn-group">
+					<button class="btn btn-transparent btn-sm dropdown-toggle" type="button" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
+						<i class="mdi mdi-swap-vertical"></i> Move To Workflow
+					</button>
+					<div class="dropdown-menu" id="status-selector">
+						@foreach (getSampleWorflowStages() as $item)
+						<form class="dropdown-item" method="POST" style="cursor: pointer" action="{{ route('move-to-workflow', ['status'=>$item, 'batch_id'=>$batch->id]) }}">
+							@csrf
+							<small class="text-muted"><i class="mdi mdi-subdirectory-arrow-right"></i></small> {{ $item }}
+						</form>
+						@endforeach
+					</div>
+				</div>
+			</div>
+			<div class="row ">
+				@if(isset($batch->status) && in_array($batch->status, array("Sample Verification","Sample Approval","Reports for Collection","Reports In Payment")))
+					@if($batch->status == "Sample Verification")
+						@if(sizeof($not_captured) > 0)
+							<div class="col-md-3 m-2">
+								<span style="font-size: 11px;" class="badge badge-pill bg-white text-danger p-2"><i class="mdi mdi-alert-decagram"></i> Data Partially Captured</span>
+
+							</div>
+						@else
+							<div class="col-md-3 m-2">
+								<span style="font-size: 11px;" class="badge badge-pill bg-white text-success p-2"><i class="mdi mdi-alert-decagram"></i> Data Fully Captured</span>
+
+							</div>
+						@endif
+					@endif
+					@if($batch->verify_user_id > 0 && $batch->verify_user_id != '')
+						<div class="col-md-3 m-2">
+							<span style="font-size: 11px;" class="badge badge-pill bg-white text-success p-2"><i class="mdi mdi-checkbox-multiple-marked-circle"></i> Verified</span>
+						</div>
+					@endif
+					@if($batch->approve_user_id > 0 && $batch->approve_user_id != '')
+						<div class="col-md-3 m-2">
+							<span style="font-size: 11px;" class="badge badge-pill bg-white p-2 text-success"><i class="mdi mdi-account-check"></i> Approved</span>	
+						</div>
+					@endif
+				@endif	
+				@if(isset($batch->id) && $batch->specialist_analyst)	
+					<div class="col-md-12 m-2">
+						<span class="badge bg-white badge-pill p-2" style="margin-right: 5px">
+							<i class="mdi mdi-account"></i> SPECIALIST ANALYST
+						</span> 
+						{{ $batch->specialist_analyst->name }}
+					</div>
+				@endif	
+				@if(isset($batch->id) && $batch->get_request_types()->count() > 0)
+					<?php
+						$types = $batch->get_request_types();
+
+						$arrT = array();
+
+						foreach ($types as $type) {
+							$arrT[] = $type->name;
+						}
+					?>
+					<div class="col-md-12 m-2" >
+						<span class="badge bg-white badge-pill p-2" style=" margin-right: 5px">
+							<i class="mdi mdi-beaker-question"></i> REQUEST TYPE
+						</span> {{ implode(',', $arrT) }}
+					</div>
+				@endif								
+			</div>
+			<div class="card mb-2">
+				<div class="card-header">
+					<header style="font-size: large"><i class="mdi mdi-calendar-month"></i> Batch Dates</header>
+				</div>
+				<div class="card-body">
+					<div class="row no-gutters">
+						@foreach (getSampleDateTypes() as $date)
+							@if($date == 'Login Date' || $date == 'Target Date' || $date == 'Processing Date')
+							<div class="col-sm-4 p-1">
+								<b style="color: rgb(68, 68, 68)"><i class="mdi mdi-calendar-outline"></i> {{ $date }}</b>
+								<span class="float-right mr-2"
+									style="padding: 3px 9px; font-size:12px; border-radius: 15px; background-color: #f0f0f0; border: 1px solid #eeeeee; color:rgb(68, 68, 68)">{{ $batch->get_date($date) ? date('Y-m-d', strtotime($batch->get_date($date)['date'])) : '-' }}</span>
+							</div>
+							@endif
+						@endforeach
+						
+						
+					</div>
+				</div>
+			</div>
+		@endif
         <div class="card tab-card">
           <div class="card-header tab-card-header">
             <ul class="nav nav-tabs card-header-tabs" id="analyte-tabs" role="tablist">
