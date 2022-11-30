@@ -50,10 +50,10 @@ class SamplesReportsController extends Controller
         $data = isset($request->status) && $request->status != 'all' ? $data->where('samples_by_category.priority', $request->status) : $data;
         $data = isset($request->workflow) && $request->workflow != 'all' ? $data->where('samples_by_category.workflow_stage', $request->workflow) : $data;
         if ($request->report_name == 'batch_report') {
-            $theads = ['Priority','Batch Code', 'Client','Receipt Date','Sampling Date','Approval Date','Batch Scope','Customer Survey','Invoice No' ,'Sample Type','Workflow'];
+            $theads = ['Receipt Date','Batch Code', 'Client','Sampling Date','Approval Date','Batch Scope','Customer Survey','Invoice No' ,'Sample Type','Workflow','Priority'];
             $lab_report = $data->get();
         } elseif ($request->report_name == 'sample_report') {
-            $theads = ['Priority','Sample Code', 'Client', 'Sample Type', 'Analysis Type', 'Analytes','Receipt Date','Sampling Date','Invoice Number','Batch Scope','Workflow'];
+            $theads = ['Receipt Date','Sample Code', 'Client', 'Sample Type', 'Analysis Type', 'Analytes','Sampling Date','Invoice Number','Batch Scope','Workflow','Priority'];
             $lab_report = $this->sample_report($data, $request);
             // return response()->json($lab_report);
         } elseif ($request->report_name == 'profit_report') {
