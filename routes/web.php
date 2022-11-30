@@ -709,6 +709,26 @@ Route::get('/displayMpesaValidation/gvdasdsgdud','Mpesa\MpesaController@displayM
 
 #############################################QC Module###########################################
 Route::get('Qc/mark-Qc-Sample/Complete/{id}','SampleWorkFlowController@markQcSampleComplete')->name('markQcSampleComplete');
+Route::prefix('qualitycontrol')->group(function() {
+  Route::get('/', 'QcModule\QualityControlController@index');
+  Route::get('/', 'QcModule\QualityControlController@index')->name('qc_index');
+  Route::get('/configuration-index','QcModule\QualityControlController@configuration_index')->name('qc_configuration_index');
+
+  Route::post('/delete/Qc-Types','QcModule\QualityControlController@deleteQCTypes')->name('qc_deleteQCTypes');
+  Route::post('/create/Qc-Types','QcModule\QualityControlController@createQcTypes')->name('qc_createQcTypes');
+
+  Route::post('/add/Qc-Standard','QcModule\QualityControlController@addQcStandard')->name('qc_addQcStandard');
+  Route::post('/delete/Qc-Standard','QcModule\QualityControlController@deleteQcStandard')->name('qc_deleteQcStandard');
+
+  Route::get('/qc-standard/show/{id}','QcModule\QualityControlController@qcStandardShow')->name('qc_StandardShow');
+  Route::post('/add/Qc-Standard/Analyte','QcModule\QualityControlController@addQcStandardAnalyte')->name('qc_addQcStandardAnalyte');
+  Route::post('/delete/Qc-Standard/Analyte','QcModule\QualityControlController@deleteQcStandardAnalyte')->name('qc_deleteQcStandardAnalyte');
+
+  Route::post('/Maintain-Qc-Schemes','QcModule\QualityControlController@MaintainQcSchemes')->name('MaintainQcSchemes');
+  Route::post('/Delete-Qc-Schemes','QcModule\QualityControlController@DeleteQcSchemes')->name('DeleteQcSchemes');
+  Route::get('/qc-Workflow-Index','QcModule\QualityControlController@qcWorkflowIndex')->name('qcWorkflowIndex');
+
+});
 #############################################QC Module###########################################
 
 #STORAGE ROUTES

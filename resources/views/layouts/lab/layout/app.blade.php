@@ -158,11 +158,11 @@
 				</div>
 			</a>
 			<div id="qc-workflow-menu" class="collapse sidebar-submenu">
-				<a href="" class="list-group-item list-group-item-action bg-dark text-white">
+				<!-- <a href="" class="list-group-item list-group-item-action bg-dark text-white">
 					<span class="menu-collapsed"><i class="mdi mdi-circle-medium"></i> Dashboard
 						<small class="float-right badge badge-pill"></small></span>
-				</a>
-				<a href="" class="list-group-item list-group-item-action bg-dark text-white">
+				</a> -->
+				<a href="{{route('qcWorkflowIndex')}}" class="list-group-item list-group-item-action bg-dark text-white">
 					<span class="menu-collapsed"><i class="mdi mdi-circle-medium"></i> Qc History
 						<small class="float-right badge badge-pill"></small></span>
 				</a>
