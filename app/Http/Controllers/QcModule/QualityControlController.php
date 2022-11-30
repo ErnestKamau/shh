@@ -1,8 +1,10 @@
 <?php
 
-namespace Modules\QualityControl\Http\Controllers;
+namespace App\Http\Controllers\QcModule;
 
 use App\Analyte;
+use App\Models\QcModule\Configurations\QcSchemes;
+use App\Models\QcModule\Configurations\QcTypes;
 use App\Models\System\SystemConfiguration;
 use App\SampleDetails;
 use App\SampleHeader;
@@ -12,8 +14,7 @@ use App\Standards;
 use Illuminate\Contracts\Support\Renderable;
 use Illuminate\Http\Request;
 use Illuminate\Routing\Controller;
-use Modules\QualityControl\Entities\Configurations\QcSchemes;
-use Modules\QualityControl\Entities\Configurations\QcTypes;
+
 
 class QualityControlController extends Controller
 {
@@ -27,7 +28,7 @@ class QualityControlController extends Controller
     }
     public function index()
     {
-        return view('qualitycontrol::configurations.index');
+        return view('layouts.qcmodule.configurations.index');
     }
 
     public function createQcTypes(Request $request)
@@ -54,7 +55,7 @@ class QualityControlController extends Controller
         $qc_types = QcTypes::all();
         $standards = Standards::where('is_qc_standard',1)->get();
         $qc_schemes = QcSchemes::all();
-        return view('qualitycontrol::configurations.index',compact('qc_types','standards','qc_schemes'));
+        return view('layouts.qcmodule.configurations.index',compact('qc_types','standards','qc_schemes'));
     }
     public function addQcStandard(Request $request){
         $standard = Standards::find($request->standard_id) ?? new Standards();
@@ -80,7 +81,7 @@ class QualityControlController extends Controller
         $standardAnalytes = StandardAnalytes::where('standard_id',$id)->get();
         $analytes = Analyte::where('active',1)->get();
         // return response()->json('done');
-        return view('qualitycontrol::configurations.show',compact('standard','standardAnalytes','analytes'));
+        return view('layouts.qcmodule.configurations.show',compact('standard','standardAnalytes','analytes'));
     }
 
     public function addQcStandardAnalyte(Request $request){
@@ -130,9 +131,10 @@ class QualityControlController extends Controller
         $qc_types = QcTypes::where('is_active',1)->get();
         $qc_schemes = QcSchemes::where('is_active',1)->get();
         $standards = Standards::where('is_qc_standard',1)->where('status',1)->get();
-        $analytes = Analyte::where('active',1)->get();
+        
+        $status = "Qc Approved";
 
-		return view('qualitycontrol::qchistory.index', compact('sample_types', 'qc_types','qc_schemes','standards','analytes'));
+		return view('layouts.qcmodule.qchistory.index', compact('sample_types', 'qc_types','qc_schemes','standards','status'));
     }
     
 }
