@@ -106,6 +106,41 @@
 			</div>
 		</div>
 	</div>
+	<div class="card mt-3">
+		<div class="spn-header text-bold pl-3 pt-3">Report Parameters :</div>
+		<div class="card-body row">
+			<div class="col-md-3">
+				<span><i class="mdi mdi-chevron-right"></i> Max Value : -</span>
+			</div>
+			<div class="col-md-3">
+				<span><i class="mdi mdi-chevron-right"></i> Min Value : -</span>
+			</div>
+			<div class="col-md-3">
+				<span><i class="mdi mdi-chevron-right"></i> Median : -</span>
+			</div>
+			<div class="col-md-3">
+				<span><i class="mdi mdi-chevron-right"></i> Average : -</span>
+			</div>
+			<div class="col-md-3">
+				<span><i class="mdi mdi-chevron-right"></i> STD Deviations : -</span>
+			</div>
+			<div class="col-md-3">
+				<span><i class="mdi mdi-chevron-right"></i> Cv : -</span>
+			</div>
+			<div class="col-md-3">
+				<span><i class="mdi mdi-chevron-right"></i> Statistical Population Size</span>
+			</div>
+			<div class="col-md-3">
+				<span><i class="mdi mdi-chevron-right"></i> Z-Score : -</span>
+			</div>
+			<div class="col-md-3">
+				<span><i class="mdi mdi-chevron-right"></i> Std Star : -</span>
+			</div>
+			<div class="col-md-3">
+				<span><i class="mdi mdi-chevron-right"></i> Cv Star : -</span>
+			</div>
+		</div>
+	</div>
 	<div class="card mt-4" style="box-shadow: rgba(0, 0, 0, 0.35) 0px 5px 15px;">
 		<div class="card-body">
 			<div class="table-responsive">
