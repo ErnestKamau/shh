@@ -84,6 +84,7 @@ class CRMCustomerController extends Controller
 	$qualification_list = Qualification::all();
     $complaints = Complaint::where('client_id',$customer->id)->orderBy('id','desc')->get();
     $feedbacks = CustomerFeedback::where('client_id',$customer->id)->orderBy('id','desc')->get();
+	$quotes = QuotationHeader::where('crm_customer_id',$id)->get();
     $complaint_types = Complaint_Type::all();
 		$samplesSel = SampleHeader::join('sample_types as st', 'st.id', 'sample_type_id')
 			->selectRaw('sample_headers.*, st.name as sample_type')->where('crm_customer_id', $id)
@@ -118,7 +119,7 @@ class CRMCustomerController extends Controller
 
 		// return response()->json($samples, 200);
 
-		return view('layouts.crm.show', compact('customer', 'countries', 'samples','complaints','feedbacks','complaint_types','ordersSel','certifications','qualification_list','accounts'));
+		return view('layouts.crm.show', compact('customer', 'countries', 'samples','complaints','feedbacks','complaint_types','ordersSel','certifications','qualification_list','accounts','quotes'));
 		
 	}
 

@@ -1724,7 +1724,11 @@
 							<div class="modal-header">
 								<h4 class="modal-title"><i class="mdi mdi-file-document-edit"></i> Comments & Interpretations </h4>
 							</div>
-							<div class="modal-body" id="sample-interpretations-holder"></div>
+							<div class="modal-body" id="sample-interpretations-holder">
+								<div class="form-group">
+									<label for="" class="control-label"></label>
+								</div>
+							</div>
 							<div class="modal-footer">
 								<button type="submit" class="btn btn-info btn-sm" onclick="tinyMCE.triggerSave()"><i class="mdi mdi-content-save"></i> Save</button>
 								<button type="button" class="btn btn-default btn-sm" data-dismiss="modal">Close</button>

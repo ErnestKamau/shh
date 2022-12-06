@@ -112,10 +112,50 @@
 						<li class="nav-item">
 							<a class="nav-link" id="Customer-Details-tab" data-toggle="tab" href="#Customer-Details" role="tab" aria-controls="Customer-Details" aria-selected="true"><i class="mdi mdi-information-outline"></i> Details</a>
 						</li>
+						<li class="nav-item">
+							<a class="nav-link" id="Customer-Details-tab" data-toggle="tab" href="#quotations" role="tab" aria-controls="Customer-Details" aria-selected="true"><i class="mdi mdi-file-settings"></i> Quotation</a>
+						</li>
+						
 					</ul>
 				</div>
 
 				<div class="tab-content" id="Samples-tabs-content">
+					<!-- ---------------------------------quotations-----------------------------  -->
+					<div class="tab-pane fade p-3" id="quotations" role="tabpanel" aria-labelledby="one-tab">
+						<h5 class="card-title">
+							<i class="mdi mdi-file-settings"></i> Quotations
+						</h5>
+						<div class="table-responsive">
+							<table class="table table-condensed table-hover table-stripped table-sm table-bordered">
+								<thead>
+									<tr>
+										<th>Quote No</th>
+										<th>Quote Type</th>
+										<th>Status</th>
+										<th>Quote Date</th>
+										<th>Expiry Date</th>
+										<th>Prepared By</th>
+										<th>Total</th>
+									</tr>
+								</thead>
+								<tbody>
+									@foreach($quotes as $quote)
+									<tr>
+										<td><a target="_blank" href="{{ route('add-qoute-details-view',['id'=>$quote->id]) }}">{{$quote->quote_number}}</a></td>
+										<td>{{$quote->quotation_type}}</td>
+										<td>{{$quote->status}}</td>
+										<td>{{$quote->quote_date}}</td>
+										<td>{{$quote->expiring_date}}</td>
+										<td>{{$quote->creator}}</td>
+										<td style="text-align: right !important;">{{number_format($quote->total_amount,2) }}</td>
+									</tr>
+									@endforeach
+								</tbody>
+							</table>
+						</div>
+					</div>
+					<!-- ---------------------------------quotations-----------------------------  -->
+
 					<div class="tab-pane fade show p-3" id="Certification" role="tabpanel" aria-labelledby="one-tab">
 						<h5 class="card-title">
 							<i class="mdi mdi-file-certificate-outline"></i> Attachments
