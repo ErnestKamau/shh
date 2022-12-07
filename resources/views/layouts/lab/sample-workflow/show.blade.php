@@ -1725,9 +1725,7 @@
 								<h4 class="modal-title"><i class="mdi mdi-file-document-edit"></i> Comments & Interpretations </h4>
 							</div>
 							<div class="modal-body" id="sample-interpretations-holder">
-								<div class="form-group">
-									<label for="" class="control-label"></label>
-								</div>
+								
 							</div>
 							<div class="modal-footer">
 								<button type="submit" class="btn btn-info btn-sm" onclick="tinyMCE.triggerSave()"><i class="mdi mdi-content-save"></i> Save</button>
@@ -2761,14 +2759,24 @@
 			$('#provide-interpretations').on('show.bs.modal', function(e){
 				var d = new Date();
 				var n = d.getTime();
-				var $row = $(`<div class="form-group">
-					<label>Comments</label>
-					<textarea class="form-control" name="header_body" placeholder="Comments..." required>{{ $headerDetails['header']->header_body ?? '' }}</textarea>
-				</div>
-				<div class="form-group">
-					<label>Recommendations / Interpretations</label>
-					<textarea class="form-control" name="main_body" placeholder="Recommendations / Interpretations..." >{{ $headerDetails['header']->main_body ?? '' }}</textarea>
-				</div>`).clone();
+				var scopetype = $(e.relatedTarget).data('scopetype');
+				var $row = $(`
+					<div class="form-group">
+						<label>Comments</label>
+						<textarea class="form-control" name="header_body" placeholder="Comments..." required>{{ $headerDetails['header']->header_body ?? '' }}</textarea>
+					</div>
+					<div class="form-group">
+						<label>Recommendations / Interpretations</label>
+						<textarea class="form-control" name="main_body" placeholder="Recommendations / Interpretations..." >{{ $headerDetails['header']->main_body ?? '' }}</textarea>
+					</div>
+					<div class="form-group">
+						<label for="" class="control-label">Scope</label>
+						<select name="batch_comment_scope" class="form-control" id="">
+							<option value="1" ${scopetype == 1 ? 'selected' : ''}>Concactinate</option>
+							<option value="2" ${scopetype == 2 ? 'selected' : ''}>Overwrite</option>
+						</select>
+					</div>
+				`).clone();
 
 				$('#sample-interpretations-holder').html($row);
 
@@ -2778,6 +2786,8 @@
 				var action = $(e.relatedTarget).data('action');
 				var mainBody = $(e.relatedTarget).data('mainbody');
 				var headerBody = $(e.relatedTarget).data('headerbody');
+				
+
 				$(this).find('form').prop('action', action);
 				$(this).find('form').attr('action', action);
 
@@ -2910,6 +2920,7 @@
 					$row.find('.provide-interpretation-row').data("action", '/sample-interpretations/'+data.id);
 					$row.find('.provide-interpretation-row').data("headerbody", data.header_body);
 					$row.find('.provide-interpretation-row').data("mainbody", data.main_body);
+					$row.find('.provide-interpretation-row').data("scopetype", data.main_body);
 				}
 
 				$row.find('[name="sample_details[sample_store][]"]').val(data['store_id']).trigger('change');
