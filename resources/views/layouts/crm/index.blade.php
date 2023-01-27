@@ -123,19 +123,54 @@
 		</div>
 	</div>
 </div>
+<div class="modal fade" id="name-check-modal" style="z-index:10000" role="dialog">
+	<div class="modal-dialog">
+		<div class="modal-content">
+			<div class="modal-body">
+				<div class="alert alert-primary p-2 d-flex">
+					<i class="mdi mdi-alert-decagram mdi-36px"></i>
+					<p class="p-2">
+						Below are customers with the same name as the name provided on the name input field!
+					</p>
+				</div>
+				<div class="data">
+					<table class="table table-sm table-stripped table-bordered" id="name-check-tbody">
+						<thead>
+							<tr>
+								<th>#</th>
+								<th>Name</th>
+							</tr>
+							
+						</thead>
+						<tbody>
+
+						</tbody>
+					</table>
+
+				</div>
+			</div>
+			<div class="modal-footer">
+				<span class="btn btn-sm btn-outline-primary" data-dismiss="modal">Close</span>
+			</div>
+		</div>
+	</div>
+</div>
 <div id="add-customer" class="modal fade" role="dialog">
 	<div class="modal-dialog modal-lg">
 		<!-- Modal content-->
 		<form class="modal-content" method="POST" action="{{ route('add-customers') }}" enctype="multipart/form-data">
 			@csrf
 			<div class="modal-header">
-				<h4 class="modal-title"><i class="mdi mdi-plus"></i> Add Customer</h4>
+				<h4 class="modal-title">
+					<i class="mdi mdi-plus"></i> Add Customer
+				</h4>
+				<span class="btn btn-sm btn-default text-primary bg-light float-right hidden name-check-listener" data-toggle="modal" data-target="#name-check-modal" style="box-shadow: rgba(0, 0, 0, 0.35) 0px 5px 15px;"> <i class="mdi mdi-account-search"></i> Name Check</span>
 			</div>
 			<div class="modal-body row">
 				<div class="col-sm-6">
 					<div class="form-group">
 						<label class="control-label">Name <span class="text-danger">*</span></label>
-						<input type="text" class="form-control" name="name" placeholder="Name..." required />
+						<input type="text" class="form-control name-check-trigger" name="name" placeholder="Name..." required />
 					</div>
 					<div class="form-group">
 						<label class="control-label">Postal Address <span class="text-danger">*</span></label>
@@ -221,6 +256,7 @@
 		</form>
 	</div>
 </div>
+
 
 
 <script>
@@ -339,6 +375,55 @@
 			`;
 			$(this).find('.modal-body').append(text_);
 			// console.log(customer);
+		});
+
+		$('#add-customer').on('show.bs.modal',(e)=>{
+			
+			$('#add-customer').find('.name-check-trigger').on('change',(e)=>{
+				$.each($('#add-customer').find('.form-control'),(i,obj)=>{
+					$(obj).attr('readonly',true)
+					$('.name-check-listener').removeClass('hidden');
+				});
+			})
+		});
+		let nameCheckTbodyData = (loop,data)=>{
+			var body=$(`
+				<tr>
+					<td>${loop}</td>
+					<td>${data.name}</td>
+				</tr>
+			`).clone();
+			return body;
+		}
+		$('#name-check-modal').on('show.bs.modal',(e)=>{
+			var current_name = $('#add-customer').find('.name-check-trigger').val();
+			$.ajax({
+				url:`/validate-Crm-Customer/Name/${current_name}/Ajax`,
+				method:'GET',
+				success:(data)=>{
+					$loop = 1;
+					if(data.length > 0){
+						$('#name-check-modal').find('#name-check-tbody').find('tbody').empty();
+						$.each(data,(i,obj)=>{
+							var body = nameCheckTbodyData($loop,obj)
+							$('#name-check-modal').find('#name-check-tbody').find('tbody').append(body);
+							++$loop
+						})
+					}else{
+						var body=$(`<tr><td colspan="2" class="text-center">No Data Available ....</td></tr>`).clone();
+						$('#name-check-modal').find('#name-check-tbody').find('tbody').append(body);
+
+					}
+					$.each($('#add-customer').find('.form-control'),(i,obj)=>{
+						$(obj).removeAttr('readonly')
+						$('.name-check-listener').addClass('hidden');
+					});
+					
+				},
+				error:(data)=>{
+					console.log(data);
+				}
+			});
 		})
 	})
 </script>

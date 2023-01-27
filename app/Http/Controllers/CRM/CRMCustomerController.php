@@ -225,5 +225,12 @@ class CRMCustomerController extends Controller
 
 
   }
+
+  public function validateCrmCustomerNameAjax($name){
+	  $namearr = explode(' ',$name);
+	  $tit = $namearr[0];
+	  $customers = CRMCustomer::where('name','LIKE', "%".$tit."%")->get();
+	  return response()->json($customers);
+  }
   
 }
