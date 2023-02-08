@@ -39,6 +39,7 @@ class QualityControlController extends Controller
         $qc_type->has_configured_samples = isset($request->has_configured_samples) ? 1 :0;
         $qc_type->is_active = isset($request->is_active) ? 1 : 0;
         $qc_type->created_by = auth()->user()->id;
+        $qc_type->use_existing_sample = isset($request->use_existing_sample) ? 1 :0;
         $qc_type->save();
         return redirect()->back()->with('success','Qc Type record updated successfully');
     }

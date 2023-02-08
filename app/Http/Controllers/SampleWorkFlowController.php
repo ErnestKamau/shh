@@ -340,6 +340,7 @@ class SampleWorkFlowController extends Controller
 		if (!isset($batch_config->id)) {
 			return redirect()->back()->with('error', 'Kindly add batch_code_config configuration');
 		}
+		
 		$cust_code = str_split($selectedCustomer->code);
 		$code = [];
 		$loop = 0;
@@ -402,6 +403,7 @@ class SampleWorkFlowController extends Controller
 		$header->is_qc_batch = isset($request->is_qc_batch);
 		$header->qc_type_id = $request->qc_type_id;
 		$header->qc_scheme_id = $request->qc_scheme_id;
+		$header->repeat_batch_id = $request->repeat_batch_id;
 
 		if ($isInReception) {
 			$header->crm_customer_id = $request->crm_customer_id;
@@ -949,6 +951,7 @@ class SampleWorkFlowController extends Controller
 		$permsD = ['Laboratory', 'components', 'RFT Form', 'Delete'];
 		$check_perm_view = auth()->user()->check_permission($perms);
 		$check_perm_delete = auth()->user()->check_permission($permsD);
+		$repeat_sample= SystemConfiguration::where('key','repeat_sample_id')->first();
 		// return response()->json($check_perm_view);
 		$batchID = $batch;
 
@@ -1049,7 +1052,7 @@ class SampleWorkFlowController extends Controller
 		$analysts = User::orderBy('name')->join('user_roles as ur', 'ur.user_id', '=', 'users.id')
 			->join('roles as r', 'r.id', '=', 'ur.role_id')
 			->where('r.id', $role_a->value)->where('users.active', 1)->where('users.is_support_staff', 0)->selectRaw('users.*')->get();
-		return view('layouts.lab.sample-workflow.show', compact('batch', 'batchID', 'defaultClient', 'selectedSampleType', 'client_portal', 'ammendable', 'standards', 'attachments', 'not_captured', 'analysts', 'countries', 'accounts', 'methods', 'atachment_type', 'check_perm_view', 'check_perm_delete', 'batch_scope', 'customer_survey','qc_types','qc_schemes'));
+		return view('layouts.lab.sample-workflow.show', compact('batch', 'batchID', 'defaultClient', 'selectedSampleType', 'client_portal', 'ammendable', 'standards', 'attachments', 'not_captured', 'analysts', 'countries', 'accounts', 'methods', 'atachment_type', 'check_perm_view', 'check_perm_delete', 'batch_scope', 'customer_survey','qc_types','qc_schemes','repeat_sample'));
 	}
 
 	public function fetch_unit_stuff($name, $client)

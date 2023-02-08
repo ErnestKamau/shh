@@ -98,9 +98,9 @@
                                 <th >Name</th>
                                 <th>Code</th>
                                 <th>Created By</th>
-                                <th>Has Standards
+                                <th>Has Standards</th>
                                 <th>Has Connfigured Samples</th>
-                                </th>
+                                <th>Use Existing Samples</th>
                                 <th>Active</th>
 
                             </tr>
@@ -117,6 +117,7 @@
                                 <td style="width:15% !important">{{$type->creator()->name}}</td>
                                 <td style="width:5% !important" class="text-center">{!! $type->has_standards == 1 ? '<span class="text-success"><i class="mdi mdi-checkbox-marked-circle-outline mdi-24px"></i></span>' : '-' !!} </td>
                                 <td class="text-center" style="width:5% !important">{!! $type->has_configured_samples == 1 ? '<span class="text-success"><i class="mdi mdi-checkbox-marked-circle-outline mdi-24px"></i></span>' : '-' !!}</td>
+                                <td class="text-center" style="width:5% !important">{!! $type->use_existing_sample == 1 ? '<span class="text-success"><i class="mdi mdi-checkbox-marked-circle-outline mdi-24px"></i></span>' : '-' !!}</td>
                                 <td  class="text-center" style="width:5% !important">{!! $type->is_active == 1 ? '<span class="text-success"><i class="mdi mdi-checkbox-marked-circle-outline mdi-24px"></i></span>' : '-' !!}</td>
                             </tr>
                             @endforeach
@@ -229,7 +230,7 @@
                     <h5 class="card-header" style="width: 100%;"><i class="mdi mdi-plus"></i> Add Qc Type</h5>
                 </div>
                 <div class="modal-body">
-
+               
                 </div>
                 <div class="modal-footer">
                     <button type="submit" class="btn btn-sm btn-outline-primary"><i class="mdi mdi-content-save"></i> Save</button>
@@ -332,6 +333,9 @@
                     <label for="" class="control-label"><input type="checkbox" name="has_configured_samples" id="has_configured_samples" > Has Configured Samples</label>
                 </div>
                 <div class="form-group">
+                    <label for="" class="control-label"><input type="checkbox" name="use_existing_sample" id="use_existing_samples" > Use Existing Samples</label>
+                </div>
+                <div class="form-group">
                     <label for="" class="control-label"><input type="checkbox" name="is_active" id="is_active"> Is Active</label>
                 </div>
                 <input type="hidden" name="qc_type_id" value="${data && data.id ? data.id : ``}">
@@ -345,6 +349,9 @@
                 }
                 if(data.has_configured_samples ==1){
                     $(body).find('#has_configured_samples').prop('checked',true);
+                }
+                if(data.use_existing_sample == 1){
+                    $(body).find('#use_existing_samples').prop('checked',true);
                 }
             }else{
                 $(body).find('#is_active').prop('checked',true);

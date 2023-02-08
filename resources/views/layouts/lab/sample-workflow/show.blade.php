@@ -412,7 +412,7 @@
 							</div>
 							<div class="form-group {{isset($batch->id) && $batch->is_qc_batch == 1 ? '' : 'hidden'}} qc-type-field">
 								<label for="" class="control-label">Qc Type <span class="text-danger">*</span></label>
-								<select name="qc_type_id" id="" class="form-control">
+								<select name="qc_type_id" id="" class="form-control qc_type_id" data-repeatsample = "{{json_encode($repeat_sample->value)}}">
 									<option value="">Choose Qc Type</option>
 									@foreach($qc_types as $q_type)
 										@if(isset($batch->id) && $batch->qc_type_id == $q_type->id)
@@ -424,12 +424,18 @@
 									@endforeach
 								</select>
 							</div>
-							<div class="form-group {{isset($batch->id) && $batch->is_qc_batch == 1 ? '' : 'hidden'}} qc-type-field">
+							<div class="form-group {{isset($batch->id) && $batch->is_qc_batch == 1 ? '' : 'hidden'}}  qc-type-field">
 								<label for="" class="control-label">Qc Scheme <span class="text-danger">*</span></label>
 								<select name="qc_scheme_id" id="" class="form-control">
 									@foreach($qc_schemes as $scheme)
 									<option value="{{$scheme->id}}" {{isset($batch->id) && $batch->qc_scheme_id == $scheme->id ? 'selected' : ''}}>{{$scheme->code}}</option>
 									@endforeach
+								</select>
+							</div>
+							<div class="form-group {{isset($batch->id) && $batch->is_qc_batch == 1 && $batch->repeat_batch_id > 0 ? '' : 'hidden'}}  qc-repeat-batch">
+								<label for="" class="control-label">Repeat Batch</label>
+								<select name="repeat_batch_id" id="" class="form-group">
+									<option value="">Loading Batches <i class="mdi mdi-loading mdi-spin"></i></option>
 								</select>
 							</div>
 
@@ -2290,6 +2296,19 @@
 		};
 
 		$(function(){
+			$('.qc_type_id').on('change',(e)=>{
+				var value = $('.qc_type_id').val();
+				d= value.toString()
+
+				console.log(d);
+				
+				if($('.qc_type_id').data('repeatsample') ==  value.toString()){
+					$('.qc-repeat-batch').removeClass('hidden');
+				}else{
+					$('.qc-repeat-batch').addClass('hidden');
+				}
+			})
+
 			$('#add-company-unit').on('show.bs.modal',function(){
 				var customer = $('select[name="crm_customer_id"]').val();
 				if(customer == ''){
@@ -3485,4 +3504,10 @@
 
 		
 	</script>
+
+
+
+
+
+
 @endsection

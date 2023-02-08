@@ -95,9 +95,7 @@
 						<i class="mdi mdi-delete-empty mr-2"></i> Delete Batch
 					</span>
 				</li>
-				<li>
-					<a class="btn btn-sm dropdown-item" href="{{ route('view-batch-details', ['batch'=>time()]) }}"><i class="mdi mdi-plus mr-2"></i> Batch</a>
-				</li>
+				
 				<li>
 					<span class="btn btn-sm dropdown-item" data-target="#print-labels-modal" data-toggle="modal"><i class="mdi mdi-printer mr-2"></i> Labels</span>
 				</li>
