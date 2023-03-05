@@ -5,15 +5,18 @@ namespace App\Http\Controllers\QcModule;
 use App\Analyte;
 use App\Models\QcModule\Configurations\QcSchemes;
 use App\Models\QcModule\Configurations\QcTypes;
+use App\Models\QcModule\Data\QcResults;
 use App\Models\System\SystemConfiguration;
 use App\SampleDetails;
 use App\SampleHeader;
 use App\SampleType;
 use App\StandardAnalytes;
 use App\Standards;
+use App\AnalysisType;
 use Illuminate\Contracts\Support\Renderable;
 use Illuminate\Http\Request;
 use Illuminate\Routing\Controller;
+use Modules\QualityControl\Entities\QCResultsView;
 
 
 class QualityControlController extends Controller
@@ -130,11 +133,53 @@ class QualityControlController extends Controller
 		$sample_types = SampleType::where('active',1)->get();
         $qc_types = QcTypes::where('is_active',1)->get();
         $qc_schemes = QcSchemes::where('is_active',1)->get();
-        $standards = Standards::where('is_qc_standard',1)->where('status',1)->get();
-        
+        $analytes = Analyte::where('active',1)->get();
+        $status = "Qc Approved";
+        $data = [];
+        $results = [];
+
+		return view('layouts.qcmodule.qchistory.index', compact('sample_types', 'qc_types','qc_schemes','status','analytes','data','results'));
+    }
+    public function getQcStandardsAjax($qc_type_id){
+        $standards = Standards::where('is_qc_standard',1)->where('status',1)->where('qc_type_id',$qc_type_id)->get();
+        return response()->json($standards);
+    }
+    public function getQcAnalysisTypesAjax($sample_type_id){
+        $analysis = AnalysisType::where('sample_type_id',$sample_type_id)->get();
+        return response()->json($analysis);
+    }
+
+    public function generateQCReport(Request $request){
+        $sample_types = SampleType::where('active',1)->get();
+        $qc_types = QcTypes::where('is_active',1)->get();
+        $qc_schemes = QcSchemes::where('is_active',1)->get();
+        $analytes = Analyte::where('active',1)->get();
         $status = "Qc Approved";
 
-		return view('layouts.qcmodule.qchistory.index', compact('sample_types', 'qc_types','qc_schemes','standards','status'));
+        $data =[
+            "max"=>"4.1",
+            "min"=>"4",
+            "median"=>"4",
+            "average"=>"4",
+            "std"=>"0.1",
+            "cv"=>"0.12",
+            "population"=>"2",
+            "z_score"=>0,
+            "std_star"=>0,
+            "cv_star"=>0
+        ];
+        $results = QCResultsView::query();
+        $results = isset($request->analysis_type_id) && $request->analysis_type_id !='' ? $results->where('analysis_type_id',$request->analysis_type_id) : $results;
+        $results = isset($request->qc_type_id) && $request->qc_type_id !=  '' ? $results->where('qc_type_id',$request->qc_type_id) : $results;
+        $results = isset($request->qc_scheme_id) && $request->qc_scheme_id != '' ? $results->where('qc_scheme_id',$request->qc_scheme_id) : $results;
+        $results = isset($request->analyte_id) && $request->analyte_id != '' ? $results->where('analyte_id',$request->analyte_id) : $results;
+        $results = $results->get();
+
+        // return response()->json($request->all());
+
+        // $results =  QCResultsView::where('analysis_type_id',$request->analysis_type_id)->where('qc_type_id',$request->qc_type_id)->where('qc_scheme_id',$request->qc_scheme_id)->get();
+        return view('layouts.qcmodule.qchistory.index', compact('sample_types', 'qc_types','qc_schemes','status','analytes','data','results'));
     }
+    
     
 }

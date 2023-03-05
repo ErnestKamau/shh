@@ -28,5 +28,6 @@ Route::prefix('qualitycontrol')->group(function() {
 
     Route::post('/Maintain-Qc-Schemes','QualityControlController@MaintainQcSchemes')->name('MaintainQcSchemes');
     Route::post('/Delete-Qc-Schemes','QualityControlController@DeleteQcSchemes')->name('DeleteQcSchemes');
+    Route::get('/get/Qrds/{qc_type_id}/Ajax','QualityControlController@getQcStandardsAjax')->name('getQcSardsAjax');
     
 });

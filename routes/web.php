@@ -728,6 +728,10 @@ Route::prefix('qualitycontrol')->group(function() {
   Route::post('/Maintain-Qc-Schemes','QcModule\QualityControlController@MaintainQcSchemes')->name('MaintainQcSchemes');
   Route::post('/Delete-Qc-Schemes','QcModule\QualityControlController@DeleteQcSchemes')->name('DeleteQcSchemes');
   Route::get('/qc-Workflow-Index','QcModule\QualityControlController@qcWorkflowIndex')->name('qcWorkflowIndex');
+  Route::get('/get/Qc-Standards/{qc_type_id}/Ajax','QcModule\QualityControlController@getQcStandardsAjax')->name('getQcStandardsAjax');
+  Route::get('/get/Qc-Analysis-Types/{sample_type_id}/Ajax','QcModule\QualityControlController@getQcAnalysisTypesAjax')->name('getQcAnalysisTypesAjax');
+
+  Route::post('/generateQCReport','QcModule\QualityControlController@generateQCReport')->name('generateQCReport');
 
 });
 #############################################QC Module###########################################

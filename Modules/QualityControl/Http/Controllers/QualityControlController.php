@@ -135,5 +135,9 @@ class QualityControlController extends Controller
 
 		return view('qualitycontrol::qchistory.index', compact('sample_types', 'qc_types','qc_schemes','standards','analytes'));
     }
+    public function getQcStandardsAjax($qc_type_id){
+        $standards = Standards::where('is_qc_standard',1)->where('status',1)->where('qc_type_id',$qc_type_id)->get();
+        return responnse()->json($standards);
+    }
     
 }

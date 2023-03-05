@@ -223,7 +223,7 @@
 								<span class="btn btn-sm dropdown-item" data-target="#process-results-modal" data-toggle="modal" title="Process Results"><i class="mdi mdi-subdirectory-arrow-right mr-2"></i> Process Results</span>
 							</li>
 						@endif
-						@if($batch->approve_user_id > 0 && $batch->verify_user_id > 0 && $batch->is_qc_batch > 0 && auth()->user()->checkApproveLabSampleRole())
+						@if($batch->verify_user_id > 0 && $batch->is_qc_batch > 0 && auth()->user()->checkApproveLabSampleRole())
 							<li>
 								<a href="{{route('markQcSampleComplete',['id'=>$batch->id])}}" class="btn btn-sm dropdown-item"><i class="mdi mdi-subdirectory-arrow-right mr-2"></i> Mark As Complete</a>
 

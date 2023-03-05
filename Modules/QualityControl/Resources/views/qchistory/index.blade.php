@@ -98,19 +98,34 @@
 				<div class="col-md-4">
 					<div class="form-group">
 						<label for="" class="control-label">Qc Types</label>
-						<select name="qc_type_id" id="" class="form-control"></select>
+						<select name="qc_type_id" id="qc_type_id" class="form-control">\
+							<option value="">Choose Qc Type</option>
+							@foreach($qc_types as $q_type)
+							<option value="{{$q_type->id}}">{{$q_type->name}}</option>
+							@endforeach
+						</select>
 					</div>
 				</div>
 				<div class="col-md-4">
 					<div class="form-group">
 						<label for="" class="control-label">Qc Schemes</label>
-						<select name="qc_scheme_id" id="" class="form-control"></select>
+						<select name="qc_scheme_id" id="" class="form-control">
+							<option value="">Choose QC Scheme</option>
+							@foreach($qc_schemes as $scheme)
+							<option value="{{$scheme->id}}">{{$scheme->name}}</option>
+							@endforeach
+						</select>
 					</div>
 				</div>
 				<div class="col-md-4">
 					<div class="form-group">
 						<label for="" class="control-label">Analyte</label>
-						<select name="analyte_id" id="" class="form-control"></select>
+						<select name="analyte_id" id="" class="form-control">
+							<option value="">Choose Analyte</option>
+							@foreach($analytes as $analyte)
+							<option value="{{$analyte->id}}">{{$analyte->code}}</option>
+							@endforeach
+						</select>
 					</div>
 				</div>
 				<div class="col-md-4">
@@ -126,7 +141,7 @@
 				<div class="col-md-4">
 					<div class="form-group">
 						<label for="" class="control-label">Standard</label>
-						<select name="standard_idphp" id="" class="form-control"></select>
+						<select name="standard_id" id="standard_id" class="form-control"></select>
 					</div>
 				</div>
 
@@ -163,5 +178,26 @@
 @endsection
 
 @section('script2')
+<script>
+	$(()=>{
+		$('#qc_type_id').on('change',(e)=>{
+			$('#standard_id').empty();
+			var qc_type_id = $('#qc_type_id').val()
+			$.ajax({
+				url:`/qualitycontrol/get/Qc-Standards/${qc_type_id}/Ajax`,
+				method:`GET`,
+				success:(data)=>{
+					$.each(data,(i,obj)=>{
+						var body = `<option value="${obj.id}">${obj.name}</option>`;
+						$('#standard_id').append(body);
+					})
+				},
+				error:(data)=>{
+					console.log(data);
+				}
+			})
+		})
+	})
+</script>
 
 @endsection
