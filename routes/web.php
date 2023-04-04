@@ -732,6 +732,7 @@ Route::prefix('qualitycontrol')->group(function() {
   Route::get('/get/Qc-Analysis-Types/{sample_type_id}/Ajax','QcModule\QualityControlController@getQcAnalysisTypesAjax')->name('getQcAnalysisTypesAjax');
 
   Route::post('/generateQCReport','QcModule\QualityControlController@generateQCReport')->name('generateQCReport');
+  Route::get('/get/Qc-Type/Config/{id}/Ajax','QcModule\QualityControlController@getQcTypeConfigAjax')->name('getQcTypeConfigAjax');
 
 });
 #############################################QC Module###########################################

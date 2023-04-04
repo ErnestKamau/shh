@@ -334,7 +334,18 @@ class SampleWorkFlowController extends Controller
 
 	public function add_batch_info(Request $request, $batch)
 	{
-		$selectedCustomer = CRMCustomer::find($request->crm_customer_id);
+		if(isset($request->is_qc_batch)){
+			if(isset($request->repeat_sample_id) && $request->repeat_sample_id > 0){
+				$repeat_samples = SampleDetails::find($request->repeat_sample_id);
+				$last_header = SampleHeader::find($repeat_samples->sample_header_id);
+				$selectedCustomer = CRMCustomer::find($last_header->crm_customer_id);
+			}else{
+				$qc_customer_id = SystemConfiguration::where('key','qc_customer_id')->first();
+				$selectedCustomer = CRMCustomer::find($qc_customer_id->value);
+			}
+		}else{
+			$selectedCustomer = CRMCustomer::find($request->crm_customer_id);
+		}
 		$selectedSampleType = SampleType::find($request->sample_type_id);
 		$batch_config = SystemConfiguration::where('key', 'batch_code_config')->first();
 		if (!isset($batch_config->id)) {
@@ -403,22 +414,43 @@ class SampleWorkFlowController extends Controller
 		$header->is_qc_batch = isset($request->is_qc_batch);
 		$header->qc_type_id = $request->qc_type_id;
 		$header->qc_scheme_id = $request->qc_scheme_id;
-		$header->repeat_batch_id = $request->repeat_batch_id;
+		$header->repeat_batch_id = isset($request->repeat_sample_id) ? $request->repeat_batch_id : 0;
+		$header->repeat_sample_id = isset($request->repeat_sample_id) && $request->repeat_sample_id > 0 ? $request->repeat_sample_id : $header->repeat_sample_id;
 
 		if ($isInReception) {
-			$header->crm_customer_id = $request->crm_customer_id;
 			$header->sample_type_id = $request->sample_type_id;
-			$header->crm_unit_name = $request->crm_unit_name;
-
-			$customer = getCrmCustomerByID($request->crm_customer_id);
-			$account = SystemConfiguration::find($customer->account_status);
-			if (isset($account->id)) {
-				$header->current_account_status = $account->key;
-				if ($account->key == 'Suspended') {
-					return redirect()->back()->with('error', 'The customer is currently suspended!');
+			if(isset($request->is_qc_batch)){
+				if(isset($request->repeat_sample_id) && $request->repeat_sample_id > 0){
+					$repeat_samples = SampleDetails::find($request->repeat_sample_id);
+					$last_header = SampleHeader::find($repeat_samples->sample_header_id);
+					
+					$header->crm_customer_id = $last_header->crm_customer_id;
+					$header->sample_type_id = $last_header->sample_type_id;
+					$header->crm_unit_name = $last_header->crm_unit_name;
+				}else{
+					$qc_customer_id = SystemConfiguration::where('key','qc_customer_id')->first();
+					$qc_customer_unit = SystemConfiguration::where('key','qc_customer_unit')->first();
+					
+					$header->crm_customer_id = $qc_customer_id->value;
+					
+					$header->crm_unit_name = $qc_customer_unit->value;
 				}
-			} else {
-				$header->current_account_status = 'N/a';
+			}else{
+
+				$header->crm_customer_id = $request->crm_customer_id;
+				
+				$header->crm_unit_name = $request->crm_unit_name;
+	
+				$customer = getCrmCustomerByID($request->crm_customer_id);
+				$account = SystemConfiguration::find($customer->account_status);
+				if (isset($account->id)) {
+					$header->current_account_status = $account->key;
+					if ($account->key == 'Suspended') {
+						return redirect()->back()->with('error', 'The customer is currently suspended!');
+					}
+				} else {
+					$header->current_account_status = 'N/a';
+				}
 			}
 		}
 
@@ -468,6 +500,41 @@ class SampleWorkFlowController extends Controller
 		}
 
 		$header->save();
+		if(isset($request->repeat_sample_id) && $request->repeat_sample_id > 0){
+			$samples = SampleDetails::find($request->repeat_sample_id);
+			$new_sample = $samples->replicate();
+			$config_start_no = SystemConfiguration::where('key', 'start_sample_no')->first();
+			if (!isset($config_start_no->id)) {
+				return redirect()->back()->with('error', 'Kindly configure the start sample No');
+			}
+			$last_sample = isset(SampleDetails::latest('id')->first()->id) ? explode('-', SampleDetails::max('sample_code'))[1]  : $config_start_no->value;
+			$sample_number = intval($last_sample)  + 1;
+			
+			$new_sample->sample_code = 'S0513-' . $sample_number;
+			$new_sample->sample_header_id = $header->id;
+			$new_sample->save();
+			$captureds = CapturedResult::where('sample_detail_id',$samples->id)->get();
+			foreach($captureds as $capture){
+				$new_capture = $capture->replicate();
+				$result = Result::where('captured_result_id',$capture->id)->first();
+				$new_capture->sample_detail_id = $new_sample->id;
+				$new_capture->sample_header_id = $header->id;
+				$new_capture->sample_detail_code = $new_sample->sample_code;
+				$new_capture->result = '';
+				$new_capture->remark = '';
+				$new_capture->repeat_captured_id = $capture->id;
+				$new_capture->save();
+				$new_result = $result->replicate();
+				$new_result->captured_result_id = $new_capture->id;
+				$new_result->sample_detail_id = $new_sample->id;
+				$new_result->sample_header_id = $header->id;
+				$new_result->sample_detail_code = $new_sample->sample_code;
+				$new_result->result = '';
+				$new_result->remarks = '';
+				$new_result->repeat_results_id = $result->id;
+				$new_result->save();
+			}
+		}
 		$maxReportingTime = 0;
 		$targetDateStr = "Target Date";
 		$targetDate = \App\SampleDate::where('sample_header_id', $header->id)->where('name', $targetDateStr)->first() ?? new \App\SampleDate;
@@ -998,14 +1065,10 @@ class SampleWorkFlowController extends Controller
 		$selectedSampleType = \App\SampleType::find($batch->sample_type_id ?? 0) ?? false;
 		if(isset($batch->id)){
 			if($batch->is_qc_batch){
-				$qc_type = QcTypes::find($batch->qc_type_id);
-				if($qc_type->has_standards){
-					$standards = Standards::where('status', 1)->where('qc_type_id',$qc_type->id)->get();
-				}else{
-					$standards = Standards::where('status', 1)->get();
-				}
+				$standards = Standards::where('status', 1)->where('qc_type_id',$batch->qc_type_id)->get();
+				
 			}else{
-				$standards = Standards::where('status', 1)->get();
+				$standards =  Standards::where('status', 1)->get();
 			}
 		}else{
 			$standards =[];
@@ -2271,7 +2334,7 @@ class SampleWorkFlowController extends Controller
 		$company = getActiveCompany();
 		$message = $request->email_body;
 		foreach ($request->sample_code as $code) {
-			$batch = SampleHeader::where('batch_code', $code)->where('isactive',1)->first();
+			$batch = SampleHeader::where('id', $code)->first();
 			$customer = CRMCustomer::find($batch->crm_customer_id);
 			$samples = SampleDetails::where('sample_header_id', $batch->id)->get();
 			$start =  SampleDetails::where('sample_header_id', $batch->id)->first();

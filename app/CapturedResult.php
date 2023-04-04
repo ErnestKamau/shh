@@ -8,6 +8,12 @@ use OwenIt\Auditing\Contracts\Auditable;
 class CapturedResult extends Model implements Auditable
 {
 	use \OwenIt\Auditing\Auditable;
+	protected $appends = ['repeatsampleresult'];
+
+	public function getRepeatSampleResultAttribute(){
+		$captured = CapturedResult::find($this->repeat_captured_id);
+		return $captured->result ?? '';
+	}
 
 	public function sample()
 	{

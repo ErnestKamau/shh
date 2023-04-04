@@ -272,7 +272,9 @@
 						<form action="{{ route('add-batch-info', ['batch'=>$batchID]) }}" method="POST">
 							<?php $maxDate = getTodayDate(); ?>
 							@csrf
-							
+							<div class="form-group">
+								<label for="" class="control-label"><input type="checkbox" name="is_qc_batch" class="is_qc_batch" {{isset($batch->id) && $batch->is_qc_batch == 1 ? 'checked' : ''}} id=""> Is Qc Batch</label>
+							</div>
 							<div class="form-group">
 								<label class="control-label">Date Collected <span class="text-danger">*</span></label>
 								<input type="date" max="{{ $maxDate }}" placeholder="Lab Receiption Date" value="{{ $batch->date_collected ?? '' }}" class="form-control " name="date_collected" required>
@@ -294,10 +296,10 @@
 								</div> --}}
 							</div>
 
-							<div class="form-group {{isset($batch->id) ? ( $batch->status == 'Samples In Lab' ? 'hidden' : '') : ''}}">
+							<div class="form-group qc-omit-type-field {{isset($batch->id) ? ( $batch->status == 'Samples In Lab' || $batch->is_qc_batch == 1 ? 'hidden' : '') : ''}}">
 														
 								<label  class="control-label">Client <span class="text-danger">*</span> <span class="btn-primary p-0 btn-sm" style="margin: 0px !important;" data-target="#add-customer" data-toggle="modal" data-toggle="tooltip" title="Add Client" ><i class="mdi mdi-plus"></i></span></label>
-								<select class="form-control {{ $defaultClient === false ? '' :'no-select2' }} {{ isset($batch->status) && !in_array($batch->status, array("Samples Reception", "Samples En-Route")) ? 'no-select2' : '' }}" {{ isset($batch->status) && !in_array($batch->status, array("Samples Reception", "Samples En-Route")) ? 'readonly' : '' }} name="crm_customer_id" id="client-select" required onchange="detectChange(this)" {{ $defaultClient === false ? '' :'readonly' }}>
+								<select class="form-control qc-remove-required {{ $defaultClient === false ? '' :'no-select2' }} {{ isset($batch->status) && !in_array($batch->status, array("Samples Reception", "Samples En-Route")) ? 'no-select2' : '' }}" {{ isset($batch->status) && !in_array($batch->status, array("Samples Reception", "Samples En-Route")) ? 'readonly' : '' }} name="crm_customer_id" id="client-select" onchange="detectChange(this)" {{ $defaultClient === false ? '' :'readonly' }}>
 									<option value="">Select Client...</option>
 									@foreach (getClients() as $client)
 										 @if($defaultClient === false) {{-- Creating a batch from the normal process --}}
@@ -323,13 +325,13 @@
 								@endif
 								
 							</div>
-							<div class="form-group">
+							<div class="form-group qc-omit-type-field {{isset($batch->id) ? ( $batch->status == 'Samples In Lab' || $batch->is_qc_batch == 1 ? 'hidden' : '') : ''}} ">
 								<label class="control-label"><span class='client-prefered-unit-name'>Site Location</span> <span class="text-danger">*</span> <span class="btn-primary p-0 btn-sm"  data-target="#add-company-unit" data-toggle="modal" data-toggle="tooltip" title="Add Site Location" ><i class="mdi mdi-plus"></i></span></label>
-								<select class="form-control {{ isset($batch->status) && !in_array($batch->status, array("Samples Reception", "Samples En-Route")) ? 'no-select2' : '' }}" {{ isset($batch->status) && !in_array($batch->status, array("Samples Reception", "Samples En-Route")) ? 'readonly' : '' }} name="crm_unit_name" data-selected='{{ $batch->crm_unit_name ?? '' }}' id="client-unit-select" required>
+								<select class="form-control  {{ isset($batch->status) && !in_array($batch->status, array("Samples Reception", "Samples En-Route")) ? 'no-select2' : '' }}" {{ isset($batch->status) && !in_array($batch->status, array("Samples Reception", "Samples En-Route")) ? 'readonly' : '' }} name="crm_unit_name" data-selected='{{ $batch->crm_unit_name ?? '' }}' id="client-unit-select">
 									<option value="">Select Client Unit...</option>
 								</select>
 							</div>
-							<div class="form-group">
+							<div class="form-group ">
 								<label class="control-label text-sm">Sample Type <span class="text-danger">*</span></label>
 								<select class="form-control {{ isset($batch->status) && !in_array($batch->status, array("Samples Reception", "Samples En-Route")) ? 'no-select2' : '' }}" {{ isset($batch->status) && !in_array($batch->status, array("Samples Reception", "Samples En-Route")) ? 'readonly' : '' }} name="sample_type_id" required id="batch-info-sample-type">
 									<option value="">Select Sample Type...</option>
@@ -351,7 +353,7 @@
 									@endforeach
 								</select>
 							</div>
-							<div class="form-group">
+							<div class="form-group qc-omit-type-field">
 								<label class="control-label">Customer Survey <span class="text-danger">*</span></label>
 								<select name="customer_survey" id="" class="form-control" required>
 									@foreach(explode(',',$customer_survey->value) as $survey)
@@ -407,9 +409,7 @@
 								</select> -->
 							</div>
 
-							<div class="form-group">
-								<label for="" class="control-label"><input type="checkbox" name="is_qc_batch" class="is_qc_batch" {{isset($batch->id) && $batch->is_qc_batch == 1 ? 'checked' : ''}} id=""> Is Qc Batch</label>
-							</div>
+							
 							<div class="form-group {{isset($batch->id) && $batch->is_qc_batch == 1 ? '' : 'hidden'}} qc-type-field">
 								<label for="" class="control-label">Qc Type <span class="text-danger">*</span></label>
 								<select name="qc_type_id" id="" class="form-control qc_type_id" data-repeatsample = "{{json_encode($repeat_sample->value)}}">
@@ -418,7 +418,7 @@
 										@if(isset($batch->id) && $batch->qc_type_id == $q_type->id)
 											<option value="{{$q_type->id}}" selected>{{$q_type->code}}</option>
 										@else
-											<option value="{{$q_type->id}}" selected>{{$q_type->code}}</option>	
+											<option value="{{$q_type->id}}">{{$q_type->code}}</option>	
 										@endif
 									
 									@endforeach
@@ -432,10 +432,10 @@
 									@endforeach
 								</select>
 							</div>
-							<div class="form-group {{isset($batch->id) && $batch->is_qc_batch == 1 && $batch->repeat_batch_id > 0 ? '' : 'hidden'}}  qc-repeat-batch">
-								<label for="" class="control-label">Repeat Batch</label>
-								<select name="repeat_batch_id" id="" class="form-group">
-									<option value="">Loading Batches <i class="mdi mdi-loading mdi-spin"></i></option>
+							<div class="form-group {{isset($batch->id) && $batch->is_qc_batch == 1 && $batch->repeat_sample_id > 0 ? '' : 'hidden'}}  qc-repeat-batch">
+								<label for="" class="control-label">Repeat Samples</label>
+								<select name="repeat_sample_id" id="repeat_sample_id" class="form-group">
+									<option value="">Loading Samples <i class="mdi mdi-loading mdi-spin"></i></option>
 								</select>
 							</div>
 
@@ -2215,6 +2215,9 @@
 											<th nowrap>Reporting Symbol</th>
 											<th nowrap>Result</th>
 											@endif
+											@if(isset($batch->id) && $batch->repeat_sample_id > 0)
+											<th>Prev Result</th>
+											@endif
 											<th>Standard</th>
 											@if(Auth::user()->is_client == 0)
 											<th>Remarks</th>
@@ -2294,8 +2297,24 @@
 
 			$('#client-unit-select').val($('#client-unit-select').data('selected')).trigger('change');
 		};
+		
 
 		$(function(){
+			var sampleAnalysisByType = $('#sample-detail-rows').data('analysis_types')
+			var sampleCondtions = $('#sample-detail-rows').data('conditions');
+			var labStores = $('#sample-detail-rows').data('stores');
+			var $ammendableSamples = $('#sample-detail-rows').data('ammendments');
+			var $isclient = $('#sample-detail-rows').data('client');
+			var $batch = $('#sample-detail-rows').data('batch');
+			var standards = $('#sample-detail-rows').data('standards');
+			
+			var unitSamplePoints = [];
+			var unitProducts = [];
+			var clientPrefProductName;
+			var clientPrefUnitName;
+			var clientPrefSPName;
+
+			var configuredSamples = $('#sample-detail-rows').data('samples');
 			$('.qc_type_id').on('change',(e)=>{
 				var value = $('.qc_type_id').val();
 				d= value.toString()
@@ -2304,10 +2323,43 @@
 				
 				if($('.qc_type_id').data('repeatsample') ==  value.toString()){
 					$('.qc-repeat-batch').removeClass('hidden');
+					// $('.qc-remove-required').removeAttr('required')
 				}else{
 					$('.qc-repeat-batch').addClass('hidden');
+					// $('.qc-remove-required').addAttr('required')
 				}
-			})
+			});
+			let getQcTypeConfig = (dataID,callback)=>{
+				$.ajax({
+					url:`/qualitycontrol/get/Qc-Type/Config/${dataID}/Ajax`,
+					method:'GET',
+					success:(data)=>{
+						callback(data)
+					},
+					error:(data)=>{
+						console.log(data);
+					}
+				})
+			}
+			$('.qc_type_id').on('change',(e)=>{
+				var value = $('.qc_type_id').val()
+				getQcTypeConfig(value,(data)=>{
+					if(data['data'].use_existing_sample == 1){
+						$('.qc-repeat-batch').removeClass('hidden')
+						$.each(data['samples'],(i,obj)=>{
+							var option = `<option value="${obj.id}" ${$batch && $batch.repeat_sample_id == obj.id ? `selected` : ``}>${obj.sample_code}</option>`
+							$('#repeat_sample_id').append(option);
+						})
+						$('#repeat_sample_id').select2();
+					}else{
+						$('.qc-repeat-batch').addClass('hidden')
+					}
+				})
+			});
+			if($batch && $batch.repeat_sample_id > 0){
+				$('.qc_type_id').trigger('change');
+			}
+		
 
 			$('#add-company-unit').on('show.bs.modal',function(){
 				var customer = $('select[name="crm_customer_id"]').val();
@@ -2414,21 +2466,7 @@
 			// 	})
 			// 	// console.log(batch);
 			// })
-			var sampleAnalysisByType = $('#sample-detail-rows').data('analysis_types')
-			var sampleCondtions = $('#sample-detail-rows').data('conditions');
-			var labStores = $('#sample-detail-rows').data('stores');
-			var $ammendableSamples = $('#sample-detail-rows').data('ammendments');
-			var $isclient = $('#sample-detail-rows').data('client');
-			var $batch = $('#sample-detail-rows').data('batch');
-			var standards = $('#sample-detail-rows').data('standards');
 			
-			var unitSamplePoints = [];
-			var unitProducts = [];
-			var clientPrefProductName;
-			var clientPrefUnitName;
-			var clientPrefSPName;
-
-			var configuredSamples = $('#sample-detail-rows').data('samples');
 
 
 			$('.save-samples').on('click', function(){
@@ -3162,9 +3200,10 @@
 			$('.is_qc_batch').on('change',(e)=>{
 				if($(e.currentTarget).is(':checked')){
 					$('.qc-type-field').removeClass('hidden')
-
+					$('.qc-omit-type-field').addClass('hidden');
 				}else{
 					$('.qc-type-field').addClass('hidden')
+					$('.qc-omit-type-field').removeClass('hidden');
 				}
 				
 			})
@@ -3201,6 +3240,11 @@
 							class="form-control first-result" id="result-${loop}" value="${data.result == null ? '' : data.result}" name="result[${data.id}]" placeholder="Result..." />
 							<input type="hidden" name="result_confirm"  />
 						</div>
+					</td>
+					@endif
+					@if($batch->is_qc_batch == 1 && $batch->repeat_sample_id > 0)
+					<td>
+					<input type="text" class="form-control" style="width:100px" name="repeat_sample[${data.id}]" value="${data.repeatsampleresult}" disabled />
 					</td>
 					@endif
 					<td nowrap> <input type="text" class="form-control" style="width:100px" name="main_value[${data.id}]" value="${data.standard_value == null ? '-': data.standard_value}" disabled />

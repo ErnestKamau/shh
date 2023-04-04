@@ -947,9 +947,10 @@
 		selectedSampleIDs = $("input[name='table_sample_id[]']:checked")
 			.map(function() {
 				var $val = $(this).val();
+				var RecordBatch = $(this).data('batch');
 				$('.selected-batches').append(`
 						<span class="p-2 mr-2">
-							<input type="checkbox" name="sample_code[]" value="${ $val }" checked> ${ $val }
+							<input type="checkbox" name="sample_code[]" value="${ RecordBatch.id }" checked> ${ $val }
 						</span>
 					`);
 				return $val;

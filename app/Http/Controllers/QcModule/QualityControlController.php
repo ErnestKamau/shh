@@ -180,6 +180,15 @@ class QualityControlController extends Controller
         // $results =  QCResultsView::where('analysis_type_id',$request->analysis_type_id)->where('qc_type_id',$request->qc_type_id)->where('qc_scheme_id',$request->qc_scheme_id)->get();
         return view('layouts.qcmodule.qchistory.index', compact('sample_types', 'qc_types','qc_schemes','status','analytes','data','results'));
     }
+
+    public function getQcTypeConfigAjax($id){
+        $qc_type = QcTypes::find($id);
+        $res = [
+            "data"=>$qc_type,
+            "samples"=>SampleDetails::selectRaw('id,sample_code')->get()
+        ];
+        return response()->json($res);
+    }
     
     
 }
