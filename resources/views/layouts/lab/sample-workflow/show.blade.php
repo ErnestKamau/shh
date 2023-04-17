@@ -203,12 +203,12 @@
 								</li>
 
 							@endif
-							<li>
-								<?php $path = '/storage'.$batch->batch_report_url; ?>
-								<a href="{{$path}}" target="_blank" class="btn btn-sm dropdown-item"><i class="mdi mdi-subdirectory-arrow-right mr-2"></i> View Report</a>
-							</li>
-
+							
 						@endif
+						<li>
+							<?php $path = '/storage'.$batch->batch_report_url; ?>
+							<a href="{{$path}}" target="_blank" class="btn btn-sm dropdown-item"><i class="mdi mdi-subdirectory-arrow-right mr-2"></i> View Report</a>
+						</li>
 						@if($batch->approve_user_id <= 0 && $batch->verify_user_id != auth()->user()->id)
 							@if(auth()->user()->checkApproveLabSampleRole())
 								<li>
@@ -427,6 +427,7 @@
 							<div class="form-group {{isset($batch->id) && $batch->is_qc_batch == 1 ? '' : 'hidden'}}  qc-type-field">
 								<label for="" class="control-label">Qc Scheme <span class="text-danger">*</span></label>
 								<select name="qc_scheme_id" id="" class="form-control">
+									<option value="">Choose Scheme</option>
 									@foreach($qc_schemes as $scheme)
 									<option value="{{$scheme->id}}" {{isset($batch->id) && $batch->qc_scheme_id == $scheme->id ? 'selected' : ''}}>{{$scheme->code}}</option>
 									@endforeach
@@ -2216,7 +2217,7 @@
 											<th nowrap>Result</th>
 											@endif
 											@if(isset($batch->id) && $batch->repeat_sample_id > 0)
-											<th>Prev Result</th>
+											<th>Prev Result (<small>+- {{$qc_config_perc}} %</small>)</th>
 											@endif
 											<th>Standard</th>
 											@if(Auth::user()->is_client == 0)
@@ -3243,8 +3244,8 @@
 					</td>
 					@endif
 					@if($batch->is_qc_batch == 1 && $batch->repeat_sample_id > 0)
-					<td>
-					<input type="text" class="form-control" style="width:100px" name="repeat_sample[${data.id}]" value="${data.repeatsampleresult}" disabled />
+					<td style="width:150px !important">
+					<input type="text" class="form-control" style="width:150px" name="repeat_sample[${data.id}]" value="${data.repeatsampleresult}" disabled />
 					</td>
 					@endif
 					<td nowrap> <input type="text" class="form-control" style="width:100px" name="main_value[${data.id}]" value="${data.standard_value == null ? '-': data.standard_value}" disabled />
@@ -3300,7 +3301,7 @@
 				var result_confirm = prompt('Please confirm the result:');
 				var reporting_symbol = $($row).find('#reporting-symbol').val();
 				var current_result = $(this).val();
-				console.log(reporting_symbol);
+				
 				if(result_confirm != current_result){
 					alert("Result confirmation didn't match captured result!");
 					$(this).removeClass('changed').removeClass('clean');
@@ -3314,11 +3315,10 @@
 					var tt = this.id.split(',');
 					var y = tt.splice(1,1);
 					var tt_str = tt.toString();
-					console.log(tt_str);
-
+					
 					var res = tt_str.replace(/,/g,'-');
 					
-					console.log("here 2 : " + this.id);
+					
 
 					$.ajaxSetup({
 						headers: {
@@ -3332,12 +3332,12 @@
 							sample_code:this.id,
 							result:result_confirm,
 							reporting_symbol : reporting_symbol,
+							captured_result_id : data.id
 						},
 						success:function(response){
-						    console.log("here : " + this.id);
-							console.log(response);
+						   
 							var inputclass = '#'+res;
-							console.log(inputclass);
+							
 							$row.find('[name="remark['+ data.id + ']"]').val(response);
 							
 						},

@@ -7,6 +7,7 @@ use App\Http\Controllers\SampleWorkFlowController as SF;
 use App\SampleDetails;
 use App\ReportHeaderDetail;
 use App\Models\CRM\CRMCustomer;
+use App\Models\System\SystemConfiguration;
 use App\SampleHeader;
 use Illuminate\Http\Request;
 use App\SampleResults;
@@ -124,6 +125,11 @@ class ReportHeaderDetailController extends Controller
 		$batch->processing_date = getTodayDate();
 		$batch->in_ammendment_proccess = 0;
 		$batch->save();
+		$qc_config_value = 0;
+		if($batch->repeat_sample_id > 0){
+			$qc_config  = SystemConfiguration::where('key','qc_percentage_config')->first();
+			$qc_config_value = $qc_config->value;
+		}
 
 		$customer = CRMCustomer::find($batch->crm_customer_id);
 
@@ -144,6 +150,11 @@ class ReportHeaderDetailController extends Controller
 		$responsible_personnel = [];
 		foreach ($batch_view as $view) {
 			// return response()->json($view,200);
+			if($view->repeat_captured_id > 0){
+				$captured_result = CapturedResult::find($view->captured_result_id);
+				$view['repeat_result_range'] = $captured_result->repeatsampleresult;
+				
+			}
 			if (isset($batch_result[$view->sample_code])) {
 				
 				
@@ -223,7 +234,7 @@ class ReportHeaderDetailController extends Controller
 		// return response()->json($batch_result,200);
 		$pdf = app('dompdf.wrapper');
 		$pdf->getDomPDF()->set_option("enable_php", true);
-		$pdf = PDF::loadView('layouts.lab.reports.print.print_process_result', compact('batch_result', 'company', 'date', 'qrcode', 'path', 'kenas', 'tick', 'responsible_personnel','pdf','batch'));
+		$pdf = PDF::loadView('layouts.lab.reports.print.print_process_result', compact('batch_result', 'company', 'date', 'qrcode', 'path', 'kenas', 'tick', 'responsible_personnel','pdf','batch','qc_config_value'));
 
 		if (is_dir(storage_path() . '/app/reports/' . $customer_name)) {
 			$pdf->save(storage_path() . '/app/reports/' . $customer_name . '/' . $filename);

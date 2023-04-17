@@ -416,6 +416,7 @@ class SampleWorkFlowController extends Controller
 		$header->qc_scheme_id = $request->qc_scheme_id;
 		$header->repeat_batch_id = isset($request->repeat_sample_id) ? $request->repeat_batch_id : 0;
 		$header->repeat_sample_id = isset($request->repeat_sample_id) && $request->repeat_sample_id > 0 ? $request->repeat_sample_id : $header->repeat_sample_id;
+		$header->begin_proccess = isset($request->is_qc_batch) ?  1 : 0;
 
 		if ($isInReception) {
 			$header->sample_type_id = $request->sample_type_id;
@@ -1031,6 +1032,7 @@ class SampleWorkFlowController extends Controller
 		$atachment_type = SystemConfiguration::where('key', 'attachment_type')->get();
 		$qc_types = QcTypes::all();
 		$qc_schemes = QcSchemes::all();
+		$qc_config_perc = 0;
 		if (isset($account_settings->id)) {
 			$accounts = getconfigByID($account_settings->id);
 		} else {
@@ -1043,7 +1045,8 @@ class SampleWorkFlowController extends Controller
 		// return response()->json($samples,200);
 		$not_captured = [];
 		if (isset($batch->id)) {
-
+			$qc_config = SystemConfiguration::where('key', 'qc_percentage_config')->first();
+			$qc_config_perc = $qc_config->value;
 			$equipment_data = $batch->get_captured();
 			foreach ($equipment_data['items'] as $b => $d) {
 				foreach ($d as $a => $k) {
@@ -1115,7 +1118,7 @@ class SampleWorkFlowController extends Controller
 		$analysts = User::orderBy('name')->join('user_roles as ur', 'ur.user_id', '=', 'users.id')
 			->join('roles as r', 'r.id', '=', 'ur.role_id')
 			->where('r.id', $role_a->value)->where('users.active', 1)->where('users.is_support_staff', 0)->selectRaw('users.*')->get();
-		return view('layouts.lab.sample-workflow.show', compact('batch', 'batchID', 'defaultClient', 'selectedSampleType', 'client_portal', 'ammendable', 'standards', 'attachments', 'not_captured', 'analysts', 'countries', 'accounts', 'methods', 'atachment_type', 'check_perm_view', 'check_perm_delete', 'batch_scope', 'customer_survey','qc_types','qc_schemes','repeat_sample'));
+		return view('layouts.lab.sample-workflow.show', compact('batch', 'batchID', 'defaultClient', 'selectedSampleType', 'client_portal', 'ammendable', 'standards', 'attachments', 'not_captured', 'analysts', 'countries', 'accounts', 'methods', 'atachment_type', 'check_perm_view', 'check_perm_delete', 'batch_scope', 'customer_survey','qc_types','qc_schemes','repeat_sample','qc_config_perc'));
 	}
 
 	public function fetch_unit_stuff($name, $client)
@@ -1927,7 +1930,19 @@ class SampleWorkFlowController extends Controller
 		$reporting_symbol = $request->reporting_symbol;
 		$analyte = Analyte::find($data[3]);
 		$standard = Standards::find($sample_detail->main_standard);
+		$captured_result = CapturedResult::find($request->captured_result_id);
+		if($captured_result->repeat_captured_id > 0){
+			$result = $request->result;
+			$range = explode(' - ',$captured_result->repeatsampleresult);
+			if ($range[0] <= $result && $result <= $range[1]) {
+				return response()->json('PASS', 200);
+			} else {
+				return response()->json('FAIL', 200);
+			}
+			
+		}
 		// $check_arr = ['NIL','ND',0];
+
 		if (isset($standard->id) && isset($analyte->id)) {
 			$result = $request->result;
 			$analyte_guide = StandardAnalytes::where('analyte_id', $analyte->id)->where('standard_id', $standard->id)->first();
@@ -2118,7 +2133,7 @@ class SampleWorkFlowController extends Controller
 				$join->on('ag.analysis_type_id', '=', 'captured_results.analysis_type_id');
 			})
 
-			->selectRaw('captured_results.result,captured_results.main_standard_id,captured_results.secondary_standard_id,captured_results.remark,captured_results.analysis_type_id,captured_results.analyte_id,captured_results.analyte_status_contracted,captured_results.analyte_accredited, captured_results.id, ae.decimal_places, ae.significant_figures, ae.reporting_unit, ae.lod, ae.level, ae.hod,captured_results.result_reporting_symbol')
+			->selectRaw('captured_results.result,captured_results.main_standard_id,captured_results.secondary_standard_id,captured_results.remark,captured_results.analysis_type_id,captured_results.analyte_id,captured_results.analyte_status_contracted,captured_results.analyte_accredited, captured_results.id, ae.decimal_places, ae.significant_figures, ae.reporting_unit, ae.lod, ae.level, ae.hod,captured_results.result_reporting_symbol,captured_results.repeat_captured_id')
 			->where('captured_results.sample_header_id', $batch_id)->whereNotNull('captured_results.result')
 			->orderBy('level', 'asc')->get();
 
@@ -2147,119 +2162,111 @@ class SampleWorkFlowController extends Controller
 			$eresult->analyte_accredited = $c->analyte_accredited;
 			$eresult->unit_code = $c->reporting_unit;
 			$eresult->result = $result;
+			
 			$eresult->save();
-			// if ($c->lod && $result < floatval($c->lod)) {
-			// 	$result  = $c->lod;
-			// 	$eresult->reporting_symbol = '<';
-			// }
-
-
-			if (isset($main_standard->standard_value_type)) {
-				if ($main_standard->standard_value_type == 'is_range') {
-					$range = $main_standard->low . " - " . $main_standard->high;
-					$eresult->guide = $range;
-
-					$eresult->remarks = (floatval($main_standard->low) <= $result) && ($result <= floatval($main_standard->high)) ? 'PASS' : 'FAIL';
-				} else {
-
-					$standard_value = StandardValue::find($main_standard->standard_value_id);
-					if ($standard_value->code == 'IsValue') {
-						$eresult->guide = $main_standard->standard_is_value;
+			if($c->repeat_captured_id > 0){
+				$repeat_result = Result::find($eresult->repeat_results_id);
+				$eresult->remarks = $c->remark;
+				$eresult->seond_guide = $repeat_result->seond_guide;
+				$eresult->reporting_symbol = $c->result_reporting_symbol;
+				
+			}else{
+				if($c->repeat_captured_id > 0){}				
+				if (isset($main_standard->standard_value_type)) {
+					if ($main_standard->standard_value_type == 'is_range') {
+						$range = $main_standard->low . " - " . $main_standard->high;
+						$eresult->guide = $range;
+	
+						$eresult->remarks = (floatval($main_standard->low) <= $result) && ($result <= floatval($main_standard->high)) ? 'PASS' : 'FAIL';
 					} else {
-						$eresult->guide = $standard_value->code;
-					}
-
-
-					if (is_numeric($result)) {
-						$type = gettype($main_standard->standard_is_value);
-						if ($type == 'integer' || $type == 'double') {
-							if (trim($c->result_reporting_symbol) == '>') {
-								$eresult->remarks = 'FAIL';
-							} else {
-
-								$eresult->remarks = $result <= floatval($main_standard->standard_is_value) ? 'PASS' : 'FAIL';
-							}
+	
+						$standard_value = StandardValue::find($main_standard->standard_value_id);
+						if ($standard_value->code == 'IsValue') {
+							$eresult->guide = $main_standard->standard_is_value;
 						} else {
-							if ($main_standard->standard_is_value != '') {
+							$eresult->guide = $standard_value->code;
+						}
+	
+	
+						if (is_numeric($result)) {
+							$type = gettype($main_standard->standard_is_value);
+							if ($type == 'integer' || $type == 'double') {
 								if (trim($c->result_reporting_symbol) == '>') {
 									$eresult->remarks = 'FAIL';
 								} else {
-
+	
 									$eresult->remarks = $result <= floatval($main_standard->standard_is_value) ? 'PASS' : 'FAIL';
 								}
 							} else {
-								if (strtoupper(trim($standard_value->code)) == "NS") {
-									$eresult->remarks = '-';
-								} elseif (strtoupper(trim($standard_value->code)) == "NIL") {
-									$eresult->remarks = $result <= 0  ? 'PASS' : 'FAIL';
-								} elseif (strtoupper(trim($standard_value->code)) == "ND") {
-									$eresult->remarks = $result <= 0  ? 'PASS' : 'FAIL';
+								if ($main_standard->standard_is_value != '') {
+									if (trim($c->result_reporting_symbol) == '>') {
+										$eresult->remarks = 'FAIL';
+									} else {
+	
+										$eresult->remarks = $result <= floatval($main_standard->standard_is_value) ? 'PASS' : 'FAIL';
+									}
 								} else {
-									$eresult->remarks = '-';
+									if (strtoupper(trim($standard_value->code)) == "NS") {
+										$eresult->remarks = '-';
+									} elseif (strtoupper(trim($standard_value->code)) == "NIL") {
+										$eresult->remarks = $result <= 0  ? 'PASS' : 'FAIL';
+									} elseif (strtoupper(trim($standard_value->code)) == "ND") {
+										$eresult->remarks = $result <= 0  ? 'PASS' : 'FAIL';
+									} else {
+										$eresult->remarks = '-';
+									}
 								}
+								// $eresult->remarks = trim($main_standard->standard_is_value) == "" ? "PASS" : "++";
+	
 							}
-							// $eresult->remarks = trim($main_standard->standard_is_value) == "" ? "PASS" : "++";
-
-						}
-					} else {
-						// return response()->json($main_standard,200);
-						$standard_value = StandardValue::find($main_standard->standard_value_id);
-						if (strtoupper($result) == 'TN') {
-							$eresult->remarks = 'FAIL';
-						} elseif (strtoupper($result) == 'ND' && strtoupper(trim($standard_value->code)) == "NS") {
-							$eresult->remarks = '-';
-						} elseif (strtoupper($result) == 'ND' && strtoupper(trim($standard_value->code)) == "NIL") {
-							$eresult->remarks = 'PASS';
-						} elseif (strtoupper($result) == 'ND' && strtoupper(trim($standard_value->code)) == "ND") {
-							$eresult->remarks = 'PASS';
-						} elseif (strtoupper($result) == 'NIL' && strtoupper(trim($standard_value->code)) == "ND") {
-							$eresult->remarks = 'PASS';
 						} else {
-							$eresult->remarks = '-';
+							// return response()->json($main_standard,200);
+							$standard_value = StandardValue::find($main_standard->standard_value_id);
+							if (strtoupper($result) == 'TN') {
+								$eresult->remarks = 'FAIL';
+							} elseif (strtoupper($result) == 'ND' && strtoupper(trim($standard_value->code)) == "NS") {
+								$eresult->remarks = '-';
+							} elseif (strtoupper($result) == 'ND' && strtoupper(trim($standard_value->code)) == "NIL") {
+								$eresult->remarks = 'PASS';
+							} elseif (strtoupper($result) == 'ND' && strtoupper(trim($standard_value->code)) == "ND") {
+								$eresult->remarks = 'PASS';
+							} elseif (strtoupper($result) == 'NIL' && strtoupper(trim($standard_value->code)) == "ND") {
+								$eresult->remarks = 'PASS';
+							} else {
+								$eresult->remarks = '-';
+							}
 						}
 					}
-				}
-			} else {
-				$eresult->guide = 'NS';
-				$eresult->remarks = '-';
-			}
-			if (isset($secondary_standard->id)) {
-
-				$sec_standard_value = StandardValue::find($secondary_standard->standard_value_id);
-			}
-			if (isset($secondary_standard->standard_value_type)) {
-				if ($secondary_standard->standard_value_type == 'is_range') {
-					$range = $secondary_standard->low . " - " . $secondary_standard->high;
-					$eresult->seond_guide = $range;
 				} else {
-					if ($sec_standard_value->code == 'IsValue') {
-						$eresult->seond_guide = $secondary_standard->standard_is_value;
+					$eresult->guide = 'NS';
+					$eresult->remarks = '-';
+				}
+				if (isset($secondary_standard->id)) {
+	
+					$sec_standard_value = StandardValue::find($secondary_standard->standard_value_id);
+				}
+				if (isset($secondary_standard->standard_value_type)) {
+					if ($secondary_standard->standard_value_type == 'is_range') {
+						$range = $secondary_standard->low . " - " . $secondary_standard->high;
+						$eresult->seond_guide = $range;
 					} else {
-
+						if ($sec_standard_value->code == 'IsValue') {
+							$eresult->seond_guide = $secondary_standard->standard_is_value;
+						} else {
+	
+							$eresult->seond_guide = $sec_standard_value->code;
+						}
+					}
+				} else {
+					if (isset($secondary_standard->id)) {
+	
 						$eresult->seond_guide = $sec_standard_value->code;
 					}
+	
+					// $eresult->remarks = '-';
 				}
-			} else {
-				if (isset($secondary_standard->id)) {
-
-					$eresult->seond_guide = $sec_standard_value->code;
-				}
-
-				// $eresult->remarks = '-';
 			}
-
-			// if ($c->hod && $result > floatval($c->hod)) {
-			// 	$result  = $c->hod;
-			// 	$eresult->reporting_symbol = '>';
-			// }
-
-			// if (intval($c->significant_figures) && intval($c->significant_figures > 0)) {
-			// 	$result = sigFig($result, intval($c->significant_figures));
-			// } else {
-			// 	if (trim($c->decimal_places) != "") {
-			// 		$result = round($result, intval($c->decimal_places));
-			// 	}
-			// }
+			
 
 			$eresult->result = $result;
 			$eresult->reporting_symbol = $c->result_reporting_symbol;
@@ -2884,8 +2891,11 @@ class SampleWorkFlowController extends Controller
 	}
 	public function markQcSampleComplete($id){
 		$header = SampleHeader::find($id);
+		$previous_status = $header->status;
 		$header->status = "QC Approved";
 		$header->save();
-		return redirect()->back()->with('success','Batch marked complete successfully!');
+		return redirect()->route('sample-workflow', ['status' => $previous_status])->with('success', 'Batch marked complete succesffuly');
+
+		
 	}
 }

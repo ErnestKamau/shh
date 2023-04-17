@@ -195,8 +195,13 @@
                         <th class="parameter" style="font-size: 9px !important; width:25% !important;vertical-align: top !important;padding-left:3px !important">PARAMETERS</th>
                         <th class="parameter" style="font-size:9px !important;width:25% !important;vertical-align: top !important;padding-left:3px !important">METHOD</th>
                         <th class="parameter" style="font-size: 9px !important;width:10% !important;vertical-align: top !important;padding-left:3px !important">VALUES</th>
+                        @if($batch->repeat_sample_id > 0)
+                        <th class="parameter text-center" style="font-size: 9px !important;width:15% !important;vertical-align: top !important;padding-left:3px !important">Prev Results (+-{{$qc_config_value}})</th>
+                        @endif
                         <th class="parameter text-center" style="font-size: 9px !important;width:15% !important;vertical-align: top !important;padding-left:3px !important">{{$view['main_standard']}}</th>
+                        @if($batch->repeat_sample_id == '')
                         <th class="parameter text-center" style="font-size: 9px !important;width:15% !important;vertical-align: top !important;padding-left:3px !important">{{$view['secondary_standard']}}</th>
+                        @endif
                         <th class="parameter text-center" style="font-size: 9px !important;width:10% !important;vertical-align: top !important;">REMARKS</th>
                     </tr>
                 </thead>
@@ -239,8 +244,13 @@
                         </td>
                         <td class="parameter {{$sample->remarks == 'FAIL' ? 'textBold' : ''}}" style="font-size: 9px !important;padding-left:3px !important;">{{$sample->method_name}}</td>
                         <td class="parameter text-center {{$sample->remarks == 'FAIL' ? 'textBold' : ''}}" style="font-size: 9px !important;">{{$sample->reporting_symbol}} {{$sample->result}}</td>
+                        @if($sample->repeat_captured_id > 0)
+                        <td class="parameter text-center {{$sample->remarks == 'FAIL' ? 'textBold' : ''}}" style="font-size: 9px !important;">{{$sample['repeat_result_range'] ?? '-'}}</td>
+                        @endif
                         <td class="parameter text-center {{$sample->remarks == 'FAIL' ? 'textBold' : ''}}" style="font-size: 9px !important;">{{$sample->guide ?? '-'}}</td>
+                        @if($sample->repeat_captured_id == '')
                         <td class="parameter text-center {{$sample->remarks == 'FAIL' ? 'textBold' : ''}}" style="font-size: 9px !important;">{{$sample->seond_guide ?? '-'}}</td>
+                        @endif
                         <td class="parameter text-center {{$sample->remarks == 'FAIL' ? 'textBold' : ''}}" style="font-size: 9px !important;">{{$sample->remarks}}</td>
                     </tr>
 

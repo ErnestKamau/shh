@@ -95,8 +95,6 @@ class QualityControlController extends Controller
         $analyte->tolerance_2 = $request->tolerance_2;
         $analyte->high = isset($request->use_absolute) ? $request->tolerance_2 : $request->expected_value +  $request->tolerance_1 ; 
 
-        $analyte->mean_value = $request->mean_value;
-        $analyte->rel_std_dev = $request->rel_std_dev;
         $analyte->recommendations = $request->recomendation;
         $analyte->comments = $request->comment;
         $analyte->is_active = isset($request->is_active ) ? 1 : 0;
@@ -137,7 +135,7 @@ class QualityControlController extends Controller
     }
     public function getQcStandardsAjax($qc_type_id){
         $standards = Standards::where('is_qc_standard',1)->where('status',1)->where('qc_type_id',$qc_type_id)->get();
-        return responnse()->json($standards);
+        return response()->json($standards);
     }
     
 }

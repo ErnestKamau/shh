@@ -397,6 +397,7 @@
 		}
 		$('#name-check-modal').on('show.bs.modal',(e)=>{
 			var current_name = $('#add-customer').find('.name-check-trigger').val();
+			$('#name-check-modal').find('#name-check-tbody').find('tbody').empty();
 			$.ajax({
 				url:`/validate-Crm-Customer/Name/${current_name}/Ajax`,
 				method:'GET',
@@ -410,6 +411,7 @@
 							++$loop
 						})
 					}else{
+						
 						var body=$(`<tr><td colspan="2" class="text-center">No Data Available ....</td></tr>`).clone();
 						$('#name-check-modal').find('#name-check-tbody').find('tbody').append(body);
 

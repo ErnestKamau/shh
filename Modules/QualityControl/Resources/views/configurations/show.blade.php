@@ -179,14 +179,7 @@
                             <input type="text" name="tolerance_2" value="${data && data.high != null ? data.high : ''}" placeholder="Tolerance 2 ..." class="form-control">
                         </div>
                     </div>
-                    <div class="form-group">
-                        <label for="" class="control-label">Mean Value</label>
-                        <input type="text" name="mean_value" value="${data && data.mean_value != null ? data.mean_value : ''}" placeholder="Mean..." class="form-control">
-                    </div>
-                    <div class="form-group">
-                        <label for="" class="control-label">Relative Standard Deviation</label>
-                        <input type="text" name="rel_std_dev" value="${data && data.rel_std_dev != null ? data.rel_std_dev : ''}" placeholder="Relative Standard Deviation..." class="form-control">
-                    </div>
+                   
                     <div class="form-group">
                         <label for="" class="control-label">Comments</label>
                         <textarea class="form-control" name="comment" placeholder="Comment..." col="30" row="5">${data ? data.comments : ``}</textarea>

@@ -2,6 +2,7 @@
 
 namespace App;
 
+use App\Models\System\SystemConfiguration;
 use Illuminate\Database\Eloquent\Model;
 use OwenIt\Auditing\Contracts\Auditable;
 
@@ -11,8 +12,16 @@ class CapturedResult extends Model implements Auditable
 	protected $appends = ['repeatsampleresult'];
 
 	public function getRepeatSampleResultAttribute(){
-		$captured = CapturedResult::find($this->repeat_captured_id);
-		return $captured->result ?? '';
+		if($this->repeat_captured_id > 0){
+			$captured = CapturedResult::find($this->repeat_captured_id);
+			$percentage_config = SystemConfiguration::where('key','qc_percentage_config')->first();
+			$perc_value = $percentage_config->value/100 * $captured->result;
+			$lower_limit =  $captured->result - $perc_value;
+			$upper_limit = $captured->result + $perc_value;
+			return  $lower_limit.' - '.$upper_limit;
+
+		}
+		return '';
 	}
 
 	public function sample()
