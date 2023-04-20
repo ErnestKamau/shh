@@ -35,11 +35,44 @@
                 <li class="nav-item">
                     <a href="#qc-schemes-tabs" class="nav-link " id="qc-schemes-tab" data-toggle="tab" role="tab" aria-controls="qc-schemes-tabs" aria-selected="true"> <i class="mdi mdi-file-tree" style="color: black;font-size:15px"></i> Qc Schemes</a>
                 </li>
+                <li class="nav-item">
+                    <a href="#qc-approval-tabs" class="nav-link " id="qc-approval-tab" data-toggle="tab" role="tab" aria-controls="qc-schemes-tabs" aria-selected="true"> <i class="mdi mdi-account-check" style="color: black;font-size:15px"></i> Approval Configurations</a>
+                </li>
                 
             </ul>
         </div>
         <div class="tab-content" id="sample-type-tabs-content">
 
+        <div class="tab-pane fade show p-3" id="qc-approval-tabs" role="tabpanel" aria-labelledby="one-tab">
+                <h5 class="card-title">
+                    <i class="mdi mdi-account-check"></i> Approval Configuration
+                    <span class="btn btn-default text-primary btn-sm float-right" style="box-shadow: rgba(0, 0, 0, 0.35) 0px 5px 15px;"  data-toggle="modal" data-target="#add-qc-approver"><i class="mdi mdi-plus"></i> Approver</span>
+                </h5>
+                <div class="table-responsive mt-4">
+                    <table class="table table-condensed my-small-text table-striped table-hover table-bordered table-sm">
+                        <thead>
+                            <tr>
+                                <th>#</th>
+                                <th>Name</th>
+                                <th>Created By</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @foreach($approvals as $approval)
+                            <tr>
+                                <td>
+                                    
+                                   <a class="btn btn-default btn-sm text-danger" href="{{route('deleteQcApprovvers',['id'=>$approval->id])}}"><i class="mdi mdi-delete-empty" data-toggle="tooltip" title="Delete"></i></a>
+                           
+                                </td>
+                                <td>{{$approval->name}}</td>
+                                <td>{{$approval->creator}}</td>
+                            </tr>
+                            @endforeach
+                        </tbody>
+                    </table>
+                </div>
+            </div>
 
             <!-- standard tab  -->
             <div class="tab-pane fade show active p-3" id="standards-tab" role="tabpanel" aria-labelledby="one-tab">
@@ -163,6 +196,35 @@
 @endsection
 
 @section('script2')
+<div class="modal fade" id="add-qc-approver" role="dialog">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <form action="{{route('addQcApprovvers')}}" method="POST">
+                @csrf
+                <div class="modal-body">
+                    <div class="alert alert-primary p-2 d-flex">
+                        <i class="mdi mdi-alert-decagram" style="font-size: 25px;"></i>
+                        <span class="p-2">
+                            Add QC Report Approvers Below
+                        </span>
+                    </div>
+                    <div class="form-group">
+                        <label for="" class="control-label">Personnel</label>
+                        <select name="personnel_id" id="" class="form-control">
+                            @foreach($staffs as $staff)
+                            <option value="{{$staff->id}}">{{$staff->name}}</option>
+                            @endforeach
+                        </select>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="submit" class="btn btn-sm btn-outline-info"><i class="mdi mdi-content-save"></i> Save</button>
+                    <span class="btn btn-sm btn-default" data-dismiss="modal">Close</span>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
 <div class="modal fade" id="add-scheme" role="dialog">
     <div class="modal-dialog">
         <div class="modal-content">
