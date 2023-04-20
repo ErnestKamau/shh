@@ -214,7 +214,12 @@
 				<tr class="batch-row {{ $diff > 0 ? 'text-danger' : '' }} crm-customer-{{ $item->client->id }}" data-class="{{ $item->client->id }}">
 					@endif
 					<td><input type="checkbox" data-batch="{{json_encode($item)}}" value="{{ $item->batch_code }}" name="table_sample_id[]"></td>
+					$item->in_ammendment_proccess
+					<td nowrap> <div class="badge badge-warning p-2" style="box-shadow: rgba(0, 0, 0, 0.35) 0px 5px 15px;">In Ammendment</div> </td>
+					@else
 					<td nowrap>{!! $item->priority != "Normal" ? '<i class="mdi mdi-star text-danger"></i>' : '' !!} {{ $item->priority }}</td>
+
+					@endif
 					<td><a href="{{ route('view-batch-details', ['batch'=>$item->id]) }}">{{ $item->batch_code }}</a></td>
 					@if(auth()->user()->CheckViewQcSample())
 						<td>{!! $item->is_qc_batch == 1 ? '<span class="text-success"><i class="mdi mdi-checkbox-marked-circle-outline"></i></span>' : '-' !!}</td>
