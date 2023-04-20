@@ -215,7 +215,7 @@
 					@endif
 					<td><input type="checkbox" data-batch="{{json_encode($item)}}" value="{{ $item->batch_code }}" name="table_sample_id[]"></td>
 					@if($item->in_ammendment_proccess)
-					<td nowrap> <div class="badge badge-warning p-2" style="box-shadow: rgba(0, 0, 0, 0.35) 0px 5px 15px;">In Ammendment</div> </td>
+					<td nowrap> <div class="badge badge-danger p-2" style="box-shadow: rgba(0, 0, 0, 0.35) 0px 5px 15px;">To Amend</div> </td>
 					@else
 					<td nowrap>{!! $item->priority != "Normal" ? '<i class="mdi mdi-star text-danger"></i>' : '' !!} {{ $item->priority }}</td>
 
