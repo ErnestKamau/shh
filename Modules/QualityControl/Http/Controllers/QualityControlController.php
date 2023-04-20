@@ -34,7 +34,7 @@ class QualityControlController extends Controller
 
     public function createQcTypes(Request $request)
     {
-        $qc_type = $request->qc_type_id > 0 ? QcTypes::find($request->qc_type_id) : new QcTypes();
+         $qc_type = $request->qc_type_id > 0 ? QcTypes::find($request->qc_type_id) : new QcTypes();
         $qc_type->name = $request->name;
         $qc_type->code = $request->code;
         $qc_type->has_standards = isset($request->has_standards) ? 1 : 0;
