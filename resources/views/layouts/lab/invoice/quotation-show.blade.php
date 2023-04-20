@@ -128,7 +128,7 @@
                 @if($header->approved_by == auth()->user()->id)
                 <span class="btn btn-sm btn-outline-dark mr-2 float-right" data-target="#approve-quote" data-toggle="modal"><i class="mdi mdi-share-circle"></i> Approve Quotation</span>
                 @else
-                <span class="badge badge-pill bg-white ml-2 text-danger p-2 " style="font-size: 10px;"><i class="mdi mdi-alert-decagram" ></i> Required Approver- {{getUserById($header->approved_by)->name}}</span>
+                <span class="badge badge-pill bg-white ml-2 text-danger p-2 " style="font-size: 10px;"><i class="mdi mdi-alert-decagram" ></i> Required Approver- {{getUserById($header->approved_by)->name ?? '-'}}</span>
                 @endif
             @endif
         <!-- <a href="{{ route('change_quotation_workflow',['id'=>$header->id,'stage'=>'Quote Complete'])}}" class="btn btn-success btn-sm float-right"><i class="mdi mdi-share-circle"></i> Approve Quotation</a> -->

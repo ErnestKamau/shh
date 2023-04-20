@@ -4,8 +4,9 @@
 <?php
 	$REQUESTER = \App\User::find($entity->request_initiator);
 ?>
+<button onclick="downloadPDF(this)">Download</button> 
 <html>
-	<body style="font-size: 13px">
+	<body style="font-size: 13px" id="main-body">
 		<div style="">
 			<table border="0" style="border:none; border-collapse: collapse; width: 100%; margin-bottom: 10px;">
 				<tr style="vertical-align: middle">
@@ -90,7 +91,7 @@
 				<table style="border-collapse: collapse; width:99.9%; margin:1px 0.05%; border:1px solid #000; text-align: left">
 					<tr>
 						<th colspan="7" style="padding: 7px 2px;  border-right:1px solid #000;  border-bottom:1px solid #000">Product Description</th>
-						<th colspan="3" style="padding: 7px 2px; border-right:1px solid #000;  border-bottom:1px solid #000">Cat/Lot No</th>
+						<th colspan="3" style="padding: 7px 2px; border-right:1px solid #000;  border-bottom:1px solid #000">Product ID</th>
 						<th colspan="1" style="padding: 7px 2px; border-right:1px solid #000; text-align: right;  border-bottom:1px solid #000">Qty.</th>
 						<th colspan="2" style="padding: 7px 2px; border-right:1px solid #000; text-align: right;  border-bottom:1px solid #000">Unit Cost</th>
 						<th colspan="2" style="padding: 7px 2px; text-align: right; border-bottom:1px solid #000">Ext. Cost</th>
@@ -100,32 +101,51 @@
 						@php($total += floatval($item->net_value))
 						<tr style="border-top:1px solid #000">
 							<td colspan="7" style="padding: 7px 2px; font-family: monospace; border-right:1px solid #000;  border-bottom:1px solid #000">{{ $item->item_name }}</td>
-							<td colspan="3" style="padding: 7px 2px; font-family: monospace; border-right:1px solid #000;  border-bottom:1px solid #000">{{ $item->sap_code }}</td>
-							<td colspan="1" style="padding: 7px 2px; font-family: monospace; border-right:1px solid #000; text-align: right;  border-bottom:1px solid #000">{{ number_format($item->quantity,2) }}</td>
-							<td colspan="2" style="padding: 7px 2px; font-family: monospace; border-right:1px solid #000; text-align: right;  border-bottom:1px solid #000">{{ number_format($item->net_value/$item->quantity,2) }}</td>
-							<td colspan="2" style="padding: 7px 2px; font-family: monospace; border-right:1px solid #000; text-align: right;  border-bottom:1px solid #000">{{ number_format($item->net_value, 2) }}</td>
+							<td colspan="3" style="padding: 7px 2px; font-family: monospace; border-right:1px solid #000;  border-bottom:1px solid #000">{{ $item->code }}</td>
+							<td colspan="1" style="padding: 7px 2px; font-family: monospace; border-right:1px solid #000; text-align: right;  border-bottom:1px solid #000">{{ number_format(floatval($item->quantity),2) }}</td>
+							<td colspan="2" style="padding: 7px 2px; font-family: monospace; border-right:1px solid #000; text-align: right;  border-bottom:1px solid #000">{{ number_format(floatval($item->net_value)/floatval($item->quantity) == 0 ? 1 : floatval($item->quantity),2) }}</td>
+							<td colspan="2" style="padding: 7px 2px; font-family: monospace; border-right:1px solid #000; text-align: right;  border-bottom:1px solid #000">{{ number_format(floatval($item->net_value), 2) }}</td>
 						</tr>
 					@endforeach
 					<?php
-						$subtotal = ((floatval($total)*100)/116);
-						$tax = $total - $subtotal;
+						if ($entity->is_tax_exclusive == 0) {
+							$subtotal = ((floatval($total)*100)/116);
+							$tax = $total - $subtotal;
+							$inc = "inc";
+						}
+						else{
+							$tax = 0.16* floatval($total);
+							$subtotal = floatval($total);
+							$total = $subtotal + $tax;
+							$inc = "exc";
+						}
+						
 					?>
 					<tfoot>
 						<tr style="border-top:1px solid #000 !important">
 							<th colspan="13" style="border-right:1px solid #000;  border-bottom:1px solid #000; text-align: right; padding:7px">Sub Total</th>
-							<td colspan="2" style=" font-family: monospace; padding:7px;  border-bottom:1px solid #000; text-align: right">{{ number_format($subtotal, 2) }}</td>
+							<td colspan="2" style=" font-family: monospace; padding:7px;  border-bottom:1px solid #000; text-align: right">{{ number_format(floatval($subtotal ?? 0), 2) }}</td>
 						</tr>
 						<tr style="border-top:1px solid #000 !important">
-							<th colspan="13" style="border-right:1px solid #000;  border-bottom:1px solid #000; text-align: right; padding:7px">16% Tax</th>
-							<td colspan="2" style=" font-family: monospace; padding:7px;  border-bottom:1px solid #000; text-align: right">{{ number_format($tax, 2) }}</td>
+							<th colspan="13" style="border-right:1px solid #000;  border-bottom:1px solid #000; text-align: right; padding:7px">16% Tax ({{ $inc }})</th>
+							<td colspan="2" style=" font-family: monospace; padding:7px;  border-bottom:1px solid #000; text-align: right">{{ number_format(floatval($tax ?? 0), 2) }}</td>
 						</tr>
 						<tr style="border-top:1px solid #000 !important">
 							<th colspan="13" style="border-right:1px solid #000;  border-bottom:1px solid #000; text-align: right; padding:7px">Total - KES</th>
-							<td colspan="2" style=" font-family: monospace; padding:7px;  border-bottom:1px solid #000; text-align: right">{{ number_format($total, 2) }}</td>
+							<td colspan="2" style=" font-family: monospace; padding:7px;  border-bottom:1px solid #000; text-align: right">{{ number_format(floatval($total ?? 0), 2) }}</td>
 						</tr>
 					</tfoot>
 				</table>
 			</div>
 		</div>
 	</body>
+	<script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js" integrity="sha512-GsLlZN/3F2ErC5ifS5QtgpiJtWd43JWSuIgh7mbzZ8zBps+dvLusV+eNQATqgA/HdeKFVgA5v3S/cIrLF7QnIg==" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
+	<script>
+		function downloadPDF(th){
+			th.remove();
+			var element = document.getElementById('main-body');
+			html2pdf().from(element).save('{{ $entity->request_code }}.pdf');
+			
+		}
+	</script>
 </html>

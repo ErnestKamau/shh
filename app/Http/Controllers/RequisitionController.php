@@ -121,7 +121,7 @@ class RequisitionController extends Controller
 
 		$previousApprovers = [];
 		foreach($approvals as $app){
-			$approverID = \App\User::join('user_roles as ur', 'ur.user_id', '=', 'users.id')
+			$approverID = \App\User::join('user_roles as ur', 'ur.user_id', '=', 'users.id')->where('active', 1)
 				->whereNotIn('users.id', $previousApprovers)->where('ur.role_id', $app->role_id)->selectRaw('users.id')->first()->id;
 
 			$entity_approval = new \App\EntityApproval;
@@ -268,7 +268,7 @@ class RequisitionController extends Controller
 		// return response()->json($contacts, 200);
 		$previousApprovers = [];
 		foreach($approvals as $app){
-			$approverID = \App\User::join('user_roles as ur', 'ur.user_id', '=', 'users.id')
+			$approverID = \App\User::join('user_roles as ur', 'ur.user_id', '=', 'users.id')->where('active', 1)
 				->whereNotIn('users.id', $previousApprovers)->where('ur.role_id', $app->role_id)->selectRaw('users.id')->first()->id;
 
 			$entity_approval = new \App\EntityApproval;
@@ -390,7 +390,7 @@ class RequisitionController extends Controller
 				$previousApprovers = [];
 
 				foreach($approvals as $app){
-					$approver = \App\User::join('user_roles as ur', 'ur.user_id', '=', 'users.id')
+					$approver = \App\User::join('user_roles as ur', 'ur.user_id', '=', 'users.id')->where('active', 1)
 						->whereNotIn('users.id', $previousApprovers)->where('ur.role_id', $app->role_id)->selectRaw('users.id, users.email')->first();
 					$approverID = $approver->id;
 
@@ -485,7 +485,7 @@ class RequisitionController extends Controller
 
 		$previousApprovers = [];
 		foreach($approvals as $app){
-			$approverID = \App\User::join('user_roles as ur', 'ur.user_id', '=', 'users.id')
+			$approverID = \App\User::join('user_roles as ur', 'ur.user_id', '=', 'users.id')->where('active', 1)
 				->whereNotIn('users.id', $previousApprovers)->where('ur.role_id', $app->role_id)->selectRaw('users.id')->first()->id;
 
 			$entity_approval = new \App\EntityApproval;
@@ -1215,7 +1215,7 @@ class RequisitionController extends Controller
 
 		$previousApprovers = [];
 		foreach($approvals as $app){
-			$approver = \App\User::join('user_roles as ur', 'ur.user_id', '=', 'users.id')
+			$approver = \App\User::join('user_roles as ur', 'ur.user_id', '=', 'users.id')->where('active', 1)
 				->whereNotIn('users.id', $previousApprovers)->where('ur.role_id', $app->role_id)->selectRaw('users.id, users.email')->first();
 			$approverID = $approver->id;
 
@@ -1451,7 +1451,7 @@ class RequisitionController extends Controller
 
 				$requestInitiator = \App\User::find(isset($req->request_initiator) ? $req->request_initiator : $req->created_by);
 
-				$APPR_USER = \App\User::join('user_roles as ur', 'ur.user_id', '=', 'users.id')->where('ur.role_id', $app->role_id)
+				$APPR_USER = \App\User::join('user_roles as ur', 'ur.user_id', '=', 'users.id')->where('ur.role_id', $app->role_id)->where('active', 1)
 					->where('users.department_id', $requestInitiator->department_id)->selectRaw('users.id, users.name, users.email')->first();
 
 				$AppUsers = getUsersByRole($app->role_id, true);
@@ -1568,6 +1568,7 @@ class RequisitionController extends Controller
 					$quoteItems[] = '<tr style=" border: 1px solid #aaa !important">
 						<td style="text-align: center; vertical-align: middle;border: 1px solid #aaa !important">'.$o.'</td>
 						<td style="text-align: center; vertical-align: middle;border: 1px solid #aaa !important">'.$req->request_code.'</td>
+						<td style="text-align: center; vertical-align: middle;border: 1px solid #aaa !important">'.$q->code.'</td>
 						<td style="text-align: center; vertical-align: middle;border: 1px solid #aaa !important">'.$q->sap_code.'</td>
 						<td style="text-align: center; vertical-align: middle;border: 1px solid #aaa !important">'.$q->name.'</td>
 						<td style="text-align: center; vertical-align: middle;border: 1px solid #aaa !important">'.number_format($q->quantity).$q->unit_type.'</td>
@@ -1582,6 +1583,7 @@ class RequisitionController extends Controller
 							<tr>
 								<th style="text-align: center; vertical-align: middle;border: 1px solid #aaa !important">No</th>
 								<th style="text-align: center; vertical-align: middle;border: 1px solid #aaa !important">RFQ Code</th>
+								<th style="text-align: center; vertical-align: middle;border: 1px solid #aaa !important">Item Code</th>
 								<th style="text-align: center; vertical-align: middle;border: 1px solid #aaa !important">CAT No</th>
 								<th style="text-align: center; vertical-align: middle;border: 1px solid #aaa !important">Item Description</th>
 								<th style="text-align: center; vertical-align: middle;border: 1px solid #aaa !important">Quantity</th>
@@ -1712,6 +1714,11 @@ class RequisitionController extends Controller
 
 			$USER = \App\User::find($req->created_by);
 			$APPROVAL = \App\Approvals::find($entity_approval->approval_id);
+
+			if($req->request_type == "Purchase Orders" && $req->status == "Approval Complete"){
+				$rptG = new ReportGeneratorController;
+				$rptG->generate_report_pdf($req->id, false);
+			}
 
 			$body = 'Hi '.$USER->name.',<br>
 				<strong>'.$APPROVAL->title.'</strong> has been completed for '.$stage.'. Click link

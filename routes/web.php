@@ -472,6 +472,7 @@ Route::post('/company-contacts/{cust_id}', 'CRM\CustomerContactController@add')-
 Route::post('/company-contact/{id}/{cust_id}', 'CRM\CustomerContactController@edit')->name('edit-company-contact')->middleware('haspermission:CRM.components.Contacts.Edit');
 
 Route::get('/fetch-customer-contacts/{id}','CRM\CustomerContactController@get_customer_client')->name('get_customer_client');
+Route::get('/validate-Crm-Customer/Name/{name}/Ajax','CRM\CRMCustomerController@validateCrmCustomerNameAjax')->name('validateCrmCustomerNameAjax');
 #############################################SUPPLIER##########################################################
 
 ############################################### QUALIFICATIONS #############################################################
@@ -504,6 +505,7 @@ Route::post('/req/{stage}/{id}/{ammendement?}', 'RequisitionController@update')-
 Route::get('/req-report-generate/{id}/{supply?}', 'ReportGeneratorController@generate_report')->name('req-report-generate');
 
 Route::get('/download-request-items/{id}/{isPDF?}', 'ReportGeneratorController@download_items_xlsx')->name('download-request-items');
+Route::get('/req-report-generate-pdf/{id}', 'ReportGeneratorController@generate_report_pdf')->name('req-report-generate-pdf');
 
 Route::post('/create-lpo-from-mr/{id}', 'RequisitionController@create_lpo_from_mr')->name('create-lpo-from-mr');
 Route::post('/change-req-approver/{id}', 'RequisitionController@change_req_approver')->name('change-req-approver');

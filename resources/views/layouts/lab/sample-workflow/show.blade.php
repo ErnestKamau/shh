@@ -269,7 +269,7 @@
 							@endif
 						</h5>
 						<hr>
-						<form action="{{ route('add-batch-info', ['batch'=>$batchID]) }}" method="POST">
+						<form action="{{ route('add-batch-info', ['batch'=>$batchID]) }}" method="POST" autocomplete="off">
 							<?php $maxDate = getTodayDate(); ?>
 							@csrf
 							
@@ -394,11 +394,11 @@
 								</div>
 								<div class="form-group btn-group-sm">
 								<label class="control-label">Submitted By</label>
-								<input type="text" class="form-control" value="{{$batch->submit_by ?? ''}}" name="submit_by" value="{{ $batch->submit_by ?? '' }}" placeholder="Submitted By..." />
+								<input type="text" class="form-control" autocomplete="off" value="{{$batch->submit_by ?? ''}}" name="submit_by" value="{{ $batch->submit_by ?? '' }}" placeholder="Submitted By..." />
 							</div>
 							<div class="form-group btn-group-sm">
 								<label class="control-label">Received By</label>
-								<input type="text" name="receive_by" class="form-control" value="{{$batch->receiving_officer_name ?? ''}}" placeholder="Received By..." id="" class="form-control">
+								<input type="text" name="receive_by" autocomplete="off" class="form-control" value="{{$batch->receiving_officer_name ?? ''}}" placeholder="Received By..." id="" class="form-control">
 								<!-- <select name="receiving_officer" class="form-control" placeholder="Select Receiving Officer...">
 									<option></option>
 									@foreach (getUsers() as $item)

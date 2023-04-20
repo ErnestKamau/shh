@@ -393,7 +393,29 @@
 						</div>
 					</div>
 					<div class="tab-pane fade p-3" id="Requisition" role="tabpanel" aria-labelledby="one-tab">
-						<h5 class="card-title mb-3 mt-1">Requisition Document Flow</h5>
+						<h5 class="card-title mb-3 mt-1">
+							Requisition Document Flow
+							{{-- @if(isset($request->id))
+								<div class="float-right pull-right {{ $stage == "Material Requisition" ? "hidden hide" : "" }}" id="downloadable-link">
+									@if($request->downloadable_link == "")
+										<a class="btn btn-sm btn-transparent text-primary" href="{{ route('req-report-generate-pdf', ['id'=>$request->id]) }}">
+											<i class="mdi mdi-file-refresh"></i> Generate PDF
+										</a>
+									@elseif($request->downloadable_link == "pending")
+										<span class="btn btn-sm btn-transparent text-warning">
+											<i class="fas fa-spin fa-spinner"></i> Creating PDF...
+										</span>
+									@else
+										<a class="btn btn-sm btn-transparent text-success mr-2" target="_blank" download href="{{ $request->downloadable_link }}">
+											<i class="mdi mdi-file-pdf-outline"></i> Download
+										</a>
+										<a class="btn btn-sm btn-transparent text-default" href="{{ route('req-report-generate-pdf', ['id'=>$request->id]) }}">
+											<i class="mdi mdi-sync"></i>
+										</a>
+									@endif
+								</div>
+							@endif --}}
+						</h5>
 						<div id="document-flow-holder">
 							<?php $arrays = getDocumentTemplates(); ?>
 							@foreach($documentFlow as $stName=>$docs)
@@ -492,7 +514,6 @@
 								<thead>
 									<tr>
 										<th>#</th>
-										<th>Cat/Lot No</th>
 										<th nowrap>Item</th>
 										<th nowrap>Brand</th>
 										<th nowrap>Comments</th>
@@ -549,7 +570,6 @@
 												{{ $loop->iteration }}
 												<input type="hidden" name="items[req_item_id][]" value="{{ $req_item->id }}" />
 											</td>
-											<td>{{$req_item->sap_code}}</td>
 											<td>
 												<div class="form-group">
 													<?php
@@ -1035,12 +1055,12 @@
 									<div class="form-group">
 										<div class="row">
 											<div class="col-3">
-												<img src="{{ $supplier->logo }}" style="width: 100%" />
+												<img src="{{ $supplier->logo ?? '-' }}" style="width: 100%" />
 											</div>
 											<div class="col-9">
 												<label class="control-label">Supplier</label>
 												<div class="form-control">
-													<span class="">{{ $supplier->name }}</span>
+													<span class="">{{ $supplier->name ?? '-' }}</span>
 												</div>
 											</div>
 										</div>
@@ -1048,13 +1068,13 @@
 									<div class="form-group">
 										<label class="control-label">Supplier Email</label>
 										<div class="form-control">
-											<span class="">{{ $supplier->email }}</span>
+											<span class="">{{ $supplier->email ?? '-' }}</span>
 										</div>
 									</div>
 									<div class="form-group">
 										<label class="control-label">Supplier Phone</label>
 										<div class="form-control">
-											<span class="">{{ $supplier->phone }}</span>
+											<span class="">{{ $supplier->phone ?? '-' }}</span>
 										</div>
 									</div>
 									<div class="form-group">
@@ -1961,7 +1981,7 @@
 								<td nowrap>{{ $req_item->item_name }}</td>
 								<td>{{ $req_item->quantity }}</td>
 								<td>
-									<input type="number" step="any" min="1" value="" class="form-control form-control-sm duplicatable" name="quote[amount][{{$req_item->id}}]" required />
+									<input type="number" step="any" min="1" value="" class="form-control form-control-sm duplicatable" name="quote[amount][{{$req_item->id}}]" />
 								</td>
 							</tr>
 						@endforeach
@@ -2115,7 +2135,6 @@
 			var $row = `
 				<tr class="item-row new">
 					<td class="item-id"></td>
-					<td>-</td>
 					<td>
 						<div class="form-group">
 							<select name="items[item_id][]" style="min-width: 200px; font-size: 12px" class="form-control selected-item" placeholder="Select Item..." required><option></option></select>
@@ -2504,6 +2523,7 @@
 				if(type == 'accept-supplier-quote'){
 					var valid = true;
 					var isChecked = true;
+
 					$('.form-control.duplicatable').each(function(e){
 						var val = $.trim($(this).val());
 						var checkBox = $(this).parents('tr').find('.quote-check.duplicatable')
@@ -2525,10 +2545,11 @@
 					var $duplicatable = $('#quote-accept-modal').find('.duplicatable');
 
 					$duplicatable.attr('style', 'width: 1px !important; height:1px !important; overflow: hidden!important');
-
-					$('#details-form').append(`<input type="hidden" name="supplier_id" value="${supplierID}" />`);
-					$('#details-form').append(`<input type="hidden" name="is_rfq_quote" value="1" />`);
-					$('#details-form').append($duplicatable);
+					if($.trim($duplicatable.val()) != 0){
+						$('#details-form').append(`<input type="hidden" name="supplier_id" value="${supplierID}" />`);
+						$('#details-form').append(`<input type="hidden" name="is_rfq_quote" value="1" />`);
+						$('#details-form').append($duplicatable);
+					}
 				}
 
 				if(type == "send-rfq-details"){

@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Exports\ReportExporter;
+use App\Jobs\PDFGenerator;
 use Illuminate\Http\Request;
 use App\ReportGenerator\ReportGenerator;
 use Illuminate\Support\Facades\DB;
@@ -186,6 +187,15 @@ class ReportGeneratorController extends Controller
 		// return json_encode($finalApproval);
 
 		return view('layouts.inventory.templates.supplier-rfq', compact('isHTML', 'supplier', 'entity', 'items', 'requisition', 'preparedBy', 'approvals', 'supplierQuoteDate'));
+	}
+
+	public function generate_report_pdf($id, $isHTML=false){
+		PDFGenerator::dispatchNow($id, $isHTML);
+		$entity = RequestEntity::find($id);
+		$entity->downloadable_link ="pending";
+		$entity->save();
+
+		return redirect()->back()->with('success', 'Preparing PDF...');
 	}
 
 	public function download_items_xlsx(Request $request, $id, $isPDF=false){
