@@ -13,6 +13,8 @@ use App\SampleType;
 use App\StandardAnalytes;
 use App\Standards;
 use App\AnalysisType;
+use App\Models\QcModule\Configurations\Approvers;
+use App\User;
 use Illuminate\Contracts\Support\Renderable;
 use Illuminate\Http\Request;
 use Illuminate\Routing\Controller;
@@ -58,7 +60,9 @@ class QualityControlController extends Controller
         $qc_types = QcTypes::all();
         $standards = Standards::where('is_qc_standard',1)->get();
         $qc_schemes = QcSchemes::all();
-        return view('layouts.qcmodule.configurations.index',compact('qc_types','standards','qc_schemes'));
+        $approvals = Approvers::all();
+        $staffs = User::where('active',1)->where('is_support_staff',0)->get();
+        return view('layouts.qcmodule.configurations.index',compact('qc_types','standards','qc_schemes','approvals','staffs'));
     }
     public function addQcStandard(Request $request){
         $standard = Standards::find($request->standard_id) ?? new Standards();
@@ -83,6 +87,8 @@ class QualityControlController extends Controller
         $standard = Standards::find($id);
         $standardAnalytes = StandardAnalytes::where('standard_id',$id)->get();
         $analytes = Analyte::where('active',1)->get();
+        
+
         // return response()->json('done');
         return view('layouts.qcmodule.configurations.show',compact('standard','standardAnalytes','analytes'));
     }
@@ -186,6 +192,24 @@ class QualityControlController extends Controller
             "samples"=>SampleDetails::selectRaw('id,sample_code')->get()
         ];
         return response()->json($res);
+    }
+    public function addQcApprovvers(Request $request){
+        $approver = Approvers::where('personnel_id',$request->personnel_id)->first();
+        if(!isset($approver->id)){
+            $approver = new Approvers();
+            $approver->personnel_id = $request->personnel_id;
+            $approver->created_by = auth()->user()->id;
+            $approver->save();
+            return redirect()->back()->with('success','Approver Added Successfully');
+        }
+        return redirect()->back()->with('error','Approver already exists');
+    }
+    public function deleteQcApprovvers($id){
+        $approver = Approvers::find($id);
+        $approver->delete()
+       
+        return redirect()->back()->with('success','Approver deleted Successfully');
+       
     }
     
     

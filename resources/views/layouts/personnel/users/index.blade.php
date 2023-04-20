@@ -60,8 +60,6 @@
 						<th>Employment Date</th>
 						<th>License Type</th>
 						<th>Active</th>
-						<th></th>
-
 
 					  </tr>
 					</thead>
@@ -74,30 +72,32 @@
 						  <td nowrap style="width: 90px !important;">
 							  {{$i}}
 							  <a class="btn btn-success btn-sm" data-toggle="tooltip" title="View" href="{{ route('view-personnel', ['id'=>$item->id]) }}"><i class="mdi mdi-eye-outline"></i> <small class="hidden-sm-up">Show</small> </a>
-							  <span class="btn btn-danger btn-sm {{auth()->user()->is_support_staff == 0 ? 'hidden' : ''}}" data-toggle="modal" data-target="#lock-user-{{$item->id}}" data-toggle="tooltip" title="Deactivate Personnel"><i class="mdi mdi-account-lock"></i></span>
-							  <div id="lock-user-{{$item->id}}" class="modal fade" role="dialog">
-								  <div class="modal-dialog">
-									  <form class="modal-content" method="POST" action="{{ route('personnel-state',['id'=>$item->id]) }}" enctype="multipart/form-data" >
-										  @csrf
-										  <div class="modal-header">
-											  <h3 class="modal-title"> <i class="mdi mdi-account-lock"></i> Deactivate {{ $item->first_name }} {{$item->last_name}} </h3>
-										  </div>
-										  <div class="modal-body">
-											<div class="form-group">
-												<label class="control-label">State</label>
-												<select name="state" id="select-state" class="form-control" aria-readonly="true">
-													<option value="active" {{ $item->active == 1 ? 'selected' : '' }}>Activate</option>
-													<option value="deactive" {{ $item->active == 0 ? 'selected' : '' }}>Deactivate</option>
-												</select>
+							  @if(auth()->user()->CheckDeactivatePersonnel())
+								<span class="btn btn-danger btn-sm {{auth()->user()->is_support_staff == 0 ? 'hidden' : ''}}" data-toggle="modal" data-target="#lock-user-{{$item->id}}" data-toggle="tooltip" title="Deactivate Personnel"><i class="mdi mdi-account-lock"></i></span>
+								<div id="lock-user-{{$item->id}}" class="modal fade" role="dialog">
+									<div class="modal-dialog">
+										<form class="modal-content" method="POST" action="{{ route('personnel-state',['id'=>$item->id]) }}" enctype="multipart/form-data" >
+											@csrf
+											<div class="modal-header">
+												<h3 class="modal-title"> <i class="mdi mdi-account-lock"></i> Deactivate {{ $item->first_name }} {{$item->last_name}} </h3>
 											</div>
-										  </div>
-										  <div class="modal-footer">
-											  <button type="submit" class="btn btn-primary"> <i class="mdi mdi-content-save"></i> Save</button>
-											  <button type="button" class="btn btn-default" data-dismiss="modal">Close</button>
-										  </div>
-									  </form>
-								  </div>
-							  </div>
+											<div class="modal-body">
+											  <div class="form-group">
+												  <label class="control-label">State</label>
+												  <select name="state" id="select-state" class="form-control" aria-readonly="true">
+													  <option value="active" {{ $item->active == 1 ? 'selected' : '' }}>Activate</option>
+													  <option value="deactive" {{ $item->active == 0 ? 'selected' : '' }}>Deactivate</option>
+												  </select>
+											  </div>
+											</div>
+											<div class="modal-footer">
+												<button type="submit" class="btn btn-primary"> <i class="mdi mdi-content-save"></i> Save</button>
+												<button type="button" class="btn btn-default" data-dismiss="modal">Close</button>
+											</div>
+										</form>
+									</div>
+								</div>
+								@endif
 							  <!-- --------------------reset password---------- -->
 								<span data-toggle="modal" data-target="#reset-password-{{$item->id}}" class="btn btn-info btn-sm" data-toggle="tooltip" title="Reset Password" ><i class="mdi mdi-key-change"></i> <small class="hidden-sm-up">Reset Password</small> </span>
 
@@ -163,7 +163,7 @@
 						<th>Email</th>
 						<th>Employment Date</th>
 						<th>Active</th>
-						<th></th>
+						
 
 
 					  </tr>

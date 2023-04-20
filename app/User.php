@@ -199,5 +199,16 @@ class User extends Authenticatable
 		}
 		return false;
 	}
+	public function CheckDeactivatePersonnel(){
+		$deactivate_config = SystemConfiguration::where('key','can_deactivate_personnel')->first();
+		if(isset($deactivate_config->id)){
+			if(isset(UserRole::where('user_id',$this->id)->where('role_id',$deactivate_config->value)->first()->id)){
+				return true;
+			}else{
+				return false;
+			}
+		}
+		return false;
+	}
 
 }

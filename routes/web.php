@@ -735,6 +735,9 @@ Route::prefix('qualitycontrol')->group(function() {
   Route::post('/generateQCReport','QcModule\QualityControlController@generateQCReport')->name('generateQCReport');
   Route::get('/get/Qc-Type/Config/{id}/Ajax','QcModule\QualityControlController@getQcTypeConfigAjax')->name('getQcTypeConfigAjax');
 
+  Route::post('/add/Qc-Approvvers','QcModule\QualityControlController@addQcApprovvers')->name('addQcApprovvers');
+  Route::get('/deleteQcApprovvers/{id}','QcModule\QualityControlController@deleteQcApprovvers')->name('deleteQcApprovvers');
+
 });
 #############################################QC Module###########################################
 

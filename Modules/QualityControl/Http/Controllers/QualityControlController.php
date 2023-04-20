@@ -3,12 +3,14 @@
 namespace Modules\QualityControl\Http\Controllers;
 
 use App\Analyte;
+use App\Models\QcModule\Configurations\Approvers;
 use App\Models\System\SystemConfiguration;
 use App\SampleDetails;
 use App\SampleHeader;
 use App\SampleType;
 use App\StandardAnalytes;
 use App\Standards;
+use App\User;
 use Illuminate\Contracts\Support\Renderable;
 use Illuminate\Http\Request;
 use Illuminate\Routing\Controller;
@@ -55,7 +57,9 @@ class QualityControlController extends Controller
         $qc_types = QcTypes::all();
         $standards = Standards::where('is_qc_standard',1)->get();
         $qc_schemes = QcSchemes::all();
-        return view('qualitycontrol::configurations.index',compact('qc_types','standards','qc_schemes'));
+        $approvals = Approvers::all();
+        $staffs = User::where('active',1)->where('is_support_staff',0)->get();
+        return view('qualitycontrol::configurations.index',compact('qc_types','standards','qc_schemes','approvals','staffs'));
     }
     public function addQcStandard(Request $request){
         $standard = Standards::find($request->standard_id) ?? new Standards();
@@ -137,5 +141,6 @@ class QualityControlController extends Controller
         $standards = Standards::where('is_qc_standard',1)->where('status',1)->where('qc_type_id',$qc_type_id)->get();
         return response()->json($standards);
     }
+    
     
 }

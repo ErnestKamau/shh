@@ -19,7 +19,7 @@ class CRMCustomer extends Model implements Auditable
   }
 
   public function contacts(){
-    return $this->hasMany('App\Models\CRM\CustomerContact', 'crm_customer_id');
+    return $this->hasMany('App\Models\CRM\CustomerContact', 'crm_customer_id')->orderBy('active','desc');
   }
   public function quotes(){
     return $this->hasMany('App\QuotationHeader','crm_customer_id');
