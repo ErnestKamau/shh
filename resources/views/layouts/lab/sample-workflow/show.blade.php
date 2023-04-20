@@ -3243,7 +3243,7 @@
 						</div>
 					</td>
 					@endif
-					@if($batch->is_qc_batch == 1 && $batch->repeat_sample_id > 0)
+					@if($batch && $batch->is_qc_batch == 1 && $batch->repeat_sample_id > 0)
 					<td style="width:150px !important">
 					<input type="text" class="form-control" style="width:150px" name="repeat_sample[${data.id}]" value="${data.repeatsampleresult}" disabled />
 					</td>
