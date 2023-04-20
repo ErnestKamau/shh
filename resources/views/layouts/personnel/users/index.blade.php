@@ -73,7 +73,7 @@
 							  {{$i}}
 							  <a class="btn btn-success btn-sm" data-toggle="tooltip" title="View" href="{{ route('view-personnel', ['id'=>$item->id]) }}"><i class="mdi mdi-eye-outline"></i> <small class="hidden-sm-up">Show</small> </a>
 							  @if(auth()->user()->CheckDeactivatePersonnel())
-								<span class="btn btn-danger btn-sm {{auth()->user()->is_support_staff == 0 ? 'hidden' : ''}}" data-toggle="modal" data-target="#lock-user-{{$item->id}}" data-toggle="tooltip" title="Deactivate Personnel"><i class="mdi mdi-account-lock"></i></span>
+								<span class="btn btn-danger btn-sm" data-toggle="modal" data-target="#lock-user-{{$item->id}}" data-toggle="tooltip" title="Deactivate Personnel"><i class="mdi mdi-account-lock"></i></span>
 								<div id="lock-user-{{$item->id}}" class="modal fade" role="dialog">
 									<div class="modal-dialog">
 										<form class="modal-content" method="POST" action="{{ route('personnel-state',['id'=>$item->id]) }}" enctype="multipart/form-data" >
