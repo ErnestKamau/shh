@@ -15,7 +15,7 @@ class Role extends Model implements Auditable
 	}
 
 	public function getUsersByRole(){
-		return UserRole::join('users as u', 'u.id', 'user_roles.user_id')->where('role_id', $this->id)
+		return UserRole::join('users as u', 'u.id', 'user_roles.user_id')->where('role_id', $this->id)->where('active', 1)
 			->selectRaw('u.*')->get();
 	}
 }

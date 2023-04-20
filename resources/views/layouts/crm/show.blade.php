@@ -107,15 +107,14 @@
 							<a class="nav-link" id="Feedbacks-tab" data-toggle="tab" href="#Feedbacks" role="tab" aria-controls="Feedbacks" aria-selected="true"><i class="mdi mdi-file-account"></i> Customer Feedback</a>
 						</li>
 						<li class="nav-item">
+							<a class="nav-link" id="Customer-Details-tab" data-toggle="tab" href="#quotations" role="tab" aria-controls="Customer-Details" aria-selected="true"><i class="mdi mdi-file-settings"></i> Quotation</a>
+						</li>
+						<li class="nav-item">
 							<a class="nav-link" id="Certification-tab" data-toggle="tab" href="#Certification" role="tab" aria-controls="Certification" aria-selected="true"><i class="mdi mdi-file-certificate"></i> Attachments</a>
 						</li>
 						<li class="nav-item">
 							<a class="nav-link" id="Customer-Details-tab" data-toggle="tab" href="#Customer-Details" role="tab" aria-controls="Customer-Details" aria-selected="true"><i class="mdi mdi-information-outline"></i> Details</a>
 						</li>
-						<li class="nav-item">
-							<a class="nav-link" id="Customer-Details-tab" data-toggle="tab" href="#quotations" role="tab" aria-controls="Customer-Details" aria-selected="true"><i class="mdi mdi-file-settings"></i> Quotation</a>
-						</li>
-						
 					</ul>
 				</div>
 
@@ -155,7 +154,6 @@
 						</div>
 					</div>
 					<!-- ---------------------------------quotations-----------------------------  -->
-
 					<div class="tab-pane fade show p-3" id="Certification" role="tabpanel" aria-labelledby="one-tab">
 						<h5 class="card-title">
 							<i class="mdi mdi-file-certificate-outline"></i> Attachments

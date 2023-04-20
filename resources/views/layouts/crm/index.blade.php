@@ -376,10 +376,10 @@
 			$(this).find('.modal-body').append(text_);
 			// console.log(customer);
 		});
-
 		$('#add-customer').on('show.bs.modal',(e)=>{
-			
+			console.log('here1.....')
 			$('#add-customer').find('.name-check-trigger').on('change',(e)=>{
+				console.log('here2.....')
 				$.each($('#add-customer').find('.form-control'),(i,obj)=>{
 					$(obj).attr('readonly',true)
 					$('.name-check-listener').removeClass('hidden');
@@ -411,7 +411,6 @@
 							++$loop
 						})
 					}else{
-						
 						var body=$(`<tr><td colspan="2" class="text-center">No Data Available ....</td></tr>`).clone();
 						$('#name-check-modal').find('#name-check-tbody').find('tbody').append(body);
 

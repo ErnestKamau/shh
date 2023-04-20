@@ -100,7 +100,7 @@
 												</td>
 											@endif
 											@if ($stage == "Purchase Orders")
-												<td nowrap>{{ $l->supplier()->name }}</td>
+												<td nowrap>{{ $l->supplier()->name ?? '-' }}</td>
 											@endif
 											<td nowrap>{{ $l->creator()->name }}</td>
 											<td nowrap>{{ $l->creator()->location()->name }}</td>

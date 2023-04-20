@@ -59,7 +59,7 @@ class RequestEntity extends Model implements Auditable
 		$quotes =  \App\SupplierQuote::join('request_entity_items as rei', 'rei.id', '=', 'supplier_quotes.request_item_id')
 			->join('inventory_sub_categories as ics', 'ics.id', '=', 'rei.inventory_sub_category_id')
 			->where('supplier_quotes.request_id', $this->id)->selectRaw('supplier_quotes.*, ics.name as item_name, ics.sap_code, rei.item_brand_id as brand_id')
-			->orderBy('supplier_quotes.quote_amount', 'asc')->get();
+			->orderBy('ics.inventory_category_id', 'asc')->orderBy('supplier_quotes.quote_amount', 'asc')->get();
 
 		$return = [];
 

@@ -2348,17 +2348,17 @@ class SampleWorkFlowController extends Controller
 			$end =  SampleDetails::where('sample_header_id', $batch->id)->orderBy('id', 'DESC')->first();
 			// return response()->json(['start'=>$start,'end'=>$end],200);
 			foreach ($contact as $c) {
-
+				
 				$body = 'Dear Sir / Madam, <br><br>
 				I hope this email finds you well. <br><br>
 				We are pleased to let you know that the <b>' . $samples->count() . '</b> test reports are ready as attached..<br><br>'
-					. $message . '<br><br>
+				. $message . '<br><br>
 				We are grateful for giving us an opportunity to be of service to you. <br><br>
 				We look forward to more engagements in the future. <br><br>
 				Should you have any questions or concerns please do not hesitate to contact us.<br><br>
 				Regards, <br>
-
-				 ' . $company->name;
+				
+				' . $company->name;
 				$subject = 'TEST REPORTS;' . $customer->name . ' - ' . $start->sample_code . ' - ' . $end->sample_code;
 				$file = \storage_path() . '/app' . $batch->batch_report_url;
 				$bcc = true;
@@ -2367,6 +2367,7 @@ class SampleWorkFlowController extends Controller
 			$batch->email_date = getTodayDate();
 			$batch->status = "Completed";
 			$batch->save();
+			// return response()->json($batch);
 		}
 
 		// return response()->json($cArr,200);
