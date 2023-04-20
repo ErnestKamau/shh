@@ -206,7 +206,7 @@ class QualityControlController extends Controller
     }
     public function deleteQcApprovvers($id){
         $approver = Approvers::find($id);
-        $approver->delete()
+        $approver->delete();
        
         return redirect()->back()->with('success','Approver deleted Successfully');
        
