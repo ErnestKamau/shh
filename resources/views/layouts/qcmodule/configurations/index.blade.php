@@ -61,7 +61,7 @@
                             @foreach($approvals as $approval)
                             <tr>
                                 <td>
-                                    
+                                    <span class="btn btn-sm btn-default text-primary" data-target="#edit-approver" data-toggle="modal" data-record="{{json_encode($approval)}}"><i class="mdi mdi-pencil"></i></span>
                                    <a class="btn btn-default btn-sm text-danger" href="{{route('deleteQcApprovvers',['id'=>$approval->id])}}"><i class="mdi mdi-delete-empty" data-toggle="tooltip" title="Delete"></i></a>
                            
                                 </td>
@@ -197,6 +197,21 @@
 @endsection
 
 @section('script2')
+<div class="modal fade" id="edit-approver" data-staff="{{json_encode($staffs)}}" role="dialog">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <form action="" method="post">
+                <div class="modal-body">
+                    
+                </div>
+                <div class="modal-footer">
+                    <button type="submit" class="btn btn-sm btn-outline-info"><i class="mdi mdi-content-save"></i> Save</button>
+                    <span class="btn btn-sm btn-default" data-dismiss="modal">Close</span>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
 <div class="modal fade" id="add-qc-approver" role="dialog">
     <div class="modal-dialog">
         <div class="modal-content">
@@ -342,6 +357,36 @@
 
 <script>
     $(()=>{
+        let editApprover = (data)=>{
+            var staff = $('#edit-approver').data('staff');
+            var body = $(`
+                <div class="alert alert-primary p-2 d-flex">
+                    <i class="mdi mdi-alert-decagram" style="font-size: 25px;"></i>
+                    <span class="p-2">
+                        Edit ${data.name} QC Report Approvers Below
+                    </span>
+                </div>
+                <div class="form-group">
+                    <label for="" class="control-label">Personnel</label>
+                    <select name="personnel_id" id="personnel_id" class="form-control">
+                        
+                    </select>
+                </div>
+                <input type="hidden" name="approver_id" value="${data.id}">
+            `).clone();
+            $.each(staff,(i,obj)=>{
+                var option = `<option value="${obj.id}" ${obj.id == data.personnel_id ? 'selected' : '' }>${obj.name}<option/>`;
+                $(body).find('#personnel_id').append(option);
+            })
+            return body;
+        }
+        $('#edit-approver').on('show.bs.modal',(e)=>{
+            var data = $(e.relatedTarget).data('record');
+            var body = editApprover(data);
+            $('#edit-approver').find('.modal-body').empty();
+            $('#edit-approver').find('.modal-body').append(body);
+
+        })
         let deleteQcTypeBody = (data)=>{
             var body = $(`
                 <div class="alert alert-danger d-flex p-2">
