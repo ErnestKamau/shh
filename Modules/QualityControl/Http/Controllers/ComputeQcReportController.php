@@ -2,6 +2,7 @@
 
 namespace Modules\QualityControl\Http\Controllers;
 
+use App\Analyte;
 use Illuminate\Contracts\Support\Renderable;
 use Illuminate\Contracts\Support\Arrayable;
 
@@ -125,11 +126,65 @@ class ComputeQcReportController extends Controller
             }
             $ysum = $sumsq / (sizeof($validResults) - 1);
             $sstar =  $sstar2_const  * sqrt($ysum);
-
-
         }
+        $robust_average = $xstar;
+        $robust_std_deviation = $sstar;
+        $robust_cv = $robust_std_deviation * 100 / $robust_average;
+        $compute_res = array(
+            'robust_average'         => $robust_average,
+            'robust_std_deviation'         => $robust_std_deviation,
+            'robust_cv'         => $robust_cv,
+            'sstar'         => $sstar,
+            'statisticalPopulationSize'      => $statisticalPopulationSize
+        );
 
+        return $compute_res;
 
     }
-   
+
+   private function computeNumericResultsModule($analyte_id,$rawResults){
+        $analyte = Analyte::find($analyte_id);
+        $rawResultsClone = clone $rawResults;
+        $raw_valid_results = clone $rawResults;
+        $min_value = null;
+        $max_value = null;
+        $onlyResultsArr = $rawResultsClone->pluck('result')->toarray();
+        $validResults = $raw_valid_results->get();
+        $min_value = min($onlyResultsArr);
+        $max_value = max($onlyResultsArr);
+
+        if ($min_value == $max_value) {
+            $robust_average = $min_value;
+            $robust_std_deviation =0.0;
+            $robust_cv = 0.0; 
+            $statisticalPopulationSize = sizeof($onlyResultsArr) > 0  ? sizeof($onlyResultsArr) : 0;
+        } else {
+            $compute_res = $this->computeQcReport($validResults,$onlyResultsArr);
+            $robust_average = $compute_res['robust_average'];
+            $robust_cv = $compute_res['robust_cv'];
+            $robust_std_deviation = $compute_res['robust_std_deviation'];
+            $statisticalPopulationSize = $compute_res['statisticalPopulationSize'];
+            $cvstar = $compute_res['statisticalPopulationSize'] > 0 ?  $compute_res['robust_cv'] /  $compute_res['statisticalPopulationSize'] : 0;
+            $sd_star = $cvstar * ($robust_average/100);
+            foreach($validResults as $vRes){
+                $z_score = $sd_star > 0 ? ($vRes->result - $robust_average) / $sd_star : 0;
+                $z_score = round($z_score, 2);
+                $vres['zscore'] = $z_score;
+            }
+        }
+
+        $data = [
+            "robust_average" =>$robust_average,
+            "robust_cv"=>$robust_cv,
+            "robust_std_deviation" => $robust_std_deviation,
+            "statisticalPopulationSize"=>$statisticalPopulationSize,
+            "cvstar"=>$cv_star ?? 0,
+            "sd_star" => $sd_star ?? 0,
+            "valid_res"=> $validResults
+        ];
+
+        return $data;
+
+    
+   }
 }
