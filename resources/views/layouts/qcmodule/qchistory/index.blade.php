@@ -4,18 +4,17 @@
 <title>{{ $status }} | Sample WorkFlow</title>
 
 <style>
-	
-
 	.hidden {
 		display: none;
 	}
 
 
-	.btn-white{
+	.btn-white {
 		background-color: white !important;
 	}
-	.text-bold{
-		font-weight: 550 ;
+
+	.text-bold {
+		font-weight: 550;
 	}
 </style>
 @endsection
@@ -33,7 +32,7 @@
 			'name' => 'QC History',
 			'icon' => null
 		),
-		
+
 	);
 	?>
 	<x-bread-crumb :items="$items"></x-bread-crumb>
@@ -73,7 +72,7 @@
 						<div class="form-group">
 							<label for="" class="control-label">Qc Schemes</label>
 							<select name="qc_scheme_id" id="" class="form-control">
-							<option value="">Choose QC Scheme</option>
+								<option value="">Choose QC Scheme</option>
 								@foreach($qc_schemes as $scheme)
 								<option value="{{$scheme->id}}">{{$scheme->name}}</option>
 								@endforeach
@@ -90,7 +89,7 @@
 						<div class="form-group">
 							<label for="" class="control-label">Sample Type</label>
 							<select name="sample_type_id" id="sample_type_id" class="form-control">
-							<option value="">Choose Sample Type</option>
+								<option value="">Choose Sample Type</option>
 								@foreach($sample_types as $st)
 								<option value="{{$st->id}}">{{$st->name}}</option>
 								@endforeach
@@ -101,7 +100,7 @@
 						<div class="form-group">
 							<label for="" class="control-label">Analysis Type</label>
 							<select name="analysis_type_id" id="analysis_type_id" class="form-control">
-								
+
 							</select>
 						</div>
 					</div>
@@ -109,7 +108,7 @@
 						<div class="form-group">
 							<label for="" class="control-label">Analyte</label>
 							<select name="analyte_id" id="" class="form-control">
-							<option value="">Analyte</option>
+								<option value="">Analyte</option>
 								@foreach($analytes as $analyte)
 								<option value="{{$analyte->id}}">{{$analyte->code}}</option>
 								@endforeach
@@ -126,7 +125,7 @@
 							</select>
 						</div>
 					</div>
-	
+
 				</div>
 			</div>
 			<div class="card-footer">
@@ -134,47 +133,17 @@
 			</div>
 		</form>
 	</div>
-	<div class="card mt-3">
-		<div class="spn-header text-bold pl-3 pt-3">Report Parameters :</div>
-		<div class="card-body row">
-			<div class="col-md-3">
-				<span><i class="mdi mdi-chevron-right"></i> Max Value : {{isset($data['max']) ? $data['max'] : '-'}}</span>
-			</div>
-			<div class="col-md-3">
-				<span><i class="mdi mdi-chevron-right"></i> Min Value : {{isset($data['min']) ? $data['min'] : '-'}}</span>
-			</div>
-			<div class="col-md-3">
-				<span><i class="mdi mdi-chevron-right"></i> Median : {{isset($data['median']) ? $data['median'] : '-'}}</span>
-			</div>
-			<div class="col-md-3">
-				<span><i class="mdi mdi-chevron-right"></i> Average : {{isset($data['average']) ? $data['average'] : '-'}}</span>
-			</div>
-			<div class="col-md-3">
-				<span><i class="mdi mdi-chevron-right"></i> STD Deviations : {{isset($data['std']) ? $data['std'] : '-' }}</span>
-			</div>
-			<div class="col-md-3">
-				<span><i class="mdi mdi-chevron-right"></i> Cv : {{isset($data['cv']) ? $data['cv'] : '-'}}</span>
-			</div>
-			<div class="col-md-3">
-				<span><i class="mdi mdi-chevron-right"></i> Statistical Population Size : {{isset($data['population']) ? $data['population'] : '-'}} </span>
-			</div>
-			<div class="col-md-3">
-				<span><i class="mdi mdi-chevron-right"></i> Z-Score : {{isset($data['z_score'])}}</span>
-			</div>
-			<div class="col-md-3">
-				<span><i class="mdi mdi-chevron-right"></i> Std Star : {{isset($data['std_star']) ? $data['std_star'] : '-'}}</span>
-			</div>
-			<div class="col-md-3">
-				<span><i class="mdi mdi-chevron-right"></i> Cv Star : {{isset($data['cv_star']) ? $data['cv_star'] : '-'}}</span>
-			</div>
-		</div>
-	</div>
+
 	<div class="card mt-4" style="box-shadow: rgba(0, 0, 0, 0.35) 0px 5px 15px;">
+		<div class="card-header" style="font-size:20px; font-weight:580">
+			Report Data
+			<span class="btn btm-sm btn-default float-right" style="box-shadow: rgba(149, 157, 165, 0.2) 0px 8px 24px;" data-target="#release_data" data-toggle="modal"><i class="mdi mdi-cogs"></i> Release Report</span>
+		</div>
 		<div class="card-body">
 			<div class="table-responsive">
 				<table class="table table-condensed my-small-text table-bordered table-sm">
 					<thead>
-						
+
 						<th nowrap>Receipt Date</th>
 						<th>Batch Code</th>
 						<th>Sample Code</th>
@@ -183,7 +152,7 @@
 						<th>Standard Value</th>
 						<th>Remark</th>
 						<th>Analyst</th>
-						
+
 					</thead>
 					<tbody>
 						@foreach($results as $r)
@@ -196,13 +165,13 @@
 							<td>{{$r->guide}}</td>
 							<td>{{$r->remarks}}</td>
 							<td>{{$r->analyst_name}}</td>
-							
+
 						</tr>
 						@endforeach
-						
+
 					</tbody>
 				</table>
-				
+
 			</div>
 		</div>
 	</div>
@@ -210,40 +179,68 @@
 @endsection
 
 @section('script2')
+<div class="modal fade" id="release_data" role="dialog">
+	<div class="modal-dialog">
+		<div class="modal-content">
+			<form action="" method="post">
+				@csrf 
+				<div class="modal-body">
+					<div class="alert alert-primary p-2">
+						<div class="d-flex">
+							<i class="mdi mdi-alert-decagram" style="font-size:25px"></i>
+							<div class="p-2">
+								By Releasing the report the following will happen:
+								<ul>
+									<li>System will schedule the report for statistical Analysis.</li>
+									<li>Will move the report to Awaiting Approval Section </li>
+									<li>Respective QC Approvers will be notified of the new qc report released</li>
+								</ul>
+							</div>
+						</div>
+						<div class="alert alert-default mt-2"><i class="mdi mdi-alert-decagram" style="font-size:20px"></i> Confirm you want to release the report</div>
+					</div>
+				</div>
+				<div class="modal-footer">
+					<button class="btn btn-outline-primary btn-sm" type="submit"><i class="mdi mdi-thumbs-up"></i> Yes, Release</button>
+					<span class="btn btn-sm btn-default text-danger">Close</span>
+				</div>
+			</form>
+		</div>
+	</div>
+</div>
 <script>
-	
-	$(()=>{
-		$('#qc_type_id').on('change',(e)=>{
+	$(() => {
+		$('#qc_type_id').on('change', (e) => {
 			$('#standard_id').empty();
 			var qc_type_id = $('#qc_type_id').val()
 			$.ajax({
-				url:`/qualitycontrol/get/Qc-Standards/${qc_type_id}/Ajax`,
-				method:`GET`,
-				success:(data)=>{
-					$.each(data,(i,obj)=>{
+				url: `/qualitycontrol/get/Qc-Standards/${qc_type_id}/Ajax`,
+				method: `GET`,
+				success: (data) => {
+					$.each(data, (i, obj) => {
 						var body = `<option value="${obj.id}">${obj.name}</option>`;
 						$('#standard_id').append(body);
 					})
 				},
-				error:(data)=>{
+				error: (data) => {
 					console.log(data);
 				}
 			})
 			$('#standard_id').select2();
 		})
-		$('#sample_type_id').on('change',(e)=>{
+		$('#sample_type_id').on('change', (e) => {
 			$('#analysis_type_id').empty();
 			var sample_type_id = $('#sample_type_id').val()
 			$.ajax({
-				url:`/qualitycontrol/get/Qc-Analysis-Types/${sample_type_id}/Ajax`,
-				method:`GET`,
-				success:(data)=>{
-					$.each(data,(i,obj)=>{
+				url: `/qualitycontrol/get/Qc-Analysis-Types/${sample_type_id}/Ajax`,
+				method: `GET`,
+				success: (data) => {
+					$.each(data, (i, obj) => {
 						var body = `<option value="${obj.id}">${obj.name}</option>`;
 						$('#analysis_type_id').append(body);
 					})
 				},
-				error:(data)=>{
+				error: (data) => {
 					console.log(data);
 				}
 			})

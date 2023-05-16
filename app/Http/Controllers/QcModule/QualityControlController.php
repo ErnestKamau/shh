@@ -184,14 +184,14 @@ class QualityControlController extends Controller
         $results = isset($request->qc_type_id) && $request->qc_type_id !=  '' ? $results->where('qc_type_id',$request->qc_type_id) : $results;
         $results = isset($request->qc_scheme_id) && $request->qc_scheme_id != '' ? $results->where('qc_scheme_id',$request->qc_scheme_id) : $results;
         $results = isset($request->analyte_id) && $request->analyte_id != '' ? $results->where('analyte_id',$request->analyte_id) : $results;
-        return response()->json($results->get());
-        $data = $this->computeNumericResultsModule($results);
+        // return response()->json($results->get());
+        // $data = $this->computeNumericResultsModule($results);
         $results = $results->get();
 
         // return response()->json($request->all());
 
         // $results =  QCResultsView::where('analysis_type_id',$request->analysis_type_id)->where('qc_type_id',$request->qc_type_id)->where('qc_scheme_id',$request->qc_scheme_id)->get();
-        return view('layouts.qcmodule.qchistory.index', compact('sample_types', 'qc_types','qc_schemes','status','analytes','data','results'));
+        return view('layouts.qcmodule.qchistory.index', compact('sample_types', 'qc_types','qc_schemes','status','analytes','results'));
     }
 
     public function getQcTypeConfigAjax($id){
