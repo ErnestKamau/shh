@@ -445,6 +445,8 @@ class RequisitionController extends Controller
 			foreach($entityItems as $i){
 				$iO = $i->replicate();
 				$iO->request_id = $purchaseOrder->id;
+				$qNo = $quote->quote_amount/$i->quantity;
+				$iO->unit_cost = $qNo;
 				$iO->net_value = $quote->quote_amount;
 				$iO->save();
 
@@ -1894,7 +1896,7 @@ class RequisitionController extends Controller
 		}
 
 		EntityAttachment::whereNotIn('id', $attachmentArray)->where('model', $stage)->where('model_id', $req->id)->delete();
-		if(in_array($req->request_type, ["Material Requisition", "Request for Quotation", "Request to Store", "Goods Receipt"])){
+		if(in_array($req->request_type, ["Material Requisition", "Request for Quotation", "Request to Store", "Goods Receipt", "Purchase Orders"])){
 			$itemsCatNames = array();
 			$itemsArrIds = array();
 			$totalValue = 0;
@@ -1935,8 +1937,23 @@ class RequisitionController extends Controller
 
 				$item->comments = $request->items['comments'][$i];
 				$item->quantity = $request->items['quantity'][$i] ?? $request->items['received_quantity'][$i];
-				$item->net_value = $request->items['net_value'][$i];
 
+				$netV = $request->items['net_value'][$i];
+				if($req->request_type == "Purchase Orders"){
+					$q = $request->items['quantity'][$i];
+					$rfqParent = RequestEntity::find($req->parent_request_id);
+					$itemInRFQ = RequestEntityItem::where('request_id', $rfqParent->id)->where('inventory_sub_category_id', $subCatID)->first();
+					$quote = \App\SupplierQuote::where('supplier_id', $req->supplier_id)
+						->where('request_id', $rfqParent->id)->where('request_item_id', $itemInRFQ->id)
+						->first();
+					$uc = floatval($quote->quote_amount)/floatval($itemInRFQ->quantity);
+					$item->unit_cost = $uc;
+					$netV = $uc * $request->items['quantity'][$i] ?? $request->items['received_quantity'][$i];
+				}
+
+				// return $netV;
+
+				$item->net_value = $netV;
 				$item->starting_sample = $request->items['starting_sample'][$i] ?? null;
 				$item->lot_no = $request->items['lot_no'][$i] ?? null;
 				$item->test = $request->items['test'][$i] ?? null;
