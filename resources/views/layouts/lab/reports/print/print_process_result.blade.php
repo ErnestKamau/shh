@@ -109,7 +109,7 @@
     </footer>
 
     @foreach($batch_result as $key => $view)
-    <main style="margin-bottom: 150px;">
+    <main style="margin-bottom: 130px;">
         
             
             <table class="table table-sm table-bordered" style="font-size: 8px;">

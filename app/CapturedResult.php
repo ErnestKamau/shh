@@ -15,9 +15,9 @@ class CapturedResult extends Model implements Auditable
 		if($this->repeat_captured_id > 0){
 			$captured = CapturedResult::find($this->repeat_captured_id);
 			$percentage_config = SystemConfiguration::where('key','qc_percentage_config')->first();
-			$perc_value = $percentage_config->value/100 * $captured->result;
-			$lower_limit =  $captured->result - $perc_value;
-			$upper_limit = $captured->result + $perc_value;
+			$perc_value = intval($percentage_config->value)/100 * intval($captured->result);
+			$lower_limit =  intval($captured->result) - intval($perc_value);
+			$upper_limit = intval($captured->result) + intval($perc_value);
 			return  $lower_limit.' - '.$upper_limit;
 
 		}

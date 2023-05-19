@@ -1942,6 +1942,7 @@
 					<div class="modal-body">
 						<ul class="list-group list-group-flush">
 							<li class="list-group-item"><label class="control-label"><input name="status" value="In Preparation" type="radio" /> In Preparation</label></li>
+							<li class="list-group-item"><label class="control-label"><input name="status" value="Awaiting Approval" type="radio" /> Awaiting Approval</label></li>
 							@if(($request->done_approvals()->count() == $request->defined_approvals()->count()) || in_array($stage,["Request to Store", "Material Issuance"]))
 								<li class="list-group-item"><label class="control-label"><input name="status" value="Approval Complete" type="radio" /> Approval Complete</label></li>
 							@endif

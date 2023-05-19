@@ -98,13 +98,17 @@
 					</tr>
 					@php($total = 0)
 					@foreach ($normalItems as $item)
-						@php($total += floatval($item->net_value))
+						<?php
+							$uc = trim($item->unit_cost) == '' ? floatval($item->net_value)/floatval($item->quantity): $item->unit_cost;
+							$netV = $uc * floatval($item->quantity);
+						?>
+						@php($total += floatval($netV))
 						<tr style="border-top:1px solid #000">
 							<td colspan="7" style="padding: 7px 2px; font-family: monospace; border-right:1px solid #000;  border-bottom:1px solid #000">{{ $item->item_name }}</td>
 							<td colspan="3" style="padding: 7px 2px; font-family: monospace; border-right:1px solid #000;  border-bottom:1px solid #000">{{ $item->code }}</td>
 							<td colspan="1" style="padding: 7px 2px; font-family: monospace; border-right:1px solid #000; text-align: right;  border-bottom:1px solid #000">{{ number_format(floatval($item->quantity),2) }}</td>
-							<td colspan="2" style="padding: 7px 2px; font-family: monospace; border-right:1px solid #000; text-align: right;  border-bottom:1px solid #000">{{ number_format(floatval($item->net_value)/floatval($item->quantity) == 0 ? 1 : floatval($item->quantity),2) }}</td>
-							<td colspan="2" style="padding: 7px 2px; font-family: monospace; border-right:1px solid #000; text-align: right;  border-bottom:1px solid #000">{{ number_format(floatval($item->net_value), 2) }}</td>
+							<td colspan="2" style="padding: 7px 2px; font-family: monospace; border-right:1px solid #000; text-align: right;  border-bottom:1px solid #000">{{ number_format($uc,2) }}</td>
+							<td colspan="2" style="padding: 7px 2px; font-family: monospace; border-right:1px solid #000; text-align: right;  border-bottom:1px solid #000">{{ number_format(floatval($netV), 2) }}</td>
 						</tr>
 					@endforeach
 					<?php
