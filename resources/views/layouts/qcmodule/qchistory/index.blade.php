@@ -39,10 +39,10 @@
 	<h4 class="p-2">
 		<span><i class="mdi mdi-file-document-edit"></i> Qc History</span>
 	</h4>
-	<div class="filter-form bordered-top card">
+	<div class="filter-form bordered-top card p-2">
 		<form action="{{route('generateQCReport')}}" method="post">
 			@csrf
-			<u><small class="p-2 text-bold">Apply Filter ?</small></u>
+			<u><small class="p-3 text-bold">Apply Filter ?</small></u>
 			<div class="card-body">
 				<div class="row">
 					<div class="col-md-4">
@@ -128,8 +128,8 @@
 
 				</div>
 			</div>
-			<div class="card-footer">
-				<button type="submit" class="btn btn-sm btn-outline-primary">Apply</button>
+			<div class="card-footer-1 border-top m-2 p-3">
+				<button type="submit" class="btn btn-sm btn-outline-primary float-right">Apply</button>
 			</div>
 		</form>
 	</div>
@@ -137,7 +137,7 @@
 	<div class="card mt-4" style="box-shadow: rgba(0, 0, 0, 0.35) 0px 5px 15px;">
 		<div class="card-header" style="font-size:20px; font-weight:580">
 			Report Data
-			<span class="btn btm-sm btn-default float-right" style="box-shadow: rgba(149, 157, 165, 0.2) 0px 8px 24px;" data-target="#release_data" data-toggle="modal"><i class="mdi mdi-cogs"></i> Release Report</span>
+			<span class="btn btm-sm btn-default float-right  bg-white" style="box-shadow: rgba(0, 0, 0, 0.35) 0px 5px 15px;" data-target="#release_data" data-toggle="modal"><i class="mdi mdi-cogs"></i> Release Report</span>
 		</div>
 		<div class="card-body">
 			<div class="table-responsive">
@@ -182,12 +182,13 @@
 <div class="modal fade" id="release_data" role="dialog">
 	<div class="modal-dialog">
 		<div class="modal-content">
-			<form action="" method="post">
+			<form action="" method="post" enctype="multi
+			">
 				@csrf 
 				<div class="modal-body">
 					<div class="alert alert-primary p-2">
 						<div class="d-flex">
-							<i class="mdi mdi-alert-decagram" style="font-size:25px"></i>
+							<i class="mdi mdi-alert-decagram mt-4" style="font-size:55px"></i>
 							<div class="p-2">
 								By Releasing the report the following will happen:
 								<ul>
@@ -195,14 +196,16 @@
 									<li>Will move the report to Awaiting Approval Section </li>
 									<li>Respective QC Approvers will be notified of the new qc report released</li>
 								</ul>
+								<p><b>Confirm you want to release the report</b></p>
+								<input type="hidden" name="released_ids" value="{{$realese_ids}}">
 							</div>
 						</div>
-						<div class="alert alert-default mt-2"><i class="mdi mdi-alert-decagram" style="font-size:20px"></i> Confirm you want to release the report</div>
 					</div>
+					
 				</div>
 				<div class="modal-footer">
-					<button class="btn btn-outline-primary btn-sm" type="submit"><i class="mdi mdi-thumbs-up"></i> Yes, Release</button>
-					<span class="btn btn-sm btn-default text-danger">Close</span>
+					<button class="btn btn-outline-primary btn-sm" type="submit"><i class="mdi mdi-thumb-up"></i> Yes, Release</button>
+					<span class="btn btn-sm btn-default text-danger" data-dismiss="modal">Close</span>
 				</div>
 			</form>
 		</div>

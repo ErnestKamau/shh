@@ -3280,7 +3280,7 @@
 					</td>
 					<td class="text-small text-center">
 					<div class="form-group">
-					<input class="form-check" type="checkbox" {{Auth::user()->is_client == 1 ? 'disabled' : ''}}  name="accredited[${data.id}]" ${data.analyte_accredited  == 1 ? 'checked':''}/>
+					<input class="form-check" type="checkbox" {{Auth::user()->is_client == 1 ? 'disabled' : ''}}  name="accredited[${data.id}]" ${data.analyte_accredited  == 1  ? 'checked':''}/>
 					</div>
 					</td>
 				</tr>

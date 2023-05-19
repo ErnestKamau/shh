@@ -27,9 +27,13 @@ class CreateQcReportHeaderTable extends Migration
             $table->double('rob_cv')->nullable();
             $table->double('cv_star')->nullable();
             $table->double('std_star')->nullable();
+            $table->double('rob_median')->nullable();
+            $table->double('max_value')->nullable();
+            $table->double('min_value')->nullable();
             $table->double('statistical_population')->nullable();
             $table->text('qc_results_ids')->nullable();
-
+            $table->integer('created_by')->nullable();
+            $table->boolean('status')->default(0);
             $table->timestamps();
         });
     }

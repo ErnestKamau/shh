@@ -238,7 +238,7 @@ class SampleHeader extends Model implements Auditable
 			->join('analysis_types', function ($join) {
 				$join->on('analysis_types.id', '=', 'captured_results.analysis_type_id');
 			})
-			->selectRaw('captured_results.*,analysis_types.level as analysis_level,analysis_types.name as analysis_type_name,analysis_elements.level as analyte_level,analysis_elements.non_accredited as analyte_accredited')
+			->selectRaw('captured_results.*,analysis_types.level as analysis_level,analysis_types.name as analysis_type_name,analysis_elements.level as analyte_level,analysis_elements.non_accredited as an_analyte_accredited')
 			->orderBy('analysis_level','asc')
 			->orderBy('analyte_level', 'asc');
 	}

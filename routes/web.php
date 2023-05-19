@@ -17,6 +17,8 @@ Route::get('/', function () {
 
 Auth::routes();
 
+Route::get('/mark-Accreditted-Samples','SampleWorkFlowController@markAccredittedSamples')->name('markAccredittedSamples');
+
 Route::get('/resolveTest','SampleWorkFlowController@resolveTest')->name('resolveTest');
 Route::get('/fillCapturedresultOperator','SampleWorkFlowController@fillCapturedresultOperator')->name('fillCapturedresultOperator');
 Route::get('add/suppliers-user','SupplierController@make_suppliers_users')->name('add-crm-to-users');
@@ -737,6 +739,8 @@ Route::prefix('qualitycontrol')->group(function() {
 
   Route::post('/add/Qc-Approvvers','QcModule\QualityControlController@addQcApprovvers')->name('addQcApprovvers');
   Route::get('/deleteQcApprovvers/{id}','QcModule\QualityControlController@deleteQcApprovvers')->name('deleteQcApprovvers');
+
+  
 
 });
 #############################################QC Module###########################################

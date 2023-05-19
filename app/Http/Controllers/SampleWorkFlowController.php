@@ -301,7 +301,7 @@ class SampleWorkFlowController extends Controller
 						$captured->equipment_id = $an->equipment_id;
 						$captured->method_id = $analysisType->method;
 						$captured->user_id = \Auth::user()->id;
-
+						$captured->analyte_accredited = $analysisType->non_accredited;
 						$captured->save();
 
 						$result = Result::where('sample_detail_code', $atbs['sample_detail_code'])
@@ -319,6 +319,7 @@ class SampleWorkFlowController extends Controller
 						$result->analyte_code = $an->analyte_code;
 						$result->unit_code = $an->reporting_unit;
 						$result->reporting_symbol = $an->reporting_symbol;
+						$result->analyte_accredited = $analysisType->non_accredited;
 						$result->recheck = 0;
 
 						$result->save();
@@ -835,7 +836,7 @@ class SampleWorkFlowController extends Controller
 					$captured->equipment_id = $an->equipment_id;
 					$captured->method_id = $analysisType->method;
 					$captured->user_id = \Auth::user()->id;
-
+					$captured->analyte_accredited = $analysisType->non_accredited;
 					$captured->analyte_status_contracted = $lab->is_external;
 
 					$captured->save();
@@ -1852,8 +1853,10 @@ class SampleWorkFlowController extends Controller
 				$captured->analyte_status_contracted = 0;
 			}
 			if (isset($request->accredited[$cID])) {
+				// return response()->json($request->accredited[$cID]);
 				$captured->analyte_accredited = 1;
 			} else {
+				// return response()->json('here '.$cID);
 				$captured->analyte_accredited = 0;
 			}
 			$captured->method_id = $request->method_id[$cID];
@@ -2898,5 +2901,25 @@ class SampleWorkFlowController extends Controller
 		return redirect()->route('sample-workflow', ['status' => $previous_status])->with('success', 'Batch marked complete succesffuly');
 
 		
+	}
+
+	public function markAccredittedSamples($header_id=0){
+		
+		if($header_id == 0){
+			$sample_ids =SampleHeader::whereIn('status',["Samples Reception", "Samples Request Review", "Samples In Lab"])->pluck('id')->toArray();
+		
+			$captured_results = CapturedResult::whereIn('id',$sample_ids)->get();
+			foreach($captured_results as $cr){
+				$analysisElement = AnalysisElements::where('analysis_type_id', $cr->analysis_type_id)
+				->where('analyte_id', $cr->analyte_id)->where('equipment_id', $cr->equipment_id)->first();
+				$cr->analyte_accredited = $analysisElement->non_accredited;
+				$cr->save();
+				$result = Result::where('captured_result_id',$cr->id)->first();
+				$result->analyte_accredited = $analysisElement->non_accredited;
+				$result->save();
+
+			}
+		}
+		return response()->json('done');
 	}
 }
