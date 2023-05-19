@@ -2247,49 +2247,36 @@
             </form>
         </div>
     </div>
-    @if (in_array($stage, [
-            'Material Requisition',
-            'Request for Quotation',
-            'Purchase Orders',
-            'Request to Store',
-            'Material Issuance',
-        ]))
-        <div id="jump-to-status-modal" class="modal fade" role="dialog">
-            <div class="modal-dialog">
-                <!-- Modal content-->
-                <form method="POST" action="{{ route('jump-request-to-status', ['id' => $request->id ?? 0]) }}"
-                    class="modal-content">
-                    @csrf
-                    <div class="modal-header">
-                        <h5 class="modal-title"><i class="mdi mdi-account-check"></i> Change status for
-                            {{ $stage }}</h5>
-                    </div>
-                    <div class="modal-body">
-                        <ul class="list-group list-group-flush">
-                            <li class="list-group-item"><label class="control-label"><input name="status"
-                                        value="In Preparation" type="radio" /> In Preparation</label></li>
-                            @if (
-                                $request->done_approvals()->count() == $request->defined_approvals()->count() ||
-                                    in_array($stage, ['Request to Store', 'Material Issuance']))
-                                <li class="list-group-item"><label class="control-label"><input name="status"
-                                            value="Approval Complete" type="radio" /> Approval Complete</label></li>
-                            @endif
-                            @if ($stage == 'Request for Quotation')
-                                <li class="list-group-item"><label class="control-label"><input name="status"
-                                            value="Awarded" type="radio" /> Awarded</label></li>
-                                <li class="list-group-item"><label class="control-label"><input name="status"
-                                            value="RFQs sent out" type="radio" /> RFQs sent out</label></li>
-                            @endif
-                        </ul>
-                    </div>
-                    <div class="modal-footer">
-                        <button type="submit" class="btn btn-success">Change Status</button>
-                        <button type="button" class="btn btn-default" data-dismiss="modal">Close</button>
-                    </div>
-                </form>
-            </div>
-        </div>
-    @endif
+    @if(in_array($stage, ["Material Requisition", "Request for Quotation", "Purchase Orders", "Request to Store", "Material Issuance"]))
+		<div id="jump-to-status-modal" class="modal fade" role="dialog">
+			<div class="modal-dialog">
+				<!-- Modal content-->
+				<form method="POST" action="{{ route('jump-request-to-status', ['id'=>$request->id ?? 0]) }}" class="modal-content">
+					@csrf
+					<div class="modal-header">
+						<h5 class="modal-title"><i class="mdi mdi-account-check"></i> Change status for {{ $stage }}</h5>
+					</div>
+					<div class="modal-body">
+						<ul class="list-group list-group-flush">
+							<li class="list-group-item"><label class="control-label"><input name="status" value="In Preparation" type="radio" /> In Preparation</label></li>
+							<li class="list-group-item"><label class="control-label"><input name="status" value="Awaiting Approval" type="radio" /> Awaiting Approval</label></li>
+							@if(($request->done_approvals()->count() == $request->defined_approvals()->count()) || in_array($stage,["Request to Store", "Material Issuance"]))
+								<li class="list-group-item"><label class="control-label"><input name="status" value="Approval Complete" type="radio" /> Approval Complete</label></li>
+							@endif
+							@if($stage=="Request for Quotation")
+								<li class="list-group-item"><label class="control-label"><input name="status" value="Awarded" type="radio" /> Awarded</label></li>
+								<li class="list-group-item"><label class="control-label"><input name="status" value="RFQs sent out" type="radio" /> RFQs sent out</label></li>
+							@endif
+						</ul>
+					</div>
+					<div class="modal-footer">
+						<button type="submit" class="btn btn-success">Change Status</button>
+						<button type="button" class="btn btn-default" data-dismiss="modal">Close</button>
+					</div>
+				</form>
+			</div>
+		</div>
+	@endif
     <div id="data-attr-holder" class="hidden" data-stores="{{ json_encode(getUserStores()) }}"></div>
     <script>
         var markCompleted = $(`<input type="hidden" name="get_approval" value="1" />`);
