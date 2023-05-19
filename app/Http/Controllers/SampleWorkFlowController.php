@@ -2911,12 +2911,15 @@ class SampleWorkFlowController extends Controller
 			$captured_results = CapturedResult::whereIn('id',$sample_ids)->get();
 			foreach($captured_results as $cr){
 				$analysisElement = AnalysisElements::where('analysis_type_id', $cr->analysis_type_id)
-				->where('analyte_id', $cr->analyte_id)->where('equipment_id', $cr->equipment_id)->first();
-				$cr->analyte_accredited = $analysisElement->non_accredited;
-				$cr->save();
-				$result = Result::where('captured_result_id',$cr->id)->first();
-				$result->analyte_accredited = $analysisElement->non_accredited;
-				$result->save();
+				->where('analyte_id', $cr->analyte_id)->first();
+				if(isset($analysisElement->id)){
+					$cr->analyte_accredited = $analysisElement->non_accredited;
+					$cr->save();
+					$result = Result::where('captured_result_id',$cr->id)->first();
+					$result->analyte_accredited = $analysisElement->non_accredited;
+					$result->save();
+
+				}
 
 			}
 		}
