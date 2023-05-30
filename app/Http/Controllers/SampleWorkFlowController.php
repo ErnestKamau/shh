@@ -1736,8 +1736,8 @@ class SampleWorkFlowController extends Controller
 				->join('analysis_types as at', 'at.id', '=', 'analysis_elements.analysis_type_id')
 				->leftJoin('users as u', 'u.id', '=', 'analysis_elements.operator_id')
 				->leftJoin('equipment as e', 'e.id', '=', 'analysis_elements.equipment_id')
-				->join('captured_results as cr', 'cr.analyte_id', '=', 'analysis_elements.analyte_id')
-				->selectRaw('DISTINCT a.id, a.name, a.code, analysis_elements.reporting_unit, analysis_elements.reporting_symbol, e.name as equipment, e.id as equipment_id, u.name as operator, at.name as analysis_type, at.id as analysis_type_id,cr.analyte_status_contracted as analyte_status')
+				->leftjoin('labs as lb','lb.id','=','at.id')
+				->selectRaw('DISTINCT a.id, a.name, a.code, analysis_elements.reporting_unit, analysis_elements.reporting_symbol, e.name as equipment, e.id as equipment_id, u.name as operator, at.name as analysis_type, at.id as analysis_type_id,lb.is_external as analyte_status')
 				->whereNotIn(
 					'analysis_elements.analyte_id',
 					DB::table('captured_results')->where('sample_detail_code', $request->sample)->where('analysis_type_id', $id)
