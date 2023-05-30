@@ -4,10 +4,18 @@ namespace App;
 
 use Illuminate\Database\Eloquent\Model;
 use OwenIt\Auditing\Contracts\Auditable;
+use App\Analyte;
 
 class AnalysisElements extends Model implements Auditable
 {
 	use \OwenIt\Auditing\Auditable;
+
+  protected $appends = ['parametername'];
+
+  public function getParameterNameAttribute(){
+    return Analyte::find($this->analyte_id)->name ?? '';
+  }
+
   public function analysis_type(){
     return $this->belongsTo('App\AnalysisType');
 	}

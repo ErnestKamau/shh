@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\QcModule;
 
+use App\AnalysisElements;
 use App\Analyte;
 use App\Models\QcModule\Configurations\QcSchemes;
 use App\Models\QcModule\Configurations\QcTypes;
@@ -143,8 +144,9 @@ class QualityControlController extends Controller
         $status = "Qc Approved";
         $data = [];
         $results = [];
+        $release_ids = implode(',',[]);
 
-		return view('layouts.qcmodule.qchistory.index', compact('sample_types', 'qc_types','qc_schemes','status','analytes','data','results'));
+		return view('layouts.qcmodule.qchistory.index', compact('sample_types', 'qc_types','qc_schemes','status','analytes','data','results','release_ids'));
     }
     public function getQcStandardsAjax($qc_type_id){
         $standards = Standards::where('is_qc_standard',1)->where('status',1)->where('qc_type_id',$qc_type_id)->get();
@@ -165,8 +167,8 @@ class QualityControlController extends Controller
         $status = "Qc Approved";
 
         $results = QCResultsView::query();
-        $results = isset($request->start_date) ? $results->where('created_at','>=',$request->start_date) : $results;
-        $results = isset($request->end_date) ? $results->where('created_at','<=',$request->end_date) : $results;
+        $results = isset($request->start_date) && $request->start_date != '' ? $results->where('created_at','>=',$request->start_date) : $results;
+        $results = isset($request->end_date) && $request->end_date != '' ? $results->where('created_at','<=',$request->end_date) : $results;
 
         $results = isset($request->sample_type_id) && $request->sample_type_id !='' ? $results->where('sample_type_id',$request->sample_type_id) : $results;
         $results = isset($request->analysis_type_id) && $request->analysis_type_id !='' ? $results->where('analysis_type_id',$request->analysis_type_id) : $results;
@@ -210,6 +212,11 @@ class QualityControlController extends Controller
        
         return redirect()->back()->with('success','Approver deleted Successfully');
        
+    }
+
+    public function getAnalysisElementsByTypeId($id){
+        $elements = AnalysisElements::where('analysis_type_id',$id)->get();
+        return response()->json($elements);
     }
 
 

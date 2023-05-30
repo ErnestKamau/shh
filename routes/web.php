@@ -740,6 +740,8 @@ Route::prefix('qualitycontrol')->group(function() {
   Route::post('/add/Qc-Approvvers','QcModule\QualityControlController@addQcApprovvers')->name('addQcApprovvers');
   Route::get('/deleteQcApprovvers/{id}','QcModule\QualityControlController@deleteQcApprovvers')->name('deleteQcApprovvers');
 
+  Route::get('get/Analysis-Elements/By-Type-Id/{id}','QcModule\QualityControlController@getAnalysisElementsByTypeId')->name('getAnalysisElementsByTypeId');
+
   
 
 });

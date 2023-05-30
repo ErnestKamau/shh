@@ -107,11 +107,8 @@
 					<div class="col-md-4">
 						<div class="form-group">
 							<label for="" class="control-label">Analyte</label>
-							<select name="analyte_id" id="" class="form-control">
-								<option value="">Analyte</option>
-								@foreach($analytes as $analyte)
-								<option value="{{$analyte->id}}">{{$analyte->code}}</option>
-								@endforeach
+							<select name="analyte_id" id="analyte_id" class="form-control">
+								
 							</select>
 						</div>
 					</div>
@@ -190,14 +187,19 @@
 						<div class="d-flex">
 							<i class="mdi mdi-alert-decagram mt-4" style="font-size:55px"></i>
 							<div class="p-2">
+								<p><b>Confirm you want to release the report</b></p>
 								By Releasing the report the following will happen:
 								<ul>
 									<li>System will schedule the report for statistical Analysis.</li>
 									<li>Will move the report to Awaiting Approval Section </li>
 									<li>Respective QC Approvers will be notified of the new qc report released</li>
 								</ul>
-								<p><b>Confirm you want to release the report</b></p>
-								<input type="hidden" name="released_ids" value="{{$realese_ids}}">
+								@if(sizeof(explode(',',$release_ids)) == 0)
+								<div class="alert alert-danger p-2">
+									The report has no data. You can release an empty report
+								</div>
+								@endif
+								<input type="hidden" name="released_ids" value="{{$release_ids}}">
 							</div>
 						</div>
 					</div>
@@ -233,11 +235,13 @@
 		})
 		$('#sample_type_id').on('change', (e) => {
 			$('#analysis_type_id').empty();
+			$('#analysis_type_id').append(`<option>Loading...</option>`);
 			var sample_type_id = $('#sample_type_id').val()
 			$.ajax({
 				url: `/qualitycontrol/get/Qc-Analysis-Types/${sample_type_id}/Ajax`,
 				method: `GET`,
 				success: (data) => {
+					$('#analysis_type_id').empty();
 					$.each(data, (i, obj) => {
 						var body = `<option value="${obj.id}">${obj.name}</option>`;
 						$('#analysis_type_id').append(body);
@@ -248,6 +252,26 @@
 				}
 			})
 			$('#analysis_type_id').select2();
+		});
+		$('#analysis_type_id').on('show.bs.modal',(e)=>{
+			$('#analyte_id').empty();
+			$('#analyte_id').append(`<option>Loading...</option>`);
+			var analysis_type_id = $('#analysis_type_id').val();
+			$.ajax({
+				url:`/qualitycontrol/get/Analysis-Elements/By-Type-Id/${analysis_type_id}`,
+				method:'GET',
+				success:(data)=>{
+					$('#analyte_id').empty();
+					$.each(data,(i,obj)=>{
+						var option = `<option value="${obj.analyte_id}">${obj.parametername}</option>`
+						$('#analyte_id').append(option);
+					});
+				},
+				error: (data) => {
+					console.log(data);
+				}
+				
+			})
 		})
 	})
 </script>
