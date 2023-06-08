@@ -162,9 +162,9 @@
                                     <td style="border: 0 transparent !important; font-size:9px !important;text-align:left; width:42% ">
                                         {{strtoupper($view['sample_type_name'])}} <br>
                                         {{strtoupper($view['source'])}} <br>
-                                        {{strtoupper($view['submit'])}} <br>
-                                        {{strtoupper($view['customer'])}} <br>
-                                        {{strtoupper($view['sampled_by'])}}
+                                        {{ucwords($view['submit'])}} <br>
+                                        {{ucwords($view['customer'])}} <br>
+                                        {{ucwords($view['sampled_by'])}}
                                     </td>
 
 
