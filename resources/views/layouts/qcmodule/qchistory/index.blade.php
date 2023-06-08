@@ -117,8 +117,9 @@
 							<label for="" class="control-label">Remark</label>
 							<select name="remark" id="" class="form-control">
 								<option value="">Select Remark...</option>
-								<option value="pass">Pass</option>
-								<option value="fail">Fail</option>
+								<option value="PASS">Pass</option>
+								<option value="FAIL">Fail</option>
+								<option value="All">All</option>
 							</select>
 						</div>
 					</div>
@@ -179,8 +180,7 @@
 <div class="modal fade" id="release_data" role="dialog">
 	<div class="modal-dialog">
 		<div class="modal-content">
-			<form action="" method="post" enctype="multi
-			">
+			<form action="" method="post">
 				@csrf 
 				<div class="modal-body">
 					<div class="alert alert-primary p-2">
@@ -196,7 +196,7 @@
 								</ul>
 								@if(sizeof(explode(',',$release_ids)) == 0)
 								<div class="alert alert-danger p-2">
-									The report has no data. You can release an empty report
+									The report has no data. You cannot release an empty report
 								</div>
 								@endif
 								<input type="hidden" name="released_ids" value="{{$release_ids}}">
@@ -253,7 +253,7 @@
 			})
 			$('#analysis_type_id').select2();
 		});
-		$('#analysis_type_id').on('show.bs.modal',(e)=>{
+		$('#analysis_type_id').on('change',(e)=>{
 			$('#analyte_id').empty();
 			$('#analyte_id').append(`<option>Loading...</option>`);
 			var analysis_type_id = $('#analysis_type_id').val();
@@ -262,6 +262,7 @@
 				method:'GET',
 				success:(data)=>{
 					$('#analyte_id').empty();
+					console.log(data);
 					$.each(data,(i,obj)=>{
 						var option = `<option value="${obj.analyte_id}">${obj.parametername}</option>`
 						$('#analyte_id').append(option);

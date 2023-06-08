@@ -106,9 +106,14 @@ class SamplesReportsController extends Controller
         }else{
             $reports = $lab_report;
         }
+        if($request->sample_type_id == 'all'){
+            $analysis_type = $request->analysis_type != 'all' ? AnalysisType::where('name','LIKE','%'.$request->analysis_type.'%')->pluck('name')->toArray() : [];
+        }else{
+            $analysis_type = $request->analysis_type != 'all' ? explode(',',$request->analysis_type) : [];
+        }
         // return response()->json($filter,200);
         isset($filter['sample_type_id']) && $filter['sample_type_id'] != 'all' ? $filter['sample_type'] = getSampleTypeByID($filter['sample_type_id'])->name : $filter['sample_type'] = $filter['sample_type_id'];
-        isset($filter['analysis_type']) && $filter['analysis_type'] != 'all' ? $filter['analysis_type_'] = getAnalysisTypeID($filter['analysis_type'])->name : 
+        isset($filter['analysis_type']) && sizeof($analysis_type) > 0 ? $filter['analysis_type_'] = implode(', ',$analysis_type) : 
         $filter['analysis_type_'] = $filter['analysis_type'];
         isset($filter['analyte_id']) && $filter['analyte_id'] != 'all' ? $filter['analyte_name'] = getAnalyteByID($filter['analyte_id'])->name : $filter['analyte_name']  =  $filter['analyte_id'];
         isset($filter['client_id']) && $filter['client_id'] != 'all' ? $filter['client'] = getCrmCustomerByID($filter['client_id'])->name : $filter['client'] = $filter['client_id'];
@@ -119,10 +124,15 @@ class SamplesReportsController extends Controller
     }
     private function sample_report($data, $request)
     {
+        if($request->sample_type_id == 'all'){
+            $analysis_type = $request->analysis_type != 'all' ? AnalysisType::where('name','LIKE','%'.$request->analysis_type.'%')->pluck('id')->toArray() : [];
+        }else{
+            $analysis_type = $request->analysis_type != 'all' ? explode(',',$request->analysis_type) : [];
+        }
         $data->join('sample_headers as sh', 'sh.batch_code', 'samples_by_category.batch_code');
         $data->join('sample_details as sd', 'sd.sample_header_id', 'sh.id');
         $data->join('captured_results as cr', 'cr.sample_detail_id', 'sd.id');
-        $data = isset($request->analysis_type) && $request->analysis_type != 'all' ? $data->where('cr.analysis_type_id', $request->analysis_type) : $data;
+        $data = isset($request->analysis_type) && sizeof($analysis_type) > 0 ? $data->whereIn('cr.analysis_type_id', $analysis_type) : $data;
         $data = isset($request->analyte_id) && $request->analyte_id != 'all' ? $data->where('cr.analyte_id', $request->analyte_id) : $data;
         $samples = $data->distinct('sd.id')->selectRaw('sd.*,samples_by_category.sample_type_name,samples_by_category.sample_type_id,samples_by_category.crm_customer_id,samples_by_category.crm_name,samples_by_category.workflow_stage,samples_by_category.priority,samples_by_category.receipt_date,samples_by_category.date_collected,samples_by_category.approval_date,samples_by_category.batch_scope,samples_by_category.invoice_number')->get();
         $crs = $data->distinct('cr.id')->selectRaw('cr.*')->get();
@@ -154,4 +164,15 @@ class SamplesReportsController extends Controller
         return $invoice_details;
         
     }
+
+    public function getAnalysisTypeBySampleTypeAjax($type_id){
+        if($type_id == 'all'){
+            $analysis_type = AnalysisType::where('active',1)->pluck('name')->toArray();
+            return array_unique($analysis_type);
+        }else{
+            $analysis_type = AnalysisType::where('active',1)->where('sample_type_id',$type_id)->get(); 
+        }
+        return $analysis_type;
+    }
+    
 }

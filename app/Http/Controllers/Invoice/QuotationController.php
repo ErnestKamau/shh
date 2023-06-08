@@ -14,6 +14,8 @@ use App\AnalysisElements;
 use App\Analyte;
 use Illuminate\Http\File;
 use App\Http\Controllers\Controller;
+use App\QuotationDetailAnalysisSplit;
+use App\QuotationHeaderView;
 use App\SampleType;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
@@ -29,28 +31,73 @@ class QuotationController extends Controller
     public function index($stage = false)
     {
         if ($stage != false) {
-            $quotations = QuotationHeader::where('is_draft', 0)->where('status', $stage)->orderBy('id', 'desc')->get();
-            $drafts = QuotationHeader::where('is_draft', 1)->where('status', $stage)->orderBy('id', 'desc')->get();
+            $quotations = QuotationHeaderView::where('is_draft', 0)->where('status', $stage)->orderBy('id', 'desc')->get();
+            $drafts = QuotationHeaderView::where('is_draft', 1)->where('status', $stage)->orderBy('id', 'desc')->get();
         } else {
-            $quotations = QuotationHeader::where('is_draft', 0)->orderBy('id', 'desc')->get();
-            $drafts = QuotationHeader::where('is_draft', 1)->orderBy('id', 'desc')->get();
+            $quotations = QuotationHeaderView::where('is_draft', 0)->orderBy('id', 'desc')->get();
+            $drafts = QuotationHeaderView::where('is_draft', 1)->orderBy('id', 'desc')->get();
             $stage = 'All Quotations';
         }
         
         // return response()->json($stage,200);
         $customers = CRMCustomer::where('active',1)->get();
-        foreach ($quotations as $quotation) {
-            $customer = getCrmCustomerByID($quotation->crm_customer_id);
-            $contact = getCrmCustomerContactById($quotation->crm_customer_contact_id);
-            $user = getUserById($quotation->prepared_by_id);
-            $pricelist = getPricelistByID($quotation->pricelist_id);
-            $quotation['customer'] = $customer->name;
-            $quotation['contact'] = $contact->first_name . ' ' . $contact->middle_name . ' ' . $contact->last_name;
-            $quotation['pricelist'] = $pricelist->code ?? '-';
-            $quotation['prepared_by_name'] = $user->name;
+        // foreach ($quotations as $quotation) {
+        //     $customer = getCrmCustomerByID($quotation->crm_customer_id);
+        //     $contact = getCrmCustomerContactById($quotation->crm_customer_contact_id);
+        //     $user = getUserById($quotation->prepared_by_id);
+        //     $pricelist = getPricelistByID($quotation->pricelist_id);
+        //     $quotation['customer'] = $customer->name;
+        //     $quotation['contact'] = $contact->first_name . ' ' . $contact->middle_name . ' ' . $contact->last_name;
+        //     $quotation['pricelist'] = $pricelist->code ?? '-';
+        //     $quotation['prepared_by_name'] = $user->name;
+        // }
+        $sample_types = SampleType::where('active',1)->get();
+
+        return view('layouts.lab.invoice.quotation-index', compact('customers', 'quotations', 'drafts', 'stage','sample_types'));
+    }
+    public function filterQuotations(Request $request){
+        
+
+        $drafts = QuotationHeaderView::where('is_draft', 1)->orderBy('id', 'desc')->get();
+        if($request->quote_type == 'Analysis'){
+            $quotations_d = QuotationDetails::query();
+            $quotations_d  = $request->sample_type_id != '' ? $quotations_d->where('sample_type',$request->sample_type_id) : $quotations_d;
+            $analysis_detail_ids = $request->analysis_type_id != '' ?  QuotationDetailAnalysisSplit::where('id',$request->analysis_type_id)->pluck('quotation_detail_id')->toArray() : [];
+            $quotations_d = sizeof($analysis_detail_ids) > 0 ? $quotations_d->whereIn('id',$analysis_detail_ids) : $quotations_d;
+            $quotations_d_ids = $quotations_d->pluck('quotation_header_id')->toArray();
+            $quotations = QuotationHeaderView::where('is_draft', 0)->whereIn('id',$quotations_d_ids);
+            
+            $quotations = $request->end_date != '' ? $quotations->where('created_at','>=',$request->end_date) : $quotations;
+            $quotations = $quotations->where('is_draft', 0)->orderBy('id', 'desc')->get();
+        }
+        if($request->quote_type == 'General'){
+            $quotations_d = QuotationDetails::where('description','LIKE','%'.$request->item_description.'%')->pluck('quotation_header_id')->toArray();
+            $quotations = QuotationHeaderView::where('is_draft', 0)->whereIn('id',$quotations_d);
+            
+            $quotations = $request->end_date != '' ? $quotations->where('created_at','>=',$request->end_date) : $quotations;
+            $quotations = $quotations->where('is_draft', 0)->orderBy('id', 'desc')->get();
+
         }
 
-        return view('layouts.lab.invoice.quotation-index', compact('customers', 'quotations', 'drafts', 'stage'));
+
+        $stage = 'All Quotations';
+        $customers = CRMCustomer::where('active',1)->get();
+        $sample_types = SampleType::where('active',1)->get();
+
+        return view('layouts.lab.invoice.quotation-index', compact('customers', 'quotations', 'drafts', 'stage','sample_types'));
+    }
+    public function populateQuotationDetailSplit(){
+        $headers = QuotationHeader::where('quotation_type','Analysis')->pluck('id')->toArray();
+        $details = QuotationDetails::whereIn('quotation_header_id',$headers)->get();
+        foreach($details as $detail){
+            $idsTypes = explode(',',$detail->part_no);
+            $insertArr = [];
+            foreach($idsTypes as $id){
+                array_push($insertArr,['quotation_detail_id'=>$detail->id,'analysis_type_id'=>$id]);
+            }
+            QuotationDetailAnalysisSplit::insert($insertArr);
+        }
+        return response()->json('done');
     }
     public function add_quotation_header(Request $request)
     {
@@ -136,6 +183,7 @@ class QuotationController extends Controller
                 $detail_sub_analytes = explode(',', $detail->subcontracted_analytes);
                 $detail_accredited_analytes = explode(',', $detail->accredited_analytes);
                 $detail_part_no = explode(',', $detail->part_no);
+
                 $analytes_ac = [];
                 $analyte_sa = [];
                 $analyte_sub_acc = [];
@@ -359,8 +407,18 @@ class QuotationController extends Controller
                 $detail->quotation_header_id = $header->id;
 
                 $detail->save();
+                $analysis_types_ids = explode(',',$request->part_number_final[$count]);
+                $insertArr =[];
+                QuotationDetailAnalysisSplit::where('quotation_detail_id',$detail->id)->delete();
+
+                foreach($analysis_types_ids as $a_id){
+                    $data = ["analysis_type_id"=>$a_id,'quotation_detail_id'=>$detail->id];
+                    array_push($insertArr,$data);
+                }
+                QuotationDetailAnalysisSplit::insert($insertArr);
                 ++$count;
             }
+
         }
         $details = QuotationDetails::where('quotation_header_id',$header->id)->get();
         $sub_total = [];
@@ -549,6 +607,15 @@ class QuotationController extends Controller
             $detail->subcontracted_analytes = isset( $request->sub_analytes) ?  $request->sub_analytes : $detail->subcontracted_analytes;
             $detail->sub_acc_analytes = isset($request->sub_acc) ? $request->sub_acc : $detail->sub_acc_analytes;
             $detail->default_analytes  = isset($request->default_analytes) ?  $request->default_analytes : $detail->default_analytes;
+            $analysis_types_ids = explode(',',$request->part_no);
+            $insertArr =[];
+            QuotationDetailAnalysisSplit::where('quotation_detail_id',$detail->id)->delete();
+            
+            foreach($analysis_types_ids as $a_id){
+                $data = ["analysis_type_id"=>$a_id,'quotation_detail_id'=>$detail->id];
+                array_push($insertArr,$data);
+            }
+            QuotationDetailAnalysisSplit::insert($insertArr);
         }
         $detail->unit_price = $request->unit_price;
         $detail->tax = $request->tax;

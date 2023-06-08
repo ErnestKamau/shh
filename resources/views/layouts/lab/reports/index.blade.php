@@ -115,6 +115,7 @@
                                 <div class="form-group">
                                     <label class="control-label">Sample Type</label>
                                     <select name="sample_type_id" id="sample_type" class="form-control">
+                                        <option value="">Choose Sample Type</option>
                                         <option value="all">All</option>
                                         @foreach($sample_types as $type)
                                         <option value="{{$type->id}}">{{$type->name}}</option>
@@ -149,10 +150,8 @@
                                 <div class="form-group">
                                     <label class="control-label">Analysis Type</label>
                                     <select name="analysis_type" id="analysis-type" class="form-control">
-                                        <option value="all">All</option>
-                                        @foreach($analysis_types as $type_a)
-                                            <option value="{{$type_a->id}}">{{$type_a->name}}</option> 
-                                        @endforeach
+                                        <option value="">Choose Analysis Type...</option>
+                                       
                                     </select>
                                 </div>
                             </div>
@@ -160,6 +159,7 @@
                                 <div class="form-group">
                                     <label class="control-label">Analytes</label>
                                     <select name="analyte_id" id="analyte" class="form-control">
+                                        <option value="">Choose Analyte...</option>
                                         <option value="all">All</option>
                                         @foreach($analytes as $analyte)
                                            <option value="{{$analyte->id}}">{{$analyte->name}} ({{$analyte->code}})</option>
@@ -253,6 +253,37 @@
                                   
                 `;
                 $($form).find('select[name="group_by"]').append(text);
+                $('#sample_type').on('change',(e)=>{
+                    value = $('#sample_type').val();
+                    if(value != ''){
+                        $('#analysis-type').empty();
+                        option = '<option value="">Loading Analysis Types...</option>'
+                        $('#analysis-type').append(option);
+                        $('#analysis-type').select2()
+                        $.ajax({
+                            url:`/getAnalysisTypeBySampleTypeAjax/${value}`,
+                            method:'GET',
+                            success:(data)=>{
+                                $('#analysis-type').empty();
+                                if(value == 'all'){
+                                    $.each(data,(i,obj)=>{
+                                        option = `<option value="${obj}">${obj}</option>`
+                                        $('#analysis-type').append(option);
+                                    });
+                                }else{
+                                    $.each(data,(i,obj)=>{
+                                        option = `<option value="${obj.id}">${obj.name}</option>`
+                                        $('#analysis-type').append(option);
+                                    });
+                                }
+                                $('#analysis-type').select2()
+                            },
+                            error:(data)=>{
+                                console.log(data);
+                            }
+                        });
+                    }
+                })
 
             }if(report_data == 'profit_report'){
                 $($form).find('#analysisType').removeClass('hidden');

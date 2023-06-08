@@ -123,65 +123,68 @@
 
     </h4>
     @if($stage == 'All Quotations' )
-    <div class="card mb-3">
-        <div class="p-3">Apply Filter</div>
-        <form action="" class="row">
-            <div class="card-body">
-                @csrf
-                <div class="col-md-3">
-                    <div class="form-group">
-                        <label for="" class="control-label">Quote Type</label>
-                        <select name="quote_type" id="quote_type" class="form-control">
-                            <option value="General">General Quotation</option>
-                            <option value="Analysis">Analysis Quotation</option>
-                        </select>
+    <div class="filter">
+        <div class="p-3"> <u><b>Apply Filter ?</b></u</div>
+        <div class="card mb-5">
+            <form action="{{route('filterQuotations')}}" method="POST">
+                <div class="card-body">
+                    @csrf
+                    <div class="row">
+    
+                        <div class="col-md-3">
+                            <div class="form-group">
+                                <label for="" class="control-label">Quote Type</label>
+                                <select name="quote_type" id="quote_type" class="form-control">
+                                    <option value="">Choose Quotation Type</option>
+                                    <option value="General">General Quotation</option>
+                                    <option value="Analysis">Analysis Quotation</option>
+                                    
+                                </select>
+                            </div>
+                        </div>
+                        <div class="col-md-3 sample_type_field hidden">
+                            <div class="form-group">
+                                <label for="" class="control-label">Sample Type</label>
+                                <select name="sample_type_id" id="sample_type_id" class="form-control">
+                                    @foreach($sample_types ?? [] as $st)
+                                    <option value="{{$st->id}}">{{$st->name}}</option>
+                                    @endforeach
+                                </select>
+                            </div>
+                        </div>
+                        <div class="col-md-3 analysis_type_field hidden">
+                            <div class="form-group">
+                                <label for="" class="control-label">Analysis Type</label>
+                                <select name="analysis_type_id" id="analysis_type_id" class="form-control"></select>
+                            </div>
+                        </div>
+                      
+                        <div class="col-md-3">
+                            <div class="form-group">
+                                <label for="" class="control-label">Start Date</label>
+                                <input type="date" name="start_date" id="start_date" class="form-control">
+                            </div>
+                        </div>
+                        <div class="col-md-3">
+                            <div class="form-group">
+                                <label for="" class="control-label">End Date</label>
+                                <input type="date" name="end_date" id="" class="end_date form-control">
+                            </div>
+                        </div>
+                        <div class="col-md-12 bg-light p-2 item_description_field hidden">
+                            <div class="form-group">
+                                <label for="" class="control-label">Item Description</label>
+                                <textarea class=" form-control" value="" name="item_description" rows="1" placeholder=""> </textarea>
+                            </div>
+                        </div>
                     </div>
                 </div>
-                <div class="col-md-3 sample_type_field hidden">
-                    <div class="form-group">
-                        <label for="" class="control-label">Sample Type</label>
-                        <select name="sample_type_id" id="sample_type_id" class="form-control">
-                            @foreach($sample_types as $st)
-                            <option value="{{$st->id}}">{{$st->name}}</option>
-                            @endif
-                        </select>
-                    </div>
+                <div class="modal-footer">
+                    <button type="submit" class="btn btn-sm btn-outline-primary"><i class="mdi mdi-filter-variant-plus"></i> Apply Filter</button>
                 </div>
-                <div class="col-md-3 analysis_type_field hidden">
-                    <div class="form-group">
-                        <label for="" class="control-label">Analysis Type</label>
-                        <select name="analysis_type_id" id="analysis_type_id" class="form-control"></select>
-                    </div>
-                </div>
-                <div class="col-md-3 analyte_field hidden">
-                    <div class="form-group">
-                        <label for="" class="control-label">Analyte</label>
-                        <select name="analyte_id" id="analyte_id" class="form-control"></select>
-                    </div>
-                </div>
-                <div class="col-md-3">
-                    <div class="form-group">
-                        <label for="" class="control-label">Start Date</label>
-                        <input type="date" name="start_date" id="start_date" class="form-control">
-                    </div>
-                </div>
-                <div class="col-md-3">
-                    <div class="form-group">
-                        <label for="" class="control-label">End Date</label>
-                        <input type="date" name="end_date" id="" class="end_date form-control">
-                    </div>
-                </div>
-                <div class="col-md-12 item_description_field hidden">
-                    <div class="form-group">
-                        <label for="" class="control-label">Item Description</label>
-                        <textarea class=" form-control" value="" name="item_description" rows="1" placeholder=""> </textarea>
-                    </div>
-                </div>
-            </div>
-            <div class="modal-footer">
-                <button type="submit" class="btn btn-sm btn-outline-primary"><i class="mdi mdi-filter-variant-plus"></i> Apply Filter</button>
-            </div>
-        </form>
+            </form>
+
+        </div>
     </div>
     @endif
 
@@ -333,19 +336,20 @@
         $('#quote_type').on('change',(e)=>{
             $quote_type = $('#quote_type').val();
             if($quote_type == 'General'){
-                $('#sample_type_field').addClass('hidden');
-                $('#analysis_type_field').addClass('hidden');
-                $('#analyte_field').addClass('hidden');
-                $('#item_description_field').removeClass('hidden');
-            }else{
-                $('#sample_type_field').removeClass('hidden');
-                $('#analysis_type_field').removeClass('hidden');
-                $('#analyte_field').removeClass('hidden');
-                $('#item_description_field').addClass('hidden');
+                $('.sample_type_field').addClass('hidden');
+                $('.analysis_type_field').addClass('hidden');
+                $('.item_description_field').removeClass('hidden');
+            }else if($quote_type == 'Analysis'){
+                
+                $('.sample_type_field').removeClass('hidden');
+                $('.analysis_type_field').removeClass('hidden');
+                $('.item_description_field').addClass('hidden');
             }
+            
+            
         });
-        $('#sample_type_field').on('change',(e)=>{
-            $value  = $('#sample_type_field').val()
+        $('#sample_type_id').on('change',(e)=>{
+            $value  = $('#sample_type_id').val()
         })
         $('#select-client').on('change', function() {
             var client = $(this).val();

@@ -208,6 +208,9 @@ Route::post('/stock-taking-counter/{id}/remove','StockTakingCounterController@re
   Route::get('/fetch-detail-data/{id}','Invoice\QuotationController@get_quotation_detail')->name('get_quotation_detail');
   Route::get('/addBatchSamplesDynamically','SampleWorkFlowController@addBatchSamplesDynamically')->name('addBatchSamplesDynamically');
 
+  Route::post('filter-Quotations','Invoice\QuotationController@ilterQuotations')->name('filterQuotations');
+  Route::get('populate/Quotation-Detail/Split','Invoice\QuotationController@populateQuotationDetailSplit')->name('populateQuotationDetailSplit');
+
   ######################################################################################################################################
 
 	Route::post('/move-to-stage/{stage}/{batch_id}', 'SampleWorkFlowController@move_to_stage')->name('move-to-stage');
@@ -676,6 +679,7 @@ Route::get('/lab/reports-home','Lab\Reports\SamplesReportsController@index')->na
 Route::post('/lab/report/show','Lab\Reports\SamplesReportsController@show')->name('lab-report-show');
 
 Route::get('/lab/sample-generate/certificate-analysis/{id}','SampleWorkFlowController@certificate_analysis')->name('certificate-analysis');
+Route::get('/getAnalysisTypeBySampleTypeAjax/{type_id}','Lab\Reports\SamplesReportsController@getAnalysisTypeBySampleTypeAjax')->name('getAnalysisTypeBySampleTypeAjax');
 ##################################LAB REPORTSS#######################################
 
 ####################################DISPOSED EQUIPMENT REPORTS######################################

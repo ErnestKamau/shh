@@ -22,6 +22,8 @@ class ReleaseQCReportController extends Controller
         $header->analysis_type_id = $request->analysis_type_id;
         $header->qc_type_id = $request->qc_type_id;
         $header->qc_scheme_id = $request->qc_scheme_id;
+        $header->standard_id = $request->standard_id;
+        $header->remark = $request->remark;
         $header->save();
 
         return redirect()->back()->with('success','QC Report scheduled for analysis successfully!');
