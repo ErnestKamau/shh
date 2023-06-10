@@ -137,6 +137,7 @@
                                     <td>{{$data->receipt_date}}</td>
                                     <td>{{$data->batch_code}}</td>
                                     <td>{{$data->crm_name}}</td>
+                                    <td>{{$data->submit_by}}</td>
                                     <td>{{$data->date_collected}}</td>
                                     <td>{{$data->approval_date}}</td>
                                     <td>{{$data->batch_scope}}</td>
@@ -153,6 +154,7 @@
                                     <td>{{$data->receipt_date}}</td>
                                     <td>{{$data->sample_code}}</td>
                                     <td>{{$data->crm_name}}</td>
+                                    <td>{{$data->submit_by}}</td>
                                     <td>{{$data->sample_type_name}}</td>
                                     <td>{{$data->analysis_name}}</td>
                                     <td>{{$data->analyte_name}}</td>
@@ -181,6 +183,7 @@
                                         <td>{{$d->sample_code}}</td>
                                         <td style="width: 20%;">{{getSampleTypeByID($d->sample_type_id)->name}}</td>
                                         <td style="width:10%">{{getCrmCustomerByID($d->crm_customer_id)->name}}</td>
+                                        <td>{{$d->submit_by}}</td>
                                         <td style="width: 15%;">{{getAnalysisTypeID($d->analysis_type)->name}}</td>
                                         <td>{{getInvoiceById($d->invoice_id)->invoice_number ?? '-'}}</td>
                                         <td style="width: 15%;text-align: right !important;">{{$d->cost_price}}</td>

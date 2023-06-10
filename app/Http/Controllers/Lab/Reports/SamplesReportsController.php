@@ -50,14 +50,14 @@ class SamplesReportsController extends Controller
         $data = isset($request->status) && $request->status != 'all' ? $data->where('samples_by_category.priority', $request->status) : $data;
         $data = isset($request->workflow) && $request->workflow != 'all' ? $data->where('samples_by_category.workflow_stage', $request->workflow) : $data;
         if ($request->report_name == 'batch_report') {
-            $theads = ['Receipt Date','Batch Code', 'Client','Sampling Date','Approval Date','Batch Scope','Customer Survey','Invoice No' ,'Sample Type','Workflow','Priority'];
+            $theads = ['Receipt Date','Batch Code', 'Client','Submitted By','Sampling Date','Approval Date','Batch Scope','Customer Survey','Invoice No' ,'Sample Type','Workflow','Priority'];
             $lab_report = $data->get();
         } elseif ($request->report_name == 'sample_report') {
-            $theads = ['Receipt Date','Sample Code', 'Client', 'Sample Type', 'Analysis Type', 'Analytes','Sampling Date','Invoice Number','Batch Scope','Workflow','Priority'];
+            $theads = ['Receipt Date','Sample Code', 'Client', 'Submitted By','Sample Type', 'Analysis Type', 'Analytes','Sampling Date','Invoice Number','Batch Scope','Workflow','Priority'];
             $lab_report = $this->sample_report($data, $request);
             // return response()->json($lab_report);
         } elseif ($request->report_name == 'profit_report') {
-            $theads = ['Sample Code','Sample Type','Client','Analysis Type','Invoice Number','Cost Price','Tax','Selling Price','Profit'];
+            $theads = ['Sample Code','Sample Type','Client','Submitted By','Analysis Type','Invoice Number','Cost Price','Tax','Selling Price','Profit'];
             $lab_report = $this->profit_reports($data,$request);
             // return response()->json($lab_report, 200);    
         }
@@ -134,7 +134,7 @@ class SamplesReportsController extends Controller
         $data->join('captured_results as cr', 'cr.sample_detail_id', 'sd.id');
         $data = isset($request->analysis_type) && sizeof($analysis_type) > 0 ? $data->whereIn('cr.analysis_type_id', $analysis_type) : $data;
         $data = isset($request->analyte_id) && $request->analyte_id != 'all' ? $data->where('cr.analyte_id', $request->analyte_id) : $data;
-        $samples = $data->distinct('sd.id')->selectRaw('sd.*,samples_by_category.sample_type_name,samples_by_category.sample_type_id,samples_by_category.crm_customer_id,samples_by_category.crm_name,samples_by_category.workflow_stage,samples_by_category.priority,samples_by_category.receipt_date,samples_by_category.date_collected,samples_by_category.approval_date,samples_by_category.batch_scope,samples_by_category.invoice_number')->get();
+        $samples = $data->distinct('sd.id')->selectRaw('sd.*,samples_by_category.sample_type_name,samples_by_category.sample_type_id,samples_by_category.crm_customer_id,samples_by_category.crm_name,samples_by_category.workflow_stage,samples_by_category.priority,samples_by_category.receipt_date,samples_by_category.date_collected,samples_by_category.approval_date,samples_by_category.batch_scope,samples_by_category.invoice_number,sh.submit_by')->get();
         $crs = $data->distinct('cr.id')->selectRaw('cr.*')->get();
         $cr_data = [];
         foreach ($crs as $cr) {
