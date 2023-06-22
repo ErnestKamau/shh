@@ -175,7 +175,7 @@ class QualityControlController extends Controller
         $results = isset($request->qc_type_id) && $request->qc_type_id !=  '' ? $results->where('qc_type_id',$request->qc_type_id) : $results;
         $results = isset($request->qc_scheme_id) && $request->qc_scheme_id != '' ? $results->where('qc_scheme_id',$request->qc_scheme_id) : $results;
         $results = isset($request->analyte_id) && $request->analyte_id != '' ? $results->where('analyte_id',$request->analyte_id) : $results;
-        $results = isset($request->)
+        // $results = isset($request->)
         // return response()->json($results->get());
         // $data = $this->computeNumericResultsModule($results);
         $results = $results->get();
