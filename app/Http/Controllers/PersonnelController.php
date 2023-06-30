@@ -15,6 +15,7 @@ use Illuminate\Http\File;
 use Illuminate\Support\Facades\Storage;
 use Excel;
 use App\Imports\StandardsImport;
+use App\SampleAnalysisStage;
 
 class PersonnelController extends Controller
 {
@@ -52,7 +53,7 @@ class PersonnelController extends Controller
 		->where('users.company_id', getUserCompany())->get();
 
 		$license_count = array();
-
+		$stages = SampleAnalysisStage::where('active',1)->get();
 		foreach($users as $u){
 			if(!isset($license_count[$u->license_type])){
 				$license_count[$u->license_type] = 0;
@@ -61,7 +62,7 @@ class PersonnelController extends Controller
 			$license_count[$u->license_type]++;
 		}
 
-		return view('layouts.personnel.users.index', compact('users', 'license_count'));
+		return view('layouts.personnel.users.index', compact('users', 'license_count','stages'));
 	}
 
 	public function users_by_license(){
@@ -85,7 +86,7 @@ class PersonnelController extends Controller
 		$user = User::find($id);
 		$certification_list = PersonelCertification::where('personnel_id',$user->id)->get();
 		$results = array();
-
+		$stages = SampleAnalysisStage::where('active',1)->get();
 
 		foreach($user->roles as $item){
 
@@ -109,7 +110,7 @@ class PersonnelController extends Controller
 
 		$license_count = $this->users_by_license();
 
-		return view('layouts.personnel.users.show', compact('user','certifications','certification_list','license_count'));
+		return view('layouts.personnel.users.show', compact('user','certifications','certification_list','license_count','stages'));
 
 	}
 
@@ -234,7 +235,7 @@ class PersonnelController extends Controller
 		$personnel->nhif = $request->nhif;
 		$personnel->kra_pin = $request->kra_pin;
 		$personnel->active = $request->active ?? 0;
-
+		$personnel->lab_section_id = implode(',',$request->lab_section_id) ?? '';
 
 		$personnel->license_type = $request->user_license;
 

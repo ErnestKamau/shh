@@ -21,6 +21,7 @@ class User extends Authenticatable
 	protected $fillable = [
 		'name', 'email', 'password','veriify_code','verify_code_expires'
 	];
+	protected $appends = ['labsectionname','labsectionids'];
 
 	/**
 	 * The attributes that should be hidden for arrays.
@@ -39,6 +40,13 @@ class User extends Authenticatable
 	protected $casts = [
 		'email_verified_at' => 'datetime',
 	];
+
+	protected function getLabSectionNameAttribute(){
+		return implode(', ',SampleAnalysisStage::whereIn('id',explode(',',$this->lab_section_id))->pluck('name')->toArray()) ?? '';
+	}
+	protected function getLabSectionIdsAttribute(){
+		return SampleAnalysisStage::whereIn('id',explode(',',$this->lab_section_id))->pluck('id')->toArray() ?? [];
+	}
 
 	public function audit_logs()
 	{

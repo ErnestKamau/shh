@@ -57,6 +57,7 @@ class AnalysisTypeController extends Controller
     $analysis_type->sample_type_id = $request->sample_type_id;
     $analysis_type->active = $request->active ?? 0;
     $analysis_type->level = $this->getLastLevel($request->sample_type_id);
+    $analysis_type->lab_section_id = $request->lab_section_id;
 
     $analysis_type->save();
     
@@ -78,7 +79,7 @@ class AnalysisTypeController extends Controller
     $analysis_type->reporting_time = $request->reporting_time;
     $analysis_type->sample_type_id = $request->sample_type_id;
     $analysis_type->active = $request->active ?? 0;
-
+    $analysis_type->lab_section_id = $request->lab_section_id;
     $analysis_type->save();
 
     return redirect()->back()->with('success', 'Analysis Type edited.');

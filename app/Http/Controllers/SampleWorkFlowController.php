@@ -28,6 +28,8 @@ use App\BatchComment;
 use App\User;
 use App\Country;
 use App\StandardAnalytes;
+use App\sampleAnalysisTypeRelation;
+use App\SampleAnalysisTypeRelationView;
 
 use App\Http\Controllers\System\SystemNotifications;
 
@@ -418,6 +420,12 @@ class SampleWorkFlowController extends Controller
 		$header->repeat_batch_id = isset($request->repeat_sample_id) ? $request->repeat_batch_id : 0;
 		$header->repeat_sample_id = isset($request->repeat_sample_id) && $request->repeat_sample_id > 0 ? $request->repeat_sample_id : $header->repeat_sample_id;
 		$header->begin_proccess = isset($request->is_qc_batch) ?  1 : 0;
+		$header->quote_no = $request->quote_no;
+		$header->lab_capable = isset($request->lab_capable) ? 1 : 0;
+		$header->can_be_subcontracted = isset($request->can_be_subcontracted) ? 1 :0;
+		$header->batch_subcontracted_client_approval = isset($request->batch_subcontracted_client_approval) ? 1 :0;
+		$header->client_instruction_clear = isset($request->client_instruction_clear) ? 1 : 0;
+		$header->batch_instructions = $request->batch_instructions;
 
 		if ($isInReception) {
 			$header->sample_type_id = $request->sample_type_id;
@@ -605,8 +613,10 @@ class SampleWorkFlowController extends Controller
 					return redirect()->back()->with('error', 'Kindly configure the start sample No');
 				}
 				$last_sample = isset(SampleDetails::latest('id')->first()->id) ? explode('-', SampleDetails::max('sample_code'))[1]  : $config_start_no->value;
+				$lab = Lab::find($request->sample_details['lab_id'][$k]);
+				// return response()->json($request->sample_details['lab_id'][$k]);
 				$sample_number = intval($last_sample)  + 1;
-				$detail->sample_code = 'S0513-' . $sample_number;
+				$detail->sample_code = date('Y'). $lab->code . $sample_number;
 			}
 			if (isset($detail->id)) {
 				$current_analysis = explode(',', $detail->analysis_type_id);
@@ -632,13 +642,15 @@ class SampleWorkFlowController extends Controller
 			$detail->company_product_id = $request->sample_details['product'][$k];
 			$detail->barcode = $request->sample_details['barcode'][$k];
 			$detail->comments = $request->sample_details['comments'][$k];
-			$detail->lab_sub_no = $request->sample_details['submission_no'][$k];
+			$detail->disposal_date = $request->sample_details['disposal_date'][$k];
+			// $detail->lab_sub_no = $request->sample_details['submission_no'][$k];
 
 			$detail->main_standard = $request->sample_details['main_standard'][$k];
 			$detail->secondary_standard = $request->sample_details['secondary_standard'][$k];
-
-
+			$detail->lab_id = $request->sample_details['lab_id'][$k];
 			$detail->save();
+			$this->createDetailAnalysisRelation($SampleHeader->id,$detail->id,explode(',',$detail->analysis_type_id));
+
 
 			if (isset($current_analysis) && sizeof($current_analysis) > 0) {
 				$update = $request->sample_details['sample_analysis'][$k];
@@ -838,6 +850,7 @@ class SampleWorkFlowController extends Controller
 					$captured->user_id = \Auth::user()->id;
 					$captured->analyte_accredited = $analysisType->non_accredited;
 					$captured->analyte_status_contracted = $lab->is_external;
+					$captured->lab_section_id  = $analysisType->lab_section_id;
 
 					$captured->save();
 
@@ -858,12 +871,27 @@ class SampleWorkFlowController extends Controller
 					$result->reporting_symbol = $an->reporting_symbol;
 					$result->recheck = 0;
 					$result->analyte_status_contracted = $lab->is_external;
+					$result->lab_section_id  = $analysisType->lab_section_id;
 					$result->save();
 				}
 			}
 		}
 
 		return redirect()->back()->within('success', 'Batch Samples updated.');
+	}
+	public function createDetailAnalysisRelation($batch_id,$sample_id,$analysis_type)
+	{
+		$data = [];
+		foreach($analysis_type as $at){
+			$data[]=[
+				"analysis_type_id"=>$at,
+				"batch_id"=>$batch_id,
+				"sample_detail_id"=>$sample_id
+			];
+		}
+		sampleAnalysisTypeRelation::insert($data);
+		return "success";
+		
 	}
 	public function addBatchSamplesDynamically()
 	{
@@ -2924,5 +2952,16 @@ class SampleWorkFlowController extends Controller
 			}
 		}
 		return response()->json('done');
+	}
+	public function getLabsByAnalysisTypeIdAjax(Request $request){
+		$lab_ids = AnalysisType::whereIn('id',$request->ids)->pluck('lab_id')->toArray();
+		$labs =  Lab::whereIn('id',$lab_ids)->get();
+		return response()->json($labs);
+	}
+	public function assignLabSectionToAnalysisElement($id){
+		$analysistype = AnalysisType::find($id);
+		$elements = AnalysisElements::where('analysis_type_id',$id)->update(['lab_section_id'=>$analysistype->lab_section_id]);
+		return response()->json('success');
+
 	}
 }

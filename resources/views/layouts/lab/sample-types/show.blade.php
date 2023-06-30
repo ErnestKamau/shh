@@ -207,6 +207,7 @@
                   <th>Description</th>
                   <th>Sample Type</th>
                   <th>Lab</th>
+                  <th>Lab Section</th>
                   <th>Active?</th>
                   <th></th>
                 </tr>
@@ -229,6 +230,7 @@
                   <td>{{ $analysis_type->description }}</td>
                   <td>{{ $analysis_type->sample_type->name }}</td>
                   <td>{{ $analysis_type->lab->name }} - {{ $analysis_type->lab->code }}</td>
+                  <td>{{ $analysis_type->labsectionname }}</td>
                   <td class="text-small">{!! $analysis_type->active == '1' ? '<i class="mdi mdi-marker-check text-success"></i>' : '<i class="mdi mdi-close-circle text-danger"></i>' !!}</td>
                   <td nowrap>
                     <button class="btn btn-primary btn-sm" data-target="#edit-active-analysis_type-{{ $loop->iteration }}" data-toggle="modal"><i class="mdi mdi-pencil-outline"></i> <small class="hidden-sm-up">Edit</small> </button>
@@ -279,6 +281,18 @@
                               </select>
                             </div>
                             <div class="form-group">
+                              <label for="" class="control-label">Lab Section</label>
+                              <select name="lab_section_id" id="" class="form-control">
+                                @if($sample_type->sample_analysis_stage)
+                                  @foreach($sample_type->sample_analysis_stage as $stage)
+                                    @if($stage->active == 1)
+                                      <option value="{{$stage->sample_analysis_stage_id}}" {{$stage->sample_analysis_stage_id == $analysis_type->lab_section_id ? 'selected' : ''}}>{{$stage->sample_analysis_stage->name}}</option>
+                                    @endif
+                                  @endforeach
+                                @endif
+                              </select>
+                            </div>
+                            <div class="form-group">
                               <label class="control-label"><input type="checkbox" name="active" value="1" {{ $analysis_type->active == 1 ? 'checked' : '' }} /> Active</label>
                             </div>
                           </div>
@@ -317,6 +331,7 @@
                   <th>Description</th>
                   <th>Sample Type</th>
                   <th>Lab</th>
+                  <th>Lab Section</th>
                   <th>Active?</th>
                   <th></th>
                 </tr>
@@ -333,6 +348,7 @@
                   <td>{{ $analysis_type->description }}</td>
                   <td>{{ $analysis_type->sample_type->name }}</td>
                   <td>{{ $analysis_type->lab->name }} - {{ $analysis_type->lab->code }}</td>
+                  <td>{{ $analysis_type->labsectionname }}</td>
                   <td class="text-small">{!! $analysis_type->active == '1' ? '<i class="mdi mdi-marker-check text-success"></i>' : '<i class="mdi mdi-close-circle text-danger"></i>' !!}</td>
                   <td nowrap>
                     <button class="btn btn-primary btn-sm" data-target="#edit-inactive-analysis_type-{{ $loop->iteration }}" data-toggle="modal"><i class="mdi mdi-pencil-outline"></i> <small class="hidden-sm-up">Edit</small> </button>
@@ -380,6 +396,18 @@
                                 @foreach ($labs as $c)
                                 <option value="{{ $c->id }}" {{ $c->id == $analysis_type->lab_id ? 'selected' : '' }}>{{ $c->name }}</option>
                                 @endforeach
+                              </select>
+                            </div>
+                            <div class="form-group">
+                              <label for="" class="control-label">Lab Section</label>
+                              <select name="lab_section_id" id="" class="form-control">
+                                @if($sample_type->sample_analysis_stage)
+                                  @foreach($sample_type->sample_analysis_stage as $stage)
+                                    @if($stage->active == 1)
+                                      <option value="{{$stage->sample_analysis_stage_id}}" {{$stage->sample_analysis_stage_id == $analysis_type->lab_section_id ? 'selected' : ''}}>{{$stage->sample_analysis_stage->name}}</option>
+                                    @endif
+                                  @endforeach
+                                @endif
                               </select>
                             </div>
                             <div class="form-group">
@@ -609,6 +637,7 @@
           <label class="control-label">Reporting Time <small class="text-muted">(in days)</small></label>
           <input type="number" min="0" class="form-control" name="reporting_time" placeholder="Analysis Type Reporting Time..." required />
         </div>
+
         <div class="form-group">
           <label class="control-label">Description</label>
           <textarea class="form-control" name="description" placeholder="Description..." required></textarea>
@@ -626,6 +655,18 @@
             @foreach ($labs as $c)
             <option value="{{ $c->id }}">{{ $c->name }}</option>
             @endforeach
+          </select>
+        </div>
+        <div class="form-group">
+          <label for="" class="control-label">Lab Section</label>
+          <select name="lab_section_id" id="" class="form-control">
+            @if($sample_type->sample_analysis_stage)
+              @foreach($sample_type->sample_analysis_stage as $stage)
+                @if($stage->active == 1)
+                  <option value="{{$stage->sample_analysis_stage_id}}">{{$stage->sample_analysis_stage->name}}</option>
+                @endif
+              @endforeach
+            @endif
           </select>
         </div>
         <div class="form-group">
@@ -696,7 +737,7 @@
 </div>
 <script>
   $(function() {
-    
+
 
     var configureThemArrow = function() {
       $('#analytes-holder').find('tr').find('.move-analyte-up').addClass('text-success').removeClass('text-muted');

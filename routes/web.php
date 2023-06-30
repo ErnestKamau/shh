@@ -210,6 +210,7 @@ Route::post('/stock-taking-counter/{id}/remove','StockTakingCounterController@re
 
   Route::post('filter-Quotations','Invoice\QuotationController@filterQuotations')->name('filterQuotations');
   Route::get('populate/Quotation-Detail/Split','Invoice\QuotationController@populateQuotationDetailSplit')->name('populateQuotationDetailSplit');
+  Route::get('get/Labs-By-Analysis/Type-Id-Ajax','SampleWorkFlowController@getLabsByAnalysisTypeIdAjax')->name('getLabsByAnalysisTypeIdAjax');
 
   ######################################################################################################################################
 
@@ -750,6 +751,11 @@ Route::prefix('qualitycontrol')->group(function() {
 
 });
 #############################################QC Module###########################################
+
+################################################Polucon#########################################
+Route::get('/assign-Lab/Section-To-Analysis-Element/{id}','SampleWorkFlowController@assignLabSectionToAnalysisElement')->name('assignLabSectionToAnalysisElement');
+################################################Polucon#########################################
+
 
 #STORAGE ROUTES
 Route::get('storage/{type}/{filename}', function ($type, $filename)

@@ -11,6 +11,7 @@ class AnalysisElements extends Model implements Auditable
 	use \OwenIt\Auditing\Auditable;
 
   protected $appends = ['parametername'];
+  protected $fillable = ['lab_section_id'];
 
   public function getParameterNameAttribute(){
     return Analyte::find($this->analyte_id)->name ?? '';

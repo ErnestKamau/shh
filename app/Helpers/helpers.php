@@ -4,6 +4,7 @@ use App\Models\System\SystemConfiguration;
 use Illuminate\Support\Facades\DB;
 
 use App\Supplier;
+use App\SampleAnalysisTypeRelationView;
 
 function myCurl($url, $payload)
 {
@@ -1503,4 +1504,7 @@ function is_valid_email($email){
 	}
 
 	return count($anyInvalid) > 0 ? implode(',', $anyInvalid) : false;
+}
+function getSampleDetailsLab($sample_id){
+	return  SampleAnalysisTypeRelationView::where('sample_detail_id',$sample_id)->distinct('lab_id')->get();
 }

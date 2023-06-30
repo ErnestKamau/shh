@@ -1,57 +1,57 @@
 @extends('layouts.personnel.layout.app', ['dataTable'=>true, 'select2'=>true])
 
 @section('title2')
-	<title>{{ $user->name }} - Users | Personnel Management</title>
-	<style type="text/css">
-		.substringed{
-			cursor: pointer;
-		}
+<title>{{ $user->name }} - Users | Personnel Management</title>
+<style type="text/css">
+	.substringed {
+		cursor: pointer;
+	}
 
-		.substringed .hoverable{
-			display: none;
-		}
+	.substringed .hoverable {
+		display: none;
+	}
 
-		.substringed:hover .hoverable{
-			display: unset !important;
-		}
+	.substringed:hover .hoverable {
+		display: unset !important;
+	}
 
-		.substringed:hover .default-seen{
-			display: none !important;
-		}
+	.substringed:hover .default-seen {
+		display: none !important;
+	}
 
-		.substringed .default-seen{
-			display: unset !important;
-		}
-	</style>
+	.substringed .default-seen {
+		display: unset !important;
+	}
+</style>
 @endsection
 @section('content2')
 
 <main>
 	<?php
-		$items = array(
-			array(
-				'link' => route('personnel-home'),
-				'name' => 'Personnel Management',
-				'icon' => null
-			),
-			array(
-				'link' => null,
-				'name' => 'Personnel Profile',
-				'icon' => null
-			),
-			array(
-				'link' => '#',
-				'name' => $user->name,
-				'icon' => null
-			)
-		);
+	$items = array(
+		array(
+			'link' => route('personnel-home'),
+			'name' => 'Personnel Management',
+			'icon' => null
+		),
+		array(
+			'link' => null,
+			'name' => 'Personnel Profile',
+			'icon' => null
+		),
+		array(
+			'link' => '#',
+			'name' => $user->name,
+			'icon' => null
+		)
+	);
 	?>
 	<x-bread-crumb :items="$items"></x-bread-crumb>
 	<h2 class="p-4">
 		@if (isset($user->photo) && $user->photo != "")
-			<img src="{{ $user->photo }}" style="width: 100px" />
+		<img src="{{ $user->photo }}" style="width: 100px" />
 		@else
-			<i class="mdi mdi-account"></i>
+		<i class="mdi mdi-account"></i>
 		@endif
 		{{ $user->name }} | <small class="text-muted">Profile</small>
 	</h2>
@@ -105,17 +105,17 @@
 								<tbody>
 									@foreach($certifications as $cert)
 									<?php
-										$item = getPersonnelcertification($user->id,$cert->id);
+									$item = getPersonnelcertification($user->id, $cert->id);
 									?>
 
 									@if(isset($item[0]->id))
 									<?php
-										if($item[0]->id > 0){
-											$role_certification = getRoleCertificationByID($item[0]->role_certification_id);
-											$certificate = getSampleTypeQualificationById($role_certification->certification_id);
-										}else{
-											$certificate = getSampleTypeQualificationById($cert->certification_id);
-										}
+									if ($item[0]->id > 0) {
+										$role_certification = getRoleCertificationByID($item[0]->role_certification_id);
+										$certificate = getSampleTypeQualificationById($role_certification->certification_id);
+									} else {
+										$certificate = getSampleTypeQualificationById($cert->certification_id);
+									}
 									?>
 									<tr>
 										<td>{{$loop->iteration}}</td>
@@ -167,9 +167,9 @@
 																	@foreach($certifications as $certy)
 																	@if($cert->status == 0)
 																	<?php
-																		$certs = getSampleTypeQualificationById($certy->certification_id)
+																	$certs = getSampleTypeQualificationById($certy->certification_id)
 																	?>
-																	<option value="{{$cert->id}}" {{$item[0]->role_certification_id == $certy->id ? 'selected':''}} >{{$certs->name}}</option>
+																	<option value="{{$cert->id}}" {{$item[0]->role_certification_id == $certy->id ? 'selected':''}}>{{$certs->name}}</option>
 																	@endif
 																	@endforeach
 																</select>
@@ -189,8 +189,8 @@
 															<div class="form-group">
 																<label class="control-label">Certificate Date</label>
 																<?php
-																	$date = date("Y-m-d",strtotime($item[0]->certificate_date));
-																	$expire = date("Y-m-d",strtotime($item[0]->expire_date));
+																$date = date("Y-m-d", strtotime($item[0]->certificate_date));
+																$expire = date("Y-m-d", strtotime($item[0]->expire_date));
 																?>
 
 																<input type="date" name="certificate_date" value="{{$date}}" class="form-control">
@@ -248,8 +248,7 @@
 					<!-- ----------------end certification------------ -->
 					<div class="tab-pane show active fade p-3" id="Roles" role="tabpanel" aria-labelledby="one-tab">
 						<h5 class="card-title"><i class="mdi mdi-key"></i> Roles
-							<button class="btn btn-outline-primary btn-sm float-right"
-								data-toggle="modal" data-target="#add-role-modal"><i class="mdi mdi-key-plus"></i></button>
+							<button class="btn btn-outline-primary btn-sm float-right" data-toggle="modal" data-target="#add-role-modal"><i class="mdi mdi-key-plus"></i></button>
 						</h5>
 						<div class="table-responsive">
 							<table class="table table-condensed my-small-text table-striped table-hover table-bordered table-sm">
@@ -263,17 +262,17 @@
 								</thead>
 								<tbody>
 									@foreach ($user->roles as $item)
-										<tr>
-											<td>{{ $loop->iteration }}</td>
-											<td>{{ $item->role->name }}</td>
-											<td>{{ $item->role->description }}</td>
-											<td>
-												<form method="POST" class="btn btn-default text-danger submit-delete-form-btn" action="{{ route('remove-personnel-role', ['id'=>$item->id]) }}">
-													@csrf
-													<i class="mdi mdi-delete"></i>
-												</form>
-											</td>
-										</tr>
+									<tr>
+										<td>{{ $loop->iteration }}</td>
+										<td>{{ $item->role->name }}</td>
+										<td>{{ $item->role->description }}</td>
+										<td>
+											<form method="POST" class="btn btn-default text-danger submit-delete-form-btn" action="{{ route('remove-personnel-role', ['id'=>$item->id]) }}">
+												@csrf
+												<i class="mdi mdi-delete"></i>
+											</form>
+										</td>
+									</tr>
 									@endforeach
 								</tbody>
 							</table>
@@ -293,7 +292,7 @@
 										<select name="designation" class="form-control" placeholder="Designation..." required>
 											<option></option>
 											@foreach (getModulePreconfig("Designation", "Personnel-Management") as $item)
-												<option value="{{ $item->id }}" {{ $user->designation == $item->id ? 'selected' : ''  }}>{{ $item->name }}</option>
+											<option value="{{ $item->id }}" {{ $user->designation == $item->id ? 'selected' : ''  }}>{{ $item->name }}</option>
 											@endforeach
 										</select>
 									</div>
@@ -365,7 +364,7 @@
 										<select name="educational_level" class="form-control" placeholder="Education Level...">
 											<option></option>
 											@foreach (getModulePreconfig("Educational Levels", "Personnel-Management") as $item)
-												<option value="{{ $item->id }}" {{ $user->education_level == $item->id ? 'selected' : ''  }}>{{ $item->name }}</option>
+											<option value="{{ $item->id }}" {{ $user->education_level == $item->id ? 'selected' : ''  }}>{{ $item->name }}</option>
 											@endforeach
 										</select>
 									</div>
@@ -376,7 +375,17 @@
 										<select name="position" class="form-control" placeholder="Position..." required>
 											<option></option>
 											@foreach (getModulePreconfig("Job Description", "Personnel-Management") as $item)
-												<option value="{{ $item->id }}" {{ $user->position == $item->id ? 'selected' : ''  }}>{{ $item->name }}</option>
+											<option value="{{ $item->id }}" {{ $user->position == $item->id ? 'selected' : ''  }}>{{ $item->name }}</option>
+											@endforeach
+										</select>
+									</div>
+								</div>
+								<div class="col-sm-4">
+									<div class="form-group">
+										<label for="" class="control-label">Lab Section</label>
+										<select name="lab_section_id[]" multiple id="" class="form-control">
+											@foreach($stages as $stage)
+											<option value="{{$stage->id}}" {{$user->lab_section_id == $stage->id ? 'selected' : ''}}>{{$stage->name}}</option>
 											@endforeach
 										</select>
 									</div>
@@ -387,7 +396,7 @@
 										<select name="department" class="form-control" placeholder="Department..." required>
 											<option></option>
 											@foreach (getDepartments() as $item)
-												<option value="{{ $item->id }}" {{ $user->department_id == $item->id ? 'selected' : ''  }}>{{ $item->name }}</option>
+											<option value="{{ $item->id }}" {{ $user->department_id == $item->id ? 'selected' : ''  }}>{{ $item->name }}</option>
 											@endforeach
 										</select>
 									</div>
@@ -416,7 +425,7 @@
 										<select name="user_license" class="form-control" placeholder="User License..." required>
 											<option></option>
 											@foreach (getUserLicenses() as $i=>$n)
-												<option value="{{ $i }}" {{ $i == $user->license_type ? 'selected' :'' }} {{ intval($license_count[$i]) == intval(mamboSawa($i.'s')) ? 'disabled' : '' }}>{{ $n }}  {{ $license_count[$i]."/".mamboSawa($i.'s') }}</option>
+											<option value="{{ $i }}" {{ $i == $user->license_type ? 'selected' :'' }} {{ intval($license_count[$i]) == intval(mamboSawa($i.'s')) ? 'disabled' : '' }}>{{ $n }} {{ $license_count[$i]."/".mamboSawa($i.'s') }}</option>
 											@endforeach
 										</select>
 									</div>
@@ -436,7 +445,7 @@
 							<div class="row">
 								<div class="col-sm-4">
 									<div class="form-group mt-sm-5 ">
-										<label class="control-label {{auth()->user()->is_support_staff == 0 ? 'hidden' : ''}}"><input type="checkbox"  name="active" value="1" {{ $user->active == "1" ? "checked" : "" }} /> Active</label>
+										<label class="control-label {{auth()->user()->is_support_staff == 0 ? 'hidden' : ''}}"><input type="checkbox" name="active" value="1" {{ $user->active == "1" ? "checked" : "" }} /> Active</label>
 									</div>
 								</div>
 								<div class="col-sm-8 mt-sm-5">
@@ -469,8 +478,7 @@
 					<div class="tab-pane fade p-3" id="User-Activity" role="tabpanel" aria-labelledby="one-tab">
 						<h5 class="card-title">User Activity </h5>
 						<div class="table-responsive">
-							<table id="audit-log-table" data-url="{{ route('server-side-audit_logs', ['user_id'=>$user->id]) }}"
-									class="table table-condensed my-small-text table-striped table-hover table-bordered table-sm server-side">
+							<table id="audit-log-table" data-url="{{ route('server-side-audit_logs', ['user_id'=>$user->id]) }}" class="table table-condensed my-small-text table-striped table-hover table-bordered table-sm server-side">
 								<thead>
 									<tr>
 										<th>#</th>
@@ -504,13 +512,13 @@
 								</thead>
 								<tbody>
 									@foreach ($user->work_history() as $item)
-										<tr>
-											<td>{{ $loop->iteration }}</td>
-											<td>{{ $item->department_name }}</td>
-											<td>{{ $item->position }}</td>
-											<td>{{ $item->created_at }}</td>
-											<td>{!! trim($item->end_date) != "" ? $item->end_date : '<i class="mdi mdi-check-circle text-success"></i> Current' !!}</td>
-										</tr>
+									<tr>
+										<td>{{ $loop->iteration }}</td>
+										<td>{{ $item->department_name }}</td>
+										<td>{{ $item->position }}</td>
+										<td>{{ $item->created_at }}</td>
+										<td>{!! trim($item->end_date) != "" ? $item->end_date : '<i class="mdi mdi-check-circle text-success"></i> Current' !!}</td>
+									</tr>
 									@endforeach
 								</tbody>
 							</table>
@@ -563,9 +571,9 @@
 						@foreach($certifications as $cert)
 						@if($cert->status == 0)
 						<?php
-							$certs = getSampleTypeQualificationById($cert->certification_id)
+						$certs = getSampleTypeQualificationById($cert->certification_id)
 						?>
-						<option value="{{$cert->id}}" >{{$certs->name}}</option>
+						<option value="{{$cert->id}}">{{$certs->name}}</option>
 						@endif
 						@endforeach
 					</select>
@@ -614,7 +622,7 @@
 					<select name="roles[]" class="form-control" placeholder="Select Approval User..." multiple required>
 						<option></option>
 						@foreach (getRoles() as $item)
-							<option value="{{ $item->id }}">{{ $item->name }}</option>
+						<option value="{{ $item->id }}">{{ $item->name }}</option>
 						@endforeach
 					</select>
 				</div>
@@ -627,13 +635,13 @@
 	</div>
 </div>
 <script>
-	$(function(){
-		$('#show-changes-modal').on('show.bs.modal', function(e){
+	$(function() {
+		$('#show-changes-modal').on('show.bs.modal', function(e) {
 			var auditID = $(e.relatedTarget).data('audit');
 			$.ajax({
-				url: '/server-side-audit_log/'+auditID+'/details',
+				url: '/server-side-audit_log/' + auditID + '/details',
 				dataType: "json",
-				beforeSend: function(){
+				beforeSend: function() {
 					$('#audit-changes-table').find('tbody').html(`
 						<tr>
 							<td colspan="3">
@@ -644,13 +652,13 @@
 						</tr>
 					`);
 				},
-				success: function(js){
+				success: function(js) {
 					$('#audit-changes-table').find('tbody').empty();
 					var columns = js.columns;
 					var oldData = js.old;
 					var newData = js.new;
 
-					if(columns.length == 0){
+					if (columns.length == 0) {
 						$('#audit-changes-table').find('tbody').append(`
 							<tr style="color:#232323">
 								<td colspan="3" class="text-center">
@@ -660,7 +668,7 @@
 						`);
 					}
 
-					$.each(columns, function(i,c){
+					$.each(columns, function(i, c) {
 						$('#audit-changes-table').find('tbody').append(`
 							<tr style="color:#232323">
 								<th nowrap>${c}</th>
@@ -675,32 +683,51 @@
 
 		var $url = $('#audit-log-table').data('url');
 		$('#audit-log-table').DataTable({
-			lengthMenu: [[25, 50, 100, 500, 1000, -1], [25, 50, 100, 500, 1000, "All"]],
+			lengthMenu: [
+				[25, 50, 100, 500, 1000, -1],
+				[25, 50, 100, 500, 1000, "All"]
+			],
 			dom: 'Blfrtip',
 			buttons: [
 				'copy', 'csv', 'excel', 'pdf', 'print'
 			],
-			columns: [
-				{ data: "loop", "searchable": false },
-				{ data: "name" },
-				{ data: "email" },
-				{ data: "event" },
-				{ data: "entity" },
-				{ data: "entity_id" },
-				{ data: "ip_address" },
-				{ data: "url" },
+			columns: [{
+					data: "loop",
+					"searchable": false
+				},
+				{
+					data: "name"
+				},
+				{
+					data: "email"
+				},
+				{
+					data: "event"
+				},
+				{
+					data: "entity"
+				},
+				{
+					data: "entity_id"
+				},
+				{
+					data: "ip_address"
+				},
+				{
+					data: "url"
+				},
 				{
 					data: null,
-					render: function(data, type, row){
+					render: function(data, type, row) {
 						var dt = new Date(data.created_at);
 
-						return dt.today()+" "+dt.timeNow();
+						return dt.today() + " " + dt.timeNow();
 					}
 				},
 				{
 					data: null,
 					className: "center",
-					render: function ( data, type, row ) {
+					render: function(data, type, row) {
 						$(row).find('td:eq(4)').attr('nowrap');
 						$(row).find('td:eq(4)').prop('nowrap');
 						return `<span class="btn btn-sm text-info btn-transparent" data-toggle="modal" data-audit="${data.id}" data-target="#show-changes-modal">
@@ -716,27 +743,25 @@
 			ajax: $url
 		});
 		$('.pass').val('');
-		$('[name="has_credentials"]').on('change', function(){
-			if($(this).is(':checked')){
+		$('[name="has_credentials"]').on('change', function() {
+			if ($(this).is(':checked')) {
 				$("#passwords-holder").removeClass("hidden");
 				$(".pass").attr('required', true);
-			}
-			else{
+			} else {
 				$('.pass').val('');
 				$("#passwords-holder").addClass("hidden");
 				$(".pass").removeAttr('required');
 			}
 		});
 
-		$('[name="confirm_password"]').on('keyup', function(){
+		$('[name="confirm_password"]').on('keyup', function() {
 			var pass1 = $('[name="main_password"]').val();
 			var pass2 = $(this).val();
 
-			if(pass1 != pass2){
+			if (pass1 != pass2) {
 				$(this).siblings('.has-success').html('').addClass('text-success');
 				$(this).siblings('.has-error').html(`<i class="mdi mdi-cancel"></i> Passwords did not match.`).addClass('text-danger');
-			}
-			else{
+			} else {
 				$(this).siblings('.has-error').html('')
 				$(this).siblings('.has-success').html('<i class="mdi mdi-check-circle"></i> Passwords Match!.')
 			}
@@ -744,10 +769,10 @@
 	});
 </script>
 <script>
-	$(function(){
-		$('.submit-delete-form-btn').on('click', function(){
+	$(function() {
+		$('.submit-delete-form-btn').on('click', function() {
 			var form = $(this);
-			if(confirm("Are you sure that you want to remove this role?")){
+			if (confirm("Are you sure that you want to remove this role?")) {
 				form.submit();
 			}
 		});
