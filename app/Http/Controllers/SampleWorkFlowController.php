@@ -30,6 +30,8 @@ use App\Country;
 use App\StandardAnalytes;
 use App\sampleAnalysisTypeRelation;
 use App\SampleAnalysisTypeRelationView;
+use App\InterLabLog;
+use App\InterLabLogView;
 
 use App\Http\Controllers\System\SystemNotifications;
 
@@ -1061,7 +1063,9 @@ class SampleWorkFlowController extends Controller
 		$atachment_type = SystemConfiguration::where('key', 'attachment_type')->get();
 		$qc_types = QcTypes::all();
 		$qc_schemes = QcSchemes::all();
+		$users = User::where('is_client',0)->where('supplier_id',0)->where('active',1)->get();
 		$qc_config_perc = 0;
+		$interlabs = [];
 		if (isset($account_settings->id)) {
 			$accounts = getconfigByID($account_settings->id);
 		} else {
@@ -1069,11 +1073,11 @@ class SampleWorkFlowController extends Controller
 			$accounts = array();
 		}
 
-
 		// $samples = $batch->all_samples();
 		// return response()->json($samples,200);
 		$not_captured = [];
 		if (isset($batch->id)) {
+			$interlabs = InterLabLogView::where('sample_header_id',$batch->id)->get();
 			$qc_config = SystemConfiguration::where('key', 'qc_percentage_config')->first();
 			$qc_config_perc = $qc_config->value;
 			$equipment_data = $batch->get_captured();
@@ -1143,11 +1147,12 @@ class SampleWorkFlowController extends Controller
 			// return response()->json($ammendable,200);
 		}
 		$role_a = SystemConfiguration::where('key', 'analyst_role_id')->first();
+		$labs  = Lab::where('active',1)->get();
 		// $analysts = getUsersByRole('Analyst');
 		$analysts = User::orderBy('name')->join('user_roles as ur', 'ur.user_id', '=', 'users.id')
 			->join('roles as r', 'r.id', '=', 'ur.role_id')
 			->where('r.id', $role_a->value)->where('users.active', 1)->where('users.is_support_staff', 0)->selectRaw('users.*')->get();
-		return view('layouts.lab.sample-workflow.show', compact('batch', 'batchID', 'defaultClient', 'selectedSampleType', 'client_portal', 'ammendable', 'standards', 'attachments', 'not_captured', 'analysts', 'countries', 'accounts', 'methods', 'atachment_type', 'check_perm_view', 'check_perm_delete', 'batch_scope', 'customer_survey','qc_types','qc_schemes','repeat_sample','qc_config_perc'));
+		return view('layouts.lab.sample-workflow.show', compact('batch', 'batchID', 'defaultClient', 'selectedSampleType', 'client_portal', 'ammendable', 'standards', 'attachments', 'not_captured', 'analysts', 'countries', 'accounts', 'methods', 'atachment_type', 'check_perm_view', 'check_perm_delete', 'batch_scope', 'customer_survey','qc_types','qc_schemes','repeat_sample','qc_config_perc','interlabs','labs','users'));
 	}
 
 	public function fetch_unit_stuff($name, $client)
@@ -2964,4 +2969,85 @@ class SampleWorkFlowController extends Controller
 		return response()->json('success');
 
 	}
+
+	public function create_sample_inter_lab_log(Request $request){
+		// return response()->json($request->all());
+		if(isset($request->batch_level)){
+			$log = [];
+			foreach(explode(',',$request->sample_ids) as $id){
+				$last_log = InterLabLog::where('sample_id',$id)->where('status',1)->orderBy('date_received','DESC')->first();
+				$log[]=[
+					"sample_id"=>$id,
+					"to_lab_section_id"=>$request->to_lab_section_id,
+					"from_lab_section_id"=>isset($last_log->id) ? $last_log->from_lab_section_id : 0,
+					"quantity"=>$request->quantity,
+					"submited_by"=>auth()->user()->id,
+					"date_submitted"=> date('Y-m-d h:i:s a'),
+					"expected_date"=>$request->expected_date,
+					
+				];
+
+			}
+			
+		}else{
+			
+			$last_log = InterLabLog::where('sample_id',$request->sample_id)->where('status',1)->orderBy('date_received','DESC')->first();
+			if(isset($request->interlab_id) && $request->interlab_id != '0'){
+				$log = [
+					"sample_id"=>$request->sample_id,
+					"to_lab_section_id"=>$request->to_lab_section_id,
+					"quantity"=>$request->quantity,
+					"submited_by"=>auth()->user()->id,
+					"date_submitted"=> date('Y-m-d h:i:s a'),
+					"expected_date"=>$request->expected_date,
+				];
+			}else{
+				$log = [
+					"sample_id"=>$request->sample_id,
+					"to_lab_section_id"=>$request->to_lab_section_id,
+					"from_lab_section_id"=>isset($last_log->id) ? $last_log->from_lab_section_id : 0,
+					"quantity"=>$request->quantity,
+					"submited_by"=>auth()->user()->id,
+					"date_submitted"=> date('Y-m-d h:i:s a'),
+					"expected_date"=>$request->expected_date,
+				];
+			}
+			
+		}
+		isset($request->interlab_id) && $request->interlab_id != '0' ? InterLabLog::find($request->interlab_id)->update($log) : InterLabLog::insert($log);
+		if($request->notify_user != '' || $request->sms_notify !=  ''){
+			$sample_codes =isset($request->batch_level) ? implode(', ',SampleDetails::whereIn('id',explode(',',$request->sample_ids))->pluck('sample_code')->toArray()) : SampleDetails::find($request->sample_id)->sample_code;
+			$bcc_emails = User::whereIn('id',$request->also_notify)->pluck('email')->toArray();
+			$body = 'Hi Team, <br> The folowing sample(s) require  your attention for approval of inter laboratory transfer raised by '.auth()->user()->name.'<br>'.$sample_codes;
+			$to_email = getUserById($request->notify_user);
+
+			
+
+			if(isset($to_email->id)){
+				notify_user($body,$to_email->email,'[Polucon  Polucon Services Limited] Inter Laboratory Transfer Approval Notification',false,false,$bcc_emails);
+				sendTextMessage($to_email->phone,'Hi '.$to_email->name.', <br> The folowing sample(s) require  your attention for approval of inter laboratory transfer raised by '.auth()->user()->name);
+				foreach( User::whereIn('id',$request->also_notify)->get() as $user){
+					$user->phone != '' ? sendTextMessage($user->phone,'Hi '.$user->name.', The folowing sample(s) require  your attention for approval of inter laboratory transfer raised by '.auth()->user()->name).':  '.$sample_codes : '';
+				}
+			}
+
+		}
+			
+		return redirect()->back()->with('success','Inter laboratory Log updated successfully');
+	}
+	
+	public function getSampleCurrentLabSection($id){
+		$last_log = InterLabLogView::where('sample_id',$id)->where('status',1)->orderBy('date_received','DESC')->first();
+		return response()->json(isset($last_log->id) ? $last_log->to_lab_code.' '.$last_log->to_lab_name : "Reception");
+	}
+	public function changeInterLabLogStatus(Request $request){
+		// return response()->json($request->all());
+		if(isset($request->inter_lab_id)){
+			InterLabLog::find($request->inter_lab_id)->update(['status'=>$request->status,'date_received'=>date('Y-m-d h:i:s a'),"received_by"=>auth()->user()->id]);
+		}else{
+			InterLabLog::whereIn('id',explode(',',$request->interlab))->update(['status'=>$request->status,'date_received'=>date('Y-m-d h:i:s a'),"received_by"=>auth()->user()->id]);
+		}
+		return redirect()->back()->with('success','Inter laboratory Log status updated successfully');
+	}
+
 }

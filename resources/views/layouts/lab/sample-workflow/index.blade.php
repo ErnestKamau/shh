@@ -92,7 +92,7 @@
 				@if ($status=="Samples Reception")
 				<li>
 					<span class="btn btn-sm dropdown-item" data-toggle="modal" disabled data-target="#delete-batch">
-						<i class="mdi mdi-delete-empty mr-2"></i> Delete Batch
+						<i class="mdi mdi-delete-empty mr-2"></i> Cancel Batch
 					</span>
 				</li>
 				
@@ -616,14 +616,14 @@
 			@csrf
 
 			<div class="modal-header">
-				<h4 class="modal-title"><i class="mdi mdi-delete text-danger"></i> Delete Batches </h4>
+				<h4 class="modal-title"><i class="mdi mdi-delete text-danger"></i> Cancel Batch(es) </h4>
 			</div>
 			<div class="modal-body>
 				<input type=" hidden" name="status" value="Samples In Lab" />
-			<p class="text-center">Are you sure you want to delete the following Batches? </p><br>
+			<p class="text-center">Are you sure you want to Cancel the following Batch(es) ? </p><br>
 			<hr>
 			<div class="form-group">
-				<label class="control-label">Batches</label>
+				<label class="control-label">Batch(es)</label>
 				<div class="selected-batches-review"></div>
 			</div>
 	</div>

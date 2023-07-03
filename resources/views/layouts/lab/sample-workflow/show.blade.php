@@ -652,8 +652,6 @@
 							</div>
 							@endif
 						@endforeach
-						
-						
 					</div>
 				</div>
 			</div>
@@ -678,7 +676,7 @@
 						<a class="nav-link" id="ammendment-tab" data-toggle="tab" href="#ammendment" role="tab" aria-controls="Custody" aria-selected="true"><i class="mdi mdi-file-document-edit"></i> Amendment</a>
 					</li>
 					<li class="nav-item">
-						<a href="#interlab" class="nav-link" id="interlab-tab-initiator" role="tab" aria-controls="Interlab" aria-selected="true"><i class="mdi mdi-swap-horizontal-bold"></i> Inter Lab Booking</a>
+						<a href="#interlab" class="nav-link" data-toggle="tab" id="interlab-tab-initiator" role="tab" aria-controls="Interlab" aria-selected="true"><i class="mdi mdi-swap-horizontal-bold"></i> Inter Lab Logs</a>
 					</li>
 					
 					@endif
@@ -768,17 +766,36 @@
 					</div>
 				@endif
 				<div class="tab-pane fade p-3" id="interlab" role="tabpanel" aria-labelledby="one-tab">
-					<h5>
-						<i class="mdi mdi-swap-horizontal-bold"></i> Inter Laboratory Booking
-						<span class="btn btn-sm btn-outline-primary" data-toggle="modal" data-target="#inter-lab-add" data-action="add"><i class="mdi mdi-plus"></i> Add Booking</span>
+					<h5 class="p-2">
+						<i class="mdi mdi-swap-horizontal-bold"></i> Inter Laboratory Logs
+						<div class="btn-group float-right">
+							<button type="button" class="btn btn-sm btn-white dropdown-toggle" style="box-shadow: rgba(0, 0, 0, 0.15) 1.95px 1.95px 2.6px;"  type="button" id="dropdownMenuButton" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
+								Actions
+							</button>
+							<div class="dropdown-menu dropdown-menu-right">
+								
+								<li>
+									<span class="btn btn-sm dropdown-item" data-action="bulk"  data-target="#change-interlab-status" data-toggle="modal"><i class="mdi  mdi-thumbs-up-down mr-2"></i> Approve / Reject Inter Lab Log(s)</span>
+								</li>
+								<li>
+									<span class="btn btn-sm dropdown-item"  data-target="#delete-inter-lab-log" data-toggle="modal"><i class="mdi mdi-delete-empty mr-2"></i> Delete Inter Lab Log(s)</span>
+								</li>
+								
+
+							</div>
+						</div>
 					</h5>
-					<div class="table-reponsive">
-						<table class="table table-condensed my-small-text table-striped table-hover table-bordered table-sm">
+					<div class="table-responsive">
+						<table class="table table-condensed my-small-text table-striped table-hover table-bordered table-sm" style="width:300%" id="interlabbookingtable">
 							<thead class="bg-light">
 								<tr>
-									<th>#</th>
+									<th>
+									<input type="checkbox" name="selected_inter_lab_all" class="selected_inter_lab_all" id="">
+									</th>
+									<th>Status</th>
 									<th>Sample/Job No</th>
-									<th>Lab Section</th>
+									<th>From Lab</th>
+									<th>To Lab</th>
 									<th>Sample Type</th>
 									<th>Qty</th>
 									<th>Submitted By</th>
@@ -791,8 +808,33 @@
 							<tbody>
 								@foreach($interlabs as $ilabs)
 								<tr>
-									<td></td>
-									<td></td>
+									<td style="width:5% !important">
+										@if(isset($batch->status) && in_array($batch->status, array("Samples En-Route" ,"Samples Reception","Samples In Lab")) && $ilabs->status == 0)
+										<input type="checkbox" value="{{$ilabs->id}}" data-code="{{json_encode($ilabs->sample_code)}}" name="selected_inter_lab" class="selected_inter_lab" id="">
+										<span class="btn btn-sm btn-default text-warning" data-toggle="modal" data-record="{{json_encode($ilabs)}}" data-target="#change-interlab-status" data-action="single"><i class="mdi mdi-thumbs-up-down"  data-toggle="tooltip" title="Approve / Rejected Inter Lab"></i></span>
+										<span class="btn btn-default text-primary btn-sm initiate-interlab" data-record="{{json_encode($ilabs)}}" data-toggle="modal" data-target="#inter-lab-add" data-action="edit"><i class="mdi mdi-pencil" data-toggle="tooltip" title="Edit Inter Lab"></i></span>
+										@endif
+									</td>
+									<td style="width:8% !important">
+										@if($ilabs->status == 0)
+										<span class="badge badge-pill p-2 badge-primary"><i class="mdi mdi-alert-decagram-outline"></i> Awaiting Approval</span>				
+										@elseif($ilabs->status == 1)
+										<span class="badge badge-pill p-2 badge-success"><i class="mdi mdi-thumb-up"></i>  Approved</span>	
+										@else
+										<span class="badge badge-pill p-2 badge-danger"><i class="mdi mdi-alert-decagram-outline"></i>  Rejected</span></	
+										@endif
+									</td>
+									<td style="width:7% !important">{{$ilabs->sample_code}}</td>
+									<td style="width:10% !important">{{$ilabs->from_lab_section_id > 0 ? $ilab->from_lab_name : 'Reception'}}</td>
+									<td style="width:10% !important">{{$ilabs->to_lab_code}} - {{$ilabs->to_lab_name}}</td>
+									<td style="width:7% !important">{{$ilabs->sample_type_name}}</td>
+									<td>{{$ilabs->quantity}}</td>
+									<td>{{$ilabs->submitted_by_name}}</td>
+									<td>{{$ilabs->date_submitted}}</td>
+									<td>{{$ilabs->received_by_name}}</td>
+									<td>{{$ilabs->date_received}}</td>
+									<td>{{$ilabs->remarks}}</td>
+
 								</tr>
 								@endforeach
 							</tbody>
@@ -1325,6 +1367,7 @@
 @endsection
 @section('script2')
 <div class="carry_data hidden" data data-userlabsection="{{json_encode(auth()->user()->labsectionids)}}"></div>
+
 <div id="add-company-unit" class="modal fade" role="dialog">
 	<div class="modal-dialog">
 		<!-- Modal content-->
@@ -1444,2213 +1487,2477 @@
 	</div>
 </div>
 
-	@if(isset($batch->id))
-	<?php 
-	$customer = getCrmCustomerByID($batch->crm_customer_id);
-	?>
-	<div id="add-company-sample-point" class="modal fade" role="dialog">
-		<div class="modal-dialog">
-			<!-- Modal content-->
-			<form class="modal-content" method="POST" action="{{ route('add-sample-point') }}" enctype="multipart/form-data">
-				@csrf
-				<div class="modal-header">
-					<h4 class="modal-title"><i class="mdi mdi-plus"></i> Add {{ trim($customer->sample_point_configurable_name)!="" ? $customer->sample_point_configurable_name : 'Sample Point' }}</h4>
-				</div>
+@if(isset($batch->id))
+<?php 
+$customer = getCrmCustomerByID($batch->crm_customer_id);
+?>
+<div class="modal fade" id="change-interlab-status" data-backdrop="static" data-keyboard="false" role="dialog">
+	<div class="modal-dialog">
+		<div class="modal-content">
+			<form action="{{route('changeInterLabLogStatus')}}" method="post">
+				@csrf  
 				<div class="modal-body">
-					<div class="form-group">
-						<label class="control-label">Name</label>
-						<input type="text" class="form-control" name="name" placeholder="Name..." required />
-					</div>
-					<div class="form-group">
-						<label>{{ trim($customer->unit_configurable_name)!="" ? $customer->unit_configurable_name : 'Unit' }}</label>
-						<select class="form-control" name="unit" placeholder="Select..." required>
-							<option></option>
-							@foreach ($customer->units as $item)
-							<option value="{{ $item->id }}">{{ $item->name }}</option>
-							@endforeach
-						</select>
-					</div>
-					<div class="form-group">
-						<div id="location-map" style="width: 100%;height:350px"></div>
-					</div>
-					<div class="form-group hidden">
-						<label class="control-label">Latitude</label>
-						<input type="text" class="form-control" name="lat" id="latitude" value="" placeholder="Name..." />
-					</div>
-					<div class="form-group hidden">
-						<label class="control-label">Longitude</label>
-						<input type="text" id="longitude" class="form-control" name="long" value="" placeholder="Name..." />
-					</div>
-					<div class="form-group">
-						<label class="control-label"><input type="checkbox" value="1" name="active" checked /> Is Active?</label>
-					</div>
+					
 				</div>
 				<div class="modal-footer">
-					<button type="submit" class="btn btn-primary"><i class="mdi mdi-content-save"></i> Save</button>
-					<button type="button" class="btn btn-default" data-dismiss="modal">Close</button>
+					<button type="submit" class="btn-sm btn-outline-success btn affect-button"><i class="mdi content-save"></i> Yes, Affect</button>
+					<span class="btn btn-sm btn-default text-danger" data-dismiss="modal">Cancel</span>
 				</div>
 			</form>
 		</div>
 	</div>
-	<div id="add-company-product" class="modal fade" role="dialog">
-		<div class="modal-dialog">
-			<!-- Modal content-->
-			<form class="modal-content" method="POST" action="{{ route('add-customer-product') }}" enctype="multipart/form-data">
-				@csrf
-				<div class="modal-header">
-					<h4 class="modal-title"><i class="mdi mdi-plus"></i> Add {{ trim($customer->product_configurable_name)!="" ? $customer->product_configurable_name : 'Product' }}</h4>
-				</div>
+</div>
+<div class="modal fade" id="inter-lab-add" data-backdrop="static" data-keyboard="false" role="dialog">
+	<div class="modal-dialog">
+		<div class="modal-content">
+			<form action="{{route('create_sample_inter_lab_log')}}" method="post">
+				@csrf  
 				<div class="modal-body">
-					<div class="form-group">
-						<label class="control-label">Name</label>
-						<input type="text" class="form-control" name="name" placeholder="Name..." required />
-					</div>
-					<div class="form-group">
-						<label>{{ trim($customer->unit_configurable_name)!="" ? $customer->unit_configurable_name : 'Unit' }}</label>
-						<select class="form-control" name="unit" placeholder="Select..." required>
-							<option></option>
-							@foreach ($customer->units as $item)
-							<option value="{{ $item->id }}">{{ $item->name }}</option>
-							@endforeach
-						</select>
-					</div>
-					<div class="form-group">
-						<label class="control-label"><input type="checkbox" value="1" name="active" checked /> Is Active?</label>
-					</div>
+					
 				</div>
 				<div class="modal-footer">
-					<button type="submit" class="btn btn-primary"><i class="mdi mdi-content-save"></i> Save</button>
-					<button type="button" class="btn btn-default" data-dismiss="modal">Close</button>
+					<Button type="submit" class="btn btn-sm submit-button"><i class="mdi mdi-swap-horizontal-bold"></i> Initiate</Button>
+					<span class="btn btn-sm btn-default text-danger" data-dismiss="modal">Cancel</span>
 				</div>
 			</form>
 		</div>
 	</div>
-	<div id="add-sample-conditions" class="modal fade" role="dialog">
-		<div class="modal-dialog">
-			<!-- Modal content-->
-			<form class="modal-content" method="POST" action="{{ route('add-sample-conditions') }}" enctype="multipart/form-data">
+</div>
+<div id="add-company-sample-point" class="modal fade" role="dialog">
+	<div class="modal-dialog">
+		<!-- Modal content-->
+		<form class="modal-content" method="POST" action="{{ route('add-sample-point') }}" enctype="multipart/form-data">
 			@csrf
 			<div class="modal-header">
-				<h4 class="modal-title"><i class="mdi mdi-plus"></i> Add Sample Condition</h4>
+				<h4 class="modal-title"><i class="mdi mdi-plus"></i> Add {{ trim($customer->sample_point_configurable_name)!="" ? $customer->sample_point_configurable_name : 'Sample Point' }}</h4>
 			</div>
 			<div class="modal-body">
 				<div class="form-group">
-				<label class="control-label">Name</label>
-				<input type="text" class="form-control" name="name" placeholder="Name..." required />
+					<label class="control-label">Name</label>
+					<input type="text" class="form-control" name="name" placeholder="Name..." required />
 				</div>
 				<div class="form-group">
-				<input type="hidden" name="sample_type_id" value="{{ $batch->sample_type_id }}" />
-				<label class="control-label"><input type="checkbox" name="active" value="1" checked /> Active</label>
+					<label>{{ trim($customer->unit_configurable_name)!="" ? $customer->unit_configurable_name : 'Unit' }}</label>
+					<select class="form-control" name="unit" placeholder="Select..." required>
+						<option></option>
+						@foreach ($customer->units as $item)
+						<option value="{{ $item->id }}">{{ $item->name }}</option>
+						@endforeach
+					</select>
+				</div>
+				<div class="form-group">
+					<div id="location-map" style="width: 100%;height:350px"></div>
+				</div>
+				<div class="form-group hidden">
+					<label class="control-label">Latitude</label>
+					<input type="text" class="form-control" name="lat" id="latitude" value="" placeholder="Name..." />
+				</div>
+				<div class="form-group hidden">
+					<label class="control-label">Longitude</label>
+					<input type="text" id="longitude" class="form-control" name="long" value="" placeholder="Name..." />
+				</div>
+				<div class="form-group">
+					<label class="control-label"><input type="checkbox" value="1" name="active" checked /> Is Active?</label>
 				</div>
 			</div>
 			<div class="modal-footer">
 				<button type="submit" class="btn btn-primary"><i class="mdi mdi-content-save"></i> Save</button>
 				<button type="button" class="btn btn-default" data-dismiss="modal">Close</button>
 			</div>
+		</form>
+	</div>
+</div>
+<div id="add-company-product" class="modal fade" role="dialog">
+	<div class="modal-dialog">
+		<!-- Modal content-->
+		<form class="modal-content" method="POST" action="{{ route('add-customer-product') }}" enctype="multipart/form-data">
+			@csrf
+			<div class="modal-header">
+				<h4 class="modal-title"><i class="mdi mdi-plus"></i> Add {{ trim($customer->product_configurable_name)!="" ? $customer->product_configurable_name : 'Product' }}</h4>
+			</div>
+			<div class="modal-body">
+				<div class="form-group">
+					<label class="control-label">Name</label>
+					<input type="text" class="form-control" name="name" placeholder="Name..." required />
+				</div>
+				<div class="form-group">
+					<label>{{ trim($customer->unit_configurable_name)!="" ? $customer->unit_configurable_name : 'Unit' }}</label>
+					<select class="form-control" name="unit" placeholder="Select..." required>
+						<option></option>
+						@foreach ($customer->units as $item)
+						<option value="{{ $item->id }}">{{ $item->name }}</option>
+						@endforeach
+					</select>
+				</div>
+				<div class="form-group">
+					<label class="control-label"><input type="checkbox" value="1" name="active" checked /> Is Active?</label>
+				</div>
+			</div>
+			<div class="modal-footer">
+				<button type="submit" class="btn btn-primary"><i class="mdi mdi-content-save"></i> Save</button>
+				<button type="button" class="btn btn-default" data-dismiss="modal">Close</button>
+			</div>
+		</form>
+	</div>
+</div>
+<div id="add-sample-conditions" class="modal fade" role="dialog">
+	<div class="modal-dialog">
+		<!-- Modal content-->
+		<form class="modal-content" method="POST" action="{{ route('add-sample-conditions') }}" enctype="multipart/form-data">
+		@csrf
+		<div class="modal-header">
+			<h4 class="modal-title"><i class="mdi mdi-plus"></i> Add Sample Condition</h4>
+		</div>
+		<div class="modal-body">
+			<div class="form-group">
+			<label class="control-label">Name</label>
+			<input type="text" class="form-control" name="name" placeholder="Name..." required />
+			</div>
+			<div class="form-group">
+			<input type="hidden" name="sample_type_id" value="{{ $batch->sample_type_id }}" />
+			<label class="control-label"><input type="checkbox" name="active" value="1" checked /> Active</label>
+			</div>
+		</div>
+		<div class="modal-footer">
+			<button type="submit" class="btn btn-primary"><i class="mdi mdi-content-save"></i> Save</button>
+			<button type="button" class="btn btn-default" data-dismiss="modal">Close</button>
+		</div>
+		</form>
+	</div>
+	</div>
+	<div class="modal fade" id="add-attachment-batch" role="dialog">
+		<div class="modal-dialog">
+			<form action="{{route('add_batch_attachment')}}" method="post" enctype="multipart/form-data" class="modal-content">
+				@csrf 
+				<div class="modal-header">
+					<h5 class="modal-title">Add Attachment For {{$batch->batch_code}}</h5>
+				</div>
+				<div class="modal-body">
+					<div class="form-group">
+						<label class="control-label">Title</label>
+						<input type="text" name="title" id="" class="form-control" required>
+					</div>
+					<div class="form-group">
+						<label class="control-label">Attachment Type</label>
+						<select name="attachment_type" id="" class="form-control">
+							<option value="">Choose Attachment Type ...</option>
+							@foreach($atachment_type as $aType)
+							<option value="{{$aType->id}}">{{$aType->value}}</option>
+							@endforeach
+						</select>
+					</div>
+					<div class="form-group">
+						<label class="control-label">Choose File</label>
+						<input type="file" name="attachment" required class="form-control">
+						<input type="hidden" name="batch_id" value="{{$batch->id}}">
+					</div>
+					<div class="form-group">
+						<label class="control-label">
+							<input type="checkbox" name="is_internal" id=""> For Internal Use
+						</label>
+					</div>
+				</div>
+				<div class="modal-footer">
+					<button type="submit" class="btn btn-success btn-sm"><i class="mdi mdi-thumb-up"></i> Save</button>
+					<button type="button" class="btn btn-default btn-sm" data-dismiss="modal">Close</button>
+				</div>
 			</form>
 		</div>
-		</div>
-		<div class="modal fade" id="add-attachment-batch" role="dialog">
-			<div class="modal-dialog">
-				<form action="{{route('add_batch_attachment')}}" method="post" enctype="multipart/form-data" class="modal-content">
-					@csrf 
-					<div class="modal-header">
-						<h5 class="modal-title">Add Attachment For {{$batch->batch_code}}</h5>
-					</div>
-					<div class="modal-body">
-						<div class="form-group">
-							<label class="control-label">Title</label>
-							<input type="text" name="title" id="" class="form-control" required>
-						</div>
-						<div class="form-group">
-							<label class="control-label">Attachment Type</label>
-							<select name="attachment_type" id="" class="form-control">
-								<option value="">Choose Attachment Type ...</option>
-								@foreach($atachment_type as $aType)
-								<option value="{{$aType->id}}">{{$aType->value}}</option>
-								@endforeach
-							</select>
-						</div>
-						<div class="form-group">
-							<label class="control-label">Choose File</label>
-							<input type="file" name="attachment" required class="form-control">
-							<input type="hidden" name="batch_id" value="{{$batch->id}}">
-						</div>
-						<div class="form-group">
-							<label class="control-label">
-								<input type="checkbox" name="is_internal" id=""> For Internal Use
-							</label>
-						</div>
-					</div>
-					<div class="modal-footer">
-						<button type="submit" class="btn btn-success btn-sm"><i class="mdi mdi-thumb-up"></i> Save</button>
-						<button type="button" class="btn btn-default btn-sm" data-dismiss="modal">Close</button>
-					</div>
-				</form>
-			</div>
-		</div>
-		<?php $requestTypes = getRequestTypes(); ?>
-		@if(in_array($batch->status, array("Sample Verification","Sample Approval","Reports In Payment","Reports for Collection","Samples In Lab")))
-			@if($batch->processed_results()->count() > 0)
-				<div id="send-for-approval-modal" class="modal fade" role="dialog">
-					<div class="modal-dialog">
-						<!-- Modal content-->
-						<form class="modal-content" method="POST" action="{{ route('move-to-workflow', ['status'=>'Sample Approval', 'batch_id'=>$batch->id]) }}" enctype="multipart/form-data">
-							@csrf
-							<div class="modal-header">
-								<h4 class="modal-title"><i class="mdi mdi-check-decagram"></i> Send to Sample Approval </h4>
-							</div>
-							<div class="modal-body">
-								<div class="form-group">
-									<input type="hidden" name="is_approval" value="1">
-									<label class="control-label">Approval Notes/Comments</label>
-									<textarea class="form-control" name="comments" placeholder="Comments..."></textarea>
-								</div>
-								<div class="form-check">
-									<input class="form-check-input" type="checkbox" class="form-control" name="notification" />
-									<label class="form-check-label">
-										Send Email Notification
-									</label>
-								</div>
-								<br>
-								<div class="form-check">
-									<input class="form-check-input" type="checkbox" class="form-control" name="send_message" />
-									<label class="form-check-label">
-										Send SMS
-									</label>
-								</div>
-							</div>
-							<div class="modal-footer">
-								<button type="submit" class="btn btn-success btn-sm"><i class="mdi mdi-thumb-up"></i> Yes Proceed</button>
-								<button type="button" class="btn btn-default btn-sm" data-dismiss="modal">Close</button>
-							</div>
-						</form>
-					</div>
-				</div>
-			@endif
-			@if(isset($batch->status) && ($batch->status=="Sample Verification" || $batch->status=="Sample Approval"))
-				<div class="modal fadeprompt-report-modal" role="dialog">
-					<div class="modal-dialog">
-						<div class="modal-content">
-							<div class="modal-body">
-								<div class="alert alert-danger">
-									Ensure that batch {{$batch->batch_code}} has results, The results has been proccessed and Approved by clicking the Approve button.
-								</div>
-							</div>
-							<div class="modal-footer">
-								<button type="button" class="btn btn-default btn-sm" data-dismiss="modal">Close</button>
-							</div>
-						</div>
-					</div>
-				</div>
-				<div id="process-results-modal" data-backdrop="static" data-keyboard="false" data-batch="{{json_encode($batch->id)}}" class="modal fade" role="dialog">
-					<div class="modal-dialog">
-						<div class="modal-content">
-							<div class="modal-header">
-								<h4 class="modal-title"><i class="mdi mdi-file-cog-outline"></i> Process Results </h4>
-							</div>
-							<div class="modal-body">
-								<div class="alert alert-info">
-									<p><i class="mdi mdi-information pull-left"></i> Results for batch <b>{{$batch->batch_code}} is being processed! </b> ?</p>
-								</div>
-										<center>
-											<img src="/images/load.gif" height="250px" width="auto" alt="">
-										</center>
-							</div>
-							<!-- Modal content-->
-							<div class="modal-footer">	
-								<a href="/sample-workflow/batch/{{$batch->id}}/details" class="btn btn-outline-danger float-right btn-sm">Close</a>
-							</div>
-
-						</div>
-						
-					</div>
-				</div>
-				<div id="send-back-for-rechcek-modal" class="modal fade" role="dialog">
-					<div class="modal-dialog">
-						<!-- Modal content-->
-						<form class="modal-content" method="POST" action="{{ route('move-to-workflow', ['status'=>'Samples In Lab', 'batch_id'=>$batch->id]) }}" enctype="multipart/form-data">
-							@csrf
-							<div class="modal-header">
-								<h4 class="modal-title"><i class="mdi mdi-page-previous"></i> Recheck Batch Samples</h4>
-							</div>
-							<div class="modal-body">
-								<div class="form-group">
-									<label class="control-label">User To Notify</label>
-									<select class="form-control" name="user_id" required placeholder="Select User...">
-										<option></option>
-										@foreach (getNotifiableUsers() as $item)
-											<option value="{{ $item->id }}">{{ $item->name }}</option>
-										@endforeach
-									</select>
-								</div>
-								<div class="form-group">
-									<label class="control-label">Also Notify <small class="text-muted">*Optional</small></label>
-									<select class="form-control" name="followers[]" multiple placeholder="Other Notifiable Users...">
-										<option></option>
-										@foreach (getNotifiableUsers() as $item)
-											<option value="{{ $item->id }}">{{ $item->name }}</option>
-										@endforeach
-									</select>
-								</div>
-								<input name="batch_id" type="hidden" value="{{ $batch->id }}" />
-								<div class="form-group">
-									<label class="control-label">Comments</label>
-									<textarea class="form-control" name="comments" required placeholder="Comments..."></textarea>
-								</div>
-								<div class="form-group hidden">
-									<label class="control-label">Request Type</label>
-									<input type="text" name="type" value="Recheck" class="form-control">
-								</div>
-								<div class="form-check">
-									<input class="form-check-input" type="checkbox" class="form-control" name="notification" />
-									<label class="form-check-label">
-										Send Email Notification
-									</label>
-								</div>
-								<br>
-								<div class="form-check">
-									<input class="form-check-input" type="checkbox" class="form-control" name="send_message" />
-									<label class="form-check-label">
-										Send SMS
-									</label>
-								</div>
-
-
-							</div>
-							<div class="modal-footer">
-								<button type="submit" class="btn btn-danger btn-sm"><i class="mdi mdi-keyboard-return"></i> Recheck</button>
-								<button type="button" class="btn btn-default btn-sm" data-dismiss="modal">Close</button>
-							</div>
-						</form>
-					</div>
-				</div>
-			@endif
-			<div id="missing-parameters-modal" class="modal fade" role="dialog">
+	</div>
+	<?php $requestTypes = getRequestTypes(); ?>
+	@if(in_array($batch->status, array("Sample Verification","Sample Approval","Reports In Payment","Reports for Collection","Samples In Lab")))
+		@if($batch->processed_results()->count() > 0)
+			<div id="send-for-approval-modal" class="modal fade" role="dialog">
 				<div class="modal-dialog">
 					<!-- Modal content-->
-					<div class="modal-content">
+					<form class="modal-content" method="POST" action="{{ route('move-to-workflow', ['status'=>'Sample Approval', 'batch_id'=>$batch->id]) }}" enctype="multipart/form-data">
 						@csrf
 						<div class="modal-header">
-							<h4 class="modal-title"><i class="mdi mdi-beaker-question-outline"></i> Missing Analytes </h4>
+							<h4 class="modal-title"><i class="mdi mdi-check-decagram"></i> Send to Sample Approval </h4>
 						</div>
 						<div class="modal-body">
-							
-							{{-- <pre>{{ json_encode($sampleHolders, JSON_PRETTY_PRINT) }}</pre> --}}
-							<div class="table-responsive">
-								<table class="table table-condensed table-striped my-small-text table-sm table-bordered">
-									<thead>
-										<tr>
-											<th>Sample Code</th>
-											<th>Missing Parameters</th>
-										</tr>
-									</thead>
-									<tbody>
-										@foreach ($not_captured as $samC=>$vals)
-											<?php $anals = array_values($vals); ?>
-											<tr>
-												<td>{{ $samC }}</td>
-												<td>{{ implode(',', $anals) }}</td>
-											</tr>
-										@endforeach
-									</tbody>
-								</table>
+							<div class="form-group">
+								<input type="hidden" name="is_approval" value="1">
+								<label class="control-label">Approval Notes/Comments</label>
+								<textarea class="form-control" name="comments" placeholder="Comments..."></textarea>
+							</div>
+							<div class="form-check">
+								<input class="form-check-input" type="checkbox" class="form-control" name="notification" />
+								<label class="form-check-label">
+									Send Email Notification
+								</label>
+							</div>
+							<br>
+							<div class="form-check">
+								<input class="form-check-input" type="checkbox" class="form-control" name="send_message" />
+								<label class="form-check-label">
+									Send SMS
+								</label>
 							</div>
 						</div>
 						<div class="modal-footer">
-							<button type="button" class="btn btn-default btn-sm" data-dismiss="modal">Close</button>
-						</div>
-					</div>
-				</div>
-			</div>
-		@endif
-		@if(isset($batch->status) && in_array($batch->status, array("Sample Approval","Samples In Lab","Sample Verification","Reports In Payment")))
-			
-				<div id="provide-interpretations" class="modal fade" role="dialog">
-					<div class="modal-dialog modal-lg">
-						<!-- Modal content-->
-						<form class="modal-content" method="POST" enctype="multipart/form-data">
-							@csrf
-							<div class="modal-header">
-								<h4 class="modal-title"><i class="mdi mdi-file-document-edit"></i> Comments & Interpretations </h4>
-							</div>
-							<div class="modal-body" id="sample-interpretations-holder">
-								
-							</div>
-							<div class="modal-footer">
-								<button type="submit" class="btn btn-info btn-sm" onclick="tinyMCE.triggerSave()"><i class="mdi mdi-content-save"></i> Save</button>
-								<button type="button" class="btn btn-default btn-sm" data-dismiss="modal">Close</button>
-							</div>
-						</form>
-					</div>
-				</div>
-				<div id="process-results-modals" class="modal fade" role="dialog">
-					<div class="modal-dialog modal-lg">
-						<!-- Modal content-->
-						<form class="modal-content" method="POST" action="{{ route('report-interpretations', ['batch_id'=>$batch->id]) }}" enctype="multipart/form-data">
-							@csrf
-							<div class="modal-header">
-								<h4 class="modal-title"><i class="mdi mdi-file-document-edit"></i> Provide Interpretations </h4>
-							</div>
-							<div class="modal-body">
-								<ul class="nav nav-tabs" role="tablist">
-									<li class="nav-item">
-										<a class="nav-link active" id="report-interpretations-tab" data-toggle="tab" href="#report-interpretations" role="tab" aria-controls="Parameters" aria-selected="true"><i class="mdi mdi-typewriter"></i> Email Body</a>
-									</li>
-									<li class="nav-item">
-										<a class="nav-link" id="report-header-tab" data-toggle="tab" href="#report-header-details" role="tab" aria-controls="Parameters" aria-selected="true"><i class="mdi mdi-page-layout-header"></i> Report Header/Footer Details</a>
-									</li>
-								</ul>
-								<div class="tab-content">
-									<div class="tab-pane fade p-3" id="report-header-details" role="tabpanel" aria-labelledby="one-tab">
-										<h4>Report </h4>
-										<div class="form-group">
-											<label>Title</label>
-											<input type="text" class="form-control" value="{{ isset($headerDetails['header']->model) || isset($headerDetails['client_header']->model) ? ($headerDetails['header']->title ?? $headerDetails['client_header']->title) : '' }}" name="report_title" placeholder="Report Title..." required />
-										</div>
-										<div class="form-group">
-											<label>To</label>
-											<input type="text" class="form-control" value="{{ isset($headerDetails['header']->model) || isset($headerDetails['client_header']->model) ? ($headerDetails['header']->to ?? $headerDetails['client_header']->to) : '' }}" name="report_to" placeholder="Report To..." required />
-										</div>
-										<div class="form-group">
-											<label>C.C.</label>
-											<input type="text" class="form-control" value="{{ isset($headerDetails['header']->model) || isset($headerDetails['client_header']->model) ? ($headerDetails['header']->cc ?? $headerDetails['client_header']->cc) : '' }}" name="report_cc" placeholder="Report C.C..." required />
-										</div>
-										<div class="form-group">
-											<label>From</label>
-											<input type="text" class="form-control" value="{{ isset($headerDetails['header']->model) || isset($headerDetails['client_header']->model) ? ($headerDetails['header']->from ?? $headerDetails['client_header']->from) : '' }}" name="report_from" placeholder="Report From..." required />
-										</div>
-										<div class="form-group">
-											<label>Date</label>
-											<input type="date" class="form-control" value="{{ isset($headerDetails['header']->model) || isset($headerDetails['client_header']->model) ? ($headerDetails['header']->date ?? $headerDetails['client_header']->date) : '' }}" name="report_date" placeholder="Report Date..." required />
-										</div>
-										{{-- <div class="form-group">
-											<label>Ref</label>
-											<input type="text" class="form-control" value="{{ $batch->reference_number }}" name="report_ref" placeholder="Report Ref..." readonly />
-										</div> --}}
-										<div class="form-group">
-											<label>Re</label>
-											<textarea class="form-control editor" name="report_re" placeholder="Report Re..." required>{{ isset($headerDetails['header']->model) || isset($headerDetails['client_header']->model) ? ($headerDetails['header']->re ?? $headerDetails['client_header']->re) : '' }}</textarea>
-										</div>
-										<hr>
-										<div class="form-group">
-											<label>For</label>
-											<input type="text" class="form-control" value="{{ isset($headerDetails['header']->model) || isset($headerDetails['client_header']->model) ? ($headerDetails['header']->for ?? $headerDetails['client_header']->for) : '' }}" name="report_for" placeholder="Report For..." required />
-										</div>
-										<div class="form-group">
-											<label><input type="checkbox" name="update_client_headers" value="1"/> Update client report header defaults.</label>
-										</div>
-									</div>
-									<div class="tab-pane show active p-3" id="report-interpretations" role="tabpanel" aria-labelledby="one-tab">
-										<div class="form-group">
-											<label>Declared Amount</label>
-											<input type="text" class="form-control" value="{{ $batch->declared_amount ?? '' }}" name="declared_amount" placeholder="Declared Amount..." />
-										</div>
-										<div class="form-group">
-											<label>Final Declared Amount</label>
-											<input type="text" class="form-control" value="{{ $batch->final_declared_amount ?? '' }}" name="final_declared_amount" placeholder="Final Declared Amount..." />
-										</div>
-										<div class="form-group">
-											<label>Outgoing Email Body</label>
-											<textarea class="form-control editor" name="outgoing_email_body" placeholder="Outgoing Email Body..." required>{{ $headerDetails['header']->outgoing_email_body ?? '' }}</textarea>
-										</div>
-									</div>
-								</div>
-							</div>
-							<div class="modal-footer">
-								<button type="submit" class="btn btn-info btn-sm" onclick="tinyMCE.triggerSave()"><i class="mdi mdi-content-save"></i> Save</button>
-								<button type="button" class="btn btn-default btn-sm" data-dismiss="modal">Close</button>
-							</div>
-						</form>
-					</div>
-				</div>
-				@if ($batch->batch_report_url)
-					<div id="send-to-email-modal" class="modal fade" role="dialog">
-						<div class="modal-dialog">
-							<!-- Modal content-->
-							<form class="modal-content" method="POST" action="{{ route('move-to-workflow', ['status'=>"Reports for Collection", 'batch_id'=>$batch->id]) }}" enctype="multipart/form-data">
-								@csrf
-								<div class="modal-header">
-									<h4 class="modal-title"><i class="mdi mdi-file-check-outline"></i> Ready for Email Report?</h4>
-								</div>
-								<div class="modal-body">
-									
-									@if($batch->customer_paid == 0)
-									<div class="alert alert-danger">
-										
-
-											<i class="mdi mdi-information pull-left"></i> Batch {{$batch->batch_code}} has not been paid in full. Kindly confirm this before proceeding to email the report ! 	
-									</div>
-									@else
-									<div class="alert alert-info">
-										<h6><i class="mdi mdi-information pull-left"></i> Proceed with moving batch to Email report?</h6>
-									</div>
-									@endif
-
-								</div>
-								<div class="modal-footer">
-									<button type="submit" class="btn btn-success btn-sm"><i class="mdi mdi-thumb-up"></i> Proceed</button>
-									<button type="button" class="btn btn-default btn-sm" data-dismiss="modal">Close</button>
-								</div>
-							</form>
-						</div>
-					</div>
-					<div id="send-to-payments-modal" class="modal fade" role="dialog">
-						<div class="modal-dialog">
-							<!-- Modal content-->
-							<form class="modal-content" method="POST" action="{{ route('move-to-workflow', ['status'=>"Reports In Payment", 'batch_id'=>$batch->id]) }}" enctype="multipart/form-data">
-								@csrf
-								<div class="modal-header">
-									<h4 class="modal-title"><i class="mdi mdi-credit-card"></i> Send for Payment</h4>
-								</div>
-
-								<div class="modal-body">
-									@if($batch->approve_user_id == '')
-									<div class="alert alert-danger">
-										<i class="mdi mdi-alert-octagram"></i> Kindly Approve the report first before sending it to Payment section!
-									</div>
-									@else
-										<div class="form-group">
-											<label class="control-label">Comments</label>
-											<textarea class="form-control" name="comments" placeholder="Comments..."></textarea>
-										</div>
-										<div class="form-check">
-										<input class="form-check-input" type="checkbox" class="form-control" name="notification" />
-										<label class="form-check-label">
-											Send Email Notification
-										</label>
-										</div>
-										<br>
-										<div class="form-check">
-											<input class="form-check-input" type="checkbox" class="form-control" name="send_message" />
-											<label class="form-check-label">
-												Send SMS
-											</label>
-										</div>
-									@endif
-								</div>
-								<div class="modal-footer">
-									@if($batch->approve_user_id == '')
-									@else
-									<button type="submit" class="btn btn-info btn-sm"><i class="mdi mdi-thumb-up"></i> Send for Payment</button>
-									@endif
-									<button type="button" class="btn btn-default btn-sm" data-dismiss="modal">Close</button>
-								</div>
-							</form>
-						</div>
-					</div>
-				@endif
-			
-		@endif
-		@if(isset($batch->status) && $batch->status=="Samples In Lab")
-				<div id="send-to-verification-modal" class="modal fade" role="dialog">
-					<div class="modal-dialog">
-						<!-- Modal content-->
-						<form class="modal-content" method="POST" action="{{ route('move-to-workflow', ['status'=>'Sample Verification', 'batch_id'=>$batch->id]) }}" enctype="multipart/form-data">
-							@csrf
-							<div class="modal-header">
-								<h4 class="modal-title"><i class="mdi mdi-check-decagram"></i> Send to Verification </h4>
-							</div>
-							<div class="modal-body">
-								@if(sizeof( $not_captured ) > 0)
-									<div class="form-group">
-										<div class="alert alert-danger">
-											<i class="mdi mdi-information pull-left" style="font-size: 24px"></i> Some analytes have not been captured. Please ignore this message, if they are to be calculated during processing.
-										</div>
-									</div>
-								@endif
-								<div class="form-group">
-									<label class="control-label">Verification Notes/Comments</label>
-									<textarea class="form-control" name="comments" placeholder="Comments..."></textarea>
-								</div>
-								<div class="form-check">
-									<input class="form-check-input" type="checkbox" class="form-control" name="notification" />
-									<label class="form-check-label">
-										Send Email Notification
-									</label>
-								</div>
-								<br>
-								<div class="form-check">
-									<input class="form-check-input" type="checkbox" class="form-control" name="send_message" />
-									<label class="form-check-label">
-										Send SMS
-									</label>
-								</div>
-							</div>
-							<div class="modal-footer">
-								<button type="submit" class="btn btn-info btn-sm"><i class="mdi mdi-thumb-up"></i> Send to Verification</button>
-								<button type="button" class="btn btn-default btn-sm" data-dismiss="modal">Close</button>
-							</div>
-						</form>
-					</div>
-				</div>
-		@endif
-		@if(isset($batch->status) && $batch->status=="Samples Request Review")
-			<div id="dispatch-to-labs-modal" class="modal fade" role="dialog">
-				<div class="modal-dialog">
-					<!-- Modal content-->
-					<form class="modal-content" method="POST" action="{{ route('change-batch-workflow') }}" enctype="multipart/form-data">
-						@csrf
-						@if($batch->sample_tracking_stage=='20007')
-							<div class="modal-header">
-								<h4 class="modal-title"><i class="mdi mdi-clipboard-arrow-right"></i> Approve Request</h4>
-							</div>
-							<div class="modal-body">
-								<input type="hidden" name="status" value="Samples Request Review" />
-								<input type="hidden" name="tracking_stage" value="20008" />
-								<input type="hidden" name="bacth_id" value="{{ $batch->id }}" />
-								<div class="form-group">
-									<label class="control-label">Select Request Type</label>
-									<select class="form-control" name="request_type_id[]" placeholder="Request Type..." multiple required>
-										<option></option>
-										@foreach ($requestTypes[1] as $i)
-											<option value="{{ $i->id }}">{{ $i->name }}</option>
-										@endforeach
-										<option value="Other">Other Type</option>
-									</select>
-								</div>
-								<div class="form-group other-reason hidden">
-									<label class="control-label">Specify Other Request Type</label>
-									<textarea class="form-control" name="other_type" placeholder="Specify Other Request Type..."></textarea>
-								</div>
-								<div class="form-group">
-									<label class="control-label">Approval Comments</label>
-									<textarea class="form-control" name="comments" placeholder="Comments..."></textarea>
-								</div>
-								<div class="form-group">
-									<label class="control-label"><input type="checkbox" name="is_priority" value="High" /> Is High Prority</label>
-								</div>
-							</div>
-						@else
-							<div class="modal-header">
-								<h4 class="modal-title"><i class="mdi mdi-clipboard-arrow-right"></i> Approve Request </h4>
-							</div>
-							<div class="modal-body">
-								<input type="hidden" name="status" value="Samples In Lab" />
-								<input type="hidden" name="bacth_id" value="{{ $batch->id }}" />
-								<div class="form-group">
-									<label class="control-label">Select Specific Specialist</label>
-									<select class="form-control" name="specialist_analyst_id" placeholder="Specific Specialist..." required>
-										<option></option>
-										
-										@foreach ($analysts as $i)
-											<option value="{{ $i->id }}">{{ $i->name }}</option>
-										@endforeach
-									</select>
-								</div>
-								<div class="form-group other-reason">
-									<label class="control-label">Approval Comments</label>
-									<textarea class="form-control" name="comments" placeholder="Comments..."></textarea>
-								</div>
-							</div>
-						@endif
-						<div class="modal-footer">
-							<button type="submit" class="btn btn-info btn-sm"><i class="mdi mdi-thumb-up"></i> Yes</button>
+							<button type="submit" class="btn btn-success btn-sm"><i class="mdi mdi-thumb-up"></i> Yes Proceed</button>
 							<button type="button" class="btn btn-default btn-sm" data-dismiss="modal">Close</button>
 						</div>
 					</form>
 				</div>
 			</div>
 		@endif
+		@if(isset($batch->status) && ($batch->status=="Sample Verification" || $batch->status=="Sample Approval"))
+			<div class="modal fadeprompt-report-modal" role="dialog">
+				<div class="modal-dialog">
+					<div class="modal-content">
+						<div class="modal-body">
+							<div class="alert alert-danger">
+								Ensure that batch {{$batch->batch_code}} has results, The results has been proccessed and Approved by clicking the Approve button.
+							</div>
+						</div>
+						<div class="modal-footer">
+							<button type="button" class="btn btn-default btn-sm" data-dismiss="modal">Close</button>
+						</div>
+					</div>
+				</div>
+			</div>
+			<div id="process-results-modal" data-backdrop="static" data-keyboard="false" data-batch="{{json_encode($batch->id)}}" class="modal fade" role="dialog">
+				<div class="modal-dialog">
+					<div class="modal-content">
+						<div class="modal-header">
+							<h4 class="modal-title"><i class="mdi mdi-file-cog-outline"></i> Process Results </h4>
+						</div>
+						<div class="modal-body">
+							<div class="alert alert-info">
+								<p><i class="mdi mdi-information pull-left"></i> Results for batch <b>{{$batch->batch_code}} is being processed! </b> ?</p>
+							</div>
+									<center>
+										<img src="/images/load.gif" height="250px" width="auto" alt="">
+									</center>
+						</div>
+						<!-- Modal content-->
+						<div class="modal-footer">	
+							<a href="/sample-workflow/batch/{{$batch->id}}/details" class="btn btn-outline-danger float-right btn-sm">Close</a>
+						</div>
 
-		<div id="add-analyte-modal" class="modal fade" role="dialog">
+					</div>
+					
+				</div>
+			</div>
+			<div id="send-back-for-rechcek-modal" class="modal fade" role="dialog">
+				<div class="modal-dialog">
+					<!-- Modal content-->
+					<form class="modal-content" method="POST" action="{{ route('move-to-workflow', ['status'=>'Samples In Lab', 'batch_id'=>$batch->id]) }}" enctype="multipart/form-data">
+						@csrf
+						<div class="modal-header">
+							<h4 class="modal-title"><i class="mdi mdi-page-previous"></i> Recheck Batch Samples</h4>
+						</div>
+						<div class="modal-body">
+							<div class="form-group">
+								<label class="control-label">User To Notify</label>
+								<select class="form-control" name="user_id" required placeholder="Select User...">
+									<option></option>
+									@foreach (getNotifiableUsers() as $item)
+										<option value="{{ $item->id }}">{{ $item->name }}</option>
+									@endforeach
+								</select>
+							</div>
+							<div class="form-group">
+								<label class="control-label">Also Notify <small class="text-muted">*Optional</small></label>
+								<select class="form-control" name="followers[]" multiple placeholder="Other Notifiable Users...">
+									<option></option>
+									@foreach (getNotifiableUsers() as $item)
+										<option value="{{ $item->id }}">{{ $item->name }}</option>
+									@endforeach
+								</select>
+							</div>
+							<input name="batch_id" type="hidden" value="{{ $batch->id }}" />
+							<div class="form-group">
+								<label class="control-label">Comments</label>
+								<textarea class="form-control" name="comments" required placeholder="Comments..."></textarea>
+							</div>
+							<div class="form-group hidden">
+								<label class="control-label">Request Type</label>
+								<input type="text" name="type" value="Recheck" class="form-control">
+							</div>
+							<div class="form-check">
+								<input class="form-check-input" type="checkbox" class="form-control" name="notification" />
+								<label class="form-check-label">
+									Send Email Notification
+								</label>
+							</div>
+							<br>
+							<div class="form-check">
+								<input class="form-check-input" type="checkbox" class="form-control" name="send_message" />
+								<label class="form-check-label">
+									Send SMS
+								</label>
+							</div>
+
+
+						</div>
+						<div class="modal-footer">
+							<button type="submit" class="btn btn-danger btn-sm"><i class="mdi mdi-keyboard-return"></i> Recheck</button>
+							<button type="button" class="btn btn-default btn-sm" data-dismiss="modal">Close</button>
+						</div>
+					</form>
+				</div>
+			</div>
+		@endif
+		<div id="missing-parameters-modal" class="modal fade" role="dialog">
 			<div class="modal-dialog">
 				<!-- Modal content-->
-				<form class="modal-content" id="print-labels-form" method="POST" action="{{ route('add-batch-comment') }}" enctype="multipart/form-data">
+				<div class="modal-content">
 					@csrf
 					<div class="modal-header">
-						<h4 class="modal-title"><i class="mdi mdi-plus"></i> Add New Analyte </h4>
+						<h4 class="modal-title"><i class="mdi mdi-beaker-question-outline"></i> Missing Analytes </h4>
 					</div>
 					<div class="modal-body">
-						<div class="form-group">
-							<label class="control-label">Select Analysis</label>
-							<select class="form-control" name="analysis_id" required placeholder="Select Analysis...">
-								<option></option>
-								@foreach ($batch->samples as $item)
-									<option value="{{ $item->id }}">{{ $item->sample_code }}</option>
-								@endforeach
-							</select>
-						</div>
-						<div class="form-group">
-							<label class="control-label">Select Analyte</label>
-							<select class="form-control" name="analysis_id" required placeholder="Select Analyte...">
-								<option></option>
-							</select>
+						
+						{{-- <pre>{{ json_encode($sampleHolders, JSON_PRETTY_PRINT) }}</pre> --}}
+						<div class="table-responsive">
+							<table class="table table-condensed table-striped my-small-text table-sm table-bordered">
+								<thead>
+									<tr>
+										<th>Sample Code</th>
+										<th>Missing Parameters</th>
+									</tr>
+								</thead>
+								<tbody>
+									@foreach ($not_captured as $samC=>$vals)
+										<?php $anals = array_values($vals); ?>
+										<tr>
+											<td>{{ $samC }}</td>
+											<td>{{ implode(',', $anals) }}</td>
+										</tr>
+									@endforeach
+								</tbody>
+							</table>
 						</div>
 					</div>
 					<div class="modal-footer">
-						<button type="button" class="btn btn-info btn-sm print-label-btn"><i class="mdi mdi-content-save"></i> Save</button>
+						<button type="button" class="btn btn-default btn-sm" data-dismiss="modal">Close</button>
+					</div>
+				</div>
+			</div>
+		</div>
+	@endif
+	@if(isset($batch->status) && in_array($batch->status, array("Sample Approval","Samples In Lab","Sample Verification","Reports In Payment")))
+		
+		<div id="provide-interpretations" class="modal fade" role="dialog">
+			<div class="modal-dialog modal-lg">
+				<!-- Modal content-->
+				<form class="modal-content" method="POST" enctype="multipart/form-data">
+					@csrf
+					<div class="modal-header">
+						<h4 class="modal-title"><i class="mdi mdi-file-document-edit"></i> Comments & Interpretations </h4>
+					</div>
+					<div class="modal-body" id="sample-interpretations-holder">
+						
+					</div>
+					<div class="modal-footer">
+						<button type="submit" class="btn btn-info btn-sm" onclick="tinyMCE.triggerSave()"><i class="mdi mdi-content-save"></i> Save</button>
 						<button type="button" class="btn btn-default btn-sm" data-dismiss="modal">Close</button>
 					</div>
 				</form>
 			</div>
 		</div>
-
-		<div id="add-sample-notes" class="modal fade" role="dialog">
-			<div class="modal-dialog">
+		<div id="process-results-modals" class="modal fade" role="dialog">
+			<div class="modal-dialog modal-lg">
 				<!-- Modal content-->
-				<form class="modal-content" id="print-labels-form" method="POST" action="{{ route('add-batch-comment') }}" enctype="multipart/form-data">
+				<form class="modal-content" method="POST" action="{{ route('report-interpretations', ['batch_id'=>$batch->id]) }}" enctype="multipart/form-data">
 					@csrf
 					<div class="modal-header">
-						<h4 class="modal-title"><i class="mdi mdi-message-plus"></i> Add Note </h4>
+						<h4 class="modal-title"><i class="mdi mdi-file-document-edit"></i> Provide Interpretations </h4>
 					</div>
 					<div class="modal-body">
-						<div class="form-group">
-							<label class="control-label">User To Notify</label>
-							<select class="form-control" name="user_id" required placeholder="Select User...">
-								<option></option>
-								@foreach (getNotifiableUsers() as $item)
-									<option value="{{ $item->id }}">{{ $item->name }}</option>
-								@endforeach
-							</select>
-						</div>
-						<div class="form-group">
-							<label class="control-label">Also Notify <small class="text-muted">*Optional</small></label>
-							<select class="form-control" name="followers[]" multiple placeholder="Other Notifiable Users...">
-								<option></option>
-								@foreach (getNotifiableUsers() as $item)
-									<option value="{{ $item->id }}">{{ $item->name }}</option>
-								@endforeach
-							</select>
-						</div>
-						<input name="batch_id" type="hidden" value="{{ $batch->id }}" />
-						<div class="form-group">
-							<label class="control-label">Type</label>
-							<select class="form-control" name="type" required placeholder="Message Type...">
-								<option></option>
-								@if($batch->status == 'Sample Verification' || $batch->status == 'Samples In Lab')
-
-								<option value="Recheck">Recheck</option>
-								@endif
-								@foreach (getNotesReminderTypes() as $item)
-									<option value="{{ $item }}">{{ $item }}</option>
-								@endforeach
-							</select>
-						</div>
-						<div class="form-group">
-							<label class="control-label">Message</label>
-							<textarea class="form-control" name="message" placeholder="Message..." required></textarea>
+						<ul class="nav nav-tabs" role="tablist">
+							<li class="nav-item">
+								<a class="nav-link active" id="report-interpretations-tab" data-toggle="tab" href="#report-interpretations" role="tab" aria-controls="Parameters" aria-selected="true"><i class="mdi mdi-typewriter"></i> Email Body</a>
+							</li>
+							<li class="nav-item">
+								<a class="nav-link" id="report-header-tab" data-toggle="tab" href="#report-header-details" role="tab" aria-controls="Parameters" aria-selected="true"><i class="mdi mdi-page-layout-header"></i> Report Header/Footer Details</a>
+							</li>
+						</ul>
+						<div class="tab-content">
+							<div class="tab-pane fade p-3" id="report-header-details" role="tabpanel" aria-labelledby="one-tab">
+								<h4>Report </h4>
+								<div class="form-group">
+									<label>Title</label>
+									<input type="text" class="form-control" value="{{ isset($headerDetails['header']->model) || isset($headerDetails['client_header']->model) ? ($headerDetails['header']->title ?? $headerDetails['client_header']->title) : '' }}" name="report_title" placeholder="Report Title..." required />
+								</div>
+								<div class="form-group">
+									<label>To</label>
+									<input type="text" class="form-control" value="{{ isset($headerDetails['header']->model) || isset($headerDetails['client_header']->model) ? ($headerDetails['header']->to ?? $headerDetails['client_header']->to) : '' }}" name="report_to" placeholder="Report To..." required />
+								</div>
+								<div class="form-group">
+									<label>C.C.</label>
+									<input type="text" class="form-control" value="{{ isset($headerDetails['header']->model) || isset($headerDetails['client_header']->model) ? ($headerDetails['header']->cc ?? $headerDetails['client_header']->cc) : '' }}" name="report_cc" placeholder="Report C.C..." required />
+								</div>
+								<div class="form-group">
+									<label>From</label>
+									<input type="text" class="form-control" value="{{ isset($headerDetails['header']->model) || isset($headerDetails['client_header']->model) ? ($headerDetails['header']->from ?? $headerDetails['client_header']->from) : '' }}" name="report_from" placeholder="Report From..." required />
+								</div>
+								<div class="form-group">
+									<label>Date</label>
+									<input type="date" class="form-control" value="{{ isset($headerDetails['header']->model) || isset($headerDetails['client_header']->model) ? ($headerDetails['header']->date ?? $headerDetails['client_header']->date) : '' }}" name="report_date" placeholder="Report Date..." required />
+								</div>
+								{{-- <div class="form-group">
+									<label>Ref</label>
+									<input type="text" class="form-control" value="{{ $batch->reference_number }}" name="report_ref" placeholder="Report Ref..." readonly />
+								</div> --}}
+								<div class="form-group">
+									<label>Re</label>
+									<textarea class="form-control editor" name="report_re" placeholder="Report Re..." required>{{ isset($headerDetails['header']->model) || isset($headerDetails['client_header']->model) ? ($headerDetails['header']->re ?? $headerDetails['client_header']->re) : '' }}</textarea>
+								</div>
+								<hr>
+								<div class="form-group">
+									<label>For</label>
+									<input type="text" class="form-control" value="{{ isset($headerDetails['header']->model) || isset($headerDetails['client_header']->model) ? ($headerDetails['header']->for ?? $headerDetails['client_header']->for) : '' }}" name="report_for" placeholder="Report For..." required />
+								</div>
+								<div class="form-group">
+									<label><input type="checkbox" name="update_client_headers" value="1"/> Update client report header defaults.</label>
+								</div>
+							</div>
+							<div class="tab-pane show active p-3" id="report-interpretations" role="tabpanel" aria-labelledby="one-tab">
+								<div class="form-group">
+									<label>Declared Amount</label>
+									<input type="text" class="form-control" value="{{ $batch->declared_amount ?? '' }}" name="declared_amount" placeholder="Declared Amount..." />
+								</div>
+								<div class="form-group">
+									<label>Final Declared Amount</label>
+									<input type="text" class="form-control" value="{{ $batch->final_declared_amount ?? '' }}" name="final_declared_amount" placeholder="Final Declared Amount..." />
+								</div>
+								<div class="form-group">
+									<label>Outgoing Email Body</label>
+									<textarea class="form-control editor" name="outgoing_email_body" placeholder="Outgoing Email Body..." required>{{ $headerDetails['header']->outgoing_email_body ?? '' }}</textarea>
+								</div>
+							</div>
 						</div>
 					</div>
 					<div class="modal-footer">
-						<button type="submit" class="btn btn-info btn-sm print-label-btn"><i class="mdi mdi-email-send"></i> Send</button>
+						<button type="submit" class="btn btn-info btn-sm" onclick="tinyMCE.triggerSave()"><i class="mdi mdi-content-save"></i> Save</button>
+						<button type="button" class="btn btn-default btn-sm" data-dismiss="modal">Close</button>
+					</div>
+				</form>
+			</div>
+		</div>
+		@if ($batch->batch_report_url)
+			<div id="send-to-email-modal" class="modal fade" role="dialog">
+				<div class="modal-dialog">
+					<!-- Modal content-->
+					<form class="modal-content" method="POST" action="{{ route('move-to-workflow', ['status'=>"Reports for Collection", 'batch_id'=>$batch->id]) }}" enctype="multipart/form-data">
+						@csrf
+						<div class="modal-header">
+							<h4 class="modal-title"><i class="mdi mdi-file-check-outline"></i> Ready for Email Report?</h4>
+						</div>
+						<div class="modal-body">
+							
+							@if($batch->customer_paid == 0)
+							<div class="alert alert-danger">
+								
+
+									<i class="mdi mdi-information pull-left"></i> Batch {{$batch->batch_code}} has not been paid in full. Kindly confirm this before proceeding to email the report ! 	
+							</div>
+							@else
+							<div class="alert alert-info">
+								<h6><i class="mdi mdi-information pull-left"></i> Proceed with moving batch to Email report?</h6>
+							</div>
+							@endif
+
+						</div>
+						<div class="modal-footer">
+							<button type="submit" class="btn btn-success btn-sm"><i class="mdi mdi-thumb-up"></i> Proceed</button>
+							<button type="button" class="btn btn-default btn-sm" data-dismiss="modal">Close</button>
+						</div>
+					</form>
+				</div>
+			</div>
+			<div id="send-to-payments-modal" class="modal fade" role="dialog">
+				<div class="modal-dialog">
+					<!-- Modal content-->
+					<form class="modal-content" method="POST" action="{{ route('move-to-workflow', ['status'=>"Reports In Payment", 'batch_id'=>$batch->id]) }}" enctype="multipart/form-data">
+						@csrf
+						<div class="modal-header">
+							<h4 class="modal-title"><i class="mdi mdi-credit-card"></i> Send for Payment</h4>
+						</div>
+
+						<div class="modal-body">
+							@if($batch->approve_user_id == '')
+							<div class="alert alert-danger">
+								<i class="mdi mdi-alert-octagram"></i> Kindly Approve the report first before sending it to Payment section!
+							</div>
+							@else
+								<div class="form-group">
+									<label class="control-label">Comments</label>
+									<textarea class="form-control" name="comments" placeholder="Comments..."></textarea>
+								</div>
+								<div class="form-check">
+								<input class="form-check-input" type="checkbox" class="form-control" name="notification" />
+								<label class="form-check-label">
+									Send Email Notification
+								</label>
+								</div>
+								<br>
+								<div class="form-check">
+									<input class="form-check-input" type="checkbox" class="form-control" name="send_message" />
+									<label class="form-check-label">
+										Send SMS
+									</label>
+								</div>
+							@endif
+						</div>
+						<div class="modal-footer">
+							@if($batch->approve_user_id == '')
+							@else
+							<button type="submit" class="btn btn-info btn-sm"><i class="mdi mdi-thumb-up"></i> Send for Payment</button>
+							@endif
+							<button type="button" class="btn btn-default btn-sm" data-dismiss="modal">Close</button>
+						</div>
+					</form>
+				</div>
+			</div>
+		@endif
+		
+	@endif
+	@if(isset($batch->status) && $batch->status=="Samples In Lab")
+			<div id="send-to-verification-modal" class="modal fade" role="dialog">
+				<div class="modal-dialog">
+					<!-- Modal content-->
+					<form class="modal-content" method="POST" action="{{ route('move-to-workflow', ['status'=>'Sample Verification', 'batch_id'=>$batch->id]) }}" enctype="multipart/form-data">
+						@csrf
+						<div class="modal-header">
+							<h4 class="modal-title"><i class="mdi mdi-check-decagram"></i> Send to Verification </h4>
+						</div>
+						<div class="modal-body">
+							@if(sizeof( $not_captured ) > 0)
+								<div class="form-group">
+									<div class="alert alert-danger">
+										<i class="mdi mdi-information pull-left" style="font-size: 24px"></i> Some analytes have not been captured. Please ignore this message, if they are to be calculated during processing.
+									</div>
+								</div>
+							@endif
+							<div class="form-group">
+								<label class="control-label">Verification Notes/Comments</label>
+								<textarea class="form-control" name="comments" placeholder="Comments..."></textarea>
+							</div>
+							<div class="form-check">
+								<input class="form-check-input" type="checkbox" class="form-control" name="notification" />
+								<label class="form-check-label">
+									Send Email Notification
+								</label>
+							</div>
+							<br>
+							<div class="form-check">
+								<input class="form-check-input" type="checkbox" class="form-control" name="send_message" />
+								<label class="form-check-label">
+									Send SMS
+								</label>
+							</div>
+						</div>
+						<div class="modal-footer">
+							<button type="submit" class="btn btn-info btn-sm"><i class="mdi mdi-thumb-up"></i> Send to Verification</button>
+							<button type="button" class="btn btn-default btn-sm" data-dismiss="modal">Close</button>
+						</div>
+					</form>
+				</div>
+			</div>
+	@endif
+	@if(isset($batch->status) && $batch->status=="Samples Request Review")
+		<div id="dispatch-to-labs-modal" class="modal fade" role="dialog">
+			<div class="modal-dialog">
+				<!-- Modal content-->
+				<form class="modal-content" method="POST" action="{{ route('change-batch-workflow') }}" enctype="multipart/form-data">
+					@csrf
+					@if($batch->sample_tracking_stage=='20007')
+						<div class="modal-header">
+							<h4 class="modal-title"><i class="mdi mdi-clipboard-arrow-right"></i> Approve Request</h4>
+						</div>
+						<div class="modal-body">
+							<input type="hidden" name="status" value="Samples Request Review" />
+							<input type="hidden" name="tracking_stage" value="20008" />
+							<input type="hidden" name="bacth_id" value="{{ $batch->id }}" />
+							<div class="form-group">
+								<label class="control-label">Select Request Type</label>
+								<select class="form-control" name="request_type_id[]" placeholder="Request Type..." multiple required>
+									<option></option>
+									@foreach ($requestTypes[1] as $i)
+										<option value="{{ $i->id }}">{{ $i->name }}</option>
+									@endforeach
+									<option value="Other">Other Type</option>
+								</select>
+							</div>
+							<div class="form-group other-reason hidden">
+								<label class="control-label">Specify Other Request Type</label>
+								<textarea class="form-control" name="other_type" placeholder="Specify Other Request Type..."></textarea>
+							</div>
+							<div class="form-group">
+								<label class="control-label">Approval Comments</label>
+								<textarea class="form-control" name="comments" placeholder="Comments..."></textarea>
+							</div>
+							<div class="form-group">
+								<label class="control-label"><input type="checkbox" name="is_priority" value="High" /> Is High Prority</label>
+							</div>
+						</div>
+					@else
+						<div class="modal-header">
+							<h4 class="modal-title"><i class="mdi mdi-clipboard-arrow-right"></i> Approve Request </h4>
+						</div>
+						<div class="modal-body">
+							<input type="hidden" name="status" value="Samples In Lab" />
+							<input type="hidden" name="bacth_id" value="{{ $batch->id }}" />
+							<div class="form-group">
+								<label class="control-label">Select Specific Specialist</label>
+								<select class="form-control" name="specialist_analyst_id" placeholder="Specific Specialist..." required>
+									<option></option>
+									
+									@foreach ($analysts as $i)
+										<option value="{{ $i->id }}">{{ $i->name }}</option>
+									@endforeach
+								</select>
+							</div>
+							<div class="form-group other-reason">
+								<label class="control-label">Approval Comments</label>
+								<textarea class="form-control" name="comments" placeholder="Comments..."></textarea>
+							</div>
+						</div>
+					@endif
+					<div class="modal-footer">
+						<button type="submit" class="btn btn-info btn-sm"><i class="mdi mdi-thumb-up"></i> Yes</button>
 						<button type="button" class="btn btn-default btn-sm" data-dismiss="modal">Close</button>
 					</div>
 				</form>
 			</div>
 		</div>
 	@endif
-	@if(isset($batch->status) && in_array($batch->status, array("Samples Reception", "Samples En-Route")))
-	<div id="batch-edit-modal" class="modal fade" role="dialog">
+
+	<div id="add-analyte-modal" class="modal fade" role="dialog">
 		<div class="modal-dialog">
 			<!-- Modal content-->
-			<div class="modal-content">
+			<form class="modal-content" id="print-labels-form" method="POST" action="{{ route('add-batch-comment') }}" enctype="multipart/form-data">
+				@csrf
 				<div class="modal-header">
-					<h4 class="modal-title"><i class="mdi mdi-pencil-box-multiple"></i> Batch Edit </h4>
+					<h4 class="modal-title"><i class="mdi mdi-plus"></i> Add New Analyte </h4>
 				</div>
 				<div class="modal-body">
-					<div class="form-group form-group-sm">
-						<label class="control-label"><input type="checkbox" class="bulk-checkbox" data-name=".sample-analysis"> Select Analysis</label>
-						<select name="sample_analysis" class="form-control form-control-sm sample-analysis" multiple placeholder="Select Analysis..."></select>
+					<div class="form-group">
+						<label class="control-label">Select Analysis</label>
+						<select class="form-control" name="analysis_id" required placeholder="Select Analysis...">
+							<option></option>
+							@foreach ($batch->samples as $item)
+								<option value="{{ $item->id }}">{{ $item->sample_code }}</option>
+							@endforeach
+						</select>
 					</div>
-					<div class="form-group form-group-sm">
-						<label class="control-label"><input type="checkbox" class="bulk-checkbox" data-name=".sample-condition"> Sample Condition</label>
-						<select  name="sample_condition" class="form-control form-control-sm sample-condition" placeholder="Select Sample Condition..." required></select>
-					</div>
-					<div class="form-group form-group-sm">
-						<label class="control-label "><input type="checkbox" class="bulk-checkbox" data-name=".sample-point"> <span class="client-preferred-sample_point-name">Sample Point</span></label>
-						<select  name="sample_point" class="form-control form-control-sm sample-point" placeholder="Select..." required></select>
-					</div>
-					<div class="form-group form-group-sm">
-						<label class="control-label"><input type="checkbox" class="bulk-checkbox" data-name=".sample-product"> <span class="client-preferred-product-name">Product</span></label>
-						<select  name="sample_product" class="form-control form-control-sm sample-product" placeholder="Select..." required></select>
-					</div>
-					<div class="form-group form-group-sm">
-						<label class="control-label"><input type="checkbox" class="bulk-checkbox" data-name=".sample-barcode"> Barcode</label>
-						<input  name="sample_barcode" class="form-control form-control-sm sample-barcode" placeholder="Select..." >
-					</div>
-					<div class="form-group form-group-sm">
-						<label class="control-label"><input type="checkbox" class="bulk-checkbox" data-name=".sample-comments"> Comments</label>
-						<input  name="sample_comments" class="form-control form-control-sm sample-comments" placeholder="Select..." >
-					</div>
-					<div class="form-group form-group-sm">
-						<label class="control-label"><input type="checkbox" class="bulk-checkbox" data-name=".sample-gps"> GPS</label>
-						<input  name="sample_gps" class="form-control form-control-sm sample-gps" placeholder="Select...">
+					<div class="form-group">
+						<label class="control-label">Select Analyte</label>
+						<select class="form-control" name="analysis_id" required placeholder="Select Analyte...">
+							<option></option>
+						</select>
 					</div>
 				</div>
 				<div class="modal-footer">
-					<button type="button" class="btn btn-info btn-sm make-batch-changes" data-dismiss="modal"><i class="mdi mdi-refresh"></i> Change</button>
+					<button type="button" class="btn btn-info btn-sm print-label-btn"><i class="mdi mdi-content-save"></i> Save</button>
 					<button type="button" class="btn btn-default btn-sm" data-dismiss="modal">Close</button>
 				</div>
-			</div>
+			</form>
 		</div>
 	</div>
-	@endif
-	<div id="show-sample-analysis-analytes" class="modal fade" data-backdrop="static" data-keyboard="false" role="dialog">
-		<div class="modal-dialog modal-lg">
+
+	<div id="add-sample-notes" class="modal fade" role="dialog">
+		<div class="modal-dialog">
 			<!-- Modal content-->
-			<div class="modal-content">
+			<form class="modal-content" id="print-labels-form" method="POST" action="{{ route('add-batch-comment') }}" enctype="multipart/form-data">
+				@csrf
 				<div class="modal-header">
-					<h4 class="modal-title"><i class="mdi mdi-snowflake"></i> Analysis Parameters </h4>
-					<span class="btn btn-outline-danger btn-sm float-right" data-dismiss="modal">Close</span>
+					<h4 class="modal-title"><i class="mdi mdi-message-plus"></i> Add Note </h4>
 				</div>
 				<div class="modal-body">
-					<ul class="nav nav-tabs" role="tablist">
-						<li class="nav-item">
-							<a class="nav-link active" id="configured-analytes-tab" data-toggle="tab" href="#configured-analytes" role="tab" aria-controls="Parameters" aria-selected="true"><i class="mdi mdi-snowflake"></i> Parameters</a>
-						</li>
-						@if(isset($batch->status) && $batch->status == "Samples Reception" && Auth::user()->is_client == 0)
-						<li class="nav-item">
-							<a class="nav-link" id="add-analytes-tab" data-toggle="tab" href="#add-analytes" role="tab" aria-controls="Parameters" aria-selected="true"><i class="mdi mdi-plus"></i> Add Analyte</a>
-						</li>
-						@endif
-					</ul>
-					<div class="tab-content">
-						<form class="tab-pane show active p-3" method="POST" action="{{ route('capture-raw-results') }}" id="configured-analytes" role="tabpanel" aria-labelledby="one-tab">
-							@csrf
-							<h5 class="mb-3">
-								@if(Auth::user()->is_client == 0)
-								Raw Results
-								<span class="ml-4 badge badge-pill badge-light p-2 mr-4" style="font-weight: 400!important">
-									<span class="bg-green analytes-with-results-count small-badge">12</span> With Results
-								</span>
-								<span class="badge badge-pill badge-light p-2 show-missing-results" style="font-weight: 400!important">
-									<span class="bg-red analytes-without-results-count small-badge">0</span> Missing Results
-								</span>
-								
-								@if(isset($batch->status) &&  $batch->status == "Samples In Lab")
-									<button class="btn btn-sm btn-primary float-right"><i class="mdi mdi-content-save"></i> Save</button>
-								@endif
-								@if(isset($batch->status) && in_array($batch->status,array('Samples Reception','Samples Request Review','Samples En-Route')))
-									<a href="/sample-workflow/batch/{{$batch->id}}/details" class="btn btn-outline-primary float-right btn-sm"><i class="mdi mdi-content-save"></i> Save</a>
-									<span class="btn btn-sm btn-outline-warning float-right mr-2" id="delete-parameter"><i class="mdi mdi-delete-empty"></i> Delete</span>
-								@endif
-								@endif
-								<br>
-								
-								<span class="badge badge-pill badge-light float-left p-2 " style="font-weight: 400!important">
-									Standard - <span class="main-standard-name"></span>
-								</span>
-								<br>
-							</h5>
-							<div class="table-responsive" id="sph-parent">
-								<table class="table table-condensed my-small-text table-striped table-hover table-bordered table">
-									<thead class="bg-light p-2">
-										<tr>
-											<th>
-												<input type="checkbox" name="parameter_check_all" id="parameter-check-all">
-											</th>
-											<th>Sample Code</th>
-											<th style="display:flex !important">
-											<div>
+					<div class="form-group">
+						<label class="control-label">User To Notify</label>
+						<select class="form-control" name="user_id" required placeholder="Select User...">
+							<option></option>
+							@foreach (getNotifiableUsers() as $item)
+								<option value="{{ $item->id }}">{{ $item->name }}</option>
+							@endforeach
+						</select>
+					</div>
+					<div class="form-group">
+						<label class="control-label">Also Notify <small class="text-muted">*Optional</small></label>
+						<select class="form-control" name="followers[]" multiple placeholder="Other Notifiable Users...">
+							<option></option>
+							@foreach (getNotifiableUsers() as $item)
+								<option value="{{ $item->id }}">{{ $item->name }}</option>
+							@endforeach
+						</select>
+					</div>
+					<input name="batch_id" type="hidden" value="{{ $batch->id }}" />
+					<div class="form-group">
+						<label class="control-label">Type</label>
+						<select class="form-control" name="type" required placeholder="Message Type...">
+							<option></option>
+							@if($batch->status == 'Sample Verification' || $batch->status == 'Samples In Lab')
 
-												Analysis
-											</div>
-												<div class="dropdown ml-2">
-													
-													<span class="dropdown-toggle float-right text-primary" id="dropdownMenuButton" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false"><i class="mdi mdi-filter "></i></span>
-													<div class="dropdown-menu" aria-labelledby="dropdownMenuButton" id="analysis-types">
-														
-													</div>
-												</div>
-											</th>
-											<th>Analyte</th>
-											@if(Auth::user()->is_client == 0)
-											<th nowrap>Reporting Symbol</th>
-											<th nowrap>Result</th>
-											@endif
-											@if(isset($batch->id) && $batch->repeat_sample_id > 0)
-											<th>Prev Result (<small>+- {{$qc_config_perc}} %</small>)</th>
-											@endif
-											<th>Standard</th>
-											@if(Auth::user()->is_client == 0)
-											<th>Remarks</th>
-											<th>Analyst</th>
-											@endif
-											<th>Method</th>
-											@if(Auth::user()->is_client == 0)
-											<th>Equipment</th>				
-											@endif				
-											<th>Sub Contracted</th>
-											<th>Accredited</th>
-										</tr>
-									</thead>
-									<tbody id="sample-parameters-holder"></tbody>
-								</table>
-							</div>
-						</form>
-						@if(isset($batch->status) && $batch->status == "Samples Reception")
-						<form class="tab-pane fade p-3" method="POST" action="{{ route('add-analytes-to-sample-analysis') }}" id="add-analytes" role="tabpanel" aria-labelledby="one-tab">
-							@csrf
-							<div class="table-responsive">
-								<h5 class="mb-3">
-									Available analytes for this sample
-									<button class="btn btn-sm btn-primary float-right"><i class="mdi mdi-content-save"></i> Save</button>
-								</h5>
-								<table class="table table-condensed my-small-text table-striped table-hover table-bordered table">
-									<thead class="bg-light p-2">
-										<tr>
-											<th></th>
-											<th>Analyte</th>
-											<th>Sample Code</th>
-											<th>Analysis</th>
-											<th>Analyst</th>
-											<th>Equipment</th>
-											<th>Contracted</th>
-										</tr>
-									</thead>
-									<tbody id="sample-analysis-parameters-holder"></tbody>
-								</table>
-							</div>
-						</form>
-						@endif
+							<option value="Recheck">Recheck</option>
+							@endif
+							@foreach (getNotesReminderTypes() as $item)
+								<option value="{{ $item }}">{{ $item }}</option>
+							@endforeach
+						</select>
+					</div>
+					<div class="form-group">
+						<label class="control-label">Message</label>
+						<textarea class="form-control" name="message" placeholder="Message..." required></textarea>
 					</div>
 				</div>
 				<div class="modal-footer">
+					<button type="submit" class="btn btn-info btn-sm print-label-btn"><i class="mdi mdi-email-send"></i> Send</button>
 					<button type="button" class="btn btn-default btn-sm" data-dismiss="modal">Close</button>
 				</div>
-
-				
-
+			</form>
+		</div>
+	</div>
+@endif
+@if(isset($batch->status) && in_array($batch->status, array("Samples Reception", "Samples En-Route")))
+<div id="batch-edit-modal" class="modal fade" role="dialog">
+	<div class="modal-dialog">
+		<!-- Modal content-->
+		<div class="modal-content">
+			<div class="modal-header">
+				<h4 class="modal-title"><i class="mdi mdi-pencil-box-multiple"></i> Batch Edit </h4>
+			</div>
+			<div class="modal-body">
+				<div class="form-group form-group-sm">
+					<label class="control-label"><input type="checkbox" class="bulk-checkbox" data-name=".sample-analysis"> Select Analysis</label>
+					<select name="sample_analysis" class="form-control form-control-sm sample-analysis" multiple placeholder="Select Analysis..."></select>
+				</div>
+				<div class="form-group form-group-sm">
+					<label class="control-label"><input type="checkbox" class="bulk-checkbox" data-name=".sample-condition"> Sample Condition</label>
+					<select  name="sample_condition" class="form-control form-control-sm sample-condition" placeholder="Select Sample Condition..." required></select>
+				</div>
+				<div class="form-group form-group-sm">
+					<label class="control-label "><input type="checkbox" class="bulk-checkbox" data-name=".sample-point"> <span class="client-preferred-sample_point-name">Sample Point</span></label>
+					<select  name="sample_point" class="form-control form-control-sm sample-point" placeholder="Select..." required></select>
+				</div>
+				<div class="form-group form-group-sm">
+					<label class="control-label"><input type="checkbox" class="bulk-checkbox" data-name=".sample-product"> <span class="client-preferred-product-name">Product</span></label>
+					<select  name="sample_product" class="form-control form-control-sm sample-product" placeholder="Select..." required></select>
+				</div>
+				<div class="form-group form-group-sm">
+					<label class="control-label"><input type="checkbox" class="bulk-checkbox" data-name=".sample-barcode"> Barcode</label>
+					<input  name="sample_barcode" class="form-control form-control-sm sample-barcode" placeholder="Select..." >
+				</div>
+				<div class="form-group form-group-sm">
+					<label class="control-label"><input type="checkbox" class="bulk-checkbox" data-name=".sample-comments"> Comments</label>
+					<input  name="sample_comments" class="form-control form-control-sm sample-comments" placeholder="Select..." >
+				</div>
+				<div class="form-group form-group-sm">
+					<label class="control-label"><input type="checkbox" class="bulk-checkbox" data-name=".sample-gps"> GPS</label>
+					<input  name="sample_gps" class="form-control form-control-sm sample-gps" placeholder="Select...">
+				</div>
+			</div>
+			<div class="modal-footer">
+				<button type="button" class="btn btn-info btn-sm make-batch-changes" data-dismiss="modal"><i class="mdi mdi-refresh"></i> Change</button>
+				<button type="button" class="btn btn-default btn-sm" data-dismiss="modal">Close</button>
 			</div>
 		</div>
 	</div>
-		@if(isset($batch->status))
-			{{-- @if($equipment_data['captured'] > 0) --}}
-				{{-- <link rel="stylesheet" href="/css/quilljs.css" /> --}}
-				<script type="text/javascript" src="/tinymce/tinymce.min.js"></script>
-			{{-- @endif --}}
-		@endif
-		<script src="https://maps.googleapis.com/maps/api/js?v=3.exp&key=AIzaSyBqS4AEZ-gVeXjG794Rh0eTd6yvdfMKTjg&sensor=false" type="text/javascript"></script>
-	<script>
-		
-		@if(isset($batch->status) && $batch->status=="Sample Approval")
-			@if($equipment_data['captured'] > 0)
-				tinymce.init({
-					selector: 'textarea.editor'
-				});
-			@endif
-		@endif
-		var detectChange = function(ts){
-			var op = $(ts).children('option:selected');
-			$('#client-unit-select').html('<option value="" selected>Select Organizational Unit...</option>');
-			$('#client-unit-select').trigger('change');
-			$.each(op.data('units'), function(i, e){
-				$('#client-unit-select').append('<option value="'+e.name+'">'+e.name+'</option>');
-			});
+</div>
+@endif
+<div id="show-sample-analysis-analytes" class="modal fade" data-backdrop="static" data-keyboard="false" role="dialog">
+	<div class="modal-dialog modal-lg">
+		<!-- Modal content-->
+		<div class="modal-content">
+			<div class="modal-header">
+				<h4 class="modal-title"><i class="mdi mdi-snowflake"></i> Analysis Parameters </h4>
+				<span class="btn btn-outline-danger btn-sm float-right" data-dismiss="modal">Close</span>
+			</div>
+			<div class="modal-body">
+				<ul class="nav nav-tabs" role="tablist">
+					<li class="nav-item">
+						<a class="nav-link active" id="configured-analytes-tab" data-toggle="tab" href="#configured-analytes" role="tab" aria-controls="Parameters" aria-selected="true"><i class="mdi mdi-snowflake"></i> Parameters</a>
+					</li>
+					@if(isset($batch->status) && $batch->status == "Samples Reception" && Auth::user()->is_client == 0)
+					<li class="nav-item">
+						<a class="nav-link" id="add-analytes-tab" data-toggle="tab" href="#add-analytes" role="tab" aria-controls="Parameters" aria-selected="true"><i class="mdi mdi-plus"></i> Add Analyte</a>
+					</li>
+					@endif
+				</ul>
+				<div class="tab-content">
+					<form class="tab-pane show active p-3" method="POST" action="{{ route('capture-raw-results') }}" id="configured-analytes" role="tabpanel" aria-labelledby="one-tab">
+						@csrf
+						<h5 class="mb-3">
+							@if(Auth::user()->is_client == 0)
+							Raw Results
+							<span class="ml-4 badge badge-pill badge-light p-2 mr-4" style="font-weight: 400!important">
+								<span class="bg-green analytes-with-results-count small-badge">12</span> With Results
+							</span>
+							<span class="badge badge-pill badge-light p-2 show-missing-results" style="font-weight: 400!important">
+								<span class="bg-red analytes-without-results-count small-badge">0</span> Missing Results
+							</span>
+							
+							@if(isset($batch->status) &&  $batch->status == "Samples In Lab")
+								<button class="btn btn-sm btn-primary float-right"><i class="mdi mdi-content-save"></i> Save</button>
+							@endif
+							@if(isset($batch->status) && in_array($batch->status,array('Samples Reception','Samples Request Review','Samples En-Route')))
+								<a href="/sample-workflow/batch/{{$batch->id}}/details" class="btn btn-outline-primary float-right btn-sm"><i class="mdi mdi-content-save"></i> Save</a>
+								<span class="btn btn-sm btn-outline-warning float-right mr-2" id="delete-parameter"><i class="mdi mdi-delete-empty"></i> Delete</span>
+							@endif
+							@endif
+							<br>
+							
+							<span class="badge badge-pill badge-light float-left p-2 " style="font-weight: 400!important">
+								Standard - <span class="main-standard-name"></span>
+							</span>
+							<br>
+						</h5>
+						<div class="table-responsive" id="sph-parent">
+							<table class="table table-condensed my-small-text table-striped table-hover table-bordered table">
+								<thead class="bg-light p-2">
+									<tr>
+										<th>
+											<input type="checkbox" name="parameter_check_all" id="parameter-check-all">
+										</th>
+										<th>Sample Code</th>
+										<th style="display:flex !important">
+										<div>
 
-			$('#client-unit-select').val($('#client-unit-select').data('selected')).trigger('change');
-		};
-		
-		const userLabSection  = $('.carry_data').data('userlabsection');
-		var thebatch = $('#sample-detail-rows').data('batch');
-
-		$(function(){
-			var sampleAnalysisByType = $('#sample-detail-rows').data('analysis_types')
-			var sampleCondtions = $('#sample-detail-rows').data('conditions');
-			var labStores = $('#sample-detail-rows').data('stores');
-			var $ammendableSamples = $('#sample-detail-rows').data('ammendments');
-			var $isclient = $('#sample-detail-rows').data('client');
-			var $batch = $('#sample-detail-rows').data('batch');
-			var standards = $('#sample-detail-rows').data('standards');
-			var sampleLabs =  $('#sample-detail-rows').data('labs');
-			
-			
-			var unitSamplePoints = [];
-			var unitProducts = [];
-			var clientPrefProductName;
-			var clientPrefUnitName;
-			var clientPrefSPName;
-
-			var configuredSamples = $('#sample-detail-rows').data('samples');
-			$('.qc_type_id').on('change',(e)=>{
-				var value = $('.qc_type_id').val();
-				d= value.toString()
-
-				console.log(d);
-				
-				if($('.qc_type_id').data('repeatsample') ==  value.toString()){
-					$('.qc-repeat-batch').removeClass('hidden');
-					// $('.qc-remove-required').removeAttr('required')
-				}else{
-					$('.qc-repeat-batch').addClass('hidden');
-					// $('.qc-remove-required').addAttr('required')
-				}
-			});
-			let getQcTypeConfig = (dataID,callback)=>{
-				$.ajax({
-					url:`/qualitycontrol/get/Qc-Type/Config/${dataID}/Ajax`,
-					method:'GET',
-					success:(data)=>{
-						callback(data)
-					},
-					error:(data)=>{
-						console.log(data);
-					}
-				})
-			}
-			$('.qc_type_id').on('change',(e)=>{
-				var value = $('.qc_type_id').val()
-				getQcTypeConfig(value,(data)=>{
-					if(data['data'].use_existing_sample == 1){
-						$('.qc-repeat-batch').removeClass('hidden')
-						$.each(data['samples'],(i,obj)=>{
-							var option = `<option value="${obj.id}" ${$batch && $batch.repeat_sample_id == obj.id ? `selected` : ``}>${obj.sample_code}</option>`
-							$('#repeat_sample_id').append(option);
-						})
-						$('#repeat_sample_id').select2();
-					}else{
-						$('.qc-repeat-batch').addClass('hidden')
-					}
-				})
-			});
-			if($batch && $batch.repeat_sample_id > 0){
-				$('.qc_type_id').trigger('change');
-			}
-		
-
-			$('#add-company-unit').on('show.bs.modal',function(){
-				var customer = $('select[name="crm_customer_id"]').val();
-				if(customer == ''){
-					var not_ = $(`
-						<div class="alert alert-danger id="not-present" p-1">
-							Kindly select the client !
+											Analysis
+										</div>
+											<div class="dropdown ml-2">
+												
+												<span class="dropdown-toggle float-right text-primary" id="dropdownMenuButton" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false"><i class="mdi mdi-filter "></i></span>
+												<div class="dropdown-menu" aria-labelledby="dropdownMenuButton" id="analysis-types">
+													
+												</div>
+											</div>
+										</th>
+										<th>Analyte</th>
+										@if(Auth::user()->is_client == 0)
+										<th nowrap>Reporting Symbol</th>
+										<th nowrap>Result</th>
+										@endif
+										@if(isset($batch->id) && $batch->repeat_sample_id > 0)
+										<th>Prev Result (<small>+- {{$qc_config_perc}} %</small>)</th>
+										@endif
+										<th>Standard</th>
+										@if(Auth::user()->is_client == 0)
+										<th>Remarks</th>
+										<th>Analyst</th>
+										@endif
+										<th>Method</th>
+										@if(Auth::user()->is_client == 0)
+										<th>Equipment</th>				
+										@endif				
+										<th>Sub Contracted</th>
+										<th>Accredited</th>
+									</tr>
+								</thead>
+								<tbody id="sample-parameters-holder"></tbody>
+							</table>
 						</div>
-					`).clone();
+					</form>
+					@if(isset($batch->status) && $batch->status == "Samples Reception")
+					<form class="tab-pane fade p-3" method="POST" action="{{ route('add-analytes-to-sample-analysis') }}" id="add-analytes" role="tabpanel" aria-labelledby="one-tab">
+						@csrf
+						<div class="table-responsive">
+							<h5 class="mb-3">
+								Available analytes for this sample
+								<button class="btn btn-sm btn-primary float-right"><i class="mdi mdi-content-save"></i> Save</button>
+							</h5>
+							<table class="table table-condensed my-small-text table-striped table-hover table-bordered table">
+								<thead class="bg-light p-2">
+									<tr>
+										<th></th>
+										<th>Analyte</th>
+										<th>Sample Code</th>
+										<th>Analysis</th>
+										<th>Analyst</th>
+										<th>Equipment</th>
+										<th>Contracted</th>
+									</tr>
+								</thead>
+								<tbody id="sample-analysis-parameters-holder"></tbody>
+							</table>
+						</div>
+					</form>
+					@endif
+				</div>
+			</div>
+			<div class="modal-footer">
+				<button type="button" class="btn btn-default btn-sm" data-dismiss="modal">Close</button>
+			</div>
+
+			
+
+		</div>
+	</div>
+</div>
+
+
+
+
+<script src="https://maps.googleapis.com/maps/api/js?v=3.exp&key=AIzaSyBqS4AEZ-gVeXjG794Rh0eTd6yvdfMKTjg&sensor=false" type="text/javascript"></script>
+<script>
+	
+	@if(isset($batch->status) && $batch->status=="Sample Approval")
+		@if($equipment_data['captured'] > 0)
+			tinymce.init({
+				selector: 'textarea.editor'
+			});
+		@endif
+	@endif
+	var detectChange = function(ts){
+		var op = $(ts).children('option:selected');
+		$('#client-unit-select').html('<option value="" selected>Select Organizational Unit...</option>');
+		$('#client-unit-select').trigger('change');
+		$.each(op.data('units'), function(i, e){
+			$('#client-unit-select').append('<option value="'+e.name+'">'+e.name+'</option>');
+		});
+
+		$('#client-unit-select').val($('#client-unit-select').data('selected')).trigger('change');
+	};
+	
+	const userLabSection  = $('.carry_data').data('userlabsection');
+	var thebatch = $('#sample-detail-rows').data('batch');
+
+	$(function(){
+		var sampleAnalysisByType = $('#sample-detail-rows').data('analysis_types')
+		var sampleCondtions = $('#sample-detail-rows').data('conditions');
+		var labStores = $('#sample-detail-rows').data('stores');
+		var $ammendableSamples = $('#sample-detail-rows').data('ammendments');
+		var $isclient = $('#sample-detail-rows').data('client');
+		var $batch = $('#sample-detail-rows').data('batch');
+		var standards = $('#sample-detail-rows').data('standards');
+		var sampleLabs =  $('#sample-detail-rows').data('labs');
+		
+		
+		var unitSamplePoints = [];
+		var unitProducts = [];
+		var clientPrefProductName;
+		var clientPrefUnitName;
+		var clientPrefSPName;
+
+		var configuredSamples = $('#sample-detail-rows').data('samples');
+
+		$('.selected_inter_lab_all').on('change',(e)=>{
+			if($('.selected_inter_lab_all').is(':checked')){
+				$.each($('.selected_inter_lab'),(i,obj)=>{
+					$(obj).attr('checked',true)
+				})
+			}
+		})
+
+		var getChangeInterLabStatusBody = (data,bulk = false)=>{
+			if(bulk){
+				var body = $(`
+				<div class="alert alert-success p-2 d-flex">
+					<i class="mdi mdi-thumbs-up-down" style="font-size: 30px;"></i>
+					<span class="p-2">
+						Affect the Inter Lab Log(s) status for the folowing sample(s) below by providing the following information: 
+					</span>
+				</div>
+				<div class="label control-label">
+					<label for="" class="control-label">Status</label>
+					<select name="status" id="" class="form-control status-field">
+						<option value="">Select Status ...</option>
+						<option value="1">Approve Inter Lab Log</option>
+						<option value="2">Reject Inter Lab Log</option>
+					</select>
+				</div>
+				
+				<input type="hidden" name="inter_lab_ids" value="${data['bulk']}">
+				<p class="p-2"><u>Samples: </u></p>
+				<div class="row">
 					
-					$(this).find('.modal-body').append(not_);
-					$(this).find('#save-unit').attr('disabled');
+				</div>
+				`).clone();
+				$.each(data['sample_codes'],(i,obj)=>{
+					var colBody = `
+					<div class="col-md-3 p-1">
+						<span><i class="mdi mdi-chevron-right"></i> ${obj}</span>
+					</div>
+					`;
+					$(body).find('.row').append(colBody);
+				});
+			}else{
+				var body = $(`
+					<div class="alert alert-success p-2 d-flex">
+						<i class="mdi mdi-thumbs-up-down" style="font-size: 30px;"></i>
+						<span class="p-2">
+							Affect the Inter Lab Log status for sample ${data.sample_code} below:
+						</span>
+					</div>
+					<div class="form-group">
+						<label for="" class="control-label">From Lab</label>
+						<input type="text" readonly class="form-control" value="${data.from_lab_section_id > 0 ? data.from_lab_name : 'Reception' } ">
+					</div>
+					<div class="form-group">
+						<label for="" class="control-label">To Lab</label>
+						<input type="text" readonly class="form-control" value="${data.to_lab_name}">
+					</div>
+					<div class="label control-label">
+						<label for="" class="control-label">Status</label>
+						<select name="status" id="" class="form-control status-field">
+							<option value="">Select Status ...</option>
+							<option value="1">Approve Inter Lab Log</option>
+							<option value="2">Reject Inter Lab Log</option>
+						</select>
+					</div>
+					<input type="hidden" name="inter_lab_id" value="${data.id}">
+					
+	
+	
+				`).clone();
+
+			}
+			$(body).find('.status-field').select2();
+			return body;
+		}
+
+		$('#change-interlab-status').on('show.bs.modal',(e)=>{
+			var action = $(e.relatedTarget).data('action');
+
+			if(action == 'bulk'){
+				var record = [];
+				var sample_codes = [];
+				$.each($('.selected_inter_lab:checked'),(i,obj)=>{
+					record.push($(obj).val());
+					sample_codes.push($(obj).data('code'));
+				})
+				var data = {
+					"sample_codes":sample_codes,
+					"bulk": record.join(',')
+				}
+				if(sample_codes.length == 0){
+					var body = `
+					<div class="alert alert-primary p-2 d-flex">
+						<i class="mdi mdi-alert-decagram-outline" style="font-size: 30px;"></i>
+						<span class="p-2">
+							Kindly select the Inter Laboratory Transfer Log(s) you want to affect their status
+						</span>
+					</div>
+					`;
+					$('#change-interlab-status').find('.affect-button').addClass('hidden');
 				}else{
-					$(this).find('#not-present').remove();
-					$(this).find('#save-unit').removeAttr('disabled');
-					$('#add-company-unit').find('#form').attr('action','/company-units/'+customer);
-					console.log('test')
+					var body = getChangeInterLabStatusBody("no data",data);
+					$('#change-interlab-status').find('.affect-button').removeClass('hidden');
+
 				}
-			})
-			var map;
-			$('#add-company-sample-point').on('show.bs.modal', function(e) {
-				var mapProp = {
-					center: new google.maps.LatLng(-1.247125519439578, 36.742261815816164),
-					zoom: 5,
-				};
-				map = new google.maps.Map(document.getElementById("location-map"), mapProp);
-
-				var marker = new google.maps.Marker({
-					position: mapProp.center,
-					// icon:'pinkball.png'
-					draggable: true,
-				});
-
-				marker.setMap(map);
-				marker.addListener('drag', function(event) {
-					console.log('start')
-					document.getElementById('latitude').value = event.latLng.lat();
-					console.log(event.latLng.lat())
-					document.getElementById('longitude').value = event.latLng.lng()
-				});
-				marker.addListener('dragend', function(event) {
-					console.log('start2')
-					document.getElementById('latitude').value = event.latLng.lat();
-					console.log(event.latLng.lat())
-					document.getElementById('longitude').value = event.latLng.lng()
-					console.log(event.latLng.lng())
-				});
-
-			});
-
-			$('#process-results-modal').on('show.bs.modal',function(){
-				var batch = $(this).data('batch');
-				$.ajax({
-					url:"{{ route('process-raw-results', ['batch_id'=> isset($batch->id) ? $batch->id : 0 ]) }}",		
-					success: function(data){
-						console.log(data);
-						$('#process-results-modal').find('.modal-body').empty();
-						var success_tag = $(`
-							<div class="alert alert-success p-2">
-							<i class="mdi mdi-information pull-left"></i>
-								Results processed successfully!
-							</div>
-							<center>
-							<img src="/images/suc.gif" height="250px" width="auto" alt="">
-							</center>
-						`).clone();
-						$('#process-results-modal').find('.modal-body').append(success_tag);
-
-					},
-					error: function(data){
-						console.log(data);
-					}
-				})
-			})
-				
-			
-			// $('input[name="reference_number"]').blur(function(){
-			// 	var value_ = $(this).val();
-			// 	var batch = $(this).data('batch');
-			// 	var $token   = $('meta[name="csrf-token"]').attr('content');
-			// 	$('#rft-message').empty()
-			// 	$.ajax({
-			// 		url: "{{ route('check_rft_no') }}",
-			// 		dataType: 'json',
-			// 		data: {
-			// 			_token: $token,
-			// 			batch_id: batch,
-			// 			rft_no : value_
-			// 		},
-			// 		type: "POST",
-			// 		success: function(js){
-			// 			if(js == 'success'){
-			// 				$(this).removeClass('border');
-			// 				$(this).removeClass('border-danger');
-			// 				$('#save-headers').removeAttr('disabled');
-							
-			// 			}else{
-			// 				$(this).addClass('border');
-			// 				$(this).addClass('border-danger');
-			// 				$('#save-headers').prop('disabled',true);
-			// 				$('#rft-message').append('RFT No already exists!')
-			// 			}
-			// 		}
-			// 	})
-			// 	// console.log(batch);
-			// })
-			
-
-
-			$('.save-samples').on('click', function(){
-				var trs = $('#sample-detail-rows').find('tr').length;
-				var missing = false;
-
-				if(trs > 0){
-					var missingVals = {};
-					$('#sample-detail-rows').find('[required]').each(function(){
-						var val = $(this).val();
-						console.log($(this).attr('name'), val)
-						if($.trim(val) == ""){
-							var parentTD = $(this).parents('td');
-							var titleTH = parentTD.parents('table').find('thead th').eq(parentTD.index());
-							missingVals[titleTH.text()] = true;
-							var borderStyle = $(this).css('border');
-							$(this).css('border', '1px solid red').focus();
-							var el = $(this);
-							$(this).on('change', function(){
-								el.css('border', borderStyle);
-							});
-						}
-					});
-					console.log(Object.keys(missingVals));
-					if(Object.keys(missingVals).length > 0){
-						alert("One or more samples is missing the following data: "+Object.keys(missingVals).join(","));
-						return false;
-					}
-					$(this).parents('form').submit();
-				}
-				else{
-					alert("Samples Required!")
-				}
-			});
-
-			$('.raw-data-row').find('[name="result"]').on('keyup', function(){
-				$(this).addClass('changed');
-			});
-
-			$('#stage-selector').find('form.dropdown-item').on('click', function(){
-				$(this).submit();
-			});
-
-			$('#status-selector').find('form.dropdown-item').on('click', function(){
-				$(this).submit();
-			});
-
-			$('.my-tab-headers').on('click', '.my-tab', function(){
-				$('.my-tab-headers').find('.my-tab').removeClass('selected');
-				$(this).addClass('selected');
-				var equip = $(this).data('equipment');
-
-				$('.equip-table').addClass('hidden');
-				$('.equip-table[data-equipment="'+equip+'"]').removeClass('hidden');
-
-			});
-
-			$('.toggle-more-fields').on('click', function(){
-				$(this).toggleClass('open');
-				if($(this).hasClass('open')){
-					$(this).html(`
-						<i class="mdi mdi-chevron-double-up"></i> Hide Fields
-					`);
-					$('#more-fields').removeClass('hidden');
-				}
-				else{
-					$(this).html(`
-						<i class="mdi mdi-chevron-double-down"></i> More Fields
-					`);
-				$('#more-fields').addClass('hidden');
-				}
-			});
-
-			$('#dispatch-to-labs-modal').find('[name="request_type_id[]"]').on('change', function(){
-				var vals = $(this).val();
-				var otherReasonDiv = $(this).parents('.modal-body').find('.other-reason');
-				if(vals.indexOf('Other') > -1){
-					otherReasonDiv.find('[name="other_type"]').attr('required', true)
-					otherReasonDiv.removeClass('hidden');
-				}
-				else{
-					otherReasonDiv.find('[name="other_type"]').val('').removeAttr('required');
-					otherReasonDiv.addClass('hidden');
-				}
-			});
-
-			var parametersBySampleCode = $('#sample-detail-rows').data('parameters'); //Parameters by sample code
-			var analysisIDsBySampleCode = $('#sample-detail-rows').data('sample_analysis_ids');
-			var analysisNames = $('#sample-detail-rows').data('analysis_names');
-			$('#show-sample-analysis-analytes').on('show.bs.modal', function(e){
-
-				var sampleCode = $(e.relatedTarget).data('sample_code');
-				
-				
-				var all_analysis = analysisNames[sampleCode];
-				$('#show-sample-analysis-analytes').find('#analysis-types').empty();
-				var text_d = '<span data-analysis ="all" class="dropdown-item">All</span>';
-				$('#show-sample-analysis-analytes').find('#analysis-types').append(text_d);
-				$.each(all_analysis,function(i,e){
-					var text_a = '<span data-analysis ='+e+'  class="dropdown-item" >'+i+'</span>';
-					$('#show-sample-analysis-analytes').find('#analysis-types').append(text_a);
-					console.log(i);
-				})
-				
-				
-				$('#sample-parameters-holder').empty();
-				var parameters = parametersBySampleCode[sampleCode];
-				console.log(parametersBySampleCode);
-				var analysisIDs = analysisIDsBySampleCode[sampleCode];
-				
-				var loop = 1;
-				// console.log(parameters);
-				$.each(parameters, function(p, param){
-					var sampleRow = sampleCodeParameters(param,loop);
-					// console.log(param);
-					$('#sample-parameters-holder').append(sampleRow);
-					loop = loop + 1;
-				});
-				
-				$(this).find('input[name="parameter_check_all"]').on('change',function(){
 					
-					if($(this).prop("checked") == true){
-						
-						$('input[name="parameter_check[]"]').map(function(){
-							$(this).prop('checked',true);
-						})
-					}else{
-						
-						$('input[name="parameter_check[]"]').map(function(){
-							$(this).prop('checked',false);
-						})
-					}
-				})
-			
-				$(this).find('#delete-parameter').on('click',function(){
-					var $token   = $('meta[name="csrf-token"]').attr('content');
-					if($('input[name="parameter_check[]"]:checked').length > 0){
-					if(confirm("Are you sure that you want to remove these analytes?")){
-						$('input[name="parameter_check[]"]:checked').map(function(){
-							var data_id = $(this).val();
-							var td_ = $(this).parent('td');
-							var row_ = $(td_).parent('tr');
-							console.log(data_id);
-							$.ajax({
-								url: "{{ route('remove-analyte-from-captured-result') }}",
-								dataType: 'json',
-								data: {
-									_token: $token,
-									id: data_id
-								},
-								type: "POST",
-								success: function(js){
-									if(js.status){
-										row_.remove();
-									}
-									else{
-										alert("Couldn't remove analyte!")
-									}
-								}
-							})
-							
-						})
-					}
-					}else{
-						alert('Kindly select the parameters to delete!');
-					}
-
-					
-				});
-
-				$('.analytes-with-results-count').text($('#sample-parameters-holder').find('tr.has-result').length);
-				$('.analytes-without-results-count').text($('#sample-parameters-holder').find('tr.no-result').length);
-
-				$.ajax({
-					url: '{{ route("missing_analysis_parameters_by_sample_code") }}',
-					data: {
-						id: JSON.stringify(analysisIDs),
-						sample: sampleCode,
-					},
-					beforeSend: function(){
-						$('#sample-analysis-parameters-holder').empty();
-					},
-					success: function(js){
-						if(js.length == 0){
-							$('#sample-analysis-parameters-holder').html(`
-							<tr class="raw-data-row">
-								<td colspan="7">
-									<div class="alert alert-info text-center"><i class="mdi mdi-information-circle"></i> No new analytes found.</div>
-								</td>
-							</tr>
-							`);
-						}
-						$.each(js, function(j,s){
-							s['sample_code'] = sampleCode;
-							var $row = $(`
-							<tr class="raw-data-row">
-								<td>
-									<input type="checkbox" name="item[]" value='${JSON.stringify(s)}' />
-								</td>
-								<td  nowrap>${s.name+' - '+s.code}</td>
-								<td  nowrap>${sampleCode}</td>
-								<td  nowrap>${s.analysis_type}</td>
-								<td  nowrap>${s.operator == null ? '-': s.operator}</td>
-								<td  nowrap>${s.equipment == null ? '-' :s.equipment}</td>
-								<td nowrap>${s.analyte_status == 1 ? '<input type="checkbox" checked disabled>' : '<input type="checkbox" disabled>'}<td>
-							</tr>
-							`);
-							$('#sample-analysis-parameters-holder').append($row);
-						});
-					}
-				})
-				$(this).find('.dropdown-item').on('click',function(){
-					var analysis = $(this).data('analysis');
-					$('#sample-parameters-holder').empty();
-					var loop = 1;
-					
-					$.each(parameters, function(p, param){
-						if(param.analysis_type_id == analysis){
-							var sampleRow = sampleCodeParameters(param,loop);
-							// console.log(param);
-							$('#sample-parameters-holder').append(sampleRow);
-
-						}
-						if(analysis == 'all'){
-							var sampleRow = sampleCodeParameters(param,loop);
-							// console.log(param);
-							$('#sample-parameters-holder').append(sampleRow);
-						}
-						loop = loop + 1;
-					});
+				$('#change-interlab-status').find('.modal-body').empty();
+				$('#change-interlab-status').find('.modal-body').append(body);
 				
-				});
-				
-			})
+			}else{
 
-			
+				var record = $(e.relatedTarget).data('record');
+				var body = getChangeInterLabStatusBody(record);
+				$('#change-interlab-status').find('.modal-body').empty();
+				$('#change-interlab-status').find('.modal-body').append(body);
+			}
+		})
 
-			$('#client-unit-select').on('change', function(){
-				if($(this).val() == ''){
-					return false;
+		var getSampleCurrentLab = (id,callback)=>{
+			$.ajax({
+				url:`/getSampleCurrentLabSection/${id}`,
+				method:'GET',
+				success:(data)=>{
+					callback(data);
+				},
+				error:(data)=>{
+					console.log(data);
 				}
-				$.ajax({
-					url: '/fetch-unit-stuff/'+$(this).val()+'/'+$('#client-select').val(),
-					beforeSend: function(){
-						unitProducts = [];
-						unitSamplePoints= [];
-					},
-					success: function(js){
-						unitProducts = js.products;
-						unitSamplePoints= js.sample_points;
-
-						$('#sample-detail-rows').find('tr').find('[name="sample_details[sample_point][]"]').each(function(e){
-							var rowData = $(this).parents('tr').data('sample');
-							var SP = $(this);
-							SP.html('<option tetet></option>');
-							$.each(unitSamplePoints, function(j,s){
-								SP.append(`
-									<option value="${s.id}">${s.name}</option>
-								`);
-							});
-							SP.val(rowData ? rowData.sample_point_id : '');
-							SP.trigger('change');
-						})
-
-						$('#sample-detail-rows').find('tr').find('[name="sample_details[product][]"]').each(function(){
-							var rowData = $(this).parents('tr').data('sample');
-							var P = $(this);
-							P.html('<option tetet></option>');
-							$.each(unitProducts, function(j,s){
-								P.append(`
-									<option value="${s.id}">${s.name}</option>
-								`);
-							});
-							P.val(rowData ? rowData.company_product_id : '');
-							P.trigger('change');
-						});
-
-					}
-				})
-			})
-
-			$('#client-select').on('change', function(){
-				var selectedOps = $(this).children('option:selected');
-				clientPrefProductName = selectedOps.data('product_name');
-				clientPrefUnitName = selectedOps.data('unit_name');
-				clientPrefSPName = selectedOps.data('sample_point_name');
-
-
-				$('.client-prefered-unit-name').text(clientPrefUnitName)
-				$('.client-preferred-sample_point-name').text(clientPrefSPName)
-				$('.client-preferred-product-name').text(clientPrefProductName)
-				var client_selected = $('#client-select').val();
-				var client_id = 'client-'+client_selected;
-				var text = document.getElementById(client_id);
-				var text2 = document.getElementsByClassName('clients-data');
-				
 			});
+		}
 
-			$('#client-select').trigger('change');
-
-
-			$('.make-batch-changes').on('click', function(){
-				if($('#sample-detail-rows').find('tr.selected-row').length == 0){
-					alert("Please select the analysis rows you want to amend.");
-					return false;
-				}
-
-				var modal = $(this).parents('.modal');
-
-				if(modal.find('.bulk-checkbox:checked').length == 0){
-					alert("Please select columns you want to change.");
-					return false;
-				}
-				$('.bulk-checkbox:checked').each(function(e){
-					var cls = $(this).data('name');
-					var elem = modal.find(cls);
-
-					if(elem.is("input")){
-						var value = modal.find(cls).val();
-						$('#sample-detail-rows').find('tr.selected-row').find(cls).each(function(e){
-							$(this).val(value).trigger('change');
-						});
-					}
-					else{
-						var value =[];
-						modal.find(cls).children("option:selected").each(function(e){
-							value.push($(this).val());
-						});
-
-						$('#sample-detail-rows').find('tr.selected-row').find(cls).children('option').each(function(e){
-							$(this).attr('selected', false).trigger('change');
-						});
-
-						$('#sample-detail-rows').find('tr.selected-row').find(cls).children('option').each(function(e){
-							var sVal = $(this).val();
-							if (value.indexOf(sVal) !== -1) {
-								$(this).attr('selected', 'selected').trigger('change');
-							}
-						});
-					}
-				});
-
-				modal.find('.form-control').val('').trigger('change');
-				modal.find('.bulk-checkbox').removeProp('checked');
-			});
-
-			$('#provide-interpretations').on('show.bs.modal', function(e){
-				var d = new Date();
-				var n = d.getTime();
-				var scopetype = $(e.relatedTarget).data('scopetype');
-				var $row = $(`
-					<div class="form-group">
-						<label>Comments</label>
-						<textarea class="form-control" name="header_body" placeholder="Comments..." required>{{ $headerDetails['header']->header_body ?? '' }}</textarea>
+		var getInterLabBody = (analysis_type_id,sample_id,sample_code,action,data = false)=>{
+			if(action == 'add'){
+				var body = $(`
+					<div class="alert alert-warning d-flex p-2">
+						<i class="mdi mdi-swap-horizontal-bold" style="font-size: 30px;"></i>
+						<span class="p-2">
+							Initiate Inter Laboratory Tranfer for sample <b>${sample_code}</b> by providing the information below.
+						</span>
 					</div>
 					<div class="form-group">
-						<label>Recommendations / Interpretations</label>
-						<textarea class="form-control" name="main_body" placeholder="Recommendations / Interpretations..." >{{ $headerDetails['header']->main_body ?? '' }}</textarea>
+						<label for="" class="control-label">From Lab</label>
+						<input type="text" class="form-control from_lab_section"  value="" readonly>
+					</div>
+					<input type="hidden" name="interlab_id" value="0">
+					<input type="hidden" name="sample_id" value="${sample_id}">
+					<div class="form-group">
+						<label for="" class="control-label">To Lab</label>
+						<select name="to_lab_section_id" id="" class="form-control to_lab_section_id">
+							
+						</select>
 					</div>
 					<div class="form-group">
-						<label for="" class="control-label">Scope</label>
-						<select name="batch_comment_scope" class="form-control" id="">
-							<option value="1" ${scopetype == 1 ? 'selected' : ''}>Concactinate</option>
-							<option value="2" ${scopetype == 2 ? 'selected' : ''}>Overwrite</option>
+						<label for="" class="control-label">Quantity</label>
+						<input type="text" name="quantity" value="" class="form-control">
+					</div>
+					<div class="form-group">
+						<label for="" class="control-label">Expected Date</label>
+						<input type="date" name="expected_date" value="{{date('Y-m-d', strtotime($batch->get_date('Target Date')['date']))}}" id="" class="form-control">
+					</div>
+					<div class="form-group">
+						<label for="" class="control-label">Notify</label>
+						<select name="notify_user" id="" class="form-control notify_user">
+							@foreach($users as $user)
+							<option value="{{$user->id}}">{{$user->name}}</option>
+							@endforeach
+						</select>
+					</div>
+					<div class="form-group">
+						<label for="" class="control-label">Notify</label>
+						<select name="also_notify[]" multiple id="" class="form-control also_notify">
+							@foreach($users as $user)
+							<option value="{{$user->id}}">{{$user->name}}</option>
+							@endforeach
 						</select>
 					</div>
 				`).clone();
 
-				$('#sample-interpretations-holder').html($row);
+			}else{
+				var body = $(`
+					<div class="alert alert-primary d-flex p-2">
+						<i class="mdi mdi-swap-horizontal-bold" style="font-size: 30px;"></i>
+						<span class="p-2">
+							Edit Inter Laboratory Transfer for sample <b>${data.sample_code}</b> by providing the information below.
+						</span>
+					</div>
+					<div class="form-group">
+						<label for="" class="control-label">From Lab</label>
+						<input type="text" class="form-control"  value="${data.from_lab_name  || 'Reception'}" readonly>
+					</div>
+					<input type="hidden" name="interlab_id" value="${data.id}">
+					<input type="hidden" name="sample_id" value="${data.sample_id}">
 
-				$row.find('[name="main_body"]').attr('id', 'sample-main-body-'+n)
-				$row.find('[name="header_body"]').attr('id', 'sample-header-body-'+n)
-
-				var action = $(e.relatedTarget).data('action');
-				var mainBody = $(e.relatedTarget).data('mainbody');
-				var headerBody = $(e.relatedTarget).data('headerbody');
-				
-
-				$(this).find('form').prop('action', action);
-				$(this).find('form').attr('action', action);
-
-				$('#sample-header-body-'+n).html(headerBody)
-				$('#sample-main-body-'+n).html(mainBody);
-				console.log(n);
-				tinymce.init({
-					selector: '#sample-header-body-'+n
-				});
-
-				tinymce.init({
-					selector: '#sample-main-body-'+n
-				});
-			});
-
-			$('#batch-edit-modal').on('show.bs.modal', function(){
-				$(this).find('.form-control').val('');
-				var modal = $(this);
-				modal.find('select.sample-analysis').html('');
-				$.each(sampleAnalysisByType, function(s, sc){
-					modal.find('select.sample-analysis').append(`<option value="${sc.id}">${sc.name}</option>`);
-				});
-
-				modal.find('select.sample-condition').html('');
-				$.each(sampleCondtions, function(s, sc){
-					modal.find('select.sample-condition').append(`<option value="${sc.id}">${sc.name}</option>`);
-				});
-
-				modal.find('select.sample-point').html('');
-				$.each(unitSamplePoints, function(j,s){
-					modal.find('select.sample-point').append(`<option value="${s.id}">${s.name}</option>`);
-				});
-
-				modal.find('select.sample-product').html('');
-				$.each(unitProducts, function(j,s){
-					modal.find('select.sample-product').append(`<option value="${s.id}" >${s.name}</option>`);
-				});
-			});
-
-			$('#batch-info-sample-type').trigger('change');
-
-			$('[name="is_routine"]').on('change', function(){
-				if($(this).is(':checked')){
-					$('#routine_frequency').removeClass('hidden');
-					$('[name="routine_frequency"]').prop('required');
-					$('[name="routine_frequency"]').attr('required');
-				}
-				else{
-					$('#routine_frequency').addClass('hidden');
-					$('[name="routine_frequency"]').find("option:selected").removeAttr("selected");
-					$('[name="routine_frequency"]').find("option:selected").removeProp("selected");
-					$('[name="routine_frequency"]').removeAttr('required');
-					$('[name="routine_frequency"]').removeProp('required');
-				}
-			});
-
-			$('.duplicate-sample-row').on('click', function(){
-				var selectedRows = $('#sample-detail-rows').find('tr.selected-row');
-
-				if(selectedRows.length == 0){
-					alert('No row selected.');
-				}
-				else{
-					var duplicate = prompt("Enter number of duplicates", 1);
-					duplicate = duplicate || 0;
-
-					selectedRows.each(function(i,e){
-						for(var z = 0; z<duplicate; z++){
-							var rowNo = $('#sample-detail-rows').find('tr').length;
-							var ids = [];
-							$(e).find('.sample-analysis').children('option:selected').each(function(a,b){
-								ids.push($(b).val());
-							})
-							var data = {
-								"id": "",
-								"sample_code": $(e).find('.sample-code').children('option:selected').val(),
-								"lab_sub_no": $(e).find('.submission-form-no').val(),
-								"analysis_type_id": ids.join(','),
-								"sample_condition_id": $(e).find('.sample-condition').children('option:selected').val(),
-								"sample_point_id": $(e).find('.sample-point').children('option:selected').val(),
-								"company_product_id": $(e).find('.sample-product').children('option:selected').val(),
-								"comments": $(e).find('.sample-comments').val(),
-								"barcode": $(e).find('.sample-barcode').val(),
-								
-								"main_standard":$(e).find('.main-standard').children('option:selected').val(),
-								"secondary_standard":$(e).find('.secondary-standard').children('option:selected').val(),
-								"unit_type": $(e).find('.sample-reporting-unit').children('option:selected').val(),
-								"stock_in": $(e).find('.sample-quantity').val(),
-								"stock_out": 0,
-								"lab_id": $(e).find('.lab_id').children('option:selected').val(),
-								
-								"store_id": $(e).find('.sample-store').children('option:selected').val(),
-								"slot_id": $(e).find('.sample-store-slot').children('option:selected').val(),
-							};
+					<div class="form-group">
+						<label for="" class="control-label">To Lab</label>
+						<select name="to_lab_section_id" id="" class="form-control to_lab_section_id">
 							
-							console.log(data)
-							
-
-							createRow(data);
-						}
-					});
-				}
-
-			});
-
-			var getLabs = (analysis_type_ids,callback)=>{
-				$.ajax({
-					url:'/get/Labs-By-Analysis/Type-Id-Ajax',
-					method:"GET",
-					data:{
-						ids : analysis_type_ids
-					},
-					success:(data)=>{
-						callback(data);
-					},
-					error:(data)=>{
-						console.log(data);
-					}
-				})
-
+						</select>
+					</div>
+					<div class="form-group">
+						<label for="" class="control-label">Quantity</label>
+						<input type="text" name="quantity" value="${data.quantity}" class="form-control">
+					</div>
+					<div class="form-group">
+						<label for="" class="control-label">Expected Date</label>
+						<input type="date" name="expected_date" value="{{date('Y-m-d', strtotime($batch->get_date('Target Date')['date']))}}" id="" class="form-control">
+					</div>
+					<div class="form-group">
+						<label for="" class="control-label">Notify</label>
+						<select name="notify_user" id="" class="form-control notify_user">
+							@foreach($users as $user)
+							<option value="{{$user->id}}">{{$user->name}}</option>
+							@endforeach
+						</select>
+					</div>
+					<div class="form-group">
+						<label for="" class="control-label">Notify</label>
+						<select name="also_notify[]" multiple id="" class="form-control also_notify">
+							@foreach($users as $user)
+							<option value="{{$user->id}}">{{$user->name}}</option>
+							@endforeach
+						</select>
+					</div>
+				`).clone();
 			}
-
-			var createRow = function(data=false){
-				var $row = $(sampleDetailsRow).clone();
-				// console.log($ammeendableSamples);
-
-				// console.log($batch);
-				if($isclient.is_client == 1 && $batch.status != 'Samples En-Route'){
-					
-					$row.find('.edit-remove').empty();
-					$row.find('.interpretation-remove').empty();
-					$row.find('.delete-remove').empty();
-				}
-
-
-				$row.find('.is-required').each(function(){
-					$(this).attr('required', true);
-				});
-
-				if(data){
-					$row.removeClass('editable').addClass('saved-data');
-					$row.data('sample', data);
-
-					$row.find('.toggle-row-edit-mode').removeClass('text-primary').addClass('text-muted');
-
-					$row.find('.dropdown-row').data('sample_code', data['sample_code']);
-
-					$row.find('.provide-interpretation-row').data("action", '/sample-interpretations/'+data.id);
-					$row.find('.provide-interpretation-row').data("headerbody", data.header_body);
-					$row.find('.provide-interpretation-row').data("mainbody", data.main_body);
-					$row.find('.provide-interpretation-row').data("scopetype", data.main_body);
-				}
-
-				$row.find('[name="sample_details[sample_store][]"]').val(data['store_id']).trigger('change');
-				$row.find('[name="sample_details[sample_store_slot][]"]').data('selected', data['slot_id']);
-
-				
-
-				$row.find('[name="sample_details[sample_point][]"]').html('<option></option>');
-				
-
-				$.each(unitSamplePoints, function(j,s){
-					$row.find('[name="sample_details[sample_point][]"]').append(`
-						<option value="${s.id}" ${ s.id == data['sample_point_id'] ? 'selected' : '' }>${s.name}</option>
-					`);
-				});
-
-				$row.find('[name="sample_details[main_standard][]"]').html('<option></option>');
-				$.each(standards,function(j,s){
-
-					$row.find('[name="sample_details[main_standard][]"]').append(`
-						<option value="${s.id}" ${ s.id === data['main_standard'] ? 'selected' : '' }>${s.code}</option>
-					`);
-				});
-				$row.find('[name="sample_details[secondary_standard][]"]').html('<option></option>');
-				$.each(standards,function(j,s){
-					$row.find('[name="sample_details[secondary_standard][]"]').append(`
-						<option value="${s.id}" ${ s.id === data['secondary_standard'] ? 'selected' : '' }>${s.code}</option>
-					`);
-				});
-				$row.find('[name="sample_details[product][]"]').html('<option></option>');
-
-				$.each(unitProducts, function(j,s){
-					$row.find('[name="sample_details[product][]"]').append(`
-						<option value="${s.id}" ${ s.id == data['company_product_id'] ? 'selected' : '' }>${s.name}</option>
-					`);
-				});
-
-				$row.append(`<input type="hidden" value="${data.id}" name="sample_details[detail_header][]" />`);
-
-				var rowNo = $('#sample-detail-rows').find('tr').length;
-
-				$row.find('[name="sample_details[sample_code][]"]').val(data['sample_code']);
-				
-
-				$row.find('.analysis-field .form-control').empty();
-
-				$.each(sampleAnalysisByType, function(s, sa){
-					$row.find('.analysis-field .form-control').append(`<option value="${sa.id}">${sa.name}</option>`);
-				});
-
-				$row.find('.analysis-field .form-control').attr('name', 'sample_details[sample_analysis]['+rowNo+'][]');
-
-				$row.find('.analysis-field .form-control').val(data['analysis_type_id'] ? data['analysis_type_id'].split(',') : '');
-
-				$row.find('[name="sample_details[sample_condition][]"]').html(`<option value="">Select Condition</option>`);
-
-				$.each(sampleCondtions, function(s, sc){
-					$row.find('[name="sample_details[sample_condition][]"]').append(`<option value="${sc.id}">${sc.name}</option>`);
-				});
-
-				$row.find('select.sample-store').on('change', function(){
-					var items = $(this).children("option:selected").data('items');
-					$row.find('select.sample-store-slot').html(`<option></option>`).attr('placeholder', 'Select Sample Storage Slot...');
-
-					var selected = $row.find('select.sample-store-slot').data('selected');
-					$.each(items, function(i, e){
-						$row.find('select.sample-store-slot').append(`<option value="${i}" ${selected == i ? 'selected' : ''}>${e}</option>`);
-					});
-
-				});
-
-				$row.find('[name="sample_details[sample_condition][]"]').val(data['sample_condition_id']);
-				$row.find('[name="sample_details[main_standard][]"]').val(data['main_standard']);
-				$row.find('[name="sample_details[secondary_standard][]"]').val(data['secondary_standard']);
-
-				$row.find('[name="sample_details[sample_quantity][]"]').val(parseFloat(data['stock_in']) - parseFloat(data['stock_out']));
-				$row.find('[name="sample_details[sample_reporting_unit][]"]').val(data['unit_type']);
-
-				$row.find('[name="sample_details[comments][]"]').val(data['comments']);
-				$row.find('[name="sample_details[barcode][]"]').val(data['barcode']);
-				$row.find('[name="sample_details[disposal_date][]"').val(data['disposal_date']);
-
-				
-				if(sampleLabs[data['sample_code']]){
-					$row.find('select.sample-lab').empty();
-					$.each(sampleLabs[data['sample_code']],(i,obj)=>{
-						$row.find('select.sample-lab').append(`<option value="${obj.id}" ${obj.id == data['lab_id'] ? 'selected' : ''}>${obj.lab_name} - ${obj.lab_code}</option>`);
-					});
-				}
-				
-				$('#sample-detail-rows').append($row);
-
-				$row.find('.toggle-row-edit-mode').on('click', function(){
-					var row = $(this).parents('tr');
-					row.toggleClass('editable');
-					$(this).toggleClass('text-muted text-primary');
-				});
-
-				$row.find('.delete-row').on('click', function(){
-					var row = $(this).parents('tr');
-					var rowID = data.id;
-
-					var rowColor = row.css('backgroundColor');
-
-					if(confirm("Are you sure that you want to delete this row?")){
-						var interval;
-						var blink = true;
-						if(rowID){
-							$.ajax({
-								url: '/delete-sample/'+rowID,
-								dataType: 'json',
-								method: 'POST',
-								beforeSend: function(){
-									interval = setInterval(function(){
-										if(blink){
-											row.css('background-color', '#ffd9bd')
-										}
-										else{
-											row.css('background-color', '#ffabab')
-										}
-										blink=!blink;
-									}, 200);
-								},
-								success: function(js){
-									if(js.status){
-										row.remove();
-									}
-									else{
-										alert(js.message);
-										clearInterval(interval);
-										row.css('background-color', rowColor);
-										console.log(rowColor);
-									}
-								},
-								error: function(xhr, ajaxOptions, thrownError) {
-                  console.log(thrownError + "\r\n" + xhr.statusText + "\r\n" + xhr.responseText);
-                }
-							})
-						}
-						else{
-							row.remove();
-						}
-					}
-				});
-
-				$row.find('.select-row-check').on('change', function(){
-					if($(this).is(":checked")){
-						$(this).parents('tr').addClass('selected-row');
-					}
-					else{
-						$(this).parents('tr').removeClass('selected-row');
-					}
-
-				})
-
-				$row.find('.form-control').on('keyup', function(){
-					var value = $(this).is("input") ? $(this).val() : ($(this).is("textarea") ? $(this).val() : $(this).children('option:selected').text());
-					
-
-					var formGroup = $(this).parents('.form-group');
-					var textHolder = formGroup.siblings('span.text');
-
-					var values = [];
-
-					if($(this).is("select")){
-
-						$(this).children('option:selected').each(function(i,e){
-							values.push($(e).text());
-						});
-
-					}
-					else{
-						values.push(value);
-					}
-					var ClassID = $(this).attr('name');
-					
-					// values = ['lab 1','lab 2']
-
-					textHolder.text(values.join(','));
-				});
-				$row.find('.sample-analysis').on('change',(e)=>{
-					var value = $row.find('.sample-analysis').val();
-					if(value != ''){
-						getLabs(value,(data_lab)=>{
-							$row.find('select.sample-lab').empty();
-							$row.find('select.sample-lab').append(`<option value="">Select Lab...</option>`);
-							$.each(data_lab,(i,obj)=>{
-								$row.find('select.sample-lab').append(`<option value="${obj.id}" ${ data['lab_id'] == obj.id ? 'selected' : ''}>${obj.name} - ${obj.code}</option>`);
-								
-							});
-						});
-
-					}
-				});
-
-				$row.find('.form-control').trigger('change');
-				$row.find('.form-control').trigger('keyup');
-
-				$row.find('.form-control').on('change', function(){
-					$(this).trigger('keyup');
-				});
-
-
-				$row.find('select').not('.no-select2').select2();
-			}
-
-			$.each(configuredSamples, function(s, sample){
-
-				createRow(sample);
-			});
-
-			$('.create-new-sample-row').on('click', function(){
-				createRow();
-			});
-
-			var fetchSampleAnalysis = function($this){
-				var sampleId = $this.val();
-
-				if(sampleId == "") return;
-
-				sampleCondtions = $this.children('option:selected').data('conditions');
-
-				$.ajax({
-					url: '/analysis-types/'+sampleId,
-					dataType: 'json',
-					beforeSend: function(){
-						isFetchingAnalysis = true;
-						$('#preparing-details-msg').html(`
-							<i class="fas fa-spinner fa-spin"></i> Loading Sample Analysis.
-						`);
-					},
-					success: function(js){
-						isFetchingAnalysis = false;
-						$('#preparing-details-msg').empty();
-						sampleAnalysisByType = js;
-
-						$('#sample-detail-rows').empty();
-						// $.each(samples, function(s, sample){
-						// 	createRow(sample);
-						// });
-					}
+			
+			if(!data){
+				getSampleCurrentLab(data ? data.sample_id : sample_id,(obj)=>{
+					$(body).find('.from_lab_section').val(obj);
 				});
 			}
-
-			$('#batch-info-sample-type').on('change', function(){
-				fetchSampleAnalysis($(this));
+			getLabs(analysis_type_id,(labdata)=>{
+				$.each(labdata,(i,obj)=>{
+					var option = `<option value="${obj.id}">${obj.code} - ${obj.name}</option>`
+					$(body).find('.to_lab_section_id').append(option);
+				});
 			});
-			$('.is_qc_batch').on('change',(e)=>{
-				if($(e.currentTarget).is(':checked')){
-					$('.qc-type-field').removeClass('hidden')
-					$('.qc-omit-type-field').addClass('hidden');
-				}else{
-					$('.qc-type-field').addClass('hidden')
-					$('.qc-omit-type-field').removeClass('hidden');
+			if(data){
+				$(body).find('.to_lab_section_id').val(data.to_lab_section_id)
+			}
+			$(body).find('.to_lab_section').select2();
+			$(body).find('.notify_user').select2();
+			$(body).find('.also_notify').select2();
+
+			return body;
+		}
+
+		$('#inter-lab-add').on('show.bs.modal',(e)=>{
+			var record_id = $(e.relatedTarget).data('sample');
+			var record_code = $(e.relatedTarget).data('samplecode');
+			var action = $(e.relatedTarget).data('action');
+			var data = action == 'add' ? false :  $(e.relatedTarget).data('record');
+			var analysis_types = action == 'add' ? $(e.relatedTarget).data('analysistype') : data.analysis_type_id;
+			action == 'add' ? $('#inter-lab-add').find('.submit-button').addClass('btn-outline-warning') : $('#inter-lab-add').find('.submit-button').addClass('btn-outline-primary');
+
+			action == 'add' ? $('#inter-lab-add').find('.submit-button').removeClass('btn-outline-primary') : $('#inter-lab-add').find('.submit-button').removeClass('btn-outline-warning');
+
+			var body = getInterLabBody(analysis_types.split(','),record_id,record_code,action,data)
+			$('#inter-lab-add').find('.modal-body').empty();
+			$('#inter-lab-add').find('.modal-body').append(body);
+			
+		})
+		$('.qc_type_id').on('change',(e)=>{
+			var value = $('.qc_type_id').val();
+			d= value.toString()
+
+			console.log(d);
+			
+			if($('.qc_type_id').data('repeatsample') ==  value.toString()){
+				$('.qc-repeat-batch').removeClass('hidden');
+				// $('.qc-remove-required').removeAttr('required')
+			}else{
+				$('.qc-repeat-batch').addClass('hidden');
+				// $('.qc-remove-required').addAttr('required')
+			}
+		});
+		let getQcTypeConfig = (dataID,callback)=>{
+			$.ajax({
+				url:`/qualitycontrol/get/Qc-Type/Config/${dataID}/Ajax`,
+				method:'GET',
+				success:(data)=>{
+					callback(data)
+				},
+				error:(data)=>{
+					console.log(data);
 				}
-				
 			})
+		}
+		$('.qc_type_id').on('change',(e)=>{
+			var value = $('.qc_type_id').val()
+			getQcTypeConfig(value,(data)=>{
+				if(data['data'].use_existing_sample == 1){
+					$('.qc-repeat-batch').removeClass('hidden')
+					$.each(data['samples'],(i,obj)=>{
+						var option = `<option value="${obj.id}" ${$batch && $batch.repeat_sample_id == obj.id ? `selected` : ``}>${obj.sample_code}</option>`
+						$('#repeat_sample_id').append(option);
+					})
+					$('#repeat_sample_id').select2();
+				}else{
+					$('.qc-repeat-batch').addClass('hidden')
+				}
+			})
+		});
+		if($batch && $batch.repeat_sample_id > 0){
+			$('.qc_type_id').trigger('change');
+		}
+	
+
+		$('#add-company-unit').on('show.bs.modal',function(){
+			var customer = $('select[name="crm_customer_id"]').val();
+			if(customer == ''){
+				var not_ = $(`
+					<div class="alert alert-danger id="not-present" p-1">
+						Kindly select the client !
+					</div>
+				`).clone();
+				
+				$(this).find('.modal-body').append(not_);
+				$(this).find('#save-unit').attr('disabled');
+			}else{
+				$(this).find('#not-present').remove();
+				$(this).find('#save-unit').removeAttr('disabled');
+				$('#add-company-unit').find('#form').attr('action','/company-units/'+customer);
+				console.log('test')
+			}
+		})
+		var map;
+		$('#add-company-sample-point').on('show.bs.modal', function(e) {
+			var mapProp = {
+				center: new google.maps.LatLng(-1.247125519439578, 36.742261815816164),
+				zoom: 5,
+			};
+			map = new google.maps.Map(document.getElementById("location-map"), mapProp);
+
+			var marker = new google.maps.Marker({
+				position: mapProp.center,
+				// icon:'pinkball.png'
+				draggable: true,
+			});
+
+			marker.setMap(map);
+			marker.addListener('drag', function(event) {
+				console.log('start')
+				document.getElementById('latitude').value = event.latLng.lat();
+				console.log(event.latLng.lat())
+				document.getElementById('longitude').value = event.latLng.lng()
+			});
+			marker.addListener('dragend', function(event) {
+				console.log('start2')
+				document.getElementById('latitude').value = event.latLng.lat();
+				console.log(event.latLng.lat())
+				document.getElementById('longitude').value = event.latLng.lng()
+				console.log(event.latLng.lng())
+			});
 
 		});
 
-		var sampleCodeParameters = function(data,loop){
+		$('#process-results-modal').on('show.bs.modal',function(){
+			var batch = $(this).data('batch');
+			$.ajax({
+				url:"{{ route('process-raw-results', ['batch_id'=> isset($batch->id) ? $batch->id : 0 ]) }}",		
+				success: function(data){
+					console.log(data);
+					$('#process-results-modal').find('.modal-body').empty();
+					var success_tag = $(`
+						<div class="alert alert-success p-2">
+						<i class="mdi mdi-information pull-left"></i>
+							Results processed successfully!
+						</div>
+						<center>
+						<img src="/images/suc.gif" height="250px" width="auto" alt="">
+						</center>
+					`).clone();
+					$('#process-results-modal').find('.modal-body').append(success_tag);
+
+				},
+				error: function(data){
+					console.log(data);
+				}
+			})
+		})
 			
-			var readonly = '';
-			$('.main-standard-name').text(data.main_standard === undefined ? '' : (data.main_standard === null ? '' : data.main_standard));
-			// console.log(data);
-			// ${readonly} ${ {{ Auth::user()->id }} != (data.def_operator ? data.def_operator.id : 0) ? 'readonly' : '' } //results validator by user
-			@if(isset($batch->status) && $batch->status != "Samples In Lab")
-				readonly = 'disabled';
-			@endif
+		
+		
+		$('.save-samples').on('click', function(){
+			var trs = $('#sample-detail-rows').find('tr').length;
+			var missing = false;
 
-			var $oGRow = $(`
-				<tr class="raw-data-row ${data.result == null ? 'no-result' : 'has-result'} ${!userLabSection.includes(data.lab_section_id) && thebatch.status == 'Samples In Lab' ? 'hidden' : ''}" id="row-${loop}" >
-					@if(isset($batch->status) && $batch->status != 'Samples In Lab' && Auth::user()->is_client == 0)
-					<td class="" style="display:flex !important">
-					<input type="checkbox" name="parameter_check[]" class="mr-3" value="${data.id}" id="parameter-check">
-					<span class="btn btn-sm btn-default remove-analyte-row" data-toggle="tooltip" data-placement="bottom" title="delete"><i class="mdi mdi-trash-can-outline text-danger"></i></span>
-					</td>
-					@else
-					<td></td>
-					@endif
-					<td  nowrap>${data.sample_detail_code}</td>
-					<td  nowrap>${data.analysis_type.code}</td>
-					<td  nowrap><input type="hidden" name="captured_result_id[]" value="${data.id}">${data.analyte_name}</td>
-					@if(Auth::user()->is_client == 0)
-					<td nowrap ><input type="text" {{isset($batch->status) && $batch->status != 'Samples In Lab' ? 'disabled' : ''}} name="result_reporting_symbol[${data.id}]" id="reporting-symbol" placeholder="Reporting Symbol..." value="${data.result_reporting_symbol == null ? '' :data.result_reporting_symbol }" ></td>
-					<td>
-						<div class="form-group">
-							<input {{isset($batch->status) && $batch->status != 'Samples In Lab' ? 'disabled' : ''}} id="${data.sample_detail_code},${data.analyte_code},${data.id},${data.analyte_id}" style="min-width: 150px" type="text"
-							class="form-control first-result" id="result-${loop}" value="${data.result == null ? '' : data.result}" name="result[${data.id}]" placeholder="Result..." />
-							<input type="hidden" name="result_confirm"  />
-						</div>
-					</td>
-					@endif
-					@if($batch && $batch->is_qc_batch == 1 && $batch->repeat_sample_id > 0)
-					<td style="width:150px !important">
-					<input type="text" class="form-control" style="width:150px" name="repeat_sample[${data.id}]" value="${data.repeatsampleresult}" disabled />
-					</td>
-					@endif
-					<td nowrap> <input type="text" class="form-control" style="width:100px" name="main_value[${data.id}]" value="${data.standard_value == null ? '-': data.standard_value}" disabled />
-					<input type="hidden" name="main_value[${data.id}]" value="${data.standard_value}"/>
-					<input type="hidden" name="main_standard[${data.id}]" value="${data.main_standard}"/>
-					<input type="hidden" name="secondary_standard[${data.id}]" value="${data.secondary_standard}"/>
-					</td>
-					@if(Auth::user()->is_client == 0)
-					<td nowrap>
-						<input id="${data.sample_detail_code}-${data.id}" style="min-width: 150px" type="text" 
-						class="form-control disabled first-result" readonly="true" value="${data.remark ?? ''}" name="remark[${data.id}]" placeholder="Remark..." />
-					</td>
+			if(trs > 0){
+				var missingVals = {};
+				$('#sample-detail-rows').find('[required]').each(function(){
+					var val = $(this).val();
+					console.log($(this).attr('name'), val)
+					if($.trim(val) == ""){
+						var parentTD = $(this).parents('td');
+						var titleTH = parentTD.parents('table').find('thead th').eq(parentTD.index());
+						missingVals[titleTH.text()] = true;
+						var borderStyle = $(this).css('border');
+						$(this).css('border', '1px solid red').focus();
+						var el = $(this);
+						$(this).on('change', function(){
+							el.css('border', borderStyle);
+						});
+					}
+				});
+				console.log(Object.keys(missingVals));
+				if(Object.keys(missingVals).length > 0){
+					alert("One or more samples is missing the following data: "+Object.keys(missingVals).join(","));
+					return false;
+				}
+				$(this).parents('form').submit();
+			}
+			else{
+				alert("Samples Required!")
+			}
+		});
+
+		$('.raw-data-row').find('[name="result"]').on('keyup', function(){
+			$(this).addClass('changed');
+		});
+
+		$('#stage-selector').find('form.dropdown-item').on('click', function(){
+			$(this).submit();
+		});
+
+		$('#status-selector').find('form.dropdown-item').on('click', function(){
+			$(this).submit();
+		});
+
+		$('.my-tab-headers').on('click', '.my-tab', function(){
+			$('.my-tab-headers').find('.my-tab').removeClass('selected');
+			$(this).addClass('selected');
+			var equip = $(this).data('equipment');
+
+			$('.equip-table').addClass('hidden');
+			$('.equip-table[data-equipment="'+equip+'"]').removeClass('hidden');
+
+		});
+
+		$('.toggle-more-fields').on('click', function(){
+			$(this).toggleClass('open');
+			if($(this).hasClass('open')){
+				$(this).html(`
+					<i class="mdi mdi-chevron-double-up"></i> Hide Fields
+				`);
+				$('#more-fields').removeClass('hidden');
+			}
+			else{
+				$(this).html(`
+					<i class="mdi mdi-chevron-double-down"></i> More Fields
+				`);
+			$('#more-fields').addClass('hidden');
+			}
+		});
+
+		$('#dispatch-to-labs-modal').find('[name="request_type_id[]"]').on('change', function(){
+			var vals = $(this).val();
+			var otherReasonDiv = $(this).parents('.modal-body').find('.other-reason');
+			if(vals.indexOf('Other') > -1){
+				otherReasonDiv.find('[name="other_type"]').attr('required', true)
+				otherReasonDiv.removeClass('hidden');
+			}
+			else{
+				otherReasonDiv.find('[name="other_type"]').val('').removeAttr('required');
+				otherReasonDiv.addClass('hidden');
+			}
+		});
+
+		var parametersBySampleCode = $('#sample-detail-rows').data('parameters'); //Parameters by sample code
+		var analysisIDsBySampleCode = $('#sample-detail-rows').data('sample_analysis_ids');
+		var analysisNames = $('#sample-detail-rows').data('analysis_names');
+		$('#show-sample-analysis-analytes').on('show.bs.modal', function(e){
+
+			var sampleCode = $(e.relatedTarget).data('sample_code');
+			
+			
+			var all_analysis = analysisNames[sampleCode];
+			$('#show-sample-analysis-analytes').find('#analysis-types').empty();
+			var text_d = '<span data-analysis ="all" class="dropdown-item">All</span>';
+			$('#show-sample-analysis-analytes').find('#analysis-types').append(text_d);
+			$.each(all_analysis,function(i,e){
+				var text_a = '<span data-analysis ='+e+'  class="dropdown-item" >'+i+'</span>';
+				$('#show-sample-analysis-analytes').find('#analysis-types').append(text_a);
+				console.log(i);
+			})
+			
+			
+			$('#sample-parameters-holder').empty();
+			var parameters = parametersBySampleCode[sampleCode];
+			console.log(parametersBySampleCode);
+			var analysisIDs = analysisIDsBySampleCode[sampleCode];
+			
+			var loop = 1;
+			// console.log(parameters);
+			$.each(parameters, function(p, param){
+				var sampleRow = sampleCodeParameters(param,loop);
+				// console.log(param);
+				$('#sample-parameters-holder').append(sampleRow);
+				loop = loop + 1;
+			});
+			
+			$(this).find('input[name="parameter_check_all"]').on('change',function(){
+				
+				if($(this).prop("checked") == true){
 					
-					<td>
-						<div class="form-group" name="operators" placeholder="Select Operator...">
-							<select style="min-width: 150px" class="form-control item-operators"  name="operators[${data.id}]" placeholder="Select Operator..." data-selected="${data.def_operator ? data.def_operator.id : 0 }"></select>
-						</div>
-					</td>
-					@endif
-					<td  nowrap>
-					<div class="form-group"  placeholder="Select Method...">
-							<select style="min-width: 150px" class="form-control method-id"  name="method_id[${data.id}]" placeholder="Select Method..." data-selected="${data.method_id ? data.method_id : 0 }"></select>
-						</div>
-					</td>
-					@if(Auth::user()->is_client == 0)
-					<td  nowrap>${data.equip_name}</td>
-					@endif
-					<td class="text-center" nowrap>
-					<div class="form-group">
-					<input class="form-check" type="checkbox" {{Auth::user()->is_client == 1 ? 'disabled' : ''}}  name="subcontracted[${data.id}]" ${data.analyte_status_contracted  == 1 ? 'checked':''}/>
-					</div>
-					</td>
-					<td class="text-small text-center">
-					<div class="form-group">
-					<input class="form-check" type="checkbox" {{Auth::user()->is_client == 1 ? 'disabled' : ''}}  name="accredited[${data.id}]" ${data.analyte_accredited  == 1  ? 'checked':''}/>
-					</div>
-					</td>
-				</tr>
-			`);
+					$('input[name="parameter_check[]"]').map(function(){
+						$(this).prop('checked',true);
+					})
+				}else{
+					
+					$('input[name="parameter_check[]"]').map(function(){
+						$(this).prop('checked',false);
+					})
+				}
+			})
+		
+			$(this).find('#delete-parameter').on('click',function(){
+				var $token   = $('meta[name="csrf-token"]').attr('content');
+				if($('input[name="parameter_check[]"]:checked').length > 0){
+				if(confirm("Are you sure that you want to remove these analytes?")){
+					$('input[name="parameter_check[]"]:checked').map(function(){
+						var data_id = $(this).val();
+						var td_ = $(this).parent('td');
+						var row_ = $(td_).parent('tr');
+						console.log(data_id);
+						$.ajax({
+							url: "{{ route('remove-analyte-from-captured-result') }}",
+							dataType: 'json',
+							data: {
+								_token: $token,
+								id: data_id
+							},
+							type: "POST",
+							success: function(js){
+								if(js.status){
+									row_.remove();
+								}
+								else{
+									alert("Couldn't remove analyte!")
+								}
+							}
+						})
+						
+					})
+				}
+				}else{
+					alert('Kindly select the parameters to delete!');
+				}
 
-			var $row = $oGRow.clone();
-			$row.on('keypress','.first-result',function(e){
-				if (e.which == 13) {
-					e.preventDefault();
-					var looped = loop + 1;
-					var nextInput = getElementById('result-'+looped);
-					if (nextInput) {
-					nextInput.focus();
+				
+			});
+
+			$('.analytes-with-results-count').text($('#sample-parameters-holder').find('tr.has-result').length);
+			$('.analytes-without-results-count').text($('#sample-parameters-holder').find('tr.no-result').length);
+
+			$.ajax({
+				url: '{{ route("missing_analysis_parameters_by_sample_code") }}',
+				data: {
+					id: JSON.stringify(analysisIDs),
+					sample: sampleCode,
+				},
+				beforeSend: function(){
+					$('#sample-analysis-parameters-holder').empty();
+				},
+				success: function(js){
+					if(js.length == 0){
+						$('#sample-analysis-parameters-holder').html(`
+						<tr class="raw-data-row">
+							<td colspan="7">
+								<div class="alert alert-info text-center"><i class="mdi mdi-information-circle"></i> No new analytes found.</div>
+							</td>
+						</tr>
+						`);
+					}
+					$.each(js, function(j,s){
+						s['sample_code'] = sampleCode;
+						var $row = $(`
+						<tr class="raw-data-row">
+							<td>
+								<input type="checkbox" name="item[]" value='${JSON.stringify(s)}' />
+							</td>
+							<td  nowrap>${s.name+' - '+s.code}</td>
+							<td  nowrap>${sampleCode}</td>
+							<td  nowrap>${s.analysis_type}</td>
+							<td  nowrap>${s.operator == null ? '-': s.operator}</td>
+							<td  nowrap>${s.equipment == null ? '-' :s.equipment}</td>
+							<td nowrap>${s.analyte_status == 1 ? '<input type="checkbox" checked disabled>' : '<input type="checkbox" disabled>'}<td>
+						</tr>
+						`);
+						$('#sample-analysis-parameters-holder').append($row);
+					});
+				}
+			})
+			$(this).find('.dropdown-item').on('click',function(){
+				var analysis = $(this).data('analysis');
+				$('#sample-parameters-holder').empty();
+				var loop = 1;
+				
+				$.each(parameters, function(p, param){
+					if(param.analysis_type_id == analysis){
+						var sampleRow = sampleCodeParameters(param,loop);
+						// console.log(param);
+						$('#sample-parameters-holder').append(sampleRow);
+
+					}
+					if(analysis == 'all'){
+						var sampleRow = sampleCodeParameters(param,loop);
+						// console.log(param);
+						$('#sample-parameters-holder').append(sampleRow);
+					}
+					loop = loop + 1;
+				});
+			
+			});
+			
+		})
+
+		
+
+		$('#client-unit-select').on('change', function(){
+			if($(this).val() == ''){
+				return false;
+			}
+			$.ajax({
+				url: '/fetch-unit-stuff/'+$(this).val()+'/'+$('#client-select').val(),
+				beforeSend: function(){
+					unitProducts = [];
+					unitSamplePoints= [];
+				},
+				success: function(js){
+					unitProducts = js.products;
+					unitSamplePoints= js.sample_points;
+
+					$('#sample-detail-rows').find('tr').find('[name="sample_details[sample_point][]"]').each(function(e){
+						var rowData = $(this).parents('tr').data('sample');
+						var SP = $(this);
+						SP.html('<option tetet></option>');
+						$.each(unitSamplePoints, function(j,s){
+							SP.append(`
+								<option value="${s.id}">${s.name}</option>
+							`);
+						});
+						SP.val(rowData ? rowData.sample_point_id : '');
+						SP.trigger('change');
+					})
+
+					$('#sample-detail-rows').find('tr').find('[name="sample_details[product][]"]').each(function(){
+						var rowData = $(this).parents('tr').data('sample');
+						var P = $(this);
+						P.html('<option tetet></option>');
+						$.each(unitProducts, function(j,s){
+							P.append(`
+								<option value="${s.id}">${s.name}</option>
+							`);
+						});
+						P.val(rowData ? rowData.company_product_id : '');
+						P.trigger('change');
+					});
+
+				}
+			})
+		})
+
+		$('#client-select').on('change', function(){
+			var selectedOps = $(this).children('option:selected');
+			clientPrefProductName = selectedOps.data('product_name');
+			clientPrefUnitName = selectedOps.data('unit_name');
+			clientPrefSPName = selectedOps.data('sample_point_name');
+
+
+			$('.client-prefered-unit-name').text(clientPrefUnitName)
+			$('.client-preferred-sample_point-name').text(clientPrefSPName)
+			$('.client-preferred-product-name').text(clientPrefProductName)
+			var client_selected = $('#client-select').val();
+			var client_id = 'client-'+client_selected;
+			var text = document.getElementById(client_id);
+			var text2 = document.getElementsByClassName('clients-data');
+			
+		});
+
+		$('#client-select').trigger('change');
+
+
+		$('.make-batch-changes').on('click', function(){
+			if($('#sample-detail-rows').find('tr.selected-row').length == 0){
+				alert("Please select the analysis rows you want to amend.");
+				return false;
+			}
+
+			var modal = $(this).parents('.modal');
+
+			if(modal.find('.bulk-checkbox:checked').length == 0){
+				alert("Please select columns you want to change.");
+				return false;
+			}
+			$('.bulk-checkbox:checked').each(function(e){
+				var cls = $(this).data('name');
+				var elem = modal.find(cls);
+
+				if(elem.is("input")){
+					var value = modal.find(cls).val();
+					$('#sample-detail-rows').find('tr.selected-row').find(cls).each(function(e){
+						$(this).val(value).trigger('change');
+					});
+				}
+				else{
+					var value =[];
+					modal.find(cls).children("option:selected").each(function(e){
+						value.push($(this).val());
+					});
+
+					$('#sample-detail-rows').find('tr.selected-row').find(cls).children('option').each(function(e){
+						$(this).attr('selected', false).trigger('change');
+					});
+
+					$('#sample-detail-rows').find('tr.selected-row').find(cls).children('option').each(function(e){
+						var sVal = $(this).val();
+						if (value.indexOf(sVal) !== -1) {
+							$(this).attr('selected', 'selected').trigger('change');
+						}
+					});
+				}
+			});
+
+			modal.find('.form-control').val('').trigger('change');
+			modal.find('.bulk-checkbox').removeProp('checked');
+		});
+
+		$('#provide-interpretations').on('show.bs.modal', function(e){
+			var d = new Date();
+			var n = d.getTime();
+			var scopetype = $(e.relatedTarget).data('scopetype');
+			var $row = $(`
+				<div class="form-group">
+					<label>Comments</label>
+					<textarea class="form-control" name="header_body" placeholder="Comments..." required>{{ $headerDetails['header']->header_body ?? '' }}</textarea>
+				</div>
+				<div class="form-group">
+					<label>Recommendations / Interpretations</label>
+					<textarea class="form-control" name="main_body" placeholder="Recommendations / Interpretations..." >{{ $headerDetails['header']->main_body ?? '' }}</textarea>
+				</div>
+				<div class="form-group">
+					<label for="" class="control-label">Scope</label>
+					<select name="batch_comment_scope" class="form-control" id="">
+						<option value="1" ${scopetype == 1 ? 'selected' : ''}>Concactinate</option>
+						<option value="2" ${scopetype == 2 ? 'selected' : ''}>Overwrite</option>
+					</select>
+				</div>
+			`).clone();
+
+			$('#sample-interpretations-holder').html($row);
+
+			$row.find('[name="main_body"]').attr('id', 'sample-main-body-'+n)
+			$row.find('[name="header_body"]').attr('id', 'sample-header-body-'+n)
+
+			var action = $(e.relatedTarget).data('action');
+			var mainBody = $(e.relatedTarget).data('mainbody');
+			var headerBody = $(e.relatedTarget).data('headerbody');
+			
+
+			$(this).find('form').prop('action', action);
+			$(this).find('form').attr('action', action);
+
+			$('#sample-header-body-'+n).html(headerBody)
+			$('#sample-main-body-'+n).html(mainBody);
+			console.log(n);
+			tinymce.init({
+				selector: '#sample-header-body-'+n
+			});
+
+			tinymce.init({
+				selector: '#sample-main-body-'+n
+			});
+		});
+
+		$('#batch-edit-modal').on('show.bs.modal', function(){
+			$(this).find('.form-control').val('');
+			var modal = $(this);
+			modal.find('select.sample-analysis').html('');
+			$.each(sampleAnalysisByType, function(s, sc){
+				modal.find('select.sample-analysis').append(`<option value="${sc.id}">${sc.name}</option>`);
+			});
+
+			modal.find('select.sample-condition').html('');
+			$.each(sampleCondtions, function(s, sc){
+				modal.find('select.sample-condition').append(`<option value="${sc.id}">${sc.name}</option>`);
+			});
+
+			modal.find('select.sample-point').html('');
+			$.each(unitSamplePoints, function(j,s){
+				modal.find('select.sample-point').append(`<option value="${s.id}">${s.name}</option>`);
+			});
+
+			modal.find('select.sample-product').html('');
+			$.each(unitProducts, function(j,s){
+				modal.find('select.sample-product').append(`<option value="${s.id}" >${s.name}</option>`);
+			});
+		});
+
+		$('#batch-info-sample-type').trigger('change');
+
+		$('[name="is_routine"]').on('change', function(){
+			if($(this).is(':checked')){
+				$('#routine_frequency').removeClass('hidden');
+				$('[name="routine_frequency"]').prop('required');
+				$('[name="routine_frequency"]').attr('required');
+			}
+			else{
+				$('#routine_frequency').addClass('hidden');
+				$('[name="routine_frequency"]').find("option:selected").removeAttr("selected");
+				$('[name="routine_frequency"]').find("option:selected").removeProp("selected");
+				$('[name="routine_frequency"]').removeAttr('required');
+				$('[name="routine_frequency"]').removeProp('required');
+			}
+		});
+
+		$('.duplicate-sample-row').on('click', function(){
+			var selectedRows = $('#sample-detail-rows').find('tr.selected-row');
+
+			if(selectedRows.length == 0){
+				alert('No row selected.');
+			}
+			else{
+				var duplicate = prompt("Enter number of duplicates", 1);
+				duplicate = duplicate || 0;
+
+				selectedRows.each(function(i,e){
+					for(var z = 0; z<duplicate; z++){
+						var rowNo = $('#sample-detail-rows').find('tr').length;
+						var ids = [];
+						$(e).find('.sample-analysis').children('option:selected').each(function(a,b){
+							ids.push($(b).val());
+						})
+						var data = {
+							"id": "",
+							"sample_code": $(e).find('.sample-code').children('option:selected').val(),
+							"lab_sub_no": $(e).find('.submission-form-no').val(),
+							"analysis_type_id": ids.join(','),
+							"sample_condition_id": $(e).find('.sample-condition').children('option:selected').val(),
+							"sample_point_id": $(e).find('.sample-point').children('option:selected').val(),
+							"company_product_id": $(e).find('.sample-product').children('option:selected').val(),
+							"comments": $(e).find('.sample-comments').val(),
+							"barcode": $(e).find('.sample-barcode').val(),
+							
+							"main_standard":$(e).find('.main-standard').children('option:selected').val(),
+							"secondary_standard":$(e).find('.secondary-standard').children('option:selected').val(),
+							"unit_type": $(e).find('.sample-reporting-unit').children('option:selected').val(),
+							"stock_in": $(e).find('.sample-quantity').val(),
+							"stock_out": 0,
+							"lab_id": $(e).find('.lab_id').children('option:selected').val(),
+							
+							"store_id": $(e).find('.sample-store').children('option:selected').val(),
+							"slot_id": $(e).find('.sample-store-slot').children('option:selected').val(),
+						};
+						
+						console.log(data)
+						
+
+						createRow(data);
+					}
+				});
+			}
+
+		});
+
+		var getLabs = (analysis_type_ids,callback)=>{
+			$.ajax({
+				url:'/get/Labs-By-Analysis/Type-Id-Ajax',
+				method:"GET",
+				data:{
+					ids : analysis_type_ids
+				},
+				success:(data)=>{
+					callback(data);
+				},
+				error:(data)=>{
+					console.log(data);
+				}
+			})
+
+		}
+
+		var createRow = function(data=false){
+			var $row = $(sampleDetailsRow).clone();
+			
+			if($isclient.is_client == 1 && $batch.status != 'Samples En-Route'){
+				
+				$row.find('.edit-remove').empty();
+				$row.find('.interpretation-remove').empty();
+				$row.find('.delete-remove').empty();
+			}
+
+
+			$row.find('.is-required').each(function(){
+				$(this).attr('required', true);
+			});
+
+			if(data){
+				$row.removeClass('editable').addClass('saved-data');
+				$row.data('sample', data);
+
+				$row.find('.toggle-row-edit-mode').removeClass('text-primary').addClass('text-muted');
+
+				$row.find('.dropdown-row').data('sample_code', data['sample_code']);
+
+				$row.find('.provide-interpretation-row').data("action", '/sample-interpretations/'+data.id);
+				$row.find('.provide-interpretation-row').data("headerbody", data.header_body);
+				$row.find('.provide-interpretation-row').data("mainbody", data.main_body);
+				$row.find('.provide-interpretation-row').data("scopetype", data.main_body);
+			}
+			$row.find('.initiate-interlab').data('sample',data.id);
+			$row.find('.initiate-interlab').data('samplecode',data.sample_code);
+			$row.find('.initiate-interlab').data('analysistype',data.analysis_type_id);
+
+			$row.find('[name="sample_details[sample_store][]"]').val(data['store_id']).trigger('change');
+			$row.find('[name="sample_details[sample_store_slot][]"]').data('selected', data['slot_id']);
+
+			
+
+			$row.find('[name="sample_details[sample_point][]"]').html('<option></option>');
+			
+
+			$.each(unitSamplePoints, function(j,s){
+				$row.find('[name="sample_details[sample_point][]"]').append(`
+					<option value="${s.id}" ${ s.id == data['sample_point_id'] ? 'selected' : '' }>${s.name}</option>
+				`);
+			});
+
+			$row.find('[name="sample_details[main_standard][]"]').html('<option></option>');
+			$.each(standards,function(j,s){
+
+				$row.find('[name="sample_details[main_standard][]"]').append(`
+					<option value="${s.id}" ${ s.id === data['main_standard'] ? 'selected' : '' }>${s.code}</option>
+				`);
+			});
+			$row.find('[name="sample_details[secondary_standard][]"]').html('<option></option>');
+			$.each(standards,function(j,s){
+				$row.find('[name="sample_details[secondary_standard][]"]').append(`
+					<option value="${s.id}" ${ s.id === data['secondary_standard'] ? 'selected' : '' }>${s.code}</option>
+				`);
+			});
+			$row.find('[name="sample_details[product][]"]').html('<option></option>');
+
+			$.each(unitProducts, function(j,s){
+				$row.find('[name="sample_details[product][]"]').append(`
+					<option value="${s.id}" ${ s.id == data['company_product_id'] ? 'selected' : '' }>${s.name}</option>
+				`);
+			});
+
+			$row.append(`<input type="hidden" value="${data.id}" name="sample_details[detail_header][]" />`);
+
+			var rowNo = $('#sample-detail-rows').find('tr').length;
+
+			$row.find('[name="sample_details[sample_code][]"]').val(data['sample_code']);
+			
+
+			$row.find('.analysis-field .form-control').empty();
+
+			$.each(sampleAnalysisByType, function(s, sa){
+				$row.find('.analysis-field .form-control').append(`<option value="${sa.id}">${sa.name}</option>`);
+			});
+
+			$row.find('.analysis-field .form-control').attr('name', 'sample_details[sample_analysis]['+rowNo+'][]');
+
+			$row.find('.analysis-field .form-control').val(data['analysis_type_id'] ? data['analysis_type_id'].split(',') : '');
+
+			$row.find('[name="sample_details[sample_condition][]"]').html(`<option value="">Select Condition</option>`);
+
+			$.each(sampleCondtions, function(s, sc){
+				$row.find('[name="sample_details[sample_condition][]"]').append(`<option value="${sc.id}">${sc.name}</option>`);
+			});
+
+			$row.find('select.sample-store').on('change', function(){
+				var items = $(this).children("option:selected").data('items');
+				$row.find('select.sample-store-slot').html(`<option></option>`).attr('placeholder', 'Select Sample Storage Slot...');
+
+				var selected = $row.find('select.sample-store-slot').data('selected');
+				$.each(items, function(i, e){
+					$row.find('select.sample-store-slot').append(`<option value="${i}" ${selected == i ? 'selected' : ''}>${e}</option>`);
+				});
+
+			});
+
+			$row.find('[name="sample_details[sample_condition][]"]').val(data['sample_condition_id']);
+			$row.find('[name="sample_details[main_standard][]"]').val(data['main_standard']);
+			$row.find('[name="sample_details[secondary_standard][]"]').val(data['secondary_standard']);
+
+			$row.find('[name="sample_details[sample_quantity][]"]').val(parseFloat(data['stock_in']) - parseFloat(data['stock_out']));
+			$row.find('[name="sample_details[sample_reporting_unit][]"]').val(data['unit_type']);
+
+			$row.find('[name="sample_details[comments][]"]').val(data['comments']);
+			$row.find('[name="sample_details[barcode][]"]').val(data['barcode']);
+			$row.find('[name="sample_details[disposal_date][]"').val(data['disposal_date']);
+
+			
+			if(sampleLabs[data['sample_code']]){
+				$row.find('select.sample-lab').empty();
+				$.each(sampleLabs[data['sample_code']],(i,obj)=>{
+					$row.find('select.sample-lab').append(`<option value="${obj.id}" ${obj.id == data['lab_id'] ? 'selected' : ''}>${obj.lab_name} - ${obj.lab_code}</option>`);
+				});
+			}
+			
+			$('#sample-detail-rows').append($row);
+
+			$row.find('.toggle-row-edit-mode').on('click', function(){
+				var row = $(this).parents('tr');
+				row.toggleClass('editable');
+				$(this).toggleClass('text-muted text-primary');
+			});
+
+			$row.find('.delete-row').on('click', function(){
+				var row = $(this).parents('tr');
+				var rowID = data.id;
+
+				var rowColor = row.css('backgroundColor');
+
+				if(confirm("Are you sure that you want to delete this row?")){
+					var interval;
+					var blink = true;
+					if(rowID){
+						$.ajax({
+							url: '/delete-sample/'+rowID,
+							dataType: 'json',
+							method: 'POST',
+							beforeSend: function(){
+								interval = setInterval(function(){
+									if(blink){
+										row.css('background-color', '#ffd9bd')
+									}
+									else{
+										row.css('background-color', '#ffabab')
+									}
+									blink=!blink;
+								}, 200);
+							},
+							success: function(js){
+								if(js.status){
+									row.remove();
+								}
+								else{
+									alert(js.message);
+									clearInterval(interval);
+									row.css('background-color', rowColor);
+									console.log(rowColor);
+								}
+							},
+							error: function(xhr, ajaxOptions, thrownError) {
+				console.log(thrownError + "\r\n" + xhr.statusText + "\r\n" + xhr.responseText);
+			}
+						})
+					}
+					else{
+						row.remove();
 					}
 				}
 			});
-			$row.on('change', '.first-result', function(){
-				var result_confirm = prompt('Please confirm the result:');
-				var reporting_symbol = $($row).find('#reporting-symbol').val();
-				var current_result = $(this).val();
-				
-				if(result_confirm != current_result){
-					alert("Result confirmation didn't match captured result!");
-					$(this).removeClass('changed').removeClass('clean');
-					$(this).siblings('[name="result_confirm"]').val('');
-					$(this).val("");
+
+			$row.find('.select-row-check').on('change', function(){
+				if($(this).is(":checked")){
+					$(this).parents('tr').addClass('selected-row');
 				}
 				else{
-					$(this).siblings('[name="result_confirm"]').val(result_confirm);
-					$(this).removeClass('clean').addClass('changed');
+					$(this).parents('tr').removeClass('selected-row');
+				}
 
-					var tt = this.id.split(',');
-					var y = tt.splice(1,1);
-					var tt_str = tt.toString();
-					
-					var res = tt_str.replace(/,/g,'-');
-					
-					
+			})
 
-					$.ajaxSetup({
-						headers: {
-							'X-CSRF-TOKEN': jQuery('meta[name="csrf-token"]').attr('content')
-						}
+			$row.find('.form-control').on('keyup', function(){
+				var value = $(this).is("input") ? $(this).val() : ($(this).is("textarea") ? $(this).val() : $(this).children('option:selected').text());
+				
+
+				var formGroup = $(this).parents('.form-group');
+				var textHolder = formGroup.siblings('span.text');
+
+				var values = [];
+
+				if($(this).is("select")){
+
+					$(this).children('option:selected').each(function(i,e){
+						values.push($(e).text());
 					});
-					$.ajax({
-						url: '/fetch/results-remark',
-						method:'post',
-						data:{
-							sample_code:this.id,
-							result:result_confirm,
-							reporting_symbol : reporting_symbol,
-							captured_result_id : data.id
-						},
-						success:function(response){
-						   
-							var inputclass = '#'+res;
-							
-							$row.find('[name="remark['+ data.id + ']"]').val(response);
-							
-						},
-						error:function(data){
-							console.log(data);
-						}
 
+				}
+				else{
+					values.push(value);
+				}
+				var ClassID = $(this).attr('name');
+				
+				// values = ['lab 1','lab 2']
+
+				textHolder.text(values.join(','));
+			});
+			$row.find('.sample-analysis').on('change',(e)=>{
+				var value = $row.find('.sample-analysis').val();
+				if(value != ''){
+					getLabs(value,(data_lab)=>{
+						$row.find('select.sample-lab').empty();
+						$row.find('select.sample-lab').append(`<option value="">Select Lab...</option>`);
+						$.each(data_lab,(i,obj)=>{
+							$row.find('select.sample-lab').append(`<option value="${obj.id}" ${ data['lab_id'] == obj.id ? 'selected' : ''}>${obj.name} - ${obj.code}</option>`);
+							
+						});
 					});
+
 				}
 			});
 
+			$row.find('.form-control').trigger('change');
+			$row.find('.form-control').trigger('keyup');
 
-			var selectedOperator = $row.find('select.item-operators').data('selected');
-			var selectedMethod = $row.find('select.method-id').data('selected');
-			var methods = data.methods;
-			
-			if(methods != '' ){
-				$row.find('select.method-id').empty();
-				$.each(methods,function(r,t){
-					$row.find('select.method-id').append(`<option value="${t}" ${t == selectedMethod ? `selected` : `` }>${r}</option>`)
-				})
-
-			}else{
-				methods = $('#sample-detail-rows').data('methods');
-				$.each(methods,function(r,t){
-					$row.find('select.method-id').append(`<option value="${t.id}" ${t.id == selectedMethod ? `selected` : `` }>${t.name}</option>`)
-				})
-
-			}
-			
-			
-			$row.find('select.item-operators').empty();
-			$.each(data.ops, function(o,p){
-				$row.find('select.item-operators').append(`<option value="${p.id}">${p.name}</option>`)
-			});
-			$row.find('select.method-id').select2();
-			$row.find('select.item-operators').select2();
-			if(selectedOperator){
-				$row.find('select.item-operators').val(selectedOperator).trigger('change');
-			}
-			var $token   = $('meta[name="csrf-token"]').attr('content');
-			$row.find('.remove-analyte-row').on('click', function(){
-				if(confirm("Are you sure that you want to remove this analyte?")){
-					$.ajax({
-						url: "{{ route('remove-analyte-from-captured-result') }}",
-						dataType: 'json',
-						data: {
-							_token: $token,
-							id: data.id
-						},
-						type: "POST",
-						success: function(js){
-							if(js.status){
-								$row.remove();
-							}
-							else{
-								alert("Couldn't remove analyte!")
-							}
-						}
-					})
-				}
+			$row.find('.form-control').on('change', function(){
+				$(this).trigger('keyup');
 			});
 
-			return $row;
+
+			$row.find('select').not('.no-select2').select2();
 		}
 
-		var sampleDetailsRow = `<tr class="editable">
-			<td>
-			<input type="checkbox" class="select-row-check mt-1" /></td>
-			<td class="block toolbar" nowrap>
-				@if(isset($batch->status) && in_array($batch->status, array("Samples En-Route" ,"Samples Reception")))
-					<span class="btn edit-remove btn-default text-primary btn-sm toggle-row-edit-mode" data-toggle="tooltip" title="Edit"><i class="mdi mdi-lead-pencil"></i></span> &nbsp;
-					<span class="btn btn-default delete-remove text-danger btn-sm delete-row" data-toggle="tooltip" title="Delete"><i class="mdi mdi-trash-can"></i></span>
-				@endif
-				@if(isset($batch->status) && in_array($batch->status, array("Sample Approval","Samples In Lab","Sample Verification")))
-					<span class="btn btn-default interpretation-remove text-success btn-sm provide-interpretation-row" data-target="#provide-interpretations" data-toggle="modal"  data-toggle="tooltip" title="Comments and Interpretation"><i class="mdi mdi-android-messages"></i></span>
-				@endif
-				<span class="btn btn-default parameter-remove text-info btn-sm dropdown-row" data-target="#show-sample-analysis-analytes" data-toggle="modal" data-toggle="tooltip" title="Parameters" ><i class="mdi mdi-snowflake"></i></span>
-			</td>
-			<td class="sample-code-field" nowrap>
-				<div class="form-group form-group-sm">
-					<input type="text" style="width: 70px" class="form-control form-control-sm sample-code" name="sample_details[sample_code][]" readonly="true" />
-				</div>
-				<span class="text"></span>
-			</td>
-			<td class="analysis-field" nowrap>
-				<div class="form-group form-group-sm">
-					<select class="form-control form-control-sm is-required sample-analysis" multiple style="width: 200px" placeholder="Select Analysis...">
-						@if($selectedSampleType)
-							@foreach($selectedSampleType->analysis_types as $typ)
-								<option value="{{ $typ->id }}">{{ $typ->name }}</option>
-							@endforeach
-						@endif
-					</select>
-				</div>
-				<span class="text"></span>
-			</td>
-			
-			
-			<td class="sample-lab-field">
-				<div class="form-group form-group-sm">
-					<select class="form-control form-control-sm  is-required sample-lab" name="sample_details[lab_id][]" style="width: 200px" placeholder="Select..." required></select>
-				</div>
-				<span class="text"></span>
-			</td>
-			<td class="sample-condition-field">
-				<div class="form-group form-group-sm">
-					<select class="form-control form-control-sm is-required sample-condition" name="sample_details[sample_condition][]" style="width: 200px" placeholder="Select Sample Condition..." required>
-						@if($selectedSampleType)
-							@foreach($selectedSampleType->sample_condition as $con)
-								<option value="{{ $con->id }}">{{ $con->name }}</option>
-							@endforeach
-						@endif
-					</select>
-				</div>
-				<span class="text"></span>
-			</td>
-			<td class="sample-sample_point-field">
-				<div class="form-group form-group-sm">
-					<select class="form-control form-control-sm  is-required sample-point" name="sample_details[sample_point][]" style="width: 200px" placeholder="Select..." required></select>
-				</div>
-				<span class="text"></span>
-			</td>
-			<td class="sample-product-field">
-				<div class="form-group form-group-sm">
-					<select class="form-control form-control-sm is-required sample-product" name="sample_details[product][]" style="width: 200px" placeholder="Select..." required></select>
-				</div>
-				<span class="text"></span>
-			</td>
-			<td class="sample-code-field" nowrap>
-				<div class="form-group form-group-sm">
-					<input type="date" style="width: 200px" class="form-control form-control-sm disposal-date" name="sample_details[disposal_date][]"/>
-				</div>
-				<span class="text"></span>
-			</td>
-			<td class ="main-standard-field">
-				<div class="form-group form-group-sm">
-					<select class="form-control form-control-sm is-required main-standard" name="sample_details[main_standard][]" style"width:200px" placeholder="Select Main Standard..." required >
-					@if($standards)
-						@foreach($standards as $standard)
-						<option value="{{$standard->id}}">{{$standard->code}}</option>
-						@endforeach
-					@endif
-					</select>
-				</div>
-				<span class="text"></span>
-			</td>
-			<td class ="secondary-standard-field">
-				<div class="form-group form-group-sm">
-					<select class="form-control form-control-sm secondary-standard" name="sample_details[secondary_standard][]" style"width:200px" placeholder="Select Sec Standard...">
-					@if($standards)
-						@foreach($standards as $standard)
-						<option value="{{$standard->id}}">{{$standard->code}}</option>
-						@endforeach
-					@endif
-					</select>
-				</div>
-				<span class="text"></span>
-			</td>
-			
-			<td class="comments-field" nowrap>
-				<div class="form-group form-group-sm">
-					<textarea rows="1" style="width: 300px" class="form-control form-control-sm sample-comments" name="sample_details[comments][]" placeholder="Sample Comments..."></textarea>
-				</div>
-				<span class="text"></span>
-			</td>
-			<td class="sample-store-field" nowrap>
-				<div class="form-group form-group-sm">
-					<select class="form-control form-control-sm sample-store" name="sample_details[sample_store][]" style="width: 200px" placeholder="Select Sample Storage...">
-						<option></option>
-						@if($labStores)
-							@foreach($labStores as $store)
-								<option value="{{ $store['id'] }}" data-items="{{ json_encode($store['items']) }}">{{ $store['name'] }}</option>
-							@endforeach
-						@endif
-					</select>
-				</div>
-				<span class="text"></span>
-			</td>
-			<td class="sample-slot-field" nowrap>
-				<div class="form-group form-group-sm">
-					<select class="form-control form-control-sm sample-store-slot" name="sample_details[sample_store_slot][]" style="width: 200px !important" placeholder="Select a Srore First...">
-						<option></option>
-					</select>
-				</div>
-				<span class="text"></span>
-			</td>
-			
-			<td class="sample-quantity-field">
-				<div class="form-group form-group-sm">
-					<input type="number" min="0" style="width: 200px !important" class="form-control form-control-sm sample-quantity"  name="sample_details[sample_quantity][]" placeholder="Sample Quantity..." />
-				</div>
-				<span class="text"></span>
-			</td>
-			<td class="sample-reporting-unit-field">
-				<div class="form-group form-group-sm">
-					<select class="form-control form-control-sm sample-reporting-unit"  name="sample_details[sample_reporting_unit][]" style="width: 200px !important" placeholder="Select Sample Reporting Unit...">
-						<option></option>
-						@if($reportingUnits)
-							@foreach($reportingUnits as $unit)
-								<option value="{{ $unit['name'] }}">{{ $unit['name'] }}</option>
-							@endforeach
-						@endif
-					</select>
-				</div>
-				<span class="text"></span>
-			</td>
-			<td class="barcode-field">
-				<div class="form-group form-group-sm">
-					<input type="text" style="width: 100px" class="form-control form-control-sm sample-barcode" name="sample_details[barcode][]" placeholder="BarCode..." />
-				</div>
-				<span class="text"></span>
-			</td>
-			
+		$.each(configuredSamples, function(s, sample){
 
-		</tr>`;
+			createRow(sample);
+		});
 
+		$('.create-new-sample-row').on('click', function(){
+			createRow();
+		});
+
+		var fetchSampleAnalysis = function($this){
+			var sampleId = $this.val();
+
+			if(sampleId == "") return;
+
+			sampleCondtions = $this.children('option:selected').data('conditions');
+
+			$.ajax({
+				url: '/analysis-types/'+sampleId,
+				dataType: 'json',
+				beforeSend: function(){
+					isFetchingAnalysis = true;
+					$('#preparing-details-msg').html(`
+						<i class="fas fa-spinner fa-spin"></i> Loading Sample Analysis.
+					`);
+				},
+				success: function(js){
+					isFetchingAnalysis = false;
+					$('#preparing-details-msg').empty();
+					sampleAnalysisByType = js;
+
+					$('#sample-detail-rows').empty();
+					// $.each(samples, function(s, sample){
+					// 	createRow(sample);
+					// });
+				}
+			});
+		}
+
+		$('#batch-info-sample-type').on('change', function(){
+			fetchSampleAnalysis($(this));
+		});
+		$('.is_qc_batch').on('change',(e)=>{
+			if($(e.currentTarget).is(':checked')){
+				$('.qc-type-field').removeClass('hidden')
+				$('.qc-omit-type-field').addClass('hidden');
+			}else{
+				$('.qc-type-field').addClass('hidden')
+				$('.qc-omit-type-field').removeClass('hidden');
+			}
+			
+		})
+
+	});
+
+	var sampleCodeParameters = function(data,loop){
 		
-	</script>
+		var readonly = '';
+		$('.main-standard-name').text(data.main_standard === undefined ? '' : (data.main_standard === null ? '' : data.main_standard));
+		// console.log(data);
+		// ${readonly} ${ {{ Auth::user()->id }} != (data.def_operator ? data.def_operator.id : 0) ? 'readonly' : '' } //results validator by user
+		@if(isset($batch->status) && $batch->status != "Samples In Lab")
+			readonly = 'disabled';
+		@endif
+
+		var $oGRow = $(`
+			<tr class="raw-data-row ${data.result == null ? 'no-result' : 'has-result'} ${!userLabSection.includes(data.lab_section_id) && thebatch.status == 'Samples In Lab' ? 'hidden' : ''}" id="row-${loop}" >
+				@if(isset($batch->status) && $batch->status != 'Samples In Lab' && Auth::user()->is_client == 0)
+				<td class="" style="display:flex !important">
+				<input type="checkbox" name="parameter_check[]" class="mr-3" value="${data.id}" id="parameter-check">
+				<span class="btn btn-sm btn-default remove-analyte-row" data-toggle="tooltip" data-placement="bottom" title="delete"><i class="mdi mdi-trash-can-outline text-danger"></i></span>
+				</td>
+				@else
+				<td></td>
+				@endif
+				<td  nowrap>${data.sample_detail_code}</td>
+				<td  nowrap>${data.analysis_type.code}</td>
+				<td  nowrap><input type="hidden" name="captured_result_id[]" value="${data.id}">${data.analyte_name}</td>
+				@if(Auth::user()->is_client == 0)
+				<td nowrap ><input type="text" {{isset($batch->status) && $batch->status != 'Samples In Lab' ? 'disabled' : ''}} name="result_reporting_symbol[${data.id}]" id="reporting-symbol" placeholder="Reporting Symbol..." value="${data.result_reporting_symbol == null ? '' :data.result_reporting_symbol }" ></td>
+				<td>
+					<div class="form-group">
+						<input {{isset($batch->status) && $batch->status != 'Samples In Lab' ? 'disabled' : ''}} id="${data.sample_detail_code},${data.analyte_code},${data.id},${data.analyte_id}" style="min-width: 150px" type="text"
+						class="form-control first-result" id="result-${loop}" value="${data.result == null ? '' : data.result}" name="result[${data.id}]" placeholder="Result..." />
+						<input type="hidden" name="result_confirm"  />
+					</div>
+				</td>
+				@endif
+				@if($batch && $batch->is_qc_batch == 1 && $batch->repeat_sample_id > 0)
+				<td style="width:150px !important">
+				<input type="text" class="form-control" style="width:150px" name="repeat_sample[${data.id}]" value="${data.repeatsampleresult}" disabled />
+				</td>
+				@endif
+				<td nowrap> <input type="text" class="form-control" style="width:100px" name="main_value[${data.id}]" value="${data.standard_value == null ? '-': data.standard_value}" disabled />
+				<input type="hidden" name="main_value[${data.id}]" value="${data.standard_value}"/>
+				<input type="hidden" name="main_standard[${data.id}]" value="${data.main_standard}"/>
+				<input type="hidden" name="secondary_standard[${data.id}]" value="${data.secondary_standard}"/>
+				</td>
+				@if(Auth::user()->is_client == 0)
+				<td nowrap>
+					<input id="${data.sample_detail_code}-${data.id}" style="min-width: 150px" type="text" 
+					class="form-control disabled first-result" readonly="true" value="${data.remark ?? ''}" name="remark[${data.id}]" placeholder="Remark..." />
+				</td>
+				
+				<td>
+					<div class="form-group" name="operators" placeholder="Select Operator...">
+						<select style="min-width: 150px" class="form-control item-operators"  name="operators[${data.id}]" placeholder="Select Operator..." data-selected="${data.def_operator ? data.def_operator.id : 0 }"></select>
+					</div>
+				</td>
+				@endif
+				<td  nowrap>
+				<div class="form-group"  placeholder="Select Method...">
+						<select style="min-width: 150px" class="form-control method-id"  name="method_id[${data.id}]" placeholder="Select Method..." data-selected="${data.method_id ? data.method_id : 0 }"></select>
+					</div>
+				</td>
+				@if(Auth::user()->is_client == 0)
+				<td  nowrap>${data.equip_name}</td>
+				@endif
+				<td class="text-center" nowrap>
+				<div class="form-group">
+				<input class="form-check" type="checkbox" {{Auth::user()->is_client == 1 ? 'disabled' : ''}}  name="subcontracted[${data.id}]" ${data.analyte_status_contracted  == 1 ? 'checked':''}/>
+				</div>
+				</td>
+				<td class="text-small text-center">
+				<div class="form-group">
+				<input class="form-check" type="checkbox" {{Auth::user()->is_client == 1 ? 'disabled' : ''}}  name="accredited[${data.id}]" ${data.analyte_accredited  == 1  ? 'checked':''}/>
+				</div>
+				</td>
+			</tr>
+		`);
+
+		var $row = $oGRow.clone();
+		$row.on('keypress','.first-result',function(e){
+			if (e.which == 13) {
+				e.preventDefault();
+				var looped = loop + 1;
+				var nextInput = getElementById('result-'+looped);
+				if (nextInput) {
+				nextInput.focus();
+				}
+			}
+		});
+		$row.on('change', '.first-result', function(){
+			var result_confirm = prompt('Please confirm the result:');
+			var reporting_symbol = $($row).find('#reporting-symbol').val();
+			var current_result = $(this).val();
+			
+			if(result_confirm != current_result){
+				alert("Result confirmation didn't match captured result!");
+				$(this).removeClass('changed').removeClass('clean');
+				$(this).siblings('[name="result_confirm"]').val('');
+				$(this).val("");
+			}
+			else{
+				$(this).siblings('[name="result_confirm"]').val(result_confirm);
+				$(this).removeClass('clean').addClass('changed');
+
+				var tt = this.id.split(',');
+				var y = tt.splice(1,1);
+				var tt_str = tt.toString();
+				
+				var res = tt_str.replace(/,/g,'-');
+				
+				
+
+				$.ajaxSetup({
+					headers: {
+						'X-CSRF-TOKEN': jQuery('meta[name="csrf-token"]').attr('content')
+					}
+				});
+				$.ajax({
+					url: '/fetch/results-remark',
+					method:'post',
+					data:{
+						sample_code:this.id,
+						result:result_confirm,
+						reporting_symbol : reporting_symbol,
+						captured_result_id : data.id
+					},
+					success:function(response){
+						
+						var inputclass = '#'+res;
+						
+						$row.find('[name="remark['+ data.id + ']"]').val(response);
+						
+					},
+					error:function(data){
+						console.log(data);
+					}
+
+				});
+			}
+		});
+
+
+		var selectedOperator = $row.find('select.item-operators').data('selected');
+		var selectedMethod = $row.find('select.method-id').data('selected');
+		var methods = data.methods;
+		
+		if(methods != '' ){
+			$row.find('select.method-id').empty();
+			$.each(methods,function(r,t){
+				$row.find('select.method-id').append(`<option value="${t}" ${t == selectedMethod ? `selected` : `` }>${r}</option>`)
+			})
+
+		}else{
+			methods = $('#sample-detail-rows').data('methods');
+			$.each(methods,function(r,t){
+				$row.find('select.method-id').append(`<option value="${t.id}" ${t.id == selectedMethod ? `selected` : `` }>${t.name}</option>`)
+			})
+
+		}
+		
+		
+		$row.find('select.item-operators').empty();
+		$.each(data.ops, function(o,p){
+			$row.find('select.item-operators').append(`<option value="${p.id}">${p.name}</option>`)
+		});
+		$row.find('select.method-id').select2();
+		$row.find('select.item-operators').select2();
+		if(selectedOperator){
+			$row.find('select.item-operators').val(selectedOperator).trigger('change');
+		}
+		var $token   = $('meta[name="csrf-token"]').attr('content');
+		$row.find('.remove-analyte-row').on('click', function(){
+			if(confirm("Are you sure that you want to remove this analyte?")){
+				$.ajax({
+					url: "{{ route('remove-analyte-from-captured-result') }}",
+					dataType: 'json',
+					data: {
+						_token: $token,
+						id: data.id
+					},
+					type: "POST",
+					success: function(js){
+						if(js.status){
+							$row.remove();
+						}
+						else{
+							alert("Couldn't remove analyte!")
+						}
+					}
+				})
+			}
+		});
+
+		return $row;
+	}
+
+	var sampleDetailsRow = `<tr class="editable">
+		<td>
+		<input type="checkbox" class="select-row-check mt-1" /></td>
+		<td class="block toolbar" nowrap>
+			@if(isset($batch->status) && in_array($batch->status, array("Samples En-Route" ,"Samples Reception")))
+				<span class="btn edit-remove btn-default text-primary btn-sm toggle-row-edit-mode" data-toggle="tooltip" title="Edit"><i class="mdi mdi-lead-pencil"></i></span> &nbsp;
+				<span class="btn btn-default delete-remove text-danger btn-sm delete-row" data-toggle="tooltip" title="Delete"><i class="mdi mdi-trash-can"></i></span>
+			@endif
+			@if(isset($batch->status) && in_array($batch->status, array("Sample Approval","Samples In Lab","Sample Verification")))
+				<span class="btn btn-default interpretation-remove text-success btn-sm provide-interpretation-row" data-target="#provide-interpretations" data-toggle="modal"  data-toggle="tooltip" title="Comments and Interpretation"><i class="mdi mdi-android-messages"></i></span>
+			@endif
+			@if(isset($batch->status) && in_array($batch->status, array("Samples En-Route" ,"Samples Reception","Samples In Lab")))
+			<span class="btn btn-default btn-sm initiate-interlab text-warning" data-sample="" data-analysistype="" data-samplecode="" data-toggle="modal" data-target="#inter-lab-add" data-action="add"><i class="mdi mdi-swap-horizontal-bold" data-toggle="tooltip" title="Initiate inter Lab"></i></span>
+			@endif
+			<span class="btn btn-default parameter-remove text-info btn-sm dropdown-row" data-target="#show-sample-analysis-analytes" data-toggle="modal" data-toggle="tooltip" title="Parameters" ><i class="mdi mdi-snowflake"></i></span>
+		</td>
+		<td class="sample-code-field" nowrap>
+			<div class="form-group form-group-sm">
+				<input type="text" style="width: 70px" class="form-control form-control-sm sample-code" name="sample_details[sample_code][]" readonly="true" />
+			</div>
+			<span class="text"></span>
+		</td>
+		<td class="analysis-field" nowrap>
+			<div class="form-group form-group-sm">
+				<select class="form-control form-control-sm is-required sample-analysis" multiple style="width: 200px" placeholder="Select Analysis...">
+					@if($selectedSampleType)
+						@foreach($selectedSampleType->analysis_types as $typ)
+							<option value="{{ $typ->id }}">{{ $typ->name }}</option>
+						@endforeach
+					@endif
+				</select>
+			</div>
+			<span class="text"></span>
+		</td>
+		
+		
+		<td class="sample-lab-field">
+			<div class="form-group form-group-sm">
+				<select class="form-control form-control-sm  is-required sample-lab" name="sample_details[lab_id][]" style="width: 200px" placeholder="Select..." required></select>
+			</div>
+			<span class="text"></span>
+		</td>
+		<td class="sample-condition-field">
+			<div class="form-group form-group-sm">
+				<select class="form-control form-control-sm is-required sample-condition" name="sample_details[sample_condition][]" style="width: 200px" placeholder="Select Sample Condition..." required>
+					@if($selectedSampleType)
+						@foreach($selectedSampleType->sample_condition as $con)
+							<option value="{{ $con->id }}">{{ $con->name }}</option>
+						@endforeach
+					@endif
+				</select>
+			</div>
+			<span class="text"></span>
+		</td>
+		<td class="sample-sample_point-field">
+			<div class="form-group form-group-sm">
+				<select class="form-control form-control-sm  is-required sample-point" name="sample_details[sample_point][]" style="width: 200px" placeholder="Select..." required></select>
+			</div>
+			<span class="text"></span>
+		</td>
+		<td class="sample-product-field">
+			<div class="form-group form-group-sm">
+				<select class="form-control form-control-sm is-required sample-product" name="sample_details[product][]" style="width: 200px" placeholder="Select..." required></select>
+			</div>
+			<span class="text"></span>
+		</td>
+		<td class="sample-code-field" nowrap>
+			<div class="form-group form-group-sm">
+				<input type="date" style="width: 200px" class="form-control form-control-sm disposal-date" name="sample_details[disposal_date][]"/>
+			</div>
+			<span class="text"></span>
+		</td>
+		<td class ="main-standard-field">
+			<div class="form-group form-group-sm">
+				<select class="form-control form-control-sm is-required main-standard" name="sample_details[main_standard][]" style"width:200px" placeholder="Select Main Standard..." required >
+				@if($standards)
+					@foreach($standards as $standard)
+					<option value="{{$standard->id}}">{{$standard->code}}</option>
+					@endforeach
+				@endif
+				</select>
+			</div>
+			<span class="text"></span>
+		</td>
+		<td class ="secondary-standard-field">
+			<div class="form-group form-group-sm">
+				<select class="form-control form-control-sm secondary-standard" name="sample_details[secondary_standard][]" style"width:200px" placeholder="Select Sec Standard...">
+				@if($standards)
+					@foreach($standards as $standard)
+					<option value="{{$standard->id}}">{{$standard->code}}</option>
+					@endforeach
+				@endif
+				</select>
+			</div>
+			<span class="text"></span>
+		</td>
+		
+		<td class="comments-field" nowrap>
+			<div class="form-group form-group-sm">
+				<textarea rows="1" style="width: 300px" class="form-control form-control-sm sample-comments" name="sample_details[comments][]" placeholder="Sample Comments..."></textarea>
+			</div>
+			<span class="text"></span>
+		</td>
+		<td class="sample-store-field" nowrap>
+			<div class="form-group form-group-sm">
+				<select class="form-control form-control-sm sample-store" name="sample_details[sample_store][]" style="width: 200px" placeholder="Select Sample Storage...">
+					<option></option>
+					@if($labStores)
+						@foreach($labStores as $store)
+							<option value="{{ $store['id'] }}" data-items="{{ json_encode($store['items']) }}">{{ $store['name'] }}</option>
+						@endforeach
+					@endif
+				</select>
+			</div>
+			<span class="text"></span>
+		</td>
+		<td class="sample-slot-field" nowrap>
+			<div class="form-group form-group-sm">
+				<select class="form-control form-control-sm sample-store-slot" name="sample_details[sample_store_slot][]" style="width: 200px !important" placeholder="Select a Srore First...">
+					<option></option>
+				</select>
+			</div>
+			<span class="text"></span>
+		</td>
+		
+		<td class="sample-quantity-field">
+			<div class="form-group form-group-sm">
+				<input type="number" min="0" style="width: 200px !important" class="form-control form-control-sm sample-quantity"  name="sample_details[sample_quantity][]" placeholder="Sample Quantity..." />
+			</div>
+			<span class="text"></span>
+		</td>
+		<td class="sample-reporting-unit-field">
+			<div class="form-group form-group-sm">
+				<select class="form-control form-control-sm sample-reporting-unit"  name="sample_details[sample_reporting_unit][]" style="width: 200px !important" placeholder="Select Sample Reporting Unit...">
+					<option></option>
+					@if($reportingUnits)
+						@foreach($reportingUnits as $unit)
+							<option value="{{ $unit['name'] }}">{{ $unit['name'] }}</option>
+						@endforeach
+					@endif
+				</select>
+			</div>
+			<span class="text"></span>
+		</td>
+		<td class="barcode-field">
+			<div class="form-group form-group-sm">
+				<input type="text" style="width: 100px" class="form-control form-control-sm sample-barcode" name="sample_details[barcode][]" placeholder="BarCode..." />
+			</div>
+			<span class="text"></span>
+		</td>
+		
+
+	</tr>`;
+
+	
+</script>
 
 
 

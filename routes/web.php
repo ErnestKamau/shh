@@ -754,6 +754,12 @@ Route::prefix('qualitycontrol')->group(function() {
 
 ################################################Polucon#########################################
 Route::get('/assign-Lab/Section-To-Analysis-Element/{id}','SampleWorkFlowController@assignLabSectionToAnalysisElement')->name('assignLabSectionToAnalysisElement');
+
+####################Inter Lab Log ####################################
+Route::get('/getSampleCurrentLabSection/{id}','SampleWorkFlowController@getSampleCurrentLabSection')->name('getSampleCurrentLabSection');
+Route::post('/create-sample-inter-lab-log','SampleWorkFlowController@create_sample_inter_lab_log')->name('create_sample_inter_lab_log');
+Route::post('/change/Inter-Lab-Log/Status','SampleWorkFlowController@changeInterLabLogStatus')->name('changeInterLabLogStatus');
+
 ################################################Polucon#########################################
 
 

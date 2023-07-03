@@ -378,7 +378,7 @@ function getLocations()
 	return App\InventoryLocation::where('company_id', getUserCompany())->orderBy('level', 'asc')->get();
 }
 
-function notify_user($body, $email, $subject, $file = false, $bcc = false)
+function notify_user($body, $email, $subject, $file = false, $bcc = false,$bcc_emails =[])
 {
 	$mailData = array(
 		'contacts' => $email,
@@ -388,7 +388,7 @@ function notify_user($body, $email, $subject, $file = false, $bcc = false)
 
 	$mailer = new App\Http\Controllers\MailController;
 
-	return $mailer->html_email($mailData, 'default', $file, $bcc);
+	return $mailer->html_email($mailData, 'default', $file, $bcc,$bcc_emails);
 }
 function getExpertin()
 {

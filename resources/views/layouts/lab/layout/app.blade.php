@@ -243,7 +243,7 @@
 	<a href="/sample-analysis-stages" class="bg-dark list-group-item list-group-item-action">
 		<div class="d-flex w-100 justify-content-start align-items-center">
 			<span class="mdi mdi-sitemap fa-fw mr-3"></span>
-			<span class="menu-collapsed">Sample Tracking Stages</span>
+			<span class="menu-collapsed">Lab Sections</span>
 		</div>
 	</a>
 
