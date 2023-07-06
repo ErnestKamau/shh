@@ -40,7 +40,7 @@ class LoginController extends Controller
     }
     public function authenticated(Request $request, $user){
 			$user->generateTwoFactorCode();
-            $app_name = env('APP_NAME', 'AQUALYTIC LIMS');
+            $app_name = env('APP_NAME', 'POLUCON LIMS');
 			$body = 'Hi '.$user->first_name.',<br><br>
 				Your verification code has been successfully generated. Your verification code is:
 				<br><br>'.$user->verify_code ;

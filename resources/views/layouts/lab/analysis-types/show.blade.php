@@ -71,6 +71,19 @@
               </select>
             </div>
             <div class="form-group">
+              <label for="" class="control-label">Lab Section</label>
+              <select name="lab_section_id" id="" class="form-control">
+                <?php $sample_type = getSampleTypeByID($analysis_type->sample_type_id); ?>
+                @if($sample_type->sample_analysis_stage)
+                  @foreach($sample_type->sample_analysis_stage as $stage)
+                    @if($stage->active == 1)
+                      <option value="{{$stage->sample_analysis_stage_id}}" {{$stage->sample_analysis_stage_id == $analysis_type->lab_section_id ? 'selected' : ''}}>{{$stage->sample_analysis_stage->name}}</option>
+                    @endif
+                  @endforeach
+                @endif
+              </select>
+            </div>
+            <div class="form-group">
               <label class="control-label">Reporting Time <small class="text-muted">(in days)</small></label>
               <input type="number" min="0" class="form-control" name="reporting_time" value="{{ $analysis_type->reporting_time }}" placeholder="Analysis Type Reporting Time..." required />
             </div>

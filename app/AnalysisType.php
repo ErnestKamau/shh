@@ -8,6 +8,7 @@ use OwenIt\Auditing\Contracts\Auditable;
 class AnalysisType extends Model implements Auditable
 {
 	use \OwenIt\Auditing\Auditable;
+  protected $appends = ['labsectionname'];
   public function lab(){
     return $this->belongsTo('App\Lab');
   }
@@ -30,4 +31,8 @@ class AnalysisType extends Model implements Auditable
 			->where('analysis_elements.active', $active)->where('analysis_type_id', $this->id)
 			->selectRaw('analysis_elements.*, RTRIM(a.code) as analyte_code')->get();
 	}
+  public function getLabSectionNameAttribute(){
+    return SampleAnalysisStage::find($this->lab_section_id)->name ?? '';
+  }
+
 }

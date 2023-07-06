@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Analyte;
 use App\AnalysisElements;
 use App\AnalysisMethod;
+use App\AnalysisType;
 use Illuminate\Http\Request;
 
 class AnalysisElementsController extends Controller
@@ -50,6 +51,7 @@ class AnalysisElementsController extends Controller
     $element->reporting_time = $request->report_time;
     $element->show_on_report = $request->show_on_report ?? 0;
 		$element->is_manual = $request->is_manual ?? 0;
+    $element->lab_section_id = AnalysisType::find($request->analysis_type_id)->lab_section_id;
 
 		// return response()->json($element, 200);
 
@@ -82,6 +84,7 @@ class AnalysisElementsController extends Controller
     $element->reporting_time = $request->report_time;
     $element->show_on_report = $request->show_on_report ?? 0;
     $element->is_manual = $request->is_manual ?? 0;
+    $element->lab_section_id = AnalysisType::find($request->analysis_type_id)->lab_section_id;
 
     $element->save();
 

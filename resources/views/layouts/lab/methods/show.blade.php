@@ -107,6 +107,9 @@
               <div class="form-group">
                 <label class="control-label"><input type="checkbox" name="active" value="1" {{ $analysis_method->active == 1 ? 'checked' : '' }} /> Active</label>
               </div>
+              <div class="form-group">
+                <label class="control-label"><input type="checkbox" name="is_sampling_method" value="1" {{ $method->is_sampling_method == 1 ? 'checked' :'' }} /> Is Sampling Method</label>
+              </div>
               <div class="p-0">
                 <button type="submit" class="btn btn-primary float-right"><i class="mdi mdi-content-save"></i> Save</button>
               </div>

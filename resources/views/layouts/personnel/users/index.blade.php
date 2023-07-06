@@ -56,6 +56,7 @@
 						<th>Last Name</th>
 						<th>Department</th>
 						<th>JD</th>
+						<th>Lab Sections</th>
 						<th>Email</th>
 						<th>Employment Date</th>
 						<th>License Type</th>
@@ -134,6 +135,7 @@
 							<td>{{ $item->last_name }}</td>
 							<td>{{ $item->department_name }}</td>
 							<td>{{ $item->position }}</td>
+							<td>{{  $item->labsectionname }}</td>
 							<td>{{ $item->email }}</td>
 							<td>{{ $item->employment_date }}</td>
 							<td>{{ $item->license_type }}</td>
@@ -325,6 +327,14 @@
 									<option></option>
 									@foreach (getModulePreconfig("Job Description", "Personnel-Management") as $item)
 										<option value="{{ $item->id }}">{{ $item->name }}</option>
+									@endforeach
+								</select>
+							</div>
+							<div class="form-group">
+								<label for="" class="control-label">Lab Section</label>
+								<select name="lab_section_id[]" multiple id="" class="form-control">
+									@foreach($stages as $stage)
+									<option value="{{$stage->id}}">{{$stage->name}}</option>
 									@endforeach
 								</select>
 							</div>

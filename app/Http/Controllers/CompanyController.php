@@ -45,6 +45,7 @@ class CompanyController extends Controller
     $company->cell_phone = $request->cell_phone;
     $company->telephone = $request->telephone;
     $company->street = $request->street;
+    $company->fax = $request->fax;
 
     if ($request->hasFile('logo')){
       $path = $request->logo->path();
@@ -73,6 +74,7 @@ class CompanyController extends Controller
     $company->cell_phone = $request->cell_phone;
     $company->telephone = $request->telephone;
     $company->street = $request->street;
+    $company->fax = $request->fax;
 
     if ($request->hasFile('logo')){
       $path = $request->logo->path();

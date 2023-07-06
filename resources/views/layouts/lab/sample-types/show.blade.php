@@ -43,7 +43,7 @@
             <a class="nav-link" id="sample-condition-tab" data-toggle="tab" href="#sample-condition-tab-content" role="tab" aria-controls="Sample-Condition" aria-selected="false">Sample Condition</a>
           </li>
           <li class="nav-item">
-            <a class="nav-link" id="sample-analysis-stage-tab" data-toggle="tab" href="#sample-analysis-stage-tab-content" role="tab" aria-controls="Sample-Analysis-Stage" aria-selected="false">Sample Analysis Stage</a>
+            <a class="nav-link" id="sample-analysis-stage-tab" data-toggle="tab" href="#sample-analysis-stage-tab-content" role="tab" aria-controls="Sample-Analysis-Stage" aria-selected="false">Lab Sections</a>
           </li>
           <li class="nav-item">
 
@@ -207,6 +207,7 @@
                   <th>Description</th>
                   <th>Sample Type</th>
                   <th>Lab</th>
+                  <th>Lab Section</th>
                   <th>Active?</th>
                   <th></th>
                 </tr>
@@ -229,6 +230,7 @@
                   <td>{{ $analysis_type->description }}</td>
                   <td>{{ $analysis_type->sample_type->name }}</td>
                   <td>{{ $analysis_type->lab->name }} - {{ $analysis_type->lab->code }}</td>
+                  <td>{{ $analysis_type->labsectionname }}</td>
                   <td class="text-small">{!! $analysis_type->active == '1' ? '<i class="mdi mdi-marker-check text-success"></i>' : '<i class="mdi mdi-close-circle text-danger"></i>' !!}</td>
                   <td nowrap>
                     <button class="btn btn-primary btn-sm" data-target="#edit-active-analysis_type-{{ $loop->iteration }}" data-toggle="modal"><i class="mdi mdi-pencil-outline"></i> <small class="hidden-sm-up">Edit</small> </button>
@@ -279,6 +281,18 @@
                               </select>
                             </div>
                             <div class="form-group">
+                              <label for="" class="control-label">Lab Section</label>
+                              <select name="lab_section_id" id="" class="form-control">
+                                @if($sample_type->sample_analysis_stage)
+                                  @foreach($sample_type->sample_analysis_stage as $stage)
+                                    @if($stage->active == 1)
+                                      <option value="{{$stage->sample_analysis_stage_id}}" {{$stage->sample_analysis_stage_id == $analysis_type->lab_section_id ? 'selected' : ''}}>{{$stage->sample_analysis_stage->name}}</option>
+                                    @endif
+                                  @endforeach
+                                @endif
+                              </select>
+                            </div>
+                            <div class="form-group">
                               <label class="control-label"><input type="checkbox" name="active" value="1" {{ $analysis_type->active == 1 ? 'checked' : '' }} /> Active</label>
                             </div>
                           </div>
@@ -317,6 +331,7 @@
                   <th>Description</th>
                   <th>Sample Type</th>
                   <th>Lab</th>
+                  <th>Lab Section</th>
                   <th>Active?</th>
                   <th></th>
                 </tr>
@@ -333,6 +348,7 @@
                   <td>{{ $analysis_type->description }}</td>
                   <td>{{ $analysis_type->sample_type->name }}</td>
                   <td>{{ $analysis_type->lab->name }} - {{ $analysis_type->lab->code }}</td>
+                  <td>{{ $analysis_type->labsectionname }}</td>
                   <td class="text-small">{!! $analysis_type->active == '1' ? '<i class="mdi mdi-marker-check text-success"></i>' : '<i class="mdi mdi-close-circle text-danger"></i>' !!}</td>
                   <td nowrap>
                     <button class="btn btn-primary btn-sm" data-target="#edit-inactive-analysis_type-{{ $loop->iteration }}" data-toggle="modal"><i class="mdi mdi-pencil-outline"></i> <small class="hidden-sm-up">Edit</small> </button>
@@ -380,6 +396,18 @@
                                 @foreach ($labs as $c)
                                 <option value="{{ $c->id }}" {{ $c->id == $analysis_type->lab_id ? 'selected' : '' }}>{{ $c->name }}</option>
                                 @endforeach
+                              </select>
+                            </div>
+                            <div class="form-group">
+                              <label for="" class="control-label">Lab Section</label>
+                              <select name="lab_section_id" id="" class="form-control">
+                                @if($sample_type->sample_analysis_stage)
+                                  @foreach($sample_type->sample_analysis_stage as $stage)
+                                    @if($stage->active == 1)
+                                      <option value="{{$stage->sample_analysis_stage_id}}" {{$stage->sample_analysis_stage_id == $analysis_type->lab_section_id ? 'selected' : ''}}>{{$stage->sample_analysis_stage->name}}</option>
+                                    @endif
+                                  @endforeach
+                                @endif
                               </select>
                             </div>
                             <div class="form-group">
@@ -467,7 +495,7 @@
           </div>
         </div>
         <div class="tab-pane fade p-3" id="sample-analysis-stage-tab-content" role="tabpanel" aria-labelledby="one-tab">
-          <h5 class="card-title">Sample Analysis Stage <div class="btn btn-sm btn-info float-right" data-target="#add-sample-analysis-stage" data-toggle="modal"><i class="mdi mdi-plus"></i> Add</div>
+          <h5 class="card-title">Lab Sections <div class="btn btn-sm btn-info float-right" data-target="#add-sample-analysis-stage" data-toggle="modal"><i class="mdi mdi-plus"></i> Add</div>
           </h5>
           <div class="table-responsive">
             <table class="table table-condensed my-small-text table-striped table-hover table-bordered table-sm">
@@ -499,12 +527,12 @@
                           @csrf
                           @if($stage->active == "1")
                           <div class="modal-header">
-                            <h4 class="modal-title"><i class="mdi mdi-delete"></i> Deactivate Sample Analysis Stage</h4>
+                            <h4 class="modal-title"><i class="mdi mdi-delete"></i> Deactivate Lab Section</h4>
                           </div>
                           <div class="modal-body">
                             <div class="form-group">
                               <div class="alert alert-danger">
-                                <i class="mdi mdi-alert"></i> Are you sure you want to deactivate this analysis stage from this sample type?
+                                <i class="mdi mdi-alert"></i> Are you sure you want to deactivate this Lab Section from this sample type?
                               </div>
                             </div>
                           </div>
@@ -514,7 +542,7 @@
                           </div>
                           @else
                           <div class="modal-header">
-                            <h4 class="modal-title"><i class="mdi mdi-checkbox-marked-circle"></i> Re-Activate Sample Analysis Stage</h4>
+                            <h4 class="modal-title"><i class="mdi mdi-checkbox-marked-circle"></i> Re-Activate Lab Section</h4>
                           </div>
                           <input type="hidden" name="active" value="1" />
                           <div class="modal-body">
@@ -540,7 +568,7 @@
             </table>
             @if(!$sample_type->sample_analysis_stage || count($sample_type->sample_analysis_stage) == 0)
             <div class="alert alert-info">
-              <i class="mdi mdi-alert"></i> No Sample Analysis Stage added yet.
+              <i class="mdi mdi-alert"></i> No Lab Section added yet.
             </div>
             @endif
           </div>
@@ -609,6 +637,7 @@
           <label class="control-label">Reporting Time <small class="text-muted">(in days)</small></label>
           <input type="number" min="0" class="form-control" name="reporting_time" placeholder="Analysis Type Reporting Time..." required />
         </div>
+
         <div class="form-group">
           <label class="control-label">Description</label>
           <textarea class="form-control" name="description" placeholder="Description..." required></textarea>
@@ -626,6 +655,18 @@
             @foreach ($labs as $c)
             <option value="{{ $c->id }}">{{ $c->name }}</option>
             @endforeach
+          </select>
+        </div>
+        <div class="form-group">
+          <label for="" class="control-label">Lab Section</label>
+          <select name="lab_section_id" id="" class="form-control">
+            @if($sample_type->sample_analysis_stage)
+              @foreach($sample_type->sample_analysis_stage as $stage)
+                @if($stage->active == 1)
+                  <option value="{{$stage->sample_analysis_stage_id}}">{{$stage->sample_analysis_stage->name}}</option>
+                @endif
+              @endforeach
+            @endif
           </select>
         </div>
         <div class="form-group">
@@ -670,13 +711,13 @@
     <form class="modal-content" method="POST" action="{{ route('add-sample-analysis-stage-to-sample-type', ['sample_type_id'=>$sample_type->id]) }}" enctype="multipart/form-data">
       @csrf
       <div class="modal-header">
-        <h4 class="modal-title"><i class="mdi mdi-plus"></i> Add Sample Analysis Stage</h4>
+        <h4 class="modal-title"><i class="mdi mdi-plus"></i> Add Lab Section</h4>
       </div>
       <div class="modal-body">
         <div class="form-group">
-          <label class="control-label">Sample Analysis Stage</label>
+          <label class="control-label">Lab Section</label>
           <select name="sample_analysis_stage_id" class="form-control">
-            <option value="">Select Sample Analysis Stage...</option>
+            <option value="">Select Lab Section...</option>
             @foreach ($sample_analysis_stage as $stage)
             <option value="{{ $stage->id }}">{{ $stage->name }}</option>
             @endforeach
@@ -696,7 +737,7 @@
 </div>
 <script>
   $(function() {
-    
+
 
     var configureThemArrow = function() {
       $('#analytes-holder').find('tr').find('.move-analyte-up').addClass('text-success').removeClass('text-muted');

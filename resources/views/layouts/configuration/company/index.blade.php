@@ -33,6 +33,7 @@ $items = array(
           <th>Logo</th>
           <th>Name</th>
           <th>Email</th>
+          <th>Fax</th>
           <th>Telephone</th>
           <th>Cell phone</th>
           <th>Country</th>
@@ -51,6 +52,7 @@ $items = array(
           <td><img src="{{ $company->logo }}" class="table-image" /></td>
           <td>{{ $company->name }}</td>
           <td>{{ $company->email != '' ? $company->email:'-' }}</td>
+          <td>{{$company->fax ?? '-'}}</td>
           <td>{{ $company->telephone != '' ? $company->telephone :'-' }}</td>
           <td>{{ $company->cell_phone != '' ? $company->cell_phone:'-' }}</td>
           <td>{{ $company->country }}</td>
@@ -107,25 +109,29 @@ $items = array(
                     </div>
                     <div class="form-group">
                       <label class="control-label">Company Logo <small class="text-danger">*Leave blank to maintain current logo</small></label>
-                        <div class="row mb-0 bg-light text-center">
-                          <div class="col-xl-12 col-sm-12 text-center">
-                            <img src="{{$company->logo}}" class="mt-4 mb-4" style="width:70%" >
-                          </div>
+                      <div class="row mb-0 bg-light text-center">
+                        <div class="col-xl-12 col-sm-12 text-center">
+                          <img src="{{$company->logo}}" class="mt-4 mb-4" style="width:70%">
                         </div>
+                      </div>
                       <input type="file" class="form-control" name="logo" placeholder="Company Logo..." />
                     </div>
                     <div class="form-group">
-          <label class="control-label">Email</label>
-          <input type="email" name="email" placeholder="Example.gmail.com..." id="" value="{{$company->email}}" class="form-control">
-        </div>
-        <div class="form-group">
-          <label class="control-label">Telephone</label>
-          <input type="text" name="telephone" placeholder="Telephone..." id="" value="{{$company->telephone}}" class="form-control">
-        </div>
-        <div class="form-group">
-          <label class="control-label">Cell Phone</label>
-          <input type="text" name="cell_phone" placeholder="Cell Phone..." id="" value="{{$company->cell_phone}}" class="form-control">
-        </div>
+                      <label class="control-label">Email</label>
+                      <input type="text" name="email" placeholder="Example.gmail.com..." id="" value="{{$company->email}}" class="form-control">
+                    </div>
+                    <div class="form-group">
+                      <label class="control-label">Fax</label>
+                      <input type="fax" name="fax" placeholder="Fax..." id="" value="{{$company->fax}}" class="form-control">
+                    </div>
+                    <div class="form-group">
+                      <label class="control-label">Telephone</label>
+                      <input type="text" name="telephone" placeholder="Telephone..." id="" value="{{$company->telephone}}" class="form-control">
+                    </div>
+                    <div class="form-group">
+                      <label class="control-label">Cell Phone</label>
+                      <input type="text" name="cell_phone" placeholder="Cell Phone..." id="" value="{{$company->cell_phone}}" class="form-control">
+                    </div>
                     <div class="form-group">
                       <label class="control-label">Company Country</label>
                       <select class="form-control" name="country_id" data-placeholder>
@@ -143,9 +149,9 @@ $items = array(
                       <input type="text" class="form-control" name="location" value="{{ $company->location }}" placeholder="Company Location..." />
                     </div>
                     <div class="form-group">
-          <label class="control-label">Street</label>
-          <input type="text" name="street" value="{{$company->street}}" placeholder="Street..." id="" class="form-control">
-        </div>
+                      <label class="control-label">Street</label>
+                      <input type="text" name="street" value="{{$company->street}}" placeholder="Street..." id="" class="form-control">
+                    </div>
                     <div class="form-group">
                       <label class="control-label">Company Website</label>
                       <input type="text" class="form-control" name="website" value="{{ $company->website }}" placeholder="Company Website..." />
@@ -193,7 +199,7 @@ $items = array(
         </div>
         <div class="form-group">
           <label class="control-label">Email</label>
-          <input type="email" name="email" placeholder="Example.gmail.com..." id="" class="form-control">
+          <input type="text" name="email" placeholder="Example.gmail.com..." id="" class="form-control">
         </div>
         <div class="form-group">
           <label class="control-label">Telephone</label>

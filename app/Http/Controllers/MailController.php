@@ -9,8 +9,8 @@ use Illuminate\Support\Facades\Log;
 
 class MailController extends Controller
 {
-  public function html_email($data = false, $type="report", $file=false, $bcc=false) {
-	$app_name = env('APP_NAME', 'AQUALYTIC LIMS');
+  public function html_email($data = false, $type="report", $file=false, $bcc=false,$bcc_emails_arr =[]) {
+	$app_name = env('APP_NAME', 'POLUCON LIMS');
 	$mail_username = env('MAIL_USERNAME', 'info@imaralims.com');
 
 		if($type == "report"){
@@ -39,10 +39,13 @@ class MailController extends Controller
 			if(sizeof($bcc_emails)<0){
 				return redirect()->back()->with('error','Kindly set up the BCC emails.');
 			}
-			Mail::send('emails.notification', $data, function($message) use($data, $file,$bcc,$bcc_emails, $mail_username, $app_name) {
+			Mail::send('emails.notification', $data, function($message) use($data, $file,$bcc,$bcc_emails, $mail_username, $app_name,$bcc_emails_arr) {
 				$message->to($data['contacts'])->subject($data['subject']);
 				if($bcc == true){
 					$message->bcc($bcc_emails);
+				}
+				if(sizeof($bcc_emails_arr) > 0){
+					$message->bcc($bcc_emails_arr);
 				}
 				if(isset($data['file'])){
 					$message->attach($data['file']);

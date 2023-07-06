@@ -1,4 +1,4 @@
-@extends('layouts.lab.layout.app', ['dataTable'=>true])
+@extends('layouts.lab.layout.app', ['dataTable'=>true,'select2'=>true])
 
 @section('title2')
   <title>Sample Types</title>
@@ -21,7 +21,7 @@
     ?>
     <x-bread-crumb :items="$items"></x-bread-crumb>
     <h2 class="p-4">
-      <i class="mdi mdi-sitemap"></i> Sample Tracking Stages
+      <i class="mdi mdi-sitemap"></i> Lab Section
       <button class="btn btn-primary btn-sm float-right" data-toggle="modal" data-target="#add-sample-analysis-stage"><i class="mdi mdi-plus"></i> Add</button>
     </h2>
     <br>
@@ -33,7 +33,9 @@
             <th>Name</th>
             <th>Workflow</th>
             <th>Level</th>
+            <th>Section Head</th>
             <th>Active?</th>
+
             <th></th>
           </tr>
         </thead>
@@ -45,6 +47,7 @@
                 <td>{{ $stage->name }}</td>
                 <td>{{ $stage->sample_workflow }}</td>
                 <td>{{ $stage->level }}</td>
+                <td>{{ $stage->getSectionHead()->name ?? '-'}}</td>
                 <td class="text-small">{!! $stage->active == '1' ? '<i class="mdi mdi-marker-check text-success"></i>' : '<i class="mdi mdi-close-circle text-danger"></i>' !!}</td>
                 <td nowrap>
                   <button class="btn btn-primary btn-sm" data-target="#edit-stage-{{ $loop->iteration }}" data-toggle="modal"><i class="mdi mdi-pencil-outline"></i> <small class="hidden-sm-up">Edit</small> </button>
@@ -61,6 +64,15 @@
                             <label class="control-label">Name</label>
                             <input type="text" class="form-control" name="name" value="{{ $stage->name }}" placeholder="Sample Type Name..." required />
                           </div>
+                          <div class="form-group">
+                            <label for="" class="control-label">Section Head</label>
+                            <select name="section_head_id" id="" class="form-control">
+                              @foreach($users as $user)
+                              <option value="{{$user->id}}" {{$user->id == $stage->section_head_id ? 'selected' : ''}}>{{$user->name}}</option>
+                              @endforeach
+                            </select>
+
+                          </div>
 													<div class="row">
 														<div class="col-sm-8">
 															<label class="control-label">Sample Worflow</label>
@@ -75,7 +87,9 @@
 															<label class="control-label">Stage Level</label>
                             	<input type="number" min="1" class="form-control" name="level" value="{{ $stage->level }}" placeholder="Stage Level..." required />
 														</div>
+                            
 													</div>
+                          
                           <div class="form-group mt-2">
                             <label class="control-label"><input type="checkbox" name="active" value="1" {{ $stage->active == 1 ? 'checked' : '' }} /> Active</label>
 													</div>
@@ -115,6 +129,15 @@
           <div class="form-group">
             <label class="control-label">Name</label>
             <input type="text" class="form-control" name="name" placeholder="Sample Analysis Stage Name..." required />
+          </div>
+          <div class="form-group">
+            <label for="" class="control-label">Section Head</label>
+            <select name="section_head_id" id="" class="form-control">
+              @foreach($users as $user)
+              <option value="{{$user->id}}">{{$user->name}}</option>
+              @endforeach
+            </select>
+
           </div>
 					<div class="row">
 						<div class="col-sm-8">

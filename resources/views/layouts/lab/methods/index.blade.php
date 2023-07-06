@@ -34,6 +34,7 @@
             <th>Name</th>
             <th>Description</th>
             <th>Elements</th>
+            <th>Type</th>
             <th>Active?</th>
             <th></th>
           </tr>
@@ -47,6 +48,8 @@
                 <td>{{ $method->name }}</td>
                 <td>{{ $method->description }}</td>
                 <td>{{ number_format($method->analytes()->count()) }}</td>
+                
+                <td>{!! $method->is_sampling_method == 0 ? '<span>Analysis Method</span>' : '<span>Sampling Method</span>'  !!}</td>
                 <td class="text-small">{!! $method->active == '1' ? '<i class="mdi mdi-marker-check text-success"></i>' : '<i class="mdi mdi-close-circle text-danger"></i>' !!}</td>
                 <td nowrap>
                   <button class="btn btn-primary btn-sm" data-target="#edit-method-{{ $loop->iteration }}" data-toggle="modal"><i class="mdi mdi-pencil-outline"></i> <small class="hidden-sm-up">Edit</small> </button>
@@ -74,6 +77,9 @@
                           </div>
                           <div class="form-group">
                             <label class="control-label"><input type="checkbox" name="active" value="1" {{ $method->active == 1 ? 'checked' : '' }} /> Active</label>
+                          </div>
+                          <div class="form-group">
+                            <label class="control-label"><input type="checkbox" name="is_sampling_method" value="1" {{ $method->is_sampling_method == 1 ? 'checked' :'' }} /> Is Sampling Method</label>
                           </div>
                         </div>
                         <div class="modal-footer">
@@ -122,6 +128,9 @@
           </div>
           <div class="form-group">
             <label class="control-label"><input type="checkbox" name="active" value="1" checked /> Active</label>
+          </div>
+          <div class="form-group">
+            <label class="control-label"><input type="checkbox" name="is_sampling_method" value="1" /> Is Sampling Method</label>
           </div>
         </div>
         <div class="modal-footer">

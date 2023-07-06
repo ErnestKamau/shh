@@ -28,6 +28,10 @@ use App\BatchComment;
 use App\User;
 use App\Country;
 use App\StandardAnalytes;
+use App\sampleAnalysisTypeRelation;
+use App\SampleAnalysisTypeRelationView;
+use App\InterLabLog;
+use App\InterLabLogView;
 
 use App\Http\Controllers\System\SystemNotifications;
 
@@ -41,6 +45,7 @@ use App\BatchAmmendment;
 use App\BatchAttachment;
 use App\InventoryCategories;
 use App\InventorySubCategories;
+use App\InvoicePaymentDetail;
 use App\QuotationDetails;
 use Illuminate\Http\File;
 use Illuminate\Support\Facades\Storage;
@@ -70,6 +75,7 @@ class SampleWorkFlowController extends Controller
 		if (!$status) {
 			$status = getSampleWorflowStages()[0];
 		}
+		$labs  = Lab::where('active',1)->get();
 
 		// return response()->json('test');
 		$batches = SampleHeader::where('isactive', 1)->orderBy('receipt_date', 'desc');
@@ -98,8 +104,9 @@ class SampleWorkFlowController extends Controller
 		$analysts = User::orderBy('name')->join('user_roles as ur', 'ur.user_id', '=', 'users.id')
 			->join('roles as r', 'r.id', '=', 'ur.role_id')
 			->where('r.id', $role_a->value)->where('users.active', 1)->where('users.is_support_staff', 0)->selectRaw('users.*')->get();
+		$users = User::where('is_client',0)->where('supplier_id',0)->where('active',1)->get();			
 
-		return view('layouts.lab.sample-workflow.index', compact('batches', 'status', 'analysts'));
+		return view('layouts.lab.sample-workflow.index', compact('batches', 'status', 'analysts','labs','users'));
 	}
 
 	public function print_labels(Request $request)
@@ -141,191 +148,193 @@ class SampleWorkFlowController extends Controller
 			// return;
 			$client = $batch->client;
 			foreach ($samples as $sample) {
+				// return response()->json(SampleAnalysisTypeRelationView::where('sample_detail_id',$sample->id)->pluck('analysis_type_name')->toArray(),200);
 				$analysis = $sample->analysis();
 				$data = array();
+				!isset($data['Sample Ref']) ? $data['Sample Ref'] = $sample->sample_code  : $data;
+				!isset($data['Sample Type']) ? $data['Sample Type'] = getSampleTypeByID($batch->sample_type_id)->name : $data;
+				!isset($data['Markings']) ? $data['Markings']  = $sample->comments: $data;
+				!isset($data['Requirements']) ? $data['Requirements'] = implode(', ',SampleAnalysisTypeRelationView::where('sample_detail_id',$sample->id)->pluck('analysis_type_name')->toArray()) : $data;
+				!isset($data['Date Received']) ? $data['Date Received'] = $batch->receipt_date : $data; 
+				!isset($data['Received By']) ? $data['Received By'] = $batch->receiving_officer_name : $data;
+				!isset($data['Date Expected']) ? $data['Date Expected'] =  date('Y-m-d', strtotime($batch->get_date('Target Date')['date'])) : $data;
+				!isset($data['Disposal Date']) ? $data['Disposal Date'] = $sample->disposal_date : $data;
+
 				// return response()->json($batch,200);
-				foreach ($analysis as $a) {
+				// foreach ($analysis as $a) {
+				// 	if (!isset($data['Date Received'])) {
+				// 		$data['Date Received'] = $batch->receipt_date;
+				// 	}
+				// 	// if(!isset($data[$client->unit_configurable_name]) || !isset($data['unit'])){
+				// 	// 	if($client->unit_configurable_name != "" ){
+				// 	// 		$data[$client->unit_configurable_name] = $batch->crm_unit_name;
+				// 	// 	}else{
+				// 	// 		$data['unit'] = $batch->crm_unit_name;
+				// 	// 	}
+				// 	// 	// return response($data,200);
+				// 	// 	// trim($client->unit_configurable_name) != "" ? $data[$client->unit_configurable_name] : $data['unit'] = $batch->crm_unit_name;
+				// 	// }
+				// 	if (isset($data[$client->sample_point_configurable_name])) {
+				// 		if (isset($sample->sample_point->name)) {
+				// 			if ($data[$client->sample_point_configurable_name] != $sample->sample_point->name) {
+				// 				$value = $data[$client->sample_point_configurable_name];
+				// 				$data[$client->sample_point_configurable_name] = $value . ',' . $sample->sample_point->name;
+				// 			}
+				// 		} else {
+				// 			if ($data[$client->sample_point_configurable_name] != 'n/a') {
+				// 				$value = $data[$client->sample_point_configurable_name];
+				// 				$data[$client->sample_point_configurable_name] = $value . ',n/a';
+				// 			}
+				// 		}
+				// 	}
+				// 	if (isset($data['Sample Point'])) {
+				// 		if (isset($sample->sample_point->name)) {
+				// 			if ($data['Sample Point'] != $sample->sample_point->name) {
 
-					if (!isset($data['Code'])) {
-						$data['Code'] = $sample->sample_code;
-					}
-					if (!isset($data['Description'])) {
-						$data['Description'] = getSampleTypeByID($batch->sample_type_id)->name;
-					}
-
-					if (!isset($data['Date Received'])) {
-						$data['Date Received'] = $batch->receipt_date;
-					}
-					// if(!isset($data[$client->unit_configurable_name]) || !isset($data['unit'])){
-					// 	if($client->unit_configurable_name != "" ){
-					// 		$data[$client->unit_configurable_name] = $batch->crm_unit_name;
-					// 	}else{
-					// 		$data['unit'] = $batch->crm_unit_name;
-					// 	}
-					// 	// return response($data,200);
-					// 	// trim($client->unit_configurable_name) != "" ? $data[$client->unit_configurable_name] : $data['unit'] = $batch->crm_unit_name;
-					// }
-					if (isset($data[$client->sample_point_configurable_name])) {
-						if (isset($sample->sample_point->name)) {
-							if ($data[$client->sample_point_configurable_name] != $sample->sample_point->name) {
-								$value = $data[$client->sample_point_configurable_name];
-								$data[$client->sample_point_configurable_name] = $value . ',' . $sample->sample_point->name;
-							}
-						} else {
-							if ($data[$client->sample_point_configurable_name] != 'n/a') {
-								$value = $data[$client->sample_point_configurable_name];
-								$data[$client->sample_point_configurable_name] = $value . ',n/a';
-							}
-						}
-					}
-					if (isset($data['Sample Point'])) {
-						if (isset($sample->sample_point->name)) {
-							if ($data['Sample Point'] != $sample->sample_point->name) {
-
-								$value = $data['Sample Point'];
-								$data['Sample Point'] = $value . ',' . $sample->sample_point->name;
-							}
-						} else {
-							if ($data['Sample Point'] != 'n/a') {
-								$value = $data['Sample Point'];
-								$data['Sample Point'] = $value . ',n/a';
-							}
-						}
-					}
-					if (!isset($data[$client->sample_point_configurable_name]) || !isset($data['Sample Point'])) {
-						trim($client->sample_point_configurable_name) != "" ? $data[$client->sample_point_configurable_name] = $sample->sample_point->name ?? 'n/a' : $data['Sample Point'] = $sample->sample_point->name ?? 'n/a';
-					}
-					if (isset($data[$client->product_configurable_name])) {
-						if (isset($sample->product->name)) {
-							if ($data[$client->product_configurable_name] != $sample->product->name) {
-								$value = $data[$client->product_configurable_name];
-								$data[$client->product_configurable_name] = $value . ',' . $sample->product->name;
-							}
-						} else {
-							if ($data[$client->product_configurable_name] != 'n/a') {
-								$value = $data[$client->product_configurable_name];
-								$data[$client->product_configurable_name] = $value . ',n/a';
-							}
-						}
-					}
-					if (isset($data['product'])) {
-						if (isset($sample->product->name)) {
-							if ($data['product'] != $sample->product->name) {
-								$value  = $data[$client->product_configurable_name];
-								$data[$client->product_configurable_name] = $value . ',' . $sample->product->name;
-							}
-						} else {
-							if ($data['product'] != 'n/a') {
-								$value = $data[$client->product_configurable_name];
-								$data[$client->product_configurable_name] = $value . ',n/a';
-							}
-						}
-					}
-					// if(!isset($data[$client->product_configurable_name]) && !isset($data['product'])){
-					// 	trim($client->product_configurable_name) != "" ? $data[$client->product_configurable_name] = $sample->product->name ?? 'n/a' : $data["product"] = $sample->product->name ?? 'n/a';
-					// }
-					if (isset($data['Test To Be Done'])) {
-						if ($data['Test To Be Done'] != $a->name) {
-							$value = $data['Test To Be Done'];
-							$data['Test To Be Done'] = $value . ',' . $a->name;
-						}
-					}
-					if (!isset($data['Test To Be Done'])) {
-						$data['Test To Be Done'] = $a->name;
-					}
-					if (isset($data['Lab'])) {
-						if ($data['Lab'] != $a->lab->name . " - " . date('Y-m-d')) {
-							$value = $data['Test To Be Done'];
-							$data['Test To Be Done'] = $value . ',' . $a->lab->name . " - " . date('Y-m-d');
-						}
-					}
-					if (!isset($data['Test To Be Done'])) {
-						$data['Test To Be Done'] = $a->lab->name . " - " . date('Y-m-d');
-					}
-					// $data = array(
-					// 	"Code" => $sample->sample_code,
-					// 	"Client" => $client->name,
-					// 	trim($client->unit_configurable_name) != "" ? $client->unit_configurable_name : 'unit' => $batch->crm_unit_name,
-					// 	trim($client->sample_point_configurable_name) != "" ? $client->sample_point_configurable_name : "sample_point" => $sample->sample_point->name ?? 'n/a',
-					// 	trim($client->product_configurable_name) != "" ? $client->product_configurable_name : "product" => $sample->product->name ?? 'n/a',
-					// 	"Analysis" => $a->name,
-					// 	"Lab" => $a->lab->name . " - " . date('Y-m-d')
-					// );
-				}
+				// 				$value = $data['Sample Point'];
+				// 				$data['Sample Point'] = $value . ',' . $sample->sample_point->name;
+				// 			}
+				// 		} else {
+				// 			if ($data['Sample Point'] != 'n/a') {
+				// 				$value = $data['Sample Point'];
+				// 				$data['Sample Point'] = $value . ',n/a';
+				// 			}
+				// 		}
+				// 	}
+				// 	if (!isset($data[$client->sample_point_configurable_name]) || !isset($data['Sample Point'])) {
+				// 		trim($client->sample_point_configurable_name) != "" ? $data[$client->sample_point_configurable_name] = $sample->sample_point->name ?? 'n/a' : $data['Sample Point'] = $sample->sample_point->name ?? 'n/a';
+				// 	}
+				// 	if (isset($data[$client->product_configurable_name])) {
+				// 		if (isset($sample->product->name)) {
+				// 			if ($data[$client->product_configurable_name] != $sample->product->name) {
+				// 				$value = $data[$client->product_configurable_name];
+				// 				$data[$client->product_configurable_name] = $value . ',' . $sample->product->name;
+				// 			}
+				// 		} else {
+				// 			if ($data[$client->product_configurable_name] != 'n/a') {
+				// 				$value = $data[$client->product_configurable_name];
+				// 				$data[$client->product_configurable_name] = $value . ',n/a';
+				// 			}
+				// 		}
+				// 	}
+				// 	if (isset($data['product'])) {
+				// 		if (isset($sample->product->name)) {
+				// 			if ($data['product'] != $sample->product->name) {
+				// 				$value  = $data[$client->product_configurable_name];
+				// 				$data[$client->product_configurable_name] = $value . ',' . $sample->product->name;
+				// 			}
+				// 		} else {
+				// 			if ($data['product'] != 'n/a') {
+				// 				$value = $data[$client->product_configurable_name];
+				// 				$data[$client->product_configurable_name] = $value . ',n/a';
+				// 			}
+				// 		}
+				// 	}
+				// 	// if(!isset($data[$client->product_configurable_name]) && !isset($data['product'])){
+				// 	// 	trim($client->product_configurable_name) != "" ? $data[$client->product_configurable_name] = $sample->product->name ?? 'n/a' : $data["product"] = $sample->product->name ?? 'n/a';
+				// 	// }
+				// 	if (isset($data['Test To Be Done'])) {
+				// 		if ($data['Test To Be Done'] != $a->name) {
+				// 			$value = $data['Test To Be Done'];
+				// 			$data['Test To Be Done'] = $value . ',' . $a->name;
+				// 		}
+				// 	}
+				// 	if (!isset($data['Test To Be Done'])) {
+				// 		$data['Test To Be Done'] = $a->name;
+				// 	}
+				// 	if (isset($data['Lab'])) {
+				// 		if ($data['Lab'] != $a->lab->name . " - " . date('Y-m-d')) {
+				// 			$value = $data['Test To Be Done'];
+				// 			$data['Test To Be Done'] = $value . ',' . $a->lab->name . " - " . date('Y-m-d');
+				// 		}
+				// 	}
+				// 	if (!isset($data['Test To Be Done'])) {
+				// 		$data['Test To Be Done'] = $a->lab->name . " - " . date('Y-m-d');
+				// 	}
+				// 	// $data = array(
+				// 	// 	"Code" => $sample->sample_code,
+				// 	// 	"Client" => $client->name,
+				// 	// 	trim($client->unit_configurable_name) != "" ? $client->unit_configurable_name : 'unit' => $batch->crm_unit_name,
+				// 	// 	trim($client->sample_point_configurable_name) != "" ? $client->sample_point_configurable_name : "sample_point" => $sample->sample_point->name ?? 'n/a',
+				// 	// 	trim($client->product_configurable_name) != "" ? $client->product_configurable_name : "product" => $sample->product->name ?? 'n/a',
+				// 	// 	"Analysis" => $a->name,
+				// 	// 	"Lab" => $a->lab->name . " - " . date('Y-m-d')
+				// 	// );
+				// }
 				$labels[] = $data;
 			}
 			// return response()->json($labels,200);
 			$batch->sample_tracking_stage = $stage->id;
 			$batch->save();
 
-			$hasCapturedResults = false;
+			// $hasCapturedResults = false;
 
-			$analysis_to_be_done = array();
+			// $analysis_to_be_done = array();
 
-			$batch_analysis = $batch->samples;
+			// $batch_analysis = $batch->samples;
 
 
-			foreach ($batch_analysis as $a) {
-				if (!isset($analysis_to_be_done[$a->sample_code])) {
-					$analysis_to_be_done[$a->sample_code] = array(
-						"sample_detail_code" => $a->sample_code,
-						"sample_detail_id" => $a->id,
-						"sample_header_id" => $batch->id,
-						"analysis_to_do" => array()
-					);
-				}
-				$analysis_to_be_done[$a->sample_code]["analysis_to_do"] = array_merge($analysis_to_be_done[$a->sample_code]["analysis_to_do"], $a->analysis());
-			}
+			// foreach ($batch_analysis as $a) {
+			// 	if (!isset($analysis_to_be_done[$a->sample_code])) {
+			// 		$analysis_to_be_done[$a->sample_code] = array(
+			// 			"sample_detail_code" => $a->sample_code,
+			// 			"sample_detail_id" => $a->id,
+			// 			"sample_header_id" => $batch->id,
+			// 			"analysis_to_do" => array()
+			// 		);
+			// 	}
+			// 	$analysis_to_be_done[$a->sample_code]["analysis_to_do"] = array_merge($analysis_to_be_done[$a->sample_code]["analysis_to_do"], $a->analysis());
+			// }
 
-			$analysis_to_be_done = array_values($analysis_to_be_done);
+			// $analysis_to_be_done = array_values($analysis_to_be_done);
 
-			foreach ($analysis_to_be_done as $atbs) {
-				foreach ($atbs["analysis_to_do"] as $a) {
-					$analytes = $a->active_analysis_elements();
+			// foreach ($analysis_to_be_done as $atbs) {
+			// 	foreach ($atbs["analysis_to_do"] as $a) {
+			// 		$analytes = $a->active_analysis_elements();
 
-					foreach ($analytes as $an) {
-						$analysisType = AnalysisElements::where('analysis_type_id', $a->id)
-							->where('analyte_id', $an->analyte_id)->where('equipment_id', $an->equipment_id)->first();
+			// 		foreach ($analytes as $an) {
+			// 			$analysisType = AnalysisElements::where('analysis_type_id', $a->id)
+			// 				->where('analyte_id', $an->analyte_id)->where('equipment_id', $an->equipment_id)->first();
 
-						$captured = CapturedResult::where('sample_detail_code', $atbs['sample_detail_code'])
-							->where('sample_detail_id', $atbs['sample_detail_id'])
-							->where('analyte_id', $an->analyte_id)
-							->where('analysis_type_id', $a->id)
-							->where('sample_header_id', $atbs['sample_header_id'])->first()  ?? new CapturedResult;
-						$captured->sample_detail_code = $atbs['sample_detail_code'];
-						$captured->sample_detail_id = $atbs['sample_detail_id'];
-						$captured->sample_header_id = $atbs['sample_header_id'];
-						$captured->analyte_id = $an->analyte_id;
-						$captured->analysis_type_id = $a->id;
-						$captured->analyte_code = $an->analyte_code;
-						$captured->equipment_id = $an->equipment_id;
-						$captured->method_id = $analysisType->method;
-						$captured->user_id = \Auth::user()->id;
-						$captured->analyte_accredited = $analysisType->non_accredited;
-						$captured->save();
+			// 			$captured = CapturedResult::where('sample_detail_code', $atbs['sample_detail_code'])
+			// 				->where('sample_detail_id', $atbs['sample_detail_id'])
+			// 				->where('analyte_id', $an->analyte_id)
+			// 				->where('analysis_type_id', $a->id)
+			// 				->where('sample_header_id', $atbs['sample_header_id'])->first()  ?? new CapturedResult;
+			// 			$captured->sample_detail_code = $atbs['sample_detail_code'];
+			// 			$captured->sample_detail_id = $atbs['sample_detail_id'];
+			// 			$captured->sample_header_id = $atbs['sample_header_id'];
+			// 			$captured->analyte_id = $an->analyte_id;
+			// 			$captured->analysis_type_id = $a->id;
+			// 			$captured->analyte_code = $an->analyte_code;
+			// 			$captured->equipment_id = $an->equipment_id;
+			// 			$captured->method_id = $analysisType->method;
+			// 			$captured->user_id = \Auth::user()->id;
+			// 			$captured->analyte_accredited = $analysisType->non_accredited;
+			// 			$captured->save();
 
-						$result = Result::where('sample_detail_code', $atbs['sample_detail_code'])
-							->where('sample_detail_id', $atbs['sample_detail_id'])
-							->where('captured_result_id', $captured->id)
-							->where('analyte_id', $an->analyte_id)
-							->where('analysis_type_id', $a->id)
-							->where('sample_header_id', $atbs['sample_header_id'])->first()  ?? new Result;
-						$result->captured_result_id = $captured->id;
-						$result->sample_detail_code = $atbs['sample_detail_code'];
-						$result->sample_detail_id = $atbs['sample_detail_id'];
-						$result->sample_header_id = $atbs['sample_header_id'];
-						$result->analyte_id = $an->analyte_id;
-						$result->analysis_type_id = $a->id;
-						$result->analyte_code = $an->analyte_code;
-						$result->unit_code = $an->reporting_unit;
-						$result->reporting_symbol = $an->reporting_symbol;
-						$result->analyte_accredited = $analysisType->non_accredited;
-						$result->recheck = 0;
+			// 			$result = Result::where('sample_detail_code', $atbs['sample_detail_code'])
+			// 				->where('sample_detail_id', $atbs['sample_detail_id'])
+			// 				->where('captured_result_id', $captured->id)
+			// 				->where('analyte_id', $an->analyte_id)
+			// 				->where('analysis_type_id', $a->id)
+			// 				->where('sample_header_id', $atbs['sample_header_id'])->first()  ?? new Result;
+			// 			$result->captured_result_id = $captured->id;
+			// 			$result->sample_detail_code = $atbs['sample_detail_code'];
+			// 			$result->sample_detail_id = $atbs['sample_detail_id'];
+			// 			$result->sample_header_id = $atbs['sample_header_id'];
+			// 			$result->analyte_id = $an->analyte_id;
+			// 			$result->analysis_type_id = $a->id;
+			// 			$result->analyte_code = $an->analyte_code;
+			// 			$result->unit_code = $an->reporting_unit;
+			// 			$result->reporting_symbol = $an->reporting_symbol;
+			// 			$result->analyte_accredited = $analysisType->non_accredited;
+			// 			$result->recheck = 0;
 
-						$result->save();
-					}
-				}
-			}
+			// 			$result->save();
+			// 		}
+			// 	}
+			// }
 		}
 
 		// return response()->json($labels, 200);
@@ -418,6 +427,15 @@ class SampleWorkFlowController extends Controller
 		$header->repeat_batch_id = isset($request->repeat_sample_id) ? $request->repeat_batch_id : 0;
 		$header->repeat_sample_id = isset($request->repeat_sample_id) && $request->repeat_sample_id > 0 ? $request->repeat_sample_id : $header->repeat_sample_id;
 		$header->begin_proccess = isset($request->is_qc_batch) ?  1 : 0;
+		$header->quote_no = $request->quote_no;
+		$header->lab_capable = isset($request->lab_capable) ? 1 : 0;
+		$header->can_be_subcontracted = isset($request->can_be_subcontracted) ? 1 :0;
+		$header->batch_subcontracted_client_approval = isset($request->batch_subcontracted_client_approval) ? 1 :0;
+		$header->client_instruction_clear = isset($request->client_instruction_clear) ? 1 : 0;
+		$header->batch_instructions = $request->batch_instructions;
+		$header->sampling_method_id = $request->sampling_method_id;
+		$header->condition_quality_sample = $request->condition_quality_sample;
+		$header->invoice_amount = $request->invoice_amount;
 
 		if ($isInReception) {
 			$header->sample_type_id = $request->sample_type_id;
@@ -605,8 +623,10 @@ class SampleWorkFlowController extends Controller
 					return redirect()->back()->with('error', 'Kindly configure the start sample No');
 				}
 				$last_sample = isset(SampleDetails::latest('id')->first()->id) ? explode('-', SampleDetails::max('sample_code'))[1]  : $config_start_no->value;
+				$lab = Lab::find($request->sample_details['lab_id'][$k]);
+				// return response()->json($request->sample_details['lab_id'][$k]);
 				$sample_number = intval($last_sample)  + 1;
-				$detail->sample_code = 'S0513-' . $sample_number;
+				$detail->sample_code = date('Y'). $lab->code . $sample_number;
 			}
 			if (isset($detail->id)) {
 				$current_analysis = explode(',', $detail->analysis_type_id);
@@ -632,13 +652,15 @@ class SampleWorkFlowController extends Controller
 			$detail->company_product_id = $request->sample_details['product'][$k];
 			$detail->barcode = $request->sample_details['barcode'][$k];
 			$detail->comments = $request->sample_details['comments'][$k];
-			$detail->lab_sub_no = $request->sample_details['submission_no'][$k];
+			$detail->disposal_date = $request->sample_details['disposal_date'][$k];
+			// $detail->lab_sub_no = $request->sample_details['submission_no'][$k];
 
 			$detail->main_standard = $request->sample_details['main_standard'][$k];
 			$detail->secondary_standard = $request->sample_details['secondary_standard'][$k];
-
-
+			$detail->lab_id = $request->sample_details['lab_id'][$k];
 			$detail->save();
+			$this->createDetailAnalysisRelation($SampleHeader->id,$detail->id,explode(',',$detail->analysis_type_id));
+
 
 			if (isset($current_analysis) && sizeof($current_analysis) > 0) {
 				$update = $request->sample_details['sample_analysis'][$k];
@@ -838,6 +860,7 @@ class SampleWorkFlowController extends Controller
 					$captured->user_id = \Auth::user()->id;
 					$captured->analyte_accredited = $analysisType->non_accredited;
 					$captured->analyte_status_contracted = $lab->is_external;
+					$captured->lab_section_id  = $analysisType->lab_section_id;
 
 					$captured->save();
 
@@ -858,12 +881,27 @@ class SampleWorkFlowController extends Controller
 					$result->reporting_symbol = $an->reporting_symbol;
 					$result->recheck = 0;
 					$result->analyte_status_contracted = $lab->is_external;
+					$result->lab_section_id  = $analysisType->lab_section_id;
 					$result->save();
 				}
 			}
 		}
 
 		return redirect()->back()->within('success', 'Batch Samples updated.');
+	}
+	public function createDetailAnalysisRelation($batch_id,$sample_id,$analysis_type)
+	{
+		$data = [];
+		foreach($analysis_type as $at){
+			$data[]=[
+				"analysis_type_id"=>$at,
+				"batch_id"=>$batch_id,
+				"sample_detail_id"=>$sample_id
+			];
+		}
+		sampleAnalysisTypeRelation::insert($data);
+		return "success";
+		
 	}
 	public function addBatchSamplesDynamically()
 	{
@@ -1033,7 +1071,9 @@ class SampleWorkFlowController extends Controller
 		$atachment_type = SystemConfiguration::where('key', 'attachment_type')->get();
 		$qc_types = QcTypes::all();
 		$qc_schemes = QcSchemes::all();
+		$users = User::where('is_client',0)->where('supplier_id',0)->where('active',1)->get();
 		$qc_config_perc = 0;
+		$interlabs = [];
 		if (isset($account_settings->id)) {
 			$accounts = getconfigByID($account_settings->id);
 		} else {
@@ -1041,11 +1081,13 @@ class SampleWorkFlowController extends Controller
 			$accounts = array();
 		}
 
-
 		// $samples = $batch->all_samples();
 		// return response()->json($samples,200);
 		$not_captured = [];
+		$payment_detail = [];
 		if (isset($batch->id)) {
+			$payment_detail = InvoicePaymentDetail::where('batch_id',$batch->id)->get();
+			$interlabs = InterLabLogView::where('sample_header_id',$batch->id)->orderBy('id','DESC')->orderBy('status','ASC')->get();
 			$qc_config = SystemConfiguration::where('key', 'qc_percentage_config')->first();
 			$qc_config_perc = $qc_config->value;
 			$equipment_data = $batch->get_captured();
@@ -1115,11 +1157,12 @@ class SampleWorkFlowController extends Controller
 			// return response()->json($ammendable,200);
 		}
 		$role_a = SystemConfiguration::where('key', 'analyst_role_id')->first();
+		$labs  = Lab::where('active',1)->get();
 		// $analysts = getUsersByRole('Analyst');
 		$analysts = User::orderBy('name')->join('user_roles as ur', 'ur.user_id', '=', 'users.id')
 			->join('roles as r', 'r.id', '=', 'ur.role_id')
 			->where('r.id', $role_a->value)->where('users.active', 1)->where('users.is_support_staff', 0)->selectRaw('users.*')->get();
-		return view('layouts.lab.sample-workflow.show', compact('batch', 'batchID', 'defaultClient', 'selectedSampleType', 'client_portal', 'ammendable', 'standards', 'attachments', 'not_captured', 'analysts', 'countries', 'accounts', 'methods', 'atachment_type', 'check_perm_view', 'check_perm_delete', 'batch_scope', 'customer_survey','qc_types','qc_schemes','repeat_sample','qc_config_perc'));
+		return view('layouts.lab.sample-workflow.show', compact('batch', 'batchID', 'defaultClient', 'selectedSampleType', 'client_portal', 'ammendable', 'standards', 'attachments', 'not_captured', 'analysts', 'countries', 'accounts', 'methods', 'atachment_type', 'check_perm_view', 'check_perm_delete', 'batch_scope', 'customer_survey','qc_types','qc_schemes','repeat_sample','qc_config_perc','interlabs','labs','users','payment_detail'));
 	}
 
 	public function fetch_unit_stuff($name, $client)
@@ -2925,4 +2968,129 @@ class SampleWorkFlowController extends Controller
 		}
 		return response()->json('done');
 	}
+	public function getLabsByAnalysisTypeIdAjax(Request $request){
+		$lab_ids = AnalysisType::whereIn('id',$request->ids)->pluck('lab_id')->toArray();
+		$labs =  Lab::whereIn('id',$lab_ids)->get();
+		return response()->json($labs);
+	}
+	public function assignLabSectionToAnalysisElement($id){
+		$analysistype = AnalysisType::find($id);
+		$elements = AnalysisElements::where('analysis_type_id',$id)->update(['lab_section_id'=>$analysistype->lab_section_id]);
+		return response()->json('success');
+
+	}
+
+	public function create_sample_inter_lab_log(Request $request){
+		if($request->quantity == '' || $request->to_lab_section_id == ''){
+			return redirect()->back()->with('error','Quantity, To Lab are mandatory fields');
+		}
+		// return response()->json($request->all());
+		if(isset($request->batch_level)){
+			$log = [];
+			$batches = SampleHeader::whereIn('batch_code',$request->batch_code)->pluck('id')->toArray();
+			$sample_ids = SampleDetails::whereIn('sample_header_id',$batches)->pluck('id')->toArray();
+			foreach($sample_ids as $id){
+				$batch = getSampleHeaderByID(getSampleDetailByID($id)->sample_header_id);
+				$last_log = InterLabLog::where('sample_id',$id)->where('status',1)->orderBy('date_received','DESC')->first();
+				$log[]=[
+					"sample_id"=>$id,
+					"to_lab_section_id"=>$request->to_lab_section_id,
+					"from_lab_section_id"=>isset($last_log->id) ? $last_log->to_lab_section_id : 0,
+					"quantity"=>$request->quantity,
+					"submited_by"=>auth()->user()->id,
+					"date_submitted"=> date('Y-m-d h:i:s a'),
+					"expected_date"=>$request->expected_date == '' ?  date('Y-m-d', strtotime($batch->get_date('Target Date')['date'])) : $request->expected_date,
+					
+				];
+
+			}
+			
+			// return response()->json($log);
+		}else{
+			
+			$last_log = InterLabLog::where('sample_id',$request->sample_id)->where('status',1)->orderBy('date_received','DESC')->first();
+			if(isset($request->interlab_id) && $request->interlab_id != '0'){
+				$log = [
+					"sample_id"=>$request->sample_id,
+					"to_lab_section_id"=>$request->to_lab_section_id,
+					"quantity"=>$request->quantity,
+					"submited_by"=>auth()->user()->id,
+					"date_submitted"=> date('Y-m-d h:i:s a'),
+					"expected_date"=>$request->expected_date,
+				];
+			}else{
+				$log = [
+					"sample_id"=>$request->sample_id,
+					"to_lab_section_id"=>$request->to_lab_section_id,
+					"from_lab_section_id"=>isset($last_log->id) ? $last_log->from_lab_section_id : 0,
+					"quantity"=>$request->quantity,
+					"submited_by"=>auth()->user()->id,
+					"date_submitted"=> date('Y-m-d h:i:s a'),
+					"expected_date"=>$request->expected_date,
+				];
+			}
+			
+		}
+		isset($request->interlab_id) && $request->interlab_id != '0' ? InterLabLog::find($request->interlab_id)->update($log) : InterLabLog::insert($log);
+		if($request->notify_user != '' || $request->sms_notify !=  ''){
+			$sample_codes =isset($request->batch_level) ? implode(', ',SampleDetails::whereIn('id',$sample_ids)->pluck('sample_code')->toArray()) : SampleDetails::find($request->sample_id)->sample_code;
+			$bcc_emails = User::whereIn('id',$request->also_notify)->pluck('email')->toArray();
+			$body = 'Hi Team, <br> The folowing sample(s) require  your attention for approval of inter laboratory transfer raised by '.auth()->user()->name.'<br>'.$sample_codes;
+			$to_email = getUserById($request->notify_user);
+
+			
+
+			if(isset($to_email->id)){
+				notify_user($body,$to_email->email,'[Polucon  Polucon Services Limited] Inter Laboratory Transfer Approval Notification',false,false,$bcc_emails);
+				sendTextMessage($to_email->phone,'Hi '.$to_email->name.', The folowing sample(s) require  your attention for approval of inter laboratory transfer raised by '.auth()->user()->name);
+				foreach( User::whereIn('id',$request->also_notify)->get() as $user){
+					$user->phone != '' ? sendTextMessage($user->phone,'Hi '.$user->name.', The folowing sample(s) require  your attention for approval of inter laboratory transfer raised by '.auth()->user()->name).':  '.$sample_codes : '';
+				}
+			}
+
+		}
+			
+		return redirect()->back()->with('success','Inter laboratory Log updated successfully');
+	}
+	
+	public function getSampleCurrentLabSection($id){
+		$last_log = InterLabLogView::where('sample_id',$id)->where('status',1)->orderBy('date_received','DESC')->first();
+		return response()->json(isset($last_log->id) ? $last_log->to_lab_code.' '.$last_log->to_lab_name : "Reception");
+	}
+	public function changeInterLabLogStatus(Request $request){
+		if($request->status == ''){
+			return redirect()->back()->with('error','Status is a required field');
+		}
+		if(isset($request->inter_lab_id)){
+			InterLabLog::find($request->inter_lab_id)->update(['status'=>$request->status,'date_received'=>date('Y-m-d h:i:s a'),"received_by"=>auth()->user()->id]);
+		}else{
+			InterLabLog::whereIn('id',explode(',',$request->inter_lab_ids))->update(['status'=>$request->status,'date_received'=>date('Y-m-d h:i:s a'),"received_by"=>auth()->user()->id]);
+		}
+		return redirect()->back()->with('success','Inter laboratory Log status updated successfully');
+	}
+	public function interLabTransferIndex($is_archived = 0){
+		$interlabs = $is_archived == 0 ? InterLabLogView::orderBy('id','DESC')->where('batch_status','!=','Completed')->get() : InterLabLogView::orderBy('id','DESC')->get();
+		$samples = $interlabs->pluck('sample_code')->toArray();
+		$labs  = Lab::where('active',1)->get();
+		$users = User::where('is_client',0)->where('supplier_id',0)->where('active',1)->get();
+
+		return view('layouts.lab.interlab.index',compact('interlabs','samples','labs','users'));
+
+	}
+	public function deleteInterLabTransferLogs(Request $request){
+		// return response()->json($request->all());
+		InterLabLog::whereIn('id',explode(',',$request->inter_lab_ids))->delete();
+		return redirect()->back()->with('success','Inter Laboratory Transfer Log(s) deleted successfully');
+	}
+
+	public function generateCustomerFocusIndex($batch_id){
+		$batch = SampleHeader::find($batch_id);
+		$customer = CrmCustomer::find($batch->crm_customer_id);
+		$company = getActiveCompany();
+		$config_docs_setting = SystemConfiguration::where('key','customer_focus_id')->first();
+		$configs = SystemConfiguration::where('configuration_type_id',$config_docs_setting->value)->pluck('key','value')->toArray();		
+		return response()->json($configs);
+	}
+
+
 }
