@@ -52,10 +52,12 @@
 				<div class="icon w3-cyan"><i class="mdi mdi-account-multiple-outline"></i></div>
 				<div class="small w3-padding-small">CRM</div>
 			</a>
+			@if(auth()->user()->is_support_staff)
 			<a class="app"  href="/personnel-home">
 				<div class="icon w3-red"><i class="mdi mdi-account-group"></i></div>
 				<div class="small w3-padding-small">Personnel</div>
 			</a>
+			@endif
 			<span class="app" data-toggle="modal" data-target="#to-be-configured">
 				{{-- href="/full-calendar/view" --}}
 				<div class="icon w3-amber"><i class="mdi mdi-calendar"></i></div>
