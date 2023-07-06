@@ -53,7 +53,7 @@
                 <th>No</th>
                 <th>Code</th>
                 <th>Name</th>
-                <th>Description</th>
+                <th>Disclaimer</th>
                 @if(Auth::user()->company_id == 0)
                 <th>Company</th>
                 @endif
@@ -95,8 +95,8 @@
                             <input type="text" class="form-control" name="code" value="{{ $sample_type->code }}" placeholder="Sample Type Code..." required />
                           </div>
                           <div class="form-group">
-                            <label class="control-label">Description</label>
-                            <textarea class="form-control" name="description" placeholder="Description..." required>{{ $sample_type->description }}</textarea>
+                            <label class="control-label">Disclaimer</label>
+                            <textarea class="form-control" name="description" placeholder="Disclaimer..." required>{{ $sample_type->description }}</textarea>
                           </div>
                           @if(Auth::user()->company_id == 0)
                           <div class="form-group">
@@ -340,8 +340,8 @@
           <input type="text" class="form-control" name="code" placeholder="Sample Type Code..." required />
         </div>
         <div class="form-group">
-          <label class="control-label">Description</label>
-          <textarea class="form-control" name="description" placeholder="Description..." required></textarea>
+          <label class="control-label">Disclaimer</label>
+          <textarea class="form-control" name="description" placeholder="Disclaimer..." required></textarea>
         </div>
         @if(Auth::user()->company_id == 0)
         <div class="form-group">
@@ -354,6 +354,7 @@
           </select>
         </div>
         @endif
+        
         <div class="form-group">
           <label class="control-label"><input type="checkbox" name="active" value="1" checked /> Active</label>
         </div>

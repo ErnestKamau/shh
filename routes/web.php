@@ -755,10 +755,15 @@ Route::prefix('qualitycontrol')->group(function() {
 ################################################Polucon#########################################
 Route::get('/assign-Lab/Section-To-Analysis-Element/{id}','SampleWorkFlowController@assignLabSectionToAnalysisElement')->name('assignLabSectionToAnalysisElement');
 
+Route::get('/generate/Customer-Focus/Index/{batch_id}','SampleWorkFlowController@generateCustomerFocusIndex')->name('generateCustomerFocusIndex');
+
 ####################Inter Lab Log ####################################
 Route::get('/getSampleCurrentLabSection/{id}','SampleWorkFlowController@getSampleCurrentLabSection')->name('getSampleCurrentLabSection');
 Route::post('/create-sample-inter-lab-log','SampleWorkFlowController@create_sample_inter_lab_log')->name('create_sample_inter_lab_log');
 Route::post('/change/Inter-Lab-Log/Status','SampleWorkFlowController@changeInterLabLogStatus')->name('changeInterLabLogStatus');
+
+Route::get('/inter-Lab/Transfer-Index/{is_archived?}','SampleWorkFlowController@interLabTransferIndex')->name('interLabTransferIndex');
+Route::post('/delete/Inter-Lab-Transfer/Logs','SampleWorkFlowController@deleteInterLabTransferLogs')->name('deleteInterLabTransferLogs');
 
 ################################################Polucon#########################################
 

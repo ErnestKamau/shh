@@ -14,32 +14,51 @@ class InvoicePaymentDetailController extends Controller
         $this->middleware('auth');
     }
     public function add(Request $request){
-        $invoice  = Invoice::find($request->invoice_id);
-        if(isset($invoice->id)){
-            $payment = new InvoicePaymentDetail();
-            $payment->payment_method = $request->method;
-            $payment->amount = $request->amount;
-            $payment->received_by = auth()->user()->id;
-            $payment->transaction_no = $request->transaction_number;
-            $payment->credit_days = $request->credit_days;
-            $payment->ref_no = $request->ref_no;
-            $payment->invoice_id = $invoice->id;
-            $payment->save();
-            $payment_details = InvoicePaymentDetail::where('invoice_id',$invoice->id)->where('is_delete',0)->pluck('amount')->toArray();
-            $total_amount = array_sum($payment_details);
-            if($invoice->total < $total_amount){
-                $batches = SampleHeader::where('invoice_id',$invoice->id)->get();
-                foreach($batches as $batch){
-                    $batch->customer_paid = 1;
-                    $batch->save();
+        if(!isset($request->batch_id)){
+            $invoice  = Invoice::find($request->invoice_id);
+            if(isset($invoice->id)){
+                $payment = new InvoicePaymentDetail();
+                $payment->payment_method = $request->method;
+                $payment->amount = $request->amount;
+                $payment->received_by = auth()->user()->id;
+                $payment->transaction_no = $request->transaction_number;
+                $payment->credit_days = $request->credit_days;
+                $payment->ref_no = $request->ref_no;
+                $payment->invoice_id = $invoice->id;
+                $payment->save();
+                $payment_details = InvoicePaymentDetail::where('invoice_id',$invoice->id)->where('is_delete',0)->pluck('amount')->toArray();
+                $total_amount = array_sum($payment_details);
+                if($invoice->total < $total_amount){
+                    $batches = SampleHeader::where('invoice_id',$invoice->id)->get();
+                    foreach($batches as $batch){
+                        $batch->customer_paid = 1;
+                        $batch->save();
+                    }
                 }
-            }
-            // return response()->json($total_amount,200);
-            return redirect()->back()->with('success','Payment Details added successfully!');
-        }else{
-            return redirect()->back()->with('error','No payment method with the specified name');
+                // return response()->json($total_amount,200);
+                return redirect()->back()->with('success','Payment Details added successfully!');
+            }                
+            else{
+
+                return redirect()->back()->with('error','No payment method with the specified name');
+            }                
         }
+        $detail = $request->payment_detail_id > 0 ? InvoicePaymentDetail::find($request->payment_detail_id) : new InvoicePaymentDetail();
+        $detail->payment_method = $request->method;
+        $detail->amount = $request->amount;
+        $detail->received_by = auth()->user()->id;
+        $detail->vat = $request->vat;
+        $detail->balance = $request->balance;
+        $detail->ref_no = $request->ref_no;
+        $detail->contact_person_name = $request->contact_person_name;
+
+        $detail->batch_id = $request->batch_id;
+        $detail->save();
+
+        return redirect()->back()->with('success','Payment Details added successfully!');
+
     }
+   
     public function edit(Request $request){
         $payment = InvoicePaymentDetail::find($request->payment_id);
         if(isset($payment->id)){

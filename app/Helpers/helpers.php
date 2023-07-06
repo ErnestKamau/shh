@@ -5,6 +5,7 @@ use Illuminate\Support\Facades\DB;
 
 use App\Supplier;
 use App\SampleAnalysisTypeRelationView;
+use App\InterLabLog;
 
 function myCurl($url, $payload)
 {
@@ -36,7 +37,7 @@ function textBetween($str, $starting_word, $ending_word)
 
 function getMethods()
 {
-	return App\AnalysisMethod::all();
+	return App\AnalysisMethod::where('active',1)->where('is_sampling_method',0)->get();
 }
 
 function getCurrentDate()
@@ -1507,4 +1508,10 @@ function is_valid_email($email){
 }
 function getSampleDetailsLab($sample_id){
 	return  SampleAnalysisTypeRelationView::where('sample_detail_id',$sample_id)->distinct('lab_id')->get();
+}
+function getInterLabTotals(){
+	return InterLabLog::whereNotNull('sample_id')->get()->count();
+}
+function getSamplingMethods(){
+	return App\AnalysisMethod::where('active',1)->where('is_sampling_method',1)->get();
 }

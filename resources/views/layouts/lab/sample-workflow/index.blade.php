@@ -89,6 +89,12 @@
 				Actions
 			</button>
 			<div class="dropdown-menu dropdown-menu-right">
+				@if(isset($status) && in_array($status, array("Samples En-Route","Samples Request Review","Samples Reception","Samples In Lab")))
+				<li>
+					<span class="btn btn-sm dropdown-item initiate-interlab" data-toggle="modal" data-target="#inter-lab-add" data-action="bulk"><i class="mdi mdi-swap-horizontal-bold mr-2 text-warning" data-toggle="tooltip" title="Initiate inter Lab"></i> Intiate Inter Lab Transfer(s)</span>
+
+				</li>
+				@endif
 				@if ($status=="Samples Reception")
 				<li>
 					<span class="btn btn-sm dropdown-item" data-toggle="modal" disabled data-target="#delete-batch">
@@ -265,6 +271,66 @@
 @endsection
 
 @section('script2')
+@if(isset($status) && in_array($status, array("Samples En-Route","Samples Request Review","Samples Reception","Samples In Lab")))
+<div class="modal fade" id="inter-lab-add" data-backdrop="static" data-keyboard="false" role="dialog">
+	<div class="modal-dialog">
+		<div class="modal-content">
+			<form action="{{route('create_sample_inter_lab_log')}}" method="post">
+				@csrf  
+				<div class="modal-body">
+					<div class="alert alert-primary p-2 d-flex">
+						<i class="mdi mdi-alert-decagram-outline" style="font-size: 30px"></i>
+						<span class="p-2">
+							Initiate Interlab for all samples in the following batches below by providing the information below
+						</span>
+					</div>
+					<div class="form-group">
+						<label for="" class="control-label">To Lab</label>
+						<select name="to_lab_section_id" id="" class="form-control">
+							@foreach($labs as $lab)
+							<option value="{{$lab->id}}">{{$lab->code}} - {{$lab->name}}</option>
+							@endforeach
+						</select>
+					</div>
+					<div class="form-group">
+						<label for="" class="control-label">Quantity</label>
+						<input type="text" name="quantity" value="" class="form-control">
+					</div>
+					<div class="form-group">
+						<label for="" class="control-label">Expected Date</label>
+						<input type="date" name="expected_date" value="" id="" class="form-control">
+					</div>
+					<div class="form-group">
+						<label for="" class="control-label">Notify</label>
+						<select name="notify_user" id="" class="form-control notify_user">
+							@foreach($users as $user)
+							<option value="{{$user->id}}">{{$user->name}}</option>
+							@endforeach
+						</select>
+					</div>
+					<div class="form-group">
+						<label for="" class="control-label">Notify</label>
+						<select name="also_notify[]" multiple id="" class="form-control also_notify">
+							@foreach($users as $user)
+							<option value="{{$user->id}}">{{$user->name}}</option>
+							@endforeach
+						</select>
+					</div>
+					<input type="hidden" name="batch_level" value="1">
+					<div class="form-group">
+						<label class="control-label">Batches</label>
+						<div class="selected-batches-interlab"></div>
+					</div>
+				</div>
+				<div class="modal-footer">
+					<Button type="submit" class="btn btn-outline-primary btn-sm submit-button"><i class="mdi mdi-swap-horizontal-bold"></i> Initiate</Button>
+					<span class="btn btn-sm btn-default text-danger" data-dismiss="modal">Cancel</span>
+				</div>
+			</form>
+		</div>
+	</div>
+</div>
+@endif
 @if ($status=="Reports for Collection")
 <div id="send-email-reports-modal" class="modal fade" role="dialog">
 	<div class="modal-dialog">
@@ -824,6 +890,8 @@
 	$("input[name='table_sample_id[]']").on('change', function() {
 		if ($("input[name='table_sample_id[]']:checked").length > 0) {
 			$('[data-target="#delete-batch"]').removeAttr('disabled').addClass('btn-danger').removeClass('btn-outline-danger');
+			$('[data-target="#inter-lab-add"]').removeAttr('disabled');
+
 			$('[data-target="#dispatch-to-labs-modal"]').removeAttr('disabled').addClass('btn-warning').removeClass('btn-outline-warning');
 			$('[data-target="#dispatch-to-labs-modal-approve"]').removeAttr('disabled').addClass('btn-success').removeClass('btn-outline-success');
 			$('[data-target="#dispatch-to-labs-modal-payment-reminder"]').removeAttr('disabled', true).removeClass('btn-outline-info').addClass('btn-info');
@@ -832,12 +900,14 @@
 
 		} else {
 			$('[data-target="#delete-batch"]').attr('disabled', true).removeClass('btn-danger').addClass('btn-outline-danger');
+			$('[data-target="#inter-lab-add"]').attr('disabled',true);
 			$('[data-target="#dispatch-to-labs-modal"]').attr('disabled', true).removeClass('btn-warning').addClass('btn-outline-warning');
 			$('[data-target = "#approve-begin-process"]').removeAttr('disabled').addClass('btn-default').removeClass('btn-outline-success');
 			$('[data-target="#dispatch-to-labs-modal-approve"]').attr('disabled', true).removeClass('btn-success').addClass('btn-outline-success');
 			$('[data-target="#dispatch-to-labs-modal-payment-reminder"]').attr('disabled', true).removeClass('btn-info').addClass('btn-outline-info');
 		}
 		$('.selected-batches-review').empty();
+		$('.selected-batches-interlab').empty();
 		$('.selected-batches-request').empty();
 		$('.selected-batches-request-approve').empty();
 
@@ -850,6 +920,11 @@
 					notPaid.push(batch.batch_code);
 				}
 				$('.selected-batches-review').append(
+					`<span class="p-2 mr-2">
+						<input type="checkbox" name="batch_code[]" value="${ $value }"  checked >${ $value }
+					</span>`
+				);
+				$('.selected-batches-interlab').append(
 					`<span class="p-2 mr-2">
 						<input type="checkbox" name="batch_code[]" value="${ $value }"  checked >${ $value }
 					</span>`

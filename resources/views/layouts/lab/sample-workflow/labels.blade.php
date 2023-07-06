@@ -70,6 +70,11 @@
 							@endif
 						</tr>
 						@endforeach
+						<tr>
+							<td colspan="{{sizeof($item)}}" class="text-center">
+								<div class="p-2"><span class="barcode">{!! DNS1D::getBarcodeSVG($item['Sample Ref'], 'C128B') !!}</span> <span class="btn btn-sm btn-transparent print-barcode"><i class="mdi mdi-printer text-info"></i></span></div>
+							</td>
+						</tr>
 					</tbody>
 				</table>
 			</div>

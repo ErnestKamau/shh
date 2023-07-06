@@ -42,6 +42,7 @@ class AnalysisMethodController extends Controller
     $analysis_type->description = $request->description;
     $analysis_type->company_id = getUserCompany();
     $analysis_type->active = $request->active ?? 0;
+    $analysis_type->is_sampling_method = $request->is_sampling_method ?? 0;
 
     $analysis_type->save();
 
@@ -57,6 +58,7 @@ class AnalysisMethodController extends Controller
     $analysis_type->description = $request->description;
     $analysis_type->company_id = getUserCompany();
     $analysis_type->active = $request->active ?? 0;
+    $analysis_type->is_sampling_method = $request->is_sampling_method ?? 0;
 
     $analysis_type->save();
 

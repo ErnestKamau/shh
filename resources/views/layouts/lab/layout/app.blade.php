@@ -91,6 +91,12 @@
 				$menuTotals = getSampleWorkFLowTotals();
 				?>
 				@foreach (getSampleWorflowStages() as $item)
+				@if($item == 'Samples In Lab')
+				<a href="{{route('interLabTransferIndex')}}" class="list-group-item list-group-item-action bg-dark text-white">
+					<span class="menu-collapsed"><i class="mdi mdi-circle-medium"></i> Inter Lab Transfer
+						<small class="float-right badge badge-pill badge-success">{{getInterLabTotals()}}</small></span>
+				</a>
+				@endif
 				<a href="{{ route('sample-workflow', ['status'=>$item]) }}" class="list-group-item list-group-item-action bg-dark text-white">
 					<span class="menu-collapsed"><i class="mdi mdi-circle-medium"></i>{{ $item }}
 						<small class="float-right badge badge-pill {{ $item == "Samples Request Review" ? 'badge-danger' : 'badge-dark' }}">{{ $menuTotals[$item] ?? 0 }}</small></span>
