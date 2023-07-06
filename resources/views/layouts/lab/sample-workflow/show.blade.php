@@ -279,6 +279,7 @@
 						<i class="mdi mdi-download"></i> View Report
 					</a>
 				@endif
+				@if(isset($batch->id))
 				<div class="btn-group float-right">
 					<button class="btn btn-default bg-light btn-sm dropdown-toggle" type="button" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false" style="box-shadow: rgba(0, 0, 0, 0.15) 1.95px 1.95px 2.6px;">
 						<i class="mdi mdi-swap-vertical"></i> Move To Stage
@@ -305,6 +306,7 @@
 						@endforeach
 					</div>
 				</div>
+				@endif
 			</h5>
 			<hr>
 			<form class="{{isset($batch->id) ? 'hidden' : ''}}" action="{{ route('add-batch-info', ['batch'=>$batchID]) }}" class="row" id="batch-detail-form" method="POST" autocomplete="off">
