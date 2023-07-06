@@ -1515,3 +1515,7 @@ function getInterLabTotals(){
 function getSamplingMethods(){
 	return App\AnalysisMethod::where('active',1)->where('is_sampling_method',1)->get();
 }
+function getCrmCustomerContactSchedule($id)
+{
+	return App\Models\CRM\CustomerContact::where('crm_customer_id', $id)->where('active', 1)->where('receive_report', 1)->get();
+}

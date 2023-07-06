@@ -168,8 +168,13 @@
 			<div class="dropdown-menu dropdown-menu-right">
 				@if(isset($batch->id))
 				<li>
-					<a href="{{route('generateCustomerFocusIndex',['batch_id'=>$batch->id])}}" class="btn btn-sm dropdown-item"><i class="mdi mdi-eye mr-2"></i> View Customer Focus</a>
+					<a target="_blank" href="{{route('generateCustomerFocusIndex',['batch_id'=>$batch->id])}}" class="btn btn-sm dropdown-item"><i class="mdi mdi-eye mr-2"></i> View Customer Focus</a>
 				</li>
+				@if($batch->schedule_analysis_sent == '')
+				<li>
+					<span class="btn btn-sm dropdown-item" data-toggle="modal" data-target="#send-schedule-analysis"><i class="mdi mdi-email-send"></i> Send Schedule of Analysis</span>
+				</li>
+				@endif
 				@endif
 
 				@if(isset($batch->status) && $batch->status=="Samples In Lab" && Auth::user()->is_client == 0)
@@ -1568,7 +1573,40 @@
 @if(isset($batch->id))
 <?php 
 $customer = getCrmCustomerByID($batch->crm_customer_id);
+$contacts = getCrmCustomerContactSchedule($customer->id);
 ?>
+<div class="modal fade" id="send-schedule-analysis" role="dialog">
+	<div class="modal-dialog">
+		<div class="modal-content">
+			<form action="" method="post">
+				@csrf 
+				<div class="modal-body">
+					<div class="alert alert-prmary p-2 d-flex">
+						<i class="mdi mdi-email-send-outline" style="font-size: 30px"></i>
+						<span class="p-2">
+							Confirm you want to send schedule of analysis for batch {{$batch->batch_code}} to {{$customer->name}} customer.
+							Choose the customer contact to receive the schedule of analysis below: 
+						</span>
+					</div>
+					<div class="form-group">
+						<label for="" class="control-label">Customer Contact</label>
+						<select name="contact_id" id="" class="form-control">
+							<option value="">Choose Contact...</option>
+							@foreach($contacts as $contact) 
+							<option value="{{$contact->id}}">{{$contact->name}}</option>
+							@endforeach
+						</select>
+					</div>
+					<input type="hidden" name="batch_id" value="{{$batch->id}}">
+				</div>
+				<div class="modal-footer">
+					<button class="btn btn-sm btn-outline-primary" type="submit"><i class="mdi mdi-email-send-outline"></i> Yes, Send</button>
+					<span class="btn btn-sm btn-default text-danger" data-dismiss="modal">Close</span>
+				</div>
+			</form>
+		</div>
+	</div>
+</div>
 <div class="modal fade" id="change-interlab-status" data-backdrop="static" data-keyboard="false" role="dialog">
 	<div class="modal-dialog">
 		<div class="modal-content">

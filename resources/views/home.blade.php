@@ -34,14 +34,16 @@
 				<div class="icon w3-green"><i class="mdi mdi-flask"></i></div>
 				<div class="small w3-padding-small">Laboratory</div>
 			</a>
-			<a class="app" href="/inventory-home">
+			<span class="app" data-toggle="modal" data-target="#to-be-configured">
+				{{-- href="/inventory-home" --}}
 				<div class="icon w3-blue"><i class="mdi mdi-package-variant"></i></div>
 				<div class="small w3-padding-small">Inventory</div>
-			</a>
-			<a class="app"  href="/equipment-home">
+			</span>
+			<span class="app" data-toggle="modal" data-target="#to-be-configured">
+				{{-- href="/equipment-home" --}}
 				<div class="icon w3-brown"><i class="mdi mdi-tools"></i></div>
 				<div class="small w3-padding-small">Equipment</div>
-			</a>
+			</span>
 			<!-- <a class="app"  href="/document-manager">
 				<div class="icon w3-deep-orange"><i class="mdi mdi-book-open-page-variant"></i></div>
 				<div class="small w3-padding-small">Asset Booking</div>
@@ -54,20 +56,36 @@
 				<div class="icon w3-red"><i class="mdi mdi-account-group"></i></div>
 				<div class="small w3-padding-small">Personnel</div>
 			</a>
-			<a class="app"  href="/full-calendar/view">
+			<span class="app" data-toggle="modal" data-target="#to-be-configured">
+				{{-- href="/full-calendar/view" --}}
 				<div class="icon w3-amber"><i class="mdi mdi-calendar"></i></div>
 				<div class="small w3-padding-small">System Planner</div>
-			</a>
+			</span>
 			<!-- <a class="app"  href="/personnel-home">
 				<div class="icon w3-grey"><i class="mdi mdi-tools"></i></div>
 				<div class="small w3-padding-small">Work Orders</div>
 			</a> -->
-			@if(\App::environment() == 'local')
+			@if(auth()->user()->is_support_staff)
 			<a class="app" href="/system-settings">
 				<div class="icon w3-black"><i class="fas fa-cogs"></i></div>
 				<div class="small w3-padding-small">System Settings</div>
 			</a>
 			@endif
 		</div>
+  </div>
+  <div class="modal fade" id="to-be-configured" role="dialog">
+	<div class="modal-dialog">
+		<div class="modal-content">
+			<div class="modal-body">
+				<div class="alert alert-primary p-2 d-flex">
+					<i class="mdi mdi-alert-decagram-outline" style="font-size: 35px"></i>
+					<h5 class="p-2">This module will be enabled in <b>Phase 2</b></h5>
+				</div>
+			</div>
+			<div class="modal-footer">
+				<span class="btn btn-sm btn-default" data-dismiss="modal">Close</span>
+			</div>
+		</div>
+	</div>
   </div>
 @endsection

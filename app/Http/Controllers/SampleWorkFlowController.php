@@ -793,6 +793,7 @@ class SampleWorkFlowController extends Controller
 		$samWk = "Samples Reception";
 
 		$stage = SampleAnalysisStage::where('name', $strStage)->where('sample_workflow', $samWk)->first();
+		$batch->days_of_analysis = $maxReportingTime;
 		$batch->sample_tracking_stage = $stage->id;
 		$batch->save();
 
@@ -3088,8 +3089,16 @@ class SampleWorkFlowController extends Controller
 		$customer = CrmCustomer::find($batch->crm_customer_id);
 		$company = getActiveCompany();
 		$config_docs_setting = SystemConfiguration::where('key','customer_focus_id')->first();
-		$configs = SystemConfiguration::where('configuration_type_id',$config_docs_setting->value)->pluck('key','value')->toArray();		
-		return response()->json($configs);
+		$docs_settings = SystemConfiguration::where('configuration_type_id',$config_docs_setting->value)->pluck('value','key')->toArray();	
+		$review_staff = getUserById($batch->declaration_customer_review_id);
+		$samples = SampleDetails::where('sample_header_id',$batch_id)->get();
+		$payment_detail = InvoicePaymentDetail::where('batch_id',$batch->id)->orderBy('id','DESC')->first();
+		
+		return view('layouts.lab.sample-workflow.customer_focus',compact('batch','customer','company','docs_settings','review_staff','samples','payment_detail'));
+	}
+
+	public function sendBatchScheduleAnalysis(Request $request){
+		return "success"
 	}
 
 
