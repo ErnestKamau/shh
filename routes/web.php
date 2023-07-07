@@ -755,7 +755,7 @@ Route::prefix('qualitycontrol')->group(function() {
 ################################################Polucon#########################################
 Route::get('/assign-Lab/Section-To-Analysis-Element/{id}','SampleWorkFlowController@assignLabSectionToAnalysisElement')->name('assignLabSectionToAnalysisElement');
 
-Route::get('/generate/Customer-Focus/Index/{batch_id}','SampleWorkFlowController@generateCustomerFocusIndex')->name('generateCustomerFocusIndex');\
+Route::get('/generate/Customer-Focus/Index/{batch_id}','SampleWorkFlowController@generateCustomerFocusIndex')->name('generateCustomerFocusIndex');
 Route::post('/send/Batch-Schedule/Analysis','SampleWorkFlowController@sendBatchScheduleAnalysis')->name('sendBatchScheduleAnalysis');
 
 ####################Inter Lab Log ####################################
