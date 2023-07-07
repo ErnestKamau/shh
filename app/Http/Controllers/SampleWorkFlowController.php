@@ -622,7 +622,7 @@ class SampleWorkFlowController extends Controller
 				if (!isset($config_start_no->id)) {
 					return redirect()->back()->with('error', 'Kindly configure the start sample No');
 				}
-				if(SampleDetails::latest('id')->first()->id){
+				if(isset(SampleDetails::latest('id')->first()->id)){
 					$code = SampleDetails::latest('id')->first()->sample_code;
 					$last_sample = substr($code,9,strlen($code));
 				}else{
