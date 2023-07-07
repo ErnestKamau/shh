@@ -1575,10 +1575,32 @@
 $customer = getCrmCustomerByID($batch->crm_customer_id);
 $contacts = getCrmCustomerContactSchedule($customer->id);
 ?>
-<div class="modal fade" id="send-schedule-analysis" role="dialog">
+<div class="modal fade" id="send-payment-reminder" role="dialog">
 	<div class="modal-dialog">
 		<div class="modal-content">
 			<form action="" method="post">
+				@csrf  
+				<div class="modal-body">
+					<div class="alert alert-primary p-2 d-flex">
+						<i class="mdi mdi-email-send-outline" style="font-size: 30px"></i>
+						<span class="p-2">Send out payment reminder to {{$customer->name}} by filling the details below:</span>
+					</div>
+					<div class="form-group">
+						<label for="" class="control-label">Body</label>
+						<textarea rows="1" style="width: 300px" class="form-control form-control-sm sample-comments" name="sample_details[comments][]" placeholder="Sample Comments..."></textarea>
+						<textarea name="body" class="form-control editor" id="" cols="30" rows="10">
+							Dear {{$customer->name}},<br>
+						</textarea>
+					</div>
+				</div>
+			</form>
+		</div>
+	</div>
+</div>
+<div class="modal fade" id="send-schedule-analysis" role="dialog">
+	<div class="modal-dialog">
+		<div class="modal-content">
+			<form action="{{route('sendBatchScheduleAnalysis')}}" method="post">
 				@csrf 
 				<div class="modal-body">
 					<div class="alert alert-prmary p-2 d-flex">
@@ -2512,14 +2534,9 @@ $contacts = getCrmCustomerContactSchedule($customer->id);
 
 <script src="https://maps.googleapis.com/maps/api/js?v=3.exp&key=AIzaSyBqS4AEZ-gVeXjG794Rh0eTd6yvdfMKTjg&sensor=false" type="text/javascript"></script>
 <script>
-	
-	@if(isset($batch->status) && $batch->status=="Sample Approval")
-		@if($equipment_data['captured'] > 0)
-			tinymce.init({
-				selector: 'textarea.editor'
-			});
-		@endif
-	@endif
+	tinymce.init({
+		selector: 'textarea.editor'
+	});
 	var detectChange = function(ts){
 		var op = $(ts).children('option:selected');
 		$('#client-unit-select').html('<option value="" selected>Select Organizational Unit...</option>');

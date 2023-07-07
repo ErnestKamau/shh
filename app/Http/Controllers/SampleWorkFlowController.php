@@ -3098,7 +3098,54 @@ class SampleWorkFlowController extends Controller
 	}
 
 	public function sendBatchScheduleAnalysis(Request $request){
-		return "success"
+		$batch = SampleHeader::find($request->batch_id);
+		$samples = SampleDetails::where('sample_header_id',$batch->id)->get();
+		$customer = CrmCustomer::find($batch->crm_customer_id);
+		$sampleTrs = '';
+		$contact = CustomerContact::find($request->contact_id);
+		foreach($samples as $sample){
+			$sampleTrs.'
+			<tr style="border: 1px solid black">
+				<td style="border: 1px solid black">'.$sample->sample_code.'</td>
+				<td style="border: 1px solid black">'.$sample->getAnalysisRelation().' </td>
+				<td style="border: 1px solid black">-</td>
+			</tr>
+			';
+		}
+
+		
+		$body = '
+		<p>
+				Dear '.$customer->name.', <br><br>
+				Thank you for chosing our laboratory for sample testing.We will be running the following tests on your sample:
+			</p>
+			<table class="table-sm table-bordered" style="border: 1px solid black;width:100%">
+				<thead>
+
+					<tr style="border: 1px solid black">
+						<th style="border: 1px solid black">Sample No</th>
+						<th style="border: 1px solid black">Analysis Type</th>
+						<th style="border: 1px solid black">#</th>
+					</tr>
+				</thead>
+				<tbody>
+					'.$sampleTrs.'
+					<tr>
+						<td colspan="2" style="border: 1px solid black"><b>Total Amount</b></td>
+						<td style="text-align: right;border: 1px solid black">number_format($batch->invoice_amount,2)</td>
+					</tr>
+				</tbody>
+			</table>
+			<p>
+				If we don`t hear from you within [specified time period], we will proceed with the analysis as shared. <br>
+				For any questions or modifications, please contact us at polucon@polucon.com / laboratory@polucon.com. <br><br>
+				Thank you, <br>
+				'.auth()->user()->name.'
+
+			</p>
+		';
+		notify_user($body,$contact->email,'[POLUCON LIMS] Schedule Of Analysis '.$batch->batch_code);
+		return response()->json('done');
 	}
 
 

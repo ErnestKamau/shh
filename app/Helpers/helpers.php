@@ -1519,3 +1519,7 @@ function getCrmCustomerContactSchedule($id)
 {
 	return App\Models\CRM\CustomerContact::where('crm_customer_id', $id)->where('active', 1)->where('receive_report', 1)->get();
 }
+
+function getPaymentReminderBody(){
+	$body = '';
+}
