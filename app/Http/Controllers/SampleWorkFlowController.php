@@ -622,11 +622,17 @@ class SampleWorkFlowController extends Controller
 				if (!isset($config_start_no->id)) {
 					return redirect()->back()->with('error', 'Kindly configure the start sample No');
 				}
-				$last_sample = isset(SampleDetails::latest('id')->first()->id) ? explode('-', SampleDetails::max('sample_code'))[1]  : $config_start_no->value;
+				if(SampleDetails::latest('id')->first()->id){
+					$code = SampleDetails::latest('id')->first()->sample_code;
+					$last_sample = substr($code,9,strlen($code));
+				}else{
+					$last_sample = $config_start_no->value;
+				}
+				// $last_sample = isset(SampleDetails::latest('id')->first()->id) ? substr(SampleDetails::latest('id')->first()->sample_code,9,strlen(SampleDetails::latest('id')->first()->sample_code) -1) : $config_start_no->value;
 				$lab = Lab::find($request->sample_details['lab_id'][$k]);
 				// return response()->json($request->sample_details['lab_id'][$k]);
 				$sample_number = intval($last_sample)  + 1;
-				$detail->sample_code = date('Y'). $lab->code . $sample_number;
+				$detail->sample_code = 'S'.date('Y'). $lab->code . $sample_number;
 			}
 			if (isset($detail->id)) {
 				$current_analysis = explode(',', $detail->analysis_type_id);
