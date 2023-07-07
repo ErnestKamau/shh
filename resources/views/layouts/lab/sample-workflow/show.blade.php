@@ -2541,12 +2541,12 @@ $batch_sample_codes = getBacthSampleCodes($batch->id);
 
 
 <script src="https://maps.googleapis.com/maps/api/js?v=3.exp&key=AIzaSyBqS4AEZ-gVeXjG794Rh0eTd6yvdfMKTjg&sensor=false" type="text/javascript"></script>
-@if(isset($batch->status))
+{{-- @if(isset($batch->status)) --}}
 	{{-- @if($equipment_data['captured'] > 0) --}}
 		{{-- <link rel="stylesheet" href="/css/quilljs.css" /> --}}
 		<script type="text/javascript" src="/tinymce/tinymce.min.js"></script>
 	{{-- @endif --}}
-@endif
+{{-- @endif --}}
 <script>
 	tinymce.init({
 		selector: 'textarea.editor'
