@@ -167,15 +167,18 @@
 			</button>
 			<div class="dropdown-menu dropdown-menu-right">
 				@if(isset($batch->id))
-				<li>
-					<a target="_blank" href="{{route('generateCustomerFocusIndex',['batch_id'=>$batch->id])}}" class="btn btn-sm dropdown-item"><i class="mdi mdi-eye mr-2"></i> View Customer Focus</a>
-				</li>
-				@if($batch->schedule_analysis_sent == '')
-				<li>
-					<span class="btn btn-sm dropdown-item" data-toggle="modal" data-target="#send-schedule-analysis"><i class="mdi mdi-email-send"></i> Send Schedule of Analysis</span>
-				</li>
-				@endif
-				@endif
+					<li>
+						<a target="_blank" href="{{route('generateCustomerFocusIndex',['batch_id'=>$batch->id])}}" class="btn btn-sm dropdown-item"><i class="mdi mdi-eye mr-2"></i> View Customer Focus</a>
+					</li>
+					@if($batch->schedule_analysis_sent == '')
+					<li>
+						<span class="btn btn-sm dropdown-item" data-toggle="modal" data-target="#send-schedule-analysis"><i class="mdi mdi-email-send"></i> Send Schedule of Analysis</span>
+					</li>
+					@endif
+					<li>
+						<span class="btn btn-sm dropdown-item" data-toggle="modal" data-target="#send-payment-reminder"><i class="mdi mdi-email-send"></i> Send Payment Reminder</span>
+					</li>
+					@endif
 
 				@if(isset($batch->status) && $batch->status=="Samples In Lab" && Auth::user()->is_client == 0)
 				<li>
@@ -1234,7 +1237,7 @@
 														<div class="modal-body">
 															
 																<div class="alert alert-danger p-3">
-																<i class="mdi mdi-delete-empty"></i>	Confirm you want to delete attchment {{$loop->iteration}}.
+																<i class="mdi mdi-delete-empty"></i>	Confirm you want to delete attachment {{$loop->iteration}}.
 																</div>
 														
 															<input type="hidden" name="attachment_id" value="{{$a->id}}">
@@ -1574,11 +1577,12 @@
 <?php 
 $customer = getCrmCustomerByID($batch->crm_customer_id);
 $contacts = getCrmCustomerContactSchedule($customer->id);
+$batch_sample_codes = getBacthSampleCodes($batch->id);
 ?>
 <div class="modal fade" id="send-payment-reminder" role="dialog">
 	<div class="modal-dialog">
 		<div class="modal-content">
-			<form action="" method="post">
+			<form action="{{route('sendBatchPaymentReminder')}}" method="post">
 				@csrf  
 				<div class="modal-body">
 					<div class="alert alert-primary p-2 d-flex">
@@ -1589,9 +1593,13 @@ $contacts = getCrmCustomerContactSchedule($customer->id);
 						<label for="" class="control-label">Body</label>
 						<textarea rows="1" style="width: 300px" class="form-control form-control-sm sample-comments" name="sample_details[comments][]" placeholder="Sample Comments..."></textarea>
 						<textarea name="body" class="form-control editor" id="" cols="30" rows="10">
-							Dear {{$customer->name}},<br>
+						{!! getPaymentReminderBody($customer->name,$batch_sample_codes) !!},<br>
 						</textarea>
 					</div>
+				</div>
+				<div class="modal-footer">
+					<button type="submit" class="btn btn-outline-primary"><i class="mdi mdi-email-send-outline"></i> Yes, Send</button>
+					<span class="btn btn-sm btn-default" data-dismiss="modal">Close</span>
 				</div>
 			</form>
 		</div>
@@ -1603,7 +1611,7 @@ $contacts = getCrmCustomerContactSchedule($customer->id);
 			<form action="{{route('sendBatchScheduleAnalysis')}}" method="post">
 				@csrf 
 				<div class="modal-body">
-					<div class="alert alert-prmary p-2 d-flex">
+					<div class="alert alert-primary p-2 d-flex">
 						<i class="mdi mdi-email-send-outline" style="font-size: 30px"></i>
 						<span class="p-2">
 							Confirm you want to send schedule of analysis for batch {{$batch->batch_code}} to {{$customer->name}} customer.
@@ -2534,9 +2542,9 @@ $contacts = getCrmCustomerContactSchedule($customer->id);
 
 <script src="https://maps.googleapis.com/maps/api/js?v=3.exp&key=AIzaSyBqS4AEZ-gVeXjG794Rh0eTd6yvdfMKTjg&sensor=false" type="text/javascript"></script>
 <script>
-	tinymce.init({
-		selector: 'textarea.editor'
-	});
+	// tinymce.init({
+	// 	selector: 'textarea.editor'
+	// });
 	var detectChange = function(ts){
 		var op = $(ts).children('option:selected');
 		$('#client-unit-select').html('<option value="" selected>Select Organizational Unit...</option>');

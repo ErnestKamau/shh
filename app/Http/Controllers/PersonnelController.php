@@ -325,7 +325,8 @@ class PersonnelController extends Controller
 	public function user_profile(){
 		$user = Auth::user();
 		$license_count = $this->users_by_license();
-		return view('layouts.personnel.users.user_profile', compact('user','license_count'));
+		$stages = SampleAnalysisStage::where('active',1)->get();
+		return view('layouts.personnel.users.user_profile', compact('user','license_count','stages'));
 	}
 
 }

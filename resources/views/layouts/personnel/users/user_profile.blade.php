@@ -191,7 +191,9 @@
                                     <input type="text" class="form-control" name="last_name" value="{{ $user->last_name }}" placeholder="Last Name..." />
                                 </div>
                             </div>
+
                         </div>
+                        
                         <div class="form-group hidden">
                             <label class="control-label">User License</label>
                             <select name="user_license" class="form-control" placeholder="User License..." required>
@@ -267,6 +269,16 @@
                                 <div class="form-group">
                                     <label class="control-label">NHIF</label>
                                     <input type="text" class="form-control" name="nhif" value="{{ $user->nhif }}" placeholder="NHIF..." />
+                                </div>
+                            </div>
+                            <div class="col-sm-4">
+                                <div class="form-group">
+                                    <label for="" class="control-label">Lab Section</label>
+                                    <select name="lab_section_id[]" multiple id="" class="form-control">
+                                        @foreach($stages as $stage)
+                                        <option value="{{$stage->id}}" {{ in_array($stage->id,explode(',',$user->lab_section_id)) ? 'selected' : ''}}>{{$stage->name}}</option>
+                                        @endforeach
+                                    </select>
                                 </div>
                             </div>
                             <div class="col-sm-4">

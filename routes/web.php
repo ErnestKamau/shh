@@ -757,6 +757,7 @@ Route::get('/assign-Lab/Section-To-Analysis-Element/{id}','SampleWorkFlowControl
 
 Route::get('/generate/Customer-Focus/Index/{batch_id}','SampleWorkFlowController@generateCustomerFocusIndex')->name('generateCustomerFocusIndex');
 Route::post('/send/Batch-Schedule/Analysis','SampleWorkFlowController@sendBatchScheduleAnalysis')->name('sendBatchScheduleAnalysis');
+Route::post('/send/Batch-Payment/Reminder','SampleWorkFlowController@sendBatchPaymentReminder')->name('sendBatchPaymentReminder');
 
 ####################Inter Lab Log ####################################
 Route::get('/getSampleCurrentLabSection/{id}','SampleWorkFlowController@getSampleCurrentLabSection')->name('getSampleCurrentLabSection');

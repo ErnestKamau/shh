@@ -385,7 +385,7 @@
 										<label for="" class="control-label">Lab Section</label>
 										<select name="lab_section_id[]" multiple id="" class="form-control">
 											@foreach($stages as $stage)
-											<option value="{{$stage->id}}" {{$user->lab_section_id == $stage->id ? 'selected' : ''}}>{{$stage->name}}</option>
+											<option value="{{$stage->id}}" {{ in_array($stage->id,explode(',',$user->lab_section_id)) ? 'selected' : ''}}>{{$stage->name}}</option>
 											@endforeach
 										</select>
 									</div>

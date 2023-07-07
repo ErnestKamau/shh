@@ -3145,7 +3145,13 @@ class SampleWorkFlowController extends Controller
 			</p>
 		';
 		notify_user($body,$contact->email,'[POLUCON LIMS] Schedule Of Analysis '.$batch->batch_code);
-		return response()->json('done');
+		return redirect()->back()->with('success','Schedule of analysis sent out successfully');
+	}
+	public function sendBatchPaymentReminder(Request $request){
+		$contact = CustomerContact::find($request->contact_id);
+		$batch = SampleHeader::find($request->batch_id);
+		notify_user($request->body,$contact->email,'[POLUCON LIMS] Payment Reminder '.$batch->batch_code);
+		return redirect()->back()->with('success','Payment reminder sent out successfully');
 	}
 
 

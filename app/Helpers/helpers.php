@@ -1520,6 +1520,28 @@ function getCrmCustomerContactSchedule($id)
 	return App\Models\CRM\CustomerContact::where('crm_customer_id', $id)->where('active', 1)->where('receive_report', 1)->get();
 }
 
-function getPaymentReminderBody(){
-	$body = '';
+function getPaymentReminderBody($customer_name,$sample_codes){
+	$body = '
+	<p>
+		Dear '.$customer_name.'<br><br> This is to remind you about the due payment for the Job Number.<b> '.$sample_codes.'</b><br> <br>
+		Invoice# : <br>
+		Due Date : <br> <br>
+
+		Overdue : <br>
+		Due Date :<br>
+
+		If you have already paid, please accept our apologies and kindly ignore this payment reminder. <br><br>
+
+
+		Regards,
+
+
+
+
+	</p>
+	';
+	return $body;
+}
+function getBacthSampleCodes($batch_id){
+	return implode(', ',App\SampleDetails::where('sample_header_id',$batch_id)->pluck('sample_code')->toArray());
 }
