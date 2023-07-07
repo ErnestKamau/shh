@@ -1093,7 +1093,12 @@ class SampleWorkFlowController extends Controller
 		// return response()->json($samples,200);
 		$not_captured = [];
 		$payment_detail = [];
+		$contacts =[];
+		$batch_sample_codes = '';
 		if (isset($batch->id)) {
+			$contacts = getCrmCustomerContactSchedule($batch->crm_customer_id);
+			// return response()->json($contacts);
+			$batch_sample_codes = getBacthSampleCodes($batch->id);
 			$payment_detail = InvoicePaymentDetail::where('batch_id',$batch->id)->get();
 			$interlabs = InterLabLogView::where('sample_header_id',$batch->id)->orderBy('id','DESC')->orderBy('status','ASC')->get();
 			$qc_config = SystemConfiguration::where('key', 'qc_percentage_config')->first();
@@ -1170,7 +1175,7 @@ class SampleWorkFlowController extends Controller
 		$analysts = User::orderBy('name')->join('user_roles as ur', 'ur.user_id', '=', 'users.id')
 			->join('roles as r', 'r.id', '=', 'ur.role_id')
 			->where('r.id', $role_a->value)->where('users.active', 1)->where('users.is_support_staff', 0)->selectRaw('users.*')->get();
-		return view('layouts.lab.sample-workflow.show', compact('batch', 'batchID', 'defaultClient', 'selectedSampleType', 'client_portal', 'ammendable', 'standards', 'attachments', 'not_captured', 'analysts', 'countries', 'accounts', 'methods', 'atachment_type', 'check_perm_view', 'check_perm_delete', 'batch_scope', 'customer_survey','qc_types','qc_schemes','repeat_sample','qc_config_perc','interlabs','labs','users','payment_detail','labsections'));
+		return view('layouts.lab.sample-workflow.show', compact('batch', 'batchID', 'defaultClient', 'selectedSampleType', 'client_portal', 'ammendable', 'standards', 'attachments', 'not_captured', 'analysts', 'countries', 'accounts', 'methods', 'atachment_type', 'check_perm_view', 'check_perm_delete', 'batch_scope', 'customer_survey','qc_types','qc_schemes','repeat_sample','qc_config_perc','interlabs','labs','users','payment_detail','labsections','contacts','batch_sample_codes'));
 	}
 
 	public function fetch_unit_stuff($name, $client)
@@ -3139,10 +3144,11 @@ class SampleWorkFlowController extends Controller
 					'.$sampleTrs.'
 					<tr>
 						<td colspan="2" style="border: 1px solid black"><b>Total Amount</b></td>
-						<td style="text-align: right;border: 1px solid black">number_format($batch->invoice_amount,2)</td>
+						<td style="text-align: right;border: 1px solid black">'.number_format($batch->invoice_amount,2).'</td>
 					</tr>
 				</tbody>
 			</table>
+			<br>
 			<p>
 				If we don`t hear from you within [specified time period], we will proceed with the analysis as shared. <br>
 				For any questions or modifications, please contact us at polucon@polucon.com / laboratory@polucon.com. <br><br>

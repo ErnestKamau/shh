@@ -1576,8 +1576,7 @@
 @if(isset($batch->id))
 <?php 
 $customer = getCrmCustomerByID($batch->crm_customer_id);
-$contacts = getCrmCustomerContactSchedule($customer->id);
-$batch_sample_codes = getBacthSampleCodes($batch->id);
+
 ?>
 <div class="modal fade" id="send-payment-reminder" role="dialog">
 	<div class="modal-dialog">
@@ -1623,7 +1622,7 @@ $batch_sample_codes = getBacthSampleCodes($batch->id);
 						<select name="contact_id" id="" class="form-control">
 							<option value="">Choose Contact...</option>
 							@foreach($contacts as $contact) 
-							<option value="{{$contact->id}}">{{$contact->name}}</option>
+							<option value="{{$contact->id}}">{{$contact->first_name}} {{$contact->middle_name}} {{$contact->last_name}}</option>
 							@endforeach
 						</select>
 					</div>
