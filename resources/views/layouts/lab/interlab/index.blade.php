@@ -190,7 +190,7 @@
 					
 				</div>
 				<div class="modal-footer">
-					<button type="submit" class="btn-sm btn-outline-success btn affect-button"><i class="mdi mdi-content-save"></i> Yes, Affect</button>
+					<button type="submit" class="btn-sm btn-outline-success btn affect-button"><i class="mdi mdi-content-save"></i> Yes, Effect</button>
 					<span class="btn btn-sm btn-default text-danger" data-dismiss="modal">Cancel</span>
 				</div>
 			</form>

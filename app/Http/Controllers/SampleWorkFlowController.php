@@ -2978,7 +2978,7 @@ class SampleWorkFlowController extends Controller
 	}
 	public function getLabsByAnalysisTypeIdAjax(Request $request){
 		$lab_ids = AnalysisType::whereIn('id',$request->ids)->pluck('lab_id')->toArray();
-		$labs =  Lab::whereIn('id',$lab_ids)->get();
+		$labs =  Lab::whereIn('active',1)->get();
 		return response()->json($labs);
 	}
 	public function assignLabSectionToAnalysisElement($id){
