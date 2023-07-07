@@ -2705,7 +2705,7 @@ $batch_sample_codes = getBacthSampleCodes($batch->id);
 				<div class="alert alert-success p-2 d-flex">
 					<i class="mdi mdi-thumbs-up-down" style="font-size: 30px;"></i>
 					<span class="p-2">
-						Affect the Inter Lab Log(s) status for the folowing sample(s) below by providing the following information: 
+						Affect the Inter Lab Log(s) status for the following sample(s) below by providing the following information: 
 					</span>
 				</div>
 				<div class="label control-label">

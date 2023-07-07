@@ -1079,6 +1079,7 @@ class SampleWorkFlowController extends Controller
 		$qc_types = QcTypes::all();
 		$qc_schemes = QcSchemes::all();
 		$users = User::where('is_client',0)->where('supplier_id',0)->where('active',1)->get();
+		$labsections = SampleAnalysisStage::where('active',1)->get();
 		$qc_config_perc = 0;
 		$interlabs = [];
 		if (isset($account_settings->id)) {
@@ -1169,7 +1170,7 @@ class SampleWorkFlowController extends Controller
 		$analysts = User::orderBy('name')->join('user_roles as ur', 'ur.user_id', '=', 'users.id')
 			->join('roles as r', 'r.id', '=', 'ur.role_id')
 			->where('r.id', $role_a->value)->where('users.active', 1)->where('users.is_support_staff', 0)->selectRaw('users.*')->get();
-		return view('layouts.lab.sample-workflow.show', compact('batch', 'batchID', 'defaultClient', 'selectedSampleType', 'client_portal', 'ammendable', 'standards', 'attachments', 'not_captured', 'analysts', 'countries', 'accounts', 'methods', 'atachment_type', 'check_perm_view', 'check_perm_delete', 'batch_scope', 'customer_survey','qc_types','qc_schemes','repeat_sample','qc_config_perc','interlabs','labs','users','payment_detail'));
+		return view('layouts.lab.sample-workflow.show', compact('batch', 'batchID', 'defaultClient', 'selectedSampleType', 'client_portal', 'ammendable', 'standards', 'attachments', 'not_captured', 'analysts', 'countries', 'accounts', 'methods', 'atachment_type', 'check_perm_view', 'check_perm_delete', 'batch_scope', 'customer_survey','qc_types','qc_schemes','repeat_sample','qc_config_perc','interlabs','labs','users','payment_detail','labsections'));
 	}
 
 	public function fetch_unit_stuff($name, $client)
@@ -3042,16 +3043,16 @@ class SampleWorkFlowController extends Controller
 		if($request->notify_user != '' || $request->sms_notify !=  ''){
 			$sample_codes =isset($request->batch_level) ? implode(', ',SampleDetails::whereIn('id',$sample_ids)->pluck('sample_code')->toArray()) : SampleDetails::find($request->sample_id)->sample_code;
 			$bcc_emails = User::whereIn('id',$request->also_notify)->pluck('email')->toArray();
-			$body = 'Hi Team, <br> The folowing sample(s) require  your attention for approval of inter laboratory transfer raised by '.auth()->user()->name.'<br>'.$sample_codes;
+			$body = 'Hi Team, <br> The following sample(s) require  your attention for approval of inter laboratory transfer raised by '.auth()->user()->name.'<br>'.$sample_codes;
 			$to_email = getUserById($request->notify_user);
 
 			
 
 			if(isset($to_email->id)){
 				notify_user($body,$to_email->email,'[Polucon  Polucon Services Limited] Inter Laboratory Transfer Approval Notification',false,false,$bcc_emails);
-				sendTextMessage($to_email->phone,'Hi '.$to_email->name.', The folowing sample(s) require  your attention for approval of inter laboratory transfer raised by '.auth()->user()->name);
+				sendTextMessage($to_email->phone,'Hi '.$to_email->name.', The following sample(s) require  your attention for approval of inter laboratory transfer raised by '.auth()->user()->name);
 				foreach( User::whereIn('id',$request->also_notify)->get() as $user){
-					$user->phone != '' ? sendTextMessage($user->phone,'Hi '.$user->name.', The folowing sample(s) require  your attention for approval of inter laboratory transfer raised by '.auth()->user()->name).':  '.$sample_codes : '';
+					$user->phone != '' ? sendTextMessage($user->phone,'Hi '.$user->name.', The following sample(s) require  your attention for approval of inter laboratory transfer raised by '.auth()->user()->name).':  '.$sample_codes : '';
 				}
 			}
 
