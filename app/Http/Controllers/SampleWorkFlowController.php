@@ -3152,7 +3152,7 @@ class SampleWorkFlowController extends Controller
 			</table>
 			<br>
 			<p>
-				If we don`t hear from you within '.$specified_days->value ?? '0'.', we will proceed with the analysis as shared. <br>
+				If we don`t hear from you within '.$specified_days->value.', we will proceed with the analysis as shared. <br>
 				For any questions or modifications, please contact us at polucon@polucon.com | laboratory@polucon.com. <br><br>
 				Thank you, <br>
 				'.auth()->user()->name.'

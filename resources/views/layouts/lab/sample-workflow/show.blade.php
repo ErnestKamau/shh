@@ -3196,12 +3196,13 @@ $customer = getCrmCustomerByID($batch->crm_customer_id);
 			$('#sample-parameters-holder').empty();
 			// console.log(parametersBySampleCode);
 			var parameters = parametersBySampleCode[sampleCode];
-			// console.log(parametersBySampleCode);
+			
 			var analysisIDs = analysisIDsBySampleCode[sampleCode];
 			
 			var loop = 1;
 			// console.log(parameters);
 			console.log('------------------------------')
+			console.log(parametersBySampleCode['2023L00217463']);
 			console.log(parameters);
 			$.each(parameters, function(p, param){
 				var sampleRow = sampleCodeParameters(param,loop);
