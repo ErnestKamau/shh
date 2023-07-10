@@ -47,6 +47,7 @@ use App\InventoryCategories;
 use App\InventorySubCategories;
 use App\InvoicePaymentDetail;
 use App\QuotationDetails;
+use App\UserRole;
 use Illuminate\Http\File;
 use Illuminate\Support\Facades\Storage;
 
@@ -1078,6 +1079,11 @@ class SampleWorkFlowController extends Controller
 		$atachment_type = SystemConfiguration::where('key', 'attachment_type')->get();
 		$qc_types = QcTypes::all();
 		$qc_schemes = QcSchemes::all();
+
+		// $analyst_role = SystemConfiguration::where('key','analyst_role_id')->first();
+		// $usersIds = UserRole::where('role_id',$analyst_role->value)->pluck('user_id')->toArray();
+		// $users = User::whereIn('id',$usersIds)->get();
+
 		$users = User::where('is_client',0)->where('supplier_id',0)->where('active',1)->get();
 		$labsections = SampleAnalysisStage::where('active',1)->get();
 		$qc_config_perc = 0;

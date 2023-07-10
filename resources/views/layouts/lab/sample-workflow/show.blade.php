@@ -1331,13 +1331,14 @@
 							if(!isset($analaytesHolder[$item->sample_detail_code])){
 								$analaytesHolder[$item->sample_detail_code] = array();
 							}
-							$operators = $item->operators();
-							if(sizeof($operators)> 0){
+							// $operators = $item->operators();
+							// if(sizeof($operators)> 0){
 
-								$item->ops = $item->operators();
-							}else{
-								$item->ops = getOperators();
-							}
+							// 	$item->ops = $item->operators();
+							// }else{
+							// 	$item->ops = getOperators();
+							// }
+							$item->ops = $analysts;
 							$item->equip_name = $item->equipment()->name ?? '-';
 							
 							$item->def_operator = $item->defacto_analyst();
@@ -3201,9 +3202,9 @@ $customer = getCrmCustomerByID($batch->crm_customer_id);
 			
 			var loop = 1;
 			// console.log(parameters);
-			console.log('------------------------------')
-			console.log(parametersBySampleCode['2023L00217463']);
-			console.log(parameters);
+			// console.log('------------------------------')
+			// console.log(parametersBySampleCode['2023L00217463']);
+			// console.log(parameters);
 			$.each(parameters, function(p, param){
 				var sampleRow = sampleCodeParameters(param,loop);
 				// console.log(param);
