@@ -9,6 +9,9 @@ use App\Result;
 use App\SampleType;
 use App\AnalysisType;
 use App\CapturedResult;
+use App\Models\System\SystemConfiguration;
+use App\User;
+use App\UserRole;
 use Illuminate\Http\Request;
 
 class AnalysisTypeController extends Controller
@@ -99,6 +102,9 @@ class AnalysisTypeController extends Controller
     $analysis_type = AnalysisType::find($id);
     $sample_types = SampleType::all();
     $labs = Lab::all();
+    $analyst_role = SystemConfiguration::where('key','analyst_role_id')->first();
+    $usersIds = UserRole::where('role_id',$analyst_role->value)->pluck('user_id')->toArray();
+    $usersAnalysts = User::whereIn('id',$usersIds)->get();
 
     $analysis_type_id = $id;
     // return response()->json($analysis_type->guides,200);
@@ -106,7 +112,7 @@ class AnalysisTypeController extends Controller
     //   $analysis_standard = getStandardByid($ag->standard_id);
     // }
 
-    return view('layouts.lab.analysis-types.show', compact('analysis_type', 'sample_types', 'labs', 'analytes', 'analysis_type_id'));
+    return view('layouts.lab.analysis-types.show', compact('analysis_type', 'sample_types', 'labs', 'analytes', 'analysis_type_id','usersAnalysts'));
 	}
 
 	public function by_sample_id($id){

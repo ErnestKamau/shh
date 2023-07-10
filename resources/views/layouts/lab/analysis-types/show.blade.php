@@ -474,7 +474,12 @@
 
                               <div class="form-group">
                                 <label class="control-label">Operator</label>
-                                <select class="form-control" data-selected="{{ $analyte->operator_id }}" name="operator_id" placeholder="Select Operator..."></select>
+                                <select class="form-control"  name="operator_id" placeholder="Select Operator...">
+                                  <option value="">Select Analyst...</option>
+                                  @foreach($usersAnalysts as $analyst)
+                                  <option value="{{$analyst->id}}" {{$analyst->id == $analyte->operator_id ? 'selected' : ''}} >{{$analyst->name}}</option>
+                                  @endforeach
+                                </select>
                               </div>
                               <div class="form-group">
                                 <label for="" class="control-label">Reporting Time</label>
@@ -694,7 +699,12 @@
         </div>
         <div class="form-group">
           <label class="control-label">Operator</label>
-          <select class="form-control" name="operator_id" placeholder="Select Operator..."></select>
+          <select class="form-control"  name="operator_id" placeholder="Select Operator...">
+            <option value="">Select Analyst...</option>
+            @foreach($usersAnalysts as $analyst)
+            <option value="{{$analyst->id}}" {{$analyst->id == $analyte->operator_id ? 'selected' : ''}} >{{$analyst->name}}</option>
+            @endforeach
+          </select>
         </div>
         <div class="form-group">
           <label for="" class="control-label">Reporting Time</label>
@@ -726,14 +736,14 @@
 <script>
   $(function() {
     $('[name="equipment_id"]').on('change', function() {
-      var operators = $(this).children('option:selected').data('operators');
-      var operatorsSel = $(this).parents('form').find('select[name="operator_id"]');
-      operatorsSel.html(`<option></option>`);
-      $.each(operators, function(i, o) {
-        operatorsSel.append(`<option value="${o.id}">${o.name}</option>`);
-      });
+      // var operators = $(this).children('option:selected').data('operators');
+      // var operatorsSel = $(this).parents('form').find('select[name="operator_id"]');
+      // operatorsSel.html(`<option></option>`);
+      // $.each(operators, function(i, o) {
+      //   operatorsSel.append(`<option value="${o.id}">${o.name}</option>`);
+      // });
 
-      operatorsSel.trigger('change');
+      // operatorsSel.trigger('change');
     });
 
     var configureThemArrow = function() {
@@ -819,10 +829,10 @@
     }, 100);
 
     window.setTimeout(function() {
-      var selected = $('[name="operator_id"]').each(function(e) {
-        var sel = $(this).data('selected');
-        $(this).val(sel).trigger('change');
-      });
+      // var selected = $('[name="operator_id"]').each(function(e) {
+      //   var sel = $(this).data('selected');
+      //   $(this).val(sel).trigger('change');
+      // });
     }, 160);
   });
 

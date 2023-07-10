@@ -1924,9 +1924,9 @@ class SampleWorkFlowController extends Controller
 			$captured->remark = $request->remark[$cID];
 			$standard_main = Standards::where('code', $request->main_standard[$cID])->first();
 			$sec_standard = Standards::where('code', $request->secondary_standard[$cID])->first();
-			if (isset($standard_main->id) && $sec_standard->id) {
+			if (isset($standard_main->id)) {
 				$main_standard_analyte = StandardAnalytes::where('analyte_id', $captured->analyte_id)->where('standard_id', $standard_main->id)->first();
-				$sec_standard_analyte = StandardAnalytes::where('analyte_id', $captured->analyte_id)->where('standard_id', $sec_standard->id)->first();
+				$sec_standard_analyte = isset($sec_standard->id) ? StandardAnalytes::where('analyte_id', $captured->analyte_id)->where('standard_id', $sec_standard->id)->first() : '';
 			} else {
 				return redirect()->back()->with('error', 'Kindly set Main and Secondary standard for tghe following sample!');
 			}
