@@ -119,7 +119,7 @@
                             <table style="width: 100%;border:0px; padding-bottom:2px !important; border-bottom: solid 2px #0000ff !important">
                                 <tr>
                                     <td style="font-size: 10px !important;border:solid 0 transparent !important; width:30% !important">
-                                        <img src="{{ $path }}" style="height:60px;" alt="logo"> <br><br>
+                                        <img src="{{ $path}}" style="height:60px;" alt="logo"> <br><br>
                                         ISO 17025:2005 COMPANY
                                     </td>
                                     <td style="border:solid 0 transparent !important;font-size: 9px !important; color:blue;font-weight:800; margin-right:0px !important;  ">

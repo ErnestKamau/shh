@@ -117,7 +117,7 @@ class ReportHeaderDetailController extends Controller
 
 	public function process_pdf_report($batch_id)
 	{
-		$path = public_path('images/aqua.jpg');
+		$path = public_path('images/polucon.png');
 		$kenas = public_path('images/kenas.png');
 		$tick = public_path('images/tick.png');
 
@@ -240,7 +240,7 @@ class ReportHeaderDetailController extends Controller
 			$pdf->save(storage_path() . '/app/reports/' . $customer_name . '/' . $filename);
 		} else {
 			$path = storage_path() . '/app/reports/' . $customer_name;
-
+			// $pdf->save(storage_path() . '/app/reports/' . $customer_name . '/' . $filename);
 			$check = mkdir($path);
 			if ($check) {
 
