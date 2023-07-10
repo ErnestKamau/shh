@@ -1580,10 +1580,18 @@ class SampleWorkFlowController extends Controller
 		);
 
 		$this->updateChainofCustody($custodyDetails);
-
+		if($batch->status == 'Samples In Lab' && $status == 'Sample Verification'){
+			if(isset($request->approver_id)){
+				$batch->verify_user_id = $request->approver_id;
+			}
+			
+		}
 		if ($batch->status == 'Sample Verification' && $status == 'Sample Approval') {
-
-			$batch->verify_user_id = auth()->user()->id;
+			$batch->report_verified_date = getTodayDate();
+			if(isset($request->approver_id)){
+				$batch->approve_user_id = $request->approver_id;
+			}
+			// $batch->approve_user_id = auth()->user()->id;
 		}
 		if ($status == 'Reports for Collection') {
 			$customer = getCrmCustomerByID($batch->crm_customer_id);

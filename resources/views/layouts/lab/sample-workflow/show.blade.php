@@ -2191,6 +2191,15 @@ $customer = getCrmCustomerByID($batch->crm_customer_id);
 								</div>
 							@endif
 							<div class="form-group">
+								<label for="" class="control-label">Approver</label>
+								<select name="approver_id" id="" class="form-group">
+									<option value="">Select Approver...</option>
+									@foreach($users as $user)
+									<option value="{{$user->id}}">{{$user->name}}</option>
+									@endforeach
+								</select>
+							</div>
+							<div class="form-group">
 								<label class="control-label">Verification Notes/Comments</label>
 								<textarea class="form-control" name="comments" placeholder="Comments..."></textarea>
 							</div>
@@ -2864,7 +2873,7 @@ $customer = getCrmCustomerByID($batch->crm_customer_id);
 						<input type="text" name="quantity" value="" class="form-control">
 					</div>
 					<div class="form-group">
-						<label for="" class="control-label">Expected Date</label>
+						<label for="" class="control-label">Expected Results Date</label>
 						<input type="date" name="expected_date" value="{{isset($batch->id) ? date('Y-m-d', strtotime($batch->get_date('Target Date')['date'])) : ''}}" id="" class="form-control">
 					</div>
 					<div class="form-group">
@@ -2876,7 +2885,7 @@ $customer = getCrmCustomerByID($batch->crm_customer_id);
 						</select>
 					</div>
 					<div class="form-group">
-						<label for="" class="control-label">Notify</label>
+						<label for="" class="control-label">Also Notify</label>
 						<select name="also_notify[]" multiple id="" class="form-control also_notify">
 							@foreach($users as $user)
 							<option value="{{$user->id}}">{{$user->name}}</option>
@@ -2911,7 +2920,7 @@ $customer = getCrmCustomerByID($batch->crm_customer_id);
 						<input type="text" name="quantity" value="${data.quantity}" class="form-control">
 					</div>
 					<div class="form-group">
-						<label for="" class="control-label">Expected Date</label>
+						<label for="" class="control-label">Expected Results Date</label>
 						<input type="date" name="expected_date" value="{{isset($batch->id) ? date('Y-m-d', strtotime($batch->get_date('Target Date')['date'])) : ''}}" id="" class="form-control">
 					</div>
 					<div class="form-group">
@@ -2923,7 +2932,7 @@ $customer = getCrmCustomerByID($batch->crm_customer_id);
 						</select>
 					</div>
 					<div class="form-group">
-						<label for="" class="control-label">Notify</label>
+						<label for="" class="control-label">Also Notify</label>
 						<select name="also_notify[]" multiple id="" class="form-control also_notify">
 							@foreach($users as $user)
 							<option value="{{$user->id}}">{{$user->name}}</option>
