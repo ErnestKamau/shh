@@ -2,10 +2,13 @@
 
 namespace App\Http\Controllers;
 
+use App\AnalysisElements;
 use App\Lab;
 use App\Analyte;
+use App\Result;
 use App\SampleType;
 use App\AnalysisType;
+use App\CapturedResult;
 use Illuminate\Http\Request;
 
 class AnalysisTypeController extends Controller
@@ -61,6 +64,9 @@ class AnalysisTypeController extends Controller
 
     $analysis_type->save();
     
+    AnalysisElements::where('analysis_type_id',$analysis_type->id)->update(['lab_section_id'=>$analysis_type->lab_section_id]);
+    CapturedResult::where('analysis_type_id',$analysis_type->id)->update(['lab_section_id'=>$analysis_type->lab_section_id]);
+    Result::where('analysis_type_id',$analysis_type->id)->update(['lab_section_id'=>$analysis_type->lab_section_id]);
 
     return redirect()->back()->with('success', 'Analysis Type added.');
   }
@@ -81,6 +87,9 @@ class AnalysisTypeController extends Controller
     $analysis_type->active = $request->active ?? 0;
     $analysis_type->lab_section_id = $request->lab_section_id;
     $analysis_type->save();
+    AnalysisElements::where('analysis_type_id',$analysis_type->id)->update(['lab_section_id'=>$analysis_type->lab_section_id]);
+    CapturedResult::where('analysis_type_id',$analysis_type->id)->update(['lab_section_id'=>$analysis_type->lab_section_id]);
+    Result::where('analysis_type_id',$analysis_type->id)->update(['lab_section_id'=>$analysis_type->lab_section_id]);
 
     return redirect()->back()->with('success', 'Analysis Type edited.');
   }

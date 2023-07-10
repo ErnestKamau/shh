@@ -765,7 +765,7 @@ Route::post('/create-sample-inter-lab-log','SampleWorkFlowController@create_samp
 Route::post('/change/Inter-Lab-Log/Status','SampleWorkFlowController@changeInterLabLogStatus')->name('changeInterLabLogStatus');
 
 Route::get('/inter-Lab/Transfer-Index/{is_archived?}','SampleWorkFlowController@interLabTransferIndex')->name('interLabTransferIndex');
-Route::post('/delete/Inter-Lab-Transfer/Logs','SampleWorkFlowController@deleteInterLabTransferLogs')->name('deleteInterLabTransferLogs');\
+Route::post('/delete/Inter-Lab-Transfer/Logs','SampleWorkFlowController@deleteInterLabTransferLogs')->name('deleteInterLabTransferLogs');
 Route::get('/get/Lab-Sections/By-Lab/{id}','SampleWorkFlowController@getLabSectionsByLab')->name('getLabSectionsByLab');
 Route::post('/moveToLab','SampleWorkFlowController@moveToLab')->name('moveToLab');
 
