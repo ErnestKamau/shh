@@ -189,8 +189,9 @@
 				<th nowrap>Target Date</th>
 				<th nowrap>Status Days</th>
 				<th>Samples</th>
-
+				@if($status == 'Samples In Lab')
 				<th>Client Unit</th>
+				@endif
 				<th>Lab</th>
 				<th nowrap>Sample Type</th>
 				<th nowrap>Tracking Stage</th>
@@ -250,8 +251,9 @@
 					<td nowrap>{{ date('Y-m-d', strtotime($target_date)) }}</td>
 					<td nowrap>{{ number_format($diff, 0) }} Day(s)</td>
 					<td>{{ $item->samples->count() }}</td>
-
+					@if($status == 'Samples In Lab')
 					<td nowrap>{{ $item->crm_unit_name }}</td>
+					@endif
 					<td nowrap>{{ implode(", ", $item->labs(true)) }}</td>
 					<td nowrap>{{ $item->sample_type->name ?? '' }}</td>
 					<td nowrap>{{ $item->tracking_stage()->name ?? 'n/a' }}</td>

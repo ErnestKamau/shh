@@ -1656,7 +1656,7 @@ $customer = getCrmCustomerByID($batch->crm_customer_id);
 					
 				</div>
 				<div class="modal-footer">
-					<button type="submit" class="btn-sm btn-outline-success btn affect-button"><i class="mdi content-save"></i> Yes, Affect</button>
+					<button type="submit" class="btn-sm btn-outline-success btn affect-button"><i class="mdi content-save"></i> Yes, Effect</button>
 					<span class="btn btn-sm btn-default text-danger" data-dismiss="modal">Cancel</span>
 				</div>
 			</form>
@@ -2724,7 +2724,7 @@ $customer = getCrmCustomerByID($batch->crm_customer_id);
 				<div class="alert alert-success p-2 d-flex">
 					<i class="mdi mdi-thumbs-up-down" style="font-size: 30px;"></i>
 					<span class="p-2">
-						Affect the Inter Lab Log(s) status for the following sample(s) below by providing the following information: 
+						Effect the Inter Lab Log(s) status for the following sample(s) below by providing the following information: 
 					</span>
 				</div>
 				<div class="label control-label">
@@ -2747,7 +2747,7 @@ $customer = getCrmCustomerByID($batch->crm_customer_id);
 					<div class="alert alert-success p-2 d-flex">
 						<i class="mdi mdi-thumbs-up-down" style="font-size: 30px;"></i>
 						<span class="p-2">
-							Affect the Inter Lab Log status for sample ${data.sample_code} below:
+							Effect the Inter Lab Log status for sample ${data.sample_code} below:
 						</span>
 					</div>
 					<div class="form-group">
@@ -2797,7 +2797,7 @@ $customer = getCrmCustomerByID($batch->crm_customer_id);
 					<div class="alert alert-primary p-2 d-flex">
 						<i class="mdi mdi-alert-decagram-outline" style="font-size: 30px;"></i>
 						<span class="p-2">
-							Kindly select the Inter Laboratory Transfer Log(s) you want to affect their status
+							Kindly select the Inter Laboratory Transfer Log(s) you want to effect their status
 						</span>
 					</div>
 					`;

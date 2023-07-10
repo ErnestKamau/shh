@@ -1549,7 +1549,8 @@ class SampleWorkFlowController extends Controller
 		$batch = SampleHeader::find($batch_id);
 		if (in_array($batch->status, ['Sample Verification', 'Sample Approval', 'Reports for Collection', 'Reports In Payment']) && in_array($status, ['Samples In Lab', 'Samples Reception', 'Samples Request Review', 'Sample Verification'])) {
 			$batch->approve_user_id = '';
-			$batch->verify_user_id = '';
+			$batch->verify_user_id = $status != 'Sample Verification' ? '' : $batch->verify_user_id;
+			$batch->report_verified_date = '';
 			$batch->approval_date = '';
 			$batch->save();
 		}
