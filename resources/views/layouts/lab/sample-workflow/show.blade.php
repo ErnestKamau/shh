@@ -1313,11 +1313,11 @@
 							<th>Secondary Standard</th>
 							
 							<th>Sample Markings</th>
-							<th>Storage</th>
-							<th>Slot</th>
-							<th>Quantity</th>
-							<th>UoM</th>
-							<th>Barcode</th>
+							{{-- <th>Storage</th> --}}
+							{{-- <th>Slot</th> --}}
+							{{-- <th>Quantity</th> --}}
+							{{-- <th>UoM</th> --}}
+							{{-- <th>Barcode</th> --}}
 							
 						</tr>
 					</thead>
@@ -1432,7 +1432,7 @@
   </main>
 @endsection
 @section('script2')
-<div class="carry_data hidden" data data-userlabsection="{{json_encode(auth()->user()->labsectionids)}}"></div>
+<div class="carry_data hidden" data-userlabsection="{{json_encode(auth()->user()->labsectionids)}}"></div>
 <div class="modal fade" id="add-payment-details" role="dialog">
     <div class="modal-dialog">
         <div class="modal-content">
@@ -1579,7 +1579,7 @@ $customer = getCrmCustomerByID($batch->crm_customer_id);
 
 ?>
 <div class="modal fade" id="send-payment-reminder" role="dialog">
-	<div class="modal-dialog">
+	<div class="modal-dialog modal-lg">
 		<div class="modal-content">
 			<form action="{{route('sendBatchPaymentReminder')}}" method="post">
 				@csrf  
@@ -1589,12 +1589,22 @@ $customer = getCrmCustomerByID($batch->crm_customer_id);
 						<span class="p-2">Send out payment reminder to {{$customer->name}} by filling the details below:</span>
 					</div>
 					<div class="form-group">
+						<label for="" class="control-label">Customer Contact</label>
+						<select name="contact_id" id="" class="form-control">
+							<option value="">Choose Contact...</option>
+							@foreach($contacts as $contact) 
+							<option value="{{$contact->id}}">{{$contact->first_name}} {{$contact->middle_name}} {{$contact->last_name}}</option>
+							@endforeach
+						</select>
+					</div>
+					<div class="form-group">
 						<label for="" class="control-label">Body</label>
-						<textarea rows="1" style="width: 300px" class="form-control form-control-sm sample-comments" name="sample_details[comments][]" placeholder="Sample Comments..."></textarea>
-						<textarea name="body" class="form-control editor" id="" cols="30" rows="10">
+
+						<textarea name="body" class="form-control editor" id="" cols="50" rows="50">
 						{!! getPaymentReminderBody($customer->name,$batch_sample_codes) !!},<br>
 						</textarea>
 					</div>
+					<input type="hidden" name="batch_id" value="{{$batch->id}}">
 				</div>
 				<div class="modal-footer">
 					<button type="submit" class="btn btn-outline-primary"><i class="mdi mdi-email-send-outline"></i> Yes, Send</button>
@@ -2827,7 +2837,7 @@ $customer = getCrmCustomerByID($batch->crm_customer_id);
 			});
 		}
 
-		var getInterLabBody = (analysis_type_id,sample_id,sample_code,action,data = false)=>{
+		var getInterLabBody = (lab_id,sample_id,sample_code,action,data = false)=>{
 			if(action == 'add'){
 				var body = $(`
 					<div class="alert alert-warning d-flex p-2">
@@ -2927,7 +2937,7 @@ $customer = getCrmCustomerByID($batch->crm_customer_id);
 					$(body).find('.from_lab_section').val(obj);
 				});
 			}
-			getLabs(analysis_type_id,(labdata)=>{
+			getLabSections(lab_id,(labdata)=>{
 				$.each(labdata,(i,obj)=>{
 					var option = `<option value="${obj.id}">${obj.code} - ${obj.name}</option>`
 					$(body).find('.to_lab_section_id').append(option);
@@ -2936,7 +2946,7 @@ $customer = getCrmCustomerByID($batch->crm_customer_id);
 			if(data){
 				$(body).find('.to_lab_section_id').val(data.to_lab_section_id)
 			}
-			$(body).find('.to_lab_section').select2();
+			$(body).find('.to_lab_section_id').select2();
 			$(body).find('.notify_user').select2();
 			$(body).find('.also_notify').select2();
 
@@ -2948,12 +2958,12 @@ $customer = getCrmCustomerByID($batch->crm_customer_id);
 			var record_code = $(e.relatedTarget).data('samplecode');
 			var action = $(e.relatedTarget).data('action');
 			var data = action == 'add' ? false :  $(e.relatedTarget).data('record');
-			var analysis_types = action == 'add' ? $(e.relatedTarget).data('analysistype') : data.analysis_type_id;
+			var analysis_types = action == 'add' ? $(e.relatedTarget).data('analysistype') : data.lab_id;
 			action == 'add' ? $('#inter-lab-add').find('.submit-button').addClass('btn-outline-warning') : $('#inter-lab-add').find('.submit-button').addClass('btn-outline-primary');
 
 			action == 'add' ? $('#inter-lab-add').find('.submit-button').removeClass('btn-outline-primary') : $('#inter-lab-add').find('.submit-button').removeClass('btn-outline-warning');
 
-			var body = getInterLabBody(analysis_types.split(','),record_id,record_code,action,data)
+			var body = getInterLabBody(analysis_types,record_id,record_code,action,data)
 			$('#inter-lab-add').find('.modal-body').empty();
 			$('#inter-lab-add').find('.modal-body').append(body);
 			
@@ -3184,12 +3194,15 @@ $customer = getCrmCustomerByID($batch->crm_customer_id);
 			
 			
 			$('#sample-parameters-holder').empty();
+			// console.log(parametersBySampleCode);
 			var parameters = parametersBySampleCode[sampleCode];
-			console.log(parametersBySampleCode);
+			// console.log(parametersBySampleCode);
 			var analysisIDs = analysisIDsBySampleCode[sampleCode];
 			
 			var loop = 1;
 			// console.log(parameters);
+			console.log('------------------------------')
+			console.log(parameters);
 			$.each(parameters, function(p, param){
 				var sampleRow = sampleCodeParameters(param,loop);
 				// console.log(param);
@@ -3578,6 +3591,20 @@ $customer = getCrmCustomerByID($batch->crm_customer_id);
 
 		}
 
+		var getLabSections = (lab_id,callback)=>{
+			$.ajax({
+				url:`/get/Lab-Sections/By-Lab/${lab_id}`,
+				method:"GET",
+				success:(data)=>{
+					callback(data);
+				},
+				error:(data)=>{
+					console.log(data);
+				}
+			})
+
+		}
+
 		var createRow = function(data=false){
 			var $row = $(sampleDetailsRow).clone();
 			
@@ -3608,7 +3635,7 @@ $customer = getCrmCustomerByID($batch->crm_customer_id);
 			}
 			$row.find('.initiate-interlab').data('sample',data.id);
 			$row.find('.initiate-interlab').data('samplecode',data.sample_code);
-			$row.find('.initiate-interlab').data('analysistype',data.analysis_type_id);
+			$row.find('.initiate-interlab').data('analysistype',data.lab_id);
 
 			$row.find('[name="sample_details[sample_store][]"]').val(data['store_id']).trigger('change');
 			$row.find('[name="sample_details[sample_store_slot][]"]').data('selected', data['slot_id']);
@@ -3877,6 +3904,11 @@ $customer = getCrmCustomerByID($batch->crm_customer_id);
 		@if(isset($batch->status) && $batch->status != "Samples In Lab")
 			readonly = 'disabled';
 		@endif
+		console.log('-------------------------------------------------')
+		// console.log(userLabSection);
+		// console.log(data.lab_section_id)
+		// console.log(userLabSection.includes(data.lab_section_id))
+		console.log('-------------------------------------------------')
 
 		var $oGRow = $(`
 			<tr class="raw-data-row ${data.result == null ? 'no-result' : 'has-result'} ${!userLabSection.includes(data.lab_section_id) && thebatch.status == 'Samples In Lab' ? 'hidden' : ''}" id="row-${loop}" >
@@ -4165,7 +4197,7 @@ $customer = getCrmCustomerByID($batch->crm_customer_id);
 			</div>
 			<span class="text"></span>
 		</td>
-		<td class="sample-store-field" nowrap>
+		<td class="sample-store-field hidden" nowrap>
 			<div class="form-group form-group-sm">
 				<select class="form-control form-control-sm sample-store" name="sample_details[sample_store][]" style="width: 200px" placeholder="Select Sample Storage...">
 					<option></option>
@@ -4178,7 +4210,7 @@ $customer = getCrmCustomerByID($batch->crm_customer_id);
 			</div>
 			<span class="text"></span>
 		</td>
-		<td class="sample-slot-field" nowrap>
+		<td class="sample-slot-field hidden" nowrap>
 			<div class="form-group form-group-sm">
 				<select class="form-control form-control-sm sample-store-slot" name="sample_details[sample_store_slot][]" style="width: 200px !important" placeholder="Select a Srore First...">
 					<option></option>
@@ -4187,13 +4219,13 @@ $customer = getCrmCustomerByID($batch->crm_customer_id);
 			<span class="text"></span>
 		</td>
 		
-		<td class="sample-quantity-field">
+		<td class="sample-quantity-field hidden">
 			<div class="form-group form-group-sm">
 				<input type="number" min="0" style="width: 200px !important" class="form-control form-control-sm sample-quantity"  name="sample_details[sample_quantity][]" placeholder="Sample Quantity..." />
 			</div>
 			<span class="text"></span>
 		</td>
-		<td class="sample-reporting-unit-field">
+		<td class="sample-reporting-unit-field hidden">
 			<div class="form-group form-group-sm">
 				<select class="form-control form-control-sm sample-reporting-unit"  name="sample_details[sample_reporting_unit][]" style="width: 200px !important" placeholder="Select Sample Reporting Unit...">
 					<option></option>
@@ -4206,7 +4238,7 @@ $customer = getCrmCustomerByID($batch->crm_customer_id);
 			</div>
 			<span class="text"></span>
 		</td>
-		<td class="barcode-field">
+		<td class="barcode-field hidden">
 			<div class="form-group form-group-sm">
 				<input type="text" style="width: 100px" class="form-control form-control-sm sample-barcode" name="sample_details[barcode][]" placeholder="BarCode..." />
 			</div>

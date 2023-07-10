@@ -75,7 +75,7 @@ class SampleWorkFlowController extends Controller
 		if (!$status) {
 			$status = getSampleWorflowStages()[0];
 		}
-		$labs  = Lab::where('active',1)->get();
+		$labsections  = SampleAnalysisStage::where('active',1)->get();
 
 		// return response()->json('test');
 		$batches = SampleHeader::where('isactive', 1)->orderBy('receipt_date', 'desc');
@@ -106,7 +106,7 @@ class SampleWorkFlowController extends Controller
 			->where('r.id', $role_a->value)->where('users.active', 1)->where('users.is_support_staff', 0)->selectRaw('users.*')->get();
 		$users = User::where('is_client',0)->where('supplier_id',0)->where('active',1)->get();			
 
-		return view('layouts.lab.sample-workflow.index', compact('batches', 'status', 'analysts','labs','users'));
+		return view('layouts.lab.sample-workflow.index', compact('batches', 'status', 'analysts','labsections','users'));
 	}
 
 	public function print_labels(Request $request)
@@ -3116,7 +3116,7 @@ class SampleWorkFlowController extends Controller
 		$sampleTrs = '';
 		$contact = CustomerContact::find($request->contact_id);
 		foreach($samples as $sample){
-			$sampleTrs.'
+			$sampleTrs = $sampleTrs.'
 			<tr style="border: 1px solid black">
 				<td style="border: 1px solid black">'.$sample->sample_code.'</td>
 				<td style="border: 1px solid black">'.$sample->getAnalysisRelation().' </td>
@@ -3124,7 +3124,9 @@ class SampleWorkFlowController extends Controller
 			</tr>
 			';
 		}
+		$specified_days = SystemConfiguration::where('key','specified_duration_days')->first();
 
+		// return response()->json($sampleTrs);
 		
 		$body = '
 		<p>
@@ -3150,8 +3152,8 @@ class SampleWorkFlowController extends Controller
 			</table>
 			<br>
 			<p>
-				If we don`t hear from you within [specified time period], we will proceed with the analysis as shared. <br>
-				For any questions or modifications, please contact us at polucon@polucon.com / laboratory@polucon.com. <br><br>
+				If we don`t hear from you within '.$specified_days->value ?? '0'.', we will proceed with the analysis as shared. <br>
+				For any questions or modifications, please contact us at polucon@polucon.com | laboratory@polucon.com. <br><br>
 				Thank you, <br>
 				'.auth()->user()->name.'
 
@@ -3165,6 +3167,40 @@ class SampleWorkFlowController extends Controller
 		$batch = SampleHeader::find($request->batch_id);
 		notify_user($request->body,$contact->email,'[POLUCON LIMS] Payment Reminder '.$batch->batch_code);
 		return redirect()->back()->with('success','Payment reminder sent out successfully');
+	}
+
+	public function getLabSectionsByLab($lab_id){
+		$sections = SampleAnalysisStage::where('lab_id',$lab_id)->get();
+		return response()->json($sections);
+
+	}
+
+	public function moveToLab(Request $request){
+		// return response()->json($request->all());
+		$status = 'Samples In Lab';
+		foreach($request->batch_code as $code){
+			$batch = SampleHeader::where('batch_code',$code)->first();
+			$previousWorkflow = $batch->status;
+	
+			$custodyDetails = array(
+				"batch_id" => $batch->id,
+				"comments" => $request->comments ?? '',
+				"current" => array(
+					"status" => $batch->status,
+					"tracking_stage" => $batch->sample_tracking_stage,
+				),
+				"target" => array(
+					"status" => $status,
+					"tracking_stage" => $batch->sample_tracking_stage,
+				)
+			);
+	
+			$this->updateChainofCustody($custodyDetails);
+			$batch->status = $status;
+			$batch->save();
+		}
+		return redirect()->back()->with('success','Sample(s) moved to samples in Lab section successfully');
+
 	}
 
 

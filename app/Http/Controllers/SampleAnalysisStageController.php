@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Lab;
 use App\SampleAnalysisStage;
 use Illuminate\Http\Request;
 use App\User;
@@ -21,8 +22,9 @@ class SampleAnalysisStageController extends Controller
 	{
 		$sampleAnalysisStage = SampleAnalysisStage::orderBy('name')->get();
 		$users = User::where('is_client',0)->where('supplier_id',0)->where('active',1)->get();
+		$labs = Lab::where('active',1)->get();
 
-		return view('layouts.lab.sample-analysis-stages.index', compact('sampleAnalysisStage','users'));
+		return view('layouts.lab.sample-analysis-stages.index', compact('sampleAnalysisStage','users','labs'));
 	}
 
 	/**
@@ -40,6 +42,8 @@ class SampleAnalysisStageController extends Controller
 		$sampleAnalysisStage->sample_workflow = $request->sample_workflow;
 		$sampleAnalysisStage->section_head_id = $request->section_head_id;
 		$sampleAnalysisStage->level = $request->level;
+		$sampleAnalysisStage->lab_id = $request->lab_id;
+		$sampleAnalysisStage->code = $request->code;
 
 		$sampleAnalysisStage->save();
 
@@ -63,7 +67,8 @@ class SampleAnalysisStageController extends Controller
 		$sampleAnalysisStage->sample_workflow = $request->sample_workflow;
 		$sampleAnalysisStage->section_head_id = $request->section_head_id;
 		$sampleAnalysisStage->level = $request->level;
-
+		$sampleAnalysisStage->lab_id = $request->lab_id;
+		$sampleAnalysisStage->code = $request->code;
 		$sampleAnalysisStage->save();
 
 		return redirect()->back()->with('success', 'Sample Analysis Stage Edited.');

@@ -96,9 +96,16 @@
 				</li>
 				@endif
 				@if ($status=="Samples Reception")
+			
+
 				<li>
 					<span class="btn btn-sm dropdown-item" data-toggle="modal" disabled data-target="#delete-batch">
 						<i class="mdi mdi-delete-empty mr-2"></i> Cancel Batch
+					</span>
+				</li>
+				<li>
+					<span class="btn btn-sm dropdown-item" data-toggle="modal" disabled data-target="#move-to-lab">
+						<i class="mdi mdi-swap-vertical mr-2"></i> Move to Lab
 					</span>
 				</li>
 				
@@ -287,7 +294,7 @@
 					<div class="form-group">
 						<label for="" class="control-label">To Lab</label>
 						<select name="to_lab_section_id" id="" class="form-control">
-							@foreach($labs as $lab)
+							@foreach($labsections as $lab)
 							<option value="{{$lab->id}}">{{$lab->code}} - {{$lab->name}}</option>
 							@endforeach
 						</select>
@@ -403,6 +410,29 @@
 				<button type="button" class="btn btn-default btn-sm" data-dismiss="modal">Close</button>
 			</div>
 		</form>
+	</div>
+</div>
+<div class="modal fade" id="move-to-lab" role="dialog">
+	<div class="modal-dialog">
+		<div class="modal-content">
+			<form action="{{route('moveToLab')}}" method="post">
+				@csrf
+				<div class="modal-body">
+					<div class="alert alert-primary p-2 d-flex">
+						<i class="mdi mdi-alert-decagram-outline" style="font-size:25px"></i>
+						<span class="p-2">Confirm you want to send the following batch(es) to Samples In Lab stage</span>
+					</div>
+					<div class="form-group">
+						<label class="control-label">Batches</label>
+						<div class="selected-batches-movetolab"></div>
+					</div>
+				</div>
+				<div class="modal-footer">
+					<button class="btn btn-sm btn-outline-primary" type="submit"><i class="mdi mdi-thumb-up"></i> Yes, Send</button>
+					<span class="btn btn-sm btn-default" data-dismiss="modal">Close</span>
+				</div>
+			</form>
+		</div>
 	</div>
 </div>
 
@@ -891,6 +921,8 @@
 		if ($("input[name='table_sample_id[]']:checked").length > 0) {
 			$('[data-target="#delete-batch"]').removeAttr('disabled').addClass('btn-danger').removeClass('btn-outline-danger');
 			$('[data-target="#inter-lab-add"]').removeAttr('disabled');
+			$('[data-target="#move-to-lab"]').removeAttr('disabled');
+
 
 			$('[data-target="#dispatch-to-labs-modal"]').removeAttr('disabled').addClass('btn-warning').removeClass('btn-outline-warning');
 			$('[data-target="#dispatch-to-labs-modal-approve"]').removeAttr('disabled').addClass('btn-success').removeClass('btn-outline-success');
@@ -901,6 +933,8 @@
 		} else {
 			$('[data-target="#delete-batch"]').attr('disabled', true).removeClass('btn-danger').addClass('btn-outline-danger');
 			$('[data-target="#inter-lab-add"]').attr('disabled',true);
+			$('[data-target="#move-to-lab"]').attr('disabled');
+
 			$('[data-target="#dispatch-to-labs-modal"]').attr('disabled', true).removeClass('btn-warning').addClass('btn-outline-warning');
 			$('[data-target = "#approve-begin-process"]').removeAttr('disabled').addClass('btn-default').removeClass('btn-outline-success');
 			$('[data-target="#dispatch-to-labs-modal-approve"]').attr('disabled', true).removeClass('btn-success').addClass('btn-outline-success');
@@ -908,6 +942,7 @@
 		}
 		$('.selected-batches-review').empty();
 		$('.selected-batches-interlab').empty();
+		$('.selected-batches-movetolab').empty();
 		$('.selected-batches-request').empty();
 		$('.selected-batches-request-approve').empty();
 
@@ -929,6 +964,11 @@
 						<input type="checkbox" name="batch_code[]" value="${ $value }"  checked >${ $value }
 					</span>`
 				);
+				$('.selected-batches-movetolab').append(
+					`<span class="p-2 mr-2">
+						<input type="checkbox" name="batch_code[]" value="${ $value }"  checked >${ $value }
+					</span>`
+				)
 				$('.selected-batches-request').append(
 					`<span class="p-2 mr-2">
 						<input type="checkbox" name="batch_code[]" value="${$value}" checked>${$value}

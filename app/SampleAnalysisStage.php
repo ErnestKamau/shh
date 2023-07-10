@@ -17,4 +17,7 @@ class SampleAnalysisStage extends Model implements Auditable
   public function getSectionHead(){
     return User::find($this->section_head_id);
   }
+  public function getLabDetails(){
+    return Lab::find($this->lab_id);
+  }
 }

@@ -31,9 +31,11 @@
           <tr>
             <th>No</th>
             <th>Name</th>
+            <th>Code</th>
             <th>Workflow</th>
             <th>Level</th>
             <th>Section Head</th>
+            <th>Lab</th>
             <th>Active?</th>
 
             <th></th>
@@ -45,9 +47,11 @@
               <tr>
                 <td valign="center">{{ $loop->iteration }}</td>
                 <td>{{ $stage->name }}</td>
+                <td>{{$stage->code}}</td>
                 <td>{{ $stage->sample_workflow }}</td>
                 <td>{{ $stage->level }}</td>
                 <td>{{ $stage->getSectionHead()->name ?? '-'}}</td>
+                <td>{{ $stage->getLabDetails()->name ?? '-' }}</td>
                 <td class="text-small">{!! $stage->active == '1' ? '<i class="mdi mdi-marker-check text-success"></i>' : '<i class="mdi mdi-close-circle text-danger"></i>' !!}</td>
                 <td nowrap>
                   <button class="btn btn-primary btn-sm" data-target="#edit-stage-{{ $loop->iteration }}" data-toggle="modal"><i class="mdi mdi-pencil-outline"></i> <small class="hidden-sm-up">Edit</small> </button>
@@ -65,6 +69,10 @@
                             <input type="text" class="form-control" name="name" value="{{ $stage->name }}" placeholder="Sample Type Name..." required />
                           </div>
                           <div class="form-group">
+                            <label class="control-label">Code</label>
+                            <input type="text" class="form-control" name="code" value="{{ $stage->code }}" placeholder="Lab Section Name..." required />
+                          </div>
+                          <div class="form-group">
                             <label for="" class="control-label">Section Head</label>
                             <select name="section_head_id" id="" class="form-control">
                               @foreach($users as $user)
@@ -72,6 +80,15 @@
                               @endforeach
                             </select>
 
+                          </div>
+                          <div class="form-group">
+                            <label for="" class="control-label">Labs</label>
+                            <select name="lab_id" id="" class="form-control">
+                              <option value="">Choose Lab...</option>
+                              @foreach($labs as $lab)
+                              <option value="{{$lab->id}}" {{$lab->id == $stage->lab_id ? 'selected' : ''}}>{{$lab->code}} - {{$lab->name}}</option>
+                              @endforeach
+                            </select>
                           </div>
 													<div class="row">
 														<div class="col-sm-8">
@@ -131,6 +148,10 @@
             <input type="text" class="form-control" name="name" placeholder="Sample Analysis Stage Name..." required />
           </div>
           <div class="form-group">
+            <label class="control-label">Code</label>
+            <input type="text" class="form-control" name="code" value="" placeholder="Lab Section Code..." required />
+          </div>
+          <div class="form-group">
             <label for="" class="control-label">Section Head</label>
             <select name="section_head_id" id="" class="form-control">
               @foreach($users as $user)
@@ -138,6 +159,15 @@
               @endforeach
             </select>
 
+          </div>
+          <div class="form-group">
+            <label for="" class="control-label">Labs</label>
+            <select name="lab_id" id="" class="form-control">
+              <option value="">Choose Lab...</option>
+              @foreach($labs as $lab)
+              <option value="{{$lab->id}}">{{$lab->code}} - {{$lab->name}}</option>
+              @endforeach
+            </select>
           </div>
 					<div class="row">
 						<div class="col-sm-8">

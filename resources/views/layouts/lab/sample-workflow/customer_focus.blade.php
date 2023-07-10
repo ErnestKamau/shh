@@ -13,7 +13,7 @@
     </style>
 </head>
 <body>
-    <div class="container card mt-5">
+    <div class="container card mt-5 mb-5">
         <div class="card-body p-2">
 
             <div class="row border-bottom">
@@ -102,7 +102,7 @@
                             </ol>
                         </li>
                         <div class="payment-details">
-                            Analysis charges Ksh. <span class="text-bold text-muted">{{$batch->invoice_amount}} </span>16% VAT Kshs. <span class="text-bold text-muted">{{$payment_detail->vat}}</span> <b>amount paid </b>Kshs  <span class="text-bold text-muted">{{$payment_detail->amount}}</span> Balance Kshs. <span class="text-bold text-muted">{{$payment_detail->balance}} </span> Payments to be made by <span class="text-bold text-muted">{{$customer->name}}</span> Contact Person <span class="text-bold text-muted">{{$payment_detail->contactpersonname}}</span>
+                            Analysis charges Ksh. <span class="text-bold text-muted">{{$batch->invoice_amount}} </span>16% VAT Kshs. <span class="text-bold text-muted">{{$payment_detail->vat ?? 0}}</span> <b>amount paid </b>Kshs  <span class="text-bold text-muted">{{$payment_detail->amount ?? 0}}</span> Balance Kshs. <span class="text-bold text-muted">{{$payment_detail->balance ?? 0}} </span> Payments to be made by <span class="text-bold text-muted">{{$customer->name}}</span> Contact Person <span class="text-bold text-muted">{{$payment_detail->contactpersonname ?? '-'}}</span>
                         </div>
                         <li>Remarks / Special Instructions <span class="text-bold text-muted">{{$batch->batch_instructions}}</span></li>
                         
