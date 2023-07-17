@@ -214,9 +214,9 @@
 						@endif
 					@endif
 					@if(in_array($batch->status,["Sample Approval","Reports for Collection","Reports In Payment"]) && $batch->batch_report_url != '')
-					
+						<?php $reportpath = '/storage'.$batch->batch_report_url; ?>
 						<li>
-							<a target="_blank" href="{{$batch->batch_report_url}}" class="dropdown-item"><i class="mdi mdi-download mr-2"></i> Download COA</a>
+							<a target="_blank" href="{{$reportpath}}" class="dropdown-item"><i class="mdi mdi-download mr-2"></i> Download COA</a>
 						</li>
 					
 					@endif 
