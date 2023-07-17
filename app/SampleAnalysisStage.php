@@ -10,6 +10,7 @@ class SampleAnalysisStage extends Model implements Auditable
 {
 	use \OwenIt\Auditing\Auditable;
 	protected $table = 'sample_analysis_stages';
+  protected $appends = ['namecode'];
 
   public function sample_analysis_stage(){
     return $this->hasMany('App\SampleToSampleAnalysisStage');
@@ -19,5 +20,8 @@ class SampleAnalysisStage extends Model implements Auditable
   }
   public function getLabDetails(){
     return Lab::find($this->lab_id);
+  }
+  public function getNameCodeAttribute(){
+    return $this->code.'-'.$this->name;
   }
 }
