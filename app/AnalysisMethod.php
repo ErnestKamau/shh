@@ -13,7 +13,7 @@ class AnalysisMethod extends Model implements Auditable
 	}
 
 	public function analytes(){
-    return AnalysisElements::where('method', $this->id)->get();
+    	return AnalysisElements::where('method', $this->id)->get();
 	}
 
 	public function reagents(){

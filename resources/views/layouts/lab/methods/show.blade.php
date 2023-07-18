@@ -159,22 +159,23 @@
                   </thead>
                   <tbody>
 										@foreach($analysis_method->analytes() as $analyte)
+                    
 											<tr>
 												<td valign="center">{{ $loop->iteration }}</td>
-												<td>{{ $analyte->analyte->code }}</td>
-												<td>{{ $analyte->analyte->name }}</td>
-												<td>{{ $analyte->analyte->common_name }}</td>
+												<td>{{ $analyte->analyte->code ?? '' }}</td>
+												<td>{{ $analyte->analyte->name ?? '' }}</td>
+												<td>{{ $analyte->analyte->common_name ?? '' }}</td>
 												<td>{{ $analyte->analyte->decimal_places }}</td>
-												<td>{{ number_format($analyte->analyte->equivalent_weight, $analyte->analyte->decimal_places) }}</td>
-												<td>{{ $analyte->analyte->reporting_symbol }}</td>
-												<td>{{ $analyte->analyte->reporting_unit }}</td>
+												<td>{{ number_format($analyte->analyte->equivalent_weight ?? 0, $analyte->analyte->decimal_places ?? 0) }}</td>
+												<td>{{ $analyte->analyte->reporting_symbol ?? '' }}</td>
+												<td>{{ $analyte->analyte->reporting_unit ?? '' }}</td>
 												<td>{{ $analyte->equipment->name ?? ''}}</td>
 												<td>{{ $analyte->analysis_type->name }}</td>
-												<td class="text-small">{!! $analyte->analyte->non_detectable == '1' ? '<i class="mdi mdi-marker-check text-success"></i>' : '<i class="mdi mdi-close-circle text-danger"></i>' !!}</td>
-												<td class="text-small">{!! $analyte->analyte->non_accredited == '1' ? '<i class="mdi mdi-marker-check text-success"></i>' : '<i class="mdi mdi-close-circle text-danger"></i>' !!}</td>
-												<td class="text-small">{!! $analyte->analyte->show_on_report == '1' ? '<i class="mdi mdi-marker-check text-success"></i>' : '<i class="mdi mdi-close-circle text-danger"></i>' !!}</td>
-												<td class="text-small">{!! $analyte->analyte->is_manual == '1' ? '<i class="mdi mdi-marker-check text-success"></i>' : '<i class="mdi mdi-close-circle text-danger"></i>' !!}</td>
-												<td class="text-small">{!! $analyte->analyte->active == '1' ? '<i class="mdi mdi-marker-check text-success"></i>' : '<i class="mdi mdi-close-circle text-danger"></i>' !!}</td>
+												<td class="text-small">{!! isset($analyte->analyte->non_detectable) && $analyte->analyte->non_detectable == '1' ? '<i class="mdi mdi-marker-check text-success"></i>' : '<i class="mdi mdi-close-circle text-danger"></i>' !!}</td>
+												<td class="text-small">{!! isset($analyte->analyte->non_accredited) && $analyte->analyte->non_accredited == '1' ? '<i class="mdi mdi-marker-check text-success"></i>' : '<i class="mdi mdi-close-circle text-danger"></i>' !!}</td>
+												<td class="text-small">{!! isset($analyte->analyte->show_on_report) && $analyte->analyte->show_on_report == '1' ? '<i class="mdi mdi-marker-check text-success"></i>' : '<i class="mdi mdi-close-circle text-danger"></i>' !!}</td>
+												<td class="text-small">{!! isset($analyte->analyte->is_manual) && $analyte->analyte->is_manual == '1' ? '<i class="mdi mdi-marker-check text-success"></i>' : '<i class="mdi mdi-close-circle text-danger"></i>' !!}</td>
+												<td class="text-small">{!! isset($analyte->analyte->active) && $analyte->analyte->active == '1' ? '<i class="mdi mdi-marker-check text-success"></i>' : '<i class="mdi mdi-close-circle text-danger"></i>' !!}</td>
 											</tr>
 										@endforeach
 									</tbody>
