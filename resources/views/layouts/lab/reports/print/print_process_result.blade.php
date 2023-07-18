@@ -119,7 +119,7 @@
                             <table style="width: 100%;border:0px; padding-bottom:2px !important; border-bottom: solid 2px #0000ff !important">
                                 <tr>
                                     <td style="font-size: 10px !important;border:solid 0 transparent !important; width:30% !important">
-                                        <img src="{{ $path }}" style="height:60px;" alt="logo"> <br><br>
+                                        <img src="{{ $path}}" style="height:60px;" alt="logo"> <br><br>
                                         ISO 17025:2005 COMPANY
                                     </td>
                                     <td style="border:solid 0 transparent !important;font-size: 9px !important; color:blue;font-weight:800; margin-right:0px !important;  ">
@@ -297,5 +297,49 @@
     }
     
 </script>
+
+
+ <table class="container" style="margin-top: 1px !important;">
+
+            <tr>
+                <td>
+                    <b>{{ $sample->main_lab_name }} <br>
+                        {{ $batch->approval_date ?? '-' }}
+                    </b>
+                </td>
+                @foreach ($batch_approvers as $approvers)
+                    <td style="font-size: 8px !important;">
+                        <b>{{ $approver->title }}</b><br>
+                        <img src="{{ $approver->getApproverDetails()->electronic_sig }}" style="width:80px"
+                            alt=""><br>
+                        <span>{{ $approver->getApproverDetails()->name }} -
+                            {{ $approver->getApproverPositionDetails() }}</span>
+                    </td>
+                @endforeach
+
+            </tr>
+        </table>
+
+        <div style="margin-top:5px">
+            <table style="width:100%">
+                <tr>
+                    <td style="font-size: 7px !important;width:100%">
+
+                        <span>{{ $non_accredited->value }}</span>
+
+                        <div class="text-center pl-2 pr-2">
+                            {{ $disclaimer->value }}
+                            @if ($batch->sampled_by_company_personnel == 0)
+                                <br>
+                                <b>NB: This report relates to submitted sample(s) only. The source and markings are as
+                                    provided by the customer.</b>
+                            @endif
+                        </div>
+                    </td>
+
+                </tr>
+
+
+            </table>
 
 </body></html>

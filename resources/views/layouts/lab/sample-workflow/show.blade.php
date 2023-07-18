@@ -172,11 +172,11 @@
 					</li>
 					@if($batch->schedule_analysis_sent == '')
 					<li>
-						<span class="btn btn-sm dropdown-item" data-toggle="modal" data-target="#send-schedule-analysis"><i class="mdi mdi-email-send"></i> Send Schedule of Analysis</span>
+						<span class="btn btn-sm dropdown-item" data-toggle="modal" data-target="#send-schedule-analysis"><i class="mdi mdi-email-send mr-2"></i> Send Schedule of Analysis</span>
 					</li>
 					@endif
 					<li>
-						<span class="btn btn-sm dropdown-item" data-toggle="modal" data-target="#send-payment-reminder"><i class="mdi mdi-email-send"></i> Send Payment Reminder</span>
+						<span class="btn btn-sm dropdown-item" data-toggle="modal" data-target="#send-payment-reminder"><i class="mdi mdi-email-send mr-2"></i> Send Payment Reminder</span>
 					</li>
 					@endif
 
@@ -198,19 +198,28 @@
 							</li>
 							@endif
 							<li>
-								<?php $path = '/storage'.$batch->batch_report_url; ?>
-								<a href="{{$path}}" target="_blank" class="btn btn-sm dropdown-item"><i class="mdi mdi-subdirectory-arrow-right mr-2"></i> View Report</a>
+								<span class="btn btn-sm dropdown-item"  data-target="#view-coa-report" data-toggle="modal" title="View Sample(s) COA"><i class="mdi mdi-subdirectory-arrow-right mr-2"></i> View Report</span>
+								
 							</li>
 						@else
 							<li>
-								<?php $path = '/storage'.$batch->batch_report_url; ?>
-								<a href="{{$path}}" target="_blank" class="btn btn-sm dropdown-item"><i class="mdi mdi-subdirectory-arrow-right mr-2"></i> View Report</a>
+								<span class="btn btn-sm dropdown-item"  data-target="#view-coa-report" data-toggle="modal" title="View Sample(s) COA"><i class="mdi mdi-subdirectory-arrow-right mr-2"></i> View Report</span>
 							</li>
 						@endif
+						@if(in_array($batch->status,["Sample Approval","Reports for Collection","Reports In Payment"]))
 						<li>
 							<span class="btn btn-sm dropdown-item"  data-target="#process-results-modal" data-toggle="modal" title="Process Results"><i class="mdi mdi-subdirectory-arrow-right mr-2"></i> Process Results</span>
 						</li>
+						
+						@endif
 					@endif
+					@if(in_array($batch->status,["Sample Approval","Reports for Collection","Reports In Payment"]) && $batch->batch_report_url != '')
+						<?php $reportpath = '/storage'.$batch->batch_report_url; ?>
+						<li>
+							<a target="_blank" href="{{$reportpath}}" class="dropdown-item"><i class="mdi mdi-download mr-2"></i> Download COA</a>
+						</li>
+					
+					@endif 
 					@if($batch->status == "Sample Approval")
 						@if ($batch->batch_report_url != '' && $batch->approve_user_id > 0 )
 							@if($batch->is_qc_batch == 0)
@@ -222,23 +231,15 @@
 							
 						@endif
 						<li>
-							<?php $path = '/storage'.$batch->batch_report_url; ?>
-							<a href="{{$path}}" target="_blank" class="btn btn-sm dropdown-item"><i class="mdi mdi-subdirectory-arrow-right mr-2"></i> View Report</a>
+							<span class="btn btn-sm dropdown-item"  data-target="#view-coa-report" data-toggle="modal" title="View Sample(s) COA"><i class="mdi mdi-subdirectory-arrow-right mr-2"></i> View Report</span>
 						</li>
-						@if($batch->approve_user_id <= 0 && $batch->verify_user_id != auth()->user()->id)
-							@if(auth()->user()->checkApproveLabSampleRole())
-								<li>
-									<a href="{{ route('approve-batch-analysis',['id'=>$batch->id]) }}" class="btn btn-sm dropdown-item text-success" ><i class="mdi mdi-check-circle mr-2"></i> Approve</a>
-								</li>
-							@endif
-							<li>
-								<span class="btn btn-sm dropdown-item" data-target="#process-results-modal" data-toggle="modal" title="Process Results"><i class="mdi mdi-subdirectory-arrow-right mr-2"></i> Process Results</span>
-							</li>
-						@else
-							<li>
-								<span class="btn btn-sm dropdown-item" data-target="#process-results-modal" data-toggle="modal" title="Process Results"><i class="mdi mdi-subdirectory-arrow-right mr-2"></i> Process Results</span>
-							</li>
+						
+						@if(in_array($batch->status,["Sample Approval","Reports for Collection","Reports In Payment"]))
+						<li>
+							<span class="btn btn-sm dropdown-item" data-target="#process-results-modal" data-toggle="modal" title="Process Results"><i class="mdi mdi-subdirectory-arrow-right mr-2"></i> Process Results</span>
+						</li>
 						@endif
+						
 						@if($batch->verify_user_id > 0 && $batch->is_qc_batch > 0 && auth()->user()->checkApproveLabSampleRole())
 							<li>
 								<a href="{{route('markQcSampleComplete',['id'=>$batch->id])}}" class="btn btn-sm dropdown-item"><i class="mdi mdi-subdirectory-arrow-right mr-2"></i> Mark As Complete</a>
@@ -254,8 +255,7 @@
 					@endif
 					@if($batch->status == 'Reports In Payment' || $batch->status == 'Reports for Collection')
 						<li>
-							<?php $path = '/storage'.$batch->batch_report_url; ?>
-							<a href="{{$path}}" target="_blank" class="btn btn-sm dropdown-item"><i class="mdi mdi-subdirectory-arrow-right mr-2"></i> View Report</a>
+							<span class="btn btn-sm dropdown-item"  data-target="#view-coa-report" data-toggle="modal" title="View Sample(s) COA"><i class="mdi mdi-subdirectory-arrow-right mr-2"></i> View Report</span>
 						</li>
 					@endif
 				@endif
@@ -282,11 +282,7 @@
 						
 					@endif
 				@endif
-				@if(isset($batch->report_file_path) && trim($batch->report_file_path) != "")
-					<a class="float-right btn btn-outline-danger btn-sm rounded-pill pl-3 pr-3" href="{{ $batch->report_file_path }}">
-						<i class="mdi mdi-download"></i> View Report
-					</a>
-				@endif
+				
 				@if(isset($batch->id))
 				<div class="btn-group float-right">
 					<button class="btn btn-default bg-light btn-sm dropdown-toggle" type="button" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false" style="box-shadow: rgba(0, 0, 0, 0.15) 1.95px 1.95px 2.6px;">
@@ -396,6 +392,17 @@
 							<option value="{{$survey}}" {{ isset($batch->id) && $batch->customer_survey == $survey ? 'selected' : '' }}>{{$survey}}</option>
 							@endforeach
 						</select>
+					</div>
+					<div class="form-group col-md-3">
+						<div class="form-group">
+							<label for="" class="control-label">Lab Sections</label>
+							<select name="lab_section_ids[]" multiple id="" class="form-control">
+								<option value="">Choose Lab Sections</option>
+								@foreach($labsections as $l_section)
+									<option value="{{$l_section->id}}" {{isset($batch->id) && in_array($l_section->id,explode(',',$batch->lab_section_ids)) ? 'selected' : ''}} >{{$l_section->code}} - {{$l_section->name}}</option>
+								@endforeach
+							</select>
+						</div>
 					</div>
 					<div class="form-group btn-group-sm col-md-3">
 						<label for="" class="control-label">Sampling Method</label>
@@ -695,6 +702,11 @@
 					<li class="nav-item">
 						<a href="#interlab" class="nav-link" data-toggle="tab" id="interlab-tab-initiator" role="tab" aria-controls="Interlab" aria-selected="true"><i class="mdi mdi-swap-horizontal-bold"></i> Inter Lab Logs</a>
 					</li>
+					@if( in_array($batch->status,['Sample Verification','Sample Approval','Reports In Payment','Reports for Collection']))
+					<li class="nav-item">
+						<a href="#batch-approval" class="nav-link" data-toggle="tab" id="batch-approval-initiator" role="tab" aria-controls="batch-approval" aria-selected="true"><i class="mdi mdi-account-check-outline"></i> Approvals</a>
+					</li>
+					@endif
 					<li class="nav-item">
 						<a href="#paymentDetailTabs" class="nav-link" data-toggle="tab" id="payment-details-tab" role="tab" aria-controls="paymentDetailTabs" aria-selected="true"><i class="mdi mdi-account-cash-outline"></i> Payment Details</a>
 					</li>
@@ -709,6 +721,57 @@
           </div>
           <div class="tab-content" id="analyte-tabs-content">
 			@if(isset($batch->id))
+				@if( in_array($batch->status,['Sample Verification','Sample Approval','Reports In Payment','Reports for Collection']))
+					<div class="tab-pane fade p-3" id="batch-approval" role="tabpanel" aria-labelledby="one-tab">
+						<h5 class="p-2"><i class="mdi mdi-account-check-outline"></i> Approvers</h5>
+						<div class="table-responsive p-2">
+							<table class="table table-sm table-condensed table-bordered table-hover">
+								<thead>
+									<tr>
+										<th>#</th>
+										<th>Status</th>
+										<th>Approval Date</th>
+										<th>Approver</th>
+										<th>Title</th>
+										<th>Workflow</th>
+										<th>Remark</th>
+										<th>Lab Sections</th>
+									</tr>
+								</thead>
+								<tbody>
+									@foreach($approvers as $approver)
+									<tr class="{{$approver->batch_status != $batch->status ? 'bg-light' : ''}}" >
+										<td style="width:80px">
+											@if($approver->status == 0)
+											@if($approver->user_id == auth()->user()->id)
+											<span class="btn btn-sm btn-default text-success" data-toggle="modal" data-record="{{json_encode($approver)}}" data-target="#change-approval-status"><i class="mdi mdi-thumb-up-outline" data-toggle="tooltip" title="Change Approval Status"></i></span>
+											@endif
+											<span class="btn btn-sm btn-default text-danger" data-record="{{json_encode($approver)}}"  data-toggle="modal" data-target="#delete-batch-approver"><i class="mdi mdi-delete-empty" data-toggle="tooltip" title="Delete"></i></span> 
+											<span class="btn btn-sm btn-default text-primary" data-record="{{json_encode($approver)}}" data-toggle="modal" data-target="#edit-batch-approver"><i class="mdi mdi-pencil" data-toggle="tooltip" title="Edit"></i></span>
+											@endif
+										</td>
+										<td>
+											@if($approver->status == 0)
+											<span class="badge badge-primary badge-pill p-2"><i class="mdi mdi-decagram"></i> Awaiting Approval</span>
+											@elseif($approver->status == 1)
+											<span class="badge badge-success badge-pill p-2"><i class="mdi mdi-thumb-up-outline"></i> Approved</span>
+											@else
+											<span class="badge badge-success badge-pill p-2"><i class="mdi mdi-decagram"></i> Declined</span>
+											@endif
+										</td>
+										<td>{{$approver->approval_date}}</td>
+										<td>{{$approver->approvername}}</td>
+										<td>{{$approver->title}}</td>
+										<td>{{$approver->batch_status}}</td>
+										<td>{{$approver->remark}}</td>
+										<td>{{$approver->labsectionnames}}</td>
+									</tr>
+									@endforeach
+								</tbody>
+							</table>
+						</div>
+					</div>
+				@endif
 				@if(in_array($batch->status, array("Sample Approval", "Samples In Lab", "Sample Verification")))
 					<div class="tab-pane fade p-3" id="data-from-equipment-results" role="tabpanel" aria-labelledby="one-tab">
 						<div class="p-2 row">
@@ -1434,6 +1497,55 @@
 @endsection
 @section('script2')
 <div class="carry_data hidden" data-userlabsection="{{json_encode(auth()->user()->labsectionids)}}"></div>
+<div class="modal fade" id="change-approval-status" role="dialog">
+	<div class="modal-dialog">
+
+		<div class="modal-content">
+			<form action="{{route('changeBatchApprovalStatus')}}" method="post">
+				@csrf  
+				<div class="modal-body">
+					
+				</div>
+				<div class="modal-footer">
+					<button type="submit" class="btn btn-sm btn-outline-success"><i class="mdi mdi-content-save"></i> Submit</button>
+					<span class="btn btn-sm btn-default" data-dismiss="modal">Close</span>
+				</div>
+			</form>
+		</div>
+	</div>
+</div>
+<div class="modal fade" id="edit-batch-approver" role="dialog">
+	<div class="modal-dialog">
+		<div class="modal-content">
+			<form action="{{route('editVerificationApproverConfig')}}" method="post">
+				@csrf  
+				<div class="modal-body">
+					
+				</div>
+				<div class="modal-footer">
+					<button type="submit" class="btn btn-sm btn-outline-primary"><i class="mdi mdi-content-save"></i> Save</button>
+					<span class="btn btn-sm btn-default" data-dismiss="modal">Close</span>
+				</div>
+			</form>
+		</div>
+	</div>
+</div>
+<div class="modal fade" id="delete-batch-approver" role="dialog">
+	<div class="modal-dialog">
+		<div class="modal-content">
+			<form action="{{route('deleteVerificationApproverConfig')}}" method="post">
+				@csrf 
+				<div class="modal-body">
+					
+				</div>
+				<div class="modal-footer">
+					<button type="submit" class="btn btn-sm btn-outline-danger"><i class="mdi mdi-delete-empty"></i> Yes, Delete</button>
+					<span class="btn btn-sm btn-default" data-dismiss="modal">Close</span>
+				</div>
+			</form>
+		</div>
+	</div>
+</div>
 <div class="modal fade" id="add-payment-details" role="dialog">
     <div class="modal-dialog">
         <div class="modal-content">
@@ -1656,7 +1768,7 @@ $customer = getCrmCustomerByID($batch->crm_customer_id);
 					
 				</div>
 				<div class="modal-footer">
-					<button type="submit" class="btn-sm btn-outline-success btn affect-button"><i class="mdi content-save"></i> Yes, Affect</button>
+					<button type="submit" class="btn-sm btn-outline-success btn affect-button"><i class="mdi content-save"></i> Yes, Effect</button>
 					<span class="btn btn-sm btn-default text-danger" data-dismiss="modal">Cancel</span>
 				</div>
 			</form>
@@ -1756,6 +1868,52 @@ $customer = getCrmCustomerByID($batch->crm_customer_id);
 		</form>
 	</div>
 </div>
+@if(in_array($batch->status,['Sample Verification','Sample Approval','Reports In Payment','Reports for Collection']))
+<div class="modal fade" id="view-coa-report" role="dialog">
+	<div class="modal-dialog">
+		<div class="modal-content">
+			<form action="{{route('showBatchCOA')}}" method="get">
+				
+				<div class="modal-body">
+					@if($batch->getVerificationApprovalStatus() > 0 && $batch->status == 'Sample Verification' )
+					<div class="alert alert-danger p-2 d-flex">
+						<i class="mdi mdi-decagram" style="font-size:30px"></i>
+						<span class="p-2">Confirm all approvers have approved the report to have all the required signatories appear on the COA.</span>
+
+					</div>
+					@endif
+					@if($batch->getApprovalStageStatus() > 0 && $batch->status == 'Sample Approval' )
+					<div class="alert alert-danger p-2 d-flex">
+						<i class="mdi mdi-decagram" style="font-size:30px"></i>
+						<span class="p-2">Confirm all approvers have approved the report to have all the required signatories appear on the COA.</span>
+
+					</div>
+					@endif
+
+
+					<div class="alert alert-success p-2 d-flex">
+						<i class="mdi mdi-cogs" style="font-size: 25px"></i>
+						<span class="p-2">Confirm you want to view COA report for this batch by selecting the report standard below:</span>
+					</div>
+					<div class="form-group">
+						<label for="" class="control-label">Report Template</label>
+						<select name="template_id" id="" class="form-control">
+							@foreach($report_formats as $r_format)
+							<option value="{{$r_format->value}}">{{$r_format->key}}</option>
+							@endforeach
+						</select>
+					</div>
+					<input type="hidden" name="batch_id" value="{{$batch->id}}">
+				</div>
+				<div class="modal-footer">
+					<button class="btn btn-sm btn-outline-success" type="submit"><i class="mdi mdi-cogs"></i> View</button>
+					<span class="btn btn-sm btn-default text-danger" data-dismiss="modal">Close</span>
+				</div>
+			</form>
+		</div>
+	</div>
+</div>
+@endif
 <div id="add-sample-conditions" class="modal fade" role="dialog">
 	<div class="modal-dialog">
 		<!-- Modal content-->
@@ -1826,15 +1984,37 @@ $customer = getCrmCustomerByID($batch->crm_customer_id);
 			<div id="send-for-approval-modal" class="modal fade" role="dialog">
 				<div class="modal-dialog">
 					<!-- Modal content-->
-					<form class="modal-content" method="POST" action="{{ route('move-to-workflow', ['status'=>'Sample Approval', 'batch_id'=>$batch->id]) }}" enctype="multipart/form-data">
+					<form class="modal-content" method="POST" action="{{ route('moveToVerificationApprovalLevel') }}" enctype="multipart/form-data">
 						@csrf
-						<div class="modal-header">
-							<h4 class="modal-title"><i class="mdi mdi-check-decagram"></i> Send to Sample Approval </h4>
-						</div>
+						
 						<div class="modal-body">
+							@if($batch->getVerificationApprovalStatus() > 0 )
+							<div class="alert alert-danger p-2 d-flex mt-1">
+								<i class="mdi mdi-decagram" style="font-size: 30px"></i>
+								<span class="p-2">COnfirm all approvers have approved before sending the report for approval</span>
+							</div>
+							@endif
+							<div class="alert alert-primary p-2 d-flex">
+								<i class="mdi mdi-decagram" style="font-size: 30px"></i>
+								<span class="p-2">Confirm you want to send this {{$batch->batch_code}} batch for approval</span>
+							</div>
+							<div class="form-group">
+								<label for="" class="control-label">Title</label>
+								<input type="text"  name="title" value="Authorized Signatory" class="form-control">
+							</div>
+							<div class="form-group">
+								<label for="" class="control-label">Approver</label>
+								<select name="user_id" id="" class="form-control">
+									@foreach($users as $user)
+									<option value="{{$user->id}}">{{$user->name}}</option>
+									@endforeach
+								</select>
+							</div>
+							<input type="hidden" name="batch_id" value="{{$batch->id}}">
+							<input type="hidden" name="status" value="Sample Approval">
 							<div class="form-group">
 								<input type="hidden" name="is_approval" value="1">
-								<label class="control-label">Approval Notes/Comments</label>
+								<label class="control-label">Remarks</label>
 								<textarea class="form-control" name="comments" placeholder="Comments..."></textarea>
 							</div>
 							<div class="form-check">
@@ -1852,7 +2032,9 @@ $customer = getCrmCustomerByID($batch->crm_customer_id);
 							</div>
 						</div>
 						<div class="modal-footer">
+							@if($batch->getVerificationApprovalStatus() == 0 )
 							<button type="submit" class="btn btn-success btn-sm"><i class="mdi mdi-thumb-up"></i> Yes Proceed</button>
+							@endif
 							<button type="button" class="btn btn-default btn-sm" data-dismiss="modal">Close</button>
 						</div>
 					</form>
@@ -2177,7 +2359,7 @@ $customer = getCrmCustomerByID($batch->crm_customer_id);
 			<div id="send-to-verification-modal" class="modal fade" role="dialog">
 				<div class="modal-dialog">
 					<!-- Modal content-->
-					<form class="modal-content" method="POST" action="{{ route('move-to-workflow', ['status'=>'Sample Verification', 'batch_id'=>$batch->id]) }}" enctype="multipart/form-data">
+					<form class="modal-content" method="POST" action="{{ route('moveToVerificationApprovalLevel') }}" enctype="multipart/form-data">
 						@csrf
 						<div class="modal-header">
 							<h4 class="modal-title"><i class="mdi mdi-check-decagram"></i> Send to Verification </h4>
@@ -2190,15 +2372,10 @@ $customer = getCrmCustomerByID($batch->crm_customer_id);
 									</div>
 								</div>
 							@endif
-							<div class="form-group">
-								<label for="" class="control-label">Approver</label>
-								<select name="approver_id" id="" class="form-group">
-									<option value="">Select Approver...</option>
-									@foreach($users as $user)
-									<option value="{{$user->id}}">{{$user->name}}</option>
-									@endforeach
-								</select>
-							</div>
+							
+							<input type="hidden" name="status" value="Sample Verification">
+							<input type="hidden" name="batch_id" value="{{$batch->id}}">
+
 							<div class="form-group">
 								<label class="control-label">Verification Notes/Comments</label>
 								<textarea class="form-control" name="comments" placeholder="Comments..."></textarea>
@@ -2556,9 +2733,6 @@ $customer = getCrmCustomerByID($batch->crm_customer_id);
 	</div>
 </div>
 
-
-
-
 <script src="https://maps.googleapis.com/maps/api/js?v=3.exp&key=AIzaSyBqS4AEZ-gVeXjG794Rh0eTd6yvdfMKTjg&sensor=false" type="text/javascript"></script>
 {{-- @if(isset($batch->status)) --}}
 	{{-- @if($equipment_data['captured'] > 0) --}}
@@ -2602,6 +2776,92 @@ $customer = getCrmCustomerByID($batch->crm_customer_id);
 		var clientPrefSPName;
 
 		var configuredSamples = $('#sample-detail-rows').data('samples');
+
+		var deleteBatchApprovalBody = (data)=>{
+			var body = $(`
+			<div class="alert alert-danger p-2 d-flex">
+				<i class="mdi mdi-delete-empty" style="font-size:25px"></i>
+				<span class="p-2">
+					Confirm you want to delete <b>${data.approvername}</b> as an approver for {{isset($batch->id) ? $batch->batch_code : ''}} Batch.
+				</span>
+			</div>
+			<input type="hidden" name="approver_id" value="${data.id}">
+			`).clone();
+			return body;
+		}
+		$('#delete-batch-approver').on('show.bs.modal',(e)=>{
+			var data = $(e.relatedTarget).data('record');
+			var body = deleteBatchApprovalBody(data);
+			$('#delete-batch-approver').find('.modal-body').empty();
+			$('#delete-batch-approver').find('.modal-body').append(body);
+		})
+
+		var editBatchApproverBody = (data)=>{
+			var body = $(`
+				<div class="alert alert-primary p-2 d-flex">
+					<i class="mdi mdi-decagram" style="font-size:25px"></i>
+					<span class="p-2">Edit Approval configurations below: </span>
+				</div>
+				<div class="form-group">
+					<label for="" class="control-label">Title</label>
+					<input type="text" name="title" value="${data.title}" class="form-control">
+				</div>
+				<div class="form-group">
+					<label for="" class="control-label">Approver</label>
+					<select name="user_id" id="user_id" class="form-control">
+						<option value="">Choose Approver</option>
+						@foreach($users as $user)
+						<option value="{{$user->id}}">{{$user->name}}</option>
+						@endforeach
+					</select>
+				</div>
+				<input type="hidden" name="approver_id" value="${data.id}">
+			`).clone()
+			$(body).find('#user_id').val(data.user_id)
+			$(body).find('#user_id').select2();
+			return body;
+		}
+
+		$('#edit-batch-approver').on('show.bs.modal',(e)=>{
+			var data = $(e.relatedTarget).data('record');
+			var body = editBatchApproverBody(data);
+			$('#edit-batch-approver').find('.modal-body').empty();
+			$('#edit-batch-approver').find('.modal-body').append(body);
+		})
+
+		var changeApprovalStatusBody = (data)=>{
+			var body = $(`
+			
+			<div class="alert alert-success p-2 d-flex">
+				<i class="mdi mdi-alert-decagram-outline" style="font-size:30px"></i>
+				<span class="p-2">
+					Change approval status below:
+				</span>
+			</div>
+			<div class="form-group">
+				<label for="" class="control-label">Status</label>
+				<select required name="status" id="status" class="form-control">
+					<option value="">Choose Status...</option>
+					<option value="1">Approve</option>
+					<option value="2">Decline</option>
+				</select>
+			</div>
+			<div class="form-group">
+				<label for="" class="control-label">Remarks</label>
+				<textarea name="remark" id="" class="form-control" cols="30" rows="6"></textarea>
+			</div>
+			<input type="hidden" name="approver_id" value="${data.id}">
+			`).clone();
+			$(body).find('#status').select2();
+			return body;
+		}
+
+		$(`#change-approval-status`).on('show.bs.modal',(e)=>{
+			var data = $(e.relatedTarget).data('record');
+			var body = changeApprovalStatusBody(data);
+			$(`#change-approval-status`).find('.modal-body').empty();
+			$(`#change-approval-status`).find('.modal-body').append(body);
+		})
 
 		$('.batch-info-trigger').on('click', function(){
 			$(this).toggleClass('open');
@@ -2724,7 +2984,7 @@ $customer = getCrmCustomerByID($batch->crm_customer_id);
 				<div class="alert alert-success p-2 d-flex">
 					<i class="mdi mdi-thumbs-up-down" style="font-size: 30px;"></i>
 					<span class="p-2">
-						Affect the Inter Lab Log(s) status for the following sample(s) below by providing the following information: 
+						Effect the Inter Lab Log(s) status for the following sample(s) below by providing the following information: 
 					</span>
 				</div>
 				<div class="label control-label">
@@ -2747,7 +3007,7 @@ $customer = getCrmCustomerByID($batch->crm_customer_id);
 					<div class="alert alert-success p-2 d-flex">
 						<i class="mdi mdi-thumbs-up-down" style="font-size: 30px;"></i>
 						<span class="p-2">
-							Affect the Inter Lab Log status for sample ${data.sample_code} below:
+							Effect the Inter Lab Log status for sample ${data.sample_code} below:
 						</span>
 					</div>
 					<div class="form-group">
@@ -2797,7 +3057,7 @@ $customer = getCrmCustomerByID($batch->crm_customer_id);
 					<div class="alert alert-primary p-2 d-flex">
 						<i class="mdi mdi-alert-decagram-outline" style="font-size: 30px;"></i>
 						<span class="p-2">
-							Kindly select the Inter Laboratory Transfer Log(s) you want to affect their status
+							Kindly select the Inter Laboratory Transfer Log(s) you want to effect their status
 						</span>
 					</div>
 					`;

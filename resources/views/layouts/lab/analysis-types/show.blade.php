@@ -702,7 +702,7 @@
           <select class="form-control"  name="operator_id" placeholder="Select Operator...">
             <option value="">Select Analyst...</option>
             @foreach($usersAnalysts as $analyst)
-            <option value="{{$analyst->id}}" {{$analyst->id == $analyte->operator_id ? 'selected' : ''}} >{{$analyst->name}}</option>
+            <option value="{{$analyst->id}}" >{{$analyst->name}}</option>
             @endforeach
           </select>
         </div>

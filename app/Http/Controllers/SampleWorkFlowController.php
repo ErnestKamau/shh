@@ -57,6 +57,10 @@ use Modules\QualityControl\Entities\Configurations\QcSchemes;
 use Modules\QualityControl\Entities\Configurations\QcTypes;
 use Modules\QualityControl\Entities\Data\QcResults;
 use PhpParser\PrettyPrinter\Standard;
+use App\SamplesCategory;
+use App\LabSectionApproverRelationShip;
+use App\BatchLabSectionApprover;
+use App\LabSectionApprover;
 
 class SampleWorkFlowController extends Controller
 {
@@ -437,6 +441,7 @@ class SampleWorkFlowController extends Controller
 		$header->sampling_method_id = $request->sampling_method_id;
 		$header->condition_quality_sample = $request->condition_quality_sample;
 		$header->invoice_amount = $request->invoice_amount;
+		$header->lab_section_ids= implode(',',$request->lab_section_ids ?? []);
 
 		if ($isInReception) {
 			$header->sample_type_id = $request->sample_type_id;
@@ -869,6 +874,7 @@ class SampleWorkFlowController extends Controller
 					$captured->analyte_accredited = $analysisType->non_accredited;
 					$captured->analyte_status_contracted = $lab->is_external;
 					$captured->lab_section_id  = $analysisType->lab_section_id;
+					$captured->parameters_order = $analysisType->level;
 
 					$captured->save();
 
@@ -890,6 +896,8 @@ class SampleWorkFlowController extends Controller
 					$result->recheck = 0;
 					$result->analyte_status_contracted = $lab->is_external;
 					$result->lab_section_id  = $analysisType->lab_section_id;
+					$result->parameters_order = $analysisType->level;
+
 					$result->save();
 				}
 			}
@@ -1101,15 +1109,21 @@ class SampleWorkFlowController extends Controller
 		$payment_detail = [];
 		$contacts =[];
 		$batch_sample_codes = '';
-		if (isset($batch->id)) {
+		$report_formats = [];
+		$approvers = [];
+		if (isset($batch->id)) 
+		{
+			$report_format_config = SystemConfiguration::where('key','coa_report_format')->first();
+			$report_formats = SystemConfiguration::where('configuration_type_id',$report_format_config->value)->get();
 			$contacts = getCrmCustomerContactSchedule($batch->crm_customer_id);
 			// return response()->json($contacts);
 			$batch_sample_codes = getBacthSampleCodes($batch->id);
 			$payment_detail = InvoicePaymentDetail::where('batch_id',$batch->id)->get();
-			$interlabs = InterLabLogView::where('sample_header_id',$batch->id)->orderBy('id','DESC')->orderBy('status','ASC')->get();
+			$interlabs = InterLabLogView::where('sample_header_id',$batch->id)->orderBy('status','ASC')->orderBy('id','DESC')->get();
 			$qc_config = SystemConfiguration::where('key', 'qc_percentage_config')->first();
 			$qc_config_perc = $qc_config->value;
 			$equipment_data = $batch->get_captured();
+			$approvers = BatchLabSectionApprover::where('batch_id',$batch->id)->get();
 			foreach ($equipment_data['items'] as $b => $d) {
 				foreach ($d as $a => $k) {
 					foreach ($k as $i => $e) {
@@ -1181,7 +1195,7 @@ class SampleWorkFlowController extends Controller
 		$analysts = User::orderBy('name')->join('user_roles as ur', 'ur.user_id', '=', 'users.id')
 			->join('roles as r', 'r.id', '=', 'ur.role_id')
 			->where('r.id', $role_a->value)->where('users.active', 1)->where('users.is_support_staff', 0)->selectRaw('users.*')->get();
-		return view('layouts.lab.sample-workflow.show', compact('batch', 'batchID', 'defaultClient', 'selectedSampleType', 'client_portal', 'ammendable', 'standards', 'attachments', 'not_captured', 'analysts', 'countries', 'accounts', 'methods', 'atachment_type', 'check_perm_view', 'check_perm_delete', 'batch_scope', 'customer_survey','qc_types','qc_schemes','repeat_sample','qc_config_perc','interlabs','labs','users','payment_detail','labsections','contacts','batch_sample_codes'));
+		return view('layouts.lab.sample-workflow.show', compact('batch', 'batchID', 'defaultClient', 'selectedSampleType', 'client_portal', 'ammendable', 'standards', 'attachments', 'not_captured', 'analysts', 'countries', 'accounts', 'methods', 'atachment_type', 'check_perm_view', 'check_perm_delete', 'batch_scope', 'customer_survey','qc_types','qc_schemes','repeat_sample','qc_config_perc','interlabs','labs','users','payment_detail','labsections','contacts','batch_sample_codes','report_formats','approvers'));
 	}
 
 	public function fetch_unit_stuff($name, $client)
@@ -1549,9 +1563,13 @@ class SampleWorkFlowController extends Controller
 		$batch = SampleHeader::find($batch_id);
 		if (in_array($batch->status, ['Sample Verification', 'Sample Approval', 'Reports for Collection', 'Reports In Payment']) && in_array($status, ['Samples In Lab', 'Samples Reception', 'Samples Request Review', 'Sample Verification'])) {
 			$batch->approve_user_id = '';
-			$batch->verify_user_id = '';
+			$batch->verify_user_id = $status != 'Sample Verification' ? '' : $batch->verify_user_id;
+			$batch->report_verified_date = '';
 			$batch->approval_date = '';
 			$batch->save();
+			$status != 'Sample Verification' ? BatchLabSectionApprover::where('batch_id',$batch->id)->delete() : '';
+			$status == 'Sample Verification' ? BatchLabSectionApprover::where('batch_id',$batch->id)->update(['status'=>0,'approval_date'=>'']) : '';
+			BatchLabSectionApprover::where('batch_id',$batch->id)->where('batch_status','Sample Approval') ->delete();
 		}
 		if (in_array($batch->status, ['Samples In Lab', 'Samples Reception', 'Samples Request Review', 'Sample Verification']) && in_array($status, ['Sample Approval', 'Reports for Collection', 'Reports In Payment']) && !isset($request->is_approval)) {
 			return redirect()->back()->with('error', 'Kindly send the batch for verification');
@@ -1590,6 +1608,7 @@ class SampleWorkFlowController extends Controller
 			$batch->report_verified_date = getTodayDate();
 			if(isset($request->approver_id)){
 				$batch->approve_user_id = $request->approver_id;
+				$batch->verify_user_id = auth()->user()->id;
 			}
 			// $batch->approve_user_id = auth()->user()->id;
 		}
@@ -2235,124 +2254,17 @@ class SampleWorkFlowController extends Controller
 			$eresult->analyte_accredited = $c->analyte_accredited;
 			$eresult->unit_code = $c->reporting_unit;
 			$eresult->result = $result;
-			
-			$eresult->save();
-			if($c->repeat_captured_id > 0){
-				$repeat_result = Result::find($eresult->repeat_results_id);
-				$eresult->remarks = $c->remark;
-				$eresult->seond_guide = $repeat_result->seond_guide;
-				$eresult->reporting_symbol = $c->result_reporting_symbol;
-				
-			}else{
-				if($c->repeat_captured_id > 0){}				
-				if (isset($main_standard->standard_value_type)) {
-					if ($main_standard->standard_value_type == 'is_range') {
-						$range = $main_standard->low . " - " . $main_standard->high;
-						$eresult->guide = $range;
-	
-						$eresult->remarks = (floatval($main_standard->low) <= $result) && ($result <= floatval($main_standard->high)) ? 'PASS' : 'FAIL';
-					} else {
-	
-						$standard_value = StandardValue::find($main_standard->standard_value_id);
-						if ($standard_value->code == 'IsValue') {
-							$eresult->guide = $main_standard->standard_is_value;
-						} else {
-							$eresult->guide = $standard_value->code;
-						}
-	
-	
-						if (is_numeric($result)) {
-							$type = gettype($main_standard->standard_is_value);
-							if ($type == 'integer' || $type == 'double') {
-								if (trim($c->result_reporting_symbol) == '>') {
-									$eresult->remarks = 'FAIL';
-								} else {
-	
-									$eresult->remarks = $result <= floatval($main_standard->standard_is_value) ? 'PASS' : 'FAIL';
-								}
-							} else {
-								if ($main_standard->standard_is_value != '') {
-									if (trim($c->result_reporting_symbol) == '>') {
-										$eresult->remarks = 'FAIL';
-									} else {
-	
-										$eresult->remarks = $result <= floatval($main_standard->standard_is_value) ? 'PASS' : 'FAIL';
-									}
-								} else {
-									if (strtoupper(trim($standard_value->code)) == "NS") {
-										$eresult->remarks = '-';
-									} elseif (strtoupper(trim($standard_value->code)) == "NIL") {
-										$eresult->remarks = $result <= 0  ? 'PASS' : 'FAIL';
-									} elseif (strtoupper(trim($standard_value->code)) == "ND") {
-										$eresult->remarks = $result <= 0  ? 'PASS' : 'FAIL';
-									} else {
-										$eresult->remarks = '-';
-									}
-								}
-								// $eresult->remarks = trim($main_standard->standard_is_value) == "" ? "PASS" : "++";
-	
-							}
-						} else {
-							// return response()->json($main_standard,200);
-							$standard_value = StandardValue::find($main_standard->standard_value_id);
-							if (strtoupper($result) == 'TN') {
-								$eresult->remarks = 'FAIL';
-							} elseif (strtoupper($result) == 'ND' && strtoupper(trim($standard_value->code)) == "NS") {
-								$eresult->remarks = '-';
-							} elseif (strtoupper($result) == 'ND' && strtoupper(trim($standard_value->code)) == "NIL") {
-								$eresult->remarks = 'PASS';
-							} elseif (strtoupper($result) == 'ND' && strtoupper(trim($standard_value->code)) == "ND") {
-								$eresult->remarks = 'PASS';
-							} elseif (strtoupper($result) == 'NIL' && strtoupper(trim($standard_value->code)) == "ND") {
-								$eresult->remarks = 'PASS';
-							} else {
-								$eresult->remarks = '-';
-							}
-						}
-					}
-				} else {
-					$eresult->guide = 'NS';
-					$eresult->remarks = '-';
-				}
-				if (isset($secondary_standard->id)) {
-	
-					$sec_standard_value = StandardValue::find($secondary_standard->standard_value_id);
-				}
-				if (isset($secondary_standard->standard_value_type)) {
-					if ($secondary_standard->standard_value_type == 'is_range') {
-						$range = $secondary_standard->low . " - " . $secondary_standard->high;
-						$eresult->seond_guide = $range;
-					} else {
-						if ($sec_standard_value->code == 'IsValue') {
-							$eresult->seond_guide = $secondary_standard->standard_is_value;
-						} else {
-	
-							$eresult->seond_guide = $sec_standard_value->code;
-						}
-					}
-				} else {
-					if (isset($secondary_standard->id)) {
-	
-						$eresult->seond_guide = $sec_standard_value->code;
-					}
-	
-					// $eresult->remarks = '-';
-				}
-			}
-			
-
+			$eresult->guide = $c->main_value;
+			$eresult->remarks = $c->remark;
+			$eresult->seond_guide = $c->secondary_value;
 			$eresult->result = $result;
 			$eresult->reporting_symbol = $c->result_reporting_symbol;
 			$eresult->save();
-			// return response()->json($eresult,200);
+			
 			$arr[] = $eresult;
 		}
 		$header = SampleHeader::find($batch_id);
 		$header->set_date("Processing Date", \Carbon\Carbon::now(), true);
-		// return response()->json($header,200);
-
-		// return response()->json($arr, 200);
-
 		if ($internal) {
 			return $header;
 		}
@@ -3044,12 +2956,13 @@ class SampleWorkFlowController extends Controller
 					"submited_by"=>auth()->user()->id,
 					"date_submitted"=> date('Y-m-d h:i:s a'),
 					"expected_date"=>$request->expected_date,
+					"from_lab_section_id"=>isset($last_log->id) ? $last_log->to_lab_section_id : 0,
 				];
 			}else{
 				$log = [
 					"sample_id"=>$request->sample_id,
 					"to_lab_section_id"=>$request->to_lab_section_id,
-					"from_lab_section_id"=>isset($last_log->id) ? $last_log->from_lab_section_id : 0,
+					"from_lab_section_id"=>isset($last_log->id) ? $last_log->to_lab_section_id : 0,
 					"quantity"=>$request->quantity,
 					"submited_by"=>auth()->user()->id,
 					"date_submitted"=> date('Y-m-d h:i:s a'),
@@ -3061,7 +2974,7 @@ class SampleWorkFlowController extends Controller
 		isset($request->interlab_id) && $request->interlab_id != '0' ? InterLabLog::find($request->interlab_id)->update($log) : InterLabLog::insert($log);
 		if($request->notify_user != '' || $request->sms_notify !=  ''){
 			$sample_codes =isset($request->batch_level) ? implode(', ',SampleDetails::whereIn('id',$sample_ids)->pluck('sample_code')->toArray()) : SampleDetails::find($request->sample_id)->sample_code;
-			$bcc_emails = User::whereIn('id',$request->also_notify)->pluck('email')->toArray();
+			$bcc_emails = User::whereIn('id',$request->also_notify ?? [])->pluck('email')->toArray();
 			$body = 'Hi Team, <br> The following sample(s) require  your attention for approval of inter laboratory transfer raised by '.auth()->user()->name.'<br>'.$sample_codes;
 			$to_email = getUserById($request->notify_user);
 
@@ -3070,7 +2983,7 @@ class SampleWorkFlowController extends Controller
 			if(isset($to_email->id)){
 				notify_user($body,$to_email->email,'[Polucon  Polucon Services Limited] Inter Laboratory Transfer Approval Notification',false,false,$bcc_emails);
 				sendTextMessage($to_email->phone,'Hi '.$to_email->name.', The following sample(s) require  your attention for approval of inter laboratory transfer raised by '.auth()->user()->name);
-				foreach( User::whereIn('id',$request->also_notify)->get() as $user){
+				foreach( User::whereIn('id',$request->also_notify ?? [])->get() as $user){
 					$user->phone != '' ? sendTextMessage($user->phone,'Hi '.$user->name.', The following sample(s) require  your attention for approval of inter laboratory transfer raised by '.auth()->user()->name).':  '.$sample_codes : '';
 				}
 			}
@@ -3215,6 +3128,106 @@ class SampleWorkFlowController extends Controller
 		}
 		return redirect()->back()->with('success','Sample(s) moved to samples in Lab section successfully');
 
+	}
+
+	public function showBatchCOA(Request $request){
+		$batch = SampleHeader::find($request->batch_id);
+		$batch_approvers = BatchLabSectionApprover::where('batch_id',$batch->id)->where('status',1)->get();
+		$samples = SamplesCategory::where('sample_header_id',$request->batch_id)->get();
+		$disclaimer = SystemConfiguration::where('key','lab_report_disclaimer_config')->first();
+		$non_accredited = SystemConfiguration::where('key','lab_report_accreditted_config')->first();
+		$status= $batch->status;
+
+		$company = getActiveCompany();
+		$standard_report = $request->template_id;
+		// return response()->json('here');
+		return view('layouts.lab.sample-workflow.report-formats.standard_report',compact('batch','samples','disclaimer','non_accredited','status','company','batch_approvers','standard_report'));
+	}
+
+	public function getShowBatchCOA($batch_code,$format){
+		$batch = SampleHeader::where('batch_code',$batch_code)->first();
+		$batch_approvers = BatchLabSectionApprover::where('batch_id',$batch->id)->where('status',1)->get();
+		$samples = SamplesCategory::where('sample_header_id',$request->batch_id)->get();
+		$disclaimer = SystemConfiguration::where('key','lab_report_disclaimer_config')->first();
+		$non_accredited = SystemConfiguration::where('key','lab_report_accreditted_config')->first();
+		$status= $batch->status;
+		// $url = env('APP_URL').'/showBatchCOAGet';
+		// $qr_url = url($url);
+		// return response()->json($batch_result,200);
+
+
+		// $qrcode = base64_encode(\QrCode::format('svg')->size(50)->errorCorrection('H')->generate($qr_url));
+
+		$company = getActiveCompany();
+		// return response()->json('here');
+		return view('layouts.lab.sample-workflow.report-formats.standard_report',compact('batch','samples','disclaimer','non_accredited','status','company','batch_approvers'));
+	}
+
+	public function moveToVerificationApprovalLevel(Request $request){
+		// return response()->json($request->all());
+		$batch = SampleHeader::find($request->batch_id);
+		$previousWorkflow = $batch->status;
+		$section_users = LabSectionApproverRelationShip::whereIn('lab_section_id',explode(',',$batch->lab_section_ids))->get();
+		if($section_users->count() <=0){
+			return redirect()->back()->with('error','Kindly provide approval configuration for the selected batch lab sections');
+		}
+		if($request->status == 'Sample Verification'){
+			BatchLabSectionApprover::where('batch_id',$batch->id)->delete();
+			foreach($section_users as $user_id){
+				$approvers = BatchLabSectionApprover::where('batch_id',$batch->id)->where('user_id',$user_id->user_id)->first() ?? new BatchLabSectionApprover();
+				$approvers->status = 0;
+				$approvers->user_id = $user_id->user_id;
+				$approvers->title = $user_id->title;
+				$approvers->lab_section_ids = $approvers->lab_section_ids == '' ?  $approvers->lab_section_ids.$user_id->lab_section_id : $approvers->lab_section_ids.','.$user_id->lab_section_id;
+				$approvers->batch_id = $batch->id;
+				$approvers->batch_status = $request->status;
+				$approvers->save();
+			}
+			
+			$batch->status = $request->status;
+			$batch->save();
+			return redirect()->route('sample-workflow', ['status' => $previousWorkflow])->with('success', 'Batch move was successful');
+		}
+
+		BatchLabSectionApprover::where('batch_id',$batch->id)->where('lab_section_ids',0)->delete();
+		$approvers = new BatchLabSectionApprover();
+		$approvers->status = 0;
+		$approvers->user_id = $request->user_id;
+		$approvers->title = $request->title;
+		$approvers->lab_section_ids = 0;
+		$approvers->batch_id = $batch->id;
+		$approvers->batch_status = $request->status;
+		$approvers->save();
+		$batch->status = $request->status;
+		$batch->save();
+		if(isset($request->notification)){
+			$user = User::find($request->user_id);
+			$message  = 'Hi '.$user->name.', <br>'.$batch->batch_code.' COA needs your approval at '.$batch->status.'. <br> Comments : '.$request->comments;
+			notify_user($message,$user->email,'[Polucon LIMS] '.$batch->batch_code.' Batch Approval Notification');
+			
+		}
+		if(isset($request->send_message)){
+			$user = User::find($request->user_id);
+			$sms_message = 'Hi '.$user->name.', '.$batch->batch_code.' COA needs your approval at '.$batch->status.'. Comments : '.$request->comments;
+			sendTextMessage($user->phone,$sms_message);
+		}
+
+		return redirect()->route('sample-workflow', ['status' => $previousWorkflow])->with('success', 'Batch move was successful');
+	}
+	public function editVerificationApproverConfig(Request $request){
+		$config = BatchLabSectionApprover::find($request->approver_id);
+		$config->user_id = $request->user_id;
+		$config->title = $request->title;
+		$config->save();
+		return redirect()->back()->with('success','Batch Approval updated successfully');
+	}
+	public function deleteVerificationApproverConfig(Request $request){
+		BatchLabSectionApprover::find($request->approver_id)->delete();
+		return redirect()->back()->with('success','Batch Approval deleted successfully');
+	}
+	public function changeBatchApprovalStatus(Request $request){
+		BatchLabSectionApprover::where('id',$request->approver_id)->update(['status'=>$request->status,'approval_date'=>date('Y-m-d H:i:s'),'remark'=>$request->remark]);
+		return redirect()->back()->with('success','Batch Approval updated successfully');
 	}
 
 

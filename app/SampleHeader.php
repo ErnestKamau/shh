@@ -5,6 +5,7 @@ namespace App;
 use Illuminate\Database\Eloquent\Model;
 use OwenIt\Auditing\Contracts\Auditable;
 use App\InvoiceDetails;
+use App\BatchLabSectionApprover;
 
 class SampleHeader extends Model implements Auditable
 {
@@ -254,5 +255,11 @@ class SampleHeader extends Model implements Auditable
 	}
 	public function get_invoice_total(){
 		return InvoiceDetails::where('invoice_id',$this->invoice_id)->sum('total');
+	}
+	public function getVerificationApprovalStatus(){
+		return BatchLabSectionApprover::where('batch_id',$this->id)->where('batch_status','Sample Verification')->whereIn('status',[2,0])->get()->count();
+	}
+	public function getApprovalStageStatus(){
+		return BatchLabSectionApprover::where('batch_id',$this->id)->where('batch_status','Sample Approval')->whereIn('status',[2,0])->get()->count();
 	}
 }

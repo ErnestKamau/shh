@@ -768,6 +768,16 @@ Route::get('/inter-Lab/Transfer-Index/{is_archived?}','SampleWorkFlowController@
 Route::post('/delete/Inter-Lab-Transfer/Logs','SampleWorkFlowController@deleteInterLabTransferLogs')->name('deleteInterLabTransferLogs');
 Route::get('/get/Lab-Sections/By-Lab/{id}','SampleWorkFlowController@getLabSectionsByLab')->name('getLabSectionsByLab');
 Route::post('/moveToLab','SampleWorkFlowController@moveToLab')->name('moveToLab');
+Route::get('/showBatchCOA','SampleWorkFlowController@showBatchCOA')->name('showBatchCOA');
+
+Route::post('/add-Section/Approval','SampleAnalysisStageController@addSectionApproval')->name('addSectionApproval');
+Route::post('/delete-Section/Approval','SampleAnalysisStageController@deleteSectionApproval')->name('deleteSectionApproval');
+
+Route::post('move/To-Verification/Approval-Level','SampleWorkFlowController@moveToVerificationApprovalLevel')->name('moveToVerificationApprovalLevel');
+Route::post('edit/Verification/Approver-Config','SampleWorkFlowController@editVerificationApproverConfig')->name('editVerificationApproverConfig');
+Route::post('delete/Verification-Approver/Config','SampleWorkFlowController@deleteVerificationApproverConfig')->name('deleteVerificationApproverConfig');
+Route::post('change/Batch-Approval/Status','SampleWorkFlowController@changeBatchApprovalStatus')->name('changeBatchApprovalStatus');
+Route::get('/get/Show-Batch/COA/{batch_code}/{format}','SampleWorkFlowController@getShowBatchCOA')->name('getShowBatchCOA');
 
 ################################################Polucon#########################################
 

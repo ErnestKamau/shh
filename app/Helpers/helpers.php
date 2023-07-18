@@ -1545,3 +1545,10 @@ function getPaymentReminderBody($customer_name,$sample_codes){
 function getBacthSampleCodes($batch_id){
 	return implode(', ',App\SampleDetails::where('sample_header_id',$batch_id)->pluck('sample_code')->toArray());
 }
+
+function getCoaApproverSignature($signature){
+	$verify_sig_arr = explode('/',$signature);
+	$verify_sig_arr[1] = "app";
+	$verify_sig = implode('/',$verify_sig_arr);
+	return storage_path().$verify_sig;
+}
