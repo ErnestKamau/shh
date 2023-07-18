@@ -117,7 +117,7 @@ class ReportHeaderDetailController extends Controller
 
 	public function process_pdf_report($batch_id)
 	{
-		$path = public_path('images/aqua.jpg');
+		$path = public_path('images/company_logo.png');
 		$kenas = public_path('images/kenas.png');
 		$tick = public_path('images/tick.png');
 
