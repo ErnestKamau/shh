@@ -50,7 +50,7 @@
     } */
     .footer {
         position: fixed;
-        bottom: 110;
+        bottom: 150;
         left: 0;
         right: 0;
 
@@ -59,6 +59,8 @@
 
     .parameter {
         border: solid 1 rgba(0, 0, 0, 0.35) !important;
+        /* border: solid 1 black !important; */
+
         padding: 0 !important;
 
     }
@@ -66,6 +68,7 @@
     .textBold {
         font-weight: 700 !important;
     }
+    
 </style>
 
 <body>
@@ -79,8 +82,8 @@
                 @foreach ($batch_approvers as $approver)
                     <td style="font-size: 8px !important;">
                         <b>{{ $approver->title }}</b><br>
-                        <img src="{{ $approver->getApproverDetails()->electronic_sig }}" style="width:80px"
-                            alt=""><br>
+                        <img src="{{ getCoaApproverSignature($approver->getApproverDetails()->electronic_sig) }}" style="width:80px"
+                            alt="signature"><br>
                         <span>{{ $approver->getApproverDetails()->name }} -
                             {{ $approver->getApproverPositionDetails() }}</span>
                     </td>
@@ -93,34 +96,32 @@
             <table style="width:100%">
                 <tr>
                     <td>
-                        <img src="data:image/png;base64, {!! $qrcode !!}" width="60" height="60">
-                        Scan to Verify
+                        <img src="data:image/png;base64, {!! $qrcode !!}" width="60" height="60"> <br>
+                        <span style="font-size: 8px !important;">Scan to Verify</span>
+                        
                     </td>
                     <td>
                         <div class="text-center"><b>{{ $company->name }}</b></div>
                         <div class="company-location p-2">
                             <table>
                                 <tr>
-                                    <td colspan="3">{{ $company->street }} - P.O. Box {{ $company->address }},
+                                    <td colspan="3"  style="font-size: 8px !important;">{{ $company->street }} - P.O. Box {{ $company->address }},
                                         {{ $company->location }}</td>
                                 </tr>
                                 <tr>
-                                    <td>Office: {{ $company->telephone }}</td>
-                                    <td>Tel 1: {{ explode('/', $company->cell_phone)[0] ?? '' }}</td>
-                                    <td>Email: {{ $company->email }}</td>
+                                    <td  style="font-size: 8px !important;">Office: {{ $company->telephone }}</td>
+                                    <td  style="font-size: 8px !important;">Tel 1: {{ explode('/', $company->cell_phone)[0] ?? '' }}</td>
+                                    <td  style="font-size: 8px !important;">Email: {{ $company->email }}</td>
                                 </tr>
                                 <tr>
-                                    <td>Fax: {{ $company->fax }}</td>
-                                    <td>Tel2: {{ explode('/', $company->cell_phone)[0] ?? '' }}</td>
-                                    <td>Web: {{ $company->website }}</td>
+                                    <td  style="font-size: 8px !important;">Fax: {{ $company->fax }}</td>
+                                    <td  style="font-size: 8px !important;">Tel2: {{ explode('/', $company->cell_phone)[0] ?? '' }}</td>
+                                    <td  style="font-size: 8px !important;">Web: {{ $company->website }}</td>
                                 </tr>
 
                             </table>
                         </div>
-                        <div class="text-center"><b>Member of POLUCON Group</b></div>
-                    </td>
-                    <td>
-
+                        <div class="text-center"  style="font-size: 8px !important;"><b>Member of POLUCON Group</b></div>
                     </td>
                 </tr>
             </table>
@@ -128,85 +129,85 @@
     </footer>
 
     @foreach ($samples as $sample)
-        <main style="margin-bottom: 130px;">
+        <main style="margin-bottom: 20px;">
 
 
             <table class="table table-sm table-bordered" style="font-size: 8px;">
-                <thead style="height: 80px !important;">
+                <thead style="height: 60px !important;">
                     <tr style="border: solid 1px black !important;">
                         <th style="font-size: 6px !important;border: solid 0 transparent !important" colspan="5">
                             <table
-                                style="width: 100%;border:0px; padding-bottom:2px !important; border-bottom: solid 2px #0000ff !important">
+                                style="width: 100%;border:0px; border-bottom: solid 1px black !important">
                                 <tr>
                                     <td
-                                        style="font-size: 10px !important;border:solid 0 transparent !important; width:30% !important">
-                                        <img src="{{ $path }}" style="height:60px;" alt="logo">
+                                        style="font-size: 10px !important;border:solid 0 transparent !important; width:30% !important;border-bottom: 1px solid black !important;">
+                                        <img src="{{ $path }}" style="height:70px;" alt="logo">
                                         
                                     </td>
                                     
                                     <td
-                                        style="border: solid 0 transparent !important;text-align:right;font-size:9px !important; ">
+                                        style="border: solid 0 transparent !important;text-align:right;font-size:11px !important; border-bottom: 1px solid black !important;">
                                         {{ $sample->crm_name }} <br>
                                         P.O BOX {{ $sample->postal_address }} <br>
                                         {{ $sample->physical_address }}
                                     </td>
                                 </tr>
+                              
                             </table>
 
                         </th>
                     </tr>
-
                     <tr>
-                        <th style="font-size: 6px !important;border: solid 0 transparent !important;border-bottom: solid 1 rgba(0, 0, 0,0.35) !important"
-                            colspan="5">
-                            <table style="width: 100%; border:0px">
+                        <th colspan="5" style="border: solid 0 transparent !important;border-bottom:1px solid rgba(0, 0, 0, 0.35)">
+                            <table style="width: 100%;border:0px;">
                                 <tr>
                                     <td colspan="2"
-                                        style=" border: 1px solid black !important; font-size:10px !important;">
+                                        style=" border: 1px solid rgba(0, 0, 0, 0.35) !important; font-size:10px !important;">
                                         <b> TEST REPORT NO : R{{ substr($sample->sample_code, 1, strlen($sample->sample_code)) }}</b></td>
                                 </tr>
                                 <tr>
-                                    <td style="width:20%;border-right:1px solid #dee2e6">SAMPLE</td>
-                                    <td  style="padding-left:10px !important">{{ $sample->sample_type_name }}</td>
+                                    <td style="width:20%;border: solid 0 transparent !important;border-right:1px solid rgba(0, 0, 0, 0.35);font-size:8px !important;border-left:1px solid rgba(0, 0, 0, 0.35)">SAMPLE</td>
+                                    <td  style="padding-left:10px !important;border: solid 0 transparent !important;font-size:8px !important;border-right:1px solid rgba(0, 0, 0, 0.35)">{{ $sample->sample_type_name }}</td>
                                 </tr>
                                 <tr>
-                                    <td style="border-right:1px solid #dee2e6">DATE & PLACE {{ $sample->sampled_by_company_personnel == 1 ? 'SAMPLED' : 'SUBMITTED' }}</td>
+                                    <td style="border: solid 0 transparent !important;border-right:1px solid rgba(0, 0, 0, 0.35);font-size:8px !important;border-left:1px solid rgba(0, 0, 0, 0.35)">DATE & PLACE {{ $sample->sampled_by_company_personnel == 1 ? 'SAMPLED' : 'SUBMITTED' }}</td>
                                     @if ($sample->sampled_by_company_personnel == 1)
-                                        <td style="padding-left:10px !important">{{ $sample->date_collected }} {{ $sample->sample_point_name }}</td>
+                                        <td style="border: solid 0 transparent !important;padding-left:10px !important;font-size:8px !important;border-right:1px solid rgba(0, 0, 0, 0.35)">{{ $sample->date_collected }} {{ $sample->sample_point_name }}</td>
                                     @else
-                                        <td style="padding-left:10px !important">{{ $sample->receipt_date }} {{ $company->name }}</td>
+                                        <td style="border: solid 0 transparent !important;padding-left:10px !important;font-size:8px !important;border-right:1px solid rgba(0, 0, 0, 0.35)">{{ $sample->receipt_date }} {{ $company->name }}</td>
                                     @endif
                                 </tr>
                                 <tr>
-                                    <td style="border-right:1px solid #dee2e6">DATE ANALYSIS STARTED</td>
-                                    <td style="padding-left:10px !important"></td>
+                                    <td style="border: solid 0 transparent !important;border-right:1px solid rgba(0, 0, 0, 0.35);font-size:8px !important;border-left:1px solid rgba(0, 0, 0, 0.35)">DATE ANALYSIS STARTED</td>
+                                    <td style="border: solid 0 transparent !important;padding-left:10px !important;font-size:8px !important;border-right:1px solid rgba(0, 0, 0, 0.35)"></td>
                                 </tr>
                                 <tr>
-                                    <td style="border-right:1px solid #dee2e6">SAMPLING METHOD</td>
-                                    <td style="padding-left:10px !important">{{ $sample->sampling_method_name }}</td>
+                                    <td style="border: solid 0 transparent !important;border-right:1px solid rgba(0, 0, 0, 0.35);font-size:8px !important;border-left:1px solid rgba(0, 0, 0, 0.35)">SAMPLING METHOD</td>
+                                    <td style="border: solid 0 transparent !important;padding-left:10px !important;font-size:8px !important;border-right:1px solid rgba(0, 0, 0, 0.35)">{{ $sample->sampling_method_name }}</td>
                                 </tr>
                                 <tr>
-                                    <td style="border-right:1px solid #dee2e6">MARKINGS</td>
-                                    <td style="padding-left:10px !important">{{ $sample->comments }}</td>
+                                    <td style="border: solid 0 transparent !important;border-right:1px solid rgba(0, 0, 0, 0.35);font-size:8px !important;border-bottom:1px solid rgba(0, 0, 0, 0.35);border-left:1px solid rgba(0, 0, 0, 0.35)">MARKINGS</td>
+                                    <td style="border: solid 0 transparent !important;padding-left:10px !important;font-size:8px !important;border-bottom:1px solid rgba(0, 0, 0, 0.35);border-right:1px solid rgba(0, 0, 0, 0.35)">{{ $sample->comments }}</td>
                                 </tr>
                             </table>
                         </th>
                     </tr>
-                    <tr>
+                    
+                    <tr style="">
                         <th class="parameter"
-                            style="font-size: 9px !important; width:25% !important;vertical-align: top !important;padding-left:3px !important">
+                            style="font-size: 9px !important; width:25% !important;vertical-align: top !important;padding:5px !important;">
                             TESTS</th>
                         <th class="parameter"
-                            style="font-size:9px !important;width:25% !important;vertical-align: top !important;padding-left:3px !important">
+                            style="font-size:9px !important;width:25% !important;vertical-align: top !important;padding:5px !important">
                             TEST METHODS</th>
                         <th class="parameter"
-                            style="font-size: 9px !important;width:10% !important;vertical-align: top !important;padding-left:3px !important">
+                            style="font-size: 9px !important;width:10% !important;vertical-align: top !important;padding:5px !important">
                             RESULTS</th>
                         <th class="parameter"
-                        style="font-size: 9px !important;width:10% !important;vertical-align: top !important;padding-left:3px !important">
+                        style="font-size: 9px !important;width:10% !important;vertical-align: top !important;padding:5px !important">
                         UNITS</th>   
                         <th class="parameter text-center"
-                            style="font-size: 9px !important;width:15% !important;vertical-align: top !important;padding-left:3px !important">
+                            style="font-size: 9px !important;width:15% !important;vertical-align: top !important;padding:5px !important">
                             {{ $sample->main_standard_code }}</th>
                         
                     </tr>
@@ -230,17 +231,17 @@
                                 {{ $captured->result_reporting_symbol ?? '' }}{{ $captured->result }}
                             </td>  
                             <td class="parameter {{ $captured->remark == 'FAIL' ? 'textBold' : '' }}" style="font-size: 9px !important;padding-left:3px !important;">
-                                
+                                {{ $captured->analyte()->reporting_unit }}
                             </td>  
                             <td class="parameter {{ $captured->remark == 'FAIL' ? 'textBold' : '' }}" style="font-size: 9px !important;padding-left:3px !important;">
-                                
+                                {{ $captured->main_value }}
                             </td>                            
 
                         </tr>
                         @endforeach
                     @endforeach
                     <tr>
-                        <td style="font-size: 9px !important;padding-left:3px !important; text-align:center" colspan="5">******<small>End of Test Results</small>*******</td>
+                        <td style="font-size: 9px !important;padding-left:3px !important; text-align:center ;border: 0 transparent !important" colspan="5">******<small>End of Test Results</small>*******</td>
                     </tr>
                 </tbody>
             </table>
@@ -254,10 +255,10 @@
                 </tr>
                 <tr>
                     <td style="font-size: 8px !important;">
-                        
+                        <br>
                         <span>{{ $non_accredited->value }}</span>
                         
-                        <div class="" style="text-align:center;padding-left:3px;padding-right:3px;">
+                        <div class="" style="">
                             {{$disclaimer->value}}
                             @if($batch->sampled_by_company_personnel == 0)
                             <br>
@@ -267,7 +268,7 @@
                     </td>
                 </tr>
                 <tr>
-                    <td>
+                    <td  style="font-size: 8px !important;">
                         <b>{{ $sample->main_lab_name }} <br>
                             {{ $batch->approval_date ?? '-' }}
                         </b>
@@ -284,11 +285,11 @@
     <script type="text/php">
     if (isset($pdf)) {
         $text = "Page {PAGE_NUM} of {PAGE_COUNT}";
-        $size = 10;
+        $size = 9;
         $font = $fontMetrics->getFont("Verdana");
         $width = $fontMetrics->get_text_width($text, $font, $size) / 2;
         $x = ($pdf->get_width() - $width) / 2;
-        $y = $pdf->get_height() - 30;
+        $y = $pdf->get_height() - 20;
         $pdf->page_text($x, $y, $text, $font, $size);
     }
     
