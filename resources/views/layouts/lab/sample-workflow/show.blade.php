@@ -78,7 +78,7 @@
 @section('content2')
   <main>
 		<?php
-			$headerDetails = isset($batch->id) ? $batch->report_header_details() : array();
+			
 			// $labStores = getStorageByType("lab_store");
 			$labStores = [];
 			if($defaultClient){
@@ -235,12 +235,7 @@
 						</li>
 						@endif
 						
-						@if($batch->verify_user_id > 0 && $batch->is_qc_batch > 0 && auth()->user()->checkApproveLabSampleRole())
-							<li>
-								<a href="{{route('markQcSampleComplete',['id'=>$batch->id])}}" class="btn btn-sm dropdown-item"><i class="mdi mdi-subdirectory-arrow-right mr-2"></i> Mark As Complete</a>
-
-							</li>
-						@endif
+						
 
 					@endif
 					@if(isset($batch->status) && $batch->status == 'Reports In Payment')
@@ -1308,13 +1303,7 @@
 							if(!isset($analaytesHolder[$item->sample_detail_code])){
 								$analaytesHolder[$item->sample_detail_code] = array();
 							}
-							// $operators = $item->operators();
-							// if(sizeof($operators)> 0){
-
-							// 	$item->ops = $item->operators();
-							// }else{
-							// 	$item->ops = getOperators();
-							// }
+							
 							$item->ops = $analysts;
 							$item->equip_name = $item->equipment()->name ?? '-';
 							
@@ -2073,11 +2062,10 @@ $customer = getCrmCustomerByID($batch->crm_customer_id);
 									</tr>
 								</thead>
 								<tbody>
-									@foreach ($not_captured as $samC=>$vals)
-										<?php $anals = array_values($vals); ?>
+									@foreach ($not_captured as $n_data)
 										<tr>
-											<td>{{ $samC }}</td>
-											<td>{{ implode(',', $anals) }}</td>
+											<td>{{ $n_data->sample_detail_code }}</td>
+											<td>{{ $n_data->codes }}</td>
 										</tr>
 									@endforeach
 								</tbody>
@@ -3748,7 +3736,8 @@ $customer = getCrmCustomerByID($batch->crm_customer_id);
 			if(sampleLabs[data['sample_code']]){
 				$row.find('select.sample-lab').empty();
 				$.each(sampleLabs[data['sample_code']],(i,obj)=>{
-					$row.find('select.sample-lab').append(`<option value="${obj.id}" ${obj.id == data['lab_id'] ? 'selected' : ''}>${obj.lab_name} - ${obj.lab_code}</option>`);
+					console.log(`------------obj id ${obj.lab_id} ------ data id ${data['lab_id']}`)
+					$row.find('select.sample-lab').append(`<option value="${obj.lab_id}" ${obj.id == data['lab_id'] ? 'selected' : ''}>${obj.lab_name} - ${obj.lab_code}</option>`);
 				});
 			}
 			

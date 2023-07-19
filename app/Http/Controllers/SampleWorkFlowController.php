@@ -1101,6 +1101,7 @@ class SampleWorkFlowController extends Controller
 		$batch_sample_codes = '';
 		$report_formats = [];
 		$approvers = [];
+		$headerDetails = isset($batch->id) ? $batch->report_header_details() : array();
 		if (isset($batch->id)) 
 		{
 			if(in_array($batch->status,['Sample Verification','Sample Approval'])){
@@ -1112,23 +1113,25 @@ class SampleWorkFlowController extends Controller
 			$batch_sample_codes = getBacthSampleCodes($batch->id);
 			$payment_detail = InvoicePaymentDetail::where('batch_id',$batch->id)->get();
 			$interlabs = InterLabLogView::where('sample_header_id',$batch->id)->orderBy('status','ASC')->orderBy('id','DESC')->get();
-			$equipment_data = $batch->get_captured();
+			// $equipment_data = $batch->get_captured();
 			$approvers = BatchLabSectionApprover::where('batch_id',$batch->id)->get();
-			foreach ($equipment_data['items'] as $b => $d) {
-				foreach ($d as $a => $k) {
-					foreach ($k as $i => $e) {
+			// foreach ($equipment_data['items'] as $b => $d) {
+			// 	foreach ($d as $a => $k) {
+			// 		foreach ($k as $i => $e) {
 
-						if ($e == '') {
-							if (!isset($not_captured[$b])) {
-								$not_captured[$b] = array();
-								array_push($not_captured[$b], $a);
-							} else {
-								array_push($not_captured[$b], $a);
-							}
-						}
-					}
-				}
-			}
+			// 			if ($e == '') {
+			// 				if (!isset($not_captured[$b])) {
+			// 					$not_captured[$b] = array();
+			// 					array_push($not_captured[$b], $a);
+			// 				} else {
+			// 					array_push($not_captured[$b], $a);
+			// 				}
+			// 			}
+			// 		}
+			// 	}
+			// }
+			$not_captured = CapturedResult::where('sample_header_id',$batch->id)->selectRaw('group_concat(analyte_code) as codes,sample_detail_code')->groupBy('sample_detail_id')->get();
+			// return response()->json($test);
 		}
 
 		$selectedSampleType = \App\SampleType::find($batch->sample_type_id ?? 0) ?? false;
@@ -1146,14 +1149,7 @@ class SampleWorkFlowController extends Controller
 		$client_portal = $portal;
 		if (isset($batch->id)) {
 			$attachments = BatchAttachment::where('batch_id', $batch->id)->get();
-			$config_attach = SystemConfiguration::where('key', 'attachment_type')->where('value', 'RFT Form')->first();
-			foreach ($attachments as $attach) {
-			
-				$attach->view = 1;
-				$attach->delete = 1;
-				
-			}
-
+		
 			if ($batch->in_ammendment_proccess == 1) {
 
 				$ammendment = BatchAmmendment::where('batch_id', $batch->id)->where('version_number', $batch->is_amendment)->first();
@@ -1181,7 +1177,7 @@ class SampleWorkFlowController extends Controller
 		$analysts = User::orderBy('name')->join('user_roles as ur', 'ur.user_id', '=', 'users.id')
 			->join('roles as r', 'r.id', '=', 'ur.role_id')
 			->where('r.id', $role_a->value)->where('users.active', 1)->where('users.is_support_staff', 0)->selectRaw('users.*')->get();
-		return view('layouts.lab.sample-workflow.show', compact('batch', 'batchID', 'defaultClient', 'selectedSampleType', 'client_portal', 'ammendable', 'standards', 'attachments', 'not_captured', 'analysts', 'countries', 'accounts', 'methods', 'atachment_type', 'batch_scope', 'customer_survey','interlabs','labs','users','payment_detail','labsections','contacts','batch_sample_codes','report_formats','approvers','reportingUnits','conditions','products'));
+		return view('layouts.lab.sample-workflow.show', compact('batch', 'batchID', 'defaultClient', 'selectedSampleType', 'client_portal', 'ammendable', 'standards', 'attachments', 'not_captured', 'analysts', 'countries', 'accounts', 'methods', 'atachment_type', 'batch_scope', 'customer_survey','interlabs','labs','users','payment_detail','labsections','contacts','batch_sample_codes','report_formats','approvers','reportingUnits','conditions','products','headerDetails'));
 	}
 
 	public function fetch_unit_stuff($name, $client)
