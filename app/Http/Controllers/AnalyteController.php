@@ -40,8 +40,8 @@ class AnalyteController extends Controller
     $analyte->reporting_symbol = $request->reporting_symbol;
     $analyte->equivalent_weight = $request->equivalent_weight;
     $analyte->reporting_unit = $request->reporting_unit;
-    $analyte->method = implode(",", $request->method);
-    $analyte->equipment_id = implode(",", $request->equipment_id);
+    $analyte->method = implode(",", $request->method ?? []);
+    $analyte->equipment_id = implode(",", $request->equipment_id ?? []);
     $analyte->non_detectable = $request->non_detectable ?? 0;
     $analyte->non_accredited = $request->non_accredited ?? 0;
     $analyte->active = $request->active ?? 0;
@@ -67,8 +67,8 @@ class AnalyteController extends Controller
     $analyte->reporting_symbol = $request->reporting_symbol;
     $analyte->reporting_unit = $request->reporting_unit;
     $analyte->equivalent_weight = $request->equivalent_weight;
-    $analyte->method = implode(",", $request->method);
-    $analyte->equipment_id = implode(",", $request->equipment_id);
+    $analyte->method = implode(",", $request->method ?? []);
+    $analyte->equipment_id = implode(",", $request->equipment_id ?? []);
     $analyte->non_detectable = $request->non_detectable ?? 0;
     $analyte->non_accredited = $request->non_accredited ?? 0;
     $analyte->active = $request->active ?? 0;

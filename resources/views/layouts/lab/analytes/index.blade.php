@@ -126,8 +126,8 @@
           </div>
           <div class="col-sm-6">
             <div class="form-group">
-              <label class="control-label">Method <span class="text-danger">*</span></label>
-              <select class="form-control" name="method[]" required multiple placeholder="Select Method...">
+              <label class="control-label">Method</label>
+              <select class="form-control" name="method[]" multiple placeholder="Select Method...">
                 <option></option>
                 @foreach (getMethods() as $g)
                   <option value="{{ $g['id'] }}">{{ $g['name'] }}</option>
@@ -135,8 +135,8 @@
               </select>
             </div>
             <div class="form-group">
-              <label class="control-label">Equipment <span class="text-danger">*</span></label>
-              <select class="form-control" name="equipment_id[]" required multiple placeholder="Select Equipment...">
+              <label class="control-label">Equipment </label>
+              <select class="form-control" name="equipment_id[]" multiple placeholder="Select Equipment...">
                 <option></option>
                 @foreach (getEquipment() as $g)
                   <option value="{{ $g['id'] }}">{{ $g['name'] }}</option>
@@ -221,8 +221,8 @@
 					</div>
 					<div class="col-sm-6">
 						<div class="form-group">
-							<label class="control-label">Method <span class="text-danger">*</span></label>
-							<select class="form-control" name="method[]" required multiple placeholder="Select Method...">
+							<label class="control-label">Method</label>
+							<select class="form-control" name="method[]" multiple placeholder="Select Method...">
 								<option></option>
 								@foreach (getMethods() as $g)
 									<option value="{{ $g['id'] }}" ${ $methods.indexOf({{ $g['id'] }}) > -1 ? 'selected' : '' }>{{ $g['name'] }}</option>
@@ -230,8 +230,8 @@
 							</select>
 						</div>
 						<div class="form-group">
-							<label class="control-label">Equipment <span class="text-danger">*</span></label>
-							<select class="form-control" name="equipment_id[]" required multiple placeholder="Select Equipment...">
+							<label class="control-label">Equipment</label>
+							<select class="form-control" name="equipment_id[]" multiple placeholder="Select Equipment...">
 								<option></option>
 								@foreach (getEquipment() as $g)
 									<option value="{{ $g['id'] }}" ${ $equipments.indexOf({{ $g['id'] }}) > -1 ? 'selected' : '' }>{{ $g['name'] }}</option>

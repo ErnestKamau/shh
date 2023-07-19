@@ -7,6 +7,8 @@ use App\AnalysisElements;
 use App\AnalysisMethod;
 use App\AnalysisType;
 use Illuminate\Http\Request;
+use App\CapturedResult;
+use App\Result;
 
 class AnalysisElementsController extends Controller
 {
@@ -52,10 +54,13 @@ class AnalysisElementsController extends Controller
     $element->show_on_report = $request->show_on_report ?? 0;
 		$element->is_manual = $request->is_manual ?? 0;
     $element->lab_section_id = AnalysisType::find($request->analysis_type_id)->lab_section_id;
+    $element->remark_is_manual = $request->remark_is_manual ?? 0;
+    $element->save();
+    CapturedResult::where('analysis_type_id',$element->analysis_type_id)->where('analyte_id',$element->analyte_id)->whereNull('result')->update(['remark_is_manual'=>$element->remark_is_manual]);
+    Result::where('analysis_type_id',$element->analysis_type_id)->where('analyte_id',$element->analyte_id)->whereNull('result')->update(['remark_is_manual'=>$element->remark_is_manual]);
 
 		// return response()->json($element, 200);
 
-    $element->save();
 
     return redirect()->back()->with('success', 'Analysis Element added.');
   }
@@ -85,8 +90,11 @@ class AnalysisElementsController extends Controller
     $element->show_on_report = $request->show_on_report ?? 0;
     $element->is_manual = $request->is_manual ?? 0;
     $element->lab_section_id = AnalysisType::find($request->analysis_type_id)->lab_section_id;
+    $element->remark_is_manual = $request->remark_is_manual ?? 0;
 
     $element->save();
+    CapturedResult::where('analysis_type_id',$element->analysis_type_id)->where('analyte_id',$element->analyte_id)->whereNull('result')->update(['remark_is_manual'=>$element->remark_is_manual]);
+    Result::where('analysis_type_id',$element->analysis_type_id)->where('analyte_id',$element->analyte_id)->whereNull('result')->update(['remark_is_manual'=>$element->remark_is_manual]);
 
     return redirect()->back()->with('success', 'Analysis Element edited.');
 	}

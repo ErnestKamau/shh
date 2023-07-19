@@ -486,6 +486,9 @@
                                 <input type="number" name="report_time" value="{{$analyte->reporting_time}}" class="form-control">
                               </div>
                               <div class="form-group">
+                                <label for="" class="control-label"><input type="checkbox" name="remark_is_manual" {{$analyte->remark_is_manual == 1 ? 'selected' : ''}} value="1" id=""> Remark is Manual</label>
+                              </div>
+                              <div class="form-group">
                                 <label class="control-label"><input type="checkbox" name="non_detectable" value="1" {{ $analyte->non_detectable == 1 ? 'checked' : '' }} /> Not Detectable</label>
                               </div>
                               <div class="form-group">
@@ -709,6 +712,9 @@
         <div class="form-group">
           <label for="" class="control-label">Reporting Time</label>
           <input type="number" name="report_time" value="{{$analysis_type->reporting_time}}" class="form-control">
+        </div>
+        <div class="form-group">
+          <label for="" class="control-label"><input type="checkbox" name="remark_is_manual" value="1" id=""> Remark is Manual</label>
         </div>
         <div class="form-group">
           <label class="control-label"><input type="checkbox" name="non_detectable" value="1" /> Not Detectable</label>

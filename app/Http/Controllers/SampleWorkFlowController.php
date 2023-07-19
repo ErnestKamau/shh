@@ -61,6 +61,8 @@ use App\SamplesCategory;
 use App\LabSectionApproverRelationShip;
 use App\BatchLabSectionApprover;
 use App\LabSectionApprover;
+use App\SampleCondition;
+use App\Models\CRM\CompanyProduct;
 
 class SampleWorkFlowController extends Controller
 {
@@ -875,6 +877,7 @@ class SampleWorkFlowController extends Controller
 					$captured->analyte_status_contracted = $lab->is_external;
 					$captured->lab_section_id  = $analysisType->lab_section_id;
 					$captured->parameters_order = $analysisType->level;
+					$captured->remark_is_manual = $analysisType->remark_is_manual;
 
 					$captured->save();
 
@@ -897,6 +900,7 @@ class SampleWorkFlowController extends Controller
 					$result->analyte_status_contracted = $lab->is_external;
 					$result->lab_section_id  = $analysisType->lab_section_id;
 					$result->parameters_order = $analysisType->level;
+					$result->remark_is_manual = $analysisType->remark_is_manual;
 
 					$result->save();
 				}
@@ -1070,12 +1074,6 @@ class SampleWorkFlowController extends Controller
 
 	public function show($batch, $client = false, $portal = false)
 	{
-		$perms = ['Laboratory', 'components', 'RFT Form', 'View'];
-		$permsD = ['Laboratory', 'components', 'RFT Form', 'Delete'];
-		$check_perm_view = auth()->user()->check_permission($perms);
-		$check_perm_delete = auth()->user()->check_permission($permsD);
-		$repeat_sample= SystemConfiguration::where('key','repeat_sample_id')->first();
-		// return response()->json($check_perm_view);
 		$batchID = $batch;
 
 		$batch = SampleHeader::find($batchID);
@@ -1085,16 +1083,11 @@ class SampleWorkFlowController extends Controller
 		$methods = AnalysisMethod::where('active', 1)->get();
 		$account_settings = getConfigTypeByName('Account Settings');
 		$atachment_type = SystemConfiguration::where('key', 'attachment_type')->get();
-		$qc_types = QcTypes::all();
-		$qc_schemes = QcSchemes::all();
-
-		// $analyst_role = SystemConfiguration::where('key','analyst_role_id')->first();
-		// $usersIds = UserRole::where('role_id',$analyst_role->value)->pluck('user_id')->toArray();
-		// $users = User::whereIn('id',$usersIds)->get();
-
 		$users = User::where('is_client',0)->where('supplier_id',0)->where('active',1)->get();
 		$labsections = SampleAnalysisStage::where('active',1)->get();
-		$qc_config_perc = 0;
+		$reportingUnits = getReportingUnits();
+		$conditions = SampleCondition::all();
+		$products = CompanyProduct::all();
 		$interlabs = [];
 		if (isset($account_settings->id)) {
 			$accounts = getconfigByID($account_settings->id);
@@ -1102,9 +1095,6 @@ class SampleWorkFlowController extends Controller
 
 			$accounts = array();
 		}
-
-		// $samples = $batch->all_samples();
-		// return response()->json($samples,200);
 		$not_captured = [];
 		$payment_detail = [];
 		$contacts =[];
@@ -1113,15 +1103,15 @@ class SampleWorkFlowController extends Controller
 		$approvers = [];
 		if (isset($batch->id)) 
 		{
-			$report_format_config = SystemConfiguration::where('key','coa_report_format')->first();
-			$report_formats = SystemConfiguration::where('configuration_type_id',$report_format_config->value)->get();
+			if(in_array($batch->status,['Sample Verification','Sample Approval'])){
+				$report_format_config = SystemConfiguration::where('key','coa_report_format')->first();
+				$report_formats = SystemConfiguration::where('configuration_type_id',$report_format_config->value)->get();
+			}
 			$contacts = getCrmCustomerContactSchedule($batch->crm_customer_id);
 			// return response()->json($contacts);
 			$batch_sample_codes = getBacthSampleCodes($batch->id);
 			$payment_detail = InvoicePaymentDetail::where('batch_id',$batch->id)->get();
 			$interlabs = InterLabLogView::where('sample_header_id',$batch->id)->orderBy('status','ASC')->orderBy('id','DESC')->get();
-			$qc_config = SystemConfiguration::where('key', 'qc_percentage_config')->first();
-			$qc_config_perc = $qc_config->value;
 			$equipment_data = $batch->get_captured();
 			$approvers = BatchLabSectionApprover::where('batch_id',$batch->id)->get();
 			foreach ($equipment_data['items'] as $b => $d) {
@@ -1158,14 +1148,10 @@ class SampleWorkFlowController extends Controller
 			$attachments = BatchAttachment::where('batch_id', $batch->id)->get();
 			$config_attach = SystemConfiguration::where('key', 'attachment_type')->where('value', 'RFT Form')->first();
 			foreach ($attachments as $attach) {
-				if ($attach->attachment_type == $config_attach->id) {
-					$attach->view = $check_perm_view == false ? 0 : 1;
-					$attach->delete = $check_perm_delete == false ? 0 : 1;
-				} else {
-
-					$attach->view = 1;
-					$attach->delete = 1;
-				}
+			
+				$attach->view = 1;
+				$attach->delete = 1;
+				
 			}
 
 			if ($batch->in_ammendment_proccess == 1) {
@@ -1195,7 +1181,7 @@ class SampleWorkFlowController extends Controller
 		$analysts = User::orderBy('name')->join('user_roles as ur', 'ur.user_id', '=', 'users.id')
 			->join('roles as r', 'r.id', '=', 'ur.role_id')
 			->where('r.id', $role_a->value)->where('users.active', 1)->where('users.is_support_staff', 0)->selectRaw('users.*')->get();
-		return view('layouts.lab.sample-workflow.show', compact('batch', 'batchID', 'defaultClient', 'selectedSampleType', 'client_portal', 'ammendable', 'standards', 'attachments', 'not_captured', 'analysts', 'countries', 'accounts', 'methods', 'atachment_type', 'check_perm_view', 'check_perm_delete', 'batch_scope', 'customer_survey','qc_types','qc_schemes','repeat_sample','qc_config_perc','interlabs','labs','users','payment_detail','labsections','contacts','batch_sample_codes','report_formats','approvers'));
+		return view('layouts.lab.sample-workflow.show', compact('batch', 'batchID', 'defaultClient', 'selectedSampleType', 'client_portal', 'ammendable', 'standards', 'attachments', 'not_captured', 'analysts', 'countries', 'accounts', 'methods', 'atachment_type', 'batch_scope', 'customer_survey','interlabs','labs','users','payment_detail','labsections','contacts','batch_sample_codes','report_formats','approvers','reportingUnits','conditions','products'));
 	}
 
 	public function fetch_unit_stuff($name, $client)

@@ -78,15 +78,9 @@
 @section('content2')
   <main>
 		<?php
-			$show_ = isset($batch->id) ? $batch->processed_results()->count() : 0;
-			$equipment_data = isset($batch->id) ? $batch->get_captured_tally() : array();
-
 			$headerDetails = isset($batch->id) ? $batch->report_header_details() : array();
-
-			$labStores = getStorageByType("lab_store");
-
-			$reportingUnits = getReportingUnits();
-
+			// $labStores = getStorageByType("lab_store");
+			$labStores = [];
 			if($defaultClient){
 				$customerDetails = App\Models\CRM\CRMCustomer::find($defaultClient);
 				if($client_portal || Auth::user()->is_client == 1){
@@ -230,6 +224,7 @@
 							@endif
 							
 						@endif
+						
 						<li>
 							<span class="btn btn-sm dropdown-item"  data-target="#view-coa-report" data-toggle="modal" title="View Sample(s) COA"><i class="mdi mdi-subdirectory-arrow-right mr-2"></i> View Report</span>
 						</li>
@@ -337,18 +332,15 @@
 									@if($defaultClient === false) {{-- Creating a batch from the normal process --}}
 									<option value="{{ $client->id }}"  {{ isset($batch->crm_customer_id) && $batch->crm_customer_id == $client->id ? 'selected' : '' }} {{-- When coming from laboratory --}} {{ $defaultClient == $client->id ? 'selected' : '' }} {{-- When coming from client order --}}
 										data-units="{{ json_encode($client->units) }}"
-										data-quote="{{json_encode($client->quotes)}}"
 										data-unit_name='{{ trim($client->unit_configurable_name) == '' ? 'Site Location' : $client->unit_configurable_name }}'
-										data-sample_point_name='{{ trim($client->sample_point_configurable_name)  == '' ? 'Sample Point' : $client->sample_point_configurable_name }}'
-										data-product_name='{{ trim($client->product_configurable_name) == '' ? 'Product' : $client->product_configurable_name }}'>{{ $client->name }}</option>
+										data-sample_point_name='{{ trim($client->sample_point_configurable_name)  == '' ? 'Sample Point' : $client->sample_point_configurable_name }}'>{{ $client->name }}</option>
 								@endif
 	
 								@if($defaultClient !== false && $client->id == $defaultClient){{-- Creating a batch from the client order --}}
 									<option value="{{ $client->id }}"  {{ isset($batch->crm_customer_id) && $batch->crm_customer_id == $client->id ? 'selected' : '' }} {{-- When coming from laboratory --}} {{ $defaultClient == $client->id ? 'selected' : '' }} {{-- When coming from client order --}}
 										data-units="{{ json_encode($client->units) }}"
 										data-unit_name='{{ trim($client->unit_configurable_name) == '' ? 'Unit' : $client->unit_configurable_name }}'
-										data-sample_point_name='{{ trim($client->sample_point_configurable_name)  == '' ? 'Sample Point' : $client->sample_point_configurable_name }}'
-										data-product_name='{{ trim($client->product_configurable_name) == '' ? 'Product' : $client->product_configurable_name }}'>{{ $client->name }}</option>
+										data-sample_point_name='{{ trim($client->sample_point_configurable_name)  == '' ? 'Sample Point' : $client->sample_point_configurable_name }}'>{{ $client->name }}</option>
 								@endif
 							@endforeach
 						</select>
@@ -446,9 +438,9 @@
 					
 					<div class="form-group col-md-3 {{isset($batch->id) && $batch->is_qc_batch == 1 ? '' : 'hidden'}} qc-type-field">
 						<label for="" class="control-label">Qc Type <span class="text-danger">*</span></label>
-						<select name="qc_type_id" id="" class="form-control qc_type_id" data-repeatsample = "{{json_encode($repeat_sample->value)}}">
+						<select name="qc_type_id" id="" class="form-control qc_type_id">
 							<option value="">Choose Qc Type</option>
-							@foreach($qc_types as $q_type)
+							@foreach($qc_types ?? [] as $q_type)
 								@if(isset($batch->id) && $batch->qc_type_id == $q_type->id)
 									<option value="{{$q_type->id}}" selected>{{$q_type->code}}</option>
 								@else
@@ -462,7 +454,7 @@
 						<label for="" class="control-label">Qc Scheme <span class="text-danger">*</span></label>
 						<select name="qc_scheme_id" id="" class="form-control">
 							<option value="">Choose Scheme</option>
-							@foreach($qc_schemes as $scheme)
+							@foreach($qc_schemes ?? [] as $scheme)
 							<option value="{{$scheme->id}}" {{isset($batch->id) && $batch->qc_scheme_id == $scheme->id ? 'selected' : ''}}>{{$scheme->code}}</option>
 							@endforeach
 						</select>
@@ -772,82 +764,7 @@
 						</div>
 					</div>
 				@endif
-				@if(in_array($batch->status, array("Sample Approval", "Samples In Lab", "Sample Verification")))
-					<div class="tab-pane fade p-3" id="data-from-equipment-results" role="tabpanel" aria-labelledby="one-tab">
-						<div class="p-2 row">
-							<div class="col-sm-8">
-								<h5><i class="mdi mdi-file-cog"></i> Data From Equipment</h5>
-							</div>
-						</div>
-						<div class="table-responsive">
-							<?php
-								$equipment = array_keys($equipment_data['items']);
-							?>
-							<div class="table my-tab-headers row no-gutters">
-								@foreach ($equipment as $eq)
-									<span data-equipment="{{ $eq }}" class="my-tab {{ $loop->iteration == 1 ? 'selected' : '' }}">{{ $eq }}</span>
-								@endforeach
-							</div>
-							{{-- <pre>{{ json_encode($equipment_data, JSON_PRETTY_PRINT) }}</pre> --}}
-						</div>
-						<div class="table-responsive mt-3">
-							@foreach ($equipment as $eq)
-								<?php $elems = array_values($equipment_data['items'][$eq]); ?>
-								<?php $scodes = array_keys($equipment_data['items'][$eq]); ?>
-								<div data-equipment="{{ $eq }}" class="equip-table {{ $loop->iteration == 1 ? '' : 'hidden' }}">
-									<span class="btn btn-outline-info mb-3"><i class="mdi mdi-cog-refresh-outline"></i> Pull Data From {{ $eq }}</span>
-									<table class="table my-small-text table-condensed table-bordered table-sm">
-										<thead>
-											<tr>
-												<th>Sample Code</th>
-												<th>Date</th>
-												<?php $analyteKeys = array(); ?>
-												@foreach ($elems as $e=>$a)
-													@foreach ($a as $i=>$j)
-														@if(!isset($analyteKeys[$i]))
-														<th>{{ $i }}</th>
-														<?php
-															if(!isset($analyteKeys[$i])){
-																$analyteKeys[$i] = true;
-															}
-														?>
-														@endif
-													@endforeach
-												@endforeach
-											</tr>
-										</thead>
-										<tbody>
-											@foreach ($elems as $e=>$a)
-											<?php $data_not_set = true; ?>
-												<tr>
-													{{-- <td>
-														<pre>{{ json_encode($a, JSON_PRETTY_PRINT) }}</pre>
-													</td> --}}
-													<td>{{ $scodes[$e] }}</td>
-													@foreach ($analyteKeys as $i=>$b)
-														@if (isset($a[$i]))
-															@if ($data_not_set)
-																@if ($a[$i][1]!=null)
-																	<td>{{ $a[$i][1] }}</td>
-																@else
-																	<td> - </td>
-																@endif
-																<?php $data_not_set = false; ?>
-															@endif
-															<td>{{ $a[$i][0] }}</td>
-														@else
-															<td></td>
-														@endif
-													@endforeach
-												</tr>
-											@endforeach
-										</tbody>
-									</table>
-								</div>
-							@endforeach
-						</div>
-					</div>
-				@endif
+				
 				<div class="tab-pane fade p-3" id="interlab" role="tabpanel" aria-labelledby="one-tab">
 					<h5 class="p-2">
 						<i class="mdi mdi-swap-horizontal-bold"></i> Inter Laboratory Logs
@@ -1337,11 +1254,11 @@
 							@endif
 						@endif
 						@if(isset($batch->status) && ($batch->status == "Sample Verification" || $batch->status == "Sample Approval") && Auth::user()->is_client == 0)
-							{{-- @if($equipment_data['captured'] > 0) --}}
+							
 								<button type="button" class="btn btn-danger btn-sm text-white float-right" data-target="#send-back-for-rechcek-modal" data-toggle="modal">
 									<i class="mdi mdi-page-previous"></i> Recheck
 								</button> &nbsp; &nbsp;
-							{{-- @endif --}}
+							
 						@endif
 						@if(isset($batch->status) && in_array($batch->status, array("Samples Reception","Samples En-Route")))
 							@if(Auth::user()->is_client == 1 && $batch->status == 'Samples Reception')
@@ -1350,10 +1267,7 @@
 							<button type="button" class="btn btn-danger btn-sm text-white ml-2 save-samples"><i class="mdi mdi-content-save"></i> Save</button> &nbsp; &nbsp;
 							<span class="btn btn-success btn-sm create-new-sample-row float-right"><i class="mdi mdi-plus"></i> Add</span> &nbsp; &nbsp;
 							<span class="btn btn-primary btn-sm duplicate-sample-row float-right mr-1"><i class="mdi mdi-content-duplicate"></i> Duplicate</span>
-							<span data-toggle="modal" data-target="#batch-edit-modal"
-								class="btn btn-transparent text-info btn-sm batch-edit-row float-right mr-1">
-								<i class="mdi mdi-pencil-box-multiple"></i> Batch Edit
-							</span>
+							
 							@endif
 						@endif
 					@endif
@@ -2197,86 +2111,7 @@ $customer = getCrmCustomerByID($batch->crm_customer_id);
 				</form>
 			</div>
 		</div>
-		<div id="process-results-modals" class="modal fade" role="dialog">
-			<div class="modal-dialog modal-lg">
-				<!-- Modal content-->
-				<form class="modal-content" method="POST" action="{{ route('report-interpretations', ['batch_id'=>$batch->id]) }}" enctype="multipart/form-data">
-					@csrf
-					<div class="modal-header">
-						<h4 class="modal-title"><i class="mdi mdi-file-document-edit"></i> Provide Interpretations </h4>
-					</div>
-					<div class="modal-body">
-						<ul class="nav nav-tabs" role="tablist">
-							<li class="nav-item">
-								<a class="nav-link active" id="report-interpretations-tab" data-toggle="tab" href="#report-interpretations" role="tab" aria-controls="Parameters" aria-selected="true"><i class="mdi mdi-typewriter"></i> Email Body</a>
-							</li>
-							<li class="nav-item">
-								<a class="nav-link" id="report-header-tab" data-toggle="tab" href="#report-header-details" role="tab" aria-controls="Parameters" aria-selected="true"><i class="mdi mdi-page-layout-header"></i> Report Header/Footer Details</a>
-							</li>
-						</ul>
-						<div class="tab-content">
-							<div class="tab-pane fade p-3" id="report-header-details" role="tabpanel" aria-labelledby="one-tab">
-								<h4>Report </h4>
-								<div class="form-group">
-									<label>Title</label>
-									<input type="text" class="form-control" value="{{ isset($headerDetails['header']->model) || isset($headerDetails['client_header']->model) ? ($headerDetails['header']->title ?? $headerDetails['client_header']->title) : '' }}" name="report_title" placeholder="Report Title..." required />
-								</div>
-								<div class="form-group">
-									<label>To</label>
-									<input type="text" class="form-control" value="{{ isset($headerDetails['header']->model) || isset($headerDetails['client_header']->model) ? ($headerDetails['header']->to ?? $headerDetails['client_header']->to) : '' }}" name="report_to" placeholder="Report To..." required />
-								</div>
-								<div class="form-group">
-									<label>C.C.</label>
-									<input type="text" class="form-control" value="{{ isset($headerDetails['header']->model) || isset($headerDetails['client_header']->model) ? ($headerDetails['header']->cc ?? $headerDetails['client_header']->cc) : '' }}" name="report_cc" placeholder="Report C.C..." required />
-								</div>
-								<div class="form-group">
-									<label>From</label>
-									<input type="text" class="form-control" value="{{ isset($headerDetails['header']->model) || isset($headerDetails['client_header']->model) ? ($headerDetails['header']->from ?? $headerDetails['client_header']->from) : '' }}" name="report_from" placeholder="Report From..." required />
-								</div>
-								<div class="form-group">
-									<label>Date</label>
-									<input type="date" class="form-control" value="{{ isset($headerDetails['header']->model) || isset($headerDetails['client_header']->model) ? ($headerDetails['header']->date ?? $headerDetails['client_header']->date) : '' }}" name="report_date" placeholder="Report Date..." required />
-								</div>
-								{{-- <div class="form-group">
-									<label>Ref</label>
-									<input type="text" class="form-control" value="{{ $batch->reference_number }}" name="report_ref" placeholder="Report Ref..." readonly />
-								</div> --}}
-								<div class="form-group">
-									<label>Re</label>
-									<textarea class="form-control editor" name="report_re" placeholder="Report Re..." required>{{ isset($headerDetails['header']->model) || isset($headerDetails['client_header']->model) ? ($headerDetails['header']->re ?? $headerDetails['client_header']->re) : '' }}</textarea>
-								</div>
-								<hr>
-								<div class="form-group">
-									<label>For</label>
-									<input type="text" class="form-control" value="{{ isset($headerDetails['header']->model) || isset($headerDetails['client_header']->model) ? ($headerDetails['header']->for ?? $headerDetails['client_header']->for) : '' }}" name="report_for" placeholder="Report For..." required />
-								</div>
-								<div class="form-group">
-									<label><input type="checkbox" name="update_client_headers" value="1"/> Update client report header defaults.</label>
-								</div>
-							</div>
-							<div class="tab-pane show active p-3" id="report-interpretations" role="tabpanel" aria-labelledby="one-tab">
-								<div class="form-group">
-									<label>Declared Amount</label>
-									<input type="text" class="form-control" value="{{ $batch->declared_amount ?? '' }}" name="declared_amount" placeholder="Declared Amount..." />
-								</div>
-								<div class="form-group">
-									<label>Final Declared Amount</label>
-									<input type="text" class="form-control" value="{{ $batch->final_declared_amount ?? '' }}" name="final_declared_amount" placeholder="Final Declared Amount..." />
-								</div>
-								<div class="form-group">
-									<label>Outgoing Email Body</label>
-									<textarea class="form-control editor" name="outgoing_email_body" placeholder="Outgoing Email Body..." required>{{ $headerDetails['header']->outgoing_email_body ?? '' }}</textarea>
-								</div>
-							</div>
-						</div>
-					</div>
-					<div class="modal-footer">
-						<button type="submit" class="btn btn-info btn-sm" onclick="tinyMCE.triggerSave()"><i class="mdi mdi-content-save"></i> Save</button>
-						<button type="button" class="btn btn-default btn-sm" data-dismiss="modal">Close</button>
-					</div>
-				</form>
-			</div>
-		</div>
+		
 		@if ($batch->batch_report_url)
 			<div id="send-to-email-modal" class="modal fade" role="dialog">
 				<div class="modal-dialog">
@@ -2557,52 +2392,7 @@ $customer = getCrmCustomerByID($batch->crm_customer_id);
 		</div>
 	</div>
 @endif
-@if(isset($batch->status) && in_array($batch->status, array("Samples Reception", "Samples En-Route")))
-<div id="batch-edit-modal" class="modal fade" role="dialog">
-	<div class="modal-dialog">
-		<!-- Modal content-->
-		<div class="modal-content">
-			<div class="modal-header">
-				<h4 class="modal-title"><i class="mdi mdi-pencil-box-multiple"></i> Batch Edit </h4>
-			</div>
-			<div class="modal-body">
-				<div class="form-group form-group-sm">
-					<label class="control-label"><input type="checkbox" class="bulk-checkbox" data-name=".sample-analysis"> Select Analysis</label>
-					<select name="sample_analysis" class="form-control form-control-sm sample-analysis" multiple placeholder="Select Analysis..."></select>
-				</div>
-				<div class="form-group form-group-sm">
-					<label class="control-label"><input type="checkbox" class="bulk-checkbox" data-name=".sample-condition"> Sample Condition</label>
-					<select  name="sample_condition" class="form-control form-control-sm sample-condition" placeholder="Select Sample Condition..." required></select>
-				</div>
-				<div class="form-group form-group-sm">
-					<label class="control-label "><input type="checkbox" class="bulk-checkbox" data-name=".sample-point"> <span class="client-preferred-sample_point-name">Sample Point</span></label>
-					<select  name="sample_point" class="form-control form-control-sm sample-point" placeholder="Select..." required></select>
-				</div>
-				<div class="form-group form-group-sm">
-					<label class="control-label"><input type="checkbox" class="bulk-checkbox" data-name=".sample-product"> <span class="client-preferred-product-name">Product</span></label>
-					<select  name="sample_product" class="form-control form-control-sm sample-product" placeholder="Select..." required></select>
-				</div>
-				<div class="form-group form-group-sm">
-					<label class="control-label"><input type="checkbox" class="bulk-checkbox" data-name=".sample-barcode"> Barcode</label>
-					<input  name="sample_barcode" class="form-control form-control-sm sample-barcode" placeholder="Select..." >
-				</div>
-				<div class="form-group form-group-sm">
-					<label class="control-label"><input type="checkbox" class="bulk-checkbox" data-name=".sample-comments"> Comments</label>
-					<input  name="sample_comments" class="form-control form-control-sm sample-comments" placeholder="Select..." >
-				</div>
-				<div class="form-group form-group-sm">
-					<label class="control-label"><input type="checkbox" class="bulk-checkbox" data-name=".sample-gps"> GPS</label>
-					<input  name="sample_gps" class="form-control form-control-sm sample-gps" placeholder="Select...">
-				</div>
-			</div>
-			<div class="modal-footer">
-				<button type="button" class="btn btn-info btn-sm make-batch-changes" data-dismiss="modal"><i class="mdi mdi-refresh"></i> Change</button>
-				<button type="button" class="btn btn-default btn-sm" data-dismiss="modal">Close</button>
-			</div>
-		</div>
-	</div>
-</div>
-@endif
+
 <div id="show-sample-analysis-analytes" class="modal fade" data-backdrop="static" data-keyboard="false" role="dialog">
 	<div class="modal-dialog modal-lg">
 		<!-- Modal content-->
@@ -2735,10 +2525,10 @@ $customer = getCrmCustomerByID($batch->crm_customer_id);
 
 <script src="https://maps.googleapis.com/maps/api/js?v=3.exp&key=AIzaSyBqS4AEZ-gVeXjG794Rh0eTd6yvdfMKTjg&sensor=false" type="text/javascript"></script>
 {{-- @if(isset($batch->status)) --}}
-	{{-- @if($equipment_data['captured'] > 0) --}}
+	
 		{{-- <link rel="stylesheet" href="/css/quilljs.css" /> --}}
 		<script type="text/javascript" src="/tinymce/tinymce.min.js"></script>
-	{{-- @endif --}}
+	
 {{-- @endif --}}
 <script>
 	tinymce.init({
@@ -3610,7 +3400,7 @@ $customer = getCrmCustomerByID($batch->crm_customer_id);
 					unitSamplePoints= [];
 				},
 				success: function(js){
-					unitProducts = js.products;
+					// unitProducts = js.products;
 					unitSamplePoints= js.sample_points;
 
 					$('#sample-detail-rows').find('tr').find('[name="sample_details[sample_point][]"]').each(function(e){
@@ -3626,18 +3416,7 @@ $customer = getCrmCustomerByID($batch->crm_customer_id);
 						SP.trigger('change');
 					})
 
-					$('#sample-detail-rows').find('tr').find('[name="sample_details[product][]"]').each(function(){
-						var rowData = $(this).parents('tr').data('sample');
-						var P = $(this);
-						P.html('<option tetet></option>');
-						$.each(unitProducts, function(j,s){
-							P.append(`
-								<option value="${s.id}">${s.name}</option>
-							`);
-						});
-						P.val(rowData ? rowData.company_product_id : '');
-						P.trigger('change');
-					});
+					
 
 				}
 			})
@@ -3645,7 +3424,7 @@ $customer = getCrmCustomerByID($batch->crm_customer_id);
 
 		$('#client-select').on('change', function(){
 			var selectedOps = $(this).children('option:selected');
-			clientPrefProductName = selectedOps.data('product_name');
+			clientPrefProductName = 'Product';
 			clientPrefUnitName = selectedOps.data('unit_name');
 			clientPrefSPName = selectedOps.data('sample_point_name');
 
@@ -3754,31 +3533,6 @@ $customer = getCrmCustomerByID($batch->crm_customer_id);
 				selector: '#sample-main-body-'+n
 			});
 		});
-
-		$('#batch-edit-modal').on('show.bs.modal', function(){
-			$(this).find('.form-control').val('');
-			var modal = $(this);
-			modal.find('select.sample-analysis').html('');
-			$.each(sampleAnalysisByType, function(s, sc){
-				modal.find('select.sample-analysis').append(`<option value="${sc.id}">${sc.name}</option>`);
-			});
-
-			modal.find('select.sample-condition').html('');
-			$.each(sampleCondtions, function(s, sc){
-				modal.find('select.sample-condition').append(`<option value="${sc.id}">${sc.name}</option>`);
-			});
-
-			modal.find('select.sample-point').html('');
-			$.each(unitSamplePoints, function(j,s){
-				modal.find('select.sample-point').append(`<option value="${s.id}">${s.name}</option>`);
-			});
-
-			modal.find('select.sample-product').html('');
-			$.each(unitProducts, function(j,s){
-				modal.find('select.sample-product').append(`<option value="${s.id}" >${s.name}</option>`);
-			});
-		});
-
 		$('#batch-info-sample-type').trigger('change');
 
 		$('[name="is_routine"]').on('change', function(){
@@ -3894,6 +3648,7 @@ $customer = getCrmCustomerByID($batch->crm_customer_id);
 			if(data){
 				$row.removeClass('editable').addClass('saved-data');
 				$row.data('sample', data);
+				$row.find('.no-data').removeClass('hidden');
 
 				$row.find('.toggle-row-edit-mode').removeClass('text-primary').addClass('text-muted');
 
@@ -3935,13 +3690,14 @@ $customer = getCrmCustomerByID($batch->crm_customer_id);
 					<option value="${s.id}" ${ s.id === data['secondary_standard'] ? 'selected' : '' }>${s.code}</option>
 				`);
 			});
-			$row.find('[name="sample_details[product][]"]').html('<option></option>');
+			// $row.find('[name="sample_details[product][]"]').html('<option></option>');
 
-			$.each(unitProducts, function(j,s){
-				$row.find('[name="sample_details[product][]"]').append(`
-					<option value="${s.id}" ${ s.id == data['company_product_id'] ? 'selected' : '' }>${s.name}</option>
-				`);
-			});
+			// $.each(unitProducts, function(j,s){
+			// 	$row.find('[name="sample_details[product][]"]').append(`
+			// 		<option value="${s.id}" ${ s.id == data['company_product_id'] ? 'selected' : '' }>${s.name}</option>
+			// 	`);
+			// });
+			$row.find('[name="sample_details[product][]"]').val(data['company_product_id']);
 
 			$row.append(`<input type="hidden" value="${data.id}" name="sample_details[detail_header][]" />`);
 
@@ -3960,11 +3716,11 @@ $customer = getCrmCustomerByID($batch->crm_customer_id);
 
 			$row.find('.analysis-field .form-control').val(data['analysis_type_id'] ? data['analysis_type_id'].split(',') : '');
 
-			$row.find('[name="sample_details[sample_condition][]"]').html(`<option value="">Select Condition</option>`);
+			// $row.find('[name="sample_details[sample_condition][]"]').html(`<option value="">Select Condition</option>`);
 
-			$.each(sampleCondtions, function(s, sc){
-				$row.find('[name="sample_details[sample_condition][]"]').append(`<option value="${sc.id}">${sc.name}</option>`);
-			});
+			// $.each(sampleCondtions, function(s, sc){
+			// 	$row.find('[name="sample_details[sample_condition][]"]').append(`<option value="${sc.id}">${sc.name}</option>`);
+			// });
 
 			$row.find('select.sample-store').on('change', function(){
 				var items = $(this).children("option:selected").data('items');
@@ -4177,7 +3933,7 @@ $customer = getCrmCustomerByID($batch->crm_customer_id);
 		@endif
 		console.log('-------------------------------------------------')
 		// console.log(userLabSection);
-		// console.log(data.lab_section_id)
+		console.log(data.remark_is_manual)
 		// console.log(userLabSection.includes(data.lab_section_id))
 		console.log('-------------------------------------------------')
 
@@ -4199,7 +3955,7 @@ $customer = getCrmCustomerByID($batch->crm_customer_id);
 				<td>
 					<div class="form-group">
 						<input {{isset($batch->status) && $batch->status != 'Samples In Lab' ? 'disabled' : ''}} id="${data.sample_detail_code},${data.analyte_code},${data.id},${data.analyte_id}" style="min-width: 150px" type="text"
-						class="form-control first-result" id="result-${loop}" value="${data.result == null ? '' : data.result}" name="result[${data.id}]" placeholder="Result..." />
+						class="form-control ${data.remark_is_manual == 0 ? 'first-result' : ''}"  id="result-${loop}" value="${data.result == null ? '' : data.result}" name="result[${data.id}]" placeholder="Result..." />
 						<input type="hidden" name="result_confirm"  />
 					</div>
 				</td>
@@ -4217,7 +3973,13 @@ $customer = getCrmCustomerByID($batch->crm_customer_id);
 				@if(Auth::user()->is_client == 0)
 				<td nowrap>
 					<input id="${data.sample_detail_code}-${data.id}" style="min-width: 150px" type="text" 
-					class="form-control disabled first-result" readonly="true" value="${data.remark ?? ''}" name="remark[${data.id}]" placeholder="Remark..." />
+					class="form-control disabled ${data.remark_is_manual == 0 ? 'first-result' : 'hidden'}" readonly="true" value="${data.remark ?? ''}" name="remark[${data.id}]" placeholder="Remark..." />
+					<div class="form-group is-manual ${data.remark_is_manual == 0 ? "hidden" : ""}">
+						<select name="remarkmanual[${data.id}]" id="remark" class="form-control">
+							<option value="PASS">Pass</option>
+							<option value="FAIL">Fail</option>
+						</select>
+					</div>
 				</td>
 				
 				<td>
@@ -4248,6 +4010,7 @@ $customer = getCrmCustomerByID($batch->crm_customer_id);
 		`);
 
 		var $row = $oGRow.clone();
+		$($row).find('#remark').select2();
 		$row.on('keypress','.first-result',function(e){
 			if (e.which == 13) {
 				e.preventDefault();
@@ -4370,16 +4133,16 @@ $customer = getCrmCustomerByID($batch->crm_customer_id);
 		<input type="checkbox" class="select-row-check mt-1" /></td>
 		<td class="block toolbar" nowrap>
 			@if(isset($batch->status) && in_array($batch->status, array("Samples En-Route" ,"Samples Reception")))
-				<span class="btn edit-remove btn-default text-primary btn-sm toggle-row-edit-mode" data-toggle="tooltip" title="Edit"><i class="mdi mdi-lead-pencil"></i></span> &nbsp;
+				<span class="btn edit-remove btn-default text-primary btn-sm no-data hidden toggle-row-edit-mode" data-toggle="tooltip" title="Edit"><i class="mdi mdi-lead-pencil"></i></span> &nbsp;
 				<span class="btn btn-default delete-remove text-danger btn-sm delete-row" data-toggle="tooltip" title="Delete"><i class="mdi mdi-trash-can"></i></span>
 			@endif
 			@if(isset($batch->status) && in_array($batch->status, array("Sample Approval","Samples In Lab","Sample Verification")))
-				<span class="btn btn-default interpretation-remove text-success btn-sm provide-interpretation-row" data-target="#provide-interpretations" data-toggle="modal"  data-toggle="tooltip" title="Comments and Interpretation"><i class="mdi mdi-android-messages"></i></span>
+				<span class="btn btn-default interpretation-remove  no-data hidden  text-success btn-sm provide-interpretation-row" data-target="#provide-interpretations" data-toggle="modal"  data-toggle="tooltip" title="Comments and Interpretation"><i class="mdi mdi-android-messages"></i></span>
 			@endif
 			@if(isset($batch->status) && in_array($batch->status, array("Samples En-Route","Samples Request Review","Samples Reception","Samples In Lab")))
-			<span class="btn btn-default btn-sm initiate-interlab text-warning" data-sample="" data-analysistype="" data-samplecode="" data-toggle="modal" data-target="#inter-lab-add" data-action="add"><i class="mdi mdi-swap-horizontal-bold" data-toggle="tooltip" title="Initiate inter Lab"></i></span>
+			<span class="btn btn-default btn-sm initiate-interlab  no-data hidden  text-warning" data-sample="" data-analysistype="" data-samplecode="" data-toggle="modal" data-target="#inter-lab-add" data-action="add"><i class="mdi mdi-swap-horizontal-bold" data-toggle="tooltip" title="Initiate inter Lab"></i></span>
 			@endif
-			<span class="btn btn-default parameter-remove text-info btn-sm dropdown-row" data-target="#show-sample-analysis-analytes" data-toggle="modal" data-toggle="tooltip" title="Parameters" ><i class="mdi mdi-snowflake"></i></span>
+			<span class="btn btn-default parameter-remove  no-data hidden  text-info btn-sm dropdown-row" data-target="#show-sample-analysis-analytes" data-toggle="modal" data-toggle="tooltip" title="Parameters" ><i class="mdi mdi-snowflake"></i></span>
 		</td>
 		<td class="sample-code-field" nowrap>
 			<div class="form-group form-group-sm">
@@ -4410,11 +4173,9 @@ $customer = getCrmCustomerByID($batch->crm_customer_id);
 		<td class="sample-condition-field">
 			<div class="form-group form-group-sm">
 				<select class="form-control form-control-sm is-required sample-condition" name="sample_details[sample_condition][]" style="width: 200px" placeholder="Select Sample Condition..." required>
-					@if($selectedSampleType)
-						@foreach($selectedSampleType->sample_condition as $con)
-							<option value="{{ $con->id }}">{{ $con->name }}</option>
-						@endforeach
-					@endif
+					@foreach($conditions as $con)
+						<option value="{{ $con->id }}">{{ $con->name }}</option>
+					@endforeach
 				</select>
 			</div>
 			<span class="text"></span>
@@ -4427,7 +4188,11 @@ $customer = getCrmCustomerByID($batch->crm_customer_id);
 		</td>
 		<td class="sample-product-field">
 			<div class="form-group form-group-sm">
-				<select class="form-control form-control-sm is-required sample-product" name="sample_details[product][]" style="width: 200px" placeholder="Select..." required></select>
+				<select class="form-control form-control-sm is-required sample-product" name="sample_details[product][]" style="width: 200px" placeholder="Select..." required>
+					@foreach($products as $product)
+					<option value="{{$product->id}}">{{$product->name}}</option>
+					@endforeach
+				</select>
 			</div>
 			<span class="text"></span>
 		</td>

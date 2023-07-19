@@ -9,5 +9,5 @@ class Result extends Model implements Auditable
 {
 	use \OwenIt\Auditing\Auditable;
     //
-    protected $fillable = ['lab_section_id'];
+    protected $fillable = ['lab_section_id','remark_is_manual'];
 }
