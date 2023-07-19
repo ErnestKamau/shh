@@ -368,12 +368,13 @@
                     <th>Method</th>
                     <th>Equipment</th>
                     <th>Operator</th>
+                    <th nowrap>Remark Capture Manual</th>
                     <th nowrap>Non Detectable</th>
                     <th nowrap>Accredited</th>
                     <th nowrap>Show on Report</th>
                     <th nowrap>Is Manual</th>
                     <th>Active?</th>
-                    <th></th>
+                    
                   </tr>
                 </thead>
                 <tbody id="analytes-holder">
@@ -386,24 +387,7 @@
                       </span>
                       <span style="cursor: pointer">
                         <i class="mdi mdi-arrow-down-drop-circle move-analyte-down move-analyte" data-action="move-down"></i> </span>
-                    </td>
-                    <td nowrap>{{ $analyte->analyte->name }} - {{ $analyte->analyte->code }}</td>
-                    <td>{{ $analyte->decimal_places }}</td>
-                    <td>{{ $analyte->reporting_symbol }}</td>
-                    <td>{{ $analyte->reporting_unit }}</td>
-                    <td>{{$analyte->reporting_time > 0 ? $analyte->reporting_time : $analysis_type->reporting_time }}</td>
-                    <td>{{ $analyte->lod == null ? '' : ( $analyte->significant_figures == null ? $analyte->lod : sigFig($analyte->lod, $analyte->significant_figures)) }}</td>
-                    <td>{{ $analyte->significant_figures }}</td>
-                    <td nowrap>{{ $analyte->method()->name ?? '-' }}</td>
-                    <td nowrap>{{ $analyte->equipment->name  ?? '-' }}</td>
-                    <td nowrap>{{ $analyte->operator->name  ?? '-' }}</td>
-                    <td class="text-small">{!! $analyte->non_detectable == '1' ? '<i class="mdi mdi-check-bold text-success"></i>' : '<i class="mdi mdi-close-circle text-danger"></i>' !!}</td>
-                    <td class="text-small">{!! $analyte->non_accredited == '1' ? '<i class="mdi mdi-check-bold text-success"></i>' : '<i class="mdi mdi-close-circle text-danger"></i>' !!}</td>
-                    <td class="text-small">{!! $analyte->show_on_report == '1' ? '<i class="mdi mdi-check-bold text-success"></i>' : '<i class="mdi mdi-close-circle text-danger"></i>' !!}</td>
-                    <td class="text-small">{!! $analyte->is_manual == '1' ? '<i class="mdi mdi-check-bold text-success"></i>' : '<i class="mdi mdi-close-circle text-danger"></i>' !!}</td>
-                    <td class="text-small">{!! $analyte->active == '1' ? '<i class="mdi mdi-check-bold text-success"></i>' : '<i class="mdi mdi-close-circle text-danger"></i>' !!}</td>
-                    <td nowrap>
-                      <button class="btn btn-primary btn-sm" data-target="#edit-analyte-{{ $loop->iteration }}" data-toggle="modal"><i class="mdi mdi-pencil-outline"></i> <small class="hidden-sm-up">Edit</small> </button>
+                        <button class="btn btn-default text-primary btn-sm" data-target="#edit-analyte-{{ $loop->iteration }}" data-toggle="modal"><i class="mdi mdi-pencil-outline"></i> <small class="hidden-sm-up">Edit</small> </button>
                       {{-- <button class="btn btn-danger btn-sm"><i class="mdi mdi-delete-empty"></i> <small class="hidden-sm-up">Delete</small> </button> --}}
                       <div id="edit-analyte-{{ $loop->iteration }}" class="modal fade" role="dialog">
                         <div class="modal-dialog">
@@ -486,7 +470,7 @@
                                 <input type="number" name="report_time" value="{{$analyte->reporting_time}}" class="form-control">
                               </div>
                               <div class="form-group">
-                                <label for="" class="control-label"><input type="checkbox" name="remark_is_manual" {{$analyte->remark_is_manual == 1 ? 'selected' : ''}} value="1" id=""> Remark is Manual</label>
+                                <label for="" class="control-label"><input type="checkbox" name="remark_is_manual" {{$analyte->remark_is_manual == 1 ? 'checked' : ''}} value="1" id=""> Remark Capture is Manual</label>
                               </div>
                               <div class="form-group">
                                 <label class="control-label"><input type="checkbox" name="non_detectable" value="1" {{ $analyte->non_detectable == 1 ? 'checked' : '' }} /> Not Detectable</label>
@@ -512,6 +496,25 @@
                         </div>
                       </div>
                     </td>
+                    <td nowrap>{{ $analyte->analyte->name }} - {{ $analyte->analyte->code }}</td>
+                    <td>{{ $analyte->decimal_places }}</td>
+                    <td>{{ $analyte->reporting_symbol }}</td>
+                    <td>{{ $analyte->reporting_unit }}</td>
+                    <td>{{$analyte->reporting_time > 0 ? $analyte->reporting_time : $analysis_type->reporting_time }}</td>
+                    <td>{{ $analyte->lod == null ? '' : ( $analyte->significant_figures == null ? $analyte->lod : sigFig($analyte->lod, $analyte->significant_figures)) }}</td>
+                    <td>{{ $analyte->significant_figures }}</td>
+                    <td nowrap>{{ $analyte->method()->name ?? '-' }}</td>
+                    <td nowrap>{{ $analyte->equipment->name  ?? '-' }}</td>
+                    <td nowrap>{{ $analyte->operator->name  ?? '-' }}</td>
+                    <td class="text-small">
+                      {!! $analyte->remark_is_manual == '1' ? '<i class="mdi mdi-check-bold text-success"></i>' : '<i class="mdi mdi-close-circle text-danger"></i>' !!}
+                    </td>
+                    <td class="text-small">{!! $analyte->non_detectable == '1' ? '<i class="mdi mdi-check-bold text-success"></i>' : '<i class="mdi mdi-close-circle text-danger"></i>' !!}</td>
+                    <td class="text-small">{!! $analyte->non_accredited == '1' ? '<i class="mdi mdi-check-bold text-success"></i>' : '<i class="mdi mdi-close-circle text-danger"></i>' !!}</td>
+                    <td class="text-small">{!! $analyte->show_on_report == '1' ? '<i class="mdi mdi-check-bold text-success"></i>' : '<i class="mdi mdi-close-circle text-danger"></i>' !!}</td>
+                    <td class="text-small">{!! $analyte->is_manual == '1' ? '<i class="mdi mdi-check-bold text-success"></i>' : '<i class="mdi mdi-close-circle text-danger"></i>' !!}</td>
+                    <td class="text-small">{!! $analyte->active == '1' ? '<i class="mdi mdi-check-bold text-success"></i>' : '<i class="mdi mdi-close-circle text-danger"></i>' !!}</td>
+                    
                   </tr>
                   @endforeach
                   @endif
@@ -714,7 +717,7 @@
           <input type="number" name="report_time" value="{{$analysis_type->reporting_time}}" class="form-control">
         </div>
         <div class="form-group">
-          <label for="" class="control-label"><input type="checkbox" name="remark_is_manual" value="1" id=""> Remark is Manual</label>
+          <label for="" class="control-label"><input type="checkbox" name="remark_is_manual" value="1" id=""> Remark Capture is Manual</label>
         </div>
         <div class="form-group">
           <label class="control-label"><input type="checkbox" name="non_detectable" value="1" /> Not Detectable</label>

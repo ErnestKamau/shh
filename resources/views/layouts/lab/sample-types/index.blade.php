@@ -98,6 +98,14 @@
                             <label class="control-label">Disclaimer</label>
                             <textarea class="form-control" name="description" placeholder="Disclaimer..." required>{{ $sample_type->description }}</textarea>
                           </div>
+                          <div class="form-group">
+                            <label for="" class="control-label">Category</label>
+                            <select name="category_id" id="" class="form-control">
+                              @foreach($categories as $category)
+                              <option value="{{$category->id}}" {{$sample_type->sample_type_category == $category->id ? 'selected' : ''}}>{{$category->name}}</option>
+                              @endforeach
+                            </select>
+                          </div>
                           @if(Auth::user()->company_id == 0)
                           <div class="form-group">
                             <label class="control-label">Company</label>
@@ -338,6 +346,14 @@
         <div class="form-group">
           <label class="control-label">Code</label>
           <input type="text" class="form-control" name="code" placeholder="Sample Type Code..." required />
+        </div>
+        <div class="form-group">
+          <label for="" class="control-label">Category</label>
+          <select name="category_id" id="" class="form-control">
+            @foreach($categories as $category)
+            <option value="{{$category->id}}">{{$category->name}}</option>
+            @endforeach
+          </select>
         </div>
         <div class="form-group">
           <label class="control-label">Disclaimer</label>

@@ -1940,7 +1940,7 @@ class SampleWorkFlowController extends Controller
 			$captured->operator_id = $request->operators[$cID] ?? 0;
 
 
-			$captured->remark = $request->remark[$cID];
+			$captured->remark = $captured->remark_is_manual == 0 ? $request->remark[$cID] : $request->remarkmanual[$cID];
 			$standard_main = Standards::where('code', $request->main_standard[$cID])->first();
 			$sec_standard = Standards::where('code', $request->secondary_standard[$cID])->first();
 			if (isset($standard_main->id)) {

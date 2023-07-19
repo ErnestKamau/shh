@@ -30,8 +30,9 @@ class SampleTypeController extends Controller
   {
     $sample_types = SampleType::join('companies as c', 'c.id', '=', 'sample_types.company_id')->selectRaw('sample_types.*, c.name as company')->get();
     $companies = Company::all();
+    $categories = [];
 
-    return view('layouts.lab.sample-types.index', compact('companies', 'sample_types'));
+    return view('layouts.lab.sample-types.index', compact('companies', 'sample_types','categories'));
   }
 
   public function show($id)
@@ -74,6 +75,7 @@ class SampleTypeController extends Controller
     $sample_type->description = $request->description;
     $sample_type->company_id = getUserCompany();
     $sample_type->active = $request->active ?? 0;
+    $sample_type->sample_type_category = $request->category_id;
 
     $sample_type->save();
 
@@ -88,6 +90,8 @@ class SampleTypeController extends Controller
     $sample_type->description = $request->description;
     $sample_type->company_id = getUserCompany();
     $sample_type->active = $request->active ?? 0;
+    $sample_type->sample_type_category = $request->category_id;
+
 
     $sample_type->save();
 

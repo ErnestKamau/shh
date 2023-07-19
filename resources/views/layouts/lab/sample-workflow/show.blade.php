@@ -3975,9 +3975,9 @@ $customer = getCrmCustomerByID($batch->crm_customer_id);
 					<input id="${data.sample_detail_code}-${data.id}" style="min-width: 150px" type="text" 
 					class="form-control disabled ${data.remark_is_manual == 0 ? 'first-result' : 'hidden'}" readonly="true" value="${data.remark ?? ''}" name="remark[${data.id}]" placeholder="Remark..." />
 					<div class="form-group is-manual ${data.remark_is_manual == 0 ? "hidden" : ""}">
-						<select name="remarkmanual[${data.id}]" id="remark" class="form-control">
-							<option value="PASS">Pass</option>
-							<option value="FAIL">Fail</option>
+						<select name="remarkmanual[${data.id}]" id="" class="form-control remarkmanual">
+							<option value="PASS" ${data.remark == 'PASS' ? 'selected' : ''}>Pass</option>
+							<option value="FAIL" ${data.remark == 'FAIL' ? 'selected' : ''}>Fail</option>
 						</select>
 					</div>
 				</td>
@@ -4010,7 +4010,7 @@ $customer = getCrmCustomerByID($batch->crm_customer_id);
 		`);
 
 		var $row = $oGRow.clone();
-		$($row).find('#remark').select2();
+		
 		$row.on('keypress','.first-result',function(e){
 			if (e.which == 13) {
 				e.preventDefault();
@@ -4099,6 +4099,7 @@ $customer = getCrmCustomerByID($batch->crm_customer_id);
 		});
 		$row.find('select.method-id').select2();
 		$row.find('select.item-operators').select2();
+		$row.find('select.remarkmanual').select2();
 		if(selectedOperator){
 			$row.find('select.item-operators').val(selectedOperator).trigger('change');
 		}
