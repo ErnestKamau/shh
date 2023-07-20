@@ -265,21 +265,13 @@
 					
 					<i class="mdi {{isset($batch->id) ? 'mdi-chevron-double-down' : 'mdi-chevron-double-up' }}"></i> Batch Info
 				</span>
-				@if(auth()->user()->CheckViewQcSample())
-					@if(isset($batch->id) && $batch->is_qc_batch == 1)
-						
-						<span class="badge badge-pill p-2 badge-primary float-right" style="font-size: 10px !important;"><i class="mdi mdi-alert-decagram"></i> Is Qc Batch</span>
-						
-					@endif
-				@endif
-				
 				@if(isset($batch->id))
 				<div class="btn-group float-right">
 					<button class="btn btn-default bg-light btn-sm dropdown-toggle" type="button" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false" style="box-shadow: rgba(0, 0, 0, 0.15) 1.95px 1.95px 2.6px;">
 						<i class="mdi mdi-swap-vertical"></i> Move To Stage
 					</button>
 					<div class="dropdown-menu dropdown-menu-right bg-light" id="stage-selector">
-						@foreach (getWorkflowStage_Stages($batch->status) as $item)
+						@foreach ($workflowstages as $item)
 						<form class="dropdown-item" method="POST" style="cursor: pointer" action="{{ route('move-to-stage', ['stage'=>$item->id, 'batch_id'=>$batch->id]) }}">
 							@csrf
 							<small class="text-muted"><i class="mdi mdi-subdirectory-arrow-right"></i></small> {{ $item->name }}
@@ -292,7 +284,7 @@
 						<i class="mdi mdi-swap-vertical"></i> Move To Workflow
 					</button>
 					<div class="dropdown-menu dropdown-menu-right bg-light" id="status-selector">
-						@foreach (getSampleWorflowStages() as $item)
+						@foreach ($workflows as $item)
 						<form class="dropdown-item" method="POST" style="cursor: pointer" action="{{ route('move-to-workflow', ['status'=>$item, 'batch_id'=>$batch->id]) }}">
 							@csrf
 							<small class="text-muted"><i class="mdi mdi-subdirectory-arrow-right"></i></small> {{ $item }}
@@ -354,7 +346,7 @@
 						<label class="control-label text-sm">Sample Type <span class="text-danger">*</span></label>
 						<select class="form-control {{ isset($batch->status) && !in_array($batch->status, array("Samples Reception", "Samples En-Route")) ? 'no-select2' : '' }}" {{ isset($batch->status) && !in_array($batch->status, array("Samples Reception", "Samples En-Route")) ? 'readonly' : '' }} name="sample_type_id" required id="batch-info-sample-type">
 							<option value="">Select Sample Type...</option>
-							@foreach (getSampleTypes() as $sample)
+							@foreach ($sample_types as $sample)
 								<option value="{{ $sample->id }}"  {{ isset($batch->sample_type_id) && $batch->sample_type_id == $sample->id ? 'selected' : '' }} data-conditions="{{ json_encode($sample->sample_condition) }}">{{ $sample->name }}</option>
 							@endforeach
 						</select>
@@ -395,7 +387,7 @@
 						<label for="" class="control-label">Sampling Method</label>
 						<select name="sampling_method_id" id="" class="form-control">
 							<option value="">Select Sampling Method</option>
-							@foreach(getSamplingMethods() as $b_method)
+							@foreach($samplingmethods as $b_method)
 							<option value="{{$b_method->id}}" {{isset($batch->id) && $batch->sampling_method_id == $b_method->id ? 'selected' : ''}}>{{$b_method->code}} - {{$b_method->name}}</option>
 							@endforeach
 						</select>
@@ -429,45 +421,11 @@
 						<label class="control-label">Invoice Amount</label>
 						<input type="text" class="form-control" autocomplete="off" value="{{$batch->invoice_amount ?? ''}}" name="invoice_amount"  placeholder="Invoice Amount..." />
 					</div>
-	
-					
-					<div class="form-group col-md-3 {{isset($batch->id) && $batch->is_qc_batch == 1 ? '' : 'hidden'}} qc-type-field">
-						<label for="" class="control-label">Qc Type <span class="text-danger">*</span></label>
-						<select name="qc_type_id" id="" class="form-control qc_type_id">
-							<option value="">Choose Qc Type</option>
-							@foreach($qc_types ?? [] as $q_type)
-								@if(isset($batch->id) && $batch->qc_type_id == $q_type->id)
-									<option value="{{$q_type->id}}" selected>{{$q_type->code}}</option>
-								@else
-									<option value="{{$q_type->id}}">{{$q_type->code}}</option>	
-								@endif
-							
-							@endforeach
-						</select>
-					</div>
-					<div class="form-group col-md-3 {{isset($batch->id) && $batch->is_qc_batch == 1 ? '' : 'hidden'}}  qc-type-field">
-						<label for="" class="control-label">Qc Scheme <span class="text-danger">*</span></label>
-						<select name="qc_scheme_id" id="" class="form-control">
-							<option value="">Choose Scheme</option>
-							@foreach($qc_schemes ?? [] as $scheme)
-							<option value="{{$scheme->id}}" {{isset($batch->id) && $batch->qc_scheme_id == $scheme->id ? 'selected' : ''}}>{{$scheme->code}}</option>
-							@endforeach
-						</select>
-					</div>
-					<div class="form-group col-md-3 {{isset($batch->id) && $batch->is_qc_batch == 1 && $batch->repeat_sample_id > 0 ? '' : 'hidden'}}  qc-repeat-batch">
-						<label for="" class="control-label">Repeat Samples</label>
-						<select name="repeat_sample_id" id="repeat_sample_id" class="form-group">
-							<option value="">Loading Samples <i class="mdi mdi-loading mdi-spin"></i></option>
-						</select>
-					</div>
 				</div>
 				<div class="row p-2 mt-3">
 					
 					<div class="form-group col-md-4 btn-group-sm">
-						<label for="" class="control-label"><input type="checkbox" name="is_qc_batch" class="is_qc_batch" {{isset($batch->id) && $batch->is_qc_batch == 1 ? 'checked' : ''}} id=""> Is Qc Batch</label>
-					</div>
-					<div class="form-group col-md-4 btn-group-sm">
-						<label class="control-label"><?php $active_company = getActiveCompany()?>
+						<label class="control-label">
 							<input type="checkbox" name="client_instruction_clear" value="1" {{ isset($batch->client_instruction_clear) && $batch->client_instruction_clear == 1 ? 'checked' : '' }}> Are client`s instructions clear ?
 						</label>
 					</div>
@@ -488,7 +446,7 @@
 						</label>
 					</div>
 					<div class="form-group col-md-4 btn-group-sm">
-						<label class="control-label"><?php $active_company = getActiveCompany()?>
+						<label class="control-label">
 							<input type="checkbox" name="sampled_by_company_personnel" value="1" {{ isset($batch->sampled_by_company_personnel) && $batch->sampled_by_company_personnel == 1 ? 'checked' : '' }}> Sampled by {{$active_company->name}} personnel?
 						</label>
 					</div>
@@ -556,20 +514,6 @@
 							<label class="control-label">Use of Goods</label>
 							<textarea class="form-control" name="use_of_goods" placeholder="Use of Goods...">{{ $batch->use_of_goods ?? '' }}</textarea>
 						</div>
-						<div class="form-group col-md-6 btn-group-sm">
-							<label class="control-label">
-								<input type="checkbox" name="is_routine" value="1" {{ isset($batch->is_routine) && $batch->is_routine == 1 ? 'checked' : '' }}> Is Routine?
-							</label>
-						</div>
-						<div class="form-group col-md-6 btn-group-sm {{ isset($batch->is_routine) && $batch->is_routine == 1 ? '' : 'hidden' }}" id="routine_frequency">
-								<label class="control-label">Routine Frequency <small class="text-danger">*required for routine sample</small></label>
-								<select name="routine_frequency" class="form-control">
-									<option value="">Select Frequency</option>
-									@foreach (getRoutineFrequency() as $k=>$item)
-										<option value="{{ $k }}" {{ isset($batch->routine_frequency) && $batch->routine_frequency == $k ? 'selected' : '' }}>{{ $item }}</option>
-									@endforeach
-								</select>
-							</div>
 					</div>
 					
 				</div>
@@ -872,8 +816,8 @@
                                     <td>{{$payment->vat}}</td>
                                     <td>{{$payment->balance}}</td>
 									<td>{{$payment->contact_person_name}}</td>
-                                    <?php $received = getUserById($payment->received_by) ?>
-                                    <td>{{$received->name}}</td>
+                                    
+                                    <td>{{$payment->receivername}}</td>
                                     
                                 </tr>
                                 
@@ -882,41 +826,7 @@
                         </table>
                     </div>
 				</div>
-				@if(in_array($batch->status, array("Sample Approval","Sample Verification", "Reports In Payment", "Reports for Collection")))
-					<div class="tab-pane fade p-3" id="processed-results" role="tabpanel" aria-labelledby="one-tab">
-						<div class="p-2 row">
-							<div class="col-sm-8">
-								<h5><i class="mdi mdi-clipboard-text"></i> Processed Results</h5>
-							</div>
-						</div>
-						<div class="table-responsive">
-							<table class="table table-condensed my-small-text table-striped table-hover table-bordered table-sm">
-								<thead class="bg-light p-2">
-									<tr>
-										<th>Analyte</th>
-										<th>Sample Code</th>
-										<th nowrap>Result</th>
-										<th nowrap>Reporting Unit</th>
-										<th>Analyst</th>
-										<th>Equipment</th>
-									</tr>
-								</thead>
-								<tbody>
-									@foreach ($batch->processed_results() as $res)
-										<tr>
-											<td>{{ $res->analyte_code }}</td>
-											<td>{{ $res->sample_detail_code }}</td>
-											<td>{{ $res->reporting_symbol."".$res->result }}</td>
-											<td>{{ $res->unit_code }}</td>
-											<td>{{ $res->operator }}</td>
-											<td>{{ $res->equipment }}</td>
-										</tr>
-									@endforeach
-								</tbody>
-							</table>
-						</div>
-					</div>
-				@endif
+				
 				<div class="tab-pane fade p-3" id="chain-of-custody" role="tabpanel" aria-labelledby="one-tab">
 					<div class="p-2 row">
 						<div class="col-sm-8">
@@ -1016,7 +926,7 @@
 																	<label class="control-label">User To Notify</label>
 																	<select class="form-control" name="user_id" required placeholder="Select User...">
 																		<option></option>
-																		@foreach (getNotifiableUsers() as $g)
+																		@foreach ($notifiable_users as $g)
 																			<option value="{{ $g->id }}" {{ $item->created_by == $g->id ? 'selected' : ''}}>{{ $g->name }}</option>
 																		@endforeach
 																	</select>
@@ -1025,7 +935,7 @@
 																	<label class="control-label">Also Notify <small class="text-muted">*Optional</small></label>
 																	<select class="form-control" name="followers[]" multiple placeholder="Other Notifiable Users...">
 																		<option></option>
-																		@foreach (getNotifiableUsers() as $g)
+																		@foreach ($notifiable_users as $g)
 																			<option value="{{ $g->id }}" {{ in_array($g->id, $item->people_to_cc()['ids']) ? 'selected' : '' }}>{{ $g->name }}</option>
 																		@endforeach
 																	</select>
@@ -1035,7 +945,7 @@
 																	<label class="control-label">Type</label>
 																	<select class="form-control" name="type" required placeholder="Message Type...">
 																		<option></option>
-																		@foreach (getNotesReminderTypes() as $g)
+																		@foreach ($notesReminderType as $g)
 																			<option value="{{ $g }}" {{ $item->comment_type == $g ? 'selected' : ''}}>{{ $g }}</option>
 																		@endforeach
 																	</select>
@@ -1083,7 +993,6 @@
 
 							</thead>
 							<tbody>
-								<?php $ammendments = getBatchAmmendmentsById($batch->id)?>
 								@foreach($ammendments as $a)
 								<tr>
 									<td>V {{$a->version_number}}</td>
@@ -1091,8 +1000,7 @@
 										{{$a->sample_name}}
 									</td>
 									<td>
-										<?php $user = getUserById($a->created_by_id)?>
-										{{$user->name}}
+										{{$a->creator}}
 									</td>
 									<td>{{$a->created_at}}</td>
 									<td><span class="btn-sm btn-outline-dark mdi mdi-comment-text" data-toggle="modal" data-target="#reason-{{$a->id}}" data-toggle="tooltip" title="Amendment Reason" ></span>
@@ -1141,22 +1049,19 @@
 							@if(Auth::user()->is_client == 1)
 								@foreach($attachments as $a)
 									@if($a->is_internal == 0)
-										<?php
-											
-											$user_upload = getUserById($a->uploaded_by)
-										?>
+										
 										<tr>
 											<td>{{$loop->iteration}}</td>
-											<td>{{ isset(getsystemconfigbyid($a->id)->id) ? getsystemconfigbyid($a->id)->value : 'General'}}</td>
+											<td>{{ $a->attachtypename}}</td>
 											<td>{{$a->title ?? 'N/a'}}</td>
 											<td>{{date('Y-m-d',strtotime($a->created_at))}}</td>
-											<td>{{$user_upload->name}}</td>
+											<td>{{$a->uploaduser}}</td>
 											<td class="text-center">
-											{!! $a->view == 1 ? '<a href="'.$a->attachment_url.'" target="_blank" data-toggle="tooltip" data-title="View Attachment" class=" btn-sm btn btn-outline-dark"><i class="mdi mdi-eye"></i></a>' : '-' !!}
+											<a href="'.$a->attachment_url.'" target="_blank" data-toggle="tooltip" data-title="View Attachment" class=" btn-sm btn btn-outline-dark"><i class="mdi mdi-eye"></i></a>
 											
 											</td>
 											<td>
-												{!! $a->delete == 1 ? '<span class="btn btn-sm btn-outline-danger" data-title="Delete Attachment" data-toggle="modal" data-target="#delete-attachment-'.$a->id.'" ><i class="mdi mdi-delete-empty"></i></span>' : '-' !!}
+												<span class="btn btn-sm btn-outline-danger" data-title="Delete Attachment" data-toggle="modal" data-target="#delete-attachment-'.$a->id.'" ><i class="mdi mdi-delete-empty"></i></span>
 												
 												<div class="modal fade" id="delete-attachment-{{$a->id}}" role="dialog">
 													<div class="modal-dialog">
@@ -1188,22 +1093,22 @@
 								@endforeach
 							@else
 								@foreach($attachments as $a)
-								<?php $user_upload = getUserById($a->uploaded_by)?>
+								
 								<tr>
 									<td>{{$loop->iteration}}</td>
-									<td>{{ isset(getsystemconfigbyid($a->attachment_type)->id) ? getsystemconfigbyid($a->attachment_type)->value : 'General'}}</td>
+									<td>{{ $a->attachtypename}}</td>
 									<td>{{$a->title ?? 'N/a'}}</td>
 									<td>{{date('Y-m-d',strtotime($a->created_at))}}</td>
-									<td>{{$user_upload->name}}</td>
+									<td>{{$a->uploaduser}}</td>
 									
 									<td class="text-center">
-										{!! $a->view == 1 ? '<a href="'.$a->attachment_url.'" target="_blank" data-toggle="tooltip" data-title="View Attachment" class=" btn-sm btn btn-outline-dark"><i class="mdi mdi-eye"></i></a>' : '-' !!}
+										<a href="'.$a->attachment_url.'" target="_blank" data-toggle="tooltip" data-title="View Attachment" class=" btn-sm btn btn-outline-dark"><i class="mdi mdi-eye"></i></a>
 									
 									
 									</td>
 									<td>
 										
-									{!! $a->delete == 1 ? '<span class="btn btn-sm btn-outline-danger" data-title="Delete Attachment" data-toggle="modal" data-target="#delete-attachment-'.$a->id.'" ><i class="mdi mdi-delete-empty"></i></span>' : '-' !!}
+									<span class="btn btn-sm btn-outline-danger" data-title="Delete Attachment" data-toggle="modal" data-target="#delete-attachment-'.$a->id.'" ><i class="mdi mdi-delete-empty"></i></span>
 										<div class="modal fade" id="delete-attachment-{{$a->id}}" role="dialog">
 											<div class="modal-dialog">
 												<div class="modal-content">
@@ -1293,93 +1198,14 @@
 							
 						</tr>
 					</thead>
-					<?php
-						$analaytesHolder = array();
-						$analysisBySample = array();
-						$analysisBySampleNames = array();
-						$labSamples = array();
-						foreach ($batch->captured_results ?? array() as $item){
-							
-							if(!isset($analaytesHolder[$item->sample_detail_code])){
-								$analaytesHolder[$item->sample_detail_code] = array();
-							}
-							
-							$item->ops = $analysts;
-							$item->equip_name = $item->equipment()->name ?? '-';
-							
-							$item->def_operator = $item->defacto_analyst();
-							$item->analysis_type = $item->analysis_type;
-							$analyte = getAnalyteByID($item->analyte_id);
-							
-							if(isset($analyte->id)){
-
-								$item->analyte_name = $analyte->name;  
-								
-								
-								
-							}else{
-								$item->analyte_name = $item->analyte_code;  
-								
-							}
-							$item->methods = $analyte->methods();
-							$analaytesHolder[$item->sample_detail_code][] = $item;
-							$sample_details_test = getSampleDetailById($item->sample_detail_id);
-							if(isset($sample_details_test->id)){
-								$standard = getStandardByid($sample_details_test->main_standard);
-								$sec = getStandardByid($sample_details_test->secondary_standard);
-								if(isset($standard->id)){
-									$analyte_standard = getAnalyteStandardValue($item->analyte_id,$standard->id);
-									if(isset($analyte_standard->id)){
-										if($analyte_standard->standard_value_type == 'is_range'){
-											$item->standard_value = $analyte_standard->low.' - '.$analyte_standard->high;
-										}elseif($analyte_standard->standard_value_type == 'is_standard_value'){
-											$value_id = getStandardValuebyID($analyte_standard->standard_value_id);
-											if(isset($value_id->id)){
-												if($value_id->code == 'IsValue'){
-													$item->standard_value = $analyte_standard->standard_is_value;
-												}else{
-													$item->standard_value = $value_id->code;
-												}
-											}
-										}
-									}else{
-										$item->standard_value = 'NS';
-									}
-									$item->main_standard = $standard->code;
-									
-								}
-								if(isset($sec->id)){
-									$item->secondary_standard = $sec->code;
-								}
-							}
-						}
-
-						foreach ($batch->samples ?? array() as $sample) {
-							$labSamples[$sample->sample_code] = getSampleDetailsLab($sample->id);
-							if(!isset($analysisBySample[$sample->sample_code])){
-								$analysisBySample[$sample->sample_code] = array();
-							}
-							$analysisBySample[$sample->sample_code] = array_merge(explode(",",$sample->analysis_type_id), $analysisBySample[$sample->sample_code]);
-
-							foreach($analysisBySample[$sample->sample_code] as $id){
-								$analysis = getAnalysisTypeID($id);
-								if(!isset($analysisBySampleNames[$sample->sample_code])){
-									$analysisBySampleNames[$sample->sample_code] = [];
-								}
-								$analysisBySampleNames[$sample->sample_code][$analysis->name] = $analysis->id;
-							}
-						}
-
-						// echo json_encode($batch->all_samples());
-					?>
 					<tbody id="sample-detail-rows"
 						data-analysis_names = '{{json_encode($analysisBySampleNames)}}'
 						data-sample_analysis_ids = '{{ json_encode($analysisBySample) }}'
 						data-parameters='{{ json_encode($analaytesHolder) }}'
-						data-conditions='{{ json_encode($selectedSampleType->sample_condition ?? array()) }}'
+						data-conditions='{{ json_encode($conditions ?? array()) }}'
 						data-stores='{{ json_encode($labStores) }}'
-						data-analysis_types='{{ json_encode($selectedSampleType->analysis_types ?? array()) }}'
-						data-samples="{{ json_encode(isset($batch->id) ? $batch->all_samples() : array()) }}"
+						data-analysis_types='{{ json_encode($selected_analysis_types) }}'
+						data-samples="{{ json_encode($allsamples) }}"
 						data-ammendments = "{{ json_encode($ammendable) }}"
 						data-client = "{{json_encode(Auth::user())}}"
 						data-batch = "{{json_encode($batch ?? array())}}"
@@ -1399,77 +1225,8 @@
   </main>
 @endsection
 @section('script2')
-<div class="carry_data hidden" data-userlabsection="{{json_encode(auth()->user()->labsectionids)}}"></div>
-<div class="modal fade" id="change-approval-status" role="dialog">
-	<div class="modal-dialog">
+<div class="carry_data hidden" data-userlabsection="{{json_encode($userLabSections)}}"></div>
 
-		<div class="modal-content">
-			<form action="{{route('changeBatchApprovalStatus')}}" method="post">
-				@csrf  
-				<div class="modal-body">
-					
-				</div>
-				<div class="modal-footer">
-					<button type="submit" class="btn btn-sm btn-outline-success"><i class="mdi mdi-content-save"></i> Submit</button>
-					<span class="btn btn-sm btn-default" data-dismiss="modal">Close</span>
-				</div>
-			</form>
-		</div>
-	</div>
-</div>
-<div class="modal fade" id="edit-batch-approver" role="dialog">
-	<div class="modal-dialog">
-		<div class="modal-content">
-			<form action="{{route('editVerificationApproverConfig')}}" method="post">
-				@csrf  
-				<div class="modal-body">
-					
-				</div>
-				<div class="modal-footer">
-					<button type="submit" class="btn btn-sm btn-outline-primary"><i class="mdi mdi-content-save"></i> Save</button>
-					<span class="btn btn-sm btn-default" data-dismiss="modal">Close</span>
-				</div>
-			</form>
-		</div>
-	</div>
-</div>
-<div class="modal fade" id="delete-batch-approver" role="dialog">
-	<div class="modal-dialog">
-		<div class="modal-content">
-			<form action="{{route('deleteVerificationApproverConfig')}}" method="post">
-				@csrf 
-				<div class="modal-body">
-					
-				</div>
-				<div class="modal-footer">
-					<button type="submit" class="btn btn-sm btn-outline-danger"><i class="mdi mdi-delete-empty"></i> Yes, Delete</button>
-					<span class="btn btn-sm btn-default" data-dismiss="modal">Close</span>
-				</div>
-			</form>
-		</div>
-	</div>
-</div>
-<div class="modal fade" id="add-payment-details" role="dialog">
-    <div class="modal-dialog">
-        <div class="modal-content">
-            <form action="{{ route('payment-detail-add')}}" enctype="multipart/form-data" method="post">
-                @csrf
-                <div class="modal-header">
-                    <h5 class="modal-title">
-                        <i class="mdi mdi-plus text-primary"></i> Add Payment
-                    </h5>
-                </div>
-                <div class="modal-body">
-                   
-                </div>
-                <div class="modal-footer">
-                    <button type="submit" class="btn btn-outline-primary "> <i class="mdi mdi-content-save"></i> Save</button>
-                    <button type="button" class="btn btn-outline-danger " data-dismiss="modal">Cancel</button>
-                </div>
-            </form>
-        </div>
-    </div>
-</div>
 <div id="add-company-unit" class="modal fade" role="dialog">
 	<div class="modal-dialog">
 		<!-- Modal content-->
@@ -1590,10 +1347,76 @@
 </div>
 
 @if(isset($batch->id))
-<?php 
-$customer = getCrmCustomerByID($batch->crm_customer_id);
+<div class="modal fade" id="change-approval-status" role="dialog">
+	<div class="modal-dialog">
 
-?>
+		<div class="modal-content">
+			<form action="{{route('changeBatchApprovalStatus')}}" method="post">
+				@csrf  
+				<div class="modal-body">
+					
+				</div>
+				<div class="modal-footer">
+					<button type="submit" class="btn btn-sm btn-outline-success"><i class="mdi mdi-content-save"></i> Submit</button>
+					<span class="btn btn-sm btn-default" data-dismiss="modal">Close</span>
+				</div>
+			</form>
+		</div>
+	</div>
+</div>
+<div class="modal fade" id="edit-batch-approver" role="dialog">
+	<div class="modal-dialog">
+		<div class="modal-content">
+			<form action="{{route('editVerificationApproverConfig')}}" method="post">
+				@csrf  
+				<div class="modal-body">
+					
+				</div>
+				<div class="modal-footer">
+					<button type="submit" class="btn btn-sm btn-outline-primary"><i class="mdi mdi-content-save"></i> Save</button>
+					<span class="btn btn-sm btn-default" data-dismiss="modal">Close</span>
+				</div>
+			</form>
+		</div>
+	</div>
+</div>
+<div class="modal fade" id="delete-batch-approver" role="dialog">
+	<div class="modal-dialog">
+		<div class="modal-content">
+			<form action="{{route('deleteVerificationApproverConfig')}}" method="post">
+				@csrf 
+				<div class="modal-body">
+					
+				</div>
+				<div class="modal-footer">
+					<button type="submit" class="btn btn-sm btn-outline-danger"><i class="mdi mdi-delete-empty"></i> Yes, Delete</button>
+					<span class="btn btn-sm btn-default" data-dismiss="modal">Close</span>
+				</div>
+			</form>
+		</div>
+	</div>
+</div>
+<div class="modal fade" id="add-payment-details" role="dialog">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <form action="{{ route('payment-detail-add')}}" enctype="multipart/form-data" method="post">
+                @csrf
+                <div class="modal-header">
+                    <h5 class="modal-title">
+                        <i class="mdi mdi-plus text-primary"></i> Add Payment
+                    </h5>
+                </div>
+                <div class="modal-body">
+                   
+                </div>
+                <div class="modal-footer">
+                    <button type="submit" class="btn btn-outline-primary "> <i class="mdi mdi-content-save"></i> Save</button>
+                    <button type="button" class="btn btn-outline-danger " data-dismiss="modal">Cancel</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
 <div class="modal fade" id="send-payment-reminder" role="dialog">
 	<div class="modal-dialog modal-lg">
 		<div class="modal-content">
@@ -1751,15 +1574,7 @@ $customer = getCrmCustomerByID($batch->crm_customer_id);
 					<label class="control-label">Name</label>
 					<input type="text" class="form-control" name="name" placeholder="Name..." required />
 				</div>
-				{{-- <div class="form-group">
-					<label>{{ trim($customer->unit_configurable_name)!="" ? $customer->unit_configurable_name : 'Unit' }}</label>
-					<select class="form-control" name="unit" placeholder="Select..." required>
-						<option></option>
-						@foreach ($customer->units as $item)
-						<option value="{{ $item->id }}">{{ $item->name }}</option>
-						@endforeach
-					</select>
-				</div> --}}
+				
 				<div class="form-group">
 					<label class="control-label"><input type="checkbox" value="1" name="active" checked /> Is Active?</label>
 				</div>
@@ -1881,7 +1696,7 @@ $customer = getCrmCustomerByID($batch->crm_customer_id);
 			</form>
 		</div>
 	</div>
-	<?php $requestTypes = getRequestTypes(); ?>
+	
 	@if(in_array($batch->status, array("Sample Verification","Sample Approval","Reports In Payment","Reports for Collection","Samples In Lab")))
 		@if($batch->processed_results()->count() > 0)
 			<div id="send-for-approval-modal" class="modal fade" role="dialog">
@@ -1995,7 +1810,7 @@ $customer = getCrmCustomerByID($batch->crm_customer_id);
 								<label class="control-label">User To Notify</label>
 								<select class="form-control" name="user_id" required placeholder="Select User...">
 									<option></option>
-									@foreach (getNotifiableUsers() as $item)
+									@foreach ($notifiable_users as $item)
 										<option value="{{ $item->id }}">{{ $item->name }}</option>
 									@endforeach
 								</select>
@@ -2004,7 +1819,7 @@ $customer = getCrmCustomerByID($batch->crm_customer_id);
 								<label class="control-label">Also Notify <small class="text-muted">*Optional</small></label>
 								<select class="form-control" name="followers[]" multiple placeholder="Other Notifiable Users...">
 									<option></option>
-									@foreach (getNotifiableUsers() as $item)
+									@foreach ($notifiable_users as $item)
 										<option value="{{ $item->id }}">{{ $item->name }}</option>
 									@endforeach
 								</select>
@@ -2339,7 +2154,7 @@ $customer = getCrmCustomerByID($batch->crm_customer_id);
 						<label class="control-label">User To Notify</label>
 						<select class="form-control" name="user_id" required placeholder="Select User...">
 							<option></option>
-							@foreach (getNotifiableUsers() as $item)
+							@foreach ($notifiable_users as $item)
 								<option value="{{ $item->id }}">{{ $item->name }}</option>
 							@endforeach
 						</select>
@@ -2348,7 +2163,7 @@ $customer = getCrmCustomerByID($batch->crm_customer_id);
 						<label class="control-label">Also Notify <small class="text-muted">*Optional</small></label>
 						<select class="form-control" name="followers[]" multiple placeholder="Other Notifiable Users...">
 							<option></option>
-							@foreach (getNotifiableUsers() as $item)
+							@foreach ($notifiable_users as $item)
 								<option value="{{ $item->id }}">{{ $item->name }}</option>
 							@endforeach
 						</select>
@@ -2362,7 +2177,7 @@ $customer = getCrmCustomerByID($batch->crm_customer_id);
 
 							<option value="Recheck">Recheck</option>
 							@endif
-							@foreach (getNotesReminderTypes() as $item)
+							@foreach ($notesReminderType as $item)
 								<option value="{{ $item }}">{{ $item }}</option>
 							@endforeach
 						</select>
