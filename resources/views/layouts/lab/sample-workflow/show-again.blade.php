@@ -1722,13 +1722,13 @@
 {{-- @if(isset($batch->status)) --}}
 	
 		{{-- <link rel="stylesheet" href="/css/quilljs.css" /> --}}
-		<script type="text/javascript" src="/tinymce/tinymce.min.js"></script>
+		{{-- <script type="text/javascript" src="/tinymce/tinymce.min.js"></script> --}}
 	
 {{-- @endif --}}
 <script>
-	tinymce.init({
-		selector: 'textarea.editor'
-	});
+	// tinymce.init({
+	// 	selector: 'textarea.editor'
+	// });
 	var detectChange = function(ts){
 		var op = $(ts).children('option:selected');
 		$('#client-unit-select').html('<option value="" selected>Select Organizational Unit...</option>');
@@ -2720,13 +2720,13 @@
 			$('#sample-header-body-'+n).html(headerBody)
 			$('#sample-main-body-'+n).html(mainBody);
 			console.log(n);
-			tinymce.init({
-				selector: '#sample-header-body-'+n
-			});
+			// tinymce.init({
+			// 	selector: '#sample-header-body-'+n
+			// });
 
-			tinymce.init({
-				selector: '#sample-main-body-'+n
-			});
+			// tinymce.init({
+			// 	selector: '#sample-main-body-'+n
+			// });
 		});
 		$('#batch-info-sample-type').trigger('change');
 
