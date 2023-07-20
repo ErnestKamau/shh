@@ -50,7 +50,7 @@
     } */
     .footer {
         position: fixed;
-        bottom: 150;
+        bottom: 140;
         left: 0;
         right: 0;
 
@@ -76,7 +76,7 @@
 
     <footer class="footer">
 
-        <table class="container" style="margin-top: 1px !important;">
+        <table class="" style="margin-top: 1px !important; border-bottom:1px solid black;width:100%">
 
             <tr>
                 @foreach ($batch_approvers as $approver)
@@ -92,18 +92,18 @@
             </tr>
         </table>
 
-        <div style="margin-top:5px">
+        <div style="margin-top:10px">
             <table style="width:100%">
                 <tr>
-                    <td>
+                    <td style="width: 10%">
                         <img src="data:image/png;base64, {!! $qrcode !!}" width="60" height="60"> <br>
                         <span style="font-size: 8px !important;">Scan to Verify</span>
                         
                     </td>
-                    <td>
-                        <div class="text-center"><b>{{ $company->name }}</b></div>
+                    <td style="text-align: center">
+                        <div class=""><b>{{ $company->name }}</b></div>
                         <div class="company-location p-2">
-                            <table>
+                            <table style="font-size: 7px">
                                 <tr>
                                     <td colspan="3"  style="font-size: 8px !important;">{{ $company->street }} - P.O. Box {{ $company->address }},
                                         {{ $company->location }}</td>
@@ -118,11 +118,13 @@
                                     <td  style="font-size: 8px !important;">Tel2: {{ explode('/', $company->cell_phone)[0] ?? '' }}</td>
                                     <td  style="font-size: 8px !important;">Web: {{ $company->website }}</td>
                                 </tr>
+                               
 
                             </table>
                         </div>
-                        <div class="text-center"  style="font-size: 8px !important;"><b>Member of POLUCON Group</b></div>
+                        <div class="text-center"  style="font-size: 8px !important;"><u><b>Member of POLUCON Group</b></u></div>
                     </td>
+                    <td style="width:30%"></td>
                 </tr>
             </table>
         </div>
@@ -134,7 +136,7 @@
 
             <table class="table table-sm table-bordered" style="font-size: 8px;">
                 <thead style="height: 60px !important;">
-                    <tr style="border: solid 1px black !important;">
+                    <tr style="border: solid 1px black !important;margin:0 !important">
                         <th style="font-size: 6px !important;border: solid 0 transparent !important" colspan="5">
                             <table
                                 style="width: 100%;border:0px; border-bottom: solid 1px black !important">
@@ -157,7 +159,7 @@
 
                         </th>
                     </tr>
-                    <tr>
+                    <tr style="margin:0 !important">
                         <th colspan="5" style="border: solid 0 transparent !important;border-bottom:1px solid rgba(0, 0, 0, 0.35)">
                             <table style="width: 100%;border:0px;">
                                 <tr>
@@ -186,9 +188,14 @@
                                     <td style="border: solid 0 transparent !important;padding-left:10px !important;font-size:8px !important;border-right:1px solid rgba(0, 0, 0, 0.35)">{{ $sample->sampling_method_name }}</td>
                                 </tr>
                                 <tr>
+                                    <td style="border: solid 0 transparent !important;border-right:1px solid rgba(0, 0, 0, 0.35);font-size:8px !important;border-left:1px solid rgba(0, 0, 0, 0.35)">{{strtoupper($sample->main_lab_name)}}</td>
+                                    <td style="border: solid 0 transparent !important;padding-left:10px !important;font-size:8px !important;border-right:1px solid rgba(0, 0, 0, 0.35)">{{ $batch->approval_date ?? '-' }}</td>
+                                </tr>
+                                <tr>
                                     <td style="border: solid 0 transparent !important;border-right:1px solid rgba(0, 0, 0, 0.35);font-size:8px !important;border-bottom:1px solid rgba(0, 0, 0, 0.35);border-left:1px solid rgba(0, 0, 0, 0.35)">MARKINGS</td>
                                     <td style="border: solid 0 transparent !important;padding-left:10px !important;font-size:8px !important;border-bottom:1px solid rgba(0, 0, 0, 0.35);border-right:1px solid rgba(0, 0, 0, 0.35)">{{ $sample->comments }}</td>
                                 </tr>
+                               
                             </table>
                         </th>
                     </tr>
@@ -246,7 +253,7 @@
                 </tbody>
             </table>
 
-            <table style="margin:0px !important">
+            <table style="margin:0px !important;width:100%">
                 <tr style="margin:0px !important">
                     <td style="font-size:8px !important;">
                         <b>Comments : </b>{{ $sample->header_body }}
@@ -267,14 +274,28 @@
                         </div>
                     </td>
                 </tr>
-                <tr>
-                    <td  style="font-size: 8px !important;">
-                        <b>{{ $sample->main_lab_name }} <br>
-                            {{ $batch->approval_date ?? '-' }}
-                        </b>
-                    </td>
-                </tr>
             </table>
+            @if($sample->getAccredittedStatus() >= 1)
+            <div class="" style="display:inline-block;position:fixed;bottom:50;left:70%">
+                <img src="{{$kebs}}" style="width:60px;height:60px" alt="">
+           
+                <img src="{{$kenas}}" style="width:60px;height:60px" alt="">
+                
+        
+                <img src="{{$ilac}}" style="width:60px;height:60px" alt="">
+            </div>
+            @else
+            <div class="" style="display:inline-block;position:fixed;bottom:50;left:70%">
+                <img src="{{$kebs}}" style="width:60px;height:60px" alt="">
+                    
+                <img src="{{$nema}}" style="width:60px;height:60px" alt="">
+                
+            
+                <img src="{{$ispm}}" style="width:60px;height:60px" alt="">
+            </div>
+
+            @endif
+            
 
             @if ($loop->iteration < $samples->count())
                 <div style="page-break-after: always;">
@@ -288,7 +309,7 @@
         $size = 9;
         $font = $fontMetrics->getFont("Verdana");
         $width = $fontMetrics->get_text_width($text, $font, $size) / 2;
-        $x = ($pdf->get_width() - $width) / 2;
+        $x = ($pdf->get_width() - $width) / 1;
         $y = $pdf->get_height() - 20;
         $pdf->page_text($x, $y, $text, $font, $size);
     }

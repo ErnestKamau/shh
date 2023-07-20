@@ -4,6 +4,7 @@ namespace App;
 
 use Illuminate\Database\Eloquent\Model;
 use OwenIt\Auditing\Contracts\Auditable;
+use App\SampleTypeCategory;
 
 class SampleType extends Model implements Auditable
 {
@@ -16,5 +17,8 @@ class SampleType extends Model implements Auditable
   }
   public function sample_analysis_stage(){
     return $this->hasMany('App\SampleToSampleAnalysisStage');
+  }
+  public function category(){
+    return SampleTypeCategory::find($this->sample_type_category)->sample_type_category ?? '';
   }
 }

@@ -120,10 +120,12 @@ class ReportHeaderDetailController extends Controller
 	public function process_pdf_report($batch_id)
 	{
 		$path = public_path('images/company_logo.png');
-		$kenas = public_path('images/kenas.png');
-		// add neema logo 
-		// $tick = public_path('images/tick.png');
-
+		$kenas = public_path('images/kenas.jpeg');
+		$ilac = public_path('images/ilac.png');
+		$nema = public_path('images/nemalogo.jpg');
+		$ispm = public_path('images/ISPM.jpeg');
+		$kebs = public_path('images/kebs.png');
+		
 		$batch = \App\SampleHeader::find($batch_id);
 		$batch->processing_date = getTodayDate();
 		$batch->in_ammendment_proccess = 0;
@@ -159,7 +161,7 @@ class ReportHeaderDetailController extends Controller
 		
 		$pdf = app('dompdf.wrapper');
 		$pdf->getDomPDF()->set_option("enable_php", true);
-		$pdf = PDF::loadView('layouts.lab.reports.coa_formats.standard_report', compact('samples', 'company', 'qrcode', 'path', 'kenas', 'batch_approvers','pdf','batch','non_accredited','disclaimer'));
+		$pdf = PDF::loadView('layouts.lab.reports.coa_formats.standard_report', compact('samples', 'company', 'qrcode', 'path', 'kenas', 'batch_approvers','pdf','batch','non_accredited','disclaimer','kebs','ilac','ispm','nema'));
 
 		if (is_dir(storage_path() . '/app/reports/' . $customer_name)) {
 			$pdf->save(storage_path() . '/app/reports/' . $customer_name . '/' . $filename);
@@ -176,9 +178,7 @@ class ReportHeaderDetailController extends Controller
 		}
 		$batch->batch_report_url = '/reports/' . $customer_name . '/' . $filename;
 		$batch->save();
-		// $detailType = array("App\SampleHeader", "App\CRMCustomer");
-		// return response()->json('test');
-
+		
 		return 'success';
 	}
 	

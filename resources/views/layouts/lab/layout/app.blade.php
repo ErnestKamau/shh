@@ -252,7 +252,7 @@
 			<span class="menu-collapsed">Lab Sections</span>
 		</div>
 	</a>
-	{{-- <a href="#configuration-menu" data-toggle="collapse" aria-expanded="false" class="bg-dark list-group-item list-group-item-action flex-column align-items-start">
+	<a href="#configuration-menu" data-toggle="collapse" aria-expanded="false" class="bg-dark list-group-item list-group-item-action flex-column align-items-start">
 		<div class="d-flex w-100 justify-content-start align-items-center">
 			<span class="mdi mdi-cogs mr-3"></span>
 			<span class="menu-collapsed">Configurations</span>
@@ -261,16 +261,20 @@
 	</a>
 	<div id="configuration-menu" class="collapse sidebar-submenu">
 
-		<a href="" class="list-group-item list-group-item-action bg-dark text-white">
+		<a href="{{route('sample-product-index')}}" class="list-group-item list-group-item-action bg-dark text-white">
 			<span class="menu-collapsed"><i class="mdi mdi-circle-medium"></i> Products
 				<small class="float-right badge badge-pill"></small></span>
 		</a>
-		<a href="" class="list-group-item list-group-item-action bg-dark text-white">
+		<a href="{{route('sample_condition_index')}}" class="list-group-item list-group-item-action bg-dark text-white">
 			<span class="menu-collapsed"><i class="mdi mdi-circle-medium"></i> Sample Conditions
 				<small class="float-right badge badge-pill"></small></span>
 		</a>
+		<a href="{{route('sample-type-category-index')}}" class="list-group-item list-group-item-action bg-dark text-white">
+			<span class="menu-collapsed"><i class="mdi mdi-circle-medium"></i> Sample Type Category
+				<small class="float-right badge badge-pill"></small></span>
+		</a>
 
-	</div> --}}
+	</div>
 
 	<a href="/qualification-home" class="bg-dark list-group-item list-group-item-action">
 		<div class="d-flex w-100 justify-content-start align-items-center">

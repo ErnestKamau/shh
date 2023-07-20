@@ -51,7 +51,7 @@
                 </div>
             </div>
             <div class="title mt-2">
-                <b class="ml-5 text-danger float-right" style="font-size: 20px">{{ pad_str($batch->id, 3) }}</b>
+                <b class="ml-5 text-danger float-right" style="font-size: 30px">{{ pad_str($batch->id, 3) }}</b>
                 <div class="text-center"><u><b style="font-size:20px">SAMPLE SUBMISSION / CUSTOMER FOCUS FOCUS
                             FORM</b></u></div>
             </div>
@@ -133,10 +133,10 @@
                     </table>
                 </div>
                 <div class="batch-declarations border-bottom border-dark" style="width:100%">
-                    <ol type="1">
+                    <ol type="1" style="padding:16px !important">
                         <li>Are Client`s instructions clear ?  <input type="checkbox" class="ml-5" name=""
                             {{ $batch->client_instruction_clear == 1 ? 'checked' : '' }} id=""></li>
-                        <li style="width:100%">Condition and quality of sample <u><span class="text-bold text-muted ml-5" style="display: inline-block;width:75%">{{ $batch->condition_quality_sample }}</u> </span></li>
+                        <li style="width:100%">Condition and quality of sample <u><span class="text-bold text-muted ml-5" style="display: inline-block;width:82%">{{ $batch->condition_quality_sample }}</u> </span></li>
                         <li>
                             <ol type="a" class="bracket-cover">
                                 <li class="bracket_cover"><input type="checkbox" name=""
@@ -153,40 +153,36 @@
                             </ol>
                         </li>
                         <div class="payment-details">
-                            Analysis charges Ksh. <span class="text-bold text-muted">{{ $batch->invoice_amount }}
-                            </span>16% VAT Kshs. <span
-                                class="text-bold text-muted">{{ $payment_detail->vat ?? 0 }}</span> <b>amount paid
-                            </b>Kshs <span class="text-bold text-muted">{{ $payment_detail->amount ?? 0 }}</span>
-                            Balance Kshs. <span class="text-bold text-muted">{{ $payment_detail->balance ?? 0 }}
-                            </span> Payments to be made by <span
-                                class="text-bold text-muted">{{ $customer->name }}</span> Contact Person <span
-                                class="text-bold text-muted">{{ $payment_detail->contactpersonname ?? '-' }}</span>
+                            Analysis charges Ksh. <u><span style="display: inline-block;width:10%" class="text-bold text-center text-muted">{{ $batch->invoice_amount }}
+                            </span></u> 16% VAT Kshs. <u> <span
+                                class="text-bold text-muted text-center" style="display: inline-block;width:10%" >{{ $payment_detail->vat ?? 0 }}</span></u> <b>amount paid
+                            </b>Kshs <u><span style="display: inline-block;width:10%"  class="text-bold text-center text-muted">{{ $payment_detail->amount ?? 0 }}</span></u> Balance Kshs. <u><span style="display: inline-block;width:10%" class="text-bold text-center text-muted">{{ $payment_detail->balance ?? 0 }}
+                            </span></u>
+                             <br> Payments to be made by <u><span class="text-bold text-muted text-center" style="display: inline-block;width:30%">{{ $customer->name }}</span> </u> Contact Person <u><span style="display: inline-block;width:30%" class="text-bold text-center text-muted">{{ $payment_detail->contactpersonname ?? '-' }}</span></u> 
                         </div>
-                        <li>Remarks / Special Instructions <span
-                                class="text-bold text-muted">{{ $batch->batch_instructions }}</span></li>
+                        <li>Remarks / Special Instructions <u><span style="display: inline-block;width:60%" class="text-bold ml-5 text-muted">{{ $batch->batch_instructions }}</span></u> </li>
 
-                        <li>Duration of Analysis <span
-                                class="text-bold text-muted">{{ $batch->days_of_analysis }}</span></li>
+                        <li>Duration of Analysis <u><span
+                            class="text-bold text-muted ml-5" style="display: inline-block;width:50%">{{ $batch->days_of_analysis }}</span></u> </li>
                     </ol>
                 </div>
                 <div class="batch-details border-bottom border-dark pb-2 mt-2">
                     <p>
-                        Date report expected <span
-                            class="text-bold text-muted">{{ date('Y-m-d', strtotime($batch->get_date('Target Date')['date'])) }}</span><br>
-                        Report / Invoice to be sent to: <span class="text-bold text-muted"
-                            style="">{{ $customer->name }}</span> <span style="padding-left:20% !important;">
-                            By</span> <span class="text-bold text-muted" style="">Email</span> <br>
+                        Date report expected <u><span class="text-bold text-muted ml-5" style="display: inline-block;width:75%">{{ date('Y-m-d', strtotime($batch->get_date('Target Date')['date'])) }}</span></u><br>
+                        Report / Invoice to be sent to: <u><span style="display: inline-block;width:30%" class="text-bold text-center text-muted"
+                            style="">{{ $customer->name }}</span></u> <span>
+                            By</span> <u><span style="display: inline-block;width:33%" class="text-bold text-muted" style="">Email</span> </u><br>
                     </p>
                     <div class="row">
                         <div class="col-md-4">
-                            Sampled / Received By: <span class="text-bold text-muted">{{ $batch->sampled_by }},
-                                {{ $batch->received_by }}</span>
+                            Sampled / Received By: <u><span style="display: inline-block;width:30%" class="text-bold text-center text-muted">{{ $batch->sampling_officer_name }},
+                                {{ $batch->receiving_officer_name}}</span></u>
                         </div>
                         <div class="col-md-4">
                             Sign:
                         </div>
                         <div class="col-md-4">
-                            Date : <span class="text-bold text-muted">{{ $batch->date_received }}</span>
+                            Date : <u><span style="display: inline-block;width:70%" class="text-bold text-muted"> {{ $batch->receipt_date }}</span></u> 
                         </div>
                     </div>
                 </div>
@@ -198,55 +194,49 @@
                     <b>DECLARATION: TO BE FILLED BY CUSTOMER:</b>
                     <div class="row mt-2">
                         <div class="col-md-12">
-                            I <span class="text-bold text-muted"
-                                style="padding-left:5% !important;">{{ $batch->declaration_customer_name ?? '-' }}
-                            </span> <span style="padding-left:5% !important;">agree to the terms and conditions stated
+                            I <u><span class="text-bold text-center text-muted"
+                                style="!important; display: inline-block;width:50%">{{ $batch->declaration_customer_name ?? '-' }}
+                            </span></u> <span style="">agree to the terms and conditions stated
                                 herein.</span>
                         </div>
-                        <div class="col-md-12 mt-2">COMPANY / CLIENT`S NAME: <span
-                                class="text-bold text-muted">{{ $customer->name }}</span></div>
+                        <div class="col-md-12 mt-2">COMPANY / CLIENT`S NAME: <u><span style="display: inline-block;width:70%" class="text-bold text-muted ml-3">{{ $customer->name }}</span></u> </div>
                         <div class="col-md-6" style="text-align:left">
-                            ADDRESS: <span style="" class="text-bold text-muted">P.O. Box
-                                {{ $customer->postal_address }}</span> <br>
-                            TELEPHONE NUMBER: <span class="text-bold text-muted"
-                                style="">{{ $customer->telephone1 }} / {{ $customer->telephone2 }}</span>
+                            ADDRESS: <u><span style="display: inline-block;width:70%" class="text-bold text-muted ml-3">P.O. Box {{ $customer->postal_address }}</span></u>  <br>
+                            TELEPHONE NUMBER: <u><span style="display: inline-block;width:60%" class="text-bold text-muted ml-3">{{ $customer->telephone1 }} / {{ $customer->telephone2 }}</span></u> 
                         </div>
-                        <div class="col-md-6" style="text-align:right !important">
-                            EMAIL: </span> <span style=""
-                                class="text-bold text-muted">{{ $customer->email }}</span><br>
-                            KRA PIN: </span> <span class="text-bold text-muted">{{ $customer->vat_no }}</span>
+                        <div class="col-md-6">
+                            EMAIL: <u><span style="display: inline-block;width:70%"
+                                class="text-bold text-muted ml-3">{{ $customer->email }}</span></u> <br>
+                            KRA PIN: <u> <span style="display: inline-block;width:70%" class="text-bold text-muted ml-3">{{ $customer->vat_no }}</span></u>
                         </div>
                     </div>
 
-                    <div class="d-flex justify-content-between mt-2">
-                        <div class="">
-                            Date: <span
-                                class="text-bold text-muted">{{ date('Y/m/d', strtotime($batch->declaration_customer_approval_date)) }}</span>
+                    <div class="row mt-3 mb-3">
+                        <div class="col-md-4">
+                            Date: <u><span class="text-bold text-muted ml-3" style="display: inline-block;width:70%">{{$batch->declaration_customer_approval_date ?  date('Y/m/d', strtotime($batch->declaration_customer_approval_date)) : '-' }}</span></u> 
                         </div>
-                        <div class="">
+                        <div class="col-md-4">
                             Signature: <img src="{{ $batch->declaration_customer_signature }}" alt="">
                         </div>
-                        <div class="">
-                            Time: <span
-                                class="text-bold text-muted">{{ date('H:i:s', strtotime($batch->declaration_customer_approval_date)) }}</span>
+                        <div class="col-md-4">
+                            Time: <u><span class="text-bold text-muted" style="display: inline-block;width:70%">{{ $batch->declaration_customer_approval_date ? date('H:i:s', strtotime($batch->declaration_customer_approval_date)) : '-' }}</span></u> 
                         </div>
                     </div>
 
                 </div>
-                <div class="review-section d-flex justify-content-between mt-2">
-                    <div class="">
-                        Review done by: <span class="text-bold text-muted">{{ $review_staff->name ?? '' }}</span>
+                <div class="review-section row mt-2">
+                    <div class="col-md-3">
+                        Review done by: <u> <span style="display: inline-block;width:40%" class="text-bold text-muted ml-3">{{ $batch->receiving_officer_name}}</span></u>
                     </div>
-                    <div class="">
+                    <div class="col-md-3">
                         Signature: <img src="{{ $review_staff->electronic_signature ?? '' }}" alt="">
                     </div>
-                    <div class="">
-                        Date: <span
-                            class="text-bold text-muted">{{ date('Y/m/d', strtotime($batch->declaration_customer_review_approval_date)) }}</span>
+                    <div class="col-md-3">
+                        Date: <u><span style="display: inline-block;width:50%" class="text-bold text-muted ml-3">{{ date('Y/m/d', strtotime($batch->created_at)) }}</span></u> 
                     </div>
-                    <div class="">
-                        Time: <span
-                            class="text-bold text-muted">{{ date('H:i:s', strtotime($batch->declaration_customer_review_approval_date)) }}</span>
+                    <div class="col-md-3">
+                        Time: <u><span style="display: inline-block;width:70%"
+                            class="text-bold text-muted ml-3">{{ date('H:i:s', strtotime($batch->created_at)) }}</span></u> 
                     </div>
                 </div>
             </div>

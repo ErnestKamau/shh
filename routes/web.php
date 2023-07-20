@@ -86,7 +86,7 @@ Route::get('/sample-type/{id}', 'SampleTypeController@show')->name('sample-type'
 Route::post('/sample-type-delete','SampleTypeController@delete_sample_type')->name('delete-sample-type')->middleware('haspermission:Laboratory.components.Sample-Types.Delete');
 Route::post('/sample-types', 'SampleTypeController@add')->name('add-sample-types')->middleware('haspermission:Laboratory.components.Sample-Types.Add');
 Route::post('/sample-conditions', 'SampleConditionController@add')->name('add-sample-conditions');
-Route::post('/sample-condition/{condition}', 'SampleConditionController@edit')->name('edit-sample-condition');
+Route::post('/sample-condition/Edit', 'SampleConditionController@edit')->name('edit-sample-condition');
 Route::post('/sample-type/{id}', 'SampleTypeController@edit')->name('edit-sample-type')->middleware('haspermission:Laboratory.components.Sample-Types.Edit');
 Route::post('/add/sample-type-qualification/{id}','Lab\Samples\SampleQualificationsController@add')->name('add-sample-type-qualification');
 Route::post('/edit/sample-type-qualification/{id}','Lab\Samples\SampleQualificationsController@edit')->name('edit-sample-type-qualification');
@@ -472,7 +472,7 @@ Route::post('/sample-point', 'CRM\SamplePointController@add')->name('add-sample-
 Route::post('/sample-point/{id}', 'CRM\SamplePointController@edit')->name('edit-sample-point')->middleware('haspermission:CRM.components.Sample-Points.Edit');
 
 Route::post('/customer-product', 'CRM\CompanyProductController@add')->name('add-customer-product')->middleware('haspermission:CRM.components.Products.Add');
-Route::post('/customer-product/{id}', 'CRM\CompanyProductController@edit')->name('edit-customer-product')->middleware('haspermission:CRM.components.Products.Edit');
+Route::post('/customer-product/edit/{id?}', 'CRM\CompanyProductController@edit')->name('edit-customer-product')->middleware('haspermission:CRM.components.Products.Edit');
 
 Route::post('/company-contacts/{cust_id}', 'CRM\CustomerContactController@add')->name('add-company-contacts')->middleware('haspermission:CRM.components.Contacts.Add');
 Route::post('/company-contact/{id}/{cust_id}', 'CRM\CustomerContactController@edit')->name('edit-company-contact')->middleware('haspermission:CRM.components.Contacts.Edit');
@@ -778,6 +778,12 @@ Route::post('edit/Verification/Approver-Config','SampleWorkFlowController@editVe
 Route::post('delete/Verification-Approver/Config','SampleWorkFlowController@deleteVerificationApproverConfig')->name('deleteVerificationApproverConfig');
 Route::post('change/Batch-Approval/Status','SampleWorkFlowController@changeBatchApprovalStatus')->name('changeBatchApprovalStatus');
 Route::get('/get/Show-Batch/COA/{batch_code}/{format}','SampleWorkFlowController@getShowBatchCOA')->name('getShowBatchCOA');
+
+Route::get('/sample-condition-index','SampleConditionController@index')->name('sample_condition_index');
+Route::get('/sample-products/index','CRM\CompanyProductController@index')->name('sample-product-index');
+
+Route::get('/sample-type-category/index','SampleTypeCategoryController@index')->name('sample-type-category-index');
+Route::post('/sample-type-category/add','SampleTypeCategoryController@addCategory')->name('sample-type-category-add');
 
 ################################################Polucon#########################################
 

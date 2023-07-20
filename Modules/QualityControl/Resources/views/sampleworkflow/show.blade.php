@@ -1333,7 +1333,7 @@
 						<label class="control-label">Name</label>
 						<input type="text" class="form-control" name="name" placeholder="Name..." required />
 					</div>
-					<div class="form-group">
+					{{-- <div class="form-group">
 						<label>{{ trim($customer->unit_configurable_name)!="" ? $customer->unit_configurable_name : 'Unit' }}</label>
 						<select class="form-control" name="unit" placeholder="Select..." required>
 							<option></option>
@@ -1341,7 +1341,7 @@
 							<option value="{{ $item->id }}">{{ $item->name }}</option>
 							@endforeach
 						</select>
-					</div>
+					</div> --}}
 					<div class="form-group">
 						<label class="control-label"><input type="checkbox" value="1" name="active" checked /> Is Active?</label>
 					</div>

@@ -89,9 +89,6 @@
 							<a class="nav-link" id="Sample-Points-tab" data-toggle="tab" href="#Sample-Points" role="tab" aria-controls="Company-Units" aria-selected="true"><i class="mdi mdi-map-marker"></i> {{ trim($customer->sample_point_configurable_name)!="" ? $customer->sample_point_configurable_name : 'Sample Points' }}</a>
 						</li>
 						<li class="nav-item">
-							<a class="nav-link" id="Products-tab" data-toggle="tab" href="#Products" role="tab" aria-controls="Company-Units" aria-selected="true"><i class="mdi mdi-tag-text-outline"></i> {{ trim($customer->product_configurable_name)!="" ? $customer->product_configurable_name : 'Products' }}</a>
-						</li>
-						<li class="nav-item">
 							<a class="nav-link" id="Contacts-tab" data-toggle="tab" href="#Contacts" role="tab" aria-controls="Contacts" aria-selected="true"><i class="mdi mdi-account-box-outline"></i> Contacts</a>
 						</li>
 						<li class="nav-item">
@@ -758,83 +755,7 @@
 							</table>
 						</div>
 					</div>
-					<div class="tab-pane fade p-3" id="Products" role="tabpanel" aria-labelledby="one-tab">
-						<div class="p-2 row">
-							<div class="col-sm-8">
-								<h5><i class="mdi mdi-format-list-bulleted"></i> {{ trim($customer->product_configurable_name)!="" ? $customer->product_configurable_name : 'Products' }}
-									<small class="btn btn-transparent text-info" data-column='product_configurable_name' data-target="#change-label-name" data-toggle="modal" data-current="{{ $customer->product_configurable_name }}">
-										<i class="mdi mdi-pencil"></i>
-									</small>
-								</h5>
-							</div>
-							<div class="col-sm-4 align-content-center">
-								<span class="btn btn-primary float-right btn-sm" data-target="#add-company-product" data-toggle="modal">
-									<i class="mdi mdi-plus"></i> Add
-								</span>
-							</div>
-						</div>
-						<div class="table-responsive">
-							<table class="table table-condensed my-small-text table-striped table-hover table-bordered table-sm">
-								<thead class="bg-light p-2">
-									<tr>
-										<th>No</th>
-										<th nowrap>Name</th>
-										<th>{{ trim($customer->unit_configurable_name)!="" ? $customer->unit_configurable_name : 'Unit' }}</th>
-										<th nowrap>Active</th>
-										<th></th>
-									</tr>
-								</thead>
-								<tbody>
-									@foreach ($customer->units as $cunit)
-									@foreach ($cunit->products as $unit)
-									<tr>
-										<td>{{ $loop->iteration }}</td>
-										<td>{{ $unit->name }}</td>
-										<td>{{ $unit->unit->name }}</td>
-										<td class="text-small">{!! $unit->active == '1' ? '<i class="mdi mdi-marker-check text-success"></i>' : '<i class="mdi mdi-close-circle text-danger"></i>' !!}</td>
-										<td nowrap>
-											<button class="btn btn-primary btn-sm" data-target="#edit-customer-product-{{ $loop->iteration }}" data-toggle="modal"><i class="mdi mdi-pencil-outline"></i> <small class="hidden-sm-up">Edit</small> </button>
-											<div id="edit-customer-product-{{ $loop->iteration }}" class="modal fade" role="dialog">
-												<div class="modal-dialog modal-lg">
-													<!-- Modal content-->
-													<form class="modal-content" method="POST" action="{{ route('edit-customer-product', ['id'=>$unit->id]) }}" enctype="multipart/form-data">
-														@csrf
-														<div class="modal-header">
-															<h4 class="modal-title"><i class="mdi mdi-pencil-outline"></i> Edit {{ trim($customer->product_configurable_name)!="" ? $customer->product_configurable_name : 'Products' }}</h4>
-														</div>
-														<div class="modal-body">
-															<div class="form-group">
-																<label class="control-label">Name</label>
-																<input type="text" class="form-control" name="name" value="{{ $unit->name }}" placeholder="Name..." required />
-															</div>
-															<div class="form-group">
-																<label>{{ trim($customer->unit_configurable_name)!="" ? $customer->unit_configurable_name : 'Unit' }}</label>
-																<select class="form-control" name="unit" placeholder="Select..." required>
-																	<option></option>
-																	@foreach ($customer->units as $item)
-																	<option value="{{ $item->id }}" {{ $unit->crm_company_unit_id == $item->id ? 'selected' : '' }}>{{ $item->name }}</option>
-																	@endforeach
-																</select>
-															</div>
-															<div class="form-group">
-																<label class="control-label"><input type="checkbox" value="1" name="active" {{ $unit->active == 1 ? 'checked' : '' }} /> Is Active?</label>
-															</div>
-														</div>
-														<div class="modal-footer">
-															<button type="submit" class="btn btn-primary"><i class="mdi mdi-content-save"></i> Save</button>
-															<button type="button" class="btn btn-default" data-dismiss="modal">Close</button>
-														</div>
-													</form>
-												</div>
-											</div>
-										</td>
-									</tr>
-									@endforeach
-									@endforeach
-								</tbody>
-							</table>
-						</div>
-					</div>
+				
 					<div class="tab-pane fade p-3" id="Contacts" role="tabpanel" aria-labelledby="one-tab">
 						<div class="p-2 row">
 							<div class="col-sm-8">
@@ -1215,39 +1136,6 @@
 	</div>
 </div>
 
-<div id="add-company-product" class="modal fade" role="dialog">
-	<div class="modal-dialog">
-		<!-- Modal content-->
-		<form class="modal-content" method="POST" action="{{ route('add-customer-product') }}" enctype="multipart/form-data">
-			@csrf
-			<div class="modal-header">
-				<h4 class="modal-title"><i class="mdi mdi-plus"></i> Add {{ trim($customer->product_configurable_name)!="" ? $customer->product_configurable_name : 'Product' }}</h4>
-			</div>
-			<div class="modal-body">
-				<div class="form-group">
-					<label class="control-label">Name</label>
-					<input type="text" class="form-control" name="name" placeholder="Name..." required />
-				</div>
-				<div class="form-group">
-					<label>{{ trim($customer->unit_configurable_name)!="" ? $customer->unit_configurable_name : 'Unit' }}</label>
-					<select class="form-control" name="unit" placeholder="Select..." required>
-						<option></option>
-						@foreach ($customer->units as $item)
-						<option value="{{ $item->id }}">{{ $item->name }}</option>
-						@endforeach
-					</select>
-				</div>
-				<div class="form-group">
-					<label class="control-label"><input type="checkbox" value="1" name="active" checked /> Is Active?</label>
-				</div>
-			</div>
-			<div class="modal-footer">
-				<button type="submit" class="btn btn-primary"><i class="mdi mdi-content-save"></i> Save</button>
-				<button type="button" class="btn btn-default" data-dismiss="modal">Close</button>
-			</div>
-		</form>
-	</div>
-</div>
 <div id="add-company-sample-point" class="modal fade" role="dialog">
 	<div class="modal-dialog">
 		<!-- Modal content-->

@@ -11,38 +11,31 @@ class SampleConditionController extends Controller
   {
     $this->middleware('auth');
   }
-	/**
-	 * Display a listing of the resource.
-	 *
-	 * @return \Illuminate\Http\Response
-	 */
+	
 	public function index()
 	{
-		//
+		$conditions = SampleCondition::orderBy('active','DESC')->orderBy('name','ASC')->get();
+		return view('layouts.lab.sample-condition.index',compact('conditions'));
 	}
 
-	/**
-	 * Show the form for creating a new resource.
-	 *
-	 * @return \Illuminate\Http\Response
-	 */
+	
 	public function add(Request $request)
 	{
 		$condition = new SampleCondition;
 		$condition->name = $request->name;
 		$condition->active = $request->active ?? 0;
-		$condition->sample_type_id = $request->sample_type_id;
+		$condition->sample_type_id = isset($request->sample_type_id) ? $request->sample_type_id : 0;
 		$condition->save();
 
 		return redirect()->back()->with('success', 'Sample Condition Added.');
 	}
 
-	public function edit(Request $request, $id)
+	public function edit(Request $request)
 	{
-		$condition = SampleCondition::find($id);
+		$condition = SampleCondition::find($request->condition_id);
 		$condition->name = $request->name;
 		$condition->active = $request->active ?? 0;
-		$condition->sample_type_id = $request->sample_type_id;
+		$condition->sample_type_id = isset($request->sample_type_id) ? $request->sample_type_id : 0;
 		$condition->save();
 
 		return redirect()->back()->with('success', 'Sample Condition Edited.');

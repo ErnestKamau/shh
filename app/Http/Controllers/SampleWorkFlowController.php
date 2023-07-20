@@ -82,7 +82,7 @@ class SampleWorkFlowController extends Controller
 		if (!$status) {
 			$status = getSampleWorflowStages()[0];
 		}
-		$labsections  = SampleAnalysisStage::where('active',1)->get();
+		$labsections  = SampleAnalysisStage::where('active', 1)->get();
 
 		// return response()->json('test');
 		$batches = SampleHeader::where('isactive', 1)->orderBy('receipt_date', 'desc');
@@ -111,9 +111,9 @@ class SampleWorkFlowController extends Controller
 		$analysts = User::orderBy('name')->join('user_roles as ur', 'ur.user_id', '=', 'users.id')
 			->join('roles as r', 'r.id', '=', 'ur.role_id')
 			->where('r.id', $role_a->value)->where('users.active', 1)->where('users.is_support_staff', 0)->selectRaw('users.*')->get();
-		$users = User::where('is_client',0)->where('supplier_id',0)->where('active',1)->get();			
+		$users = User::where('is_client', 0)->where('supplier_id', 0)->where('active', 1)->get();
 
-		return view('layouts.lab.sample-workflow.index', compact('batches', 'status', 'analysts','labsections','users'));
+		return view('layouts.lab.sample-workflow.index', compact('batches', 'status', 'analysts', 'labsections', 'users'));
 	}
 
 	public function print_labels(Request $request)
@@ -160,9 +160,9 @@ class SampleWorkFlowController extends Controller
 				$data = array();
 				!isset($data['Sample Ref']) ? $data['Sample Ref'] = $sample->sample_code  : $data;
 				!isset($data['Sample Type']) ? $data['Sample Type'] = getSampleTypeByID($batch->sample_type_id)->name : $data;
-				!isset($data['Markings']) ? $data['Markings']  = $sample->comments: $data;
-				!isset($data['Requirements']) ? $data['Requirements'] = implode(', ',SampleAnalysisTypeRelationView::where('sample_detail_id',$sample->id)->pluck('analysis_type_name')->toArray()) : $data;
-				!isset($data['Date Received']) ? $data['Date Received'] = $batch->receipt_date : $data; 
+				!isset($data['Markings']) ? $data['Markings']  = $sample->comments : $data;
+				!isset($data['Requirements']) ? $data['Requirements'] = implode(', ', SampleAnalysisTypeRelationView::where('sample_detail_id', $sample->id)->pluck('analysis_type_name')->toArray()) : $data;
+				!isset($data['Date Received']) ? $data['Date Received'] = $batch->receipt_date : $data;
 				!isset($data['Received By']) ? $data['Received By'] = $batch->receiving_officer_name : $data;
 				!isset($data['Date Expected']) ? $data['Date Expected'] =  date('Y-m-d', strtotime($batch->get_date('Target Date')['date'])) : $data;
 				!isset($data['Disposal Date']) ? $data['Disposal Date'] = $sample->disposal_date : $data;
@@ -351,16 +351,16 @@ class SampleWorkFlowController extends Controller
 
 	public function add_batch_info(Request $request, $batch)
 	{
-		if(isset($request->is_qc_batch)){
-			if(isset($request->repeat_sample_id) && $request->repeat_sample_id > 0){
+		if (isset($request->is_qc_batch)) {
+			if (isset($request->repeat_sample_id) && $request->repeat_sample_id > 0) {
 				$repeat_samples = SampleDetails::find($request->repeat_sample_id);
 				$last_header = SampleHeader::find($repeat_samples->sample_header_id);
 				$selectedCustomer = CRMCustomer::find($last_header->crm_customer_id);
-			}else{
-				$qc_customer_id = SystemConfiguration::where('key','qc_customer_id')->first();
+			} else {
+				$qc_customer_id = SystemConfiguration::where('key', 'qc_customer_id')->first();
 				$selectedCustomer = CRMCustomer::find($qc_customer_id->value);
 			}
-		}else{
+		} else {
 			$selectedCustomer = CRMCustomer::find($request->crm_customer_id);
 		}
 		$selectedSampleType = SampleType::find($request->sample_type_id);
@@ -368,7 +368,7 @@ class SampleWorkFlowController extends Controller
 		if (!isset($batch_config->id)) {
 			return redirect()->back()->with('error', 'Kindly add batch_code_config configuration');
 		}
-		
+
 		$cust_code = str_split($selectedCustomer->code);
 		$code = [];
 		$loop = 0;
@@ -436,39 +436,39 @@ class SampleWorkFlowController extends Controller
 		$header->begin_proccess = isset($request->is_qc_batch) ?  1 : 0;
 		$header->quote_no = $request->quote_no;
 		$header->lab_capable = isset($request->lab_capable) ? 1 : 0;
-		$header->can_be_subcontracted = isset($request->can_be_subcontracted) ? 1 :0;
-		$header->batch_subcontracted_client_approval = isset($request->batch_subcontracted_client_approval) ? 1 :0;
+		$header->can_be_subcontracted = isset($request->can_be_subcontracted) ? 1 : 0;
+		$header->batch_subcontracted_client_approval = isset($request->batch_subcontracted_client_approval) ? 1 : 0;
 		$header->client_instruction_clear = isset($request->client_instruction_clear) ? 1 : 0;
 		$header->batch_instructions = $request->batch_instructions;
 		$header->sampling_method_id = $request->sampling_method_id;
 		$header->condition_quality_sample = $request->condition_quality_sample;
 		$header->invoice_amount = $request->invoice_amount;
-		$header->lab_section_ids= implode(',',$request->lab_section_ids ?? []);
+		$header->lab_section_ids = implode(',', $request->lab_section_ids ?? []);
 
 		if ($isInReception) {
 			$header->sample_type_id = $request->sample_type_id;
-			if(isset($request->is_qc_batch)){
-				if(isset($request->repeat_sample_id) && $request->repeat_sample_id > 0){
+			if (isset($request->is_qc_batch)) {
+				if (isset($request->repeat_sample_id) && $request->repeat_sample_id > 0) {
 					$repeat_samples = SampleDetails::find($request->repeat_sample_id);
 					$last_header = SampleHeader::find($repeat_samples->sample_header_id);
-					
+
 					$header->crm_customer_id = $last_header->crm_customer_id;
 					$header->sample_type_id = $last_header->sample_type_id;
 					$header->crm_unit_name = $last_header->crm_unit_name;
-				}else{
-					$qc_customer_id = SystemConfiguration::where('key','qc_customer_id')->first();
-					$qc_customer_unit = SystemConfiguration::where('key','qc_customer_unit')->first();
-					
+				} else {
+					$qc_customer_id = SystemConfiguration::where('key', 'qc_customer_id')->first();
+					$qc_customer_unit = SystemConfiguration::where('key', 'qc_customer_unit')->first();
+
 					$header->crm_customer_id = $qc_customer_id->value;
-					
+
 					$header->crm_unit_name = $qc_customer_unit->value;
 				}
-			}else{
+			} else {
 
 				$header->crm_customer_id = $request->crm_customer_id;
-				
+
 				$header->crm_unit_name = $request->crm_unit_name;
-	
+
 				$customer = getCrmCustomerByID($request->crm_customer_id);
 				$account = SystemConfiguration::find($customer->account_status);
 				if (isset($account->id)) {
@@ -528,7 +528,7 @@ class SampleWorkFlowController extends Controller
 		}
 
 		$header->save();
-		if(isset($request->repeat_sample_id) && $request->repeat_sample_id > 0){
+		if (isset($request->repeat_sample_id) && $request->repeat_sample_id > 0) {
 			$samples = SampleDetails::find($request->repeat_sample_id);
 			$new_sample = $samples->replicate();
 			$config_start_no = SystemConfiguration::where('key', 'start_sample_no')->first();
@@ -537,14 +537,14 @@ class SampleWorkFlowController extends Controller
 			}
 			$last_sample = isset(SampleDetails::latest('id')->first()->id) ? explode('-', SampleDetails::max('sample_code'))[1]  : $config_start_no->value;
 			$sample_number = intval($last_sample)  + 1;
-			
+
 			$new_sample->sample_code = 'S0513-' . $sample_number;
 			$new_sample->sample_header_id = $header->id;
 			$new_sample->save();
-			$captureds = CapturedResult::where('sample_detail_id',$samples->id)->get();
-			foreach($captureds as $capture){
+			$captureds = CapturedResult::where('sample_detail_id', $samples->id)->get();
+			foreach ($captureds as $capture) {
 				$new_capture = $capture->replicate();
-				$result = Result::where('captured_result_id',$capture->id)->first();
+				$result = Result::where('captured_result_id', $capture->id)->first();
 				$new_capture->sample_detail_id = $new_sample->id;
 				$new_capture->sample_header_id = $header->id;
 				$new_capture->sample_detail_code = $new_sample->sample_code;
@@ -630,17 +630,17 @@ class SampleWorkFlowController extends Controller
 				if (!isset($config_start_no->id)) {
 					return redirect()->back()->with('error', 'Kindly configure the start sample No');
 				}
-				if(isset(SampleDetails::latest('id')->first()->id)){
+				if (isset(SampleDetails::latest('id')->first()->id)) {
 					$code = SampleDetails::latest('id')->first()->sample_code;
-					$last_sample = substr($code,9,strlen($code));
-				}else{
+					$last_sample = substr($code, 9, strlen($code));
+				} else {
 					$last_sample = $config_start_no->value;
 				}
 				// $last_sample = isset(SampleDetails::latest('id')->first()->id) ? substr(SampleDetails::latest('id')->first()->sample_code,9,strlen(SampleDetails::latest('id')->first()->sample_code) -1) : $config_start_no->value;
 				$lab = Lab::find($request->sample_details['lab_id'][$k]);
 				// return response()->json($request->sample_details['lab_id'][$k]);
 				$sample_number = intval($last_sample)  + 1;
-				$detail->sample_code = 'S'.date('Y'). $lab->code . $sample_number;
+				$detail->sample_code = 'S' . date('Y') . $lab->code . $sample_number;
 			}
 			if (isset($detail->id)) {
 				$current_analysis = explode(',', $detail->analysis_type_id);
@@ -673,7 +673,7 @@ class SampleWorkFlowController extends Controller
 			$detail->secondary_standard = $request->sample_details['secondary_standard'][$k];
 			$detail->lab_id = $request->sample_details['lab_id'][$k];
 			$detail->save();
-			$this->createDetailAnalysisRelation($SampleHeader->id,$detail->id,explode(',',$detail->analysis_type_id));
+			$this->createDetailAnalysisRelation($SampleHeader->id, $detail->id, explode(',', $detail->analysis_type_id));
 
 
 			if (isset($current_analysis) && sizeof($current_analysis) > 0) {
@@ -695,7 +695,7 @@ class SampleWorkFlowController extends Controller
 			$analysis_max_report_time = AnalysisType::whereIn('id', $request->sample_details['sample_analysis'][$k])->max('reporting_time');
 			$analytes_max_report_time = AnalysisElements::whereIn('analysis_type_id', $request->sample_details['sample_analysis'][$k])->max('reporting_time');
 			$maxReportingTime = $analysis_max_report_time > $analytes_max_report_time ? $analysis_max_report_time : $analytes_max_report_time;
-			
+
 
 			if (trim($request->sample_details['sample_store'][$k]) != "" && trim($request->sample_details['sample_store_slot'][$k]) != "" && trim($request->sample_details['sample_quantity'][$k]) != "") {
 
@@ -909,19 +909,18 @@ class SampleWorkFlowController extends Controller
 
 		return redirect()->back()->within('success', 'Batch Samples updated.');
 	}
-	public function createDetailAnalysisRelation($batch_id,$sample_id,$analysis_type)
+	public function createDetailAnalysisRelation($batch_id, $sample_id, $analysis_type)
 	{
 		$data = [];
-		foreach($analysis_type as $at){
-			$data[]=[
-				"analysis_type_id"=>$at,
-				"batch_id"=>$batch_id,
-				"sample_detail_id"=>$sample_id
+		foreach ($analysis_type as $at) {
+			$data[] = [
+				"analysis_type_id" => $at,
+				"batch_id" => $batch_id,
+				"sample_detail_id" => $sample_id
 			];
 		}
 		sampleAnalysisTypeRelation::insert($data);
 		return "success";
-		
 	}
 	public function addBatchSamplesDynamically()
 	{
@@ -1083,8 +1082,8 @@ class SampleWorkFlowController extends Controller
 		$methods = AnalysisMethod::where('active', 1)->get();
 		$account_settings = getConfigTypeByName('Account Settings');
 		$atachment_type = SystemConfiguration::where('key', 'attachment_type')->get();
-		$users = User::where('is_client',0)->where('supplier_id',0)->where('active',1)->get();
-		$labsections = SampleAnalysisStage::where('active',1)->get();
+		$users = User::where('is_client', 0)->where('supplier_id', 0)->where('active', 1)->get();
+		$labsections = SampleAnalysisStage::where('active', 1)->get();
 		$reportingUnits = getReportingUnits();
 		$conditions = SampleCondition::all();
 		$products = CompanyProduct::all();
@@ -1097,24 +1096,25 @@ class SampleWorkFlowController extends Controller
 		}
 		$not_captured = [];
 		$payment_detail = [];
-		$contacts =[];
+		$contacts = [];
 		$batch_sample_codes = '';
 		$report_formats = [];
 		$approvers = [];
 		$headerDetails = isset($batch->id) ? $batch->report_header_details() : array();
-		if (isset($batch->id)) 
-		{
-			if(in_array($batch->status,['Sample Verification','Sample Approval'])){
-				$report_format_config = SystemConfiguration::where('key','coa_report_format')->first();
-				$report_formats = SystemConfiguration::where('configuration_type_id',$report_format_config->value)->get();
+
+		
+		if (isset($batch->id)) {
+			if (in_array($batch->status, ['Sample Verification', 'Sample Approval'])) {
+				$report_format_config = SystemConfiguration::where('key', 'coa_report_format')->first();
+				$report_formats = SystemConfiguration::where('configuration_type_id', $report_format_config->value)->get();
 			}
 			$contacts = getCrmCustomerContactSchedule($batch->crm_customer_id);
 			// return response()->json($contacts);
 			$batch_sample_codes = getBacthSampleCodes($batch->id);
-			$payment_detail = InvoicePaymentDetail::where('batch_id',$batch->id)->get();
-			$interlabs = InterLabLogView::where('sample_header_id',$batch->id)->orderBy('status','ASC')->orderBy('id','DESC')->get();
+			$payment_detail = InvoicePaymentDetail::where('batch_id', $batch->id)->get();
+			$interlabs = InterLabLogView::where('sample_header_id', $batch->id)->orderBy('status', 'ASC')->orderBy('id', 'DESC')->get();
 			// $equipment_data = $batch->get_captured();
-			$approvers = BatchLabSectionApprover::where('batch_id',$batch->id)->get();
+			$approvers = BatchLabSectionApprover::where('batch_id', $batch->id)->get();
 			// foreach ($equipment_data['items'] as $b => $d) {
 			// 	foreach ($d as $a => $k) {
 			// 		foreach ($k as $i => $e) {
@@ -1130,26 +1130,25 @@ class SampleWorkFlowController extends Controller
 			// 		}
 			// 	}
 			// }
-			$not_captured = CapturedResult::where('sample_header_id',$batch->id)->selectRaw('group_concat(analyte_code) as codes,sample_detail_code')->groupBy('sample_detail_id')->get();
+			$not_captured = CapturedResult::where('sample_header_id', $batch->id)->selectRaw('group_concat(analyte_code) as codes,sample_detail_code')->groupBy('sample_detail_id')->get();
 			// return response()->json($test);
 		}
 
 		$selectedSampleType = \App\SampleType::find($batch->sample_type_id ?? 0) ?? false;
-		if(isset($batch->id)){
-			if($batch->is_qc_batch){
-				$standards = Standards::where('status', 1)->where('qc_type_id',$batch->qc_type_id)->get();
-				
-			}else{
+		if (isset($batch->id)) {
+			if ($batch->is_qc_batch) {
+				$standards = Standards::where('status', 1)->where('qc_type_id', $batch->qc_type_id)->get();
+			} else {
 				$standards =  Standards::where('status', 1)->get();
 			}
-		}else{
-			$standards =[];
+		} else {
+			$standards = [];
 		}
 		$defaultClient = $client;
 		$client_portal = $portal;
 		if (isset($batch->id)) {
 			$attachments = BatchAttachment::where('batch_id', $batch->id)->get();
-		
+
 			if ($batch->in_ammendment_proccess == 1) {
 
 				$ammendment = BatchAmmendment::where('batch_id', $batch->id)->where('version_number', $batch->is_amendment)->first();
@@ -1172,12 +1171,92 @@ class SampleWorkFlowController extends Controller
 			// return response()->json($ammendable,200);
 		}
 		$role_a = SystemConfiguration::where('key', 'analyst_role_id')->first();
-		$labs  = Lab::where('active',1)->get();
+		$labs  = Lab::where('active', 1)->get();
 		// $analysts = getUsersByRole('Analyst');
 		$analysts = User::orderBy('name')->join('user_roles as ur', 'ur.user_id', '=', 'users.id')
 			->join('roles as r', 'r.id', '=', 'ur.role_id')
 			->where('r.id', $role_a->value)->where('users.active', 1)->where('users.is_support_staff', 0)->selectRaw('users.*')->get();
-		return view('layouts.lab.sample-workflow.show', compact('batch', 'batchID', 'defaultClient', 'selectedSampleType', 'client_portal', 'ammendable', 'standards', 'attachments', 'not_captured', 'analysts', 'countries', 'accounts', 'methods', 'atachment_type', 'batch_scope', 'customer_survey','interlabs','labs','users','payment_detail','labsections','contacts','batch_sample_codes','report_formats','approvers','reportingUnits','conditions','products','headerDetails'));
+
+		// -----------------------------------
+
+
+		$analaytesHolder = array();
+		$analysisBySample = array();
+		$analysisBySampleNames = array();
+		$labSamples = array();
+
+		foreach ($batch->captured_results ?? array() as $item) {
+
+			if (!isset($analaytesHolder[$item->sample_detail_code])) {
+				$analaytesHolder[$item->sample_detail_code] = array();
+			}
+
+			$item->ops = $analysts;
+			$item->equip_name = $item->equipment()->name ?? '-';
+
+			$item->def_operator = $item->defacto_analyst();
+			$item->analysis_type = $item->analysis_type;
+			$analyte = getAnalyteByID($item->analyte_id);
+
+			if (isset($analyte->id)) {
+
+				$item->analyte_name = $analyte->name;
+			} else {
+				$item->analyte_name = $item->analyte_code;
+			}
+			$item->methods = $analyte->methods();
+			$analaytesHolder[$item->sample_detail_code][] = $item;
+			$sample_details_test = getSampleDetailById($item->sample_detail_id);
+			if (isset($sample_details_test->id)) {
+				$standard = getStandardByid($sample_details_test->main_standard);
+				$sec = getStandardByid($sample_details_test->secondary_standard);
+				if (isset($standard->id)) {
+					$analyte_standard = getAnalyteStandardValue($item->analyte_id, $standard->id);
+					if (isset($analyte_standard->id)) {
+						if ($analyte_standard->standard_value_type == 'is_range') {
+							$item->standard_value = $analyte_standard->low . ' - ' . $analyte_standard->high;
+						} elseif ($analyte_standard->standard_value_type == 'is_standard_value') {
+							$value_id = getStandardValuebyID($analyte_standard->standard_value_id);
+							if (isset($value_id->id)) {
+								if ($value_id->code == 'IsValue') {
+									$item->standard_value = $analyte_standard->standard_is_value;
+								} else {
+									$item->standard_value = $value_id->code;
+								}
+							}
+						}
+					} else {
+						$item->standard_value = 'NS';
+					}
+					$item->main_standard = $standard->code;
+				}
+				if (isset($sec->id)) {
+					$item->secondary_standard = $sec->code;
+				}
+			}
+		}
+		// return response()->json($analaytesHolder);
+
+		foreach ($batch->samples ?? array() as $sample) {
+			$labSamples[$sample->sample_code] = getSampleDetailsLab($sample->id);
+			if (!isset($analysisBySample[$sample->sample_code])) {
+				$analysisBySample[$sample->sample_code] = array();
+			}
+			$analysisBySample[$sample->sample_code] = array_merge(explode(",", $sample->analysis_type_id), $analysisBySample[$sample->sample_code]);
+
+			foreach ($analysisBySample[$sample->sample_code] as $id) {
+				$analysis = getAnalysisTypeID($id);
+				if (!isset($analysisBySampleNames[$sample->sample_code])) {
+					$analysisBySampleNames[$sample->sample_code] = [];
+				}
+				$analysisBySampleNames[$sample->sample_code][$analysis->name] = $analysis->id;
+			}
+		}
+		// return response()->json($analysisBySampleNames);
+		// ---------------------------------------
+
+
+		return view('layouts.lab.sample-workflow.show', compact('batch', 'batchID', 'defaultClient', 'selectedSampleType', 'client_portal', 'ammendable', 'standards', 'attachments', 'not_captured', 'analysts', 'countries', 'accounts', 'methods', 'atachment_type', 'batch_scope', 'customer_survey', 'interlabs', 'labs', 'users', 'payment_detail', 'labsections', 'contacts', 'batch_sample_codes', 'report_formats', 'approvers', 'reportingUnits', 'conditions', 'products', 'headerDetails','analaytesHolder','analysisBySample','analysisBySampleNames','labSamples'));
 	}
 
 	public function fetch_unit_stuff($name, $client)
@@ -1549,9 +1628,9 @@ class SampleWorkFlowController extends Controller
 			$batch->report_verified_date = '';
 			$batch->approval_date = '';
 			$batch->save();
-			$status != 'Sample Verification' ? BatchLabSectionApprover::where('batch_id',$batch->id)->delete() : '';
-			$status == 'Sample Verification' ? BatchLabSectionApprover::where('batch_id',$batch->id)->update(['status'=>0,'approval_date'=>'']) : '';
-			BatchLabSectionApprover::where('batch_id',$batch->id)->where('batch_status','Sample Approval') ->delete();
+			$status != 'Sample Verification' ? BatchLabSectionApprover::where('batch_id', $batch->id)->delete() : '';
+			$status == 'Sample Verification' ? BatchLabSectionApprover::where('batch_id', $batch->id)->update(['status' => 0, 'approval_date' => '']) : '';
+			BatchLabSectionApprover::where('batch_id', $batch->id)->where('batch_status', 'Sample Approval')->delete();
 		}
 		if (in_array($batch->status, ['Samples In Lab', 'Samples Reception', 'Samples Request Review', 'Sample Verification']) && in_array($status, ['Sample Approval', 'Reports for Collection', 'Reports In Payment']) && !isset($request->is_approval)) {
 			return redirect()->back()->with('error', 'Kindly send the batch for verification');
@@ -1580,15 +1659,14 @@ class SampleWorkFlowController extends Controller
 		);
 
 		$this->updateChainofCustody($custodyDetails);
-		if($batch->status == 'Samples In Lab' && $status == 'Sample Verification'){
-			if(isset($request->approver_id)){
+		if ($batch->status == 'Samples In Lab' && $status == 'Sample Verification') {
+			if (isset($request->approver_id)) {
 				$batch->verify_user_id = $request->approver_id;
 			}
-			
 		}
 		if ($batch->status == 'Sample Verification' && $status == 'Sample Approval') {
 			$batch->report_verified_date = getTodayDate();
-			if(isset($request->approver_id)){
+			if (isset($request->approver_id)) {
 				$batch->approve_user_id = $request->approver_id;
 				$batch->verify_user_id = auth()->user()->id;
 			}
@@ -2005,15 +2083,14 @@ class SampleWorkFlowController extends Controller
 		$analyte = Analyte::find($data[3]);
 		$standard = Standards::find($sample_detail->main_standard);
 		$captured_result = CapturedResult::find($request->captured_result_id);
-		if($captured_result->repeat_captured_id > 0){
+		if ($captured_result->repeat_captured_id > 0) {
 			$result = $request->result;
-			$range = explode(' - ',$captured_result->repeatsampleresult);
+			$range = explode(' - ', $captured_result->repeatsampleresult);
 			if ($range[0] <= $result && $result <= $range[1]) {
 				return response()->json('PASS', 200);
 			} else {
 				return response()->json('FAIL', 200);
 			}
-			
 		}
 		// $check_arr = ['NIL','ND',0];
 
@@ -2242,7 +2319,7 @@ class SampleWorkFlowController extends Controller
 			$eresult->result = $result;
 			$eresult->reporting_symbol = $c->result_reporting_symbol;
 			$eresult->save();
-			
+
 			$arr[] = $eresult;
 		}
 		$header = SampleHeader::find($batch_id);
@@ -2256,9 +2333,9 @@ class SampleWorkFlowController extends Controller
 
 	public function remove_analyte_from_captured_result(Request $request)
 	{
-		
+
 		$this->refactorReportingTime($request->id);
-		
+
 		CapturedResult::find($request->id)->delete();
 
 		Result::where('captured_result_id', $request->id)->delete();
@@ -2267,15 +2344,16 @@ class SampleWorkFlowController extends Controller
 			"status" => true
 		));
 	}
-	private function refactorReportingTime($id){
-		$actual_c =CapturedResult::find($id);
-		$analysis_type_ids = CapturedResult::where('sample_header_id',$actual_c->sample_header_id)->pluck('analysis_type_id')->toArray();
+	private function refactorReportingTime($id)
+	{
+		$actual_c = CapturedResult::find($id);
+		$analysis_type_ids = CapturedResult::where('sample_header_id', $actual_c->sample_header_id)->pluck('analysis_type_id')->toArray();
 		$unique_typeIds = array_unique($analysis_type_ids);
-		$analyte_ids = CapturedResult::where('sample_header_id',$actual_c->sample_header_id)->pluck('analyte_id')->toArray();
+		$analyte_ids = CapturedResult::where('sample_header_id', $actual_c->sample_header_id)->pluck('analyte_id')->toArray();
 		$unique_analyteIds = array_unique($analyte_ids);
 
 		$analysis_max_report_time = AnalysisType::whereIn('id', $unique_typeIds)->max('reporting_time');
-		$analytes_max_report_time = AnalysisElements::whereIn('analysis_type_id', $unique_typeIds)->whereIn('analyte_id',$unique_analyteIds)->max('reporting_time');
+		$analytes_max_report_time = AnalysisElements::whereIn('analysis_type_id', $unique_typeIds)->whereIn('analyte_id', $unique_analyteIds)->max('reporting_time');
 		$maxReportingTime = $analysis_max_report_time > $analytes_max_report_time ? $analysis_max_report_time : $analytes_max_report_time;
 		$targetDateStr = "Target Date";
 		$targetDate = \App\SampleDate::where('sample_header_id', $actual_c->sample_header_id)->where('name', $targetDateStr)->first() ?? new \App\SampleDate;
@@ -2315,11 +2393,11 @@ class SampleWorkFlowController extends Controller
 			$end =  SampleDetails::where('sample_header_id', $batch->id)->orderBy('id', 'DESC')->first();
 			// return response()->json(['start'=>$start,'end'=>$end],200);
 			foreach ($contact as $c) {
-				
+
 				$body = 'Dear Sir / Madam, <br><br>
 				I hope this email finds you well. <br><br>
 				We are pleased to let you know that the <b>' . $samples->count() . '</b> test reports are ready as attached..<br><br>'
-				. $message . '<br><br>
+					. $message . '<br><br>
 				We are grateful for giving us an opportunity to be of service to you. <br><br>
 				We look forward to more engagements in the future. <br><br>
 				Should you have any questions or concerns please do not hesitate to contact us.<br><br>
@@ -2357,10 +2435,10 @@ class SampleWorkFlowController extends Controller
 	public function approve_batch($id)
 	{
 		$batch  = getSampleHeaderByID($id);
-		if($batch->is_qc_batch){
-			$results = Result::where('sample_header_id',$id)->get();
-			foreach($results as $r){
-				$qc_res = QcResults::where('result_id',$r->id)->first() ?? new QcResults();
+		if ($batch->is_qc_batch) {
+			$results = Result::where('sample_header_id', $id)->get();
+			foreach ($results as $r) {
+				$qc_res = QcResults::where('result_id', $r->id)->first() ?? new QcResults();
 				$qc_res->captured_result_id = $r->captured_result_id;
 				$qc_res->sample_detail_code = $r->sample_detail_code;
 				$qc_res->sample_detail_id = $r->sample_detail_id;
@@ -2385,7 +2463,7 @@ class SampleWorkFlowController extends Controller
 				$qc_res->very_high_guide = $r->very_high_guide;
 				$qc_res->analysis_type_id = $r->analysis_type_id;
 				$qc_res->seond_guide = $r->seond_guide;
-				$qc_res->remarks =$r->remarks;
+				$qc_res->remarks = $r->remarks;
 				$qc_res->analyte_status_contracted = $r->analyte_status_contracted;
 				$qc_res->analyte_accredited = $r->analyte_accredited;
 				$qc_res->result_id = $r->id;
@@ -2393,7 +2471,6 @@ class SampleWorkFlowController extends Controller
 				$qc_res->qc_type_id = $batch->qc_type_id;
 				$qc_res->standard_value = $r->guide;
 				$qc_res->save();
-	
 			}
 		}
 		if ($batch->verify_user_id == auth()->user()->id) {
@@ -2402,10 +2479,10 @@ class SampleWorkFlowController extends Controller
 		$batch->approve_user_id = auth()->user()->id;
 		$batch->approval_date = getTodayDate();
 		$current_stage = $batch->status;
-		
+
 		$batch->save();
 
-		if($batch->is_qc_batch){
+		if ($batch->is_qc_batch) {
 			return redirect()->route('sample-workflow', ['status' => $current_stage])->with('success', 'Approval was successful');
 		}
 
@@ -2846,200 +2923,203 @@ class SampleWorkFlowController extends Controller
 		return response()->json(['invoice' => $invoice, 'detail' => $details_invoice]);
 	}
 
-	public function fillCapturedresultOperator(){
-		$captured_reults  = CapturedResult::where('operator_id',0)->get();
-		foreach($captured_reults as $c){
-			$ae = AnalysisElements::where('analyte_id',$c->analyte_id)->where('analysis_type_id',$c->analysis_type_id)->first();
-			if(isset($ae->id)){
+	public function fillCapturedresultOperator()
+	{
+		$captured_reults  = CapturedResult::where('operator_id', 0)->get();
+		foreach ($captured_reults as $c) {
+			$ae = AnalysisElements::where('analyte_id', $c->analyte_id)->where('analysis_type_id', $c->analysis_type_id)->first();
+			if (isset($ae->id)) {
 				$c->operator_id = $ae->operator_id;
 			}
 			$c->save();
 		}
 		return response()->json('success');
 	}
-	public function markQcSampleComplete($id){
+	public function markQcSampleComplete($id)
+	{
 		$header = SampleHeader::find($id);
 		$previous_status = $header->status;
 		$header->status = "QC Approved";
 		$header->save();
 		return redirect()->route('sample-workflow', ['status' => $previous_status])->with('success', 'Batch marked complete succesffuly');
-
-		
 	}
 
-	public function markAccredittedSamples($header_id=0){
-		
-		if($header_id == 0){
-			$sample_ids =SampleHeader::whereIn('status',["Samples Reception", "Samples Request Review", "Samples In Lab"])->pluck('id')->toArray();
-		
-			$captured_results = CapturedResult::whereIn('id',$sample_ids)->get();
-			foreach($captured_results as $cr){
+	public function markAccredittedSamples($header_id = 0)
+	{
+
+		if ($header_id == 0) {
+			$sample_ids = SampleHeader::whereIn('status', ["Samples Reception", "Samples Request Review", "Samples In Lab"])->pluck('id')->toArray();
+
+			$captured_results = CapturedResult::whereIn('id', $sample_ids)->get();
+			foreach ($captured_results as $cr) {
 				$analysisElement = AnalysisElements::where('analysis_type_id', $cr->analysis_type_id)
-				->where('analyte_id', $cr->analyte_id)->first();
-				if(isset($analysisElement->id)){
+					->where('analyte_id', $cr->analyte_id)->first();
+				if (isset($analysisElement->id)) {
 					$cr->analyte_accredited = $analysisElement->non_accredited;
 					$cr->save();
-					$result = Result::where('captured_result_id',$cr->id)->first();
+					$result = Result::where('captured_result_id', $cr->id)->first();
 					$result->analyte_accredited = $analysisElement->non_accredited;
 					$result->save();
-
 				}
-
 			}
 		}
 		return response()->json('done');
 	}
-	public function getLabsByAnalysisTypeIdAjax(Request $request){
+	public function getLabsByAnalysisTypeIdAjax(Request $request)
+	{
 		// $lab_ids = AnalysisType::whereIn('id',$request->ids)->pluck('lab_id')->toArray();
-		$labs =  Lab::where('active',1)->get();
+		$labs =  Lab::where('active', 1)->get();
 		return response()->json($labs);
 	}
-	public function assignLabSectionToAnalysisElement($id){
+	public function assignLabSectionToAnalysisElement($id)
+	{
 		$analysistype = AnalysisType::find($id);
-		$elements = AnalysisElements::where('analysis_type_id',$id)->update(['lab_section_id'=>$analysistype->lab_section_id]);
+		$elements = AnalysisElements::where('analysis_type_id', $id)->update(['lab_section_id' => $analysistype->lab_section_id]);
 		return response()->json('success');
-
 	}
 
-	public function create_sample_inter_lab_log(Request $request){
-		if($request->quantity == '' || $request->to_lab_section_id == ''){
-			return redirect()->back()->with('error','Quantity, To Lab are mandatory fields');
+	public function create_sample_inter_lab_log(Request $request)
+	{
+		if ($request->quantity == '' || $request->to_lab_section_id == '') {
+			return redirect()->back()->with('error', 'Quantity, To Lab are mandatory fields');
 		}
 		// return response()->json($request->all());
-		if(isset($request->batch_level)){
+		if (isset($request->batch_level)) {
 			$log = [];
-			$batches = SampleHeader::whereIn('batch_code',$request->batch_code)->pluck('id')->toArray();
-			$sample_ids = SampleDetails::whereIn('sample_header_id',$batches)->pluck('id')->toArray();
-			foreach($sample_ids as $id){
+			$batches = SampleHeader::whereIn('batch_code', $request->batch_code)->pluck('id')->toArray();
+			$sample_ids = SampleDetails::whereIn('sample_header_id', $batches)->pluck('id')->toArray();
+			foreach ($sample_ids as $id) {
 				$batch = getSampleHeaderByID(getSampleDetailByID($id)->sample_header_id);
-				$last_log = InterLabLog::where('sample_id',$id)->where('status',1)->orderBy('date_received','DESC')->first();
-				$log[]=[
-					"sample_id"=>$id,
-					"to_lab_section_id"=>$request->to_lab_section_id,
-					"from_lab_section_id"=>isset($last_log->id) ? $last_log->to_lab_section_id : 0,
-					"quantity"=>$request->quantity,
-					"submited_by"=>auth()->user()->id,
-					"date_submitted"=> date('Y-m-d h:i:s a'),
-					"expected_date"=>$request->expected_date == '' ?  date('Y-m-d', strtotime($batch->get_date('Target Date')['date'])) : $request->expected_date,
-					
-				];
+				$last_log = InterLabLog::where('sample_id', $id)->where('status', 1)->orderBy('date_received', 'DESC')->first();
+				$log[] = [
+					"sample_id" => $id,
+					"to_lab_section_id" => $request->to_lab_section_id,
+					"from_lab_section_id" => isset($last_log->id) ? $last_log->to_lab_section_id : 0,
+					"quantity" => $request->quantity,
+					"submited_by" => auth()->user()->id,
+					"date_submitted" => date('Y-m-d h:i:s a'),
+					"expected_date" => $request->expected_date == '' ?  date('Y-m-d', strtotime($batch->get_date('Target Date')['date'])) : $request->expected_date,
 
+				];
 			}
-			
+
 			// return response()->json($log);
-		}else{
-			
-			$last_log = InterLabLog::where('sample_id',$request->sample_id)->where('status',1)->orderBy('date_received','DESC')->first();
-			if(isset($request->interlab_id) && $request->interlab_id != '0'){
+		} else {
+
+			$last_log = InterLabLog::where('sample_id', $request->sample_id)->where('status', 1)->orderBy('date_received', 'DESC')->first();
+			if (isset($request->interlab_id) && $request->interlab_id != '0') {
 				$log = [
-					"sample_id"=>$request->sample_id,
-					"to_lab_section_id"=>$request->to_lab_section_id,
-					"quantity"=>$request->quantity,
-					"submited_by"=>auth()->user()->id,
-					"date_submitted"=> date('Y-m-d h:i:s a'),
-					"expected_date"=>$request->expected_date,
-					"from_lab_section_id"=>isset($last_log->id) ? $last_log->to_lab_section_id : 0,
+					"sample_id" => $request->sample_id,
+					"to_lab_section_id" => $request->to_lab_section_id,
+					"quantity" => $request->quantity,
+					"submited_by" => auth()->user()->id,
+					"date_submitted" => date('Y-m-d h:i:s a'),
+					"expected_date" => $request->expected_date,
+					"from_lab_section_id" => isset($last_log->id) ? $last_log->to_lab_section_id : 0,
 				];
-			}else{
+			} else {
 				$log = [
-					"sample_id"=>$request->sample_id,
-					"to_lab_section_id"=>$request->to_lab_section_id,
-					"from_lab_section_id"=>isset($last_log->id) ? $last_log->to_lab_section_id : 0,
-					"quantity"=>$request->quantity,
-					"submited_by"=>auth()->user()->id,
-					"date_submitted"=> date('Y-m-d h:i:s a'),
-					"expected_date"=>$request->expected_date,
+					"sample_id" => $request->sample_id,
+					"to_lab_section_id" => $request->to_lab_section_id,
+					"from_lab_section_id" => isset($last_log->id) ? $last_log->to_lab_section_id : 0,
+					"quantity" => $request->quantity,
+					"submited_by" => auth()->user()->id,
+					"date_submitted" => date('Y-m-d h:i:s a'),
+					"expected_date" => $request->expected_date,
 				];
 			}
-			
 		}
 		isset($request->interlab_id) && $request->interlab_id != '0' ? InterLabLog::find($request->interlab_id)->update($log) : InterLabLog::insert($log);
-		if($request->notify_user != '' || $request->sms_notify !=  ''){
-			$sample_codes =isset($request->batch_level) ? implode(', ',SampleDetails::whereIn('id',$sample_ids)->pluck('sample_code')->toArray()) : SampleDetails::find($request->sample_id)->sample_code;
-			$bcc_emails = User::whereIn('id',$request->also_notify ?? [])->pluck('email')->toArray();
-			$body = 'Hi Team, <br> The following sample(s) require  your attention for approval of inter laboratory transfer raised by '.auth()->user()->name.'<br>'.$sample_codes;
+		if ($request->notify_user != '' || $request->sms_notify !=  '') {
+			$sample_codes = isset($request->batch_level) ? implode(', ', SampleDetails::whereIn('id', $sample_ids)->pluck('sample_code')->toArray()) : SampleDetails::find($request->sample_id)->sample_code;
+			$bcc_emails = User::whereIn('id', $request->also_notify ?? [])->pluck('email')->toArray();
+			$body = 'Hi Team, <br> The following sample(s) require  your attention for approval of inter laboratory transfer raised by ' . auth()->user()->name . '<br>' . $sample_codes;
 			$to_email = getUserById($request->notify_user);
 
-			
 
-			if(isset($to_email->id)){
-				notify_user($body,$to_email->email,'[Polucon  Polucon Services Limited] Inter Laboratory Transfer Approval Notification',false,false,$bcc_emails);
-				sendTextMessage($to_email->phone,'Hi '.$to_email->name.', The following sample(s) require  your attention for approval of inter laboratory transfer raised by '.auth()->user()->name);
-				foreach( User::whereIn('id',$request->also_notify ?? [])->get() as $user){
-					$user->phone != '' ? sendTextMessage($user->phone,'Hi '.$user->name.', The following sample(s) require  your attention for approval of inter laboratory transfer raised by '.auth()->user()->name).':  '.$sample_codes : '';
+
+			if (isset($to_email->id)) {
+				notify_user($body, $to_email->email, '[Polucon  Polucon Services Limited] Inter Laboratory Transfer Approval Notification', false, false, $bcc_emails);
+				sendTextMessage($to_email->phone, 'Hi ' . $to_email->name . ', The following sample(s) require  your attention for approval of inter laboratory transfer raised by ' . auth()->user()->name);
+				foreach (User::whereIn('id', $request->also_notify ?? [])->get() as $user) {
+					$user->phone != '' ? sendTextMessage($user->phone, 'Hi ' . $user->name . ', The following sample(s) require  your attention for approval of inter laboratory transfer raised by ' . auth()->user()->name) . ':  ' . $sample_codes : '';
 				}
 			}
+		}
 
-		}
-			
-		return redirect()->back()->with('success','Inter laboratory Log updated successfully');
+		return redirect()->back()->with('success', 'Inter laboratory Log updated successfully');
 	}
-	
-	public function getSampleCurrentLabSection($id){
-		$last_log = InterLabLogView::where('sample_id',$id)->where('status',1)->orderBy('date_received','DESC')->first();
-		return response()->json(isset($last_log->id) ? $last_log->to_lab_code.' '.$last_log->to_lab_name : "Reception");
+
+	public function getSampleCurrentLabSection($id)
+	{
+		$last_log = InterLabLogView::where('sample_id', $id)->where('status', 1)->orderBy('date_received', 'DESC')->first();
+		return response()->json(isset($last_log->id) ? $last_log->to_lab_code . ' ' . $last_log->to_lab_name : "Reception");
 	}
-	public function changeInterLabLogStatus(Request $request){
-		if($request->status == ''){
-			return redirect()->back()->with('error','Status is a required field');
+	public function changeInterLabLogStatus(Request $request)
+	{
+		if ($request->status == '') {
+			return redirect()->back()->with('error', 'Status is a required field');
 		}
-		if(isset($request->inter_lab_id)){
-			InterLabLog::find($request->inter_lab_id)->update(['status'=>$request->status,'date_received'=>date('Y-m-d h:i:s a'),"received_by"=>auth()->user()->id]);
-		}else{
-			InterLabLog::whereIn('id',explode(',',$request->inter_lab_ids))->update(['status'=>$request->status,'date_received'=>date('Y-m-d h:i:s a'),"received_by"=>auth()->user()->id]);
+		if (isset($request->inter_lab_id)) {
+			InterLabLog::find($request->inter_lab_id)->update(['status' => $request->status, 'date_received' => date('Y-m-d h:i:s a'), "received_by" => auth()->user()->id]);
+		} else {
+			InterLabLog::whereIn('id', explode(',', $request->inter_lab_ids))->update(['status' => $request->status, 'date_received' => date('Y-m-d h:i:s a'), "received_by" => auth()->user()->id]);
 		}
-		return redirect()->back()->with('success','Inter laboratory Log status updated successfully');
+		return redirect()->back()->with('success', 'Inter laboratory Log status updated successfully');
 	}
-	public function interLabTransferIndex($is_archived = 0){
-		$interlabs = $is_archived == 0 ? InterLabLogView::orderBy('id','DESC')->where('batch_status','!=','Completed')->get() : InterLabLogView::orderBy('id','DESC')->get();
+	public function interLabTransferIndex($is_archived = 0)
+	{
+		$interlabs = $is_archived == 0 ? InterLabLogView::orderBy('id', 'DESC')->where('batch_status', '!=', 'Completed')->get() : InterLabLogView::orderBy('id', 'DESC')->get();
 		$samples = $interlabs->pluck('sample_code')->toArray();
-		$labs  = Lab::where('active',1)->get();
-		$users = User::where('is_client',0)->where('supplier_id',0)->where('active',1)->get();
+		$labs  = Lab::where('active', 1)->get();
+		$users = User::where('is_client', 0)->where('supplier_id', 0)->where('active', 1)->get();
 
-		return view('layouts.lab.interlab.index',compact('interlabs','samples','labs','users'));
-
+		return view('layouts.lab.interlab.index', compact('interlabs', 'samples', 'labs', 'users'));
 	}
-	public function deleteInterLabTransferLogs(Request $request){
+	public function deleteInterLabTransferLogs(Request $request)
+	{
 		// return response()->json($request->all());
-		InterLabLog::whereIn('id',explode(',',$request->inter_lab_ids))->delete();
-		return redirect()->back()->with('success','Inter Laboratory Transfer Log(s) deleted successfully');
+		InterLabLog::whereIn('id', explode(',', $request->inter_lab_ids))->delete();
+		return redirect()->back()->with('success', 'Inter Laboratory Transfer Log(s) deleted successfully');
 	}
 
-	public function generateCustomerFocusIndex($batch_id){
+	public function generateCustomerFocusIndex($batch_id)
+	{
 		$batch = SampleHeader::find($batch_id);
 		$customer = CrmCustomer::find($batch->crm_customer_id);
 		$company = getActiveCompany();
-		$config_docs_setting = SystemConfiguration::where('key','customer_focus_id')->first();
-		$docs_settings = SystemConfiguration::where('configuration_type_id',$config_docs_setting->value)->pluck('value','key')->toArray();	
+		$config_docs_setting = SystemConfiguration::where('key', 'customer_focus_id')->first();
+		$docs_settings = SystemConfiguration::where('configuration_type_id', $config_docs_setting->value)->pluck('value', 'key')->toArray();
 		$review_staff = getUserById($batch->declaration_customer_review_id);
-		$samples = SampleDetails::where('sample_header_id',$batch_id)->get();
-		$payment_detail = InvoicePaymentDetail::where('batch_id',$batch->id)->orderBy('id','DESC')->first();
-		
-		return view('layouts.lab.sample-workflow.customer_focus',compact('batch','customer','company','docs_settings','review_staff','samples','payment_detail'));
+		$samples = SampleDetails::where('sample_header_id', $batch_id)->get();
+		$payment_detail = InvoicePaymentDetail::where('batch_id', $batch->id)->orderBy('id', 'DESC')->first();
+
+		return view('layouts.lab.sample-workflow.customer_focus', compact('batch', 'customer', 'company', 'docs_settings', 'review_staff', 'samples', 'payment_detail'));
 	}
 
-	public function sendBatchScheduleAnalysis(Request $request){
+	public function sendBatchScheduleAnalysis(Request $request)
+	{
 		$batch = SampleHeader::find($request->batch_id);
-		$samples = SampleDetails::where('sample_header_id',$batch->id)->get();
+		$samples = SampleDetails::where('sample_header_id', $batch->id)->get();
 		$customer = CrmCustomer::find($batch->crm_customer_id);
 		$sampleTrs = '';
 		$contact = CustomerContact::find($request->contact_id);
-		foreach($samples as $sample){
-			$sampleTrs = $sampleTrs.'
+		foreach ($samples as $sample) {
+			$sampleTrs = $sampleTrs . '
 			<tr style="border: 1px solid black">
-				<td style="border: 1px solid black">'.$sample->sample_code.'</td>
-				<td style="border: 1px solid black">'.$sample->getAnalysisRelation().' </td>
+				<td style="border: 1px solid black">' . $sample->sample_code . '</td>
+				<td style="border: 1px solid black">' . $sample->getAnalysisRelation() . ' </td>
 				<td style="border: 1px solid black">-</td>
 			</tr>
 			';
 		}
-		$specified_days = SystemConfiguration::where('key','specified_duration_days')->first();
+		$specified_days = SystemConfiguration::where('key', 'specified_duration_days')->first();
 
 		// return response()->json($sampleTrs);
-		
+
 		$body = '
 		<p>
-				Dear '.$customer->name.', <br><br>
+				Dear ' . $customer->name . ', <br><br>
 				Thank you for chosing our laboratory for sample testing.We will be running the following tests on your sample:
 			</p>
 			<table class="table-sm table-bordered" style="border: 1px solid black;width:100%">
@@ -3052,45 +3132,47 @@ class SampleWorkFlowController extends Controller
 					</tr>
 				</thead>
 				<tbody>
-					'.$sampleTrs.'
+					' . $sampleTrs . '
 					<tr>
 						<td colspan="2" style="border: 1px solid black"><b>Total Amount</b></td>
-						<td style="text-align: right;border: 1px solid black">'.number_format($batch->invoice_amount,2).'</td>
+						<td style="text-align: right;border: 1px solid black">' . number_format($batch->invoice_amount, 2) . '</td>
 					</tr>
 				</tbody>
 			</table>
 			<br>
 			<p>
-				If we don`t hear from you within '.$specified_days->value.', we will proceed with the analysis as shared. <br>
+				If we don`t hear from you within ' . $specified_days->value . ', we will proceed with the analysis as shared. <br>
 				For any questions or modifications, please contact us at polucon@polucon.com | laboratory@polucon.com. <br><br>
 				Thank you, <br>
-				'.auth()->user()->name.'
+				' . auth()->user()->name . '
 
 			</p>
 		';
-		notify_user($body,$contact->email,'[POLUCON LIMS] Schedule Of Analysis '.$batch->batch_code);
-		return redirect()->back()->with('success','Schedule of analysis sent out successfully');
+		notify_user($body, $contact->email, '[POLUCON LIMS] Schedule Of Analysis ' . $batch->batch_code);
+		return redirect()->back()->with('success', 'Schedule of analysis sent out successfully');
 	}
-	public function sendBatchPaymentReminder(Request $request){
+	public function sendBatchPaymentReminder(Request $request)
+	{
 		$contact = CustomerContact::find($request->contact_id);
 		$batch = SampleHeader::find($request->batch_id);
-		notify_user($request->body,$contact->email,'[POLUCON LIMS] Payment Reminder '.$batch->batch_code);
-		return redirect()->back()->with('success','Payment reminder sent out successfully');
+		notify_user($request->body, $contact->email, '[POLUCON LIMS] Payment Reminder ' . $batch->batch_code);
+		return redirect()->back()->with('success', 'Payment reminder sent out successfully');
 	}
 
-	public function getLabSectionsByLab($lab_id){
-		$sections = SampleAnalysisStage::where('lab_id',$lab_id)->get();
+	public function getLabSectionsByLab($lab_id)
+	{
+		$sections = SampleAnalysisStage::where('lab_id', $lab_id)->get();
 		return response()->json($sections);
-
 	}
 
-	public function moveToLab(Request $request){
+	public function moveToLab(Request $request)
+	{
 		// return response()->json($request->all());
 		$status = 'Samples In Lab';
-		foreach($request->batch_code as $code){
-			$batch = SampleHeader::where('batch_code',$code)->first();
+		foreach ($request->batch_code as $code) {
+			$batch = SampleHeader::where('batch_code', $code)->first();
 			$previousWorkflow = $batch->status;
-	
+
 			$custodyDetails = array(
 				"batch_id" => $batch->id,
 				"comments" => $request->comments ?? '',
@@ -3103,36 +3185,37 @@ class SampleWorkFlowController extends Controller
 					"tracking_stage" => $batch->sample_tracking_stage,
 				)
 			);
-	
+
 			$this->updateChainofCustody($custodyDetails);
 			$batch->status = $status;
 			$batch->save();
 		}
-		return redirect()->back()->with('success','Sample(s) moved to samples in Lab section successfully');
-
+		return redirect()->back()->with('success', 'Sample(s) moved to samples in Lab section successfully');
 	}
 
-	public function showBatchCOA(Request $request){
+	public function showBatchCOA(Request $request)
+	{
 		$batch = SampleHeader::find($request->batch_id);
-		$batch_approvers = BatchLabSectionApprover::where('batch_id',$batch->id)->where('status',1)->get();
-		$samples = SamplesCategory::where('sample_header_id',$request->batch_id)->get();
-		$disclaimer = SystemConfiguration::where('key','lab_report_disclaimer_config')->first();
-		$non_accredited = SystemConfiguration::where('key','lab_report_accreditted_config')->first();
-		$status= $batch->status;
+		$batch_approvers = BatchLabSectionApprover::where('batch_id', $batch->id)->where('status', 1)->get();
+		$samples = SamplesCategory::where('sample_header_id', $request->batch_id)->get();
+		$disclaimer = SystemConfiguration::where('key', 'lab_report_disclaimer_config')->first();
+		$non_accredited = SystemConfiguration::where('key', 'lab_report_accreditted_config')->first();
+		$status = $batch->status;
 
 		$company = getActiveCompany();
 		$standard_report = $request->template_id;
 		// return response()->json('here');
-		return view('layouts.lab.sample-workflow.report-formats.standard_report',compact('batch','samples','disclaimer','non_accredited','status','company','batch_approvers','standard_report'));
+		return view('layouts.lab.sample-workflow.report-formats.standard_report', compact('batch', 'samples', 'disclaimer', 'non_accredited', 'status', 'company', 'batch_approvers', 'standard_report'));
 	}
 
-	public function getShowBatchCOA($batch_code,$format){
-		$batch = SampleHeader::where('batch_code',$batch_code)->first();
-		$batch_approvers = BatchLabSectionApprover::where('batch_id',$batch->id)->where('status',1)->get();
-		$samples = SamplesCategory::where('sample_header_id',$request->batch_id)->get();
-		$disclaimer = SystemConfiguration::where('key','lab_report_disclaimer_config')->first();
-		$non_accredited = SystemConfiguration::where('key','lab_report_accreditted_config')->first();
-		$status= $batch->status;
+	public function getShowBatchCOA($batch_code, $format)
+	{
+		$batch = SampleHeader::where('batch_code', $batch_code)->first();
+		$batch_approvers = BatchLabSectionApprover::where('batch_id', $batch->id)->where('status', 1)->get();
+		$samples = SamplesCategory::where('sample_header_id', $request->batch_id)->get();
+		$disclaimer = SystemConfiguration::where('key', 'lab_report_disclaimer_config')->first();
+		$non_accredited = SystemConfiguration::where('key', 'lab_report_accreditted_config')->first();
+		$status = $batch->status;
 		// $url = env('APP_URL').'/showBatchCOAGet';
 		// $qr_url = url($url);
 		// return response()->json($batch_result,200);
@@ -3142,36 +3225,37 @@ class SampleWorkFlowController extends Controller
 
 		$company = getActiveCompany();
 		// return response()->json('here');
-		return view('layouts.lab.sample-workflow.report-formats.standard_report',compact('batch','samples','disclaimer','non_accredited','status','company','batch_approvers'));
+		return view('layouts.lab.sample-workflow.report-formats.standard_report', compact('batch', 'samples', 'disclaimer', 'non_accredited', 'status', 'company', 'batch_approvers'));
 	}
 
-	public function moveToVerificationApprovalLevel(Request $request){
+	public function moveToVerificationApprovalLevel(Request $request)
+	{
 		// return response()->json($request->all());
 		$batch = SampleHeader::find($request->batch_id);
 		$previousWorkflow = $batch->status;
-		$section_users = LabSectionApproverRelationShip::whereIn('lab_section_id',explode(',',$batch->lab_section_ids))->get();
-		if($section_users->count() <=0){
-			return redirect()->back()->with('error','Kindly provide approval configuration for the selected batch lab sections');
+		$section_users = LabSectionApproverRelationShip::whereIn('lab_section_id', explode(',', $batch->lab_section_ids))->get();
+		if ($section_users->count() <= 0) {
+			return redirect()->back()->with('error', 'Kindly provide approval configuration for the selected batch lab sections');
 		}
-		if($request->status == 'Sample Verification'){
-			BatchLabSectionApprover::where('batch_id',$batch->id)->delete();
-			foreach($section_users as $user_id){
-				$approvers = BatchLabSectionApprover::where('batch_id',$batch->id)->where('user_id',$user_id->user_id)->first() ?? new BatchLabSectionApprover();
+		if ($request->status == 'Sample Verification') {
+			BatchLabSectionApprover::where('batch_id', $batch->id)->delete();
+			foreach ($section_users as $user_id) {
+				$approvers = BatchLabSectionApprover::where('batch_id', $batch->id)->where('user_id', $user_id->user_id)->first() ?? new BatchLabSectionApprover();
 				$approvers->status = 0;
 				$approvers->user_id = $user_id->user_id;
 				$approvers->title = $user_id->title;
-				$approvers->lab_section_ids = $approvers->lab_section_ids == '' ?  $approvers->lab_section_ids.$user_id->lab_section_id : $approvers->lab_section_ids.','.$user_id->lab_section_id;
+				$approvers->lab_section_ids = $approvers->lab_section_ids == '' ?  $approvers->lab_section_ids . $user_id->lab_section_id : $approvers->lab_section_ids . ',' . $user_id->lab_section_id;
 				$approvers->batch_id = $batch->id;
 				$approvers->batch_status = $request->status;
 				$approvers->save();
 			}
-			
+
 			$batch->status = $request->status;
 			$batch->save();
 			return redirect()->route('sample-workflow', ['status' => $previousWorkflow])->with('success', 'Batch move was successful');
 		}
 
-		BatchLabSectionApprover::where('batch_id',$batch->id)->where('lab_section_ids',0)->delete();
+		BatchLabSectionApprover::where('batch_id', $batch->id)->where('lab_section_ids', 0)->delete();
 		$approvers = new BatchLabSectionApprover();
 		$approvers->status = 0;
 		$approvers->user_id = $request->user_id;
@@ -3182,35 +3266,43 @@ class SampleWorkFlowController extends Controller
 		$approvers->save();
 		$batch->status = $request->status;
 		$batch->save();
-		if(isset($request->notification)){
+		if (isset($request->notification)) {
 			$user = User::find($request->user_id);
-			$message  = 'Hi '.$user->name.', <br>'.$batch->batch_code.' COA needs your approval at '.$batch->status.'. <br> Comments : '.$request->comments;
-			notify_user($message,$user->email,'[Polucon LIMS] '.$batch->batch_code.' Batch Approval Notification');
-			
+			$message  = 'Hi ' . $user->name . ', <br>' . $batch->batch_code . ' COA needs your approval at ' . $batch->status . '. <br> Comments : ' . $request->comments;
+			notify_user($message, $user->email, '[Polucon LIMS] ' . $batch->batch_code . ' Batch Approval Notification');
 		}
-		if(isset($request->send_message)){
+		if (isset($request->send_message)) {
 			$user = User::find($request->user_id);
-			$sms_message = 'Hi '.$user->name.', '.$batch->batch_code.' COA needs your approval at '.$batch->status.'. Comments : '.$request->comments;
-			sendTextMessage($user->phone,$sms_message);
+			$sms_message = 'Hi ' . $user->name . ', ' . $batch->batch_code . ' COA needs your approval at ' . $batch->status . '. Comments : ' . $request->comments;
+			sendTextMessage($user->phone, $sms_message);
 		}
 
 		return redirect()->route('sample-workflow', ['status' => $previousWorkflow])->with('success', 'Batch move was successful');
 	}
-	public function editVerificationApproverConfig(Request $request){
+	public function editVerificationApproverConfig(Request $request)
+	{
 		$config = BatchLabSectionApprover::find($request->approver_id);
 		$config->user_id = $request->user_id;
 		$config->title = $request->title;
 		$config->save();
-		return redirect()->back()->with('success','Batch Approval updated successfully');
+		return redirect()->back()->with('success', 'Batch Approval updated successfully');
 	}
-	public function deleteVerificationApproverConfig(Request $request){
+	public function deleteVerificationApproverConfig(Request $request)
+	{
 		BatchLabSectionApprover::find($request->approver_id)->delete();
-		return redirect()->back()->with('success','Batch Approval deleted successfully');
+		return redirect()->back()->with('success', 'Batch Approval deleted successfully');
 	}
-	public function changeBatchApprovalStatus(Request $request){
-		BatchLabSectionApprover::where('id',$request->approver_id)->update(['status'=>$request->status,'approval_date'=>date('Y-m-d H:i:s'),'remark'=>$request->remark]);
-		return redirect()->back()->with('success','Batch Approval updated successfully');
+	public function changeBatchApprovalStatus(Request $request)
+	{
+		BatchLabSectionApprover::where('id', $request->approver_id)->update(['status' => $request->status, 'approval_date' => date('Y-m-d H:i:s'), 'remark' => $request->remark]);
+		if(BatchLabSectionApprover::where('id', $request->approver_id)->where('status',0)->get()->count() == 0){
+			$approver = BatchLabSectionApprover::find($request->approver_id);
+			$batch = SampleHeader::find($approver->batch_id);
+			if($batch->status == 'Sample Approval'){
+				$batch->approval_date = getTodayDate();
+				$batch->save();
+			}
+		}
+		return redirect()->back()->with('success', 'Batch Approval updated successfully');
 	}
-
-
 }

@@ -10,7 +10,7 @@ use App\Models\Lab\Sample\SampleTypeQualification;
 use App\Models\Lab\Qualification;
 use App\AnalysisType;
 use App\AnalysisElements;
-
+use App\SampleTypeCategory;
 use Illuminate\Http\Request;
 
 class SampleTypeController extends Controller
@@ -30,7 +30,7 @@ class SampleTypeController extends Controller
   {
     $sample_types = SampleType::join('companies as c', 'c.id', '=', 'sample_types.company_id')->selectRaw('sample_types.*, c.name as company')->get();
     $companies = Company::all();
-    $categories = [];
+    $categories = SampleTypeCategory::all();
 
     return view('layouts.lab.sample-types.index', compact('companies', 'sample_types','categories'));
   }

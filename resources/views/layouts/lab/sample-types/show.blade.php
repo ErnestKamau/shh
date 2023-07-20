@@ -39,9 +39,7 @@
           <li class="nav-item">
             <a class="nav-link" id="inactive-analysis-tab" data-toggle="tab" href="#inactive-analysis-tab-content" role="tab" aria-controls="InActive-Analysis" aria-selected="false">In Active Analysis</a>
           </li>
-          <li class="nav-item">
-            <a class="nav-link" id="sample-condition-tab" data-toggle="tab" href="#sample-condition-tab-content" role="tab" aria-controls="Sample-Condition" aria-selected="false">Sample Condition</a>
-          </li>
+         
           <li class="nav-item">
             <a class="nav-link" id="sample-analysis-stage-tab" data-toggle="tab" href="#sample-analysis-stage-tab-content" role="tab" aria-controls="Sample-Analysis-Stage" aria-selected="false">Lab Sections</a>
           </li>
@@ -434,66 +432,7 @@
             @endif
           </div>
         </div>
-        <div class="tab-pane fade p-3" id="sample-condition-tab-content" role="tabpanel" aria-labelledby="one-tab">
-          <h5 class="card-title">Sample Conditions <div class="btn btn-sm btn-info float-right" data-target="#add-sample-conditions" data-toggle="modal"><i class="mdi mdi-plus"></i> Add</div>
-          </h5>
-          <div class="table-responsive">
-            <table class="table table-condensed my-small-text table-striped table-hover table-bordered table-sm">
-              <thead class="bg-light p-2">
-                <tr>
-                  <th>No</th>
-                  <th>Name</th>
-                  <th>Active?</th>
-                  <th></th>
-                </tr>
-              </thead>
-              <tbody>
-                @if($sample_type->sample_condition)
-                @foreach($sample_type->sample_condition as $condition)
-                <tr>
-                  <td valign="center">{{ $loop->iteration }}</td>
-                  <td>{{ $condition->name }}</td>
-                  <td class="text-small">{!! $condition->active == '1' ? '<i class="mdi mdi-marker-check text-success"></i>' : '<i class="mdi mdi-close-circle text-danger"></i>' !!}</td>
-                  <td nowrap>
-                    <button class="btn btn-primary btn-sm" data-target="#edit-sample_condition-{{ $loop->iteration }}" data-toggle="modal"><i class="mdi mdi-pencil-outline"></i> <small class="hidden-sm-up">Edit</small> </button>
-                    <div id="edit-sample_condition-{{ $loop->iteration }}" class="modal fade" role="dialog">
-                      <div class="modal-dialog">
-                        <!-- Modal content-->
-                        <form class="modal-content" method="POST" action="{{ route('edit-sample-condition', ['condition'=>$condition->id]) }}" enctype="multipart/form-data">
-                          @csrf
-                          <div class="modal-header">
-                            <h4 class="modal-title"><i class="mdi mdi-pencil-outline"></i> Edit Sample Condition</h4>
-                          </div>
-                          <div class="modal-body">
-                            <div class="form-group">
-                              <label class="control-label">Name</label>
-                              <input type="text" class="form-control" name="name" value="{{ $condition->name }}" placeholder="Name..." required />
-                            </div>
-                            <div class="form-group">
-                              <input type="hidden" name="sample_type_id" value="{{ $sample_type->id }}" />
-                              <label class="control-label"><input type="checkbox" name="active" value="1" {{ $sample_type->active == 1 ? 'checked' : '' }} /> Active</label>
-                            </div>
-                          </div>
-                          <div class="modal-footer">
-                            <button type="submit" class="btn btn-primary"><i class="mdi mdi-content-save"></i> Save</button>
-                            <button type="button" class="btn btn-default" data-dismiss="modal">Close</button>
-                          </div>
-                        </form>
-                      </div>
-                    </div>
-                  </td>
-                </tr>
-                @endforeach
-                @endif
-              </tbody>
-            </table>
-            @if(!$sample_type->sample_condition)
-            <div class="alert alert-info">
-              <i class="mdi mdi-alert"></i> No Sample Conditions added yet.
-            </div>
-            @endif
-          </div>
-        </div>
+      
         <div class="tab-pane fade p-3" id="sample-analysis-stage-tab-content" role="tabpanel" aria-labelledby="one-tab">
           <h5 class="card-title">Lab Sections <div class="btn btn-sm btn-info float-right" data-target="#add-sample-analysis-stage" data-toggle="modal"><i class="mdi mdi-plus"></i> Add</div>
           </h5>
@@ -670,31 +609,6 @@
           </select>
         </div>
         <div class="form-group">
-          <label class="control-label"><input type="checkbox" name="active" value="1" checked /> Active</label>
-        </div>
-      </div>
-      <div class="modal-footer">
-        <button type="submit" class="btn btn-primary"><i class="mdi mdi-content-save"></i> Save</button>
-        <button type="button" class="btn btn-default" data-dismiss="modal">Close</button>
-      </div>
-    </form>
-  </div>
-</div>
-<div id="add-sample-conditions" class="modal fade" role="dialog">
-  <div class="modal-dialog">
-    <!-- Modal content-->
-    <form class="modal-content" method="POST" action="{{ route('add-sample-conditions') }}" enctype="multipart/form-data">
-      @csrf
-      <div class="modal-header">
-        <h4 class="modal-title"><i class="mdi mdi-plus"></i> Add Sample Condition</h4>
-      </div>
-      <div class="modal-body">
-        <div class="form-group">
-          <label class="control-label">Name</label>
-          <input type="text" class="form-control" name="name" placeholder="Name..." required />
-        </div>
-        <div class="form-group">
-          <input type="hidden" name="sample_type_id" value="{{ $sample_type->id }}" />
           <label class="control-label"><input type="checkbox" name="active" value="1" checked /> Active</label>
         </div>
       </div>
