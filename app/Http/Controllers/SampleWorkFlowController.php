@@ -1075,7 +1075,7 @@ class SampleWorkFlowController extends Controller
 	{
 		$batchID = $batch;
 
-		$batch = SampleHeader::find($batchID);
+		$batch = SampleHeader::with('comments','comments.creator')->find($batchID);
 		$batch_scope = SystemConfiguration::where('key', 'batch_scope')->first();
 		$customer_survey = SystemConfiguration::where('key', 'customer_survey')->first();
 		$countries = Country::orderBy('name')->get();
@@ -1087,6 +1087,10 @@ class SampleWorkFlowController extends Controller
 		$reportingUnits = getReportingUnits();
 		$conditions = SampleCondition::all();
 		$products = CompanyProduct::all();
+		$workflowstages = [];
+		$workflows = getSampleWorflowStages();
+		$sample_types = getSampleTypes();
+		$samplingmethods = getSamplingMethods();
 		$interlabs = [];
 		if (isset($account_settings->id)) {
 			$accounts = getconfigByID($account_settings->id);
@@ -1101,9 +1105,12 @@ class SampleWorkFlowController extends Controller
 		$report_formats = [];
 		$approvers = [];
 		$headerDetails = isset($batch->id) ? $batch->report_header_details() : array();
+		$ammendments = isset($batch->id) ? getBatchAmmendmentsById($batch->id) : [] ;
+		$allsamples = isset($batch->id)  ? $batch->all_samples()  : [];
 
 		
 		if (isset($batch->id)) {
+			$workflowstages = getWorkflowStage_Stages($batch->status);
 			if (in_array($batch->status, ['Sample Verification', 'Sample Approval'])) {
 				$report_format_config = SystemConfiguration::where('key', 'coa_report_format')->first();
 				$report_formats = SystemConfiguration::where('configuration_type_id', $report_format_config->value)->get();
@@ -1135,6 +1142,7 @@ class SampleWorkFlowController extends Controller
 		}
 
 		$selectedSampleType = \App\SampleType::find($batch->sample_type_id ?? 0) ?? false;
+		$selected_analysis_types =isset($batch->sample_type_id) ? $selectedSampleType->analysis_types : [];
 		if (isset($batch->id)) {
 			if ($batch->is_qc_batch) {
 				$standards = Standards::where('status', 1)->where('qc_type_id', $batch->qc_type_id)->get();
@@ -1252,11 +1260,15 @@ class SampleWorkFlowController extends Controller
 				$analysisBySampleNames[$sample->sample_code][$analysis->name] = $analysis->id;
 			}
 		}
-		//return response()->json($analysisBySampleNames);
+		$active_company = getActiveCompany();
+		// return response()->json($analysisBySampleNames);
 		// ---------------------------------------
-
-
-		return view('layouts.lab.sample-workflow.show', compact('batch', 'batchID', 'defaultClient', 'selectedSampleType', 'client_portal', 'ammendable', 'standards', 'attachments', 'not_captured', 'analysts', 'countries', 'accounts', 'methods', 'atachment_type', 'batch_scope', 'customer_survey', 'interlabs', 'labs', 'users', 'payment_detail', 'labsections', 'contacts', 'batch_sample_codes', 'report_formats', 'approvers', 'reportingUnits', 'conditions', 'products', 'headerDetails','analaytesHolder','analysisBySample','analysisBySampleNames','labSamples'));
+		$userLabSections = auth()->user()->labsectionids;
+		$customer = isset($batch->id) ? getCrmCustomerByID($batch->crm_customer_id) : [];
+		$requestTypes = getRequestTypes();
+		$notifiable_users  =getNotifiableUsers();
+		$notesReminderType = getNotesReminderTypes();
+		return view('layouts.lab.sample-workflow.show', compact('batch', 'batchID', 'defaultClient', 'selectedSampleType', 'client_portal', 'ammendable', 'standards', 'attachments', 'not_captured', 'analysts', 'countries', 'accounts', 'methods', 'atachment_type', 'batch_scope', 'customer_survey', 'interlabs', 'labs', 'users', 'payment_detail', 'labsections', 'contacts', 'batch_sample_codes', 'report_formats', 'approvers', 'reportingUnits', 'conditions', 'products', 'headerDetails','analaytesHolder','analysisBySample','analysisBySampleNames','labSamples','workflowstages','workflows','sample_types','samplingmethods','active_company','ammendments','allsamples','selected_analysis_types','userLabSections','customer','requestTypes','notifiable_users','notesReminderType'));
 	}
 
 	public function fetch_unit_stuff($name, $client)
