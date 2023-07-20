@@ -1718,7 +1718,7 @@
 	</div>
 </div>
 
-<script src="https://maps.googleapis.com/maps/api/js?v=3.exp&key=AIzaSyBqS4AEZ-gVeXjG794Rh0eTd6yvdfMKTjg&sensor=false" type="text/javascript"></script>
+{{-- <script src="https://maps.googleapis.com/maps/api/js?v=3.exp&key=AIzaSyBqS4AEZ-gVeXjG794Rh0eTd6yvdfMKTjg&sensor=false" type="text/javascript"></script> --}}
 {{-- @if(isset($batch->status)) --}}
 	
 		{{-- <link rel="stylesheet" href="/css/quilljs.css" /> --}}
