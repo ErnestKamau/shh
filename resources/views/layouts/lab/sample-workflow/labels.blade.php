@@ -12,6 +12,8 @@
 			.card {
 				clear: both; 
 				page-break-after: always!important;
+				font-size: 25px!important;
+				font-weight: 800;
 			}
 			#print {display: none;}
 			body,html {margin: 0px; padding: 0px;}

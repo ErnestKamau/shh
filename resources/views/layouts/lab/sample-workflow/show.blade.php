@@ -315,19 +315,13 @@
 						<label  class="control-label">Client <span class="text-danger">*</span> <span class="btn-primary p-0 btn-sm" style="margin: 0px !important;" data-target="#add-customer" data-toggle="modal" data-toggle="tooltip" title="Add Client" ><i class="mdi mdi-plus"></i></span></label>
 						<select class="form-control qc-remove-required {{ $defaultClient === false ? '' :'no-select2' }} {{ isset($batch->status) && !in_array($batch->status, array("Samples Reception", "Samples En-Route")) ? 'no-select2' : '' }}" {{ isset($batch->status) && !in_array($batch->status, array("Samples Reception", "Samples En-Route")) ? 'readonly' : '' }} name="crm_customer_id" id="client-select" onchange="detectChange(this)" {{ $defaultClient === false ? '' :'readonly' }}>
 							<option value="">Select Client...</option>
-							@foreach (getClients() as $client)
-									@if($defaultClient === false) {{-- Creating a batch from the normal process --}}
-									<option value="{{ $client->id }}"  {{ isset($batch->crm_customer_id) && $batch->crm_customer_id == $client->id ? 'selected' : '' }} {{-- When coming from laboratory --}} {{ $defaultClient == $client->id ? 'selected' : '' }} {{-- When coming from client order --}}
-										data-units="{{ json_encode($client->units) }}"
-										data-unit_name='{{ trim($client->unit_configurable_name) == '' ? 'Site Location' : $client->unit_configurable_name }}'
-										data-sample_point_name='{{ trim($client->sample_point_configurable_name)  == '' ? 'Sample Point' : $client->sample_point_configurable_name }}'>{{ $client->name }}</option>
+							@foreach ($clients as $client)
+									@if($defaultClient === false) 
+									<option value="{{ $client->id }}"  {{ isset($batch->crm_customer_id) && $batch->crm_customer_id == $client->id ? 'selected' : '' }}  {{ $defaultClient == $client->id ? 'selected' : '' }}>{{ $client->name }}</option>
 								@endif
 	
 								@if($defaultClient !== false && $client->id == $defaultClient){{-- Creating a batch from the client order --}}
-									<option value="{{ $client->id }}"  {{ isset($batch->crm_customer_id) && $batch->crm_customer_id == $client->id ? 'selected' : '' }} {{-- When coming from laboratory --}} {{ $defaultClient == $client->id ? 'selected' : '' }} {{-- When coming from client order --}}
-										data-units="{{ json_encode($client->units) }}"
-										data-unit_name='{{ trim($client->unit_configurable_name) == '' ? 'Unit' : $client->unit_configurable_name }}'
-										data-sample_point_name='{{ trim($client->sample_point_configurable_name)  == '' ? 'Sample Point' : $client->sample_point_configurable_name }}'>{{ $client->name }}</option>
+									<option value="{{ $client->id }}"  {{ isset($batch->crm_customer_id) && $batch->crm_customer_id == $client->id ? 'selected' : '' }} {{-- When coming from laboratory --}} {{ $defaultClient == $client->id ? 'selected' : '' }} {{-- When coming from client order --}}>{{ $client->name }}</option>
 								@endif
 							@endforeach
 						</select>
@@ -2337,21 +2331,46 @@
 	tinymce.init({
 		selector: 'textarea.editor'
 	});
+
+	
 	var detectChange = function(ts){
 		var op = $(ts).children('option:selected');
 		$('#client-unit-select').html('<option value="" selected>Select Organizational Unit...</option>');
 		$('#client-unit-select').trigger('change');
-		$.each(op.data('units'), function(i, e){
-			$('#client-unit-select').append('<option value="'+e.name+'">'+e.name+'</option>');
-		});
-
-		$('#client-unit-select').val($('#client-unit-select').data('selected')).trigger('change');
+		if(op.val() > 0){
+			$.ajax({
+				url:`/get/Client-Details/Ajax/${op.val()}`,
+				method:'GET',
+				success:(data)=>{
+					$.each(data['units'], function(i, e){
+						$('#client-unit-select').append('<option value="'+e.name+'">'+e.name+'</option>');
+					});
+	
+					$('#client-unit-select').val($('#client-unit-select').data('selected')).trigger('change');
+				},
+				error:(data)=>{
+					console.log(data);
+				}
+			})
+		}
+		
 	};
 	
 	const userLabSection  = $('.carry_data').data('userlabsection');
 	var thebatch = $('#sample-detail-rows').data('batch');
-
 	$(function(){
+		var getClientDetails = (id,callback)=>{
+			$.ajax({
+				url:`/get/Client-Details/Ajax/${id}`,
+				method:'GET',
+				success:(data)=>{
+					callback(data);
+				},
+				error:(data)=>{
+					console.log(data);
+				}
+			})
+		}
 		var sampleAnalysisByType = $('#sample-detail-rows').data('analysis_types')
 		var sampleCondtions = $('#sample-detail-rows').data('conditions');
 		var labStores = $('#sample-detail-rows').data('stores');
@@ -3225,20 +3244,28 @@
 			})
 		})
 
+		
+
 		$('#client-select').on('change', function(){
 			var selectedOps = $(this).children('option:selected');
 			clientPrefProductName = 'Product';
-			clientPrefUnitName = selectedOps.data('unit_name');
-			clientPrefSPName = selectedOps.data('sample_point_name');
-
-
-			$('.client-prefered-unit-name').text(clientPrefUnitName)
-			$('.client-preferred-sample_point-name').text(clientPrefSPName)
-			$('.client-preferred-product-name').text(clientPrefProductName)
-			var client_selected = $('#client-select').val();
-			var client_id = 'client-'+client_selected;
-			var text = document.getElementById(client_id);
-			var text2 = document.getElementsByClassName('clients-data');
+			if(selectedOps.val() > 0){
+				getClientDetails(selectedOps.val(),(data)=>{
+					console.log(data);
+	
+					clientPrefUnitName = data['unit_name'];
+					clientPrefSPName = data['sample_point_name'];
+		
+		
+					$('.client-prefered-unit-name').text(clientPrefUnitName)
+					$('.client-preferred-sample_point-name').text(clientPrefSPName)
+					$('.client-preferred-product-name').text(clientPrefProductName)
+					var client_selected = $('#client-select').val();
+					var client_id = 'client-'+client_selected;
+					var text = document.getElementById(client_id);
+					var text2 = document.getElementsByClassName('clients-data');
+				})
+			}
 			
 		});
 
