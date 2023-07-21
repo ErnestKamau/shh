@@ -315,19 +315,13 @@
 						<label  class="control-label">Client <span class="text-danger">*</span> <span class="btn-primary p-0 btn-sm" style="margin: 0px !important;" data-target="#add-customer" data-toggle="modal" data-toggle="tooltip" title="Add Client" ><i class="mdi mdi-plus"></i></span></label>
 						<select class="form-control qc-remove-required {{ $defaultClient === false ? '' :'no-select2' }} {{ isset($batch->status) && !in_array($batch->status, array("Samples Reception", "Samples En-Route")) ? 'no-select2' : '' }}" {{ isset($batch->status) && !in_array($batch->status, array("Samples Reception", "Samples En-Route")) ? 'readonly' : '' }} name="crm_customer_id" id="client-select" onchange="detectChange(this)" {{ $defaultClient === false ? '' :'readonly' }}>
 							<option value="">Select Client...</option>
-							@foreach (getClients() as $client)
-									@if($defaultClient === false) {{-- Creating a batch from the normal process --}}
-									<option value="{{ $client->id }}"  {{ isset($batch->crm_customer_id) && $batch->crm_customer_id == $client->id ? 'selected' : '' }} {{-- When coming from laboratory --}} {{ $defaultClient == $client->id ? 'selected' : '' }} {{-- When coming from client order --}}
-										data-units="{{ json_encode($client->units) }}"
-										data-unit_name='{{ trim($client->unit_configurable_name) == '' ? 'Site Location' : $client->unit_configurable_name }}'
-										data-sample_point_name='{{ trim($client->sample_point_configurable_name)  == '' ? 'Sample Point' : $client->sample_point_configurable_name }}'>{{ $client->name }}</option>
+							@foreach ($clients as $client)
+									@if($defaultClient === false) 
+									<option value="{{ $client->id }}"  {{ isset($batch->crm_customer_id) && $batch->crm_customer_id == $client->id ? 'selected' : '' }} {{ $defaultClient == $client->id ? 'selected' : '' }}>{{ $client->name }}</option>
 								@endif
 	
 								@if($defaultClient !== false && $client->id == $defaultClient){{-- Creating a batch from the client order --}}
-									<option value="{{ $client->id }}"  {{ isset($batch->crm_customer_id) && $batch->crm_customer_id == $client->id ? 'selected' : '' }} {{-- When coming from laboratory --}} {{ $defaultClient == $client->id ? 'selected' : '' }} {{-- When coming from client order --}}
-										data-units="{{ json_encode($client->units) }}"
-										data-unit_name='{{ trim($client->unit_configurable_name) == '' ? 'Unit' : $client->unit_configurable_name }}'
-										data-sample_point_name='{{ trim($client->sample_point_configurable_name)  == '' ? 'Sample Point' : $client->sample_point_configurable_name }}'>{{ $client->name }}</option>
+									<option value="{{ $client->id }}"  {{ isset($batch->crm_customer_id) && $batch->crm_customer_id == $client->id ? 'selected' : '' }} {{-- When coming from laboratory --}} {{ $defaultClient == $client->id ? 'selected' : '' }} {{-- When coming from client order --}}>{{ $client->name }}</option>
 								@endif
 							@endforeach
 						</select>
@@ -336,7 +330,7 @@
 						@endif
 						
 					</div>
-					<div class="form-group col-md-3 qc-omit-type-field {{isset($batch->id) ? ( $batch->status == 'Samples In Lab' || $batch->is_qc_batch == 1 ? 'hidden' : '') : ''}} ">
+					<div class="form-group col-md-3 {{isset($batch->id) ? ( $batch->status == 'Samples In Lab' || $batch->is_qc_batch == 1 ? 'hidden' : '') : ''}} ">
 						<label class="control-label"><span class='client-prefered-unit-name'>Site Location</span> <span class="text-danger">*</span> <span class="btn-primary p-0 btn-sm"  data-target="#add-company-unit" data-toggle="modal" data-toggle="tooltip" title="Add Site Location" ><i class="mdi mdi-plus"></i></span></label>
 						<select class="form-control  {{ isset($batch->status) && !in_array($batch->status, array("Samples Reception", "Samples En-Route")) ? 'no-select2' : '' }}" {{ isset($batch->status) && !in_array($batch->status, array("Samples Reception", "Samples En-Route")) ? 'readonly' : '' }} name="crm_unit_name" data-selected='{{ $batch->crm_unit_name ?? '' }}' id="client-unit-select">
 							<option value="">Select Client Unit...</option>
