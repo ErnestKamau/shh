@@ -784,6 +784,7 @@ Route::get('/sample-products/index','CRM\CompanyProductController@index')->name(
 
 Route::get('/sample-type-category/index','SampleTypeCategoryController@index')->name('sample-type-category-index');
 Route::post('/sample-type-category/add','SampleTypeCategoryController@addCategory')->name('sample-type-category-add');
+Route::get('/get/Client-Details/Ajax/{id}','SampleWorkFlowController@getClientDetailsAjax')->name('getClientDetailsAjax');
 
 ################################################Polucon#########################################
 

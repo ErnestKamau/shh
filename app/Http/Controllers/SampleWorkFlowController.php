@@ -1268,7 +1268,8 @@ class SampleWorkFlowController extends Controller
 		$requestTypes = getRequestTypes();
 		$notifiable_users  =getNotifiableUsers();
 		$notesReminderType = getNotesReminderTypes();
-		return view('layouts.lab.sample-workflow.show', compact('batch', 'batchID', 'defaultClient', 'selectedSampleType', 'client_portal', 'ammendable', 'standards', 'attachments', 'not_captured', 'analysts', 'countries', 'accounts', 'methods', 'atachment_type', 'batch_scope', 'customer_survey', 'interlabs', 'labs', 'users', 'payment_detail', 'labsections', 'contacts', 'batch_sample_codes', 'report_formats', 'approvers', 'reportingUnits', 'conditions', 'products', 'headerDetails','analaytesHolder','analysisBySample','analysisBySampleNames','labSamples','workflowstages','workflows','sample_types','samplingmethods','active_company','ammendments','allsamples','selected_analysis_types','userLabSections','customer','requestTypes','notifiable_users','notesReminderType'));
+		$clients = getClients();
+		return view('layouts.lab.sample-workflow.show', compact('batch', 'batchID', 'defaultClient', 'selectedSampleType', 'client_portal', 'ammendable', 'standards', 'attachments', 'not_captured', 'analysts', 'countries', 'accounts', 'methods', 'atachment_type', 'batch_scope', 'customer_survey', 'interlabs', 'labs', 'users', 'payment_detail', 'labsections', 'contacts', 'batch_sample_codes', 'report_formats', 'approvers', 'reportingUnits', 'conditions', 'products', 'headerDetails','analaytesHolder','analysisBySample','analysisBySampleNames','labSamples','workflowstages','workflows','sample_types','samplingmethods','active_company','ammendments','allsamples','selected_analysis_types','userLabSections','customer','requestTypes','notifiable_users','notesReminderType','clients'));
 	}
 
 	public function fetch_unit_stuff($name, $client)
@@ -3316,5 +3317,14 @@ class SampleWorkFlowController extends Controller
 			}
 		}
 		return redirect()->back()->with('success', 'Batch Approval updated successfully');
+	}
+	public function getClientDetailsAjax($id){
+		$customer = CrmCustomer::with('units')->find($id);
+		$res = [
+			"units"=>$customer->units,
+			"unit_name" => 'Company Units',
+			"sample_point_name"=>'Sample Point',
+		];
+		return response()->json($res);
 	}
 }
