@@ -611,7 +611,615 @@
 				</div>
 			@endif
 		</div>
-       
+        <div class="card tab-card mt-1">
+          <div class="card-header tab-card-header">
+            <ul class="nav nav-tabs card-header-tabs" id="analyte-tabs" role="tablist">
+				<li class="nav-item">
+				<a class="nav-link active" id="samples-tab" data-toggle="tab" href="#samples" role="tab" aria-controls="Parameters" aria-selected="true"><i class="mdi mdi-snowflake"></i> Samples</a>
+				</li>
+				@if(isset($batch->id))
+					
+					@if(Auth::user()->is_client == 0)
+					<li class="nav-item">
+						<a class="nav-link" id="notes-tab" data-toggle="tab" href="#notes-reminders" role="tab" aria-controls="Notes" aria-selected="true"><i class="mdi mdi-android-messages"></i> Notes <span class="badge badge-pill badge-primary">{{ isset($batch->comments) ? count($batch->comments) : 0 }}</span></a>
+					</li>
+					<li class="nav-item">
+						<a class="nav-link" id="chain-of-custody-tab" data-toggle="tab" href="#chain-of-custody" role="tab" aria-controls="Custody" aria-selected="true"><i class="mdi mdi-sitemap"></i> Chain of Custody <span class="badge badge-pill badge-primary">{{$batch->custody->count()}}</span></a>
+					</li>
+					
+					<li class="nav-item">
+						<a class="nav-link" id="ammendment-tab" data-toggle="tab" href="#ammendment" role="tab" aria-controls="Custody" aria-selected="true"><i class="mdi mdi-file-document-edit"></i> Amendment</a>
+					</li>
+					<li class="nav-item">
+						<a href="#interlab" class="nav-link" data-toggle="tab" id="interlab-tab-initiator" role="tab" aria-controls="Interlab" aria-selected="true"><i class="mdi mdi-swap-horizontal-bold"></i> Inter Lab Logs</a>
+					</li>
+					@if( in_array($batch->status,['Sample Verification','Sample Approval','Reports In Payment','Reports for Collection']))
+					<li class="nav-item">
+						<a href="#batch-approval" class="nav-link" data-toggle="tab" id="batch-approval-initiator" role="tab" aria-controls="batch-approval" aria-selected="true"><i class="mdi mdi-account-check-outline"></i> Approvals</a>
+					</li>
+					@endif
+					<li class="nav-item">
+						<a href="#paymentDetailTabs" class="nav-link" data-toggle="tab" id="payment-details-tab" role="tab" aria-controls="paymentDetailTabs" aria-selected="true"><i class="mdi mdi-account-cash-outline"></i> Payment Details</a>
+					</li>
+					
+					@endif
+					<li class="nav-item">
+						<a class="nav-link" id="attachment-tab" data-toggle="tab" href="#Attachment" role="tab" aria-controls="Custody" aria-selected="true"><i class="mdi mdi-attachment"></i> Attachments</a>
+					</li>
+				@endif
+             
+            </ul>
+          </div>
+          <div class="tab-content" id="analyte-tabs-content">
+			@if(isset($batch->id))
+				@if( in_array($batch->status,['Sample Verification','Sample Approval','Reports In Payment','Reports for Collection']))
+					<div class="tab-pane fade p-3" id="batch-approval" role="tabpanel" aria-labelledby="one-tab">
+						<h5 class="p-2"><i class="mdi mdi-account-check-outline"></i> Approvers</h5>
+						<div class="table-responsive p-2">
+							<table class="table table-sm table-condensed table-bordered table-hover">
+								<thead>
+									<tr>
+										<th>#</th>
+										<th>Status</th>
+										<th>Approval Date</th>
+										<th>Approver</th>
+										<th>Title</th>
+										<th>Workflow</th>
+										<th>Remark</th>
+										<th>Lab Sections</th>
+									</tr>
+								</thead>
+								<tbody>
+									@foreach($approvers as $approver)
+									<tr class="{{$approver->batch_status != $batch->status ? 'bg-light' : ''}}" >
+										<td style="width:80px">
+											@if($approver->status == 0)
+											@if($approver->user_id == auth()->user()->id)
+											<span class="btn btn-sm btn-default text-success" data-toggle="modal" data-record="{{json_encode($approver)}}" data-target="#change-approval-status"><i class="mdi mdi-thumb-up-outline" data-toggle="tooltip" title="Change Approval Status"></i></span>
+											@endif
+											<span class="btn btn-sm btn-default text-danger" data-record="{{json_encode($approver)}}"  data-toggle="modal" data-target="#delete-batch-approver"><i class="mdi mdi-delete-empty" data-toggle="tooltip" title="Delete"></i></span> 
+											<span class="btn btn-sm btn-default text-primary" data-record="{{json_encode($approver)}}" data-toggle="modal" data-target="#edit-batch-approver"><i class="mdi mdi-pencil" data-toggle="tooltip" title="Edit"></i></span>
+											@endif
+										</td>
+										<td>
+											@if($approver->status == 0)
+											<span class="badge badge-primary badge-pill p-2"><i class="mdi mdi-decagram"></i> Awaiting Approval</span>
+											@elseif($approver->status == 1)
+											<span class="badge badge-success badge-pill p-2"><i class="mdi mdi-thumb-up-outline"></i> Approved</span>
+											@else
+											<span class="badge badge-success badge-pill p-2"><i class="mdi mdi-decagram"></i> Declined</span>
+											@endif
+										</td>
+										<td>{{$approver->approval_date}}</td>
+										<td>{{$approver->approvername}}</td>
+										<td>{{$approver->title}}</td>
+										<td>{{$approver->batch_status}}</td>
+										<td>{{$approver->remark}}</td>
+										<td>{{$approver->labsectionnames}}</td>
+									</tr>
+									@endforeach
+								</tbody>
+							</table>
+						</div>
+					</div>
+				@endif
+				
+				<div class="tab-pane fade p-3" id="interlab" role="tabpanel" aria-labelledby="one-tab">
+					<h5 class="p-2">
+						<i class="mdi mdi-swap-horizontal-bold"></i> Inter Laboratory Logs
+						<div class="btn-group float-right">
+							<button type="button" class="btn btn-sm btn-white dropdown-toggle" style="box-shadow: rgba(0, 0, 0, 0.15) 1.95px 1.95px 2.6px;"  type="button" id="dropdownMenuButton" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
+								Actions
+							</button>
+							<div class="dropdown-menu dropdown-menu-right">
+								
+								<li>
+									<span class="btn btn-sm dropdown-item" data-action="bulk"  data-target="#change-interlab-status" data-toggle="modal"><i class="mdi  mdi-thumbs-up-down mr-2"></i> Approve / Reject Inter Lab Log(s)</span>
+								</li>
+								<li>
+									<span class="btn btn-sm dropdown-item"  data-target="#delete-inter-lab-log" data-toggle="modal"><i class="mdi mdi-delete-empty mr-2"></i> Delete Inter Lab Log(s)</span>
+								</li>
+								
+
+							</div>
+						</div>
+					</h5>
+					<div class="table-responsive">
+						<table class="table table-condensed my-small-text table-striped table-hover table-bordered table-sm" style="width:300%" id="interlabbookingtable">
+							<thead class="bg-light">
+								<tr>
+									<th>
+									<input type="checkbox" name="selected_inter_lab_all" class="selected_inter_lab_all" id="">
+									</th>
+									<th>Status</th>
+									<th>Sample/Job No</th>
+									<th>From Lab</th>
+									<th>To Lab</th>
+									<th>Sample Type</th>
+									<th>Qty</th>
+									<th>Submitted By</th>
+									<th>Date Submitted</th>
+									<th>Recieved By</th>
+									<th>Date Received</th>
+									<th>Remarks</th>
+								</tr>
+							</thead>
+							<tbody>
+								@foreach($interlabs as $ilabs)
+								<tr>
+									<td style="width:5% !important">
+										@if(isset($batch->status) && in_array($batch->status, array("Samples En-Route" ,"Samples Reception","Samples In Lab")) && $ilabs->status == 0)
+										<input type="checkbox" value="{{$ilabs->id}}" data-code="{{$ilabs->sample_code}}" name="selected_inter_lab" class="selected_inter_lab" id="">
+										<span class="btn btn-sm btn-default text-warning" data-toggle="modal" data-record="{{json_encode($ilabs)}}" data-target="#change-interlab-status" data-action="single"><i class="mdi mdi-thumbs-up-down"  data-toggle="tooltip" title="Approve / Rejected Inter Lab"></i></span>
+										<span class="btn btn-default text-primary btn-sm initiate-interlab" data-record="{{json_encode($ilabs)}}" data-toggle="modal" data-target="#inter-lab-add" data-action="edit"><i class="mdi mdi-pencil" data-toggle="tooltip" title="Edit Inter Lab"></i></span>
+										@endif
+									</td>
+									<td style="width:8% !important">
+										@if($ilabs->status == 0)
+										<span class="badge badge-pill p-2 badge-primary"><i class="mdi mdi-alert-decagram-outline"></i> Awaiting Approval</span>				
+										@elseif($ilabs->status == 1)
+										<span class="badge badge-pill p-2 badge-success"><i class="mdi mdi-thumb-up"></i>  Approved</span>	
+										@else
+										<span class="badge badge-pill p-2 badge-danger"><i class="mdi mdi-alert-decagram-outline"></i>  Rejected</span></	
+										@endif
+									</td>
+									<td style="width:7% !important">{{$ilabs->sample_code}}</td>
+									<td style="width:10% !important">{{$ilabs->from_lab_section_id > 0 ? $ilabs->from_lab_name : 'Reception'}}</td>
+									<td style="width:10% !important">{{$ilabs->to_lab_code}} - {{$ilabs->to_lab_name}}</td>
+									<td style="width:7% !important">{{$ilabs->sample_type_name}}</td>
+									<td>{{$ilabs->quantity}}</td>
+									<td>{{$ilabs->submitted_by_name}}</td>
+									<td>{{$ilabs->date_submitted}}</td>
+									<td>{{$ilabs->received_by_name}}</td>
+									<td>{{$ilabs->date_received}}</td>
+									<td>{{$ilabs->remarks}}</td>
+
+								</tr>
+								@endforeach
+							</tbody>
+						</table>
+					</div>
+				</div>
+				<div class="tab-pane fade p-3" id="paymentDetailTabs" role="tabpanel" aria-labelledby="one-tab">
+					<h5 class="p-2">
+						<i class="mdi mdi-account-cash-outline"></i> Payment Details
+						<span class="btn btn-outline-primary btn-sm float-right mb-2" data-action="add" data-target="#add-payment-details" data-toggle="modal"><i class="mdi mdi-plus"></i> Add Payment</span>
+					</h5>
+					<div class="table-responsive">
+                        <table class="table table-condensed table-bordered table-sm table-hover stripped table-bordered my-small-text" style="width: 100%;">
+                            <thead class="bg-light p-2">
+                                <tr>
+                                    <th>#</th>
+                                    <th nowrap>Payment Method</th>
+                                    <th>Amount</th>
+                                    <th>Reference No</th>
+                                    <th>VAT</th>
+                                    <th>Balance</th>
+									<th>Contact Person</th>
+                                    <th>Received By</th>
+                                    
+                                </tr>
+                            </thead>
+                            <tbody>
+                                @foreach($payment_detail as $payment)
+                                
+                                <tr>
+                                    <td style="width:70px !important">
+										<span class="btn btn-outline-default text-primary" data-toggle="modal" data-target="#add-payment-details" data-action="edit" data-record="{{json_encode($payment)}}" data-toggle="tooltip" title="Edit Payment Detail">
+											<i class="mdi mdi-pencil" data-toggle="tooltip" title="Edit"></i>
+                                        </span>
+                                        {{-- <span class="btn btn-outline-default text-danger btn-sm" data-toggle="modal" data-target="#delete-payment-detail" ><i class="mdi mdi-delete-empty" data-toggle="tooltip" title="Delete Payment Detail"></i></span> --}}
+									</td>
+                                    <td>{{$payment->payment_method}}</td>
+                                    <td style="text-align: right;">{{number_format($payment->amount,2) }}</td>
+                                    <td>{{$payment->ref_no}}</td>
+                                    <td>{{$payment->vat}}</td>
+                                    <td>{{$payment->balance}}</td>
+									<td>{{$payment->contact_person_name}}</td>
+                                    
+                                    <td>{{$payment->receivername}}</td>
+                                    
+                                </tr>
+                                
+                                @endforeach
+                            </tbody>
+                        </table>
+                    </div>
+				</div>
+				
+				<div class="tab-pane fade p-3" id="chain-of-custody" role="tabpanel" aria-labelledby="one-tab">
+					<div class="p-2 row">
+						<div class="col-sm-8">
+							<h5><i class="mdi mdi-sitemap"></i> Chain of Custody</h5>
+						</div>
+					</div>
+					<div class="table-responsive">
+						<table class="table table-condensed my-small-text table-striped table-hover table-bordered table-sm">
+							<thead class="bg-light p-2">
+								<tr>
+									<th>No</th>
+									<th>Workflow</th>
+									<th nowrap>Tracking Stage</th>
+									<th nowrap>Started By</th>
+									<th nowrap>Start Date</th>
+									<th nowrap>Completed By</th>
+									<th nowrap>Complete Date</th>
+									<th nowrap>Comments</th>
+								</tr>
+							</thead>
+							<tbody>
+								@foreach ($batch->custody as $c)
+									<tr>
+										<td nowrap>{{ $loop->iteration }}</td>
+										<td nowrap>{{ $c->workflow_stage }}</td>
+										<td nowrap>{{ $c->tracking_stage->name ?? '-' }}</td>
+										<td nowrap>{{ $c->started_by->name ?? '-' }}</td>
+										<td nowrap>{{ $c->created_at ?? '-' }}</td>
+										<td nowrap>{!! $c->completed_by->name ?? '<i class="mdi mdi-timer-sand text-warning"  style="font-size: 16px!important"></i>' !!}</td>
+										<td nowrap>{!! $c->moved_out_date ?? '<i class="mdi mdi-timer-sand text-warning" style="font-size: 16px!important"></i>' !!}</td>
+										<td>{{ $c->comments != '' ? $c->comments : '-' }}</td>
+									</tr>
+								@endforeach
+							</tbody>
+						</table>
+					</div>
+				</div>
+				<div class="tab-pane fade p-3" id="notes-reminders" role="tabpanel" aria-labelledby="one-tab">
+					<div class="p-2 row">
+						<div class="col-sm-8">
+							<h5><i class="mdi mdi-android-messages"></i> Notes & Reminders</h5>
+						</div>
+						<div class="col-sm-4 align-content-center">
+							@if(Auth::user()->is_client == 0)
+							<span class="btn btn-primary float-right btn-sm" data-target="#add-sample-notes" data-toggle="modal">
+								<i class="mdi mdi-message-plus-outline"></i> Add
+							</span>
+							@endif
+						</div>
+					</div>
+					<div class="table-responsive">
+						<table class="table table-condensed my-small-text table-striped table-hover table-bordered table-sm">
+							<thead class="bg-light p-2">
+								<tr>
+									<th>No</th>
+									<th nowrap>Sender</th>
+									<th nowrap>Receiver</th>
+									<th nowrap>Type</th>
+									<th nowrap>Other Users</th>
+									<th nowrap>Status</th>
+									<th nowrap>Comment</th>
+									<th></th>
+								</tr>
+							</thead>
+							<tbody>
+								@foreach ($batch->comments ?? array() as $item)
+									<tr>
+										<td>{{ $loop->iteration }}</td>
+										<td>{{ $item->creator->name ?? '-' }}</td>
+										<td>{{ $item->reminder_for()->name ?? '-' }}</td>
+										<td>{{ $item->comment_type }}</td>
+										<td>
+											@foreach ($item->people_to_cc()['names'] as $p)
+												<small class="mr-1"><i class="mdi mdi-account"></i> {{ $p }}</small>
+											@endforeach
+										</td>
+										<td>{!! $item->completed_at == "" ? '<i class="text-warning mdi mdi-timer-sand"></i> Pending' : '<i class="text-success mdi mdi-check-circle"></i> Completed'.$item->completed_at !!}</td>
+										<td class="show-hoverable">
+											<span class="partial">{{ substr($item->comments, 0, 75)  }}{{ strlen($item->comments) > 75 ? '...' : '' }}</span>
+											<span class="complete">{{ $item->comments }}</span>
+										</td>
+										<td>
+											@if($item->completed_at == "")
+												<span class="btn btn-sm btn-outline-info" data-target="#edit-sample-notes-{{ $loop->iteration }}" data-toggle="modal">
+													<i class="mdi mdi-pencil"></i>
+												</span>
+												<div id="edit-sample-notes-{{ $loop->iteration }}" class="modal fade" role="dialog">
+													<div class="modal-dialog">
+														<!-- Modal content-->
+														<form class="modal-content" id="print-labels-form" method="POST" action="{{ route('edit-batch-comment', ['id'=>$item->id]) }}" enctype="multipart/form-data">
+															@csrf
+															<div class="modal-header">
+																<h4 class="modal-title"><i class="mdi mdi-message-plus"></i> Edit Note </h4>
+															</div>
+															<div class="modal-body">
+																<div class="form-group">
+																	<label class="control-label">User To Notify</label>
+																	<select class="form-control" name="user_id" required placeholder="Select User...">
+																		<option></option>
+																		@foreach ($notifiable_users as $g)
+																			<option value="{{ $g->id }}" {{ $item->created_by == $g->id ? 'selected' : ''}}>{{ $g->name }}</option>
+																		@endforeach
+																	</select>
+																</div>
+																<div class="form-group">
+																	<label class="control-label">Also Notify <small class="text-muted">*Optional</small></label>
+																	<select class="form-control" name="followers[]" multiple placeholder="Other Notifiable Users...">
+																		<option></option>
+																		@foreach ($notifiable_users as $g)
+																			<option value="{{ $g->id }}" {{ in_array($g->id, $item->people_to_cc()['ids']) ? 'selected' : '' }}>{{ $g->name }}</option>
+																		@endforeach
+																	</select>
+																</div>
+																<input name="batch_id" type="hidden" value="{{ $batch->id }}" />
+																<div class="form-group">
+																	<label class="control-label">Type</label>
+																	<select class="form-control" name="type" required placeholder="Message Type...">
+																		<option></option>
+																		@foreach ($notesReminderType as $g)
+																			<option value="{{ $g }}" {{ $item->comment_type == $g ? 'selected' : ''}}>{{ $g }}</option>
+																		@endforeach
+																	</select>
+																</div>
+																<div class="form-group">
+																	<label class="control-label">Message</label>
+																	<textarea class="form-control" name="message" placeholder="Message..." required>{{ $item->comments }}</textarea>
+																</div>
+																<div class="form-group">
+																	<label class="control-label"><input type="checkbox" value="yes" name="complete" /> Mark as Complete </label>
+																</div>
+															</div>
+															<div class="modal-footer">
+																<button type="submit" class="btn btn-info btn-sm print-label-btn"><i class="mdi mdi-content-save"></i> Save</button>
+																<button type="button" class="btn btn-default btn-sm" data-dismiss="modal">Close</button>
+															</div>
+														</form>
+													</div>
+												</div>
+											@else
+												-
+											@endif
+										</td>
+									</tr>
+								@endforeach
+							</tbody>
+						</table>
+					</div>
+				</div>
+				<div class="tab-pane fade p-3" id="ammendment" role="tabpanel" aria-labelledby="one-tab">
+					<h5 class="card-title">
+						<i class="mdi mdi-file-document-edit"></i> Amendments
+						
+					</h5>
+
+					<div class="table-responsive">
+						<table class="table table-condensed table-sm my-small-text table-hover table-stripped">
+							<thead class="bg-light">
+								<th>Version No</th>
+								<th nowrap>Samples</th>
+								<th nowrap>Amended By</th>
+								<th>Date</th>
+								<th>Reason</th>
+								<th nowrap>Report</th>
+
+							</thead>
+							<tbody>
+								@foreach($ammendments as $a)
+								<tr>
+									<td>V {{$a->version_number}}</td>
+									<td>
+										{{$a->sample_name}}
+									</td>
+									<td>
+										{{$a->creator}}
+									</td>
+									<td>{{$a->created_at}}</td>
+									<td><span class="btn-sm btn-outline-dark mdi mdi-comment-text" data-toggle="modal" data-target="#reason-{{$a->id}}" data-toggle="tooltip" title="Amendment Reason" ></span>
+									<div class="modal fade" id="reason-{{$a->id}}" role="dialog">
+										<div class="modal-dialog">
+											<div class="modal-content">
+												<div class="modal-header bg-light">
+													<h4 class="modal-title"><i class="mdi mdi-comment-text"></i> Amendment {{$a->version}} Reason</h4>
+												</div>
+												<div class="modal-body">
+													{{$a->reason}}
+												</div>
+												<div class="modal-footer">
+												<button type="button" class="btn btn-outline-danger btn-sm" data-dismiss="modal">Close</button>
+												</div>
+											</div>
+										</div>
+									</div>
+								</td>
+								<td nowrap><a href="{!! $a->report_url == '' ? '' : '/storage'.$a->report_url !!}"><i class="mdi mdi-download"></i> Download Report</a></td>
+								</tr>
+								@endforeach
+							</tbody>
+						</table>
+					</div>
+				</div>
+				<div class="tab-pane fade p-3" id="Attachment" role="tabpanel" aria-labelledby="one-tab">
+					<h5 class="card-tile">
+						<i class="mdi mdi-attachment"></i> Attachments
+						<span class="btn btn-outline-info btn-sm float-right mb-2" data-target="#add-attachment-batch" data-toggle="modal"><i class="mdi mdi-plus"></i> Add</span>
+					</h5>
+					<div class="table-responsive">
+					<table class="table table-condensed table-sm table-hover table-stripped table-bordered">
+						<thead class="bg-light p-2">
+							<tr>
+								<th></th>
+								<th>Type</th>
+								<th>Title</th>
+								<th>Upload Date</th>
+								<th>Uploaded By</th>
+								<th>File</th>
+								<th></th>
+							</tr>
+						</thead>
+						<tbody>
+							@if(Auth::user()->is_client == 1)
+								@foreach($attachments as $a)
+									@if($a->is_internal == 0)
+										
+										<tr>
+											<td>{{$loop->iteration}}</td>
+											<td>{{ $a->attachtypename}}</td>
+											<td>{{$a->title ?? 'N/a'}}</td>
+											<td>{{date('Y-m-d',strtotime($a->created_at))}}</td>
+											<td>{{$a->uploaduser}}</td>
+											<td class="text-center">
+											<a href="'.$a->attachment_url.'" target="_blank" data-toggle="tooltip" data-title="View Attachment" class=" btn-sm btn btn-outline-dark"><i class="mdi mdi-eye"></i></a>
+											
+											</td>
+											<td>
+												<span class="btn btn-sm btn-outline-danger" data-title="Delete Attachment" data-toggle="modal" data-target="#delete-attachment-'.$a->id.'" ><i class="mdi mdi-delete-empty"></i></span>
+												
+												<div class="modal fade" id="delete-attachment-{{$a->id}}" role="dialog">
+													<div class="modal-dialog">
+														<div class="modal-content">
+															<form action="{{route('delete_batch_attachmment')}}" method="post">
+																@csrf  
+																<div class="modal-body">
+																	
+																		<div class="alert alert-danger p-3">
+																		<i class="mdi mdi-delete-empty"></i>	Confirm you want to delete attchment {{$loop->iteration}}.
+																		</div>
+																
+																	<input type="hidden" name="attachment_id" value="{{$a->id}}">
+
+																</div>
+																
+																<div class="modal-footer">
+																	<button type="submit" class="btn btn-success btn-sm"><i class="mdi mdi-thumb-up"></i> Confirm</button>
+																	<button type="button" class="btn btn-default btn-sm" data-dismiss="modal">Close</button>
+							
+																</div>
+															</form>
+														</div>
+													</div>
+												</div>
+											</td>
+										</tr>
+									@endif
+								@endforeach
+							@else
+								@foreach($attachments as $a)
+								
+								<tr>
+									<td>{{$loop->iteration}}</td>
+									<td>{{ $a->attachtypename}}</td>
+									<td>{{$a->title ?? 'N/a'}}</td>
+									<td>{{date('Y-m-d',strtotime($a->created_at))}}</td>
+									<td>{{$a->uploaduser}}</td>
+									
+									<td class="text-center">
+										<a href="'.$a->attachment_url.'" target="_blank" data-toggle="tooltip" data-title="View Attachment" class=" btn-sm btn btn-outline-dark"><i class="mdi mdi-eye"></i></a>
+									
+									
+									</td>
+									<td>
+										
+									<span class="btn btn-sm btn-outline-danger" data-title="Delete Attachment" data-toggle="modal" data-target="#delete-attachment-'.$a->id.'" ><i class="mdi mdi-delete-empty"></i></span>
+										<div class="modal fade" id="delete-attachment-{{$a->id}}" role="dialog">
+											<div class="modal-dialog">
+												<div class="modal-content">
+													<form action="{{route('delete_batch_attachmment')}}" method="post">
+														@csrf  
+														<div class="modal-body">
+															
+																<div class="alert alert-danger p-3">
+																<i class="mdi mdi-delete-empty"></i>	Confirm you want to delete attachment {{$loop->iteration}}.
+																</div>
+														
+															<input type="hidden" name="attachment_id" value="{{$a->id}}">
+
+														</div>
+														
+														<div class="modal-footer">
+															<button type="submit" class="btn btn-success btn-sm"><i class="mdi mdi-thumb-up"></i> Confirm</button>
+															<button type="button" class="btn btn-default btn-sm" data-dismiss="modal">Close</button>
+					
+														</div>
+													</form>
+												</div>
+											</div>
+										</div>
+									</td>
+								</tr>
+								@endforeach
+							@endif
+						</tbody>
+					</table>
+					</div>
+				</div>
+			@endif
+            <form method="POST" action="{{ route('add-batch-samples', ['batch'=>$batchID]) }}" class="tab-pane fade show active p-3" id="samples" role="tabpanel" aria-labelledby="one-tab">
+              	<h5 class="card-title">
+					<span class="btn btn-transparent">Samples Configuration</span>
+					@if(isset($batch->id) || (Auth::user()->is_client == 1 && isset($batch->status) && $batch->status =='Samples En-Route'))
+						@if(in_array($batch->status, array("Sample Verification","Sample Approval","Reports In Payment","Reports for Colllection","Samples In Lab")))
+							@if(sizeof($not_captured) > 0)
+							<button type="button" class="btn btn-outline-danger btn-sm ml-2" data-toggle="modal" data-target="#missing-parameters-modal">
+								<i class="mdi mdi-content-save"></i> Missing Analytes
+							</button>
+							@endif
+						@endif
+						@if(isset($batch->status) && ($batch->status == "Sample Verification" || $batch->status == "Sample Approval") && Auth::user()->is_client == 0)
+							
+								<button type="button" class="btn btn-danger btn-sm text-white float-right" data-target="#send-back-for-rechcek-modal" data-toggle="modal">
+									<i class="mdi mdi-page-previous"></i> Recheck
+								</button> &nbsp; &nbsp;
+							
+						@endif
+						@if(isset($batch->status) && in_array($batch->status, array("Samples Reception","Samples En-Route")))
+							@if(Auth::user()->is_client == 1 && $batch->status == 'Samples Reception')
+							@else
+							<input type="hidden" name="batch" value={{$batch->id}}>
+							<button type="button" class="btn btn-danger btn-sm text-white ml-2 save-samples"><i class="mdi mdi-content-save"></i> Save</button> &nbsp; &nbsp;
+							<span class="btn btn-success btn-sm create-new-sample-row float-right"><i class="mdi mdi-plus"></i> Add</span> &nbsp; &nbsp;
+							<span class="btn btn-primary btn-sm duplicate-sample-row float-right mr-1"><i class="mdi mdi-content-duplicate"></i> Duplicate</span>
+							
+							@endif
+						@endif
+					@endif
+				</h5>
+				@csrf
+              <div class="table-responsive">
+                <table class="table table-condensed my-small-text table-striped table-hover table-bordered table">
+					<thead>
+						<tr>
+							<th></th>
+							<th></th>
+							<th>Code</th>
+							<th>Analysis<sup class="text-danger">*</sup></th>
+							<th>Lab<sup class="text-danger">*</sup></th>
+							<th nowrap>Condition<sup class="text-danger">*</sup> <span class="btn-primary btn-sm p-0" data-toggle="modal" data-target="#add-sample-conditions" data-target="tooltip" title="Add Sample Condition"><i class="mdi mdi-plus"></i></span></th>
+							<th nowrap><span class="client-preferred-sample_point-name"></span><sup class="text-danger">*</sup> <span class="p-0 btn-primary btn-sm" data-target="#add-company-sample-point"  data-toggle="modal" data-target="tooltip" title="Add Sample Point" ><i class="mdi mdi-plus"></i></span></th>
+							<th><span class="client-preferred-product-name"></span><sup class="text-danger">*</sup> <span class="btn-primary btn-sm p-0" data-toggle="modal" data-target="#add-company-product" data-toggle="tooltip" title="Add Product"><i class="mdi mdi-plus"></i></span></th>
+							<th>Disposal Date</th>
+							<th>Main Standard <sup class="text-danger">*</sup></th>
+							<th>Secondary Standard</th>
+							
+							<th>Sample Markings</th>
+							{{-- <th>Storage</th> --}}
+							{{-- <th>Slot</th> --}}
+							{{-- <th>Quantity</th> --}}
+							{{-- <th>UoM</th> --}}
+							{{-- <th>Barcode</th> --}}
+							
+						</tr>
+					</thead>
+					<tbody id="sample-detail-rows"
+						data-analysis_names = '{{json_encode($analysisBySampleNames)}}'
+						data-sample_analysis_ids = '{{ json_encode($analysisBySample) }}'
+						data-parameters='{{ json_encode($analaytesHolder) }}'
+						data-conditions='{{ json_encode($conditions ?? array()) }}'
+						data-stores='{{ json_encode($labStores) }}'
+						data-analysis_types='{{ json_encode($selected_analysis_types) }}'
+						data-samples="{{ json_encode($allsamples) }}"
+						data-ammendments = "{{ json_encode($ammendable) }}"
+						data-client = "{{json_encode(Auth::user())}}"
+						data-batch = "{{json_encode($batch ?? array())}}"
+						data-standards = "{{json_encode($standards ?? array())}}"
+						data-methods = "{{json_encode($methods)}}"
+						data-labs = "{{json_encode($labSamples)}}"
+						>
+
+					</tbody>
+                </table>
+              </div>
+            </form>
+          </div>
+        </div>
       </div>
     </div>
   </main>
@@ -1718,17 +2326,17 @@
 	</div>
 </div>
 
-{{-- <script src="https://maps.googleapis.com/maps/api/js?v=3.exp&key=AIzaSyBqS4AEZ-gVeXjG794Rh0eTd6yvdfMKTjg&sensor=false" type="text/javascript"></script> --}}
+<script src="https://maps.googleapis.com/maps/api/js?v=3.exp&key=AIzaSyBqS4AEZ-gVeXjG794Rh0eTd6yvdfMKTjg&sensor=false" type="text/javascript"></script>
 {{-- @if(isset($batch->status)) --}}
 	
 		{{-- <link rel="stylesheet" href="/css/quilljs.css" /> --}}
-		{{-- <script type="text/javascript" src="/tinymce/tinymce.min.js"></script> --}}
+		<script type="text/javascript" src="/tinymce/tinymce.min.js"></script>
 	
 {{-- @endif --}}
 <script>
-	// tinymce.init({
-	// 	selector: 'textarea.editor'
-	// });
+	tinymce.init({
+		selector: 'textarea.editor'
+	});
 	var detectChange = function(ts){
 		var op = $(ts).children('option:selected');
 		$('#client-unit-select').html('<option value="" selected>Select Organizational Unit...</option>');
@@ -2720,13 +3328,13 @@
 			$('#sample-header-body-'+n).html(headerBody)
 			$('#sample-main-body-'+n).html(mainBody);
 			console.log(n);
-			// tinymce.init({
-			// 	selector: '#sample-header-body-'+n
-			// });
+			tinymce.init({
+				selector: '#sample-header-body-'+n
+			});
 
-			// tinymce.init({
-			// 	selector: '#sample-main-body-'+n
-			// });
+			tinymce.init({
+				selector: '#sample-main-body-'+n
+			});
 		});
 		$('#batch-info-sample-type').trigger('change');
 
