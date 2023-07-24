@@ -12,8 +12,7 @@
 			.card {
 				clear: both; 
 				page-break-after: always!important;
-				font-size: 25px!important;
-				font-weight: 800;
+				
 			}
 			#print {display: none;}
 			body,html {margin: 0px; padding: 0px;}
@@ -21,12 +20,13 @@
 
 		.card {
 			background-color: white;
-			width: 480px!important;
-			height: 200px!important;
-			font-size: 10px!important;
+			width: 570px!important;
+			max-height: 100%!important;
+			font-size: 13px!important;
 			border: none!important;
 			clear: both;
 			page-break-after: always!important;
+			font-weight:1000;
 		}
 
 		body {
@@ -43,7 +43,7 @@
 	</style>
 </head>
 
-<body>
+<body>6
 		<span id="print" onclick="window.print()" class="btn btn-success float-right m-2"><i class="mdi mdi-printer"></i> Print</span>
 	<div class="pl-3">
 		@foreach ($labels as $item)

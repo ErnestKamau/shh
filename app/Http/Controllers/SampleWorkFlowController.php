@@ -1085,7 +1085,7 @@ class SampleWorkFlowController extends Controller
 		$users = User::where('is_client', 0)->where('supplier_id', 0)->where('active', 1)->get();
 		$labsections = SampleAnalysisStage::where('active', 1)->get();
 		$reportingUnits = getReportingUnits();
-		$conditions = SampleCondition::all();
+		$conditions = SampleCondition::where('active',1)->get();
 		$products = CompanyProduct::all();
 		$workflowstages = [];
 		$workflows = getSampleWorflowStages();
