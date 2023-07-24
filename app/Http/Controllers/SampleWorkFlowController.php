@@ -3012,6 +3012,8 @@ class SampleWorkFlowController extends Controller
 					"submited_by" => auth()->user()->id,
 					"date_submitted" => date('Y-m-d h:i:s a'),
 					"expected_date" => $request->expected_date == '' ?  date('Y-m-d', strtotime($batch->get_date('Target Date')['date'])) : $request->expected_date,
+					"prelim_date"=> $request->prelim_date ?? '',
+					"remarks"=>$request->remarks ?? '',
 
 				];
 			}
@@ -3029,6 +3031,8 @@ class SampleWorkFlowController extends Controller
 					"date_submitted" => date('Y-m-d h:i:s a'),
 					"expected_date" => $request->expected_date,
 					"from_lab_section_id" => isset($last_log->id) ? $last_log->to_lab_section_id : 0,
+					"prelim_date"=> $request->prelim_date ?? '',
+					"remarks"=>$request->remarks ?? '',
 				];
 			} else {
 				$log = [
@@ -3039,6 +3043,8 @@ class SampleWorkFlowController extends Controller
 					"submited_by" => auth()->user()->id,
 					"date_submitted" => date('Y-m-d h:i:s a'),
 					"expected_date" => $request->expected_date,
+					"prelim_date"=> $request->prelim_date ?? '',
+					"remarks"=>$request->remarks ?? '',
 				];
 			}
 		}
@@ -3326,5 +3332,21 @@ class SampleWorkFlowController extends Controller
 			"sample_point_name"=>'Sample Point',
 		];
 		return response()->json($res);
+	}
+	public function generateTabletCustomerFocusIndex(Request $request)
+	{
+		$sample = SampleDetails::where('sample_code',$request->sample_no)->first();
+		if(!isset($sample->id)){
+			return redirect()->back()->with('error','There is no sample with '.$request->sample_no.' sample/job number');
+		}
+		$batch = SampleHeader::find($sample->sample_header_id);
+		$customer = CrmCustomer::find($batch->crm_customer_id);
+		$company = getActiveCompany();
+		$config_docs_setting = SystemConfiguration::where('key', 'customer_focus_id')->first();
+		$docs_settings = SystemConfiguration::where('configuration_type_id', $config_docs_setting->value)->pluck('value', 'key')->toArray();
+		$review_staff = getUserById($batch->declaration_customer_review_id);
+		$samples = SampleDetails::where('sample_header_id', $batch->id)->get();
+		$payment_detail = InvoicePaymentDetail::where('batch_id', $batch->id)->orderBy('id', 'DESC')->first();
+		return view('layouts.lab.sample-workflow.sign-customer-focus-show', compact('batch', 'customer', 'company', 'docs_settings', 'review_staff', 'samples', 'payment_detail'));
 	}
 }

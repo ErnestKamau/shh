@@ -786,6 +786,8 @@ Route::get('/sample-type-category/index','SampleTypeCategoryController@index')->
 Route::post('/sample-type-category/add','SampleTypeCategoryController@addCategory')->name('sample-type-category-add');
 Route::get('/get/Client-Details/Ajax/{id}','SampleWorkFlowController@getClientDetailsAjax')->name('getClientDetailsAjax');
 
+Route::get('generate/Tablet/Customer-Focus/Index','SampleWorkFlowController@generateTabletCustomerFocusIndex')->name('generateTabletCustomerFocusIndex');
+
 ################################################Polucon#########################################
 
 

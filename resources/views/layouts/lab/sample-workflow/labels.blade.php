@@ -12,7 +12,7 @@
 			.card {
 				clear: both; 
 				page-break-after: always!important;
-				font-size: 25px!important;
+				font-size: px!important;
 				font-weight: 800;
 			}
 			#print {display: none;}

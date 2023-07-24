@@ -49,7 +49,12 @@ class HomeController extends Controller
 		$user->is_online = 1;
 		$user->save();
 		return redirect()->route('supplier-dashboard-home');
-	}else{
+	}elseif($user->is_tablet == 1){
+		$user->is_online = 1;
+		$user->save();
+		return view('layouts.lab.sample-workflow.sign-customer-focus-index');
+	}
+	else{
 		$user->is_online = 1;
 		$user->save();
 		$roles = UserRole::where('user_id',$user->id)->get();

@@ -235,7 +235,7 @@ class PersonnelController extends Controller
 		$personnel->nhif = $request->nhif;
 		$personnel->kra_pin = $request->kra_pin;
 		$personnel->active = $request->active ?? 0;
-		$personnel->lab_section_id = implode(',',$request->lab_section_id) ?? '';
+		$personnel->lab_section_id = implode(',',$request->lab_section_id ?? []) ?? '';
 
 		$personnel->license_type = $request->user_license;
 
