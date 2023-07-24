@@ -93,7 +93,7 @@
                             </tr>
                             <tr>
                                 <td>Date Of Issue:</td>
-                                <td>{{ $batch->date_received }}</td>
+                                <td>{{$docs_settings['date_issue']}}</td>
                             </tr>
                         </table>
                     </div>
@@ -163,7 +163,7 @@
                         <li>Remarks / Special Instructions <u><span style="display: inline-block;width:60%" class="text-bold ml-5 text-muted">{{ $batch->batch_instructions }}</span></u> </li>
 
                         <li>Duration of Analysis <u><span
-                            class="text-bold text-muted ml-5" style="display: inline-block;width:50%">{{ $batch->days_of_analysis }}</span></u> </li>
+                            class="text-bold text-muted ml-5" style="display: inline-block;width:50%">{{ $batch->days_of_analysis }} Working Days</span></u> </li>
                     </ol>
                 </div>
                 <div class="batch-details border-bottom border-dark pb-2 mt-2">
@@ -175,14 +175,14 @@
                     </p>
                     <div class="row">
                         <div class="col-md-4">
-                            Sampled / Received By: <u><span style="display: inline-block;width:30%" class="text-bold text-center text-muted">{{ $batch->sampling_officer_name }},
+                            Sampled / Received By: <u><span style="display: inline-block;width:40%;font-size:8px" class="text-bold text-center text-muted">{{ $batch->sampling_officer_name }},
                                 {{ $batch->receiving_officer_name}}</span></u>
                         </div>
                         <div class="col-md-4">
                             Sign:
                         </div>
                         <div class="col-md-4">
-                            Date : <u><span style="display: inline-block;width:70%" class="text-bold text-muted"> {{ $batch->receipt_date }}</span></u> 
+                            Date : <u><span style="display: inline-block;width:60%" class="text-bold text-muted"> {{ $batch->receipt_date }}</span></u> 
                         </div>
                     </div>
                 </div>

@@ -310,6 +310,14 @@
 						<input type="date" name="expected_date" value="" id="" class="form-control">
 					</div>
 					<div class="form-group">
+						<label for="" class="control-label">Prelim Date</label>
+						<input type="date" name="prelim_date" id="" class="form-control">
+					</div>
+					<div class="form-group">
+						<label for="" class="control-label">Remark</label>
+						<textarea name="remarks" id="" cols="30" rows="5" class="form-control"></textarea>
+					</div>
+					<div class="form-group">
 						<label for="" class="control-label">Notify</label>
 						<select name="notify_user" id="" class="form-control notify_user">
 							@foreach($users as $user)

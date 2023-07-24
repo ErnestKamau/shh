@@ -735,6 +735,8 @@
 									<th>Date Submitted</th>
 									<th>Recieved By</th>
 									<th>Date Received</th>
+									<th>Expected Date</th>
+									<th>Prelim Date</th>
 									<th>Remarks</th>
 								</tr>
 							</thead>
@@ -766,6 +768,8 @@
 									<td>{{$ilabs->date_submitted}}</td>
 									<td>{{$ilabs->received_by_name}}</td>
 									<td>{{$ilabs->date_received}}</td>
+									<td>{{$ilabs->prelim_date}}</td>
+									<td>{{$ilabs->expected_date}}</td>
 									<td>{{$ilabs->remarks}}</td>
 
 								</tr>
@@ -2313,7 +2317,6 @@
 			<div class="modal-footer">
 				<button type="button" class="btn btn-default btn-sm" data-dismiss="modal">Close</button>
 			</div>
-
 			
 
 		</div>
@@ -2749,6 +2752,14 @@
 						<input type="date" name="expected_date" value="{{isset($batch->id) ? date('Y-m-d', strtotime($batch->get_date('Target Date')['date'])) : ''}}" id="" class="form-control">
 					</div>
 					<div class="form-group">
+						<label for="" class="control-label">Prelim Date</label>
+						<input type="date" name="prelim_date" id="" class="form-control">
+					</div>
+					<div class="form-group">
+						<label for="" class="control-label">Remark</label>
+						<textarea name="remarks" id="" cols="30" rows="5" class="form-control"></textarea>
+					</div>
+					<div class="form-group">
 						<label for="" class="control-label">Notify</label>
 						<select name="notify_user" id="" class="form-control notify_user">
 							@foreach($users as $user)
@@ -2794,6 +2805,14 @@
 					<div class="form-group">
 						<label for="" class="control-label">Expected Results Date</label>
 						<input type="date" name="expected_date" value="{{isset($batch->id) ? date('Y-m-d', strtotime($batch->get_date('Target Date')['date'])) : ''}}" id="" class="form-control">
+					</div>
+					<div class="form-group">
+						<label for="" class="control-label">Prelim Date</label>
+						<input type="date" name="prelim_date" id="" value="${data.prelim_date}" class="form-control">
+					</div>
+					<div class="form-group">
+						<label for="" class="control-label">Remark</label>
+						<textarea name="remarks" id="" cols="30" rows="5" class="form-control">${data.remarks}</textarea>
 					</div>
 					<div class="form-group">
 						<label for="" class="control-label">Notify</label>
