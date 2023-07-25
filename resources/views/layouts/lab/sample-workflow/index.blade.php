@@ -583,6 +583,22 @@
 						<b>Kindly ensure all the batches are from the same client and the doesnot have an already signed customer focus</b></span>
 					</div>
 					<div class="form-group">
+						<label for="" class="control-label">Total Amount</label>
+						<input type="text" name="invoice_amount" class="form-control" placeholder="Invoice Amount ...">
+					</div>
+					<div class="form-group">
+						<label for="" class="control-label">VAT</label>
+						<input type="text" name="vat" class="form-control" placeholder="Vat ...">
+					</div>
+					<div class="form-group">
+						<label for="" class="control-label">Amount Paid</label>
+						<input type="text" name="amount_paid" class="form-control" placeholder="Amount Paid...">
+					</div>
+					<div class="form-group">
+						<label for="" class="control-label">Balance</label>
+						<input type="text" name="balance" class="form-control" placeholder="Balance ...">
+					</div>
+					<div class="form-group">
 						<label class="control-label">Batch(es)</label>
 						<div class="selected-batches-review"></div>
 					</div>
