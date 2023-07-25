@@ -132,23 +132,21 @@
 
     @foreach ($samples as $sample)
         <main style="margin-bottom: 20px;">
-
-
             <table class="table table-sm table-bordered" style="font-size: 8px;">
                 <thead style="height: 60px !important;">
                     <tr style="border: solid 1px black !important;margin:0 !important">
                         <th style="font-size: 6px !important;border: solid 0 transparent !important" colspan="5">
                             <table
-                                style="width: 100%;border:0px; border-bottom: solid 1px black !important">
+                                style="width: 100%;border:0px;">
                                 <tr>
                                     <td
-                                        style="font-size: 10px !important;border:solid 0 transparent !important; width:30% !important;border-bottom: 1px solid black !important;">
-                                        <img src="{{ $path }}" style="height:70px;" alt="logo">
+                                        style="font-size: 10px !important;border:solid 0 transparent !important; width:30% !important">
+                                        <img src="{{ $path }}" style="height:90px;" alt="logo">
                                         
                                     </td>
                                     
                                     <td
-                                        style="border: solid 0 transparent !important;text-align:right;font-size:11px !important; border-bottom: 1px solid black !important;">
+                                        style="border: solid 0 transparent !important;text-align:right;font-size:11px !important;">
                                         {{ $sample->crm_name }} <br>
                                         P.O BOX {{ $sample->postal_address }} <br>
                                         {{ $sample->physical_address }}
@@ -160,9 +158,9 @@
                         </th>
                     </tr>
                     <tr style="margin:0 !important">
-                        <th colspan="5" style="border: solid 0 transparent !important;border-bottom:1px solid rgba(0, 0, 0, 0.35)">
-                            <table style="width: 100%;border:0px;">
-                                <tr>
+                        <th colspan="5" style="border: solid 0 transparent !important;border-bottom:1px solid rgba(0, 0, 0, 0.35);padding:0 !important">
+                            <table style="width: 100%;border:0px;margin:0 !important;margin-bottom:2px">
+                                <tr  style="margin:0 !important">
                                     <td colspan="2"
                                         style=" border: 1px solid rgba(0, 0, 0, 0.35) !important; font-size:10px !important;">
                                         <b> TEST REPORT NO : R{{ substr($sample->sample_code, 1, strlen($sample->sample_code)) }}</b></td>

@@ -1125,8 +1125,22 @@ class SampleWorkFlowController extends Controller
 			$interlabs = InterLabLogView::where('sample_header_id', $batch->id)->orderBy('status', 'ASC')->orderBy('id', 'DESC')->get();
 			// $equipment_data = $batch->get_captured();
 			$approvers = BatchLabSectionApprover::where('batch_id', $batch->id)->get();
-			
-			$not_captured = CapturedResult::where('sample_header_id', $batch->id)->selectRaw('group_concat(analyte_code) as codes,sample_detail_code')->groupBy('sample_detail_id')->get();
+			// foreach ($equipment_data['items'] as $b => $d) {
+			// 	foreach ($d as $a => $k) {
+			// 		foreach ($k as $i => $e) {
+
+			// 			if ($e == '') {
+			// 				if (!isset($not_captured[$b])) {
+			// 					$not_captured[$b] = array();
+			// 					array_push($not_captured[$b], $a);
+			// 				} else {
+			// 					array_push($not_captured[$b], $a);
+			// 				}
+			// 			}
+			// 		}
+			// 	}
+			// }
+			$not_captured = CapturedResult::where('sample_header_id', $batch->id)->whereNull('result')->selectRaw('group_concat(analyte_code) as codes,sample_detail_code')->groupBy('sample_detail_id')->get();
 			// return response()->json($test);
 		}
 
