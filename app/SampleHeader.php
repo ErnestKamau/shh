@@ -263,4 +263,8 @@ class SampleHeader extends Model implements Auditable
 	public function getApprovalStageStatus(){
 		return BatchLabSectionApprover::where('batch_id',$this->id)->where('batch_status','Sample Approval')->whereIn('status',[2,0])->get()->count();
 	}
+	public function getContactPersonDetail(){
+		$contact = getCrmCustomerContactById($this->crm_contact_id);
+		return isset($contact->id) ? $contact->first_name.' '.$contact->middle_name.' '.$contact->last_name : '-';
+	}
 }

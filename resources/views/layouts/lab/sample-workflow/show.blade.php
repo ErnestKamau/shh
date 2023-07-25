@@ -330,6 +330,12 @@
 						@endif
 						
 					</div>
+					<div class="form-group col-md-3">
+						<label for="" class="control-label">Customer Contact</label>
+						<select name="crm_contact_id" id="crm_contact_id" class="form-control">
+							<option value="">Choose Customer First...</option>
+						</select>
+					</div>
 					<div class="form-group col-md-3 qc-omit-type-field {{isset($batch->id) ? ( $batch->status == 'Samples In Lab' || $batch->is_qc_batch == 1 ? 'hidden' : '') : ''}} ">
 						<label class="control-label"><span class='client-prefered-unit-name'>Site Location</span> <span class="text-danger">*</span> <span class="btn-primary p-0 btn-sm"  data-target="#add-company-unit" data-toggle="modal" data-toggle="tooltip" title="Add Site Location" ><i class="mdi mdi-plus"></i></span></label>
 						<select class="form-control  {{ isset($batch->status) && !in_array($batch->status, array("Samples Reception", "Samples En-Route")) ? 'no-select2' : '' }}" {{ isset($batch->status) && !in_array($batch->status, array("Samples Reception", "Samples En-Route")) ? 'readonly' : '' }} name="crm_unit_name" data-selected='{{ $batch->crm_unit_name ?? '' }}' id="client-unit-select">
@@ -3274,6 +3280,15 @@
 	
 					clientPrefUnitName = data['unit_name'];
 					clientPrefSPName = data['sample_point_name'];
+					$('#crm_contact_id').empty();
+					console.log('--------------------------')
+					console.log(data['contacts'])
+					$.each(data['contacts'],(i,obj)=>{
+						var name = `${obj.first_name} ${obj.middle_name || ''} ${obj.last_name || ''}`
+						var option = `<option value="${obj.id}" ${$batch && $batch.crm_contact_id == obj.id ? `selected` : ``}>${name}</option>`
+						$('#crm_contact_id').append(option)
+					});
+					$('#crm_contact_id').select2();
 		
 		
 					$('.client-prefered-unit-name').text(clientPrefUnitName)

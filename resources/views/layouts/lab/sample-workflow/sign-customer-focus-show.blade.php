@@ -107,7 +107,7 @@
                 <table style="width:100%" class="table-sm">
                     <tr>
                         <td style="width:15%">SAMPLE DESCRIPTION:</td>
-                        <td style="border-bottom: 1px dotted #000;">{{ $batch->description }}</td>
+                        <td style="border-bottom: 1px dotted #000;">{{$is_clustered == 0 ? $batch->description : $sample_types }}</td>
                     </tr>
                     <tr>
                         <td>CLIENT REF / LPO:</td>
@@ -119,6 +119,8 @@
                         <thead>
                             <tr>
                                 <th>Sample No</th>
+                                <th>Batch No</th>
+                                <th>Smaple Type</th>
                                 <th>Test(s) Required</th>
                                 <th>Specification</th>
                                 <th>Markings</th>
@@ -126,12 +128,14 @@
                         </thead>
                         <tbody>
                             @foreach ($samples as $sample)
-                                <tr>
-                                    <td>{{ $sample->sample_code }}</td>
-                                    <td>{{ $sample->getAnalysisRelation() ?? '-' }}</td>
-                                    <td>{{ getStandardByid($sample->main_standard)->name ?? '-' }}</td>
-                                    <td>{{ $sample->comments }}</td>
-                                </tr>
+                            <tr>
+                                <td>{{ $sample->sample_code }}</td>
+                                <td>{{$sample->batch_code}}</td>
+                                <td>{{$sample->sample_type_name}}</td>
+                                <td>{{ $sample->getAnalysisRelation() ?? '-' }}</td>
+                                <td>{{ $sample->main_standard_code ?? '-'}}</td>
+                                <td>{{ $sample->comments }}</td>
+                            </tr>
                             @endforeach
                         </tbody>
                     </table>
@@ -160,19 +164,19 @@
                         </li>
                         <div class="payment-details">
                             Analysis charges Ksh. <u><span
-                                    class="text-bold text-center text-muted">{{ $batch->invoice_amount }}
+                                    class="text-bold text-center text-muted">{{ $is_clustered == 0 ? $batch->invoice_amount  : $payment_detail['invoice_amount']}}
                                 </span></u> 16% VAT Kshs. <u> <span
-                                    class="text-bold text-muted text-center">{{ $payment_detail->vat ?? 0 }}</span></u>
+                                    class="text-bold text-muted text-center">{{ $is_clustered == 0 ? $payment_detail->vat : $payment_detail['vat'] }}</span></u>
                             <b>amount paid
                             </b>Kshs <u><span
-                                    class="text-bold text-center text-muted">{{ $payment_detail->amount ?? 0 }}</span></u>
+                                    class="text-bold text-center text-muted">{{ $is_clustered == 0 ? $payment_detail->amount : $payment_detail['amount_paid'] }}</span></u>
                             Balance Kshs. <u><span
-                                    class="text-bold text-center text-muted">{{ $payment_detail->balance ?? 0 }}
+                                    class="text-bold text-center text-muted">{{ $is_clustered == 0 ? $payment_detail->balance  : $payment_detail['balance'] }}
                                 </span></u>
                             <br> Payments to be made by <u><span
                                     class="text-bold text-muted text-center">{{ $customer->name }}</span> </u> Contact
                             Person <u><span
-                                    class="text-bold text-center text-muted">{{ $payment_detail->contactpersonname ?? '-' }}</span></u>
+                                    class="text-bold text-center text-muted">{{ $batch->getContactPersonDetail() ?? '-' }}</span></u>
                         </div>
                         <li>Remarks / Special Instructions <u><span
                                     class="text-bold ml-5 text-muted">{{ $batch->batch_instructions }}</span></u> </li>

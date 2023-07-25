@@ -444,6 +444,7 @@ class SampleWorkFlowController extends Controller
 		$header->condition_quality_sample = $request->condition_quality_sample;
 		$header->invoice_amount = $request->invoice_amount;
 		$header->lab_section_ids = implode(',', $request->lab_section_ids ?? []);
+		$header->crm_contact_id = $request->crm_contact_id;
 
 		if ($isInReception) {
 			$header->sample_type_id = $request->sample_type_id;
@@ -3346,11 +3347,13 @@ class SampleWorkFlowController extends Controller
 		return redirect()->back()->with('success', 'Batch Approval updated successfully');
 	}
 	public function getClientDetailsAjax($id){
-		$customer = CrmCustomer::with('units')->find($id);
+		$customer = CrmCustomer::with('units','contacts')->find($id);
+
 		$res = [
 			"units"=>$customer->units,
 			"unit_name" => 'Company Units',
 			"sample_point_name"=>'Sample Point',
+			"contacts"=>$customer->contacts,
 		];
 		return response()->json($res);
 	}
