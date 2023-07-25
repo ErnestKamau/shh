@@ -643,6 +643,7 @@ class SampleWorkFlowController extends Controller
 				// return response()->json($request->sample_details['lab_id'][$k]);
 				$sample_number = intval($last_sample)  + 1;
 				$detail->sample_code = 'S' . date('Y') . $lab->code . $sample_number;
+				$detail->sample_no = $sample_number;
 			}
 			if (isset($detail->id)) {
 				$current_analysis = explode(',', $detail->analysis_type_id);
@@ -3373,7 +3374,7 @@ class SampleWorkFlowController extends Controller
 	}
 	public function generateTabletCustomerFocusIndex(Request $request)
 	{
-		$sample = SampleDetails::where('sample_code',$request->sample_no)->first();
+		$sample = SampleDetails::where('sample_no',$request->sample_no)->first();
 		if(!isset($sample->id)){
 			return redirect()->back()->with('error','There is no sample with '.$request->sample_no.' sample/job number');
 		}
