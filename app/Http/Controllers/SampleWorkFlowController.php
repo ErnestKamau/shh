@@ -489,6 +489,7 @@ class SampleWorkFlowController extends Controller
 		$header->quote_id = $request->quote_id;
 		$header->radio_active_levels = $request->radio_active_levels;
 		$header->receiving_officer_name = $request->receive_by;
+		$header->receiving_officer = $header->receiving_officer == '' || !isset($header->id) ? auth()->user()->id : $header->receiving_officer;
 		$header->sampling_officer_name = $request->sample_by;
 		$header->reference_number = $request->reference_number ?? 'n/a';
 		$header->is_routine = $request->is_routine ?? 0;
@@ -3102,18 +3103,52 @@ class SampleWorkFlowController extends Controller
 		return redirect()->back()->with('success', 'Inter Laboratory Transfer Log(s) deleted successfully');
 	}
 
-	public function generateCustomerFocusIndex($batch_id)
+	public function generateCustomerFocusIndex(Request $request,$batch_id)
 	{
+		// return response()->json($request->all());
+		$batch = SampleHeader::find($batch_id);
+		if($batch_id == 0 || $batch->c_focus_ids_clustered != ''){
+			$batches = $batch_id == 0 ? SampleHeader::whereIn('batch_code',$request->batch_code) : SampleHeader::whereIn('id',explode(',',$batch->c_focus_ids_clustered ));
+			$getCustomers= clone $batches;
+			$customer_ids = array_unique($getCustomers->pluck('crm_customer_id')->toArray());
+			if(sizeof($customer_ids) > 1){
+				return redirect()->back()->with('error','All batches should be of the same client! Kindly check on the batches you have selected');
+			}
+			$batch =  $getCustomers->orderBy('created_at','ASC')->first();
+			$customer = CrmCustomer::find($batch->crm_customer_id);
+			$sample_type_ids = $batches->pluck('sample_type_id')->toArray();
+			$sample_types = implode(', ',array_unique(SampleType::whereIn('id',$sample_type_ids)->pluck('name')->toArray())) ;
+			$company = getActiveCompany();
+			$config_docs_setting = SystemConfiguration::where('key', 'customer_focus_id')->first();
+			$docs_settings = SystemConfiguration::where('configuration_type_id', $config_docs_setting->value)->pluck('value', 'key')->toArray();
+			$payment_detail = [
+				"balance"=>$request->balance,
+				// "total_amount"=>array_sum($batches->pluck('invoice_amount')->toArray()),
+				"amount_paid"=>$request->amount_paid,
+				"vat"=>$request->vat,
+				"invoice_amount" => $request->invoice_amount
+			];
+			$batch_ids = $batches->pluck('id')->toArray();
+			$samples = SamplesCategory::whereIn('sample_header_id', $batch_ids)->get();
+			$review_staff = getUserById($batch->receiving_officer);
+			$is_clustered = 1;
+			// return response()->json($batch_ids);
+			
+			SampleHeader::whereIn('batch_code',$request->batch_code)->update(['c_focus_ids_clustered'=>implode(',',$batch_ids)]);
+
+			return view('layouts.lab.sample-workflow.customer_focus', compact('batch', 'customer', 'company', 'docs_settings', 'review_staff', 'samples', 'payment_detail','sample_types','is_clustered'));
+		}
+		$is_clustered = 0;
 		$batch = SampleHeader::find($batch_id);
 		$customer = CrmCustomer::find($batch->crm_customer_id);
 		$company = getActiveCompany();
 		$config_docs_setting = SystemConfiguration::where('key', 'customer_focus_id')->first();
 		$docs_settings = SystemConfiguration::where('configuration_type_id', $config_docs_setting->value)->pluck('value', 'key')->toArray();
-		$review_staff = getUserById($batch->declaration_customer_review_id);
-		$samples = SampleDetails::where('sample_header_id', $batch_id)->get();
+		$review_staff = getUserById($batch->receiving_officer);
+		$samples = SamplesCategory::where('sample_header_id', $batch_id)->get();
 		$payment_detail = InvoicePaymentDetail::where('batch_id', $batch->id)->orderBy('id', 'DESC')->first();
 
-		return view('layouts.lab.sample-workflow.customer_focus', compact('batch', 'customer', 'company', 'docs_settings', 'review_staff', 'samples', 'payment_detail'));
+		return view('layouts.lab.sample-workflow.customer_focus', compact('batch', 'customer', 'company', 'docs_settings', 'review_staff', 'samples', 'payment_detail','is_clustered'));
 	}
 
 	public function sendBatchScheduleAnalysis(Request $request)
@@ -3340,13 +3375,58 @@ class SampleWorkFlowController extends Controller
 			return redirect()->back()->with('error','There is no sample with '.$request->sample_no.' sample/job number');
 		}
 		$batch = SampleHeader::find($sample->sample_header_id);
+
+		if(isset($request->is_clustered)){
+			$batches = SampleHeader::whereIn('id',explode(',',$batch->c_focus_ids_clustered ));
+			$getCustomers= clone $batches;
+			$customer_ids = array_unique($getCustomers->pluck('crm_customer_id')->toArray());
+			if(sizeof($customer_ids) > 1){
+				return redirect()->back()->with('error','All batches should be of the same client! Kindly check on the batches you have selected');
+			}
+			$batch =  $getCustomers->orderBy('created_at','ASC')->first();
+			$sample_type_ids = $batches->pluck('sample_type_id')->toArray();
+			$sample_types = implode(', ',array_unique(SampleType::whereIn('id',$sample_type_ids)->pluck('name')->toArray())) ;
+			$company = getActiveCompany();
+			$config_docs_setting = SystemConfiguration::where('key', 'customer_focus_id')->first();
+			$docs_settings = SystemConfiguration::where('configuration_type_id', $config_docs_setting->value)->pluck('value', 'key')->toArray();
+			$payment_detail = [
+				"balance"=>$batch->cluster_balance,
+				// "total_amount"=>array_sum($batches->pluck('invoice_amount')->toArray()),
+				"amount_paid"=>$batch->cluster_amount_paid,
+				"vat"=>$batch->cluster_vat,
+				"invoice_amount"=>$batch->cluster_amount
+			];
+			$batch_ids = $batches->pluck('id')->toArray();
+			$samples = SamplesCategory::whereIn('sample_header_id', $batch_ids)->get();
+			$review_staff = getUserById($batch->receiving_officer);
+			$is_clustered = 1;
+			
+			// SampleHeader::whereIn('batch_code',$request->batch_code)->update(['c_focus_ids_clustered'=>implode(',',$batch_ids),'cluster_amount'=>$request->invoice_amount,'cluster_vat'=>$request->vat,'cluster_amount_paid'=>$request->amount_paid,'cluster_balance'=>$request->balance]);
+			return view('layouts.lab.sample-workflow.sign-customer-focus-show', compact('batch', 'customer', 'company', 'docs_settings', 'review_staff', 'samples', 'payment_detail','is_clustered'));
+		}
+		
+
+		$is_clustered = 0;
+
 		$customer = CrmCustomer::find($batch->crm_customer_id);
 		$company = getActiveCompany();
 		$config_docs_setting = SystemConfiguration::where('key', 'customer_focus_id')->first();
 		$docs_settings = SystemConfiguration::where('configuration_type_id', $config_docs_setting->value)->pluck('value', 'key')->toArray();
-		$review_staff = getUserById($batch->declaration_customer_review_id);
-		$samples = SampleDetails::where('sample_header_id', $batch->id)->get();
+		$review_staff = getUserById($batch->receiving_officer);
+		$samples = SamplesCategory::where('sample_header_id', $batch->id)->get();
 		$payment_detail = InvoicePaymentDetail::where('batch_id', $batch->id)->orderBy('id', 'DESC')->first();
-		return view('layouts.lab.sample-workflow.sign-customer-focus-show', compact('batch', 'customer', 'company', 'docs_settings', 'review_staff', 'samples', 'payment_detail'));
+		return view('layouts.lab.sample-workflow.sign-customer-focus-show', compact('batch', 'customer', 'company', 'docs_settings', 'review_staff', 'samples', 'payment_detail','is_clustered'));
+	}
+	public function getTableCustomerFocusSigning(Request $request){
+		if(isset($request->is_clustered)){
+			$batch = Sampleheader::find($request->sample_header_id);
+			if($batch->c_focus_ids_clustered != ''){
+				Sampleheader::whereIn('id',explode(',',$batch->c_focus_ids_clustered))->update(['declaration_customer_approval_date'=>date('Y-m-d h:i:s a'),"declaration_customer_signature"=>$request->signature,'declaration_customer_contact_name'=>$request->contact_person]);
+				return response()->json('success');
+			}
+		}
+		Sampleheader::find($request->sample_header_id)->update(['declaration_customer_approval_date'=>date('Y-m-d h:i:s a'),"declaration_customer_signature"=>$request->signature,'declaration_customer_contact_name'=>$request->contact_person]);
+		return response()->json('success');
+		// return redirect()->back()->with('success','Customer Focus document signed successfully');
 	}
 }

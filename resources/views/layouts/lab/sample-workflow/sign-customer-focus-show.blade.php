@@ -8,30 +8,28 @@
 
 @section('title')
     <style type="text/css">
-         .signature-pad {
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            margin-top: 50px;
-            
+       .wrapper {
+            position: relative;
+            width: 400px;
+            height: 200px;
+            -moz-user-select: none;
+            -webkit-user-select: none;
+            -ms-user-select: none;
+            user-select: none;
         }
 
-        #signatureCanvas {
-            border: 1px solid #000;
-            margin-bottom: 20px;
-            background-color: blue
-        }
-
-        button {
-            padding: 10px 20px;
-            margin: 5px;
-            cursor: pointer;
-        }
-
-        textarea {
-            width: 100%;
+        .signature-pad {
+            position: absolute;
+            left: 0;
+            top: 0;
+            width: 400px;
+            height: 200px;
+            background-color: white;
         }
     </style>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-9ndCyUaIbzAi2FUVXJi0CjmCapSmO7SnpJef0486qhLnuZ2cdeRhO02iuK6FUUVM" crossorigin="anonymous">
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js" integrity="sha384-geWF76RCwLtnZ8qwWowPQNguL3RmwHVBC9FhGdlKrxdiJJigb/j/68SIy3Te4Bkz" crossorigin="anonymous"></script>
+    <script src="https://cdn.jsdelivr.net/npm/signature_pad@4.0.0/dist/signature_pad.umd.min.js"></script>
 @endsection
 
 
@@ -41,11 +39,11 @@
 
             <div class="row border-bottom">
                 <div class="col-md-3">
-                    <img src="{{ $company->logo }}" style="width:80%;height:100%;"alt="">
+                    <img src="{{ $company->logo }}" style="width:80%;height:60%;"alt="">
                 </div>
                 <div class="col-md-9" style="text-align: left !important">
                     <div class="">
-                        <span style="font-size: 40px;font-weight:600;">{{ $company->name }}</span> <br>
+                        <span style="font-size: 30px;font-weight:600;">{{ $company->name }}</span> <br>
                         <span>
                             {{ $company->location }} P.O. Box {{ $company->street }} Tel:
                             {{ explode(' ', $company->fax)[1] ?? '-' }} Fax: {{ explode(' ', $company->fax)[0] ?? '-' }}
@@ -57,7 +55,7 @@
                 </div>
             </div>
             <div class="title mt-2">
-                <b class="ml-5 text-danger float-right" style="font-size: 30px">{{ pad_str($batch->id, 3) }}</b>
+                <b class="ml-5 text-danger float-right" style="font-size: 20px">{{ pad_str($batch->id, 3) }}</b>
                 <div class="text-center"><u><b style="font-size:20px">SAMPLE SUBMISSION / CUSTOMER FOCUS FOCUS
                             FORM</b></u></div>
             </div>
@@ -209,20 +207,62 @@
                     <span><b>TERMS AND CONDITIONS OF ANALYSIS</b></span><br>
                     <span>{!! $docs_settings['terms_condition'] !!}</span>
                 </div>
-                <div class="customer-declaration border-bottom border-dark mt-2 ">
-                    <b>DECLARATION: TO BE FILLED BY CUSTOMER:</b>
-
-                    <form action="" method="">
-                        <div class="signature-pad">
-                            <canvas id="signatureCanvas" width="400" height="200"></canvas>
-                            <button id="clearButton">Clear</button>
-                            <button id="saveButton">Save Signature (Base64)</button>
-                            <div class="form-group">
-
-                                <textarea id="outputBase64" class="form-control" rows="5" readonly></textarea>
-                            </div>
+                <div class="customer-declaration border-bottom border-dark  mt-2 ">
+                    <span><b>CUSTOMER DECLARATION</b></span>
+                    @if($batch->declaration_customer_approval_date != '')
+                    <div class="row mt-2">
+                        <div class="col-md-12">
+                            I <u> <span style="display: inline-block;width:30%" class="text-bold text-center text-muted">{{ $batch->declaration_customer_contact_name ?? '-' }}
+                            </span></u>  <span style="">agree to the terms and conditions stated
+                                herein.</span>
                         </div>
-                    </form>
+                        <div class="col-md-12 mt-2">COMPANY / CLIENT`S NAME: <u><span style="" class="text-bold text-muted ml-3">{{ $customer->name }}</span></u> </div>
+                        <div class="col-md-6" style="text-align:left">
+                            ADDRESS: <u><span class="text-bold text-muted ml-3">P.O. Box {{ $customer->postal_address }}</span></u>  <br>
+                            TELEPHONE NUMBER: <u><span class="text-bold text-muted ml-3">{{ $customer->telephone1 }} / {{ $customer->telephone2 }}</span></u> 
+                        </div>
+                        <div class="col-md-6">
+                            EMAIL: <u><span 
+                                class="text-bold text-muted ml-3">{{ $customer->email }}</span></u> <br>
+                            KRA PIN: <u> <span  class="text-bold text-muted ml-3">{{ $customer->vat_no }}</span></u>
+                        </div>
+                    </div>
+                    <div class="row mt-3 mb-3">
+                        <div class="col-md-4">
+                            Date: <u><span class="text-bold text-muted ml-3" style="display: inline-block;width:70%">{{$batch->declaration_customer_approval_date ?  date('Y/m/d', strtotime($batch->declaration_customer_approval_date)) : '-' }}</span></u> 
+                        </div>
+                        <div class="col-md-4 d-flex">
+                            Signature: <img src="{{ $batch->declaration_customer_signature }}" style="width: 150px;height:45px" alt="">
+                        </div>
+                        <div class="col-md-4">
+                            Time: <u><span class="text-bold text-muted" style="display: inline-block;width:70%">{{ $batch->declaration_customer_approval_date ? date('H:i:s', strtotime($batch->declaration_customer_approval_date)) : '-' }}</span></u> 
+                        </div>
+                    </div>
+                    @else
+                        <div class="form-group mt-3">
+                            <label for="" class="control-label">Contact Person <small class="text-danger">*Is required*</small></label>
+                            <input type="text" id="contact-person" name="contact_person" placeholder="Contact Person`s Name..." class="form-control">
+                        </div>
+                        {{-- <span class="btn btn-sm btn-primary" data-target="#add-signature" data-toggle="modal">Sign Here</span> --}}
+                        <div class="container bg-light p-3" style="height:100% !important">
+                            <center>
+
+                                <div class="wrapper bg-white m-3 border">
+                                    <canvas id="signature-pad" class="signature-pad" width=400 height=200></canvas>
+                                </div>
+        
+                                <button id="save-png">Save Declaration</button>
+                                <button class="hidden" id="save-jpeg">Save as JPEG</button>
+                                <button class="hidden" id="save-svg">Save as SVG</button>
+                                <button id="draw">Draw</button>
+                                <button id="erase">Erase</button>
+                                <button id="clear">Clear</button>
+                            </center>
+
+                        </div>
+                    @endif
+
+
                 </div>
 
             </div>
@@ -231,80 +271,126 @@
 @endsection
 
 @section('script')
-<script>
-    window.addEventListener("load", () => {
-        const canvas = document.getElementById("signatureCanvas");
-        const clearButton = document.getElementById("clearButton");
-        const saveButton = document.getElementById("saveButton");
-        const outputBase64 = document.getElementById("outputBase64");
+    <div class="modal fade" id="add-signature" data-focus="true" role="dialog">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-body">
+                    <div class="signature-pad">
+                        <canvas id="signatureCanvas" width="300" height="150"></canvas>
+                        <button id="clearButton">Clear</button>
+                        <button id="drawButton">Draw</button>
+                        <button id="saveButton">Save Signature (Base64)</button>
+                        <div class="form-group">
 
-        const ctx = canvas.getContext("2d");
-        ctx.lineWidth = 2;
-        ctx.strokeStyle = "#000";
+                            <textarea id="outputBase64" class="form-control" rows="5" readonly></textarea>
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <span class="btn btn-sm btn-default text-dnager" data-dismiss="modal">Close</span>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="data-carry" data-batch="{{json_encode($batch->id)}}"></div>
+    <script>
+        $(()=>{
 
-        let isDrawing = false;
-        let points = [];
-
-        function startDrawing(event) {
-            isDrawing = true;
-            points = [];
-            addPoint(event);
-        }
-
-        function stopDrawing() {
-            isDrawing = false;
-        }
-
-        function addPoint(event) {
-            const rect = canvas.getBoundingClientRect();
-            const x = event.clientX - rect.left;
-            const y = event.clientY - rect.top;
-            points.push({
-                x,
-                y
-            });
-        }
-
-        function drawPoints() {
-            ctx.clearRect(0, 0, canvas.width, canvas.height);
-            ctx.beginPath();
-            points.forEach((point, index) => {
-                if (index === 0) {
-                    ctx.moveTo(point.x, point.y);
-                } else {
-                    ctx.lineTo(point.x, point.y);
-                }
-            });
-            ctx.stroke();
-        }
-
-        function clearCanvas() {
-            ctx.clearRect(0, 0, canvas.width, canvas.height);
-            points = [];
-        }
-
-        function saveSignatureAsBase64() {
-            const dataURL = canvas.toDataURL("image/png");
-            const base64Signature = dataURL.split(",")[1];
-            outputBase64.value = base64Signature;
-            console.log(dataURL);
-            window.open(dataURL);
-
-
-        }
-
-        canvas.addEventListener("mousedown", startDrawing);
-        canvas.addEventListener("mousemove", (event) => {
-            if (isDrawing) {
-                addPoint(event);
-                drawPoints();
+            var canvas = document.getElementById('signature-pad');
+            var batch_id = $('.data-carry').data('batch');
+            var IsClustered = 0; 
+            
+    
+            // Adjust canvas coordinate space taking into account pixel ratio,
+            // to make it look crisp on mobile devices.
+            // This also causes canvas to be cleared.
+            function resizeCanvas() {
+                // When zoomed out to less than 100%, for some very strange reason,
+                // some browsers report devicePixelRatio as less than 1
+                // and only part of the canvas is cleared then.
+                var ratio = Math.max(window.devicePixelRatio || 1, 1);
+                canvas.width = canvas.offsetWidth * ratio;
+                canvas.height = canvas.offsetHeight * ratio;
+                canvas.getContext("2d").scale(ratio, ratio);
             }
-        });
-        canvas.addEventListener("mouseup", stopDrawing);
-        canvas.addEventListener("mouseleave", stopDrawing);
+    
+            window.onresize = resizeCanvas;
+            resizeCanvas();
+    
+            var signaturePad = new SignaturePad(canvas, {
+                backgroundColor: 'rgb(255, 255, 255)' // necessary for saving image as JPEG; can be removed is only saving as PNG or SVG
+            });
+    
+            document.getElementById('save-png').addEventListener('click', function() {
+                if (signaturePad.isEmpty()) {
+                    return alert("Please provide a signature first.");
+                }
+    
+                var signatureBase64 = signaturePad.toDataURL();
+                $.ajaxSetup({
+					headers: {
+						'X-CSRF-TOKEN': jQuery('meta[name="csrf-token"]').attr('content')
+					}
+				});
+                $.ajax({
+                    url:'/get/Table/Customer-Focus/Signing',
+                    method:'POST',
+                    data:{
+						sample_header_id:batch_id,
+						signature:signatureBase64,
+                        is_batch : IsClustered,
+                        contact_person:$('#contact-person').val(),
+						
+					},
+                    success:(data)=>{
+                        
+                        window.location.reload();
+                    },
+                    error:(data)=>{
+                        console.log(data);
+                    }
 
-        clearButton.addEventListener("click", clearCanvas);
-        saveButton.addEventListener("click", saveSignatureAsBase64);
-    });
-</script>
+                });
+                // console.log(data);
+                // window.open(data);
+    
+            });
+    
+            document.getElementById('save-jpeg').addEventListener('click', function() {
+                if (signaturePad.isEmpty()) {
+                    return alert("Please provide a signature first.");
+                }
+    
+                var data = signaturePad.toDataURL('image/jpeg');
+                console.log(data);
+                window.open(data);
+            });
+    
+            document.getElementById('save-svg').addEventListener('click', function() {
+                if (signaturePad.isEmpty()) {
+                    return alert("Please provide a signature first.");
+                }
+    
+                var data = signaturePad.toDataURL('image/svg+xml');
+                console.log(data);
+                console.log(atob(data.split(',')[1]));
+                window.open(data);
+            });
+    
+            document.getElementById('clear').addEventListener('click', function() {
+                signaturePad.clear();
+            });
+    
+            document.getElementById('draw').addEventListener('click', function() {
+                var ctx = canvas.getContext('2d');
+                console.log(ctx.globalCompositeOperation);
+                ctx.globalCompositeOperation = 'source-over'; // default value
+            });
+    
+            document.getElementById('erase').addEventListener('click', function() {
+                var ctx = canvas.getContext('2d');
+                ctx.globalCompositeOperation = 'destination-out';
+            });
+        })
+    </script>
 @endsection

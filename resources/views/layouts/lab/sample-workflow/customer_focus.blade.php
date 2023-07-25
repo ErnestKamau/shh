@@ -103,7 +103,7 @@
                 <table style="width:100%" class="table-sm">
                     <tr>
                         <td style="width:15%">SAMPLE DESCRIPTION:</td>
-                        <td style="border-bottom: 1px dotted #000;">{{ $batch->description }}</td>
+                        <td style="border-bottom: 1px dotted #000;">{{$is_clustered == 0 ? $batch->description : $sample_types }}</td>
                     </tr>
                     <tr>
                         <td>CLIENT REF / LPO:</td>
@@ -115,6 +115,7 @@
                         <thead>
                             <tr>
                                 <th>Sample No</th>
+                                <th>Smaple Type</th>
                                 <th>Test(s) Required</th>
                                 <th>Specification</th>
                                 <th>Markings</th>
@@ -124,8 +125,9 @@
                             @foreach ($samples as $sample)
                                 <tr>
                                     <td>{{ $sample->sample_code }}</td>
+                                    <td>{{$sample->sample_type_name}}</td>
                                     <td>{{ $sample->getAnalysisRelation() ?? '-' }}</td>
-                                    <td>{{ getStandardByid($sample->main_standard)->name ?? '-' }}</td>
+                                    <td>{{ $sample->main_standard_code ?? '-'}}</td>
                                     <td>{{ $sample->comments }}</td>
                                 </tr>
                             @endforeach
@@ -153,12 +155,12 @@
                             </ol>
                         </li>
                         <div class="payment-details">
-                            Analysis charges Ksh. <u><span style="display: inline-block;width:10%" class="text-bold text-center text-muted">{{ $batch->invoice_amount }}
+                            Analysis charges Ksh. <u><span style="display: inline-block;width:10%" class="text-bold text-center text-muted">{{ $is_clustered == 0 ? $batch->invoice_amount  : $payment_detail['invoice_amount']}}
                             </span></u> 16% VAT Kshs. <u> <span
-                                class="text-bold text-muted text-center" style="display: inline-block;width:10%" >{{ $payment_detail->vat ?? 0 }}</span></u> <b>amount paid
-                            </b>Kshs <u><span style="display: inline-block;width:10%"  class="text-bold text-center text-muted">{{ $payment_detail->amount ?? 0 }}</span></u> Balance Kshs. <u><span style="display: inline-block;width:10%" class="text-bold text-center text-muted">{{ $payment_detail->balance ?? 0 }}
+                                class="text-bold text-muted text-center" style="display: inline-block;width:10%" >{{ $is_clustered == 0 ? $payment_detail->vat : $payment_detail['vat'] }}</span></u> <b>amount paid
+                            </b>Kshs <u><span style="display: inline-block;width:10%"  class="text-bold text-center text-muted">{{ $is_clustered == 0 ? $payment_detail->amount : $payment_detail['amount_paid'] }}</span></u> Balance Kshs. <u><span style="display: inline-block;width:10%" class="text-bold text-center text-muted">{{ $is_clustered == 0 ? $payment_detail->balance  : $payment_detail['balance'] }}
                             </span></u>
-                             <br> Payments to be made by <u><span class="text-bold text-muted text-center" style="display: inline-block;width:30%">{{ $customer->name }}</span> </u> Contact Person <u><span style="display: inline-block;width:30%" class="text-bold text-center text-muted">{{ $payment_detail->contactpersonname ?? '-' }}</span></u> 
+                             <br> Payments to be made by <u><span class="text-bold text-muted text-center" style="display: inline-block;width:30%">{{ $customer->name }}</span> </u> Contact Person <u><span style="display: inline-block;width:30%" class="text-bold text-center text-muted">{{ $batch->contactpersonname ?? '-' }}</span></u> 
                         </div>
                         <li>Remarks / Special Instructions <u><span style="display: inline-block;width:60%" class="text-bold ml-5 text-muted">{{ $batch->batch_instructions }}</span></u> </li>
 
@@ -175,7 +177,7 @@
                     </p>
                     <div class="row">
                         <div class="col-md-4">
-                            Sampled / Received By: <u><span style="display: inline-block;width:40%;font-size:8px" class="text-bold text-center text-muted">{{ $batch->sampling_officer_name }},
+                            Sampled / Received By: <u><span style="display: inline-block;width:40%;font-size:11px" class="text-bold text-center text-muted">{{ $batch->sampling_officer_name }},
                                 {{ $batch->receiving_officer_name}}</span></u>
                         </div>
                         <div class="col-md-4">
@@ -195,7 +197,7 @@
                     <div class="row mt-2">
                         <div class="col-md-12">
                             I <u><span class="text-bold text-center text-muted"
-                                style="!important; display: inline-block;width:50%">{{ $batch->declaration_customer_name ?? '-' }}
+                                style="!important; display: inline-block;width:50%">{{ $batch->declaration_customer_contact_name ?? '-' }}
                             </span></u> <span style="">agree to the terms and conditions stated
                                 herein.</span>
                         </div>
@@ -216,7 +218,7 @@
                             Date: <u><span class="text-bold text-muted ml-3" style="display: inline-block;width:70%">{{$batch->declaration_customer_approval_date ?  date('Y/m/d', strtotime($batch->declaration_customer_approval_date)) : '-' }}</span></u> 
                         </div>
                         <div class="col-md-4">
-                            Signature: <img src="{{ $batch->declaration_customer_signature }}" alt="">
+                            Signature: {!! $batch->declaration_customer_approval_date !='' ? ' <img src="'.$batch->declaration_customer_signature.'" style="width:150px;height:45px" alt="">' : '-'!!}
                         </div>
                         <div class="col-md-4">
                             Time: <u><span class="text-bold text-muted" style="display: inline-block;width:70%">{{ $batch->declaration_customer_approval_date ? date('H:i:s', strtotime($batch->declaration_customer_approval_date)) : '-' }}</span></u> 
@@ -226,10 +228,10 @@
                 </div>
                 <div class="review-section row mt-2">
                     <div class="col-md-3">
-                        Review done by: <u> <span style="display: inline-block;width:40%" class="text-bold text-muted ml-3">{{ $batch->receiving_officer_name}}</span></u>
+                        Review done by: <u> <span style="display: inline-block;width:40%" class="text-bold text-muted ml-3">{{ $review_staff->name ?? '-'}}</span></u>
                     </div>
                     <div class="col-md-3">
-                        Signature: <img src="{{ $review_staff->electronic_signature ?? '' }}" alt="">
+                        Signature: <img src="{{ $review_staff->electronic_signature ?? '' }}" style="width:150px;height:45px" alt="">
                     </div>
                     <div class="col-md-3">
                         Date: <u><span style="display: inline-block;width:50%" class="text-bold text-muted ml-3">{{ date('Y/m/d', strtotime($batch->created_at)) }}</span></u> 

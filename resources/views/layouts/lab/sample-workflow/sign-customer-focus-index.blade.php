@@ -86,6 +86,9 @@
                                     <label for="" class="control-label">Sample Number</label>
                                     <input type="text" name="sample_no" class="form-control">
                                 </div>
+                                <div class="form-group">
+                                    <label for="" class="control-label"><input type="checkbox" name="is_clustered" value="1" id=""> Is Clustered?</label>
+                                </div>
                                 <div class="submit-area mt-3">
                                     <button type="submit" style="box-shadow: rgba(0, 0, 0, 0.35) 0px 5px 15px;"
                                         class="btn btn-block btn-default"><i
