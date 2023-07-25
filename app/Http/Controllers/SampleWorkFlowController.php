@@ -1140,7 +1140,7 @@ class SampleWorkFlowController extends Controller
 			// 		}
 			// 	}
 			// }
-			$not_captured = CapturedResult::where('sample_header_id', $batch->id)->selectRaw('group_concat(analyte_code) as codes,sample_detail_code')->groupBy('sample_detail_id')->get();
+			$not_captured = CapturedResult::where('sample_header_id', $batch->id)->whereNull('result')->selectRaw('group_concat(analyte_code) as codes,sample_detail_code')->groupBy('sample_detail_id')->get();
 			// return response()->json($test);
 		}
 

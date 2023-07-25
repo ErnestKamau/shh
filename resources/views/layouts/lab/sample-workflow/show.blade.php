@@ -183,7 +183,7 @@
 				@endif
 				@if(isset($batch->status) && in_array($batch->status, array("Sample Verification","Sample Approval","Reports for Collection","Reports In Payment")) && Auth::user()->is_client == 0)
 					@if($batch->status == "Sample Verification")
-						@if($batch->processed_results()->count() > 0)
+						@if($not_captured->count() == 0)
 							@if(auth()->user()->checkVerifyLabSampleRole())
 							<li>
 								<span class="btn btn-sm dropdown-item" data-toggle="modal" data-target="#send-for-approval-modal">
@@ -197,7 +197,7 @@
 							</li>
 						@else
 							<li>
-								<span class="btn btn-sm dropdown-item"  data-target="#view-coa-report" data-toggle="modal" title="View Sample(s) COA"><i class="mdi mdi-subdirectory-arrow-right mr-2"></i> View Report</span>
+								<span class="btn btn-sm dropdown-item"  data-target="#view-coa-report" data-toggle="modal" title="View Sample(s) COA"><i class="mdi mdi-subdirectory-arrow-right mr-2"></i> View Report {{$not_captured->count()}}</span>
 							</li>
 						@endif
 						@if(in_array($batch->status,["Sample Approval","Reports for Collection","Reports In Payment"]))
@@ -1702,7 +1702,7 @@
 	</div>
 	
 	@if(in_array($batch->status, array("Sample Verification","Sample Approval","Reports In Payment","Reports for Collection","Samples In Lab")))
-		@if($batch->processed_results()->count() > 0)
+		@if($not_captured->count() == 0)
 			<div id="send-for-approval-modal" class="modal fade" role="dialog">
 				<div class="modal-dialog">
 					<!-- Modal content-->
