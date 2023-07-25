@@ -18,4 +18,7 @@ class SamplesCategory extends Model implements Auditable
         return CapturedResult::where('sample_detail_id',$this->id)->where('analyte_status_contracted',0)->count();
        
     }
+    public function getAnalysisRelation(){
+		return implode(', ',SampleAnalysisTypeRelationView::where('sample_detail_id',$this->id)->pluck('analysis_type_name')->toArray() ?? []);
+	}
 }

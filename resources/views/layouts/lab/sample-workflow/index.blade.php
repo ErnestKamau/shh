@@ -124,6 +124,9 @@
 				<li>
 					<span class="btn btn-sm dropdown-item" disabled data-target="#dispatch-to-labs-modal-payment-reminder" data-toggle="modal" title="Dispatch Labeled"><i class="mdi mdi-bell-ring mr-2"></i> Payment Reminder</span>
 				</li>
+				<li>
+					<span class="btn btn-sm dropdown-item" disabled data-target="#generarate_customer_focus" data-toggle="modal" title="Generate Customer Focus"><i class="mdi mdi-file-document-outline mr-2"></i> Generate Customer Focus</span>
+				</li>
 				@endif
 
 				@if ($status=="Reports for Collection")
@@ -422,6 +425,7 @@
 		</form>
 	</div>
 </div>
+
 <div class="modal fade" id="move-to-lab" role="dialog">
 	<div class="modal-dialog">
 		<div class="modal-content">
@@ -567,6 +571,31 @@
 </div>
 @endif
 @if($status == 'Samples Reception')
+<div class="modal fade"  id="generarate_customer_focus" role="dialog">
+	<div class="modal-dialog">
+		<div class="modal-content">
+			<form target="_blank" action="{{route('generateCustomerFocusIndex',['batch_id'=>0])}}" method="get">
+				
+				<div class="modal-body">
+					<div class="alert alert-primary p-2 d-flex">
+						<i class="mdi mdi-alert-decagram" style="font-size: 30px"></i>
+						<span class="p-2">Confirm you want to genarate a batched customer focus of the following batches below <br><br>
+						<b>Kindly ensure all the batches are from the same client and the doesnot have an already signed customer focus</b></span>
+					</div>
+					<div class="form-group">
+						<label class="control-label">Batch(es)</label>
+						<div class="selected-batches-review"></div>
+					</div>
+					<input type="hidden" name="is_clustered" value="1">
+				</div>
+				<div class="modal-footer">
+					<button type="submit" class="btn btn-outline-primary btn-sm"><i class="mdi mdi-thumb-up"></i> Yes, Generate</button>
+					<button type="button" class="btn btn-default btn-sm" data-dismiss="modal">Close</button>
+				</div>
+			</form>
+		</div>
+	</div>
+</div>
 <div id="delete-batch" class="modal fade" role="dialog">
 	<div class="modal-dialog">
 		<!-- Modal content-->
@@ -784,7 +813,7 @@
 			$('[data-target="#delete-batch"]').removeAttr('disabled').addClass('btn-danger').removeClass('btn-outline-danger');
 			$('[data-target="#inter-lab-add"]').removeAttr('disabled');
 			$('[data-target="#move-to-lab"]').removeAttr('disabled');
-
+			$('[data-target="#generarate_customer_focus"]').removeAttr('disabled');
 
 			$('[data-target="#dispatch-to-labs-modal"]').removeAttr('disabled').addClass('btn-warning').removeClass('btn-outline-warning');
 			$('[data-target="#dispatch-to-labs-modal-approve"]').removeAttr('disabled').addClass('btn-success').removeClass('btn-outline-success');
@@ -796,6 +825,8 @@
 			$('[data-target="#delete-batch"]').attr('disabled', true).removeClass('btn-danger').addClass('btn-outline-danger');
 			$('[data-target="#inter-lab-add"]').attr('disabled',true);
 			$('[data-target="#move-to-lab"]').attr('disabled');
+			$('[data-target="#generarate_customer_focus"]').attr('disabled');
+
 
 			$('[data-target="#dispatch-to-labs-modal"]').attr('disabled', true).removeClass('btn-warning').addClass('btn-outline-warning');
 			$('[data-target = "#approve-begin-process"]').removeAttr('disabled').addClass('btn-default').removeClass('btn-outline-success');
