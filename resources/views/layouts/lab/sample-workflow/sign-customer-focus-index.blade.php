@@ -64,7 +64,7 @@
                
                 
                 <center>
-                    <div class="card mt-5" style="width: 50%">
+                    <div class="card mt-5" style="width: 90%">
                         <div class="card-header" style="font-size:20px">
                             <i class="mdi mdi-file-document"></i> Customer Focus Signing
                         </div>
@@ -82,14 +82,14 @@
                                     </span>
                                 </div>
 
-                                <div class="form-group">
+                                <div class="form-group mt-5">
                                     <label for="" class="control-label">Sample Number</label>
                                     <input type="text" name="sample_no" class="form-control">
                                 </div>
                                 <div class="form-group">
                                     <label for="" class="control-label"><input type="checkbox" name="is_clustered" value="1" id=""> Is Clustered?</label>
                                 </div>
-                                <div class="submit-area mt-3">
+                                <div class="submit-area" style="margin-top:30%">
                                     <button type="submit" style="box-shadow: rgba(0, 0, 0, 0.35) 0px 5px 15px;"
                                         class="btn btn-block btn-default"><i
                                             class="mdi mdi-cloud-search-outline"></i> Search</button>
