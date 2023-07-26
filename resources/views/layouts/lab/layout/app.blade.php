@@ -104,14 +104,14 @@
 				@endforeach
 
 			</div>
-			<a href="#billing-menu" data-toggle="collapse" aria-expanded="false" class="bg-dark list-group-item list-group-item-action flex-column align-items-start">
+			<a href="#billing-menu" data-toggle="collapse" aria-expanded="false" class="bg-dark list-group-item list-group-item-action hidden flex-column align-items-start">
 				<div class="d-flex w-100 justify-content-start align-items-center">
 					<span class=" fas fa-money-bill-alt mr-3"></span>
 					<span class="menu-collapsed">Billing</span>
 					<span class="submenu-icon ml-auto"></span>
 				</div>
 			</a>
-			<div id="billing-menu" class="collapse sidebar-submenu">
+			<div id="billing-menu" class="collapse sidebar-submenu hidden">
 
 				<a href="{{route('invoice-home')}}" class="list-group-item list-group-item-action bg-dark text-white">
 					<span class="menu-collapsed"><i class="mdi mdi-circle-medium"></i> Proforma Invoices
@@ -156,14 +156,14 @@
 				</div>
 
 			</div>
-			<a href="#qc-workflow-menu" data-toggle="collapse" aria-expanded="false" class="bg-dark list-group-item list-group-item-action flex-column align-items-start">
+			<a href="#qc-workflow-menu" data-toggle="collapse" aria-expanded="false" class="bg-dark list-group-item list-group-item-action flex-column align-items-start hidden">
 				<div class="d-flex w-100 justify-content-start align-items-center">
 					<span class="mdi mdi-file-certificate-outline mr-3"></span>
 					<span class="menu-collapsed">Qc Workflow</span>
 					<span class="submenu-icon ml-auto"></span>
 				</div>
 			</a>
-			<div id="qc-workflow-menu" class="collapse sidebar-submenu">
+			<div id="qc-workflow-menu" class="collapse sidebar-submenu hidden">
 				<!-- <a href="" class="list-group-item list-group-item-action bg-dark text-white">
 					<span class="menu-collapsed"><i class="mdi mdi-circle-medium"></i> Dashboard
 						<small class="float-right badge badge-pill"></small></span>

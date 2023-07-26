@@ -12,8 +12,9 @@
 			.card {
 				clear: both; 
 				page-break-after: always!important;
-				font-size: px!important;
-				font-weight: 800;
+				min-height: 250px!important;
+				font-size: 14px!important;
+				
 			}
 			#print {display: none;}
 			body,html {margin: 0px; padding: 0px;}
@@ -21,12 +22,13 @@
 
 		.card {
 			background-color: white;
-			width: 480px!important;
-			height: 200px!important;
-			font-size: 10px!important;
+			width: 580px!important;
+			max-height: 100%!important;
+			font-size: 14px!important;
 			border: none!important;
 			clear: both;
 			page-break-after: always!important;
+			font-weight:1000;
 		}
 
 		body {
@@ -53,7 +55,7 @@
 				$check = getSystemConfiguration('display_system_logo');
 				$check_company = getActiveCompany()
 				?>
-				<h6 class="card-title" style="font-size:12px;font-weight:600">
+				<h6 class="card-title" style="font-size:14px;font-weight:900">
 					{{$check_company->name}}
 
 				</h6>
