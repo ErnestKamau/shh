@@ -3388,6 +3388,7 @@ class SampleWorkFlowController extends Controller
 				return redirect()->back()->with('error','All batches should be of the same client! Kindly check on the batches you have selected');
 			}
 			$batch =  $getCustomers->orderBy('created_at','ASC')->first();
+			$customer = CrmCustomer::find($batch->crm_customer_id);
 			$sample_type_ids = $batches->pluck('sample_type_id')->toArray();
 			$sample_types = implode(', ',array_unique(SampleType::whereIn('id',$sample_type_ids)->pluck('name')->toArray())) ;
 			$company = getActiveCompany();
@@ -3406,7 +3407,7 @@ class SampleWorkFlowController extends Controller
 			$is_clustered = 1;
 			
 			// SampleHeader::whereIn('batch_code',$request->batch_code)->update(['c_focus_ids_clustered'=>implode(',',$batch_ids),'cluster_amount'=>$request->invoice_amount,'cluster_vat'=>$request->vat,'cluster_amount_paid'=>$request->amount_paid,'cluster_balance'=>$request->balance]);
-			return view('layouts.lab.sample-workflow.sign-customer-focus-show', compact('batch', 'customer', 'company', 'docs_settings', 'review_staff', 'samples', 'payment_detail','is_clustered'));
+			return view('layouts.lab.sample-workflow.sign-customer-focus-show', compact('batch', 'customer', 'company', 'docs_settings', 'review_staff', 'samples', 'payment_detail','is_clustered','sample_types'));
 		}
 		
 
