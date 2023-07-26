@@ -12,6 +12,8 @@
 			.card {
 				clear: both; 
 				page-break-after: always!important;
+				min-height: 250px!important;
+				font-size: 14px!important;
 				
 			}
 			#print {display: none;}
@@ -20,9 +22,9 @@
 
 		.card {
 			background-color: white;
-			width: 570px!important;
+			width: 580px!important;
 			max-height: 100%!important;
-			font-size: 13px!important;
+			font-size: 14px!important;
 			border: none!important;
 			clear: both;
 			page-break-after: always!important;
@@ -43,7 +45,7 @@
 	</style>
 </head>
 
-<body>6
+<body>
 		<span id="print" onclick="window.print()" class="btn btn-success float-right m-2"><i class="mdi mdi-printer"></i> Print</span>
 	<div class="pl-3">
 		@foreach ($labels as $item)
@@ -53,7 +55,7 @@
 				$check = getSystemConfiguration('display_system_logo');
 				$check_company = getActiveCompany()
 				?>
-				<h6 class="card-title" style="font-size:12px;font-weight:600">
+				<h6 class="card-title" style="font-size:14px;font-weight:900">
 					{{$check_company->name}}
 
 				</h6>
