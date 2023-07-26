@@ -1095,6 +1095,7 @@ class SampleWorkFlowController extends Controller
 		$sample_types = getSampleTypes();
 		$samplingmethods = getSamplingMethods();
 		$interlabs = [];
+		$disposal_date = '';
 		if (isset($account_settings->id)) {
 			$accounts = getconfigByID($account_settings->id);
 		} else {
@@ -1118,6 +1119,8 @@ class SampleWorkFlowController extends Controller
 				$report_format_config = SystemConfiguration::where('key', 'coa_report_format')->first();
 				$report_formats = SystemConfiguration::where('configuration_type_id', $report_format_config->value)->get();
 			}
+			$disposal_date =  \Carbon\Carbon::parse($batch->receipt_date)->addMonths(3)->format('Y-m-d');
+			// return response()->json($disposal_date);
 			$contacts = getCrmCustomerContactSchedule($batch->crm_customer_id);
 			// return response()->json($contacts);
 			$batch_sample_codes = getBacthSampleCodes($batch->id);
@@ -1272,7 +1275,7 @@ class SampleWorkFlowController extends Controller
 		$notifiable_users  =getNotifiableUsers();
 		$notesReminderType = getNotesReminderTypes();
 		$clients = getClients();
-		return view('layouts.lab.sample-workflow.show', compact('batch', 'batchID', 'defaultClient', 'selectedSampleType', 'client_portal', 'ammendable', 'standards', 'attachments', 'not_captured', 'analysts', 'countries', 'accounts', 'methods', 'atachment_type', 'batch_scope', 'customer_survey', 'interlabs', 'labs', 'users', 'payment_detail', 'labsections', 'contacts', 'batch_sample_codes', 'report_formats', 'approvers', 'reportingUnits', 'conditions', 'products', 'headerDetails','analaytesHolder','analysisBySample','analysisBySampleNames','labSamples','workflowstages','workflows','sample_types','samplingmethods','active_company','ammendments','allsamples','selected_analysis_types','userLabSections','customer','requestTypes','notifiable_users','notesReminderType','clients'));
+		return view('layouts.lab.sample-workflow.show', compact('batch', 'batchID', 'defaultClient', 'selectedSampleType', 'client_portal', 'ammendable', 'standards', 'attachments', 'not_captured', 'analysts', 'countries', 'accounts', 'methods', 'atachment_type', 'batch_scope', 'customer_survey', 'interlabs', 'labs', 'users', 'payment_detail', 'labsections', 'contacts', 'batch_sample_codes', 'report_formats', 'approvers', 'reportingUnits', 'conditions', 'products', 'headerDetails','analaytesHolder','analysisBySample','analysisBySampleNames','labSamples','workflowstages','workflows','sample_types','samplingmethods','active_company','ammendments','allsamples','selected_analysis_types','userLabSections','customer','requestTypes','notifiable_users','notesReminderType','clients','disposal_date'));
 	}
 
 	public function fetch_unit_stuff($name, $client)
