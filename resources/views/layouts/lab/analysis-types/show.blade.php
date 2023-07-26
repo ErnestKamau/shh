@@ -387,114 +387,7 @@
                       </span>
                       <span style="cursor: pointer">
                         <i class="mdi mdi-arrow-down-drop-circle move-analyte-down move-analyte" data-action="move-down"></i> </span>
-                        <button class="btn btn-default text-primary btn-sm" data-target="#edit-analyte-{{ $loop->iteration }}" data-toggle="modal"><i class="mdi mdi-pencil-outline"></i> <small class="hidden-sm-up">Edit</small> </button>
-                      {{-- <button class="btn btn-danger btn-sm"><i class="mdi mdi-delete-empty"></i> <small class="hidden-sm-up">Delete</small> </button> --}}
-                      <div id="edit-analyte-{{ $loop->iteration }}" class="modal fade" role="dialog">
-                        <div class="modal-dialog">
-                          <!-- Modal content-->
-                          <form class="modal-content" method="POST" action="/analysis-element/{{ $analyte->id }}" enctype="multipart/form-data">
-                            @csrf
-                            <input type="hidden" name="analysis_type_id" value="{{ $analysis_type_id }}" />
-                            <div class="modal-header">
-                              <h4 class="modal-title"><i class="mdi mdi-pencil-outline"></i> Edit Analysis Element</h4>
-                            </div>
-                            <div class="modal-body">
-                              <div class="form-group">
-                                <label class="control-label">Analyte <span class="text-danger">*</span> </label>
-                                <select class="form-control" name="analyte_id" required>
-                                  <option value="">Select Analyte</option>
-                                  @foreach ($analytes as $a)
-                                  <option value="{{ $a->id }}" {{ $a->id == $analyte->analyte_id ? 'selected' : '' }}>{{ $a->name }}</option>
-                                  @endforeach
-                                </select>
-                              </div>
-                              <div class="form-group">
-                                <label class="control-label">Significant Figures</label>
-                                <input type="number" min="0" step="1" class="form-control" name="significant_figures" value="{{ $analyte->significant_figures }}" placeholder="Significant Figures..." />
-                              </div>
-                              <div class="form-group">
-                                <label class="control-label">Decimal Places</label>
-                                <input type="number" min="0" step="1" class="form-control" name="decimal_places" value="{{ $analyte->decimal_places }}" placeholder="Decimal Places..." />
-                              </div>
-                              <div class="form-group">
-                                <label class="control-label">Limit of Detection</label>
-                                <input type="number" step="0.0000001" class="form-control" name="lod" value="{{ $analyte->lod }}" placeholder="Limit of Detection..." />
-                              </div>
-                              <div class="form-group">
-                                <label class="control-label">Limit of Quantification</label>
-                                <input type="number" step="0.0000001" class="form-control" name="hod" value="{{ $analyte->hod }}" placeholder="Limit of Quantification..." />
-                              </div>
-                              <div class="form-group">
-                                <label class="control-label">Reporting Symbol</label>
-                                <input type="text" class="form-control" name="reporting_symbol" value="{{ $analyte->reporting_symbol }}" placeholder="Reporting Symbol..." />
-                              </div>
-                              <div class="form-group">
-                                <label class="control-label">Reporting Unit</label>
-                                <select class="form-control" name="reporting_unit">
-                                  <option value="">Select Reporting Unit...</option>
-                                  @foreach (getReportingUnits() as $g)
-                                  <option value="{{ $g['name'] }}" {{ $g['name'] == $analyte->reporting_unit ? 'selected' : '' }}>{{ $g['name'] }}</option>
-                                  @endforeach
-                                </select>
-                              </div>
-                              <div class="form-group">
-                                <label class="control-label">Method <span class="text-danger">*</span></label>
-                                <select class="form-control" name="method" required>
-                                  <option value="">Select Method...</option>
-                                  @foreach (getMethods() as $g)
-                                  <option value="{{ $g['id'] }}" {{ $g['id'] == $analyte->method ? 'selected' : '' }}>{{ $g['name'] }}</option>
-                                  @endforeach
-                                </select>
-                              </div>
-                              <div class="form-group">
-                                <label class="control-label">Equipment</label>
-                                <select class="form-control" name="equipment_id" placeholder="Select Equipment...">
-                                  <option></option>
-                                  @foreach (getEquipment() as $g)
-                                  <option value="{{ $g['id'] }}" {{ $g['id'] == $analyte->equipment_id ? 'selected' : '' }} data-operators="{{ json_encode($g->operator_names()) }}">{{ $g['name'] }}</option>
-                                  @endforeach
-                                </select>
-                              </div>
-
-                              <div class="form-group">
-                                <label class="control-label">Operator</label>
-                                <select class="form-control"  name="operator_id" placeholder="Select Operator...">
-                                  <option value="">Select Analyst...</option>
-                                  @foreach($usersAnalysts as $analyst)
-                                  <option value="{{$analyst->id}}" {{$analyst->id == $analyte->operator_id ? 'selected' : ''}} >{{$analyst->name}}</option>
-                                  @endforeach
-                                </select>
-                              </div>
-                              <div class="form-group">
-                                <label for="" class="control-label">Reporting Time</label>
-                                <input type="number" name="report_time" value="{{$analyte->reporting_time}}" class="form-control">
-                              </div>
-                              <div class="form-group">
-                                <label for="" class="control-label"><input type="checkbox" name="remark_is_manual" {{$analyte->remark_is_manual == 1 ? 'checked' : ''}} value="1" id=""> Remark Capture is Manual</label>
-                              </div>
-                              <div class="form-group">
-                                <label class="control-label"><input type="checkbox" name="non_detectable" value="1" {{ $analyte->non_detectable == 1 ? 'checked' : '' }} /> Not Detectable</label>
-                              </div>
-                              <div class="form-group">
-                                <label class="control-label"><input type="checkbox" name="non_accredited" value="1" {{ $analyte->non_accredited == 1 ? 'checked' : '' }} /> Accredited</label>
-                              </div>
-                              <div class="form-group">
-                                <label class="control-label"><input type="checkbox" name="show_on_report" value="1" {{ $analyte->show_on_report == 1 ? 'checked' : '' }} /> Show on Report</label>
-                              </div>
-                              <div class="form-group">
-                                <label class="control-label"><input type="checkbox" name="active" value="1" {{ $analyte->active == 1 ? 'checked' : '' }} /> Active</label>
-                              </div>
-                              <div class="form-group">
-                                <label class="control-label"><input type="checkbox" name="is_manual" value="1" {{ $analyte->is_manual == 1 ? 'checked' : '' }} /> Is Manual</label>
-                              </div>
-                            </div>
-                            <div class="modal-footer">
-                              <button type="submit" class="btn btn-primary"><i class="mdi mdi-content-save"></i> Save</button>
-                              <button type="button" class="btn btn-default" data-dismiss="modal">Close</button>
-                            </div>
-                          </form>
-                        </div>
-                      </div>
+                        <span class="btn btn-sm btn-default text-primary" data-record="{{json_encode($analyte)}}" data-target="#edit-analysis-element" data-toggle="modal"><i data-toggle="tooltip" title="Edit" class="mdi mdi-pencil"></i></span>
                     </td>
                     <td nowrap>{{ $analyte->analyte->name }} - {{ $analyte->analyte->code }}</td>
                     <td>{{ $analyte->decimal_places }}</td>
@@ -534,6 +427,22 @@
 </main>
 @endsection
 @section('script2')
+<div class="modal fade" id="edit-analysis-element" role="dialog">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <form action="/analysis-element/0" method="post">
+        @csrf
+        <div class="modal-body">
+
+        </div>
+        <div class="modal-footer">
+          <button type="submit" class="btn btn-outline-primary btn-sm"><i class="mdi mdi-content-save"></i> Save</button>
+          <span  class="btn btn-default" data-dismiss="modal">Close</span>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
 <div id="add-analyte-guide" class="modal fade" role="dialog">
   <div class="modal-dialog">
     <!-- Modal content-->
@@ -744,16 +653,123 @@
 </div>
 <script>
   $(function() {
-    $('[name="equipment_id"]').on('change', function() {
-      // var operators = $(this).children('option:selected').data('operators');
-      // var operatorsSel = $(this).parents('form').find('select[name="operator_id"]');
-      // operatorsSel.html(`<option></option>`);
-      // $.each(operators, function(i, o) {
-      //   operatorsSel.append(`<option value="${o.id}">${o.name}</option>`);
-      // });
+   var analysisElementBody = (data)=>{
+    var body= $(`
+      <div class="alert alert-primary p-2 d-flex">
+       <i class="mdi mdi-pencil-outline" style="font-size:30px"></i> Edit Analysis Element
+      </div>
+      
+        <div class="form-group">
+          <label class="control-label">Analyte <span class="text-danger">*</span> </label>
+          <select class="form-control" name="analyte_id" id="analyte_id" required>
+            <option value="">Select Analyte</option>
+            @foreach ($analytes as $a)
+            <option value="{{ $a->id }}">{{ $a->name }}</option>
+            @endforeach
+          </select>
+        </div>
+        <input type="hidden" name="analysis_type_id" value="{{ $analysis_type_id }}" />
+        <input type="hidden" name="analysis_element_id" value="${data.id }" />
+        <div class="form-group">
+          <label class="control-label">Significant Figures</label>
+          <input type="number" min="0" step="1" class="form-control" name="significant_figures" value="${ data.significant_figures }" placeholder="Significant Figures..." />
+        </div>
+        <div class="form-group">
+          <label class="control-label">Decimal Places</label>
+          <input type="number" min="0" step="1" class="form-control" name="decimal_places" value="${ data.decimal_places }" placeholder="Decimal Places..." />
+        </div>
+        <div class="form-group">
+          <label class="control-label">Limit of Detection</label>
+          <input type="number" step="0.0000001" class="form-control" name="lod" value="${ data.lod }" placeholder="Limit of Detection..." />
+        </div>
+        <div class="form-group">
+          <label class="control-label">Limit of Quantification</label>
+          <input type="number" step="0.0000001" class="form-control" name="hod" value="${ data.hod }}" placeholder="Limit of Quantification..." />
+        </div>
+        <div class="form-group">
+          <label class="control-label">Reporting Symbol</label>
+          <input type="text" class="form-control" name="reporting_symbol" value="${ data.reporting_symbol }" placeholder="Reporting Symbol..." />
+        </div>
+        <div class="form-group">
+          <label class="control-label">Reporting Unit</label>
+          <select class="form-control" name="reporting_unit" id="reporting_unit">
+            <option value="">Select Reporting Unit...</option>
+            @foreach (getReportingUnits() as $g)
+            <option value="{{$g['name'] }}"> {{ $g['name'] }}</option>
+            @endforeach
+          </select>
+        </div>
+        <div class="form-group">
+          <label class="control-label">Method <span class="text-danger">*</span></label>
+          <select class="form-control" name="method" id="method_id" required>
+            <option value="">Select Method...</option>
+            @foreach (getMethods() as $g)
+            <option value="{{ $g['id'] }}">{{ $g['name'] }}</option>
+            @endforeach
+          </select>
+        </div>
+        <div class="form-group">
+          <label class="control-label">Equipment</label>
+          <select class="form-control" name="equipment_id" id="equipment_id_field" placeholder="Select Equipment...">
+            <option></option>
+            @foreach (getEquipment() as $g)
+            <option value="{{ $g['id'] }}">{{ $g['name'] }}</option>
+            @endforeach
+          </select>
+        </div>
 
-      // operatorsSel.trigger('change');
-    });
+        <div class="form-group">
+          <label class="control-label">Operator</label>
+          <select class="form-control"  name="operator_id" id="operator_id_field" placeholder="Select Operator...">
+            <option value="">Select Analyst...</option>
+            @foreach($usersAnalysts as $analyst)
+            <option value="{{$analyst->id}}">{{$analyst->name}}</option>
+            @endforeach
+          </select>
+        </div>
+        <div class="form-group">
+          <label for="" class="control-label">Reporting Time</label>
+          <input type="number" name="report_time" value="${data.reporting_time}" class="form-control">
+        </div>
+        <div class="form-group">
+          <label for="" class="control-label"><input type="checkbox" name="remark_is_manual" ${data.remark_is_manual == 1 ? 'checked' : ''} value="1" id=""> Remark Capture is Manual</label>
+        </div>
+        <div class="form-group">
+          <label class="control-label"><input type="checkbox" name="non_detectable" value="1" ${ data.non_detectable == 1 ? 'checked' : '' } /> Not Detectable</label>
+        </div>
+        <div class="form-group">
+          <label class="control-label"><input type="checkbox" name="non_accredited" value="1" ${ data.non_accredited == 1 ? 'checked' : '' } /> Accredited</label>
+        </div>
+        <div class="form-group">
+          <label class="control-label"><input type="checkbox" name="show_on_report" value="1" ${ data.show_on_report == 1 ? 'checked' : '' } /> Show on Report</label>
+        </div>
+        <div class="form-group">
+          <label class="control-label"><input type="checkbox" name="active" value="1" ${ data.active == 1 ? 'checked' : '' } /> Active</label>
+        </div>
+        <div class="form-group">
+          <label class="control-label"><input type="checkbox" name="is_manual" value="1" ${ data.is_manual == 1 ? 'checked' : '' } /> Is Manual</label>
+        </div>
+    `).clone();
+    $(body).find('#analyte_id').val(data.analyte_id);
+    $(body).find('#reporting_unit').val(data.reporting_unit);
+    $(body).find('#method_id').val(data.method);
+    $(body).find('#equipment_id_field').val(data.equipment_id);
+    $(body).find('#operator_id_field').val(data.operator_id);
+    
+    $(body).find('#analyte_id').select2();
+    $(body).find('#reporting_unit').select2();
+    $(body).find('#method_id').select2();
+    $(body).find('#equipment_id_field').select2();
+    $(body).find('#operator_id_field').select2();
+    return body;
+   }
+   $('#edit-analysis-element').on('show.bs.modal',(e)=>{
+      var record = $(e.relatedTarget).data('record');
+      var body =  analysisElementBody(record);
+      $('#edit-analysis-element').find('.modal-body').empty();
+      $('#edit-analysis-element').find('.modal-body').append(body);
+
+   })
 
     var configureThemArrow = function() {
       $('#analytes-holder').find('tr').find('.move-analyte-up').addClass('text-success').removeClass('text-muted');

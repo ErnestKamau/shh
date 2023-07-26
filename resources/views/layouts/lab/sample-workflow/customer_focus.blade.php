@@ -159,8 +159,8 @@
                         <div class="payment-details">
                             Analysis charges Ksh. <u><span style="display: inline-block;width:10%" class="text-bold text-center text-muted">{{ $is_clustered == 0 ? $batch->invoice_amount  : $payment_detail['invoice_amount']}}
                             </span></u> 16% VAT Kshs. <u> <span
-                                class="text-bold text-muted text-center" style="display: inline-block;width:10%" >{{ $is_clustered == 0 ? $payment_detail->vat : $payment_detail['vat'] }}</span></u> <b>amount paid
-                            </b>Kshs <u><span style="display: inline-block;width:10%"  class="text-bold text-center text-muted">{{ $is_clustered == 0 ? $payment_detail->amount : $payment_detail['amount_paid'] }}</span></u> Balance Kshs. <u><span style="display: inline-block;width:10%" class="text-bold text-center text-muted">{{ $is_clustered == 0 ? $payment_detail->balance  : $payment_detail['balance'] }}
+                                class="text-bold text-muted text-center" style="display: inline-block;width:10%" >{{ $is_clustered == 0 ? $payment_detail->vat ?? 0 : $payment_detail['vat'] }}</span></u> <b>amount paid
+                            </b>Kshs <u><span style="display: inline-block;width:10%"  class="text-bold text-center text-muted">{{ $is_clustered == 0 ? $payment_detail->amount ?? 0 : $payment_detail['amount_paid'] }}</span></u> Balance Kshs. <u><span style="display: inline-block;width:10%" class="text-bold text-center text-muted">{{ $is_clustered == 0 ? $payment_detail->balance ?? 0  : $payment_detail['balance'] }}
                             </span></u>
                              <br> Payments to be made by <u><span class="text-bold text-muted text-center" style="display: inline-block;width:30%">{{ $customer->name }}</span> </u> Contact Person <u><span style="display: inline-block;width:30%" class="text-bold text-center text-muted">{{ $batch->getContactPersonDetail() ?? '-' }}</span></u> 
                         </div>

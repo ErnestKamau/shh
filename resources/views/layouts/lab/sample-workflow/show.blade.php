@@ -3606,7 +3606,9 @@
 
 			$row.find('[name="sample_details[comments][]"]').val(data['comments']);
 			$row.find('[name="sample_details[barcode][]"]').val(data['barcode']);
-			$row.find('[name="sample_details[disposal_date][]"').val(data['disposal_date']);
+			if(data){
+				$row.find('[name="sample_details[disposal_date][]"').val(data['disposal_date']);
+			}
 
 			
 			if(sampleLabs[data['sample_code']]){
@@ -4064,7 +4066,7 @@
 		</td>
 		<td class="sample-code-field" nowrap>
 			<div class="form-group form-group-sm">
-				<input type="date" style="width: 200px" class="form-control form-control-sm disposal-date" name="sample_details[disposal_date][]"/>
+				<input type="date" style="width: 200px" class="form-control form-control-sm disposal-date" value={{$disposal_date}} name="sample_details[disposal_date][]"/>
 			</div>
 			<span class="text"></span>
 		</td>

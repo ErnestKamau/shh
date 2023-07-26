@@ -69,7 +69,7 @@ class AnalysisElementsController extends Controller
   {
     
     $analyte = Analyte::find($request->analyte_id);
-    $element = AnalysisElements::find($id);
+    $element = $id > 0 ? AnalysisElements::find($id) : AnalysisElements::find($request->analysis_element_id);
 
     $element->analyte_id = $request->analyte_id;
     $element->decimal_places = $request->decimal_places;
