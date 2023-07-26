@@ -3077,7 +3077,7 @@ class SampleWorkFlowController extends Controller
 
 	public function getSampleCurrentLabSection($id)
 	{
-		$last_log = InterLabLogView::where('sample_id', $id)->where('status', 1)->orderBy('date_received', 'DESC')->first();
+		$last_log = InterLabLogView::where('sample_id', $id)->where('status', 1)->orderBy('date_received', 'DESC')->orderBy('id', 'DESC')->first();
 		return response()->json(isset($last_log->id) ? $last_log->to_lab_code . ' ' . $last_log->to_lab_name : "Reception");
 	}
 	public function changeInterLabLogStatus(Request $request)
