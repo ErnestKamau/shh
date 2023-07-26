@@ -3077,7 +3077,7 @@ class SampleWorkFlowController extends Controller
 
 	public function getSampleCurrentLabSection($id)
 	{
-		$last_log = InterLabLogView::where('sample_id', $id)->where('status', 1)->orderBy('date_received', 'DESC')->first();
+		$last_log = InterLabLogView::where('sample_id', $id)->where('status', 1)->orderBy('date_received', 'DESC')->orderBy('id', 'DESC')->first();
 		return response()->json(isset($last_log->id) ? $last_log->to_lab_code . ' ' . $last_log->to_lab_name : "Reception");
 	}
 	public function changeInterLabLogStatus(Request $request)
@@ -3409,7 +3409,7 @@ class SampleWorkFlowController extends Controller
 			$is_clustered = 1;
 			
 			// SampleHeader::whereIn('batch_code',$request->batch_code)->update(['c_focus_ids_clustered'=>implode(',',$batch_ids),'cluster_amount'=>$request->invoice_amount,'cluster_vat'=>$request->vat,'cluster_amount_paid'=>$request->amount_paid,'cluster_balance'=>$request->balance]);
-			return view('layouts.lab.sample-workflow.sign-customer-focus-show', compact('batch', 'customer', 'company', 'docs_settings', 'review_staff', 'samples', 'payment_detail','is_clustered'));
+			return view('layouts.lab.sample-workflow.sign-customer-focus-show', compact('batch', 'customer', 'company', 'docs_settings', 'review_staff', 'samples', 'payment_detail','is_clustered','sample_types'));
 		}
 		
 
