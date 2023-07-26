@@ -93,8 +93,8 @@ class AnalysisElementsController extends Controller
     $element->remark_is_manual = $request->remark_is_manual ?? 0;
 
     $element->save();
-    CapturedResult::where('analysis_type_id',$element->analysis_type_id)->where('analyte_id',$element->analyte_id)->whereNull('result')->update(['remark_is_manual'=>$element->remark_is_manual]);
-    Result::where('analysis_type_id',$element->analysis_type_id)->where('analyte_id',$element->analyte_id)->whereNull('result')->update(['remark_is_manual'=>$element->remark_is_manual]);
+    CapturedResult::where('analysis_type_id',$element->analysis_type_id)->where('analyte_id',$element->analyte_id)->whereNull('result')->update(['remark_is_manual'=>$element->remark_is_manual,'lab_section_id'=>$element->lab_section_id]);
+    Result::where('analysis_type_id',$element->analysis_type_id)->where('analyte_id',$element->analyte_id)->whereNull('result')->update(['remark_is_manual'=>$element->remark_is_manual,'lab_section_id'=>$element->lab_section_id]);
 
     return redirect()->back()->with('success', 'Analysis Element edited.');
 	}
