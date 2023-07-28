@@ -88,6 +88,15 @@
                               @endforeach
                             </select>
                           </div>
+                          <div class="form-group">
+                            <label for="" class="control-label">Report Band</label>
+                            <select name="brand_id" id="" class="form-control">
+                              <option value="">Select Band</option>
+                              <option value="0"{{$analysis_type->brand_id == 0 || $analysis_type->brand_id == '' ? 'selected' : ''}}>Normal</option>
+                              <option value="1" {{$analysis_type->brand_id == 1 ? 'selected' : ''}}>Physical Format</option>
+                              <option value="2" {{$analysis_type->brand_id == 2 ? 'selected' : ''}}>Pesticide Format</option>
+                            </select>
+                          </div>
 													<div class="form-group">
 														<label class="control-label">Reporting Time <small class="text-muted">(in days)</small></label>
 														<input type="number" min="0" class="form-control" name="reporting_time" value="{{ $analysis_type->reporting_time }}" placeholder="Analysis Type Reporting Time..." required />

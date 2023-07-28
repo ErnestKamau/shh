@@ -221,7 +221,7 @@ Route::post('/stock-taking-counter/{id}/remove','StockTakingCounterController@re
 
 	Route::get('/process-raw-results/{batch_id}', 'SampleWorkFlowController@process_results')->name('process-raw-results');
 	Route::post('/report-interpretations/{batch_id}', 'ReportHeaderDetailController@report_interpretations')->name('report-interpretations');
-	Route::get('/process-pdf-report/{batch_id}', 'ReportHeaderDetailController@process_pdf_report')->name('process-pdf-report');
+	Route::get('/process-pdf-report/{batch_id}/{report_format}', 'ReportHeaderDetailController@process_pdf_report')->name('process-pdf-report');
   Route::get('colorQrCode/', 'ReportHeaderDetailController@colorQrCode')->name('colorQrCode');
 
 

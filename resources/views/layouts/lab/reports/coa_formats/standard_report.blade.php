@@ -163,7 +163,7 @@
                                 <tr  style="margin:0 !important">
                                     <td colspan="2"
                                         style=" border: 1px solid rgba(0, 0, 0, 0.35) !important; font-size:10px !important;">
-                                        <b> TEST REPORT NO : R{{ substr($sample->sample_code, 1, strlen($sample->sample_code)) }}</b></td>
+                                        <b> TEST REPORT NO : R{{ substr($sample->sample_code, 1, strlen($sample->sample_code))}} {{$report_type != '' ? ' - '.$report_type : ''}}</b></td>
                                 </tr>
                                 <tr>
                                     <td style="width:20%;border: solid 0 transparent !important;border-right:1px solid rgba(0, 0, 0, 0.35);font-size:8px !important;border-left:1px solid rgba(0, 0, 0, 0.35)">SAMPLE</td>
@@ -233,7 +233,7 @@
                                 {{ $captured->method()->name }}
                             </td>  
                             <td class="parameter {{ $captured->remark == 'FAIL' ? 'textBold' : '' }}" style="font-size: 9px !important;padding-left:3px !important;">
-                                {{ $captured->result_reporting_symbol ?? '' }}{{ $captured->result }}
+                                {{ $captured->result_reporting_symbol ?? '' }}{{ $captured->result != '' ? $captured->result : 'TBA'  }}
                             </td>  
                             <td class="parameter {{ $captured->remark == 'FAIL' ? 'textBold' : '' }}" style="font-size: 9px !important;padding-left:3px !important;">
                                 {{ $captured->analyte()->reporting_unit }}

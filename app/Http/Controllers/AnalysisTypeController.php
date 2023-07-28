@@ -64,6 +64,7 @@ class AnalysisTypeController extends Controller
     $analysis_type->active = $request->active ?? 0;
     $analysis_type->level = $this->getLastLevel($request->sample_type_id);
     $analysis_type->lab_section_id = $request->lab_section_id;
+    $analysis_type->brand_id = $request->brand_id;
 
     $analysis_type->save();
     
@@ -89,6 +90,7 @@ class AnalysisTypeController extends Controller
     $analysis_type->sample_type_id = $request->sample_type_id;
     $analysis_type->active = $request->active ?? 0;
     $analysis_type->lab_section_id = $request->lab_section_id;
+    $analysis_type->brand_id = $request->brand_id;
     $analysis_type->save();
     AnalysisElements::where('analysis_type_id',$analysis_type->id)->update(['lab_section_id'=>$analysis_type->lab_section_id]);
     CapturedResult::where('analysis_type_id',$analysis_type->id)->update(['lab_section_id'=>$analysis_type->lab_section_id]);
