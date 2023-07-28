@@ -1751,7 +1751,7 @@
 	</div>
 	
 	@if(in_array($batch->status, array("Sample Verification","Sample Approval","Reports In Payment","Reports for Collection","Samples In Lab")))
-		@if($not_captured->count() == 0)
+		@if($not_captured->count() == 0 || $batch->prelim_report_status > 0)
 			<div id="send-for-approval-modal" class="modal fade" role="dialog">
 				<div class="modal-dialog">
 					<!-- Modal content-->
@@ -1812,7 +1812,7 @@
 				</div>
 			</div>
 		@endif
-		@if(isset($batch->status) && ($batch->status=="Sample Verification" || $batch->status=="Sample Approval"))
+		@if(isset($batch->status) && ($batch->status=="Sample Verification" || $batch->status=="Sample Approval" || $batch->status == 'Samples In Lab'))
 			<div class="modal fadeprompt-report-modal" role="dialog">
 				<div class="modal-dialog">
 					<div class="modal-content">
