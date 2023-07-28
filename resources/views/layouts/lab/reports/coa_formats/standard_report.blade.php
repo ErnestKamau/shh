@@ -132,7 +132,7 @@
 
     @foreach ($samples as $sample)
         <main style="margin-bottom: 20px;">
-            <table class="table table-sm" style="font-size: 8px;corder:solid 0 transparent !important">
+            <table class="table table-sm" style="font-size: 8px;border:solid 0 transparent !important">
                 <thead style="height: 60px !important;">
                     <tr style="border: solid 1px black !important;margin:0 !important">
                         <th style="font-size: 6px !important;border: solid 0 transparent !important" colspan="5">

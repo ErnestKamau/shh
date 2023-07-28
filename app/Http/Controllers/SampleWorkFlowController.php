@@ -3301,6 +3301,11 @@ class SampleWorkFlowController extends Controller
 			$batch->report_status= $request->level == "0" ? $request->level : $batch->report_status;
 			$batch->prelim_report_status = $request->level != "0" ? $request->level : $batch->prelim_report_status;
 			$batch->prelim_batch_status =  $request->level != "0" ? $request->status : $batch->prelim_batch_status ;
+			if($request->level == "0" ){
+				$batch->report_status= "";
+				$batch->prelim_report_status = 0;
+				$batch->prelim_batch_status =  '';
+			}
 			if($request->level != "2"){
 				$request->level != 0 ? BatchLabSectionApprover::where('batch_id', $batch->id)->delete() : BatchLabSectionApprover::where('batch_id', $batch->id)->where('is_prelim',0)->delete();
 				foreach ($section_users as $user_id) {
