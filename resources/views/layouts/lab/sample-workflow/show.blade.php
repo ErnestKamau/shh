@@ -126,6 +126,7 @@
 				}
 			}
 			else{
+				
 				$items = array(
 					array(
 						'link' => route('dashboard-lab'),
@@ -138,8 +139,8 @@
 						'icon' => null
 					),
 					array(
-						'link' => route('sample-workflow', ['status'=>$batch->status ?? 'Samples Reception']),
-						'name' => $batch->status ?? 'Samples Reception',
+						'link' => route('sample-workflow', ['status'=> $batch->prelim_batch_status != '' ? $batch->prelim_batch_status :  $batch->status ?? 'Samples Reception']),
+						'name' => $batch->prelim_batch_status != '' ? $batch->prelim_batch_status : $batch->status ?? 'Samples Reception',
 						'icon' => null
 					),
 					array(
@@ -190,12 +191,12 @@
 				</li>
 				@endif
 				@if(isset($batch->status) && in_array($batch->status, array("Sample Verification","Sample Approval")) && Auth::user()->is_client == 0 && $batch->prelim_report_status != 0)
-					@if(auth()->user()->checkVerifyLabSampleRole() && $batch->status == "Sample Verification" && $batch->prelim_report_status == 2)
+					@if(auth()->user()->checkVerifyLabSampleRole() && $batch->prelim_batch_status == "Sample Verification" && $batch->prelim_report_status == 2)
 					<li>
 						<span class="btn btn-sm dropdown-item"  data-target="#process-results-modal" data-toggle="modal" title="Process Results"><i class="mdi mdi-subdirectory-arrow-right mr-2"></i> Process Results</span>
 					</li>
 					@endif
-					@if(auth()->user()->checkVerifyLabSampleRole() && $batch->status == "Sample Verification" && $batch->prelim_report_status == 1)
+					@if(auth()->user()->checkVerifyLabSampleRole() && $batch->prelim_batch_status == "Sample Verification" && $batch->prelim_report_status == 1)
 					<li>
 						<span class="btn btn-sm dropdown-item" data-toggle="modal" data-target="#send-for-approval-modal">
 							<i class="mdi mdi-subdirectory-arrow-right mr-2"></i> Send for Approval
@@ -719,7 +720,9 @@
 										</td>
 										<td>
 											@if($approver->approver_type!='')
-											<small class="badge badge-pill badge-primary p-1">{{$approver->approver_type}}</small>
+											<div class="text-center">
+												<small class="badge badge-pill badge-primary p-1">{{$approver->approver_type}}</small>
+											</div>
 											@endif
 											{{$approver->approval_date}}
 										</td>
