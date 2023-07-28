@@ -50,7 +50,7 @@
     } */
     .footer {
         position: fixed;
-        bottom: 140;
+        bottom: 90;
         left: 0;
         right: 0;
 
@@ -132,7 +132,7 @@
 
     @foreach ($samples as $sample)
         <main style="margin-bottom: 20px;">
-            <table class="table table-sm table-bordered" style="font-size: 8px;">
+            <table class="table table-sm" style="font-size: 8px;">
                 <thead style="height: 60px !important;">
                     <tr style="border: solid 1px black !important;margin:0 !important">
                         <th style="font-size: 6px !important;border: solid 0 transparent !important" colspan="5">
