@@ -14,6 +14,7 @@
 				page-break-after: always!important;
 				min-height: 250px!important;
 				font-size: 14px!important;
+				padding: 0px !important;
 				
 			}
 			#print {display: none;}

@@ -877,7 +877,7 @@ class SampleWorkFlowController extends Controller
 					$captured->method_id = $analysisType->method;
 					$captured->user_id = \Auth::user()->id;
 					$captured->analyte_accredited = $analysisType->non_accredited;
-					$captured->analyte_status_contracted = $lab->is_external;
+					$captured->analyte_status_contracted = $lab->is_external ?? 0;
 					$captured->lab_section_id  = $analysisType->lab_section_id;
 					$captured->parameters_order = $analysisType->level;
 					$captured->remark_is_manual = $analysisType->remark_is_manual;
@@ -900,7 +900,7 @@ class SampleWorkFlowController extends Controller
 					$result->unit_code = $an->reporting_unit;
 					$result->reporting_symbol = $an->reporting_symbol;
 					$result->recheck = 0;
-					$result->analyte_status_contracted = $lab->is_external;
+					$result->analyte_status_contracted = $lab->is_external ?? 0;
 					$result->lab_section_id  = $analysisType->lab_section_id;
 					$result->parameters_order = $analysisType->level;
 					$result->remark_is_manual = $analysisType->remark_is_manual;
@@ -990,7 +990,7 @@ class SampleWorkFlowController extends Controller
 						$captured->method_id = $analysisType->method;
 						$captured->user_id = \Auth::user()->id;
 
-						$captured->analyte_status_contracted = $lab->is_external;
+						$captured->analyte_status_contracted = $lab->is_external ?? 0;
 
 						$captured->save();
 
@@ -1010,7 +1010,7 @@ class SampleWorkFlowController extends Controller
 						$result->unit_code = $an->reporting_unit;
 						$result->reporting_symbol = $an->reporting_symbol;
 						$result->recheck = 0;
-						$result->analyte_status_contracted = $lab->is_external;
+						$result->analyte_status_contracted = $lab->is_external ?? 0;
 						$result->save();
 					}
 				}

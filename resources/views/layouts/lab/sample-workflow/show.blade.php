@@ -356,7 +356,7 @@
 						<input type="text" class="form-control" data-batch="{{isset($batch->id) ? json_encode($batch->id) : 0}}" name="reference_number" value="{{ $batch->reference_number ?? '' }}" placeholder="Reference Number..." />
 						<small id="rft-message" class="text-danger"></small>
 					</div>
-					<div class="form-group col-md-3">
+					<div class="form-group col-md-3 hidden">
 						<label class="control-label">Batch Scope <span class="text-danger">*</span></label>
 						<select name="batch_scope" id="" class="form-control" required>
 							@foreach(explode(',',$batch_scope->value) as $scope)
@@ -394,7 +394,7 @@
 					</div>
 					<div class="form-group btn-group-sm col-md-3">
 						<label class="control-label">Quotation Number</label>
-						<input type="text" class="form-control" data-batch="{{isset($batch->id) ? json_encode($batch->id) : 0}}" name="quote_no" value="{{ $batch->quote_no ?? '' }}" placeholder="Quotation Number..." required />
+						<input type="text" class="form-control" data-batch="{{isset($batch->id) ? json_encode($batch->id) : 0}}" name="quote_no" value="{{ $batch->quote_no ?? '' }}" placeholder="Quotation Number..." />
 						<small id="rft-message" class="text-danger"></small>
 					</div>
 					
@@ -455,7 +455,7 @@
 						<textarea class="form-control" name="description" placeholder="Description...">{{ $batch->description ?? '' }}</textarea>
 					</div>
 					<div class="form-group btn-group-sm col-md-6">
-						<label class="control-label">Samples Remarks / Instructions</label>
+						<label class="control-label">Special Remarks / Instructions</label>
 						<textarea class="form-control" name="batch_instructions" placeholder="Batch Instructions...">{{ $batch->batch_instructions ?? '' }}</textarea>
 					</div>
 				</div>

@@ -186,7 +186,7 @@
 				@else
 				<th>Client</th>
 				@endif
-				<th>RFT Form No</th>
+				<th>Client / LPO Ref</th>
 				<th nowrap>Receipt Date</th>
 				<th nowrap>Date Collected</th>
 				<th nowrap>Target Date</th>

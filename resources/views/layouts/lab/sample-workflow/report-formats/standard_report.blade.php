@@ -217,7 +217,7 @@
                             @endif
                         </div>
                     </div>
-                    <div class="company_details mt-5 p-2">
+                    <div class="company_details mt-5 p-2 hidden">
                         <div class="row">
                             <div class="col-md-2 pt-3">
                                 {!! QrCode::size(100)->generate(Request::url().'?template_id='.$standard_report.'&batch_id='.$batch->id) !!} <br>
