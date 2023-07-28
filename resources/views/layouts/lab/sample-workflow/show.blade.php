@@ -183,7 +183,7 @@
 					</li>
 					@endif
 
-				@if(isset($batch->status) && $batch->status=="Samples In Lab" && Auth::user()->is_client == 0 && $status == 'Samples In Lab')
+				@if(isset($batch->status) && $batch->status=="Samples In Lab" && Auth::user()->is_client == 0)
 				<li>
 					<span class="btn btn-sm dropdown-item" data-toggle="modal" data-target="#send-to-verification-modal">
 					<i class="mdi mdi-subdirectory-arrow-right mr-2"></i> Send for Verification
