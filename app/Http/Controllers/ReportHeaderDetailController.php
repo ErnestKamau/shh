@@ -18,6 +18,7 @@ use Illuminate\Http\File;
 use Illuminate\Support\Facades\Storage;
 use Spatie\Browsershot\Browsershot;
 use App\BatchLabSectionApprover;
+use App\SampleAnalysisTypeRelationView;
 use App\SamplesCategory;
 // use Illuminate\Support\Facades\Storage;
 use PDF;
@@ -117,31 +118,35 @@ class ReportHeaderDetailController extends Controller
 		return redirect()->back()->with('success', 'Report .processed successfully.');
 	}
 
-	public function process_pdf_report($batch_id)
+	public function process_pdf_report($batch_id, $report_format)
 	{
+		// return response()->json('success3');
 		$path = public_path('images/company_logo.png');
 		$kenas = public_path('images/kenas.jpeg');
 		$ilac = public_path('images/ilac.png');
 		$nema = public_path('images/nemalogo.jpg');
 		$ispm = public_path('images/ISPM.jpeg');
 		$kebs = public_path('images/kebs.png');
-		
+
 		$batch = \App\SampleHeader::find($batch_id);
 		$batch->processing_date = getTodayDate();
 		$batch->in_ammendment_proccess = 0;
 		$batch->save();
-		
-		$batch_approvers = BatchLabSectionApprover::where('batch_id',$batch->id)->where('status',1)->get();
-		$samples = SamplesCategory::where('sample_header_id',$batch->id)->get();
-		$disclaimer = SystemConfiguration::where('key','lab_report_disclaimer_config')->first();
-		$non_accredited = SystemConfiguration::where('key','lab_report_accreditted_config')->first();
-		$status= $batch->status;
+		$report_type = '';
+		$report_type = $batch->prelim_report_status == 1 ? 'PRELIM' : $report_type;
+		$report_type = $batch->prelim_report_status == 2 ? 'DRAFT' : $report_type;
+
+		$batch_approvers = BatchLabSectionApprover::where('batch_id', $batch->id)->where('status', 1)->get();
+
+		$disclaimer = SystemConfiguration::where('key', 'lab_report_disclaimer_config')->first();
+		$non_accredited = SystemConfiguration::where('key', 'lab_report_accreditted_config')->first();
+		$status = $batch->status;
 
 		$customer = CRMCustomer::find($batch->crm_customer_id);
 
 		// $batch_view  = SampleResults::where('batch_id', $batch->id)->orderBy('analysis_level','asc')->orderBy('analyte_level','asc')->get();
-		
-		$customer_name =preg_replace('/[^A-Za-z0-9]/', '', $customer->name);
+
+		$customer_name = preg_replace('/[^A-Za-z0-9]/', '', $customer->name);
 		if ($batch->document_number != '') {
 			$filename = $customer_name . '-' . $batch->batch_code . '-' . date("d-M-Y", strtotime(getTodayDate())) . '-' . $batch->document_number . '.pdf';
 		} else {
@@ -156,12 +161,80 @@ class ReportHeaderDetailController extends Controller
 
 
 		$qrcode = base64_encode(\QrCode::format('svg')->size(50)->errorCorrection('H')->generate($qr_url));
+		$samples = SamplesCategory::where('sample_header_id', $batch->id)->get();
+		if ($report_format == '1') {
+			foreach ($samples as $sample) {
+				$sample['getBrandOuts'] = [
+					"normal" => SampleAnalysisTypeRelationView::where('brand_id', 0)->orderBy('analysis_level', 'DESC')->get(),
+					"physical" => SampleAnalysisTypeRelationView::where('brand_id', 1)->orderBy('analysis_level', 'DESC')->get(),
+					"pesticide" => SampleAnalysisTypeRelationView::where('brand_id', 2)->orderBy('analysis_level', 'DESC')->get(),
+				];
+			}
+			return response()->json($samples);
+			ini_set('max_execution_time', 300); //300 seconds = 5 minutes 
 
+			$pdf = app('dompdf.wrapper');
+			$pdf->getDomPDF()->set_option("enable_php", true);
+			$pdf = PDF::loadView('layouts.lab.reports.coa_formats.ktda_report', compact('samples', 'company', 'qrcode', 'path', 'kenas', 'batch_approvers', 'pdf', 'batch', 'non_accredited', 'disclaimer', 'kebs', 'ilac', 'ispm', 'nema','customer'));
+
+			if (is_dir(storage_path() . '/app/reports/' . $customer_name)) {
+				$pdf->save(storage_path() . '/app/reports/' . $customer_name . '/' . $filename);
+			} else {
+				$path = storage_path() . '/app/reports/' . $customer_name;
+				// $pdf->save(storage_path() . '/app/reports/' . $customer_name . '/' . $filename);
+				$check = mkdir($path);
+				if ($check) {
+
+					$pdf->save(storage_path() . '/app/reports/' . $customer_name . '/' . $filename);
+				} else {
+					return redirect()->back()->with('error', 'Error while creating customer storage folder');
+				}
+			}
+			$batch->batch_report_url = '/reports/' . $customer_name . '/' . $filename;
+			$batch->save();
+
+			return 'success';
+		}
+		if ($report_format == '2') {
+			foreach ($samples as $sample) {
+				$sample['getBrandOuts'] = [
+					"normal" => SampleAnalysisTypeRelationView::where('brand_id', 0)->orderBy('analysis_level', 'DESC')->get(),
+					"physical" => SampleAnalysisTypeRelationView::where('brand_id', 1)->orderBy('analysis_level', 'DESC')->get(),
+					"pesticide" => SampleAnalysisTypeRelationView::where('brand_id', 2)->orderBy('analysis_level', 'DESC')->get(),
+				];
+			}
+			// return response()->json($samples);
+			ini_set('max_execution_time', 300); //300 seconds = 5 minutes 
+
+			$pdf = app('dompdf.wrapper');
+			$pdf->getDomPDF()->set_option("enable_php", true);
+			$pdf = PDF::loadView('layouts.lab.reports.coa_formats.iran_report', compact('samples', 'company', 'qrcode', 'path', 'kenas', 'batch_approvers', 'pdf', 'batch', 'non_accredited', 'disclaimer', 'kebs', 'ilac', 'ispm', 'nema','customer'));
+
+			if (is_dir(storage_path() . '/app/reports/' . $customer_name)) {
+				$pdf->save(storage_path() . '/app/reports/' . $customer_name . '/' . $filename);
+			} else {
+				$path = storage_path() . '/app/reports/' . $customer_name;
+				// $pdf->save(storage_path() . '/app/reports/' . $customer_name . '/' . $filename);
+				$check = mkdir($path);
+				if ($check) {
+
+					$pdf->save(storage_path() . '/app/reports/' . $customer_name . '/' . $filename);
+				} else {
+					return redirect()->back()->with('error', 'Error while creating customer storage folder');
+				}
+			}
+			$batch->batch_report_url = '/reports/' . $customer_name . '/' . $filename;
+			$batch->save();
+
+			return 'success';
+		}
+
+		// $samples = SamplesCategory::where('sample_header_id',$batch->id)->get();
 		ini_set('max_execution_time', 300); //300 seconds = 5 minutes 
-		
+
 		$pdf = app('dompdf.wrapper');
 		$pdf->getDomPDF()->set_option("enable_php", true);
-		$pdf = PDF::loadView('layouts.lab.reports.coa_formats.standard_report', compact('samples', 'company', 'qrcode', 'path', 'kenas', 'batch_approvers','pdf','batch','non_accredited','disclaimer','kebs','ilac','ispm','nema'));
+		$pdf = PDF::loadView('layouts.lab.reports.coa_formats.standard_report', compact('samples', 'company', 'qrcode', 'path', 'kenas', 'batch_approvers', 'pdf', 'batch', 'non_accredited', 'disclaimer', 'kebs', 'ilac', 'ispm', 'nema','customer','report_type'));
 
 		if (is_dir(storage_path() . '/app/reports/' . $customer_name)) {
 			$pdf->save(storage_path() . '/app/reports/' . $customer_name . '/' . $filename);
@@ -178,8 +251,7 @@ class ReportHeaderDetailController extends Controller
 		}
 		$batch->batch_report_url = '/reports/' . $customer_name . '/' . $filename;
 		$batch->save();
-		
+
 		return 'success';
 	}
-	
 }

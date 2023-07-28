@@ -152,8 +152,16 @@
     ?>
     <x-bread-crumb :items="$items"></x-bread-crumb>
     <h4 class="pt-4 pr-4 pl-4 pb-3">
-		<i class="mdi mdi-layers-triple"></i> <span class="badge badge-pill bg-white pt-2 pb-2 pr-3 pl-3" style="font-weight: 400!important">{!! isset($batch->priority) && $batch->priority != "Normal" ? '<i class="mdi mdi-star text-danger"></i>' : '' !!} {{ $batch->priority ?? '' }}</span>
+		<i class="mdi mdi-layers-triple"></i>
+		@if($batch->prelim_report_status == 1)
+			<span class="badge badge-info p-2" style="box-shadow: rgba(0, 0, 0, 0.35) 0px 5px 15px;">Prelim</span>
+		@elseif($batch->prelim_report_status == 2)
+			 <span class="badge badge-info p-2" style="box-shadow: rgba(0, 0, 0, 0.35) 0px 5px 15px;">Draft</span>
+		@else
+		 <span class="badge badge-pill bg-white pt-2 pb-2 pr-3 pl-3" style="font-weight: 400!important">{!! isset($batch->priority) && $batch->priority != "Normal" ? '<i class="mdi mdi-star text-danger"></i>' : '' !!} {{ $batch->priority ?? '' }}</span>
+		 @endif
 		{{ isset($batch->batch_code) ? $batch->batch_code.' Batch Info' : 'New Batch' }} <small class="text-muted"> {!! isset($batch->batch_code) ? '<i class="mdi mdi-sitemap"></i> '.$batch->tracking_stage()->name : '' !!}</small>
+		
 		
 		<div class="btn-group float-right">
 			<button type="button" class="btn btn-sm bg-white dropdown-toggle" style="box-shadow: rgba(0, 0, 0, 0.15) 1.95px 1.95px 2.6px;" type="button" id="dropdownMenuButton" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
@@ -180,6 +188,25 @@
 					<i class="mdi mdi-subdirectory-arrow-right mr-2"></i> Send for Verification
 					</span>
 				</li>
+				@endif
+				@if(isset($batch->status) && in_array($batch->status, array("Sample Verification","Sample Approval")) && Auth::user()->is_client == 0 && $batch->prelim_report_status != 0)
+					@if(auth()->user()->checkVerifyLabSampleRole() && $batch->status == "Sample Verification" && $batch->prelim_report_status == 2)
+					<li>
+						<span class="btn btn-sm dropdown-item"  data-target="#process-results-modal" data-toggle="modal" title="Process Results"><i class="mdi mdi-subdirectory-arrow-right mr-2"></i> Process Results</span>
+					</li>
+					@endif
+					@if(auth()->user()->checkVerifyLabSampleRole() && $batch->status == "Sample Verification" && $batch->prelim_report_status == 1)
+					<li>
+						<span class="btn btn-sm dropdown-item" data-toggle="modal" data-target="#send-for-approval-modal">
+							<i class="mdi mdi-subdirectory-arrow-right mr-2"></i> Send for Approval
+						</span>
+					</li>
+					@endif
+					<li>
+						<span class="btn btn-sm dropdown-item"  data-target="#view-coa-report" data-toggle="modal" title="View Sample(s) COA"><i class="mdi mdi-subdirectory-arrow-right mr-2"></i> View Report</span>
+						
+					</li>
+
 				@endif
 				@if(isset($batch->status) && in_array($batch->status, array("Sample Verification","Sample Approval","Reports for Collection","Reports In Payment")) && Auth::user()->is_client == 0)
 					@if($batch->status == "Sample Verification")
@@ -633,7 +660,7 @@
 					<li class="nav-item">
 						<a href="#interlab" class="nav-link" data-toggle="tab" id="interlab-tab-initiator" role="tab" aria-controls="Interlab" aria-selected="true"><i class="mdi mdi-swap-horizontal-bold"></i> Inter Lab Logs</a>
 					</li>
-					@if( in_array($batch->status,['Sample Verification','Sample Approval','Reports In Payment','Reports for Collection']))
+					@if( in_array($batch->status,['Sample Verification','Sample Approval','Reports In Payment','Reports for Collection']) || in_array($batch->prelim_batch_status,['Sample Verification','Sample Approval']))
 					<li class="nav-item">
 						<a href="#batch-approval" class="nav-link" data-toggle="tab" id="batch-approval-initiator" role="tab" aria-controls="batch-approval" aria-selected="true"><i class="mdi mdi-account-check-outline"></i> Approvals</a>
 					</li>
@@ -652,7 +679,7 @@
           </div>
           <div class="tab-content" id="analyte-tabs-content">
 			@if(isset($batch->id))
-				@if( in_array($batch->status,['Sample Verification','Sample Approval','Reports In Payment','Reports for Collection']))
+				@if( in_array($batch->status,['Sample Verification','Sample Approval','Reports In Payment','Reports for Collection']) || in_array($batch->prelim_batch_status,['Sample Verification','Sample Approval']))
 					<div class="tab-pane fade p-3" id="batch-approval" role="tabpanel" aria-labelledby="one-tab">
 						<h5 class="p-2"><i class="mdi mdi-account-check-outline"></i> Approvers</h5>
 						<div class="table-responsive p-2">
@@ -690,7 +717,12 @@
 											<span class="badge badge-success badge-pill p-2"><i class="mdi mdi-decagram"></i> Declined</span>
 											@endif
 										</td>
-										<td>{{$approver->approval_date}}</td>
+										<td>
+											@if($approver->approver_type!='')
+											<small class="badge badge-pill badge-primary p-1">{{$approver->approver_type}}</small>
+											@endif
+											{{$approver->approval_date}}
+										</td>
 										<td>{{$approver->approvername}}</td>
 										<td>{{$approver->title}}</td>
 										<td>{{$approver->batch_status}}</td>
@@ -1788,9 +1820,21 @@
 							<div class="alert alert-info">
 								<p><i class="mdi mdi-information pull-left"></i> Results for batch <b>{{$batch->batch_code}} is being processed! </b> ?</p>
 							</div>
-									<center>
-										<img src="/images/load.gif" height="250px" width="auto" alt="">
-									</center>
+							<div class="form-group">
+								<label for="" class="control-label">Report Format</label>
+								<select name="report_format" id="report_format" class="form-control">
+									<option value="">Choose Report Format</option>
+									<option value="0">Standard Report</option>
+									<option value="1">KTDA Report</option>
+									<option value="2">Iran Report</option>
+								</select>
+							</div>
+							<div class="proccesing-point hidden">
+								<center>
+									<img src="/images/load.gif" height="250px" width="auto" alt="">
+								</center>
+							</div>
+							<span class="btn btn-sm btn-outline-info btn-block" id="initiate-process"><i class="mdi mdi-cogs"></i> Generate Report</span>
 						</div>
 						<!-- Modal content-->
 						<div class="modal-footer">	
@@ -2017,11 +2061,20 @@
 							
 							<input type="hidden" name="status" value="Sample Verification">
 							<input type="hidden" name="batch_id" value="{{$batch->id}}">
-
+							<div class="form-group">
+								<label for="" class="control-label">Report Level</label>
+								<select name="level" id="" required class="form-control">
+									<option value="">Choose Report Level</option>
+									<option value="0">Final Report</option>
+									<option value="1">Prelim Report</option>
+									<option value="2">Draft Report</option>
+								</select>
+							</div>
 							<div class="form-group">
 								<label class="control-label">Verification Notes/Comments</label>
 								<textarea class="form-control" name="comments" placeholder="Comments..."></textarea>
 							</div>
+							
 							<div class="form-check">
 								<input class="form-check-input" type="checkbox" class="form-control" name="notification" />
 								<label class="form-check-label">
@@ -2972,26 +3025,35 @@
 
 		$('#process-results-modal').on('show.bs.modal',function(){
 			var batch = $(this).data('batch');
-			$.ajax({
-				url:"{{ route('process-raw-results', ['batch_id'=> isset($batch->id) ? $batch->id : 0 ]) }}",		
-				success: function(data){
-					console.log(data);
-					$('#process-results-modal').find('.modal-body').empty();
-					var success_tag = $(`
-						<div class="alert alert-success p-2">
-						<i class="mdi mdi-information pull-left"></i>
-							Results processed successfully!
-						</div>
-						<center>
-						<img src="/images/suc.gif" height="250px" width="auto" alt="">
-						</center>
-					`).clone();
-					$('#process-results-modal').find('.modal-body').append(success_tag);
-
-				},
-				error: function(data){
-					console.log(data);
-				}
+			$('#process-results-modal').find('.proccesing-point').addClass('hidden');
+			$('#process-results-modal').find('#initiate-process').on('click',()=>{
+				$('#process-results-modal').find('.proccesing-point').removeClass('hidden');
+				
+				$.ajax({
+					url:"{{ route('process-raw-results', ['batch_id'=> isset($batch->id) ? $batch->id : 0]) }}",	
+					data:{
+						report_format : $('#process-results-modal').find('#report_format').val(),
+					},
+					method:'GET',
+					success: function(data){
+						console.log(data);
+						$('#process-results-modal').find('.modal-body').empty();
+						var success_tag = $(`
+							<div class="alert alert-success p-2">
+							<i class="mdi mdi-information pull-left"></i>
+								Results processed successfully!
+							</div>
+							<center>
+							<img src="/images/suc.gif" height="250px" width="auto" alt="">
+							</center>
+						`).clone();
+						$('#process-results-modal').find('.modal-body').append(success_tag);
+	
+					},
+					error: function(data){
+						console.log(data);
+					}
+				})
 			})
 		})
 			

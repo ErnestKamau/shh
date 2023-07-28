@@ -93,10 +93,10 @@ class SampleWorkFlowController extends Controller
 				$l = 1;
 				$batches = $batches->where('status', $q)->where('schedule_sent', '<', $l);
 			} else {
-				$batches = $batches->where('status', $status);
+				$batches = $batches->where('status', $status)->orWhere('prelim_batch_status',$status);
 			}
 		} else {
-			$batches = $batches->where('status', '!=', 'Completed');
+			$batches = $batches->where('status', '!=', 'Completed')->orWhere('prelim_batch_status','!=','');
 		}
 
 		$batches = $batches->get();
@@ -105,7 +105,6 @@ class SampleWorkFlowController extends Controller
 			// return response()->json()
 			$b['sample_codes'] = implode(',', $sample_codes);
 		}
-
 
 		$role_a = SystemConfiguration::where('key', 'analyst_role_id')->first();
 		$analysts = User::orderBy('name')->join('user_roles as ur', 'ur.user_id', '=', 'users.id')
@@ -2285,8 +2284,9 @@ class SampleWorkFlowController extends Controller
 	}
 
 
-	public function process_results($batch_id, $internal = false)
+	public function process_results(Request $request,$batch_id, $internal = false)
 	{
+		$report_format = $request->report_format;
 		$resultsData = Result::where('sample_header_id', $batch_id)->get();
 		foreach ($resultsData as $data) {
 			$checkCaptured = CapturedResult::find($data->captured_result_id);
@@ -2346,8 +2346,8 @@ class SampleWorkFlowController extends Controller
 		if ($internal) {
 			return $header;
 		}
-
-		return redirect()->route('process-pdf-report', ['batch_id' => $batch_id]);
+		// return response()->json($report_format);
+		return redirect()->route('process-pdf-report', ['batch_id' => $batch_id,'report_format'=>$report_format]);
 	}
 
 	public function remove_analyte_from_captured_result(Request $request)
@@ -3297,19 +3297,26 @@ class SampleWorkFlowController extends Controller
 			return redirect()->back()->with('error', 'Kindly provide approval configuration for the selected batch lab sections');
 		}
 		if ($request->status == 'Sample Verification') {
-			BatchLabSectionApprover::where('batch_id', $batch->id)->delete();
-			foreach ($section_users as $user_id) {
-				$approvers = BatchLabSectionApprover::where('batch_id', $batch->id)->where('user_id', $user_id->user_id)->first() ?? new BatchLabSectionApprover();
-				$approvers->status = 0;
-				$approvers->user_id = $user_id->user_id;
-				$approvers->title = $user_id->title;
-				$approvers->lab_section_ids = $approvers->lab_section_ids == '' ?  $approvers->lab_section_ids . $user_id->lab_section_id : $approvers->lab_section_ids . ',' . $user_id->lab_section_id;
-				$approvers->batch_id = $batch->id;
-				$approvers->batch_status = $request->status;
-				$approvers->save();
+			$batch->status = $request->level == "0" ?  $request->status : $batch->status;
+			$batch->report_status= $request->level == "0" ? $request->level : $batch->report_status;
+			$batch->prelim_report_status = $request->level != "0" ? $request->level : $batch->prelim_report_status;
+			$batch->prelim_batch_status =  $request->level != "0" ? $request->status : $batch->prelim_batch_status ;
+			if($request->level != "2"){
+				$request->level != 0 ? BatchLabSectionApprover::where('batch_id', $batch->id)->delete() : BatchLabSectionApprover::where('batch_id', $batch->id)->where('is_prelim',0)->delete();
+				foreach ($section_users as $user_id) {
+					$approvers = BatchLabSectionApprover::where('batch_id', $batch->id)->where('user_id', $user_id->user_id)->first() ?? new BatchLabSectionApprover();
+					$approvers->status = 0;
+					$approvers->user_id = $user_id->user_id;
+					$approvers->title = $user_id->title;
+					$approvers->lab_section_ids = $approvers->lab_section_ids == '' ?  $approvers->lab_section_ids . $user_id->lab_section_id : $approvers->lab_section_ids . ',' . $user_id->lab_section_id;
+					$approvers->batch_id = $batch->id;
+					$approvers->batch_status = $request->status;
+					$approvers->is_prelim = $request->level != "0" ? 1 : 0;
+					$approvers->save();
+				}
+	
+				
 			}
-
-			$batch->status = $request->status;
 			$batch->save();
 			return redirect()->route('sample-workflow', ['status' => $previousWorkflow])->with('success', 'Batch move was successful');
 		}
