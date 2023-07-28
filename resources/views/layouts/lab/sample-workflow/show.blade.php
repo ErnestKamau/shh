@@ -183,14 +183,14 @@
 					</li>
 					@endif
 
-				@if(isset($batch->status) && $batch->status=="Samples In Lab" && Auth::user()->is_client == 0)
+				@if(isset($batch->status) && $batch->status=="Samples In Lab" && Auth::user()->is_client == 0 && $status == 'Samples In Lab')
 				<li>
 					<span class="btn btn-sm dropdown-item" data-toggle="modal" data-target="#send-to-verification-modal">
 					<i class="mdi mdi-subdirectory-arrow-right mr-2"></i> Send for Verification
 					</span>
 				</li>
 				@endif
-				@if(isset($batch->status) && in_array($batch->status, array("Sample Verification","Sample Approval")) && Auth::user()->is_client == 0 && $batch->prelim_report_status != 0)
+				@if(isset($batch->status) && in_array($batch->status, array("Samples In Lab,Sample Verification","Sample Approval")) && Auth::user()->is_client == 0 && $batch->prelim_report_status != 0)
 					@if(auth()->user()->checkVerifyLabSampleRole() && $batch->prelim_batch_status == "Sample Verification" && $batch->prelim_report_status == 2)
 					<li>
 						<span class="btn btn-sm dropdown-item"  data-target="#process-results-modal" data-toggle="modal" title="Process Results"><i class="mdi mdi-subdirectory-arrow-right mr-2"></i> Process Results</span>
