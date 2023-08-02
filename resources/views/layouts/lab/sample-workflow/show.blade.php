@@ -139,8 +139,8 @@
 						'icon' => null
 					),
 					array(
-						'link' => route('sample-workflow', ['status'=> $batch->prelim_batch_status != '' ? $batch->prelim_batch_status :  $batch->status ?? 'Samples Reception']),
-						'name' => $batch->prelim_batch_status != '' ? $batch->prelim_batch_status : $batch->status ?? 'Samples Reception',
+						'link' => route('sample-workflow', ['status'=> $batch->status ?? 'Samples Reception']),
+						'name' => $batch->status ?? 'Samples Reception',
 						'icon' => null
 					),
 					array(
@@ -154,9 +154,9 @@
     <x-bread-crumb :items="$items"></x-bread-crumb>
     <h4 class="pt-4 pr-4 pl-4 pb-3">
 		<i class="mdi mdi-layers-triple"></i>
-		@if($batch->prelim_report_status == 1)
+		@if(isset($batch->id) && $batch->prelim_report_status == 1)
 			<span class="badge badge-info p-2" style="box-shadow: rgba(0, 0, 0, 0.35) 0px 5px 15px;">Prelim</span>
-		@elseif($batch->prelim_report_status == 2)
+		@elseif(isset($batch->id) && $batch->prelim_report_status == 2)
 			 <span class="badge badge-info p-2" style="box-shadow: rgba(0, 0, 0, 0.35) 0px 5px 15px;">Draft</span>
 		@else
 		 <span class="badge badge-pill bg-white pt-2 pb-2 pr-3 pl-3" style="font-weight: 400!important">{!! isset($batch->priority) && $batch->priority != "Normal" ? '<i class="mdi mdi-star text-danger"></i>' : '' !!} {{ $batch->priority ?? '' }}</span>
@@ -1265,6 +1265,7 @@
 						data-standards = "{{json_encode($standards ?? array())}}"
 						data-methods = "{{json_encode($methods)}}"
 						data-labs = "{{json_encode($labSamples)}}"
+						data-allLabs = "{{json_encode($labSamples)}}"
 						>
 
 					</tbody>
@@ -3526,13 +3527,14 @@
 							"unit_type": $(e).find('.sample-reporting-unit').children('option:selected').val(),
 							"stock_in": $(e).find('.sample-quantity').val(),
 							"stock_out": 0,
-							"lab_id": $(e).find('.lab_id').children('option:selected').val(),
+							"lab_id": $(e).find('select.sample-lab').children('option:selected').val(),
 							
 							"store_id": $(e).find('.sample-store').children('option:selected').val(),
 							"slot_id": $(e).find('.sample-store-slot').children('option:selected').val(),
+							"disposal_date":$(e).find('.disposal-date').val(),
 						};
 						
-						console.log(data)
+						
 						
 
 						createRow(data);
@@ -3690,11 +3692,20 @@
 			}
 
 			
+			
 			if(sampleLabs[data['sample_code']]){
-				$row.find('select.sample-lab').empty();
+
 				$.each(sampleLabs[data['sample_code']],(i,obj)=>{
-					console.log(`------------obj id ${obj.lab_id} ------ data id ${data['lab_id']}`)
-					$row.find('select.sample-lab').append(`<option value="${obj.lab_id}" ${obj.id == data['lab_id'] ? 'selected' : ''}>${obj.lab_name} - ${obj.lab_code}</option>`);
+					$row.find('select.sample-lab').append(`<option value="${obj.sample_lab}" ${obj.sample_lab == data['lab_id'] ? 'selected' : ''}>${obj.sample_lab_name} - ${obj.sample_lab_code}</option>`);
+				});
+			}
+			if(data && !sampleLabs[data['sample_code']]){
+				console.log('gdvhfhsfhhfjdjfhdhfgdfj')
+				console.log(sampleLabs[0])
+				
+				$.each(sampleLabs[0],(i,obj)=>{
+					console.log(obj)
+					$row.find('select.sample-lab').append(`<option value="${obj.sample_lab}" ${obj.sample_lab == data['lab_id'] ? 'selected' : ''}>${obj.sample_lab_name} - ${obj.sample_lab_code}</option>`);
 				});
 			}
 			
@@ -3884,7 +3895,7 @@
 		console.log('-------------------------------------------------')
 
 		var $oGRow = $(`
-			<tr class="raw-data-row ${data.result == null ? 'no-result' : 'has-result'} ${!userLabSection.includes(data.lab_section_id) && thebatch.status == 'Samples In Lab' ? 'hidden' : ''}" id="row-${loop}" >
+			<tr class="raw-data-row ${data.result == null ? 'no-result' : 'has-result'} ${!userLabSection.includes(data.lab_section_id) && thebatch.status == 'Samples In Lab' ? 'hiddens' : ''}" id="row-${loop}" >
 				@if(isset($batch->status) && $batch->status != 'Samples In Lab' && Auth::user()->is_client == 0)
 				<td class="" style="display:flex !important">
 				<input type="checkbox" name="parameter_check[]" class="mr-3" value="${data.id}" id="parameter-check">

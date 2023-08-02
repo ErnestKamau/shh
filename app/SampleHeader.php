@@ -268,4 +268,8 @@ class SampleHeader extends Model implements Auditable
 		$contact = getCrmCustomerContactById($this->crm_contact_id);
 		return isset($contact->id) ? $contact->first_name.' '.$contact->middle_name.' '.$contact->last_name : '-';
 	}
+	public function getLabSectionsNames(){
+		$tracking_stages_arr = explode(',',$this->lab_section_ids ?? []);
+		return implode(',',SampleAnalysisStage::whereIn('id',$tracking_stages_arr)->pluck('name')->toArray()); 
+	}
 }

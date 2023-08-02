@@ -161,7 +161,7 @@ Route::post('/stock-taking-counter/{id}/remove','StockTakingCounterController@re
 ##############################################Sample Workflow###################################################
   Route::get('/sample-workflow/{status?}', 'SampleWorkFlowController@index')->name('sample-workflow');
   Route::get('/sample-workflow/{status?}/stage', 'SampleWorkFlowController@index')->name('sample-workflow')->middleware('haspermission:Laboratory.components.empty.View');
-  Route::get('/sample-workflow/batch/{batch}/details/{client?}/{portal?}', 'SampleWorkFlowController@show')->name('view-batch-details');
+  Route::get('/sample-workflow/batch/{batch}/details/{client?}/{portal?}/{status?}', 'SampleWorkFlowController@show')->name('view-batch-details');
   Route::post('/add-batch-info/{batch}', 'SampleWorkFlowController@add_batch_info')->name('add-batch-info');
   Route::post('/add-batch-samples/{batch}', 'SampleWorkFlowController@add_batch_samples')->name('add-batch-samples');
   Route::post('/add-new-samples', 'SampleWorkFlowController@add_batch_samples')->name('add-new-samples');
@@ -788,6 +788,8 @@ Route::get('/get/Client-Details/Ajax/{id}','SampleWorkFlowController@getClientDe
 
 Route::get('generate/Tablet/Customer-Focus/Index','SampleWorkFlowController@generateTabletCustomerFocusIndex')->name('generateTabletCustomerFocusIndex');
 Route::post('get/Table/Customer-Focus/Signing','SampleWorkFlowController@getTableCustomerFocusSigning')->name('getTableCustomerFocusSigning');
+
+Route::get('getSampleCodeToResultsAndCr','SampleWorkFlowController@getSampleCodeToResultsAndCr')->name('getSampleCodeToResultsAndCr');
 
 ################################################Polucon#########################################
 
