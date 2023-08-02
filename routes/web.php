@@ -789,6 +789,8 @@ Route::get('/get/Client-Details/Ajax/{id}','SampleWorkFlowController@getClientDe
 Route::get('generate/Tablet/Customer-Focus/Index','SampleWorkFlowController@generateTabletCustomerFocusIndex')->name('generateTabletCustomerFocusIndex');
 Route::post('get/Table/Customer-Focus/Signing','SampleWorkFlowController@getTableCustomerFocusSigning')->name('getTableCustomerFocusSigning');
 
+Route::get('getSampleCodeToResultsAndCr','SampleWorkFlowController@getSampleCodeToResultsAndCr')->name('getSampleCodeToResultsAndCr');
+
 ################################################Polucon#########################################
 
 

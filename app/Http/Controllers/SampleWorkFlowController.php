@@ -3449,4 +3449,12 @@ class SampleWorkFlowController extends Controller
 		return response()->json('success');
 		// return redirect()->back()->with('success','Customer Focus document signed successfully');
 	}
+	public function getSampleCodeToResultsAndCr(){
+		$samples = SampleDetails::where('sample_header_id','>',13)->get();
+		foreach($samples as $sample){
+			CapturedResult::where('sample_detail_id',$sample->id)->update(['sample_detail_code'=>$sample->sample_code]);
+			Result::where('sample_detail_id',$sample->id)->update(['sample_detail_code'=>$sample->sample_code]);
+		}
+		return response()->json('success');
+	}
 }

@@ -134,10 +134,9 @@
         <main style="margin-bottom: 20px;">
             <table class="table table-sm" style="font-size: 8px;border:solid 0 transparent !important">
                 <thead style="height: 60px !important;">
-                    <tr style="border: solid 1px black !important;margin:0 !important">
+                    <tr style="">
                         <th style="font-size: 6px !important;border: solid 0 transparent !important" colspan="5">
-                            <table
-                                style="width: 100%;border:0px;">
+                            <table style="width: 100%;border:0px !important;">
                                 <tr>
                                     <td
                                         style="font-size: 10px !important;border:solid 0 transparent !important; width:30% !important">
@@ -159,7 +158,7 @@
                     </tr>
                     <tr style="margin:0 !important">
                         <th colspan="5" style="border: solid 0 transparent !important;border-bottom:1px solid rgba(0, 0, 0, 0.35);padding:0 !important">
-                            <table style="width: 100%;border:0px;margin:0 !important;margin-bottom:2px">
+                            <table style="width: 100%;margin:0 !important;margin-bottom:2px;border: 1px solid rgba(0, 0, 0, 0.35) !important">
                                 <tr  style="margin:0 !important">
                                     <td colspan="2"
                                         style=" border: 1px solid rgba(0, 0, 0, 0.35) !important; font-size:10px !important;">
@@ -274,7 +273,7 @@
                 </tr>
             </table>
             @if($sample->getAccredittedStatus() >= 1)
-            <div class="" style="display:inline-block;position:fixed;bottom:50;left:70%">
+            <div class="" style="display:inline-block;position:fixed;bottom:20;left:70%">
                 <img src="{{$kebs}}" style="width:60px;height:60px" alt="">
            
                 <img src="{{$kenas}}" style="width:60px;height:60px" alt="">
@@ -283,7 +282,7 @@
                 <img src="{{$ilac}}" style="width:60px;height:60px" alt="">
             </div>
             @else
-            <div class="" style="display:inline-block;position:fixed;bottom:50;left:70%">
+            <div class="" style="display:inline-block;position:fixed;bottom:20;left:70%">
                 <img src="{{$kebs}}" style="width:60px;height:60px" alt="">
                     
                 <img src="{{$nema}}" style="width:60px;height:60px" alt="">

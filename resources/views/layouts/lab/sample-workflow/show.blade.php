@@ -139,8 +139,8 @@
 						'icon' => null
 					),
 					array(
-						'link' => route('sample-workflow', ['status'=> $batch->prelim_batch_status != '' ? $batch->prelim_batch_status :  $batch->status ?? 'Samples Reception']),
-						'name' => $batch->prelim_batch_status != '' ? $batch->prelim_batch_status : $batch->status ?? 'Samples Reception',
+						'link' => route('sample-workflow', ['status'=> isset($batch->id) && $batch->prelim_batch_status != '' ? $batch->prelim_batch_status :  $batch->status ?? 'Samples Reception']),
+						'name' => isset($batch->id) && $batch->prelim_batch_status != '' ? $batch->prelim_batch_status : $batch->status ?? 'Samples Reception',
 						'icon' => null
 					),
 					array(
@@ -154,9 +154,9 @@
     <x-bread-crumb :items="$items"></x-bread-crumb>
     <h4 class="pt-4 pr-4 pl-4 pb-3">
 		<i class="mdi mdi-layers-triple"></i>
-		@if($batch->prelim_report_status == 1)
+		@if(isset($batch->id) && $batch->prelim_report_status == 1)
 			<span class="badge badge-info p-2" style="box-shadow: rgba(0, 0, 0, 0.35) 0px 5px 15px;">Prelim</span>
-		@elseif($batch->prelim_report_status == 2)
+		@elseif(isset($batch->id) && $batch->prelim_report_status == 2)
 			 <span class="badge badge-info p-2" style="box-shadow: rgba(0, 0, 0, 0.35) 0px 5px 15px;">Draft</span>
 		@else
 		 <span class="badge badge-pill bg-white pt-2 pb-2 pr-3 pl-3" style="font-weight: 400!important">{!! isset($batch->priority) && $batch->priority != "Normal" ? '<i class="mdi mdi-star text-danger"></i>' : '' !!} {{ $batch->priority ?? '' }}</span>

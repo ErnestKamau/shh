@@ -10,7 +10,7 @@ class CapturedResult extends Model implements Auditable
 {
 	use \OwenIt\Auditing\Auditable;
 	protected $appends = ['repeatsampleresult'];
-	protected $fillable  =['lab_section_id','remark_is_manual'];
+	protected $fillable  =['lab_section_id','remark_is_manual','sample_detail_code'];
 
 	public function getRepeatSampleResultAttribute(){
 		if($this->repeat_captured_id > 0){
