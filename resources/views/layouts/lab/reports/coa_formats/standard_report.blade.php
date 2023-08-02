@@ -50,7 +50,7 @@
     } */
     .footer {
         position: fixed;
-        bottom: 10;
+        bottom: 170;
         left: 0;
         right: 0;
 
@@ -76,7 +76,7 @@
 
     <footer class="footer">
 
-        <table class="" style="margin-top: 1px !important; border-bottom:1px solid black;width:100%">
+        <table class="" style="margin-top: 1px !important;width:100%">
            
 
             <tr>
@@ -92,10 +92,10 @@
 
             </tr>
             <tr>
-                <td>
-                    <span>{{ $non_accredited->value }}</span>
+                <td colspan="{{$batch_approvers->count()}}">
+                    <span style="font-size:5px">{{ $non_accredited->value }}</span>
                             
-                    <div class="text-center" style="font-size:7px">
+                    <div class="text-center" style="font-size:5px">
                         {{$disclaimer->value}}
                         @if($batch->sampled_by_company_personnel == 0)
                         <br>
@@ -106,7 +106,7 @@
             </tr>
         </table>
 
-        <div style="margin-top:10px">
+        <div style="margin-top:7px">
             <table style="width:100%">
                 <tr>
                     <td style="width: 10%">
@@ -145,7 +145,7 @@
     </footer>
 
     @foreach ($samples as $sample)
-        <main style="margin-bottom: 20px;">
+        <main style="margin-bottom: 180px;">
             <table class="table table-sm" style="font-size: 8px;border:solid 0 transparent !important">
                 <thead style="height: 60px !important;">
                     <tr style="border: solid 1px black !important;margin:0 !important">
@@ -274,7 +274,7 @@
                     </td>
                 </tr>
                 <tr>
-                    <td style="font-size:8px !important;" ><b>{{strtoupper($sample->main_lab_name)}} <br>{{ $batch->approval_date ?? '-' }}</b></td>
+                    <td style="font-size:8px !important;" ><br><b>{{strtoupper($sample->main_lab_name)}} <br>{{ $batch->approval_date ?? '-' }}</b></td>
                                    
                 </tr>
                 
