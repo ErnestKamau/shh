@@ -181,6 +181,8 @@
 				@endif
 				
 				<th>Sample Codes</th>
+				<th>Lab Sections</th>
+				
 				<th>Stage</th>
 				@if($status == 'Samples In Lab')
 				@else
@@ -192,12 +194,12 @@
 				<th nowrap>Target Date</th>
 				<th nowrap>Status Days</th>
 				<th>Samples</th>
-				@if($status == 'Samples In Lab')
+				@if($status != 'Samples In Lab')
 				<th>Client Unit</th>
 				@endif
 				<th>Lab</th>
 				<th nowrap>Sample Type</th>
-				<th nowrap>Tracking Stage</th>
+				
 				<th>Invoice Number</th>
 				<th>Routine</th>
 				<th>Routine Frequency</th>
@@ -241,11 +243,16 @@
 					<td nowrap>{!! $item->priority != "Normal" ? '<i class="mdi mdi-star text-danger"></i>' : '' !!} {{ $item->priority }}</td>
 
 					@endif
-					<td><a href="{{ route('view-batch-details', ['batch'=>$item->id]) }}">{{ $item->batch_code }}</a></td>
+					<td>
+						
+						<a href="{{ route('view-batch-details', ['batch'=>$item->id]) }}">{{ $item->batch_code }}</a>
+						
+					</td>
 					@if(auth()->user()->CheckViewQcSample())
 						<td>{!! $item->is_qc_batch == 1 ? '<span class="text-success"><i class="mdi mdi-checkbox-marked-circle-outline"></i></span>' : '-' !!}</td>
 					@endif
 					<td style="min-width: 200px !important;">{{$item->sample_codes}}</td>
+					<td nowrap>{{$item->getLabSectionsNames()}}</td>
 					<td style="min-width: 200px !important;">{{$item->status}}</td>
 					@if($status == 'Samples In Lab')
 					@else
@@ -263,7 +270,7 @@
 					@endif
 					<td nowrap>{{ implode(", ", $item->labs(true)) }}</td>
 					<td nowrap>{{ $item->sample_type->name ?? '' }}</td>
-					<td nowrap>{{ $item->tracking_stage()->name ?? 'n/a' }}</td>
+					
 					<?php $invoice = getInvoiceById($item->invoice_id) ?>
 					@if(isset($invoice->id))
 					<td nowrap><a href="/invoice/sample/{{$item->id}}">{{$invoice->invoice_number}}</a></td>

@@ -1507,7 +1507,7 @@ function is_valid_email($email){
 	return count($anyInvalid) > 0 ? implode(',', $anyInvalid) : false;
 }
 function getSampleDetailsLab($sample_id){
-	return  SampleAnalysisTypeRelationView::where('sample_detail_id',$sample_id)->distinct('lab_id')->get();
+	return  SampleAnalysisTypeRelationView::where('sample_detail_id',$sample_id)->distinct('sample_lab')->get();
 }
 function getInterLabTotals(){
 	return InterLabLog::whereNotNull('sample_id')->get()->count();

@@ -77,6 +77,7 @@
     <footer class="footer">
 
         <table class="" style="margin-top: 1px !important; border-bottom:1px solid black;width:100%">
+           
 
             <tr>
                 @foreach ($batch_approvers as $approver)
@@ -89,6 +90,19 @@
                     </td>
                 @endforeach
 
+            </tr>
+            <tr>
+                <td>
+                    <span>{{ $non_accredited->value }}</span>
+                            
+                    <div class="text-center" style="font-size:7px">
+                        {{$disclaimer->value}}
+                        @if($batch->sampled_by_company_personnel == 0)
+                        <br>
+                        <b>NB: This report relates to submitted sample(s) only. The source and markings are as provided by the customer.</b>
+                        @endif
+                    </div>
+                </td>
             </tr>
         </table>
 
@@ -185,8 +199,8 @@
                                     <td style="border: solid 0 transparent !important;padding-left:10px !important;font-size:8px !important;border-right:1px solid rgba(0, 0, 0, 0.35)">{{ $sample->sampling_method_name }}</td>
                                 </tr>
                                 <tr>
-                                    <td style="border: solid 0 transparent !important;border-right:1px solid rgba(0, 0, 0, 0.35);font-size:8px !important;border-left:1px solid rgba(0, 0, 0, 0.35)">{{strtoupper($sample->main_lab_name)}}</td>
-                                    <td style="border: solid 0 transparent !important;padding-left:10px !important;font-size:8px !important;border-right:1px solid rgba(0, 0, 0, 0.35)">{{ $batch->approval_date ?? '-' }}</td>
+                                    <td style="border: solid 0 transparent !important;border-right:1px solid rgba(0, 0, 0, 0.35);font-size:8px !important;border-left:1px solid rgba(0, 0, 0, 0.35)">SAMPLE ID</td>
+                                    <td style="border: solid 0 transparent !important;padding-left:10px !important;font-size:8px !important;border-right:1px solid rgba(0, 0, 0, 0.35)">{{ $sample->sample_code ?? '-' }}</td>
                                 </tr>
                                 <tr>
                                     <td style="border: solid 0 transparent !important;border-right:1px solid rgba(0, 0, 0, 0.35);font-size:8px !important;border-bottom:1px solid rgba(0, 0, 0, 0.35);border-left:1px solid rgba(0, 0, 0, 0.35)">MARKINGS</td>
@@ -213,7 +227,6 @@
                         <th class="parameter text-center"
                             style="font-size: 9px !important;width:15% !important;vertical-align: top !important;padding:5px !important">
                             {{ $sample->main_standard_code }}</th>
-                        
                     </tr>
                 </thead>
                 <tbody>
@@ -253,24 +266,17 @@
             <table style="margin:0px !important;width:100%">
                 <tr style="margin:0px !important">
                     <td style="font-size:8px !important;">
+                        @if($sample->header_body != '')
                         <b>Comments : </b>{{ $sample->header_body }}
+                        @endif
 
                     </td>
                 </tr>
                 <tr>
-                    <td style="font-size: 8px !important;">
-                        <br>
-                        <span>{{ $non_accredited->value }}</span>
-                        
-                        <div class="" style="">
-                            {{$disclaimer->value}}
-                            @if($batch->sampled_by_company_personnel == 0)
-                            <br>
-                            <b>NB: This report relates to submitted sample(s) only. The source and markings are as provided by the customer.</b>
-                            @endif
-                        </div>
-                    </td>
+                    <td style="font-size:8px !important;" ><b>{{strtoupper($sample->main_lab_name)}} <br>{{ $batch->approval_date ?? '-' }}</b></td>
+                                   
                 </tr>
+                
             </table>
             @if($sample->getAccredittedStatus() >= 1)
             <div class="" style="display:inline-block;position:fixed;bottom:20;left:70%">

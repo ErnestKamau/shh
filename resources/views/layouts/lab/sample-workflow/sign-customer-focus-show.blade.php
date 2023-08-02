@@ -120,7 +120,7 @@
                             <tr>
                                 <th>Sample No</th>
                                 <th>Batch No</th>
-                                <th>Smaple Type</th>
+                                <th>Sample Type</th>
                                 <th>Test(s) Required</th>
                                 <th>Specification</th>
                                 <th>Markings</th>
