@@ -256,7 +256,7 @@
                                     </tr>
                                 </thead>
                                 <tbody>
-                                    @foreach ($brand as $analysis_type_level)
+                                    @foreach ($brands as $analysis_type_level)
                                         <tr>
                                             <td class="parameter"
                                                 style="font-size: 10px !important;font-weight:600;background-color:#fafafa;padding:1px !important;padding-left:2px !important;"
@@ -310,7 +310,7 @@
                                     </tr>
                                 </thead>
                                 <tbody>
-                                    @foreach ($brand as $analysis_type_level)
+                                    @foreach ($brands as $analysis_type_level)
                                         <tr>
                                             <td class="parameter"
                                                 style="font-size: 10px !important;font-weight:600;background-color:#fafafa;padding:1px !important;padding-left:2px !important;"
@@ -389,7 +389,7 @@
                                     </tr>
                                 </thead>
                                 <tbody>
-                                    @foreach ($brand as $analysis_type_level)
+                                    @foreach ($brands as $analysis_type_level)
                                         <tr>
                                             <td class="parameter"
                                                 style="font-size: 10px !important;font-weight:600;background-color:#fafafa;padding:1px !important;padding-left:2px !important;"

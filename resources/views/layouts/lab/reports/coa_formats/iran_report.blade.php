@@ -16,25 +16,11 @@
 
 <style>
     @page {
-        margin: 20px;
-    }
-
-    @page {
-        margin-top: 20px;
-        .header {
-            position: fixed;
-            top: 0px;
-            left: 0;
-            right: 0;
-            height: 100px;
-            z-index: 1000;
-        }
-        main{
-            position: fixed;
-            top:250;
-            left: 0;
-            right: 0;
-        }
+        /* margin-top: 20px; */
+        margin-bottom: 200px;
+        margin-top: 150px;
+        margin-left:20;
+        margin-right: 20;
 
         @bottom-center {
             content: element(footer);
@@ -49,7 +35,7 @@
 
     .header {
         position: fixed;
-        top: 0px;
+        top: -120px;
         left: 0;
         right: 0;
         height: 100px;
@@ -58,15 +44,11 @@
 
     }
 
-    /* .header::before{
-        position: running(header);
-    } */
     .footer {
         position: fixed;
-        bottom: 140;
+        bottom: 3px;
         left: 0;
         right: 0;
-
         z-index: 1000;
     }
 
@@ -81,12 +63,9 @@
     .textBold {
         font-weight: 700 !important;
     }
-
 </style>
 
 <body>
-
-
     <footer class="footer">
 
         <table class="" style="margin-top: 1px !important; border-bottom:1px solid black;width:100%">
@@ -165,12 +144,31 @@
     </header>
 
     @foreach ($samples as $sample)
-        <main style="margin-bottom: 200px !important;">
+        @if ($sample->getAccredittedStatus() >= 1)
+            <div class="" style="display:inline-block;position:fixed;bottom:-50px;left:70%">
+                <img src="{{ $kebs }}" style="width:60px;height:60px" alt="">
+
+                <img src="{{ $kenas }}" style="width:60px;height:60px" alt="">
+
+
+                <img src="{{ $ilac }}" style="width:60px;height:60px" alt="">
+            </div>
+        @else
+            <div class="" style="display:inline-block;position:fixed;bottom:-50px;left:70%">
+                <img src="{{ $kebs }}" style="width:60px;height:60px" alt="">
+
+                <img src="{{ $nema }}" style="width:60px;height:60px" alt="">
+
+
+                <img src="{{ $ispm }}" style="width:60px;height:60px" alt="">
+            </div>
+        @endif
+        <main style="">
             <div class="test-report p-2"
                 style=" border: 1px solid rgba(0, 0, 0, 0.35) !important; font-size:10px !important;width:100%">
                 <b>TEST REPORT NO : R{{ substr($sample->sample_code, 1, strlen($sample->sample_code)) }}</b>
             </div>
-            
+
             <table class="table table-sm table-bordered" style="width:100%;font-size: 8px">
                 <tr>
                     <td style="text-align: center" colspan="4"><b>Analysis Certificate</b></td>
@@ -425,13 +423,17 @@
                     </table>
                 @endif
             @endforeach
-            <div class="end-test"  style="font-size: 9px !important; text-align:center ;border: 0 transparent !important;width:100%">
+            <div class="end-test"
+                style="font-size: 9px !important; text-align:center ;border: 0 transparent !important;width:100%">
                 ******<small>End of Test Results</small>*******</td>
             </div>
-            <div class="comments" style="font-size: 8px !important;width:100%">
-                <b>Comments : </b>{{ $sample->header_body }} 
-            </div>
-            <div class="accreddited-reasons">
+            @if ($sample->header_body != '')
+                <div class="comments" style="font-size: 8px !important;width:100%">
+
+                    <b>Comments : </b>{{ $sample->header_body }}
+                </div>
+            @endif
+            <div class="accreddited-reasons" style="font-size: 6px !important;width:100%">
                 <span>{{ $non_accredited->value }}</span>
 
                 <div class="" style="">
@@ -443,27 +445,6 @@
                     @endif
                 </div>
             </div>
-            @if ($sample->getAccredittedStatus() >= 1)
-                <div class="" style="display:inline-block;position:fixed;bottom:50;left:70%">
-                    <img src="{{ $kebs }}" style="width:60px;height:60px" alt="">
-
-                    <img src="{{ $kenas }}" style="width:60px;height:60px" alt="">
-
-
-                    <img src="{{ $ilac }}" style="width:60px;height:60px" alt="">
-                </div>
-            @else
-                <div class="" style="display:inline-block;position:fixed;bottom:50;left:70%">
-                    <img src="{{ $kebs }}" style="width:60px;height:60px" alt="">
-
-                    <img src="{{ $nema }}" style="width:60px;height:60px" alt="">
-
-
-                    <img src="{{ $ispm }}" style="width:60px;height:60px" alt="">
-                </div>
-            @endif
-
-
             @if ($loop->iteration < $samples->count())
                 <div style="page-break-after: always;">
                 </div>
