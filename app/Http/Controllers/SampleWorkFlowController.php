@@ -32,6 +32,7 @@ use App\sampleAnalysisTypeRelation;
 use App\SampleAnalysisTypeRelationView;
 use App\InterLabLog;
 use App\InterLabLogView;
+use App\Models\CRM\SamplePoint;
 
 use App\Http\Controllers\System\SystemNotifications;
 
@@ -620,6 +621,7 @@ class SampleWorkFlowController extends Controller
 
 		// return response()->json($request->all(), 200);
 		$maxReportingTime = 0;
+		$currentAnalysisSample = [];
 		foreach ($request->sample_details['sample_code'] as $k => $v) {
 			$detailId = $request->sample_details['detail_header'][$k];
 
@@ -646,6 +648,7 @@ class SampleWorkFlowController extends Controller
 			}
 			if (isset($detail->id)) {
 				$current_analysis = explode(',', $detail->analysis_type_id);
+				$currentAnalysisSample[$detail->sample_code] = $current_analysis;
 				$updated_analysis = $request->sample_details['sample_analysis'][$k];
 				// return response()->json($updated_analysis);
 				foreach ($current_analysis as $ca) {
@@ -834,6 +837,7 @@ class SampleWorkFlowController extends Controller
 			$analysis_to_be_done[$a->sample_code]["analysis_to_do"] = array_merge($analysis_to_be_done[$a->sample_code]["analysis_to_do"], $a->analysis());
 		}
 
+
 		$analysis_to_be_done = array_values($analysis_to_be_done);
 		$labstr = implode(',', $batch->labs(true));
 		$labarr = explode(' - ', $labstr);
@@ -845,15 +849,16 @@ class SampleWorkFlowController extends Controller
 			$lab = $checklab;
 		}
 
-		// return response()->json(explode(',',$labarr[1]),200);
+		// return response()->json($analysis_to_be_done,200);
 
 		foreach ($analysis_to_be_done as $atbs) {
 			foreach ($atbs["analysis_to_do"] as $a) {
-				if (isset($current_analysis) && in_array($a->id, $current_analysis)) {
+				if (isset($currentAnalysisSample[$atbs['sample_detail_code']]) && in_array($a->id, $currentAnalysisSample[$atbs['sample_detail_code']])) {
 					$analytes = array();
 				} else {
 					$analytes = $a->active_analysis_elements();
 				}
+
 				// return response()->json($analytes,200);
 
 
@@ -3456,4 +3461,151 @@ class SampleWorkFlowController extends Controller
 		}
 		return response()->json('success');
 	}
+	public function othershow($batch, $client = false, $portal = false,$status = false)
+	{
+		$batchID = $batch;
+		$batch = SampleHeader::with('comments','comments.creator')->find($batchID);
+		$batch_scope = SystemConfiguration::where('key', 'batch_scope')->first();
+		$customer_survey = SystemConfiguration::where('key', 'customer_survey')->first();
+		$countries = Country::orderBy('name')->get();
+		$methods = AnalysisMethod::where('active', 1)->get();
+		$account_settings = getConfigTypeByName('Account Settings');
+		$atachment_type = SystemConfiguration::where('key', 'attachment_type')->get();
+		$users = User::where('is_client', 0)->where('supplier_id', 0)->where('active', 1)->get();
+		$labsections = SampleAnalysisStage::where('active', 1)->get();
+		$reportingUnits = getReportingUnits();
+		$conditions = SampleCondition::all();
+		$products = CompanyProduct::all();
+		$workflowstages = [];
+		$workflows = getSampleWorflowStages();
+		$sample_types = getSampleTypes();
+		$samplingmethods = getSamplingMethods();
+		$interlabs = [];
+		$disposal_date = '';
+		if (isset($account_settings->id)) {
+			$accounts = getconfigByID($account_settings->id);
+		} else {
+
+			$accounts = array();
+		}
+		$not_captured = [];
+		$payment_detail = [];
+		$contacts = [];
+		$batch_sample_codes = '';
+		$report_formats = [];
+		$approvers = [];
+		$headerDetails = isset($batch->id) ? $batch->report_header_details() : array();
+		$ammendments = isset($batch->id) ? getBatchAmmendmentsById($batch->id) : [] ;
+		$allsamples = isset($batch->id)  ? $batch->all_samples()  : [];
+
+		
+		if (isset($batch->id)) {
+			$workflowstages = getWorkflowStage_Stages($batch->status);
+			if (in_array($batch->status, ['Sample Verification', 'Sample Approval'])) {
+				$report_format_config = SystemConfiguration::where('key', 'coa_report_format')->first();
+				$report_formats = SystemConfiguration::where('configuration_type_id', $report_format_config->value)->get();
+			}
+			$disposal_date =  \Carbon\Carbon::parse($batch->receipt_date)->addMonths(3)->format('Y-m-d');
+			// return response()->json($disposal_date);
+			$contacts = getCrmCustomerContactSchedule($batch->crm_customer_id);
+			// return response()->json($contacts);
+			$batch_sample_codes = getBacthSampleCodes($batch->id);
+			$payment_detail = InvoicePaymentDetail::where('batch_id', $batch->id)->get();
+			$interlabs = InterLabLogView::where('sample_header_id', $batch->id)->orderBy('status', 'ASC')->orderBy('id', 'DESC')->get();
+			// $equipment_data = $batch->get_captured();
+			$approvers = BatchLabSectionApprover::where('batch_id', $batch->id)->get();
+			// foreach ($equipment_data['items'] as $b => $d) {
+			// 	foreach ($d as $a => $k) {
+			// 		foreach ($k as $i => $e) {
+
+			// 			if ($e == '') {
+			// 				if (!isset($not_captured[$b])) {
+			// 					$not_captured[$b] = array();
+			// 					array_push($not_captured[$b], $a);
+			// 				} else {
+			// 					array_push($not_captured[$b], $a);
+			// 				}
+			// 			}
+			// 		}
+			// 	}
+			// }
+			$not_captured = CapturedResult::where('sample_header_id', $batch->id)->whereNull('result')->selectRaw('group_concat(analyte_code) as codes,sample_detail_code')->groupBy('sample_detail_id')->get();
+			// return response()->json($test);
+		}
+
+		$selectedSampleType = \App\SampleType::find($batch->sample_type_id ?? 0) ?? false;
+		$selected_analysis_types =isset($batch->sample_type_id) ? $selectedSampleType->analysis_types : [];
+		if (isset($batch->id)) {
+			if ($batch->is_qc_batch) {
+				$standards = Standards::where('status', 1)->where('qc_type_id', $batch->qc_type_id)->get();
+			} else {
+				$standards =  Standards::where('status', 1)->get();
+			}
+		} else {
+			$standards = [];
+		}
+		$defaultClient = $client;
+		$client_portal = $portal;
+		if (isset($batch->id)) {
+			$attachments = BatchAttachment::where('batch_id', $batch->id)->get();
+
+			if ($batch->in_ammendment_proccess == 1) {
+
+				$ammendment = BatchAmmendment::where('batch_id', $batch->id)->where('version_number', $batch->is_amendment)->first();
+				// return response()->json($batch,200);
+				if (isset($ammendment->id)) {
+
+					$samples = json_decode($ammendment->samples, true);
+					$ammendable = array_keys($samples);
+				}
+				// return response()->json($ammendments,200);
+
+
+			} else {
+
+				$ammendable = $batch->all_samples()->pluck('sample_code');
+			}
+		} else {
+			$ammendable = array();
+			$attachments = [];
+			// return response()->json($ammendable,200);
+		}
+		$role_a = SystemConfiguration::where('key', 'analyst_role_id')->first();
+		$labs  = Lab::where('active', 1)->get();
+		// $analysts = getUsersByRole('Analyst');
+		$analysts = User::orderBy('name')->join('user_roles as ur', 'ur.user_id', '=', 'users.id')
+			->join('roles as r', 'r.id', '=', 'ur.role_id')
+			->where('r.id', $role_a->value)->where('users.active', 1)->where('users.is_support_staff', 0)->selectRaw('users.*')->get();
+
+		// -----------------------------------
+		// ---------------------------------------
+		
+		$customer = isset($batch->id) ? getCrmCustomerByID($batch->crm_customer_id) : [];
+		$requestTypes = getRequestTypes();
+		$notifiable_users  =getNotifiableUsers();
+		$notesReminderType = getNotesReminderTypes();
+		$clients = getClients();
+		$active_company = getActiveCompany();
+		$samples = SamplesCategory::where('sample_header_id',$batch->id)->get();
+		return view('layouts.lab.sample-workflow.show-again', compact('batch', 'batchID', 'defaultClient', 'selectedSampleType', 'client_portal', 'ammendable', 'standards', 'attachments', 'not_captured', 'analysts', 'countries', 'accounts', 'methods', 'atachment_type', 'batch_scope', 'customer_survey', 'interlabs', 'labs', 'users', 'payment_detail', 'labsections', 'contacts', 'batch_sample_codes', 'report_formats', 'approvers', 'reportingUnits', 'conditions', 'products', 'headerDetails','status','workflowstages','workflows','clients','sample_types','samplingmethods','active_company','ammendments','samples','customer','requestTypes','notifiable_users','notesReminderType','disposal_date'));
+	}
+
+	public function getAnalysisTypeBySampleTypeIDAjax($sample_type_id){
+		return response()->json(AnalysisType::where('sample_type_id',$sample_type_id)->where('active',1)->get());
+	}
+	public function getSampleConditionsAjax(){
+	
+		return response()->json(SampleCondition::where('active',1)->get());
+	}
+	public function getSampleProductsAjax(){
+		return response()->json(CompanyProduct::where('active',1)->get());
+	}
+	public function getSampleStandardsAjax(){
+		return response()->json(Standards::where('status', 1)->get());
+	}
+	public function getCrmCustomerSamplePointAjax($crm_id,$name){
+		$company_unit = CrmCompanyUnit::where('name',$name)->where('crm_customer_id',$crm_id)->first();
+		return response()->json(isset($company_unit->id) ? SamplePoint::where('active',1)->where('crm_company_unit_id',$company_unit->id)->get() : []);
+	}
+	// getLabsByAnalysisTypeIdAjax  get Labs
 }

@@ -791,6 +791,12 @@ Route::post('get/Table/Customer-Focus/Signing','SampleWorkFlowController@getTabl
 
 Route::get('getSampleCodeToResultsAndCr','SampleWorkFlowController@getSampleCodeToResultsAndCr')->name('getSampleCodeToResultsAndCr');
 
+Route::get('get/Analysis-Type/By/SampleTypeIDAjax/{sample_type_id}','SampleWorkFlowController@getAnalysisTypeBySampleTypeIDAjax')->name('getAnalysisTypeBySampleTypeIDAjax');
+Route::get('get/Sample-Conditions/Ajax','SampleWorkFlowController@getSampleConditionsAjax')->name('getSampleConditionsAjax');
+Route::get('get/Sample-Products/Ajax','SampleWorkFlowController@getSampleProductsAjax')->name('getSampleProductsAjax');
+Route::get('get/Sample-Standards/Ajax','SampleWorkFlowController@getSampleStandardsAjax')->name('getSampleStandardsAjax');
+Route::get('get/Crm-Customer-SamplePoint/{crm_id}/Ajax/{name}','SampleWorkFlowController@getCrmCustomerSamplePointAjax')->name('getCrmCustomerSamplePointAjax');
+
 ################################################Polucon#########################################
 
 
