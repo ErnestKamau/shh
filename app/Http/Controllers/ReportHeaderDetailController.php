@@ -171,8 +171,7 @@ class ReportHeaderDetailController extends Controller
 				];
 			}
 			return response()->json($samples);
-			ini_set('max_execution_time', 300); //300 seconds = 5 minutes 
-
+			ini_set('max_execution_time', 300); //300 seconds = 5 minutes
 			$pdf = app('dompdf.wrapper');
 			$pdf->getDomPDF()->set_option("enable_php", true);
 			$pdf = PDF::loadView('layouts.lab.reports.coa_formats.ktda_report', compact('samples', 'company', 'qrcode', 'path', 'kenas', 'batch_approvers', 'pdf', 'batch', 'non_accredited', 'disclaimer', 'kebs', 'ilac', 'ispm', 'nema','customer'));
@@ -228,7 +227,6 @@ class ReportHeaderDetailController extends Controller
 
 			return 'success';
 		}
-
 		// $samples = SamplesCategory::where('sample_header_id',$batch->id)->get();
 		ini_set('max_execution_time', 300); //300 seconds = 5 minutes 
 		

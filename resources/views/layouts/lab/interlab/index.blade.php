@@ -147,7 +147,7 @@
                     </td>
                     <td>{{$ilabs->batch_code}}</td>
                     <td style="width:7% !important">{{$ilabs->sample_code}}</td>
-                    <td style="width:10% !important">{{$ilabs->from_lab_section_id > 0 ? $ilab->from_lab_name : 'Reception'}}</td>
+                    <td style="width:10% !important">{{$ilabs->from_lab_section_id > 0 ? $ilabs->from_lab_name : 'Reception'}}</td>
                     <td style="width:10% !important">{{$ilabs->to_lab_code}} - {{$ilabs->to_lab_name}}</td>
                     <td style="width:7% !important">{{$ilabs->sample_type_name}}</td>
                     <td>{{$ilabs->quantity}}</td>

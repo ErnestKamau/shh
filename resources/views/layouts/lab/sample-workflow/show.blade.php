@@ -1220,6 +1220,7 @@
 							<button type="button" class="btn btn-danger btn-sm text-white ml-2 save-samples"><i class="mdi mdi-content-save"></i> Save</button> &nbsp; &nbsp;
 							<span class="btn btn-success btn-sm create-new-sample-row float-right"><i class="mdi mdi-plus"></i> Add</span> &nbsp; &nbsp;
 							<span class="btn btn-primary btn-sm duplicate-sample-row float-right mr-1"><i class="mdi mdi-content-duplicate"></i> Duplicate</span>
+							<span class="btn btn-default btn-sm float-right mr-2" data-target="#clone-samples" data-toggle="modal" style="box-shadow: rgba(0, 0, 0, 0.35) 0px 5px 15px;"><i class="mdi mdi-compare-horizontal"></i> Clone Samples</span>
 							
 							@endif
 						@endif
@@ -1843,7 +1844,7 @@
 								<select name="report_format" id="report_format" class="form-control">
 									<option value="">Choose Report Format</option>
 									<option value="0">Standard Report</option>
-									<option value="1">KTDA Report</option>
+									{{-- <option value="1">KTDA Report</option> --}}
 									<option value="2">Iran Report</option>
 								</select>
 							</div>
