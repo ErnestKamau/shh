@@ -41,7 +41,7 @@ class ComputeReleaseQCReportJob implements ShouldQueue
         $header->rob_cv = $statisticalresult['robust_cv'];
         $header->cv_star = $statisticalresult;
         $header->std_star = $statisticalresult;
-        $header->statistical_population = $statisticalresult
+        $header->statistical_population = $statisticalresult;
     }
      // --------------------------qc compute Reports-------------------------
      /**
