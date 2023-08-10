@@ -50,7 +50,7 @@
     } */
     .footer {
         position: fixed;
-        bottom: 170;
+        bottom: 20;
         left: 0;
         right: 0;
 

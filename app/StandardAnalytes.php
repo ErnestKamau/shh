@@ -16,6 +16,6 @@ class StandardAnalytes extends Model implements Auditable
         return Analyte::find($this->analyte_id);
     }
     public function getAnalyteNameAttribute(){
-        return Analyte::find($this->analyte_id)->name;
+        return Analyte::find($this->analyte_id)->name ?? '';
     }
 }

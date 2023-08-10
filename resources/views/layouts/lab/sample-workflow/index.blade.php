@@ -251,7 +251,7 @@
 					@if(auth()->user()->CheckViewQcSample())
 						<td>{!! $item->is_qc_batch == 1 ? '<span class="text-success"><i class="mdi mdi-checkbox-marked-circle-outline"></i></span>' : '-' !!}</td>
 					@endif
-					<td style="min-width: 200px !important;">{{$item->sample_codes}}</td>
+					<td style="max-width: 200px !important;word-wrap:break-word;">{{$item->sample_codes}}</td>
 					<td nowrap>{{$item->getLabSectionsNames()}}</td>
 					<td style="min-width: 200px !important;">{{$item->status}}</td>
 					@if($status == 'Samples In Lab')
