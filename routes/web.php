@@ -796,6 +796,7 @@ Route::get('get/Sample-Conditions/Ajax','SampleWorkFlowController@getSampleCondi
 Route::get('get/Sample-Products/Ajax','SampleWorkFlowController@getSampleProductsAjax')->name('getSampleProductsAjax');
 Route::get('get/Sample-Standards/Ajax','SampleWorkFlowController@getSampleStandardsAjax')->name('getSampleStandardsAjax');
 Route::get('get/Crm-Customer-SamplePoint/{crm_id}/Ajax/{name}','SampleWorkFlowController@getCrmCustomerSamplePointAjax')->name('getCrmCustomerSamplePointAjax');
+Route::get('get/Sample-Parameter/Data/Ajax/{sample_id}','SampleWorkFlowController@getShowSampleParameterDataAjax')->name('getShowSampleParameterDataAjax');
 
 ################################################Polucon#########################################
 

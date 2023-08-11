@@ -33,6 +33,9 @@ use App\SampleAnalysisTypeRelationView;
 use App\InterLabLog;
 use App\InterLabLogView;
 use App\Models\CRM\SamplePoint;
+use App\CapturedResultView;
+use App\Models\Equipments\Equipment;
+use App\UserRoleView;
 
 use App\Http\Controllers\System\SystemNotifications;
 
@@ -1078,7 +1081,7 @@ class SampleWorkFlowController extends Controller
 	//   return redirect()->back()->within('success', 'Sample details added.');
 	// }
 
-	public function show($batch, $client = false, $portal = false,$status = false)
+	public function getshow($batch, $client = false, $portal = false,$status = false)
 	{
 		$batchID = $batch;
 
@@ -3461,7 +3464,7 @@ class SampleWorkFlowController extends Controller
 		}
 		return response()->json('success');
 	}
-	public function othershow($batch, $client = false, $portal = false,$status = false)
+	public function show($batch, $client = false, $portal = false,$status = false)
 	{
 		$batchID = $batch;
 		$batch = SampleHeader::with('comments','comments.creator')->find($batchID);
@@ -3606,6 +3609,18 @@ class SampleWorkFlowController extends Controller
 	public function getCrmCustomerSamplePointAjax($crm_id,$name){
 		$company_unit = CrmCompanyUnit::where('name',$name)->where('crm_customer_id',$crm_id)->first();
 		return response()->json(isset($company_unit->id) ? SamplePoint::where('active',1)->where('crm_company_unit_id',$company_unit->id)->get() : []);
+	}
+	public function getShowSampleParameterDataAjax($sample_id){
+		$captured_results = CapturedResultView::where('sample_detail_id',$sample_id)->get();
+		$equipments = Equipment::where('active',1)->get();
+		$role_a = SystemConfiguration::where('key', 'analyst_role_id')->first();
+		$analysts = UserRoleView::where('role_id',$role_a->value)->where('active', 1)->where('is_support_staff', 0)->orderBy('name')->get();
+		$res = [
+			"captured"=>$captured_results,
+			"equipments"=>$equipments,
+			"analysts"=>$analysts
+		];
+		return response()->json($res);
 	}
 	// getLabsByAnalysisTypeIdAjax  get Labs
 }

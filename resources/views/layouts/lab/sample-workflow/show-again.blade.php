@@ -2364,6 +2364,7 @@
 											</div>
 										</th>
 										<th>Analyte</th>
+										<th>Lab Section</th>
 										@if(Auth::user()->is_client == 0)
 										<th nowrap>Reporting Symbol</th>
 										<th nowrap>Result</th>
@@ -2386,7 +2387,7 @@
 								</thead>
 								<tbody id="sample-parameters-holder">
 									<tr style="background-color:#e0f6c2">
-										<td colspan="13" style="font-size: 12px" class="text-center"> <b>Loading Data</b> <i class="mdi mdi-cog mdi-spin mt-2" style="font-size: 20px"></i></td>
+										<td colspan="14" style="font-size: 12px" class="text-center"> <b>Loading Data</b> <i class="mdi mdi-cog mdi-spin mt-2" style="font-size: 20px"></i></td>
 									</tr>
 								</tbody>
 							</table>
@@ -2427,6 +2428,11 @@
 		</div>
 	</div>
 </div>
+<tr>
+	<td>
+		<input type="checkbox" name="" id="">
+	</td>
+</tr>
 <div class="carry-data" data-batch="{{json_encode($batch ?? [])}}"></div>
 <script src="https://maps.googleapis.com/maps/api/js?v=3.exp&key=AIzaSyBqS4AEZ-gVeXjG794Rh0eTd6yvdfMKTjg&sensor=false" type="text/javascript"></script>
 {{-- @if(isset($batch->status)) --}}
@@ -3565,16 +3571,28 @@
 
 		var getShowSampleParameterData = (sample_id,callback)=>{
 			$.ajax({
-				url:``,
+				url:`/get/Sample-Parameter/Data/Ajax/${sample_id}`,
 				method:'GET',
 				success:(data)=>{
-					
+					callback(data);
+				},
+				error:(data)=>{
+					console.log(data);
 				}
 			})
 		}
 
+		var getShowSampleParameterBody = (data)=>{
+			var body = $(`
+
+			`).clone();
+		}
+
 		$('#show-sample-analysis-analytes').on('show.bs.modal',(e)=>{
 			var sample = $(e.relatedTarget).data('record');
+			getShowSampleParameterData(sample.id,(data)=>{
+				console.log(data);
+			})
 			
 		})
 		// ---------------end Add Samples --------------------------------
