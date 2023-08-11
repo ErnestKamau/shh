@@ -8,6 +8,8 @@ use OwenIt\Auditing\Contracts\Auditable;
 class SampleDetails extends Model implements Auditable
 {
 	use \OwenIt\Auditing\Auditable;
+
+	public $with = ['main_standard', 'secondary_standard'];
   public function analysis()
 	{
 		$analysisIDs = explode(",", $this->analysis_type_id);
@@ -44,6 +46,14 @@ class SampleDetails extends Model implements Auditable
 	public function captured_results()
 	{
 		return $this->hasMany('App\CapturedResult');
+	}
+
+	public function main_standard(){
+		return $this->belongsTo(Standards::class, 'main_standard');
+	}
+
+	public function secondary_standard(){
+		return $this->belongsTo(Standards::class, 'secondary_standard');
 	}
 
 	public function product()
