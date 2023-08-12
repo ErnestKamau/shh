@@ -52,7 +52,7 @@
             </div>
             <div class="title mt-2">
                 <b class="ml-5 text-danger float-right" style="font-size: 30px">{{ pad_str($batch->id, 3) }}</b>
-                <div class="text-center"><u><b style="font-size:20px">SAMPLE SUBMISSION / CUSTOMER FOCUS FOCUS
+                <div class="text-center"><u><b style="font-size:20px">SAMPLE SUBMISSION / CUSTOMER FOCUS
                             FORM</b></u></div>
             </div>
             <div class="row mt-3">

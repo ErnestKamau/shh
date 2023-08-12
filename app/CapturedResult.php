@@ -11,7 +11,7 @@ class CapturedResult extends Model implements Auditable
 	use \OwenIt\Auditing\Auditable;
 	protected $appends = ['repeatsampleresult'];
 	protected $fillable  =['lab_section_id','remark_is_manual','sample_detail_code'];
-
+	public $with = ['my_analyte', 'defacto_analyst_with', 'equipment_with', 'sample', 'analyte_standard_value'];
 	public function getRepeatSampleResultAttribute(){
 		if($this->repeat_captured_id > 0){
 			$captured = CapturedResult::find($this->repeat_captured_id);
@@ -27,7 +27,7 @@ class CapturedResult extends Model implements Auditable
 
 	public function sample()
 	{
-		return $this->belongsTo('App\SampleDetail');
+		return $this->belongsTo('App\SampleDetails', 'sample_detail_id');
 	}
 
 	public function analysis_type()
@@ -35,8 +35,26 @@ class CapturedResult extends Model implements Auditable
 		return $this->belongsTo('App\AnalysisType');
 	}
 
+	public function my_analyte(){
+		return $this->belongsTo(Analyte::class, 'analyte_id');
+	}
+
 	public function analyte(){
 		return Analyte::where('code', $this->analyte_code)->first();
+	}
+
+	
+	function analyte_standard_value()
+	{
+		return $this->hasOne(StandardAnalytes::class, 'analyte_id','analyte_id')->where('standard_id', $this->sample && $this->sample->main_standard ? $this->sample->main_standard->id : -1);
+	}
+
+	function standard_value(){
+		return $this->hasOne(StandardValue::class,'');
+	}
+
+	public function defacto_analyst_with(){
+		return $this->belongsTo(User::class, 'operator_id');
 	}
 
 	public function defacto_analyst(){
@@ -45,6 +63,10 @@ class CapturedResult extends Model implements Auditable
 			->where('u.active',1)
 			->selectRaw('u.*')
 			->where('analyte_id', $this->analyte_id)->first();
+	}
+
+	public function equipment_with(){
+		return $this->belongsTo(Models\Equipments\Equipment::class, 'equipment_id');
 	}
 
 	public function equipment(){

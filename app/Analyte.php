@@ -20,6 +20,10 @@ class Analyte extends Model implements Auditable
     return $this->belongsTo('App\AnalysisMethod', 'method');
 	}
 
+	public function methods_with(){
+		return $this->belongsTo('App\AnalysisMethod', 'method');
+	}
+
 	public function methods(){
 		$methods = AnalysisMethod::whereIn('id', explode(",", $this->method))->get();
 		$response = array();

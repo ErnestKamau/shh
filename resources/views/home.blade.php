@@ -34,11 +34,11 @@
 				<div class="icon w3-green"><i class="mdi mdi-flask"></i></div>
 				<div class="small w3-padding-small">Laboratory</div>
 			</a>
-			<span class="app" data-toggle="modal" data-target="#to-be-configured">
-				{{-- href="/inventory-home" --}}
+			<a class="app" href="/inventory-home">
+				{{-- --}}
 				<div class="icon w3-blue"><i class="mdi mdi-package-variant"></i></div>
 				<div class="small w3-padding-small">Inventory</div>
-			</span>
+			</a>
 			<span class="app" data-toggle="modal" data-target="#to-be-configured">
 				{{-- href="/equipment-home" --}}
 				<div class="icon w3-brown"><i class="mdi mdi-tools"></i></div>

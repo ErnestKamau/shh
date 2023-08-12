@@ -32,6 +32,7 @@
             <th>No</th>
             <th>Code</th>
             <th>Name</th>
+            <th>Start Sample</th>
             <th>Address</th>
             <th>Website</th>
             <th>Fax</th>
@@ -51,6 +52,7 @@
                 <td valign="center">{{ $loop->iteration }}</td>
                 <td>{{ $lab->code }}</td>
                 <td>{{ $lab->name }}</td>
+                <td>{{$lab->start_sample_no ?? '-'}}</td>
                 <td>{{ $lab->address }}</td>
                 <td>{{ $lab->website }}</td>
                 <td>{{ $lab->fax }}</td>
@@ -81,6 +83,11 @@
                               <label class="control-label">Lab Code</label>
                               <input type="text" class="form-control" name="code" value="{{ $lab->code }}" placeholder="Lab Code..." required />
                             </div>
+                            <div class="form-group">
+                              <label class="control-label">Start Sample No</label>
+                              <input type="text" class="form-control" name="start_sample_no" value="{{ $lab->start_sample_no }}" placeholder="Lab Start Sample No..." required />
+                            </div>
+
                             <div class="form-group">
                               <label class="control-label">Lab Postal Address</label>
                               <textarea class="form-control" name="address" placeholder="Lab Postal Address..." required>{{ $lab->address }}</textarea>
@@ -163,6 +170,10 @@
             <div class="form-group">
               <label class="control-label">Lab Code</label>
               <input type="text" class="form-control" name="code" placeholder="Lab Code..." required />
+            </div>
+            <div class="form-group">
+              <label class="control-label">Start Sample No</label>
+              <input type="text" class="form-control" name="start_sample_no" value="" placeholder="Lab Start Sample No..." required />
             </div>
             <div class="form-group">
               <label class="control-label">Lab Postal Address</label>

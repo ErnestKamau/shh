@@ -91,8 +91,8 @@ class StandardsController extends Controller
             foreach($standard_analyte as $a){
                 $analyte = Analyte::find($a->analyte_id);
                 $standard_value = StandardValue::find($a->standard_value_id);
-                $a->analyte_code = $analyte->code;
-                $a->analyte_name = $analyte->name;
+                $a->analyte_code = $analyte->code ?? '';
+                $a->analyte_name = $analyte->name ?? '';
                 if(isset($standard_value->id)){
 
                     $a->standard_value_name = $standard_value->name;

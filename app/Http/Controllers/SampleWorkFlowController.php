@@ -632,18 +632,16 @@ class SampleWorkFlowController extends Controller
 			$detail->sample_header_id = $SampleHeader->id;
 
 			if (!isset($detail->sample_code)) {
-				$config_start_no = SystemConfiguration::where('key', 'start_sample_no')->first();
-				if (!isset($config_start_no->id)) {
-					return redirect()->back()->with('error', 'Kindly configure the start sample No');
-				}
-				if (isset(SampleDetails::latest('id')->first()->id)) {
-					$code = SampleDetails::latest('id')->first()->sample_code;
+				// $config_start_no = SystemConfiguration::where('key', 'start_sample_no')->first();
+				$lab = Lab::find($request->sample_details['lab_id'][$k]);
+				if (isset(SampleDetails::where('lab_id',$lab->id)->orderBy('id','DESc')->first()->id)) {
+					$code = SampleDetails::where('lab_id',$lab->id)->orderBy('id','DESc')->first()->sample_code;
 					$last_sample = substr($code, 9, strlen($code));
 				} else {
-					$last_sample = $config_start_no->value;
+					$last_sample = $lab->start_sample_no != '' ? $lab->start_sample_no : 0;
 				}
 				// $last_sample = isset(SampleDetails::latest('id')->first()->id) ? substr(SampleDetails::latest('id')->first()->sample_code,9,strlen(SampleDetails::latest('id')->first()->sample_code) -1) : $config_start_no->value;
-				$lab = Lab::find($request->sample_details['lab_id'][$k]);
+				
 				// return response()->json($request->sample_details['lab_id'][$k]);
 				$sample_number = intval($last_sample)  + 1;
 				$detail->sample_code = 'S' . date('Y') . $lab->code . $sample_number;
@@ -884,7 +882,7 @@ class SampleWorkFlowController extends Controller
 					$captured->method_id = $analysisType->method;
 					$captured->user_id = \Auth::user()->id;
 					$captured->analyte_accredited = $analysisType->non_accredited;
-					$captured->analyte_status_contracted = $lab->is_external;
+					$captured->analyte_status_contracted = $lab->is_external ?? 0;
 					$captured->lab_section_id  = $analysisType->lab_section_id;
 					$captured->parameters_order = $analysisType->level;
 					$captured->remark_is_manual = $analysisType->remark_is_manual;
@@ -907,7 +905,7 @@ class SampleWorkFlowController extends Controller
 					$result->unit_code = $an->reporting_unit;
 					$result->reporting_symbol = $an->reporting_symbol;
 					$result->recheck = 0;
-					$result->analyte_status_contracted = $lab->is_external;
+					$result->analyte_status_contracted = $lab->is_external ?? 0;
 					$result->lab_section_id  = $analysisType->lab_section_id;
 					$result->parameters_order = $analysisType->level;
 					$result->remark_is_manual = $analysisType->remark_is_manual;
@@ -997,7 +995,7 @@ class SampleWorkFlowController extends Controller
 						$captured->method_id = $analysisType->method;
 						$captured->user_id = \Auth::user()->id;
 
-						$captured->analyte_status_contracted = $lab->is_external;
+						$captured->analyte_status_contracted = $lab->is_external ?? 0;
 
 						$captured->save();
 
@@ -1017,7 +1015,7 @@ class SampleWorkFlowController extends Controller
 						$result->unit_code = $an->reporting_unit;
 						$result->reporting_symbol = $an->reporting_symbol;
 						$result->recheck = 0;
-						$result->analyte_status_contracted = $lab->is_external;
+						$result->analyte_status_contracted = $lab->is_external ?? 0;
 						$result->save();
 					}
 				}
@@ -1085,7 +1083,10 @@ class SampleWorkFlowController extends Controller
 	{
 		$batchID = $batch;
 
-		$batch = SampleHeader::with('comments','comments.creator')->find($batchID);
+		$batch = SampleHeader::with('comments','comments.creator', 'captured_results')->find($batchID);
+
+		// return response()->json($batch);
+
 		$batch_scope = SystemConfiguration::where('key', 'batch_scope')->first();
 		$customer_survey = SystemConfiguration::where('key', 'customer_survey')->first();
 		$countries = Country::orderBy('name')->get();
@@ -1095,7 +1096,7 @@ class SampleWorkFlowController extends Controller
 		$users = User::where('is_client', 0)->where('supplier_id', 0)->where('active', 1)->get();
 		$labsections = SampleAnalysisStage::where('active', 1)->get();
 		$reportingUnits = getReportingUnits();
-		$conditions = SampleCondition::all();
+		$conditions = SampleCondition::where('active',1)->get();
 		$products = CompanyProduct::all();
 		$workflowstages = [];
 		$workflows = getSampleWorflowStages();
@@ -1118,7 +1119,6 @@ class SampleWorkFlowController extends Controller
 		$headerDetails = isset($batch->id) ? $batch->report_header_details() : array();
 		$ammendments = isset($batch->id) ? getBatchAmmendmentsById($batch->id) : [] ;
 		$allsamples = isset($batch->id)  ? $batch->all_samples()  : [];
-
 		
 		if (isset($batch->id)) {
 			$workflowstages = getWorkflowStage_Stages($batch->status);
@@ -1191,6 +1191,7 @@ class SampleWorkFlowController extends Controller
 			$attachments = [];
 			// return response()->json($ammendable,200);
 		}
+		
 		$role_a = SystemConfiguration::where('key', 'analyst_role_id')->first();
 		$labs  = Lab::where('active', 1)->get();
 		// $analysts = getUsersByRole('Analyst');
@@ -1206,18 +1207,23 @@ class SampleWorkFlowController extends Controller
 		$analysisBySampleNames = array();
 		$labSamples = array();
 
-		foreach ($batch->captured_results ?? array() as $item) {
+		// echo date('Y-m-d H:i:s');
+		$l =1;
+		
+		// return response()->json($batch);
 
+
+		foreach ($batch->captured_results ?? array() as $item) {
 			if (!isset($analaytesHolder[$item->sample_detail_code])) {
 				$analaytesHolder[$item->sample_detail_code] = array();
 			}
 
 			$item->ops = $analysts;
-			$item->equip_name = $item->equipment()->name ?? '-';
+			$item->equip_name = $item->equipment_with ? $item->equipment_with->name : '-';
 
-			$item->def_operator = $item->defacto_analyst();
+			$item->def_operator = $item->defacto_analyst_with;
 			$item->analysis_type = $item->analysis_type;
-			$analyte = getAnalyteByID($item->analyte_id);
+			$analyte = $item->my_analyte;
 
 			if (isset($analyte->id)) {
 
@@ -1225,19 +1231,19 @@ class SampleWorkFlowController extends Controller
 			} else {
 				$item->analyte_name = $item->analyte_code;
 			}
-			$item->methods = $analyte->methods();
+			$item->methods = //$analyte->methods();
 			$analaytesHolder[$item->sample_detail_code][] = $item;
-			$sample_details_test = getSampleDetailById($item->sample_detail_id);
+			$sample_details_test = $item->sample;
 			if (isset($sample_details_test->id)) {
-				$standard = getStandardByid($sample_details_test->main_standard);
-				$sec = getStandardByid($sample_details_test->secondary_standard);
+				$standard = $sample_details_test->main_standard;
+				$sec = $sample_details_test->secondary_standard;
 				if (isset($standard->id)) {
-					$analyte_standard = getAnalyteStandardValue($item->analyte_id, $standard->id);
+					$analyte_standard = $item->analyte_standard_value;
 					if (isset($analyte_standard->id)) {
 						if ($analyte_standard->standard_value_type == 'is_range') {
 							$item->standard_value = $analyte_standard->low . ' - ' . $analyte_standard->high;
 						} elseif ($analyte_standard->standard_value_type == 'is_standard_value') {
-							$value_id = getStandardValuebyID($analyte_standard->standard_value_id);
+							$value_id = $analyte_standard->standard_value;
 							if (isset($value_id->id)) {
 								if ($value_id->code == 'IsValue') {
 									$item->standard_value = $analyte_standard->standard_is_value;
@@ -1255,8 +1261,12 @@ class SampleWorkFlowController extends Controller
 					$item->secondary_standard = $sec->code;
 				}
 			}
+			// return response()->json($batch);
 		}
-		// return response()->json($analaytesHolder);
+
+		// echo "middle - ".date('Y-m-d H:i:s');
+		
+		// return response()->json($batch);
 
 		foreach ($batch->samples ?? array() as $sample) {
 			$labSamples[$sample->sample_code] = getSampleDetailsLab($sample->id);
@@ -1273,8 +1283,9 @@ class SampleWorkFlowController extends Controller
 				$analysisBySampleNames[$sample->sample_code][$analysis->name] = $analysis->id;
 			}
 		}
+		// echo "Ending - ".date('Y-m-d H:i:s');
 		$active_company = getActiveCompany();
-		// return response()->json($analysisBySampleNames);
+		// return response()->json($batch);
 		// ---------------------------------------
 		$userLabSections = auth()->user()->labsectionids;
 		$customer = isset($batch->id) ? getCrmCustomerByID($batch->crm_customer_id) : [];
@@ -3411,6 +3422,7 @@ class SampleWorkFlowController extends Controller
 				return redirect()->back()->with('error','All batches should be of the same client! Kindly check on the batches you have selected');
 			}
 			$batch =  $getCustomers->orderBy('created_at','ASC')->first();
+			$customer = CrmCustomer::find($batch->crm_customer_id);
 			$sample_type_ids = $batches->pluck('sample_type_id')->toArray();
 			$sample_types = implode(', ',array_unique(SampleType::whereIn('id',$sample_type_ids)->pluck('name')->toArray())) ;
 			$company = getActiveCompany();
