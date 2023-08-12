@@ -1081,7 +1081,7 @@ class SampleWorkFlowController extends Controller
 	//   return redirect()->back()->within('success', 'Sample details added.');
 	// }
 
-	public function getshow($batch, $client = false, $portal = false,$status = false)
+	public function show($batch, $client = false, $portal = false,$status = false)
 	{
 		$batchID = $batch;
 
@@ -3464,7 +3464,7 @@ class SampleWorkFlowController extends Controller
 		}
 		return response()->json('success');
 	}
-	public function show($batch, $client = false, $portal = false,$status = false)
+	public function anothershow($batch, $client = false, $portal = false,$status = false)
 	{
 		$batchID = $batch;
 		$batch = SampleHeader::with('comments','comments.creator')->find($batchID);
