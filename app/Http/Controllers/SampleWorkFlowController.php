@@ -817,9 +817,7 @@ class SampleWorkFlowController extends Controller
 		$batch->sample_tracking_stage = $stage->id;
 		$batch->save();
 
-		$batch_analysis = $batch->samples;
 		$hasCapturedResults = false;
-
 		$analysis_to_be_done = array();
 
 		$batch_analysis = $batch->samples;
@@ -938,8 +936,6 @@ class SampleWorkFlowController extends Controller
 			$hasCapturedResults = false;
 
 			$analysis_to_be_done = array();
-
-			$batch_analysis = $batch->samples;
 
 
 			foreach ($batch_analysis as $a) {
