@@ -11,7 +11,7 @@ class SampleHeader extends Model implements Auditable
 {
 	use \OwenIt\Auditing\Auditable;
 	protected $fillable = ['declaration_customer_approval_date','declaration_customer_signature','declaration_customer_contact_name','c_focus_ids_clustered','cluster_amount','cluster_amount_paid','cluster_vat','cluster_balance'];
-	
+	public $with = ['get_target_date', 'client', 'samples', 'specialist_analyst', 'custody', 'comments'];
 	public function samples()
 	{
 		return $this->hasMany('App\SampleDetails')->orderBy('id', 'asc');
@@ -161,6 +161,10 @@ class SampleHeader extends Model implements Auditable
 		}
 
 		return $str ? array_unique($labStr) : array_unique($labs);
+	}
+
+	public function get_target_date(){
+		return $this->hasOne(SampleDate::class)->where('name', 'Target Date');
 	}
 
 	public function get_date($type)

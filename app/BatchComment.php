@@ -8,6 +8,7 @@ use OwenIt\Auditing\Contracts\Auditable;
 class BatchComment extends Model implements Auditable
 {
 	use \OwenIt\Auditing\Auditable;
+	public $with = ['creator'];
   public function creator(){
     return $this->belongsTo('App\User', 'created_by');
 	}

@@ -50,6 +50,7 @@ class LabController extends Controller
     $lab->is_external = $request->is_external ?? 0;
     $lab->active = $request->active ?? 0;
     $lab->is_external = $request->is_external ?? 0;
+    $lab->start_sample_no = $request->start_sample_no;
 
     $lab->save();
 
@@ -73,6 +74,7 @@ class LabController extends Controller
     $lab->is_external = $request->is_external ?? 0;
     $lab->active = $request->active ?? 0;
     $lab->is_external = $request->is_external ?? 0;
+    $lab->start_sample_no = $request->start_sample_no;
     $lab->save();
 
     return redirect()->back()->with('success', 'Lab edited.');

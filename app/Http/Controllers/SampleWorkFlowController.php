@@ -33,6 +33,9 @@ use App\SampleAnalysisTypeRelationView;
 use App\InterLabLog;
 use App\InterLabLogView;
 use App\Models\CRM\SamplePoint;
+use App\CapturedResultView;
+use App\Models\Equipments\Equipment;
+use App\UserRoleView;
 
 use App\Http\Controllers\System\SystemNotifications;
 
@@ -629,18 +632,16 @@ class SampleWorkFlowController extends Controller
 			$detail->sample_header_id = $SampleHeader->id;
 
 			if (!isset($detail->sample_code)) {
-				$config_start_no = SystemConfiguration::where('key', 'start_sample_no')->first();
-				if (!isset($config_start_no->id)) {
-					return redirect()->back()->with('error', 'Kindly configure the start sample No');
-				}
-				if (isset(SampleDetails::latest('id')->first()->id)) {
-					$code = SampleDetails::latest('id')->first()->sample_code;
+				// $config_start_no = SystemConfiguration::where('key', 'start_sample_no')->first();
+				$lab = Lab::find($request->sample_details['lab_id'][$k]);
+				if (isset(SampleDetails::where('lab_id',$lab->id)->orderBy('id','DESc')->first()->id)) {
+					$code = SampleDetails::where('lab_id',$lab->id)->orderBy('id','DESc')->first()->sample_code;
 					$last_sample = substr($code, 9, strlen($code));
 				} else {
-					$last_sample = $config_start_no->value;
+					$last_sample = $lab->start_sample_no != '' ? $lab->start_sample_no : 0;
 				}
 				// $last_sample = isset(SampleDetails::latest('id')->first()->id) ? substr(SampleDetails::latest('id')->first()->sample_code,9,strlen(SampleDetails::latest('id')->first()->sample_code) -1) : $config_start_no->value;
-				$lab = Lab::find($request->sample_details['lab_id'][$k]);
+				
 				// return response()->json($request->sample_details['lab_id'][$k]);
 				$sample_number = intval($last_sample)  + 1;
 				$detail->sample_code = 'S' . date('Y') . $lab->code . $sample_number;
@@ -1203,6 +1204,15 @@ class SampleWorkFlowController extends Controller
 		$analysisBySampleNames = array();
 		$labSamples = array();
 
+		// echo date('Y-m-d H:i:s');
+		$l =1;
+		
+		// return response()->json($batch);
+
+		$methods = getMethods()->pluck('name', 'id');
+
+		// return response()->json($methods);
+
 		foreach ($batch->captured_results ?? array() as $item) {
 
 			if (!isset($analaytesHolder[$item->sample_detail_code])) {
@@ -1222,7 +1232,7 @@ class SampleWorkFlowController extends Controller
 			} else {
 				$item->analyte_name = $item->analyte_code;
 			}
-			$item->methods = $analyte->methods();
+			$item->methods = $this->methodNameFromId($methods, $analyte->method);
 			$analaytesHolder[$item->sample_detail_code][] = $item;
 			$sample_details_test = getSampleDetailById($item->sample_detail_id);
 			if (isset($sample_details_test->id)) {
@@ -3462,7 +3472,7 @@ class SampleWorkFlowController extends Controller
 		}
 		return response()->json('success');
 	}
-	public function othershow($batch, $client = false, $portal = false,$status = false)
+	public function anothershow($batch, $client = false, $portal = false,$status = false)
 	{
 		$batchID = $batch;
 		$batch = SampleHeader::with('comments','comments.creator')->find($batchID);
@@ -3608,5 +3618,28 @@ class SampleWorkFlowController extends Controller
 		$company_unit = CrmCompanyUnit::where('name',$name)->where('crm_customer_id',$crm_id)->first();
 		return response()->json(isset($company_unit->id) ? SamplePoint::where('active',1)->where('crm_company_unit_id',$company_unit->id)->get() : []);
 	}
+	public function getShowSampleParameterDataAjax($sample_id){
+		$captured_results = CapturedResultView::where('sample_detail_id',$sample_id)->get();
+		$equipments = Equipment::where('active',1)->get();
+		$role_a = SystemConfiguration::where('key', 'analyst_role_id')->first();
+		$analysts = UserRoleView::where('role_id',$role_a->value)->where('active', 1)->where('is_support_staff', 0)->orderBy('name')->get();
+		$res = [
+			"captured"=>$captured_results,
+			"equipments"=>$equipments,
+			"analysts"=>$analysts
+		];
+		return response()->json($res);
+	}
+
+	public function methodNameFromId($inputObject, $inputKeysStr){
+		$inputKeys = explode(",", $inputKeysStr);
+		$outputObject = [];
+		foreach ($inputKeys as $key) {
+				if (isset($inputObject[$key])) {
+						$outputObject[$inputObject[$key]] = (int) $key;
+				}
+		}
+		return $outputObject = [];
+	} 
 	// getLabsByAnalysisTypeIdAjax  get Labs
 }
