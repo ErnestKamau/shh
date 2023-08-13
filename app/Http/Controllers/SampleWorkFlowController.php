@@ -82,7 +82,7 @@ class SampleWorkFlowController extends Controller
 
 	public function index(Request $request, $status = false)
 	{
-		// return response()->json(getSampleWorkFLowTotals(), 200);
+		return phpinfo();
 		if (!$status) {
 			$status = getSampleWorflowStages()[0];
 		}
