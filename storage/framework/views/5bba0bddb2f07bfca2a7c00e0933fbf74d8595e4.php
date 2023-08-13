@@ -1,7 +1,5 @@
-@extends('layouts.lab.layout.app', ['dataTable'=>true, 'datePicker'=>true, 'select2'=>true])
-
-@section('title2')
-<title>{{ $status }} | Sample WorkFlow</title>
+<?php $__env->startSection('title2'); ?>
+<title><?php echo e($status); ?> | Sample WorkFlow</title>
 
 <style>
 	.form-part-toggler {
@@ -58,8 +56,8 @@
 		background-color: white !important;
 	}
 </style>
-@endsection
-@section('content2')
+<?php $__env->stopSection(); ?>
+<?php $__env->startSection('content2'); ?>
 <main>
 	<?php
 	$items = array(
@@ -80,22 +78,32 @@
 		)
 	);
 	?>
-	<x-bread-crumb :items="$items"></x-bread-crumb>
+	 <?php if (isset($component)) { $__componentOriginal30091868428b09767320233ef70f89faadea10d9 = $component; } ?>
+<?php $component = $__env->getContainer()->make(App\View\Components\BreadCrumb::class, ['items' => $items]); ?>
+<?php $component->withName('bread-crumb'); ?>
+<?php if ($component->shouldRender()): ?>
+<?php $__env->startComponent($component->resolveView(), $component->data()); ?>
+<?php $component->withAttributes([]); ?> <?php if (isset($__componentOriginal30091868428b09767320233ef70f89faadea10d9)): ?>
+<?php $component = $__componentOriginal30091868428b09767320233ef70f89faadea10d9; ?>
+<?php unset($__componentOriginal30091868428b09767320233ef70f89faadea10d9); ?>
+<?php endif; ?>
+<?php echo $__env->renderComponent(); ?>
+<?php endif; ?> 
 	<h4 class="p-4">
 		<span class="float-left"><i class="mdi mdi-file-document-edit"></i> Sample Workflow</span>
-		<small> <i class="mdi mdi-circle-medium"></i> {{ $status }}</small>
+		<small> <i class="mdi mdi-circle-medium"></i> <?php echo e($status); ?></small>
 		<div class="btn-group float-right">
 			<button type="button" class="btn btn-sm btn-white dropdown-toggle" style="box-shadow: rgba(0, 0, 0, 0.15) 1.95px 1.95px 2.6px;"  type="button" id="dropdownMenuButton" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
 				Actions
 			</button>
 			<div class="dropdown-menu dropdown-menu-right">
-				@if(isset($status) && in_array($status, array("Samples En-Route","Samples Request Review","Samples Reception","Samples In Lab")))
+				<?php if(isset($status) && in_array($status, array("Samples En-Route","Samples Request Review","Samples Reception","Samples In Lab"))): ?>
 				<li>
 					<span class="btn btn-sm dropdown-item initiate-interlab" data-toggle="modal" data-target="#inter-lab-add" data-action="bulk"><i class="mdi mdi-swap-horizontal-bold mr-2 text-warning" data-toggle="tooltip" title="Initiate inter Lab"></i> Intiate Inter Lab Transfer(s)</span>
 
 				</li>
-				@endif
-				@if ($status=="Samples Reception")
+				<?php endif; ?>
+				<?php if($status=="Samples Reception"): ?>
 			
 
 				<li>
@@ -127,15 +135,15 @@
 				<li>
 					<span class="btn btn-sm dropdown-item" disabled data-target="#generarate_customer_focus" data-toggle="modal" title="Generate Customer Focus"><i class="mdi mdi-file-document-outline mr-2"></i> Generate Customer Focus</span>
 				</li>
-				@endif
+				<?php endif; ?>
 
-				@if ($status=="Reports for Collection")
+				<?php if($status=="Reports for Collection"): ?>
 				<li>
 					<span class="btn btn-sm dropdown-item" disabled data-target="#send-email-reports-modal" data-toggle="modal" title="Email Report(s)"><i class="mdi mdi-email mr-2"></i> Email Report(s)</span>
 
 				</li>
-				@endif
-				@if($status == "Samples Request Review")
+				<?php endif; ?>
+				<?php if($status == "Samples Request Review"): ?>
 				<li>
 					<span class="btn btn-sm dropdown-item" disabled data-target="#dispatch-to-labs-modal-approve" data-toggle="modal"><i class="mdi mdi-check-decagram mr-2"></i> Generate Invoice</span>
 				</li>
@@ -151,20 +159,20 @@
 
 					<span class="btn btn-sm dropdown-item" data-target="#print-labels-modal" data-toggle="modal"><i class="mdi mdi-printer mr-2"></i>Print Labels</span>
 				</li>
-				@endif
-				@if($status == "Samples In Lab")
+				<?php endif; ?>
+				<?php if($status == "Samples In Lab"): ?>
 				<li>
 
 					<span class="btn btn-sm dropdown-item" data-target="#print-labels-modal" data-toggle="modal"><i class="mdi mdi-printe mr-2r"></i>Print Labels</span>
 				</li>
-				@endif
+				<?php endif; ?>
 
 			</div>
 		</div>
-		@if ($status=="Samples Reception")
-		<a class="btn btn-sm btn-info float-right mr-2" href="{{ route('view-batch-details', ['batch'=>time()]) }}"><i class="mdi mdi-plus mr-2"></i> Add Batch</a>
+		<?php if($status=="Samples Reception"): ?>
+		<a class="btn btn-sm btn-info float-right mr-2" href="<?php echo e(route('view-batch-details', ['batch'=>time()])); ?>"><i class="mdi mdi-plus mr-2"></i> Add Batch</a>
 		
-		@endif
+		<?php endif; ?>
 		
 
 
@@ -176,27 +184,27 @@
 				<th></th>
 				<th>Priority</th>
 				<th>Batch Code</th>
-				@if(auth()->user()->CheckViewQcSample())
+				<?php if(auth()->user()->CheckViewQcSample()): ?>
 				<th>Is Qc</th>
-				@endif
+				<?php endif; ?>
 				
 				<th>Sample Codes</th>
 				<th>Lab Sections</th>
 				
 				<th>Stage</th>
-				@if($status == 'Samples In Lab')
-				@else
+				<?php if($status == 'Samples In Lab'): ?>
+				<?php else: ?>
 				<th>Client</th>
-				@endif
+				<?php endif; ?>
 				<th>Client / LPO Ref</th>
 				<th nowrap>Receipt Date</th>
 				<th nowrap>Date Collected</th>
 				<th nowrap>Target Date</th>
 				<th nowrap>Status Days</th>
 				<th>Samples</th>
-				@if($status != 'Samples In Lab')
+				<?php if($status != 'Samples In Lab'): ?>
 				<th>Client Unit</th>
-				@endif
+				<?php endif; ?>
 				<th>Lab</th>
 				<th nowrap>Sample Type</th>
 				
@@ -206,7 +214,7 @@
 				<th></th>
 			</thead>
 			<tbody>
-				@foreach ($batches as $item)
+				<?php $__currentLoopData = $batches; $__env->addLoop($__currentLoopData); foreach($__currentLoopData as $item): $__env->incrementLoopIndices(); $loop = $__env->getLastLoop(); ?>
 				<?php
 				if (isset($item->get_target_date->id)) {
 					$target_date = date('Y-m-d', strtotime($item->get_target_date['date']));
@@ -223,67 +231,67 @@
 					$diff = 0;
 				}
 				?>
-				@if($item->current_account_status == 'Account Holder(Overdue)')
-				<tr class="batch-row overdue-bg-color {{ $diff > 0 ? 'text-danger' : '' }} crm-customer-{{ $item->client->id }}" data-class="{{ $item->client->id }}">
-					@elseif($item->current_account_status == 'Pay Upfront')
-				<tr class="batch-row upfront-bg-color {{ $diff > 0 ? 'text-danger' : '' }} crm-customer-{{ $item->client->id }}" data-class="{{ $item->client->id }}">
-					@elseif($item->in_ammendment_proccess)
-				<tr class="batch-row ammend-bg-color {{ $diff > 0 ? 'text-danger' : '' }} crm-customer-{{ $item->client->id }}" data-class="{{ $item->client->id }}">
-					@else
-				<tr class="batch-row {{ $diff > 0 ? 'text-danger' : '' }} crm-customer-{{ $item->client->id }}" data-class="{{ $item->client->id }}">
-					@endif
-					<td><input type="checkbox" data-batch="{{json_encode($item)}}" value="{{ $item->batch_code }}" name="table_sample_id[]"></td>
-					@if($item->in_ammendment_proccess)
+				<?php if($item->current_account_status == 'Account Holder(Overdue)'): ?>
+				<tr class="batch-row overdue-bg-color <?php echo e($diff > 0 ? 'text-danger' : ''); ?> crm-customer-<?php echo e($item->client->id); ?>" data-class="<?php echo e($item->client->id); ?>">
+					<?php elseif($item->current_account_status == 'Pay Upfront'): ?>
+				<tr class="batch-row upfront-bg-color <?php echo e($diff > 0 ? 'text-danger' : ''); ?> crm-customer-<?php echo e($item->client->id); ?>" data-class="<?php echo e($item->client->id); ?>">
+					<?php elseif($item->in_ammendment_proccess): ?>
+				<tr class="batch-row ammend-bg-color <?php echo e($diff > 0 ? 'text-danger' : ''); ?> crm-customer-<?php echo e($item->client->id); ?>" data-class="<?php echo e($item->client->id); ?>">
+					<?php else: ?>
+				<tr class="batch-row <?php echo e($diff > 0 ? 'text-danger' : ''); ?> crm-customer-<?php echo e($item->client->id); ?>" data-class="<?php echo e($item->client->id); ?>">
+					<?php endif; ?>
+					<td><input type="checkbox" data-batch="<?php echo e(json_encode($item)); ?>" value="<?php echo e($item->batch_code); ?>" name="table_sample_id[]"></td>
+					<?php if($item->in_ammendment_proccess): ?>
 					<td nowrap> <div class="badge badge-danger p-2" style="box-shadow: rgba(0, 0, 0, 0.35) 0px 5px 15px;">To Amend</div> </td>
-					@elseif($item->prelim_report_status == 1)
+					<?php elseif($item->prelim_report_status == 1): ?>
 					<td nowrap> <div class="badge badge-info p-2" style="box-shadow: rgba(0, 0, 0, 0.35) 0px 5px 15px;">Prelim</div> </td>
-					@elseif($item->prelim_report_status == 2)
+					<?php elseif($item->prelim_report_status == 2): ?>
 					<td nowrap> <div class="badge badge-info p-2" style="box-shadow: rgba(0, 0, 0, 0.35) 0px 5px 15px;">Draft</div> </td>
-					@else
-					<td nowrap>{!! $item->priority != "Normal" ? '<i class="mdi mdi-star text-danger"></i>' : '' !!} {{ $item->priority }}</td>
+					<?php else: ?>
+					<td nowrap><?php echo $item->priority != "Normal" ? '<i class="mdi mdi-star text-danger"></i>' : ''; ?> <?php echo e($item->priority); ?></td>
 
-					@endif
+					<?php endif; ?>
 					<td>
 						
-						<a href="{{ route('view-batch-details', ['batch'=>$item->id]) }}">{{ $item->batch_code }}</a>
+						<a href="<?php echo e(route('view-batch-details', ['batch'=>$item->id])); ?>"><?php echo e($item->batch_code); ?></a>
 						
 					</td>
-					@if(auth()->user()->CheckViewQcSample())
-						<td>{!! $item->is_qc_batch == 1 ? '<span class="text-success"><i class="mdi mdi-checkbox-marked-circle-outline"></i></span>' : '-' !!}</td>
-					@endif
-					<td style="max-width: 200px !important;word-wrap:break-word;">{{$item->sample_codes}}</td>
-					<td nowrap>{{$item->getLabSectionsNames()}}</td>
-					<td style="min-width: 200px !important;">{{$item->status}}</td>
-					@if($status == 'Samples In Lab')
-					@else
+					<?php if(auth()->user()->CheckViewQcSample()): ?>
+						<td><?php echo $item->is_qc_batch == 1 ? '<span class="text-success"><i class="mdi mdi-checkbox-marked-circle-outline"></i></span>' : '-'; ?></td>
+					<?php endif; ?>
+					<td style="max-width: 200px !important;word-wrap:break-word;"><?php echo e($item->sample_codes); ?></td>
+					<td nowrap><?php echo e($item->getLabSectionsNames()); ?></td>
+					<td style="min-width: 200px !important;"><?php echo e($item->status); ?></td>
+					<?php if($status == 'Samples In Lab'): ?>
+					<?php else: ?>
 
-					<td nowrap>{{ $item->client->name }}</td>
-					@endif
-					<td nowrap>{{ $item->reference_number ?? 'n/a' }}</td>
-					<td nowrap>{{ date('Y-m-d', strtotime($item->receipt_date)) }}</td>
-					<td nowrap>{{ date('Y-m-d', strtotime($item->date_collected)) }}</td>
-					<td nowrap>{{ date('Y-m-d', strtotime($target_date)) }}</td>
-					<td nowrap>{{ number_format($diff, 0) }} Day(s)</td>
-					<td>{{ $item->samples->count() }}</td>
-					@if($status == 'Samples In Lab')
-					<td nowrap>{{ $item->crm_unit_name }}</td>
-					@endif
-					<td nowrap>{{ implode(", ", $item->labs(true)) }}</td>
-					<td nowrap>{{ $item->sample_type->name ?? '' }}</td>
+					<td nowrap><?php echo e($item->client->name); ?></td>
+					<?php endif; ?>
+					<td nowrap><?php echo e($item->reference_number ?? 'n/a'); ?></td>
+					<td nowrap><?php echo e(date('Y-m-d', strtotime($item->receipt_date))); ?></td>
+					<td nowrap><?php echo e(date('Y-m-d', strtotime($item->date_collected))); ?></td>
+					<td nowrap><?php echo e(date('Y-m-d', strtotime($target_date))); ?></td>
+					<td nowrap><?php echo e(number_format($diff, 0)); ?> Day(s)</td>
+					<td><?php echo e($item->samples->count()); ?></td>
+					<?php if($status == 'Samples In Lab'): ?>
+					<td nowrap><?php echo e($item->crm_unit_name); ?></td>
+					<?php endif; ?>
+					<td nowrap><?php echo e(implode(", ", $item->labs(true))); ?></td>
+					<td nowrap><?php echo e($item->sample_type->name ?? ''); ?></td>
 					
 					<?php $invoice = getInvoiceById($item->invoice_id) ?>
-					@if(isset($invoice->id))
-					<td nowrap><a href="/invoice/sample/{{$item->id}}">{{$invoice->invoice_number}}</a></td>
+					<?php if(isset($invoice->id)): ?>
+					<td nowrap><a href="/invoice/sample/<?php echo e($item->id); ?>"><?php echo e($invoice->invoice_number); ?></a></td>
 
-					@else
+					<?php else: ?>
 					<td>N/a</td>
-					@endif
+					<?php endif; ?>
 
-					<td>{{ $item->is_routine == 1 ? 'Yes' : 'No' }}</td>
-					<td>{{ $item->is_routine == 1 ? number_format($item->routine_frequency,0).' days' : 'n/a' }}</td>
-					<td><a href="{{ route('view-batch-details', ['batch'=>$item->id]) }}" data-target="#add-new-samples" class="btn btn-primary btn-sm edit-sample-details" data-header='{{ json_encode($item) }}'><i class="mdi mdi-lead-pencil"></i></a></td>
+					<td><?php echo e($item->is_routine == 1 ? 'Yes' : 'No'); ?></td>
+					<td><?php echo e($item->is_routine == 1 ? number_format($item->routine_frequency,0).' days' : 'n/a'); ?></td>
+					<td><a href="<?php echo e(route('view-batch-details', ['batch'=>$item->id])); ?>" data-target="#add-new-samples" class="btn btn-primary btn-sm edit-sample-details" data-header='<?php echo e(json_encode($item)); ?>'><i class="mdi mdi-lead-pencil"></i></a></td>
 				</tr>
-				@endforeach
+				<?php endforeach; $__env->popLoop(); $loop = $__env->getLastLoop(); ?>
 			</tbody>
 		</table>
 		<div class="btn overdue-bg-color btn-sm"></div> Account Holder(Overdue) <br>
@@ -291,15 +299,15 @@
 		<div class="btn ammend-bg-color btn-sm"></div> Ammended Batch
 	</div>
 </main>
-@endsection
+<?php $__env->stopSection(); ?>
 
-@section('script2')
-@if(isset($status) && in_array($status, array("Samples En-Route","Samples Request Review","Samples Reception","Samples In Lab")))
+<?php $__env->startSection('script2'); ?>
+<?php if(isset($status) && in_array($status, array("Samples En-Route","Samples Request Review","Samples Reception","Samples In Lab"))): ?>
 <div class="modal fade" id="inter-lab-add" data-backdrop="static" data-keyboard="false" role="dialog">
 	<div class="modal-dialog">
 		<div class="modal-content">
-			<form action="{{route('create_sample_inter_lab_log')}}" method="post">
-				@csrf  
+			<form action="<?php echo e(route('create_sample_inter_lab_log')); ?>" method="post">
+				<?php echo csrf_field(); ?>  
 				<div class="modal-body">
 					<div class="alert alert-primary p-2 d-flex">
 						<i class="mdi mdi-alert-decagram-outline" style="font-size: 30px"></i>
@@ -310,9 +318,9 @@
 					<div class="form-group">
 						<label for="" class="control-label">To Lab</label>
 						<select name="to_lab_section_id" id="" class="form-control">
-							@foreach($labsections as $lab)
-							<option value="{{$lab->id}}">{{$lab->code}} - {{$lab->name}}</option>
-							@endforeach
+							<?php $__currentLoopData = $labsections; $__env->addLoop($__currentLoopData); foreach($__currentLoopData as $lab): $__env->incrementLoopIndices(); $loop = $__env->getLastLoop(); ?>
+							<option value="<?php echo e($lab->id); ?>"><?php echo e($lab->code); ?> - <?php echo e($lab->name); ?></option>
+							<?php endforeach; $__env->popLoop(); $loop = $__env->getLastLoop(); ?>
 						</select>
 					</div>
 					<div class="form-group">
@@ -334,17 +342,17 @@
 					<div class="form-group">
 						<label for="" class="control-label">Notify</label>
 						<select name="notify_user" id="" class="form-control notify_user">
-							@foreach($users as $user)
-							<option value="{{$user->id}}">{{$user->name}}</option>
-							@endforeach
+							<?php $__currentLoopData = $users; $__env->addLoop($__currentLoopData); foreach($__currentLoopData as $user): $__env->incrementLoopIndices(); $loop = $__env->getLastLoop(); ?>
+							<option value="<?php echo e($user->id); ?>"><?php echo e($user->name); ?></option>
+							<?php endforeach; $__env->popLoop(); $loop = $__env->getLastLoop(); ?>
 						</select>
 					</div>
 					<div class="form-group">
 						<label for="" class="control-label">Notify</label>
 						<select name="also_notify[]" multiple id="" class="form-control also_notify">
-							@foreach($users as $user)
-							<option value="{{$user->id}}">{{$user->name}}</option>
-							@endforeach
+							<?php $__currentLoopData = $users; $__env->addLoop($__currentLoopData); foreach($__currentLoopData as $user): $__env->incrementLoopIndices(); $loop = $__env->getLastLoop(); ?>
+							<option value="<?php echo e($user->id); ?>"><?php echo e($user->name); ?></option>
+							<?php endforeach; $__env->popLoop(); $loop = $__env->getLastLoop(); ?>
 						</select>
 					</div>
 					<input type="hidden" name="batch_level" value="1">
@@ -361,13 +369,13 @@
 		</div>
 	</div>
 </div>
-@endif
-@if ($status=="Reports for Collection")
+<?php endif; ?>
+<?php if($status=="Reports for Collection"): ?>
 <div id="send-email-reports-modal" class="modal fade" role="dialog">
 	<div class="modal-dialog">
 		<!-- Modal content-->
-		<form class="modal-content" id="print-labels-form" method="POST" action="{{ route('send-out-email-reports') }}" enctype="multipart/form-data">
-			@csrf
+		<form class="modal-content" id="print-labels-form" method="POST" action="<?php echo e(route('send-out-email-reports')); ?>" enctype="multipart/form-data">
+			<?php echo csrf_field(); ?>
 			<div class="modal-header">
 				<h4 class="modal-title"><i class="mdi mdi-printer"></i> Email Report(s) To Client </h4>
 			</div>
@@ -392,13 +400,13 @@
 		</form>
 	</div>
 </div>
-@endif
-@if ($status=="Samples Reception" || $status == "Samples Request Review")
+<?php endif; ?>
+<?php if($status=="Samples Reception" || $status == "Samples Request Review"): ?>
 <div id="dispatch-to-labs-modal" class="modal fade" role="dialog">
 	<div class="modal-dialog">
 		<!-- Modal content-->
-		<form class="modal-content" method="POST" action="{{ route('change-batch-workflow') }}" enctype="multipart/form-data">
-			@csrf
+		<form class="modal-content" method="POST" action="<?php echo e(route('change-batch-workflow')); ?>" enctype="multipart/form-data">
+			<?php echo csrf_field(); ?>
 			<div class="modal-header">
 				<h4 class="modal-title"><i class="mdi mdi-clipboard-arrow-right"></i> Send Labeled Samples for Sample Request Review </h4>
 			</div>
@@ -440,8 +448,8 @@
 <div class="modal fade" id="move-to-lab" role="dialog">
 	<div class="modal-dialog">
 		<div class="modal-content">
-			<form action="{{route('moveToLab')}}" method="post">
-				@csrf
+			<form action="<?php echo e(route('moveToLab')); ?>" method="post">
+				<?php echo csrf_field(); ?>
 				<div class="modal-body">
 					<div class="alert alert-primary p-2 d-flex">
 						<i class="mdi mdi-alert-decagram-outline" style="font-size:25px"></i>
@@ -464,8 +472,8 @@
 <div id="dispatch-to-labs-modal-payment-reminder" class="modal fade" role="dialog">
 	<div class="modal-dialog">
 		<!-- Modal content-->
-		<form class="modal-content" method="POST" action="{{ route('send_payment_notification') }}" enctype="multipart/form-data">
-			@csrf
+		<form class="modal-content" method="POST" action="<?php echo e(route('send_payment_notification')); ?>" enctype="multipart/form-data">
+			<?php echo csrf_field(); ?>
 			<div class="modal-header">
 				<h4 class="modal-title"><i class="mdi mdi-clipboard-arrow-right"></i> Send Payment Reminder</h4>
 			</div>
@@ -493,8 +501,8 @@
 <div id="dispatch-to-labs-modal-approve" class="modal fade" role="dialog">
 	<div class="modal-dialog">
 		<!-- Modal content-->
-		<form class="modal-content" method="POST" action="{{ route('generate_batch_invoice') }}" enctype="multipart/form-data">
-			@csrf
+		<form class="modal-content" method="POST" action="<?php echo e(route('generate_batch_invoice')); ?>" enctype="multipart/form-data">
+			<?php echo csrf_field(); ?>
 			<div class="modal-header">
 				<h4 class="modal-title"><i class="mdi mdi-clipboard-arrow-right"></i> Generate Invoice</h4>
 			</div>
@@ -523,8 +531,8 @@
 <div id="approve-begin-process" class="modal fade" role="dialog">
 	<div class="modal-dialog">
 		<!-- Modal content-->
-		<form class="modal-content" method="POST" action="{{ route('approve_batch_begin_process') }}" enctype="multipart/form-data">
-			@csrf
+		<form class="modal-content" method="POST" action="<?php echo e(route('approve_batch_begin_process')); ?>" enctype="multipart/form-data">
+			<?php echo csrf_field(); ?>
 
 			<div class="modal-body">
 				<input type="hidden" name="status" value="Samples Request Review" />
@@ -551,8 +559,8 @@
 <div id="print-labels-modal" class="modal fade" role="dialog">
 	<div class="modal-dialog">
 		<!-- Modal content-->
-		<form class="modal-content" target="_blank" id="print-labels-form" method="POST" action="{{ route('print-labels') }}" enctype="multipart/form-data">
-			@csrf
+		<form class="modal-content" target="_blank" id="print-labels-form" method="POST" action="<?php echo e(route('print-labels')); ?>" enctype="multipart/form-data">
+			<?php echo csrf_field(); ?>
 			<div class="modal-header">
 				<h4 class="modal-title"><i class="mdi mdi-printer"></i> Print Labels </h4>
 			</div>
@@ -580,12 +588,12 @@
 		</form>
 	</div>
 </div>
-@endif
-@if($status == 'Samples Reception')
+<?php endif; ?>
+<?php if($status == 'Samples Reception'): ?>
 <div class="modal fade"  id="generarate_customer_focus" role="dialog">
 	<div class="modal-dialog">
 		<div class="modal-content">
-			<form target="_blank" action="{{route('generateCustomerFocusIndex',['batch_id'=>0])}}" method="get">
+			<form target="_blank" action="<?php echo e(route('generateCustomerFocusIndex',['batch_id'=>0])); ?>" method="get">
 				
 				<div class="modal-body">
 					<div class="alert alert-primary p-2 d-flex">
@@ -626,8 +634,8 @@
 <div id="delete-batch" class="modal fade" role="dialog">
 	<div class="modal-dialog">
 		<!-- Modal content-->
-		<form class="modal-content" method="POST" action="{{route('delete-batch')}}" enctype="multipart/form-data">
-			@csrf
+		<form class="modal-content" method="POST" action="<?php echo e(route('delete-batch')); ?>" enctype="multipart/form-data">
+			<?php echo csrf_field(); ?>
 
 			<div class="modal-header">
 				<h4 class="modal-title"><i class="mdi mdi-delete text-danger"></i> Cancel Batch(es) </h4>
@@ -650,13 +658,13 @@
 	</form>
 </div>
 </div>
-@endif
-@if($status == 'Samples In Lab')
+<?php endif; ?>
+<?php if($status == 'Samples In Lab'): ?>
 <div id="print-labels-modal" class="modal fade" role="dialog">
 	<div class="modal-dialog">
 		<!-- Modal content-->
-		<form class="modal-content" target="_blank" id="print-labels-form" method="POST" action="{{ route('print-labels') }}" enctype="multipart/form-data">
-			@csrf
+		<form class="modal-content" target="_blank" id="print-labels-form" method="POST" action="<?php echo e(route('print-labels')); ?>" enctype="multipart/form-data">
+			<?php echo csrf_field(); ?>
 			<div class="modal-header">
 				<h4 class="modal-title"><i class="mdi mdi-printer"></i> Print Labels </h4>
 			</div>
@@ -684,13 +692,13 @@
 		</form>
 	</div>
 </div>
-@endif
-@if($status=="Samples Request Review")
+<?php endif; ?>
+<?php if($status=="Samples Request Review"): ?>
 <div id="dispatch-to-labs-modal-review-reject" class="modal fade" role="dialog">
 	<div class="modal-dialog">
 		<!-- Modal content-->
-		<form class="modal-content" method="POST" action="{{ route('return_batch_reception') }}" enctype="multipart/form-data">
-			@csrf
+		<form class="modal-content" method="POST" action="<?php echo e(route('return_batch_reception')); ?>" enctype="multipart/form-data">
+			<?php echo csrf_field(); ?>
 
 			<div class="modal-body">
 				<input type="hidden" name="status" value="Samples Request Review" />
@@ -733,8 +741,8 @@
 <div id="dispatch-to-labs-modal-review" class="modal fade" role="dialog">
 	<div class="modal-dialog">
 		<!-- Modal content-->
-		<form class="modal-content" method="POST" action="{{ route('change-batch-workflow') }}" enctype="multipart/form-data">
-			@csrf
+		<form class="modal-content" method="POST" action="<?php echo e(route('change-batch-workflow')); ?>" enctype="multipart/form-data">
+			<?php echo csrf_field(); ?>
 
 			<div class="modal-header">
 				<h4 class="modal-title"><i class="mdi mdi-clipboard-arrow-right"></i> Approve Request</h4>
@@ -750,9 +758,9 @@
 					<select class="form-control" name="request_type_id[]" placeholder="Request Type..." multiple required>
 						<option></option>
 						<?php $requestTypes = getRequestTypes(); ?>
-						@foreach ($requestTypes[1] as $i)
-						<option value="{{ $i->id }}">{{ $i->name }}</option>
-						@endforeach
+						<?php $__currentLoopData = $requestTypes[1]; $__env->addLoop($__currentLoopData); foreach($__currentLoopData as $i): $__env->incrementLoopIndices(); $loop = $__env->getLastLoop(); ?>
+						<option value="<?php echo e($i->id); ?>"><?php echo e($i->name); ?></option>
+						<?php endforeach; $__env->popLoop(); $loop = $__env->getLastLoop(); ?>
 						<option value="Other">Other Type</option>
 					</select>
 				</div>
@@ -764,9 +772,9 @@
 					<label class="control-label">Select Specific Specialist</label>
 					<select class="form-control" name="specialist_analyst_id" placeholder="Specific Specialist..." required>
 						<option></option>
-						@foreach ($analysts as $i)
-						<option value="{{ $i->id }}">{{ $i->name }}</option>
-						@endforeach
+						<?php $__currentLoopData = $analysts; $__env->addLoop($__currentLoopData); foreach($__currentLoopData as $i): $__env->incrementLoopIndices(); $loop = $__env->getLastLoop(); ?>
+						<option value="<?php echo e($i->id); ?>"><?php echo e($i->name); ?></option>
+						<?php endforeach; $__env->popLoop(); $loop = $__env->getLastLoop(); ?>
 					</select>
 				</div>
 				<div class="form-group">
@@ -805,7 +813,7 @@
 		</form>
 	</div>
 </div>
-@endif
+<?php endif; ?>
 <script src="https://cdn.jsdelivr.net/gh/gitbrent/bootstrap4-toggle@3.6.1/js/bootstrap4-toggle.min.js"></script>
 <script type="text/javascript">
 	var selectedSampleIDs = [];
@@ -834,7 +842,7 @@
 		}
 	})
 
-	@if($status == "Samples Reception")
+	<?php if($status == "Samples Reception"): ?>
 	$("input[name='table_sample_id[]']").on('change', function() {
 		if ($("input[name='table_sample_id[]']:checked").length > 0) {
 			$('[data-target="#delete-batch"]').removeAttr('disabled').addClass('btn-danger').removeClass('btn-outline-danger');
@@ -908,8 +916,8 @@
 
 
 	});
-	@endif
-	@if($status == "Samples Request Review")
+	<?php endif; ?>
+	<?php if($status == "Samples Request Review"): ?>
 	$("input[name='table_sample_id[]']").on('change', function() {
 		if ($("input[name='table_sample_id[]']:checked").length > 0) {
 			$('[data-target="#dispatch-to-labs-modal-review"]').removeAttr('disabled').addClass('btn-primary').removeClass('btn-outline-primary');
@@ -947,8 +955,8 @@
 
 
 	});
-	@endif
-	@if($status == "Reports for Collection")
+	<?php endif; ?>
+	<?php if($status == "Reports for Collection"): ?>
 	$("input[name='table_sample_id[]']").on('change', function() {
 		if ($("input[name='table_sample_id[]']:checked").length > 0) {
 			$('[data-target="#send-email-reports-modal"]').removeAttr('disabled').addClass('btn-primary').removeClass('btn-outline-primary');
@@ -996,7 +1004,7 @@
 				return $val;
 			}).get();
 	});
-	@else
+	<?php else: ?>
 	$("input[name='table_sample_id[]']").on('change', function() {
 		$('.selected-samples').empty();
 		selectedSampleIDs = $("input[name='table_sample_id[]']:checked")
@@ -1010,7 +1018,7 @@
 				return $val;
 			}).get();
 	});
-	@endif
+	<?php endif; ?>
 
 	$('.send-report-to-client-btn').on('click', function() {
 		if ($(this).parents('form').find('.selected-batches').find('input[type="checkbox"]').length == 0) {
@@ -1067,4 +1075,5 @@
 
 	
 </script>
-@endsection
+<?php $__env->stopSection(); ?>
+<?php echo $__env->make('layouts.lab.layout.app', ['dataTable'=>true, 'datePicker'=>true, 'select2'=>true], \Illuminate\Support\Arr::except(get_defined_vars(), ['__data', '__path']))->render(); ?><?php /**PATH /Users/kimari/Projects/polucon/resources/views/layouts/lab/sample-workflow/index.blade.php ENDPATH**/ ?>

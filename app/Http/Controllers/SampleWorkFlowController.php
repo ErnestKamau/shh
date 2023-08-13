@@ -1212,6 +1212,9 @@ class SampleWorkFlowController extends Controller
 		
 		// return response()->json($batch);
 
+		$methods = getMethods()->pluck('name', 'id');
+
+		// return response()->json($methods);
 
 		foreach ($batch->captured_results ?? array() as $item) {
 			if (!isset($analaytesHolder[$item->sample_detail_code])) {
@@ -1231,7 +1234,7 @@ class SampleWorkFlowController extends Controller
 			} else {
 				$item->analyte_name = $item->analyte_code;
 			}
-			$item->methods = //$analyte->methods();
+			$item->methods = $this->methodNameFromId($methods, $analyte->method);
 			$analaytesHolder[$item->sample_detail_code][] = $item;
 			$sample_details_test = $item->sample;
 			if (isset($sample_details_test->id)) {
@@ -3634,5 +3637,16 @@ class SampleWorkFlowController extends Controller
 		];
 		return response()->json($res);
 	}
+
+	public function methodNameFromId($inputObject, $inputKeysStr){
+		$inputKeys = explode(",", $inputKeysStr);
+		$outputObject = [];
+		foreach ($inputKeys as $key) {
+				if (isset($inputObject[$key])) {
+						$outputObject[$inputObject[$key]] = (int) $key;
+				}
+		}
+		return $outputObject = [];
+	} 
 	// getLabsByAnalysisTypeIdAjax  get Labs
 }
