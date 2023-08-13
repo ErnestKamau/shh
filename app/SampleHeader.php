@@ -16,7 +16,6 @@ class SampleHeader extends Model implements Auditable
 	{
 		return $this->hasMany('App\SampleDetails')->orderBy('id', 'asc');
 	}
-
 	public function custody()
 	{
 		return $this->hasMany('App\ChainOfCustody')->orderBy('created_at', 'desc');

@@ -11,7 +11,7 @@ class CapturedResult extends Model implements Auditable
 	use \OwenIt\Auditing\Auditable;
 	protected $appends = ['repeatsampleresult'];
 	protected $fillable  =['lab_section_id','remark_is_manual','sample_detail_code'];
-	public $with = ['my_analyte', 'defacto_analyst_with', 'equipment_with', 'sample', 'analyte_standard_value'];
+	public $with = ['my_analyte', 'defacto_analyst_with', 'equipment_with'];
 	public function getRepeatSampleResultAttribute(){
 		if($this->repeat_captured_id > 0){
 			$captured = CapturedResult::find($this->repeat_captured_id);
@@ -27,7 +27,7 @@ class CapturedResult extends Model implements Auditable
 
 	public function sample()
 	{
-		return $this->belongsTo('App\SampleDetails', 'sample_detail_id');
+		return $this->belongsTo('App\SampleDetail', 'sample_detail_id');
 	}
 
 	public function analysis_type()
@@ -41,16 +41,6 @@ class CapturedResult extends Model implements Auditable
 
 	public function analyte(){
 		return Analyte::where('code', $this->analyte_code)->first();
-	}
-
-	
-	function analyte_standard_value()
-	{
-		return $this->hasOne(StandardAnalytes::class, 'analyte_id','analyte_id')->where('standard_id', $this->sample && $this->sample->main_standard ? $this->sample->main_standard->id : -1);
-	}
-
-	function standard_value(){
-		return $this->hasOne(StandardValue::class,'');
 	}
 
 	public function defacto_analyst_with(){
