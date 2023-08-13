@@ -218,8 +218,8 @@
 			<tbody>
 				<?php $__currentLoopData = $batches; $__env->addLoop($__currentLoopData); foreach($__currentLoopData as $item): $__env->incrementLoopIndices(); $loop = $__env->getLastLoop(); ?>
 				<?php
-				if (isset($item->get_date('Target Date')->id)) {
-					$target_date = date('Y-m-d', strtotime($item->get_date('Target Date')['date']));
+				if (isset($item->get_target_date->id)) {
+					$target_date = date('Y-m-d', strtotime($item->get_target_date['date']));
 					$now = Carbon\Carbon::now();
 					$target_date = Carbon\Carbon::parse($target_date);
 

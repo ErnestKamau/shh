@@ -9,6 +9,7 @@ use App\SampleTypeCategory;
 class SampleType extends Model implements Auditable
 {
 	use \OwenIt\Auditing\Auditable;
+  public $with =['analysis_types', 'sample_condition'];
   public function analysis_types(){
     return $this->hasMany('App\AnalysisType')->orderBy('level','asc');
   }
