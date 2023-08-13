@@ -1084,10 +1084,7 @@ class SampleWorkFlowController extends Controller
 	{
 		$batchID = $batch;
 
-		$batch = SampleHeader::with('comments','comments.creator', 'captured_results')->find($batchID);
-
-		// return response()->json($batch);
-
+		$batch = SampleHeader::with('comments','comments.creator')->find($batchID);
 		$batch_scope = SystemConfiguration::where('key', 'batch_scope')->first();
 		$customer_survey = SystemConfiguration::where('key', 'customer_survey')->first();
 		$countries = Country::orderBy('name')->get();
@@ -1120,6 +1117,7 @@ class SampleWorkFlowController extends Controller
 		$headerDetails = isset($batch->id) ? $batch->report_header_details() : array();
 		$ammendments = isset($batch->id) ? getBatchAmmendmentsById($batch->id) : [] ;
 		$allsamples = isset($batch->id)  ? $batch->all_samples()  : [];
+
 		
 		if (isset($batch->id)) {
 			$workflowstages = getWorkflowStage_Stages($batch->status);
@@ -1192,7 +1190,6 @@ class SampleWorkFlowController extends Controller
 			$attachments = [];
 			// return response()->json($ammendable,200);
 		}
-		
 		$role_a = SystemConfiguration::where('key', 'analyst_role_id')->first();
 		$labs  = Lab::where('active', 1)->get();
 		// $analysts = getUsersByRole('Analyst');
@@ -1213,18 +1210,22 @@ class SampleWorkFlowController extends Controller
 		
 		// return response()->json($batch);
 
+		$methods = getMethods()->pluck('name', 'id');
+
+		// return response()->json($methods);
 
 		foreach ($batch->captured_results ?? array() as $item) {
+
 			if (!isset($analaytesHolder[$item->sample_detail_code])) {
 				$analaytesHolder[$item->sample_detail_code] = array();
 			}
 
 			$item->ops = $analysts;
-			$item->equip_name = $item->equipment_with ? $item->equipment_with->name : '-';
+			$item->equip_name = $item->equipment()->name ?? '-';
 
-			$item->def_operator = $item->defacto_analyst_with;
+			$item->def_operator = $item->defacto_analyst();
 			$item->analysis_type = $item->analysis_type;
-			$analyte = $item->my_analyte;
+			$analyte = getAnalyteByID($item->analyte_id);
 
 			if (isset($analyte->id)) {
 
@@ -1232,19 +1233,19 @@ class SampleWorkFlowController extends Controller
 			} else {
 				$item->analyte_name = $item->analyte_code;
 			}
-			$item->methods = //$analyte->methods();
+			$item->methods = $this->methodNameFromId($methods, $analyte->method);
 			$analaytesHolder[$item->sample_detail_code][] = $item;
-			$sample_details_test = $item->sample;
+			$sample_details_test = getSampleDetailById($item->sample_detail_id);
 			if (isset($sample_details_test->id)) {
-				$standard = $sample_details_test->main_standard;
-				$sec = $sample_details_test->secondary_standard;
+				$standard = getStandardByid($sample_details_test->main_standard);
+				$sec = getStandardByid($sample_details_test->secondary_standard);
 				if (isset($standard->id)) {
-					$analyte_standard = $item->analyte_standard_value;
+					$analyte_standard = getAnalyteStandardValue($item->analyte_id, $standard->id);
 					if (isset($analyte_standard->id)) {
 						if ($analyte_standard->standard_value_type == 'is_range') {
 							$item->standard_value = $analyte_standard->low . ' - ' . $analyte_standard->high;
 						} elseif ($analyte_standard->standard_value_type == 'is_standard_value') {
-							$value_id = $analyte_standard->standard_value;
+							$value_id = getStandardValuebyID($analyte_standard->standard_value_id);
 							if (isset($value_id->id)) {
 								if ($value_id->code == 'IsValue') {
 									$item->standard_value = $analyte_standard->standard_is_value;
@@ -1262,12 +1263,8 @@ class SampleWorkFlowController extends Controller
 					$item->secondary_standard = $sec->code;
 				}
 			}
-			// return response()->json($batch);
 		}
-
-		// echo "middle - ".date('Y-m-d H:i:s');
-		
-		// return response()->json($batch);
+		// return response()->json($analaytesHolder);
 
 		foreach ($batch->samples ?? array() as $sample) {
 			$labSamples[$sample->sample_code] = getSampleDetailsLab($sample->id);
@@ -1284,9 +1281,8 @@ class SampleWorkFlowController extends Controller
 				$analysisBySampleNames[$sample->sample_code][$analysis->name] = $analysis->id;
 			}
 		}
-		// echo "Ending - ".date('Y-m-d H:i:s');
 		$active_company = getActiveCompany();
-		// return response()->json($batch);
+		// return response()->json($analysisBySampleNames);
 		// ---------------------------------------
 		$userLabSections = auth()->user()->labsectionids;
 		$customer = isset($batch->id) ? getCrmCustomerByID($batch->crm_customer_id) : [];
@@ -3635,6 +3631,17 @@ class SampleWorkFlowController extends Controller
 		];
 		return response()->json($res);
 	}
+
+	public function methodNameFromId($inputObject, $inputKeysStr){
+		$inputKeys = explode(",", $inputKeysStr);
+		$outputObject = [];
+		foreach ($inputKeys as $key) {
+				if (isset($inputObject[$key])) {
+						$outputObject[$inputObject[$key]] = (int) $key;
+				}
+		}
+		return $outputObject = [];
+	} 
 	public function cloneBatchInformation(Request $request){
 		
 		$batch_config = SystemConfiguration::where('key', 'batch_code_config')->first();

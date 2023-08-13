@@ -1,0 +1,1081 @@
+
+
+<?php $__env->startSection('title2'); ?>
+<title><?php echo e($status); ?> | Sample WorkFlow</title>
+
+<style>
+	.form-part-toggler {
+		margin: 0px 0px 5px 0px !important;
+		padding: 6px 6px 6px 6px;
+		border-bottom: 1px solid rgba(0, 0, 0, 0.09);
+		cursor: pointer;
+	}
+
+	.form-part-toggler:hover {
+		background-color: rgba(0, 0, 0, 0.08);
+	}
+
+	#sample-detail-rows .form-group {
+		display: none;
+	}
+
+	#sample-detail-rows tr.selected-row {
+		background-color: rgb(253, 220, 220);
+	}
+
+	#sample-detail-rows .text {
+		display: unset;
+	}
+
+	#sample-detail-rows tr.editable .form-group {
+		display: unset;
+	}
+
+	#sample-detail-rows tr.editable .text {
+		display: none;
+	}
+
+	#sample-detail-rows tr {
+		cursor: pointer;
+	}
+
+	.hidden {
+		display: none;
+	}
+
+	.overdue-bg-color {
+		background-color: rgba(240, 185, 83, 0.972) !important;
+	}
+
+	.upfront-bg-color {
+		background-color: skyblue !important;
+	}
+
+	.ammend-bg-color {
+		background-color: #fef764 !important;
+	}
+	.btn-white{
+		background-color: white !important;
+	}
+</style>
+<?php $__env->stopSection(); ?>
+<?php $__env->startSection('content2'); ?>
+<main>
+	<?php
+	$items = array(
+		array(
+			'link' => route('dashboard-lab'),
+			'name' => 'Dashboard',
+			'icon' => null
+		),
+		array(
+			'link' => route('sample-workflow', ['status' => 'All Samples']),
+			'name' => 'Sample Workflow',
+			'icon' => null
+		),
+		array(
+			'link' => route('sample-workflow', ['status' => $status]),
+			'name' => $status,
+			'icon' => null
+		)
+	);
+	?>
+	 <?php if (isset($component)) { $__componentOriginal30091868428b09767320233ef70f89faadea10d9 = $component; } ?>
+<?php $component = $__env->getContainer()->make(App\View\Components\BreadCrumb::class, ['items' => $items]); ?>
+<?php $component->withName('bread-crumb'); ?>
+<?php if ($component->shouldRender()): ?>
+<?php $__env->startComponent($component->resolveView(), $component->data()); ?>
+<?php $component->withAttributes([]); ?> <?php if (isset($__componentOriginal30091868428b09767320233ef70f89faadea10d9)): ?>
+<?php $component = $__componentOriginal30091868428b09767320233ef70f89faadea10d9; ?>
+<?php unset($__componentOriginal30091868428b09767320233ef70f89faadea10d9); ?>
+<?php endif; ?>
+<?php echo $__env->renderComponent(); ?>
+<?php endif; ?> 
+	<h4 class="p-4">
+		<span class="float-left"><i class="mdi mdi-file-document-edit"></i> Sample Workflow</span>
+		<small> <i class="mdi mdi-circle-medium"></i> <?php echo e($status); ?></small>
+		<div class="btn-group float-right">
+			<button type="button" class="btn btn-sm btn-white dropdown-toggle" style="box-shadow: rgba(0, 0, 0, 0.15) 1.95px 1.95px 2.6px;"  type="button" id="dropdownMenuButton" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
+				Actions
+			</button>
+			<div class="dropdown-menu dropdown-menu-right">
+				<?php if(isset($status) && in_array($status, array("Samples En-Route","Samples Request Review","Samples Reception","Samples In Lab"))): ?>
+				<li>
+					<span class="btn btn-sm dropdown-item initiate-interlab" data-toggle="modal" data-target="#inter-lab-add" data-action="bulk"><i class="mdi mdi-swap-horizontal-bold mr-2 text-warning" data-toggle="tooltip" title="Initiate inter Lab"></i> Intiate Inter Lab Transfer(s)</span>
+
+				</li>
+				<?php endif; ?>
+				<?php if($status=="Samples Reception"): ?>
+			
+
+				<li>
+					<span class="btn btn-sm dropdown-item" data-toggle="modal" disabled data-target="#delete-batch">
+						<i class="mdi mdi-delete-empty mr-2"></i> Cancel Batch
+					</span>
+				</li>
+				<li>
+					<span class="btn btn-sm dropdown-item" data-toggle="modal" disabled data-target="#move-to-lab">
+						<i class="mdi mdi-swap-vertical mr-2"></i> Move to Lab
+					</span>
+				</li>
+				
+				<li>
+					<span class="btn btn-sm dropdown-item" data-target="#print-labels-modal" data-toggle="modal"><i class="mdi mdi-printer mr-2"></i> Labels</span>
+				</li>
+				<li>
+					<span class="btn btn-sm dropdown-item" disabled data-target="#dispatch-to-labs-modal" data-toggle="modal"><i class="mdi mdi-file-send mr-2"></i> Request Review</span>
+				</li>
+				<li>
+					<span class="btn btn-sm dropdown-item" disabled data-target="#dispatch-to-labs-modal-approve" data-toggle="modal"><i class="mdi mdi-check-decagram mr-2"></i> Generate Invoice</span>
+				</li>
+				<li>
+					<span class="btn btn-sm dropdown-item" disabled data-target="#approve-begin-process" data-toggle="modal"><i class="mdi mdi-checkbox-marked-circle-outline mr-2"></i> Approve For Analysis</span>
+				</li>
+				<li>
+					<span class="btn btn-sm dropdown-item" disabled data-target="#dispatch-to-labs-modal-payment-reminder" data-toggle="modal" title="Dispatch Labeled"><i class="mdi mdi-bell-ring mr-2"></i> Payment Reminder</span>
+				</li>
+				<li>
+					<span class="btn btn-sm dropdown-item" disabled data-target="#generarate_customer_focus" data-toggle="modal" title="Generate Customer Focus"><i class="mdi mdi-file-document-outline mr-2"></i> Generate Customer Focus</span>
+				</li>
+				<?php endif; ?>
+
+				<?php if($status=="Reports for Collection"): ?>
+				<li>
+					<span class="btn btn-sm dropdown-item" disabled data-target="#send-email-reports-modal" data-toggle="modal" title="Email Report(s)"><i class="mdi mdi-email mr-2"></i> Email Report(s)</span>
+
+				</li>
+				<?php endif; ?>
+				<?php if($status == "Samples Request Review"): ?>
+				<li>
+					<span class="btn btn-sm dropdown-item" disabled data-target="#dispatch-to-labs-modal-approve" data-toggle="modal"><i class="mdi mdi-check-decagram mr-2"></i> Generate Invoice</span>
+				</li>
+				<li>
+					<span class="btn btn-sm dropdown-item" disabled data-target="#dispatch-to-labs-modal-review" data-toggle="modal" title="Approve Request"><i class="mdi mdi-clipboard-arrow-right mr-2"></i> Approve Request</span>
+				</li>
+				<li>
+					` <span class="btn btn-sm dropdown-item" disabled data-target="#dispatch-to-labs-modal-review-reject" data-toggle="modal" title="Request Request">
+						<i class="mdi mdi-clipboard-arrow-right mr-2"></i> Reject Request
+					</span>
+				</li>
+				<li>
+
+					<span class="btn btn-sm dropdown-item" data-target="#print-labels-modal" data-toggle="modal"><i class="mdi mdi-printer mr-2"></i>Print Labels</span>
+				</li>
+				<?php endif; ?>
+				<?php if($status == "Samples In Lab"): ?>
+				<li>
+
+					<span class="btn btn-sm dropdown-item" data-target="#print-labels-modal" data-toggle="modal"><i class="mdi mdi-printe mr-2r"></i>Print Labels</span>
+				</li>
+				<?php endif; ?>
+
+			</div>
+		</div>
+		<?php if($status=="Samples Reception"): ?>
+		<a class="btn btn-sm btn-info float-right mr-2" href="<?php echo e(route('view-batch-details', ['batch'=>time()])); ?>"><i class="mdi mdi-plus mr-2"></i> Add Batch</a>
+		
+		<?php endif; ?>
+		
+
+
+
+	</h4>
+	<div class="table-responsive bg-light p-4">
+		<table class="table table-condensed my-small-text table-bordered table-sm">
+			<thead>
+				<th></th>
+				<th>Priority</th>
+				<th>Batch Code</th>
+				<?php if(auth()->user()->CheckViewQcSample()): ?>
+				<th>Is Qc</th>
+				<?php endif; ?>
+				
+				<th>Sample Codes</th>
+				<th>Lab Sections</th>
+				
+				<th>Stage</th>
+				<?php if($status == 'Samples In Lab'): ?>
+				<?php else: ?>
+				<th>Client</th>
+				<?php endif; ?>
+				<th>Client / LPO Ref</th>
+				<th nowrap>Receipt Date</th>
+				<th nowrap>Date Collected</th>
+				<th nowrap>Target Date</th>
+				<th nowrap>Status Days</th>
+				<th>Samples</th>
+				<?php if($status != 'Samples In Lab'): ?>
+				<th>Client Unit</th>
+				<?php endif; ?>
+				<th>Lab</th>
+				<th nowrap>Sample Type</th>
+				
+				<th>Invoice Number</th>
+				<th>Routine</th>
+				<th>Routine Frequency</th>
+				<th></th>
+			</thead>
+			<tbody>
+				<?php $__currentLoopData = $batches; $__env->addLoop($__currentLoopData); foreach($__currentLoopData as $item): $__env->incrementLoopIndices(); $loop = $__env->getLastLoop(); ?>
+				<?php
+				if (isset($item->get_date('Target Date')->id)) {
+					$target_date = date('Y-m-d', strtotime($item->get_date('Target Date')['date']));
+					$now = Carbon\Carbon::now();
+					$target_date = Carbon\Carbon::parse($target_date);
+
+					$diff = $now->diffInDays($target_date);
+
+					if ($target_date->greaterThan($now)) {
+						$diff = 0 - $diff - 1;
+					}
+				} else {
+					$target_date = "1970-01-01";
+					$diff = 0;
+				}
+				?>
+				<?php if($item->current_account_status == 'Account Holder(Overdue)'): ?>
+				<tr class="batch-row overdue-bg-color <?php echo e($diff > 0 ? 'text-danger' : ''); ?> crm-customer-<?php echo e($item->client->id); ?>" data-class="<?php echo e($item->client->id); ?>">
+					<?php elseif($item->current_account_status == 'Pay Upfront'): ?>
+				<tr class="batch-row upfront-bg-color <?php echo e($diff > 0 ? 'text-danger' : ''); ?> crm-customer-<?php echo e($item->client->id); ?>" data-class="<?php echo e($item->client->id); ?>">
+					<?php elseif($item->in_ammendment_proccess): ?>
+				<tr class="batch-row ammend-bg-color <?php echo e($diff > 0 ? 'text-danger' : ''); ?> crm-customer-<?php echo e($item->client->id); ?>" data-class="<?php echo e($item->client->id); ?>">
+					<?php else: ?>
+				<tr class="batch-row <?php echo e($diff > 0 ? 'text-danger' : ''); ?> crm-customer-<?php echo e($item->client->id); ?>" data-class="<?php echo e($item->client->id); ?>">
+					<?php endif; ?>
+					<td><input type="checkbox" data-batch="<?php echo e(json_encode($item)); ?>" value="<?php echo e($item->batch_code); ?>" name="table_sample_id[]"></td>
+					<?php if($item->in_ammendment_proccess): ?>
+					<td nowrap> <div class="badge badge-danger p-2" style="box-shadow: rgba(0, 0, 0, 0.35) 0px 5px 15px;">To Amend</div> </td>
+					<?php elseif($item->prelim_report_status == 1): ?>
+					<td nowrap> <div class="badge badge-info p-2" style="box-shadow: rgba(0, 0, 0, 0.35) 0px 5px 15px;">Prelim</div> </td>
+					<?php elseif($item->prelim_report_status == 2): ?>
+					<td nowrap> <div class="badge badge-info p-2" style="box-shadow: rgba(0, 0, 0, 0.35) 0px 5px 15px;">Draft</div> </td>
+					<?php else: ?>
+					<td nowrap><?php echo $item->priority != "Normal" ? '<i class="mdi mdi-star text-danger"></i>' : ''; ?> <?php echo e($item->priority); ?></td>
+
+					<?php endif; ?>
+					<td>
+						
+						<a href="<?php echo e(route('view-batch-details', ['batch'=>$item->id])); ?>"><?php echo e($item->batch_code); ?></a>
+						
+					</td>
+					<?php if(auth()->user()->CheckViewQcSample()): ?>
+						<td><?php echo $item->is_qc_batch == 1 ? '<span class="text-success"><i class="mdi mdi-checkbox-marked-circle-outline"></i></span>' : '-'; ?></td>
+					<?php endif; ?>
+					<td style="max-width: 200px !important;word-wrap:break-word;"><?php echo e($item->sample_codes); ?></td>
+					<td nowrap><?php echo e($item->getLabSectionsNames()); ?></td>
+					<td style="min-width: 200px !important;"><?php echo e($item->status); ?></td>
+					<?php if($status == 'Samples In Lab'): ?>
+					<?php else: ?>
+
+					<td nowrap><?php echo e($item->client->name); ?></td>
+					<?php endif; ?>
+					<td nowrap><?php echo e($item->reference_number ?? 'n/a'); ?></td>
+					<td nowrap><?php echo e(date('Y-m-d', strtotime($item->receipt_date))); ?></td>
+					<td nowrap><?php echo e(date('Y-m-d', strtotime($item->date_collected))); ?></td>
+					<td nowrap><?php echo e(date('Y-m-d', strtotime($target_date))); ?></td>
+					<td nowrap><?php echo e(number_format($diff, 0)); ?> Day(s)</td>
+					<td><?php echo e($item->samples->count()); ?></td>
+					<?php if($status == 'Samples In Lab'): ?>
+					<td nowrap><?php echo e($item->crm_unit_name); ?></td>
+					<?php endif; ?>
+					<td nowrap><?php echo e(implode(", ", $item->labs(true))); ?></td>
+					<td nowrap><?php echo e($item->sample_type->name ?? ''); ?></td>
+					
+					<?php $invoice = getInvoiceById($item->invoice_id) ?>
+					<?php if(isset($invoice->id)): ?>
+					<td nowrap><a href="/invoice/sample/<?php echo e($item->id); ?>"><?php echo e($invoice->invoice_number); ?></a></td>
+
+					<?php else: ?>
+					<td>N/a</td>
+					<?php endif; ?>
+
+					<td><?php echo e($item->is_routine == 1 ? 'Yes' : 'No'); ?></td>
+					<td><?php echo e($item->is_routine == 1 ? number_format($item->routine_frequency,0).' days' : 'n/a'); ?></td>
+					<td><a href="<?php echo e(route('view-batch-details', ['batch'=>$item->id])); ?>" data-target="#add-new-samples" class="btn btn-primary btn-sm edit-sample-details" data-header='<?php echo e(json_encode($item)); ?>'><i class="mdi mdi-lead-pencil"></i></a></td>
+				</tr>
+				<?php endforeach; $__env->popLoop(); $loop = $__env->getLastLoop(); ?>
+			</tbody>
+		</table>
+		<div class="btn overdue-bg-color btn-sm"></div> Account Holder(Overdue) <br>
+		<div class="btn upfront-bg-color btn-sm"></div> Account Pay Upfront <br>
+		<div class="btn ammend-bg-color btn-sm"></div> Ammended Batch
+	</div>
+</main>
+<?php $__env->stopSection(); ?>
+
+<?php $__env->startSection('script2'); ?>
+<?php if(isset($status) && in_array($status, array("Samples En-Route","Samples Request Review","Samples Reception","Samples In Lab"))): ?>
+<div class="modal fade" id="inter-lab-add" data-backdrop="static" data-keyboard="false" role="dialog">
+	<div class="modal-dialog">
+		<div class="modal-content">
+			<form action="<?php echo e(route('create_sample_inter_lab_log')); ?>" method="post">
+				<?php echo csrf_field(); ?>  
+				<div class="modal-body">
+					<div class="alert alert-primary p-2 d-flex">
+						<i class="mdi mdi-alert-decagram-outline" style="font-size: 30px"></i>
+						<span class="p-2">
+							Initiate Interlab for all samples in the following batches below by providing the information below
+						</span>
+					</div>
+					<div class="form-group">
+						<label for="" class="control-label">To Lab</label>
+						<select name="to_lab_section_id" id="" class="form-control">
+							<?php $__currentLoopData = $labsections; $__env->addLoop($__currentLoopData); foreach($__currentLoopData as $lab): $__env->incrementLoopIndices(); $loop = $__env->getLastLoop(); ?>
+							<option value="<?php echo e($lab->id); ?>"><?php echo e($lab->code); ?> - <?php echo e($lab->name); ?></option>
+							<?php endforeach; $__env->popLoop(); $loop = $__env->getLastLoop(); ?>
+						</select>
+					</div>
+					<div class="form-group">
+						<label for="" class="control-label">Quantity</label>
+						<input type="text" name="quantity" value="" class="form-control">
+					</div>
+					<div class="form-group">
+						<label for="" class="control-label">Expected Date</label>
+						<input type="date" name="expected_date" value="" id="" class="form-control">
+					</div>
+					<div class="form-group">
+						<label for="" class="control-label">Prelim Date</label>
+						<input type="date" name="prelim_date" id="" class="form-control">
+					</div>
+					<div class="form-group">
+						<label for="" class="control-label">Remark</label>
+						<textarea name="remarks" id="" cols="30" rows="5" class="form-control"></textarea>
+					</div>
+					<div class="form-group">
+						<label for="" class="control-label">Notify</label>
+						<select name="notify_user" id="" class="form-control notify_user">
+							<?php $__currentLoopData = $users; $__env->addLoop($__currentLoopData); foreach($__currentLoopData as $user): $__env->incrementLoopIndices(); $loop = $__env->getLastLoop(); ?>
+							<option value="<?php echo e($user->id); ?>"><?php echo e($user->name); ?></option>
+							<?php endforeach; $__env->popLoop(); $loop = $__env->getLastLoop(); ?>
+						</select>
+					</div>
+					<div class="form-group">
+						<label for="" class="control-label">Notify</label>
+						<select name="also_notify[]" multiple id="" class="form-control also_notify">
+							<?php $__currentLoopData = $users; $__env->addLoop($__currentLoopData); foreach($__currentLoopData as $user): $__env->incrementLoopIndices(); $loop = $__env->getLastLoop(); ?>
+							<option value="<?php echo e($user->id); ?>"><?php echo e($user->name); ?></option>
+							<?php endforeach; $__env->popLoop(); $loop = $__env->getLastLoop(); ?>
+						</select>
+					</div>
+					<input type="hidden" name="batch_level" value="1">
+					<div class="form-group">
+						<label class="control-label">Batches</label>
+						<div class="selected-batches-interlab"></div>
+					</div>
+				</div>
+				<div class="modal-footer">
+					<Button type="submit" class="btn btn-outline-primary btn-sm submit-button"><i class="mdi mdi-swap-horizontal-bold"></i> Initiate</Button>
+					<span class="btn btn-sm btn-default text-danger" data-dismiss="modal">Cancel</span>
+				</div>
+			</form>
+		</div>
+	</div>
+</div>
+<?php endif; ?>
+<?php if($status=="Reports for Collection"): ?>
+<div id="send-email-reports-modal" class="modal fade" role="dialog">
+	<div class="modal-dialog">
+		<!-- Modal content-->
+		<form class="modal-content" id="print-labels-form" method="POST" action="<?php echo e(route('send-out-email-reports')); ?>" enctype="multipart/form-data">
+			<?php echo csrf_field(); ?>
+			<div class="modal-header">
+				<h4 class="modal-title"><i class="mdi mdi-printer"></i> Email Report(s) To Client </h4>
+			</div>
+			<div class="modal-body">
+				<div class="form-group">
+					<label class="control-label">Client Contacts</label>
+					<select class="form-control" name="contacts[]" required multiple placeholder="Select Contact..."></select>
+				</div>
+				<div class="form-group">
+					<label class="control-label">Batches</label>
+					<div class="selected-batches"></div>
+				</div>
+				<div class="form-group">
+					<label class="control-label">Email Body</label>
+					<textarea name="email_body" class="form-control" placeholder="Email Body"></textarea>
+				</div>
+			</div>
+			<div class="modal-footer">
+				<button type="button" class="btn btn-info btn-sm send-report-to-client-btn" data-dismiss="modal"><i class="mdi mdi-send"></i> Email Reports</button>
+				<button type="button" class="btn btn-default btn-sm" data-dismiss="modal">Close</button>
+			</div>
+		</form>
+	</div>
+</div>
+<?php endif; ?>
+<?php if($status=="Samples Reception" || $status == "Samples Request Review"): ?>
+<div id="dispatch-to-labs-modal" class="modal fade" role="dialog">
+	<div class="modal-dialog">
+		<!-- Modal content-->
+		<form class="modal-content" method="POST" action="<?php echo e(route('change-batch-workflow')); ?>" enctype="multipart/form-data">
+			<?php echo csrf_field(); ?>
+			<div class="modal-header">
+				<h4 class="modal-title"><i class="mdi mdi-clipboard-arrow-right"></i> Send Labeled Samples for Sample Request Review </h4>
+			</div>
+			<div class="modal-body">
+				<input type="hidden" name="status" value="Samples Request Review" />
+				<div id="not-paid-parent"></div>
+				<div class="form-group">
+					<div class="alert alert-callout alert-primary">
+						<i class="fas fa-info-circle"></i> Are you sure you want to send labeled samples for <b>Sample Request Review</b>?
+					</div>
+				</div>
+				<div class="form-group">
+					<label class="control-label">Batches</label>
+					<div class="selected-batches-request"></div>
+				</div>
+
+				<div class="form-check">
+					<input class="form-check-input" type="checkbox" class="form-control" name="notification" />
+					<label class="form-check-label">
+						Send Email Notification
+					</label>
+				</div>
+				<br>
+				<div class="form-check">
+					<input class="form-check-input" type="checkbox" class="form-control" name="send_message" />
+					<label class="form-check-label">
+						Send Message
+					</label>
+				</div>
+			</div>
+			<div class="modal-footer">
+				<button type="submit" class="btn btn-info btn-sm"><i class="mdi mdi-thumb-up"></i> Yes</button>
+				<button type="button" class="btn btn-default btn-sm" data-dismiss="modal">Close</button>
+			</div>
+		</form>
+	</div>
+</div>
+
+<div class="modal fade" id="move-to-lab" role="dialog">
+	<div class="modal-dialog">
+		<div class="modal-content">
+			<form action="<?php echo e(route('moveToLab')); ?>" method="post">
+				<?php echo csrf_field(); ?>
+				<div class="modal-body">
+					<div class="alert alert-primary p-2 d-flex">
+						<i class="mdi mdi-alert-decagram-outline" style="font-size:25px"></i>
+						<span class="p-2">Confirm you want to send the following batch(es) to Samples In Lab stage</span>
+					</div>
+					<div class="form-group">
+						<label class="control-label">Batches</label>
+						<div class="selected-batches-movetolab"></div>
+					</div>
+				</div>
+				<div class="modal-footer">
+					<button class="btn btn-sm btn-outline-primary" type="submit"><i class="mdi mdi-thumb-up"></i> Yes, Send</button>
+					<span class="btn btn-sm btn-default" data-dismiss="modal">Close</span>
+				</div>
+			</form>
+		</div>
+	</div>
+</div>
+
+<div id="dispatch-to-labs-modal-payment-reminder" class="modal fade" role="dialog">
+	<div class="modal-dialog">
+		<!-- Modal content-->
+		<form class="modal-content" method="POST" action="<?php echo e(route('send_payment_notification')); ?>" enctype="multipart/form-data">
+			<?php echo csrf_field(); ?>
+			<div class="modal-header">
+				<h4 class="modal-title"><i class="mdi mdi-clipboard-arrow-right"></i> Send Payment Reminder</h4>
+			</div>
+			<div class="modal-body">
+				<input type="hidden" name="status" value="Samples Request Review" />
+				<div class="form-group">
+					<div class="alert alert-callout alert-primary">
+						<i class="fas fa-info-circle"></i> By confirming this you will send a payment reminder email to all the clients of the following batches: </b>?
+					</div>
+				</div>
+				<div class="form-group">
+					<label class="control-label">Batches</label>
+					<div class="selected-batches-request"></div>
+				</div>
+
+			</div>
+			<div class="modal-footer">
+				<button type="submit" class="btn btn-info btn-sm"><i class="mdi mdi-thumb-up"></i> Yes</button>
+				<button type="button" class="btn btn-default btn-sm" data-dismiss="modal">Close</button>
+			</div>
+		</form>
+	</div>
+</div>
+
+<div id="dispatch-to-labs-modal-approve" class="modal fade" role="dialog">
+	<div class="modal-dialog">
+		<!-- Modal content-->
+		<form class="modal-content" method="POST" action="<?php echo e(route('generate_batch_invoice')); ?>" enctype="multipart/form-data">
+			<?php echo csrf_field(); ?>
+			<div class="modal-header">
+				<h4 class="modal-title"><i class="mdi mdi-clipboard-arrow-right"></i> Generate Invoice</h4>
+			</div>
+			<div class="modal-body">
+				<input type="hidden" name="status" value="Samples Request Review" />
+				<div class="form-group">
+					<div class="alert alert-callout alert-primary">
+						<i class="fas fa-info-circle"></i> By approving this you will generate an invoice with the following Batches</b>?
+					</div>
+				</div>
+
+				<div class="form-group">
+					<label class="control-label">Batches</label>
+					<div class="selected-batches-request-approve"></div>
+				</div>
+
+			</div>
+			<div class="modal-footer">
+				<button type="submit" class="btn btn-info btn-sm"><i class="mdi mdi-thumb-up"></i> Generate</button>
+				<button type="button" class="btn btn-default btn-sm" data-dismiss="modal">Close</button>
+			</div>
+		</form>
+	</div>
+</div>
+
+<div id="approve-begin-process" class="modal fade" role="dialog">
+	<div class="modal-dialog">
+		<!-- Modal content-->
+		<form class="modal-content" method="POST" action="<?php echo e(route('approve_batch_begin_process')); ?>" enctype="multipart/form-data">
+			<?php echo csrf_field(); ?>
+
+			<div class="modal-body">
+				<input type="hidden" name="status" value="Samples Request Review" />
+				<div class="form-group">
+					<div class="alert alert-callout alert-primary">
+						<i class="fas fa-info-circle"></i> By clicking Approve, the following batches will proceed to Laboratory without payment!
+					</div>
+				</div>
+
+				<div class="form-group">
+					<label class="control-label">Batches</label>
+					<div class="selected-batches-request-approve"></div>
+				</div>
+
+			</div>
+			<div class="modal-footer">
+				<button type="submit" class="btn btn-info btn-sm"><i class="mdi mdi-thumb-up"></i> Approve</button>
+				<button type="button" class="btn btn-default btn-sm" data-dismiss="modal">Close</button>
+			</div>
+		</form>
+	</div>
+</div>
+
+<div id="print-labels-modal" class="modal fade" role="dialog">
+	<div class="modal-dialog">
+		<!-- Modal content-->
+		<form class="modal-content" target="_blank" id="print-labels-form" method="POST" action="<?php echo e(route('print-labels')); ?>" enctype="multipart/form-data">
+			<?php echo csrf_field(); ?>
+			<div class="modal-header">
+				<h4 class="modal-title"><i class="mdi mdi-printer"></i> Print Labels </h4>
+			</div>
+			<div class="modal-body">
+				<div class="form-group">
+					<label class="control-label">Label Size</label>
+					<select class="form-control" name="label_size" required>
+						<option value="small-label">Small</option>
+						<option value="normal-label">Normal</option>
+					</select>
+				</div>
+				<div class="form-group">
+					<label class="control-label">Batches</label>
+					<div class="selected-samples">
+						<div class="alert alert-callout alert-danger">
+							<i class="fas fa-exclamation-triangle"></i> No batch selected.
+						</div>
+					</div>
+				</div>
+			</div>
+			<div class="modal-footer">
+				<button type="button" class="btn btn-info btn-sm print-label-btn" data-dismiss="modal"><i class="mdi mdi-printer"></i> Print</button>
+				<button type="button" class="btn btn-default btn-sm" data-dismiss="modal">Close</button>
+			</div>
+		</form>
+	</div>
+</div>
+<?php endif; ?>
+<?php if($status == 'Samples Reception'): ?>
+<div class="modal fade"  id="generarate_customer_focus" role="dialog">
+	<div class="modal-dialog">
+		<div class="modal-content">
+			<form target="_blank" action="<?php echo e(route('generateCustomerFocusIndex',['batch_id'=>0])); ?>" method="get">
+				
+				<div class="modal-body">
+					<div class="alert alert-primary p-2 d-flex">
+						<i class="mdi mdi-alert-decagram" style="font-size: 30px"></i>
+						<span class="p-2">Confirm you want to genarate a batched customer focus of the following batches below <br><br>
+						<b>Kindly ensure all the batches are from the same client and the doesnot have an already signed customer focus</b></span>
+					</div>
+					<div class="form-group">
+						<label for="" class="control-label">Total Amount</label>
+						<input type="text" name="invoice_amount" class="form-control" placeholder="Invoice Amount ...">
+					</div>
+					<div class="form-group">
+						<label for="" class="control-label">VAT</label>
+						<input type="text" name="vat" class="form-control" placeholder="Vat ...">
+					</div>
+					<div class="form-group">
+						<label for="" class="control-label">Amount Paid</label>
+						<input type="text" name="amount_paid" class="form-control" placeholder="Amount Paid...">
+					</div>
+					<div class="form-group">
+						<label for="" class="control-label">Balance</label>
+						<input type="text" name="balance" class="form-control" placeholder="Balance ...">
+					</div>
+					<div class="form-group">
+						<label class="control-label">Batch(es)</label>
+						<div class="selected-batches-review"></div>
+					</div>
+					<input type="hidden" name="is_clustered" value="1">
+				</div>
+				<div class="modal-footer">
+					<button type="submit" class="btn btn-outline-primary btn-sm"><i class="mdi mdi-thumb-up"></i> Yes, Generate</button>
+					<button type="button" class="btn btn-default btn-sm" data-dismiss="modal">Close</button>
+				</div>
+			</form>
+		</div>
+	</div>
+</div>
+<div id="delete-batch" class="modal fade" role="dialog">
+	<div class="modal-dialog">
+		<!-- Modal content-->
+		<form class="modal-content" method="POST" action="<?php echo e(route('delete-batch')); ?>" enctype="multipart/form-data">
+			<?php echo csrf_field(); ?>
+
+			<div class="modal-header">
+				<h4 class="modal-title"><i class="mdi mdi-delete text-danger"></i> Cancel Batch(es) </h4>
+			</div>
+			<div class="modal-body>
+				<input type=" hidden" name="status" value="Samples In Lab" />
+			<p class="text-center">Are you sure you want to Cancel the following Batch(es) ? </p><br>
+			<hr>
+			<div class="form-group">
+				<label class="control-label">Batch(es)</label>
+				<div class="selected-batches-review"></div>
+			</div>
+	</div>
+
+
+	<div class="modal-footer">
+		<button type="submit" class="btn btn-info btn-sm"><i class="mdi mdi-thumb-up"></i> Yes</button>
+		<button type="button" class="btn btn-default btn-sm" data-dismiss="modal">Close</button>
+	</div>
+	</form>
+</div>
+</div>
+<?php endif; ?>
+<?php if($status == 'Samples In Lab'): ?>
+<div id="print-labels-modal" class="modal fade" role="dialog">
+	<div class="modal-dialog">
+		<!-- Modal content-->
+		<form class="modal-content" target="_blank" id="print-labels-form" method="POST" action="<?php echo e(route('print-labels')); ?>" enctype="multipart/form-data">
+			<?php echo csrf_field(); ?>
+			<div class="modal-header">
+				<h4 class="modal-title"><i class="mdi mdi-printer"></i> Print Labels </h4>
+			</div>
+			<div class="modal-body">
+				<div class="form-group">
+					<label class="control-label">Label Size</label>
+					<select class="form-control" name="label_size" required>
+						<option value="small-label">Small</option>
+						<option value="normal-label">Normal</option>
+					</select>
+				</div>
+				<div class="form-group">
+					<label class="control-label">Batches</label>
+					<div class="selected-samples">
+						<div class="alert alert-callout alert-danger">
+							<i class="fas fa-exclamation-triangle"></i> No batch selected.
+						</div>
+					</div>
+				</div>
+			</div>
+			<div class="modal-footer">
+				<button type="button" class="btn btn-info btn-sm print-label-btn" data-dismiss="modal"><i class="mdi mdi-printer"></i> Print</button>
+				<button type="button" class="btn btn-default btn-sm" data-dismiss="modal">Close</button>
+			</div>
+		</form>
+	</div>
+</div>
+<?php endif; ?>
+<?php if($status=="Samples Request Review"): ?>
+<div id="dispatch-to-labs-modal-review-reject" class="modal fade" role="dialog">
+	<div class="modal-dialog">
+		<!-- Modal content-->
+		<form class="modal-content" method="POST" action="<?php echo e(route('return_batch_reception')); ?>" enctype="multipart/form-data">
+			<?php echo csrf_field(); ?>
+
+			<div class="modal-body">
+				<input type="hidden" name="status" value="Samples Request Review" />
+				<div class="form-group">
+					<div class="alert alert-callout alert-danger">
+						<i class="fas fa-info-circle"></i> Confirm you want to reject approval request for the following batche(s).
+					</div>
+				</div>
+				<div class="form-group">
+					<label class="control-label">Comments</label>
+					<textarea class="form-control" name="comment" placeholder="Comments..."></textarea>
+				</div>
+				<div class="form-check">
+					<input class="form-check-input" type="checkbox" class="form-control" name="notification" />
+					<label class="form-check-label">
+						Send Email Notification
+					</label>
+				</div>
+				<br>
+				<div class="form-check">
+					<input class="form-check-input" type="checkbox" class="form-control" name="send_message" />
+					<label class="form-check-label">
+						Send SMS
+					</label>
+				</div>
+				<br>
+				<div class="form-group">
+					<label class="control-label">Batches</label>
+					<div class="selected-batches-request-approve"></div>
+				</div>
+
+			</div>
+			<div class="modal-footer">
+				<button type="submit" class="btn btn-danger btn-sm"><i class="mdi mdi-thumb-up"></i> Reject</button>
+				<button type="button" class="btn btn-default btn-sm" data-dismiss="modal">Close</button>
+			</div>
+		</form>
+	</div>
+</div>
+<div id="dispatch-to-labs-modal-review" class="modal fade" role="dialog">
+	<div class="modal-dialog">
+		<!-- Modal content-->
+		<form class="modal-content" method="POST" action="<?php echo e(route('change-batch-workflow')); ?>" enctype="multipart/form-data">
+			<?php echo csrf_field(); ?>
+
+			<div class="modal-header">
+				<h4 class="modal-title"><i class="mdi mdi-clipboard-arrow-right"></i> Approve Request</h4>
+			</div>
+			<div class="modal-body">
+
+
+				<input type="hidden" name="status" value="Samples In Lab" />
+				<input type="hidden" name="tracking_stage" value="20008" />
+				<input type="hidden" name="customer_id" value=0>
+				<div class="form-group">
+					<label class="control-label">Select Request Type</label>
+					<select class="form-control" name="request_type_id[]" placeholder="Request Type..." multiple required>
+						<option></option>
+						<?php $requestTypes = getRequestTypes(); ?>
+						<?php $__currentLoopData = $requestTypes[1]; $__env->addLoop($__currentLoopData); foreach($__currentLoopData as $i): $__env->incrementLoopIndices(); $loop = $__env->getLastLoop(); ?>
+						<option value="<?php echo e($i->id); ?>"><?php echo e($i->name); ?></option>
+						<?php endforeach; $__env->popLoop(); $loop = $__env->getLastLoop(); ?>
+						<option value="Other">Other Type</option>
+					</select>
+				</div>
+				<div class="form-group other-reason hidden">
+					<label class="control-label">Specify Other Request Type</label>
+					<textarea class="form-control" name="other_type" placeholder="Specify Other Request Type..."></textarea>
+				</div>
+				<div class="form-group">
+					<label class="control-label">Select Specific Specialist</label>
+					<select class="form-control" name="specialist_analyst_id" placeholder="Specific Specialist..." required>
+						<option></option>
+						<?php $__currentLoopData = $analysts; $__env->addLoop($__currentLoopData); foreach($__currentLoopData as $i): $__env->incrementLoopIndices(); $loop = $__env->getLastLoop(); ?>
+						<option value="<?php echo e($i->id); ?>"><?php echo e($i->name); ?></option>
+						<?php endforeach; $__env->popLoop(); $loop = $__env->getLastLoop(); ?>
+					</select>
+				</div>
+				<div class="form-group">
+					<label class="control-label">Approval Comments</label>
+					<textarea class="form-control" name="comments" placeholder="Comments..."></textarea>
+				</div>
+				<div class="form-group">
+					<label class="control-label"><input type="checkbox" name="is_priority" value="High" /> Is High Prority</label>
+				</div>
+				<br>
+				<div class="form-check">
+					<input class="form-check-input" type="checkbox" class="form-control" name="notification" />
+					<label class="form-check-label">
+						Send Email Notification
+					</label>
+				</div>
+				<br>
+				<div class="form-check">
+					<input class="form-check-input" type="checkbox" class="form-control" name="send_message" />
+					<label class="form-check-label">
+						Send Message
+					</label>
+				</div>
+				<br>
+				<div class="form-group">
+					<label class="control-label">Batches</label>
+					<div class="selected-batches-review"></div>
+				</div>
+			</div>
+
+
+			<div class="modal-footer">
+				<button type="submit" class="btn btn-info btn-sm"><i class="mdi mdi-thumb-up"></i> Yes</button>
+				<button type="button" class="btn btn-default btn-sm" data-dismiss="modal">Close</button>
+			</div>
+		</form>
+	</div>
+</div>
+<?php endif; ?>
+<script src="https://cdn.jsdelivr.net/gh/gitbrent/bootstrap4-toggle@3.6.1/js/bootstrap4-toggle.min.js"></script>
+<script type="text/javascript">
+	var selectedSampleIDs = [];
+	var sampleAnalysisByType = [];
+	var sampleCondtions = [];
+	var defaultClass = '';
+	var notPaid = [];
+	$('#dispatch-to-labs-modal').on('show.bs.modal', function() {
+		$('#not-paid-parent').empty();
+		if (notPaid.length > 0) {
+			var bodyNot = `<div class="alert alert-danger p-2">
+							<span class="text-center"><i class="mdi mdi-alert-decagram"></i> The following Batch(es) have not been paid fully </span>
+							
+							
+							<div class="row mt-3" id="NotPaidBatches">
+							
+							</div>
+						</div>`;
+			$('#not-paid-parent').append(bodyNot);
+			$.each(notPaid, function(j, k) {
+				var batch_body = `
+					<div class="col-md-6 col-sm-6 col-lg-6"><i class="mdi mdi-chevron-right"></i> ${k}</div>
+				`
+				$('#NotPaidBatches').append(batch_body);
+			})
+		}
+	})
+
+	<?php if($status == "Samples Reception"): ?>
+	$("input[name='table_sample_id[]']").on('change', function() {
+		if ($("input[name='table_sample_id[]']:checked").length > 0) {
+			$('[data-target="#delete-batch"]').removeAttr('disabled').addClass('btn-danger').removeClass('btn-outline-danger');
+			$('[data-target="#inter-lab-add"]').removeAttr('disabled');
+			$('[data-target="#move-to-lab"]').removeAttr('disabled');
+			$('[data-target="#generarate_customer_focus"]').removeAttr('disabled');
+
+			$('[data-target="#dispatch-to-labs-modal"]').removeAttr('disabled').addClass('btn-warning').removeClass('btn-outline-warning');
+			$('[data-target="#dispatch-to-labs-modal-approve"]').removeAttr('disabled').addClass('btn-success').removeClass('btn-outline-success');
+			$('[data-target="#dispatch-to-labs-modal-payment-reminder"]').removeAttr('disabled', true).removeClass('btn-outline-info').addClass('btn-info');
+			$('[data-target = "#approve-begin-process"]').removeAttr('disabled').addClass('btn-outline-success').removeClass('btn-default');
+
+
+		} else {
+			$('[data-target="#delete-batch"]').attr('disabled', true).removeClass('btn-danger').addClass('btn-outline-danger');
+			$('[data-target="#inter-lab-add"]').attr('disabled',true);
+			$('[data-target="#move-to-lab"]').attr('disabled');
+			$('[data-target="#generarate_customer_focus"]').attr('disabled');
+
+
+			$('[data-target="#dispatch-to-labs-modal"]').attr('disabled', true).removeClass('btn-warning').addClass('btn-outline-warning');
+			$('[data-target = "#approve-begin-process"]').removeAttr('disabled').addClass('btn-default').removeClass('btn-outline-success');
+			$('[data-target="#dispatch-to-labs-modal-approve"]').attr('disabled', true).removeClass('btn-success').addClass('btn-outline-success');
+			$('[data-target="#dispatch-to-labs-modal-payment-reminder"]').attr('disabled', true).removeClass('btn-info').addClass('btn-outline-info');
+		}
+		$('.selected-batches-review').empty();
+		$('.selected-batches-interlab').empty();
+		$('.selected-batches-movetolab').empty();
+		$('.selected-batches-request').empty();
+		$('.selected-batches-request-approve').empty();
+
+		selectedBatchesIDs = $("input[name='table_sample_id[]']:checked")
+			.map(function() {
+				var $value = $(this).val();
+				var batch = $(this).data('batch');
+
+				if (batch.customer_paid == 0) {
+					notPaid.push(batch.batch_code);
+				}
+				$('.selected-batches-review').append(
+					`<span class="p-2 mr-2">
+						<input type="checkbox" name="batch_code[]" value="${ $value }"  checked >${ $value }
+					</span>`
+				);
+				$('.selected-batches-interlab').append(
+					`<span class="p-2 mr-2">
+						<input type="checkbox" name="batch_code[]" value="${ $value }"  checked >${ $value }
+					</span>`
+				);
+				$('.selected-batches-movetolab').append(
+					`<span class="p-2 mr-2">
+						<input type="checkbox" name="batch_code[]" value="${ $value }"  checked >${ $value }
+					</span>`
+				)
+				$('.selected-batches-request').append(
+					`<span class="p-2 mr-2">
+						<input type="checkbox" name="batch_code[]" value="${$value}" checked>${$value}
+					</span>
+					`
+
+				);
+				$('.selected-batches-request-approve').append(
+					`<span class="p-2 mr-2">
+						<input type="checkbox" name="batch_code[]" value="${$value}" checked>${$value}
+					</span>
+					`
+				)
+				return $value;
+			}).get();
+
+
+
+	});
+	<?php endif; ?>
+	<?php if($status == "Samples Request Review"): ?>
+	$("input[name='table_sample_id[]']").on('change', function() {
+		if ($("input[name='table_sample_id[]']:checked").length > 0) {
+			$('[data-target="#dispatch-to-labs-modal-review"]').removeAttr('disabled').addClass('btn-primary').removeClass('btn-outline-primary');
+			$('[data-target="#dispatch-to-labs-modal-approve"]').removeAttr('disabled').addClass('btn-success').removeClass('btn-outline-success');
+			$('[data-target = "#dispatch-to-labs-modal-review-reject"]').removeAttr('disabled').addClass('btn-danger').removeClass('btn-outline-danger');
+			var $custID = $(this).parents('tr').data('class');
+
+			console.log($custID);
+			$("input[name='customer_id']").val($custID);
+		} else {
+			$('[data-target="#dispatch-to-labs-modal-review-reject"]').attr('disabled', true).removeClass('btn-danger').addClass('btn-outline-danger');
+			$('[data-target="#dispatch-to-labs-modal-review"]').attr('disabled', true).removeClass('btn-primary').addClass('btn-outline-primary');
+			$('[data-target="#dispatch-to-labs-modal-approve"]').attr('disabled', true).removeClass('btn-success').addClass('btn-outline-success');
+		}
+		$('.selected-batches-review').empty();
+		$('.selected-batches-request-approve').empty();
+
+		selectedBatchesIDs = $("input[name='table_sample_id[]']:checked")
+			.map(function() {
+				var $value = $(this).val();
+
+				$('.selected-batches-review').append(
+					`<span class="p-2 mr-2">
+						<input type="checkbox" name="batch_code[]" value="${ $value }"  checked >${ $value }
+					</span>`
+				);
+				$('.selected-batches-request-approve').append(
+					`<span class="p-2 mr-2">
+						<input type="checkbox" name="batch_code[]" value="${$value}" checked>${$value}
+					</span>
+					`
+				)
+				return $value;
+			}).get();
+
+
+	});
+	<?php endif; ?>
+	<?php if($status == "Reports for Collection"): ?>
+	$("input[name='table_sample_id[]']").on('change', function() {
+		if ($("input[name='table_sample_id[]']:checked").length > 0) {
+			$('[data-target="#send-email-reports-modal"]').removeAttr('disabled').addClass('btn-primary').removeClass('btn-outline-primary');
+			var custID = $(this).parents('tr').data('class');
+
+			if (defaultClass == '') {
+				$.ajax({
+					url: '/get-customer-contacts/receive_report/' + custID,
+					dataType: 'json',
+					beforeSend: function() {
+						$('select[name="contacts[]"]').empty();
+					},
+					success: function(js) {
+						$.each(js, function(j, s) {
+							$('select[name="contacts[]"]').append(`<option value="${s.id}">
+										${s.first_name+' '+s.middle_name+' '+s.last_name} [${s.email}]
+									</option>`)
+						});
+					}
+				})
+			}
+
+			defaultClass = defaultClass == '' ? ".crm-customer-" + custID : defaultClass;
+		} else {
+			$('[data-target="#send-email-reports-modal"]').attr('disabled', true).removeClass('btn-primary').addClass('btn-outline-primary');
+			defaultClass = '';
+		}
+
+		if (defaultClass == '') {
+			$('tr.batch-row').find("input[name='table_sample_id[]']").removeAttr('disabled');
+		} else {
+			$('tr.batch-row').not(defaultClass).find("input[name='table_sample_id[]']").attr('disabled', true);
+		}
+
+		$('.selected-batches').empty();
+		selectedSampleIDs = $("input[name='table_sample_id[]']:checked")
+			.map(function() {
+				var $val = $(this).val();
+				var recordBatch = $(this).data('batch');
+				$('.selected-batches').append(`
+						<span class="p-2 mr-2">
+							<input type="checkbox" name="sample_code[]" value="${ recordBatch.id }" checked> ${ $val }
+						</span>
+					`);
+				return $val;
+			}).get();
+	});
+	<?php else: ?>
+	$("input[name='table_sample_id[]']").on('change', function() {
+		$('.selected-samples').empty();
+		selectedSampleIDs = $("input[name='table_sample_id[]']:checked")
+			.map(function() {
+				var $val = $(this).val();
+				$('.selected-samples').append(`
+						<span class="p-2 mr-2">
+							<input type="checkbox" name="sample_code[]" value="${ $val }" checked> ${ $val }
+						</span>
+					`);
+				return $val;
+			}).get();
+	});
+	<?php endif; ?>
+
+	$('.send-report-to-client-btn').on('click', function() {
+		if ($(this).parents('form').find('.selected-batches').find('input[type="checkbox"]').length == 0) {
+			alert("No batches selected");
+		} else {
+			$(this).parents('form').submit();
+		}
+	});
+
+	$('.print-label-btn').on('click', function() {
+		if ($(this).parents('form').find('.selected-samples').find('input[type="checkbox"]').length == 0) {
+			alert("No batches selected");
+		} else {
+			$(this).parents('form').submit();
+		}
+	});
+
+	var detectChange = function(ts) {
+		var op = $(ts).children('option:selected');
+		$('#client-unit-select').html('<option value="" selected>Select Organizational Unit...</option>');
+		$('#client-unit-select').trigger('change');
+		$.each(op.data('units'), function(i, e) {
+			$('#client-unit-select').append('<option value="' + e.name + '">' + e.name + '</option>');
+		});
+	};
+
+	$('[name="is_routine"]').on('change', function() {
+		if ($(this).is(':checked')) {
+			$('#routine_frequency').removeClass('hidden');
+			$('[name="routine_frequency"]').prop('required');
+			$('[name="routine_frequency"]').attr('required');
+		} else {
+			$('#routine_frequency').addClass('hidden');
+			$('[name="routine_frequency"]').find("option:selected").removeAttr("selected");
+			$('[name="routine_frequency"]').find("option:selected").removeProp("selected");
+			$('[name="routine_frequency"]').removeAttr('required');
+			$('[name="routine_frequency"]').removeProp('required');
+		}
+	});
+
+	$('.form-part-toggler').on('click', function() {
+		var parentSibling = $(this).parents('.form-part').siblings();
+
+		var sibformPartSibling = parentSibling.find('.form-part-toggler');
+		var siblingformrowData = parentSibling.find('.form-data-row');
+
+		$(this).find('i').removeClass('fa-arrow-down').addClass('fa-arrow-up');
+		sibformPartSibling.find('i').removeClass('fa-arrow-up').addClass('fa-arrow-down');
+
+		$(this).parents('.form-part').find('.form-data-row').addClass('hidden');
+		siblingformrowData.removeClass('hidden');
+	});
+
+
+	
+</script>
+<?php $__env->stopSection(); ?>
+<?php echo $__env->make('layouts.lab.layout.app', ['dataTable'=>true, 'datePicker'=>true, 'select2'=>true], \Illuminate\Support\Arr::except(get_defined_vars(), ['__data', '__path']))->render(); ?><?php /**PATH C:\wamp64\www\polucon\resources\views/layouts/lab/sample-workflow/index.blade.php ENDPATH**/ ?>
