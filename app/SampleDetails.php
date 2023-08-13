@@ -10,6 +10,7 @@ class SampleDetails extends Model implements Auditable
 	use \OwenIt\Auditing\Auditable;
 
 	public $with = ['main_standard', 'secondary_standard'];
+	public $fillable = ['sample_code','sample_header_id','disposal_date'];
   public function analysis()
 	{
 		$analysisIDs = explode(",", $this->analysis_type_id);
