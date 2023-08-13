@@ -1152,7 +1152,7 @@ class SampleWorkFlowController extends Controller
 			// return response()->json($test);
 		}
 
-		$selectedSampleType = \App\SampleType::find($batch->sample_type_id ?? 0) ?? false;
+		$selectedSampleType = \App\SampleType::with('analysis_types')->find($batch->sample_type_id ?? 0) ?? false;
 		$selected_analysis_types =isset($batch->sample_type_id) ? $selectedSampleType->analysis_types : [];
 		if (isset($batch->id)) {
 			if ($batch->is_qc_batch) {
@@ -1233,6 +1233,7 @@ class SampleWorkFlowController extends Controller
 				$item->analyte_name = $item->analyte_code;
 			}
 			$item->methods = $this->methodNameFromId($methods, $analyte->method);
+			// return response()->json(['m'=>$methods, 'a'=>$analyte->method]);
 			$analaytesHolder[$item->sample_detail_code][] = $item;
 			$sample_details_test = getSampleDetailById($item->sample_detail_id);
 			if (isset($sample_details_test->id)) {
@@ -1281,7 +1282,7 @@ class SampleWorkFlowController extends Controller
 			}
 		}
 		$active_company = getActiveCompany();
-		// return response()->json($analysisBySampleNames);
+		
 		// ---------------------------------------
 		$userLabSections = auth()->user()->labsectionids;
 		$customer = isset($batch->id) ? getCrmCustomerByID($batch->crm_customer_id) : [];
@@ -3636,10 +3637,10 @@ class SampleWorkFlowController extends Controller
 		$outputObject = [];
 		foreach ($inputKeys as $key) {
 				if (isset($inputObject[$key])) {
-						$outputObject[$inputObject[$key]] = (int) $key;
+					$outputObject[$inputObject[$key]] = (int) $key;
 				}
 		}
-		return $outputObject = [];
+		return $outputObject;
 	} 
 	// getLabsByAnalysisTypeIdAjax  get Labs
 }

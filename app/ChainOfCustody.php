@@ -8,7 +8,7 @@ use OwenIt\Auditing\Contracts\Auditable;
 class ChainOfCustody extends Model implements Auditable
 {
 	use \OwenIt\Auditing\Auditable;
-		//
+	public $with = ['started_by', 'completed_by', 'tracking_stage'];
 	public function completed_by()
 	{
 		return $this->belongsTo('App\User', 'moved_out_by');

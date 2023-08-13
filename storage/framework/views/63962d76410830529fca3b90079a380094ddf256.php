@@ -1,6 +1,5 @@
 
 
-
 <?php $__env->startSection('title2'); ?>
   <title> <?php echo e(isset($batch->batch_code) ? $batch->batch_code." | Batch Info" : "New Batch"); ?></title>
 	<style>
@@ -1192,13 +1191,10 @@
 																</div>
 														
 															<input type="hidden" name="attachment_id" value="<?php echo e($a->id); ?>">
-
 														</div>
-														
 														<div class="modal-footer">
 															<button type="submit" class="btn btn-success btn-sm"><i class="mdi mdi-thumb-up"></i> Confirm</button>
 															<button type="button" class="btn btn-default btn-sm" data-dismiss="modal">Close</button>
-					
 														</div>
 													</form>
 												</div>
