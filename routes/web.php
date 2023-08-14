@@ -798,6 +798,9 @@ Route::get('get/Sample-Standards/Ajax','SampleWorkFlowController@getSampleStanda
 Route::get('get/Crm-Customer-SamplePoint/{crm_id}/Ajax/{name}','SampleWorkFlowController@getCrmCustomerSamplePointAjax')->name('getCrmCustomerSamplePointAjax');
 Route::get('get/Sample-Parameter/Data/Ajax/{sample_id}','SampleWorkFlowController@getShowSampleParameterDataAjax')->name('getShowSampleParameterDataAjax');
 
+Route::post('/clone/Batch-Information','SampleWorkFlowController@cloneBatchInformation')->name('cloneBatchInformation');
+
+
 ################################################Polucon#########################################
 
 

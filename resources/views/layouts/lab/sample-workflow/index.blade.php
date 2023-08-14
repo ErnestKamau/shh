@@ -127,6 +127,9 @@
 				<li>
 					<span class="btn btn-sm dropdown-item" disabled data-target="#generarate_customer_focus" data-toggle="modal" title="Generate Customer Focus"><i class="mdi mdi-file-document-outline mr-2"></i> Generate Customer Focus</span>
 				</li>
+				<li>
+					<span class="btn btn-sm dropdown-item" data-target="#clone-batches" data-toggle="modal"><i class="mdi mdi-content-duplicate mr-2"></i> Clone Batch(es)</span>
+				</li>
 				@endif
 
 				@if ($status=="Reports for Collection")
@@ -623,6 +626,30 @@
 		</div>
 	</div>
 </div>
+<div class="modal fade" id="clone-batches" role="dialog">
+	<div class="modal-dialog">
+		<div class="modal-content">
+			<form action="{{route('cloneBatchInformation')}}" method="post">
+				@csrf
+				<div class="modal-body">
+					<div class="d-flex alert alert-primary">
+						<i class="mdi mdi-alert-decagram-outline" style="font-size: 30px"></i>
+						<span class="p-2">Confirm you want to duplicate the following batches below:</span>
+					</div>
+					
+					<div class="form-group mt-3">
+						<label class="control-label">Batches</label>
+						<div class="selected-batches-clone"></div>
+					</div>
+				</div>
+				<div class="modal-footer">
+					<button type="submit" class="btn btn-sm btn-outline-primary save-clone"><i class="mdi mdi-thumb-up"></i> Yes, Clone</button>
+					<span class="btn btn-sm btn-default" data-dismiss="modal">Close</span>
+				</div>
+			</form>
+		</div>
+	</div>
+</div>
 <div id="delete-batch" class="modal fade" role="dialog">
 	<div class="modal-dialog">
 		<!-- Modal content-->
@@ -841,6 +868,7 @@
 			$('[data-target="#inter-lab-add"]').removeAttr('disabled');
 			$('[data-target="#move-to-lab"]').removeAttr('disabled');
 			$('[data-target="#generarate_customer_focus"]').removeAttr('disabled');
+			$('[data-target="#clone-batches"]').removeAttr('disabled')
 
 			$('[data-target="#dispatch-to-labs-modal"]').removeAttr('disabled').addClass('btn-warning').removeClass('btn-outline-warning');
 			$('[data-target="#dispatch-to-labs-modal-approve"]').removeAttr('disabled').addClass('btn-success').removeClass('btn-outline-success');
@@ -853,6 +881,7 @@
 			$('[data-target="#inter-lab-add"]').attr('disabled',true);
 			$('[data-target="#move-to-lab"]').attr('disabled');
 			$('[data-target="#generarate_customer_focus"]').attr('disabled');
+			$('[data-target="#clone-batches"]').attr('disabled')
 
 
 			$('[data-target="#dispatch-to-labs-modal"]').attr('disabled', true).removeClass('btn-warning').addClass('btn-outline-warning');
@@ -862,6 +891,7 @@
 		}
 		$('.selected-batches-review').empty();
 		$('.selected-batches-interlab').empty();
+		$('.selected-batches-clone').empty();
 		$('.selected-batches-movetolab').empty();
 		$('.selected-batches-request').empty();
 		$('.selected-batches-request-approve').empty();
@@ -882,6 +912,11 @@
 				$('.selected-batches-interlab').append(
 					`<span class="p-2 mr-2">
 						<input type="checkbox" name="batch_code[]" value="${ $value }"  checked >${ $value }
+					</span>`
+				);
+				$('.selected-batches-clone').append(
+					`<span class="p-2 mr-2">
+						<input type="checkbox" class="batch_clone" name="batch_code[]" value="${ $value }"  checked >${ $value }
 					</span>`
 				);
 				$('.selected-batches-movetolab').append(
@@ -1063,6 +1098,16 @@
 		$(this).parents('.form-part').find('.form-data-row').addClass('hidden');
 		siblingformrowData.removeClass('hidden');
 	});
+	$('#clone-batches').on('show.bs.modal',(e)=>{
+		$('#clone-batches').find('.save-clone').on('click',(e)=>{
+			var batches_id = [];
+			$.each($('#clone-batches').find('.batch_clone'),(i,obj)=>{
+				batches_id.push($(obj).val());
+			});
+
+			console.log(batches_id)
+		})
+	})
 
 
 	
