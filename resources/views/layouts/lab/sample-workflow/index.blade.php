@@ -225,6 +225,12 @@
 					$target_date = "1970-01-01";
 					$diff = 0;
 				}
+				$sample_codes = $item->samples->pluck('sample_code')->toArray();
+
+				$sampleStart = $sample_codes[0] ?? '';
+
+				$sample_count = count($sample_codes);
+				$sampleEnd = end($sample_codes) ?? '';
 				?>
 				@if($item->current_account_status == 'Account Holder(Overdue)')
 				<tr class="batch-row overdue-bg-color {{ $diff > 0 ? 'text-danger' : '' }} crm-customer-{{ $item->client->id }}" data-class="{{ $item->client->id }}">
@@ -254,7 +260,8 @@
 					@if(auth()->user()->CheckViewQcSample())
 						<td>{!! $item->is_qc_batch == 1 ? '<span class="text-success"><i class="mdi mdi-checkbox-marked-circle-outline"></i></span>' : '-' !!}</td>
 					@endif
-					<td style="max-width: 200px !important;word-wrap:break-word;">{{$item->sample_codes}}</td>
+					<td style="max-width: 200px !important;word-wrap:break-word;">
+						{{$sampleStart.' - '.$sampleEnd}}</td>
 					<td nowrap>{{$item->getLabSectionsNames()}}</td>
 					<td style="min-width: 200px !important;">{{$item->status}}</td>
 					@if($status == 'Samples In Lab')
@@ -267,7 +274,7 @@
 					<td nowrap>{{ date('Y-m-d', strtotime($item->date_collected)) }}</td>
 					<td nowrap>{{ date('Y-m-d', strtotime($target_date)) }}</td>
 					<td nowrap>{{ number_format($diff, 0) }} Day(s)</td>
-					<td>{{ $item->samples->count() }}</td>
+					<td>{{ $sample_count }}</td>
 					@if($status == 'Samples In Lab')
 					<td nowrap>{{ $item->crm_unit_name }}</td>
 					@endif

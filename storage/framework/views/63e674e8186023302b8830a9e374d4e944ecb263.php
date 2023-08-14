@@ -42,6 +42,7 @@
             <th>No</th>
             <th>Code</th>
             <th>Name</th>
+            <th>Start Sample</th>
             <th>Address</th>
             <th>Website</th>
             <th>Fax</th>
@@ -61,6 +62,7 @@
                 <td valign="center"><?php echo e($loop->iteration); ?></td>
                 <td><?php echo e($lab->code); ?></td>
                 <td><?php echo e($lab->name); ?></td>
+                <td><?php echo e($lab->start_sample_no ?? '-'); ?></td>
                 <td><?php echo e($lab->address); ?></td>
                 <td><?php echo e($lab->website); ?></td>
                 <td><?php echo e($lab->fax); ?></td>
@@ -91,6 +93,11 @@
                               <label class="control-label">Lab Code</label>
                               <input type="text" class="form-control" name="code" value="<?php echo e($lab->code); ?>" placeholder="Lab Code..." required />
                             </div>
+                            <div class="form-group">
+                              <label class="control-label">Start Sample No</label>
+                              <input type="text" class="form-control" name="start_sample_no" value="<?php echo e($lab->start_sample_no); ?>" placeholder="Lab Start Sample No..." required />
+                            </div>
+
                             <div class="form-group">
                               <label class="control-label">Lab Postal Address</label>
                               <textarea class="form-control" name="address" placeholder="Lab Postal Address..." required><?php echo e($lab->address); ?></textarea>
@@ -173,6 +180,10 @@
             <div class="form-group">
               <label class="control-label">Lab Code</label>
               <input type="text" class="form-control" name="code" placeholder="Lab Code..." required />
+            </div>
+            <div class="form-group">
+              <label class="control-label">Start Sample No</label>
+              <input type="text" class="form-control" name="start_sample_no" value="" placeholder="Lab Start Sample No..." required />
             </div>
             <div class="form-group">
               <label class="control-label">Lab Postal Address</label>

@@ -89,7 +89,7 @@ class SampleWorkFlowController extends Controller
 		$labsections  = SampleAnalysisStage::where('active', 1)->get();
 
 		// return response()->json('test');
-		$batches = SampleHeader::where('isactive', 1)->orderBy('receipt_date', 'desc');
+		$batches = SampleHeader::with('samples')->where('isactive', 1)->orderBy('receipt_date', 'desc');
 
 		if ($status != "All Samples") {
 			if ($status == "Schedule of Analysis") {
@@ -104,11 +104,8 @@ class SampleWorkFlowController extends Controller
 		}
 
 		$batches = $batches->get();
-		foreach ($batches as $b) {
-			$sample_codes = SampleDetails::where('sample_header_id', $b->id)->pluck('sample_code')->toArray();
-			// return response()->json()
-			$b['sample_codes'] = implode(',', $sample_codes);
-		}
+
+		// return json_encode($batches);
 
 		$role_a = SystemConfiguration::where('key', 'analyst_role_id')->first();
 		$analysts = User::orderBy('name')->join('user_roles as ur', 'ur.user_id', '=', 'users.id')
@@ -1080,7 +1077,7 @@ class SampleWorkFlowController extends Controller
 	{
 		$batchID = $batch;
 
-		$batch = SampleHeader::with('comments','comments.creator')->find($batchID);
+		$batch = SampleHeader::with('comments.creator', 'samples.sample_detail_lab')->find($batchID);
 		$batch_scope = SystemConfiguration::where('key', 'batch_scope')->first();
 		$customer_survey = SystemConfiguration::where('key', 'customer_survey')->first();
 		$countries = Country::orderBy('name')->get();
@@ -1204,7 +1201,7 @@ class SampleWorkFlowController extends Controller
 		// echo date('Y-m-d H:i:s');
 		$l =1;
 		
-		// return response()->json($batch);
+		return response()->json($batch);
 
 		$methods = getMethods()->pluck('name', 'id');
 
@@ -3696,7 +3693,7 @@ class SampleWorkFlowController extends Controller
 				'status'=>'Samples Reception'
 			]);
 			$new_batch->save();
-			$samples = SampleDetails::where('sample_header_id',$batch->id)->get();
+			$samples = SampleDetails::with('captured_results')->where('sample_header_id',$batch->id)->get();
 			foreach($samples as $sample){
 				// $config_start_no = SystemConfiguration::where('key', 'start_sample_no')->first();
 				$sample_data = SamplesCategory::where('id',$sample->id)->first();
@@ -3720,7 +3717,7 @@ class SampleWorkFlowController extends Controller
 				$new_sample->save();
 				$this->createDetailAnalysisRelation($new_batch->id, $new_sample->id, explode(',', $new_sample->analysis_type_id));
 
-				$captured = CapturedResult::where('sample_detail_id',$sample->id)->get();
+				$captured = $sample->captured_results;
 				foreach($captured as $c){
 					$new_captured = $c->replicate()->fill([
 						'sample_header_id'=>$new_batch->id,
