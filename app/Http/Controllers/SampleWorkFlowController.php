@@ -82,6 +82,7 @@ class SampleWorkFlowController extends Controller
 
 	public function index(Request $request, $status = false)
 	{
+		return phpinfo();
 		if (!$status) {
 			$status = getSampleWorflowStages()[0];
 		}
@@ -3640,7 +3641,7 @@ class SampleWorkFlowController extends Controller
 					$outputObject[$inputObject[$key]] = (int) $key;
 				}
 		}
-		return $outputObject;
+		return $outputObject = [];
 	} 
 	public function cloneBatchInformation(Request $request){
 		
