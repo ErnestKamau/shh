@@ -3530,6 +3530,7 @@
 							"store_id": $(e).find('.sample-store').children('option:selected').val(),
 							"slot_id": $(e).find('.sample-store-slot').children('option:selected').val(),
 							"disposal_date":$(e).find('.disposal-date').val(),
+							"is_duplicate":$(e).find('.sample-code').val(),
 						};
 						
 						
@@ -3605,6 +3606,11 @@
 			$row.find('.initiate-interlab').data('sample',data.id);
 			$row.find('.initiate-interlab').data('samplecode',data.sample_code);
 			$row.find('.initiate-interlab').data('analysistype',data.lab_id);
+			$row.find('[name="sample_details[is_duplicate][]"]').val(data.is_duplicate ? data.is_duplicate : 0)
+			console.log('-------------------------------');
+			console.log(data)
+			console.log('-------------------------------')
+
 
 			$row.find('[name="sample_details[sample_store][]"]').val(data['store_id']).trigger('change');
 			$row.find('[name="sample_details[sample_store_slot][]"]').data('selected', data['slot_id']);
@@ -4084,6 +4090,7 @@
 
 		return $row;
 	}
+	
 
 	var sampleDetailsRow = `<tr class="editable">
 		<td>
@@ -4125,6 +4132,7 @@
 			<div class="form-group form-group-sm">
 				<select class="form-control form-control-sm  is-required sample-lab" name="sample_details[lab_id][]" style="width: 200px" placeholder="Select..." required></select>
 			</div>
+			<input type="hidden" name="sample_details[is_duplicate][]" value="" class="">
 			<span class="text"></span>
 		</td>
 		<td class="sample-condition-field">

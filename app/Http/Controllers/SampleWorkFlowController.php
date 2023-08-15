@@ -623,6 +623,9 @@ class SampleWorkFlowController extends Controller
 		// return response()->json($request->all(), 200);
 		$maxReportingTime = 0;
 		$currentAnalysisSample = [];
+		$duplicate_samples = [];
+		$duplicate_samples_ids =[];
+		$duplicateDataSampleIds = [];
 		foreach ($request->sample_details['sample_code'] as $k => $v) {
 			$detailId = $request->sample_details['detail_header'][$k];
 
@@ -677,6 +680,12 @@ class SampleWorkFlowController extends Controller
 			$detail->secondary_standard = $request->sample_details['secondary_standard'][$k];
 			$detail->lab_id = $request->sample_details['lab_id'][$k];
 			$detail->save();
+			if($request->sample_details['is_duplicate'][$k] != "0"){
+				$duplicate_samples[$detail->id] = $request->sample_details['is_duplicate'][$k];
+				array_push($duplicate_samples_ids,$detail->id);
+				$duplicateDataSampleIds[$detail->id] = $detail->sample_code;
+			}
+
 			$this->createDetailAnalysisRelation($SampleHeader->id, $detail->id, explode(',', $detail->analysis_type_id));
 
 
@@ -814,6 +823,32 @@ class SampleWorkFlowController extends Controller
 		$batch->days_of_analysis = $maxReportingTime;
 		$batch->sample_tracking_stage = $stage->id;
 		$batch->save();
+		if(sizeof($duplicate_samples_ids) > 0){
+			foreach($duplicate_samples as $key => $value){
+				$captured_results = CapturedResult::where('sample_detail_code',$value)->get();
+				foreach($captured_results as $c_value){
+					$new_cr = $c_value->replicate()->fill([
+						'sample_detail_id'=>$key,
+						'sample_detail_code'=>$duplicateDataSampleIds[$key],
+						'result'=>'',
+						'user_id'=>auth()->user()->id,
+						'remark'=>'',
+					]);
+					$new_cr->save();
+					$result = Result::where('captured_result_id',$c_value->id)->first();
+					$new_result = $result->replicate()->fill([
+						'captured_result_id'=>$new_cr->id,
+						
+						'sample_detail_id'=>$new_cr->sample_detail_id,
+						'sample_detail_code'=>$new_cr->sample_detail_code,
+						'result'=>'',
+						'remarks'=>'',
+					]);
+					$new_result->save();
+				}
+
+			}
+		}
 
 		$hasCapturedResults = false;
 		$analysis_to_be_done = array();
@@ -822,7 +857,8 @@ class SampleWorkFlowController extends Controller
 
 
 		foreach ($batch_analysis as $a) {
-			if (!isset($analysis_to_be_done[$a->sample_code])) {
+
+			if (!isset($analysis_to_be_done[$a->sample_code]) && !in_array($a->id,$duplicate_samples_ids)) {
 				$analysis_to_be_done[$a->sample_code] = array(
 					"sample_detail_code" => $a->sample_code,
 					"sample_detail_id" => $a->id,
@@ -830,8 +866,10 @@ class SampleWorkFlowController extends Controller
 					"analysis_to_do" => array()
 				);
 			}
+			if(!in_array($a->id,$duplicate_samples_ids)){
 
-			$analysis_to_be_done[$a->sample_code]["analysis_to_do"] = array_merge($analysis_to_be_done[$a->sample_code]["analysis_to_do"], $a->analysis());
+				$analysis_to_be_done[$a->sample_code]["analysis_to_do"] = array_merge($analysis_to_be_done[$a->sample_code]["analysis_to_do"], $a->analysis());
+			}
 		}
 
 
@@ -3694,16 +3732,15 @@ class SampleWorkFlowController extends Controller
 				'status'=>'Samples Reception'
 			]);
 			$new_batch->save();
-			$samples = SampleDetails::with('captured_results')->where('sample_header_id',$batch->id)->get();
+			$samples = SampleDetails::with('captured_results')
+				->where('sample_header_id',$batch->id)->get();
+			$relation_analysis = [];
+			
 			foreach($samples as $sample){
 				// $config_start_no = SystemConfiguration::where('key', 'start_sample_no')->first();
 				$sample_data = SamplesCategory::where('id',$sample->id)->first();
-				if (isset(SampleDetails::where('lab_id',$sample_data->main_lab_id)->orderBy('id','DESc')->first()->id)) {
-					$code = SampleDetails::where('lab_id',$sample_data->main_lab_id)->orderBy('id','DESc')->first()->sample_code;
-					$last_sample = substr($code, 9, strlen($code));
-				} else {
-					$last_sample = 0;
-				}
+				$code = SampleDetails::where('lab_id',$sample_data->main_lab_id)->orderBy('id','DESc')->first()->sample_code;
+				$last_sample = substr($code, 9, strlen($code));
 				// $last_sample = isset(SampleDetails::latest('id')->first()->id) ? substr(SampleDetails::latest('id')->first()->sample_code,9,strlen(SampleDetails::latest('id')->first()->sample_code) -1) : $config_start_no->value;
 				
 				// return response()->json($request->sample_details['lab_id'][$k]);
@@ -3716,7 +3753,15 @@ class SampleWorkFlowController extends Controller
 					'disposal_date'=> \Carbon\Carbon::parse($new_batch->receipt_date)->addMonths(3)->format('Y-m-d')
 				]);
 				$new_sample->save();
-				$this->createDetailAnalysisRelation($new_batch->id, $new_sample->id, explode(',', $new_sample->analysis_type_id));
+				
+				foreach(explode(',', $new_sample->analysis_type_id) as $at_id){
+					$relation_analysis[] = [
+						"analysis_type_id" => $at_id,
+						"batch_id" => $new_batch->id,
+						"sample_detail_id" => $new_sample->id
+					];
+				}
+				// $this->createDetailAnalysisRelation($new_batch->id, $new_sample->id, explode(',', $new_sample->analysis_type_id));
 
 				$captured = $sample->captured_results;
 				foreach($captured as $c){
@@ -3741,6 +3786,7 @@ class SampleWorkFlowController extends Controller
 					$new_result->save();
 				}
 			}
+			sampleAnalysisTypeRelation::insert($relation_analysis);
 			$analysis_types_id = SampleAnalysisTypeRelation::where('batch_id',$new_batch->id)->pluck('analysis_type_id')->toArray();
 			$analysis_max_report_time = AnalysisType::whereIn('id', $analysis_types_id)->max('reporting_time');
 			$analytes_max_report_time = AnalysisElements::whereIn('analysis_type_id', $analysis_types_id)->max('reporting_time');
