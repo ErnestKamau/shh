@@ -82,7 +82,6 @@ class SampleWorkFlowController extends Controller
 
 	public function index(Request $request, $status = false)
 	{
-		return phpinfo();
 		if (!$status) {
 			$status = getSampleWorflowStages()[0];
 		}
@@ -420,7 +419,6 @@ class SampleWorkFlowController extends Controller
 				$final_no = strval($batch_no_s);
 			}
 			$header->batch_code = $cP . '' . $final_no;
-
 		}
 		// return response()->json($header->batch_code,200);
 
@@ -1084,7 +1082,10 @@ class SampleWorkFlowController extends Controller
 	{
 		$batchID = $batch;
 
-		$batch = SampleHeader::with('comments','comments.creator')->find($batchID);
+		$batch = SampleHeader::with('comments','comments.creator', 'captured_results')->find($batchID);
+
+		// return response()->json($batch);
+
 		$batch_scope = SystemConfiguration::where('key', 'batch_scope')->first();
 		$customer_survey = SystemConfiguration::where('key', 'customer_survey')->first();
 		$countries = Country::orderBy('name')->get();
@@ -1117,7 +1118,6 @@ class SampleWorkFlowController extends Controller
 		$headerDetails = isset($batch->id) ? $batch->report_header_details() : array();
 		$ammendments = isset($batch->id) ? getBatchAmmendmentsById($batch->id) : [] ;
 		$allsamples = isset($batch->id)  ? $batch->all_samples()  : [];
-
 		
 		if (isset($batch->id)) {
 			$workflowstages = getWorkflowStage_Stages($batch->status);
@@ -1153,7 +1153,7 @@ class SampleWorkFlowController extends Controller
 			// return response()->json($test);
 		}
 
-		$selectedSampleType = \App\SampleType::with('analysis_types')->find($batch->sample_type_id ?? 0) ?? false;
+		$selectedSampleType = \App\SampleType::find($batch->sample_type_id ?? 0) ?? false;
 		$selected_analysis_types =isset($batch->sample_type_id) ? $selectedSampleType->analysis_types : [];
 		if (isset($batch->id)) {
 			if ($batch->is_qc_batch) {
@@ -1190,6 +1190,7 @@ class SampleWorkFlowController extends Controller
 			$attachments = [];
 			// return response()->json($ammendable,200);
 		}
+		
 		$role_a = SystemConfiguration::where('key', 'analyst_role_id')->first();
 		$labs  = Lab::where('active', 1)->get();
 		// $analysts = getUsersByRole('Analyst');
@@ -1215,17 +1216,16 @@ class SampleWorkFlowController extends Controller
 		// return response()->json($methods);
 
 		foreach ($batch->captured_results ?? array() as $item) {
-
 			if (!isset($analaytesHolder[$item->sample_detail_code])) {
 				$analaytesHolder[$item->sample_detail_code] = array();
 			}
 
 			$item->ops = $analysts;
-			$item->equip_name = $item->equipment()->name ?? '-';
+			$item->equip_name = $item->equipment_with ? $item->equipment_with->name : '-';
 
-			$item->def_operator = $item->defacto_analyst();
+			$item->def_operator = $item->defacto_analyst_with;
 			$item->analysis_type = $item->analysis_type;
-			$analyte = getAnalyteByID($item->analyte_id);
+			$analyte = $item->my_analyte;
 
 			if (isset($analyte->id)) {
 
@@ -1234,19 +1234,18 @@ class SampleWorkFlowController extends Controller
 				$item->analyte_name = $item->analyte_code;
 			}
 			$item->methods = $this->methodNameFromId($methods, $analyte->method);
-			// return response()->json(['m'=>$methods, 'a'=>$analyte->method]);
 			$analaytesHolder[$item->sample_detail_code][] = $item;
-			$sample_details_test = getSampleDetailById($item->sample_detail_id);
+			$sample_details_test = $item->sample;
 			if (isset($sample_details_test->id)) {
-				$standard = getStandardByid($sample_details_test->main_standard);
-				$sec = getStandardByid($sample_details_test->secondary_standard);
+				$standard = $sample_details_test->main_standard;
+				$sec = $sample_details_test->secondary_standard;
 				if (isset($standard->id)) {
-					$analyte_standard = getAnalyteStandardValue($item->analyte_id, $standard->id);
+					$analyte_standard = $item->analyte_standard_value;
 					if (isset($analyte_standard->id)) {
 						if ($analyte_standard->standard_value_type == 'is_range') {
 							$item->standard_value = $analyte_standard->low . ' - ' . $analyte_standard->high;
 						} elseif ($analyte_standard->standard_value_type == 'is_standard_value') {
-							$value_id = getStandardValuebyID($analyte_standard->standard_value_id);
+							$value_id = $analyte_standard->standard_value;
 							if (isset($value_id->id)) {
 								if ($value_id->code == 'IsValue') {
 									$item->standard_value = $analyte_standard->standard_is_value;
@@ -1264,8 +1263,12 @@ class SampleWorkFlowController extends Controller
 					$item->secondary_standard = $sec->code;
 				}
 			}
+			// return response()->json($batch);
 		}
-		// return response()->json($analaytesHolder);
+
+		// echo "middle - ".date('Y-m-d H:i:s');
+		
+		// return response()->json($batch);
 
 		foreach ($batch->samples ?? array() as $sample) {
 			$labSamples[$sample->sample_code] = getSampleDetailsLab($sample->id);
@@ -1282,8 +1285,9 @@ class SampleWorkFlowController extends Controller
 				$analysisBySampleNames[$sample->sample_code][$analysis->name] = $analysis->id;
 			}
 		}
+		// echo "Ending - ".date('Y-m-d H:i:s');
 		$active_company = getActiveCompany();
-		
+		// return response()->json($batch);
 		// ---------------------------------------
 		$userLabSections = auth()->user()->labsectionids;
 		$customer = isset($batch->id) ? getCrmCustomerByID($batch->crm_customer_id) : [];
@@ -3638,142 +3642,10 @@ class SampleWorkFlowController extends Controller
 		$outputObject = [];
 		foreach ($inputKeys as $key) {
 				if (isset($inputObject[$key])) {
-					$outputObject[$inputObject[$key]] = (int) $key;
+						$outputObject[$inputObject[$key]] = (int) $key;
 				}
 		}
-		return $outputObject = [];
+		return $outputObject;
 	} 
-	public function cloneBatchInformation(Request $request){
-		
-		$batch_config = SystemConfiguration::where('key', 'batch_code_config')->first();
-		foreach($request->batch_code as $batch_code){
-			$batch = SampleHeader::where('batch_code',$batch_code)->first();
-			$batch_data = SamplesCategory::where('batch_code',$batch_code)->first();
-			
-			$cust_code = str_split($batch_data->crm_code);
-			$code = [];
-			$loop = 0;
-			$cont = [];
-			foreach ($cust_code as $cc) {
-				if ((int)$cc > 0) {
-					array_push($cont, $loop);
-				} elseif (is_string($cc) && $cc != '0') {
-					array_push($code, $cc);
-				}
-				++$loop;
-			}
-			$tt = sizeof($cust_code) - 1;
-
-			$ranges = range($cont[0], $tt);
-			$values = [];
-			if (sizeof($cont) < 2) {
-				array_push($values, '0');
-				array_push($values, $cust_code[$cont[0]]);
-			} else {
-
-				foreach ($ranges as $r) {
-					array_push($values, $cust_code[$r]);
-				}
-			}
-
-			$cP = implode('', $code) . $batch_config->value . implode('', $values) . $batch_data->sample_type_code;
-			$config_batch_no = SystemConfiguration::where('key', 'batch_start_no')->first();
-			if (!isset($config_batch_no->id)) {
-				return redirect()->back()->with('error', 'Kindly set the start batch no');
-			}
-			$last_id = isset(SampleHeader::latest('id')->first()->id) ? SampleHeader::latest('id')->first()->id : 0;
-			$batch_no_s = $config_batch_no->value + $last_id + 1;
-			$final_no = '';
-			if (strlen(strval($batch_no_s)) < 4) {
-				$zerosss = str_repeat('0', 4 - strlen(strval($batch_no_s)));
-				$final_no = $zerosss . '' . strval($batch_no_s);
-			} else {
-				$final_no = strval($batch_no_s);
-			}
-			$new_batch_code = $cP . '' . $final_no;
-			
-			$new_batch = $batch->replicate()->fill([
-				"updated_at" => '',
-				"created_at"=> date('Y-m-d H:s:i.u'),
-				'batch_code'=>$new_batch_code,
-				'receipt_date'=>getTodayDate(),
-				'status'=>'Samples Reception'
-			]);
-			$new_batch->save();
-			$samples = SampleDetails::where('sample_header_id',$batch->id)->get();
-			foreach($samples as $sample){
-				// $config_start_no = SystemConfiguration::where('key', 'start_sample_no')->first();
-				$sample_data = SamplesCategory::where('id',$sample->id)->first();
-				if (isset(SampleDetails::where('lab_id',$sample_data->main_lab_id)->orderBy('id','DESc')->first()->id)) {
-					$code = SampleDetails::where('lab_id',$sample_data->main_lab_id)->orderBy('id','DESc')->first()->sample_code;
-					$last_sample = substr($code, 9, strlen($code));
-				} else {
-					$last_sample = 0;
-				}
-				// $last_sample = isset(SampleDetails::latest('id')->first()->id) ? substr(SampleDetails::latest('id')->first()->sample_code,9,strlen(SampleDetails::latest('id')->first()->sample_code) -1) : $config_start_no->value;
-				
-				// return response()->json($request->sample_details['lab_id'][$k]);
-				$sample_number = intval($last_sample)  + 1;
-				$new_sample_code = 'S' . date('Y') . $sample_data->main_lab_code . $sample_number;
-				
-				$new_sample = $sample->replicate()->fill([
-					'sample_code'=>$new_sample_code,
-					'sample_header_id'=>$new_batch->id,
-					'disposal_date'=> \Carbon\Carbon::parse($new_batch->receipt_date)->addMonths(3)->format('Y-m-d')
-				]);
-				$new_sample->save();
-				$this->createDetailAnalysisRelation($new_batch->id, $new_sample->id, explode(',', $new_sample->analysis_type_id));
-
-				$captured = CapturedResult::where('sample_detail_id',$sample->id)->get();
-				foreach($captured as $c){
-					$new_captured = $c->replicate()->fill([
-						'sample_header_id'=>$new_batch->id,
-						'sample_detail_id'=>$new_sample->id,
-						'sample_detail_code'=>$new_sample->sample_code,
-						'result'=>'',
-						'user_id'=>auth()->user()->id,
-						'remark'=>'',
-					]);
-					$new_captured->save();
-					$result = Result::where('captured_result_id',$c->id)->first();
-					$new_result = $result->replicate()->fill([
-						'captured_result_id'=>$new_captured->id,
-						'sample_header_id'=>$new_batch->id,
-						'sample_detail_id'=>$new_sample->id,
-						'sample_detail_code'=>$new_sample->sample_code,
-						'result'=>'',
-						'remarks'=>'',
-					]);
-					$new_result->save();
-				}
-			}
-			$analysis_types_id = SampleAnalysisTypeRelation::where('batch_id',$new_batch->id)->pluck('analysis_type_id')->toArray();
-			$analysis_max_report_time = AnalysisType::whereIn('id', $analysis_types_id)->max('reporting_time');
-			$analytes_max_report_time = AnalysisElements::whereIn('analysis_type_id', $analysis_types_id)->max('reporting_time');
-			$maxReportingTime = $analysis_max_report_time > $analytes_max_report_time ? $analysis_max_report_time : $analytes_max_report_time;
-			$targetDateStr = "Target Date";
-			$targetDate = \App\SampleDate::where('sample_header_id', $new_batch->id)->where('name', $targetDateStr)->first() ?? new \App\SampleDate;
-			$targetDate->name = $targetDateStr;
-			$targetDate->sample_header_id = $new_batch->id;
-			$targetDate->date = \Carbon\Carbon::parse($new_batch->receipt_date)->addDays($maxReportingTime);
-			$targetDate->save();
-
-			$custodyDetails = array(
-				"batch_id" => $new_batch->id,
-				"comments" => $request->comments ?? '',
-				"current" => array(
-					"status" => $new_batch->status,
-					"tracking_stage" => $new_batch->sample_tracking_stage,
-				),
-				"target" => array(
-					"status" => $new_batch->status,
-					"tracking_stage" => $new_batch->sample_tracking_stage,
-				)
-			);
-			$this->updateChainofCustody($custodyDetails);
-			
-		}
-		return redirect()->back()->with('success','Cloned batch created successfully');
-	}
 	// getLabsByAnalysisTypeIdAjax  get Labs
 }
