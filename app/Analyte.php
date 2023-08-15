@@ -8,6 +8,7 @@ use OwenIt\Auditing\Contracts\Auditable;
 class Analyte extends Model implements Auditable
 {
 	use \OwenIt\Auditing\Auditable;
+  protected $fillable = ['code', 'name', 'decimal_places', 'method', 'reporting_unit', 'non_accredited'];
   public function analysis_elements(){
     return $this->hasMany('App\AnalysisElements');
 	}

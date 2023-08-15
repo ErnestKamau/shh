@@ -57,10 +57,6 @@
         padding: 0 !important;
         
     }
-
-    
-
-   
 </style>
 
 <body>

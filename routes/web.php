@@ -800,6 +800,7 @@ Route::get('get/Sample-Parameter/Data/Ajax/{sample_id}','SampleWorkFlowControlle
 
 Route::post('/clone/Batch-Information','SampleWorkFlowController@cloneBatchInformation')->name('cloneBatchInformation');
 
+Route::post('/analyte-type-elements-import', 'AnalysisElementsController@import')->name('analyte-type-elements-import');
 
 ################################################Polucon#########################################
 
