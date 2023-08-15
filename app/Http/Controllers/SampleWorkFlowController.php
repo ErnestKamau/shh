@@ -1077,7 +1077,7 @@ class SampleWorkFlowController extends Controller
 	{
 		$batchID = $batch;
 
-		$batch = SampleHeader::with('comments.creator', 'samples.sample_detail_lab')->find($batchID);
+		$batch = SampleHeader::with('comments.creator', 'samples.sample_detail_lab', 'captured_results.my_analyte', 'captured_results.defacto_analyst_with', 'captured_results.sample')->find($batchID);
 		$batch_scope = SystemConfiguration::where('key', 'batch_scope')->first();
 		$customer_survey = SystemConfiguration::where('key', 'customer_survey')->first();
 		$countries = Country::orderBy('name')->get();
@@ -1201,7 +1201,7 @@ class SampleWorkFlowController extends Controller
 		// echo date('Y-m-d H:i:s');
 		$l =1;
 		
-		return response()->json($batch);
+		// return response()->json($batch);
 
 		$methods = getMethods()->pluck('name', 'id');
 
@@ -1213,12 +1213,12 @@ class SampleWorkFlowController extends Controller
 				$analaytesHolder[$item->sample_detail_code] = array();
 			}
 
-			$item->ops = $analysts;
+			// $item->ops = $analysts;
 			$item->equip_name = $item->equipment()->name ?? '-';
 
-			$item->def_operator = $item->defacto_analyst();
+			$item->def_operator = $item->defacto_analyst_with;
 			$item->analysis_type = $item->analysis_type;
-			$analyte = getAnalyteByID($item->analyte_id);
+			$analyte = $item->my_analyte;
 
 			if (isset($analyte->id)) {
 
@@ -1229,7 +1229,7 @@ class SampleWorkFlowController extends Controller
 			$item->methods = $this->methodNameFromId($methods, $analyte->method);
 			// return response()->json(['m'=>$methods, 'a'=>$analyte->method]);
 			$analaytesHolder[$item->sample_detail_code][] = $item;
-			$sample_details_test = getSampleDetailById($item->sample_detail_id);
+			$sample_details_test = $item->sample;
 			if (isset($sample_details_test->id)) {
 				$standard = getStandardByid($sample_details_test->main_standard);
 				$sec = getStandardByid($sample_details_test->secondary_standard);
@@ -1258,7 +1258,8 @@ class SampleWorkFlowController extends Controller
 				}
 			}
 		}
-		// return response()->json($analaytesHolder);
+
+		// return response()->json($batch);
 
 		foreach ($batch->samples ?? array() as $sample) {
 			$labSamples[$sample->sample_code] = getSampleDetailsLab($sample->id);
@@ -1284,7 +1285,7 @@ class SampleWorkFlowController extends Controller
 		$notifiable_users  =getNotifiableUsers();
 		$notesReminderType = getNotesReminderTypes();
 		$clients = getClients();
-		return view('layouts.lab.sample-workflow.show', compact('batch', 'batchID', 'defaultClient', 'selectedSampleType', 'client_portal', 'ammendable', 'standards', 'attachments', 'not_captured', 'analysts', 'countries', 'accounts', 'methods', 'atachment_type', 'batch_scope', 'customer_survey', 'interlabs', 'labs', 'users', 'payment_detail', 'labsections', 'contacts', 'batch_sample_codes', 'report_formats', 'approvers', 'reportingUnits', 'conditions', 'products', 'headerDetails','analaytesHolder','analysisBySample','analysisBySampleNames','labSamples','workflowstages','workflows','sample_types','samplingmethods','active_company','ammendments','allsamples','selected_analysis_types','userLabSections','customer','requestTypes','notifiable_users','notesReminderType','clients','disposal_date','status'));
+		return view('layouts.lab.sample-workflow.show', compact('batch', 'batchID', 'defaultClient', 'selectedSampleType', 'client_portal', 'ammendable', 'standards', 'attachments', 'not_captured', 'analysts', 'countries', 'accounts', 'methods', 'atachment_type', 'batch_scope', 'customer_survey', 'interlabs', 'labs', 'users', 'payment_detail', 'labsections', 'contacts', 'batch_sample_codes', 'report_formats', 'approvers', 'reportingUnits', 'conditions', 'products', 'headerDetails','analaytesHolder','analysisBySample','analysisBySampleNames','labSamples','workflowstages','workflows','sample_types','samplingmethods','active_company','ammendments','allsamples','selected_analysis_types','userLabSections','customer','requestTypes','notifiable_users','notesReminderType','clients','disposal_date','status', 'analysts'));
 	}
 
 	public function fetch_unit_stuff($name, $client)
