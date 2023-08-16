@@ -25,27 +25,27 @@ class ImportAnalysisElements implements ToModel, WithHeadingRow
 	public function model(array $row)
 	{
 		// Modify the 'method' column value by converting it to uppercase
-		$mname = trim(strtolower($row['method']));
+		$mname = trim(ucwords($row['method']));
 		$method = AnalysisMethod::orWhere('name', $mname)
 			->orWhere('code', $mname)->first();
 
 		if(!isset($method->id)){
-			$method = strtoupper($mname);
+			$method = ucwords($mname);
 			$method = AnalysisMethod::create([
 				'name' => $mname, 'code' => $mname, 'description' => $mname, 'company_id' => getUserCompany(), 'active' => 1
 			]);
 		}
 
-		$rname = strtolower(trim($row['reporting_unit']));
+		$rname = ucwords(trim($row['reporting_unit']));
 		$reporting_unit = ReportingUnit::where('name', strtolower(trim($row['reporting_unit'])))->first();
 
 		if(!isset($reporting_unit->id)){
-			$rname = strtoupper($rname);
+			$rname = ucwords($rname);
 			$reporting_unit = ReportingUnit::create(['name'=>$rname, 'active'=>1]);
 		}
 
 		// Other columns remain as they are
-		$parameter = strtolower(trim($row['parameter']));
+		$parameter = ucwords(trim($row['parameter']));
 
 		$analyte = Analyte::orWhere('name', $parameter)->orWhere('code', $parameter)->first();
 
@@ -53,8 +53,8 @@ class ImportAnalysisElements implements ToModel, WithHeadingRow
 
 		if(!isset($analyte->id)){
 			$analyte = Analyte::create([
-				'code'=>strtoupper($parameter), 
-				'name'=>strtoupper($parameter), 
+				'code'=>ucwords($parameter), 
+				'name'=>ucwords($parameter), 
 				'decimal_places'=>2, 
 				'method' => $method->id, 
 				'reporting_unit' => $reporting_unit->name, 

@@ -12,6 +12,5 @@ Homestead.yaml
 npm-debug.log
 yarn-error.log
 storage/*
-!storage/framework
 vendor_old/*
 vendor_old
