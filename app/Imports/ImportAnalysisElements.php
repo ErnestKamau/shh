@@ -57,7 +57,7 @@ class ImportAnalysisElements implements ToModel, WithHeadingRow
 				'name'=>strtoupper($parameter), 
 				'decimal_places'=>2, 
 				'method' => $method->id, 
-				'reporting_unit' => $reporting_unit->id, 
+				'reporting_unit' => $reporting_unit->name, 
 				'non_accredited' => $nonAccredited
 			]);
 		}
@@ -70,7 +70,7 @@ class ImportAnalysisElements implements ToModel, WithHeadingRow
 		if(!isset($analysisElement->id)){
 			$analysisElement = new AnalysisElements([
 				'method' => $method->id,
-				'reporting_unit' => $reporting_unit,
+				'reporting_unit' => $reporting_unit->name,
 				'analyte_id' => $analyte->id,
 				'non_accredited' => $nonAccredited,
 				'lab_section_id' => $this->analysisType->lab_id,
@@ -80,7 +80,7 @@ class ImportAnalysisElements implements ToModel, WithHeadingRow
 		else{
 			$analysisElement->update([
 				'method' => $method->id,
-				'reporting_unit' => $reporting_unit,
+				'reporting_unit' => $reporting_unit->name,
 				'analyte_id' => $analyte->id,
 				'non_accredited' => $nonAccredited,
 				'lab_section_id' => $this->analysisType->lab_id,

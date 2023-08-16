@@ -23,7 +23,8 @@
 							<p style="margin-top:0pt; margin-bottom:0pt; font-size:11pt; padding:5px">
 								<img
 									src="https://myfiles.space/user_files/113436_6a5ebdd463c27361/1692090548_7.8.1.2-guide-format-for-uniform-reporting-template-ver.-01/1692090548_7.8.1.2-guide-format-for-uniform-reporting-template-ver.-01-1.jpeg"
-									width="120" height="70" alt="Description: Polucon at your service"></p>
+									width="120" height="70" alt="Description: Polucon at your service">
+							</p>
 						</td>
 						<td rowspan="2"
 							style="width:187.65pt; border-left-style:solid; border-left-width:0.75pt; border-bottom-style:solid; border-bottom-width:0.75pt; padding-right:5.03pt; padding-left:5.03pt; vertical-align:middle;">
@@ -415,11 +416,12 @@
 			</tbody>
 		</table>
 		<p style="margin-top:0pt; margin-bottom:0pt; text-align:center; font-size:8pt;">
-		<a name="_cmntref8">
-			<span
-					style="font-family:'Arial Narrow';">************</span><em><span style="font-family:'Arial Narrow';">End of
+			<a name="_cmntref8">
+				<span style="font-family:'Arial Narrow';">************</span><em><span style="font-family:'Arial Narrow';">End
+						of
 						test results</span></em><span style="font-family:'Arial Narrow';">************</span></a><a href="#_cmnt8"
-				style="text-decoration:none;">[JMO8]</a></p>
+				style="text-decoration:none;">[JMO8]</a>
+		</p>
 		<p style="margin-top:0pt; margin-bottom:0pt; font-size:10pt;"><a name="_Hlk32572535"><strong><span
 						style="font-family:'Arial Narrow';">&nbsp;</span></strong></a></p>
 		<p style="margin-top:0pt; margin-bottom:0pt; font-size:10pt;"><strong><span
@@ -442,45 +444,50 @@
 		<table cellspacing="0" cellpadding="0" style="width:100%; border-collapse:collapse">
 			<tbody>
 				<tr style="height:14.4pt;">
-					<td style="width:14%; padding-right:5.4pt; padding-left:5.4pt; vertical-align:top;">
+					<td style="width:17%; padding-right:5.4pt; padding-left:5.4pt; vertical-align:top;">
 						<p style="margin-top:0pt; margin-bottom:0pt; font-size:10pt;"><strong><span
 									style="font-family:'Arial Narrow';">Mombasa Lab</span></strong></p>
 					</td>
-					<td style="width:2.5%; padding-right:5.4pt; padding-left:5.4pt; vertical-align:top;">
+
+					<td style="width:3.5%; padding-right:5.4pt; padding-left:5.4pt; vertical-align:top;">
 						<p style="margin-top:0pt; margin-bottom:0pt; text-align:center; font-size:10pt;"><strong><span
 									style="font-family:'Arial Narrow';">&nbsp;</span></strong></p>
 					</td>
-					<td style="width:24%; padding-right:5.4pt; padding-left:5.4pt; vertical-align:top; background-color:#ffff00;">
+					<td style="width:23%; padding-right:5.4pt; padding-left:5.4pt; vertical-align:top; background-color:#ffff00;">
 						<p style="margin-top:0pt; margin-bottom:0pt; text-align:center; font-size:10pt;"><strong><span
 									style="font-family:'Arial Narrow';">Chemist</span></strong></p>
 					</td>
 					<td
-						style="width:4.5%; padding-right:5.4pt; padding-left:5.4pt; vertical-align:top; background-color:#ffff00;">
+						style="width:3.5%; padding-right:5.4pt; padding-left:5.4pt; vertical-align:top; background-color:#ffff00;">
 						<p style="margin-top:0pt; margin-bottom:0pt; text-align:center; font-size:10pt;"><strong><span
 									style="font-family:'Arial Narrow';">&nbsp;</span></strong></p>
 					</td>
-					<td style="width:24%; padding-right:5.4pt; padding-left:5.4pt; vertical-align:top; background-color:#ffff00;">
+					<td style="width:23%; padding-right:5.4pt; padding-left:5.4pt; vertical-align:top; background-color:#ffff00;">
 						<p style="margin-top:0pt; margin-bottom:0pt; text-align:center; font-size:10pt;"><strong><span
 									style="font-family:'Arial Narrow';">Microbiologist</span></strong></p>
 					</td>
 					<td
-						style="width:4.5%; padding-right:5.4pt; padding-left:5.4pt; vertical-align:top; background-color:#ffff00;">
+						style="width:3.5%; padding-right:5.4pt; padding-left:5.4pt; vertical-align:top; background-color:#ffff00;">
 						<p style="margin-top:0pt; margin-bottom:0pt; text-align:center; font-size:10pt;"><strong><span
 									style="font-family:'Arial Narrow';">&nbsp;</span></strong></p>
 					</td>
-					<td style="width:24%; padding-right:5.4pt; padding-left:5.4pt; vertical-align:top; background-color:#ffff00;">
+					<td style="width:23%; padding-right:5.4pt; padding-left:5.4pt; vertical-align:top; background-color:#ffff00;">
 						<p style="margin-top:0pt; margin-bottom:0pt; text-align:center; font-size:10pt;"><strong><span
 									style="font-family:'Arial Narrow';">Authorized Signatory</span></strong></p>
 					</td>
 				</tr>
 				<tr style="height:14.4pt;">
-					<td style="width:12%; padding-right:5.4pt; padding-left:5.4pt; vertical-align:top;">
-						<p style="margin-top:0pt; margin-bottom:0pt; font-size:10pt;"><strong><span
-									style="font-family:'Arial Narrow';">13</span></strong><strong><span
-									style="font-family:'Arial Narrow'; font-size:6.67pt;"><sup>th</sup></span></strong><strong><span
-									style="font-family:'Arial Narrow';">&nbsp;February, 2023</span></strong></p>
+					<td style="width:18%; padding-left:5.4pt; vertical-align:top;">
+						<p style="margin-top:0pt; margin-bottom:0pt; font-size:10pt;">
+							<strong>
+								<span style="font-family:'Arial Narrow';">13
+									<sup style="font-family:'Arial Narrow'; font-size:6.67pt;">th</sup>
+									&nbsp;February, 2023
+								</span>
+							</strong>
+						</p>
 					</td>
-					<td style="width:4.5%; padding-right:5.4pt; padding-left:5.4pt; vertical-align:top;">
+					<td style="width:3.5%; padding-right:5.4pt; padding-left:5.4pt; vertical-align:top;">
 						<p style="margin-top:0pt; margin-bottom:0pt; text-align:center; font-size:10pt;"><strong><span
 									style="font-family:'Arial Narrow';">&nbsp;</span></strong></p>
 					</td>
@@ -488,7 +495,7 @@
 						<p style="margin-top:0pt; margin-bottom:0pt; text-align:center; font-size:10pt;"><strong><span
 									style="font-family:'Arial Narrow';">&nbsp;</span></strong></p>
 					</td>
-					<td style="width:4.5%; padding-right:5.4pt; padding-left:5.4pt; vertical-align:top;">
+					<td style="width:3.5%; padding-right:5.4pt; padding-left:5.4pt; vertical-align:top;">
 						<p style="margin-top:0pt; margin-bottom:0pt; text-align:center; font-size:10pt;"><strong><span
 									style="font-family:'Arial Narrow';">&nbsp;</span></strong></p>
 					</td>
@@ -496,7 +503,7 @@
 						<p style="margin-top:0pt; margin-bottom:0pt; text-align:center; font-size:10pt;"><strong><span
 									style="font-family:'Arial Narrow';">&nbsp;</span></strong></p>
 					</td>
-					<td style="width:4.5%; padding-right:5.4pt; padding-left:5.4pt; vertical-align:top;">
+					<td style="width:3.5%; padding-right:5.4pt; padding-left:5.4pt; vertical-align:top;">
 						<p style="margin-top:0pt; margin-bottom:0pt; text-align:center; font-size:10pt;"><strong><span
 									style="font-family:'Arial Narrow';">&nbsp;</span></strong></p>
 					</td>

@@ -233,7 +233,7 @@ class ReportHeaderDetailController extends Controller
 		
 		$pdf = app('dompdf.wrapper');
 		$pdf->getDomPDF()->set_option("enable_php", true);
-		$pdf = PDF::loadView('layouts.lab.reports.coa_formats.standard_report', compact('samples', 'company', 'qrcode', 'path', 'kenas', 'batch_approvers', 'pdf', 'batch', 'non_accredited', 'disclaimer', 'kebs', 'ilac', 'ispm', 'nema','customer','report_type'));
+		$pdf = PDF::loadView('layouts.lab.reports.coa_formats.standard_report_new', compact('samples', 'company', 'qrcode', 'path', 'kenas', 'batch_approvers', 'pdf', 'batch', 'non_accredited', 'disclaimer', 'kebs', 'ilac', 'ispm', 'nema','customer','report_type'));
 
 		if (is_dir(storage_path() . '/app/reports/' . $customer_name)) {
 			$pdf->save(storage_path() . '/app/reports/' . $customer_name . '/' . $filename);
