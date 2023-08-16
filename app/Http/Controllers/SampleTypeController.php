@@ -154,10 +154,45 @@ class SampleTypeController extends Controller
     if(!isset($sample->id)){
       return redirect()->back()->with('error','No sample type with the specified ID');
     }
-    if($sample->analysis_types->count() > 0){
+    $analysisTypes = AnalysisType::where('sample_type_id', $sample->id)->get();
+
+    foreach($analysisTypes as $aT){
+      AnalysisElements::where('analysis_type_id', $aT->id)->delete();
+      $aT->delete();
+    }
+    $checkAT = AnalysisType::where('sample_type_id', $sample->id)->get();
+    if($checkAT->count() > 0){
       return redirect()->back()->with('error',$sample->name .'Sample Type cannot be deleted since it has analysis types configured');
     }
     $sample->delete();
     return redirect()->back()->with('success','Sample Type deleted successfully!');
+  }
+
+  public function clone(Request $request, $id){
+    $sampleType = SampleType::find($id);
+    $newSampleType = $sampleType->replicate();
+
+    $newSampleType->name = $request->name;
+    $newSampleType->code = $request->name;
+    $newSampleType->description = $request->name;
+    $newSampleType->save();
+
+    $analysisTypes = AnalysisType::where('sample_type_id', $id)->get();
+
+    foreach($analysisTypes  as $anTy){
+      $analysisElements = AnalysisElements::where('analysis_type_id', $anTy->id)->get();
+
+      $newAType = $anTy->replicate();
+      $newAType->sample_type_id = $newSampleType->id;
+      $newAType->save();
+
+      foreach($analysisElements as $aE){
+        $nAE = $aE->replicate();
+        $nAE->analysis_type_id = $newAType->id;
+        $nAE->save();
+      }
+    }
+
+    return redirect()->back()->with('success', 'Cloning was successful');
   }
 }
