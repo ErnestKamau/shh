@@ -56,6 +56,7 @@ class ImportAnalysisElements implements ToModel, WithHeadingRow
 				'code'=>ucwords($parameter), 
 				'name'=>ucwords($parameter), 
 				'decimal_places'=>2, 
+				'company_id' => getUserCompany(), 
 				'method' => $method->id, 
 				'reporting_unit' => $reporting_unit->name, 
 				'non_accredited' => $nonAccredited
@@ -72,6 +73,7 @@ class ImportAnalysisElements implements ToModel, WithHeadingRow
 				'method' => $method->id,
 				'reporting_unit' => $reporting_unit->name,
 				'analyte_id' => $analyte->id,
+				'company_id' => getUserCompany(), 
 				'non_accredited' => $nonAccredited,
 				'lab_section_id' => $this->analysisType->lab_id,
 				'analysis_type_id' => $this->analysisType->id
@@ -83,6 +85,7 @@ class ImportAnalysisElements implements ToModel, WithHeadingRow
 				'reporting_unit' => $reporting_unit->name,
 				'analyte_id' => $analyte->id,
 				'non_accredited' => $nonAccredited,
+				'company_id' => getUserCompany(), 
 				'lab_section_id' => $this->analysisType->lab_id,
 				'analysis_type_id' => $this->analysisType->id
 			]);
