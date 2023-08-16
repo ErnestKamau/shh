@@ -1,10 +1,8 @@
-@extends('layouts.lab.layout.app', ['dataTable'=>true, 'select2'=>true])
+<?php $__env->startSection('title2'); ?>
+<title> <?php echo e($analysis_type->name); ?> | Analysis Types</title>
 
-@section('title2')
-<title> {{ $analysis_type->name }} | Analysis Types</title>
-
-@endsection
-@section('content2')
+<?php $__env->stopSection(); ?>
+<?php $__env->startSection('content2'); ?>
 <main>
   <?php
   $items = array(
@@ -31,64 +29,74 @@
     )
   );
   ?>
-  <x-bread-crumb :items="$items"></x-bread-crumb>
+   <?php if (isset($component)) { $__componentOriginal30091868428b09767320233ef70f89faadea10d9 = $component; } ?>
+<?php $component = $__env->getContainer()->make(App\View\Components\BreadCrumb::class, ['items' => $items]); ?>
+<?php $component->withName('bread-crumb'); ?>
+<?php if ($component->shouldRender()): ?>
+<?php $__env->startComponent($component->resolveView(), $component->data()); ?>
+<?php $component->withAttributes([]); ?> <?php if (isset($__componentOriginal30091868428b09767320233ef70f89faadea10d9)): ?>
+<?php $component = $__componentOriginal30091868428b09767320233ef70f89faadea10d9; ?>
+<?php unset($__componentOriginal30091868428b09767320233ef70f89faadea10d9); ?>
+<?php endif; ?>
+<?php echo $__env->renderComponent(); ?>
+<?php endif; ?> 
   <h2 class="p-4">
-    <i class="mdi mdi-microscope"></i> {{ $analysis_type->name }} <small class="text-muted"> | Analysis Types</small>
+    <i class="mdi mdi-microscope"></i> <?php echo e($analysis_type->name); ?> <small class="text-muted"> | Analysis Types</small>
   </h2>
   <div class="row no-gutters">
     <div class="col-sm-4 p-2">
       <div class="card">
         <div class="card-body">
           <h5 class="card-title"><i class="mdi mdi-pencil-outline"></i> Edit Analysis Type</h5>
-          <form method="POST" action="{{ route('edit-analysis-type', ['id'=>$analysis_type->id]) }}" enctype="multipart/form-data">
-            @csrf
+          <form method="POST" action="<?php echo e(route('edit-analysis-type', ['id'=>$analysis_type->id])); ?>" enctype="multipart/form-data">
+            <?php echo csrf_field(); ?>
             <div class="form-group">
               <label class="control-label">Name</label>
-              <input type="text" class="form-control" name="name" value="{{ $analysis_type->name }}" placeholder="Analysis Type Name..." required />
+              <input type="text" class="form-control" name="name" value="<?php echo e($analysis_type->name); ?>" placeholder="Analysis Type Name..." required />
             </div>
             <div class="form-group">
               <label class="control-label">Code</label>
-              <input type="text" class="form-control" name="code" value="{{ $analysis_type->code }}" placeholder="Analysis Type Code..." required />
+              <input type="text" class="form-control" name="code" value="<?php echo e($analysis_type->code); ?>" placeholder="Analysis Type Code..." required />
             </div>
             <div class="form-group">
               <label class="control-label">Description</label>
-              <textarea class="form-control" name="description" placeholder="Description..." required>{{ $analysis_type->description }}</textarea>
+              <textarea class="form-control" name="description" placeholder="Description..." required><?php echo e($analysis_type->description); ?></textarea>
             </div>
             <div class="form-group">
               <label class="control-label">Sample Type</label>
               <select class="form-control" name="sample_type_id" data-placeholder>
-                @foreach ($sample_types as $sam)
-                <option value="{{ $sam->id }}" {{ $sam->id == $analysis_type->sample_type_id ? 'selected' : '' }}>{{ $sam->name }}</option>
-                @endforeach
+                <?php $__currentLoopData = $sample_types; $__env->addLoop($__currentLoopData); foreach($__currentLoopData as $sam): $__env->incrementLoopIndices(); $loop = $__env->getLastLoop(); ?>
+                <option value="<?php echo e($sam->id); ?>" <?php echo e($sam->id == $analysis_type->sample_type_id ? 'selected' : ''); ?>><?php echo e($sam->name); ?></option>
+                <?php endforeach; $__env->popLoop(); $loop = $__env->getLastLoop(); ?>
               </select>
             </div>
             <div class="form-group">
               <label class="control-label">Lab</label>
               <select class="form-control" name="lab_id" data-placeholder>
-                @foreach ($labs as $c)
-                <option value="{{ $c->id }}" {{ $c->id == $analysis_type->lab_id ? 'selected' : '' }}>{{ $c->name }}</option>
-                @endforeach
+                <?php $__currentLoopData = $labs; $__env->addLoop($__currentLoopData); foreach($__currentLoopData as $c): $__env->incrementLoopIndices(); $loop = $__env->getLastLoop(); ?>
+                <option value="<?php echo e($c->id); ?>" <?php echo e($c->id == $analysis_type->lab_id ? 'selected' : ''); ?>><?php echo e($c->name); ?></option>
+                <?php endforeach; $__env->popLoop(); $loop = $__env->getLastLoop(); ?>
               </select>
             </div>
             <div class="form-group">
               <label for="" class="control-label">Lab Section</label>
               <select name="lab_section_id" id="" class="form-control">
                 <?php $sample_type = getSampleTypeByID($analysis_type->sample_type_id); ?>
-                @if($sample_type->sample_analysis_stage)
-                  @foreach($sample_type->sample_analysis_stage as $stage)
-                    @if($stage->active == 1)
-                      <option value="{{$stage->sample_analysis_stage_id}}" {{$stage->sample_analysis_stage_id == $analysis_type->lab_section_id ? 'selected' : ''}}>{{$stage->sample_analysis_stage->name}}</option>
-                    @endif
-                  @endforeach
-                @endif
+                <?php if($sample_type->sample_analysis_stage): ?>
+                  <?php $__currentLoopData = $sample_type->sample_analysis_stage; $__env->addLoop($__currentLoopData); foreach($__currentLoopData as $stage): $__env->incrementLoopIndices(); $loop = $__env->getLastLoop(); ?>
+                    <?php if($stage->active == 1): ?>
+                      <option value="<?php echo e($stage->sample_analysis_stage_id); ?>" <?php echo e($stage->sample_analysis_stage_id == $analysis_type->lab_section_id ? 'selected' : ''); ?>><?php echo e($stage->sample_analysis_stage->name); ?></option>
+                    <?php endif; ?>
+                  <?php endforeach; $__env->popLoop(); $loop = $__env->getLastLoop(); ?>
+                <?php endif; ?>
               </select>
             </div>
             <div class="form-group">
               <label class="control-label">Reporting Time <small class="text-muted">(in days)</small></label>
-              <input type="number" min="0" class="form-control" name="reporting_time" value="{{ $analysis_type->reporting_time }}" placeholder="Analysis Type Reporting Time..." required />
+              <input type="number" min="0" class="form-control" name="reporting_time" value="<?php echo e($analysis_type->reporting_time); ?>" placeholder="Analysis Type Reporting Time..." required />
             </div>
             <div class="form-group">
-              <label class="control-label"><input type="checkbox" name="active" value="1" {{ $analysis_type->active == 1 ? 'checked' : '' }} /> Active</label>
+              <label class="control-label"><input type="checkbox" name="active" value="1" <?php echo e($analysis_type->active == 1 ? 'checked' : ''); ?> /> Active</label>
             </div>
             <div class="p-0">
               <button type="submit" class="btn btn-primary float-right"><i class="mdi mdi-content-save"></i> Save</button>
@@ -135,45 +143,45 @@
                   </tr>
                 </thead>
                 <tbody>
-                  @foreach ($analysis_type->guides as $item)
+                  <?php $__currentLoopData = $analysis_type->guides; $__env->addLoop($__currentLoopData); foreach($__currentLoopData as $item): $__env->incrementLoopIndices(); $loop = $__env->getLastLoop(); ?>
                   <?php
                   $analysis_standard = getStandardByid($item->standard_id);
                   $analysis_value = getStandardValuebyID($item->standard_value_id);
                   ?>
                   <tr>
-                    <td>{{ $loop->iteration }}</td>
-                    <td>{{ $item->analyte->name." - ".$item->analyte->code }}</td>
-                    <td>{{$analysis_standard->name ?? ''}}</td>
-                    <td>{{$item->standard_value_type ?? ''}}</td>
-                    <td>{{$item->low != '' ? $item->low : '-'}}</td>
-                    <td>{{$item->high != '' ? $item->high : '-'}}</td>
-                    <td>{{isset($analysis_value->id) ? $analysis_value->name : '-'}}</td>
-                    <td>{{$item->standard_is_value != '' ? $item->standard_is_value:'-'}}</td>
+                    <td><?php echo e($loop->iteration); ?></td>
+                    <td><?php echo e($item->analyte->name." - ".$item->analyte->code); ?></td>
+                    <td><?php echo e($analysis_standard->name ?? ''); ?></td>
+                    <td><?php echo e($item->standard_value_type ?? ''); ?></td>
+                    <td><?php echo e($item->low != '' ? $item->low : '-'); ?></td>
+                    <td><?php echo e($item->high != '' ? $item->high : '-'); ?></td>
+                    <td><?php echo e(isset($analysis_value->id) ? $analysis_value->name : '-'); ?></td>
+                    <td><?php echo e($item->standard_is_value != '' ? $item->standard_is_value:'-'); ?></td>
 
 
-                    <td>{{ $item->comments }}</td>
-                    <td>{{ $item->recommendations }}</td>
+                    <td><?php echo e($item->comments); ?></td>
+                    <td><?php echo e($item->recommendations); ?></td>
                     <td>
-                      <span class="btn-sm btn-outline-default" data-target="#edit-guide-{{$loop->iteration}}" data-toggle="modal"><i class="mdi mdi-pencil"></i></span>
+                      <span class="btn-sm btn-outline-default" data-target="#edit-guide-<?php echo e($loop->iteration); ?>" data-toggle="modal"><i class="mdi mdi-pencil"></i></span>
 
-                      <div id="edit-guide-{{$loop->iteration}}" class="modal fade" role="dialog">
+                      <div id="edit-guide-<?php echo e($loop->iteration); ?>" class="modal fade" role="dialog">
                         <div class="modal-dialog">
                           <!-- Modal content-->
-                          <form class="modal-content" method="POST" action="{{ route('add-analyte-guide') }}" enctype="multipart/form-data">
-                            @csrf
-                            <input type="hidden" name="analysis_type_id" value="{{ $analysis_type->id }}" />
-                            <input type="hidden" name="guide_id" value="{{ $item->id }}" />
+                          <form class="modal-content" method="POST" action="<?php echo e(route('add-analyte-guide')); ?>" enctype="multipart/form-data">
+                            <?php echo csrf_field(); ?>
+                            <input type="hidden" name="analysis_type_id" value="<?php echo e($analysis_type->id); ?>" />
+                            <input type="hidden" name="guide_id" value="<?php echo e($item->id); ?>" />
                             <div class="modal-header">
-                              <h4 class="modal-title"><i class="mdi mdi-pencil text-primary"></i> Edit {{ $item->analyte->name }} Guide</h4>
+                              <h4 class="modal-title"><i class="mdi mdi-pencil text-primary"></i> Edit <?php echo e($item->analyte->name); ?> Guide</h4>
                             </div>
                             <div class="modal-body">
                               <div class="form-group">
                                 <label class="control-label">Analyte</label>
                                 <select class="form-control" name="analyte_id" required placeholder="Select Analyte...">
                                   <option></option>
-                                  @foreach($analysis_type->analysis_elements as $a)
-                                  <option value="{{ $a->analyte->id }}" {{$item->analyte->id == $a->analyte->id ? 'selected':''}} data-step="{{ $a->analyte->decimal_places }}">{{ $a->analyte->name }}</option>
-                                  @endforeach
+                                  <?php $__currentLoopData = $analysis_type->analysis_elements; $__env->addLoop($__currentLoopData); foreach($__currentLoopData as $a): $__env->incrementLoopIndices(); $loop = $__env->getLastLoop(); ?>
+                                  <option value="<?php echo e($a->analyte->id); ?>" <?php echo e($item->analyte->id == $a->analyte->id ? 'selected':''); ?> data-step="<?php echo e($a->analyte->decimal_places); ?>"><?php echo e($a->analyte->name); ?></option>
+                                  <?php endforeach; $__env->popLoop(); $loop = $__env->getLastLoop(); ?>
                                 </select>
                               </div>
 
@@ -184,11 +192,11 @@
                               <div class="form-group">
                                 <label class="control-label">Standard</label>
                                 <select class="form-control" name="standard" required>
-                                  @foreach($standards as $standard)
-                                  @if($standard->status == 1)
-                                  <option value="{{$standard->id}}" {{$standard->id == $item->standard_id ? 'selected':''}}>{{$standard->code}}</option>
-                                  @endif
-                                  @endforeach
+                                  <?php $__currentLoopData = $standards; $__env->addLoop($__currentLoopData); foreach($__currentLoopData as $standard): $__env->incrementLoopIndices(); $loop = $__env->getLastLoop(); ?>
+                                  <?php if($standard->status == 1): ?>
+                                  <option value="<?php echo e($standard->id); ?>" <?php echo e($standard->id == $item->standard_id ? 'selected':''); ?>><?php echo e($standard->code); ?></option>
+                                  <?php endif; ?>
+                                  <?php endforeach; $__env->popLoop(); $loop = $__env->getLastLoop(); ?>
                                 </select>
                               </div>
 
@@ -197,7 +205,7 @@
                                   <div class="col-lg-6 col-sm-6">
                                     <div class="form-check">
 
-                                      <input class="form-check-input" type="radio" id="is-range-{{$item->id}}" class="form-control" name="standard_value_type" value="is_range" data-id="{{$item->id}}" onclick="inhoused(this)" {{$item->standard_value_type == 'is_range' ? 'checked="checked"' : ''}} />
+                                      <input class="form-check-input" type="radio" id="is-range-<?php echo e($item->id); ?>" class="form-control" name="standard_value_type" value="is_range" data-id="<?php echo e($item->id); ?>" onclick="inhoused(this)" <?php echo e($item->standard_value_type == 'is_range' ? 'checked="checked"' : ''); ?> />
                                       <label class="form-check-label" for="is-range">
                                         Use range
                                       </label>
@@ -206,7 +214,7 @@
                                   <div class="col-lg-6 col-sm-6">
                                     <div class="form-check">
 
-                                      <input class="form-check-input" type="radio" id="is-standard-value-{{$item->id}}" class="form-control" name="standard_value_type" data-id="{{$item->id}}" value="is_standard_value" onclick="externaled(this)" {{$item->standard_value_type == 'is_standard_value' ? 'checked="checked"' :''}} />
+                                      <input class="form-check-input" type="radio" id="is-standard-value-<?php echo e($item->id); ?>" class="form-control" name="standard_value_type" data-id="<?php echo e($item->id); ?>" value="is_standard_value" onclick="externaled(this)" <?php echo e($item->standard_value_type == 'is_standard_value' ? 'checked="checked"' :''); ?> />
                                       <label class="form-check-label" for="is-standard-value">
                                         Use Value
                                       </label>
@@ -217,75 +225,75 @@
                                   </div>
                                 </div>
                               </div>
-                              @if($item->standard_value_type == 'is_range')
-                              <div class="form-group" id="range-{{$item->id}}">
+                              <?php if($item->standard_value_type == 'is_range'): ?>
+                              <div class="form-group" id="range-<?php echo e($item->id); ?>">
                                 <label class="control-label">Standard Range</label>
                                 <div class="row">
                                   <div class="col-lg-6 col-sm-6">
                                     <label class="control-label">Low <span class="text-danger">*</span></label>
-                                    <input type="text" name="low_range" id="Low-Range-{{$item->id}}" value="{{$item->low}}" class="form-control">
+                                    <input type="text" name="low_range" id="Low-Range-<?php echo e($item->id); ?>" value="<?php echo e($item->low); ?>" class="form-control">
                                   </div>
                                   <div class="col-lg-6 col-sm-6">
                                     <label class="control-label">High <span class="text-danger">*</span></label>
-                                    <input type="text" name="high_range" id="High-Range-{{$item->id}}" value="{{$item->high}}" class="form-control">
+                                    <input type="text" name="high_range" id="High-Range-<?php echo e($item->id); ?>" value="<?php echo e($item->high); ?>" class="form-control">
                                   </div>
                                 </div>
                               </div>
-                              @else
-                              <div class="form-group" id="range-{{$item->id}}" style="display: none;">
+                              <?php else: ?>
+                              <div class="form-group" id="range-<?php echo e($item->id); ?>" style="display: none;">
                                 <label class="control-label">Standard Range</label>
                                 <div class="row">
                                   <div class="col-lg-6 col-sm-6">
                                     <label class="control-label">Low <span class="text-danger">*</span></label>
-                                    <input type="text" name="low_range" id="Low-Range-{{$item->id}}" value="{{$item->low}}" class="form-control">
+                                    <input type="text" name="low_range" id="Low-Range-<?php echo e($item->id); ?>" value="<?php echo e($item->low); ?>" class="form-control">
                                   </div>
                                   <div class="col-lg-6 col-sm-6">
                                     <label class="control-label">High <span class="text-danger">*</span></label>
-                                    <input type="text" name="high_range" id="High-Range-{{$item->id}}" value="{{$item->high}}" class="form-control">
+                                    <input type="text" name="high_range" id="High-Range-<?php echo e($item->id); ?>" value="<?php echo e($item->high); ?>" class="form-control">
                                   </div>
                                 </div>
                               </div>
-                              @endif
-                              @if($item->standard_value_type == 'is_standard_value')
-                              <div class="form-group" id="standard-values-{{$item->id}}">
+                              <?php endif; ?>
+                              <?php if($item->standard_value_type == 'is_standard_value'): ?>
+                              <div class="form-group" id="standard-values-<?php echo e($item->id); ?>">
                                 <label class="control-label">Standard Values <span class="text-danger">*</span></label>
-                                <select name="standard_value" class="form-control" data-id="{{$item->id}}" data-count="{{$loop->iteration}} id=" Standard-Value-{{$item->id}}" onclick="checkvalued(this)" placeholder="Employee...">
-                                  @foreach($standard_values as $value)
-                                  <option value="{{$value->code}}" {{$item->standard_value_id == $value->id ? 'selected' : ''}}>{{$value->name}}</option>
-                                  @endforeach
+                                <select name="standard_value" class="form-control" data-id="<?php echo e($item->id); ?>" data-count="<?php echo e($loop->iteration); ?> id=" Standard-Value-<?php echo e($item->id); ?>" onclick="checkvalued(this)" placeholder="Employee...">
+                                  <?php $__currentLoopData = $standard_values; $__env->addLoop($__currentLoopData); foreach($__currentLoopData as $value): $__env->incrementLoopIndices(); $loop = $__env->getLastLoop(); ?>
+                                  <option value="<?php echo e($value->code); ?>" <?php echo e($item->standard_value_id == $value->id ? 'selected' : ''); ?>><?php echo e($value->name); ?></option>
+                                  <?php endforeach; $__env->popLoop(); $loop = $__env->getLastLoop(); ?>
                                 </select>
                               </div>
-                              @else
-                              <div class="form-group" id="standard-values-{{$item->id}}" style="display: none;">
+                              <?php else: ?>
+                              <div class="form-group" id="standard-values-<?php echo e($item->id); ?>" style="display: none;">
                                 <label class="control-label">Standard Values <span class="text-danger">*</span></label>
-                                <select name="standard_value[]" class="form-control" data-id="{{$item->id}}" data-count="{{$loop->iteration}}" onclick="checkvalued(this)" placeholder="Employee...">
-                                  @foreach($standard_values as $value)
-                                  <option value="{{$value->code}}" {{$item->standard_value_id == $value->id ? 'selected' : ''}}>{{$value->name}}</option>
-                                  @endforeach
+                                <select name="standard_value[]" class="form-control" data-id="<?php echo e($item->id); ?>" data-count="<?php echo e($loop->iteration); ?>" onclick="checkvalued(this)" placeholder="Employee...">
+                                  <?php $__currentLoopData = $standard_values; $__env->addLoop($__currentLoopData); foreach($__currentLoopData as $value): $__env->incrementLoopIndices(); $loop = $__env->getLastLoop(); ?>
+                                  <option value="<?php echo e($value->code); ?>" <?php echo e($item->standard_value_id == $value->id ? 'selected' : ''); ?>><?php echo e($value->name); ?></option>
+                                  <?php endforeach; $__env->popLoop(); $loop = $__env->getLastLoop(); ?>
                                 </select>
                               </div>
-                              @endif
+                              <?php endif; ?>
                               <?php
                               $standard = getStandardValuebyID($item->standard_value_id);
                               ?>
-                              @if(isset($standard->id) && $standard->code == 'IsValue')
-                              <div class="form-group" id="is-value-{{$item->id}}">
+                              <?php if(isset($standard->id) && $standard->code == 'IsValue'): ?>
+                              <div class="form-group" id="is-value-<?php echo e($item->id); ?>">
                                 <label class="control-label">Value <span class="text-danger">*</span></label>
-                                <input type="text" name="is_value" value="{{$item->standard_is_value}}" id="Is-Value-{{$item->id}}" placeholder="Enter Value..." class="form-control">
+                                <input type="text" name="is_value" value="<?php echo e($item->standard_is_value); ?>" id="Is-Value-<?php echo e($item->id); ?>" placeholder="Enter Value..." class="form-control">
                               </div>
-                              @else
-                              <div class="form-group" id="is-value-{{$item->id}}" style="display: none;">
+                              <?php else: ?>
+                              <div class="form-group" id="is-value-<?php echo e($item->id); ?>" style="display: none;">
                                 <label class="control-label">Value <span class="text-danger">*</span></label>
-                                <input type="text" name="is_value" value="{{$item->standard_is_value}}" id="Is-Value-{{$item->id}}" placeholder="Enter Value..." class="form-control">
+                                <input type="text" name="is_value" value="<?php echo e($item->standard_is_value); ?>" id="Is-Value-<?php echo e($item->id); ?>" placeholder="Enter Value..." class="form-control">
                               </div>
-                              @endif
+                              <?php endif; ?>
                               <div class="form-group">
                                 <label class="control-label">Comments</label>
-                                <textarea name="comments" class="form-control" placeholder="Guide Comments...">{{$item->comments}}</textarea>
+                                <textarea name="comments" class="form-control" placeholder="Guide Comments..."><?php echo e($item->comments); ?></textarea>
                               </div>
                               <div class="form-group">
                                 <label class="control-label">Recommendations</label>
-                                <textarea name="recommendations" class="form-control" placeholder="Guide Recommendations...">{{$item->recommendations}}</textarea>
+                                <textarea name="recommendations" class="form-control" placeholder="Guide Recommendations..."><?php echo e($item->recommendations); ?></textarea>
                               </div>
 
                             </div>
@@ -299,19 +307,19 @@
 
                     </td>
                     <td>
-                      <span class="btn-sm btn-outline-warning" data-toggle="modal" data-target="#clone-guide-{{$loop->iteration}}"><i class="mdi mdi-content-duplicate"></i></span>
+                      <span class="btn-sm btn-outline-warning" data-toggle="modal" data-target="#clone-guide-<?php echo e($loop->iteration); ?>"><i class="mdi mdi-content-duplicate"></i></span>
 
 
-                      <div class="modal fade" id="clone-guide-{{$loop->iteration}}">
+                      <div class="modal fade" id="clone-guide-<?php echo e($loop->iteration); ?>">
                         <div class="modal-dialog">
-                          <form action="{{ route('clone_analysis_guide') }}" method="post" class="modal-content" enctype="multipart/form-data">
-                            @csrf
+                          <form action="<?php echo e(route('clone_analysis_guide')); ?>" method="post" class="modal-content" enctype="multipart/form-data">
+                            <?php echo csrf_field(); ?>
                             <div class="modal-header">
-                              <h4 class="modal-title"><i class="mdi mdi-content-duplicate text-warning"></i> Clone {{ $item->analyte->name}} Guide.</h4>
+                              <h4 class="modal-title"><i class="mdi mdi-content-duplicate text-warning"></i> Clone <?php echo e($item->analyte->name); ?> Guide.</h4>
                             </div>
                             <div class="modal-body" style="background-color: turquoise;">
-                              <input type="hidden" name="guide_id" value="{{$item->id}}">
-                              Confirm you want to duplicate {{ $item->analyte->name}} analysis guide ?
+                              <input type="hidden" name="guide_id" value="<?php echo e($item->id); ?>">
+                              Confirm you want to duplicate <?php echo e($item->analyte->name); ?> analysis guide ?
                             </div>
                             <div class="modal-footer">
                               <button type="submit" class="btn btn-outline-success"><i class="mdi mdi-content-save"></i> Yes</button>
@@ -322,18 +330,18 @@
                       </div>
                     </td>
                     <td>
-                      <span class="btn-sm btn-outline-danger" data-toggle="modal" data-target="#delete-guide-{{$loop->iteration}}"><i class="mdi mdi-delete-empty"></i></span>
+                      <span class="btn-sm btn-outline-danger" data-toggle="modal" data-target="#delete-guide-<?php echo e($loop->iteration); ?>"><i class="mdi mdi-delete-empty"></i></span>
 
-                      <div class="modal fade" id="delete-guide-{{$loop->iteration}}">
+                      <div class="modal fade" id="delete-guide-<?php echo e($loop->iteration); ?>">
                         <div class="modal-dialog">
-                          <form action="{{ route('delete_analysis_guide') }}" method="post" class="modal-content" enctype="multipart/form-data">
-                            @csrf
+                          <form action="<?php echo e(route('delete_analysis_guide')); ?>" method="post" class="modal-content" enctype="multipart/form-data">
+                            <?php echo csrf_field(); ?>
                             <div class="modal-header">
-                              <h4 class="modal-title"><i class="mdi mdi-delete-empty text-danger"></i> Delete {{ $item->analyte->name}} Guide.</h4>
+                              <h4 class="modal-title"><i class="mdi mdi-delete-empty text-danger"></i> Delete <?php echo e($item->analyte->name); ?> Guide.</h4>
                             </div>
                             <div class="modal-body" style="background-color: turquoise;">
-                              <input type="hidden" name="guide_id" value="{{$item->id}}">
-                              Confirm you want to delete {{ $item->analyte->name}} analysis guide ?
+                              <input type="hidden" name="guide_id" value="<?php echo e($item->id); ?>">
+                              Confirm you want to delete <?php echo e($item->analyte->name); ?> analysis guide ?
                             </div>
                             <div class="modal-footer">
                               <button type="submit" class="btn btn-outline-success"><i class="mdi mdi-content-save"></i> Yes</button>
@@ -345,7 +353,7 @@
                     </td>
 
                   </tr>
-                  @endforeach
+                  <?php endforeach; $__env->popLoop(); $loop = $__env->getLastLoop(); ?>
                 </tbody>
               </table>
             </div>
@@ -380,46 +388,47 @@
                   </tr>
                 </thead>
                 <tbody id="analytes-holder">
-                  @if(count($analysis_type->analysis_elements) > 0)
-                  @foreach($analysis_type->analysis_elements as $analyte)
-                  <tr data-element="{{ $analyte->id }}">
+                  <?php if(count($analysis_type->analysis_elements) > 0): ?>
+                  <?php $__currentLoopData = $analysis_type->analysis_elements; $__env->addLoop($__currentLoopData); foreach($__currentLoopData as $analyte): $__env->incrementLoopIndices(); $loop = $__env->getLastLoop(); ?>
+                  <tr data-element="<?php echo e($analyte->id); ?>">
                     <td valign="center" nowrap style="font-size: 17px">
                       <span style="cursor: pointer">
                         <i class="mdi mdi-arrow-up-drop-circle move-analyte-up move-analyte" data-action="move-up"></i>
                       </span>
                       <span style="cursor: pointer">
                         <i class="mdi mdi-arrow-down-drop-circle move-analyte-down move-analyte" data-action="move-down"></i> </span>
-                        <span class="btn btn-sm btn-default text-primary" data-record="{{json_encode($analyte)}}" data-target="#edit-analysis-element" data-toggle="modal"><i data-toggle="tooltip" title="Edit" class="mdi mdi-pencil"></i></span>
+                        <span class="btn btn-sm btn-default text-primary" data-record="<?php echo e(json_encode($analyte)); ?>" data-target="#edit-analysis-element" data-toggle="modal"><i data-toggle="tooltip" title="Edit" class="mdi mdi-pencil"></i></span>
                     </td>
-                    <td nowrap>{{ $analyte->analyte->name }} - {{ $analyte->analyte->code }}</td>
-                    <td>{{ $analyte->decimal_places }}</td>
-                    <td>{{ $analyte->reporting_symbol }}</td>
-                    <td>{{ $analyte->reporting_unit }}</td>
-                    <td>{{$analyte->reporting_time > 0 ? $analyte->reporting_time : $analysis_type->reporting_time }}</td>
-                    <td>{{ $analyte->lod == null ? '' : ( $analyte->significant_figures == null ? $analyte->lod : sigFig($analyte->lod, $analyte->significant_figures)) }}</td>
-                    <td>{{ $analyte->significant_figures }}</td>
-                    <td nowrap>{{ $analyte->method()->name ?? '-' }}</td>
-                    <td nowrap>{{ $analyte->equipment->name  ?? '-' }}</td>
-                    <td nowrap>{{ $analyte->operator->name  ?? '-' }}</td>
+                    <td nowrap><?php echo e($analyte->analyte->name); ?> - <?php echo e($analyte->analyte->code); ?></td>
+                    <td><?php echo e($analyte->decimal_places); ?></td>
+                    <td><?php echo e($analyte->reporting_symbol); ?></td>
+                    <td><?php echo e($analyte->reporting_unit); ?></td>
+                    <td><?php echo e($analyte->reporting_time > 0 ? $analyte->reporting_time : $analysis_type->reporting_time); ?></td>
+                    <td><?php echo e($analyte->lod == null ? '' : ( $analyte->significant_figures == null ? $analyte->lod : sigFig($analyte->lod, $analyte->significant_figures))); ?></td>
+                    <td><?php echo e($analyte->significant_figures); ?></td>
+                    <td nowrap><?php echo e($analyte->method()->name ?? '-'); ?></td>
+                    <td nowrap><?php echo e($analyte->equipment->name  ?? '-'); ?></td>
+                    <td nowrap><?php echo e($analyte->operator->name  ?? '-'); ?></td>
                     <td class="text-small">
-                      {!! $analyte->remark_is_manual == '1' ? '<i class="mdi mdi-check-bold text-success"></i>' : '<i class="mdi mdi-close-circle text-danger"></i>' !!}
+                      <?php echo $analyte->remark_is_manual == '1' ? '<i class="mdi mdi-check-bold text-success"></i>' : '<i class="mdi mdi-close-circle text-danger"></i>'; ?>
+
                     </td>
-                    <td class="text-small">{!! $analyte->non_detectable == '1' ? '<i class="mdi mdi-check-bold text-success"></i>' : '<i class="mdi mdi-close-circle text-danger"></i>' !!}</td>
-                    <td class="text-small">{!! $analyte->non_accredited == '1' ? '<i class="mdi mdi-check-bold text-success"></i>' : '<i class="mdi mdi-close-circle text-danger"></i>' !!}</td>
-                    <td class="text-small">{!! $analyte->show_on_report == '1' ? '<i class="mdi mdi-check-bold text-success"></i>' : '<i class="mdi mdi-close-circle text-danger"></i>' !!}</td>
-                    <td class="text-small">{!! $analyte->is_manual == '1' ? '<i class="mdi mdi-check-bold text-success"></i>' : '<i class="mdi mdi-close-circle text-danger"></i>' !!}</td>
-                    <td class="text-small">{!! $analyte->active == '1' ? '<i class="mdi mdi-check-bold text-success"></i>' : '<i class="mdi mdi-close-circle text-danger"></i>' !!}</td>
+                    <td class="text-small"><?php echo $analyte->non_detectable == '1' ? '<i class="mdi mdi-check-bold text-success"></i>' : '<i class="mdi mdi-close-circle text-danger"></i>'; ?></td>
+                    <td class="text-small"><?php echo $analyte->non_accredited == '1' ? '<i class="mdi mdi-check-bold text-success"></i>' : '<i class="mdi mdi-close-circle text-danger"></i>'; ?></td>
+                    <td class="text-small"><?php echo $analyte->show_on_report == '1' ? '<i class="mdi mdi-check-bold text-success"></i>' : '<i class="mdi mdi-close-circle text-danger"></i>'; ?></td>
+                    <td class="text-small"><?php echo $analyte->is_manual == '1' ? '<i class="mdi mdi-check-bold text-success"></i>' : '<i class="mdi mdi-close-circle text-danger"></i>'; ?></td>
+                    <td class="text-small"><?php echo $analyte->active == '1' ? '<i class="mdi mdi-check-bold text-success"></i>' : '<i class="mdi mdi-close-circle text-danger"></i>'; ?></td>
                     
                   </tr>
-                  @endforeach
-                  @endif
+                  <?php endforeach; $__env->popLoop(); $loop = $__env->getLastLoop(); ?>
+                  <?php endif; ?>
                 </tbody>
               </table>
-              @if(count($analysis_type->analysis_elements) == 0)
+              <?php if(count($analysis_type->analysis_elements) == 0): ?>
               <div class="alert alert-info">
                 <i class="mdi mdi-alert"></i> No Analytes added yet.
               </div>
-              @endif
+              <?php endif; ?>
             </div>
           </div>
         </div>
@@ -427,13 +436,13 @@
     </div>
   </div>
 </main>
-@endsection
-@section('script2')
+<?php $__env->stopSection(); ?>
+<?php $__env->startSection('script2'); ?>
 <div class="modal fade" id="edit-analysis-element" role="dialog">
   <div class="modal-dialog">
     <div class="modal-content">
       <form action="/analysis-element/0" method="post">
-        @csrf
+        <?php echo csrf_field(); ?>
         <div class="modal-body">
 
         </div>
@@ -448,9 +457,9 @@
 <div id="add-analyte-guide" class="modal fade" role="dialog">
   <div class="modal-dialog">
     <!-- Modal content-->
-    <form class="modal-content" method="POST" action="{{ route('add-analyte-guide') }}" enctype="multipart/form-data">
-      @csrf
-      <input type="hidden" name="analysis_type_id" value="{{ $analysis_type_id }}" />
+    <form class="modal-content" method="POST" action="<?php echo e(route('add-analyte-guide')); ?>" enctype="multipart/form-data">
+      <?php echo csrf_field(); ?>
+      <input type="hidden" name="analysis_type_id" value="<?php echo e($analysis_type_id); ?>" />
       <input type="hidden" name="guide_id" value="0" />
       <div class="modal-header">
         <h4 class="modal-title"><i class="mdi mdi-plus"></i> Add Analyte Guide</h4>
@@ -460,9 +469,9 @@
           <label class="control-label">Analyte</label>
           <select class="form-control" name="analyte_id" required placeholder="Select Analyte...">
             <option></option>
-            @foreach($analysis_type->analysis_elements as $a)
-            <option value="{{ $a->analyte->id }}" data-step="{{ $a->analyte->decimal_places }}">{{ $a->analyte->name }}</option>
-            @endforeach
+            <?php $__currentLoopData = $analysis_type->analysis_elements; $__env->addLoop($__currentLoopData); foreach($__currentLoopData as $a): $__env->incrementLoopIndices(); $loop = $__env->getLastLoop(); ?>
+            <option value="<?php echo e($a->analyte->id); ?>" data-step="<?php echo e($a->analyte->decimal_places); ?>"><?php echo e($a->analyte->name); ?></option>
+            <?php endforeach; $__env->popLoop(); $loop = $__env->getLastLoop(); ?>
           </select>
         </div>
 
@@ -473,11 +482,11 @@
         <div class="form-group">
           <label class="control-label">Standard</label>
           <select class="form-control" name="standard" required>
-            @foreach($standards as $standard)
-            @if($standard->status == 1)
-            <option value="{{$standard->id}}">{{$standard->code}}</option>
-            @endif
-            @endforeach
+            <?php $__currentLoopData = $standards; $__env->addLoop($__currentLoopData); foreach($__currentLoopData as $standard): $__env->incrementLoopIndices(); $loop = $__env->getLastLoop(); ?>
+            <?php if($standard->status == 1): ?>
+            <option value="<?php echo e($standard->id); ?>"><?php echo e($standard->code); ?></option>
+            <?php endif; ?>
+            <?php endforeach; $__env->popLoop(); $loop = $__env->getLastLoop(); ?>
           </select>
         </div>
 
@@ -517,9 +526,9 @@
         <div class="form-group" id="standard-values" style="display:none">
           <label class="control-label">Standard Values <span class="text-danger">*</span></label>
           <select name="standard_value" class="form-control" id="Standard-Value" onclick="checkvalue(this)" placeholder="Employee...">
-            @foreach($standard_values as $value)
-            <option value="{{$value->code}}">{{$value->name}}</option>
-            @endforeach
+            <?php $__currentLoopData = $standard_values; $__env->addLoop($__currentLoopData); foreach($__currentLoopData as $value): $__env->incrementLoopIndices(); $loop = $__env->getLastLoop(); ?>
+            <option value="<?php echo e($value->code); ?>"><?php echo e($value->name); ?></option>
+            <?php endforeach; $__env->popLoop(); $loop = $__env->getLastLoop(); ?>
           </select>
         </div>
         <div class="form-group" id="is-value" style="display: none;">
@@ -552,9 +561,9 @@
 <div id="import-analytes-modal" class="modal fade" role="dialog">
   <div class="modal-dialog">
     <!-- Modal content-->
-    <form class="modal-content" method="POST" action="{{ route('analyte-type-elements-import') }}" enctype="multipart/form-data">
-      @csrf
-      <input type="hidden" name="analysis_type_id" value="{{ $analysis_type_id }}" />
+    <form class="modal-content" method="POST" action="<?php echo e(route('analyte-type-elements-import')); ?>" enctype="multipart/form-data">
+      <?php echo csrf_field(); ?>
+      <input type="hidden" name="analysis_type_id" value="<?php echo e($analysis_type_id); ?>" />
       <div class="modal-header">
         <h4 class="modal-title"><i class="mdi mdi-upload"></i> Import Analytes</h4>
       </div>
@@ -564,7 +573,7 @@
           <br>
         </div>
         <div class="form-group">
-          <a class="btn btn-transparent text-primary btn-block" href="{{ url('templates/import-analysis-type-elements.xlsx') }}">
+          <a class="btn btn-transparent text-primary btn-block" href="<?php echo e(url('templates/import-analysis-type-elements.xlsx')); ?>">
             <i class="fas fa-download"></i> Download Template
           </a>
         </div>
@@ -586,8 +595,8 @@
   <div class="modal-dialog">
     <!-- Modal content-->
     <form class="modal-content" method="POST" action="/analysis-elements" enctype="multipart/form-data">
-      @csrf
-      <input type="hidden" name="analysis_type_id" value="{{ $analysis_type_id }}" />
+      <?php echo csrf_field(); ?>
+      <input type="hidden" name="analysis_type_id" value="<?php echo e($analysis_type_id); ?>" />
       <div class="modal-header">
         <h4 class="modal-title"><i class="mdi mdi-plus"></i> Add Analysis Element</h4>
       </div>
@@ -596,9 +605,9 @@
           <label class="control-label">Analyte <span class="text-danger">*</span></label>
           <select class="form-control" name="analyte_id" required>
             <option value="">Select Analyte</option>
-            @foreach ($analytes as $a)
-            <option value="{{ $a->id }}">{{ $a->name }}</option>
-            @endforeach
+            <?php $__currentLoopData = $analytes; $__env->addLoop($__currentLoopData); foreach($__currentLoopData as $a): $__env->incrementLoopIndices(); $loop = $__env->getLastLoop(); ?>
+            <option value="<?php echo e($a->id); ?>"><?php echo e($a->name); ?></option>
+            <?php endforeach; $__env->popLoop(); $loop = $__env->getLastLoop(); ?>
           </select>
         </div>
         <div class="form-group">
@@ -625,41 +634,41 @@
           <label class="control-label">Reporting Unit</label>
           <select class="form-control" name="reporting_unit">
             <option value="">Select Reporting Unit...</option>
-            @foreach (getReportingUnits() as $g)
-            <option value="{{ $g['name'] }}">{{ $g['name'] }}</option>
-            @endforeach
+            <?php $__currentLoopData = getReportingUnits(); $__env->addLoop($__currentLoopData); foreach($__currentLoopData as $g): $__env->incrementLoopIndices(); $loop = $__env->getLastLoop(); ?>
+            <option value="<?php echo e($g['name']); ?>"><?php echo e($g['name']); ?></option>
+            <?php endforeach; $__env->popLoop(); $loop = $__env->getLastLoop(); ?>
           </select>
         </div>
         <div class="form-group">
           <label class="control-label">Method <span class="text-danger">*</span></label>
           <select class="form-control" name="method" required>
             <option value="">Select Method...</option>
-            @foreach (getMethods() as $g)
-            <option value="{{ $g['id'] }}">{{ $g['name'] }}</option>
-            @endforeach
+            <?php $__currentLoopData = getMethods(); $__env->addLoop($__currentLoopData); foreach($__currentLoopData as $g): $__env->incrementLoopIndices(); $loop = $__env->getLastLoop(); ?>
+            <option value="<?php echo e($g['id']); ?>"><?php echo e($g['name']); ?></option>
+            <?php endforeach; $__env->popLoop(); $loop = $__env->getLastLoop(); ?>
           </select>
         </div>
         <div class="form-group">
           <label class="control-label">Equipment</label>
           <select class="form-control" name="equipment_id" placeholder="Select Equipment...">
             <option></option>
-            @foreach (getEquipment() as $g)
-            <option value="{{ $g['id'] }}" data-operators="{{ json_encode($g->operator_names()) }}">{{ $g['name'] }}</option>
-            @endforeach
+            <?php $__currentLoopData = getEquipment(); $__env->addLoop($__currentLoopData); foreach($__currentLoopData as $g): $__env->incrementLoopIndices(); $loop = $__env->getLastLoop(); ?>
+            <option value="<?php echo e($g['id']); ?>" data-operators="<?php echo e(json_encode($g->operator_names())); ?>"><?php echo e($g['name']); ?></option>
+            <?php endforeach; $__env->popLoop(); $loop = $__env->getLastLoop(); ?>
           </select>
         </div>
         <div class="form-group">
           <label class="control-label">Operator</label>
           <select class="form-control"  name="operator_id" placeholder="Select Operator...">
             <option value="">Select Analyst...</option>
-            @foreach($usersAnalysts as $analyst)
-            <option value="{{$analyst->id}}" >{{$analyst->name}}</option>
-            @endforeach
+            <?php $__currentLoopData = $usersAnalysts; $__env->addLoop($__currentLoopData); foreach($__currentLoopData as $analyst): $__env->incrementLoopIndices(); $loop = $__env->getLastLoop(); ?>
+            <option value="<?php echo e($analyst->id); ?>" ><?php echo e($analyst->name); ?></option>
+            <?php endforeach; $__env->popLoop(); $loop = $__env->getLastLoop(); ?>
           </select>
         </div>
         <div class="form-group">
           <label for="" class="control-label">Reporting Time</label>
-          <input type="number" name="report_time" value="{{$analysis_type->reporting_time}}" class="form-control">
+          <input type="number" name="report_time" value="<?php echo e($analysis_type->reporting_time); ?>" class="form-control">
         </div>
         <div class="form-group">
           <label for="" class="control-label"><input type="checkbox" name="remark_is_manual" value="1" id=""> Remark Capture is Manual</label>
@@ -699,12 +708,12 @@
           <label class="control-label">Analyte <span class="text-danger">*</span> </label>
           <select class="form-control" name="analyte_id" id="analyte_id" required>
             <option value="">Select Analyte</option>
-            @foreach ($analytes as $a)
-            <option value="{{ $a->id }}">{{ $a->name }}</option>
-            @endforeach
+            <?php $__currentLoopData = $analytes; $__env->addLoop($__currentLoopData); foreach($__currentLoopData as $a): $__env->incrementLoopIndices(); $loop = $__env->getLastLoop(); ?>
+            <option value="<?php echo e($a->id); ?>"><?php echo e($a->name); ?></option>
+            <?php endforeach; $__env->popLoop(); $loop = $__env->getLastLoop(); ?>
           </select>
         </div>
-        <input type="hidden" name="analysis_type_id" value="{{ $analysis_type_id }}" />
+        <input type="hidden" name="analysis_type_id" value="<?php echo e($analysis_type_id); ?>" />
         <input type="hidden" name="analysis_element_id" value="${data.id }" />
         <div class="form-group">
           <label class="control-label">Significant Figures</label>
@@ -730,27 +739,27 @@
           <label class="control-label">Reporting Unit</label>
           <select class="form-control" name="reporting_unit" id="reporting_unit">
             <option value="">Select Reporting Unit...</option>
-            @foreach (getReportingUnits() as $g)
-            <option value="{{$g['name'] }}"> {{ $g['name'] }}</option>
-            @endforeach
+            <?php $__currentLoopData = getReportingUnits(); $__env->addLoop($__currentLoopData); foreach($__currentLoopData as $g): $__env->incrementLoopIndices(); $loop = $__env->getLastLoop(); ?>
+            <option value="<?php echo e($g['name']); ?>"> <?php echo e($g['name']); ?></option>
+            <?php endforeach; $__env->popLoop(); $loop = $__env->getLastLoop(); ?>
           </select>
         </div>
         <div class="form-group">
           <label class="control-label">Method <span class="text-danger">*</span></label>
           <select class="form-control" name="method" id="method_id" required>
             <option value="">Select Method...</option>
-            @foreach (getMethods() as $g)
-            <option value="{{ $g['id'] }}">{{ $g['name'] }}</option>
-            @endforeach
+            <?php $__currentLoopData = getMethods(); $__env->addLoop($__currentLoopData); foreach($__currentLoopData as $g): $__env->incrementLoopIndices(); $loop = $__env->getLastLoop(); ?>
+            <option value="<?php echo e($g['id']); ?>"><?php echo e($g['name']); ?></option>
+            <?php endforeach; $__env->popLoop(); $loop = $__env->getLastLoop(); ?>
           </select>
         </div>
         <div class="form-group">
           <label class="control-label">Equipment</label>
           <select class="form-control" name="equipment_id" id="equipment_id_field" placeholder="Select Equipment...">
             <option></option>
-            @foreach (getEquipment() as $g)
-            <option value="{{ $g['id'] }}">{{ $g['name'] }}</option>
-            @endforeach
+            <?php $__currentLoopData = getEquipment(); $__env->addLoop($__currentLoopData); foreach($__currentLoopData as $g): $__env->incrementLoopIndices(); $loop = $__env->getLastLoop(); ?>
+            <option value="<?php echo e($g['id']); ?>"><?php echo e($g['name']); ?></option>
+            <?php endforeach; $__env->popLoop(); $loop = $__env->getLastLoop(); ?>
           </select>
         </div>
 
@@ -758,9 +767,9 @@
           <label class="control-label">Operator</label>
           <select class="form-control"  name="operator_id" id="operator_id_field" placeholder="Select Operator...">
             <option value="">Select Analyst...</option>
-            @foreach($usersAnalysts as $analyst)
-            <option value="{{$analyst->id}}">{{$analyst->name}}</option>
-            @endforeach
+            <?php $__currentLoopData = $usersAnalysts; $__env->addLoop($__currentLoopData); foreach($__currentLoopData as $analyst): $__env->incrementLoopIndices(); $loop = $__env->getLastLoop(); ?>
+            <option value="<?php echo e($analyst->id); ?>"><?php echo e($analyst->name); ?></option>
+            <?php endforeach; $__env->popLoop(); $loop = $__env->getLastLoop(); ?>
           </select>
         </div>
         <div class="form-group">
@@ -825,7 +834,7 @@
       var i = pTR.index();
       console.log(pTR.data('element'));
       $.ajax({
-        url: "/move-analysis-analyte/" + action + "/{{ $analysis_type->id }}/" + pTR.data('element'),
+        url: "/move-analysis-analyte/" + action + "/<?php echo e($analysis_type->id); ?>/" + pTR.data('element'),
         dataType: 'json',
         beforeSend: function() {
           $('#analytes-holder').find('tr').find('.move-analyte-up').addClass('text-muted');
@@ -1025,4 +1034,5 @@
 
   }
 </script>
-@endsection
+<?php $__env->stopSection(); ?>
+<?php echo $__env->make('layouts.lab.layout.app', ['dataTable'=>true, 'select2'=>true], \Illuminate\Support\Arr::except(get_defined_vars(), ['__data', '__path']))->render(); ?><?php /**PATH /Users/kimari/Projects/polucon/resources/views/layouts/lab/analysis-types/show.blade.php ENDPATH**/ ?>
