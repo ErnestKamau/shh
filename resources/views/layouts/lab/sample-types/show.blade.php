@@ -197,7 +197,7 @@
             <table class="table table-condensed my-small-text table-striped table-hover table-bordered table-sm">
               <thead class="bg-light p-2">
                 <tr>
-                  <th>No</th>
+                  <th></th>
                   <th>Code</th>
                   <th>Name</th>
                   <th>Short Name</th>
@@ -219,7 +219,8 @@
                       <i class="mdi mdi-arrow-up-drop-circle move-analyte-up move-analyte" data-action="move-up"></i>
                     </span>
                     <span style="cursor: pointer">
-                      <i class="mdi mdi-arrow-down-drop-circle move-analyte-down move-analyte" data-action="move-down"></i> </span>
+                      <i class="mdi mdi-arrow-down-drop-circle move-analyte-down move-analyte" data-action="move-down"></i> 
+                    </span>
                   </td>
                   <td>{{ $analysis_type->code }}</td>
                   <td>{{ $analysis_type->name }}</td>
@@ -231,9 +232,12 @@
                   <td>{{ $analysis_type->labsectionname }}</td>
                   <td class="text-small">{!! $analysis_type->active == '1' ? '<i class="mdi mdi-marker-check text-success"></i>' : '<i class="mdi mdi-close-circle text-danger"></i>' !!}</td>
                   <td nowrap>
-                    <button class="btn btn-primary btn-sm" data-target="#edit-active-analysis_type-{{ $loop->iteration }}" data-toggle="modal"><i class="mdi mdi-pencil-outline"></i> <small class="hidden-sm-up">Edit</small> </button>
+                    <button class="btn btn-white text-primary btn-sm" data-target="#edit-active-analysis_type-{{ $loop->iteration }}" data-toggle="modal"><i class="mdi mdi-pencil-outline"></i> <small class="hidden-sm-up">Edit</small> </button>
                     {{-- <button class="btn btn-danger btn-sm"><i class="mdi mdi-delete-empty"></i> <small class="hidden-sm-up">Delete</small> </button>  --}}
-                    <a class="btn btn-success btn-sm" href="{{ route('analysis-type', ['id'=>$analysis_type->id]) }}"><i class="mdi mdi-eye-outline"></i> <small class="hidden-sm-up">Show</small> </a>
+                    <a class="btn btn-white text-success btn-sm" href="{{ route('analysis-type', ['id'=>$analysis_type->id]) }}">
+                      <i class="mdi mdi-eye-outline"></i> <small class="hidden-sm-up">Show</small> 
+                    </a>
+                    <button class="btn btn-white btn-sm" data-value="{{ route('analysis-type-clone', [$analysis_type->id]) }}" data-toggle="modal" data-target="#clone-analysis-type-modal" title="clone"><i class="mdi mdi-content-duplicate"></i></button>
                     <div id="edit-active-analysis_type-{{ $loop->iteration }}" class="modal fade" role="dialog">
                       <div class="modal-dialog">
                         <!-- Modal content-->
@@ -649,9 +653,34 @@
     </form>
   </div>
 </div>
-<script>
-  $(function() {
-
+<div id="clone-analysis-type-modal" class="modal fade" role="dialog">
+  <div class="modal-dialog">
+    <!-- Modal content-->
+    <form class="modal-content" method="POST" enctype="multipart/form-data">
+      @csrf
+      <div class="modal-header">
+        <h4 class="modal-title"><i class="mdi mdi-duplicate"></i> Clone Analysis Type</h4>
+      </div>
+      <div class="modal-body">
+        <div class="form-group">
+          <label class="control-label">Name</label>
+          <input type="text" class="form-control" name="name" placeholder="Analysis Type Name..." required />
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button type="submit" class="btn btn-primary">Clone</button>
+        <button type="button" class="btn btn-default" data-dismiss="modal">Close</button>
+      </div>
+    </form>
+  </div>
+</div>
+<script type="text/javascript">
+  $(function(){
+    $('#clone-analysis-type-modal').on('shown.bs.modal', function (e) {
+      var $url = $(e.relatedTarget).data('value');
+      $(this).find('form').prop('action', $url);
+      $(this).find('form').attr('action', $url);
+    });
 
     var configureThemArrow = function() {
       $('#analytes-holder').find('tr').find('.move-analyte-up').addClass('text-success').removeClass('text-muted');
