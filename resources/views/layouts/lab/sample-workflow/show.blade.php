@@ -575,6 +575,7 @@
           </div>
         </div>
       </div>
+	  <span id="operators-list" data-operators='{{ json_encode($analysts) }}'></span>
       <div class="col-sm-12 p-2">
 		@if(isset($batch->id) && !$defaultClient)
 			<div class="card border-0 mb-2" style="background-color: inherit !important">
@@ -4259,7 +4260,8 @@
 		
 		
 		$row.find('select.item-operators').empty();
-		$.each(data.ops, function(o,p){
+		var OPS = $('#operators-list').data('analysts');
+		$.each(OPS, function(o,p){
 			$row.find('select.item-operators').append(`<option value="${p.id}">${p.name}</option>`)
 		});
 		$row.find('select.method-id').select2();

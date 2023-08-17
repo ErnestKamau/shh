@@ -8,6 +8,7 @@ use OwenIt\Auditing\Contracts\Auditable;
 class SampleDetails extends Model implements Auditable
 {
 	use \OwenIt\Auditing\Auditable;
+	// public $with = ['sample_detail_lab', 'captured_results'];
 	public $fillable = ['sample_code','sample_header_id','disposal_date'];
   public function analysis()
 	{
@@ -44,7 +45,7 @@ class SampleDetails extends Model implements Auditable
 
 	public function captured_results()
 	{
-		return $this->hasMany('App\CapturedResult');
+		return $this->hasMany('App\CapturedResult', 'sample_detail_id');
 	}
 
 	public function product()
@@ -54,5 +55,10 @@ class SampleDetails extends Model implements Auditable
 	}
 	public function getAnalysisRelation(){
 		return implode(', ',SampleAnalysisTypeRelationView::where('sample_detail_id',$this->id)->pluck('analysis_type_name')->toArray() ?? []);
+	}
+
+
+	public function sample_detail_lab(){
+		return $this->hasOne(SampleAnalysisTypeRelationView::class, 'sample_detail_id');
 	}
 }

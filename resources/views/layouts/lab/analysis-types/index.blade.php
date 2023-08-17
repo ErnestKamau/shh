@@ -29,7 +29,7 @@
       <table class="table table-condensed my-small-text table-striped table-hover table-bordered table-sm">
         <thead class="bg-light p-2">
           <tr>
-            <th>No</th>
+            <th></th>
             <th>Code</th>
             <th>Name</th>
             <th>Short Name</th>
@@ -45,7 +45,9 @@
           @if(count($analysis_types) > 0)
             @foreach($analysis_types as $analysis_type)
               <tr>
-                <td valign="center">{{ $loop->iteration }}</td>
+                <td valign="center">
+                  <input type="radio" name="analysis_selector" class="clone-id" value="{{ route('analysis-type-clone', [$analysis_type->id]) }}" />
+                </td>
                 <td>{{ $analysis_type->code }}</td>
                 <td>{{ $analysis_type->name }}</td>
                 <td>{{ $analysis_type->short_name ?? 'N/A' }}</td>
@@ -127,7 +129,6 @@
     </div>
   </main>
 @endsection
-
 @section('script2')
   <div id="add-analysis-type" class="modal fade" role="dialog">
     <div class="modal-dialog">

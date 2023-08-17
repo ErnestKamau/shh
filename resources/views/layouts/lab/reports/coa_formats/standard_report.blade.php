@@ -98,7 +98,7 @@
                     <div class="text-center" style="font-size:5px">
                         {{$disclaimer->value}}
                         @if($batch->sampled_by_company_personnel == 0)
-                        <br>
+                        <br><br>
                         <b>NB: This report relates to submitted sample(s) only. The source and markings are as provided by the customer.</b>
                         @endif
                     </div>
@@ -234,7 +234,8 @@
                         <tr>
                             <td class="parameter"
                                 style="font-size: 10px !important;font-weight:600;background-color:#fafafa;padding:1px !important;padding-left:2px !important;"
-                                colspan="5">{{ strtoupper($analysis_type_level->analysis_type_name) }}</td>
+                                colspan="5">{{ strtoupper($analysis_type_level->analysis_type_name) }}
+                            </td>
                         </tr>
                         @foreach ($analysis_type_level->getCapturedResults() as $captured)
                         <tr>
@@ -316,7 +317,6 @@
         $y = $pdf->get_height() - 20;
         $pdf->page_text($x, $y, $text, $font, $size);
     }
-    
 </script>
 
 </body>

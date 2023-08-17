@@ -351,7 +351,9 @@
             </div>
           </div>
           <div class="tab-pane fade show active p-3" id="parameters" role="tabpanel" aria-labelledby="one-tab">
-            <h5 class="card-title">Analytes <div class="btn btn-sm btn-info float-right" data-target="#add-analyte" data-toggle="modal"><i class="mdi mdi-plus"></i> Add</div>
+            <h5 class="card-title">Analytes 
+              <div class="btn btn-sm btn-info float-right" data-target="#add-analyte" data-toggle="modal"><i class="mdi mdi-plus"></i> Add</div>
+              <span class="btn btn-sm btn-primary float-right mr-1" data-target="#import-analytes-modal" data-toggle="modal"><i class="mdi mdi-upload"></i> Import</span>
             </h5>
             <div class="table-responsive">
               <table class="table table-condensed my-small-text table-striped table-hover table-bordered table">
@@ -546,6 +548,40 @@
     </form>
   </div>
 </div>
+
+<div id="import-analytes-modal" class="modal fade" role="dialog">
+  <div class="modal-dialog">
+    <!-- Modal content-->
+    <form class="modal-content" method="POST" action="{{ route('analyte-type-elements-import') }}" enctype="multipart/form-data">
+      @csrf
+      <input type="hidden" name="analysis_type_id" value="{{ $analysis_type_id }}" />
+      <div class="modal-header">
+        <h4 class="modal-title"><i class="mdi mdi-upload"></i> Import Analytes</h4>
+      </div>
+      <div class="modal-body">
+        <div class="alert alert-info">
+          <i class="fas fa-info-circle"></i> Please use the template below to import the analytes.
+          <br>
+        </div>
+        <div class="form-group">
+          <a class="btn btn-transparent text-primary btn-block" href="{{ url('templates/import-analysis-type-elements.xlsx') }}">
+            <i class="fas fa-download"></i> Download Template
+          </a>
+        </div>
+
+        <div class="form-group">
+          <label for="file" class="control-label">Attach Excel File(.xlsx)</label>
+          <input type="file" name="file" class="form-control" />
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button type="submit" class="btn btn-primary"><i class="mdi mdi-upload"></i> Import</button>
+        <button type="button" class="btn btn-default" data-dismiss="modal">Close</button>
+      </div>
+    </form>
+  </div>
+</div>
+
 <div id="add-analyte" class="modal fade" role="dialog">
   <div class="modal-dialog">
     <!-- Modal content-->

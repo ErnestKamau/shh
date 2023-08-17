@@ -78,7 +78,8 @@
                 <td nowrap>
                   <button class="btn btn-outline-primary btn-sm" data-target="#edit-sample_type-{{ $loop->iteration }}" data-toggle="modal" data-toggle="tooltip" title="Edit Sample Type"><i class="mdi mdi-pencil-outline"></i> <small class="hidden-sm-up">Edit</small> </button>
                   <a class="btn btn-outline-success btn-sm" href="{{ route('sample-type', ['id'=>$sample_type->id]) }}" data-toggle="tooltip"  title="View"><i class="mdi mdi-eye-outline"></i> <small class="hidden-sm-up">Show</small> </a>
-                  <span class="btn btn-outline-danger btn-sm" data-toggle="modal" data-analysis = "{{json_encode($sample_type->analysis_types)}}" data-sample = "{{json_encode($sample_type)}}" data-target="#delete-sample-type" data-toggle="tooltip" title="Delete Sample Type"><i class="mdi mdi-delete-empty"></i></span>
+                  <span class="btn btn-outline-danger btn-sm" data-toggle="modal" data-analysis = "{{ json_encode($sample_type->analysis_types) }}" data-sample = "{{json_encode($sample_type)}}" data-target="#delete-sample-type" data-toggle="tooltip" title="Delete Sample Type"><i class="mdi mdi-delete-empty"></i></span>
+                  <button class="btn btn-white btn-sm" data-value="{{ route('sample-type-clone', [$sample_type->id]) }}" data-toggle="modal" data-target="#clone-analysis-type-modal" title="clone"><i class="mdi mdi-content-duplicate"></i></button>
                   <div id="edit-sample_type-{{ $loop->iteration }}" class="modal fade" role="dialog">
                     <div class="modal-dialog">
                       <!-- Modal content-->
@@ -460,14 +461,40 @@
     </form>
   </div>
 </div>
-
-
-
-
-<script>
+<div id="clone-analysis-type-modal" class="modal fade" role="dialog">
+  <div class="modal-dialog">
+    <!-- Modal content-->
+    <form class="modal-content" method="POST" enctype="multipart/form-data">
+      @csrf
+      <div class="modal-header">
+        <h4 class="modal-title"><i class="mdi mdi-duplicate"></i> Clone Sample Type</h4>
+      </div>
+      <div class="modal-body">
+        <div class="form-group">
+          <label class="control-label">Name</label>
+          <input type="text" class="form-control" name="name" placeholder="Sample Type Name..." required />
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button type="submit" class="btn btn-primary">Clone</button>
+        <button type="button" class="btn btn-default" data-dismiss="modal">Close</button>
+      </div>
+    </form>
+  </div>
+</div>
+<script type="text/javascript">
   $(function(){
+    $('#clone-analysis-type-modal').on('shown.bs.modal', function (e) {
+      var $url = $(e.relatedTarget).data('value');
+      $(this).find('form').prop('action', $url);
+      $(this).find('form').attr('action', $url);
+    });
+
     $('#delete-sample-type').on('show.bs.modal',function(e){
       var sample = $(e.relatedTarget).data('sample');
+
+      console.log('------------------------'+sample.id);
+
       var analysis_type = $(e.relatedTarget).data('analysis');
       var text = `
       <div class="alert alert-success p-3">
@@ -481,16 +508,8 @@
       </div>
       `;
       $(this).find('.modal-body').empty();
-      if(analysis_type.length > 0){
-        $(this).find('.modal-body').append(text_);
-        $(this).find('#delete-btn').prop('disabled',true);
-      }else{
-        $(this).find('.modal-body').append(text);
-        $(this).find('#delete-btn').removeAttr('disabled');
-      }
-      
-
-    })
+      $(this).find('.modal-body').append(text);
+    });
   })
 </script>
 @endsection

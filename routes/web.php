@@ -802,6 +802,9 @@ Route::post('/clone/Batch-Information','SampleWorkFlowController@cloneBatchInfor
 Route::get('get/Standard-Values/Data/Ajax','SampleWorkFlowController@getStandardValuesDataAjax')->name('getStandardValuesDataAjax');
 Route::post('update/Standard-Analyte/Limit','SampleWorkFlowController@updateStandardAnalyteLimit')->name('updateStandardAnalyteLimit');
 
+Route::post('/analyte-type-elements-import', 'AnalysisElementsController@import')->name('analyte-type-elements-import');
+Route::post('/analysis-type-clone/{id}', 'AnalysisTypeController@clone')->name('analysis-type-clone');
+Route::post('/sample-type-clone/{id}', 'SampleTypeController@clone')->name('sample-type-clone');
 
 ################################################Polucon#########################################
 

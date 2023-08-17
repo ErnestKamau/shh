@@ -8,7 +8,9 @@ use App\AnalysisMethod;
 use App\AnalysisType;
 use Illuminate\Http\Request;
 use App\CapturedResult;
+use App\Imports\ImportAnalysisElements;
 use App\Result;
+use Maatwebsite\Excel\Facades\Excel;
 
 class AnalysisElementsController extends Controller
 {
@@ -136,5 +138,26 @@ class AnalysisElementsController extends Controller
     $methods = $analyte->methods();
     $all_methods = AnalysisMethod::all()->pluck('id','name')->toArray();
     return response()->json(sizeof($methods) > 0 ? $methods : $all_methods);
+  }
+
+  public function import(Request $request){
+      // Validate the uploaded file
+      $request->validate([
+        'file' => 'required|mimes:xls,xlsx',
+      ]);
+
+      // Get the uploaded file
+      $file = $request->file('file');
+
+      // Use the ImportAnalysisElements class to import the data
+      $analysisType = AnalysisType::find($request->analysis_type_id);
+      Excel::import(new ImportAnalysisElements($analysisType), $file);
+      return redirect()->back()->with('success', 'File imported successfully.');
+      
+      try {
+          
+      } catch (\Exception $e) {
+          return redirect()->back()->with('error', 'An error occurred while importing the file.');
+      }
   }
 }

@@ -122,4 +122,23 @@ class AnalysisTypeController extends Controller
 
 		return response()->json($analysis_types, 200);
 	}
+
+  public function clone(Request $request, $id){
+    $analysisType = AnalysisType::find($id);
+    $analysisElements = AnalysisElements::where('analysis_type_id', $id)->get();
+
+    $newAType = $analysisType->replicate();
+    $newAType->name = $request->name;
+    $newAType->code = $request->name;
+    $newAType->short_name = $request->name;
+    $newAType->save();
+
+    foreach($analysisElements as $aE){
+      $nAE = $aE->replicate();
+      $nAE->analysis_type_id = $newAType->id;
+      $nAE->save();
+    }
+
+    return redirect()->back()->with('success', 'Cloning was successful');
+  }
 }
