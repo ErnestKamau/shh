@@ -3819,5 +3819,29 @@ class SampleWorkFlowController extends Controller
 		}
 		return redirect()->back()->with('success','Cloned batch created successfully');
 	}
-	// getLabsByAnalysisTypeIdAjax  get Labs
+	public function getStandardValuesDataAjax(){
+		$values = StandardValue::where('status',1)->get();
+		return response()->json($values);
+	}
+	public function updateStandardAnalyteLimit(Request $request){
+		$standard = Standards::where('code',$request->standard_id)->first();
+		$standard_analyte = StandardAnalytes::where('standard_id',$standard->id)->where('analyte_id',$request->analyte_id)->first() ?? new StandardAnalytes();
+		$standard_analyte->low = $request->low;
+		$standard_analyte->high = $request->high;
+		$standard_analyte->standard_value_id = $request->standard_valuetype;
+		$standard_analyte->value_type = $request->limit_measure;
+		$standard_analyte->standard_is_value = $request->value;
+		$standard_analyte->standard_value_type = $request->standard_value_type == 1 ? 'is_range' : 'is_standard_value';
+		$standard_analyte->analyte_id = $request->analyte_id;
+		$standard_analyte->standard_id = $standard->id;
+		$standard_analyte->is_active = 1;
+		$standard_analyte->save();
+		$value = 'NS';
+		
+		$value = $request->standard_value_type == 1 ? $request->low.' - '.$request->high : $value;
+		$value = $request->standard_value_type == 2 && $request->limit_measure == '' ? StandardValue::find($request->standard_valuetype)->code : $value;
+		$value = $request->standard_value_type == 2 && $request->limit_measure != '' ? $request->limit_measure.' '.$request->value  : $value;
+		$format_value = $request->standard_value_type == 2 && $request->limit_measure != '' ? $request->value : $value;
+		return response()->json(["format_value"=>$value,"value"=>$format_value]);
+	}
 }

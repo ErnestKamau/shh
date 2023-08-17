@@ -3,6 +3,7 @@
 @section('title2')
   <title> {{ isset($batch->batch_code) ? $batch->batch_code." | Batch Info" : "New Batch" }}</title>
 	<style>
+		
 		.form-part-toggler{
 			margin: 0px 0px 5px 0px !important;
 			padding: 6px 6px 6px 6px;
@@ -1398,6 +1399,20 @@
 </div>
 
 @if(isset($batch->id))
+
+<div class="modal fade" id="edit-standard"  role="dialog" style="z-index: 3000">
+	<div class="modal-dialog">
+		<div class="modal-content bg-light">
+			<div class="modal-body">
+				
+			</div>
+			<div class="modal-footer">
+				<span class="btn btn-sm btn-outline-primary save-standard-value"><i class="mdi mdi-content-save"></i> Save</span>
+				<span class="btn btn-sm btn-default" data-dismiss="modal">Close</span>
+			</div>
+		</div>
+	</div>
+</div>
 <div class="modal fade" id="change-approval-status" role="dialog">
 	<div class="modal-dialog">
 
@@ -3878,6 +3893,191 @@
 				$('.qc-omit-type-field').removeClass('hidden');
 			}
 			
+		});
+		var editStandardModal = (data)=>{
+			var body = $(`
+				<form action="" class="bg-white p-3 before-save">
+					
+					<div class="alert alert-primary d-flex">
+						<i class="mdi mdi-alert-decagram-outline" style="font-size: 30px"></i>
+						<span class="p-2">Change <b class="analyte_name"></b> Standard Limits by updating the information below</span>
+					</div>
+					<div class="form-group">
+						<label for="" class="control-label">Analyte</label>
+						<input type="text" readonly  value="" class="form-control analyte_name_field">
+					</div>
+					<div class="form-group">
+						<label for="" class="control-label">Previous Value</label>
+						<input type="text" readonly  value="" class="form-control standard_value_field">
+					</div>
+					<div class="row pl-4">
+						<div class="col-md-6">
+							<div class="form-group">
+								<input class="form-check-input is_standard_value" type="radio" class="form-control" name="standard_value_type"  value="1"/>
+								<label class="form-check-label" for="">
+								  Use Range
+								</label>
+							</div>
+						</div>
+						<div class="col-md-6">
+							<div class="form-group">
+								<input class="form-check-input is_standard_value" type="radio" class="form-control" name="standard_value_type"  value="2"/>
+								<label class="form-check-label" for="">
+								  Use Value
+								</label>
+							</div>
+						</div>
+					</div>
+					<div class="is-range row hidden">
+						<div class="form-group col-sm-6">
+							<label for="" class="control-label">Min</label>
+							<input type="text" name="min" placeholder="Min Value" class="form-control min">
+						</div>
+						<div class="form-group col-sm-6">
+							<label for="" class="control-label">Max</label>
+							<input type="text" name="max" placeholder="Max Value" class="form-control max">
+						</div>
+					</div>
+					<div class="is-value hidden">
+						<div class="from-group">
+							<label for="" class="control-label">Value Type</label>
+							<select name="standard_valuetype" id="" class="form-control standard_valuetype select2-offscreen" >
+								<option value="">Loading .....</option>
+
+							</select>
+						</div>
+						<div class="row is-value-type hidden mt-3">
+							<div class="col-md-6">
+								<div class="form-group">
+									<label for="" class="control-label">Limit Measure</label>
+									<select name="limit_measure" id="" class="form-control limit-measure">
+										<option value="Max">Max</option>
+										<option value="Min">Min</option>
+										<option value="less_than">< (Less Than)</option>
+										<option value="greater_than">> (Greater Than)</option>
+									</select>
+								</div>
+							</div>
+							<div class="col-ms-6">
+								<div class="form-group">
+									<label for="" class="control-label">Value</label>
+									<input type="text" name="value"  class="form-control value">
+								</div>
+
+							</div>
+						</div>
+						
+					</div>
+				</form>
+				<div class="after-save p-3 bg-white hidden">
+					<center>
+						<img src="/images/suc.gif" width="30%" height="50%" alt="">
+					</center>
+				</div>
+			`).clone();
+			return body;
+
+		}
+		$('#edit-standard').on('show.bs.modal',(e)=>{
+			$body = editStandardModal()
+			$('#edit-standard').find('.modal-body').empty();
+			$('#edit-standard').find('.modal-body').append($body);
+
+
+			$('#edit-standard').find('.analyte_name_field').val($(e.relatedTarget).data('analytename'));
+			$('#edit-standard').find('.analyte_name').empty();
+			$('#edit-standard').find('.analyte_name').append($(e.relatedTarget).data('analytename'));
+			$('#edit-standard').find('.before-save').removeClass('hidden');
+			$('#edit-standard').find('.after-save').addClass('hidden');
+
+			var analyte_id = $(e.relatedTarget).data('analyte')
+			var standard = $(e.relatedTarget).data('standard');
+			var parentTD = $(e.relatedTarget.parentNode.parentNode);
+			var parentTR = $(e.relatedTarget.parentNode.parentNode.parentNode);
+
+		
+			$('#edit-standard').find('.standard_value_field').val($(e.relatedTarget).data('standardvalue'));
+			var is_value_id = 0;
+			$.ajax({
+				url:`/get/Standard-Values/Data/Ajax`,
+				method:'GET',
+				success:(data)=>{
+					$('#edit-standard').find('.standard_valuetype').empty();
+					$.each(data,(i,obj)=>{
+						is_value_id = obj.code == 'IsValue' ? obj.id : is_value_id;
+						var option = `<option value="${obj.id}">${obj.code}</option>`
+						$('#edit-standard').find('.standard_valuetype').append(option);
+					})
+					$('#edit-standard').find('.standard_valuetype').select2({
+						dropdownParent: $('#edit-standard')
+					});
+					$('#edit-standard').find('.limit-measure').select2({
+						dropdownParent: $('#edit-standard')
+					});
+					
+				}
+
+			});
+			var selectedValue = 0;
+			$('#edit-standard').find('.is_standard_value').on('change',(e)=>{
+				var value = $(e.currentTarget).val();
+				selectedValue = $(e.currentTarget).val();
+				
+				if(value == 1){
+					$('#edit-standard').find('.is-range').removeClass('hidden');
+					$('#edit-standard').find('.is-value').addClass('hidden');
+				}else{
+					$('#edit-standard').find('.is-range').addClass('hidden');
+					$('#edit-standard').find('.is-value').removeClass('hidden');
+				}
+			});
+			$('#edit-standard').find('.standard_valuetype').on('change',(e)=>{
+				if($('#edit-standard').find('.standard_valuetype').val() == is_value_id){
+					$('#edit-standard').find('.is-value-type').removeClass('hidden');
+				}else{
+					$('#edit-standard').find('.is-value-type').addClass('hidden');
+				}
+				
+			})
+			$('#edit-standard').find('.save-standard-value').on('click',()=>{
+				$.ajaxSetup({
+					headers: {
+						'X-CSRF-TOKEN': jQuery('meta[name="csrf-token"]').attr('content')
+					}
+				});
+				$.ajax({
+					url:`/update/Standard-Analyte/Limit`,
+					method:'POST',
+					data:{
+						analyte_id : analyte_id,
+						standard_id : standard,
+						low : $('#edit-standard').find('.min').val(),
+						high : $('#edit-standard').find('.max').val(),
+						standard_valuetype : $('#edit-standard').find('.standard_valuetype').val(),
+						limit_measure : $('#edit-standard').find('.limit-measure').val(),
+						standard_value_type : selectedValue,
+						value :  $('#edit-standard').find('.value').val(),
+					},
+					success:(data)=>{
+						$('#edit-standard').find('.before-save').addClass('hidden');
+						$('#edit-standard').find('.after-save').removeClass('hidden');
+						$('#edit-standard').find('.save-standard-value').addClass('hidden');
+						
+
+						$(parentTD).find('.main-value-field').val(data['format_value']);
+						$(parentTD).find('.standard-value-field').val(data['value']);
+						var result = $(parentTR).find('.first-result').val();
+						if(result != ''){
+							$(parentTR).find('.first-result').trigger('change');
+						}
+					},
+					error:(data)=>{
+						console.log(data);
+					}
+				})
+
+			});
+
 		})
 
 	});
@@ -3891,12 +4091,11 @@
 		@if(isset($batch->status) && $batch->status != "Samples In Lab")
 			readonly = 'disabled';
 		@endif
-		console.log('-------------------------------------------------')
-		// console.log(userLabSection);
-		console.log(data.remark_is_manual)
-		// console.log(userLabSection.includes(data.lab_section_id))
-		console.log('-------------------------------------------------')
+		console.log('---------------------------------param data')
+		console.log(data);
+		console.log('---------------------------------param end data')
 
+	
 		var $oGRow = $(`
 			<tr class="raw-data-row ${data.result == null ? 'no-result' : 'has-result'} ${!userLabSection.includes(data.lab_section_id) && thebatch.status == 'Samples In Lab' ? 'hiddens' : ''}" id="row-${loop}" >
 				@if(isset($batch->status) && $batch->status != 'Samples In Lab' && Auth::user()->is_client == 0)
@@ -3925,8 +4124,14 @@
 				<input type="text" class="form-control" style="width:150px" name="repeat_sample[${data.id}]" value="${data.repeatsampleresult}" disabled />
 				</td>
 				@endif
-				<td nowrap> <input type="text" class="form-control" style="width:100px" name="main_value[${data.id}]" value="${data.standard_value == null ? '-': data.standard_value}" disabled />
-				<input type="hidden" name="main_value[${data.id}]" value="${data.standard_value}"/>
+				<td nowrap class="">
+					<div class="d-flex">
+						<input type="text" class="form-control main-value-field" style="width:100px;border:0" name="main_value[${data.id}]" value="${data.standard_value == null ? '-': data.standard_value}" disabled />
+						<span class="btn btn-sm btn-default text-primary float-right" data-toggle="modal" data-target="#edit-standard" data-standard="${data.main_standard}" data-analyte="${data.analyte_id}" data-analytename="${data.analyte_code}" data-standardvalue="${data.standard_value}"><i class="mdi mdi-pencil" data-toggle="tooltip" title="Edit Standard"></i></span>	
+					</div>
+					
+							
+				<input type="hidden" class="standard-value-field" name="main_value[${data.id}]" value="${data.standard_value}"/>
 				<input type="hidden" name="main_standard[${data.id}]" value="${data.main_standard}"/>
 				<input type="hidden" name="secondary_standard[${data.id}]" value="${data.secondary_standard}"/>
 				</td>
