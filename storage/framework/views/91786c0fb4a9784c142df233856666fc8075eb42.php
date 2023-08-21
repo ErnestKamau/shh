@@ -2301,7 +2301,7 @@
 <?php endif; ?>
 
 <div id="show-sample-analysis-analytes" class="modal fade" data-backdrop="static" data-keyboard="false" role="dialog">
-	<div class="modal-dialog modal-lg">
+	<div class="modal-dialog" style="min-width: 90%">
 		<!-- Modal content-->
 		<div class="modal-content">
 			<div class="modal-header">
@@ -2370,7 +2370,7 @@
 										</th>
 										<th>Analyte</th>
 										<?php if(Auth::user()->is_client == 0): ?>
-										<th nowrap>Reporting Symbol</th>
+										
 										<th nowrap>Result</th>
 										<?php endif; ?>
 										<?php if(isset($batch->id) && $batch->repeat_sample_id > 0): ?>
@@ -3917,7 +3917,8 @@
 					
 					<div class="alert alert-primary d-flex">
 						<i class="mdi mdi-alert-decagram-outline" style="font-size: 30px"></i>
-						<span class="p-2">Change <b class="analyte_name"></b> Standard Limits by updating the information below</span>
+						<span class="p-2">Change <b class="analyte_name"></b> Standard Limits by updating the information below  <br>
+						<span class="text-danger">By changing the standard the system will automatically clear the current result</span></span>
 					</div>
 					<div class="form-group">
 						<label for="" class="control-label">Analyte</label>
@@ -4006,6 +4007,7 @@
 			$('#edit-standard').find('.analyte_name').append($(e.relatedTarget).data('analytename'));
 			$('#edit-standard').find('.before-save').removeClass('hidden');
 			$('#edit-standard').find('.after-save').addClass('hidden');
+			$('#edit-standard').find('.save-standard-value').removeClass('hidden');
 
 			var analyte_id = $(e.relatedTarget).data('analyte')
 			var standard = $(e.relatedTarget).data('standard');
@@ -4083,10 +4085,8 @@
 
 						$(parentTD).find('.main-value-field').val(data['format_value']);
 						$(parentTD).find('.standard-value-field').val(data['value']);
-						var result = $(parentTR).find('.first-result').val();
-						if(result != ''){
-							$(parentTR).find('.first-result').trigger('change');
-						}
+						$(parentTR).find('.first-result').val('');
+						
 					},
 					error:(data)=>{
 						console.log(data);
@@ -4109,6 +4109,8 @@
 			readonly = 'disabled';
 		<?php endif; ?>
 		
+
+	
 		var $oGRow = $(`
 			<tr class="raw-data-row ${data.result == null ? 'no-result' : 'has-result'} ${!userLabSection.includes(data.lab_section_id) && thebatch.status == 'Samples In Lab' ? 'hiddens' : ''}" id="row-${loop}" >
 				<?php if(isset($batch->status) && $batch->status != 'Samples In Lab' && Auth::user()->is_client == 0): ?>
@@ -4123,7 +4125,7 @@
 				<td  nowrap>${data.analysis_type.code}</td>
 				<td  nowrap><input type="hidden" name="captured_result_id[]" value="${data.id}">${data.analyte_name}</td>
 				<?php if(Auth::user()->is_client == 0): ?>
-				<td nowrap ><input type="text" <?php echo e(isset($batch->status) && $batch->status != 'Samples In Lab' ? 'disabled' : ''); ?> name="result_reporting_symbol[${data.id}]" id="reporting-symbol" placeholder="Reporting Symbol..." value="${data.result_reporting_symbol == null ? '' :data.result_reporting_symbol }" ></td>
+				<td nowrap class="hidden" ><input type="text" <?php echo e(isset($batch->status) && $batch->status != 'Samples In Lab' ? 'disabled' : ''); ?> name="result_reporting_symbol[${data.id}]" id="reporting-symbol" placeholder="Reporting Symbol..." value="${data.result_reporting_symbol == null ? '' :data.result_reporting_symbol }" ></td>
 				<td>
 					<div class="form-group">
 						<input <?php echo e(isset($batch->status) && $batch->status != 'Samples In Lab' ? 'disabled' : ''); ?> id="${data.sample_detail_code},${data.analyte_code},${data.id},${data.analyte_id}" style="min-width: 150px" type="text"
@@ -4151,7 +4153,7 @@
 				<?php if(Auth::user()->is_client == 0): ?>
 				<td nowrap>
 					<input id="${data.sample_detail_code}-${data.id}" style="min-width: 150px" type="text" 
-					class="form-control disabled ${data.remark_is_manual == 0 ? 'first-result' : 'hidden'}" readonly="true" value="${data.remark ?? ''}" name="remark[${data.id}]" placeholder="Remark..." />
+					class="form-control disabled ${data.remark_is_manual == 0 ? 'first-remark' : 'hidden'}" readonly="true" value="${data.remark ?? ''}" name="remark[${data.id}]" placeholder="Remark..." />
 					<div class="form-group is-manual ${data.remark_is_manual == 0 ? "hidden" : ""}">
 						<select name="remarkmanual[${data.id}]" id="" class="form-control remarkmanual">
 							<option value="PASS" ${data.remark == 'PASS' ? 'selected' : ''}>Pass</option>
