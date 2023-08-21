@@ -233,6 +233,12 @@
 					$target_date = "1970-01-01";
 					$diff = 0;
 				}
+				$sample_codes = $item->samples->pluck('sample_code')->toArray();
+
+				$sampleStart = $sample_codes[0] ?? '';
+
+				$sample_count = count($sample_codes);
+				$sampleEnd = end($sample_codes) ?? '';
 				?>
 				<?php if($item->current_account_status == 'Account Holder(Overdue)'): ?>
 				<tr class="batch-row overdue-bg-color <?php echo e($diff > 0 ? 'text-danger' : ''); ?> crm-customer-<?php echo e($item->client->id); ?>" data-class="<?php echo e($item->client->id); ?>">
@@ -262,7 +268,8 @@
 					<?php if(auth()->user()->CheckViewQcSample()): ?>
 						<td><?php echo $item->is_qc_batch == 1 ? '<span class="text-success"><i class="mdi mdi-checkbox-marked-circle-outline"></i></span>' : '-'; ?></td>
 					<?php endif; ?>
-					<td style="max-width: 200px !important;word-wrap:break-word;"><?php echo e($item->sample_codes); ?></td>
+					<td style="max-width: 200px !important;word-wrap:break-word;">
+						<?php echo e($sampleStart.' - '.$sampleEnd); ?></td>
 					<td nowrap><?php echo e($item->getLabSectionsNames()); ?></td>
 					<td style="min-width: 200px !important;"><?php echo e($item->status); ?></td>
 					<?php if($status == 'Samples In Lab'): ?>
@@ -275,7 +282,7 @@
 					<td nowrap><?php echo e(date('Y-m-d', strtotime($item->date_collected))); ?></td>
 					<td nowrap><?php echo e(date('Y-m-d', strtotime($target_date))); ?></td>
 					<td nowrap><?php echo e(number_format($diff, 0)); ?> Day(s)</td>
-					<td><?php echo e($item->samples->count()); ?></td>
+					<td><?php echo e($sample_count); ?></td>
 					<?php if($status == 'Samples In Lab'): ?>
 					<td nowrap><?php echo e($item->crm_unit_name); ?></td>
 					<?php endif; ?>

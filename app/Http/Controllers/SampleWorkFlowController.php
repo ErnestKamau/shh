@@ -1281,7 +1281,7 @@ class SampleWorkFlowController extends Controller
 						if ($analyte_standard->standard_value_type == 'is_range') {
 							$item->standard_value = $analyte_standard->low . ' - ' . $analyte_standard->high;
 						} elseif ($analyte_standard->standard_value_type == 'is_standard_value') {
-							$value_id = $analyte_standard->standard_value;
+							$value_id = StandardValue::find($analyte_standard->standard_value_id);
 							if (isset($value_id->id)) {
 								if ($value_id->code == 'IsValue') {
 									$item->standard_value = $analyte_standard->standard_is_value;
@@ -2190,6 +2190,10 @@ class SampleWorkFlowController extends Controller
 										
 									$response = $result <= floatval($analyte_guide->standard_is_value) ? 'PASS' : 'FAIL';
 								}
+								if($analyte_guide->value_type == 'Min' || $analyte_guide->value_type == '' ){
+										
+									$response = $result >= floatval($analyte_guide->standard_is_value) ? 'PASS' : 'FAIL';
+								}
 								if($analyte_guide->value_type == 'less_than'){
 									$response = $result < floatval($analyte_guide->standard_is_value) ? 'PASS' : 'FAIL';
 								}
@@ -2206,6 +2210,10 @@ class SampleWorkFlowController extends Controller
 									if($analyte_guide->value_type == 'Max' || $analyte_guide->value_type == '' ){
 										
 										$response = $result <= floatval($analyte_guide->standard_is_value) ? 'PASS' : 'FAIL';
+									}
+									if($analyte_guide->value_type == 'Min' || $analyte_guide->value_type == '' ){
+										
+										$response = $result >= floatval($analyte_guide->standard_is_value) ? 'PASS' : 'FAIL';
 									}
 									if($analyte_guide->value_type == 'less_than'){
 										$response = $result < floatval($analyte_guide->standard_is_value) ? 'PASS' : 'FAIL';

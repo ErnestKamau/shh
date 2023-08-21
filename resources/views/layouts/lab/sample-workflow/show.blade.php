@@ -4092,11 +4092,7 @@
 		@if(isset($batch->status) && $batch->status != "Samples In Lab")
 			readonly = 'disabled';
 		@endif
-		console.log('---------------------------------param data')
-		console.log(data);
-		console.log('---------------------------------param end data')
-
-	
+		
 		var $oGRow = $(`
 			<tr class="raw-data-row ${data.result == null ? 'no-result' : 'has-result'} ${!userLabSection.includes(data.lab_section_id) && thebatch.status == 'Samples In Lab' ? 'hiddens' : ''}" id="row-${loop}" >
 				@if(isset($batch->status) && $batch->status != 'Samples In Lab' && Auth::user()->is_client == 0)

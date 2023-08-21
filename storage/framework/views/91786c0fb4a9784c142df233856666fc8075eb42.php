@@ -4108,11 +4108,7 @@
 		<?php if(isset($batch->status) && $batch->status != "Samples In Lab"): ?>
 			readonly = 'disabled';
 		<?php endif; ?>
-		console.log('---------------------------------param data')
-		console.log(data);
-		console.log('---------------------------------param end data')
-
-	
+		
 		var $oGRow = $(`
 			<tr class="raw-data-row ${data.result == null ? 'no-result' : 'has-result'} ${!userLabSection.includes(data.lab_section_id) && thebatch.status == 'Samples In Lab' ? 'hiddens' : ''}" id="row-${loop}" >
 				<?php if(isset($batch->status) && $batch->status != 'Samples In Lab' && Auth::user()->is_client == 0): ?>
@@ -4143,7 +4139,7 @@
 				<?php endif; ?>
 				<td nowrap class="">
 					<div class="d-flex">
-						<input type="text" class="form-control main-value-field" style="width:100px;border:0" name="main_value[${data.id}]" value="${data.standard_value == null ? '-': data.standard_value}" disabled />
+						<input type="text" class="form-control main-value-field" style="width:100px;border:0" name="main_value[${data.id}]" value=" ${data.standard_limit_value != '' ? data.standard_limit_value : ''} ${data.standard_value == null ? '-': data.standard_value}" disabled />
 						<span class="btn btn-sm btn-default text-primary float-right" data-toggle="modal" data-target="#edit-standard" data-standard="${data.main_standard}" data-analyte="${data.analyte_id}" data-analytename="${data.analyte_code}" data-standardvalue="${data.standard_value}"><i class="mdi mdi-pencil" data-toggle="tooltip" title="Edit Standard"></i></span>	
 					</div>
 					
@@ -4163,7 +4159,6 @@
 						</select>
 					</div>
 				</td>
-				
 				<td>
 					<div class="form-group" name="operators" placeholder="Select Operator...">
 						<select style="min-width: 150px" class="form-control item-operators"  name="operators[${data.id}]" placeholder="Select Operator..." data-selected="${data.def_operator ? data.def_operator.id : 0 }"></select>
