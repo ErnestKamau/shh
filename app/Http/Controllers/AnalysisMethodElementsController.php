@@ -58,6 +58,7 @@ class AnalysisMethodElementsController extends Controller
     $guide->recommendations = $request->recommendations;
     $guide->standard_id=$request->standard_id;
     $guide->standard_value_type =$request->standard_value_type;
+    $guide->value_type = '';
     if(isset($request->standard_value_type) && $request->standard_value_type == 'is_range'){
 
       $guide->high = $request->high_range;
@@ -73,6 +74,7 @@ class AnalysisMethodElementsController extends Controller
       if(isset($standard[0]->id) && $standard[0]->name == 'Is Value'){
 
         $guide->standard_is_value= $request->is_value;
+        $guide->value_type = $request->limit_measure;
       }
       $guide->high = '';
 
@@ -100,6 +102,7 @@ class AnalysisMethodElementsController extends Controller
     $new_guide->low =  $guide->low;
     $new_guide->standard_value_id = $guide->standard_value_id;
     $new_guide->standard_is_value = $guide->standard_is_value;
+    $new_guide->value_type=$guide->value_type;
     $new_guide->save();
     return redirect()->back()->with('success','Analyte Standard cloned successfully!');
   }

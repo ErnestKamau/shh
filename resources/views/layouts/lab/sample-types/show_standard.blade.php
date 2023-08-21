@@ -199,6 +199,27 @@
                       </select>
                     </div>
 
+                    <div class="row hidden"  id="is-value-{{$analyte->id}}">
+                      <div class="col-md-6">
+                        <div class="form-group">
+                          <label for="" class="control-label">Limit Measure</label>
+                          <select name="limit_measure" id="" class="form-control limit-measure">
+                            <option value="Max" {{$analyte->value_type == 'Max' ? 'selected' : ''}}>Max</option>
+                            <option value="Min" {{$analyte->value_type == 'Min' ? 'selected' : ''}}>Min</option>
+                            <option value="less_than" {{$analyte->value_type == 'less_than' ? 'selected' : ''}}>< (Less Than)</option>
+                            <option value="greater_than" {{$analyte->value_type == 'greater_than' ? 'selected' : ''}}>> (Greater Than)</option>
+                          </select>
+                        </div>
+                      </div>
+                      <div class="col-md-6">
+                        <div class="form-group">
+                          <label class="control-label">Value <span class="text-danger">*</span></label>
+                          <input type="text" name="is_value" value="{{$analyte->standard_is_value}}" id="Is-Value-{{$analyte->id}}" placeholder="Enter Value..." class="form-control">
+                        </div>
+    
+                      </div>
+                      
+                    </div>
 
                     <div class="form-group" id="is-value-{{$analyte->id}}">
                       <label class="control-label">Value <span class="text-danger">*</span></label>
@@ -307,10 +328,26 @@
             @endforeach
           </select>
         </div>
-        <div class="form-group hidden" id="is-value-primary">
-          <label class="control-label">Value <span class="text-danger">*</span></label>
-          <input type="text" name="is_value" id="Is-Value" placeholder="Enter Value..." class="form-control">
+        <div class="row hidden" id="is-value-primary">
+          <div class="col-md-6">
+            <div class="form-group">
+              <label for="" class="control-label">Limit Measure</label>
+              <select name="limit_measure" id="" class="form-control limit-measure">
+                <option value="Max" >Max</option>
+                <option value="Min" >Min</option>
+                <option value="less_than">< (Less Than)</option>
+                <option value="greater_than">> (Greater Than)</option>
+              </select>
+            </div>
+          </div>
+          <div class="col-md-6">
+            <div class="form-group ">
+              <label class="control-label">Value <span class="text-danger">*</span></label>
+              <input type="text" name="is_value" id="Is-Value" placeholder="Enter Value..." class="form-control">
+            </div>
+          </div>
         </div>
+        
         <div class="form-group">
           <label class="control-label">Comments</label>
           <textarea name="comments" class="form-control" placeholder="Guide Comments..."></textarea>
