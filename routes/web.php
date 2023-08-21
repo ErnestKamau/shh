@@ -799,6 +799,8 @@ Route::get('get/Crm-Customer-SamplePoint/{crm_id}/Ajax/{name}','SampleWorkFlowCo
 Route::get('get/Sample-Parameter/Data/Ajax/{sample_id}','SampleWorkFlowController@getShowSampleParameterDataAjax')->name('getShowSampleParameterDataAjax');
 
 Route::post('/clone/Batch-Information','SampleWorkFlowController@cloneBatchInformation')->name('cloneBatchInformation');
+Route::get('get/Standard-Values/Data/Ajax','SampleWorkFlowController@getStandardValuesDataAjax')->name('getStandardValuesDataAjax');
+Route::post('update/Standard-Analyte/Limit','SampleWorkFlowController@updateStandardAnalyteLimit')->name('updateStandardAnalyteLimit');
 
 Route::post('/analyte-type-elements-import', 'AnalysisElementsController@import')->name('analyte-type-elements-import');
 Route::post('/analysis-type-clone/{id}', 'AnalysisTypeController@clone')->name('analysis-type-clone');
