@@ -643,6 +643,8 @@ class SampleWorkFlowController extends Controller
 				
 				// return response()->json($request->sample_details['lab_id'][$k]);
 				$sample_number = intval($last_sample)  + 1;
+				$sample_number = str_pad($sample_number, 4, '0', STR_PAD_LEFT);
+
 				$detail->sample_code = 'S' . date('Y') . $lab->code . $sample_number;
 				$detail->sample_no = $sample_number;
 			}
@@ -1983,7 +1985,7 @@ class SampleWorkFlowController extends Controller
 
 			$sampleDetail = SampleDetails::where('sample_code', $i->sample_code)->first();
 			$analysisType = AnalysisElements::where('analysis_type_id', $i->analysis_type_id)
-				->where('analyte_id', $i->id)->where('equipment_id', $i->equipment_id)->first();
+				->where('analyte_id', $i->id)->first();
 
 			$captured = CapturedResult::where('sample_detail_code', $i->sample_code)
 				->where('sample_detail_id', $sampleDetail->id)
