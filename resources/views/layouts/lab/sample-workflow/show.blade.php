@@ -1400,7 +1400,6 @@
 </div>
 
 @if(isset($batch->id))
-
 <div class="modal fade" id="edit-standard" data-backdrop="static" data-keyboard="false"  role="dialog" style="z-index: 3000">
 	<div class="modal-dialog">
 		<div class="modal-content bg-light">

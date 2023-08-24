@@ -47,7 +47,7 @@ class AnalyteController extends Controller
     $analyte->active = $request->active ?? 0;
     $analyte->company_id = getUserCompany();
     $analyte->show_on_report = $request->show_on_report ?? 0;
-
+    $analyte->is_italic  = $request->is_italic ?? 0;
     $analyte->save();
 
     return redirect()->back()->with('success', 'Analyte added.');
@@ -73,6 +73,7 @@ class AnalyteController extends Controller
     $analyte->non_accredited = $request->non_accredited ?? 0;
     $analyte->active = $request->active ?? 0;
     $analyte->show_on_report = $request->show_on_report ?? 0;
+    $analyte->is_italic  = $request->is_italic ?? 0;
 
     $analyte->save();
 
