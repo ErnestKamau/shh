@@ -283,7 +283,7 @@
 					<td nowrap><?php echo e(date('Y-m-d', strtotime($target_date))); ?></td>
 					<td nowrap><?php echo e(number_format($diff, 0)); ?> Day(s)</td>
 					<td><?php echo e($sample_count); ?></td>
-					<?php if($status == 'Samples In Lab'): ?>
+					<?php if($status != 'Samples In Lab'): ?>
 					<td nowrap><?php echo e($item->crm_unit_name); ?></td>
 					<?php endif; ?>
 					<td nowrap><?php echo e(implode(", ", $item->labs(true))); ?></td>

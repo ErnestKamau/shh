@@ -275,7 +275,7 @@
 					<td nowrap>{{ date('Y-m-d', strtotime($target_date)) }}</td>
 					<td nowrap>{{ number_format($diff, 0) }} Day(s)</td>
 					<td>{{ $sample_count }}</td>
-					@if($status == 'Samples In Lab')
+					@if($status != 'Samples In Lab')
 					<td nowrap>{{ $item->crm_unit_name }}</td>
 					@endif
 					<td nowrap>{{ implode(", ", $item->labs(true)) }}</td>

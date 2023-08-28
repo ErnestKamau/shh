@@ -2927,7 +2927,7 @@
 					$(body).find('.from_lab_section').val(obj);
 				});
 			}
-			getLabSections(lab_id,(labdata)=>{
+			getLabSections(0,(labdata)=>{
 				$.each(labdata,(i,obj)=>{
 					var option = `<option value="${obj.id}">${obj.code} - ${obj.name}</option>`
 					$(body).find('.to_lab_section_id').append(option);
