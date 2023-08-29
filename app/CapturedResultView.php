@@ -20,5 +20,8 @@ class CapturedResultView extends Model
     public function getAnalyteMethodsAttribute(){
         return AnalysisMethod::whereIn('id',explode(',',$this->analyte_method) ?? [])->get();
     }
+    public function method(){
+		return AnalysisMethod::find($this->method_id);
+	}
 
 }

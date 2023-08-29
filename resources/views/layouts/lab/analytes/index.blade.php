@@ -28,7 +28,8 @@
     <div class="table-responsive bg-light p-4">
       <table class="table table-condensed my-small-text table-striped table-hover table-bordered table-sm">
         <thead class="bg-light p-2">
-          <tr>
+			<tr>
+			<th>#</th>
             <th>No</th>
             <th>Code</th>
             <th>Name</th>
@@ -39,11 +40,11 @@
             <th nowrap>Reporting Unit</th>
             <th>Method</th>
             <th>Equipment</th>
+			<th>Font Italic</th>
             <th nowrap>Non Detectable</th>
             <th nowrap>Non Accredited</th>
             <th nowrap>Show on Report</th>
             <th>Active?</th>
-            <th></th>
           </tr>
         </thead>
         <tbody>
@@ -53,6 +54,10 @@
 							$equipments = $analyte->equipments();
 						?>
 						<tr>
+							<td nowrap>
+								<button class="btn btn-default text-primary btn-sm" data-methods='{{ json_encode(array_values($methods)) }}' data-equipments='{{ json_encode(array_values($equipments)) }}' data-analyte='{{ json_encode($analyte) }}' data-target="#edit-analyte" data-toggle="modal"><i class="mdi mdi-pencil-outline" data-toggle="tooltip" title="Edit Analyte"></i> <small class="hidden-sm-up">Edit</small> </button>
+								{{-- <button class="btn btn-danger btn-sm"><i class="mdi mdi-delete-empty"></i> <small class="hidden-sm-up">Delete</small> </button> --}}
+							</td>
 							<td valign="center">{{ $loop->iteration }} </td>
 							<td>{{ $analyte->code }}</td>
 							<td><span class="text-primary btn" style="padding: 0px !important;font-size:13px" data-methods='{{ json_encode(array_values($methods)) }}' data-equipments='{{ json_encode(array_values($equipments)) }}' data-analyte='{{ json_encode($analyte) }}' data-target="#edit-analyte" data-toggle="modal">{{ $analyte->name }}</span> </td>
@@ -63,14 +68,12 @@
 							<td>{{ $analyte->reporting_unit }}</td>
 							<td>{{ implode(", ", array_keys($methods)) ?? '-' }}</td>
 							<td>{{ implode(", ", array_keys($equipments)) ?? '-' }}</td>
+							<td class="text-small">{!! $analyte->is_italic == '1' ? '<i class="mdi mdi-marker-check text-success"></i>' : '<i class="mdi mdi-close-circle text-danger"></i>' !!}</td>
 							<td class="text-small">{!! $analyte->non_detectable == '1' ? '<i class="mdi mdi-marker-check text-success"></i>' : '<i class="mdi mdi-close-circle text-danger"></i>' !!}</td>
 							<td class="text-small">{!! $analyte->non_accredited == '1' ? '<i class="mdi mdi-marker-check text-success"></i>' : '<i class="mdi mdi-close-circle text-danger"></i>' !!}</td>
 							<td class="text-small">{!! $analyte->show_on_report == '1' ? '<i class="mdi mdi-marker-check text-success"></i>' : '<i class="mdi mdi-close-circle text-danger"></i>' !!}</td>
 							<td class="text-small">{!! $analyte->active == '1' ? '<i class="mdi mdi-marker-check text-success"></i>' : '<i class="mdi mdi-close-circle text-danger"></i>' !!}</td>
-							<td nowrap>
-								<button class="btn btn-primary btn-sm" data-methods='{{ json_encode(array_values($methods)) }}' data-equipments='{{ json_encode(array_values($equipments)) }}' data-analyte='{{ json_encode($analyte) }}' data-target="#edit-analyte" data-toggle="modal"><i class="mdi mdi-pencil-outline"></i> <small class="hidden-sm-up">Edit</small> </button>
-								{{-- <button class="btn btn-danger btn-sm"><i class="mdi mdi-delete-empty"></i> <small class="hidden-sm-up">Delete</small> </button> --}}
-							</td>
+							
 						</tr>
 					@endforeach
         </tbody>
@@ -143,6 +146,9 @@
                 @endforeach
               </select>
             </div>
+			<div class="form-group">
+				<label for="" class="control-label"><input type="checkbox" name="is_italic" value="1" id=""> Report Font Italic</label>
+			</div>
             <div class="form-group">
               <label class="control-label"><input type="checkbox" name="non_detectable" value="1" />  Not Detectable</label>
             </div>
@@ -237,6 +243,9 @@
 									<option value="{{ $g['id'] }}" ${ $equipments.indexOf({{ $g['id'] }}) > -1 ? 'selected' : '' }>{{ $g['name'] }}</option>
 								@endforeach
 							</select>
+						</div>
+						<div class="form-group">
+							<label for="" class="control-label"><input type="checkbox" value="1" name="is_italic" ${$analyte.is_italic == 1 ? 'checked' : ''} id=""> Report Font Italic</label>
 						</div>
 						<div class="form-group">
 							<label class="control-label"><input type="checkbox" name="non_detectable" value="1" ${ $analyte.non_detectable == 1 ? 'checked' : '' } />  Not Detectable</label>

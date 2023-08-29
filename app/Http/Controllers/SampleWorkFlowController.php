@@ -3303,7 +3303,7 @@ class SampleWorkFlowController extends Controller
 
 	public function getLabSectionsByLab($lab_id)
 	{
-		$sections = SampleAnalysisStage::where('lab_id', $lab_id)->get();
+		$sections = $lab_id > 0 ? SampleAnalysisStage::where('lab_id', $lab_id)->where('active',1)->get() : SampleAnalysisStage::where('active',1)->get();
 		return response()->json($sections);
 	}
 

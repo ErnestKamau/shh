@@ -1400,8 +1400,7 @@
 </div>
 
 @if(isset($batch->id))
-
-<div class="modal fade" id="edit-standard"  role="dialog" style="z-index: 3000">
+<div class="modal fade" id="edit-standard" data-backdrop="static" data-keyboard="false"  role="dialog" style="z-index: 3000">
 	<div class="modal-dialog">
 		<div class="modal-content bg-light">
 			<div class="modal-body">
@@ -2928,7 +2927,7 @@
 					$(body).find('.from_lab_section').val(obj);
 				});
 			}
-			getLabSections(lab_id,(labdata)=>{
+			getLabSections(0,(labdata)=>{
 				$.each(labdata,(i,obj)=>{
 					var option = `<option value="${obj.id}">${obj.code} - ${obj.name}</option>`
 					$(body).find('.to_lab_section_id').append(option);
