@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use Auth;
 use App\User;
 use App\InventoryDepartment;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Http\Request;
 use OwenIt\Auditing\Models\Audit;
 use App\Datatables\Datatables;
@@ -61,10 +62,14 @@ class AuditCOntroller extends Controller
 		);
 
 		$logs = Audit::join('users as u', 'u.id', '=', 'audits.user_id')
-			->selectRaw('audits.id, ip_address, url, audits.created_at, audits.event, audits.auditable_type as entity, audits.auditable_id as entity_id, u.name as name, u.email as email');
+			->selectRaw('audits.id, ip_address, url, audits.created_at, audits.event, audits.auditable_type as entity, audits.auditable_id as entity_id, u.name as name, u.email as email');	
 
 		if($userID){
 			$logs = $logs->where('u.id', $userID);
+		}
+		else{
+			$userIDs = User::all()->pluck('id')->toArray();
+			$logs = $logs->whereIn('u.id', $userIDs);
 		}
 
 		$results = new Datatables($logs, $request, $columns);

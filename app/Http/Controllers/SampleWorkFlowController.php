@@ -917,7 +917,7 @@ class SampleWorkFlowController extends Controller
 					$captured->analyte_accredited = $analysisType->non_accredited;
 					$captured->analyte_status_contracted = $lab->is_external ?? 0;
 					$captured->lab_section_id  = $analysisType->lab_section_id;
-					$captured->parameters_order = $analysisType->level;
+					$captured->parameters_order = $analysisType->level ?? 0;
 					$captured->remark_is_manual = $analysisType->remark_is_manual;
 
 					$captured->save();
@@ -940,7 +940,7 @@ class SampleWorkFlowController extends Controller
 					$result->recheck = 0;
 					$result->analyte_status_contracted = $lab->is_external ?? 0;
 					$result->lab_section_id  = $analysisType->lab_section_id;
-					$result->parameters_order = $analysisType->level;
+					$result->parameters_order = $analysisType->level ?? 0;
 					$result->remark_is_manual = $analysisType->remark_is_manual;
 
 					$result->save();
