@@ -18,7 +18,7 @@
     @page {
         /* margin-top: 20px; */
         margin-bottom: 200px;
-        margin-top: 150px;
+        margin-top: 100px;
         margin-left:20;
         margin-right: 20;
 
@@ -35,7 +35,7 @@
 
     .header {
         position: fixed;
-        top: -120px;
+        top: -80px;
         left: 0;
         right: 0;
         height: 100px;
@@ -46,7 +46,7 @@
 
     .footer {
         position: fixed;
-        bottom: 3px;
+        bottom: 40px;
         left: 0;
         right: 0;
         z-index: 1000;
@@ -68,9 +68,12 @@
 <body>
     <footer class="footer">
 
-        <table class="" style="margin-top: 1px !important; border-bottom:1px solid black;width:100%">
+        <table class="" style="margin-top: 1px !important;width:100%">
 
             <tr>
+                <td style="width:30% !important">
+
+                </td>
                 @foreach ($batch_approvers as $approver)
                     <td style="font-size: 8px !important;">
                         <b>{{ $approver->title }}</b><br>
@@ -82,20 +85,36 @@
                 @endforeach
 
             </tr>
+            <tr>
+                <td colspan="{{$batch_approvers->count() + 1}}">
+                    <div class="accreddited-reasons" style="font-size: 6px !important;width:100%">
+                        <span>{{ $non_accredited->value }}</span>
+        
+                        <div class="" style="">
+                            {{ $disclaimer->value }}
+                            @if ($batch->sampled_by_company_personnel == 0)
+                                <br>
+                                <b class="text-center" >NB: This report relates to submitted sample(s) only. The source and markings are as
+                                    provided by the customer.</b>
+                            @endif
+                        </div>
+                    </div>
+                </td>
+            </tr>
         </table>
 
         <div style="margin-top:10px">
             <table style="width:100%">
                 <tr>
                     <td style="width: 10%">
-                        <img src="data:image/png;base64, {!! $qrcode !!}" width="60" height="60"> <br>
-                        <span style="font-size: 8px !important;">Scan to Verify</span>
+                        <img src="data:image/png;base64, {!! $qrcode !!}" width="50" height="50"> <br>
+                        <span style="font-size: 7px !important;">Scan to Verify</span>
 
                     </td>
                     <td style="text-align: center">
                         <div class=""><b>{{ $company->name }}</b></div>
                         <div class="company-location p-2">
-                            <table style="font-size: 7px;width:100%">
+                            <table style="font-size: 6px;width:100%">
                                 <tr>
                                     <td colspan="3" style="font-size: 8px !important;">{{ $company->street }} - P.O.
                                         Box {{ $company->address }},
@@ -129,7 +148,7 @@
         <table style="width: 100%;border:0px;">
             <tr>
                 <td style="font-size: 10px !important;border:solid 0 transparent !important; width:30% !important">
-                    <img src="{{ $path }}" style="height:90px;" alt="logo">
+                    <img src="{{ $path }}" style="height:70px;" alt="logo">
 
                 </td>
 
@@ -145,16 +164,16 @@
 
     @foreach ($samples as $sample)
         @if ($sample->getAccredittedStatus() >= 1)
-            <div class="" style="display:inline-block;position:fixed;bottom:-50px;left:70%">
+            <div class="" style="display:inline-block;position:fixed;bottom:-110px;left:70%">
                 <img src="{{ $kebs }}" style="width:60px;height:60px" alt="">
 
                 <img src="{{ $kenas }}" style="width:60px;height:60px" alt="">
 
 
-                <img src="{{ $ilac }}" style="width:60px;height:60px" alt="">
+                <img src="{{ $ilac }}" style="width:70px;height:70px" alt="">
             </div>
         @else
-            <div class="" style="display:inline-block;position:fixed;bottom:-50px;left:70%">
+            <div class="" style="display:inline-block;position:fixed;bottom:-110px;left:70%">
                 <img src="{{ $kebs }}" style="width:60px;height:60px" alt="">
 
                 <img src="{{ $nema }}" style="width:60px;height:60px" alt="">
@@ -163,6 +182,10 @@
                 <img src="{{ $ispm }}" style="width:60px;height:60px" alt="">
             </div>
         @endif
+        <div class="main-lab" style="position:fixed;bottom:30px;right:0%;font-size:8px">
+            <b>{{strtoupper($sample->main_lab_name)}}</b><br>
+            <b>{{ $batch->approval_date ?? '-' }}</b>
+        </div>
         <main style="">
             <div class="test-report p-2"
                 style=" border: 1px solid rgba(0, 0, 0, 0.35) !important; font-size:10px !important;width:100%">
@@ -174,10 +197,10 @@
                     <td style="text-align: center" colspan="4"><b>Analysis Certificate</b></td>
                 </tr>
                 <tr>
-                    <td><b>SHIPPER</b></td>
-                    <td>{{ $batch->importer_address }}</td>
-                    <td><b>VESSEL NAME</b></td>
-                    <td>{{ $batch->declared_commodity_code }}</td>
+                    <td style="width: 20%"><b>SHIPPER</b></td>
+                    <td style="width: 30%" >{{ $batch->importer_address }}</td>
+                    <td style="width: 20%"><b>VESSEL NAME</b></td>
+                    <td style="width: 30%">{{ $batch->declared_commodity_code }}</td>
                 </tr>
                 <tr>
                     <td><b>CONSIGNEE</b></td>
@@ -430,21 +453,10 @@
             @if ($sample->header_body != '')
                 <div class="comments" style="font-size: 8px !important;width:100%">
 
-                    <b>Comments : </b>{{ $sample->header_body }}
+                    <b>Comments : </b>{!! $sample->header_body !!}
                 </div>
             @endif
-            <div class="accreddited-reasons" style="font-size: 6px !important;width:100%">
-                <span>{{ $non_accredited->value }}</span>
-
-                <div class="" style="">
-                    {{ $disclaimer->value }}
-                    @if ($batch->sampled_by_company_personnel == 0)
-                        <br>
-                        <b>NB: This report relates to submitted sample(s) only. The source and markings are as
-                            provided by the customer.</b>
-                    @endif
-                </div>
-            </div>
+           
             @if ($loop->iteration < $samples->count())
                 <div style="page-break-after: always;">
                 </div>
@@ -458,7 +470,7 @@
         $font = $fontMetrics->getFont("Verdana");
         $width = $fontMetrics->get_text_width($text, $font, $size) / 2;
         $x = ($pdf->get_width() - $width) / 1;
-        $y = $pdf->get_height() - 20;
+        $y = $pdf->get_height() - 15;
         $pdf->page_text($x, $y, $text, $font, $size);
     }
     

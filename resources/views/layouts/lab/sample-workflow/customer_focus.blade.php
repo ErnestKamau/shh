@@ -26,11 +26,19 @@
         .bracket-cover {list-style-type: none;}
         .bracket_cover:before {content: "(" counter(section, lower-alpha) ") ";}
         .bracket_cover { counter-increment: section;}
+        @media print{
+            .header-print{
+                display: none;
+            }
+        }
     </style>
 </head>
 
 <body>
-    <div class="m-4 card">
+    <div class="header-print p-3">
+        <span class="btn btn-md mb-3 btn-primary print_initiator float-right" ><i class="mdi mdi-print"></i> Print</span>
+    </div>
+    <div class="m-4 card" style="clear:both">
         <div class="card-body">
 
             <div class="row border-bottom">
@@ -139,20 +147,25 @@
                 <div class="batch-declarations border-bottom border-dark" style="width:100%">
                     <ol type="1" style="padding:16px !important">
                         <li>Are Client`s instructions clear ?  <input type="checkbox" class="ml-5" name=""
-                            {{ $batch->client_instruction_clear == 1 ? 'checked' : '' }} id=""></li>
+                            {{ $batch->client_instruction_clear == 1 ? 'checked' : '' }} disabled id=""> Yes  <input type="checkbox" class="ml-5" name=""
+                            {{ $batch->client_instruction_clear == 1 ? '' : 'checked' }} disabled id=""> No</li>
                         <li style="width:100%">Condition and quality of sample <u><span class="text-bold text-muted ml-5" style="display: inline-block;width:82%">{{ $batch->condition_quality_sample }}</u> </span></li>
                         <li>
                             <ol type="a" class="bracket-cover">
-                                <li class="bracket_cover"><input type="checkbox" name=""
-                                        {{ $batch->lab_capable == 1 ? 'checked' : '' }} id=""> Is the
-                                    Laboratory capable of performing the requested tests?</li>
-                                <li class="bracket_cover"><input type="checkbox" name=""
-                                        {{ $batch->can_be_subcontracted == 1 ? 'checked' : '' }} id=""> If no
-                                    can it be subcontracted to an approved Laboratory?</li>
+                                <li class="bracket_cover">Is the
+                                    Laboratory capable of performing the requested tests? <input class="ml-5" type="checkbox" name=""
+                                    {{ $batch->lab_capable == 1 ? 'checked' : '' }} disabled id=""> Yes <input  class="ml-5" type="checkbox" name=""
+                                    {{ $batch->lab_capable == 1 ? '' : 'Checked' }} disabled id=""> No</li>
+                                <li class="bracket_cover">If no
+                                    can it be subcontracted to an approved Laboratory? <input type="checkbox" class="ml-5" name=""
+                                    {{ $batch->can_be_subcontracted == 1 ? 'checked' : '' }} id="" disabled> Yes <input class="ml-5" type="checkbox" name=""
+                                    {{ $batch->can_be_subcontracted == 1 ? '' : 'checked' }} id="" disabled> No</li>
                                 <li class="bracket_cover">
-                                    <input type="checkbox" name=""
-                                        {{ $batch->batch_subcontracted_client_approval == 1 ? 'checked' : '' }}
-                                        id=""> Is the client willing for the sample to be subcontracted?
+                                    Is the client willing for the sample to be subcontracted? <input class="ml-5" type="checkbox" name=""
+                                    {{ $batch->batch_subcontracted_client_approval == 1 ? 'checked' : '' }}
+                                    id="" disabled> Yes <input class="ml-5" type="checkbox" name=""
+                                    {{ $batch->batch_subcontracted_client_approval == 1 ? 'checked' : '' }}
+                                    id="" disabled> No
                                 </li>
                             </ol>
                         </li>
@@ -247,5 +260,13 @@
         </div>
     </div>
 </body>
+<script src="/assets/js/libs/jquery/jquery-3.5.1.min.js"></script>
+<script>
+    $(()=>{
+        $('.print_initiator').on('click',()=>{
+            window.print();
+        })
+    })
+</script>
 
 </html>

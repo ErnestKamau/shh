@@ -443,7 +443,7 @@
 					
 					<div class="form-group btn-group-sm col-md-3">
 						<label class="control-label">Condition and Quality of Sample</label>
-						<input type="text" class="form-control" autocomplete="off" value="{{$batch->condition_quality_sample ?? ''}}" name="submit_by" value="{{ $batch->submit_by ?? '' }}" placeholder="Condition and Quality of Sample..." />
+						<input type="text" class="form-control" autocomplete="off" value="{{$batch->condition_quality_sample ?? ''}}" name="condition_quality_sample" value="{{ $batch->submit_by ?? '' }}" placeholder="Condition and Quality of Sample..." />
 					</div>
 					<div class="form-group btn-group-sm col-md-3">
 							<label class="control-label">Sampled By</label>
@@ -1218,7 +1218,7 @@
 							<button type="button" class="btn btn-danger btn-sm text-white ml-2 save-samples"><i class="mdi mdi-content-save"></i> Save</button> &nbsp; &nbsp;
 							<span class="btn btn-success btn-sm create-new-sample-row float-right"><i class="mdi mdi-plus"></i> Add</span> &nbsp; &nbsp;
 							<span class="btn btn-primary btn-sm duplicate-sample-row float-right mr-1"><i class="mdi mdi-content-duplicate"></i> Duplicate</span>
-							<span class="btn btn-default btn-sm float-right mr-2" data-target="#clone-samples" data-toggle="modal" style="box-shadow: rgba(0, 0, 0, 0.35) 0px 5px 15px;"><i class="mdi mdi-compare-horizontal"></i> Clone Samples</span>
+							{{-- <span class="btn btn-default btn-sm float-right mr-2" data-target="#clone-samples" data-toggle="modal" style="box-shadow: rgba(0, 0, 0, 0.35) 0px 5px 15px;"><i class="mdi mdi-compare-horizontal"></i> Clone Samples</span> --}}
 							
 							@endif
 						@endif
@@ -2374,6 +2374,11 @@
 								</thead>
 								<tbody id="sample-parameters-holder"></tbody>
 							</table>
+						</div>
+						<div class="save-parameter mt-3">
+							@if(isset($batch->status) &&  $batch->status == "Samples In Lab")
+								<button class="btn btn-sm btn-primary float-right"><i class="mdi mdi-content-save"></i> Save</button>
+							@endif
 						</div>
 					</form>
 					@if(isset($batch->status) && $batch->status == "Samples Reception")
@@ -3979,9 +3984,15 @@
 			return body;
 
 		}
+		$('#edit-standard').on('hidden.bs.modal',()=>{
+			$('body').addClass('modal-open');
+		})
+		
 		$('#edit-standard').on('show.bs.modal',(e)=>{
-			$body = editStandardModal()
+			// e.stopPropagation();
+			var parentDiv = '';
 			$('#edit-standard').find('.modal-body').empty();
+			$body = editStandardModal()
 			$('#edit-standard').find('.modal-body').append($body);
 
 
@@ -3994,10 +4005,6 @@
 
 			var analyte_id = $(e.relatedTarget).data('analyte')
 			var standard = $(e.relatedTarget).data('standard');
-			var parentTD = $(e.relatedTarget.parentNode.parentNode);
-			var parentTR = $(e.relatedTarget.parentNode.parentNode.parentNode);
-
-		
 			$('#edit-standard').find('.standard_value_field').val($(e.relatedTarget).data('standardvalue'));
 			var is_value_id = 0;
 			$.ajax({
@@ -4041,6 +4048,7 @@
 				}
 				
 			})
+			
 			$('#edit-standard').find('.save-standard-value').on('click',()=>{
 				$.ajaxSetup({
 					headers: {
@@ -4065,10 +4073,18 @@
 						$('#edit-standard').find('.after-save').removeClass('hidden');
 						$('#edit-standard').find('.save-standard-value').addClass('hidden');
 						
+						console.log('-----------------------------')
+						// e.preventDefault();
+						parentDiv = $(e.relatedTarget).data('valueid');
+						// $(parentDiv).find('.main-value-field').val(data['format_value']);
+						// $(parentDiv).parent('td').find('.standard-value-field').val(data['value']);
+						console.log(parentDiv);
+						console.log('-----------------------------')
 
-						$(parentTD).find('.main-value-field').val(data['format_value']);
-						$(parentTD).find('.standard-value-field').val(data['value']);
-						$(parentTR).find('.first-result').val('');
+						// $(parentTD).find('.main-value-field').val(data['format_value']);
+						// $(parentTD).find('.standard-value-field').val(data['value']);
+						
+						// $(parentTR).find('.first-result').val('');
 						
 					},
 					error:(data)=>{
@@ -4125,7 +4141,7 @@
 				<td nowrap class="">
 					<div class="d-flex">
 						<input type="text" class="form-control main-value-field" style="width:100px;border:0" name="main_value[${data.id}]" value=" ${data.standard_limit_value != '' ? data.standard_limit_value : ''} ${data.standard_value == null ? '-': data.standard_value}" disabled />
-						<span class="btn btn-sm btn-default text-primary float-right" data-toggle="modal" data-target="#edit-standard" data-standard="${data.main_standard}" data-analyte="${data.analyte_id}" data-analytename="${data.analyte_code}" data-standardvalue="${data.standard_value}"><i class="mdi mdi-pencil" data-toggle="tooltip" title="Edit Standard"></i></span>	
+						<span class="btn btn-sm btn-default text-primary float-right" data-toggle="modal" data-target="#edit-standard" data-standard="${data.main_standard}" data-analyte="${data.analyte_id}" data-analytename="${data.analyte_code}" data-valueid="${data.id}" data-standardvalue="${data.standard_value}"><i class="mdi mdi-pencil" data-toggle="tooltip" title="Edit Standard"></i></span>	
 					</div>
 					
 							
@@ -4238,17 +4254,19 @@
 
 		var selectedOperator = $row.find('select.item-operators').data('selected');
 		var selectedMethod = $row.find('select.method-id').data('selected');
-		var methods = data.methods;
+		// var methods = data.methods;
+		var methods = $('#sample-detail-rows').data('methods');
 		
 		if(methods != '' ){
 			$row.find('select.method-id').empty();
 			$.each(methods,function(r,t){
-				$row.find('select.method-id').append(`<option value="${t}" ${t == selectedMethod ? `selected` : `` }>${r}</option>`)
+				$row.find('select.method-id').append(`<option value="${r}" ${r == selectedMethod ? `selected` : `` }>${t}</option>`)
 			})
+			
 
 		}else{
 			methods = $('#sample-detail-rows').data('methods');
-			$.each(methods,function(r,t){
+			$.each(methods,function(t){
 				$row.find('select.method-id').append(`<option value="${t.id}" ${t.id == selectedMethod ? `selected` : `` }>${t.name}</option>`)
 			})
 
@@ -4256,7 +4274,7 @@
 		
 		
 		$row.find('select.item-operators').empty();
-		var OPS = $('#operators-list').data('analysts');
+		var OPS = $('#operators-list').data('operators');
 		$.each(OPS, function(o,p){
 			$row.find('select.item-operators').append(`<option value="${p.id}">${p.name}</option>`)
 		});

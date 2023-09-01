@@ -198,9 +198,9 @@ class ReportHeaderDetailController extends Controller
 		if ($report_format == '2') {
 			foreach ($samples as $sample) {
 				$sample['getBrandOuts'] = [
-					"normal" => SampleAnalysisTypeRelationView::where('brand_id', 0)->orderBy('analysis_level', 'DESC')->get(),
-					"physical" => SampleAnalysisTypeRelationView::where('brand_id', 1)->orderBy('analysis_level', 'DESC')->get(),
-					"pesticide" => SampleAnalysisTypeRelationView::where('brand_id', 2)->orderBy('analysis_level', 'DESC')->get(),
+					"normal" => SampleAnalysisTypeRelationView::where('brand_id', 0)->where('sample_detail_id',$sample->id)->orderBy('analysis_level', 'DESC')->get(),
+					"physical" => SampleAnalysisTypeRelationView::where('brand_id', 1)->where('sample_detail_id',$sample->id)->orderBy('analysis_level', 'DESC')->get(),
+					"pesticide" => SampleAnalysisTypeRelationView::where('brand_id', 2)->where('sample_detail_id',$sample->id)->orderBy('analysis_level', 'DESC')->get(),
 				];
 			}
 			// return response()->json($samples);

@@ -951,14 +951,18 @@ class SampleWorkFlowController extends Controller
 	public function createDetailAnalysisRelation($batch_id, $sample_id, $analysis_type)
 	{
 		$data = [];
+		sampleAnalysisTypeRelation::where('batch_id', $batch_id)->where('sample_detail_id', $sample_id)->whereNotIn('analysis_type_id', $analysis_type)->delete();
+		$existing = sampleAnalysisTypeRelation::where('batch_id', $batch_id)->where('sample_detail_id', $sample_id)->pluck('analysis_type_id')->toArray();
 		foreach ($analysis_type as $at) {
-			$data[] = [
-				"analysis_type_id" => $at,
-				"batch_id" => $batch_id,
-				"sample_detail_id" => $sample_id
-			];
+			if(!in_array($at,$existing)){
+				$data[] = [
+					"analysis_type_id" => $at,
+					"batch_id" => $batch_id,
+					"sample_detail_id" => $sample_id,
+				];
+			}
 		}
-		sampleAnalysisTypeRelation::insert($data);
+		sizeof($data) > 0 ? sampleAnalysisTypeRelation::insert($data) : '';
 		return "success";
 	}
 	public function addBatchSamplesDynamically()
@@ -1330,7 +1334,8 @@ class SampleWorkFlowController extends Controller
 		$notifiable_users  = getNotifiableUsers();
 		$notesReminderType = getNotesReminderTypes();
 		$clients = getClients();
-		return view('layouts.lab.sample-workflow.show', compact('batch', 'batchID', 'defaultClient', 'selectedSampleType', 'client_portal', 'ammendable', 'standards', 'attachments', 'not_captured', 'analysts', 'countries', 'accounts', 'methods', 'atachment_type', 'batch_scope', 'customer_survey', 'interlabs', 'labs', 'users', 'payment_detail', 'labsections', 'contacts', 'batch_sample_codes', 'report_formats', 'approvers', 'reportingUnits', 'conditions', 'products', 'headerDetails', 'analaytesHolder', 'analysisBySample', 'analysisBySampleNames', 'labSamples', 'workflowstages', 'workflows', 'sample_types', 'samplingmethods', 'active_company', 'ammendments', 'allsamples', 'selected_analysis_types', 'userLabSections', 'customer', 'requestTypes', 'notifiable_users', 'notesReminderType', 'clients', 'disposal_date', 'status', 'analysts'));
+		// return response()->json($analysts);
+		return view('layouts.lab.sample-workflow.show', compact('batch', 'batchID', 'defaultClient', 'selectedSampleType', 'client_portal', 'ammendable', 'standards', 'attachments', 'not_captured', 'analysts', 'countries', 'accounts', 'methods', 'atachment_type', 'batch_scope', 'customer_survey', 'interlabs', 'labs', 'users', 'payment_detail', 'labsections', 'contacts', 'batch_sample_codes', 'report_formats', 'approvers', 'reportingUnits', 'conditions', 'products', 'headerDetails', 'analaytesHolder', 'analysisBySample', 'analysisBySampleNames', 'labSamples', 'workflowstages', 'workflows', 'sample_types', 'samplingmethods', 'active_company', 'ammendments', 'allsamples', 'selected_analysis_types', 'userLabSections', 'customer', 'requestTypes', 'notifiable_users', 'notesReminderType', 'clients', 'disposal_date', 'status'));
 	}
 
 	public function fetch_unit_stuff($name, $client)
@@ -2186,18 +2191,18 @@ class SampleWorkFlowController extends Controller
 							if (trim($reporting_symbol) == '>') {
 								$response = 'FAIL';
 							} else {
-								if($analyte_guide->value_type == 'Max' || $analyte_guide->value_type == '' ){
-										
+								if ($analyte_guide->value_type == 'Max' || $analyte_guide->value_type == '') {
+
 									$response = $result <= floatval($analyte_guide->standard_is_value) ? 'PASS' : 'FAIL';
 								}
-								if($analyte_guide->value_type == 'Min' || $analyte_guide->value_type == '' ){
-										
+								if ($analyte_guide->value_type == 'Min' || $analyte_guide->value_type == '') {
+
 									$response = $result >= floatval($analyte_guide->standard_is_value) ? 'PASS' : 'FAIL';
 								}
-								if($analyte_guide->value_type == 'less_than'){
+								if ($analyte_guide->value_type == 'less_than') {
 									$response = $result < floatval($analyte_guide->standard_is_value) ? 'PASS' : 'FAIL';
 								}
-								if($analyte_guide->value_type == 'greater_than'){
+								if ($analyte_guide->value_type == 'greater_than') {
 									$response = $result > floatval($analyte_guide->standard_is_value) ? 'PASS' : 'FAIL';
 								}
 							}
@@ -2207,20 +2212,19 @@ class SampleWorkFlowController extends Controller
 								if (trim($reporting_symbol) == '>') {
 									$response = 'FAIL';
 								} else {
-									if($analyte_guide->value_type == 'Max' || $analyte_guide->value_type == '' ){
-										
+									if ($analyte_guide->value_type == 'Max' || $analyte_guide->value_type == '') {
+
 										$response = $result <= floatval($analyte_guide->standard_is_value) ? 'PASS' : 'FAIL';
 									}
-									if($analyte_guide->value_type == 'Min' || $analyte_guide->value_type == '' ){
-										
+									if ($analyte_guide->value_type == 'Min' || $analyte_guide->value_type == '') {
+
 										$response = $result >= floatval($analyte_guide->standard_is_value) ? 'PASS' : 'FAIL';
 									}
-									if($analyte_guide->value_type == 'less_than'){
+									if ($analyte_guide->value_type == 'less_than') {
 										$response = $result < floatval($analyte_guide->standard_is_value) ? 'PASS' : 'FAIL';
 									}
-									if($analyte_guide->value_type == 'greater_than'){
+									if ($analyte_guide->value_type == 'greater_than') {
 										$response = $result > floatval($analyte_guide->standard_is_value) ? 'PASS' : 'FAIL';
-
 									}
 								}
 
@@ -3301,7 +3305,7 @@ class SampleWorkFlowController extends Controller
 
 	public function getLabSectionsByLab($lab_id)
 	{
-		$sections = $lab_id > 0 ? SampleAnalysisStage::where('lab_id', $lab_id)->where('active',1)->get() : SampleAnalysisStage::where('active',1)->get();
+		$sections = $lab_id > 0 ? SampleAnalysisStage::where('lab_id', $lab_id)->where('active', 1)->get() : SampleAnalysisStage::where('active', 1)->get();
 		return response()->json($sections);
 	}
 

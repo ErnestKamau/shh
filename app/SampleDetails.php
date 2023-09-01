@@ -54,7 +54,7 @@ class SampleDetails extends Model implements Auditable
 		return $this->belongsTo('App\Models\CRM\CompanyProduct', 'company_product_id');
 	}
 	public function getAnalysisRelation(){
-		return implode(', ',SampleAnalysisTypeRelationView::where('sample_detail_id',$this->id)->pluck('analysis_type_name')->toArray() ?? []);
+		return implode(', ',array_unique(SampleAnalysisTypeRelationView::where('sample_detail_id',$this->id)->pluck('analysis_type_name')->toArray()) ?? []);
 	}
 
 

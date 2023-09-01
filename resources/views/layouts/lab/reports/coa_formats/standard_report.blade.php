@@ -287,7 +287,7 @@
                 <tr style="margin:0px !important">
                     <td style="font-size:8px !important;">
                         @if($sample->header_body != '')
-                        <b>Comments : </b>{{ $sample->header_body }}
+                        <b>Comments : </b>{!! $sample->header_body !!}
                         @endif
 
                     </td>
@@ -306,7 +306,7 @@
         $font = $fontMetrics->getFont("Verdana");
         $width = $fontMetrics->get_text_width($text, $font, $size) / 2;
         $x = ($pdf->get_width() - $width) / 1;
-        $y = $pdf->get_height() - 15;
+        $y = $pdf->get_height() - 10;
         $pdf->page_text($x, $y, $text, $font, $size);
     }
 </script>
