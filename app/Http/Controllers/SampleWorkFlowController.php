@@ -643,6 +643,8 @@ class SampleWorkFlowController extends Controller
 
 				// return response()->json($request->sample_details['lab_id'][$k]);
 				$sample_number = intval($last_sample)  + 1;
+				$sample_number = str_pad($sample_number, 4, '0', STR_PAD_LEFT);
+
 				$detail->sample_code = 'S' . date('Y') . $lab->code . $sample_number;
 				$detail->sample_no = $sample_number;
 			}
@@ -915,7 +917,7 @@ class SampleWorkFlowController extends Controller
 					$captured->analyte_accredited = $analysisType->non_accredited;
 					$captured->analyte_status_contracted = $lab->is_external ?? 0;
 					$captured->lab_section_id  = $analysisType->lab_section_id;
-					$captured->parameters_order = $analysisType->level;
+					$captured->parameters_order = $analysisType->level ?? 0;
 					$captured->remark_is_manual = $analysisType->remark_is_manual;
 
 					$captured->save();
@@ -938,7 +940,7 @@ class SampleWorkFlowController extends Controller
 					$result->recheck = 0;
 					$result->analyte_status_contracted = $lab->is_external ?? 0;
 					$result->lab_section_id  = $analysisType->lab_section_id;
-					$result->parameters_order = $analysisType->level;
+					$result->parameters_order = $analysisType->level ?? 0;
 					$result->remark_is_manual = $analysisType->remark_is_manual;
 
 					$result->save();
@@ -1996,7 +1998,7 @@ class SampleWorkFlowController extends Controller
 
 			$sampleDetail = SampleDetails::where('sample_code', $i->sample_code)->first();
 			$analysisType = AnalysisElements::where('analysis_type_id', $i->analysis_type_id)
-				->where('analyte_id', $i->id)->where('equipment_id', $i->equipment_id)->first();
+				->where('analyte_id', $i->id)->first();
 
 			$captured = CapturedResult::where('sample_detail_code', $i->sample_code)
 				->where('sample_detail_id', $sampleDetail->id)

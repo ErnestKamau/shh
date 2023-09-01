@@ -2,6 +2,8 @@
 
 	namespace App\Datatables;
 
+
+	use Illuminate\Support\Facades\Log;
 	class Datatables{
 		private $tableObject;
 		private $request;
@@ -34,11 +36,10 @@
 				$data->offset($request->start)->limit($request->length);
 			}
 
-
 			return array(
 				"draw"            => isset ( $request->draw ) ? intval( $request->draw ) : 0,
-				"recordsTotal"    => intval( $tableObject->get()->count() ),
-				"recordsFiltered" => intval( $filteredOBJ->get()->count() ),
+				"recordsTotal"    => intval( $tableObject->count() ),
+				"recordsFiltered" => intval( $filteredOBJ->count() ),
 				"data"            => $this->formatOutput( $data, $request->start )
 			);
 		}
