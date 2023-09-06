@@ -1402,7 +1402,7 @@
 @if(isset($batch->id))
 <div class="modal fade" id="edit-standard" data-backdrop="static" data-keyboard="false"  role="dialog" style="z-index: 3000">
 	<div class="modal-dialog">
-		<div class="modal-content bg-light">
+		<form class="modal-content bg-light">
 			<div class="modal-body">
 				
 			</div>
@@ -1410,7 +1410,7 @@
 				<span class="btn btn-sm btn-outline-primary save-standard-value"><i class="mdi mdi-content-save"></i> Save</span>
 				<span class="btn btn-sm btn-default" data-dismiss="modal">Close</span>
 			</div>
-		</div>
+		</form>
 	</div>
 </div>
 <div class="modal fade" id="change-approval-status" role="dialog">
@@ -3899,9 +3899,11 @@
 			}
 			
 		});
+		var relatedTargetElement;
+		var is_value_id = 0;
 		var editStandardModal = (data)=>{
 			var body = $(`
-				<form action="" class="bg-white p-3 before-save">
+				<div action="" class="bg-white p-3 before-save">
 					
 					<div class="alert alert-primary d-flex">
 						<i class="mdi mdi-alert-decagram-outline" style="font-size: 30px"></i>
@@ -3974,13 +3976,35 @@
 						</div>
 						
 					</div>
-				</form>
+				</div>
 				<div class="after-save p-3 bg-white hidden">
 					<center>
 						<img src="/images/suc.gif" width="30%" height="50%" alt="">
 					</center>
 				</div>
 			`).clone();
+			$(body).find('.is_standard_value').on('change',(e)=>{
+				var value = $(e.currentTarget).val();
+				selectedValue = $(e.currentTarget).val();
+				// console.log('here--------------')
+				console.log(value);
+				if(value == 1){
+					$(body).find('.is-range').removeClass('hidden');
+					$(body).find('.is-value').addClass('hidden');
+				}else{
+					$(body).find('.is-range').addClass('hidden');
+					$(body).find('.is-value').removeClass('hidden');
+				}
+			});
+			$(body).find('.standard_valuetype').on('change',(e)=>{
+				
+				var value = $(e.currentTarget).val();
+				if(value == is_value_id){
+					$(body).find('.is-value-type').removeClass('hidden');
+				}else{
+					$(body).find('.is-value-type').addClass('hidden');
+				}
+			})
 			return body;
 
 		}
@@ -3988,9 +4012,10 @@
 			$('body').addClass('modal-open');
 		})
 		
+		
 		$('#edit-standard').on('show.bs.modal',(e)=>{
 			// e.stopPropagation();
-			var parentDiv = '';
+			relatedTargetElement = e.relatedTarget
 			$('#edit-standard').find('.modal-body').empty();
 			$body = editStandardModal()
 			$('#edit-standard').find('.modal-body').append($body);
@@ -4006,7 +4031,7 @@
 			var analyte_id = $(e.relatedTarget).data('analyte')
 			var standard = $(e.relatedTarget).data('standard');
 			$('#edit-standard').find('.standard_value_field').val($(e.relatedTarget).data('standardvalue'));
-			var is_value_id = 0;
+			
 			$.ajax({
 				url:`/get/Standard-Values/Data/Ajax`,
 				method:'GET',
@@ -4028,73 +4053,56 @@
 
 			});
 			var selectedValue = 0;
-			$('#edit-standard').find('.is_standard_value').on('change',(e)=>{
-				var value = $(e.currentTarget).val();
-				selectedValue = $(e.currentTarget).val();
-				
-				if(value == 1){
-					$('#edit-standard').find('.is-range').removeClass('hidden');
-					$('#edit-standard').find('.is-value').addClass('hidden');
-				}else{
-					$('#edit-standard').find('.is-range').addClass('hidden');
-					$('#edit-standard').find('.is-value').removeClass('hidden');
-				}
-			});
-			$('#edit-standard').find('.standard_valuetype').on('change',(e)=>{
-				if($('#edit-standard').find('.standard_valuetype').val() == is_value_id){
-					$('#edit-standard').find('.is-value-type').removeClass('hidden');
-				}else{
-					$('#edit-standard').find('.is-value-type').addClass('hidden');
-				}
-				
-			})
 			
-			$('#edit-standard').find('.save-standard-value').on('click',()=>{
-				$.ajaxSetup({
-					headers: {
-						'X-CSRF-TOKEN': jQuery('meta[name="csrf-token"]').attr('content')
-					}
-				});
-				$.ajax({
-					url:`/update/Standard-Analyte/Limit`,
-					method:'POST',
-					data:{
-						analyte_id : analyte_id,
-						standard_id : standard,
-						low : $('#edit-standard').find('.min').val(),
-						high : $('#edit-standard').find('.max').val(),
-						standard_valuetype : $('#edit-standard').find('.standard_valuetype').val(),
-						limit_measure : $('#edit-standard').find('.limit-measure').val(),
-						standard_value_type : selectedValue,
-						value :  $('#edit-standard').find('.value').val(),
-					},
-					success:(data)=>{
-						$('#edit-standard').find('.before-save').addClass('hidden');
-						$('#edit-standard').find('.after-save').removeClass('hidden');
-						$('#edit-standard').find('.save-standard-value').addClass('hidden');
-						
-						console.log('-----------------------------')
-						// e.preventDefault();
-						parentDiv = $(e.relatedTarget).data('valueid');
-						// $(parentDiv).find('.main-value-field').val(data['format_value']);
-						// $(parentDiv).parent('td').find('.standard-value-field').val(data['value']);
-						console.log(parentDiv);
-						console.log('-----------------------------')
 
-						// $(parentTD).find('.main-value-field').val(data['format_value']);
-						// $(parentTD).find('.standard-value-field').val(data['value']);
-						
-						// $(parentTR).find('.first-result').val('');
-						
-					},
-					error:(data)=>{
-						console.log(data);
-					}
-				})
-
+		});
+		
+		$('#edit-standard').find('.save-standard-value').on('click',()=>{
+			var analyte_id = $(relatedTargetElement).data('analyte')
+			var standard = $(relatedTargetElement).data('standard');
+			$.ajaxSetup({
+				headers: {
+					'X-CSRF-TOKEN': jQuery('meta[name="csrf-token"]').attr('content')
+				}
 			});
+			$.ajax({
+				url:`/update/Standard-Analyte/Limit`,
+				method:'POST',
+				data:{
+					analyte_id : analyte_id,
+					standard_id : standard,
+					low : $('#edit-standard').find('.min').val(),
+					high : $('#edit-standard').find('.max').val(),
+					standard_valuetype : $('#edit-standard').find('.standard_valuetype').val(),
+					limit_measure : $('#edit-standard').find('.limit-measure').val(),
+					standard_value_type : selectedValue,
+					value :  $('#edit-standard').find('.value').val(),
+				},
+				success:(data)=>{
+					$('#edit-standard').find('.before-save').addClass('hidden');
+					$('#edit-standard').find('.after-save').removeClass('hidden');
+					$('#edit-standard').find('.save-standard-value').addClass('hidden');
+					
+					console.log('-----------------------------')
+					// e.preventDefault();
+					var parentDiv = $(relatedTargetElement).data('valueid');
+					// $(parentDiv).find('.main-value-field').val(data['format_value']);
+					// $(parentDiv).parent('td').find('.standard-value-field').val(data['value']);
+					console.log(parentDiv);
+					console.log('-----------------------------')
 
-		})
+					// $(parentTD).find('.main-value-field').val(data['format_value']);
+					// $(parentTD).find('.standard-value-field').val(data['value']);
+					
+					// $(parentTR).find('.first-result').val('');
+					
+				},
+				error:(data)=>{
+					console.log(data);
+				}
+			})
+
+		});
 
 	});
 
