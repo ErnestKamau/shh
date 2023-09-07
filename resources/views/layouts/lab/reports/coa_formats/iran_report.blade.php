@@ -75,7 +75,7 @@
 
                 </td>
                 @foreach ($batch_approvers as $approver)
-                    <td style="font-size: 8px !important;">
+                    <td style="font-size: 8px !important;text-align:right !important">
                         <b>{{ $approver->title }}</b><br>
                         <img src="{{ getCoaApproverSignature($approver->getApproverDetails()->electronic_sig) }}"
                             style="width:80px" alt="signature"><br>
@@ -106,9 +106,9 @@
         <div style="margin-top:10px">
             <table style="width:100%">
                 <tr>
-                    <td style="width: 10%">
-                        <img src="data:image/png;base64, {!! $qrcode !!}" width="50" height="50"> <br>
-                        <span style="font-size: 7px !important;">Scan to Verify</span>
+                    <td style="width: 10%" style=" vertical-align: top;display: inline-block;text-align: center;">
+                        <img src="data:image/png;base64, {!! $qrcode !!}" style="margin-top: 20px" width="50" height="50">
+                        <span style="font-size: 7px !important;display: block;margin-top:3px">Scan to Verify</span>
 
                     </td>
                     <td style="text-align: center">
@@ -241,7 +241,7 @@
                 </tr>
                 <tr>
                     <td><b>FINISH DATE OF ANALYSIS</b></td>
-                    <td>{{ date('Y-m-d') }}</td>
+                    <td>{{$analysis_date->updated_at != '' ?  date('Y-m-d',strtotime($analysis_date->updated_at)) : '-' }}</td>
                     <td><b>SAMPLING METHOD</b></td>
                     <td>{{ $sample->sample_method_name }}</td>
                 </tr>
@@ -285,7 +285,7 @@
                                         </td>
                                         <td class="parameter {{ $captured->remark == 'FAIL' ? 'textBold' : '' }}"
                                             style="font-size: 9px !important;padding-left:3px !important;">
-                                            {{ $captured->method()->name }}
+                                            {{ strtoupper($captured->method()->name) }}
                                         </td>
                                         <td class="parameter {{ $captured->remark == 'FAIL' ? 'textBold' : '' }}"
                                             style="font-size: 9px !important;padding-left:3px !important;">

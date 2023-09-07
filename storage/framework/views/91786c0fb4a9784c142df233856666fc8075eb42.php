@@ -3915,6 +3915,8 @@
 			}
 			
 		});
+		var relatedTargetElement;
+		var is_value_id = 0;
 		var editStandardModal = (data)=>{
 			var body = $(`
 				<div action="" class="bg-white p-3 before-save">
@@ -4011,7 +4013,13 @@
 				}
 			});
 			$(body).find('.standard_valuetype').on('change',(e)=>{
-				console.log('am here')
+				
+				var value = $(e.currentTarget).val();
+				if(value == is_value_id){
+					$(body).find('.is-value-type').removeClass('hidden');
+				}else{
+					$(body).find('.is-value-type').addClass('hidden');
+				}
 			})
 			return body;
 
@@ -4020,7 +4028,7 @@
 			$('body').addClass('modal-open');
 		})
 		
-		var relatedTargetElement;
+		
 		$('#edit-standard').on('show.bs.modal',(e)=>{
 			// e.stopPropagation();
 			relatedTargetElement = e.relatedTarget
@@ -4039,7 +4047,7 @@
 			var analyte_id = $(e.relatedTarget).data('analyte')
 			var standard = $(e.relatedTarget).data('standard');
 			$('#edit-standard').find('.standard_value_field').val($(e.relatedTarget).data('standardvalue'));
-			var is_value_id = 0;
+			
 			$.ajax({
 				url:`/get/Standard-Values/Data/Ajax`,
 				method:'GET',
@@ -4094,9 +4102,42 @@
 					console.log('-----------------------------')
 					// e.preventDefault();
 					var parentDiv = $(relatedTargetElement).data('valueid');
+					$(relatedTargetElement).data('standardvalue',data['value']);
+					$('#sample-parameters-holder').find(`[name="main_s_value[${parentDiv}]"]`).val(data['format_value'])
+					$('#sample-parameters-holder').find(`[name="main_value[${parentDiv}]"]`).val(data['value']);
+
+					var result = $('#sample-parameters-holder').find(`[name="result[${parentDiv}]"]`).val()
+					var reportSymbol = $('#sample-parameters-holder').find(`[name="result_reporting_symbol[${parentDiv}]"]`).val()
+					
+
+					$.ajaxSetup({
+					headers: {
+						'X-CSRF-TOKEN': jQuery('meta[name="csrf-token"]').attr('content')
+					}
+					});
+					$.ajax({
+						url: '/fetch/results-remark',
+						method:'post',
+						data:{
+							sample_code:$('#sample-parameters-holder').find(`[name="result[${parentDiv}]"]`).data('resultid'),
+							result:result,
+							reporting_symbol : reportSymbol,
+							captured_result_id : parentDiv
+						},
+						success:function(response){
+							$('#sample-parameters-holder').find('[name="remark['+ parentDiv + ']"]').val(response);
+							
+						},
+						error:function(data){
+							console.log(data);
+						}
+
+					});
+
+
 					// $(parentDiv).find('.main-value-field').val(data['format_value']);
 					// $(parentDiv).parent('td').find('.standard-value-field').val(data['value']);
-					console.log(parentDiv);
+					// console.log(parentDiv);
 					console.log('-----------------------------')
 
 					// $(parentTD).find('.main-value-field').val(data['format_value']);
@@ -4143,7 +4184,7 @@
 				<td nowrap class="hidden" ><input type="text" <?php echo e(isset($batch->status) && $batch->status != 'Samples In Lab' ? 'disabled' : ''); ?> name="result_reporting_symbol[${data.id}]" id="reporting-symbol" placeholder="Reporting Symbol..." value="${data.result_reporting_symbol == null ? '' :data.result_reporting_symbol }" ></td>
 				<td>
 					<div class="form-group">
-						<input <?php echo e(isset($batch->status) && $batch->status != 'Samples In Lab' ? 'disabled' : ''); ?> id="${data.sample_detail_code},${data.analyte_code},${data.id},${data.analyte_id}" style="min-width: 150px" type="text"
+						<input <?php echo e(isset($batch->status) && $batch->status != 'Samples In Lab' ? 'disabled' : ''); ?> id="${data.sample_detail_code},${data.analyte_code},${data.id},${data.analyte_id}" data-resultid="${data.sample_detail_code},${data.analyte_code},${data.id},${data.analyte_id}" style="min-width: 150px" type="text"
 						class="form-control ${data.remark_is_manual == 0 ? 'first-result' : ''}"  id="result-${loop}" value="${data.result == null ? '' : data.result}" name="result[${data.id}]" placeholder="Result..." />
 						<input type="hidden" name="result_confirm"  />
 					</div>
@@ -4156,7 +4197,7 @@
 				<?php endif; ?>
 				<td nowrap class="">
 					<div class="d-flex">
-						<input type="text" class="form-control main-value-field" style="width:100px;border:0" name="main_value[${data.id}]" value=" ${data.standard_limit_value != '' ? data.standard_limit_value : ''} ${data.standard_value == null ? '-': data.standard_value}" disabled />
+						<input type="text" class="form-control main-value-field" style="width:100px;border:0" name="main_s_value[${data.id}]" value="${data.standard_value == null ? '-': data.standard_value} ${data.standard_limit_value != '' ? data.standard_limit_value : ''}" disabled />
 						<span class="btn btn-sm btn-default text-primary float-right" data-toggle="modal" data-target="#edit-standard" data-standard="${data.main_standard}" data-analyte="${data.analyte_id}" data-analytename="${data.analyte_code}" data-valueid="${data.id}" data-standardvalue="${data.standard_value}"><i class="mdi mdi-pencil" data-toggle="tooltip" title="Edit Standard"></i></span>	
 					</div>
 					

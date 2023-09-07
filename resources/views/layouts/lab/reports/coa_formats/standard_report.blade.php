@@ -46,7 +46,7 @@
 
     .footer {
         position: fixed;
-        bottom: 50px;
+        bottom: 40px;
         left: 0;
         right: 0;
         z-index: 1000;
@@ -80,7 +80,7 @@
 
                 </td>
                 @foreach ($batch_approvers as $approver)
-                    <td style="font-size: 8px !important;">
+                    <td style="font-size: 8px !important;text-align:right">
                         <div class="">
                             <b>{{ $approver->title }}</b><br>
                             <img src="{{ getCoaApproverSignature($approver->getApproverDetails()->electronic_sig) }}" style="width:80px"
@@ -110,9 +110,9 @@
         <div style="margin-top:7px">
             <table style="width:100%">
                 <tr>
-                    <td style="width: 10%" style="display: block">
-                        <img src="data:image/png;base64, {!! $qrcode !!}" width="50" height="50">
-                        <span style="font-size: 8px !important;">Scan to Verify</span>
+                    <td style="width: 10%" style=" vertical-align: top;display: inline-block;text-align: center;">
+                        <img src="data:image/png;base64, {!! $qrcode !!}" style="margin-top: 20px" width="50" height="50">
+                        <span style="font-size: 7px !important;display: block;margin-top:3px">Scan to Verify</span>
                         
                     </td>
                     <td style="text-align: center">
@@ -211,7 +211,7 @@
                                 </tr>
                                 <tr>
                                     <td style="border: solid 0 transparent !important;border-right:1px solid rgba(0, 0, 0, 0.35);font-size:8px !important;border-left:1px solid rgba(0, 0, 0, 0.35);padding:2px;padding-left:4px">DATE ANALYSIS STARTED</td>
-                                    <td style="border: solid 0 transparent !important;padding:2px;padding-left:10px !important;font-size:8px !important;border-right:1px solid rgba(0, 0, 0, 0.35);border-left: 2.1px solid rgba(0, 0, 0, 0.35);"></td>
+                                    <td style="border: solid 0 transparent !important;padding:2px;padding-left:10px !important;font-size:8px !important;border-right:1px solid rgba(0, 0, 0, 0.35);border-left: 2.1px solid rgba(0, 0, 0, 0.35);">{{$analysis_date->updated_at != '' ?  date('Y-m-d',strtotime($analysis_date->updated_at)) : '-' }}</td>
                                 </tr>
                                 <tr>
                                     <td style="border: solid 0 transparent !important;border-right:1px solid rgba(0, 0, 0, 0.35);font-size:8px !important;border-left:1px solid rgba(0, 0, 0, 0.35);padding:2px;padding-left:4px">SAMPLING METHOD</td>
