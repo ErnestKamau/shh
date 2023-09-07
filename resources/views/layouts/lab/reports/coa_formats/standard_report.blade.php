@@ -199,7 +199,7 @@
                                 </tr>
                                 <tr>
                                     <td style="width:20%;border: solid 0 transparent !important;font-size:8px !important;border-left:1px solid rgba(0, 0, 0, 0.35);padding:2px;padding-left:4px">SAMPLE</td>
-                                    <td  style="padding:2px;padding-left:10px !important;border: solid 0 transparent !important;font-size:8px !important;border-right:1px solid rgba(0, 0, 0, 0.35);border-left: 2.1px solid rgba(0, 0, 0, 0.35);">{{ $sample->sample_type_name }}</td>
+                                    <td  style="padding:2px;padding-left:10px !important;border: solid 0 transparent !important;font-size:8px !important;border-right:1px solid rgba(0, 0, 0, 0.35);border-left: 2.1px solid rgba(0, 0, 0, 0.35);">{{ strtoupper($sample->sample_type_name) }}</td>
                                 </tr>
                                 <tr>
                                     <td style="border: solid 0 transparent !important;font-size:8px !important;border-left:1px solid rgba(0, 0, 0, 0.35);padding:2px;padding-left:4px">DATE & PLACE {{ $sample->sampled_by_company_personnel == 1 ? 'SAMPLED' : 'SUBMITTED' }}</td>
