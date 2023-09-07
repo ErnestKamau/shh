@@ -4308,7 +4308,7 @@
 		}else{
 			methods = $('#sample-detail-rows').data('methods');
 			$.each(methods,function(t){
-				$row.find('select.method-id').append(`<option value="${t.id}" ${t.id == selectedMethod ? `selected` : `` }>${t.name}</option>`)
+				$row.find('select.method-id').append(`<option value="${t.id}" ${t.id == selectedMethod ? `selected` : `` }>${t.name.toUpperCase()}</option>`)
 			})
 
 		}
