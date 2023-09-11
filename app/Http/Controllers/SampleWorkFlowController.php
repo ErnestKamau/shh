@@ -3222,6 +3222,7 @@ class SampleWorkFlowController extends Controller
 			];
 			$batch_ids = $batches->pluck('id')->toArray();
 			$samples = SamplesCategory::whereIn('sample_header_id', $batch_ids)->get();
+			sampleAnalysisTypeRelation::whereIn('batch_id', $batch_ids)->whereNotIn('sample_detail_id', $samples->pluck('id')->toArray())->delete();
 			$review_staff = getUserById($batch->receiving_officer);
 			$is_clustered = 1;
 			// return response()->json($batch_ids);
@@ -3238,6 +3239,7 @@ class SampleWorkFlowController extends Controller
 		$docs_settings = SystemConfiguration::where('configuration_type_id', $config_docs_setting->value)->pluck('value', 'key')->toArray();
 		$review_staff = getUserById($batch->receiving_officer);
 		$samples = SamplesCategory::where('sample_header_id', $batch_id)->get();
+		sampleAnalysisTypeRelation::where('batch_id', $batch->id)->whereNotIn('sample_detail_id', $samples->pluck('id')->toArray())->delete();
 		$payment_detail = InvoicePaymentDetail::where('batch_id', $batch->id)->orderBy('id', 'DESC')->first();
 
 		return view('layouts.lab.sample-workflow.customer_focus', compact('batch', 'customer', 'company', 'docs_settings', 'review_staff', 'samples', 'payment_detail', 'is_clustered'));
