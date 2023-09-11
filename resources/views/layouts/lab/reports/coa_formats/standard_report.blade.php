@@ -262,7 +262,7 @@
                                 {!! $captured->analyte_status_contracted == 1 ? '<small>*</small>' : '' !!} {!! $captured->is_italic == 1 ? '<i>'. $captured->analyte_code.'</i>' : $captured->analyte_code !!}
                             </td>  
                             <td class="parameter {{ $captured->remark == 'FAIL' ? 'textBold' : '' }}" style="font-size: 9px !important;padding-left:3px !important;">
-                                {{ $captured->method()->name }}
+                                {{ strtoupper($captured->method()->name) }}
                             </td>  
                             <td class="parameter {{ $captured->remark == 'FAIL' ? 'textBold' : '' }}" style="font-size: 9px !important;padding-left:3px !important;">
                                 {{ $captured->result_reporting_symbol ?? '' }}{{ $captured->result != '' ? $captured->result : 'TBA'  }}
