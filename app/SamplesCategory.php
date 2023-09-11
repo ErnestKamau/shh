@@ -20,9 +20,9 @@ class SamplesCategory extends Model implements Auditable
        
     }
     public function getAnalysisRelation(){
-		return implode(', ',array_unique(SampleAnalysisTypeRelationView::where('sample_detail_id',$this->id)->pluck('analysis_type_name')->toArray()) ?? []);
+		return implode(', ',array_unique(SampleAnalysisTypeRelationView::where('sample_detail_id',$this->id)->where('batch_id',$this->sample_header_id)->pluck('analysis_type_name')->toArray()) ?? []);
 	}
     public function getAnalysisTypeNamesAttribute(){
-		return implode(', ',array_unique(SampleAnalysisTypeRelationView::where('sample_detail_id',$this->id)->pluck('analysis_type_name')->toArray() ?? []));
+		return implode(', ',array_unique(SampleAnalysisTypeRelationView::where('sample_detail_id',$this->id)->where('batch_id',$this->sample_header_id)->pluck('analysis_type_name')->toArray() ?? []));
 	}
 }
