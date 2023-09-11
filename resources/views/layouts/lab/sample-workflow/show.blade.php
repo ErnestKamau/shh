@@ -4181,7 +4181,7 @@
 				@endif
 				<td nowrap class="">
 					<div class="d-flex">
-						<input type="text" class="form-control main-value-field" style="width:100px;border:0" name="main_s_value[${data.id}]" value="${data.standard_value == null ? '-': data.standard_value} ${data.standard_limit_value != '' ? data.standard_limit_value : ''}" disabled />
+						<input type="text" class="form-control main-value-field" style="width:100px;border:0" name="main_s_value[${data.id}]" value="${data.standard_value == null ? '-': data.standard_value} ${data.standard_limit_value != '' && data.standard_limit_value!= null ? data.standard_limit_value : ''}" disabled />
 						<span class="btn btn-sm btn-default text-primary float-right" data-toggle="modal" data-target="#edit-standard" data-standard="${data.main_standard}" data-analyte="${data.analyte_id}" data-analytename="${data.analyte_code}" data-valueid="${data.id}" data-standardvalue="${data.standard_value}"><i class="mdi mdi-pencil" data-toggle="tooltip" title="Edit Standard"></i></span>	
 					</div>
 					

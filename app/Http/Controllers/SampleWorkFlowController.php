@@ -3886,7 +3886,7 @@ class SampleWorkFlowController extends Controller
 
 		$value = $request->standard_value_type == 1 ? $request->low . ' - ' . $request->high : $value;
 		$value = $request->standard_value_type == 2 && $request->limit_measure == '' ? StandardValue::find($request->standard_valuetype)->code : $value;
-		$value = $request->standard_value_type == 2 && $request->limit_measure != '' ? $request->limit_measure . ' ' . $request->value  : $value;
+		$value = $request->standard_value_type == 2 && $request->limit_measure != '' ? $request->value.' '.$request->limit_measure  : $value;
 		$format_value = $request->standard_value_type == 2 && $request->limit_measure != '' ? $request->value : $value;
 		return response()->json(["format_value" => $value, "value" => $format_value]);
 	}
