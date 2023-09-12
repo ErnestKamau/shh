@@ -127,6 +127,7 @@ class ReportHeaderDetailController extends Controller
 		$nema = public_path('images/nemalogo.jpg');
 		$ispm = public_path('images/ISPM.jpeg');
 		$kebs = public_path('images/kebs.png');
+		$member_polucon = public_path('images/member_polucon.JPG');
 
 		$batch = \App\SampleHeader::find($batch_id);
 		$batch->processing_date = getTodayDate();
@@ -176,7 +177,7 @@ class ReportHeaderDetailController extends Controller
 			$pdf = app('dompdf.wrapper');
 			$pdf->getDomPDF()->set_option("enable_php", true);
 			$pdf->setPaper('A4', 'portrait');
-			$pdf = PDF::loadView('layouts.lab.reports.coa_formats.ktda_report', compact('samples', 'company', 'qrcode', 'path', 'kenas', 'batch_approvers', 'pdf', 'batch', 'non_accredited', 'disclaimer', 'kebs', 'ilac', 'ispm', 'nema','customer','analysis_date'));
+			$pdf = PDF::loadView('layouts.lab.reports.coa_formats.ktda_report', compact('samples', 'company', 'qrcode', 'path', 'kenas', 'batch_approvers', 'pdf', 'batch', 'non_accredited', 'disclaimer', 'kebs', 'ilac', 'ispm', 'nema','customer','analysis_date', 'member_polucon'));
 
 			if (is_dir(storage_path() . '/app/reports/' . $customer_name)) {
 				$pdf->save(storage_path() . '/app/reports/' . $customer_name . '/' . $filename);
@@ -209,7 +210,7 @@ class ReportHeaderDetailController extends Controller
 
 			$pdf = app('dompdf.wrapper');
 			$pdf->getDomPDF()->set_option("enable_php", true);
-			$pdf = PDF::loadView('layouts.lab.reports.coa_formats.iran_report', compact('samples', 'company', 'qrcode', 'path', 'kenas', 'batch_approvers', 'pdf', 'batch', 'non_accredited', 'disclaimer', 'kebs', 'ilac', 'ispm', 'nema','customer','analysis_date'));
+			$pdf = PDF::loadView('layouts.lab.reports.coa_formats.iran_report', compact('samples', 'company', 'qrcode', 'path', 'kenas', 'batch_approvers', 'pdf', 'batch', 'non_accredited', 'disclaimer', 'kebs', 'ilac', 'ispm', 'nema','customer','analysis_date', 'member_polucon'));
 
 			if (is_dir(storage_path() . '/app/reports/' . $customer_name)) {
 				$pdf->save(storage_path() . '/app/reports/' . $customer_name . '/' . $filename);
@@ -234,7 +235,7 @@ class ReportHeaderDetailController extends Controller
 		
 		$pdf = app('dompdf.wrapper');
 		$pdf->getDomPDF()->set_option("enable_php", true);
-		$pdf = PDF::loadView('layouts.lab.reports.coa_formats.standard_report', compact('samples', 'company', 'qrcode', 'path', 'kenas', 'batch_approvers', 'pdf', 'batch', 'non_accredited', 'disclaimer', 'kebs', 'ilac', 'ispm', 'nema','customer','report_type','analysis_date'));
+		$pdf = PDF::loadView('layouts.lab.reports.coa_formats.standard_report', compact('samples', 'company', 'qrcode', 'path', 'kenas', 'batch_approvers', 'pdf', 'batch', 'non_accredited', 'disclaimer', 'kebs', 'ilac', 'ispm', 'nema','customer','report_type','analysis_date', 'member_polucon'));
 
 		if (is_dir(storage_path() . '/app/reports/' . $customer_name)) {
 			$pdf->save(storage_path() . '/app/reports/' . $customer_name . '/' . $filename);
