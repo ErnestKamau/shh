@@ -17,7 +17,7 @@
 <style>
     @page {
         /* margin-top: 20px; */
-        margin-bottom: 200px;
+        margin-bottom: 10px;
         margin-top: 100px;
         margin-left:20;
         margin-right: 20;
@@ -46,7 +46,7 @@
 
     .footer {
         position: fixed;
-        bottom: 40px;
+        bottom: 10px;
         left: 0;
         right: 0;
         z-index: 1000;
@@ -63,6 +63,11 @@
 
     .textBold {
         font-weight: 700 !important;
+    }
+
+    .footer_addr {
+        font-size: 8px !important;
+        font-weight: bolder !important;
     }
     
 </style>
@@ -110,36 +115,36 @@
         <div style="margin-top:7px">
             <table style="width:100%">
                 <tr>
-                    <td style="width: 10%" style=" vertical-align: top;display: inline-block;text-align: center;">
+                    <td style="width: 3%" style=" vertical-align: top;display: inline-block;text-align: center;">
                         <img src="data:image/png;base64, {!! $qrcode !!}" style="margin-top: 20px" width="50" height="50">
                         <span style="font-size: 7px !important;display: block;margin-top:3px">Scan to Verify</span>
                         
                     </td>
-                    <td style="text-align: center">
-                        <div class=""  style="font-size: 9px" ><b>{{ $company->name }}</b></div>
-                        <div class="company-location p-2">
+                    <td>
+                        <div style="font-size: 9px; padding-left:20%!important; font-weight:bolder;" ><b>{{ $company->name }}</b></div>
+                        <div class="company-location">
                             <table style="font-size: 6px">
                                 <tr>
-                                    <td colspan="3"  style="font-size: 8px !important;">{{ $company->street }} - P.O. Box {{ $company->address }},
+                                    <td colspan="3" class="footer_addr" >{{ $company->street }} - P.O. Box {{ $company->address }},
                                         {{ $company->location }}</td>
                                 </tr>
                                 <tr>
-                                    <td  style="font-size: 8px !important;">Office: {{ $company->telephone }}</td>
-                                    <td  style="font-size: 8px !important;">Tel 1: {{ explode('/', $company->cell_phone)[0] ?? '' }}</td>
-                                    <td  style="font-size: 8px !important;">Email: {{ $company->email }}</td>
+                                    <td  class="footer_addr" >Office: {{ $company->telephone ?? '' }}</td>
+                                    <td  class="footer_addr" >Tel 1: {{ explode('/', $company->cell_phone)[0] ?? '' }}</td>
+                                    <td  class="footer_addr" >Email: {{ $company->email ?? '' }}</td>
                                 </tr>
                                 <tr>
-                                    <td  style="font-size: 8px !important;">Fax: {{ $company->fax }}</td>
-                                    <td  style="font-size: 8px !important;">Tel2: {{ explode('/', $company->cell_phone)[0] ?? '' }}</td>
-                                    <td  style="font-size: 8px !important;">Web: {{ $company->website }}</td>
+                                    <td  class="footer_addr" >Fax: {{ $company->fax ?? '' }}</td>
+                                    <td  class="footer_addr" >Tel2: {{ explode('/', $company->cell_phone)[1] ?? '' }}</td>
+                                    <td  class="footer_addr" >Web: {{ $company->website ?? '' }}</td>
                                 </tr>
                                
 
                             </table>
                         </div>
-                        <div class="text-center"  style="font-size: 8px !important;"><u><b>Member of POLUCON Group</b></u></div>
+                        <div style="padding-left: 6%"><img src="{{ $member_polucon }}" style="width:50%;height:auto;" alt=""></div>
                     </td>
-                    <td style="width:30%"></td>
+                    {{-- <td style="width:20%"></td> --}}
                 </tr>
             </table>
         </div>
@@ -164,25 +169,25 @@
 
     @foreach ($samples as $sample)
             @if ($sample->getAccredittedStatus() >= 1)
-            <div class="" style="display:inline-block;position:fixed;bottom:-120px;left:70%">
-                <img src="{{ $kebs }}" style="width:60px;height:60px" alt="">
+            <div class="" style="display:inline-block;position:fixed;bottom:20px;right:0%">
+                <img src="{{ $kebs }}" style="width:68px;height:68px" alt="">
 
-                <img src="{{ $kenas }}" style="width:60px;height:60px" alt="">
+                <img src="{{ $kenas }}" style="width:68px;height:68px" alt="">
 
 
                 <img src="{{ $ilac }}" style="width:65px;height:65px" alt="">
             </div>
         @else
-            <div class="" style="display:inline-block;position:fixed;bottom:-120px;left:70%">
-                <img src="{{ $kebs }}" style="width:60px;height:60px" alt="">
+            <div class="" style="display:inline-block;position:fixed;bottom:20px;right:0%">
+                <img src="{{ $kebs }}" style="width:68px;height:68px" alt="">
 
-                <img src="{{ $nema }}" style="width:60px;height:60px" alt="">
+                <img src="{{ $nema }}" style="width:68px;height:68px" alt="">
 
 
-                <img src="{{ $ispm }}" style="width:60px;height:60px" alt="">
+                <img src="{{ $ispm }}" style="width:68px;height:68px" alt="">
             </div>
         @endif
-        <div class="main-lab" style="position:fixed;bottom:40px;right:0%;font-size:8px">
+        <div class="main-lab" style="position:fixed;bottom:80px;left:1%;font-size:8px">
             <b>{{strtoupper($sample->main_lab_name)}}</b><br>
             <b>{{ $batch->approval_date ?? '-' }}</b>
         </div>
@@ -204,9 +209,9 @@
                                 <tr>
                                     <td style="border: solid 0 transparent !important;font-size:8px !important;border-left:1px solid rgba(0, 0, 0, 0.35);padding:2px;padding-left:4px">DATE & PLACE {{ $sample->sampled_by_company_personnel == 1 ? 'SAMPLED' : 'SUBMITTED' }}</td>
                                     @if ($sample->sampled_by_company_personnel == 1)
-                                        <td style="border: solid 0 transparent !important;padding:2px;padding-left:10px !important;font-size:8px !important;border-right:1px solid rgba(0, 0, 0, 0.35);border-left: 2.1px solid rgba(0, 0, 0, 0.35);">{{ $sample->date_collected }} {{ $sample->sample_point_name }}</td>
+                                        <td style="border: solid 0 transparent !important;padding:2px;padding-left:10px !important;font-size:8px !important;border-right:1px solid rgba(0, 0, 0, 0.35);border-left: 2.1px solid rgba(0, 0, 0, 0.35);">{{ $sample->date_collected ?? '' }} {{ $sample->sample_point_name ?? '' }}</td>
                                     @else
-                                        <td style="border: solid 0 transparent !important;padding:2px;padding-left:10px !important;font-size:8px !important;border-right:1px solid rgba(0, 0, 0, 0.35);border-left: 2.1px solid rgba(0, 0, 0, 0.35);">{{ $sample->receipt_date }} {{ $company->name }}</td>
+                                        <td style="border: solid 0 transparent !important;padding:2px;padding-left:10px !important;font-size:8px !important;border-right:1px solid rgba(0, 0, 0, 0.35);border-left: 2.1px solid rgba(0, 0, 0, 0.35);">{{ $sample->receipt_date ?? '' }} {{ $company->name ?? '' }}</td>
                                     @endif
                                 </tr>
                                 <tr>
@@ -215,7 +220,7 @@
                                 </tr>
                                 <tr>
                                     <td style="border: solid 0 transparent !important;border-right:1px solid rgba(0, 0, 0, 0.35);font-size:8px !important;border-left:1px solid rgba(0, 0, 0, 0.35);padding:2px;padding-left:4px">SAMPLING METHOD</td>
-                                    <td style="border: solid 0 transparent !important;padding:2px;padding-left:10px !important;font-size:8px !important;border-right:1px solid rgba(0, 0, 0, 0.35);border-left: 2.1px solid rgba(0, 0, 0, 0.35);">{{ $sample->sampling_method_name }}</td>
+                                    <td style="border: solid 0 transparent !important;padding:2px;padding-left:10px !important;font-size:8px !important;border-right:1px solid rgba(0, 0, 0, 0.35);border-left: 2.1px solid rgba(0, 0, 0, 0.35);">{{ $sample->sampling_method_name ?? '' }}</td>
                                 </tr>
                                 <tr>
                                     <td style="border: solid 0 transparent !important;border-right:1px solid rgba(0, 0, 0, 0.35);font-size:8px !important;border-left:1px solid rgba(0, 0, 0, 0.35);padding:2px;padding-left:4px">SAMPLE ID</td>
@@ -223,7 +228,7 @@
                                 </tr>
                                 <tr>
                                     <td style="border: solid 0 transparent !important;border-right:1px solid rgba(0, 0, 0, 0.35);font-size:8px !important;border-bottom:1px solid rgba(0, 0, 0, 0.35);border-left:1px solid rgba(0, 0, 0, 0.35);padding:2px;padding-left:4px">MARKINGS</td>
-                                    <td style="border: solid 0 transparent !important;padding:2px;padding-left:10px !important;font-size:8px !important;border-bottom:1px solid rgba(0, 0, 0, 0.35);border-right:1px solid rgba(0, 0, 0, 0.35);border-left: 2.1px solid rgba(0, 0, 0, 0.35);">{{ $sample->comments }}</td>
+                                    <td style="border: solid 0 transparent !important;padding:2px;padding-left:10px !important;font-size:8px !important;border-bottom:1px solid rgba(0, 0, 0, 0.35);border-right:1px solid rgba(0, 0, 0, 0.35);border-left: 2.1px solid rgba(0, 0, 0, 0.35);">{{ $sample->comments ?? '' }}</td>
                                 </tr>
                                
                             </table>
@@ -245,7 +250,7 @@
                         UNITS</th>   
                         <th class="parameter text-center"
                             style="font-size: 9px !important;width:15% !important;vertical-align: top !important;padding:5px !important">
-                            {{ $sample->main_standard_code }}</th>
+                            {{ $sample->main_standard_code ?? '' }}</th>
                     </tr>
                 </thead>
                 <tbody>
@@ -253,7 +258,7 @@
                         <tr>
                             <td class="parameter"
                                 style="font-size: 10px !important;font-weight:600;background-color:#fafafa;padding:1px !important;padding-left:2px !important;"
-                                colspan="5">{{ strtoupper($analysis_type_level->analysis_type_name) }}
+                                colspan="5">{{ strtoupper($analysis_type_level->analysis_type_name ?? '') }}
                             </td>
                         </tr>
                         @foreach ($analysis_type_level->getCapturedResults() as $captured)
@@ -262,16 +267,16 @@
                                 {!! $captured->analyte_status_contracted == 1 ? '<small>*</small>' : '' !!} {!! $captured->is_italic == 1 ? '<i>'. $captured->analyte_code.'</i>' : $captured->analyte_code !!}
                             </td>  
                             <td class="parameter {{ $captured->remark == 'FAIL' ? 'textBold' : '' }}" style="font-size: 9px !important;padding-left:3px !important;">
-                                {{ strtoupper($captured->method()->name) }}
+                                {{ strtoupper($captured->method()->name ?? '') }}
                             </td>  
                             <td class="parameter {{ $captured->remark == 'FAIL' ? 'textBold' : '' }}" style="font-size: 9px !important;padding-left:3px !important;">
                                 {{ $captured->result_reporting_symbol ?? '' }}{{ $captured->result != '' ? $captured->result : 'TBA'  }}
                             </td>  
                             <td class="parameter {{ $captured->remark == 'FAIL' ? 'textBold' : '' }}" style="font-size: 9px !important;padding-left:3px !important;">
-                                {{ $captured->analyte()->reporting_unit }}
+                                {{ $captured->analyte()->reporting_unit ?? '' }}
                             </td>  
                             <td class="parameter {{ $captured->remark == 'FAIL' ? 'textBold' : '' }}" style="font-size: 9px !important;padding-left:3px !important;">
-                                {{ $captured->main_value }}
+                                {{ $captured->main_value ?? '' }}
                             </td>                            
 
                         </tr>
