@@ -31,7 +31,7 @@
             <a href="#lab-sections-tab" class="nav-link active" id="lab-sec-tab" data-toggle="tab" role="tab" aria-controls="lab-sec-tab" aria-selected="true"> <i class="mdi mdi-sitemap" style=" color: black; font-size:15px"></i> Lab Sections</a>
           </li>
           <li class="nav-item">
-            <a href="#lab-sections-tab" class="nav-link" id="lab-sec-tab" data-toggle="tab" role="tab" aria-controls="lab-sec-tab" aria-selected="true"> <i class="mdi mdi-account-check" style=" color: black; font-size:15px"></i> Approver Configuration</a>
+            <a href="#lab-sections-tab" class="nav-link" id="lab-sec-tab" data-toggle="tab" role="tab" aria-controls="lab-sec-tab" aria-selected="true"> <i class="mdi mdi-account-check" style=" color: black; font-size:15px"></i> Verifier Configuration</a>
           </li>
           
         </ul>
@@ -158,7 +158,7 @@
   
         <!-- standard tab  -->
         <div class="tab-pane fade p-3" id="lab-sections-tab" role="tabpanel" aria-labelledby="one-tab">
-          <h5 class="card-title">Approver Configurations
+          <h5 class="card-title">Verifier Configuration
             <button class="btn btn-outline-primary btn-sm float-right" data-action="add" data-toggle="modal" data-target="#add-approver"><i class="mdi mdi-plus"></i> Add</button>
           </h5>
           <div class="table-responsive p-2">
