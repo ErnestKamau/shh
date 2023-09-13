@@ -12,7 +12,7 @@ class SamplesCategory extends Model implements Auditable
     protected $appends = ['analysisTypeNames'];
 
     public function getSampleByAnalysisType(){
-        return SampleAnalysisTypeRelationView::where('sample_detail_id',$this->id)->orderBy('analysis_level','ASC')->get();
+        return SampleAnalysisTypeRelationView::where('sample_detail_id',$this->id)->where('batch_id',$this->sample_header_id)->orderBy('analysis_level','ASC')->get();
     }
     public function getAccredittedStatus(){
         // $total = CapturedResult::where('sample_detail_id',$this->id)->count();
