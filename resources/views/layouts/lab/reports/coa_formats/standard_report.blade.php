@@ -52,6 +52,13 @@
         z-index: 1000;
     }
 
+    .dotted-line {
+        border: none;
+        margin: 0% 36%;
+        background-color: rgb(254, 254, 254);
+        border-bottom: 3px dotted rgb(0, 0, 0);
+    }
+
 
     .parameter {
         border: solid 1 rgba(0, 0, 0, 0.35) !important;
@@ -77,35 +84,42 @@
 
     <footer class="footer">
 
-        <table class="" style="margin-top: 1px !important;width:100%">
-           
-
+        <table style="margin-top: 1px !important;width:100%;">
             <tr>
-                <td style="width:30% !important">
-
-                </td>
                 @foreach ($batch_approvers as $approver)
-                    <td style="font-size: 8px !important;text-align:right">
-                        <div class="">
-                            <b>{{ $approver->title }}</b><br>
-                            <img src="{{ getCoaApproverSignature($approver->getApproverDetails()->electronic_sig) }}" style="width:80px"
-                                alt="signature"><br>
-                            <span>{{ $approver->getApproverDetails()->name }} -
-                                {{ $approver->getApproverPositionDetails() }}</span>
+                    <td style="font-size: 8px !important;">
+                        <div style="text-align:center">
+                            <b>{{ $approver->title }}</b>
                         </div>
                     </td>
                 @endforeach
-
             </tr>
             <tr>
-                <td colspan="{{$batch_approvers->count() + 1}}">
-                    <span style="font-size:5px">{{ $non_accredited->value }}</span>
-                            
-                    <div class="text-center" style="font-size:5px">
-                        {!! $disclaimer->value !!}
+                @foreach ($batch_approvers as $approver)
+                    <td style="font-size: 8px !important;">
+                        <div class="dotted-line text-align:center" style="text-align:center; width:fit-content!important;">
+                            <img src="{{ getCoaApproverSignature($approver->getApproverDetails()->electronic_sig) }}" style="width:80px"
+                            alt="signature">
+                        </div>
+                    </td>
+                @endforeach
+            </tr>
+            <tr>
+                @foreach ($batch_approvers as $approver)
+                    <td style="font-size: 9px !important;">
+                        <div style="text-align:center">{{ $approver->approvershortname }} -
+                                <i>{{ $approver->getApproverPositionDetails() }}</i></div>
+                    </td>
+                @endforeach
+            </tr>
+        </table>
+        <table style="width:100%;">
+            <tr>
+                <td>
+                    <div class="text-center" style="font-size:8px">
+                        <img src="{{ $polucon_disclaimer }}" style="width:auto;height:55px" alt="">
                         @if($batch->sampled_by_company_personnel == 0)
-                        <br><br>
-                        <b>NB: This report relates to submitted sample(s) only. The source and/or markings are as provided by the customer.</b>
+                        <span class="text-center"><b>NB: This report relates to submitted sample(s) only. The source and/or markings are as provided by the customer.</b><span>
                         @endif
                     </div>
                 </td>
@@ -120,31 +134,6 @@
                         <span style="font-size: 7px !important;display: block;margin-top:3px">Scan to Verify</span>
                         
                     </td>
-                    <td>
-                        <div style="font-size: 9px; padding-left:20%!important; font-weight:bolder;" ><b>{{ $company->name }}</b></div>
-                        <div class="company-location">
-                            <table style="font-size: 6px">
-                                <tr>
-                                    <td colspan="3" class="footer_addr" >{{ $company->street }} - P.O. Box {{ $company->address }},
-                                        {{ $company->location }}</td>
-                                </tr>
-                                <tr>
-                                    <td  class="footer_addr" >Office: {{ $company->telephone ?? '' }}</td>
-                                    <td  class="footer_addr" >Tel 1: {{ explode('/', $company->cell_phone)[0] ?? '' }}</td>
-                                    <td  class="footer_addr" >Email: {{ $company->email ?? '' }}</td>
-                                </tr>
-                                <tr>
-                                    <td  class="footer_addr" >Fax: {{ $company->fax ?? '' }}</td>
-                                    <td  class="footer_addr" >Tel2: {{ explode('/', $company->cell_phone)[1] ?? '' }}</td>
-                                    <td  class="footer_addr" >Web: {{ $company->website ?? '' }}</td>
-                                </tr>
-                               
-
-                            </table>
-                        </div>
-                        <div style="padding-left: 6%"><img src="{{ $member_polucon }}" style="width:50%;height:auto;" alt=""></div>
-                    </td>
-                    {{-- <td style="width:20%"></td> --}}
                 </tr>
             </table>
         </div>
@@ -169,22 +158,12 @@
 
     @foreach ($samples as $sample)
             @if ($sample->getAccredittedStatus() >= 1)
-            <div class="" style="display:inline-block;position:fixed;bottom:20px;right:0%">
-                <img src="{{ $kebs }}" style="width:68px;height:68px" alt="">
-
-                <img src="{{ $kenas }}" style="width:68px;height:68px" alt="">
-
-
-                <img src="{{ $ilac }}" style="width:65px;height:65px" alt="">
+            <div class="" style="display:inline-block;position:fixed;bottom:2px;right:1%">
+                <img src="{{ $kenas }}" style="width:auto;height:100px" alt="">
             </div>
         @else
-            <div class="" style="display:inline-block;position:fixed;bottom:20px;right:0%">
-                <img src="{{ $kebs }}" style="width:68px;height:68px" alt="">
-
-                <img src="{{ $nema }}" style="width:68px;height:68px" alt="">
-
-
-                <img src="{{ $ispm }}" style="width:68px;height:68px" alt="">
+            <div class="" style="display:inline-block;position:fixed;bottom:2px;right:1%">
+                <img src="{{ $nema }}" style="width:auto;height:100px" alt="">
             </div>
         @endif
         <div class="main-lab" style="position:fixed;bottom:80px;left:1%;font-size:8px">
