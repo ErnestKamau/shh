@@ -9,7 +9,7 @@ class BatchLabSectionApprover extends Model
 {
     protected $table = "batch_labsection_approval";
 
-    protected $appends = ['approvername','labsectionnames','approvertype'];
+    protected $appends = ['approvername','labsectionnames','approvertype', 'approvershortname'];
 
     public function getApproverNameAttribute(){
         return User::find($this->user_id)->name ?? '-';
@@ -25,6 +25,12 @@ class BatchLabSectionApprover extends Model
         $user = User::find($this->user_id);
         $position = ModulePreConfigs::find($user->position);
         return isset($position->id) ? $position->name : '-';
+    }
+    public function getApproverShortNameAttribute(){
+        $user = User::find($this->user_id);
+        $fname = $user->first_name ? $user->first_name[0]. '. ' : '';
+        $lname = $user->last_name ? $user->last_name : $user->middle_name ? $user->middle_name : '';
+        return $fname . $lname;
     }
     public function getApproverTypeAttribute(){
         $type = '';
