@@ -54,7 +54,7 @@
 
     .dotted-line {
         border: none;
-        margin: 0% 36%;
+        margin: 0% 35%;
         background-color: rgb(254, 254, 254);
         border-bottom: 3px dotted rgb(0, 0, 0);
     }
@@ -84,7 +84,7 @@
 
     <footer class="footer">
         @if($batch_approvers->count() > 0)
-        <table style="margin-top: 1px !important;width:100%;">
+        <table style="margin-top: 1px !important;margin-bottom:6px!important;width:100%;">
             <tr>
                 @foreach ($batch_approvers as $approver)
                     <td style="font-size: 8px !important;">
@@ -98,7 +98,7 @@
                 @foreach ($batch_approvers as $approver)
                     <td style="font-size: 8px !important;">
                         <div class="dotted-line text-align:center" style="text-align:center; width:fit-content!important;">
-                            <img src="{{ getCoaApproverSignature($approver->getApproverDetails()->electronic_sig) }}" style="width:80px"
+                            <img src="{{ getCoaApproverSignature($approver->getApproverDetails()->electronic_sig) }}" style="height:48px;"
                             alt="signature">
                         </div>
                     </td>

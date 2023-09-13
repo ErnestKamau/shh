@@ -202,7 +202,7 @@
 				</li>
 				<?php $reportpath = '/storage'.$batch->batch_report_url; ?>
 						<li>
-							<a target="_blank" href="{{$reportpath}}" class="dropdown-item"><i class="mdi mdi-download mr-2"></i> Download COA</a>
+							<a target="_blank" href="{{$reportpath}}" style="font-size:0.875rem!important; font-weight:400;line-height: 1.5;" class="btn btn-sm dropdown-item"><i class="mdi mdi-download mr-2"></i> Download COA</a>
 						</li>
 				@endif						
 				@endif
