@@ -262,7 +262,7 @@
 					<?php endif; ?>
 					<td>
 						
-						<a href="<?php echo e(route('view-batch-details', ['batch'=>$item->id])); ?>"><?php echo e($item->batch_code); ?></a>
+						<a href="<?php echo e(route('view-batch-details', ['batch'=>$item->id,'client'=>0,'portal'=>0,'status'=>$status])); ?>"><?php echo e($item->batch_code); ?></a>
 						
 					</td>
 					<?php if(auth()->user()->CheckViewQcSample()): ?>

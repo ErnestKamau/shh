@@ -254,7 +254,7 @@
 					@endif
 					<td>
 						
-						<a href="{{ route('view-batch-details', ['batch'=>$item->id]) }}">{{ $item->batch_code }}</a>
+						<a href="{{ route('view-batch-details', ['batch'=>$item->id,'client'=>0,'portal'=>0,'status'=>$status]) }}">{{ $item->batch_code }}</a>
 						
 					</td>
 					@if(auth()->user()->CheckViewQcSample())

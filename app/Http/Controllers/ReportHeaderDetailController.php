@@ -137,6 +137,7 @@ class ReportHeaderDetailController extends Controller
 
 		$batch_approvers = BatchLabSectionApprover::where('batch_id', $batch->id)->where('show_report',1)->where('status', 1)->get();
 		$analysis_date = SampleAnalysisDates::where('sample_header_id',$batch->id)->orderBy('start_analysis_date','ASC')->first();
+		// return response()->json($analysis_date->start_analysis_date);
 
 		$disclaimer = SystemConfiguration::where('key', 'lab_report_disclaimer_config')->first();
 		$non_accredited = SystemConfiguration::where('key', 'lab_report_accreditted_config')->first();

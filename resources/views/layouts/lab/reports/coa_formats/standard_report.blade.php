@@ -83,7 +83,7 @@
 
 
     <footer class="footer">
-
+        @if($batch_approvers->count() > 0)
         <table style="margin-top: 1px !important;width:100%;">
             <tr>
                 @foreach ($batch_approvers as $approver)
@@ -113,6 +113,7 @@
                 @endforeach
             </tr>
         </table>
+        @endif
         <table style="width:100%;">
             <tr>
                 <td>

@@ -17,7 +17,7 @@
 <style>
     @page {
         /* margin-top: 20px; */
-        margin-bottom: 200px;
+        margin-bottom: 10px;
         margin-top: 100px;
         margin-left:20;
         margin-right: 20;
@@ -38,7 +38,7 @@
         top: -80px;
         left: 0;
         right: 0;
-        height: 100px;
+        height: 50px;
         z-index: 1000;
 
 
@@ -46,11 +46,19 @@
 
     .footer {
         position: fixed;
-        bottom: 40px;
+        bottom: 10px;
         left: 0;
         right: 0;
         z-index: 1000;
     }
+
+    .dotted-line {
+        border: none;
+        margin: 0% 36%;
+        background-color: rgb(254, 254, 254);
+        border-bottom: 3px dotted rgb(0, 0, 0);
+    }
+
 
     .parameter {
         border: solid 1 rgba(0, 0, 0, 0.35) !important;
@@ -63,83 +71,70 @@
     .textBold {
         font-weight: 700 !important;
     }
+
+    .footer_addr {
+        font-size: 8px !important;
+        font-weight: bolder !important;
+    }
+    
 </style>
 
 <body>
+
+
     <footer class="footer">
-
-        <table class="" style="margin-top: 1px !important;width:100%">
-
+        @if($batch_approvers->count() > 0)
+        <table style="margin-top: 1px !important;width:100%;">
             <tr>
-                <td style="width:30% !important">
-
-                </td>
                 @foreach ($batch_approvers as $approver)
-                    <td style="font-size: 8px !important;text-align:right !important">
-                        <b>{{ $approver->title }}</b><br>
-                        <img src="{{ getCoaApproverSignature($approver->getApproverDetails()->electronic_sig) }}"
-                            style="width:80px" alt="signature"><br>
-                        <span>{{ $approver->getApproverDetails()->name }} -
-                            {{ $approver->getApproverPositionDetails() }}</span>
+                    <td style="font-size: 8px !important;">
+                        <div style="text-align:center">
+                            <b>{{ $approver->title }}</b>
+                        </div>
                     </td>
                 @endforeach
-
             </tr>
             <tr>
-                <td colspan="{{$batch_approvers->count() + 1}}">
-                    <div class="accreddited-reasons" style="font-size: 6px !important;width:100%">
-                        <span>{{ $non_accredited->value }}</span>
-        
-                        <div class="" style="">
-                            {{ $disclaimer->value }}
-                            @if ($batch->sampled_by_company_personnel == 0)
-                                <br>
-                                <b class="text-center" >NB: This report relates to submitted sample(s) only. The source and markings are as
-                                    provided by the customer.</b>
-                            @endif
+                @foreach ($batch_approvers as $approver)
+                    <td style="font-size: 8px !important;">
+                        <div class="dotted-line text-align:center" style="text-align:center; width:fit-content!important;">
+                            <img src="{{ getCoaApproverSignature($approver->getApproverDetails()->electronic_sig) }}" style="width:80px"
+                            alt="signature">
                         </div>
+                    </td>
+                @endforeach
+            </tr>
+            <tr>
+                @foreach ($batch_approvers as $approver)
+                    <td style="font-size: 9px !important;">
+                        <div style="text-align:center">{{ $approver->approvershortname }} -
+                                <i>{{ $approver->getApproverPositionDetails() }}</i></div>
+                    </td>
+                @endforeach
+            </tr>
+        </table>
+        @endif
+        <table style="width:100%;">
+            <tr>
+                <td>
+                    <div class="text-center" style="font-size:8px">
+                        <img src="{{ $polucon_disclaimer }}" style="width:auto;height:55px" alt="">
+                        @if($batch->sampled_by_company_personnel == 0)
+                        <span class="text-center"><b>NB: This report relates to submitted sample(s) only. The source and/or markings are as provided by the customer.</b><span>
+                        @endif
                     </div>
                 </td>
             </tr>
         </table>
 
-        <div style="margin-top:10px">
+        <div style="margin-top:7px">
             <table style="width:100%">
                 <tr>
-                    <td style="width: 10%" style=" vertical-align: top;display: inline-block;text-align: center;">
+                    <td style="width: 3%" style=" vertical-align: top;display: inline-block;text-align: center;">
                         <img src="data:image/png;base64, {!! $qrcode !!}" style="margin-top: 20px" width="50" height="50">
                         <span style="font-size: 7px !important;display: block;margin-top:3px">Scan to Verify</span>
-
+                        
                     </td>
-                    <td style="text-align: center">
-                        <div class=""><b>{{ $company->name }}</b></div>
-                        <div class="company-location p-2">
-                            <table style="font-size: 6px;width:100%">
-                                <tr>
-                                    <td colspan="3" style="font-size: 8px !important;">{{ $company->street }} - P.O.
-                                        Box {{ $company->address }},
-                                        {{ $company->location }}</td>
-                                </tr>
-                                <tr>
-                                    <td style="font-size: 8px !important;">Office: {{ $company->telephone }}</td>
-                                    <td style="font-size: 8px !important;">Tel 1:
-                                        {{ explode('/', $company->cell_phone)[0] ?? '' }}</td>
-                                    <td style="font-size: 8px !important;">Email: {{ $company->email }}</td>
-                                </tr>
-                                <tr>
-                                    <td style="font-size: 8px !important;">Fax: {{ $company->fax }}</td>
-                                    <td style="font-size: 8px !important;">Tel2:
-                                        {{ explode('/', $company->cell_phone)[0] ?? '' }}</td>
-                                    <td style="font-size: 8px !important;">Web: {{ $company->website }}</td>
-                                </tr>
-
-
-                            </table>
-                        </div>
-                        <div class="text-center" style="font-size: 8px !important;"><u><b>Member of POLUCON
-                                    Group</b></u></div>
-                    </td>
-                    <td style="width:30%"></td>
                 </tr>
             </table>
         </div>
@@ -164,25 +159,15 @@
 
     @foreach ($samples as $sample)
         @if ($sample->getAccredittedStatus() >= 1)
-            <div class="" style="display:inline-block;position:fixed;bottom:-110px;left:70%">
-                <img src="{{ $kebs }}" style="width:60px;height:60px" alt="">
-
-                <img src="{{ $kenas }}" style="width:60px;height:60px" alt="">
-
-
-                <img src="{{ $ilac }}" style="width:70px;height:70px" alt="">
+            <div class="" style="display:inline-block;position:fixed;bottom:2px;right:1%">
+                <img src="{{ $kenas }}" style="width:auto;height:100px" alt="">
             </div>
         @else
-            <div class="" style="display:inline-block;position:fixed;bottom:-110px;left:70%">
-                <img src="{{ $kebs }}" style="width:60px;height:60px" alt="">
-
-                <img src="{{ $nema }}" style="width:60px;height:60px" alt="">
-
-
-                <img src="{{ $ispm }}" style="width:60px;height:60px" alt="">
+            <div class="" style="display:inline-block;position:fixed;bottom:2px;right:1%">
+                <img src="{{ $nema }}" style="width:auto;height:100px" alt="">
             </div>
         @endif
-        <div class="main-lab" style="position:fixed;bottom:30px;right:0%;font-size:8px">
+        <div class="main-lab" style="position:fixed;bottom:80px;left:1%;font-size:8px">
             <b>{{strtoupper($sample->main_lab_name)}}</b><br>
             <b>{{ $batch->approval_date ?? '-' }}</b>
         </div>
@@ -191,7 +176,6 @@
                 style=" border: 1px solid rgba(0, 0, 0, 0.35) !important; font-size:10px !important;width:100%">
                 <b>TEST REPORT NO : R{{ substr($sample->sample_code, 1, strlen($sample->sample_code)) }}</b>
             </div>
-
             <table class="table table-sm table-bordered" style="width:100%;font-size: 8px">
                 <tr>
                     <td style="text-align: center" colspan="4"><b>Analysis Certificate</b></td>
@@ -241,7 +225,7 @@
                 </tr>
                 <tr>
                     <td><b>FINISH DATE OF ANALYSIS</b></td>
-                    <td>{{$analysis_date->updated_at != '' ?  date('Y-m-d',strtotime($analysis_date->updated_at)) : '-' }}</td>
+                    <td>{{$analysis_date->start_analysis_date != '' ?  date('Y-m-d',strtotime($analysis_date->start_analysis_date)) : '-' }}</td>
                     <td><b>SAMPLING METHOD</b></td>
                     <td>{{ $sample->sample_method_name }}</td>
                 </tr>
@@ -285,7 +269,7 @@
                                         </td>
                                         <td class="parameter {{ $captured->remark == 'FAIL' ? 'textBold' : '' }}"
                                             style="font-size: 9px !important;padding-left:3px !important;">
-                                            {{ strtoupper($captured->method()->name) }}
+                                            {{ strtoupper($captured->method()->name ?? '') }}
                                         </td>
                                         <td class="parameter {{ $captured->remark == 'FAIL' ? 'textBold' : '' }}"
                                             style="font-size: 9px !important;padding-left:3px !important;">
@@ -456,7 +440,6 @@
                     <b>Comments : </b>{!! $sample->header_body !!}
                 </div>
             @endif
-           
             @if ($loop->iteration < $samples->count())
                 <div style="page-break-after: always;">
                 </div>
@@ -470,10 +453,9 @@
         $font = $fontMetrics->getFont("Verdana");
         $width = $fontMetrics->get_text_width($text, $font, $size) / 2;
         $x = ($pdf->get_width() - $width) / 1;
-        $y = $pdf->get_height() - 15;
+        $y = $pdf->get_height() - 10;
         $pdf->page_text($x, $y, $text, $font, $size);
     }
-    
 </script>
 
 </body>

@@ -1115,7 +1115,7 @@ class SampleWorkFlowController extends Controller
 	//   return redirect()->back()->within('success', 'Sample details added.');
 	// }
 
-	public function show($batch, $client = false, $portal = false, $status = false)
+	public function show(Request $request,$batch, $client = false, $portal = false, $status = false)
 	{
 		$batchID = $batch;
 
@@ -1199,8 +1199,8 @@ class SampleWorkFlowController extends Controller
 		} else {
 			$standards = [];
 		}
-		$defaultClient = $client;
-		$client_portal = $portal;
+		$defaultClient = $client > 0 ? $client : false;
+		$client_portal = $portal > 0 ? $portal : false;
 		if (isset($batch->id)) {
 			$attachments = BatchAttachment::where('batch_id', $batch->id)->get();
 

@@ -137,9 +137,9 @@
 						'icon' => null
 					),
 					array(
-						'link' => route('sample-workflow', ['status'=> $batch->status ?? 'Samples Reception']),
-						'name' => $batch->status ?? 'Samples Reception',
-						'icon' => null
+						'link' => route('sample-workflow', ['status'=> isset($status) && $status ? $status : $batch->status ?? 'Samples Reception']),
+						'name' => isset($status) && $status ? $status : $batch->status ?? 'Samples Reception',
+						'icon' => null 
 					),
 					array(
 						'link' => '#',
@@ -178,26 +178,28 @@
 			</button>
 			<div class="dropdown-menu dropdown-menu-right">
 				<?php if(isset($batch->id)): ?>
-					<li>
-						<a target="_blank" href="<?php echo e(route('generateCustomerFocusIndex',['batch_id'=>$batch->id])); ?>" class="btn btn-sm dropdown-item"><i class="mdi mdi-eye mr-2"></i> View Customer Focus</a>
-					</li>
-					<?php if($batch->schedule_analysis_sent == ''): ?>
-					<li>
-						<span class="btn btn-sm dropdown-item" data-toggle="modal" data-target="#send-schedule-analysis"><i class="mdi mdi-email-send mr-2"></i> Send Schedule of Analysis</span>
-					</li>
-					<?php endif; ?>
-					<li>
-						<span class="btn btn-sm dropdown-item" data-toggle="modal" data-target="#send-payment-reminder"><i class="mdi mdi-email-send mr-2"></i> Send Payment Reminder</span>
-					</li>
+					<?php if(!in_array($batch->status,array('Samples In Lab',"Sample Verification","Sample Approval"))): ?>
+						<li>
+							<a target="_blank" href="<?php echo e(route('generateCustomerFocusIndex',['batch_id'=>$batch->id])); ?>" class="btn btn-sm dropdown-item"><i class="mdi mdi-eye mr-2"></i> View Customer Focus</a>
+						</li>
+						<?php if($batch->schedule_analysis_sent == ''): ?>
+						<li>
+							<span class="btn btn-sm dropdown-item" data-toggle="modal" data-target="#send-schedule-analysis"><i class="mdi mdi-email-send mr-2"></i> Send Schedule of Analysis</span>
+						</li>
+						<?php endif; ?>
+						<li>
+							<span class="btn btn-sm dropdown-item" data-toggle="modal" data-target="#send-payment-reminder"><i class="mdi mdi-email-send mr-2"></i> Send Payment Reminder</span>
+						</li>
+						<?php endif; ?>
 					<?php endif; ?>
 
-				<?php if(isset($batch->status) && $batch->status=="Samples In Lab" && Auth::user()->is_client == 0): ?>
+				<?php if(isset($batch->status) && $batch->status=="Samples In Lab" && Auth::user()->is_client == 0 && $status == 'Samples In Lab'): ?>
 				<li>
 					<span class="btn btn-sm dropdown-item" data-toggle="modal" data-target="#send-to-verification-modal">
 					<i class="mdi mdi-subdirectory-arrow-right mr-2"></i> Send for Verification
 					</span>
 				</li>
-				<?php if( $batch->prelim_report_status != 0): ?>
+				<?php if( $batch->prelim_report_status != 0 && $status == 'Sample Verification'): ?>
 				<li>
 					<span class="btn btn-sm dropdown-item" data-toggle="modal" data-target="#send-for-approval-modal">
 						<i class="mdi mdi-subdirectory-arrow-right mr-2"></i> Send for Approval
@@ -212,16 +214,18 @@
 						</li>
 				<?php endif; ?>						
 				<?php endif; ?>
-				<?php if(isset($batch->status) && in_array($batch->status, array("Samples In Lab,Sample Verification","Sample Approval")) && Auth::user()->is_client == 0 && $batch->prelim_report_status != 0): ?>
-					<?php if(auth()->user()->checkVerifyLabSampleRole() && $batch->prelim_batch_status == "Sample Verification" && $batch->prelim_report_status == 2): ?>
+				
+				<?php if(isset($batch->status) && in_array($batch->status, array("Samples In Lab","Sample Verification","Sample Approval")) && Auth::user()->is_client == 0 && $batch->prelim_report_status != 0): ?>
+					
+					<?php if(auth()->user()->checkVerifyLabSampleRole() && $batch->prelim_batch_status == "Sample Verification" && $batch->prelim_report_status == 2 && $status == 'Sample Verification'): ?>
 					<li>
 						<span class="btn btn-sm dropdown-item"  data-target="#process-results-modal" data-toggle="modal" title="Process Results"><i class="mdi mdi-subdirectory-arrow-right mr-2"></i> Process Results</span>
 					</li>
 					<?php endif; ?>
-					<?php if(auth()->user()->checkVerifyLabSampleRole() && $batch->prelim_batch_status == "Sample Verification" && $batch->prelim_report_status == 1): ?>
+					<?php if(auth()->user()->checkVerifyLabSampleRole() && $batch->prelim_batch_status == "Sample Verification" && $batch->prelim_report_status == 1 && $status == 'Sample Verification'): ?>
 					<li>
 						<span class="btn btn-sm dropdown-item" data-toggle="modal" data-target="#send-for-approval-modal">
-							<i class="mdi mdi-subdirectory-arrow-right mr-2"></i> Send for Approval
+							<i class="mdi mdi-subdirectory-arrow-right mr-2"></i> Send for Approval 
 						</span>
 					</li>
 					<?php endif; ?>
@@ -336,11 +340,13 @@
 					</button>
 					<div class="dropdown-menu dropdown-menu-right bg-light" id="status-selector">
 						<?php $__currentLoopData = $workflows; $__env->addLoop($__currentLoopData); foreach($__currentLoopData as $item): $__env->incrementLoopIndices(); $loop = $__env->getLastLoop(); ?>
-						<form class="dropdown-item" method="POST" style="cursor: pointer" action="<?php echo e(route('move-to-workflow', ['status'=>$item, 'batch_id'=>$batch->id])); ?>">
-							<?php echo csrf_field(); ?>
-							<small class="text-muted"><i class="mdi mdi-subdirectory-arrow-right"></i></small> <?php echo e($item); ?>
+							<?php if(!in_array($item,array("Sample Verification","Sample Approval"))): ?>
+							<form class="dropdown-item" method="POST" style="cursor: pointer" action="<?php echo e(route('move-to-workflow', ['status'=>$item, 'batch_id'=>$batch->id])); ?>">
+								<?php echo csrf_field(); ?>
+								<small class="text-muted"><i class="mdi mdi-subdirectory-arrow-right"></i></small> <?php echo e($item); ?>
 
-						</form>
+							</form>
+							<?php endif; ?>
 						<?php endforeach; $__env->popLoop(); $loop = $__env->getLastLoop(); ?>
 					</div>
 				</div>
@@ -740,7 +746,7 @@
 											<?php if($approver->status == 0): ?>
 											<span class="badge badge-primary badge-pill p-2"><i class="mdi mdi-decagram"></i> Awaiting Approval</span>
 											<?php elseif($approver->status == 1): ?>
-											<span class="badge badge-success badge-pill p-2"><i class="mdi mdi-thumb-up-outline"></i> Approved</span>
+											<span class="badge badge-success badge-pill p-2"><i class="mdi mdi-thumb-up-outline"></i><?php echo e($approver->batch_status  == "Sample Verification" ? 'Verified' : 'Approved'); ?>  </span>
 											<?php else: ?>
 											<span class="badge badge-success badge-pill p-2"><i class="mdi mdi-decagram"></i> Declined</span>
 											<?php endif; ?>
@@ -1873,7 +1879,7 @@
 									<option value="">Choose Report Format</option>
 									<option value="0">Standard Report</option>
 									
-									<option value="2">Iran Report</option>
+									<option value="2">BL Report</option>
 								</select>
 							</div>
 							<div class="proccesing-point hidden">
