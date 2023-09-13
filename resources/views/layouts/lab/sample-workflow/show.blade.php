@@ -3191,11 +3191,14 @@
 		var labSectionRow = (section,id,batch_id,sample_id,datevalue)=>{
 			var body = $(`
 			<tr>
-				<td colspan="12" style="padding-left:5%">
-					<b>${section}</b>
-					<input type="date" class="start_analysis_date" value="${datevalue}" style="margin-left:2%;width:20%">
-					<span class="btn btn-sm text-success save-analysis-start-date" style="font-size:20px !important"><i class="mdi mdi-sync"></i></span>
+				<td colspan="3" style="padding-left:2%">
+					<h5>${section}</h5>
 					
+				</td>
+				<td class="pull-right" colspan="9" style="padding-left:1%">
+					<b>Date of Analysis</b>
+					<input type="date" class="start_analysis_date" value="${datevalue}" style="margin-left:1%;width:20%">
+					<span class="btn btn-sm btn-success save-analysis-start-date" style="font-size:14px !important"><i class="mdi mdi-sync"></i>Click to Save Date</span>
 				</td>
 			</tr>
 			`).clone();
@@ -3217,7 +3220,7 @@
 					},
 					success:(data)=>{
 						console.log(data);
-						alert('Analysis start date saved successfully!');
+						alert('Date of Analysis saved successfully!');
 					},
 					error:(data)=>{
 						console.log(data);

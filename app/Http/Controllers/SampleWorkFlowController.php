@@ -3396,8 +3396,12 @@ class SampleWorkFlowController extends Controller
 		$user_approvers = [];
 		foreach(explode(',', $batch->lab_section_ids) as $section_id){
 			$c_user = CapturedResult::where('lab_section_id',$section_id)->where('sample_header_id',$batch->id)->orderBy('updated_at','DESC')->first();
-			array_push($users,$c_user->operator_id);
-			$user_approvers[$c_user->operator_id] = $section_id;
+			
+			if($c_user && $c_user->operator_id) {
+				array_push($users,$c_user->operator_id);
+				$user_approvers[$c_user->operator_id] = $section_id;
+			}
+			
 		}
 		$analysts = User::whereIn('id',$users)->get();
 		
