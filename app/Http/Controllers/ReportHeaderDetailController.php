@@ -18,6 +18,7 @@ use Illuminate\Http\File;
 use Illuminate\Support\Facades\Storage;
 use Spatie\Browsershot\Browsershot;
 use App\BatchLabSectionApprover;
+use App\SampleAnalysisDates;
 use App\SampleAnalysisTypeRelationView;
 use App\SamplesCategory;
 // use Illuminate\Support\Facades\Storage;
@@ -134,8 +135,8 @@ class ReportHeaderDetailController extends Controller
 		$report_type = $batch->prelim_report_status == 1 ? 'PRELIM' : $report_type;
 		$report_type = $batch->prelim_report_status == 2 ? 'DRAFT' : $report_type;
 
-		$batch_approvers = BatchLabSectionApprover::where('batch_id', $batch->id)->where('status', 1)->get();
-		$analysis_date = CapturedResult::where('sample_header_id',$batch->id)->whereNotNull('result')->orderBy('updated_at','DESC')->first();
+		$batch_approvers = BatchLabSectionApprover::where('batch_id', $batch->id)->where('show_report',1)->where('status', 1)->get();
+		$analysis_date = SampleAnalysisDates::where('sample_header_id',$batch->id)->orderBy('start_analysis_date','ASC')->first();
 
 		$disclaimer = SystemConfiguration::where('key', 'lab_report_disclaimer_config')->first();
 		$non_accredited = SystemConfiguration::where('key', 'lab_report_accreditted_config')->first();

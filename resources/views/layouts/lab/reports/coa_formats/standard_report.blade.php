@@ -195,7 +195,7 @@
                                 </tr>
                                 <tr>
                                     <td style="border: solid 0 transparent !important;border-right:1px solid rgba(0, 0, 0, 0.35);font-size:8px !important;border-left:1px solid rgba(0, 0, 0, 0.35);padding:2px;padding-left:4px">DATE ANALYSIS STARTED</td>
-                                    <td style="border: solid 0 transparent !important;padding:2px;padding-left:10px !important;font-size:8px !important;border-right:1px solid rgba(0, 0, 0, 0.35);border-left: 2.1px solid rgba(0, 0, 0, 0.35);">{{$analysis_date->updated_at != '' ?  date('Y-m-d',strtotime($analysis_date->updated_at)) : '-' }}</td>
+                                    <td style="border: solid 0 transparent !important;padding:2px;padding-left:10px !important;font-size:8px !important;border-right:1px solid rgba(0, 0, 0, 0.35);border-left: 2.1px solid rgba(0, 0, 0, 0.35);">{{$analysis_date->start_analysis_date != '' ?  date('Y-m-d',strtotime($analysis_date->start_analysis_date)) : '-' }}</td>
                                 </tr>
                                 <tr>
                                     <td style="border: solid 0 transparent !important;border-right:1px solid rgba(0, 0, 0, 0.35);font-size:8px !important;border-left:1px solid rgba(0, 0, 0, 0.35);padding:2px;padding-left:4px">SAMPLING METHOD</td>
