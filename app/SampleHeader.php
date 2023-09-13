@@ -29,9 +29,13 @@ class SampleHeader extends Model implements Auditable
 			$join->on('isc.parent_id', '=', 'sample_details.id');
 			$join->where('isc.parent', '=', $parentType);
 		})->leftJoin('inventory_items as it', 'it.inventory_sub_category_id', '=', 'isc.id')
+		->leftJoin('sample_analysis_dates as sad',function($join){
+			$join->on('sad.sample_detail_id','=','sample_details.id');
+			$join->where('sad.sample_header_id',$this->id);
+		})
 		->leftJoin('labs as lb','lb.id','=','sample_details.lab_id')
-			->selectRaw('analysis_type_id,sample_details.barcode,sample_details.lab_sub_no,sample_details.ammendment_number,sample_details.main_standard,sample_details.secondary_standard,comments,company_product_id,gps,header_body,sample_details.id,main_body,photo_url,sample_code,sample_condition_id,sample_header_id,sample_point_id, isc.unit_type, it.inventory_store_slot_id as slot_id, it.inventory_store_id as store_id, SUM(it.stock_in) as stock_in, SUM(it.stock_out) as stock_out, isc.material_type_id,sample_details.lab_id,lb.name as lab_name,lb.code as lab_code,sample_details.disposal_date')
-			->where('sample_header_id', $this->id)->groupBy('isc.material_type_id', 'analysis_type_id','sample_details.lab_sub_no', 'sample_details.barcode', 'comments', 'company_product_id', 'gps', 'header_body', 'sample_details.id', 'main_body', 'photo_url', 'sample_code', 'sample_condition_id', 'sample_header_id', 'sample_point_id', 'unit_type', 'inventory_store_slot_id', 'inventory_store_id', 'sample_details.ammendment_number', 'sample_details.main_standard', 'sample_details.secondary_standard')->orderBy('sample_details.id', 'asc')->get();
+			->selectRaw('analysis_type_id,sample_details.barcode,sample_details.lab_sub_no,sample_details.ammendment_number,sample_details.main_standard,sample_details.secondary_standard,comments,company_product_id,gps,header_body,sample_details.id,main_body,photo_url,sample_code,sample_condition_id,sample_details.sample_header_id,sample_point_id, isc.unit_type, it.inventory_store_slot_id as slot_id, it.inventory_store_id as store_id, SUM(it.stock_in) as stock_in, SUM(it.stock_out) as stock_out, isc.material_type_id,sample_details.lab_id,lb.name as lab_name,lb.code as lab_code,sample_details.disposal_date,sad.analysis_dates,sad.start_analysis_date')
+			->where('sample_details.sample_header_id', $this->id)->groupBy('isc.material_type_id', 'analysis_type_id','sample_details.lab_sub_no', 'sample_details.barcode', 'comments', 'company_product_id', 'gps', 'header_body', 'sample_details.id', 'main_body', 'photo_url', 'sample_code', 'sample_condition_id', 'sample_details.sample_header_id', 'sample_point_id', 'unit_type', 'inventory_store_slot_id', 'inventory_store_id', 'sample_details.ammendment_number', 'sample_details.main_standard', 'sample_details.secondary_standard')->orderBy('sample_details.id', 'asc')->get();
 	}
 
 	public function report_header_details()

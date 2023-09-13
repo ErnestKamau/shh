@@ -67,6 +67,7 @@ use App\BatchLabSectionApprover;
 use App\LabSectionApprover;
 use App\SampleCondition;
 use App\Models\CRM\CompanyProduct;
+use App\SampleAnalysisDates;
 
 class SampleWorkFlowController extends Controller
 {
@@ -1274,7 +1275,13 @@ class SampleWorkFlowController extends Controller
 				"less_than" => "<"
 			];
 			$item->methods = $this->methodNameFromId($methods, $analyte->method);
-			$analaytesHolder[$item->sample_detail_code][] = $item;
+			$lab_section = SampleAnalysisStage::find($item->lab_section_id);
+			// !isset($analaytesHolder[$item->sample_detail_code]) ? $analaytesHolder[$item->sample_detail_code] = [] : '';
+			// isset($lab_section->id) && !isset($analaytesHolder[$item->sample_detail_code][$item->lab_section_id]) ? $analaytesHolder[$item->sample_detail_code][$item->lab_section_id] = [] : '';
+			
+			$item->lab_section_id > 0 ? $analaytesHolder[$item->sample_detail_code][$item->lab_section_id]['section'] = $lab_section->name : $analaytesHolder[$item->sample_detail_code]['000']['section'] = 'Not Set';
+
+			$item->lab_section_id > 0 ? $analaytesHolder[$item->sample_detail_code][$item->lab_section_id]['cr'][] = $item : $analaytesHolder[$item->sample_detail_code]['000']['cr'][] = $item;
 			$sample_details_test = $item->sample;
 			$item->standard_limit_value = '';
 			if (isset($sample_details_test->id)) {
@@ -1328,7 +1335,7 @@ class SampleWorkFlowController extends Controller
 		}
 		// echo "Ending - ".date('Y-m-d H:i:s');
 		$active_company = getActiveCompany();
-		// return response()->json($batch);
+		// return response()->json($analaytesHolder);
 		// ---------------------------------------
 		$userLabSections = auth()->user()->labsectionids;
 		$customer = isset($batch->id) ? getCrmCustomerByID($batch->crm_customer_id) : [];
@@ -3381,7 +3388,19 @@ class SampleWorkFlowController extends Controller
 		// return response()->json($request->all());
 		$batch = SampleHeader::find($request->batch_id);
 		$previousWorkflow = $batch->status;
+		if ($batch->lab_section_ids == '') {
+			return redirect()->back()->with('error', 'Kindly provide the lab sections associated with the sample at batch information section');
+		}
 		$section_users = LabSectionApproverRelationShip::whereIn('lab_section_id', explode(',', $batch->lab_section_ids))->get();
+		$users =[];
+		$user_approvers = [];
+		foreach(explode(',', $batch->lab_section_ids) as $section_id){
+			$c_user = CapturedResult::where('lab_section_id',$section_id)->where('sample_header_id',$batch->id)->orderBy('updated_at','DESC')->first();
+			array_push($users,$c_user->operator_id);
+			$user_approvers[$c_user->operator_id] = $section_id;
+		}
+		$analysts = User::whereIn('id',$users)->get();
+		
 		if ($section_users->count() <= 0) {
 			return redirect()->back()->with('error', 'Kindly provide approval configuration for the selected batch lab sections');
 		}
@@ -3408,6 +3427,21 @@ class SampleWorkFlowController extends Controller
 					$approvers->is_prelim = $request->level != "0" ? 1 : 0;
 					$approvers->save();
 				}
+				foreach($analysts as $analyst){
+					$approvers = BatchLabSectionApprover::where('batch_id', $batch->id)->where('user_id', $analyst->id)->first() ?? new BatchLabSectionApprover();
+					$section = SampleAnalysisStage::find($user_approvers[$analyst->id]);
+					$approvers->status = 1;
+					$approvers->user_id = $analyst->id;
+					$approvers->title = $section->title;
+					$approvers->lab_section_ids = $approvers->lab_section_ids == '' ?  $approvers->lab_section_ids . $section->id: $approvers->lab_section_ids . ',' . $section->id;
+					$approvers->batch_id = $batch->id;
+					$approvers->batch_status = $request->status;
+					$approvers->is_prelim = $request->level != "0" ? 1 : 0;
+					$approvers->approval_date = date('Y-m-d h:i:s a');
+					$approvers->show_report = 1;
+					$approvers->save();
+				}
+
 			}
 			$batch->save();
 			return redirect()->route('sample-workflow', ['status' => $previousWorkflow])->with('success', 'Batch move was successful');
@@ -3421,6 +3455,7 @@ class SampleWorkFlowController extends Controller
 		$approvers->lab_section_ids = 0;
 		$approvers->batch_id = $batch->id;
 		$approvers->batch_status = $request->status;
+		$approvers->show_report = 1;
 		$approvers->save();
 		$batch->status = $request->status;
 		$batch->save();
@@ -3889,5 +3924,37 @@ class SampleWorkFlowController extends Controller
 		$value = $request->standard_value_type == 2 && $request->limit_measure != '' ? $request->value.' '.$request->limit_measure  : $value;
 		$format_value = $request->standard_value_type == 2 && $request->limit_measure != '' ? $request->value : $value;
 		return response()->json(["format_value" => $value, "value" => $format_value]);
+	}
+	public function saveSampleAnalysisDate(Request $request){
+		$sample = SampleDetails::where('sample_code',$request->sample_id)->first();
+		
+		$analysis_date = SampleAnalysisDates::where('sample_header_id',$request->batch_id)->where('sample_detail_id',$sample->id)->first() ?? new SampleAnalysisDates();
+		if(isset($analysis_date->id)){
+			$prev_dates = $analysis_date->analysis_dates != '' ? json_decode($analysis_date->analysis_dates,true) : array();
+			// foreach($prev_dates as $key=>$value){
+			// 	if($key == )
+			// }
+			if(isset($prev_dates[$request->lab_section_id])){
+				$prev_dates[$request->lab_section_id] = $request->start_analysis_date;
+			}else{
+				$prev_dates[$request->lab_section_id] = $request->start_analysis_date;
+				// array_push($prev_dates,[$request->lab_section_id=>$request->start_analysis_date]);
+
+			}
+			$analysis_date->start_analysis_date = $analysis_date->start_analysis_date > $request->start_analysis_date ? $request->start_analysis_date : $analysis_date->start_analysis_date;
+		}else{
+			$prev_dates = [];
+			// array_push($prev_dates,[$request->lab_section_id=>$request->start_analysis_date]);
+			$prev_dates[$request->lab_section_id] = $request->start_analysis_date;
+			$analysis_date->start_analysis_date = $request->start_analysis_date;
+		}
+		$analysis_date->sample_header_id = $request->batch_id;
+		$analysis_date->sample_detail_id =$sample->id;
+		// return response()->json($prev_dates);
+
+		$analysis_date->analysis_dates =json_encode($prev_dates);
+		$analysis_date->save();
+		return response()->json('success');
+		
 	}
 }

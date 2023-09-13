@@ -47,6 +47,8 @@ class SampleAnalysisStageController extends Controller
 		$sampleAnalysisStage->level = $request->level;
 		$sampleAnalysisStage->lab_id = $request->lab_id;
 		$sampleAnalysisStage->code = $request->code;
+		$sampleAnalysisStage->title = $request->title;
+
 
 		$sampleAnalysisStage->save();
 
@@ -72,6 +74,7 @@ class SampleAnalysisStageController extends Controller
 		$sampleAnalysisStage->level = $request->level;
 		$sampleAnalysisStage->lab_id = $request->lab_id;
 		$sampleAnalysisStage->code = $request->code;
+		$sampleAnalysisStage->title = $request->title;
 		$sampleAnalysisStage->save();
 
 		return redirect()->back()->with('success', 'Sample Analysis Stage Edited.');

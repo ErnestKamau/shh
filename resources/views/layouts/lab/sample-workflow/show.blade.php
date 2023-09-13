@@ -1278,6 +1278,7 @@
   </main>
 @endsection
 @section('script2')
+
 <div class="carry_data hidden" data-userlabsection="{{json_encode($userLabSections)}}"></div>
 
 <div id="add-company-unit" class="modal fade" role="dialog">
@@ -1856,7 +1857,7 @@
 									<option value="">Choose Report Format</option>
 									<option value="0">Standard Report</option>
 									{{-- <option value="1">KTDA Report</option> --}}
-									<option value="2">Iran Report</option>
+									<option value="2">BL Report</option>
 								</select>
 							</div>
 							<div class="proccesing-point hidden">
@@ -3181,9 +3182,49 @@
 		var parametersBySampleCode = $('#sample-detail-rows').data('parameters'); //Parameters by sample code
 		var analysisIDsBySampleCode = $('#sample-detail-rows').data('sample_analysis_ids');
 		var analysisNames = $('#sample-detail-rows').data('analysis_names');
+		var labSectionRow = (section,id,batch_id,sample_id,datevalue)=>{
+			var body = $(`
+			<tr>
+				<td colspan="12" style="padding-left:5%">
+					<b>${section}</b>
+					<input type="date" class="start_analysis_date" value="${datevalue}" style="margin-left:2%;width:20%">
+					<span class="btn btn-sm text-success save-analysis-start-date" style="font-size:20px !important"><i class="mdi mdi-sync"></i></span>
+					
+				</td>
+			</tr>
+			`).clone();
+			$(body).find('.save-analysis-start-date').on('click',(e)=>{
+				var start_date = $(body).find('.start_analysis_date').val();
+				$.ajaxSetup({
+					headers: {
+						'X-CSRF-TOKEN': jQuery('meta[name="csrf-token"]').attr('content')
+					}
+				});
+				$.ajax({
+					url:'/save-Sample/AnalysisDate',
+					method:'POST',
+					data:{
+						lab_section_id:id,
+						start_analysis_date:start_date,
+						batch_id:batch_id,
+						sample_id:sample_id
+					},
+					success:(data)=>{
+						console.log(data);
+						alert('Analysis start date saved successfully!');
+					},
+					error:(data)=>{
+						console.log(data);
+					}
+				})
+
+			});
+			return body;
+		}
 		$('#show-sample-analysis-analytes').on('show.bs.modal', function(e){
 
 			var sampleCode = $(e.relatedTarget).data('sample_code');
+			var analysis_dates = JSON.parse($(e.relatedTarget).data('analysisdate'));
 			
 			
 			var all_analysis = analysisNames[sampleCode];
@@ -3204,15 +3245,26 @@
 			var analysisIDs = analysisIDsBySampleCode[sampleCode];
 			
 			var loop = 1;
-			// console.log(parameters);
+			// console.log('----------------4376374--------------')
+
+			// console.log(parameters['section']);
+			// console.log('----------------748384--------------')
+
 			// console.log('------------------------------')
 			// console.log(parametersBySampleCode['2023L00217463']);
 			// console.log(parameters);
 			$.each(parameters, function(p, param){
-				var sampleRow = sampleCodeParameters(param,loop);
-				// console.log(param);
-				$('#sample-parameters-holder').append(sampleRow);
-				loop = loop + 1;
+				
+				var a_date =analysis_dates && analysis_dates[p] ? analysis_dates[p] : '';
+				
+				var sectionRow = labSectionRow(param['section'],p,thebatch.id,sampleCode,a_date);
+				$('#sample-parameters-holder').append(sectionRow);
+				$.each(param['cr'],(i,obj)=>{
+					var sampleRow = sampleCodeParameters(obj,loop);
+					$('#sample-parameters-holder').append(sampleRow);
+					loop = loop + 1;
+				})
+				
 			});
 			
 			$(this).find('input[name="parameter_check_all"]').on('change',function(){
@@ -3596,6 +3648,11 @@
 		var createRow = function(data=false){
 			var $row = $(sampleDetailsRow).clone();
 			
+			// console.log('-----------hfvdsh')
+			// console.log(JSON.parse(data.analysis_dates));
+			// console.log('-----------hfvdsh')
+
+			
 			if($isclient.is_client == 1 && $batch.status != 'Samples En-Route'){
 				
 				$row.find('.edit-remove').empty();
@@ -3625,6 +3682,7 @@
 			$row.find('.initiate-interlab').data('sample',data.id);
 			$row.find('.initiate-interlab').data('samplecode',data.sample_code);
 			$row.find('.initiate-interlab').data('analysistype',data.lab_id);
+			$row.find('.show-parameter-initiator').data('analysisdate',data.analysis_dates);
 			$row.find('[name="sample_details[is_duplicate][]"]').val(data.is_duplicate ? data.is_duplicate : 0)
 			console.log('-------------------------------');
 			console.log(data)
@@ -4366,7 +4424,7 @@
 			@if(isset($batch->status) && in_array($batch->status, array("Samples En-Route","Samples Request Review","Samples Reception","Samples In Lab")))
 			<span class="btn btn-default btn-sm initiate-interlab  no-data hidden  text-warning" data-sample="" data-analysistype="" data-samplecode="" data-toggle="modal" data-target="#inter-lab-add" data-action="add"><i class="mdi mdi-swap-horizontal-bold" data-toggle="tooltip" title="Initiate inter Lab"></i></span>
 			@endif
-			<span class="btn btn-default parameter-remove  no-data hidden  text-info btn-sm dropdown-row" data-target="#show-sample-analysis-analytes" data-toggle="modal" data-toggle="tooltip" title="Parameters" ><i class="mdi mdi-snowflake"></i></span>
+			<span class="btn btn-default parameter-remove  no-data hidden  show-parameter-initiator text-info btn-sm dropdown-row" data-target="#show-sample-analysis-analytes" data-toggle="modal" data-toggle="tooltip" title="Parameters" ><i class="mdi mdi-snowflake"></i></span>
 		</td>
 		<td class="sample-code-field" nowrap>
 			<div class="form-group form-group-sm">

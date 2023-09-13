@@ -49,6 +49,7 @@
                   <th>No</th>
                   <th>Name</th>
                   <th>Code</th>
+                  <th>Title</th>
                   <th>Workflow</th>
                   <th>Level</th>
                   <th>Section Head</th>
@@ -65,6 +66,7 @@
                       <td valign="center">{{ $loop->iteration }}</td>
                       <td>{{ $stage->name }}</td>
                       <td>{{$stage->code}}</td>
+                      <td>{{$stage->title ?? '-'}}</td>
                       <td>{{ $stage->sample_workflow }}</td>
                       <td>{{ $stage->level }}</td>
                       <td>{{ $stage->getSectionHead()->name ?? '-'}}</td>
@@ -84,6 +86,10 @@
                                 <div class="form-group">
                                   <label class="control-label">Name</label>
                                   <input type="text" class="form-control" name="name" value="{{ $stage->name }}" placeholder="Sample Type Name..." required />
+                                </div>
+                                <div class="form-group">
+                                  <label class="control-label">Title</label>
+                                  <input type="text" class="form-control" name="title" value="{{ $stage->title }}" placeholder="Title..." required />
                                 </div>
                                 <div class="form-group">
                                   <label class="control-label">Code</label>
@@ -233,6 +239,10 @@
           <div class="form-group">
             <label class="control-label">Name</label>
             <input type="text" class="form-control" name="name" placeholder="Sample Analysis Stage Name..." required />
+          </div>
+          <div class="form-group">
+            <label class="control-label">Title</label>
+            <input type="text" class="form-control" name="title" value="" placeholder="Title..." required />
           </div>
           <div class="form-group">
             <label class="control-label">Code</label>

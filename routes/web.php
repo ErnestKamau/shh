@@ -806,6 +806,7 @@ Route::post('/analyte-type-elements-import', 'AnalysisElementsController@import'
 Route::post('/analysis-type-clone/{id}', 'AnalysisTypeController@clone')->name('analysis-type-clone');
 Route::post('/sample-type-clone/{id}', 'SampleTypeController@clone')->name('sample-type-clone');
 Route::get('/testSmsAlert','SampleWorkFlowController@testSmsAlert')->name('testSmsAlert');
+Route::post('/save-Sample/AnalysisDate','SampleWorkFlowController@saveSampleAnalysisDate')->name('saveSampleAnalysisDate');
 
 ################################################Polucon#########################################
 
