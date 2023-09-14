@@ -3517,7 +3517,7 @@
 			var $row = $(`
 				<div class="form-group">
 					<label>Comments</label>
-					<textarea class="form-control" name="header_body" placeholder="Comments..." required>{{ $headerDetails['header']->header_body ?? '' }}</textarea>
+					<textarea class="form-control" name="header_body" placeholder="Comments...">{{ $headerDetails['header']->header_body ?? '' }}</textarea>
 				</div>
 				<div class="form-group">
 					<label>Recommendations / Interpretations</label>
