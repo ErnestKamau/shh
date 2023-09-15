@@ -198,8 +198,10 @@ class ReportHeaderDetailController extends Controller
 		}
 		if ($report_format == '2') {
 			foreach ($samples as $sample) {
+				$isNull = SampleAnalysisTypeRelationView::whereNull('brand_id')->where('sample_detail_id',$sample->id)->where('batch_id',$sample->sample_header_id)->orderBy('analysis_level', 'DESC')->get();
+				$isZero = SampleAnalysisTypeRelationView::where('brand_id',0)->where('sample_detail_id',$sample->id)->where('batch_id',$sample->sample_header_id)->orderBy('analysis_level', 'DESC')->get();
 				$sample['getBrandOuts'] = [
-					"normal" => SampleAnalysisTypeRelationView::whereNotIn('brand_id',[1,2])->where('sample_detail_id',$sample->id)->where('batch_id',$sample->sample_header_id)->orderBy('analysis_level', 'DESC')->get(),
+					"normal" => array_merge($isNull,$isZero),
 					"physical" => SampleAnalysisTypeRelationView::where('brand_id', 1)->where('sample_detail_id',$sample->id)->where('batch_id',$sample->sample_header_id)->orderBy('analysis_level', 'DESC')->get(),
 					"pesticide" => SampleAnalysisTypeRelationView::where('brand_id', 2)->where('sample_detail_id',$sample->id)->where('batch_id',$sample->sample_header_id)->orderBy('analysis_level', 'DESC')->get(),
 				];
