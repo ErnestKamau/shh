@@ -210,7 +210,7 @@
 				</li>
 				<?php $reportpath = '/storage'.$batch->batch_report_url; ?>
 						<li>
-							<a target="_blank" href="<?php echo e($reportpath); ?>" class="dropdown-item"><i class="mdi mdi-download mr-2"></i> Download COA</a>
+							<a target="_blank" href="<?php echo e($reportpath); ?>" style="font-size:0.875rem!important; font-weight:400;line-height: 1.5;" class="btn btn-sm dropdown-item"><i class="mdi mdi-download mr-2"></i> Download COA</a>
 						</li>
 				<?php endif; ?>						
 				<?php endif; ?>
@@ -746,7 +746,11 @@
 											<?php if($approver->status == 0): ?>
 											<span class="badge badge-primary badge-pill p-2"><i class="mdi mdi-decagram"></i> Awaiting Approval</span>
 											<?php elseif($approver->status == 1): ?>
-											<span class="badge badge-success badge-pill p-2"><i class="mdi mdi-thumb-up-outline"></i><?php echo e($approver->batch_status  == "Sample Verification" ? 'Verified' : 'Approved'); ?>  </span>
+												<?php if($approver->batch_status  == "Sample Verification" && $approver->show_report == 1): ?>
+												<span class="badge badge-success badge-pill p-2"><i class="mdi mdi-thumb-up-outline"></i>Checked</span>
+												<?php else: ?>
+												<span class="badge badge-success badge-pill p-2"><i class="mdi mdi-thumb-up-outline"></i><?php echo e($approver->batch_status  == "Sample Verification"  ? 'Verified' : 'Authorized'); ?>  </span>
+												<?php endif; ?>
 											<?php else: ?>
 											<span class="badge badge-success badge-pill p-2"><i class="mdi mdi-decagram"></i> Declined</span>
 											<?php endif; ?>
@@ -3207,11 +3211,14 @@
 		var labSectionRow = (section,id,batch_id,sample_id,datevalue)=>{
 			var body = $(`
 			<tr>
-				<td colspan="12" style="padding-left:5%">
-					<b>${section}</b>
-					<input type="date" class="start_analysis_date" value="${datevalue}" style="margin-left:2%;width:20%">
-					<span class="btn btn-sm text-success save-analysis-start-date" style="font-size:20px !important"><i class="mdi mdi-sync"></i></span>
+				<td colspan="3" style="padding-left:2%">
+					<h5>${section}</h5>
 					
+				</td>
+				<td class="pull-right" colspan="9" style="padding-left:1%">
+					<b>Date of Analysis</b>
+					<input type="date" class="start_analysis_date" value="${datevalue}" style="margin-left:1%;width:20%">
+					<span class="btn btn-sm btn-success save-analysis-start-date" style="font-size:14px !important"><i class="mdi mdi-sync"></i>Click to Save Date</span>
 				</td>
 			</tr>
 			`).clone();
@@ -3233,7 +3240,7 @@
 					},
 					success:(data)=>{
 						console.log(data);
-						alert('Analysis start date saved successfully!');
+						alert('Date of Analysis saved successfully!');
 					},
 					error:(data)=>{
 						console.log(data);
@@ -3529,7 +3536,7 @@
 			var $row = $(`
 				<div class="form-group">
 					<label>Comments</label>
-					<textarea class="form-control" name="header_body" placeholder="Comments..." required><?php echo e($headerDetails['header']->header_body ?? ''); ?></textarea>
+					<textarea class="form-control" name="header_body" placeholder="Comments..."><?php echo e($headerDetails['header']->header_body ?? ''); ?></textarea>
 				</div>
 				<div class="form-group">
 					<label>Recommendations / Interpretations</label>
