@@ -199,16 +199,13 @@ class ReportHeaderDetailController extends Controller
 		}
 		if ($report_format == '2') {
 			foreach ($samples as $sample) {
-
 				$sample['getBrandOuts'] = [
-					"normal" => SampleAnalysisTypeRelationView::whereNull('brand_id')->where('sample_detail_id',$sample->id)->where('batch_id',$sample->sample_header_id)->orwhere(function(Builder $query,$sample){
-						$query->where('brand_id',0)->where('sample_detail_id',$sample->id)->where('batch_id',$sample->sample_header_id);
-					})->orderBy('analysis_level', 'DESC')->get(),
+					"normal" => SampleAnalysisTypeRelationView::where('brand_id',0)->where('sample_detail_id',$sample->id)->where('batch_id',$sample->sample_header_id)->orderBy('analysis_level', 'DESC')->get(),
 					"physical" => SampleAnalysisTypeRelationView::where('brand_id', 1)->where('sample_detail_id',$sample->id)->where('batch_id',$sample->sample_header_id)->orderBy('analysis_level', 'DESC')->get(),
 					"pesticide" => SampleAnalysisTypeRelationView::where('brand_id', 2)->where('sample_detail_id',$sample->id)->where('batch_id',$sample->sample_header_id)->orderBy('analysis_level', 'DESC')->get(),
 				];
 			}
-			return response()->json($samples);
+			// return response()->json($samples);
 			ini_set('max_execution_time', 300); //300 seconds = 5 minutes 
 
 			$pdf = app('dompdf.wrapper');

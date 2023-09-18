@@ -76,6 +76,10 @@
         font-size: 8px !important;
         font-weight: bolder !important;
     }
+
+    #bl_header td {
+        border: solid 1 rgba(0, 0, 0, 0.35) !important;
+    }
     
 </style>
 
@@ -172,11 +176,10 @@
             <b>{{ $batch->approval_date ?? '-' }}</b>
         </div>
         <main style="">
-            <div class="test-report p-2"
-                style=" border: 1px solid rgba(0, 0, 0, 0.35) !important; font-size:10px !important;width:100%">
-                <b>TEST REPORT NO : R{{ substr($sample->sample_code, 1, strlen($sample->sample_code)) }}</b>
-            </div>
-            <table class="table table-sm table-bordered" style="width:100%;font-size: 8px">
+            <table name="bl_header" id="bl_header" class="table table-sm table-bordered" style="width:100%;font-size: 8px">
+                <tr>
+                    <td style="text-align: left;font-size:10px !important" colspan="4"><b>TEST REPORT NO : R{{ substr($sample->sample_code, 1, strlen($sample->sample_code)) }}</b></td>
+                </tr>
                 <tr>
                     <td style="text-align: center" colspan="4"><b>Analysis Certificate</b></td>
                 </tr>
