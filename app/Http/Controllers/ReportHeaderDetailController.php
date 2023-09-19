@@ -172,7 +172,7 @@ class ReportHeaderDetailController extends Controller
 					"pesticide" => SampleAnalysisTypeRelationView::where('brand_id', 2)->where('sample_detail_id',$sample->id)->where('batch_id',$sample->sample_header_id)->orderBy('analysis_level', 'DESC')->get(),
 				];
 			}
-			return response()->json($samples);
+			// return response()->json($samples);
 			ini_set('max_execution_time', 300); //300 seconds = 5 minutes
 			$pdf = app('dompdf.wrapper');
 			$pdf->getDomPDF()->set_option("enable_php", true);

@@ -1693,9 +1693,7 @@
 					<div class="form-group">
 						<label for="" class="control-label">Report Template</label>
 						<select name="template_id" id="" class="form-control">
-							@foreach($report_formats as $r_format)
-							<option value="{{$r_format->value}}">{{$r_format->key}}</option>
-							@endforeach
+							<option value="Standard Report">Standard Report</option>
 						</select>
 					</div>
 					<input type="hidden" name="batch_id" value="{{$batch->id}}">
@@ -1866,7 +1864,7 @@
 								<select name="report_format" id="report_format" class="form-control">
 									<option value="">Choose Report Format</option>
 									<option value="0">Standard Report</option>
-									{{-- <option value="1">KTDA Report</option> --}}
+									<option value="1">KTDA Report</option>
 									<option value="2">BL Report</option>
 								</select>
 							</div>

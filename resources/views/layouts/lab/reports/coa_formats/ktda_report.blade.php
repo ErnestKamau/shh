@@ -16,11 +16,11 @@
 
 <style>
     @page {
-        margin: 20px;
-    }
-
-    @page {
-        margin-top: 20px;
+        /* margin-top: 20px; */
+        margin-bottom: 10px;
+        margin-top: 100px;
+        margin-left:20;
+        margin-right: 20;
 
         @bottom-center {
             content: element(footer);
@@ -33,29 +33,32 @@
     }
 
 
-
     .header {
-        position: running(header);
-        /* top: 0px;
+        position: fixed;
+        top: -80px;
         left: 0;
         right: 0;
-        height: 50;
-        z-index: 1000; */
+        height: 50px;
+        z-index: 1000;
 
 
     }
 
-    /* .header::before{
-        position: running(header);
-    } */
     .footer {
         position: fixed;
-        bottom: 140;
+        bottom: 10px;
         left: 0;
         right: 0;
-
         z-index: 1000;
     }
+
+    .dotted-line {
+        border: none;
+        margin: 0% 35%;
+        background-color: rgb(254, 254, 254);
+        border-bottom: 3px dotted rgb(0, 0, 0);
+    }
+
 
     .parameter {
         border: solid 1 rgba(0, 0, 0, 0.35) !important;
@@ -68,456 +71,357 @@
     .textBold {
         font-weight: 700 !important;
     }
+
+    .footer_addr {
+        font-size: 8px !important;
+        font-weight: bolder !important;
+    }
+
+    #bl_header td {
+        border: solid 1 rgba(0, 0, 0, 0.35) !important;
+    }
+    
 </style>
 
 <body>
 
 
     <footer class="footer">
-
-        <table class="" style="margin-top: 1px !important; border-bottom:1px solid black;width:100%">
-
+        @if($batch_approvers->count() > 0)
+        <table style="margin-top: 1px !important;margin-bottom:6px!important;width:100%;">
             <tr>
                 @foreach ($batch_approvers as $approver)
                     <td style="font-size: 8px !important;">
-                        <b>{{ $approver->title }}</b><br>
-                        <img src="{{ getCoaApproverSignature($approver->getApproverDetails()->electronic_sig) }}"
-                            style="width:80px" alt="signature"><br>
-                        <span>{{ $approver->getApproverDetails()->name }} -
-                            {{ $approver->getApproverPositionDetails() }}</span>
+                        <div style="text-align:center">
+                            <b>{{ $approver->title }}</b>
+                        </div>
                     </td>
                 @endforeach
-
+            </tr>
+            <tr>
+                @foreach ($batch_approvers as $approver)
+                    <td style="font-size: 8px !important;">
+                        <div class="dotted-line text-align:center" style="text-align:center; width:fit-content!important;">
+                            <img src="{{ getCoaApproverSignature($approver->getApproverDetails()->electronic_sig) }}" style="height:48px;"
+                            alt="signature">
+                        </div>
+                    </td>
+                @endforeach
+            </tr>
+            <tr>
+                @foreach ($batch_approvers as $approver)
+                    <td style="font-size: 9px !important;">
+                        <div style="text-align:center">{{ $approver->approvershortname }} -
+                                <i>{{ $approver->getApproverPositionDetails() }}</i></div>
+                    </td>
+                @endforeach
+            </tr>
+        </table>
+        @endif
+        <table style="width:100%;">
+            <tr>
+                <td>
+                    <div class="text-center" style="font-size:8px">
+                        <img src="{{ $polucon_disclaimer }}" style="width:auto;height:55px" alt="">
+                        @if($batch->sampled_by_company_personnel == 0)
+                        <span class="text-center"><b>NB: This report relates to submitted sample(s) only. The source and/or markings are as provided by the customer.</b><span>
+                        @endif
+                    </div>
+                </td>
             </tr>
         </table>
 
-        <div style="margin-top:10px">
+        <div style="margin-top:7px">
             <table style="width:100%">
                 <tr>
-                    <td style="width: 10%">
-                        <img src="data:image/png;base64, {!! $qrcode !!}" width="60" height="60"> <br>
-                        <span style="font-size: 8px !important;">Scan to Verify</span>
-
+                    <td style="width: 3%" style=" vertical-align: top;display: inline-block;text-align: center;">
+                        <img src="data:image/png;base64, {!! $qrcode !!}" style="margin-top: 20px" width="50" height="50">
+                        <span style="font-size: 7px !important;display: block;margin-top:3px">Scan to Verify</span>
+                        
                     </td>
-                    <td style="text-align: center">
-                        <div class=""><b>{{ $company->name }}</b></div>
-                        <div class="company-location p-2">
-                            <table style="font-size: 7px">
-                                <tr>
-                                    <td colspan="3" style="font-size: 8px !important;">{{ $company->street }} - P.O.
-                                        Box {{ $company->address }},
-                                        {{ $company->location }}</td>
-                                </tr>
-                                <tr>
-                                    <td style="font-size: 8px !important;">Office: {{ $company->telephone }}</td>
-                                    <td style="font-size: 8px !important;">Tel 1:
-                                        {{ explode('/', $company->cell_phone)[0] ?? '' }}</td>
-                                    <td style="font-size: 8px !important;">Email: {{ $company->email }}</td>
-                                </tr>
-                                <tr>
-                                    <td style="font-size: 8px !important;">Fax: {{ $company->fax }}</td>
-                                    <td style="font-size: 8px !important;">Tel2:
-                                        {{ explode('/', $company->cell_phone)[0] ?? '' }}</td>
-                                    <td style="font-size: 8px !important;">Web: {{ $company->website }}</td>
-                                </tr>
-
-
-                            </table>
-                        </div>
-                        <div class="text-center" style="font-size: 8px !important;"><u><b>Member of POLUCON
-                                    Group</b></u></div>
-                    </td>
-                    <td style="width:30%"></td>
                 </tr>
             </table>
         </div>
     </footer>
+    <header class="header">
+        <table style="width: 100%;border:0px;">
+            <tr>
+                <td style="font-size: 10px !important;border:solid 0 transparent !important; width:30% !important">
+                    <img src="{{ $path }}" style="height:70px;" alt="logo">
+
+                </td>
+
+                <td style="border: solid 0 transparent !important;text-align:right;font-size:11px !important;">
+                    {{ $customer->name }} <br>
+                    P.O BOX {{ $customer->postal_address }} <br>
+                    {{ $customer->physical_address }}
+                </td>
+            </tr>
+
+        </table>
+    </header>
 
     @foreach ($samples as $sample)
-        <main style="margin-bottom: 20px;">
-            <table class="table table-sm table-bordered" style="font-size: 8px;width:100%">
-                <thead style="height: 60px !important;">
-                    <tr style="border: solid 1px black !important;margin:0 !important">
-                        <th style="font-size: 6px !important;border: solid 0 transparent !important" colspan="5">
-                            <table style="width: 100%;border:0px;">
-                                <tr>
-                                    <td
-                                        style="font-size: 10px !important;border:solid 0 transparent !important; width:30% !important">
-                                        <img src="{{ $path }}" style="height:90px;" alt="logo">
-
-                                    </td>
-
-                                    <td
-                                        style="border: solid 0 transparent !important;text-align:right;font-size:11px !important;">
-                                        {{ $sample->crm_name }} <br>
-                                        P.O BOX {{ $sample->postal_address }} <br>
-                                        {{ $sample->physical_address }}
-                                    </td>
-                                </tr>
-
-                            </table>
-
-                        </th>
-                    </tr>
-                    <tr style="margin:0 !important">
-                        <th colspan="5"
-                            style="border: solid 0 transparent !important;border-bottom:1px solid rgba(0, 0, 0, 0.35);padding:0 !important">
-                            <table style="width: 100%;border:0px;margin:0 !important;margin-bottom:2px">
-                                <tr style="margin:0 !important">
-                                    <td colspan="2"
-                                        style=" border: 1px solid rgba(0, 0, 0, 0.35) !important; font-size:10px !important;">
-                                        <b> TEST REPORT NO :
-                                            R{{ substr($sample->sample_code, 1, strlen($sample->sample_code)) }}</b>
-                                    </td>
-                                </tr>
-                                <tr>
-                                    <td
-                                        style="width:20%;border: solid 0 transparent !important;border-right:1px solid rgba(0, 0, 0, 0.35);font-size:8px !important;border-left:1px solid rgba(0, 0, 0, 0.35)">
-                                        SAMPLE</td>
-                                    <td
-                                        style="padding-left:10px !important;border: solid 0 transparent !important;font-size:8px !important;border-right:1px solid rgba(0, 0, 0, 0.35)">
-                                        {{ $sample->sample_type_name }}</td>
-                                </tr>
-                                <tr>
-                                    <td
-                                        style="border: solid 0 transparent !important;border-right:1px solid rgba(0, 0, 0, 0.35);font-size:8px !important;border-left:1px solid rgba(0, 0, 0, 0.35)">
-                                        DATE & PLACE
-                                        {{ $sample->sampled_by_company_personnel == 1 ? 'SAMPLED' : 'SUBMITTED' }}</td>
-                                    @if ($sample->sampled_by_company_personnel == 1)
-                                        <td
-                                            style="border: solid 0 transparent !important;padding-left:10px !important;font-size:8px !important;border-right:1px solid rgba(0, 0, 0, 0.35)">
-                                            {{ $sample->date_collected }} {{ $sample->sample_point_name }}</td>
-                                    @else
-                                        <td
-                                            style="border: solid 0 transparent !important;padding-left:10px !important;font-size:8px !important;border-right:1px solid rgba(0, 0, 0, 0.35)">
-                                            {{ $sample->receipt_date }} {{ $company->name }}</td>
-                                    @endif
-                                </tr>
-                                <tr>
-                                    <td
-                                        style="border: solid 0 transparent !important;border-right:1px solid rgba(0, 0, 0, 0.35);font-size:8px !important;border-left:1px solid rgba(0, 0, 0, 0.35)">
-                                        DATE ANALYSIS STARTED</td>
-                                    <td
-                                        style="border: solid 0 transparent !important;padding-left:10px !important;font-size:8px !important;border-right:1px solid rgba(0, 0, 0, 0.35)">
-                                    </td>
-                                </tr>
-                                <tr>
-                                    <td
-                                        style="border: solid 0 transparent !important;border-right:1px solid rgba(0, 0, 0, 0.35);font-size:8px !important;border-left:1px solid rgba(0, 0, 0, 0.35)">
-                                        SAMPLING METHOD</td>
-                                    <td
-                                        style="border: solid 0 transparent !important;padding-left:10px !important;font-size:8px !important;border-right:1px solid rgba(0, 0, 0, 0.35)">
-                                        {{ $sample->sampling_method_name }}</td>
-                                </tr>
-                                <tr>
-                                    <td
-                                        style="border: solid 0 transparent !important;border-right:1px solid rgba(0, 0, 0, 0.35);font-size:8px !important;border-left:1px solid rgba(0, 0, 0, 0.35)">
-                                        {{ strtoupper($sample->main_lab_name) }}</td>
-                                    <td
-                                        style="border: solid 0 transparent !important;padding-left:10px !important;font-size:8px !important;border-right:1px solid rgba(0, 0, 0, 0.35)">
-                                        {{ $batch->approval_date ?? '-' }}</td>
-                                </tr>
-                                <tr>
-                                    <td
-                                        style="border: solid 0 transparent !important;border-right:1px solid rgba(0, 0, 0, 0.35);font-size:8px !important;border-bottom:1px solid rgba(0, 0, 0, 0.35);border-left:1px solid rgba(0, 0, 0, 0.35)">
-                                        MARKINGS</td>
-                                    <td
-                                        style="border: solid 0 transparent !important;padding-left:10px !important;font-size:8px !important;border-bottom:1px solid rgba(0, 0, 0, 0.35);border-right:1px solid rgba(0, 0, 0, 0.35)">
-                                        {{ $sample->comments }}</td>
-                                </tr>
-
-                            </table>
-                        </th>
-                    </tr>
-                </thead>
-                <tbody>
-
-                    @foreach ($sample['getBrandOuts'] as $key => $brands)
-                        @if ($key == 'normal' && sizeof($brands) > 0)
-                            <table class="table-sm table-bordered" style="font-size: 8px;width:100%">
-                                <thead>
-                                    <tr style="">
-                                        <th class="parameter"
-                                            style="font-size: 9px !important; width:25% !important;vertical-align: top !important;padding:5px !important;">
-                                            TESTS</th>
-                                        <th class="parameter"
-                                            style="font-size:9px !important;width:25% !important;vertical-align: top !important;padding:5px !important">
-                                            TEST METHODS</th>
-                                        <th class="parameter"
-                                            style="font-size: 9px !important;width:10% !important;vertical-align: top !important;padding:5px !important">
-                                            RESULTS</th>
-                                        <th class="parameter"
-                                            style="font-size: 9px !important;width:10% !important;vertical-align: top !important;padding:5px !important">
-                                            UNITS</th>
-                                        <th class="parameter text-center"
-                                            style="font-size: 9px !important;width:15% !important;vertical-align: top !important;padding:5px !important">
-                                            {{ $sample->main_standard_code }}</th>
-
-                                    </tr>
-                                </thead>
-                                <tbody>
-                                    @foreach ($brands as $analysis_type_level)
-                                        <tr>
-                                            <td class="parameter"
-                                                style="font-size: 10px !important;font-weight:600;background-color:#fafafa;padding:1px !important;padding-left:2px !important;"
-                                                colspan="5">
-                                                {{ strtoupper($analysis_type_level->analysis_type_name) }}</td>
-                                        </tr>
-                                        @foreach ($analysis_type_level->getCapturedResults() as $captured)
-                                            <tr>
-                                                <td class="parameter {{ $captured->remark == 'FAIL' ? 'textBold' : '' }}"
-                                                    style="font-size: 9px !important;padding-left:3px !important;">
-                                                    {!! $captured->analyte_status_contracted == 1 ? '<small>*</small>' : '' !!} {{ $captured->analyte_code }}
-                                                </td>
-                                                <td class="parameter {{ $captured->remark == 'FAIL' ? 'textBold' : '' }}"
-                                                    style="font-size: 9px !important;padding-left:3px !important;">
-                                                    {{ $captured->method()->name }}
-                                                </td>
-                                                <td class="parameter {{ $captured->remark == 'FAIL' ? 'textBold' : '' }}"
-                                                    style="font-size: 9px !important;padding-left:3px !important;">
-                                                    {{ $captured->result_reporting_symbol ?? '' }}{{ $captured->result }}
-                                                </td>
-                                                <td class="parameter {{ $captured->remark == 'FAIL' ? 'textBold' : '' }}"
-                                                    style="font-size: 9px !important;padding-left:3px !important;">
-                                                    {{ $captured->analyte()->reporting_unit }}
-                                                </td>
-                                                <td class="parameter {{ $captured->remark == 'FAIL' ? 'textBold' : '' }}"
-                                                    style="font-size: 9px !important;padding-left:3px !important;">
-                                                    {{ $captured->main_value }}
-                                                </td>
-
-                                            </tr>
-                                        @endforeach
-                                    @endforeach
-                                </tbody>
-                            </table>
-                        @elseif($key == 'physical' && sizeof($brands) > 0)
-                            <table class="table-sm table-bordered" style="font-size: 8px;width:100%">
-                                <thead>
-                                    <tr style="">
-                                        <th class="parameter"
-                                            style="font-size: 9px !important; width:25% !important;vertical-align: top !important;padding:5px !important;">
-                                            TESTS</th>
-
-                                        <th class="parameter"
-                                            style="font-size: 9px !important;width:10% !important;vertical-align: top !important;padding:5px !important">
-                                            RESULTS</th>
-
-                                        <th class="parameter text-center"
-                                            style="font-size: 9px !important;width:15% !important;vertical-align: top !important;padding:5px !important">
-                                            {{ $sample->main_standard_code }}</th>
-
-                                    </tr>
-                                </thead>
-                                <tbody>
-                                    @foreach ($brands as $analysis_type_level)
-                                        <tr>
-                                            <td class="parameter"
-                                                style="font-size: 10px !important;font-weight:600;background-color:#fafafa;padding:1px !important;padding-left:2px !important;"
-                                                colspan="3">
-                                                {{ strtoupper($analysis_type_level->analysis_type_name) }}</td>
-                                        </tr>
-                                        @foreach ($analysis_type_level->getCapturedResults() as $captured)
-                                            <tr>
-                                                <td class="parameter {{ $captured->remark == 'FAIL' ? 'textBold' : '' }}"
-                                                    style="font-size: 9px !important;padding-left:3px !important;">
-                                                    {!! $captured->analyte_status_contracted == 1 ? '<small>*</small>' : '' !!} {{ $captured->analyte_code }}
-                                                </td>
-
-                                                <td class="parameter {{ $captured->remark == 'FAIL' ? 'textBold' : '' }}"
-                                                    style="font-size: 9px !important;padding-left:3px !important;">
-                                                    {{ $captured->result_reporting_symbol ?? '' }}{{ $captured->result }}
-                                                </td>
-
-                                                <td class="parameter {{ $captured->remark == 'FAIL' ? 'textBold' : '' }}"
-                                                    style="font-size: 9px !important;padding-left:3px !important;">
-                                                    {{ $captured->main_value }}
-                                                </td>
-
-                                            </tr>
-                                        @endforeach
-                                    @endforeach
-                                </tbody>
-                            </table>
-                        @elseif($key == 'pesticide' && sizeof($brands) > 0)
-                            <table class="table-sm table-bordered" style="font-size: 8px;width:100%">
-                                <thead>
-                                    <tr style="">
-                                        <th class="parameter"
-                                            style="font-size: 9px !important; width:25% !important;vertical-align: top !important;padding:5px !important;">
-                                            #</th>
-                                        <th class="parameter"
-                                            style="font-size: 9px !important; width:25% !important;vertical-align: top !important;padding:5px !important;">
-                                            PESTICIDE</th>
-
-                                        <th class="parameter"
-                                            style="font-size: 9px !important;width:10% !important;vertical-align: top !important;padding:5px !important">
-                                            RESULTS</th>
-
-                                        <th class="parameter text-center"
-                                            style="font-size: 9px !important;width:15% !important;vertical-align: top !important;padding:5px !important">
-                                            {{ $sample->main_standard_code }}</th>
-                                        <th class="parameter"
-                                            style="font-size: 9px !important; width:25% !important;vertical-align: top !important;padding:5px !important;">
-                                            #</th>
-                                        <th class="parameter"
-                                            style="font-size: 9px !important; width:25% !important;vertical-align: top !important;padding:5px !important;">
-                                            PESTICIDE</th>
-
-                                        <th class="parameter"
-                                            style="font-size: 9px !important;width:10% !important;vertical-align: top !important;padding:5px !important">
-                                            RESULTS</th>
-
-                                        <th class="parameter text-center"
-                                            style="font-size: 9px !important;width:15% !important;vertical-align: top !important;padding:5px !important">
-                                            {{ $sample->main_standard_code }}</th>
-                                        <th class="parameter"
-                                            style="font-size: 9px !important; width:25% !important;vertical-align: top !important;padding:5px !important;">
-                                            #</th>
-                                        <th class="parameter"
-                                            style="font-size: 9px !important; width:25% !important;vertical-align: top !important;padding:5px !important;">
-                                            PESTICIDE</th>
-
-                                        <th class="parameter"
-                                            style="font-size: 9px !important;width:10% !important;vertical-align: top !important;padding:5px !important">
-                                            RESULTS</th>
-
-                                        <th class="parameter text-center"
-                                            style="font-size: 9px !important;width:15% !important;vertical-align: top !important;padding:5px !important">
-                                            {{ $sample->main_standard_code }}</th>
-
-                                    </tr>
-                                </thead>
-                                <tbody>
-                                    @foreach ($brands as $analysis_type_level)
-                                        <tr>
-                                            <td class="parameter"
-                                                style="font-size: 10px !important;font-weight:600;background-color:#fafafa;padding:1px !important;padding-left:2px !important;"
-                                                colspan="12">
-                                                {{ strtoupper($analysis_type_level->analysis_type_name) }}</td>
-                                        </tr>
-                                        <?php $counter = 1; ?>
-                                        @foreach ($analysis_type_level->getCapturedResults() as $captured)
-                                            <tr>
-                                                <td class="parameter {{ $captured[0]->remark == 'FAIL' ? 'textBold' : '' }}"
-                                                    style="font-size: 9px !important;padding-left:3px !important;">
-                                                    {{ $counter }}
-                                                </td>
-                                                <?php $counter = $counter + 1; ?>
-                                                <td class="parameter {{ $captured[0]->remark == 'FAIL' ? 'textBold' : '' }}"
-                                                    style="font-size: 9px !important;padding-left:3px !important;">
-                                                    {!! $captured->analyte_status_contracted == 1 ? '<small>*</small>' : '' !!} {{ $captured->analyte_code }}
-                                                </td>
-
-                                                <td class="parameter {{ $captured[0]->remark == 'FAIL' ? 'textBold' : '' }}"
-                                                    style="font-size: 9px !important;padding-left:3px !important;">
-                                                    {{ $captured->result_reporting_symbol ?? '' }}{{ $captured->result }}
-                                                </td>
-
-                                                <td class="parameter {{ $captured[0]->remark == 'FAIL' ? 'textBold' : '' }}"
-                                                    style="font-size: 9px !important;padding-left:3px !important;">
-                                                    {{ $captured->main_value }}
-                                                </td>
-
-                                                <td class="parameter {{ $captured[1]->remark == 'FAIL' ? 'textBold' : '' }}"
-                                                    style="font-size: 9px !important;padding-left:3px !important;">
-                                                    {{ $counter }}
-                                                </td>
-                                                <?php $counter = $counter + 1; ?>
-                                                
-                                                <td class="parameter {{ $captured[1]->remark == 'FAIL' ? 'textBold' : '' }}"
-                                                    style="font-size: 9px !important;padding-left:3px !important;">
-                                                    {!! $captured->analyte_status_contracted == 1 ? '<small>*</small>' : '' !!} {{ $captured->analyte_code }}
-                                                </td>
-
-                                                <td class="parameter {{ $captured[1]->remark == 'FAIL' ? 'textBold' : '' }}"
-                                                    style="font-size: 9px !important;padding-left:3px !important;">
-                                                    {{ $captured->result_reporting_symbol ?? '' }}{{ $captured->result }}
-                                                </td>
-
-                                                <td class="parameter {{ $captured[1]->remark == 'FAIL' ? 'textBold' : '' }}"
-                                                    style="font-size: 9px !important;padding-left:3px !important;">
-                                                    {{ $captured->main_value }}
-                                                </td>
-
-                                                <td class="parameter {{ $captured[2]->remark == 'FAIL' ? 'textBold' : '' }}"
-                                                    style="font-size: 9px !important;padding-left:3px !important;">
-                                                    {{ $counter }}
-                                                </td>
-                                                <?php $counter = $counter + 1; ?>
-                                                <td class="parameter {{ $captured[2]->remark == 'FAIL' ? 'textBold' : '' }}"
-                                                    style="font-size: 9px !important;padding-left:3px !important;">
-                                                    {!! $captured->analyte_status_contracted == 1 ? '<small>*</small>' : '' !!} {{ $captured->analyte_code }}
-                                                </td>
-
-                                                <td class="parameter {{ $captured[2]->remark == 'FAIL' ? 'textBold' : '' }}"
-                                                    style="font-size: 9px !important;padding-left:3px !important;">
-                                                    {{ $captured->result_reporting_symbol ?? '' }}{{ $captured->result }}
-                                                </td>
-
-                                                <td class="parameter {{ $captured[2]->remark == 'FAIL' ? 'textBold' : '' }}"
-                                                    style="font-size: 9px !important;padding-left:3px !important;">
-                                                    {{ $captured->main_value }}
-                                                </td>
-
-                                            </tr>
-                                        @endforeach
-                                    @endforeach
-                                </tbody>
-                            </table>
-                        @endif
-                    @endforeach
-                    <tr>
-                        <td style="font-size: 9px !important;padding-left:3px !important; text-align:center ;border: 0 transparent !important"
-                            colspan="5">******<small>End of Test Results</small>*******</td>
-                    </tr>
-                </tbody>
-            </table>
-
-            <table style="margin:0px !important;width:100%">
-                <tr style="margin:0px !important">
-                    <td style="font-size:8px !important;">
-                        <b>Comments : </b>{{ $sample->header_body }}
-
-                    </td>
+        @if ($sample->getAccredittedStatus() >= 1)
+            <div class="" style="display:inline-block;position:fixed;bottom:2px;right:1%">
+                <img src="{{ $kenas }}" style="width:auto;height:100px" alt="">
+            </div>
+        @else
+            <div class="" style="display:inline-block;position:fixed;bottom:2px;right:1%">
+                <img src="{{ $nema }}" style="width:auto;height:100px" alt="">
+            </div>
+        @endif
+        <div class="main-lab" style="position:fixed;bottom:80px;left:1%;font-size:8px">
+            <b>{{strtoupper($sample->main_lab_name)}}</b><br>
+            <b>{{ $batch->approval_date ?? '-' }}</b>
+        </div>
+        <main style="">
+            <table style="width: 100%;margin:0 !important;margin-bottom:2px;border: 1px solid rgba(0, 0, 0, 0.35) !important">
+                <tr  style="margin:0 !important">
+                    <td colspan="2"
+                        style=" border: 1px solid rgba(0, 0, 0, 0.35) !important; font-size:10px !important;">
+                        <b> TEST REPORT NO : R{{ substr($sample->sample_code, 1, strlen($sample->sample_code))}} {{$report_type != '' ? ' - '.$report_type : ''}}</b></td>
                 </tr>
                 <tr>
-                    <td style="font-size: 8px !important;">
-                        <br>
-                        <span>{{ $non_accredited->value }}</span>
-
-                        <div class="" style="">
-                            {{ $disclaimer->value }}
-                            @if ($batch->sampled_by_company_personnel == 0)
-                                <br>
-                                <b>NB: This report relates to submitted sample(s) only. The source and markings are as
-                                    provided by the customer.</b>
-                            @endif
-                        </div>
-                    </td>
+                    <td style="width:20%;border: solid 0 transparent !important;font-size:8px !important;border-left:1px solid rgba(0, 0, 0, 0.35);padding:2px;padding-left:4px">SAMPLE</td>
+                    <td  style="padding:2px;padding-left:10px !important;border: solid 0 transparent !important;font-size:8px !important;border-right:1px solid rgba(0, 0, 0, 0.35);border-left: 2.1px solid rgba(0, 0, 0, 0.35);">{{ strtoupper($sample->sample_type_name) }}</td>
                 </tr>
+                <tr>
+                    <td style="border: solid 0 transparent !important;font-size:8px !important;border-left:1px solid rgba(0, 0, 0, 0.35);padding:2px;padding-left:4px">DATE & PLACE {{ $sample->sampled_by_company_personnel == 1 ? 'SAMPLED' : 'SUBMITTED' }}</td>
+                    @if ($sample->sampled_by_company_personnel == 1)
+                        <td style="border: solid 0 transparent !important;padding:2px;padding-left:10px !important;font-size:8px !important;border-right:1px solid rgba(0, 0, 0, 0.35);border-left: 2.1px solid rgba(0, 0, 0, 0.35);">{{ $sample->date_collected ?? '' }} {{ $sample->sample_point_name ?? '' }}</td>
+                    @else
+                        <td style="border: solid 0 transparent !important;padding:2px;padding-left:10px !important;font-size:8px !important;border-right:1px solid rgba(0, 0, 0, 0.35);border-left: 2.1px solid rgba(0, 0, 0, 0.35);">{{ $sample->receipt_date ?? '' }} {{ $company->name ?? '' }}</td>
+                    @endif
+                </tr>
+                <tr>
+                    <td style="border: solid 0 transparent !important;border-right:1px solid rgba(0, 0, 0, 0.35);font-size:8px !important;border-left:1px solid rgba(0, 0, 0, 0.35);padding:2px;padding-left:4px">DATE ANALYSIS STARTED</td>
+                    <td style="border: solid 0 transparent !important;padding:2px;padding-left:10px !important;font-size:8px !important;border-right:1px solid rgba(0, 0, 0, 0.35);border-left: 2.1px solid rgba(0, 0, 0, 0.35);">{{$analysis_date->start_analysis_date != '' ?  date('Y-m-d',strtotime($analysis_date->start_analysis_date)) : '-' }}</td>
+                </tr>
+                <tr>
+                    <td style="border: solid 0 transparent !important;border-right:1px solid rgba(0, 0, 0, 0.35);font-size:8px !important;border-left:1px solid rgba(0, 0, 0, 0.35);padding:2px;padding-left:4px">SAMPLING METHOD</td>
+                    <td style="border: solid 0 transparent !important;padding:2px;padding-left:10px !important;font-size:8px !important;border-right:1px solid rgba(0, 0, 0, 0.35);border-left: 2.1px solid rgba(0, 0, 0, 0.35);">{{ $sample->sampling_method_name ?? '' }}</td>
+                </tr>
+                <tr>
+                    <td style="border: solid 0 transparent !important;border-right:1px solid rgba(0, 0, 0, 0.35);font-size:8px !important;border-left:1px solid rgba(0, 0, 0, 0.35);padding:2px;padding-left:4px">SAMPLE ID</td>
+                    <td style="border: solid 0 transparent !important;padding:2px;padding-left:10px !important;font-size:8px !important;border-right:1px solid rgba(0, 0, 0, 0.35);border-left: 2.1px solid rgba(0, 0, 0, 0.35);">{{ $sample->sample_code ?? '-' }}</td>
+                </tr>
+                <tr>
+                    <td style="border: solid 0 transparent !important;border-right:1px solid rgba(0, 0, 0, 0.35);font-size:8px !important;border-bottom:1px solid rgba(0, 0, 0, 0.35);border-left:1px solid rgba(0, 0, 0, 0.35);padding:2px;padding-left:4px">MARKINGS</td>
+                    <td style="border: solid 0 transparent !important;padding:2px;padding-left:10px !important;font-size:8px !important;border-bottom:1px solid rgba(0, 0, 0, 0.35);border-right:1px solid rgba(0, 0, 0, 0.35);border-left: 2.1px solid rgba(0, 0, 0, 0.35);">{{ $sample->comments ?? '' }}</td>
+                </tr>
+               
             </table>
-            @if ($sample->getAccredittedStatus() >= 1)
-                <div class="" style="display:inline-block;position:fixed;bottom:50;left:70%">
-                    <img src="{{ $kebs }}" style="width:60px;height:60px" alt="">
+            @foreach ($sample['getBrandOuts'] as $key => $brands)
+                @if ($key == 'normal' && sizeof($brands) > 0)
+                    <table class="table table-sm table-bordered" style="font-size: 8px;width:100%">
+                        <thead>
+                            <tr>
+                                <th class="parameter"
+                                    style="font-size: 9px !important; width:25% !important;vertical-align: top !important;padding:5px !important;">
+                                    TESTS</th>
+                                <th class="parameter"
+                                    style="font-size:9px !important;width:25% !important;vertical-align: top !important;padding:5px !important">
+                                    TEST METHODS</th>
+                                <th class="parameter"
+                                    style="font-size: 9px !important;width:10% !important;vertical-align: top !important;padding:5px !important">
+                                    RESULTS</th>
+                                <th class="parameter"
+                                    style="font-size: 9px !important;width:10% !important;vertical-align: top !important;padding:5px !important">
+                                    UNITS</th>
+                                <th class="parameter text-center"
+                                    style="font-size: 9px !important;width:15% !important;vertical-align: top !important;padding:5px !important">
+                                    {{ $sample->main_standard_code }}</th>
 
-                    <img src="{{ $kenas }}" style="width:60px;height:60px" alt="">
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @foreach ($brands as $analysis_type_level)
+                                <tr>
+                                    <td class="parameter"
+                                        style="font-size: 10px !important;font-weight:600;background-color:#fafafa;padding:1px !important;padding-left:2px !important;"
+                                        colspan="5">
+                                        {{ strtoupper($analysis_type_level->analysis_type_name) }}</td>
+                                </tr>
+                                @foreach ($analysis_type_level->getCapturedResults() as $captured)
+                                    <tr>
+                                        <td class="parameter {{ $captured->remark == 'FAIL' ? 'textBold' : '' }}"
+                                            style="font-size: 9px !important;padding-left:3px !important;">
+                                            {!! $captured->analyte_status_contracted == 1 ? '<small>*</small>' : '' !!} {{ $captured->analyte_code }}
+                                        </td>
+                                        <td class="parameter {{ $captured->remark == 'FAIL' ? 'textBold' : '' }}"
+                                            style="font-size: 9px !important;padding-left:3px !important;">
+                                            {{ strtoupper($captured->method()->name ?? '') }}
+                                        </td>
+                                        <td class="parameter {{ $captured->remark == 'FAIL' ? 'textBold' : '' }}"
+                                            style="font-size: 9px !important;padding-left:3px !important;">
+                                            {{ $captured->result_reporting_symbol ?? '' }}{{ $captured->result }}
+                                        </td>
+                                        <td class="parameter {{ $captured->remark == 'FAIL' ? 'textBold' : '' }}"
+                                            style="font-size: 9px !important;padding-left:3px !important;">
+                                            {{ $captured->analyte()->reporting_unit }}
+                                        </td>
+                                        <td class="parameter {{ $captured->remark == 'FAIL' ? 'textBold' : '' }}"
+                                            style="font-size: 9px !important;padding-left:3px !important;">
+                                            {{ $captured->main_value }}
+                                        </td>
 
+                                    </tr>
+                                @endforeach
+                            @endforeach
+                        </tbody>
+                    </table>
+                @elseif($key == 'physical' && sizeof($brands) > 0)
+                    <table class="table-sm table-bordered" style="font-size: 8px;width:100%">
+                        <thead>
+                            <tr style="">
+                                <th class="parameter"
+                                    style="font-size: 9px !important; width:25% !important;vertical-align: top !important;padding:5px !important;">
+                                    TESTS</th>
 
-                    <img src="{{ $ilac }}" style="width:60px;height:60px" alt="">
-                </div>
-            @else
-                <div class="" style="display:inline-block;position:fixed;bottom:50;left:70%">
-                    <img src="{{ $kebs }}" style="width:60px;height:60px" alt="">
+                                <th class="parameter"
+                                    style="font-size: 9px !important;width:10% !important;vertical-align: top !important;padding:5px !important">
+                                    RESULTS</th>
 
-                    <img src="{{ $nema }}" style="width:60px;height:60px" alt="">
+                                <th class="parameter text-center"
+                                    style="font-size: 9px !important;width:15% !important;vertical-align: top !important;padding:5px !important">
+                                    {{ $sample->main_standard_code }}</th>
 
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @foreach ($brands as $analysis_type_level)
+                                <tr>
+                                    <td class="parameter"
+                                        style="font-size: 10px !important;font-weight:600;background-color:#fafafa;padding:1px !important;padding-left:2px !important;"
+                                        colspan="3">
+                                        {{ strtoupper($analysis_type_level->analysis_type_name) }}</td>
+                                </tr>
+                                @foreach ($analysis_type_level->getCapturedResults() as $captured)
+                                    <tr>
+                                        <td class="parameter {{ $captured->remark == 'FAIL' ? 'textBold' : '' }}"
+                                            style="font-size: 9px !important;padding-left:3px !important;">
+                                            {!! $captured->analyte_status_contracted == 1 ? '<small>*</small>' : '' !!} {{ $captured->analyte_code }}
+                                        </td>
 
-                    <img src="{{ $ispm }}" style="width:60px;height:60px" alt="">
+                                        <td class="parameter {{ $captured->remark == 'FAIL' ? 'textBold' : '' }}"
+                                            style="font-size: 9px !important;padding-left:3px !important;">
+                                            {{ $captured->result_reporting_symbol ?? '' }}{{ $captured->result }}
+                                        </td>
+
+                                        <td class="parameter {{ $captured->remark == 'FAIL' ? 'textBold' : '' }}"
+                                            style="font-size: 9px !important;padding-left:3px !important;">
+                                            {{ $captured->main_value }}
+                                        </td>
+
+                                    </tr>
+                                @endforeach
+                            @endforeach
+                        </tbody>
+                    </table>
+                @elseif($key == 'pesticide' && sizeof($brands) > 0)
+                    <table class="table-sm table-bordered" style="font-size: 8px;width:100%">
+                        <thead>
+                            <tr style="">
+                                <th class="parameter"
+                                    style="font-size: 9px !important; width:25% !important;vertical-align: top !important;padding:5px !important;">
+                                    S/N</th>
+                                <th class="parameter"
+                                    style="font-size: 9px !important; width:25% !important;vertical-align: top !important;padding:5px !important;">
+                                    PESTICIDE</th>
+
+                                <th class="parameter"
+                                    style="font-size: 9px !important;width:10% !important;vertical-align: top !important;padding:5px !important">
+                                    RESULTS (ppm)</th>
+
+                                <th class="parameter text-center"
+                                    style="font-size: 9px !important;width:15% !important;vertical-align: top !important;padding:5px !important">
+                                    LIMITS</th>
+                                <th class="parameter"
+                                    style="font-size: 9px !important; width:25% !important;vertical-align: top !important;padding:5px !important;">
+                                    S/N</th>
+                                <th class="parameter"
+                                    style="font-size: 9px !important; width:25% !important;vertical-align: top !important;padding:5px !important;">
+                                    PESTICIDE</th>
+
+                                <th class="parameter"
+                                    style="font-size: 9px !important;width:10% !important;vertical-align: top !important;padding:5px !important">
+                                    RESULTS (ppm)</th>
+
+                                <th class="parameter text-center"
+                                    style="font-size: 9px !important;width:15% !important;vertical-align: top !important;padding:5px !important">
+                                    LIMITS</th>
+
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @foreach ($brands as $analysis_type_level)
+                                <tr>
+                                    <td class="parameter"
+                                        style="font-size: 10px !important;font-weight:600;background-color:#fafafa;padding:1px !important;padding-left:2px !important;"
+                                        colspan="8">
+                                        {{ strtoupper($analysis_type_level->analysis_type_name) }}</td>
+                                </tr>
+                                <?php $counter = 1; ?>
+                                @foreach ($analysis_type_level->getCapturedResults() as $captured)
+                                    <tr>
+                                        <td class="parameter {{ $captured[0]->remark == 'FAIL' ? 'textBold' : '' }}"
+                                            style="font-size: 9px !important;padding-left:3px !important;">
+                                            {{ $counter }}
+                                        </td>
+                                        <?php $counter = $counter + 1; ?>
+                                        <td class="parameter {{ $captured[0]->remark == 'FAIL' ? 'textBold' : '' }}"
+                                            style="font-size: 9px !important;padding-left:3px !important;">
+                                            {!! $captured->analyte_status_contracted == 1 ? '<small>*</small>' : '' !!} {{ $captured->analyte_code }}
+                                        </td>
+
+                                        <td class="parameter {{ $captured[0]->remark == 'FAIL' ? 'textBold' : '' }}"
+                                            style="font-size: 9px !important;padding-left:3px !important;">
+                                            {{ $captured->result_reporting_symbol ?? '' }}{{ $captured->result }}
+                                        </td>
+
+                                        <td class="parameter {{ $captured[0]->remark == 'FAIL' ? 'textBold' : '' }}"
+                                            style="font-size: 9px !important;padding-left:3px !important;">
+                                            {{ $captured->main_value }}
+                                        </td>
+
+                                        <td class="parameter {{ $captured[1]->remark == 'FAIL' ? 'textBold' : '' }}"
+                                            style="font-size: 9px !important;padding-left:3px !important;">
+                                            {{ $counter }}
+                                        </td>
+                                        <?php $counter = $counter + 1; ?>
+                                        <td class="parameter {{ $captured[1]->remark == 'FAIL' ? 'textBold' : '' }}"
+                                            style="font-size: 9px !important;padding-left:3px !important;">
+                                            {!! $captured->analyte_status_contracted == 1 ? '<small>*</small>' : '' !!} {{ $captured->analyte_code }}
+                                        </td>
+
+                                        <td class="parameter {{ $captured[1]->remark == 'FAIL' ? 'textBold' : '' }}"
+                                            style="font-size: 9px !important;padding-left:3px !important;">
+                                            {{ $captured->result_reporting_symbol ?? '' }}{{ $captured->result }}
+                                        </td>
+
+                                        <td class="parameter {{ $captured[1]->remark == 'FAIL' ? 'textBold' : '' }}"
+                                            style="font-size: 9px !important;padding-left:3px !important;">
+                                            {{ $captured->main_value }}
+                                        </td>
+
+                                    </tr>
+                                @endforeach
+                            @endforeach
+                        </tbody>
+                    </table>
+                @endif
+            @endforeach
+            <div class="end-test"
+                style="font-size: 9px !important; text-align:center ;border: 0 transparent !important;width:100%">
+                ******<small>End of Test Results</small>*******</td>
+            </div>
+            @if ($sample->header_body != '')
+                <div class="comments" style="font-size: 8px !important;width:100%">
+
+                    <b>Comments : </b>{!! $sample->header_body !!}
                 </div>
             @endif
-
-
             @if ($loop->iteration < $samples->count())
                 <div style="page-break-after: always;">
                 </div>
@@ -531,10 +435,9 @@
         $font = $fontMetrics->getFont("Verdana");
         $width = $fontMetrics->get_text_width($text, $font, $size) / 2;
         $x = ($pdf->get_width() - $width) / 1;
-        $y = $pdf->get_height() - 20;
+        $y = $pdf->get_height() - 10;
         $pdf->page_text($x, $y, $text, $font, $size);
     }
-    
 </script>
 
 </body>

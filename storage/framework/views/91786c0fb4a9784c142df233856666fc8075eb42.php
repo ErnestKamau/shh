@@ -1709,9 +1709,7 @@
 					<div class="form-group">
 						<label for="" class="control-label">Report Template</label>
 						<select name="template_id" id="" class="form-control">
-							<?php $__currentLoopData = $report_formats; $__env->addLoop($__currentLoopData); foreach($__currentLoopData as $r_format): $__env->incrementLoopIndices(); $loop = $__env->getLastLoop(); ?>
-							<option value="<?php echo e($r_format->value); ?>"><?php echo e($r_format->key); ?></option>
-							<?php endforeach; $__env->popLoop(); $loop = $__env->getLastLoop(); ?>
+							<option value="Standard Report">Standard Report</option>
 						</select>
 					</div>
 					<input type="hidden" name="batch_id" value="<?php echo e($batch->id); ?>">
@@ -1882,7 +1880,7 @@
 								<select name="report_format" id="report_format" class="form-control">
 									<option value="">Choose Report Format</option>
 									<option value="0">Standard Report</option>
-									
+									<option value="1">KTDA Report</option>
 									<option value="2">BL Report</option>
 								</select>
 							</div>

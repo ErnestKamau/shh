@@ -3351,7 +3351,7 @@ class SampleWorkFlowController extends Controller
 	public function showBatchCOA(Request $request)
 	{
 		$batch = SampleHeader::find($request->batch_id);
-		$batch_approvers = BatchLabSectionApprover::where('batch_id', $batch->id)->where('status', 1)->get();
+		$batch_approvers = BatchLabSectionApprover::where('batch_id', $batch->id)->where('show_report',1)->where('status', 1)->get();
 		$samples = SamplesCategory::where('sample_header_id', $request->batch_id)->get();
 		$disclaimer = SystemConfiguration::where('key', 'lab_report_disclaimer_config')->first();
 		$non_accredited = SystemConfiguration::where('key', 'lab_report_accreditted_config')->first();
@@ -3359,8 +3359,9 @@ class SampleWorkFlowController extends Controller
 
 		$company = getActiveCompany();
 		$standard_report = $request->template_id;
+		$analysis_date = SampleAnalysisDates::where('sample_header_id',$batch->id)->orderBy('start_analysis_date','ASC')->first();
 		// return response()->json('here');
-		return view('layouts.lab.sample-workflow.report-formats.standard_report', compact('batch', 'samples', 'disclaimer', 'non_accredited', 'status', 'company', 'batch_approvers', 'standard_report'));
+		return view('layouts.lab.sample-workflow.report-formats.standard_report', compact('batch', 'samples', 'disclaimer', 'non_accredited', 'status', 'company', 'batch_approvers', 'standard_report','analysis_date'));
 	}
 
 	public function getShowBatchCOA($batch_code, $format)

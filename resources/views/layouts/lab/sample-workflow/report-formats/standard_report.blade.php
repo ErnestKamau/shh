@@ -141,7 +141,7 @@
                         </tr>
                         <tr>
                             <td style="border-right:1px solid #dee2e6">DATE ANALYSIS STARTED</td>
-                            <td style="padding-left:10px !important"></td>
+                            <td style="padding-left:10px !important">{{$analysis_date->start_analysis_date ?? '-'}}</td>
                         </tr>
                         <tr>
                             <td style="border-right:1px solid #dee2e6">SAMPLING METHOD</td>
@@ -204,52 +204,7 @@
                         @endforeach
                        
                     </div>
-                    <div class="disclaimer-section p-2 mt-2">
-
-                        @if ($check_v == 1)
-                            <span>{{ $non_accredited->value }}</span>
-                        @endif
-                        <div class="text-center pl-2 pr-2">
-                            {{$disclaimer->value}}
-                            @if($batch->sampled_by_company_personnel == 0)
-                            <br>
-                            <b>NB: This report relates to submitted sample(s) only. The source and markings are as provided by the customer.</b>
-                            @endif
-                        </div>
-                    </div>
-                    <div class="company_details mt-5 p-2 hidden">
-                        <div class="row">
-                            <div class="col-md-2 pt-3">
-                                {!! QrCode::size(100)->generate(Request::url().'?template_id='.$standard_report.'&batch_id='.$batch->id) !!} <br>
-                                {{-- <img src="data:image/svg;base64, {!! $qrcode !!}" width="60" height="60"> <br> --}}
-                                Scan to Verify
-                            </div>
-                            <div class="col-md-6">
-                                <div class="text-center"><b>{{$company->name}}</b></div>
-                                <div class="company-location p-2">
-                                    <table>
-                                        <tr>
-                                            <td colspan="3">{{$company->street}} - P.O. Box {{$company->address}}, {{$company->location}}</td>
-                                        </tr>
-                                        <tr>
-                                            <td>Office: {{$company->telephone}}</td>
-                                            <td>Tel 1: {{explode('/',$company->cell_phone)[0] ?? ''}}</td>
-                                            <td>Email: {{$company->email}}</td>
-                                        </tr>
-                                        <tr>
-                                            <td>Fax: {{$company->fax}}</td>
-                                            <td>Tel2: {{explode('/',$company->cell_phone)[0] ?? ''}}</td>
-                                            <td>Web: {{$company->website}}</td>
-                                        </tr>
-                                        
-                                    </table>
-                                </div>
-                                <div class="text-center"><b>Member of POLUCON Group</b></div>
-                            </div>
-                            <div class="col-md-4"></div>
-
-                        </div>
-                    </div>
+                   
                 </div>
             </div>
         @endforeach
