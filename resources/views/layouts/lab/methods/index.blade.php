@@ -22,6 +22,7 @@
     <x-bread-crumb :items="$items"></x-bread-crumb>
     <h2 class="p-4">
       <i class="mdi mdi-cogs"></i> Analysis Methods
+      {{-- <span class="btn btn-sm btn-white"><i class="mdi mdi-file-import-outline"></i> Import</span> --}}
       <button class="btn btn-primary btn-sm float-right" data-toggle="modal" data-target="#add-method"><i class="mdi mdi-plus"></i> Add</button>
     </h2>
     <br>

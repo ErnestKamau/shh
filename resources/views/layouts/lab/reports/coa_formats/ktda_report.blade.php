@@ -80,6 +80,11 @@
     #bl_header td {
         border: solid 1 rgba(0, 0, 0, 0.35) !important;
     }
+    .stamp-section{
+        position:fixed;
+        bottom:80px;
+        right:5%
+    }
     
 </style>
 
@@ -161,6 +166,9 @@
         </table>
     </header>
 
+    <div class="stamp-section">
+        <img src="{{$stamp}}" style="height:60px;" alt="">
+    </div>
     @foreach ($samples as $sample)
         @if ($sample->getAccredittedStatus() >= 1)
             <div class="" style="display:inline-block;position:fixed;bottom:2px;right:1%">
@@ -173,7 +181,7 @@
         @endif
         <div class="main-lab" style="position:fixed;bottom:80px;left:1%;font-size:8px">
             <b>{{strtoupper($sample->main_lab_name)}}</b><br>
-            <b>{{ $batch->approval_date ?? '-' }}</b>
+            <b>{{ $batch->approval_date != '' ? convertDateFormatReports($batch->approval_date,'dateShortMonth') : '-' }}</b>
         </div>
         <main style="">
             <table style="width: 100%;margin:0 !important;margin-bottom:2px;border: 1px solid rgba(0, 0, 0, 0.35) !important">
@@ -189,14 +197,14 @@
                 <tr>
                     <td style="border: solid 0 transparent !important;font-size:8px !important;border-left:1px solid rgba(0, 0, 0, 0.35);padding:2px;padding-left:4px">DATE & PLACE {{ $sample->sampled_by_company_personnel == 1 ? 'SAMPLED' : 'SUBMITTED' }}</td>
                     @if ($sample->sampled_by_company_personnel == 1)
-                        <td style="border: solid 0 transparent !important;padding:2px;padding-left:10px !important;font-size:8px !important;border-right:1px solid rgba(0, 0, 0, 0.35);border-left: 2.1px solid rgba(0, 0, 0, 0.35);">{{ $sample->date_collected ?? '' }} {{ $sample->sample_point_name ?? '' }}</td>
+                        <td style="border: solid 0 transparent !important;padding:2px;padding-left:10px !important;font-size:8px !important;border-right:1px solid rgba(0, 0, 0, 0.35);border-left: 2.1px solid rgba(0, 0, 0, 0.35);">{{ convertDateFormatReports($sample->date_collected,'dateShortMonth')  ?? '' }} {{ $sample->sample_point_name ?? '' }}</td>
                     @else
-                        <td style="border: solid 0 transparent !important;padding:2px;padding-left:10px !important;font-size:8px !important;border-right:1px solid rgba(0, 0, 0, 0.35);border-left: 2.1px solid rgba(0, 0, 0, 0.35);">{{ $sample->receipt_date ?? '' }} {{ $company->name ?? '' }}</td>
+                        <td style="border: solid 0 transparent !important;padding:2px;padding-left:10px !important;font-size:8px !important;border-right:1px solid rgba(0, 0, 0, 0.35);border-left: 2.1px solid rgba(0, 0, 0, 0.35);">{{ convertDateFormatReports($sample->receipt_date,'dateShortMonth') ?? '' }} {{ $company->name ?? '' }}</td>
                     @endif
                 </tr>
                 <tr>
                     <td style="border: solid 0 transparent !important;border-right:1px solid rgba(0, 0, 0, 0.35);font-size:8px !important;border-left:1px solid rgba(0, 0, 0, 0.35);padding:2px;padding-left:4px">DATE ANALYSIS STARTED</td>
-                    <td style="border: solid 0 transparent !important;padding:2px;padding-left:10px !important;font-size:8px !important;border-right:1px solid rgba(0, 0, 0, 0.35);border-left: 2.1px solid rgba(0, 0, 0, 0.35);">{{$analysis_date->start_analysis_date != '' ?  date('Y-m-d',strtotime($analysis_date->start_analysis_date)) : '-' }}</td>
+                    <td style="border: solid 0 transparent !important;padding:2px;padding-left:10px !important;font-size:8px !important;border-right:1px solid rgba(0, 0, 0, 0.35);border-left: 2.1px solid rgba(0, 0, 0, 0.35);">{{$analysis_date->start_analysis_date != '' ? convertDateFormatReports($analysis_date->start_analysis_date,'dateShortMonth') : '-' }}</td>
                 </tr>
                 <tr>
                     <td style="border: solid 0 transparent !important;border-right:1px solid rgba(0, 0, 0, 0.35);font-size:8px !important;border-left:1px solid rgba(0, 0, 0, 0.35);padding:2px;padding-left:4px">SAMPLING METHOD</td>
@@ -237,12 +245,12 @@
                         </thead>
                         <tbody>
                             @foreach ($brands as $analysis_type_level)
-                                <tr>
+                                {{-- <tr>
                                     <td class="parameter"
                                         style="font-size: 10px !important;font-weight:600;background-color:#fafafa;padding:1px !important;padding-left:2px !important;"
                                         colspan="5">
                                         {{ strtoupper($analysis_type_level->analysis_type_name) }}</td>
-                                </tr>
+                                </tr> --}}
                                 @foreach ($analysis_type_level->getCapturedResults() as $captured)
                                     <tr>
                                         <td class="parameter {{ $captured->remark == 'FAIL' ? 'textBold' : '' }}"
@@ -291,12 +299,12 @@
                         </thead>
                         <tbody>
                             @foreach ($brands as $analysis_type_level)
-                                <tr>
+                                {{-- <tr>
                                     <td class="parameter"
                                         style="font-size: 10px !important;font-weight:600;background-color:#fafafa;padding:1px !important;padding-left:2px !important;"
                                         colspan="3">
                                         {{ strtoupper($analysis_type_level->analysis_type_name) }}</td>
-                                </tr>
+                                </tr> --}}
                                 @foreach ($analysis_type_level->getCapturedResults() as $captured)
                                     <tr>
                                         <td class="parameter {{ $captured->remark == 'FAIL' ? 'textBold' : '' }}"
@@ -356,12 +364,12 @@
                         </thead>
                         <tbody>
                             @foreach ($brands as $analysis_type_level)
-                                <tr>
+                                {{-- <tr>
                                     <td class="parameter"
                                         style="font-size: 10px !important;font-weight:600;background-color:#fafafa;padding:1px !important;padding-left:2px !important;"
                                         colspan="8">
                                         {{ strtoupper($analysis_type_level->analysis_type_name) }}</td>
-                                </tr>
+                                </tr> --}}
                                 <?php $counter = 1; ?>
                                 @foreach ($analysis_type_level->getCapturedResults() as $captured)
                                     <tr>

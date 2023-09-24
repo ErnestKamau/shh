@@ -424,82 +424,85 @@ class SampleWorkFlowController extends Controller
 			$isInReception = true;
 		}
 
-		$header->receipt_date = $request->receipt_date;
-		$header->date_collected = $request->date_collected;
-		$header->batch_scope = $request->batch_scope;
-		$header->customer_survey = $request->customer_survey;
-		$header->is_qc_batch = isset($request->is_qc_batch);
-		$header->qc_type_id = $request->qc_type_id;
-		$header->qc_scheme_id = $request->qc_scheme_id;
-		$header->repeat_batch_id = isset($request->repeat_sample_id) ? $request->repeat_batch_id : 0;
-		$header->repeat_sample_id = isset($request->repeat_sample_id) && $request->repeat_sample_id > 0 ? $request->repeat_sample_id : $header->repeat_sample_id;
-		$header->begin_proccess = isset($request->is_qc_batch) ?  1 : 0;
-		$header->quote_no = $request->quote_no;
-		$header->lab_capable = isset($request->lab_capable) ? 1 : 0;
-		$header->can_be_subcontracted = isset($request->can_be_subcontracted) ? 1 : 0;
-		$header->batch_subcontracted_client_approval = isset($request->batch_subcontracted_client_approval) ? 1 : 0;
-		$header->client_instruction_clear = isset($request->client_instruction_clear) ? 1 : 0;
-		$header->batch_instructions = $request->batch_instructions;
-		$header->sampling_method_id = $request->sampling_method_id;
-		$header->condition_quality_sample = $request->condition_quality_sample;
-		$header->invoice_amount = $request->invoice_amount;
-		$header->lab_section_ids = implode(',', $request->lab_section_ids ?? []);
-		$header->crm_contact_id = $request->crm_contact_id;
+		if(!isset($request->is_bl_save)){
 
-		if ($isInReception) {
-			$header->sample_type_id = $request->sample_type_id;
-			if (isset($request->is_qc_batch)) {
-				if (isset($request->repeat_sample_id) && $request->repeat_sample_id > 0) {
-					$repeat_samples = SampleDetails::find($request->repeat_sample_id);
-					$last_header = SampleHeader::find($repeat_samples->sample_header_id);
-
-					$header->crm_customer_id = $last_header->crm_customer_id;
-					$header->sample_type_id = $last_header->sample_type_id;
-					$header->crm_unit_name = $last_header->crm_unit_name;
-				} else {
-					$qc_customer_id = SystemConfiguration::where('key', 'qc_customer_id')->first();
-					$qc_customer_unit = SystemConfiguration::where('key', 'qc_customer_unit')->first();
-
-					$header->crm_customer_id = $qc_customer_id->value;
-
-					$header->crm_unit_name = $qc_customer_unit->value;
-				}
-			} else {
-
-				$header->crm_customer_id = $request->crm_customer_id;
-
-				$header->crm_unit_name = $request->crm_unit_name;
-
-				$customer = getCrmCustomerByID($request->crm_customer_id);
-				$account = SystemConfiguration::find($customer->account_status);
-				if (isset($account->id)) {
-					$header->current_account_status = $account->key;
-					if ($account->key == 'Suspended') {
-						return redirect()->back()->with('error', 'The customer is currently suspended!');
+			$header->receipt_date = $request->receipt_date;
+			$header->date_collected = $request->date_collected;
+			$header->batch_scope = $request->batch_scope;
+			$header->customer_survey = $request->customer_survey;
+			$header->is_qc_batch = isset($request->is_qc_batch);
+			$header->qc_type_id = $request->qc_type_id;
+			$header->qc_scheme_id = $request->qc_scheme_id;
+			$header->repeat_batch_id = isset($request->repeat_sample_id) ? $request->repeat_batch_id : 0;
+			$header->repeat_sample_id = isset($request->repeat_sample_id) && $request->repeat_sample_id > 0 ? $request->repeat_sample_id : $header->repeat_sample_id;
+			$header->begin_proccess = isset($request->is_qc_batch) ?  1 : 0;
+			$header->quote_no = $request->quote_no;
+			$header->lab_capable = isset($request->lab_capable) ? 1 : 0;
+			$header->can_be_subcontracted = isset($request->can_be_subcontracted) ? 1 : 0;
+			$header->batch_subcontracted_client_approval = isset($request->batch_subcontracted_client_approval) ? 1 : 0;
+			$header->client_instruction_clear = isset($request->client_instruction_clear) ? 1 : 0;
+			$header->batch_instructions = $request->batch_instructions;
+			$header->sampling_method_id = $request->sampling_method_id;
+			$header->condition_quality_sample = $request->condition_quality_sample;
+			$header->invoice_amount = $request->invoice_amount;
+			$header->lab_section_ids = implode(',', $request->lab_section_ids ?? []);
+			$header->crm_contact_id = $request->crm_contact_id;
+	
+			if ($isInReception) {
+				$header->sample_type_id = $request->sample_type_id;
+				if (isset($request->is_qc_batch)) {
+					if (isset($request->repeat_sample_id) && $request->repeat_sample_id > 0) {
+						$repeat_samples = SampleDetails::find($request->repeat_sample_id);
+						$last_header = SampleHeader::find($repeat_samples->sample_header_id);
+	
+						$header->crm_customer_id = $last_header->crm_customer_id;
+						$header->sample_type_id = $last_header->sample_type_id;
+						$header->crm_unit_name = $last_header->crm_unit_name;
+					} else {
+						$qc_customer_id = SystemConfiguration::where('key', 'qc_customer_id')->first();
+						$qc_customer_unit = SystemConfiguration::where('key', 'qc_customer_unit')->first();
+	
+						$header->crm_customer_id = $qc_customer_id->value;
+	
+						$header->crm_unit_name = $qc_customer_unit->value;
 					}
 				} else {
-					$header->current_account_status = 'N/a';
+	
+					$header->crm_customer_id = $request->crm_customer_id;
+	
+					$header->crm_unit_name = $request->crm_unit_name;
+	
+					$customer = getCrmCustomerByID($request->crm_customer_id);
+					$account = SystemConfiguration::find($customer->account_status);
+					if (isset($account->id)) {
+						$header->current_account_status = $account->key;
+						if ($account->key == 'Suspended') {
+							return redirect()->back()->with('error', 'The customer is currently suspended!');
+						}
+					} else {
+						$header->current_account_status = 'N/a';
+					}
 				}
 			}
-		}
-
-		$header->description = $request->description;
-		$header->document_number = $request->document_number;
-		$header->importer_address = $request->importer_address;
-		$header->date_expected = $request->date_expected;
-		$header->quote_id = $request->quote_id;
-		$header->radio_active_levels = $request->radio_active_levels;
-		$header->receiving_officer_name = $request->receive_by;
-		$header->receiving_officer = $header->receiving_officer == '' || !isset($header->id) ? auth()->user()->id : $header->receiving_officer;
-		$header->sampling_officer_name = $request->sample_by;
-		$header->reference_number = $request->reference_number ?? 'n/a';
-		$header->is_routine = $request->is_routine ?? 0;
-		$header->routine_frequency = isset($request->is_routine) ? $request->routine_frequency : 0;
-		if ($isNew) {
-			if ($request->has('is_client_order')) {
-				$header->status = 'Samples En-Route';
-			} else {
-				$header->status = 'Samples Reception';
+			
+			$header->description = $request->description;
+			$header->document_number = $request->document_number;
+			$header->importer_address = $request->importer_address;
+			$header->date_expected = $request->date_expected;
+			$header->quote_id = $request->quote_id;
+			$header->radio_active_levels = $request->radio_active_levels;
+			$header->receiving_officer_name = $request->receive_by;
+			$header->receiving_officer =  $request->receive_by;
+			$header->sampling_officer_name = $request->sample_by;
+			$header->reference_number = $request->reference_number ?? 'n/a';
+			$header->is_routine = $request->is_routine ?? 0;
+			$header->routine_frequency = isset($request->is_routine) ? $request->routine_frequency : 0;
+			if ($isNew) {
+				if ($request->has('is_client_order')) {
+					$header->status = 'Samples En-Route';
+				} else {
+					$header->status = 'Samples Reception';
+				}
 			}
 		}
 
@@ -1120,6 +1123,10 @@ class SampleWorkFlowController extends Controller
 		$batchID = $batch;
 
 		$batch = SampleHeader::with('comments.creator', 'samples.sample_detail_lab', 'captured_results.my_analyte', 'captured_results.defacto_analyst_with', 'captured_results.sample')->find($batchID);
+		$receiving_role = SystemConfiguration::where('key','receiving_role_id')->first();
+		// $test =  UserRole::where('role_id',isset($receiving_role->value) ? $receiving_role->value : 0)->get();
+		// return response()->json($test);
+		$recieving_users = UserRole::where('role_id',isset($receiving_role->value) ? $receiving_role->value : 0)->join('users as u','u.id','=','user_roles.user_id')->where('u.is_support_staff', 0)->selectRaw('u.*')->get();
 
 		$batch_scope = SystemConfiguration::where('key', 'batch_scope')->first();
 		$customer_survey = SystemConfiguration::where('key', 'customer_survey')->first();
@@ -1344,7 +1351,7 @@ class SampleWorkFlowController extends Controller
 		$notesReminderType = getNotesReminderTypes();
 		$clients = getClients();
 		// return response()->json($analysts);
-		return view('layouts.lab.sample-workflow.show', compact('batch', 'batchID', 'defaultClient', 'selectedSampleType', 'client_portal', 'ammendable', 'standards', 'attachments', 'not_captured', 'analysts', 'countries', 'accounts', 'methods', 'atachment_type', 'batch_scope', 'customer_survey', 'interlabs', 'labs', 'users', 'payment_detail', 'labsections', 'contacts', 'batch_sample_codes', 'report_formats', 'approvers', 'reportingUnits', 'conditions', 'products', 'headerDetails', 'analaytesHolder', 'analysisBySample', 'analysisBySampleNames', 'labSamples', 'workflowstages', 'workflows', 'sample_types', 'samplingmethods', 'active_company', 'ammendments', 'allsamples', 'selected_analysis_types', 'userLabSections', 'customer', 'requestTypes', 'notifiable_users', 'notesReminderType', 'clients', 'disposal_date', 'status'));
+		return view('layouts.lab.sample-workflow.show', compact('batch', 'batchID', 'defaultClient', 'selectedSampleType', 'client_portal', 'ammendable', 'standards', 'attachments', 'not_captured', 'analysts', 'countries', 'accounts', 'methods', 'atachment_type', 'batch_scope', 'customer_survey', 'interlabs', 'labs', 'users', 'payment_detail', 'labsections', 'contacts', 'batch_sample_codes', 'report_formats', 'approvers', 'reportingUnits', 'conditions', 'products', 'headerDetails', 'analaytesHolder', 'analysisBySample', 'analysisBySampleNames', 'labSamples', 'workflowstages', 'workflows', 'sample_types', 'samplingmethods', 'active_company', 'ammendments', 'allsamples', 'selected_analysis_types', 'userLabSections', 'customer', 'requestTypes', 'notifiable_users', 'notesReminderType', 'clients', 'disposal_date', 'status','recieving_users'));
 	}
 
 	public function fetch_unit_stuff($name, $client)

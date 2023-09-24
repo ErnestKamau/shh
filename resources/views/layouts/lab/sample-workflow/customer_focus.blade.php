@@ -193,10 +193,10 @@
                     <div class="row">
                         <div class="col-md-4">
                             Sampled / Received By: <u><span style="display: inline-block;width:40%;font-size:11px" class="text-bold text-center text-muted">{{ $batch->sampling_officer_name }},
-                                {{ $batch->receiving_officer_name}}</span></u>
+                                {{ $review_staff->name}}</span></u>
                         </div>
                         <div class="col-md-4">
-                            Sign:
+                            Sign: <img src="{{$review_staff->electronic_sig}}" style="max-width:100px !important;max-height:40px !important" alt="">
                         </div>
                         <div class="col-md-4">
                             Date : <u><span style="display: inline-block;width:60%" class="text-bold text-muted"> {{ $batch->receipt_date }}</span></u> 
@@ -246,7 +246,7 @@
                         Review done by: <u> <span style="display: inline-block;width:40%" class="text-bold text-muted ml-3">{{ $review_staff->name ?? '-'}}</span></u>
                     </div>
                     <div class="col-md-3">
-                        Signature: <img src="{{ $review_staff->electronic_signature ?? '' }}" style="width:150px;height:45px" alt="">
+                        Signature: <img src="{{$review_staff->electronic_sig}}" style="max-width:100px !important;max-height:40px !important" alt="">
                     </div>
                     <div class="col-md-3">
                         Date: <u><span style="display: inline-block;width:50%" class="text-bold text-muted ml-3">{{ date('Y/m/d', strtotime($batch->created_at)) }}</span></u> 

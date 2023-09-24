@@ -1552,4 +1552,11 @@ function getCoaApproverSignature($signature){
 	$verify_sig = implode('/',$verify_sig_arr);
 	return storage_path().$verify_sig;
 }
+function convertDateFormatReports($date,$format){
+	if($format == 'dateShortMonth'){
+		$raw_date = \Carbon\Carbon::parse($date);
+		$format_date = $raw_date->format('jS M Y');
+		return $format_date;
+	}
+}
 

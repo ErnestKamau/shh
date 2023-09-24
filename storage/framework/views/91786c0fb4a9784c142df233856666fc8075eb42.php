@@ -472,13 +472,22 @@
 					</div>
 					<div class="form-group btn-group-sm col-md-3">
 						<label class="control-label">Received By</label>
-						<input type="text" name="receive_by" autocomplete="off" class="form-control" value="<?php echo e($batch->receiving_officer_name ?? ''); ?>" placeholder="Received By..." id="" class="form-control">
+						<select name="receive_by" id="" class="form-control">
+							<option value="">Select Receiving Officer</option>
+							<?php $__currentLoopData = $recieving_users; $__env->addLoop($__currentLoopData); foreach($__currentLoopData as $r_user): $__env->incrementLoopIndices(); $loop = $__env->getLastLoop(); ?>
+							<option value="<?php echo e($r_user->id); ?>" <?php echo e(isset($batch->id) && $batch->receiving_officer == $r_user->id ? 'selected' : ''); ?>><?php echo e($r_user->name); ?></option>
+							<?php endforeach; $__env->popLoop(); $loop = $__env->getLastLoop(); ?>
+						</select>
+						
 						
 					</div>
 					<div class="form-group btm-group-sm col-md-3">
 						<label class="control-label">Invoice Amount</label>
 						<input type="text" class="form-control" autocomplete="off" value="<?php echo e($batch->invoice_amount ?? ''); ?>" name="invoice_amount"  placeholder="Invoice Amount..." />
 					</div>
+					<?php if(isset($batch->id)  && $batch->status == 'Samples In Lab'): ?>
+						<input type="hidden" name="is_bl_save" value="1">
+					<?php endif; ?>
 				</div>
 				<div class="row p-2 mt-3">
 					
@@ -579,12 +588,9 @@
 				<div class="form-group col-md-12 text-center">
 					<?php if(Auth::user()->is_client == 1 && isset($batch->status) && $batch->status != 'Samples En-Route'): ?>
 					<?php else: ?>
-						<?php if(isset($batch->id) && $batch->status == 'Samples In Lab'): ?>
-						<?php else: ?>
-							<button class="btn btn-primary btn-sm" style="width:60%" id="save-headers">
-								<i class="mdi mdi-content-save"></i> Save
-							</button>
-						<?php endif; ?>
+					<button class="btn btn-primary btn-sm" style="width:60%" id="save-headers">
+						<i class="mdi mdi-content-save"></i> Save
+					</button>
 					<?php endif; ?>
 				</div>
 			</form>

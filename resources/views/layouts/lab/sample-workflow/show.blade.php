@@ -462,13 +462,22 @@
 					</div>
 					<div class="form-group btn-group-sm col-md-3">
 						<label class="control-label">Received By</label>
-						<input type="text" name="receive_by" autocomplete="off" class="form-control" value="{{$batch->receiving_officer_name ?? ''}}" placeholder="Received By..." id="" class="form-control">
+						<select name="receive_by" id="" class="form-control">
+							<option value="">Select Receiving Officer</option>
+							@foreach($recieving_users as $r_user)
+							<option value="{{$r_user->id}}" {{ isset($batch->id) && $batch->receiving_officer == $r_user->id ? 'selected' : ''}}>{{$r_user->name}}</option>
+							@endforeach
+						</select>
+						
 						
 					</div>
 					<div class="form-group btm-group-sm col-md-3">
 						<label class="control-label">Invoice Amount</label>
 						<input type="text" class="form-control" autocomplete="off" value="{{$batch->invoice_amount ?? ''}}" name="invoice_amount"  placeholder="Invoice Amount..." />
 					</div>
+					@if(isset($batch->id)  && $batch->status == 'Samples In Lab')
+						<input type="hidden" name="is_bl_save" value="1">
+					@endif
 				</div>
 				<div class="row p-2 mt-3">
 					
@@ -569,12 +578,9 @@
 				<div class="form-group col-md-12 text-center">
 					@if(Auth::user()->is_client == 1 && isset($batch->status) && $batch->status != 'Samples En-Route')
 					@else
-						@if(isset($batch->id) && $batch->status == 'Samples In Lab')
-						@else
-							<button class="btn btn-primary btn-sm" style="width:60%" id="save-headers">
-								<i class="mdi mdi-content-save"></i> Save
-							</button>
-						@endif
+					<button class="btn btn-primary btn-sm" style="width:60%" id="save-headers">
+						<i class="mdi mdi-content-save"></i> Save
+					</button>
 					@endif
 				</div>
 			</form>
