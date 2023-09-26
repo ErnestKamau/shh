@@ -588,11 +588,11 @@
 				<div class="form-group col-md-12 text-center">
 					<?php if(Auth::user()->is_client == 1 && isset($batch->status) && $batch->status != 'Samples En-Route'): ?>
 					<?php else: ?>
-					<?php if(!isset($batch->id) || in_array($batch->status,'Samples Reception','Samples In Lab')): ?>
-						<button class="btn btn-primary btn-sm" style="width:60%" id="save-headers">
-							<i class="mdi mdi-content-save"></i> Save
-						</button>
-					<?php endif; ?>
+						<?php if(!isset($batch->id) || in_array($batch->status,['Samples Reception','Samples In Lab'])): ?>
+							<button class="btn btn-primary btn-sm" style="width:60%" id="save-headers">
+								<i class="mdi mdi-content-save"></i> Save
+							</button>
+						<?php endif; ?>
 					<?php endif; ?>
 				</div>
 			</form>
