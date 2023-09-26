@@ -578,9 +578,11 @@
 				<div class="form-group col-md-12 text-center">
 					@if(Auth::user()->is_client == 1 && isset($batch->status) && $batch->status != 'Samples En-Route')
 					@else
-					<button class="btn btn-primary btn-sm" style="width:60%" id="save-headers">
-						<i class="mdi mdi-content-save"></i> Save
-					</button>
+					@if(!isset($batch->id) || in_array($batch->status,'Samples Reception','Samples In Lab'))
+						<button class="btn btn-primary btn-sm" style="width:60%" id="save-headers">
+							<i class="mdi mdi-content-save"></i> Save
+						</button>
+					@endif
 					@endif
 				</div>
 			</form>
