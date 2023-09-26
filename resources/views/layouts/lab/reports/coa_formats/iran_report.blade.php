@@ -82,8 +82,8 @@
     }
     .stamp-section{
         position:fixed;
-        bottom:80px;
-        right:5%
+        bottom:145px;
+        right:2px;
     }
     
 </style>
@@ -166,7 +166,7 @@
         </table>
     </header>
     <div class="stamp-section">
-        <img src="{{$stamp}}" style="height:60px;" alt="">
+        <img src="{{$stamp}}" style="height:162px; z-index:1000;" alt="">
     </div>
 
     @foreach ($samples as $sample)
@@ -179,7 +179,7 @@
                 <img src="{{ $nema }}" style="width:auto;height:100px" alt="">
             </div>
         @endif
-        <div class="main-lab" style="position:fixed;bottom:80px;left:1%;font-size:8px">
+        <div class="main-lab" style="position:fixed;bottom:23%;left:1%;font-size:8px">
             <b>{{strtoupper($sample->main_lab_name)}}</b><br>
             <b>{{$batch->approval_date != '' ? convertDateFormatReports($batch->approval_date,'dateShortMonth') : '-' }}</b>
         </div>
