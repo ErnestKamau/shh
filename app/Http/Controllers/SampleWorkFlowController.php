@@ -3529,6 +3529,9 @@ class SampleWorkFlowController extends Controller
 			return redirect()->back()->with('error', 'There is no sample with ' . $request->sample_no . ' sample/job number');
 		}
 		$batch = SampleHeader::find($sample->sample_header_id);
+		if(!isset($batch->id)){
+			return redirect()->back()->with('error', 'There is no batch associated with the specified sample');
+		}
 
 		if (isset($request->is_clustered)) {
 			$batches = SampleHeader::whereIn('id', explode(',', $batch->c_focus_ids_clustered));
@@ -3538,6 +3541,9 @@ class SampleWorkFlowController extends Controller
 				return redirect()->back()->with('error', 'All batches should be of the same client! Kindly check on the batches you have selected');
 			}
 			$batch =  $getCustomers->orderBy('created_at', 'ASC')->first();
+			if(!isset($batch->id)){
+				return redirect()->back()->with('error', 'the batch has no clustered customer focus');
+			}
 			$customer = CrmCustomer::find($batch->crm_customer_id);
 			$sample_type_ids = $batches->pluck('sample_type_id')->toArray();
 			$sample_types = implode(', ', array_unique(SampleType::whereIn('id', $sample_type_ids)->pluck('name')->toArray()));
