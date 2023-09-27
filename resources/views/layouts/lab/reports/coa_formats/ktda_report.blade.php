@@ -166,9 +166,11 @@
         </table>
     </header>
 
+    @if(isset($is_stamp->id))
     <div class="stamp-section">
         <img src="{{$stamp}}" style="height:60px;" alt="">
     </div>
+    @endif
     @foreach ($samples as $sample)
         @if ($sample->getAccredittedStatus() >= 1)
             <div class="" style="display:inline-block;position:fixed;bottom:2px;right:1%">
