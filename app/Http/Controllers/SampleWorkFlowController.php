@@ -3530,7 +3530,7 @@ class SampleWorkFlowController extends Controller
 		}
 		$batch = SampleHeader::find($sample->sample_header_id);
 		if(!isset($batch->id)){
-			return redirect()->back()->with('error', 'There is no batch associated with the specified sample');
+			return redirect()->back()->with('error', 'There is no batch associated with the specified sample'); 
 		}
 
 		if (isset($request->is_clustered)) {
