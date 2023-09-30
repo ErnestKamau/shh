@@ -206,6 +206,7 @@
                   <th>Sample Type</th>
                   <th>Lab</th>
                   <th>Lab Section</th>
+                  <th>Report Brand</th>
                   <th>Active?</th>
                   <th></th>
                 </tr>
@@ -230,6 +231,15 @@
                   <td>{{ $analysis_type->sample_type->name }}</td>
                   <td>{{ $analysis_type->lab->name }} - {{ $analysis_type->lab->code }}</td>
                   <td>{{ $analysis_type->labsectionname }}</td>
+                  <td>
+                    @if($analysis_type->brand_id == 1)
+                    Physical Format
+                    @elseif($analysis_type->brand_id ==2)
+                    Pesticide Format
+                    @else
+                    Standard Format
+                    @endif
+                  </td>
                   <td class="text-small">{!! $analysis_type->active == '1' ? '<i class="mdi mdi-marker-check text-success"></i>' : '<i class="mdi mdi-close-circle text-danger"></i>' !!}</td>
                   <td nowrap>
                     <button class="btn btn-white text-primary btn-sm" data-target="#edit-active-analysis_type-{{ $loop->iteration }}" data-toggle="modal"><i class="mdi mdi-pencil-outline"></i> <small class="hidden-sm-up">Edit</small> </button>
@@ -295,6 +305,15 @@
                               </select>
                             </div>
                             <div class="form-group">
+                              <label for="" class="control-label">Report Brand</label>
+                              <select name="brand_id" id="" class="form-control">
+                                <option value="">Select Report Brand</option>
+                                <option value="0"{{$analysis_type->brand_id == 0 || $analysis_type->brand_id == '' ? 'selected' : ''}}>Normal</option>
+                                <option value="1" {{$analysis_type->brand_id == 1 ? 'selected' : ''}}>Physical Format</option>
+                                <option value="2" {{$analysis_type->brand_id == 2 ? 'selected' : ''}}>Pesticide Format</option>
+                              </select>
+                            </div>
+                            <div class="form-group">
                               <label class="control-label"><input type="checkbox" name="active" value="1" {{ $analysis_type->active == 1 ? 'checked' : '' }} /> Active</label>
                             </div>
                           </div>
@@ -334,6 +353,7 @@
                   <th>Sample Type</th>
                   <th>Lab</th>
                   <th>Lab Section</th>
+                  <th>Report Brand</th>
                   <th>Active?</th>
                   <th></th>
                 </tr>
@@ -351,6 +371,15 @@
                   <td>{{ $analysis_type->sample_type->name }}</td>
                   <td>{{ $analysis_type->lab->name }} - {{ $analysis_type->lab->code }}</td>
                   <td>{{ $analysis_type->labsectionname }}</td>
+                  <td>
+                    @if($analysis_type->brand_id == 1)
+                    Physical Format
+                    @elseif($analysis_type->brand_id ==2)
+                    Pesticide Format
+                    @else
+                    Standard Format
+                    @endif
+                  </td>
                   <td class="text-small">{!! $analysis_type->active == '1' ? '<i class="mdi mdi-marker-check text-success"></i>' : '<i class="mdi mdi-close-circle text-danger"></i>' !!}</td>
                   <td nowrap>
                     <button class="btn btn-primary btn-sm" data-target="#edit-inactive-analysis_type-{{ $loop->iteration }}" data-toggle="modal"><i class="mdi mdi-pencil-outline"></i> <small class="hidden-sm-up">Edit</small> </button>
@@ -610,6 +639,15 @@
                 @endif
               @endforeach
             @endif
+          </select>
+        </div>
+        <div class="form-group">
+          <label for="" class="control-label">Report Brand</label>
+          <select name="brand_id" id="" class="form-control">
+            <option value="">Select Report Brand</option>
+            <option value="0">Normal</option>
+            <option value="1">Physical Format</option>
+            <option value="2">Pesticide Format</option>
           </select>
         </div>
         <div class="form-group">

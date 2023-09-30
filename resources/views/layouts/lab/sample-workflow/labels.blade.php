@@ -7,14 +7,16 @@
 	<style>
 		@media print{
 			@page { 
-        size: landscape;
-    	}
+				size: landscape;
+			}
 			.card {
 				clear: both; 
 				page-break-after: always!important;
 				min-height: 250px!important;
-				font-size: 14px!important;
+				font-size:25px!important;
 				padding: 0px !important;
+				font-weight:1000;
+				
 				
 			}
 			#print {display: none;}
@@ -25,7 +27,7 @@
 			background-color: white;
 			width: 580px!important;
 			max-height: 100%!important;
-			font-size: 14px!important;
+			font-size: 15px!important;
 			border: none!important;
 			clear: both;
 			page-break-after: always!important;
@@ -65,15 +67,17 @@
 				<table>
 					<tbody>
 						@foreach ($item as $k=>$v)
-						<tr>
-							@if ($k == "Code")
-							<td><strong>{{ $k }}</strong></td>
-							<td style="width: 80%;"><strong>{{ $v }}</strong></td>
-							@else
-							<td>{{ $k }}</td>
-							<td style="width: 80%;">{{ $v }}</td>
+							@if($k != 'Sample Ref')
+								<tr>
+									@if ($k == "Code")
+									<td><strong>{{ $k }}</strong></td>
+									<td style="width: 80%;"><strong>{{ $v }}</strong></td>
+									@else
+									<td>{{ $k }}</td>
+									<td style="width: 80%;">{{ $v }}</td>
+									@endif
+								</tr>
 							@endif
-						</tr>
 						@endforeach
 						<tr>
 							<td colspan="{{sizeof($item)}}" class="text-center">

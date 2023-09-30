@@ -808,6 +808,8 @@ Route::post('/sample-type-clone/{id}', 'SampleTypeController@clone')->name('samp
 Route::get('/testSmsAlert','SampleWorkFlowController@testSmsAlert')->name('testSmsAlert');
 Route::post('/save-Sample/AnalysisDate','SampleWorkFlowController@saveSampleAnalysisDate')->name('saveSampleAnalysisDate');
 
+Route::get('/get/Sample-IntelabLogs-Approval/Status/{sample_id}','SampleWorkFlowController@getSampleIntelabLogsApprovalStatus')->name('getSampleIntelabLogsApprovalStatus');
+
 ################################################Polucon#########################################
 
 

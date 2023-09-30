@@ -855,8 +855,8 @@
 									<td><?php echo e($ilabs->date_submitted); ?></td>
 									<td><?php echo e($ilabs->received_by_name); ?></td>
 									<td><?php echo e($ilabs->date_received); ?></td>
-									<td><?php echo e($ilabs->prelim_date); ?></td>
 									<td><?php echo e($ilabs->expected_date); ?></td>
+									<td><?php echo e($ilabs->prelim_date); ?></td>
 									<td><?php echo e($ilabs->remarks); ?></td>
 
 								</tr>
@@ -2325,6 +2325,10 @@
 				<span class="btn btn-outline-danger btn-sm float-right" data-dismiss="modal">Close</span>
 			</div>
 			<div class="modal-body">
+				<div class="not-approved hidden alert alert-danger p-2 d-flex">
+					<i class="mdi mdi-alert-decagram-outline" style="font-size: 35px"></i>
+					<span class="p-2 pt-3">Approve the <b>InterLaboratory Transfer Log</b> first to activate the results field</span>
+				</div>
 				<ul class="nav nav-tabs" role="tablist">
 					<li class="nav-item">
 						<a class="nav-link active" id="configured-analytes-tab" data-toggle="tab" href="#configured-analytes" role="tab" aria-controls="Parameters" aria-selected="true"><i class="mdi mdi-snowflake"></i> Parameters</a>
@@ -2335,6 +2339,7 @@
 					</li>
 					<?php endif; ?>
 				</ul>
+				
 				<div class="tab-content">
 					<form class="tab-pane show active p-3" method="POST" action="<?php echo e(route('capture-raw-results')); ?>" id="configured-analytes" role="tabpanel" aria-labelledby="one-tab">
 						<?php echo csrf_field(); ?>
@@ -2376,13 +2381,7 @@
 
 											Analysis
 										</div>
-											<div class="dropdown ml-2">
-												
-												<span class="dropdown-toggle float-right text-primary" id="dropdownMenuButton" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false"><i class="mdi mdi-filter "></i></span>
-												<div class="dropdown-menu" aria-labelledby="dropdownMenuButton" id="analysis-types">
-													
-												</div>
-											</div>
+											
 										</th>
 										<th>Analyte</th>
 										<?php if(Auth::user()->is_client == 0): ?>
@@ -2405,7 +2404,11 @@
 										<th>Accredited</th>
 									</tr>
 								</thead>
-								<tbody id="sample-parameters-holder"></tbody>
+								<tbody id="sample-parameters-holder">
+									<tr>
+										<td colspan="12"><b>Loading...</b></td>
+									</tr>
+								</tbody>
 							</table>
 						</div>
 						<div class="save-parameter mt-3">
@@ -3256,11 +3259,24 @@
 			});
 			return body;
 		}
+		var getSampleInterlabTransferApproval = (sample_id,callback)=>{
+			$.ajax({
+				url:`/get/Sample-IntelabLogs-Approval/Status/${sample_id}`,
+				method:'GET',
+				success:(data)=>{
+					console.log(data);
+					callback(data);
+				},
+				error:(data)=>{
+					console.log(data);
+				}
+			});
+		}
 		$('#show-sample-analysis-analytes').on('show.bs.modal', function(e){
 
 			var sampleCode = $(e.relatedTarget).data('sample_code');
 			var analysis_dates = JSON.parse($(e.relatedTarget).data('analysisdate'));
-			
+			var InterlabStatus=0;
 			
 			var all_analysis = analysisNames[sampleCode];
 			$('#show-sample-analysis-analytes').find('#analysis-types').empty();
@@ -3288,18 +3304,30 @@
 			// console.log('------------------------------')
 			// console.log(parametersBySampleCode['2023L00217463']);
 			// console.log(parameters);
-			$.each(parameters, function(p, param){
+			getSampleInterlabTransferApproval(sampleCode,(data)=>{
 				
-				var a_date =analysis_dates && analysis_dates[p] ? analysis_dates[p] : '';
-				
-				var sectionRow = labSectionRow(param['section'],p,thebatch.id,sampleCode,a_date);
-				$('#sample-parameters-holder').append(sectionRow);
-				$.each(param['cr'],(i,obj)=>{
-					var sampleRow = sampleCodeParameters(obj,loop);
-					$('#sample-parameters-holder').append(sampleRow);
-					loop = loop + 1;
-				})
-				
+				if(data == 0){
+					InterlabStatus = 0;
+					$('#show-sample-analysis-analytes').find('.not-approved').addClass('hidden');
+				}
+				if(data == 1){
+					InterlabStatus = 1;
+					$('#show-sample-analysis-analytes').find('.not-approved').removeClass('hidden');
+				}
+				$.each(parameters, function(p, param){
+					
+					var a_date =analysis_dates && analysis_dates[p] ? analysis_dates[p] : '';
+					
+					var sectionRow = labSectionRow(param['section'],p,thebatch.id,sampleCode,a_date);
+					$('#sample-parameters-holder').append(sectionRow);
+					
+					$.each(param['cr'],(i,obj)=>{
+						var sampleRow = sampleCodeParameters(obj,loop,InterlabStatus);
+						$('#sample-parameters-holder').append(sampleRow);
+						loop = loop + 1;
+					})
+					
+				});
 			});
 			
 			$(this).find('input[name="parameter_check_all"]').on('change',function(){
@@ -4232,7 +4260,7 @@
 
 	});
 
-	var sampleCodeParameters = function(data,loop){
+	var sampleCodeParameters = function(data,loop,interLabApproval=0){
 		
 		var readonly = '';
 		$('.main-standard-name').text(data.main_standard === undefined ? '' : (data.main_standard === null ? '' : data.main_standard));
@@ -4262,7 +4290,7 @@
 				<td>
 					<div class="form-group">
 						<input <?php echo e(isset($batch->status) && $batch->status != 'Samples In Lab' ? 'disabled' : ''); ?> id="${data.sample_detail_code},${data.analyte_code},${data.id},${data.analyte_id}" data-resultid="${data.sample_detail_code},${data.analyte_code},${data.id},${data.analyte_id}" style="min-width: 150px" type="text"
-						class="form-control ${data.remark_is_manual == 0 ? 'first-result' : ''}"  id="result-${loop}" value="${data.result == null ? '' : data.result}" name="result[${data.id}]" placeholder="Result..." />
+						class="form-control ${data.remark_is_manual == 0 ? 'first-result' : ''}" ${interLabApproval == 1 ? "disabled" : ""}  id="result-${loop}" value="${data.result == null ? '' : data.result}" name="result[${data.id}]" placeholder="Result..." />
 						<input type="hidden" name="result_confirm"  />
 					</div>
 				</td>

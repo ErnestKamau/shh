@@ -22,7 +22,7 @@
     <x-bread-crumb :items="$items"></x-bread-crumb>
     <h2 class="p-4">
       <i class="mdi mdi-cogs"></i> Sample Type Category
-      <span class="btn-btn-outline-primary btn-sm" data-toggle="modal" data-target="#add-sample-type-category" data-action="add"><i class="mdi mdi-plus"></i> Add</span>
+      <span class="btn btn-outline-primary btn-sm float-right" data-toggle="modal" data-target="#add-sample-type-category" data-action="add"><i class="mdi mdi-plus"></i> Add</span>
      
     </h2>
    <div class="card table-responsive">

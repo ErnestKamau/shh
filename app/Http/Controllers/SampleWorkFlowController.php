@@ -160,8 +160,8 @@ class SampleWorkFlowController extends Controller
 				$data = array();
 				!isset($data['Sample Ref']) ? $data['Sample Ref'] = $sample->sample_code  : $data;
 				!isset($data['Sample Type']) ? $data['Sample Type'] = getSampleTypeByID($batch->sample_type_id)->name : $data;
-				!isset($data['Markings']) ? $data['Markings']  = $sample->comments : $data;
-				!isset($data['Requirements']) ? $data['Requirements'] = implode(', ', SampleAnalysisTypeRelationView::where('sample_detail_id', $sample->id)->pluck('analysis_type_name')->toArray()) : $data;
+				// !isset($data['Markings']) ? $data['Markings']  = $sample->comments : $data;
+				// !isset($data['Requirements']) ? $data['Requirements'] = implode(', ', SampleAnalysisTypeRelationView::where('sample_detail_id', $sample->id)->pluck('analysis_type_name')->toArray()) : $data;
 				!isset($data['Date Received']) ? $data['Date Received'] = $batch->receipt_date : $data;
 				!isset($data['Received By']) ? $data['Received By'] = $batch->receiving_officer_name : $data;
 				!isset($data['Date Expected']) ? $data['Date Expected'] =  date('Y-m-d', strtotime($batch->get_date('Target Date')['date'])) : $data;
@@ -2207,7 +2207,7 @@ class SampleWorkFlowController extends Controller
 							if (trim($reporting_symbol) == '>') {
 								$response = 'FAIL';
 							} else {
-								if ($analyte_guide->value_type == 'Max' || $analyte_guide->value_type == '') {
+								if ($analyte_guide->value_type == 'Max' || $analyte_guide->value_type == '' || $analyte_guide->value_type == null) {
 
 									$response = $result <= floatval($analyte_guide->standard_is_value) ? 'PASS' : 'FAIL';
 								}
@@ -3974,5 +3974,10 @@ class SampleWorkFlowController extends Controller
 		$analysis_date->save();
 		return response()->json('success');
 		
+	}
+	public function getSampleIntelabLogsApprovalStatus($sample_id){
+		$sample = SampleDetails::where('sample_code',$sample_id)->first();
+		$approval = InterLabLog::where('sample_id',$sample->id)->where('status',0)->first();
+		return isset($approval->id) ? 1 : 0;
 	}
 }
