@@ -69,7 +69,7 @@
     }
 
     .textBold {
-        font-weight: 700 !important;
+        font-weight: 800 !important;
     }
 
     .footer_addr {
@@ -191,7 +191,7 @@
                                 <tr  style="margin:0 !important">
                                     <td colspan="2"
                                         style=" border: 1px solid rgba(0, 0, 0, 0.35) !important; font-size:10px !important;">
-                                        <b> TEST REPORT NO : R{{ substr($sample->sample_code, 1, strlen($sample->sample_code))}} {{$report_type != '' ? ' - '.$report_type : ''}}</b></td>
+                                        <b> TEST REPORT NO : R{{ substr($sample->sample_code, 1, strlen($sample->sample_code))}}{{$sample->ammendment_number > 1 ? '-V'.$sample->ammendment_number  : ''}}  {{$report_type != '' ? ' - '.$report_type : ''}}</b></td>
                                 </tr>
                                 <tr>
                                     <td style="width:20%;border: solid 0 transparent !important;font-size:8px !important;border-left:1px solid rgba(0, 0, 0, 0.35);padding:2px;padding-left:4px">SAMPLE</td>
@@ -215,7 +215,7 @@
                                 </tr>
                                 <tr>
                                     <td style="border: solid 0 transparent !important;border-right:1px solid rgba(0, 0, 0, 0.35);font-size:8px !important;border-left:1px solid rgba(0, 0, 0, 0.35);padding:2px;padding-left:4px">SAMPLE ID</td>
-                                    <td style="border: solid 0 transparent !important;padding:2px;padding-left:10px !important;font-size:8px !important;border-right:1px solid rgba(0, 0, 0, 0.35);border-left: 2.1px solid rgba(0, 0, 0, 0.35);">{{ $sample->sample_code ?? '-' }}</td>
+                                    <td style="border: solid 0 transparent !important;padding:2px;padding-left:10px !important;font-size:8px !important;border-right:1px solid rgba(0, 0, 0, 0.35);border-left: 2.1px solid rgba(0, 0, 0, 0.35);">{{ $sample->sample_code ?? '-' }}{{$sample->ammendment_number > 1 ? '-V'.$sample->ammendment_number  : ''}}</td>
                                 </tr>
                                 <tr>
                                     <td style="border: solid 0 transparent !important;border-right:1px solid rgba(0, 0, 0, 0.35);font-size:8px !important;border-bottom:1px solid rgba(0, 0, 0, 0.35);border-left:1px solid rgba(0, 0, 0, 0.35);padding:2px;padding-left:4px">MARKINGS</td>
@@ -254,19 +254,19 @@
                         </tr> --}}
                         @foreach ($analysis_type_level->getCapturedResults() as $captured)
                         <tr>
-                            <td class="parameter {{ $captured->remark == 'FAIL' ? 'textBold' : '' }}" style="font-size: 9px !important;padding-left:3px !important;">
+                            <td class="parameter" style="font-size: 9px !important;padding-left:3px !important;">
                                 {!! $captured->analyte_status_contracted == 1 ? '<small>*</small>' : '' !!} {!! $captured->is_italic == 1 ? '<i>'. $captured->analyte_code.'</i>' : $captured->analyte_code !!}
                             </td>  
-                            <td class="parameter {{ $captured->remark == 'FAIL' ? 'textBold' : '' }}" style="font-size: 9px !important;padding-left:3px !important;">
+                            <td class="parameter" style="font-size: 9px !important;padding-left:3px !important;">
                                 {{ strtoupper($captured->method()->name ?? '') }}
                             </td>  
                             <td class="parameter {{ $captured->remark == 'FAIL' ? 'textBold' : '' }}" style="font-size: 9px !important;padding-left:3px !important;">
                                 {{ $captured->result_reporting_symbol ?? '' }}{{ $captured->result != '' ? $captured->result : 'TBA'  }}
                             </td>  
-                            <td class="parameter {{ $captured->remark == 'FAIL' ? 'textBold' : '' }}" style="font-size: 9px !important;padding-left:3px !important;">
+                            <td class="parameter" style="font-size: 9px !important;padding-left:3px !important;">
                                 {{ $captured->analyte()->reporting_unit ?? '' }}
                             </td>  
-                            <td class="parameter {{ $captured->remark == 'FAIL' ? 'textBold' : '' }}" style="font-size: 9px !important;padding-left:3px !important;">
+                            <td class="parameter " style="font-size: 9px !important;padding-left:3px !important;">
                                 {{ $captured->main_value ?? '' }}
                             </td>                            
 
@@ -280,14 +280,21 @@
             </table>
 
             <table style="margin:0px !important;width:100%">
+                @if($sample->header_body != '')
                 <tr style="margin:0px !important">
                     <td style="font-size:8px !important;">
-                        @if($sample->header_body != '')
                         <b>Comments : </b>{!! $sample->header_body !!}
-                        @endif
-
+                        
                     </td>
                 </tr> 
+                @endif
+                @if($sample->ammendment_number > 1)
+                <tr>
+                    <td style="font-size:8px !important;">
+                       {{$ammendment->reason}}
+                    </td>
+                </tr>
+                @endif
             </table>
             @if ($loop->iteration < $samples->count())
                 <div style="page-break-after: always;">

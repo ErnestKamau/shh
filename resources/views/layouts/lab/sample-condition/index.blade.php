@@ -21,7 +21,8 @@
     ?>
     <x-bread-crumb :items="$items"></x-bread-crumb>
     <h2 class="p-4">
-      <i class="mdi mdi-cogs"></i> Sample Conditions
+      <i class="mdi mdi-cogs"></i> Sample Conditions 
+      <span class="btn btn-sm btn-outline-primary float-right" data-target="#add-sample-condition" data-toggle="modal"><i class="mdi mdi-plus"></i> Add</span>
      
     </h2>
    <div class="card table-responsive">
