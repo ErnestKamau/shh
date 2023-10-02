@@ -4019,7 +4019,6 @@
 					<div class="alert alert-primary d-flex">
 						<i class="mdi mdi-alert-decagram-outline" style="font-size: 30px"></i>
 						<span class="p-2">Change <b class="analyte_name"></b> Standard Limits by updating the information below  <br>
-						<span class="text-danger">By changing the standard the system will automatically clear the current result</span></span>
 					</div>
 					<div class="form-group">
 						<label for="" class="control-label">Analyte</label>
