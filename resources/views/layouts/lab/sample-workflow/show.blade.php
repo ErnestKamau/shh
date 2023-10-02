@@ -232,6 +232,9 @@
 						@if($not_captured->count() == 0)
 							@if(auth()->user()->checkVerifyLabSampleRole())
 							<li>
+								<span class="dropdown-item"><hr/></span>
+							</li>
+							<li>
 								<span class="btn btn-sm dropdown-item" data-toggle="modal" data-target="#send-for-approval-modal">
 									<i class="mdi mdi-subdirectory-arrow-right mr-2"></i> Send for Approval
 								</span>
@@ -261,16 +264,6 @@
 					
 					@endif 
 					@if($batch->status == "Sample Approval")
-						@if ($batch->batch_report_url != '' && $batch->approve_user_id > 0 )
-							@if($batch->is_qc_batch == 0)
-								<li>
-									<span class="btn btn-sm dropdown-item" data-target="#send-to-payments-modal" data-toggle="modal" title="Send for  Payment"><i class="mdi mdi-subdirectory-arrow-right mr-2"></i> Send for Payment</span>
-								</li>
-
-							@endif
-							
-						@endif
-						
 						<li>
 							<span class="btn btn-sm dropdown-item"  data-target="#view-coa-report" data-toggle="modal" title="View Sample(s) COA"><i class="mdi mdi-subdirectory-arrow-right mr-2"></i> View Report</span>
 						</li>
@@ -280,6 +273,24 @@
 							<span class="btn btn-sm dropdown-item" data-target="#process-results-modal" data-toggle="modal" title="Process Results"><i class="mdi mdi-subdirectory-arrow-right mr-2"></i> Process Results</span>
 						</li>
 						@endif
+
+						@if ($batch->batch_report_url != '' )
+							@if($batch->is_qc_batch == 0)
+								<li>
+									<span class="dropdown-item"><hr/></span>
+								</li>
+								<li>
+									<span class="btn btn-sm dropdown-item" data-target="#send-to-payments-modal" data-toggle="modal" title="Send for  Payment"><i class="mdi mdi-subdirectory-arrow-right mr-2"></i> Send for Payment</span>
+								</li>
+								<li>
+									<span class="btn btn-sm dropdown-item" data-target="#send-to-email-modal" data-toggle="modal" title="Send for Collection"><i class="mdi mdi-email mr-2"></i> Send for Collection</span>
+								</li>
+
+							@endif
+							
+						@endif
+						
+						
 						
 						
 

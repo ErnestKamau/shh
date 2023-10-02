@@ -2,7 +2,7 @@
 
 @section('module-name')
     <li class="nav-item">
-        <a class="nav-link module-name" style="font-size:12px !important" href="{{ route('home') }}"><i class="mdi mdi-file-document"></i> Customerr Focus</a>
+        <a class="nav-link module-name" style="font-size:12px !important" href="{{ route('home') }}"><i class="mdi mdi-file-document"></i> Customer Focus</a>
     </li>
 @endsection
 
