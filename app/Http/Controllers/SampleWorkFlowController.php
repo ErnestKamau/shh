@@ -3270,7 +3270,7 @@ class SampleWorkFlowController extends Controller
 			$sampleTrs = $sampleTrs . '
 			<tr style="border: 1px solid black">
 				<td style="border: 1px solid black">' . $sample->sample_code . '</td>
-				<td style="border: 1px solid black">' . $sample->getAnalysisRelation() . ' </td>
+				<td style="border: 1px solid black">' . $sample->getAnalysisTestDone() . ' </td>
 				<td style="border: 1px solid black">-</td>
 			</tr>
 			';
@@ -3289,7 +3289,7 @@ class SampleWorkFlowController extends Controller
 
 					<tr style="border: 1px solid black">
 						<th style="border: 1px solid black">Sample No</th>
-						<th style="border: 1px solid black">Analysis Type</th>
+						<th style="border: 1px solid black">Analysis</th>
 						<th style="border: 1px solid black">#</th>
 					</tr>
 				</thead>

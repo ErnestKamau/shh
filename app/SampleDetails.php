@@ -61,4 +61,7 @@ class SampleDetails extends Model implements Auditable
 	public function sample_detail_lab(){
 		return $this->hasOne(SampleAnalysisTypeRelationView::class, 'sample_detail_id');
 	}
+	public function getAnalysisTestDone(){
+		return implode(', ',array_unique(CapturedResult::where('sample_detail_id',$this->id)->where('sample_header_id',$this->sample_header_id)->pluck('analyte_code')->toArray()) ?? []);
+	}
 }
