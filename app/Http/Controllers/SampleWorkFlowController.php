@@ -1772,9 +1772,9 @@ class SampleWorkFlowController extends Controller
 			$account_status = SystemConfiguration::find($customer->account_status);
 			if (isset($account_status->id)) {
 				if ($account_status->value != 'Account Holder(OK)') {
-					if ($batch->invoice_id == 0) {
-						return redirect()->back()->with('error', 'The following Batch has no invoice attached to it!');
-					}
+					// if ($batch->invoice_id == 0) {
+					// 	return redirect()->back()->with('error', 'The following Batch has no invoice attached to it!');
+					// }
 				}
 			}
 		}

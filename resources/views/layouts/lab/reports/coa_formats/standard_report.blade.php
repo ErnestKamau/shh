@@ -79,7 +79,7 @@
     .stamp-section{
         position:fixed;
         bottom:145px;
-        right:2px;
+        right:0px;
     }
     
 </style>
@@ -164,7 +164,7 @@
 
     @if(isset($is_stamp->id))
     <div class="stamp-section">
-        <img src="{{$stamp}}" style="height:162px; z-index:1000;" alt="">
+        <img src="{{$stamp}}" style="height:155px; z-index:1000;" alt="">
     </div>
     @endif
 

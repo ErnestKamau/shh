@@ -127,10 +127,11 @@
 				<li>
 					<span class="btn btn-sm dropdown-item" disabled data-target="#generarate_customer_focus" data-toggle="modal" title="Generate Customer Focus"><i class="mdi mdi-file-document-outline mr-2"></i> Generate Customer Focus</span>
 				</li>
-				@endif
 				<li>
 					<span class="btn btn-sm dropdown-item" data-target="#clone-batches" data-toggle="modal"><i class="mdi mdi-content-duplicate mr-2"></i> Clone Batch(es)</span>
 				</li>
+				@endif
+				
 				
 				@if ($status=="Reports for Collection")
 				<li>
