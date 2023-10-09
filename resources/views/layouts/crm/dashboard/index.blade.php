@@ -234,7 +234,7 @@
 							<td nowrap>{{ number_format($diff ?? 0, 0) }} Day(s)</td>
 							<td>{{ $item->samples->count() }}</td>
 							<td nowrap>{{ $item->client->name }}</td>
-							<td nowrap>{{ $item->crm_unit_name }}</td>
+							<td nowrap>{{ $item->unit_name }}</td>
 							<td nowrap>{{ implode(", ", $item->labs(true)) }}</td>
 							<td nowrap>{{ $item->sample_type->name ?? '' }}</td>
 							<td nowrap>{{ $item->reference_number ?? 'n/a' }}</td>

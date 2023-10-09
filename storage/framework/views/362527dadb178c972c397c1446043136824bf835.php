@@ -135,10 +135,11 @@
 				<li>
 					<span class="btn btn-sm dropdown-item" disabled data-target="#generarate_customer_focus" data-toggle="modal" title="Generate Customer Focus"><i class="mdi mdi-file-document-outline mr-2"></i> Generate Customer Focus</span>
 				</li>
-				<?php endif; ?>
 				<li>
 					<span class="btn btn-sm dropdown-item" data-target="#clone-batches" data-toggle="modal"><i class="mdi mdi-content-duplicate mr-2"></i> Clone Batch(es)</span>
 				</li>
+				<?php endif; ?>
+				
 				
 				<?php if($status=="Reports for Collection"): ?>
 				<li>
@@ -284,7 +285,7 @@
 					<td nowrap><?php echo e(number_format($diff, 0)); ?> Day(s)</td>
 					<td><?php echo e($sample_count); ?></td>
 					<?php if($status != 'Samples In Lab'): ?>
-					<td nowrap><?php echo e($item->crm_unit_name); ?></td>
+					<td nowrap><?php echo e($item->unit_name); ?></td>
 					<?php endif; ?>
 					<td nowrap><?php echo e(implode(", ", $item->labs(true))); ?></td>
 					<td nowrap><?php echo e($item->sample_type->name ?? ''); ?></td>

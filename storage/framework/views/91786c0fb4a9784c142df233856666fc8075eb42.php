@@ -240,6 +240,9 @@
 						<?php if($not_captured->count() == 0): ?>
 							<?php if(auth()->user()->checkVerifyLabSampleRole()): ?>
 							<li>
+								<span class="dropdown-item"><hr/></span>
+							</li>
+							<li>
 								<span class="btn btn-sm dropdown-item" data-toggle="modal" data-target="#send-for-approval-modal">
 									<i class="mdi mdi-subdirectory-arrow-right mr-2"></i> Send for Approval
 								</span>
@@ -269,16 +272,6 @@
 					
 					<?php endif; ?> 
 					<?php if($batch->status == "Sample Approval"): ?>
-						<?php if($batch->batch_report_url != '' && $batch->approve_user_id > 0 ): ?>
-							<?php if($batch->is_qc_batch == 0): ?>
-								<li>
-									<span class="btn btn-sm dropdown-item" data-target="#send-to-payments-modal" data-toggle="modal" title="Send for  Payment"><i class="mdi mdi-subdirectory-arrow-right mr-2"></i> Send for Payment</span>
-								</li>
-
-							<?php endif; ?>
-							
-						<?php endif; ?>
-						
 						<li>
 							<span class="btn btn-sm dropdown-item"  data-target="#view-coa-report" data-toggle="modal" title="View Sample(s) COA"><i class="mdi mdi-subdirectory-arrow-right mr-2"></i> View Report</span>
 						</li>
@@ -288,6 +281,24 @@
 							<span class="btn btn-sm dropdown-item" data-target="#process-results-modal" data-toggle="modal" title="Process Results"><i class="mdi mdi-subdirectory-arrow-right mr-2"></i> Process Results</span>
 						</li>
 						<?php endif; ?>
+
+						<?php if($batch->batch_report_url != '' ): ?>
+							<?php if($batch->is_qc_batch == 0): ?>
+								<li>
+									<span class="dropdown-item"><hr/></span>
+								</li>
+								<li>
+									<span class="btn btn-sm dropdown-item" data-target="#send-to-payments-modal" data-toggle="modal" title="Send for  Payment"><i class="mdi mdi-subdirectory-arrow-right mr-2"></i> Send for Payment</span>
+								</li>
+								<li>
+									<span class="btn btn-sm dropdown-item" data-target="#send-to-email-modal" data-toggle="modal" title="Send for Collection"><i class="mdi mdi-email mr-2"></i> Send for Collection</span>
+								</li>
+
+							<?php endif; ?>
+							
+						<?php endif; ?>
+						
+						
 						
 						
 
@@ -396,7 +407,7 @@
 					</div>
 					<div class="form-group col-md-3 qc-omit-type-field <?php echo e(isset($batch->id) ? ( $batch->status == 'Samples In Lab' || $batch->is_qc_batch == 1 ? 'hidden' : '') : ''); ?> ">
 						<label class="control-label"><span class='client-prefered-unit-name'>Site Location</span> <span class="text-danger">*</span> <span class="btn-primary p-0 btn-sm"  data-target="#add-company-unit" data-toggle="modal" data-toggle="tooltip" title="Add Site Location" ><i class="mdi mdi-plus"></i></span></label>
-						<select class="form-control  <?php echo e(isset($batch->status) && !in_array($batch->status, array("Samples Reception", "Samples En-Route")) ? 'no-select2' : ''); ?>" <?php echo e(isset($batch->status) && !in_array($batch->status, array("Samples Reception", "Samples En-Route")) ? 'readonly' : ''); ?> name="crm_unit_name" data-selected='<?php echo e($batch->crm_unit_name ?? ''); ?>' id="client-unit-select">
+						<select class="form-control  <?php echo e(isset($batch->status) && !in_array($batch->status, array("Samples Reception", "Samples En-Route")) ? 'no-select2' : ''); ?>" <?php echo e(isset($batch->status) && !in_array($batch->status, array("Samples Reception", "Samples En-Route")) ? 'readonly' : ''); ?> name="crm_unit_name" data-selected='<?php echo e($batch->crm_unit_id ?? ''); ?>' id="client-unit-select">
 							<option value="">Select Client Unit...</option>
 						</select>
 					</div>
@@ -2476,7 +2487,7 @@
 				method:'GET',
 				success:(data)=>{
 					$.each(data['units'], function(i, e){
-						$('#client-unit-select').append('<option value="'+e.name+'">'+e.name+'</option>');
+						$('#client-unit-select').append('<option value="'+e.id+'">'+e.name+'</option>');
 					});
 	
 					$('#client-unit-select').val($('#client-unit-select').data('selected')).trigger('change');
@@ -4029,7 +4040,6 @@
 					<div class="alert alert-primary d-flex">
 						<i class="mdi mdi-alert-decagram-outline" style="font-size: 30px"></i>
 						<span class="p-2">Change <b class="analyte_name"></b> Standard Limits by updating the information below  <br>
-						<span class="text-danger">By changing the standard the system will automatically clear the current result</span></span>
 					</div>
 					<div class="form-group">
 						<label for="" class="control-label">Analyte</label>

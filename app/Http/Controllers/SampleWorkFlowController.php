@@ -90,6 +90,7 @@ class SampleWorkFlowController extends Controller
 
 		// return response()->json('test');
 		$batches = SampleHeader::with('samples')->where('isactive', 1)->orderBy('receipt_date', 'desc');
+		
 
 		if ($status != "All Samples") {
 			if ($status == "Schedule of Analysis") {
@@ -104,6 +105,7 @@ class SampleWorkFlowController extends Controller
 		}
 
 		$batches = $batches->get();
+		// return response()->json($batches);
 
 		// return json_encode($batches);
 
@@ -457,7 +459,7 @@ class SampleWorkFlowController extends Controller
 	
 						$header->crm_customer_id = $last_header->crm_customer_id;
 						$header->sample_type_id = $last_header->sample_type_id;
-						$header->crm_unit_name = $last_header->crm_unit_name;
+						$header->crm_unit_id= $last_header->crm_unit_id;
 					} else {
 						$qc_customer_id = SystemConfiguration::where('key', 'qc_customer_id')->first();
 						$qc_customer_unit = SystemConfiguration::where('key', 'qc_customer_unit')->first();
@@ -470,7 +472,7 @@ class SampleWorkFlowController extends Controller
 	
 					$header->crm_customer_id = $request->crm_customer_id;
 	
-					$header->crm_unit_name = $request->crm_unit_name;
+					$header->crm_unit_id = $request->crm_unit_name;
 	
 					$customer = getCrmCustomerByID($request->crm_customer_id);
 					$account = SystemConfiguration::find($customer->account_status);
@@ -1123,6 +1125,12 @@ class SampleWorkFlowController extends Controller
 		$batchID = $batch;
 
 		$batch = SampleHeader::with('comments.creator', 'samples.sample_detail_lab', 'captured_results.my_analyte', 'captured_results.defacto_analyst_with', 'captured_results.sample')->find($batchID);
+		if(isset($batch->id) && $batch->crm_unit_id < 1){
+			$crm_unit = CRMCompanyUnit::where('crm_customer_id',$batch->crm_customer_id)->where('name',$batch->crm_unit_name)->first();
+			$batch->crm_unit_id = isset($crm_unit->id) ? $crm_unit->id : $batch->crm_unit_id;
+			$batch->save();
+			// return response()->json($batch);
+		}
 		$receiving_role = SystemConfiguration::where('key','receiving_role_id')->first();
 		// $test =  UserRole::where('role_id',isset($receiving_role->value) ? $receiving_role->value : 0)->get();
 		// return response()->json($test);
@@ -1356,7 +1364,7 @@ class SampleWorkFlowController extends Controller
 
 	public function fetch_unit_stuff($name, $client)
 	{
-		$unit = CRMCompanyUnit::where('name', $name)->where('crm_customer_id', $client)->first();
+		$unit = CRMCompanyUnit::where('id', $name)->where('crm_customer_id', $client)->first();
 
 		return response()->json(array(
 			'products' => $unit->products,

@@ -556,7 +556,7 @@
 											<tr>
 												<td>{{ $loop->iteration }}</td>
 												<td>{{ $s->batch_code }}</td>
-												<td>{{ $s->crm_unit_name }}</td>
+												<td>{{ $s->unit_name }}</td>
 												<td>{{ $s->reference_number }}</td>											
 												<td nowrap>{{ $s->sample_type }}</td>
 												<td>{{ $s->reasons }}</td>
