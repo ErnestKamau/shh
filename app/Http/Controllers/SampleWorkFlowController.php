@@ -1128,8 +1128,8 @@ class SampleWorkFlowController extends Controller
 		if(isset($batch->id) && $batch->crm_unit_id < 1){
 			$crm_unit = CRMCompanyUnit::where('crm_customer_id',$batch->crm_customer_id)->where('name',$batch->crm_unit_name)->first();
 			$batch->crm_unit_id = isset($crm_unit->id) ? $crm_unit->id : $batch->crm_unit_id;
-			$batch->save();
 			// return response()->json($batch);
+			$batch->save();
 		}
 		$receiving_role = SystemConfiguration::where('key','receiving_role_id')->first();
 		// $test =  UserRole::where('role_id',isset($receiving_role->value) ? $receiving_role->value : 0)->get();
@@ -2519,6 +2519,7 @@ class SampleWorkFlowController extends Controller
 			$samples = SampleDetails::where('sample_header_id', $batch->id)->get();
 			$start =  SampleDetails::where('sample_header_id', $batch->id)->first();
 			$end =  SampleDetails::where('sample_header_id', $batch->id)->orderBy('id', 'DESC')->first();
+			$previous = $batch->status;
 			// return response()->json(['start'=>$start,'end'=>$end],200);
 			foreach ($contact as $c) {
 
@@ -2540,6 +2541,21 @@ class SampleWorkFlowController extends Controller
 			$batch->email_date = getTodayDate();
 			$batch->status = "Completed";
 			$batch->save();
+
+			$custodyDetails = array(
+				"batch_id" => $batch->id,
+				"comments" => 'Send out sample report to the client',
+				"current" => array(
+					"status" => $previous,
+					"tracking_stage" => $batch->sample_tracking_stage,
+				),
+				"target" => array(
+					"status" => $batch->status,
+					"tracking_stage" => $batch->sample_tracking_stage,
+				)
+			);
+
+			$this->updateChainofCustody($custodyDetails);
 			// return response()->json($batch);
 		}
 
