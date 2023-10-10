@@ -77,7 +77,7 @@ class DashboardController extends Controller
                 $date = strtotime($sample->created_at);
                 $month = date('F',$date);
                 $dateyear = date('Y',$date);
-                array_push($crm_unit_name,$sample->crm_unit_name);
+                array_push($crm_unit_name,$sample->unit_name);
                 if($year == $dateyear){
 
                     array_push($months,$month);
@@ -110,7 +110,7 @@ class DashboardController extends Controller
                 $dateyear = date('Y',$date);
                 array_push($months,$month);
                 if($year == $dateyear){
-                    array_push($crm_unit_name,$sample->crm_unit_name);
+                    array_push($crm_unit_name,$sample->unit_name);
 
                 }
                 
@@ -143,7 +143,7 @@ class DashboardController extends Controller
                 $date = strtotime($sample->created_at);
                 $month = date('F',$date);
                 array_push($months,$month);
-                array_push($crm_unit_name,$sample->crm_unit_name);
+                array_push($crm_unit_name,$sample->unit_name);
                 
                 
                 $sample_detail = SampleDetails::find($sample->sample_detail_id);

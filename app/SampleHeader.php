@@ -6,12 +6,14 @@ use Illuminate\Database\Eloquent\Model;
 use OwenIt\Auditing\Contracts\Auditable;
 use App\InvoiceDetails;
 use App\BatchLabSectionApprover;
+use App\Models\CRM\CRMCompanyUnit;
 
 class SampleHeader extends Model implements Auditable
 {
 	use \OwenIt\Auditing\Auditable;
-	protected $fillable = ['declaration_customer_approval_date','declaration_customer_signature','declaration_customer_contact_name','c_focus_ids_clustered','cluster_amount','cluster_amount_paid','cluster_vat','cluster_balance','created_at','updated_at','batch_code','receipt_date','status'];
+	protected $fillable = ['declaration_customer_approval_date','declaration_customer_signature','declaration_customer_contact_name','c_focus_ids_clustered','cluster_amount','cluster_amount_paid','cluster_vat','cluster_balance','created_at','updated_at','batch_code','receipt_date','status','crm_unit_name'];
 	// public $with = ['get_target_date', 'client', 'samples', 'specialist_analyst', 'custody', 'comments'];
+	protected $appends = ['unitname'];
 	
 	public function samples()
 	{
@@ -280,5 +282,11 @@ class SampleHeader extends Model implements Auditable
 	public function getLabSectionsNames(){
 		$tracking_stages_arr = explode(',',$this->lab_section_ids ?? []);
 		return implode(',',SampleAnalysisStage::whereIn('id',$tracking_stages_arr)->pluck('name')->toArray()); 
+	}
+	public function getUnitNameAttribute(){
+		if($this->crm_unit_id > 0){
+			return CRMCompanyUnit::find($this->crm_unit_id)->name;
+		}
+		return $this->crm_unit_name;
 	}
 }
