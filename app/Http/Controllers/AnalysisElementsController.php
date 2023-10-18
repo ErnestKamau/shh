@@ -160,4 +160,10 @@ class AnalysisElementsController extends Controller
           return redirect()->back()->with('error', 'An error occurred while importing the file.');
       }
   }
+  public function deleteAnalysisElement(Request $request){
+    // return response()->json($request->all());
+    AnalysisElements::whereIn('id',$request->element_id)->delete();
+    return redirect()->back()->with('success','Analysis Tests deleted successfully!');
+
+  }
 }

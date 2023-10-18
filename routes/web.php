@@ -108,6 +108,7 @@ Route::post('/delete-analyte-guide','AnalysisMethodElementsController@delete_ana
 Route::post('/analysis-elements', 'AnalysisElementsController@add')->name('add-analysis-elements');
 Route::post('/analysis-element/{id}', 'AnalysisElementsController@edit')->name('edit-analysis-element');
 Route::get('/move-analysis-analyte/{direction}/{analysis}/{element}', 'AnalysisElementsController@move_analysis_analyte')->name('move-analysis-analyte');
+Route::post('/delete-Analysis-Element','AnalysisElementsController@deleteAnalysisElement')->name('deleteAnalysisElement');
 
 Route::get('/analysis-methods', 'AnalysisMethodController@index')->name('analysis-methods')->middleware('haspermission:Laboratory.components.Methods.View');
 Route::post('/analysis-methods', 'AnalysisMethodController@add')->name('add-analysis-methods')->middleware('haspermission:Laboratory.components.Methods.Add');

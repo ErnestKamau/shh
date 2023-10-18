@@ -354,12 +354,13 @@
             <h5 class="card-title">Analytes 
               <div class="btn btn-sm btn-info float-right" data-target="#add-analyte" data-toggle="modal"><i class="mdi mdi-plus"></i> Add</div>
               <span class="btn btn-sm btn-primary float-right mr-1" data-target="#import-analytes-modal" data-toggle="modal"><i class="mdi mdi-upload"></i> Import</span>
+              <span class="btn btn-sm btn-danger float-right mr-1" data-toggle="modal" data-target="#delete-analysis-elements"><i class="mdi mdi-delete-empty"></i> Delete</span>
             </h5>
             <div class="table-responsive">
               <table class="table table-condensed my-small-text table-striped table-hover table-bordered table">
                 <thead class="bg-light p-2">
                   <tr>
-                    <th></th>
+                    <th><input type="checkbox" name="" id="" class="select-all-analyte"></th>
                     <th nowrap>Analyte</th>
                     <th nowrap>Decimal Places</th>
                     <th nowrap>Reporting Symbol</th>
@@ -384,6 +385,7 @@
                   @foreach($analysis_type->analysis_elements as $analyte)
                   <tr data-element="{{ $analyte->id }}">
                     <td valign="center" nowrap style="font-size: 17px">
+                      <input type="checkbox" name="selected_analyte[]" data-record="{{json_encode($analyte)}}" data-name="{{json_encode($analyte->analyte)}}" id="" class="selected-analyte">
                       <span style="cursor: pointer">
                         <i class="mdi mdi-arrow-up-drop-circle move-analyte-up move-analyte" data-action="move-up"></i>
                       </span>
@@ -429,6 +431,27 @@
 </main>
 @endsection
 @section('script2')
+<div class="modal fade" id="delete-analysis-elements" role="dialog">
+  <div class="modal-dialog modal-lg">
+    <div class="modal-content">
+      <form action="{{route('deleteAnalysisElement')}}" method="POST">
+        @csrf  
+        <div class="modal-body">
+          <div class="alert alert-danger p-2 d-flex">
+            <i class="mdi mdi-delete-empty" style="font-size:30px"></i>
+            <span class="p-2">Confirm you want to delete the selected Analytes / Tests below from {{$analysis_type->name}}.</span>
+          </div>
+          <b>Analytes / Tests:</b>
+          <div class="analytes-body mt-2 mb-2 row"></div>
+        </div>
+        <div class="modal-footer">
+          <button type="submit" class="btn btn-sm btn-outline-danger initiate-delete"><i class="mdi mdi-delete-empty"></i> Yes, Delete</button>
+          <span class="btn btn-sm btn-default" data-dismiss="modal">Close</span>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
 <div class="modal fade" id="edit-analysis-element" role="dialog">
   <div class="modal-dialog">
     <div class="modal-content">
@@ -687,8 +710,54 @@
     </form>
   </div>
 </div>
+
+
+
 <script>
   $(function() {
+    $('.select-all-analyte').on('change',()=>{
+      if($('.select-all-analyte').is(':checked')){
+        $.each($('.selected-analyte'),(i,obj)=>{
+          $(obj).attr('checked',true);
+        })
+      }else{
+        $.each($('.selected-analyte'),(i,obj)=>{
+          $(obj).removeAttr('checked');
+        })
+      }
+    })
+    $('#delete-analysis-elements').on('show.bs.modal',()=>{
+      $('#delete-analysis-elements').find('.analytes-body').empty();
+      if($("input[name='selected_analyte[]']:checked").length > 0){
+        $('.initiate-delete').removeClass('hidden');
+        selectedBatchesIDs = $("input[name='selected_analyte[]']:checked")
+          .map(function() {
+            var analyte = $(this).data('name');
+            var a_element = $(this).data('record');
+  
+            
+            $('.analytes-body').append(
+              `<div class="col-md-6 p-2">
+                <i class="mdi mdi-chevron-right"></i> ${analyte.name} - ${analyte.code}
+                <input type="hidden" name="element_id[]" value="${a_element.id}">
+              </div>`
+            );
+            
+            return a_element;
+          }).get();
+      }else{
+        $('.analytes-body').append(`
+        <div class="col-md-12 p-3">
+          <div class="alert alert-primary p-2 d-flex">
+            <i class="mdi mdi-decagram" style="font-size: 30px"></i>
+            <span class="p-2">Kindly select the Tests you want to delete from {{$analysis_type->name}} first</span>
+          </div>
+        </div>
+        `);
+        $('.initiate-delete').addClass('hidden');
+      }
+
+    })
    var analysisElementBody = (data)=>{
     var body= $(`
       <div class="alert alert-primary p-2 d-flex">
