@@ -103,7 +103,7 @@
                 @foreach ($batch_approvers as $approver)
                     <td style="font-size: 8px !important;">
                         <div class="dotted-line text-align:center" style="text-align:center; width:fit-content!important;">
-                            <img src="{{ getCoaApproverSignature($approver->getApproverDetails()->electronic_sig) }}" style="height:48px;"
+                            <img src="{{ getCoaApproverSignature($approver->getApproverDetails()->electronic_sig) }}" style="height:48px;z-index:-10;position:relative;"
                             alt="signature">
                         </div>
                     </td>
@@ -164,7 +164,7 @@
 
     @if(isset($is_stamp->id))
     <div class="stamp-section">
-        <img src="{{$stamp}}" style="height:155px; z-index:1000;" alt="">
+        <img src="{{$stamp}}" style="height:162px; z-index:1000;position: relative;" alt="">
     </div>
     @endif
 
@@ -178,7 +178,7 @@
                 <img src="{{ $nema }}" style="width:auto;height:100px" alt="">
             </div>
         @endif
-        <div class="main-lab" style="position:fixed;bottom:23%;left:1%;font-size:8px">
+        <div class="main-lab" style="position:fixed;bottom:22%;left:1%;font-size:8px">
             <b>{{strtoupper($sample->main_lab_name)}}</b><br>
             <b>{{ $batch->approval_date != '' ? convertDateFormatReports($batch->approval_date,'dateShortMonth') : '-' }}</b>
         </div>
