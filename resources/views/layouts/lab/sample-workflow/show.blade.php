@@ -1379,7 +1379,7 @@
 						</div>
 						<div class="col-sm-6">
 							<div class="form-check">
-								<input type="checkbox" class="form-check-input" value="1" name="active" />
+								<input type="checkbox" class="form-check-input" checked value="1" name="active" />
 								<label class="form-check-label"> Is Active?</label>
 							</div>
 						</div>
