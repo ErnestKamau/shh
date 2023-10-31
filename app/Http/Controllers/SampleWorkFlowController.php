@@ -1134,7 +1134,7 @@ class SampleWorkFlowController extends Controller
 			// return response()->json($batch);
 			$batch->save();
 		}
-		$section_approvers_users = LabSectionApproverRelationShip::whereIn('lab_section_id', explode(',', $batch->lab_section_ids))->get();
+		$section_approvers_users = isset($batch->id) ? LabSectionApproverRelationShip::whereIn('lab_section_id', explode(',', $batch->lab_section_ids))->get() : []; 
 		$receiving_role = SystemConfiguration::where('key','receiving_role_id')->first();
 		// $test =  UserRole::where('role_id',isset($receiving_role->value) ? $receiving_role->value : 0)->get();
 		// return response()->json($test);
