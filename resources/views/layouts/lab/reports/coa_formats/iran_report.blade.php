@@ -453,6 +453,11 @@
                     <b>Comments : </b>{!! $sample->header_body !!}
                 </div>
             @endif
+            @if ($sample->main_body != '')
+                <div class="comments" style="font-size: 8px !important;width:100%">
+                    <b>Recommendations : </b>{!! $sample->main_body !!}
+                </div>
+            @endif
             @if($sample->ammendment_number > 1)
                 <div class="comments" style="font-size: 8px !important;width:100%">
                     {{$ammendment->reason}}

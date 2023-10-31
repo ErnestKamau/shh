@@ -129,7 +129,7 @@
                     <table class="border" style="width: 100%">
                         <tr>
                             <td style="width:20%;border-right:1px solid #dee2e6">SAMPLE</td>
-                            <td  style="padding-left:10px !important">{{ $sample->sample_type_name }}</td>
+                            <td  style="padding-left:10px !important">{{ $sample->product_name }}</td>
                         </tr>
                         <tr>
                             <td style="border-right:1px solid #dee2e6">DATE & PLACE {{ $sample->sampled_by_company_personnel == 1 ? 'SAMPLED' : 'SUBMITTED' }}</td>
@@ -145,11 +145,11 @@
                         </tr>
                         <tr>
                             <td style="border-right:1px solid #dee2e6">SAMPLING METHOD</td>
-                            <td style="padding-left:10px !important">{{ $sample->sampling_method_name }}</td>
+                            <td style="padding-left:10px !important">{{ $sample->sampling_method_name ?? 'N/A' }}</td>
                         </tr>
                         <tr>
                             <td style="border-right:1px solid #dee2e6">MARKINGS</td>
-                            <td style="padding-left:10px !important">{{ $sample->comments }}</td>
+                            <td style="padding-left:10px !important">{{ $sample->comments ?? 'N/A' }}</td>
                         </tr>
                     </table>
 
@@ -177,7 +177,7 @@
                                             <td>{!! $captured->analyte_status_contracted == 1 ? '<small>*</small>' : '' !!} {{ $captured->analyte_code }}</td>
                                             <td>{{ $captured->method()->name }}</td>
                                             <td>{{ $captured->result_reporting_symbol ?? '' }}{{ $captured->result }}</td>
-                                            <td>{{ $captured->analyte()->reporting_unit }}</td>
+                                            <td>{{ $captured->reporting_unit_id }}</td>
                                             <td>{{ $captured->main_value }}</td>
                                         </tr>
                                     @endforeach
@@ -186,13 +186,16 @@
                         </table>
                     </div>
                     <div class="end-test-span text-center">*******<small>End of Test Results</small>*******</div>
-                    <div class="comments mt-2 p-2">
-                        <b>Comments : </b>{{ $sample->header_body }}
+                    <div class="comments mt-4 p-2 {{$sample->header_body != '' ? '' : 'hidden'}}">
+                        <b>Comments : </b>{!! $sample->header_body !!}
+                    </div>
+                    <div class="comments mt-2 p-2 {{$sample->main_body != '' ? '' : 'hidden'}}">
+                        <b>Recommendations : </b>{!! $sample->main_body !!}
                     </div>
                     <div class="p-3 d-flex justify-content-between mt-2">
                         <div class="lab-sect">
                             <b>{{ $sample->main_lab_name }} <br>
-                                {{ $batch->approval_date ?? '-' }}
+                                {{ $batch->approval_date ?? 'Not Approved' }}
                             </b>
                         </div>
                         @foreach($batch_approvers as $approver)

@@ -152,6 +152,7 @@
 			}
     ?>
     <x-bread-crumb :items="$items"></x-bread-crumb>
+	
     <h4 class="pt-4 pr-4 pl-4 pb-3">
 		<i class="mdi mdi-layers-triple"></i>
 		@if(isset($batch->id) && $batch->prelim_report_status == 1)
@@ -184,13 +185,14 @@
 						</li>
 						@endif
 					@endif
-
+				
 				@if(isset($batch->status) && $batch->status=="Samples In Lab" && Auth::user()->is_client == 0 && $status == 'Samples In Lab')
 				<li>
 					<span class="btn btn-sm dropdown-item" data-toggle="modal" data-target="#send-to-verification-modal">
 					<i class="mdi mdi-subdirectory-arrow-right mr-2"></i> Send for Verification
 					</span>
 				</li>
+				
 				@if( $batch->prelim_report_status != 0 && $status == 'Sample Verification')
 				<li>
 					<span class="btn btn-sm dropdown-item" data-toggle="modal" data-target="#send-for-approval-modal">
@@ -2116,6 +2118,19 @@
 									</div>
 								</div>
 							@endif
+							<div class="alert alert-primary p-2 d-flex">
+								<i class="mdi mdi-alert-decagram" style="font-size: 30px"></i>
+								<div class="data p-2">
+
+									<span class="">Verification approvers for batch {{$batch->batch_code}} are :
+									</span>
+									<ul>
+										@foreach($section_approvers_users as $s_approvers)
+										<li>{{$s_approvers->username}}</li>
+										@endforeach
+									</ul>
+								</div>
+							</div>
 							
 							<input type="hidden" name="status" value="Sample Verification">
 							<input type="hidden" name="batch_id" value="{{$batch->id}}">
@@ -2364,7 +2379,7 @@
 							<br>
 						</h5>
 						<div class="table-responsive" id="sph-parent">
-							<table class="table table-condensed my-small-text table-striped table-hover table-bordered table">
+							<table class="table table-condensed my-small-text table-striped table-hover table-bordered table" style="width: 100%">
 								<thead class="bg-light p-2">
 									<tr>
 										<th>
@@ -2386,7 +2401,7 @@
 										</th>
 										<th>Analyte</th>
 										@if(Auth::user()->is_client == 0)
-										{{-- <th nowrap>Reporting Symbol</th> --}}
+										<th>Reporting Symbol</th>
 										<th nowrap>Result</th>
 										@endif
 										@if(isset($batch->id) && $batch->repeat_sample_id > 0)
@@ -2395,6 +2410,7 @@
 										<th>Standard</th>
 										@if(Auth::user()->is_client == 0)
 										<th>Remarks</th>
+										<th>Reporting Unit</th>
 										<th>Analyst</th>
 										@endif
 										<th>Method</th>
@@ -3225,7 +3241,7 @@
 					<h5>${section}</h5>
 					
 				</td>
-				<td class="pull-right" colspan="9" style="padding-left:1%">
+				<td class="pull-right" colspan="11" style="padding-left:1%">
 					<b>Date of Analysis</b>
 					<input type="date" class="start_analysis_date" value="${datevalue}" style="margin-left:1%;width:20%">
 					<span class="btn btn-sm btn-success save-analysis-start-date" style="font-size:14px !important"><i class="mdi mdi-sync"></i>Click to Save Date</span>
@@ -4080,6 +4096,7 @@
 								<div class="form-group">
 									<label for="" class="control-label">Limit Measure</label>
 									<select name="limit_measure" id="" class="form-control limit-measure">
+										<option value="">Choose Limit</option>
 										<option value="Max">Max</option>
 										<option value="Min">Min</option>
 										<option value="less_than">< (Less Than)</option>
@@ -4200,11 +4217,15 @@
 					value :  $('#edit-standard').find('.value').val(),
 				},
 				success:(data)=>{
+					console.log('------------Success Data-----------------')
+					console.log(data);
+					console.log('------------Success Data-----------------')
+
 					$('#edit-standard').find('.before-save').addClass('hidden');
 					$('#edit-standard').find('.after-save').removeClass('hidden');
 					$('#edit-standard').find('.save-standard-value').addClass('hidden');
 					
-					console.log('-----------------------------')
+					
 					// e.preventDefault();
 					var parentDiv = $(relatedTargetElement).data('valueid');
 					$(relatedTargetElement).data('standardvalue',data['value']);
@@ -4270,7 +4291,6 @@
 			readonly = 'disabled';
 		@endif
 		
-
 	
 		var $oGRow = $(`
 			<tr class="raw-data-row ${data.result == null ? 'no-result' : 'has-result'} ${!userLabSection.includes(data.lab_section_id) && thebatch.status == 'Samples In Lab' ? 'hiddens' : ''}" id="row-${loop}" >
@@ -4286,7 +4306,7 @@
 				<td  nowrap>${data.analysis_type.code}</td>
 				<td  nowrap><input type="hidden" name="captured_result_id[]" value="${data.id}">${data.analyte_name}</td>
 				@if(Auth::user()->is_client == 0)
-				<td nowrap class="hidden" ><input type="text" {{isset($batch->status) && $batch->status != 'Samples In Lab' ? 'disabled' : ''}} name="result_reporting_symbol[${data.id}]" id="reporting-symbol" placeholder="Reporting Symbol..." value="${data.result_reporting_symbol == null ? '' :data.result_reporting_symbol }" ></td>
+				<td><input type="text" {{isset($batch->status) && $batch->status != 'Samples In Lab' ? 'disabled' : ''}} name="result_reporting_symbol[${data.id}]" id="reporting-symbol" placeholder="Reporting Symbol..." value="${data.result_reporting_symbol == null ? '' :data.result_reporting_symbol }" ></td>
 				<td>
 					<div class="form-group">
 						<input {{isset($batch->status) && $batch->status != 'Samples In Lab' ? 'disabled' : ''}} id="${data.sample_detail_code},${data.analyte_code},${data.id},${data.analyte_id}" data-resultid="${data.sample_detail_code},${data.analyte_code},${data.id},${data.analyte_id}" style="min-width: 150px" type="text"
@@ -4322,6 +4342,19 @@
 						</select>
 					</div>
 				</td>
+				<td nowrap">
+					<div class="form-group form-group-sm">
+						<select class="form-control form-control-sm sample-reporting-unit"  name="reporting_unit[${data.id}]" style="width: 200px !important" placeholder="Select Sample Reporting Unit...">
+							<option></option>
+							@if($reportingUnits)
+								@foreach($reportingUnits as $unit)
+									<option value="{{ $unit['name'] }}">{{ $unit['name'] }}</option>
+								@endforeach
+							@endif
+						</select>
+					</div>
+					<span class="text"></span>
+				</td>
 				<td>
 					<div class="form-group" name="operators" placeholder="Select Operator...">
 						<select style="min-width: 150px" class="form-control item-operators"  name="operators[${data.id}]" placeholder="Select Operator..." data-selected="${data.def_operator ? data.def_operator.id : 0 }"></select>
@@ -4350,6 +4383,12 @@
 		`);
 
 		var $row = $oGRow.clone();
+		// console.log('am here -----------1')
+		// // console.log(data.my_analyte.reporting_unit)
+		// console.log('am here -----------1')
+
+		data.reporting_unit_id == '' ? $($row).find('.sample-reporting-unit').val(data.my_analyte.reporting_unit) :$($row).find('.sample-reporting-unit').val(data.reporting_unit_id) ;
+		$($row).find('.sample-reporting-unit').select2();
 		
 		$row.on('keypress','.first-result',function(e){
 			if (e.which == 13) {

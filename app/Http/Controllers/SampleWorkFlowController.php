@@ -491,7 +491,7 @@ class SampleWorkFlowController extends Controller
 			$header->document_number = $request->document_number;
 			$header->importer_address = $request->importer_address;
 			$header->date_expected = $request->date_expected;
-			$header->quote_id = $request->quote_id;
+			$header->quote_id = $request->quote_id;$header->sampling_method_id = $request->sampling_method_id;
 			$header->radio_active_levels = $request->radio_active_levels;
 			$header->receiving_officer_name = $request->receive_by;
 			$header->receiving_officer =  $request->receive_by;
@@ -507,7 +507,8 @@ class SampleWorkFlowController extends Controller
 				}
 			}
 		}
-
+		
+		
 		$header->how_sample_was_obtained = $request->how_sample_was_obtained;
 		$header->declared_commodity_code = $request->declared_commodity_code;
 		$header->declared_amount = $request->declared_amount ?? 0;
@@ -518,6 +519,8 @@ class SampleWorkFlowController extends Controller
 		$header->kra_office_station = $request->kra_office_station;
 		$header->where_sample_was_obtained = $request->where_sample_was_obtained;
 		$header->submit_by = $request->submit_by;
+		$header->radio_active_levels = $request->radio_active_levels;
+		$header->importer_address = $request->importer_address;
 		if (isset($request->sampled_by_company_personnel)) {
 			$header->sampled_by_company_personnel = 1;
 		} else {
@@ -594,7 +597,7 @@ class SampleWorkFlowController extends Controller
 			$this->updateChainofCustody($custodyDetails);
 		}
 
-		$route_obj = ['batch' => $header->id];
+		$route_obj = ['batch' => $header->id,'client'=>0,'portal'=>0,"status"=>$header->status];
 
 		if ($request->has('is_client_order')) {
 			$route_obj['client'] = $request->crm_customer_id;
@@ -1131,6 +1134,7 @@ class SampleWorkFlowController extends Controller
 			// return response()->json($batch);
 			$batch->save();
 		}
+		$section_approvers_users = LabSectionApproverRelationShip::whereIn('lab_section_id', explode(',', $batch->lab_section_ids))->get();
 		$receiving_role = SystemConfiguration::where('key','receiving_role_id')->first();
 		// $test =  UserRole::where('role_id',isset($receiving_role->value) ? $receiving_role->value : 0)->get();
 		// return response()->json($test);
@@ -1145,6 +1149,7 @@ class SampleWorkFlowController extends Controller
 		$users = User::where('is_client', 0)->where('supplier_id', 0)->where('active', 1)->get();
 		$labsections = SampleAnalysisStage::where('active', 1)->get();
 		$reportingUnits = getReportingUnits();
+		// return response()->json($reportingUnits);
 		$conditions = SampleCondition::where('active', 1)->get();
 		$products = CompanyProduct::all();
 		$workflowstages = [];
@@ -1266,6 +1271,7 @@ class SampleWorkFlowController extends Controller
 		// return response()->json($methods);
 
 		foreach ($batch->captured_results ?? array() as $item) {
+			// return response()->json($item);
 			if (!isset($analaytesHolder[$item->sample_detail_code])) {
 				$analaytesHolder[$item->sample_detail_code] = array();
 			}
@@ -1331,7 +1337,7 @@ class SampleWorkFlowController extends Controller
 			// return response()->json($batch);
 		}
 
-		// return response()->json($batch);
+		// return response()->json($analaytesHolder);
 
 		foreach ($batch->samples ?? array() as $sample) {
 			$labSamples[$sample->sample_code] = getSampleDetailsLab($sample->id);
@@ -1359,7 +1365,7 @@ class SampleWorkFlowController extends Controller
 		$notesReminderType = getNotesReminderTypes();
 		$clients = getClients();
 		// return response()->json($analysts);
-		return view('layouts.lab.sample-workflow.show', compact('batch', 'batchID', 'defaultClient', 'selectedSampleType', 'client_portal', 'ammendable', 'standards', 'attachments', 'not_captured', 'analysts', 'countries', 'accounts', 'methods', 'atachment_type', 'batch_scope', 'customer_survey', 'interlabs', 'labs', 'users', 'payment_detail', 'labsections', 'contacts', 'batch_sample_codes', 'report_formats', 'approvers', 'reportingUnits', 'conditions', 'products', 'headerDetails', 'analaytesHolder', 'analysisBySample', 'analysisBySampleNames', 'labSamples', 'workflowstages', 'workflows', 'sample_types', 'samplingmethods', 'active_company', 'ammendments', 'allsamples', 'selected_analysis_types', 'userLabSections', 'customer', 'requestTypes', 'notifiable_users', 'notesReminderType', 'clients', 'disposal_date', 'status','recieving_users'));
+		return view('layouts.lab.sample-workflow.show', compact('batch', 'batchID', 'defaultClient', 'selectedSampleType', 'client_portal', 'ammendable', 'standards', 'attachments', 'not_captured', 'analysts', 'countries', 'accounts', 'methods', 'atachment_type', 'batch_scope', 'customer_survey', 'interlabs', 'labs', 'users', 'payment_detail', 'labsections', 'contacts', 'batch_sample_codes', 'report_formats', 'approvers', 'reportingUnits', 'conditions', 'products', 'headerDetails', 'analaytesHolder', 'analysisBySample', 'analysisBySampleNames', 'labSamples', 'workflowstages', 'workflows', 'sample_types', 'samplingmethods', 'active_company', 'ammendments', 'allsamples', 'selected_analysis_types', 'userLabSections', 'customer', 'requestTypes', 'notifiable_users', 'notesReminderType', 'clients', 'disposal_date', 'status','recieving_users','section_approvers_users'));
 	}
 
 	public function fetch_unit_stuff($name, $client)
@@ -2111,6 +2117,8 @@ class SampleWorkFlowController extends Controller
 				// return response()->json('here '.$cID);
 				$captured->analyte_accredited = 0;
 			}
+			$captured->result_reporting_symbol = $request->result_reporting_symbol[$cID];
+			$captured->reporting_unit_id = $request->reporting_unit[$cID];
 			$captured->method_id = $request->method_id[$cID];
 			$captured->result = $request->result[$cID];
 			$captured->result_reporting_symbol = $request->result_reporting_symbol[$cID];
@@ -2213,7 +2221,35 @@ class SampleWorkFlowController extends Controller
 						$type = gettype($analyte_guide->standard_is_value);
 						if ($type == 'integer' || $type == 'double') {
 							if (trim($reporting_symbol) == '>') {
-								$response = 'FAIL';
+								if ($analyte_guide->value_type == 'Max' || $analyte_guide->value_type == '' || $analyte_guide->value_type == null) {
+
+									$response = 'FAIL';
+								}
+								if ($analyte_guide->value_type == 'Min' || $analyte_guide->value_type == '') {
+
+									$response =  'PASS';
+								}
+								if ($analyte_guide->value_type == 'less_than') {
+									$response = 'FAIL';
+								}
+								if ($analyte_guide->value_type == 'greater_than') {
+									$response = 'PASS';
+								}
+							} elseif($reporting_symbol == '<'){
+								if ($analyte_guide->value_type == 'Max' || $analyte_guide->value_type == '' || $analyte_guide->value_type == null) {
+
+									$response = 'PASS';
+								}
+								if ($analyte_guide->value_type == 'Min' || $analyte_guide->value_type == '') {
+
+									$response =  'FAIL';
+								}
+								if ($analyte_guide->value_type == 'less_than') {
+									$response = 'PASS';
+								}
+								if ($analyte_guide->value_type == 'greater_than') {
+									$response = 'FAIL';
+								}
 							} else {
 								if ($analyte_guide->value_type == 'Max' || $analyte_guide->value_type == '' || $analyte_guide->value_type == null) {
 
@@ -2234,7 +2270,35 @@ class SampleWorkFlowController extends Controller
 						} else {
 							if ($analyte_guide->standard_is_value != '') {
 								if (trim($reporting_symbol) == '>') {
-									$response = 'FAIL';
+									if ($analyte_guide->value_type == 'Max' || $analyte_guide->value_type == '' || $analyte_guide->value_type == null) {
+	
+										$response = 'FAIL';
+									}
+									if ($analyte_guide->value_type == 'Min' || $analyte_guide->value_type == '') {
+	
+										$response =  'PASS';
+									}
+									if ($analyte_guide->value_type == 'less_than') {
+										$response = 'FAIL';
+									}
+									if ($analyte_guide->value_type == 'greater_than') {
+										$response = 'PASS';
+									}
+								} elseif($reporting_symbol == '<'){
+									if ($analyte_guide->value_type == 'Max' || $analyte_guide->value_type == '' || $analyte_guide->value_type == null) {
+	
+										$response = 'PASS';
+									}
+									if ($analyte_guide->value_type == 'Min' || $analyte_guide->value_type == '') {
+	
+										$response =  'FAIL';
+									}
+									if ($analyte_guide->value_type == 'less_than') {
+										$response = 'PASS';
+									}
+									if ($analyte_guide->value_type == 'greater_than') {
+										$response = 'FAIL';
+									}
 								} else {
 									if ($analyte_guide->value_type == 'Max' || $analyte_guide->value_type == '') {
 
@@ -3181,19 +3245,24 @@ class SampleWorkFlowController extends Controller
 		}
 		isset($request->interlab_id) && $request->interlab_id != '0' ? InterLabLog::find($request->interlab_id)->update($log) : InterLabLog::insert($log);
 		if ($request->notify_user != '' || $request->sms_notify !=  '') {
-			$sample_codes = isset($request->batch_level) ? implode(', ', SampleDetails::whereIn('id', $sample_ids)->pluck('sample_code')->toArray()) : SampleDetails::find($request->sample_id)->sample_code;
+			$sample_codes = isset($request->batch_level) ? SampleDetails::whereIn('id', $sample_ids)->get() : SampleDetails::where('id',$request->sample_id)->get();
+			$samplecodesList= '';
+			
+			foreach($sample_codes as $s_code){
+				$samplecodesList .= '<li><a href="http://172.16.16.252:8080/sample-workflow/batch/'.$s_code->sample_header_id.'/details/0/0/'.$s_code->getSampleHeader()->status.'">'.$s_code->sample_code.'</a></li>';
+			}
 			$bcc_emails = User::whereIn('id', $request->also_notify ?? [])->pluck('email')->toArray();
-			$body = 'Hi Team, <br> The following sample(s) require  your attention for approval of inter laboratory transfer raised by ' . auth()->user()->name . '<br>' . $sample_codes;
+			$body = 'Hi Team, <br> The following sample(s) require  your attention for approval of inter laboratory transfer raised by ' . auth()->user()->name . '<br>Click the sample codes to access the sample InterLab Log <br><ul>' . $samplecodesList.'</ul>';
 			$to_email = getUserById($request->notify_user);
 
 
 
 			if (isset($to_email->id)) {
 				notify_user($body, $to_email->email, '[Polucon  Polucon Services Limited] Inter Laboratory Transfer Approval Notification', false, false, $bcc_emails);
-				sendTextMessage($to_email->phone, 'Hi ' . $to_email->name . ', The following sample(s) require  your attention for approval of inter laboratory transfer raised by ' . auth()->user()->name);
-				foreach (User::whereIn('id', $request->also_notify ?? [])->get() as $user) {
-					$user->phone != '' ? sendTextMessage($user->phone, 'Hi ' . $user->name . ', The following sample(s) require  your attention for approval of inter laboratory transfer raised by ' . auth()->user()->name) . ':  ' . $sample_codes : '';
-				}
+				// sendTextMessage($to_email->phone, 'Hi ' . $to_email->name . ', The following sample(s) require  your attention for approval of inter laboratory transfer raised by ' . auth()->user()->name);
+				// foreach (User::whereIn('id', $request->also_notify ?? [])->get() as $user) {
+				// 	$user->phone != '' ? sendTextMessage($user->phone, 'Hi ' . $user->name . ', The following sample(s) require  your attention for approval of inter laboratory transfer raised by ' . auth()->user()->name) . ':  ' . $sample_codes : '';
+				// }
 			}
 		}
 
