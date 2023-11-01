@@ -445,6 +445,7 @@ class SampleWorkFlowController extends Controller
 			$header->client_instruction_clear = isset($request->client_instruction_clear) ? 1 : 0;
 			$header->batch_instructions = $request->batch_instructions;
 			$header->sampling_method_id = $request->sampling_method_id;
+			$header->payment_done_by = $request->payment_done_by;
 			$header->condition_quality_sample = $request->condition_quality_sample;
 			$header->invoice_amount = $request->invoice_amount;
 			$header->lab_section_ids = implode(',', $request->lab_section_ids ?? []);
@@ -508,7 +509,7 @@ class SampleWorkFlowController extends Controller
 			}
 		}
 		
-		
+		$header->sampling_method_id = $request->sampling_method_id;
 		$header->how_sample_was_obtained = $request->how_sample_was_obtained;
 		$header->declared_commodity_code = $request->declared_commodity_code;
 		$header->declared_amount = $request->declared_amount ?? 0;
@@ -2223,32 +2224,32 @@ class SampleWorkFlowController extends Controller
 							if (trim($reporting_symbol) == '>') {
 								if ($analyte_guide->value_type == 'Max' || $analyte_guide->value_type == '' || $analyte_guide->value_type == null) {
 
-									$response = 'FAIL';
+									$response =  $result <  floatval($analyte_guide->standard_is_value) ? 'PASS' : 'FAIL';
 								}
 								if ($analyte_guide->value_type == 'Min' || $analyte_guide->value_type == '') {
 
-									$response =  'PASS';
+									$response =  $result >  floatval($analyte_guide->standard_is_value) ? 'PASS' : 'FAIL';
 								}
 								if ($analyte_guide->value_type == 'less_than') {
-									$response = 'FAIL';
+									$response = $result <  floatval($analyte_guide->standard_is_value) ? 'PASS' : 'FAIL';
 								}
 								if ($analyte_guide->value_type == 'greater_than') {
-									$response = 'PASS';
+									$response = $result > floatval($analyte_guide->standard_is_value) ? 'PASS' : 'FAIL';
 								}
 							} elseif($reporting_symbol == '<'){
 								if ($analyte_guide->value_type == 'Max' || $analyte_guide->value_type == '' || $analyte_guide->value_type == null) {
 
-									$response = 'PASS';
+									$response = $result <  floatval($analyte_guide->standard_is_value) ? 'PASS' : 'FAIL';;
 								}
 								if ($analyte_guide->value_type == 'Min' || $analyte_guide->value_type == '') {
 
-									$response =  'FAIL';
+									$response =  $result >  floatval($analyte_guide->standard_is_value) ? 'PASS' : 'FAIL';;;
 								}
 								if ($analyte_guide->value_type == 'less_than') {
-									$response = 'PASS';
+									$response = $result <  floatval($analyte_guide->standard_is_value) ? 'PASS' : 'FAIL';;;
 								}
 								if ($analyte_guide->value_type == 'greater_than') {
-									$response = 'FAIL';
+									$response = $result >  floatval($analyte_guide->standard_is_value) ? 'PASS' : 'FAIL';;;
 								}
 							} else {
 								if ($analyte_guide->value_type == 'Max' || $analyte_guide->value_type == '' || $analyte_guide->value_type == null) {
@@ -2271,33 +2272,33 @@ class SampleWorkFlowController extends Controller
 							if ($analyte_guide->standard_is_value != '') {
 								if (trim($reporting_symbol) == '>') {
 									if ($analyte_guide->value_type == 'Max' || $analyte_guide->value_type == '' || $analyte_guide->value_type == null) {
-	
-										$response = 'FAIL';
+
+										$response =  $result <  floatval($analyte_guide->standard_is_value) ? 'PASS' : 'FAIL';
 									}
 									if ($analyte_guide->value_type == 'Min' || $analyte_guide->value_type == '') {
 	
-										$response =  'PASS';
+										$response =  $result >  floatval($analyte_guide->standard_is_value) ? 'PASS' : 'FAIL';
 									}
 									if ($analyte_guide->value_type == 'less_than') {
-										$response = 'FAIL';
+										$response = $result <  floatval($analyte_guide->standard_is_value) ? 'PASS' : 'FAIL';
 									}
 									if ($analyte_guide->value_type == 'greater_than') {
-										$response = 'PASS';
+										$response = $result > floatval($analyte_guide->standard_is_value) ? 'PASS' : 'FAIL';
 									}
 								} elseif($reporting_symbol == '<'){
 									if ($analyte_guide->value_type == 'Max' || $analyte_guide->value_type == '' || $analyte_guide->value_type == null) {
-	
-										$response = 'PASS';
+
+										$response = $result <  floatval($analyte_guide->standard_is_value) ? 'PASS' : 'FAIL';;
 									}
 									if ($analyte_guide->value_type == 'Min' || $analyte_guide->value_type == '') {
 	
-										$response =  'FAIL';
+										$response =  $result >  floatval($analyte_guide->standard_is_value) ? 'PASS' : 'FAIL';;;
 									}
 									if ($analyte_guide->value_type == 'less_than') {
-										$response = 'PASS';
+										$response = $result <  floatval($analyte_guide->standard_is_value) ? 'PASS' : 'FAIL';;;
 									}
 									if ($analyte_guide->value_type == 'greater_than') {
-										$response = 'FAIL';
+										$response = $result >  floatval($analyte_guide->standard_is_value) ? 'PASS' : 'FAIL';;;
 									}
 								} else {
 									if ($analyte_guide->value_type == 'Max' || $analyte_guide->value_type == '') {

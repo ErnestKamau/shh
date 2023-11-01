@@ -463,6 +463,10 @@
 							<?php endforeach; $__env->popLoop(); $loop = $__env->getLastLoop(); ?>
 						</select>
 					</div>
+					<div class="form-group col-md-3">
+						<label for="" class="control-label">Payment Made By</label>
+						<input type="text" value="<?php echo e(isset($batch->id) ? $batch->payment_done_by : ''); ?>" name="payment_done_by" placeholder="Payment Made By" class="form-control">
+					</div>
 					<div class="form-group btn-group-sm col-md-3">
 						<label class="control-label">Quotation Number</label>
 						<input type="text" class="form-control" data-batch="<?php echo e(isset($batch->id) ? json_encode($batch->id) : 0); ?>" name="quote_no" value="<?php echo e($batch->quote_no ?? ''); ?>" placeholder="Quotation Number..." />
@@ -4319,7 +4323,7 @@
 				<td><input type="text" <?php echo e(isset($batch->status) && $batch->status != 'Samples In Lab' ? 'disabled' : ''); ?> name="result_reporting_symbol[${data.id}]" id="reporting-symbol" placeholder="Reporting Symbol..." value="${data.result_reporting_symbol == null ? '' :data.result_reporting_symbol }" ></td>
 				<td>
 					<div class="form-group">
-						<input <?php echo e(isset($batch->status) && $batch->status != 'Samples In Lab' ? 'disabled' : ''); ?> id="${data.sample_detail_code},${data.analyte_code},${data.id},${data.analyte_id}" data-resultid="${data.sample_detail_code},${data.analyte_code},${data.id},${data.analyte_id}" style="min-width: 150px" type="text"
+						<input <?php echo e(isset($batch->status) && $batch->status != 'Samples In Lab' ? 'disabled' : ''); ?> id="${data.sample_detail_code},${data.analyte_code},${data.id},${data.analyte_id}" data-resultid="${data.sample_detail_code},${data.analyte_id},${data.id},${data.analyte_id}" style="min-width: 150px" type="text"
 						class="form-control ${data.remark_is_manual == 0 ? 'first-result' : ''}" ${interLabApproval == 1 ? "disabled" : ""}  id="result-${loop}" value="${data.result == null ? '' : data.result}" name="result[${data.id}]" placeholder="Result..." />
 						<input type="hidden" name="result_confirm"  />
 					</div>

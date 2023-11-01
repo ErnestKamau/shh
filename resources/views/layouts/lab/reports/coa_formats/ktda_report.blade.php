@@ -127,7 +127,12 @@
             <tr>
                 <td>
                     <div class="text-center" style="font-size:8px">
-                        <img src="{{ $polucon_disclaimer }}" style="width:auto;height:55px" alt="">
+                        {{-- @if($sample['is_accreddited_status'] == 1)
+                            <img src="{{ $polucon_disclaimer_not }}" style="width:auto;height:55px" alt="">  
+                        @else
+                            <img src="{{ $polucon_disclaimer }}" style="width:auto;height:55px" alt="">  
+                        @endif --}}
+                        <img src="{{ $polucon_disclaimer }}" style="width:auto;height:55px" alt="">  
                         @if($batch->sampled_by_company_personnel == 0)
                         <span class="text-center"><b>NB: This report relates to submitted sample(s) only. The source and/or markings are as provided by the customer.</b><span>
                         @endif
@@ -210,7 +215,7 @@
                 </tr>
                 <tr>
                     <td style="border: solid 0 transparent !important;border-right:1px solid rgba(0, 0, 0, 0.35);font-size:8px !important;border-left:1px solid rgba(0, 0, 0, 0.35);padding:2px;padding-left:4px">SAMPLING METHOD</td>
-                    <td style="border: solid 0 transparent !important;padding:2px;padding-left:10px !important;font-size:8px !important;border-right:1px solid rgba(0, 0, 0, 0.35);border-left: 2.1px solid rgba(0, 0, 0, 0.35);">{{ $sample->sampling_method_name ?? '' }}</td>
+                    <td style="border: solid 0 transparent !important;padding:2px;padding-left:10px !important;font-size:8px !important;border-right:1px solid rgba(0, 0, 0, 0.35);border-left: 2.1px solid rgba(0, 0, 0, 0.35);">{{ $sample->sampling_method_name ?? 'N/A' }}</td>
                 </tr>
                 <tr>
                     <td style="border: solid 0 transparent !important;border-right:1px solid rgba(0, 0, 0, 0.35);font-size:8px !important;border-left:1px solid rgba(0, 0, 0, 0.35);padding:2px;padding-left:4px">SAMPLE ID</td>
@@ -218,7 +223,7 @@
                 </tr>
                 <tr>
                     <td style="border: solid 0 transparent !important;border-right:1px solid rgba(0, 0, 0, 0.35);font-size:8px !important;border-bottom:1px solid rgba(0, 0, 0, 0.35);border-left:1px solid rgba(0, 0, 0, 0.35);padding:2px;padding-left:4px">MARKINGS</td>
-                    <td style="border: solid 0 transparent !important;padding:2px;padding-left:10px !important;font-size:8px !important;border-bottom:1px solid rgba(0, 0, 0, 0.35);border-right:1px solid rgba(0, 0, 0, 0.35);border-left: 2.1px solid rgba(0, 0, 0, 0.35);">{{ $sample->comments ?? '' }}</td>
+                    <td style="border: solid 0 transparent !important;padding:2px;padding-left:10px !important;font-size:8px !important;border-bottom:1px solid rgba(0, 0, 0, 0.35);border-right:1px solid rgba(0, 0, 0, 0.35);border-left: 2.1px solid rgba(0, 0, 0, 0.35);">{{ $sample->comments ?? 'N/A' }}</td>
                 </tr>
                
             </table>
@@ -257,7 +262,12 @@
                                     <tr>
                                         <td class="parameter"
                                             style="font-size: 9px !important;padding-left:3px !important;">
-                                            {!! $captured->analyte_status_contracted == 1 ? '<small>*</small>' : '' !!} {{ $captured->analyte_code }}
+                                            @if($sample['is_accreddited_status'] == 1)
+                                
+                                            {!! $captured->analyte_status_contracted == 1 ? '<small>+</small>' : '' !!} {!! $captured->analyte_accredited == 0 ? '<small>*</small>' : '' !!}  {!! $captured->is_italic == 1 ? '<i>'. $captured->analyte_code.'</i>' : $captured->analyte_code !!}
+                                            @else
+                                            {!! $captured->analyte_status_contracted == 1 ? '<small>+</small>' : '' !!} {!! $captured->analyte_accredited == 1 ? '<small>*</small>' : '' !!}  {!! $captured->is_italic == 1 ? '<i>'. $captured->analyte_code.'</i>' : $captured->analyte_code !!}
+                                            @endif
                                         </td>
                                         <td class="parameter"
                                             style="font-size: 9px !important;padding-left:3px !important;">
@@ -311,7 +321,12 @@
                                     <tr>
                                         <td class="parameter"
                                             style="font-size: 9px !important;padding-left:3px !important;">
-                                            {!! $captured->analyte_status_contracted == 1 ? '<small>*</small>' : '' !!} {{ $captured->analyte_code }}
+                                            @if($sample['is_accreddited_status'] == 1)
+                                
+                                            {!! $captured->analyte_status_contracted == 1 ? '<small>+</small>' : '' !!} {!! $captured->analyte_accredited == 0 ? '<small>*</small>' : '' !!}  {!! $captured->is_italic == 1 ? '<i>'. $captured->analyte_code.'</i>' : $captured->analyte_code !!}
+                                            @else
+                                            {!! $captured->analyte_status_contracted == 1 ? '<small>+</small>' : '' !!} {!! $captured->analyte_accredited == 1 ? '<small>*</small>' : '' !!}  {!! $captured->is_italic == 1 ? '<i>'. $captured->analyte_code.'</i>' : $captured->analyte_code !!}
+                                            @endif
                                         </td>
 
                                         <td class="parameter {{ $captured->remark == 'FAIL' ? 'textBold' : '' }}"
@@ -382,7 +397,12 @@
                                         <?php $counter = $counter + 1; ?>
                                         <td class="parameter"
                                             style="font-size: 9px !important;padding-left:3px !important;">
-                                            {!! $captured->analyte_status_contracted == 1 ? '<small>*</small>' : '' !!} {{ $captured->analyte_code }}
+                                            @if($sample['is_accreddited_status'] == 1)
+                                
+                                            {!! $captured->analyte_status_contracted == 1 ? '<small>+</small>' : '' !!} {!! $captured->analyte_accredited == 0 ? '<small>*</small>' : '' !!}  {!! $captured->is_italic == 1 ? '<i>'. $captured->analyte_code.'</i>' : $captured->analyte_code !!}
+                                            @else
+                                            {!! $captured->analyte_status_contracted == 1 ? '<small>+</small>' : '' !!} {!! $captured->analyte_accredited == 1 ? '<small>*</small>' : '' !!}  {!! $captured->is_italic == 1 ? '<i>'. $captured->analyte_code.'</i>' : $captured->analyte_code !!}
+                                            @endif
                                         </td>
 
                                         <td class="parameter {{ $captured[0]->remark == 'FAIL' ? 'textBold' : '' }}"
@@ -402,7 +422,12 @@
                                         <?php $counter = $counter + 1; ?>
                                         <td class="parameter"
                                             style="font-size: 9px !important;padding-left:3px !important;">
-                                            {!! $captured->analyte_status_contracted == 1 ? '<small>*</small>' : '' !!} {{ $captured->analyte_code }}
+                                            @if($sample['is_accreddited_status'] == 1)
+                                
+                                            {!! $captured->analyte_status_contracted == 1 ? '<small>+</small>' : '' !!} {!! $captured->analyte_accredited == 0 ? '<small>*</small>' : '' !!}  {!! $captured->is_italic == 1 ? '<i>'. $captured->analyte_code.'</i>' : $captured->analyte_code !!}
+                                            @else
+                                            {!! $captured->analyte_status_contracted == 1 ? '<small>+</small>' : '' !!} {!! $captured->analyte_accredited == 1 ? '<small>*</small>' : '' !!}  {!! $captured->is_italic == 1 ? '<i>'. $captured->analyte_code.'</i>' : $captured->analyte_code !!}
+                                            @endif
                                         </td>
 
                                         <td class="parameter {{ $captured[1]->remark == 'FAIL' ? 'textBold' : '' }}"

@@ -108,6 +108,7 @@
         
         <?php $check_v = 0; ?>
         @foreach ($samples as $sample)
+        <?php $accreditted_status = $sample->getAcredditedStatus() ?>
             <div class="card m-4 mt-5" style="clear:both;box-shadow: rgba(100, 100, 111, 0.2) 0px 7px 29px 0px;">
                 <div class="card-body p-4">
                     <div class="d-flex justify-content-between p-2">
@@ -174,7 +175,14 @@
                                         <?php $captured->analyte_status_contracted == 1 ? ($check_v = 1) : 0; ?>
                                         <tr class="{{ $captured->remark == 'FAIL' ? 'text-bold' : '' }}">
 
-                                            <td>{!! $captured->analyte_status_contracted == 1 ? '<small>*</small>' : '' !!} {{ $captured->analyte_code }}</td>
+                                            <td>
+                                                @if($accreditted_status == 1)
+                                
+                                                {!! $captured->analyte_status_contracted == 1 ? '<small>+</small>' : '' !!} {!! $captured->analyte_accredited == 0 ? '<small>*</small>' : '' !!}  {!! $captured->is_italic == 1 ? '<i>'. $captured->analyte_code.'</i>' : $captured->analyte_code !!}
+                                                @else
+                                                {!! $captured->analyte_status_contracted == 1 ? '<small>+</small>' : '' !!} {!! $captured->analyte_accredited == 1 ? '<small>*</small>' : '' !!}  {!! $captured->is_italic == 1 ? '<i>'. $captured->analyte_code.'</i>' : $captured->analyte_code !!}
+                                                @endif
+                                                </td>
                                             <td>{{ $captured->method()->name }}</td>
                                             <td>{{ $captured->result_reporting_symbol ?? '' }}{{ $captured->result }}</td>
                                             <td>{{ $captured->reporting_unit_id }}</td>
@@ -192,7 +200,7 @@
                     <div class="comments mt-2 p-2 {{$sample->main_body != '' ? '' : 'hidden'}}">
                         <b>Recommendations : </b>{!! $sample->main_body !!}
                     </div>
-                    <div class="p-3 d-flex justify-content-between mt-2">
+                    <div class="p-3 d-flex justify-content-between mt-3">
                         <div class="lab-sect">
                             <b>{{ $sample->main_lab_name }} <br>
                                 {{ $batch->approval_date ?? 'Not Approved' }}

@@ -127,6 +127,11 @@
             <tr>
                 <td>
                     <div class="text-center" style="font-size:8px">
+                         {{-- @if($sample['is_accreddited_status'] == 1)
+                            <img src="{{ $polucon_disclaimer_not }}" style="width:auto;height:55px" alt="">  
+                        @else
+                            <img src="{{ $polucon_disclaimer }}" style="width:auto;height:55px" alt="">  
+                        @endif --}}
                         <img src="{{ $polucon_disclaimer }}" style="width:auto;height:55px" alt="">
                         @if($batch->sampled_by_company_personnel == 0)
                         <span class="text-center"><b>NB: This report relates to submitted sample(s) only. The source and/or markings are as provided by the customer.</b><span>
@@ -195,28 +200,28 @@
                 </tr>
                 <tr>
                     <td style="width: 20%"><b>SHIPPER</b></td>
-                    <td style="width: 30%" >{{ $batch->importer_address }}</td>
+                    <td style="width: 30%" >{{ $batch->importer_address ?? 'N/A' }}</td>
                     <td style="width: 20%"><b>VESSEL NAME</b></td>
-                    <td style="width: 30%">{{ $batch->declared_commodity_code }}</td>
+                    <td style="width: 30%">{{ $batch->declared_commodity_code ?? 'N/A' }}</td>
                 </tr>
                 <tr>
                     <td><b>CONSIGNEE</b></td>
-                    <td>{{ $batch->radio_active_levels }}</td>
+                    <td>{{ $batch->radio_active_levels  ?? 'N/A'}}</td>
                     <td><b>BL NUMBER</b></td>
-                    <td>{{ $batch->declared_amount }}</td>
+                    <td>{{ $batch->declared_amount ?? 'N/A' }}</td>
                 </tr>
                 <tr>
                     <td><b>NOTIFY PARTY (1)</b></td>
-                    <td>{{ $batch->kra_office_ref }}</td>
+                    <td>{{ $batch->kra_office_ref ?? 'N/A' }}</td>
                     <td><b>PORT OF LOADING</b></td>
-                    <td>{{ $batch->how_sample_was_obtained }}</td>
+                    <td>{{ $batch->how_sample_was_obtained ?? 'N/A' }}</td>
 
                 </tr>
                 <tr>
                     <td><b>NOTIFY PARTY (2)</b></td>
-                    <td>{{ $batch->kra_office_station }}</td>
+                    <td>{{ $batch->kra_office_station ?? 'N/A'}}</td>
                     <td><b>PORT OF DISCHARGE</b></td>
-                    <td>{{ $batch->sample_appearance_description }}</td>
+                    <td>{{ $batch->sample_appearance_description ?? 'N/A' }}</td>
                 </tr>
                 <tr>
                     <td><b>GOODS DESCRIPTION</b></td>
@@ -228,19 +233,19 @@
                     <td><b>QUANTITY</b></td>
                     <td>{{ $batch->net_quantity_and_unit_of_quantity }}</td>
                     <td><b>PLACE SAMPLED</b></td>
-                    <td>{{ $batch->where_sample_was_obtained }}</td>
+                    <td>{{ $batch->where_sample_was_obtained ?? 'N/A' }}</td>
                 </tr>
                 <tr>
                     <td><b>START DATE OF ANALYSIS</b></td>
                     <td>{{$analysis_date->start_analysis_date != '' ? convertDateFormatReports($analysis_date->start_analysis_date,'dateShortMonth') : '-' }}</td>
                     <td><b>SAMPLED BY</b></td>
-                    <td>{{ $batch->sampling_officer_name }}</td>
+                    <td>{{ $batch->sampling_officer_name ?? 'N/A' }}</td>
                 </tr>
                 <tr>
                     <td><b>FINISH DATE OF ANALYSIS</b></td>
                     <td>{{$batch->approval_date != '' ? convertDateFormatReports($batch->approval_date,'dateShortMonth') : '-' }}</td>
                     <td><b>SAMPLING METHOD</b></td>
-                    <td>{{ $sample->sample_method_name }}</td>
+                    <td>{{ $sample->sample_method_name ?? 'N/A' }}</td>
                 </tr>
             </table>
             @foreach ($sample['getBrandOuts'] as $key => $brands)
@@ -278,7 +283,12 @@
                                     <tr>
                                         <td class="parameter"
                                             style="font-size: 9px !important;padding-left:3px !important;">
-                                            {!! $captured->analyte_status_contracted == 1 ? '<small>*</small>' : '' !!} {{ $captured->analyte_code }}
+                                            @if($sample['is_accreddited_status'] == 1)
+                                
+                                            {!! $captured->analyte_status_contracted == 1 ? '<small>+</small>' : '' !!} {!! $captured->analyte_accredited == 0 ? '<small>*</small>' : '' !!}  {!! $captured->is_italic == 1 ? '<i>'. $captured->analyte_code.'</i>' : $captured->analyte_code !!}
+                                            @else
+                                            {!! $captured->analyte_status_contracted == 1 ? '<small>+</small>' : '' !!} {!! $captured->analyte_accredited == 1 ? '<small>*</small>' : '' !!}  {!! $captured->is_italic == 1 ? '<i>'. $captured->analyte_code.'</i>' : $captured->analyte_code !!}
+                                            @endif
                                         </td>
                                         <td class="parameter"
                                             style="font-size: 9px !important;padding-left:3px !important;">
@@ -332,7 +342,12 @@
                                     <tr>
                                         <td class="parameter"
                                             style="font-size: 9px !important;padding-left:3px !important;">
-                                            {!! $captured->analyte_status_contracted == 1 ? '<small>*</small>' : '' !!} {{ $captured->analyte_code }}
+                                            @if($sample['is_accreddited_status'] == 1)
+                                
+                                            {!! $captured->analyte_status_contracted == 1 ? '<small>+</small>' : '' !!} {!! $captured->analyte_accredited == 0 ? '<small>*</small>' : '' !!}  {!! $captured->is_italic == 1 ? '<i>'. $captured->analyte_code.'</i>' : $captured->analyte_code !!}
+                                            @else
+                                            {!! $captured->analyte_status_contracted == 1 ? '<small>+</small>' : '' !!} {!! $captured->analyte_accredited == 1 ? '<small>*</small>' : '' !!}  {!! $captured->is_italic == 1 ? '<i>'. $captured->analyte_code.'</i>' : $captured->analyte_code !!}
+                                            @endif
                                         </td>
 
                                         <td class="parameter {{ $captured->remark == 'FAIL' ? 'textBold' : '' }}"
@@ -403,7 +418,12 @@
                                         <?php $counter = $counter + 1; ?>
                                         <td class="parameter"
                                             style="font-size: 9px !important;padding-left:3px !important;">
-                                            {!! $captured->analyte_status_contracted == 1 ? '<small>*</small>' : '' !!} {{ $captured->analyte_code }}
+                                            @if($sample['is_accreddited_status'] == 1)
+                                
+                                            {!! $captured->analyte_status_contracted == 1 ? '<small>+</small>' : '' !!} {!! $captured->analyte_accredited == 0 ? '<small>*</small>' : '' !!}  {!! $captured->is_italic == 1 ? '<i>'. $captured->analyte_code.'</i>' : $captured->analyte_code !!}
+                                            @else
+                                            {!! $captured->analyte_status_contracted == 1 ? '<small>+</small>' : '' !!} {!! $captured->analyte_accredited == 1 ? '<small>*</small>' : '' !!}  {!! $captured->is_italic == 1 ? '<i>'. $captured->analyte_code.'</i>' : $captured->analyte_code !!}
+                                            @endif
                                         </td>
 
                                         <td class="parameter {{ $captured[0]->remark == 'FAIL' ? 'textBold' : '' }}"
@@ -423,7 +443,12 @@
                                         <?php $counter = $counter + 1; ?>
                                         <td class="parameter"
                                             style="font-size: 9px !important;padding-left:3px !important;">
-                                            {!! $captured->analyte_status_contracted == 1 ? '<small>*</small>' : '' !!} {{ $captured->analyte_code }}
+                                            @if($sample['is_accreddited_status'] == 1)
+                                
+                                            {!! $captured->analyte_status_contracted == 1 ? '<small>+</small>' : '' !!} {!! $captured->analyte_accredited == 0 ? '<small>*</small>' : '' !!}  {!! $captured->is_italic == 1 ? '<i>'. $captured->analyte_code.'</i>' : $captured->analyte_code !!}
+                                            @else
+                                            {!! $captured->analyte_status_contracted == 1 ? '<small>+</small>' : '' !!} {!! $captured->analyte_accredited == 1 ? '<small>*</small>' : '' !!}  {!! $captured->is_italic == 1 ? '<i>'. $captured->analyte_code.'</i>' : $captured->analyte_code !!}
+                                            @endif
                                         </td>
 
                                         <td class="parameter {{ $captured[1]->remark == 'FAIL' ? 'textBold' : '' }}"

@@ -174,7 +174,7 @@
                                     class="text-bold text-center text-muted">{{ $is_clustered == 0 ? $payment_detail->balance  ?? 0 : $payment_detail['balance'] }}
                                 </span></u>
                             <br> Payments to be made by <u><span
-                                    class="text-bold text-muted text-center">{{ $customer->name }}</span> </u> Contact
+                                    class="text-bold text-muted text-center">{{ $$batch->payment_done_by ?? $customer->name}}</span> </u> Contact
                             Person <u><span
                                     class="text-bold text-center text-muted">{{ $batch->getContactPersonDetail() ?? '-' }}</span></u>
                         </div>
