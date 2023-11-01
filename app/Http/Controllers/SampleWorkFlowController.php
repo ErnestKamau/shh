@@ -445,6 +445,7 @@ class SampleWorkFlowController extends Controller
 			$header->client_instruction_clear = isset($request->client_instruction_clear) ? 1 : 0;
 			$header->batch_instructions = $request->batch_instructions;
 			$header->sampling_method_id = $request->sampling_method_id;
+			$header->require_mu = $request->require_mu;
 			$header->payment_done_by = $request->payment_done_by;
 			$header->condition_quality_sample = $request->condition_quality_sample;
 			$header->invoice_amount = $request->invoice_amount;
@@ -2120,6 +2121,7 @@ class SampleWorkFlowController extends Controller
 			}
 			$captured->result_reporting_symbol = $request->result_reporting_symbol[$cID];
 			$captured->reporting_unit_id = $request->reporting_unit[$cID];
+			$captured->measure_uncertanity = $request->measure_uncertanity[$cID]
 			$captured->method_id = $request->method_id[$cID];
 			$captured->result = $request->result[$cID];
 			$captured->result_reporting_symbol = $request->result_reporting_symbol[$cID];

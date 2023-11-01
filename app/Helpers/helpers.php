@@ -1560,6 +1560,7 @@ function convertDateFormatReports($date,$format){
 		$raw_date = \Carbon\Carbon::parse($date);
 		$format_date = $raw_date->format('jS M Y');
 		return $format_date;
+		
 	}
 }
 function getStandardLimitValue($captured_id,$standard_id){

@@ -497,7 +497,11 @@
 					@endif
 				</div>
 				<div class="row p-2 mt-3">
-					
+					<div class="form-group col-md-4 btn-group-sm">
+						<label class="control-label">
+							<input type="checkbox" name="require_mu" value="1" {{ isset($batch->require_mu) && $batch->client_instruction_clear == 1 ? 'checked' : '' }}> Client has requested Measure of uncertainity  ?
+						</label>
+					</div>
 					<div class="form-group col-md-4 btn-group-sm">
 						<label class="control-label">
 							<input type="checkbox" name="client_instruction_clear" value="1" {{ isset($batch->client_instruction_clear) && $batch->client_instruction_clear == 1 ? 'checked' : '' }}> Are client`s instructions clear ?
@@ -2411,6 +2415,9 @@
 										@if(Auth::user()->is_client == 0)
 										<th>Reporting Symbol</th>
 										<th nowrap>Result</th>
+										@if(isset($batch->id) && $batch->require_mu == 1)
+										<th>Uncertainity (+-)</th>
+										@endif
 										@endif
 										@if(isset($batch->id) && $batch->repeat_sample_id > 0)
 										<th>Prev Result (<small>+- {{$qc_config_perc}} %</small>)</th>
@@ -4336,7 +4343,14 @@
 						class="form-control ${data.remark_is_manual == 0 ? 'first-result' : ''}" ${interLabApproval == 1 ? "disabled" : ""}  id="result-${loop}" value="${data.result == null ? '' : data.result}" name="result[${data.id}]" placeholder="Result..." />
 						<input type="hidden" name="result_confirm"  />
 					</div>
+				</td>measure_uncertanity
+				@if(isset($batch->id) && $batch->require_mu == 1)
+				<td>
+					<div class="form-group">
+						<input type="text" name="measure_uncertanity[${data.id}]" value="${data.measure_uncertanity}" placeholder="Uncertanity" class="form-control">
+					</div>
 				</td>
+				@endif
 				@endif
 				@if($batch && $batch->is_qc_batch == 1 && $batch->repeat_sample_id > 0)
 				<td style="width:150px !important">

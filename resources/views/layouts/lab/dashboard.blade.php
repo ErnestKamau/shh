@@ -253,7 +253,7 @@
                         <td nowrap>{{ $item->tracking_stage()->name ?? 'n/a' }}</td>
                         <td>{{ $item->is_routine == 1 ? 'Yes' : 'No' }}</td>
                         <td>{{ $item->is_routine == 1 ? number_format($item->routine_frequency,0).' days' : 'n/a' }}</td>
-
+                        
                     </tr>
                     @endforeach
                 </tbody>
