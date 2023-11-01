@@ -260,7 +260,6 @@
                             </td>
                         </tr> --}}
                         @foreach ($analysis_type_level->getCapturedResults() as $captured)
-                       
                         <tr>
                             <td class="parameter" style="font-size: 9px !important;padding-left:3px !important;">
                                 @if($sample['is_accreddited_status'] == 1)
@@ -280,7 +279,7 @@
                                 {{ $captured->reporting_unit_id ?? '' }}
                             </td>  
                             <td class="parameter " style="font-size: 9px !important;padding-left:3px !important;">
-                                {{ $captured->main_value ?? '' }} {{getStandardLimitValue($captured->id,$sample->main_standard) ?? ''}}
+                                {{ $captured->main_value ?? '' }}
                             </td>                            
 
                         </tr>
