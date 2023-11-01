@@ -123,7 +123,13 @@
             <tr>
                 <td>
                     <div class="text-center" style="font-size:8px">
-                        <img src="{{ $polucon_disclaimer }}" style="width:auto;height:55px" alt="">
+                        {{-- @if($sample['is_accreddited_status'] == 1)
+                            <img src="{{ $polucon_disclaimer_not }}" style="width:auto;height:55px" alt="">  
+                        @else
+                            <img src="{{ $polucon_disclaimer }}" style="width:auto;height:55px" alt="">  
+                        @endif --}}
+                        <img src="{{ $polucon_disclaimer }}" style="width:auto;height:55px" alt="">  
+
                         @if($batch->sampled_by_company_personnel == 0)
                         <span class="text-center"><b>NB: This report relates to submitted sample(s) only. The source and/or markings are as provided by the customer.</b><span>
                         @endif
@@ -255,7 +261,12 @@
                         @foreach ($analysis_type_level->getCapturedResults() as $captured)
                         <tr>
                             <td class="parameter" style="font-size: 9px !important;padding-left:3px !important;">
-                                {!! $captured->analyte_status_contracted == 1 ? '<small>*</small>' : '' !!} {!! $captured->is_italic == 1 ? '<i>'. $captured->analyte_code.'</i>' : $captured->analyte_code !!}
+                                @if($sample['is_accreddited_status'] == 1)
+                                
+                                {!! $captured->analyte_status_contracted == 1 ? '<small>+</small>' : '' !!} {!! $captured->analyte_accredited == 0 ? '<small>*</small>' : '' !!}  {!! $captured->is_italic == 1 ? '<i>'. $captured->analyte_code.'</i>' : $captured->analyte_code !!}
+                                @else
+                                {!! $captured->analyte_status_contracted == 1 ? '<small>+</small>' : '' !!} {!! $captured->analyte_accredited == 1 ? '<small>*</small>' : '' !!}  {!! $captured->is_italic == 1 ? '<i>'. $captured->analyte_code.'</i>' : $captured->analyte_code !!}
+                                @endif
                             </td>  
                             <td class="parameter" style="font-size: 9px !important;padding-left:3px !important;">
                                 {{ strtoupper($captured->method()->name ?? '') }}

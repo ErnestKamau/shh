@@ -128,6 +128,7 @@ class ReportHeaderDetailController extends Controller
 		$kenas = public_path('images/kenas_footer.jpg');
 		$nema = public_path('images/nema_footer.jpg');
 		$polucon_disclaimer = public_path('images/polucon_disclaimer.jpg');
+		$polucon_disclaimer_not = public_path('images/polucon_disclaimer_not.jpg');
 		$stamp = public_path('images/stamp.png');
 
 		$batch = \App\SampleHeader::find($batch_id);
@@ -138,7 +139,7 @@ class ReportHeaderDetailController extends Controller
 		$report_type = '';
 		$report_type = $batch->prelim_report_status == 1 ? 'PRELIM' : $report_type;
 		$report_type = $batch->prelim_report_status == 2 ? 'DRAFT' : $report_type;
-
+		
 		$batch_approvers = BatchLabSectionApprover::where('batch_id', $batch->id)->where('show_report',1)->where('status', 1)->get();
 		$is_stamp =  BatchLabSectionApprover::where('batch_id', $batch->id)->where('show_report',1)->where('status', 1)->where('batch_status','Sample Approval')->first();
 		$analysis_date = SampleAnalysisDates::where('sample_header_id',$batch->id)->orderBy('start_analysis_date','ASC')->first();
@@ -170,6 +171,9 @@ class ReportHeaderDetailController extends Controller
 		$samples = SamplesCategory::where('sample_header_id', $batch->id)->get();
 		if ($report_format == '1') {
 			foreach ($samples as $sample) {
+				$allCapturedResultsCount = CapturedResult::where('sample_detail_id',$sample->id)->where('sample_header_id',$batch->id)->get()->count();
+				$isAccreditedCount = CapturedResult::where('sample_detail_id',$sample->id)->where('sample_header_id',$batch->id)->where('analyte_accredited',1)->get()->count();
+				$sample['is_accreddited_status'] = $isAccreditedCount >= $allCapturedResultsCount/2 ? 1 : 0;
 				$sample['getBrandOuts'] = [
 					"normal" => SampleAnalysisTypeRelationView::where('brand_id', 0)->where('sample_detail_id',$sample->id)->where('batch_id',$sample->sample_header_id)->orderBy('analysis_level', 'DESC')->get(),
 					"physical" => SampleAnalysisTypeRelationView::where('brand_id', 1)->where('sample_detail_id',$sample->id)->where('batch_id',$sample->sample_header_id)->orderBy('analysis_level', 'DESC')->get(),
@@ -181,7 +185,7 @@ class ReportHeaderDetailController extends Controller
 			$pdf = app('dompdf.wrapper');
 			$pdf->getDomPDF()->set_option("enable_php", true);
 			$pdf->setPaper('A4', 'portrait');
-			$pdf = PDF::loadView('layouts.lab.reports.coa_formats.ktda_report', compact('samples', 'company', 'qrcode', 'path', 'kenas', 'batch_approvers', 'pdf', 'batch', 'non_accredited', 'disclaimer', 'nema','customer','analysis_date', 'polucon_disclaimer','stamp','is_stamp','ammendment'));
+			$pdf = PDF::loadView('layouts.lab.reports.coa_formats.ktda_report', compact('samples', 'company', 'qrcode', 'path', 'kenas', 'batch_approvers', 'pdf', 'batch', 'non_accredited', 'disclaimer', 'nema','customer','analysis_date', 'polucon_disclaimer','stamp','is_stamp','ammendment','polucon_disclaimer_not'));
 
 			if (is_dir(storage_path() . '/app/reports/' . $customer_name)) {
 				$pdf->save(storage_path() . '/app/reports/' . $customer_name . '/' . $filename);
@@ -203,6 +207,9 @@ class ReportHeaderDetailController extends Controller
 		}
 		if ($report_format == '2') {
 			foreach ($samples as $sample) {
+				$allCapturedResultsCount = CapturedResult::where('sample_detail_id',$sample->id)->where('sample_header_id',$batch->id)->get()->count();
+				$isAccreditedCount = CapturedResult::where('sample_detail_id',$sample->id)->where('sample_header_id',$batch->id)->where('analyte_accredited',1)->get()->count();
+				$sample['is_accreddited_status'] = $isAccreditedCount >= $allCapturedResultsCount/2 ? 1 : 0;
 				$sample['getBrandOuts'] = [
 					"normal" => SampleAnalysisTypeRelationView::where('brand_id',0)->where('sample_detail_id',$sample->id)->where('batch_id',$sample->sample_header_id)->orderBy('analysis_level', 'DESC')->get(),
 					"physical" => SampleAnalysisTypeRelationView::where('brand_id', 1)->where('sample_detail_id',$sample->id)->where('batch_id',$sample->sample_header_id)->orderBy('analysis_level', 'DESC')->get(),
@@ -214,7 +221,7 @@ class ReportHeaderDetailController extends Controller
 			
 			$pdf = app('dompdf.wrapper');
 			$pdf->getDomPDF()->set_option("enable_php", true);
-			$pdf = PDF::loadView('layouts.lab.reports.coa_formats.iran_report', compact('samples', 'company', 'qrcode', 'path', 'kenas', 'batch_approvers', 'pdf', 'batch', 'non_accredited', 'disclaimer','nema','customer','analysis_date', 'polucon_disclaimer','stamp','is_stamp','ammendment'));
+			$pdf = PDF::loadView('layouts.lab.reports.coa_formats.iran_report', compact('samples', 'company', 'qrcode', 'path', 'kenas', 'batch_approvers', 'pdf', 'batch', 'non_accredited', 'disclaimer','nema','customer','analysis_date', 'polucon_disclaimer','stamp','is_stamp','ammendment','polucon_disclaimer_not'));
 
 			if (is_dir(storage_path() . '/app/reports/' . $customer_name)) {
 				$pdf->save(storage_path() . '/app/reports/' . $customer_name . '/' . $filename);
@@ -234,12 +241,17 @@ class ReportHeaderDetailController extends Controller
 
 			return 'success';
 		}
+
+		foreach ($samples as $sample) {
+			$allCapturedResultsCount = CapturedResult::where('sample_detail_id',$sample->id)->where('sample_header_id',$batch->id)->get()->count();
+			$isAccreditedCount = CapturedResult::where('sample_detail_id',$sample->id)->where('sample_header_id',$batch->id)->where('analyte_accredited',1)->get()->count();
+			$sample['is_accreddited_status'] = $isAccreditedCount >= $allCapturedResultsCount/2 ? 1 : 0;
+		}
 		// $samples = SamplesCategory::where('sample_header_id',$batch->id)->get();
 		ini_set('max_execution_time', 300); //300 seconds = 5 minutes 
-		
 		$pdf = app('dompdf.wrapper');
 		$pdf->getDomPDF()->set_option("enable_php", true);
-		$pdf = PDF::loadView('layouts.lab.reports.coa_formats.standard_report', compact('samples', 'company', 'qrcode', 'path', 'kenas', 'batch_approvers', 'pdf', 'batch', 'non_accredited', 'disclaimer', 'nema','customer','report_type','analysis_date', 'polucon_disclaimer','stamp','is_stamp','ammendment'));
+		$pdf = PDF::loadView('layouts.lab.reports.coa_formats.standard_report', compact('samples', 'company', 'qrcode', 'path', 'kenas', 'batch_approvers', 'pdf', 'batch', 'non_accredited', 'disclaimer', 'nema','customer','report_type','analysis_date', 'polucon_disclaimer','stamp','is_stamp','ammendment','polucon_disclaimer_not'));
 
 		if (is_dir(storage_path() . '/app/reports/' . $customer_name)) {
 			$pdf->save(storage_path() . '/app/reports/' . $customer_name . '/' . $filename);
