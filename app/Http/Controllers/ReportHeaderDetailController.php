@@ -155,10 +155,10 @@ class ReportHeaderDetailController extends Controller
 
 		$customer_name = preg_replace('/[^A-Za-z0-9]/', '', $customer->name);
 		if ($batch->document_number != '') {
-			$filename = $customer_name . '-' . $batch->batch_code . '-' . date("d-M-Y", strtotime(getTodayDate())) . '-' . $batch->document_number . '.pdf';
+			$filename = $customer_name . '-' . $batch->batch_code . '-' . date("d-M-Y-H-i-s") . '-' . $batch->document_number . '.pdf';
 		} else {
 
-			$filename = $customer_name . '-' . $batch->batch_code . '-' . date("d-M-Y", strtotime(getTodayDate())) . '.pdf';
+			$filename = $customer_name . '-' . $batch->batch_code . '-' . date("d-M-Y-H-i-s") . '.pdf';
 		}
 		$filename = urlencode($filename);
 		$company = getActiveCompany();
