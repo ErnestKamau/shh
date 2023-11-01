@@ -32,7 +32,10 @@
 
     }
 
-
+    *{
+       font: 'Arial Narrow', Arial, sans-serif; 
+        font-stretch: condensed;
+    }
     .header {
         position: fixed;
         top: -80px;
@@ -156,8 +159,8 @@
 
                 <td style="border: solid 0 transparent !important;text-align:right;font-size:11px !important;">
                     {{ $customer->name }} <br>
-                    P.O BOX {{ $customer->postal_address }} <br>
-                    {{ $customer->physical_address }}
+                    {{ $customer->postal_address }} <br>
+                    {{-- {{ $customer->physical_address }} --}}
                 </td>
             </tr>
 
@@ -236,16 +239,16 @@
                     <tr style="">
                         <th class="parameter"
                             style="font-size: 9px !important; width:25% !important;vertical-align: top !important;padding:5px !important;">
-                            TESTS</th>
+                            TEST</th>
                         <th class="parameter"
                             style="font-size:9px !important;width:25% !important;vertical-align: top !important;padding:5px !important">
-                            TEST METHODS</th>
+                            TEST METHOD</th>
                         <th class="parameter"
                             style="font-size: 9px !important;width:10% !important;vertical-align: top !important;padding:5px !important">
-                            RESULTS</th>
+                            RESULT</th>
                         <th class="parameter"
                         style="font-size: 9px !important;width:10% !important;vertical-align: top !important;padding:5px !important">
-                        UNITS</th>   
+                        UNIT</th>   
                         <th class="parameter text-center"
                             style="font-size: 9px !important;width:15% !important;vertical-align: top !important;padding:5px !important">
                             {{ $sample->main_standard_code ?? '' }}</th>
@@ -264,9 +267,9 @@
                             <td class="parameter" style="font-size: 9px !important;padding-left:3px !important;">
                                 @if($sample['is_accreddited_status'] == 1)
                                 
-                                {!! $captured->analyte_status_contracted == 1 ? '<small>+</small>' : '' !!} {!! $captured->analyte_accredited == 0 ? '<small>*</small>' : '' !!}  {!! $captured->is_italic == 1 ? '<i>'. $captured->analyte_code.'</i>' : $captured->analyte_code !!}
+                                {!! $captured->analyte_status_contracted == 1 ? '<small>+</small>' : '' !!} {!! $captured->analyte_accredited == 0 ? '<small>*</small>' : '' !!}  {!! $captured->isitalic == 1 ? '<i>'. $captured->analyte_code.'</i>' : $captured->analyte_code !!}
                                 @else
-                                {!! $captured->analyte_status_contracted == 1 ? '<small>+</small>' : '' !!} {!! $captured->analyte_accredited == 1 ? '<small>*</small>' : '' !!}  {!! $captured->is_italic == 1 ? '<i>'. $captured->analyte_code.'</i>' : $captured->analyte_code !!}
+                                {!! $captured->analyte_status_contracted == 1 ? '<small>+</small>' : '' !!} {!! $captured->analyte_accredited == 1 ? '<small>*</small>' : '' !!}  {!! $captured->isitalic == 1 ? '<i>'. $captured->analyte_code.'</i>' : $captured->analyte_code !!}
                                 @endif
                             </td>  
                             <td class="parameter" style="font-size: 9px !important;padding-left:3px !important;">
@@ -279,7 +282,7 @@
                                 {{ $captured->reporting_unit_id ?? '' }}
                             </td>  
                             <td class="parameter " style="font-size: 9px !important;padding-left:3px !important;">
-                                {{ $captured->main_value ?? '' }}
+                                {{ $captured->main_value ?? '' }} {{getStandardLimitValue($captured->id,$sample->main_standard) ?? ''}}
                             </td>                            
 
                         </tr>

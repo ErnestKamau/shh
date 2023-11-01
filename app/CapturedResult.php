@@ -9,7 +9,7 @@ use OwenIt\Auditing\Contracts\Auditable;
 class CapturedResult extends Model implements Auditable
 {
 	use \OwenIt\Auditing\Auditable;
-	protected $appends = ['repeatsampleresult'];
+	protected $appends = ['repeatsampleresult','isitalic'];
 	protected $fillable  =['lab_section_id','remark_is_manual','sample_detail_code','sample_header_id','sample_detail_id','result','user_id','remark'];
 	public function getRepeatSampleResultAttribute(){
 		if($this->repeat_captured_id > 0){
@@ -78,6 +78,9 @@ class CapturedResult extends Model implements Auditable
 		}
 
 		return $operators;
+	}
+	public function getIsItalicAttribute(){
+		return Analyte::find($this->analyte_id)->is_italic;
 	}
 
 }

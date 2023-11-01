@@ -188,7 +188,7 @@
 				<th>Lab Sections</th>
 				
 				<th>Stage</th>
-				@if($status == 'Samples In Lab')
+				@if($status == 'Samples In Lab' || $status == 'Sample Verification')
 				@else
 				<th>Client</th>
 				@endif
@@ -265,7 +265,7 @@
 						{{$sampleStart.' - '.$sampleEnd}}</td>
 					<td nowrap>{{$item->getLabSectionsNames()}}</td>
 					<td style="min-width: 200px !important;">{{$item->status}}</td>
-					@if($status == 'Samples In Lab')
+					@if($status == 'Samples In Lab' || $status == 'Sample Verification')
 					@else
 
 					<td nowrap>{{ $item->client->name }}</td>

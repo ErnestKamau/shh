@@ -2124,7 +2124,7 @@ class SampleWorkFlowController extends Controller
 			$captured->result = $request->result[$cID];
 			$captured->result_reporting_symbol = $request->result_reporting_symbol[$cID];
 			$captured->operator_id = $request->operators[$cID] ?? 0;
-			$captured->analyte_code = Analyte::find($captured->id)->code;
+			$captured->analyte_code = Analyte::find($captured->analyte_id)->code;
 
 			$captured->remark = $captured->remark_is_manual == 0 ? $request->remark[$cID] : $request->remarkmanual[$cID];
 			$standard_main = Standards::where('code', $request->main_standard[$cID])->first();
@@ -3494,6 +3494,7 @@ class SampleWorkFlowController extends Controller
 			return redirect()->back()->with('error', 'Kindly provide the lab sections associated with the sample at batch information section');
 		}
 		$section_users = LabSectionApproverRelationShip::whereIn('lab_section_id', explode(',', $batch->lab_section_ids))->get();
+		
 		$users =[];
 		$user_approvers = [];
 		foreach(explode(',', $batch->lab_section_ids) as $section_id){
@@ -3523,7 +3524,7 @@ class SampleWorkFlowController extends Controller
 			if ($request->level != "2") {
 				$request->level != 0 ? BatchLabSectionApprover::where('batch_id', $batch->id)->delete() : BatchLabSectionApprover::where('batch_id', $batch->id)->where('is_prelim', 0)->delete();
 				foreach ($section_users as $user_id) {
-					$approvers = BatchLabSectionApprover::where('batch_id', $batch->id)->where('user_id', $user_id->user_id)->first() ?? new BatchLabSectionApprover();
+					$approvers = BatchLabSectionApprover::where('batch_id', $batch->id)->where('user_id', $user_id->user_id)->where('title','$user_id->title')->first() ?? new BatchLabSectionApprover();
 					$approvers->status = 0;
 					$approvers->user_id = $user_id->user_id;
 					$approvers->title = $user_id->title;
@@ -3534,7 +3535,7 @@ class SampleWorkFlowController extends Controller
 					$approvers->save();
 				}
 				foreach($analysts as $analyst){
-					$approvers = BatchLabSectionApprover::where('batch_id', $batch->id)->where('user_id', $analyst->id)->first() ?? new BatchLabSectionApprover();
+					$approvers = BatchLabSectionApprover::where('batch_id', $batch->id)->where('user_id', $analyst->id)->where('title','$user_id->title')->first() ?? new BatchLabSectionApprover();
 					$section = SampleAnalysisStage::find($user_approvers[$analyst->id]);
 					$approvers->status = 1;
 					$approvers->user_id = $analyst->id;
