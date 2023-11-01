@@ -6,6 +6,9 @@ use Illuminate\Support\Facades\DB;
 use App\Supplier;
 use App\SampleAnalysisTypeRelationView;
 use App\InterLabLog;
+use App\CapturedResult;
+use App\StandardAnalytes;
+use App\StandardValue;
 
 function myCurl($url, $payload)
 {
@@ -1557,6 +1560,27 @@ function convertDateFormatReports($date,$format){
 		$raw_date = \Carbon\Carbon::parse($date);
 		$format_date = $raw_date->format('jS M Y');
 		return $format_date;
+	}
+}
+function getStandardLimitValue($captured_id,$standard_id){
+	$item = CapturedResult::find($captured_id);
+	
+	$analyte_standard = StandardAnalytes::where('standard_id', $standard_id)->where('analyte_id', $item->analyte_id)->first();
+	if (isset($analyte_standard->id)) {
+		if ($analyte_standard->standard_value_type == 'is_standard_value') {
+			$value_id = StandardValue::find($analyte_standard->standard_value_id);
+			if (isset($value_id->id)) {
+				if ($value_id->code == 'IsValue') {
+					return $analyte_standard->value_type;
+				}
+			}else{
+				return '';
+			}
+		}else{
+			return '';
+		}
+	} else {
+		return '';
 	}
 }
 

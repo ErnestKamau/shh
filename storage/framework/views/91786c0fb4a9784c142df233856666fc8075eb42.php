@@ -3132,6 +3132,7 @@
 		$('#process-results-modal').on('show.bs.modal',function(){
 			var batch = $(this).data('batch');
 			$('#process-results-modal').find('.proccesing-point').addClass('hidden');
+			// $('#process-results-modal').find('#report_format').on('clic')
 			$('#process-results-modal').find('#initiate-process').on('click',()=>{
 				$('#process-results-modal').find('.proccesing-point').removeClass('hidden');
 				
