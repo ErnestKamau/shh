@@ -167,9 +167,7 @@
                             </thead>
                             <tbody>
                                 @foreach ($sample->getSampleByAnalysisType() as $analysis_type_level)
-                                    <tr class="bg-light">
-                                        <td colspan="5" class="text-muted"><b>{{ $analysis_type_level->analysis_type_name }}</b></td>
-                                    </tr>
+                                   
 
                                     @foreach ($analysis_type_level->getCapturedResults() as $captured)
                                         <?php $captured->analyte_status_contracted == 1 ? ($check_v = 1) : 0; ?>
