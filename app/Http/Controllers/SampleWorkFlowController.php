@@ -2124,7 +2124,7 @@ class SampleWorkFlowController extends Controller
 			$captured->result = $request->result[$cID];
 			$captured->result_reporting_symbol = $request->result_reporting_symbol[$cID];
 			$captured->operator_id = $request->operators[$cID] ?? 0;
-
+			$captured->analyte_code = Analyte::find($captured->id)->code;
 
 			$captured->remark = $captured->remark_is_manual == 0 ? $request->remark[$cID] : $request->remarkmanual[$cID];
 			$standard_main = Standards::where('code', $request->main_standard[$cID])->first();
