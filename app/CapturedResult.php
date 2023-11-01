@@ -39,7 +39,7 @@ class CapturedResult extends Model implements Auditable
 	}
 
 	public function analyte(){
-		return Analyte::where('code', $this->analyte_code)->first();
+		return Analyte::where('code', $this->id)->first();
 	}
 
 	public function defacto_analyst_with(){
