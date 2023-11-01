@@ -243,6 +243,11 @@
                         <th class="parameter"
                             style="font-size: 9px !important;width:10% !important;vertical-align: top !important;padding:5px !important">
                             RESULTS</th>
+                        @if($batch->require_mu == 1)  
+                        <th class="parameter"
+                        style="font-size: 9px !important;width:10% !important;vertical-align: top !important;padding:5px !important">
+                        UNCERTAINITY (+-)</th>                          
+                        @endif
                         <th class="parameter"
                         style="font-size: 9px !important;width:10% !important;vertical-align: top !important;padding:5px !important">
                         UNITS</th>   
