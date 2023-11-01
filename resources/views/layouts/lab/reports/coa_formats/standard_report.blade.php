@@ -200,7 +200,7 @@
                                 <tr>
                                     <td style="border: solid 0 transparent !important;font-size:8px !important;border-left:1px solid rgba(0, 0, 0, 0.35);padding:2px;padding-left:4px">DATE & PLACE {{ $sample->sampled_by_company_personnel == 1 ? 'SAMPLED' : 'SUBMITTED' }}</td>
                                     @if ($sample->sampled_by_company_personnel == 1)
-                                        <td style="border: solid 0 transparent !important;padding:2px;padding-left:10px !important;font-size:8px !important;border-right:1px solid rgba(0, 0, 0, 0.35);border-left: 2.1px solid rgba(0, 0, 0, 0.35);">{{ convertDateFormatReports($sample->date_collected,'dateShortMonth')  ?? '' }} {{ $sample->sample_point_name ?? '' }}</td>
+                                        <td style="border: solid 0 transparent !important;padding:2px;padding-left:10px !important;font-size:8px !important;border-right:1px solid rgba(0, 0, 0, 0.35);border-left: 2.1px solid rgba(0, 0, 0, 0.35);">{{ convertDateFormatReports($sample->date_collected,'dateShortMonth')  ?? '' }} {{ $sample->sample_point_name ?? 'N/A' }}</td>
                                     @else
                                         <td style="border: solid 0 transparent !important;padding:2px;padding-left:10px !important;font-size:8px !important;border-right:1px solid rgba(0, 0, 0, 0.35);border-left: 2.1px solid rgba(0, 0, 0, 0.35);">{{  convertDateFormatReports($sample->receipt_date,'dateShortMonth') ?? '' }} {{ $company->name ?? '' }}</td>
                                     @endif
@@ -211,7 +211,7 @@
                                 </tr>
                                 <tr>
                                     <td style="border: solid 0 transparent !important;border-right:1px solid rgba(0, 0, 0, 0.35);font-size:8px !important;border-left:1px solid rgba(0, 0, 0, 0.35);padding:2px;padding-left:4px">SAMPLING METHOD</td>
-                                    <td style="border: solid 0 transparent !important;padding:2px;padding-left:10px !important;font-size:8px !important;border-right:1px solid rgba(0, 0, 0, 0.35);border-left: 2.1px solid rgba(0, 0, 0, 0.35);">{{ $sample->sampling_method_name ?? '' }}</td>
+                                    <td style="border: solid 0 transparent !important;padding:2px;padding-left:10px !important;font-size:8px !important;border-right:1px solid rgba(0, 0, 0, 0.35);border-left: 2.1px solid rgba(0, 0, 0, 0.35);">{{ $sample->sampling_method_name ?? 'N/A' }}</td>
                                 </tr>
                                 <tr>
                                     <td style="border: solid 0 transparent !important;border-right:1px solid rgba(0, 0, 0, 0.35);font-size:8px !important;border-left:1px solid rgba(0, 0, 0, 0.35);padding:2px;padding-left:4px">SAMPLE ID</td>
@@ -219,7 +219,7 @@
                                 </tr>
                                 <tr>
                                     <td style="border: solid 0 transparent !important;border-right:1px solid rgba(0, 0, 0, 0.35);font-size:8px !important;border-bottom:1px solid rgba(0, 0, 0, 0.35);border-left:1px solid rgba(0, 0, 0, 0.35);padding:2px;padding-left:4px">MARKINGS</td>
-                                    <td style="border: solid 0 transparent !important;padding:2px;padding-left:10px !important;font-size:8px !important;border-bottom:1px solid rgba(0, 0, 0, 0.35);border-right:1px solid rgba(0, 0, 0, 0.35);border-left: 2.1px solid rgba(0, 0, 0, 0.35);">{{ $sample->comments ?? '' }}</td>
+                                    <td style="border: solid 0 transparent !important;padding:2px;padding-left:10px !important;font-size:8px !important;border-bottom:1px solid rgba(0, 0, 0, 0.35);border-right:1px solid rgba(0, 0, 0, 0.35);border-left: 2.1px solid rgba(0, 0, 0, 0.35);">{{ $sample->comments ?? 'N/A' }}</td>
                                 </tr>
                                
                             </table>

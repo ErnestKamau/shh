@@ -508,7 +508,7 @@ class SampleWorkFlowController extends Controller
 			}
 		}
 		
-		
+		$header->sampling_method_id = $request->sampling_method_id;
 		$header->how_sample_was_obtained = $request->how_sample_was_obtained;
 		$header->declared_commodity_code = $request->declared_commodity_code;
 		$header->declared_amount = $request->declared_amount ?? 0;
