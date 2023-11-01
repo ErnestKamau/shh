@@ -11,7 +11,7 @@ class MailController extends Controller
 {
   public function html_email($data = false, $type="report", $file=false, $bcc=false,$bcc_emails_arr =[]) {
 	$app_name = env('APP_NAME', 'POLUCON LIMS');
-	$mail_username = env('MAIL_USERNAME', 'lims@polucon.com');
+	$mail_username = env('MAIL_USERNAME', 'notifications@polucon.co.ke');
 
 		if($type == "report"){
 			$BD = '';

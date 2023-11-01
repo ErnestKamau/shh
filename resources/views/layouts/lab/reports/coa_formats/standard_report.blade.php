@@ -123,12 +123,8 @@
             <tr>
                 <td>
                     <div class="text-center" style="font-size:8px">
-                        {{-- @if($sample['is_accreddited_status'] == 1)
-                            <img src="{{ $polucon_disclaimer_not }}" style="width:auto;height:55px" alt="">  
-                        @else
-                            <img src="{{ $polucon_disclaimer }}" style="width:auto;height:55px" alt="">  
-                        @endif --}}
-                        <img src="{{ $polucon_disclaimer }}" style="width:auto;height:55px" alt="">  
+                        
+                        <div class="disclaimer" style="height: 60px;width:auto"></div>  
 
                         @if($batch->sampled_by_company_personnel == 0)
                         <span class="text-center"><b>NB: This report relates to submitted sample(s) only. The source and/or markings are as provided by the customer.</b><span>
@@ -175,14 +171,19 @@
     @endif
 
     @foreach ($samples as $sample)
-            @if ($sample->getAccredittedStatus() >= 1)
-            <div class="" style="display:inline-block;position:fixed;bottom:2px;right:1%">
-                <img src="{{ $kenas }}" style="width:auto;height:100px" alt="">
-            </div>
+        @if ($sample->getAccredittedStatus() >= 1)
+        <div class="" style="display:inline-block;position:fixed;bottom:2px;right:1%">
+            <img src="{{ $kenas }}" style="width:auto;height:100px" alt="">
+        </div>
         @else
             <div class="" style="display:inline-block;position:fixed;bottom:2px;right:1%">
                 <img src="{{ $nema }}" style="width:auto;height:100px" alt="">
             </div>
+        @endif
+        @if($sample['is_accreddited_status'] == 1)
+            <img src="{{ $polucon_disclaimer_not }}" style="width:auto;height:55px;position:fixed;bottom:110px;" alt="">  
+        @else
+            <img src="{{ $polucon_disclaimer }}" style="width:auto;height:55px;position:fixed;bottom:110px;" alt="">  
         @endif
         <div class="main-lab" style="position:fixed;bottom:22%;left:1%;font-size:8px">
             <b>{{strtoupper($sample->main_lab_name)}}</b><br>
@@ -206,7 +207,7 @@
                                 <tr>
                                     <td style="border: solid 0 transparent !important;font-size:8px !important;border-left:1px solid rgba(0, 0, 0, 0.35);padding:2px;padding-left:4px">DATE & PLACE {{ $sample->sampled_by_company_personnel == 1 ? 'SAMPLED' : 'SUBMITTED' }}</td>
                                     @if ($sample->sampled_by_company_personnel == 1)
-                                        <td style="border: solid 0 transparent !important;padding:2px;padding-left:10px !important;font-size:8px !important;border-right:1px solid rgba(0, 0, 0, 0.35);border-left: 2.1px solid rgba(0, 0, 0, 0.35);">{{ convertDateFormatReports($sample->date_collected,'dateShortMonth')  ?? '' }} {{ $sample->sample_point_name ?? '' }}</td>
+                                        <td style="border: solid 0 transparent !important;padding:2px;padding-left:10px !important;font-size:8px !important;border-right:1px solid rgba(0, 0, 0, 0.35);border-left: 2.1px solid rgba(0, 0, 0, 0.35);">{{ convertDateFormatReports($sample->date_collected,'dateShortMonth')  ?? '' }} {{ $sample->sample_point_name ?? 'N/A' }}</td>
                                     @else
                                         <td style="border: solid 0 transparent !important;padding:2px;padding-left:10px !important;font-size:8px !important;border-right:1px solid rgba(0, 0, 0, 0.35);border-left: 2.1px solid rgba(0, 0, 0, 0.35);">{{  convertDateFormatReports($sample->receipt_date,'dateShortMonth') ?? '' }} {{ $company->name ?? '' }}</td>
                                     @endif
