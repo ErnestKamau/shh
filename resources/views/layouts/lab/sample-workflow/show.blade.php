@@ -1367,6 +1367,10 @@
 						<input type="text" class="form-control" name="website" placeholder="Website..." />
 					</div>
 					<div class="form-group">
+						<label for="" class="control-label">KRA PIN </label>
+						<input type="text" name="vat_no" class="form-control" placeholder="KRA PIN...." />
+					</div>
+					<div class="form-group">
 						<label class="control-label">Country</label>
 						<select class="form-control" name="country_id" data-placeholder>
 							@foreach ($countries as $c)
@@ -3293,6 +3297,19 @@
 				}
 			});
 		}
+		var getSampleCapturedNotData = (sample_id,callback)=>{
+			$.ajax({
+				url:`/getSampleResultCapturedNot/${sample_id}`,
+				method:'GET',
+				success:(data)=>{
+					console.log(data);
+					callback(data);
+				},
+				error:(data)=>{
+					console.log(data);
+				}
+			});
+		}
 		$('#show-sample-analysis-analytes').on('show.bs.modal', function(e){
 
 			var sampleCode = $(e.relatedTarget).data('sample_code');
@@ -3401,9 +3418,10 @@
 
 				
 			});
-
-			$('.analytes-with-results-count').text($('#sample-parameters-holder').find('tr.has-result').length);
-			$('.analytes-without-results-count').text($('#sample-parameters-holder').find('tr.no-result').length);
+			getSampleCapturedNotData(sampleCode,(data)=>{
+				$('.analytes-with-results-count').text(data['captured']);
+				$('.analytes-without-results-count').text(data['not_captured']);
+			})
 
 			$.ajax({
 				url: '{{ route("missing_analysis_parameters_by_sample_code") }}',

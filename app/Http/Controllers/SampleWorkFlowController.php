@@ -4074,4 +4074,10 @@ class SampleWorkFlowController extends Controller
 		$approval = InterLabLog::where('sample_id',$sample->id)->where('status',0)->first();
 		return isset($approval->id) ? 1 : 0;
 	}
+	public function getSampleResultCapturedNot($sample_id){
+		$sample = SampleDetails::where('sample_code',$sample_id)->first();
+		$captured = CapturedResult::where('sample_detail_id',$sample->id)->WhereNotNull('result')->get()->count();
+		$captured_not = CapturedResult::where('sample_detail_id',$sample->id)->WhereNull('result')->get()->count();
+		return response()->json(['captured'=>$captured,"not_captured"=>$captured_not]);
+	}
 }

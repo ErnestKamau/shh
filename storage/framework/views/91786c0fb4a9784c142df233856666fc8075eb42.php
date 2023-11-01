@@ -1383,6 +1383,10 @@
 						<input type="text" class="form-control" name="website" placeholder="Website..." />
 					</div>
 					<div class="form-group">
+						<label for="" class="control-label">KRA PIN </label>
+						<input type="text" name="vat_no" class="form-control" placeholder="KRA PIN...." />
+					</div>
+					<div class="form-group">
 						<label class="control-label">Country</label>
 						<select class="form-control" name="country_id" data-placeholder>
 							<?php $__currentLoopData = $countries; $__env->addLoop($__currentLoopData); foreach($__currentLoopData as $c): $__env->incrementLoopIndices(); $loop = $__env->getLastLoop(); ?>
@@ -3303,6 +3307,19 @@
 				}
 			});
 		}
+		var getSampleCapturedNotData = (sample_id,callback)=>{
+			$.ajax({
+				url:`/getSampleResultCapturedNot/${sample_id}`,
+				method:'GET',
+				success:(data)=>{
+					console.log(data);
+					callback(data);
+				},
+				error:(data)=>{
+					console.log(data);
+				}
+			});
+		}
 		$('#show-sample-analysis-analytes').on('show.bs.modal', function(e){
 
 			var sampleCode = $(e.relatedTarget).data('sample_code');
@@ -3411,9 +3428,10 @@
 
 				
 			});
-
-			$('.analytes-with-results-count').text($('#sample-parameters-holder').find('tr.has-result').length);
-			$('.analytes-without-results-count').text($('#sample-parameters-holder').find('tr.no-result').length);
+			getSampleCapturedNotData(sampleCode,(data)=>{
+				$('.analytes-with-results-count').text(data['captured']);
+				$('.analytes-without-results-count').text(data['not_captured']);
+			})
 
 			$.ajax({
 				url: '<?php echo e(route("missing_analysis_parameters_by_sample_code")); ?>',
@@ -4323,7 +4341,7 @@
 				<td><input type="text" <?php echo e(isset($batch->status) && $batch->status != 'Samples In Lab' ? 'disabled' : ''); ?> name="result_reporting_symbol[${data.id}]" id="reporting-symbol" placeholder="Reporting Symbol..." value="${data.result_reporting_symbol == null ? '' :data.result_reporting_symbol }" ></td>
 				<td>
 					<div class="form-group">
-						<input <?php echo e(isset($batch->status) && $batch->status != 'Samples In Lab' ? 'disabled' : ''); ?> id="${data.sample_detail_code},${data.analyte_code},${data.id},${data.analyte_id}" data-resultid="${data.sample_detail_code},${data.analyte_id},${data.id},${data.analyte_id}" style="min-width: 150px" type="text"
+						<input <?php echo e(isset($batch->status) && $batch->status != 'Samples In Lab' ? 'disabled' : ''); ?> id="${data.sample_detail_code},${data.analyte_id},${data.id},${data.analyte_id}" data-resultid="${data.sample_detail_code},${data.analyte_id},${data.id},${data.analyte_id}" style="min-width: 150px" type="text"
 						class="form-control ${data.remark_is_manual == 0 ? 'first-result' : ''}" ${interLabApproval == 1 ? "disabled" : ""}  id="result-${loop}" value="${data.result == null ? '' : data.result}" name="result[${data.id}]" placeholder="Result..." />
 						<input type="hidden" name="result_confirm"  />
 					</div>

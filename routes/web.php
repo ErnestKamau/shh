@@ -810,6 +810,7 @@ Route::get('/testSmsAlert','SampleWorkFlowController@testSmsAlert')->name('testS
 Route::post('/save-Sample/AnalysisDate','SampleWorkFlowController@saveSampleAnalysisDate')->name('saveSampleAnalysisDate');
 
 Route::get('/get/Sample-IntelabLogs-Approval/Status/{sample_id}','SampleWorkFlowController@getSampleIntelabLogsApprovalStatus')->name('getSampleIntelabLogsApprovalStatus');
+Route::get('/getSampleResultCapturedNot/{sample_id}','SampleWorkFlowController@getSampleResultCapturedNot')->name('getSampleResultCapturedNot');
 
 ################################################Polucon#########################################
 
