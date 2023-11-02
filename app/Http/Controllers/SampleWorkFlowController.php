@@ -1815,14 +1815,14 @@ class SampleWorkFlowController extends Controller
 					// return response()->json($a->name,200);
 					array_push($analytes, $a->name);
 				}
-				$main_s = Standards::find($sample->main_standard);
-				if (sizeof($analytes) > 0) {
-					$message = $fail_arr[0] . ' ' . $sample_type->name . ' (' . $main_s->name . ')' . $fail_arr[4] . ' ' . implode(', ', $analytes) . ' ' . $fail_arr[5];
-					$sample->header_body = $message;
-				} else {
-					$message = $pass_arr[0] . ' ' . $sample_type->name . ' (' . $main_s->name . ')';
-					$sample->header_body = $message;
-				}
+				//$main_s = Standards::find($sample->main_standard);
+				//if (sizeof($analytes) > 0) {
+					//$message = $fail_arr[0] . ' ' . $sample_type->name . ' (' . $main_s->name . ')' . $fail_arr[4] . ' ' . implode(', ', $analytes) . ' ' . $fail_arr[5];
+					//$sample->header_body = $message;
+				//} else {
+				//	$message = $pass_arr[0] . ' ' . $sample_type->name . ' (' . $main_s->name . ')';
+				//	$sample->header_body = $message;
+				//}
 				$sample->save();
 			}
 		}
@@ -2121,7 +2121,7 @@ class SampleWorkFlowController extends Controller
 			}
 			$captured->result_reporting_symbol = $request->result_reporting_symbol[$cID];
 			$captured->reporting_unit_id = $request->reporting_unit[$cID];
-			$captured->measure_uncertanity = $request->measure_uncertanity[$cID];
+			$captured->measure_uncertanity = $request->measure_uncertanity[$cID] ?? 0;
 			$captured->method_id = $request->method_id[$cID];
 			$captured->result = $request->result[$cID];
 			$captured->result_reporting_symbol = $request->result_reporting_symbol[$cID];
