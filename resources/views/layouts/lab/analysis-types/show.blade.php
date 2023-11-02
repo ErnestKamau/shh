@@ -833,6 +833,19 @@
           </select>
         </div>
         <div class="form-group">
+              <label for="" class="control-label">Lab Section</label>
+              <select name="lab_section_id" id="" class="lab_section_id form-control">
+                <?php $sample_type = getSampleTypeByID($analysis_type->sample_type_id); ?>
+                @if($sample_type->sample_analysis_stage)
+                  @foreach($sample_type->sample_analysis_stage as $stage)
+                    @if($stage->active == 1)
+                      <option value="{{$stage->sample_analysis_stage_id}}">{{$stage->sample_analysis_stage->name}}</option>
+                    @endif
+                  @endforeach
+                @endif
+              </select>
+            </div>
+        <div class="form-group">
           <label for="" class="control-label">Reporting Time</label>
           <input type="number" name="report_time" value="${data.reporting_time}" class="form-control">
         </div>
@@ -860,12 +873,14 @@
     $(body).find('#method_id').val(data.method);
     $(body).find('#equipment_id_field').val(data.equipment_id);
     $(body).find('#operator_id_field').val(data.operator_id);
+    $(body).find('.lab_section_id').val(data.lab_section_id);
     
     $(body).find('#analyte_id').select2();
     $(body).find('#reporting_unit').select2();
     $(body).find('#method_id').select2();
     $(body).find('#equipment_id_field').select2();
     $(body).find('#operator_id_field').select2();
+    $(body).find('.lab_section_id').select2();
     return body;
    }
    $('#edit-analysis-element').on('show.bs.modal',(e)=>{

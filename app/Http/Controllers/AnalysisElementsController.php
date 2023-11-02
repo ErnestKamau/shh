@@ -91,7 +91,7 @@ class AnalysisElementsController extends Controller
     $element->reporting_time = $request->report_time;
     $element->show_on_report = $request->show_on_report ?? 0;
     $element->is_manual = $request->is_manual ?? 0;
-    $element->lab_section_id = AnalysisType::find($request->analysis_type_id)->lab_section_id;
+    $element->lab_section_id = $request->lab_section_id;
     $element->remark_is_manual = $request->remark_is_manual ?? 0;
 
     $element->save();
