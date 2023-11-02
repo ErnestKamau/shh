@@ -193,7 +193,7 @@
             <table class="table table-sm" style="font-size: 8px;border:solid 0 transparent !important">
                 <thead style="height: 60px !important;">
                     <tr style="margin:0 !important;">
-                        <th colspan="5" style="border: solid 0 transparent !important;border-bottom:1px solid rgba(0, 0, 0, 0.35);padding:0 !important ;margin:0 !important;">
+                        <th colspan="{{$batch->require_mu == 1 ? 6 : 5}}" style="border: solid 0 transparent !important;border-bottom:1px solid rgba(0, 0, 0, 0.35);padding:0 !important ;margin:0 !important;">
                             <table style="width: 100%;margin:0 !important;margin-bottom:2px;border: 1px solid rgba(0, 0, 0, 0.35) !important">
                                 <tr  style="margin:0 !important">
                                     <td colspan="2"
@@ -279,8 +279,13 @@
                                 {{ strtoupper($captured->method()->name ?? '') }}
                             </td>  
                             <td class="parameter {{ $captured->remark == 'FAIL' ? 'textBold' : '' }}" style="font-size: 9px !important;padding-left:3px !important;">
-                                {{ $captured->result_reporting_symbol ?? '' }}{{ $captured->result != '' ? $captured->result : 'TBA'  }}
+                                {{ $captured->result_reporting_symbol ?? '' }}{{ $captured->result != '' ? formatReportResults($captured->result) : 'TBA'  }}
                             </td>  
+                            @if($batch->require_mu == 1) 
+                            <td class="parameter" style="font-size: 9px !important;padding-left:3px !important;">
+                                {{ $captured->measure_uncertanity ?? '' }}
+                            </td> 
+                            @endif
                             <td class="parameter" style="font-size: 9px !important;padding-left:3px !important;">
                                 {{ $captured->analyte()->reporting_unit ?? '' }}
                             </td>  
@@ -292,7 +297,7 @@
                         @endforeach
                     @endforeach
                     <tr>
-                        <td style="font-size: 9px !important;padding-left:3px !important; text-align:center ;border: 0 transparent !important" colspan="5">******<small>End of Test Results</small>*******</td>
+                        <td style="font-size: 9px !important;padding-left:3px !important; text-align:center ;border: 0 transparent !important" colspan="{{$batch->require_mu == 1 ? 6 : 5}}">******<small>End of Test Results</small>*******</td>
                     </tr>
                 </tbody>
             </table>

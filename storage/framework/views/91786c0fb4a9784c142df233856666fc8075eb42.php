@@ -507,7 +507,11 @@
 					<?php endif; ?>
 				</div>
 				<div class="row p-2 mt-3">
-					
+					<div class="form-group col-md-4 btn-group-sm">
+						<label class="control-label">
+							<input type="checkbox" name="require_mu" value="1" <?php echo e(isset($batch->require_mu) && $batch->require_mu == 1 ? 'checked' : ''); ?>> Has client requested Measure of uncertainity  ?
+						</label>
+					</div>
 					<div class="form-group col-md-4 btn-group-sm">
 						<label class="control-label">
 							<input type="checkbox" name="client_instruction_clear" value="1" <?php echo e(isset($batch->client_instruction_clear) && $batch->client_instruction_clear == 1 ? 'checked' : ''); ?>> Are client`s instructions clear ?
@@ -2421,6 +2425,9 @@
 										<?php if(Auth::user()->is_client == 0): ?>
 										<th>Reporting Symbol</th>
 										<th nowrap>Result</th>
+										<?php if(isset($batch->id) && $batch->require_mu == 1): ?>
+										<th>Uncertainity (+-)</th>
+										<?php endif; ?>
 										<?php endif; ?>
 										<?php if(isset($batch->id) && $batch->repeat_sample_id > 0): ?>
 										<th>Prev Result (<small>+- <?php echo e($qc_config_perc); ?> %</small>)</th>
@@ -3260,7 +3267,7 @@
 					<h5>${section}</h5>
 					
 				</td>
-				<td class="pull-right" colspan="11" style="padding-left:1%">
+				<td class="pull-right" colspan="<?php echo e(isset($batch->id) && $batch->require_mu == 1 ? 12 : 11); ?>" style="padding-left:1%">
 					<b>Date of Analysis</b>
 					<input type="date" class="start_analysis_date" value="${datevalue}" style="margin-left:1%;width:20%">
 					<span class="btn btn-sm btn-success save-analysis-start-date" style="font-size:14px !important"><i class="mdi mdi-sync"></i>Click to Save Date</span>
@@ -4346,7 +4353,14 @@
 						class="form-control ${data.remark_is_manual == 0 ? 'first-result' : ''}" ${interLabApproval == 1 ? "disabled" : ""}  id="result-${loop}" value="${data.result == null ? '' : data.result}" name="result[${data.id}]" placeholder="Result..." />
 						<input type="hidden" name="result_confirm"  />
 					</div>
+				</td>measure_uncertanity
+				<?php if(isset($batch->id) && $batch->require_mu == 1): ?>
+				<td>
+					<div class="form-group">
+						<input type="text" name="measure_uncertanity[${data.id}]" value="${data.measure_uncertanity == null ? '' : data.measure_uncertanity}" placeholder="Measure..." class="form-control">
+					</div>
 				</td>
+				<?php endif; ?>
 				<?php endif; ?>
 				<?php if($batch && $batch->is_qc_batch == 1 && $batch->repeat_sample_id > 0): ?>
 				<td style="width:150px !important">

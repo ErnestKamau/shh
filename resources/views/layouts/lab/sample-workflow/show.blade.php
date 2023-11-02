@@ -499,7 +499,7 @@
 				<div class="row p-2 mt-3">
 					<div class="form-group col-md-4 btn-group-sm">
 						<label class="control-label">
-							<input type="checkbox" name="require_mu" value="1" {{ isset($batch->require_mu) && $batch->client_instruction_clear == 1 ? 'checked' : '' }}> Client has requested Measure of uncertainity  ?
+							<input type="checkbox" name="require_mu" value="1" {{ isset($batch->require_mu) && $batch->require_mu == 1 ? 'checked' : '' }}> Has client requested Measure of uncertainity  ?
 						</label>
 					</div>
 					<div class="form-group col-md-4 btn-group-sm">
@@ -3257,7 +3257,7 @@
 					<h5>${section}</h5>
 					
 				</td>
-				<td class="pull-right" colspan="11" style="padding-left:1%">
+				<td class="pull-right" colspan="{{isset($batch->id) && $batch->require_mu == 1 ? 12 : 11}}" style="padding-left:1%">
 					<b>Date of Analysis</b>
 					<input type="date" class="start_analysis_date" value="${datevalue}" style="margin-left:1%;width:20%">
 					<span class="btn btn-sm btn-success save-analysis-start-date" style="font-size:14px !important"><i class="mdi mdi-sync"></i>Click to Save Date</span>
@@ -4347,7 +4347,7 @@
 				@if(isset($batch->id) && $batch->require_mu == 1)
 				<td>
 					<div class="form-group">
-						<input type="text" name="measure_uncertanity[${data.id}]" value="${data.measure_uncertanity}" placeholder="Uncertanity" class="form-control">
+						<input type="text" name="measure_uncertanity[${data.id}]" value="${data.measure_uncertanity == null ? '' : data.measure_uncertanity}" placeholder="Measure..." class="form-control">
 					</div>
 				</td>
 				@endif

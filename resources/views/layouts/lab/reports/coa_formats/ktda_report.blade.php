@@ -275,15 +275,20 @@
                                         </td>
                                         <td class="parameter {{ $captured->remark == 'FAIL' ? 'textBold' : '' }}"
                                             style="font-size: 9px !important;padding-left:3px !important;">
-                                            {{ $captured->result_reporting_symbol ?? '' }}{{ $captured->result }}
+                                            {{ $captured->result_reporting_symbol ?? '' }} {{ formatReportResults($captured->result) }}
                                         </td>
+                                        @if($batch->require_mu == 1) 
+                                        <td class="parameter" style="font-size: 9px !important;padding-left:3px !important;">
+                                            {{ $captured->measure_uncertanity ?? '' }}
+                                        </td> 
+                                        @endif
                                         <td class="parameter"
                                             style="font-size: 9px !important;padding-left:3px !important;">
                                             {{ $captured->analyte()->reporting_unit }}
                                         </td>
                                         <td class="parameter"
                                             style="font-size: 9px !important;padding-left:3px !important;">
-                                            {{ $captured->main_value }}
+                                            {{ $captured->main_value }} {{getStandardLimitValue($captured->id,$sample->main_standard) ?? ''}}
                                         </td>
 
                                     </tr>
@@ -302,6 +307,11 @@
                                 <th class="parameter"
                                     style="font-size: 9px !important;width:10% !important;vertical-align: top !important;padding:5px !important">
                                     RESULTS</th>
+                                @if($batch->require_mu == 1)  
+                                <th class="parameter"
+                                style="font-size: 9px !important;width:10% !important;vertical-align: top !important;padding:5px !important">
+                                UNCERTAINITY (+-)</th>                          
+                                @endif                                    
 
                                 <th class="parameter text-center"
                                     style="font-size: 9px !important;width:15% !important;vertical-align: top !important;padding:5px !important">
@@ -331,12 +341,17 @@
 
                                         <td class="parameter {{ $captured->remark == 'FAIL' ? 'textBold' : '' }}"
                                             style="font-size: 9px !important;padding-left:3px !important;">
-                                            {{ $captured->result_reporting_symbol ?? '' }}{{ $captured->result }}
+                                            {{ $captured->result_reporting_symbol ?? '' }} {{ formatReportResults($captured->result) }}
                                         </td>
+                                        @if($batch->require_mu == 1) 
+                                        <td class="parameter" style="font-size: 9px !important;padding-left:3px !important;">
+                                            {{ $captured->measure_uncertanity ?? '' }}
+                                        </td> 
+                                        @endif
 
                                         <td class="parameter"
                                             style="font-size: 9px !important;padding-left:3px !important;">
-                                            {{ $captured->main_value }}
+                                            {{ $captured->main_value }} {{getStandardLimitValue($captured->id,$sample->main_standard) ?? ''}}
                                         </td>
 
                                     </tr>
@@ -407,12 +422,12 @@
 
                                         <td class="parameter {{ $captured[0]->remark == 'FAIL' ? 'textBold' : '' }}"
                                             style="font-size: 9px !important;padding-left:3px !important;">
-                                            {{ $captured->result_reporting_symbol ?? '' }}{{ $captured->result }}
+                                            {{ $captured->result_reporting_symbol ?? '' }} {{ formatReportResults($captured->result) }}
                                         </td>
 
                                         <td class="parameter"
                                             style="font-size: 9px !important;padding-left:3px !important;">
-                                            {{ $captured->main_value }}
+                                            {{ $captured->main_value }} {{getStandardLimitValue($captured->id,$sample->main_standard) ?? ''}}
                                         </td>
 
                                         <td class="parameter"
@@ -432,12 +447,12 @@
 
                                         <td class="parameter {{ $captured[1]->remark == 'FAIL' ? 'textBold' : '' }}"
                                             style="font-size: 9px !important;padding-left:3px !important;">
-                                            {{ $captured->result_reporting_symbol ?? '' }}{{ $captured->result }}
+                                            {{ $captured->result_reporting_symbol ?? '' }} {{ formatReportResults($captured->result) }}
                                         </td>
 
                                         <td class="parameter"
                                             style="font-size: 9px !important;padding-left:3px !important;">
-                                            {{ $captured->main_value }}
+                                            {{ $captured->main_value }} {{getStandardLimitValue($captured->id,$sample->main_standard) ?? ''}}
                                         </td>
 
                                     </tr>
