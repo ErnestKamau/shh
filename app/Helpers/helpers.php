@@ -1558,7 +1558,7 @@ function getCoaApproverSignature($signature){
 function convertDateFormatReports($date,$format){
 	if($format == 'dateShortMonth'){
 		$raw_date = \Carbon\Carbon::parse($date);
-		$format_date = $raw_date->format('jS M Y');
+		$format_date = $raw_date->format('dS F Y');
 		return $format_date;
 		
 	}

@@ -242,12 +242,12 @@
 								</span>
 							</li>
 							@endif
-							<li>
+							<li class="hidden">
 								<span class="btn btn-sm dropdown-item"  data-target="#view-coa-report" data-toggle="modal" title="View Sample(s) COA"><i class="mdi mdi-subdirectory-arrow-right mr-2"></i> View Report</span>
 								
 							</li>
 						@else
-							<li>
+							<li class="hidden">
 								<span class="btn btn-sm dropdown-item"  data-target="#view-coa-report" data-toggle="modal" title="View Sample(s) COA"><i class="mdi mdi-subdirectory-arrow-right mr-2"></i> View Report {{$not_captured->count()}}</span>
 							</li>
 						@endif
@@ -371,7 +371,7 @@
 						
 					</div>
 	
-					<div class="form-group col-md-3 qc-omit-type-field {{isset($batch->id) ? ( $batch->status == 'Samples In Lab' || $batch->is_qc_batch == 1 ? 'hidden' : '') : ''}}">
+					<div class="form-group col-md-3 qc-omit-type-field {{isset($batch->id) ? ( $batch->status == 'Samples In Lab' || $batch->is_qc_batch == 1 || $batch->status == 'Sample Verification' ? 'hidden' : '') : ''}}">
 												
 						<label  class="control-label">Client <span class="text-danger">*</span> <span class="btn-primary p-0 btn-sm" style="margin: 0px !important;" data-target="#add-customer" data-toggle="modal" data-toggle="tooltip" title="Add Client" ><i class="mdi mdi-plus"></i></span></label>
 						<select class="form-control qc-remove-required {{ $defaultClient === false ? '' :'no-select2' }} {{ isset($batch->status) && !in_array($batch->status, array("Samples Reception", "Samples En-Route")) ? 'no-select2' : '' }}" {{ isset($batch->status) && !in_array($batch->status, array("Samples Reception", "Samples En-Route")) ? 'readonly' : '' }} name="crm_customer_id" id="client-select" onchange="detectChange(this)" {{ $defaultClient === false ? '' :'readonly' }}>
