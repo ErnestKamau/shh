@@ -135,6 +135,8 @@ class ReportHeaderDetailController extends Controller
 		$batch->processing_date = getTodayDate();
 		$batch->in_ammendment_proccess = 0;
 		$batch->save();
+		$main_lab = implode(' ,',array_unique(SamplesCategory::where('sample_header_id', $batch->id)->pluck('main_lab_name')->toArray()));
+
 		$ammendment = BatchAmmendment::where('batch_id',$batch->id)->where('version_number',$batch->is_amendment)->first();
 		$report_type = '';
 		$report_type = $batch->prelim_report_status == 1 ? 'PRELIM' : $report_type;
@@ -185,7 +187,7 @@ class ReportHeaderDetailController extends Controller
 			$pdf = app('dompdf.wrapper');
 			$pdf->getDomPDF()->set_option("enable_php", true);
 			$pdf->setPaper('A4', 'portrait');
-			$pdf = PDF::loadView('layouts.lab.reports.coa_formats.ktda_report', compact('samples', 'company', 'qrcode', 'path', 'kenas', 'batch_approvers', 'pdf', 'batch', 'non_accredited', 'disclaimer', 'nema','customer','analysis_date', 'polucon_disclaimer','stamp','is_stamp','ammendment','polucon_disclaimer_not'));
+			$pdf = PDF::loadView('layouts.lab.reports.coa_formats.ktda_report', compact('samples', 'company', 'qrcode', 'path', 'kenas', 'batch_approvers', 'pdf', 'batch', 'non_accredited', 'disclaimer', 'nema','customer','analysis_date', 'polucon_disclaimer','stamp','is_stamp','ammendment','polucon_disclaimer_not','main_lab'));
 
 			if (is_dir(storage_path() . '/app/reports/' . $customer_name)) {
 				$pdf->save(storage_path() . '/app/reports/' . $customer_name . '/' . $filename);
@@ -221,7 +223,7 @@ class ReportHeaderDetailController extends Controller
 			
 			$pdf = app('dompdf.wrapper');
 			$pdf->getDomPDF()->set_option("enable_php", true);
-			$pdf = PDF::loadView('layouts.lab.reports.coa_formats.iran_report', compact('samples', 'company', 'qrcode', 'path', 'kenas', 'batch_approvers', 'pdf', 'batch', 'non_accredited', 'disclaimer','nema','customer','analysis_date', 'polucon_disclaimer','stamp','is_stamp','ammendment','polucon_disclaimer_not'));
+			$pdf = PDF::loadView('layouts.lab.reports.coa_formats.iran_report', compact('samples', 'company', 'qrcode', 'path', 'kenas', 'batch_approvers', 'pdf', 'batch', 'non_accredited', 'disclaimer','nema','customer','analysis_date', 'polucon_disclaimer','stamp','is_stamp','ammendment','polucon_disclaimer_not','main_lab'));
 
 			if (is_dir(storage_path() . '/app/reports/' . $customer_name)) {
 				$pdf->save(storage_path() . '/app/reports/' . $customer_name . '/' . $filename);
@@ -251,7 +253,7 @@ class ReportHeaderDetailController extends Controller
 		ini_set('max_execution_time', 300); //300 seconds = 5 minutes 
 		$pdf = app('dompdf.wrapper');
 		$pdf->getDomPDF()->set_option("enable_php", true);
-		$pdf = PDF::loadView('layouts.lab.reports.coa_formats.standard_report', compact('samples', 'company', 'qrcode', 'path', 'kenas', 'batch_approvers', 'pdf', 'batch', 'non_accredited', 'disclaimer', 'nema','customer','report_type','analysis_date', 'polucon_disclaimer','stamp','is_stamp','ammendment','polucon_disclaimer_not'));
+		$pdf = PDF::loadView('layouts.lab.reports.coa_formats.standard_report', compact('samples', 'company', 'qrcode', 'path', 'kenas', 'batch_approvers', 'pdf', 'batch', 'non_accredited', 'disclaimer', 'nema','customer','report_type','analysis_date', 'polucon_disclaimer','stamp','is_stamp','ammendment','polucon_disclaimer_not','main_lab'));
 
 		if (is_dir(storage_path() . '/app/reports/' . $customer_name)) {
 			$pdf->save(storage_path() . '/app/reports/' . $customer_name . '/' . $filename);

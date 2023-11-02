@@ -149,6 +149,10 @@
             </table>
         </div>
     </footer>
+    <div class="main-lab" style="position:fixed;bottom:22%;left:1%;font-size:8px">
+        <b>{{strtoupper($main_lab)}}</b><br>
+        <b>{{ $batch->approval_date != '' ? convertDateFormatReports($batch->approval_date,'dateShortMonth') : '-' }}</b>
+    </div>
     <header class="header">
         <table style="width: 100%;border:0px;">
             <tr>
@@ -188,10 +192,7 @@
         @else
             <img src="{{ $polucon_disclaimer }}" style="width:auto;height:55px;position:fixed;bottom:110px;" alt="">  
         @endif
-        <div class="main-lab" style="position:fixed;bottom:22%;left:1%;font-size:8px">
-            <b>{{strtoupper($sample->main_lab_name)}}</b><br>
-            <b>{{ $batch->approval_date != '' ? convertDateFormatReports($batch->approval_date,'dateShortMonth') : '-' }}</b>
-        </div>
+       
         <main style="">
             <table class="table table-sm" style="font-size: 8px;border:solid 0 transparent !important">
                 <thead style="height: 60px !important;">

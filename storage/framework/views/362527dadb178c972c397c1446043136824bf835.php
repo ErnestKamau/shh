@@ -196,7 +196,7 @@
 				<th>Lab Sections</th>
 				
 				<th>Stage</th>
-				<?php if($status == 'Samples In Lab'): ?>
+				<?php if($status == 'Samples In Lab' || $status == 'Sample Verification'): ?>
 				<?php else: ?>
 				<th>Client</th>
 				<?php endif; ?>
@@ -273,7 +273,7 @@
 						<?php echo e($sampleStart.' - '.$sampleEnd); ?></td>
 					<td nowrap><?php echo e($item->getLabSectionsNames()); ?></td>
 					<td style="min-width: 200px !important;"><?php echo e($item->status); ?></td>
-					<?php if($status == 'Samples In Lab'): ?>
+					<?php if($status == 'Samples In Lab' || $status == 'Sample Verification'): ?>
 					<?php else: ?>
 
 					<td nowrap><?php echo e($item->client->name); ?></td>
