@@ -802,7 +802,7 @@ $thePath = request()->path();
 @if(isset($datePicker))
   {{-- <script src="https://cdnjs.cloudflare.com/ajax/libs/bootstrap-datepicker/1.9.0/js/bootstrap-datepicker.min.js"></script> --}}
 <script src="/assets/js/libs/bootstrap-datepicker/datepicker1.9.0.min.js"></script>
-
+{{-- <script src="https://cdn.datatables.net/fixedcolumns/4.3.0/js/dataTables.fixedColumns.min.js"></script> --}}
 @endif
 <script>
 	function userChats(item){
@@ -1061,13 +1061,13 @@ $thePath = request()->path();
           }
         };
         if(fixedCols == "true" || fixedCols == true){
-          // $fCOps['scrollY'] = 200;
-          // $fCOps['scrollX'] = true;
-          // $fCOps['scrollCollapse'] = true;
-          // $fCOps['scroller'] = true;
-          // $fCOps['fixedColumns'] = {
-          //  left: 2
-          // }
+        //   $fCOps['scrollY'] = 200;
+        //   $fCOps['scrollX'] = true;
+        //   $fCOps['scrollCollapse'] = true;
+        //   $fCOps['scroller'] = true;
+        //   $fCOps['fixedColumns'] = {
+        //    left: 2
+        //   }
           // console.log($fCOps);
         }
         $(e).DataTable($fCOps);

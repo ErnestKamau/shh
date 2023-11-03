@@ -175,7 +175,7 @@
 
 	</h4>
 	<div class="table-responsive bg-light p-4">
-		<table class="table table-condensed my-small-text table-bordered table-sm">
+		<table class="table table-condensed my-small-text table-bordered table-sm" data-fixedcls="{{json_encode(["left"=>3])}}">
 			<thead>
 				<th></th>
 				<th>Priority</th>

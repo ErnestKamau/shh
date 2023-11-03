@@ -284,7 +284,7 @@
                                         @endif
                                         <td class="parameter"
                                             style="font-size: 9px !important;padding-left:3px !important;">
-                                            {{ $captured->analyte()->reporting_unit }}
+                                            {{ $captured->reporting_unit_id }}
                                         </td>
                                         <td class="parameter"
                                             style="font-size: 9px !important;padding-left:3px !important;">
