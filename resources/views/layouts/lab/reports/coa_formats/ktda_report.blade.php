@@ -96,29 +96,35 @@
         <table style="margin-top: 1px !important;margin-bottom:6px!important;width:100%;">
             <tr>
                 @foreach ($batch_approvers as $approver)
+                    <td style="width:10%"></td>
                     <td style="font-size: 8px !important;">
                         <div style="text-align:center">
                             <b>{{ $approver->title }}</b>
                         </div>
                     </td>
+                    <td style="width:10%"></td>
                 @endforeach
             </tr>
             <tr>
                 @foreach ($batch_approvers as $approver)
+                    <td style="width:10%"></td>
                     <td style="font-size: 8px !important;">
                         <div class="dotted-line text-align:center" style="text-align:center; width:fit-content!important;">
                             <img src="{{ getCoaApproverSignature($approver->getApproverDetails()->electronic_sig) }}" style="height:48px;"
                             alt="signature">
                         </div>
                     </td>
+                    <td style="width:10%"></td>
                 @endforeach
             </tr>
             <tr>
                 @foreach ($batch_approvers as $approver)
+                    <td style="width:10%"></td>
                     <td style="font-size: 9px !important;">
                         <div style="text-align:center">{{ $approver->approvershortname }} -
                                 <i>{{ $approver->getApproverPositionDetails() }}</i></div>
                     </td>
+                    <td style="width:10%"></td>
                 @endforeach
             </tr>
         </table>
@@ -190,7 +196,7 @@
             <b>{{strtoupper($sample->main_lab_name)}}</b><br>
             <b>{{ $batch->approval_date != '' ? convertDateFormatReports($batch->approval_date,'dateShortMonth') : '-' }}</b>
         </div>
-        <main style="">
+        <main style="margin-bottom:300px !important">
             <table style="width: 100%;margin:0 !important;margin-bottom:2px;border: 1px solid rgba(0, 0, 0, 0.35) !important">
                 <tr  style="margin:0 !important">
                     <td colspan="2"
