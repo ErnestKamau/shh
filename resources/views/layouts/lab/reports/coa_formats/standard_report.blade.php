@@ -94,6 +94,7 @@
         @if($batch_approvers->count() > 0)
         <table style="margin-top: 1px !important;margin-bottom:6px!important;width:100%;">
             <tr>
+                <td style="width:10%"></td>
                 @foreach ($batch_approvers as $approver)
                     <td style="font-size: 8px !important;">
                         <div style="text-align:center">
@@ -101,8 +102,10 @@
                         </div>
                     </td>
                 @endforeach
+                <td style="width:10%"></td>
             </tr>
             <tr>
+                <td style="width:10%"></td>
                 @foreach ($batch_approvers as $approver)
                     <td style="font-size: 8px !important;">
                         <div class="dotted-line text-align:center" style="text-align:center; width:fit-content!important;">
@@ -111,14 +114,17 @@
                         </div>
                     </td>
                 @endforeach
+                <td style="width:10%"></td>
             </tr>
             <tr>
+                <td style="width:10%"></td>
                 @foreach ($batch_approvers as $approver)
                     <td style="font-size: 9px !important;">
                         <div style="text-align:center">{{ $approver->approvershortname }} -
                                 <i>{{ $approver->getApproverPositionDetails() }}</i></div>
                     </td>
                 @endforeach
+                <td style="width:10%"></td>
             </tr>
         </table>
         @endif
@@ -218,7 +224,7 @@
                                 </tr>
                                 <tr>
                                     <td style="border: solid 0 transparent !important;border-right:1px solid rgba(0, 0, 0, 0.35);font-size:8px !important;border-left:1px solid rgba(0, 0, 0, 0.35);padding:2px;padding-left:4px">DATE ANALYSIS STARTED</td>
-                                    <td style="border: solid 0 transparent !important;padding:2px;padding-left:10px !important;font-size:8px !important;border-right:1px solid rgba(0, 0, 0, 0.35);border-left: 2.1px solid rgba(0, 0, 0, 0.35);">{{$analysis_date->start_analysis_date != '' ? convertDateFormatReports($analysis_date->start_analysis_date,'dateShortMonth') : '-' }}</td>
+                                    <td style="border: solid 0 transparent !important;padding:2px;padding-left:10px !important;font-size:8px !important;border-right:1px solid rgba(0, 0, 0, 0.35);border-left: 2.1px solid rgba(0, 0, 0, 0.35);">{{$batch->approval_date != '' ? convertDateFormatReports($batch->approval_date,'dateShortMonth') : '-' }}</td>
                                 </tr>
                                 <tr>
                                     <td style="border: solid 0 transparent !important;border-right:1px solid rgba(0, 0, 0, 0.35);font-size:8px !important;border-left:1px solid rgba(0, 0, 0, 0.35);padding:2px;padding-left:4px">SAMPLING METHOD</td>

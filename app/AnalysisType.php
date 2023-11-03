@@ -8,6 +8,7 @@ use OwenIt\Auditing\Contracts\Auditable;
 class AnalysisType extends Model implements Auditable
 {
 	use \OwenIt\Auditing\Auditable;
+  protected $fillables  = ['brand_id'];
   protected $appends = ['labsectionname'];
   public function lab(){
     return $this->belongsTo('App\Lab');
