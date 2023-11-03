@@ -28,7 +28,7 @@ class SampleTypeController extends Controller
 
   public function index()
   {
-    $sample_types = SampleType::join('companies as c', 'c.id', '=', 'sample_types.company_id')->selectRaw('sample_types.*, c.name as company')->get();
+    $sample_types = SampleType::join('companies as c', 'c.id', '=', 'sample_types.company_id')->selectRaw('sample_types.*, c.name as company')->where('sample_types.active',1)->get();
     $companies = Company::all();
     $categories = SampleTypeCategory::all();
 
