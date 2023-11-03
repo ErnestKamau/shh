@@ -175,6 +175,10 @@
         <img src="{{$stamp}}" style="height:162px; z-index:1000;" alt="">
     </div>
     @endif
+    <div class="main-lab" style="position:fixed;bottom:22%;left:1%;font-size:8px">
+        <b>{{strtoupper($sample->main_lab)}}</b><br>
+        <b>{{$batch->approval_date != '' ? convertDateFormatReports($batch->approval_date,'dateShortMonth') : '-' }}</b>
+    </div>
 
     @foreach ($samples as $sample)
         @if ($sample->getAccredittedStatus() >= 1)
@@ -186,11 +190,8 @@
                 <img src="{{ $nema }}" style="width:auto;height:100px" alt="">
             </div>
         @endif
-        <div class="main-lab" style="position:fixed;bottom:23%;left:1%;font-size:8px">
-            <b>{{strtoupper($sample->main_lab_name)}}</b><br>
-            <b>{{$batch->approval_date != '' ? convertDateFormatReports($batch->approval_date,'dateShortMonth') : '-' }}</b>
-        </div>
-        <main style="">
+        
+        <main style="margin-bottom:280px !important">
             <table name="bl_header" id="bl_header" class="table table-sm table-bordered" style="width:100%;font-size: 8px">
                 <tr>
                     <td style="text-align: left;font-size:10px !important" colspan="4"><b>TEST REPORT NO : R{{ substr($sample->sample_code, 1, strlen($sample->sample_code)) }}{{$sample->ammendment_number > 1 ? '-V'.$sample->ammendment_number  : ''}}</b></td>

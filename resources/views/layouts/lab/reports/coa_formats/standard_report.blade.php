@@ -199,7 +199,7 @@
             <img src="{{ $polucon_disclaimer }}" style="width:auto;height:55px;position:fixed;bottom:110px;" alt="">  
         @endif
        
-        <main style="">
+        <main style="margin-bottom:280px">
             <table class="table table-sm" style="font-size: 8px;border:solid 0 transparent !important">
                 <thead style="height: 60px !important;">
                     <tr style="margin:0 !important;">

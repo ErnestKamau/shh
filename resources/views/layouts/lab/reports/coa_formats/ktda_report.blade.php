@@ -197,7 +197,7 @@
             </div>
         @endif
        
-        <main style="margin-bottom: 300px !important">
+        <main style="margin-bottom: 280px !important">
             <table style="width: 100%;margin:0 !important;margin-bottom:2px;border: 1px solid rgba(0, 0, 0, 0.35) !important">
                 <tr  style="margin:0 !important">
                     <td colspan="2"
