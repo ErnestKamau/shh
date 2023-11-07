@@ -13,9 +13,10 @@
 				clear: both; 
 				page-break-after: always!important;
 				min-height: 250px!important;
-				font-size:25px!important;
 				padding: 0px !important;
 				font-weight:1000;
+				font-family: "Lucida Console", "Courier New", monospace !important;
+				font-size:50px!important;
 				
 				
 			}
@@ -32,6 +33,7 @@
 			clear: both;
 			page-break-after: always!important;
 			font-weight:1000;
+			font-family: "Lucida Console", "Courier New", monospace !important;
 		}
 
 		body {

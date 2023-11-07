@@ -258,6 +258,12 @@
 						
 						@endif
 					@endif
+					@if($batch->status == 'Samples In Lab' && $batch->batch_report_url != '')
+						<?php $reportpath = '/storage'.$batch->batch_report_url; ?>
+						<li>
+							<a target="_blank" href="{{$reportpath}}" class="dropdown-item"><i class="mdi mdi-download mr-2"></i> Download COA</a>
+						</li>
+					@endif
 					@if(in_array($batch->status,["Sample Approval","Reports for Collection","Reports In Payment"]) && $batch->batch_report_url != '')
 						<?php $reportpath = '/storage'.$batch->batch_report_url; ?>
 						<li>
