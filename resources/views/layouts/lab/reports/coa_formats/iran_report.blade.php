@@ -96,29 +96,35 @@
         <table style="margin-top: 1px !important;margin-bottom:6px!important;width:100%;">
             <tr>
                 @foreach ($batch_approvers as $approver)
+                    <td style="width:10%"></td>
                     <td style="font-size: 8px !important;">
                         <div style="text-align:center">
                             <b>{{ $approver->title }}</b>
                         </div>
                     </td>
+                    <td style="width:15%"></td>
                 @endforeach
             </tr>
             <tr>
                 @foreach ($batch_approvers as $approver)
+                    <td style="width:10%"></td>
                     <td style="font-size: 8px !important;">
                         <div class="dotted-line text-align:center" style="text-align:center; width:fit-content!important;">
                             <img src="{{ getCoaApproverSignature($approver->getApproverDetails()->electronic_sig) }}" style="height:48px;"
                             alt="signature">
                         </div>
                     </td>
+                    <td style="width:15%"></td>
                 @endforeach
             </tr>
             <tr>
                 @foreach ($batch_approvers as $approver)
+                    <td style="width:10%"></td>
                     <td style="font-size: 9px !important;">
                         <div style="text-align:center">{{ $approver->approvershortname }} -
                                 <i>{{ $approver->getApproverPositionDetails() }}</i></div>
                     </td>
+                    <td style="width:15%"></td>
                 @endforeach
             </tr>
         </table>
@@ -164,7 +170,7 @@
                 <td style="border: solid 0 transparent !important;text-align:right;font-size:11px !important;">
                     {{ $customer->name }} <br>
                     P.O BOX {{ $customer->postal_address }} <br>
-                    {{ $customer->physical_address }}
+                    
                 </td>
             </tr>
 
@@ -176,8 +182,8 @@
     </div>
     @endif
     <div class="main-lab" style="position:fixed;bottom:22%;left:1%;font-size:8px">
-        <b>{{strtoupper($sample->main_lab)}}</b><br>
-        <b>{{$batch->approval_date != '' ? convertDateFormatReports($batch->approval_date,'dateShortMonth') : '-' }}</b>
+        <b>{{strtoupper($main_lab)}}</b><br>
+        <b>{{$batch->approval_date != '' && $batch->prelim_report_status != 2 ? convertDateFormatReports($batch->approval_date,'dateShortMonth') : '-' }}</b>
     </div>
 
     @foreach ($samples as $sample)
@@ -194,10 +200,10 @@
         <main style="margin-bottom:280px !important">
             <table name="bl_header" id="bl_header" class="table table-sm table-bordered" style="width:100%;font-size: 8px">
                 <tr>
-                    <td style="text-align: left;font-size:10px !important" colspan="4"><b>TEST REPORT NO : R{{ substr($sample->sample_code, 1, strlen($sample->sample_code)) }}{{$sample->ammendment_number > 1 ? '-V'.$sample->ammendment_number  : ''}}</b></td>
+                    <td style="text-align: left;font-size:10px !important" colspan="4"><b>TEST REPORT NO : R{{ substr($sample->sample_code, 1, strlen($sample->sample_code)) }}{{$sample->ammendment_number > 1 ? '-V'.$sample->ammendment_number  : ''}} {{$report_type != '' ? ' - '.$report_type : ''}}</b></td>
                 </tr>
                 <tr>
-                    <td style="text-align: center" colspan="4"><b>Analysis Certificate</b></td>
+                    <td style="text-align: center" colspan="4"><b>ANALYSIS CERTIFICATE</b></td>
                 </tr>
                 <tr>
                     <td style="width: 20%"><b>SHIPPER</b></td>
@@ -244,7 +250,7 @@
                 </tr>
                 <tr>
                     <td><b>FINISH DATE OF ANALYSIS</b></td>
-                    <td>{{$batch->approval_date != '' ? convertDateFormatReports($batch->approval_date,'dateShortMonth') : '-' }}</td>
+                    <td>{{$batch->approval_date != '' && $batch->prelim_report_status != 2 ? convertDateFormatReports($batch->approval_date,'dateShortMonth') : '-' }}</td>
                     <td><b>SAMPLING METHOD</b></td>
                     <td>{{ $sample->sample_method_name ?? 'N/A' }}</td>
                 </tr>
@@ -302,7 +308,7 @@
                                         </td>
                                         <td class="parameter {{ $captured->remark == 'FAIL' ? 'textBold' : '' }}"
                                             style="font-size: 9px !important;padding-left:3px !important;">
-                                            {{ $captured->result_reporting_symbol ?? '' }} {{ formatReportResults($captured->result) }}
+                                            {{ $captured->result_reporting_symbol ?? '' }} {{ $captured->result != '' ? formatReportResults($captured->result) : 'TBA'   }}
                                         </td>
                                         @if($batch->require_mu == 1) 
                                         <td class="parameter" style="font-size: 9px !important;padding-left:3px !important;">
