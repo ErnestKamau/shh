@@ -170,7 +170,7 @@
                 <td style="border: solid 0 transparent !important;text-align:right;font-size:11px !important;">
                     {{ $customer->name }} <br>
                     P.O BOX {{ $customer->postal_address }} <br>
-                    {{ $customer->physical_address }}
+                    
                 </td>
             </tr>
 
@@ -282,7 +282,7 @@
                                         </td>
                                         <td class="parameter {{ $captured->remark == 'FAIL' ? 'textBold' : '' }}"
                                             style="font-size: 9px !important;padding-left:3px !important;">
-                                            {{ $captured->result_reporting_symbol ?? '' }} {{ formatReportResults($captured->result) }}
+                                            {{ $captured->result_reporting_symbol ?? '' }} {{  $captured->result != '' ? formatReportResults($captured->result) : 'TBA'   }}
                                         </td>
                                         @if($batch->require_mu == 1) 
                                         <td class="parameter" style="font-size: 9px !important;padding-left:3px !important;">

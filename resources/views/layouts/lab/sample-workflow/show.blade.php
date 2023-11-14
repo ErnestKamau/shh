@@ -229,7 +229,14 @@
 					</li>
 
 				@endif
+				@if(isset($batch->status) && $batch->status == 'Samples In Lab' && $batch->prelim_report_status == 2)
+				<?php $reportpath = '/storage'.$batch->batch_report_url; ?>
+				<li>
+					<a target="_blank" href="{{$reportpath}}" class="dropdown-item"><i class="mdi mdi-download mr-2"></i> Download COA</a>
+				</li>
+				@endif
 				@if(isset($batch->status) && in_array($batch->status, array("Sample Verification","Sample Approval","Reports for Collection","Reports In Payment")) && Auth::user()->is_client == 0)
+				
 					@if($batch->status == "Sample Verification")
 						@if($not_captured->count() == 0)
 							@if(auth()->user()->checkVerifyLabSampleRole())
@@ -258,6 +265,7 @@
 						
 						@endif
 					@endif
+					
 					@if(in_array($batch->status,["Sample Approval","Reports for Collection","Reports In Payment"]) && $batch->batch_report_url != '')
 						<?php $reportpath = '/storage'.$batch->batch_report_url; ?>
 						<li>

@@ -12,12 +12,16 @@
 			.card {
 				clear: both; 
 				page-break-after: always!important;
-				min-height: 250px!important;
-				font-size:25px!important;
+				height: 9cm !important;
+				width: 1cm !important;
+				font-size:40px!important;
 				padding: 0px !important;
-				font-weight:1000;
-				
-				
+				font-family: "Lucida Console", "Courier New", monospace !important;
+				font-weight:900;
+			
+			}
+			td{
+				padding: 0px !important;
 			}
 			#print {display: none;}
 			body,html {margin: 0px; padding: 0px;}
@@ -25,13 +29,14 @@
 
 		.card {
 			background-color: white;
-			width: 580px!important;
-			max-height: 100%!important;
-			font-size: 15px!important;
+			width: 15cm!important;
+			max-height: 9cm!important;
+			font-size: 13px!important;
 			border: none!important;
 			clear: both;
 			page-break-after: always!important;
 			font-weight:1000;
+			font-family: "Lucida Console", "Courier New", monospace !important;
 		}
 
 		body {
@@ -43,7 +48,7 @@
 			height: 100%!important;
 		}
 		table,tr,td{border:0.5px solid #131313!important}
-		td{padding: 3px!important;}
+		td{padding: 0px!important;}
 		
 	</style>
 </head>
