@@ -237,7 +237,14 @@
 					</li>
 
 				<?php endif; ?>
+				<?php if(isset($batch->status) && $batch->status == 'Samples In Lab' && $batch->prelim_report_status == 2): ?>
+				<?php $reportpath = '/storage'.$batch->batch_report_url; ?>
+				<li>
+					<a target="_blank" href="<?php echo e($reportpath); ?>" class="dropdown-item"><i class="mdi mdi-download mr-2"></i> Download COA</a>
+				</li>
+				<?php endif; ?>
 				<?php if(isset($batch->status) && in_array($batch->status, array("Sample Verification","Sample Approval","Reports for Collection","Reports In Payment")) && Auth::user()->is_client == 0): ?>
+				
 					<?php if($batch->status == "Sample Verification"): ?>
 						<?php if($not_captured->count() == 0): ?>
 							<?php if(auth()->user()->checkVerifyLabSampleRole()): ?>
@@ -266,12 +273,7 @@
 						
 						<?php endif; ?>
 					<?php endif; ?>
-					<?php if($batch->status == 'Samples In Lab' && $batch->batch_report_url != ''): ?>
-						<?php $reportpath = '/storage'.$batch->batch_report_url; ?>
-						<li>
-							<a target="_blank" href="<?php echo e($reportpath); ?>" class="dropdown-item"><i class="mdi mdi-download mr-2"></i> Download COA</a>
-						</li>
-					<?php endif; ?>
+					
 					<?php if(in_array($batch->status,["Sample Approval","Reports for Collection","Reports In Payment"]) && $batch->batch_report_url != ''): ?>
 						<?php $reportpath = '/storage'.$batch->batch_report_url; ?>
 						<li>
