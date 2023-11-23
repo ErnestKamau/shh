@@ -316,6 +316,9 @@
                             <div class="form-group">
                               <label class="control-label"><input type="checkbox" name="active" value="1" {{ $analysis_type->active == 1 ? 'checked' : '' }} /> Active</label>
                             </div>
+                            <div class="form-group">
+                              <label class="control-label"><input type="checkbox" name="is_pesticide" value="1" {{ $analysis_type->is_pesticide == 1 ? 'checked' : '' }} /> Is Pesticide</label>
+                            </div>
                           </div>
                           <div class="modal-footer">
                             <button type="submit" class="btn btn-primary"><i class="mdi mdi-content-save"></i> Save</button>
@@ -652,6 +655,9 @@
         </div>
         <div class="form-group">
           <label class="control-label"><input type="checkbox" name="active" value="1" checked /> Active</label>
+        </div>
+        <div class="form-group">
+          <label class="control-label"><input type="checkbox" name="is_pesticide" value="1" /> Is Pesticide</label>
         </div>
       </div>
       <div class="modal-footer">
