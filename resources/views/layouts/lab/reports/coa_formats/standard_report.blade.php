@@ -337,11 +337,11 @@
                 </tr>
                 @endif
             </table>
-            @if ($loop->iteration < $samples->count())
+        </main>
+        @if ($loop->iteration < $samples->count())
                 <div style="page-break-after: always;">
                 </div>
             @endif
-        </main>
     @endforeach
     <script type="text/php">
     if (isset($pdf)) {
