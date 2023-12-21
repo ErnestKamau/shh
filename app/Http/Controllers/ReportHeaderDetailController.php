@@ -122,7 +122,7 @@ class ReportHeaderDetailController extends Controller
 		return redirect()->back()->with('success', 'Report .processed successfully.');
 	}
 
-	public function process_pdf_report($batch_id, $report_format)
+	public function process_pdf_report($batch_id, $report_format,$include_pesticide = 0)
 	{
 		// return response()->json('success3');
 		$path = public_path('images/company_logo.png');
@@ -180,7 +180,7 @@ class ReportHeaderDetailController extends Controller
 				$sample['getBrandOuts'] = [
 					"normal" => SampleAnalysisTypeRelationView::where('brand_id', 0)->where('sample_detail_id',$sample->id)->where('batch_id',$sample->sample_header_id)->orderBy('analysis_level', 'DESC')->get(),
 					"physical" => SampleAnalysisTypeRelationView::where('brand_id', 1)->where('sample_detail_id',$sample->id)->where('batch_id',$sample->sample_header_id)->orderBy('analysis_level', 'DESC')->get(),
-					"pesticide" => SampleAnalysisTypeRelationView::where('brand_id', 2)->where('sample_detail_id',$sample->id)->where('batch_id',$sample->sample_header_id)->orderBy('analysis_level', 'DESC')->get(),
+					"pesticide" => $include_pesticide == 1 ? SampleAnalysisTypeRelationView::where('brand_id', 2)->where('sample_detail_id',$sample->id)->where('batch_id',$sample->sample_header_id)->orderBy('analysis_level', 'DESC')->get() : [],
 				];
 			}
 			// return response()->json($samples);

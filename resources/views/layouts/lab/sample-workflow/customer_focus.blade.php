@@ -175,7 +175,7 @@
                                 class="text-bold text-muted text-center" style="display: inline-block;width:10%" >{{ $is_clustered == 0 ? $payment_detail->vat ?? 0 : $payment_detail['vat'] }}</span></u> <b>amount paid
                             </b>Kshs <u><span style="display: inline-block;width:10%"  class="text-bold text-center text-muted">{{ $is_clustered == 0 ? $payment_detail->amount ?? 0 : $payment_detail['amount_paid'] }}</span></u> Balance Kshs. <u><span style="display: inline-block;width:10%" class="text-bold text-center text-muted">{{ $is_clustered == 0 ? $payment_detail->balance ?? 0  : $payment_detail['balance'] }}
                             </span></u>
-                             <br> Payments to be made by <u><span class="text-bold text-muted text-center" style="display: inline-block;width:30%">{{ $$batch->payment_done_by ?? $customer->name }}</span> </u> Contact Person <u><span style="display: inline-block;width:30%" class="text-bold text-center text-muted">{{ $batch->getContactPersonDetail() ?? '-' }}</span></u> 
+                             <br> Payments to be made by <u><span class="text-bold text-muted text-center" style="display: inline-block;width:30%">{{ $batch->payment_done_by ?? $customer->name }}</span> </u> Contact Person <u><span style="display: inline-block;width:30%" class="text-bold text-center text-muted">{{ $batch->getContactPersonDetail() ?? '-' }}</span></u> 
                         </div>
                         <li>Remarks / Special Instructions <u><span style="display: inline-block;width:60%" class="text-bold ml-5 text-muted">{{ $batch->batch_instructions }}</span></u> </li>
 

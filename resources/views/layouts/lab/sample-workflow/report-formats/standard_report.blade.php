@@ -166,13 +166,55 @@
                                 </tr>
                             </thead>
                             <tbody>
-                                @foreach ($sample->getSampleByAnalysisType() as $analysis_type_level)
-                                   
-
+                                <?php $pesticideAnalysis = []?>
+                                
+                                @foreach ($sample->getSampleByAnalysisType($exclude_pesticides) as $analysis_type_level)
+                                @if($analysis_type_level->is_pesticide == 0)
                                     @foreach ($analysis_type_level->getCapturedResults() as $captured)
                                         <?php $captured->analyte_status_contracted == 1 ? ($check_v = 1) : 0; ?>
                                         <tr class="{{ $captured->remark == 'FAIL' ? 'text-bold' : '' }}">
+    
+                                            <td>
+                                                @if($accreditted_status == 1)
+                                
+                                                {!! $captured->analyte_status_contracted == 1 ? '<small>+</small>' : '' !!} {!! $captured->analyte_accredited == 0 ? '<small>*</small>' : '' !!}  {!! $captured->is_italic == 1 ? '<i>'. $captured->analyte_code.'</i>' : $captured->analyte_code !!}
+                                                @else
+                                                {!! $captured->analyte_status_contracted == 1 ? '<small>+</small>' : '' !!} {!! $captured->analyte_accredited == 1 ? '<small>*</small>' : '' !!}  {!! $captured->is_italic == 1 ? '<i>'. $captured->analyte_code.'</i>' : $captured->analyte_code !!}
+                                                @endif
+                                                </td>
+                                            <td>{{ $captured->method()->name }}</td>
+                                            <td>{{ $captured->result_reporting_symbol ?? '' }}{{ $captured->result }}</td>
+                                            <td>{{ $captured->reporting_unit_id }}</td>
+                                            <td>{{ $captured->main_value }}</td>
+                                        </tr>
+                                    @endforeach
 
+                                @else
+                                <?php $pesticideAnalysis[]= $analysis_type_level?>
+                                @endif
+                                   
+
+                                @endforeach
+                            </tbody>
+                        </table>
+                    </div>
+                    @if(sizeof($pesticideAnalysis) > 0)
+                    <p><b>Pesticide Results</b></p>
+                    <div class="table-responsive">
+                        <table class="table table-sm table-bordered">
+                            <thead>
+                                <th>TESTS</th>
+                                <th>TEST METHODS</th>
+                                <th>RESULTS</th>
+                                <th>UNITS</th>
+                                <th>{{ $sample->main_standard_code }}</th>
+                            </thead>
+                            <tbody>
+                                @foreach ($pesticideAnalysis as $analysis_type_level)
+                                    @foreach ($analysis_type_level->getCapturedResults() as $captured)
+                                        <?php $captured->analyte_status_contracted == 1 ? ($check_v = 1) : 0; ?>
+                                        <tr class="{{ $captured->remark == 'FAIL' ? 'text-bold' : '' }}">
+    
                                             <td>
                                                 @if($accreditted_status == 1)
                                 
@@ -191,6 +233,7 @@
                             </tbody>
                         </table>
                     </div>
+                    @endif
                     <div class="end-test-span text-center">*******<small>End of Test Results</small>*******</div>
                     <div class="comments mt-4 p-2 {{$sample->header_body != '' ? '' : 'hidden'}}">
                         <b>Comments : </b>{!! $sample->header_body !!}

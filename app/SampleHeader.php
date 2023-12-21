@@ -253,7 +253,37 @@ class SampleHeader extends Model implements Auditable
 			->join('analysis_types', function ($join) {
 				$join->on('analysis_types.id', '=', 'captured_results.analysis_type_id');
 			})
-			->selectRaw('captured_results.*,analysis_types.level as analysis_level,analysis_types.name as analysis_type_name,analysis_elements.level as analyte_level,analysis_elements.non_accredited as an_analyte_accredited')
+			->selectRaw('captured_results.*,analysis_types.level as analysis_level,analysis_types.name as analysis_type_name,analysis_elements.level as analyte_level,analysis_elements.non_accredited as an_analyte_accredited,analysis_types.is_pesticide as pesticide')
+			->orderBy('analysis_level','asc')
+			->orderBy('analyte_level', 'asc');
+	}
+	public function captured_results_without_pesticide()
+	{
+		return $this->hasMany('App\CapturedResult')
+			->join('analysis_elements', function ($join) {
+				$join->on('analysis_elements.analyte_id', '=', 'captured_results.analyte_id');
+				$join->on('analysis_elements.analysis_type_id', '=', 'captured_results.analysis_type_id');
+			})
+			->join('analysis_types', function ($join) {
+				$join->on('analysis_types.id', '=', 'captured_results.analysis_type_id');
+			})
+			->where('analysis_types.is_pesticide',0)
+			->selectRaw('captured_results.*,analysis_types.level as analysis_level,analysis_types.name as analysis_type_name,analysis_elements.level as analyte_level,analysis_elements.non_accredited as an_analyte_accredited,analysis_types.is_pesticide as pesticide')
+			->orderBy('analysis_level','asc')
+			->orderBy('analyte_level', 'asc');
+	}
+	public function captured_results_pesticide()
+	{
+		return $this->hasMany('App\CapturedResult')
+			->join('analysis_elements', function ($join) {
+				$join->on('analysis_elements.analyte_id', '=', 'captured_results.analyte_id');
+				$join->on('analysis_elements.analysis_type_id', '=', 'captured_results.analysis_type_id');
+			})
+			->join('analysis_types', function ($join) {
+				$join->on('analysis_types.id', '=', 'captured_results.analysis_type_id');
+			})
+			->where('analysis_types.is_pesticide',1)
+			->selectRaw('captured_results.*,analysis_types.level as analysis_level,analysis_types.name as analysis_type_name,analysis_elements.level as analyte_level,analysis_elements.non_accredited as an_analyte_accredited,analysis_types.is_pesticide as pesticide')
 			->orderBy('analysis_level','asc')
 			->orderBy('analyte_level', 'asc');
 	}

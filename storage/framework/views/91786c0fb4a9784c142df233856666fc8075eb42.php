@@ -1328,6 +1328,7 @@
 						data-methods = "<?php echo e(json_encode($methods)); ?>"
 						data-labs = "<?php echo e(json_encode($labSamples)); ?>"
 						data-allLabs = "<?php echo e(json_encode($labSamples)); ?>"
+						data-pesticides = "<?php echo e(json_encode($analaytesHolderPesticide)); ?>"
 						>
 
 					</tbody>
@@ -1753,6 +1754,9 @@
 							<option value="Standard Report">Standard Report</option>
 						</select>
 					</div>
+					<div class="form-group">
+						<label for="" class="control-label"><input type="checkbox" name="add_pesticide" id="" class=""> Include Pesticide Results</label>
+					</div>
 					<input type="hidden" name="batch_id" value="<?php echo e($batch->id); ?>">
 				</div>
 				<div class="modal-footer">
@@ -1929,6 +1933,9 @@
 								<center>
 									<img src="/images/load.gif" height="250px" width="auto" alt="">
 								</center>
+							</div>
+							<div class="form-group">
+								<label for="" class="control-label"><input type="checkbox" name="add_pesticide" id="" class=""> Include Pesticide Results</label>
 							</div>
 							<span class="btn btn-sm btn-outline-info btn-block" id="initiate-process"><i class="mdi mdi-cogs"></i> Generate Report</span>
 						</div>
@@ -2384,6 +2391,9 @@
 						<a class="nav-link" id="add-analytes-tab" data-toggle="tab" href="#add-analytes" role="tab" aria-controls="Parameters" aria-selected="true"><i class="mdi mdi-plus"></i> Add Analyte</a>
 					</li>
 					<?php endif; ?>
+					<li class="nav-item">
+						<a class="nav-link" id="configured-pesticide-tab" data-toggle="tab" href="#configured-pesticides" role="tab" aria-controls="Parameters" aria-selected="true"><i class="mdi mdi-snowflake"></i> Pesticides</a>
+					</li>
 				</ul>
 				
 				<div class="tab-content">
@@ -2457,6 +2467,111 @@
 								<tbody id="sample-parameters-holder">
 									<tr>
 										<td colspan="12"><b>Loading...</b></td>
+									</tr>
+								</tbody>
+							</table>
+						</div>
+						<div class="save-parameter mt-3">
+							<?php if(isset($batch->status) &&  $batch->status == "Samples In Lab"): ?>
+								<button class="btn btn-sm btn-primary float-right"><i class="mdi mdi-content-save"></i> Save</button>
+							<?php endif; ?>
+						</div>
+					</form>
+					<form class="tab-pane show p-3" method="POST" action="<?php echo e(route('capture-raw-results')); ?>" id="configured-pesticides" role="tabpanel" aria-labelledby="one-tab">
+						<?php echo csrf_field(); ?>
+						<h5 class="mb-3">
+							<?php if(Auth::user()->is_client == 0): ?>
+							Pesticide Results
+							<span class="ml-4 badge badge-pill badge-light p-2 mr-4" style="font-weight: 400!important">
+								<span class="bg-green analytes-with-results-count small-badge">12</span> With Results
+							</span>
+							<span class="badge badge-pill badge-light p-2 show-missing-results" style="font-weight: 400!important">
+								<span class="bg-red analytes-without-results-count small-badge">0</span> Missing Results
+							</span>
+							
+							<?php if(isset($batch->status) &&  $batch->status == "Samples In Lab"): ?>
+								<button class="btn btn-sm btn-primary float-right"><i class="mdi mdi-content-save"></i> Save</button>
+							<?php endif; ?>
+							<?php if(isset($batch->status) && in_array($batch->status,array('Samples Reception','Samples Request Review','Samples En-Route'))): ?>
+								<a href="/sample-workflow/batch/<?php echo e($batch->id); ?>/details" class="btn btn-outline-primary float-right btn-sm"><i class="mdi mdi-content-save"></i> Save</a>
+								<span class="btn btn-sm btn-outline-warning float-right mr-2" id="delete-parameter"><i class="mdi mdi-delete-empty"></i> Delete</span>
+							<?php endif; ?>
+							<?php endif; ?>
+							<br>
+							
+							<span class="badge badge-pill badge-light float-left p-2 " style="font-weight: 400!important">
+								Standard - <span class="main-standard-name"></span>
+							</span>
+							<br>
+						</h5>
+						<div class="capture-pesticide-result border-bottom border-top mt-2">
+							<div class="row">
+								<div class="col-md-4">
+									<div class="form-group">
+										<label for="" class="control-label">Result</label>
+										<input type="text"  class="form-control pesticide_result">
+									</div>
+								</div>
+								<div class="col-md-4">
+									<div class="form-group">
+										<label for="" class="control-label">Remark</label>
+										<select name="" id="" class="form-control pesticide_remark">
+											<option value="">Choose Remark</option>
+											<option value="PASS">PASS</option>
+											<option value="PASS">FAIL</option>
+										</select>
+									</div>
+								</div>
+								<div class="col-md-4">
+									<div class="form-group mt-4">
+										<span class="btn float-right btn-sm btn-outline-primary sync-pesticide"><i class="mdi mdi-sync"></i> Sync Results</span>
+									</div>
+								</div>
+							</div>
+						</div>
+						<div class="table-responsive" id="sph-parent">
+							<table class="table table-condensed my-small-text table-striped table-hover table-bordered table" style="width: 100%">
+								<thead class="bg-light p-2">
+									<tr>
+										<th>
+											<input type="checkbox" name="pesticide_check_all" id="parameter-check-all">
+										</th>
+										<th>Sample Code</th>
+										<th style="display:flex !important">
+										<div>
+
+											Analysis
+										</div>
+											
+										</th>
+										<th>Pesticide</th>
+										<?php if(Auth::user()->is_client == 0): ?>
+										<th>Reporting Symbol</th>
+										<th nowrap>Result</th>
+										<?php if(isset($batch->id) && $batch->require_mu == 1): ?>
+										<th>Uncertainity (+-)</th>
+										<?php endif; ?>
+										<?php endif; ?>
+										<?php if(isset($batch->id) && $batch->repeat_sample_id > 0): ?>
+										<th>Prev Result (<small>+- <?php echo e($qc_config_perc); ?> %</small>)</th>
+										<?php endif; ?>
+										<th>Standard</th>
+										<?php if(Auth::user()->is_client == 0): ?>
+										<th>Remarks</th>
+										<th>Reporting Unit</th>
+										<th>Analyst</th>
+										<?php endif; ?>
+										<th>Method</th>
+										<?php if(Auth::user()->is_client == 0): ?>
+										<th>Equipment</th>				
+										<?php endif; ?>				
+										<th>Sub Contracted</th>
+										<th>Accredited</th>
+									</tr>
+								</thead>
+								<tbody id="sample-pesticides-holder">
+									<tr>
+										<td colspan="14"><b>Loading...</b></td>
 									</tr>
 								</tbody>
 							</table>
@@ -3148,6 +3263,7 @@
 			var batch = $(this).data('batch');
 			$('#process-results-modal').find('.proccesing-point').addClass('hidden');
 			// $('#process-results-modal').find('#report_format').on('clic')
+			$include_pesticide = $('#process-results-modal').find('add_pesticide').is(':checked') ? 1 : 0;
 			$('#process-results-modal').find('#initiate-process').on('click',()=>{
 				$('#process-results-modal').find('.proccesing-point').removeClass('hidden');
 				
@@ -3155,6 +3271,7 @@
 					url:"<?php echo e(route('process-raw-results', ['batch_id'=> isset($batch->id) ? $batch->id : 0])); ?>",	
 					data:{
 						report_format : $('#process-results-modal').find('#report_format').val(),
+						include_pesticide :$include_pesticide
 					},
 					method:'GET',
 					success: function(data){
@@ -3266,6 +3383,7 @@
 		});
 
 		var parametersBySampleCode = $('#sample-detail-rows').data('parameters'); //Parameters by sample code
+		var pesticideBySampleCode = $('#sample-detail-rows').data('pesticides');
 		var analysisIDsBySampleCode = $('#sample-detail-rows').data('sample_analysis_ids');
 		var analysisNames = $('#sample-detail-rows').data('analysis_names');
 		var labSectionRow = (section,id,batch_id,sample_id,datevalue)=>{
@@ -3354,8 +3472,10 @@
 			
 			
 			$('#sample-parameters-holder').empty();
+			$('#sample-pesticides-holder').empty();
 			// console.log(parametersBySampleCode);
 			var parameters = parametersBySampleCode[sampleCode];
+			var pesticides = pesticideBySampleCode[sampleCode] || [];
 			
 			var analysisIDs = analysisIDsBySampleCode[sampleCode];
 			
@@ -3392,18 +3512,46 @@
 					})
 					
 				});
+				$.each(pesticides, function(p, param){
+					
+					var a_date =analysis_dates && analysis_dates[p] ? analysis_dates[p] : '';
+					
+					var sectionRow = labSectionRow(param['section'],p,thebatch.id,sampleCode,a_date);
+					$('#sample-pesticides-holder').append(sectionRow);
+					
+					$.each(param['cr'],(i,obj)=>{
+						var sampleRow = sampleCodeParameters(obj,loop,InterlabStatus);
+						$('#sample-pesticides-holder').append(sampleRow);
+						loop = loop + 1;
+					})
+					
+				});
 			});
 			
-			$(this).find('input[name="parameter_check_all"]').on('change',function(){
+			$(this).find('input[name="pesticide_check_all"]').on('change',function(){
 				
 				if($(this).prop("checked") == true){
 					
-					$('input[name="parameter_check[]"]').map(function(){
+					$('.pesticide_check').map(function(){
 						$(this).prop('checked',true);
 					})
 				}else{
 					
-					$('input[name="parameter_check[]"]').map(function(){
+					$('.pesticide_check').map(function(){
+						$(this).prop('checked',false);
+					})
+				}
+			})
+			$(this).find('input[name="parameter_check_all"]').on('change',function(){
+				
+				if($(this).prop("checked") == true){
+					
+					$('.parameter_check').map(function(){
+						$(this).prop('checked',true);
+					})
+				}else{
+					
+					$('.parameter_check"]').map(function(){
 						$(this).prop('checked',false);
 					})
 				}
@@ -3508,6 +3656,16 @@
 				});
 			
 			});
+			$('.sync-pesticide').on('click',(e)=>{
+				var p_result = $('.pesticide_result').val()
+				var p_remark = $('.pesticide_remark').val()
+				if(p_remark == '' || p_result == ''){
+					alert('Kindly add fill the result and remark fields to sync');
+				}else{
+					$('.pest-remark').val(p_remark);
+					$('.pest-result').val(p_result);
+				}
+			})
 			
 		})
 
@@ -4344,7 +4502,7 @@
 			<tr class="raw-data-row ${data.result == null ? 'no-result' : 'has-result'} ${!userLabSection.includes(data.lab_section_id) && thebatch.status == 'Samples In Lab' ? 'hiddens' : ''}" id="row-${loop}" >
 				<?php if(isset($batch->status) && $batch->status != 'Samples In Lab' && Auth::user()->is_client == 0): ?>
 				<td class="" style="display:flex !important">
-				<input type="checkbox" name="parameter_check[]" class="mr-3" value="${data.id}" id="parameter-check">
+				<input type="checkbox" name="parameter_check[]" class="mr-3 ${data.pesticide == 0 ? 'parameter_check' : 'pesticide_check'}" value="${data.id}" id="parameter-check">
 				<span class="btn btn-sm btn-default remove-analyte-row" data-toggle="tooltip" data-placement="bottom" title="delete"><i class="mdi mdi-trash-can-outline text-danger"></i></span>
 				</td>
 				<?php else: ?>
@@ -4358,7 +4516,7 @@
 				<td>
 					<div class="form-group">
 						<input <?php echo e(isset($batch->status) && $batch->status != 'Samples In Lab' ? 'disabled' : ''); ?> id="${data.sample_detail_code},${data.analyte_id},${data.id},${data.analyte_id}" data-resultid="${data.sample_detail_code},${data.analyte_id},${data.id},${data.analyte_id}" style="min-width: 150px" type="text"
-						class="form-control ${data.remark_is_manual == 0 ? 'first-result' : ''}" ${interLabApproval == 1 ? "disabled" : ""}  id="result-${loop}" value="${data.result == null ? '' : data.result}" name="result[${data.id}]" placeholder="Result..." />
+						class="form-control ${data.remark_is_manual == 0 ? 'first-result' : ''} ${data.pesticide == 1 ? 'pest-result': '' }" ${interLabApproval == 1 ? "disabled" : ""}  id="result-${loop}" value="${data.result == null ? '' : data.result}" name="result[${data.id}]" placeholder="Result..." />
 						<input type="hidden" name="result_confirm"  />
 					</div>
 				</td>measure_uncertanity
@@ -4389,8 +4547,8 @@
 				<?php if(Auth::user()->is_client == 0): ?>
 				<td nowrap>
 					<input id="${data.sample_detail_code}-${data.id}" style="min-width: 150px" type="text" 
-					class="form-control disabled ${data.remark_is_manual == 0 ? 'first-remark' : 'hidden'}" readonly="true" value="${data.remark ?? ''}" name="remark[${data.id}]" placeholder="Remark..." />
-					<div class="form-group is-manual ${data.remark_is_manual == 0 ? "hidden" : ""}">
+					class="form-control disabled ${data.remark_is_manual == 0 ? 'first-remark' : 'hidden'} ${data.pesticide == 1 ? 'pest-remark': '' }" readonly="true" value="${data.remark ?? ''}" name="remark[${data.id}]" placeholder="Remark..." />
+					<div class="form-group is-manual ${data.remark_is_manual == 0 ? "hidden" : ""} ${data.pesticide == 1 ? 'pest-remark': '' }">
 						<select name="remarkmanual[${data.id}]" id="" class="form-control remarkmanual">
 							<option value="PASS" ${data.remark == 'PASS' ? 'selected' : ''}>Pass</option>
 							<option value="FAIL" ${data.remark == 'FAIL' ? 'selected' : ''}>Fail</option>

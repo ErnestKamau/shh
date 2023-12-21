@@ -1259,6 +1259,7 @@ class SampleWorkFlowController extends Controller
 
 
 		$analaytesHolder = array();
+		$analaytesHolderPesticide = array();
 		$analysisBySample = array();
 		$analysisBySampleNames = array();
 		$labSamples = array();
@@ -1274,8 +1275,14 @@ class SampleWorkFlowController extends Controller
 
 		foreach ($batch->captured_results ?? array() as $item) {
 			// return response()->json($item);
-			if (!isset($analaytesHolder[$item->sample_detail_code])) {
-				$analaytesHolder[$item->sample_detail_code] = array();
+			
+			
+			if (!isset($analaytesHolderPesticide[$item->sample_detail_code]) && $item->pesticide == 1) {
+				$analaytesHolderPesticide[$item->sample_detail_code] = array();
+			}else{
+				if (!isset($analaytesHolder[$item->sample_detail_code])) {
+					$analaytesHolder[$item->sample_detail_code] = array();
+				}
 			}
 
 			// $item->ops = $analysts;
@@ -1301,10 +1308,16 @@ class SampleWorkFlowController extends Controller
 			$lab_section = SampleAnalysisStage::find($item->lab_section_id);
 			// !isset($analaytesHolder[$item->sample_detail_code]) ? $analaytesHolder[$item->sample_detail_code] = [] : '';
 			// isset($lab_section->id) && !isset($analaytesHolder[$item->sample_detail_code][$item->lab_section_id]) ? $analaytesHolder[$item->sample_detail_code][$item->lab_section_id] = [] : '';
-			
-			$item->lab_section_id > 0 ? $analaytesHolder[$item->sample_detail_code][$item->lab_section_id]['section'] = $lab_section->name : $analaytesHolder[$item->sample_detail_code]['000']['section'] = 'Not Set';
+			if($item->pesticide == 0){
+				$item->lab_section_id > 0 ? $analaytesHolder[$item->sample_detail_code][$item->lab_section_id]['section'] = $lab_section->name : $analaytesHolder[$item->sample_detail_code]['000']['section'] = 'Not Set';
+				$item->lab_section_id > 0 ? $analaytesHolder[$item->sample_detail_code][$item->lab_section_id]['cr'][] = $item : $analaytesHolder[$item->sample_detail_code]['000']['cr'][] = $item;
+			}else{
+				$item->lab_section_id > 0 ? $analaytesHolderPesticide[$item->sample_detail_code][$item->lab_section_id]['section'] = $lab_section->name : $analaytesHolderPesticide[$item->sample_detail_code]['000']['section'] = 'Not Set';
+				$item->lab_section_id > 0 ? $analaytesHolderPesticide[$item->sample_detail_code][$item->lab_section_id]['cr'][] = $item : $analaytesHolderPesticide[$item->sample_detail_code]['000']['cr'][] = $item;
+			}
 
-			$item->lab_section_id > 0 ? $analaytesHolder[$item->sample_detail_code][$item->lab_section_id]['cr'][] = $item : $analaytesHolder[$item->sample_detail_code]['000']['cr'][] = $item;
+			
+
 			$sample_details_test = $item->sample;
 			$item->standard_limit_value = '';
 			if (isset($sample_details_test->id)) {
@@ -1366,8 +1379,8 @@ class SampleWorkFlowController extends Controller
 		$notifiable_users  = getNotifiableUsers();
 		$notesReminderType = getNotesReminderTypes();
 		$clients = getClients();
-		// return response()->json($analysts);
-		return view('layouts.lab.sample-workflow.show', compact('batch', 'batchID', 'defaultClient', 'selectedSampleType', 'client_portal', 'ammendable', 'standards', 'attachments', 'not_captured', 'analysts', 'countries', 'accounts', 'methods', 'atachment_type', 'batch_scope', 'customer_survey', 'interlabs', 'labs', 'users', 'payment_detail', 'labsections', 'contacts', 'batch_sample_codes', 'report_formats', 'approvers', 'reportingUnits', 'conditions', 'products', 'headerDetails', 'analaytesHolder', 'analysisBySample', 'analysisBySampleNames', 'labSamples', 'workflowstages', 'workflows', 'sample_types', 'samplingmethods', 'active_company', 'ammendments', 'allsamples', 'selected_analysis_types', 'userLabSections', 'customer', 'requestTypes', 'notifiable_users', 'notesReminderType', 'clients', 'disposal_date', 'status','recieving_users','section_approvers_users'));
+		// return response()->json($analaytesHolderPesticide);
+		return view('layouts.lab.sample-workflow.show', compact('batch', 'batchID', 'defaultClient', 'selectedSampleType', 'client_portal', 'ammendable', 'standards', 'attachments', 'not_captured', 'analysts', 'countries', 'accounts', 'methods', 'atachment_type', 'batch_scope', 'customer_survey', 'interlabs', 'labs', 'users', 'payment_detail', 'labsections', 'contacts', 'batch_sample_codes', 'report_formats', 'approvers', 'reportingUnits', 'conditions', 'products', 'headerDetails', 'analaytesHolder', 'analysisBySample', 'analysisBySampleNames', 'labSamples', 'workflowstages', 'workflows', 'sample_types', 'samplingmethods', 'active_company', 'ammendments', 'allsamples', 'selected_analysis_types', 'userLabSections', 'customer', 'requestTypes', 'notifiable_users', 'notesReminderType', 'clients', 'disposal_date', 'status','recieving_users','section_approvers_users','analaytesHolderPesticide'));
 	}
 
 	public function fetch_unit_stuff($name, $client)
@@ -2522,8 +2535,9 @@ class SampleWorkFlowController extends Controller
 		if ($internal) {
 			return $header;
 		}
+		$include_pesticide = isset($request->add_pesticide) ? 1 : 0;
 		// return response()->json($report_format);
-		return redirect()->route('process-pdf-report', ['batch_id' => $batch_id, 'report_format' => $report_format]);
+		return redirect()->route('process-pdf-report', ['batch_id' => $batch_id, 'report_format' => $report_format,'include_pesticide'=>$include_pesticide]);
 	}
 
 	public function remove_analyte_from_captured_result(Request $request)
@@ -3461,10 +3475,11 @@ class SampleWorkFlowController extends Controller
 		$status = $batch->status;
 
 		$company = getActiveCompany();
+		$exclude_pesticides = isset($request->add_pesticide) ? 0 : 1;
 		$standard_report = $request->template_id;
 		$analysis_date = SampleAnalysisDates::where('sample_header_id',$batch->id)->orderBy('start_analysis_date','ASC')->first();
 		// return response()->json('here');
-		return view('layouts.lab.sample-workflow.report-formats.standard_report', compact('batch', 'samples', 'disclaimer', 'non_accredited', 'status', 'company', 'batch_approvers', 'standard_report','analysis_date'));
+		return view('layouts.lab.sample-workflow.report-formats.standard_report', compact('batch', 'samples', 'disclaimer', 'non_accredited', 'status', 'company', 'batch_approvers', 'standard_report','analysis_date','exclude_pesticides'));
 	}
 
 	public function getShowBatchCOA($batch_code, $format)

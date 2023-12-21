@@ -208,6 +208,7 @@
                   <th>Lab Section</th>
                   <th>Report Brand</th>
                   <th>Active?</th>
+                  <th>Is Pesticide?</th>
                   <th></th>
                 </tr>
               </thead>
@@ -241,6 +242,7 @@
                     @endif
                   </td>
                   <td class="text-small">{!! $analysis_type->active == '1' ? '<i class="mdi mdi-marker-check text-success"></i>' : '<i class="mdi mdi-close-circle text-danger"></i>' !!}</td>
+                  <td class="text-small">{!! $analysis_type->is_pesticide == '1' ? '<i class="mdi mdi-marker-check text-success"></i>' : '<i class="mdi mdi-close-circle text-danger"></i>' !!}</td>
                   <td nowrap>
                     <button class="btn btn-white text-primary btn-sm" data-target="#edit-active-analysis_type-{{ $loop->iteration }}" data-toggle="modal"><i class="mdi mdi-pencil-outline"></i> <small class="hidden-sm-up">Edit</small> </button>
                     {{-- <button class="btn btn-danger btn-sm"><i class="mdi mdi-delete-empty"></i> <small class="hidden-sm-up">Delete</small> </button>  --}}

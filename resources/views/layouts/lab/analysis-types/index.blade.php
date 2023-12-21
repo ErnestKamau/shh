@@ -38,6 +38,7 @@
             <th>Sample Type</th>
             <th>Lab</th>
             <th>Active?</th>
+            <th>Is Pesticide?</th>
             <th></th>
           </tr>
         </thead>
@@ -56,6 +57,7 @@
                 <td>{{ $analysis_type->sample_type->name }}</td>
                 <td>{{ $analysis_type->lab->name }} - {{ $analysis_type->lab->code }}</td>
                 <td class="text-small">{!! $analysis_type->active == '1' ? '<i class="mdi mdi-marker-check text-success"></i>' : '<i class="mdi mdi-close-circle text-danger"></i>' !!}</td>
+                <td class="text-small">{!! $analysis_type->is_pesticide == '1' ? '<i class="mdi mdi-marker-check text-success"></i>' : '<i class="mdi mdi-close-circle text-danger"></i>' !!}</td>
                 <td nowrap>
                   <button class="btn btn-primary btn-sm" data-target="#edit-analysis_type-{{ $loop->iteration }}" data-toggle="modal"><i class="mdi mdi-pencil-outline"></i> <small class="hidden-sm-up">Edit</small> </button>
                   {{-- <button class="btn btn-danger btn-sm"><i class="mdi mdi-delete-empty"></i> <small class="hidden-sm-up">Delete</small> </button>  --}}
