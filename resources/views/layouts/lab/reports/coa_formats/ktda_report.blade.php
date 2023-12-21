@@ -83,7 +83,7 @@
     .stamp-section{
         position:fixed;
         bottom:145px;
-        right:2px;
+        right:0px;
     }
     
 </style>
@@ -159,6 +159,10 @@
             </table>
         </div>
     </footer>
+    <div class="main-lab" style="position:fixed;bottom:22%;left:1%;font-size:8px">
+        <b>{{strtoupper($main_lab)}}</b><br>
+        <b>{{ $batch->approval_date != '' && $batch->prelim_report_status != 2 ? convertDateFormatReports($batch->approval_date,'dateShortMonth') : '-' }}</b>
+    </div>
     <header class="header">
         <table style="width: 100%;border:0px;">
             <tr>
@@ -169,7 +173,7 @@
 
                 <td style="border: solid 0 transparent !important;text-align:right;font-size:11px !important;">
                     {{ $customer->name }} <br>
-                    P.O BOX {{ $customer->postal_address }} <br>
+                    {{ $customer->postal_address }} <br>
                     
                 </td>
             </tr>
@@ -179,13 +183,9 @@
 
     @if(isset($is_stamp->id))
     <div class="stamp-section">
-        <img src="{{$stamp}}" style="height:162px; z-index:1000;" alt="">
+        <img src="{{$stamp}}" style="height:162px; z-index:1000;position: relative;" alt="">
     </div>
     @endif
-    <div class="main-lab" style="position:fixed;bottom:21%;left:1%;font-size:8px">
-        <b>{{strtoupper($main_lab)}}</b><br>
-        <b>{{ $batch->approval_date != '' ? convertDateFormatReports($batch->approval_date,'dateShortMonth') : '-' }}</b>
-    </div>
     @foreach ($samples as $sample)
         @if ($sample->getAccredittedStatus() >= 1)
             <div class="" style="display:inline-block;position:fixed;bottom:2px;right:1%">
@@ -494,11 +494,12 @@
                     {{$ammendment->reason}}
                 </div>
             @endif
-            @if ($loop->iteration < $samples->count())
-                <div style="page-break-after: always;">
-                </div>
-            @endif
+            
         </main>
+        @if ($loop->iteration < $samples->count())
+            <div style="page-break-after: always;">
+            </div>
+        @endif
     @endforeach
     <script type="text/php">
     if (isset($pdf)) {
