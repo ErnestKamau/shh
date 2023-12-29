@@ -624,7 +624,7 @@ class SampleWorkFlowController extends Controller
 
 			$codePrefix = $configuration->value . '-';
 		} else {
-			return redirect()->back()->with('error', 'Setup the naming convenction of samples in system configurations');
+			return redirect()->back()->with('error', 'Setup the naming convention of samples in system configurations');
 		}
 
 		$samplesRequiringStorage = array("samples" => array(), "store_ids" => array());
@@ -644,8 +644,8 @@ class SampleWorkFlowController extends Controller
 			if (!isset($detail->sample_code)) {
 				// $config_start_no = SystemConfiguration::where('key', 'start_sample_no')->first();
 				$lab = Lab::find($request->sample_details['lab_id'][$k]);
-				if (isset(SampleDetails::where('lab_id', $lab->id)->orderBy('id', 'DESc')->first()->id)) {
-					$code = SampleDetails::where('lab_id', $lab->id)->orderBy('id', 'DESc')->first()->sample_code;
+				if (isset(SampleDetails::where('lab_id', $lab->id)->orderBy('id', 'DESC')->first()->id)) {
+					$code = SampleDetails::where('lab_id', $lab->id)->orderBy('id', 'DESC')->first()->sample_code;
 					$last_sample = substr($code, 9, strlen($code));
 				} else {
 					$last_sample = $lab->start_sample_no != '' ? $lab->start_sample_no : 0;
@@ -654,10 +654,10 @@ class SampleWorkFlowController extends Controller
 
 				// return response()->json($request->sample_details['lab_id'][$k]);
 				$sample_number = intval($last_sample)  + 1;
-				$sample_number = str_pad($sample_number, 4, '0', STR_PAD_LEFT);
+				// $sample_number = str_pad($sample_number, 4, '0', STR_PAD_LEFT);
 
-				$detail->sample_code = 'S' . date('Y') . $lab->code . $sample_number;
-				$detail->sample_no = $sample_number;
+				$detail->sample_code = 'S' . date('Y') . $lab->code . sprintf("%0"."4"."d",$sample_number);
+				$detail->sample_no = sprintf("%0"."4"."d",$sample_number);
 			}
 			if (isset($detail->id)) {
 				$current_analysis = explode(',', $detail->analysis_type_id);
