@@ -1129,7 +1129,7 @@ function getSupplierByID($id)
 
 function getSampleTypes()
 {
-	return App\SampleType::orderBy('name')->get();
+	return App\SampleType::where('active', '1')->orderBy('name')->get();
 }
 function getInventorySubs()
 {

@@ -155,7 +155,7 @@
                                 <li class="bracket_cover">Is the
                                     Laboratory capable of performing the requested tests? <input class="ml-5" type="checkbox" name=""
                                     {{ $batch->lab_capable == 1 ? 'checked' : '' }} disabled id=""> Yes <input  class="ml-5" type="checkbox" name=""
-                                    {{ $batch->lab_capable == 1 ? '' : 'Checked' }} disabled id=""> No</li>
+                                    {{ $batch->lab_capable == 1 ? '' : 'checked' }} disabled id=""> No</li>
                                 <li class="bracket_cover">If no
                                     can it be subcontracted to an approved Laboratory? <input type="checkbox" class="ml-5" name=""
                                     {{ $batch->can_be_subcontracted == 1 ? 'checked' : '' }} id="" disabled> Yes <input class="ml-5" type="checkbox" name=""
@@ -164,7 +164,7 @@
                                     Is the client willing for the sample to be subcontracted? <input class="ml-5" type="checkbox" name=""
                                     {{ $batch->batch_subcontracted_client_approval == 1 ? 'checked' : '' }}
                                     id="" disabled> Yes <input class="ml-5" type="checkbox" name=""
-                                    {{ $batch->batch_subcontracted_client_approval == 1 ? 'checked' : '' }}
+                                    {{ $batch->batch_subcontracted_client_approval == 1 ? '' : 'checked' }}
                                     id="" disabled> No
                                 </li>
                             </ol>
