@@ -3351,7 +3351,7 @@ class SampleWorkFlowController extends Controller
 			$is_clustered = 1;
 			// return response()->json($batch_ids);
 
-			SampleHeader::whereIn('batch_code', $request->batch_code)->update(['c_focus_ids_clustered' => implode(',', $batch_ids)]);
+			SampleHeader::whereIn('batch_code', $request->batch_code)->update(['c_focus_ids_clustered' => sizeof($batch_ids) > 0 ? implode(',', $batch_ids) : '']);
 
 			return view('layouts.lab.sample-workflow.customer_focus', compact('batch', 'customer', 'company', 'docs_settings', 'review_staff', 'samples', 'payment_detail', 'sample_types', 'is_clustered'));
 		}
