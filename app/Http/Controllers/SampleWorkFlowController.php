@@ -658,7 +658,27 @@ class SampleWorkFlowController extends Controller
 
 				$detail->sample_code = 'S' . date('Y') . $lab->code . sprintf("%0"."4"."d",$sample_number);
 				$detail->sample_no = sprintf("%0"."4"."d",$sample_number);
+			} else {
+				// $config_start_no = SystemConfiguration::where('key', 'start_sample_no')->first();
+				if ($detail->lab_id != $request->sample_details['lab_id'][$k]) {
+					$lab = Lab::find($request->sample_details['lab_id'][$k]);
+
+					if (isset(SampleDetails::where('lab_id', $lab->id)->orderBy('id', 'DESC')->first()->id)) {
+						$code = SampleDetails::where('lab_id', $lab->id)->orderBy('id', 'DESC')->first()->sample_code;
+						$last_sample = substr($code, 9, strlen($code));
+					} else {
+						$last_sample = $lab->start_sample_no != '' ? $lab->start_sample_no : 0;
+					}
+					
+					$sample_number = intval($last_sample)  + 1;
+	
+					$detail->sample_code = 'S' . date('Y') . $lab->code . sprintf("%0"."4"."d",$sample_number);
+					$detail->sample_no = sprintf("%0"."4"."d",$sample_number);
+				}
+				
+
 			}
+
 			if (isset($detail->id)) {
 				$current_analysis = explode(',', $detail->analysis_type_id);
 				$currentAnalysisSample[$detail->sample_code] = $current_analysis;
