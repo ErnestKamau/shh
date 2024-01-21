@@ -4611,7 +4611,7 @@
 	
 		var $oGRow = $(`
 			<tr class="raw-data-row ${data.result == null ? 'no-result' : 'has-result'} ${!userLabSection.includes(data.lab_section_id) && thebatch.status == 'Samples In Lab' ? 'hiddens' : ''}" id="row-${loop}" >
-				<?php if(isset($batch->status) && $batch->status != 'Samples In Lab' && Auth::user()->is_client == 0): ?>
+				<?php if(isset($batch->status) && Auth::user()->is_client == 0): ?>
 				<td class="" style="display:flex !important">
 				<input type="checkbox" name="parameter_check[]" class="mr-3 ${data.pesticide == 0 ? 'parameter_check' : 'pesticide_check'}" value="${data.id}" id="parameter-check">
 				<span class="btn btn-sm btn-default remove-analyte-row" data-toggle="tooltip" data-placement="bottom" title="delete"><i class="mdi mdi-trash-can-outline text-danger"></i></span>
