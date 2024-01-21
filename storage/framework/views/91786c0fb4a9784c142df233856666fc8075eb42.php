@@ -3745,7 +3745,7 @@
 				is_affect = affect_all > 0 ? 1 : is_affect;
 				is_affect = affect_batch > 0 ? 1 : is_affect
 				if(lab_section_id == ''){
-					$('#saving-progress-section').addlass('hidden');
+					$('#saving-progress-section').addClass('hidden');
 					$('.save-lab-section').removeClass('hidden');
 					alert('Lab section is a required field');
 				}

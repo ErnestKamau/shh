@@ -2450,7 +2450,7 @@
 								</div>
 								<div class="col-md-3">
 									<div class="form-group">
-										<label for="" class="control-label" style="margin-top: 2rem !important"><input type="checkbox" name="affect_all" id="affect_all"> Affect all parameter configurations?</label>
+										<label for="" class="control-label" style="margin-top: 2rem !important"><input type="checkbox" checked name="affect_all" id="affect_all"> Affect all parameter configurations?</label>
 									</div>
 								</div>
 								<div class="col-md-3">
@@ -3741,7 +3741,7 @@
 				is_affect = affect_all > 0 ? 1 : is_affect;
 				is_affect = affect_batch > 0 ? 1 : is_affect
 				if(lab_section_id == ''){
-					$('#saving-progress-section').addlass('hidden');
+					$('#saving-progress-section').addClass('hidden');
 					$('.save-lab-section').removeClass('hidden');
 					alert('Lab section is a required field');
 				}
