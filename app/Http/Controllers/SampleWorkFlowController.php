@@ -3334,14 +3334,14 @@ class SampleWorkFlowController extends Controller
 	}
 	public function deleteInterLabTransferLogs(Request $request)
 	{
-		// return response()->json($request->all());
+		
 		InterLabLog::whereIn('id', explode(',', $request->inter_lab_ids))->delete();
 		return redirect()->back()->with('success', 'Inter Laboratory Transfer Log(s) deleted successfully');
 	}
 
 	public function generateCustomerFocusIndex(Request $request, $batch_id)
 	{
-		// return response()->json($request->all());
+		
 		$batch = SampleHeader::find($batch_id);
 		if ($batch_id == 0 || $batch->c_focus_ids_clustered != '') {
 			$batches = $batch_id == 0 ? SampleHeader::whereIn('batch_code', $request->batch_code) : SampleHeader::whereIn('id', explode(',', $batch->c_focus_ids_clustered));

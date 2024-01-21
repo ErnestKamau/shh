@@ -98,6 +98,7 @@ Route::post('/analysis-types', 'AnalysisTypeController@add')->name('add-analysis
 Route::post('/analysis-type/{id}', 'AnalysisTypeController@edit')->name('edit-analysis-type')->middleware('haspermission:Laboratory.components.Analysis Types.Edit');
 Route::get('/analysis-type/{id}', 'AnalysisTypeController@show')->name('analysis-type')->middleware('haspermission:Laboratory.components.Analysis Types.View');
 Route::get('/get/Analyte/{id}/Methods','AnalysisElementsController@getAnalyteMethods')->name('getAnalyteMethods');
+Route::get('/change/Labsection-By-Captured-Results','AnalysisElementsController@changeLabsectionByCapturedResults')->name('changeLabsectionByCapturedResults');
 
 
 

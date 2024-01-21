@@ -166,4 +166,21 @@ class AnalysisElementsController extends Controller
     return redirect()->back()->with('success','Analysis Tests deleted successfully!');
 
   }
+  public function changeLabsectionByCapturedResults(Request $request){
+    $captured_results_ids = explode(',',$request->captured_ids);
+    $capturedResults = CapturedResult::whereIn('id',$captured_results_ids)->get();
+    foreach($capturedResults as $cr){
+      if($request->affect_batch == 1){
+        CapturedResult::where('sample_header_id',$cr->sample_header_id)->where('analysis_type_id',$cr->analysis_type_id)->where('analyte_id',$cr->analyte_id)->update(['lab_section_id'=>$request->lab_section_id]);
+        Result::where('sample_header_id',$cr->sample_header_id)->where('analysis_type_id',$cr->analysis_type_id)->where('analyte_id',$cr->analyte_id)->update(['lab_section_id'=>$request->lab_section_id]);
+      }
+      if($request->affect_all == 1){
+        CapturedResult::where('analysis_type_id',$cr->analysis_type_id)->where('analyte_id',$cr->analyte_id)->update(['lab_section_id'=>$request->lab_section_id]);
+        Result::where('analysis_type_id',$cr->analysis_type_id)->where('analyte_id',$cr->analyte_id)->update(['lab_section_id'=>$request->lab_section_id]);
+        AnalysisElements::where('analysis_type_id',$cr->analysis_type_id)->where('analyte_id',$cr->analyte_id)->update(['lab_section_id'=>$request->lab_section_id]);
+
+      }
+    }
+    return response()->json('done');
+  }
 }

@@ -2368,7 +2368,25 @@
 		</div>
 	</div>
 <?php endif; ?>
+<div class="modal fade" id="refresh-page-modal" data-backdrop="static" data-keyboard="false" role="dialog">
+	<div class="modal-dialog">
+		<div class="modal-content">
+			<div class="modal-body">
+				<div class="alert alert-primary d-flex">
+					<i class="mdi mdi-alert-decagram-outline"></i>
+					<span class="p-2">
+						Parameter lab sections updated successfully. Refresh the page for the changes to take effect.
+					</span>
+				</div>
+			</div>
+			<div class="modal-footer">
+				<a href="/sample-workflow/batch/<?php echo e($batch->id); ?>/details" class="btn btn-outline-primary float-right btn-sm"><i class="mdi mdi-thumb-up-outline"></i> Yes, Refresh</a>
 
+			</div>
+		</div>
+	</div>
+
+</div>
 <div id="show-sample-analysis-analytes" class="modal fade" data-backdrop="static" data-keyboard="false" role="dialog">
 	<div class="modal-dialog" style="min-width: 90%">
 		<!-- Modal content-->
@@ -2416,6 +2434,9 @@
 								<a href="/sample-workflow/batch/<?php echo e($batch->id); ?>/details" class="btn btn-outline-primary float-right btn-sm"><i class="mdi mdi-content-save"></i> Save</a>
 								<span class="btn btn-sm btn-outline-warning float-right mr-2" id="delete-parameter"><i class="mdi mdi-delete-empty"></i> Delete</span>
 							<?php endif; ?>
+							<?php if(isset($batch->status) && in_array($batch->status,array('Samples Reception','Samples Request Review','Samples En-Route','Samples In Lab'))): ?>
+							<span class="btn btn-sm btn-outline-dark float-right mr-2" id="change-section"><i class="mdi mdi-compare-vertical"></i> Change Section</span>
+							<?php endif; ?>
 							<?php endif; ?>
 							<br>
 							
@@ -2424,6 +2445,38 @@
 							</span>
 							<br>
 						</h5>
+						<div class="change-section-area alert-primary p-1 hidden" style="color:black">
+							<div class="alert-body row">
+
+								<div class="col-md-3">
+									<div class="form-group">
+										<label for="" class="control-label">Sections</label>
+										<select name="section_id" id="section_id_change" class="form-control">
+											<option value="">Select Lab Section</option>
+											<?php $__currentLoopData = $labsections; $__env->addLoop($__currentLoopData); foreach($__currentLoopData as $l_sect): $__env->incrementLoopIndices(); $loop = $__env->getLastLoop(); ?>
+											<option value="<?php echo e($l_sect->id); ?>"><?php echo e($l_sect->name); ?> - <?php echo e($l_sect->code); ?></option>
+											<?php endforeach; $__env->popLoop(); $loop = $__env->getLastLoop(); ?>
+										</select>
+									</div>
+								</div>
+								<div class="col-md-3">
+									<div class="form-group" >
+										<label for="" class="control-label" style="margin-top: 2rem !important"><input type="checkbox" name="affect_batch" id="affect_batch"> Affect this batch only?</label>
+									</div>
+								</div>
+								<div class="col-md-3">
+									<div class="form-group">
+										<label for="" class="control-label" style="margin-top: 2rem !important"><input type="checkbox" name="affect_all" id="affect_all"> Affect all parameter configurations?</label>
+									</div>
+								</div>
+								<div class="col-md-3">
+									<span class="btn btn-sm btn-primary float-right mt-4 save-lab-section"><i class="mdi mdi-content-save"></i> Save Sections</span>
+								</div>
+								<div class="col-md-12 border-top text-center hidden" id="saving-progress-section">
+									<i class="mdi mdi-sync mdi-spin"></i> Saving...
+								</div>
+							</div>
+						</div>
 						<div class="table-responsive" id="sph-parent">
 							<table class="table table-condensed my-small-text table-striped table-hover table-bordered table" style="width: 100%">
 								<thead class="bg-light p-2">
@@ -3459,6 +3512,7 @@
 			var sampleCode = $(e.relatedTarget).data('sample_code');
 			var analysis_dates = JSON.parse($(e.relatedTarget).data('analysisdate'));
 			var InterlabStatus=0;
+			var capturedIds=[];
 			
 			var all_analysis = analysisNames[sampleCode];
 			$('#show-sample-analysis-analytes').find('#analysis-types').empty();
@@ -3664,6 +3718,63 @@
 				}else{
 					$('.pest-remark').val(p_remark);
 					$('.pest-result').val(p_result);
+				}
+			});
+			$('#change-section').on('click',()=>{
+				$('#saving-progress-section').addClass('hidden');
+				$('.save-lab-section').removeClass('hidden');
+				if($('[name="parameter_check[]"]').is(':checked')){
+					$.each($('[name="parameter_check[]"]'),(i,obj)=>{
+						if($(obj).is(':checked')){
+							capturedIds.push($(obj).val());
+						}
+					});
+					$('.change-section-area').removeClass('hidden');
+				}else{
+					alert('Kindly select the parameters you wish to change the lab sections first.');
+				}
+			});
+			$('.save-lab-section').on('click',()=>{
+				$('#saving-progress-section').removeClass('hidden');
+				$('.save-lab-section').addClass('hidden');
+				
+				var lab_section_id = $('#section_id_change').val();
+				var affect_all = $('#affect_all').is(':checked') ? 1 : 0;
+				var affect_batch = $('#affect_batch').is(':checked') ? 1 : 0;
+				var is_affect = 0;
+				is_affect = affect_all > 0 ? 1 : is_affect;
+				is_affect = affect_batch > 0 ? 1 : is_affect
+				if(lab_section_id == ''){
+					$('#saving-progress-section').addlass('hidden');
+					$('.save-lab-section').removeClass('hidden');
+					alert('Lab section is a required field');
+				}
+				if(affect_all == 0 && affect_batch == 0){
+					$('#saving-progress-section').addlass('hidden');
+					$('.save-lab-section').removeClass('hidden');
+					alert('Kindly select where the change should affect if its this batch only or the parameter configuration');
+				}
+				if(lab_section_id != '' && is_affect == 1){
+					$.ajax({
+						url:`/change/Labsection-By-Captured-Results`,
+						method:'GET',
+						data:{
+							affect_all:affect_all,
+							affect_batch:affect_batch,
+							lab_section_id:lab_section_id,
+							captured_ids:capturedIds.join(',')
+						},
+						success:(res)=>{
+							console.log('-------------------------done---------------------')
+							$('#saving-progress-section').addClass('hidden');
+							$('.change-section-area').addClass('hidden');
+							$('#show-sample-analysis-analytes').modal('hide')
+							$('#refresh-page-modal').modal('show');
+						},
+						error:(data)=>{
+							console.log(data);
+						}
+					})
 				}
 			})
 			
