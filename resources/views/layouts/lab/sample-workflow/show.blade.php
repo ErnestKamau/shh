@@ -2352,6 +2352,7 @@
 		</div>
 	</div>
 @endif
+@if(isset($batch->id))
 <div class="modal fade" id="refresh-page-modal" data-backdrop="static" data-keyboard="false" role="dialog">
 	<div class="modal-dialog">
 		<div class="modal-content">
@@ -2371,6 +2372,7 @@
 	</div>
 
 </div>
+@endif
 <div id="show-sample-analysis-analytes" class="modal fade" data-backdrop="static" data-keyboard="false" role="dialog">
 	<div class="modal-dialog" style="min-width: 90%">
 		<!-- Modal content-->

@@ -2368,6 +2368,7 @@
 		</div>
 	</div>
 <?php endif; ?>
+<?php if(isset($batch->id)): ?>
 <div class="modal fade" id="refresh-page-modal" data-backdrop="static" data-keyboard="false" role="dialog">
 	<div class="modal-dialog">
 		<div class="modal-content">
@@ -2387,6 +2388,7 @@
 	</div>
 
 </div>
+<?php endif; ?>
 <div id="show-sample-analysis-analytes" class="modal fade" data-backdrop="static" data-keyboard="false" role="dialog">
 	<div class="modal-dialog" style="min-width: 90%">
 		<!-- Modal content-->
@@ -2466,7 +2468,7 @@
 								</div>
 								<div class="col-md-3">
 									<div class="form-group">
-										<label for="" class="control-label" style="margin-top: 2rem !important"><input type="checkbox" name="affect_all" id="affect_all"> Affect all parameter configurations?</label>
+										<label for="" class="control-label" style="margin-top: 2rem !important"><input type="checkbox" checked name="affect_all" id="affect_all"> Affect all parameter configurations?</label>
 									</div>
 								</div>
 								<div class="col-md-3">
