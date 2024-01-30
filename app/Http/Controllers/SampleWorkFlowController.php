@@ -1383,10 +1383,12 @@ class SampleWorkFlowController extends Controller
 
 			foreach ($analysisBySample[$sample->sample_code] as $id) {
 				$analysis = getAnalysisTypeID($id);
-				if (!isset($analysisBySampleNames[$sample->sample_code])) {
-					$analysisBySampleNames[$sample->sample_code] = [];
+				if(isset($analysis->id)){
+					if (!isset($analysisBySampleNames[$sample->sample_code])) {
+						$analysisBySampleNames[$sample->sample_code] = [];
+					}
+					$analysisBySampleNames[$sample->sample_code][$analysis->name] = $analysis->id;
 				}
-				$analysisBySampleNames[$sample->sample_code][$analysis->name] = $analysis->id;
 			}
 		}
 		// echo "Ending - ".date('Y-m-d H:i:s');
