@@ -2265,7 +2265,7 @@ class SampleWorkFlowController extends Controller
 								}
 								if ($analyte_guide->value_type == 'Min' || $analyte_guide->value_type == '') {
 
-									$response =  $result >  floatval($analyte_guide->standard_is_value) ? 'PASS' : 'FAIL';
+									$response =  $result >=  floatval($analyte_guide->standard_is_value) ? 'PASS' : 'FAIL';
 								}
 								if ($analyte_guide->value_type == 'less_than') {
 									$response = $result <  floatval($analyte_guide->standard_is_value) ? 'PASS' : 'FAIL';
@@ -2276,7 +2276,8 @@ class SampleWorkFlowController extends Controller
 							} elseif($reporting_symbol == '<'){
 								if ($analyte_guide->value_type == 'Max' || $analyte_guide->value_type == '' || $analyte_guide->value_type == null) {
 
-									$response = $result <  floatval($analyte_guide->standard_is_value) ? 'PASS' : 'FAIL';;
+									$response = $result <=  floatval($analyte_guide->standard_is_value) ? 'PASS' : 'FAIL';
+									
 								}
 								if ($analyte_guide->value_type == 'Min' || $analyte_guide->value_type == '') {
 
@@ -2292,6 +2293,7 @@ class SampleWorkFlowController extends Controller
 								if ($analyte_guide->value_type == 'Max' || $analyte_guide->value_type == '' || $analyte_guide->value_type == null) {
 
 									$response = $result <= floatval($analyte_guide->standard_is_value) ? 'PASS' : 'FAIL';
+									
 								}
 								if ($analyte_guide->value_type == 'Min' || $analyte_guide->value_type == '') {
 
@@ -2314,7 +2316,7 @@ class SampleWorkFlowController extends Controller
 									}
 									if ($analyte_guide->value_type == 'Min' || $analyte_guide->value_type == '') {
 	
-										$response =  $result >  floatval($analyte_guide->standard_is_value) ? 'PASS' : 'FAIL';
+										$response =  $result >=  floatval($analyte_guide->standard_is_value) ? 'PASS' : 'FAIL';
 									}
 									if ($analyte_guide->value_type == 'less_than') {
 										$response = $result <  floatval($analyte_guide->standard_is_value) ? 'PASS' : 'FAIL';
@@ -2325,7 +2327,8 @@ class SampleWorkFlowController extends Controller
 								} elseif($reporting_symbol == '<'){
 									if ($analyte_guide->value_type == 'Max' || $analyte_guide->value_type == '' || $analyte_guide->value_type == null) {
 
-										$response = $result <  floatval($analyte_guide->standard_is_value) ? 'PASS' : 'FAIL';;
+										$response = $result <=  floatval($analyte_guide->standard_is_value) ? 'PASS' : 'FAIL';
+										
 									}
 									if ($analyte_guide->value_type == 'Min' || $analyte_guide->value_type == '') {
 	
@@ -4094,7 +4097,16 @@ class SampleWorkFlowController extends Controller
 				// array_push($prev_dates,[$request->lab_section_id=>$request->start_analysis_date]);
 
 			}
-			$analysis_date->start_analysis_date = $analysis_date->start_analysis_date > $request->start_analysis_date ? $request->start_analysis_date : $analysis_date->start_analysis_date;
+			$start_date = '';
+			foreach($prev_dates as $key=>$val){
+				if($start_date == ''){
+					$start_date = $val;
+				}else{
+					$start_date = $val > $start_date ? $start_date : $val;
+				}
+
+			}
+			$analysis_date->start_analysis_date = $start_date;
 		}else{
 			$prev_dates = [];
 			// array_push($prev_dates,[$request->lab_section_id=>$request->start_analysis_date]);
