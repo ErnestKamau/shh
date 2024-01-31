@@ -3981,12 +3981,13 @@ class SampleWorkFlowController extends Controller
 
 				// return response()->json($request->sample_details['lab_id'][$k]);
 				$sample_number = intval($last_sample)  + 1;
-				$new_sample_code = 'S' . date('Y') . $sample_data->main_lab_code . $sample_number;
+				$new_sample_code = 'S' . date('Y') . $sample_data->main_lab_code . sprintf("%0"."4"."d",$sample_number);
 
 				$new_sample = $sample->replicate()->fill([
 					'sample_code' => $new_sample_code,
 					'sample_header_id' => $new_batch->id,
-					'disposal_date' => \Carbon\Carbon::parse($new_batch->receipt_date)->addMonths(3)->format('Y-m-d')
+					'disposal_date' => \Carbon\Carbon::parse($new_batch->receipt_date)->addMonths(3)->format('Y-m-d'),
+					'sample_no' => sprintf("%0"."4"."d",$sample_number),
 				]);
 				$new_sample->save();
 

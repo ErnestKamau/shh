@@ -9,7 +9,7 @@ class SampleDetails extends Model implements Auditable
 {
 	use \OwenIt\Auditing\Auditable;
 	// public $with = ['sample_detail_lab', 'captured_results'];
-	public $fillable = ['sample_code','sample_header_id','disposal_date'];
+	public $fillable = ['sample_code','sample_header_id','disposal_date','sample_no'];
 	public function getSampleHeader(){
 		return SampleHeader::find($this->sample_header_id);
 	}
