@@ -2368,6 +2368,9 @@ class SampleWorkFlowController extends Controller
 								} elseif (strtoupper(trim($standard_value->code)) == "ND") {
 									$response = $result <= 0  ? 'PASS' : 'FAIL';
 									return response()->json($response, 200);
+								} elseif (strtoupper(trim($standard_value->code)) == "ABSENT") {
+									$response = in_array(strtoupper($result),['ABSENT','ND']) == 'ABSENT'  ? 'PASS' : 'FAIL';
+									return response()->json($response, 200);
 								} else {
 									$response = '-';
 									return response()->json($response, 200);
