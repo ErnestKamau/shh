@@ -53,6 +53,14 @@
         bottom: 10px;
         left: 0;
         right: 0;
+        z-index: 1;
+    }
+
+    .footer_signatures {
+        position: fixed;
+        bottom: 180px;
+        left: 0;
+        right: 0;
         z-index: 1000;
     }
 
