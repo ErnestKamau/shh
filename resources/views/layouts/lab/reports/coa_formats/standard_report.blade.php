@@ -52,6 +52,14 @@
         bottom: 10px;
         left: 0;
         right: 0;
+        z-index: 1;
+    }
+
+    .footer_signatures {
+        position: fixed;
+        bottom: 180px;
+        left: 0;
+        right: 0;
         z-index: 1000;
     }
 
@@ -91,43 +99,7 @@
 
 
     <footer class="footer">
-        @if($batch_approvers->count() > 0)
-        <table style="margin-top: 1px !important;margin-bottom:6px!important;width:100%;">
-            <tr>
-                <td style="width:10%"></td>
-                @foreach ($batch_approvers as $approver)
-                    <td style="font-size: 8px !important;">
-                        <div style="text-align:center">
-                            <b>{{ $approver->title }}</b>
-                        </div>
-                    </td>
-                @endforeach
-                <td style="width:10%"></td>
-            </tr>
-            <tr>
-                <td style="width:10%"></td>
-                @foreach ($batch_approvers as $approver)
-                    <td style="font-size: 8px !important;">
-                        <div class="dotted-line text-align:center" style="text-align:center; width:fit-content!important;">
-                            <img src="{{ getCoaApproverSignature($approver->getApproverDetails()->electronic_sig) }}" style="height:48px;z-index:-10;position:relative;"
-                            alt="signature">
-                        </div>
-                    </td>
-                @endforeach
-                <td style="width:10%"></td>
-            </tr>
-            <tr>
-                <td style="width:10%"></td>
-                @foreach ($batch_approvers as $approver)
-                    <td style="font-size: 9px !important;">
-                        <div style="text-align:center">{{ $approver->approvershortname }} -
-                                <i>{{ $approver->getApproverPositionDetails() }}</i></div>
-                    </td>
-                @endforeach
-                <td style="width:10%"></td>
-            </tr>
-        </table>
-        @endif
+        
         <table style="width:100%;">
             <tr>
                 <td>
@@ -183,7 +155,78 @@
     </div>
     @endif
 
+    <?php 
+        $count = 1;
+        $_cnt  = 2; 
+    ?>
     @foreach ($samples as $sample)
+        <div class="footer_signatures">
+            @if($batch_approvers->count() > 0)
+                <table style="margin-top: 1px !important;margin-bottom:6px!important;width:100%;">
+                    <tr>
+                        
+                        <td style="width:10%"></td>
+                        @foreach ($batch_approvers as $approver)
+                                <td style="font-size: 8px !important;">
+                                    @if ($count <= $_cnt)
+                                    <div style="text-align:center">
+                                        <b>{{ $approver->title }}</b>
+                                    </div>
+                                    @endif
+                                </td>
+                            
+                            <?php 
+                                $count += 1;    
+                            ?>
+                        @endforeach
+                        <td style="width:10%"></td>
+                    </tr>
+                    <tr>
+                        <td style="width:10%"></td>
+                        <?php 
+                            $count = 1;
+                        ?>
+                        @foreach ($batch_approvers as $approver)
+                            <td style="font-size: 8px !important;">
+                                @if ($count <= $_cnt)
+                                <div class="dotted-line text-align:center" style="text-align:center; width:fit-content!important;">
+                                    <img src="{{ getCoaApproverSignature($approver->getApproverDetails()->electronic_sig) }}" style="height:48px;z-index:-10;position:relative;"
+                                    alt="signature">
+                                </div>
+                                @endif
+                            </td>
+                        
+                            <?php 
+                                $count += 1;    
+                            ?>
+                        @endforeach
+                        <td style="width:10%"></td>
+                    </tr>
+                    <tr>
+                        <td style="width:10%"></td>
+                        <?php 
+                            $count = 1;
+                        ?>
+                        @foreach ($batch_approvers as $approver)
+                            <td style="font-size: 9px !important;">
+                                @if ($count <= $_cnt)
+                                <div style="text-align:center">{{ $approver->approvershortname }} -
+                                        <i>{{ $approver->getApproverPositionDetails() }}</i></div>
+                                @endif
+                            </td>
+                            
+                            <?php 
+                                $count += 1;    
+                            ?>
+                        @endforeach
+                        <td style="width:10%"></td>
+                    </tr>
+                    <?php 
+                        $_cnt += 1;    
+                    ?>
+                </table>
+                @endif
+        </div>
         @if ($sample->getAccredittedStatus() >= 1)
         <div class="" style="display:inline-block;position:fixed;bottom:2px;right:1%">
             <img src="{{ $kenas }}" style="width:auto;height:100px" alt="">
