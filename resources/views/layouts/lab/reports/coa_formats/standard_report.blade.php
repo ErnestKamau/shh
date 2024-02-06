@@ -173,7 +173,7 @@
                         <td style="width:10%"></td>
                         @foreach ($batch_approvers as $approver)
                             <td style="font-size: 8px !important;width:26%">
-                                @if (!in_array($approver->id, $printed_title))
+                                @if (!in_array($approver->id, $printed_title) && in_array($approver->lab_section_ids,$sample['lab_sect_ids_arr']))
                                     <div style="text-align:center">
                                         <b>{{ $approver->title }}</b>
                                     </div>
@@ -181,8 +181,8 @@
                                 @endif
                             </td>
                         @endforeach
-                        @if ($batch_approvers->count() < 3)
-                            @foreach (range(1, 3 - $batch_approvers->count()) as $indx)
+                        @if (sizeof($sample['lab_sect_ids_arr']) < 3)
+                            @foreach (range(1, 3 - sizeof($sample['lab_sect_ids_arr'])) as $indx)
                                 <td style="font-size: 8px !important;width:26%"></td>
                             @endforeach
                         @endif
@@ -192,7 +192,7 @@
                         <td style="width:10%"></td>
                         @foreach ($batch_approvers as $approver)
                             <td style="font-size: 8px !important;width:26%">
-                                @if (!in_array($approver->id, $printed_sig))
+                                @if (!in_array($approver->id, $printed_sig) && in_array($approver->lab_section_ids,$sample['lab_sect_ids_arr']))
                                     <div class="dotted-line text-align:center"
                                         style="text-align:center; width:fit-content!important;">
                                         <img src="{{ getCoaApproverSignature($approver->getApproverDetails()->electronic_sig) }}"
@@ -202,8 +202,8 @@
                                 @endif
                             </td>
                         @endforeach
-                        @if ($batch_approvers->count() < 3)
-                            @foreach (range(1, 3 - $batch_approvers->count()) as $indx)
+                        @if (sizeof($sample['lab_sect_ids_arr']) < 3)
+                            @foreach (range(1, 3 - sizeof($sample['lab_sect_ids_arr'])) as $indx)
                                 <td style="font-size: 8px !important;width:26%"></td>
                             @endforeach
                         @endif
@@ -213,7 +213,7 @@
                         <td style="width:10%"></td>
                         @foreach ($batch_approvers as $approver)
                             <td style="font-size: 9px !important;">
-                                @if (!in_array($approver->id, $printed_pos))
+                                @if (!in_array($approver->id, $printed_pos) && in_array($approver->lab_section_ids,$sample['lab_sect_ids_arr']))
                                     <div style="text-align:center">{{ $approver->approvershortname }} -
                                         <i>{{ $approver->getApproverPositionDetails() }}</i>
                                     </div>
@@ -221,8 +221,8 @@
                                 @endif
                             </td>
                         @endforeach
-                        @if ($batch_approvers->count() < 3)
-                            @foreach (range(1, 3 - $batch_approvers->count()) as $indx)
+                        @if (sizeof($sample['lab_sect_ids_arr']) < 3)
+                            @foreach (range(1, 3 - sizeof($sample['lab_sect_ids_arr'])) as $indx)
                                 <td style="font-size: 8px !important;width:26%"></td>
                             @endforeach
                         @endif
