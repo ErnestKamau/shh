@@ -177,6 +177,7 @@ class ReportHeaderDetailController extends Controller
 				$allCapturedResultsCount = CapturedResult::where('sample_detail_id',$sample->id)->where('sample_header_id',$batch->id)->get()->count();
 				$isAccreditedCount = CapturedResult::where('sample_detail_id',$sample->id)->where('sample_header_id',$batch->id)->where('analyte_accredited',1)->get()->count();
 				$sample['is_accreddited_status'] = $isAccreditedCount >= $allCapturedResultsCount/2 ? 1 : 0;
+				$sample['lab_sect_ids_arr'] = array_unique(CapturedResult::where('sample_detail_id',$sample->id)->where('sample_header_id',$batch->id)->where('sample_detail_id',$sample->id)->pluck('lab_section_id')->toArray());
 				$sample['getBrandOuts'] = [
 					"normal" => SampleAnalysisTypeRelationView::where('brand_id', 0)->where('sample_detail_id',$sample->id)->where('batch_id',$sample->sample_header_id)->orderBy('analysis_level', 'DESC')->get(),
 					"physical" => SampleAnalysisTypeRelationView::where('brand_id', 1)->where('sample_detail_id',$sample->id)->where('batch_id',$sample->sample_header_id)->orderBy('analysis_level', 'DESC')->get(),
@@ -213,6 +214,7 @@ class ReportHeaderDetailController extends Controller
 				$allCapturedResultsCount = CapturedResult::where('sample_detail_id',$sample->id)->where('sample_header_id',$batch->id)->get()->count();
 				$isAccreditedCount = CapturedResult::where('sample_detail_id',$sample->id)->where('sample_header_id',$batch->id)->where('analyte_accredited',1)->get()->count();
 				$sample['is_accreddited_status'] = $isAccreditedCount >= $allCapturedResultsCount/2 ? 1 : 0;
+				$sample['lab_sect_ids_arr'] = array_unique(CapturedResult::where('sample_detail_id',$sample->id)->where('sample_header_id',$batch->id)->where('sample_detail_id',$sample->id)->pluck('lab_section_id')->toArray());
 				$sample['getBrandOuts'] = [
 					"normal" => SampleAnalysisTypeRelationView::where('brand_id',0)->where('sample_detail_id',$sample->id)->where('batch_id',$sample->sample_header_id)->orderBy('analysis_level', 'DESC')->get(),
 					"physical" => SampleAnalysisTypeRelationView::where('brand_id', 1)->where('sample_detail_id',$sample->id)->where('batch_id',$sample->sample_header_id)->orderBy('analysis_level', 'DESC')->get(),
@@ -249,6 +251,7 @@ class ReportHeaderDetailController extends Controller
 			$allCapturedResultsCount = CapturedResult::where('sample_detail_id',$sample->id)->where('sample_header_id',$batch->id)->get()->count();
 			$isAccreditedCount = CapturedResult::where('sample_detail_id',$sample->id)->where('sample_header_id',$batch->id)->where('analyte_accredited',1)->get()->count();
 			$sample['is_accreddited_status'] = $isAccreditedCount >= $allCapturedResultsCount/2 ? 1 : 0;
+			$sample['lab_sect_ids_arr'] = array_unique(CapturedResult::where('sample_detail_id',$sample->id)->where('sample_header_id',$batch->id)->where('sample_detail_id',$sample->id)->pluck('lab_section_id')->toArray());
 		}
 		// $samples = SamplesCategory::where('sample_header_id',$batch->id)->get();
 		ini_set('max_execution_time', 300); //300 seconds = 5 minutes 
