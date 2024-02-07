@@ -170,7 +170,6 @@ class ReportHeaderDetailController extends Controller
 		$qr_url = url('/storage/reports/' . $customer_name . '/' . $filename);
 		// return response()->json($batch_result,200);
 
-
 		$qrcode = base64_encode(\QrCode::format('svg')->size(50)->errorCorrection('H')->generate($qr_url));
 		$samples = SamplesCategory::where('sample_header_id', $batch->id)->get();
 		if ($report_format == '1') {

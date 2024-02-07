@@ -230,7 +230,7 @@
                 </table>
             @endif
         </div>
-        @if ($sample->getAccredittedStatus() >= 1)
+        @if ($sample['is_accreddited_status'] == 1)
             <div class="" style="display:inline-block;position:fixed;bottom:2px;right:1%">
                 <img src="{{ $kenas }}" style="width:auto;height:100px" alt="">
             </div>
