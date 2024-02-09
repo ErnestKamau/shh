@@ -78,7 +78,7 @@
                                     <i class="mdi mdi-alert-decagram-outline" style="font-size:30px"></i>
                                     <span class="p-2">
                                         Kindly provide the sample / job number below to get the Customer Focus of the
-                                        specified sample
+                                        specified sample eg (16010035)
                                     </span>
                                 </div>
 
