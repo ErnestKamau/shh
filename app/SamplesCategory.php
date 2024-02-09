@@ -22,6 +22,11 @@ class SamplesCategory extends Model implements Auditable
         return CapturedResult::where('sample_detail_id',$this->id)->where('analyte_status_contracted',0)->count();
        
     }
+    public function getAccredittedCount(){
+        // $total = CapturedResult::where('sample_detail_id',$this->id)->count();
+        return CapturedResult::where('sample_detail_id',$this->id)->where('analyte_accredited',1)->count();
+       
+    }
     public function getAnalysisRelation(){
 		return implode(', ',array_unique(SampleAnalysisTypeRelationView::where('sample_detail_id',$this->id)->where('batch_id',$this->sample_header_id)->pluck('analysis_type_name')->toArray()) ?? []);
 	}
