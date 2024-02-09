@@ -92,7 +92,7 @@
     .stamp-section {
         position: fixed;
         bottom: 145px;
-        right: 0px;
+        right: -4px!important;
     }
 </style>
 
@@ -153,7 +153,7 @@
 
     @if (isset($is_stamp->id))
         <div class="stamp-section">
-            <img src="{{ $stamp }}" style="height:162px; z-index:1000;position: relative;" alt="">
+            <img src="{{ $stamp }}" style="height:160px; z-index:1000;position: relative;" alt="">
         </div>
     @endif
 
@@ -171,7 +171,7 @@
 
                         <td style="width:10%"></td>
                         @foreach ($batch_approvers as $approver)
-                            <td style="font-size: 8px !important;width:26%">
+                            <td style="font-size: 8px !important;width:23%">
                                 @if (!in_array($approver->id, $printed_title) && in_array($approver->lab_section_ids,$sample['lab_sect_ids_arr']))
                                     <div style="text-align:center">
                                         <b>{{ $approver->title }}</b>
@@ -182,7 +182,7 @@
                         @endforeach
                         @if (sizeof($sample['lab_sect_ids_arr']) < 3)
                             @foreach (range(1, 3 - sizeof($sample['lab_sect_ids_arr'])) as $indx)
-                                <td style="font-size: 8px !important;width:26%"></td>
+                                <td style="font-size: 8px !important;width:23%"></td>
                             @endforeach
                         @endif
                         <td style="width:10%"></td>
@@ -190,7 +190,7 @@
                     <tr>
                         <td style="width:10%"></td>
                         @foreach ($batch_approvers as $approver)
-                            <td style="font-size: 8px !important;width:26%">
+                            <td style="font-size: 8px !important;width:23%">
                                 @if (!in_array($approver->id, $printed_sig) && in_array($approver->lab_section_ids,$sample['lab_sect_ids_arr']))
                                     <div class="dotted-line text-align:center"
                                         style="text-align:center; width:fit-content!important;">
@@ -203,7 +203,7 @@
                         @endforeach
                         @if (sizeof($sample['lab_sect_ids_arr']) < 3)
                             @foreach (range(1, 3 - sizeof($sample['lab_sect_ids_arr'])) as $indx)
-                                <td style="font-size: 8px !important;width:26%"></td>
+                                <td style="font-size: 8px !important;width:23%"></td>
                             @endforeach
                         @endif
                         <td style="width:10%"></td>
@@ -222,7 +222,7 @@
                         @endforeach
                         @if (sizeof($sample['lab_sect_ids_arr']) < 3)
                             @foreach (range(1, 3 - sizeof($sample['lab_sect_ids_arr'])) as $indx)
-                                <td style="font-size: 8px !important;width:26%"></td>
+                                <td style="font-size: 8px !important;width:23%"></td>
                             @endforeach
                         @endif
                         <td style="width:10%"></td>
