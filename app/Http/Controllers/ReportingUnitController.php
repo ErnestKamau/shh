@@ -38,6 +38,16 @@ class ReportingUnitController extends Controller
 
 		return redirect()->back()->with('success', 'Reporting Unit Added.');
 	}
+	public function addAjax(Request $request)
+	{
+		$reporting_unit = new ReportingUnit;
+
+		$reporting_unit->name = $request->r_value;
+		$reporting_unit->active = 1;
+		$reporting_unit->save();
+
+		return response()->json($reporting_unit);
+	}
 
 	/**
 	 * Update the specified resource in storage.

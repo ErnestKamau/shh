@@ -102,6 +102,7 @@ Route::get('/change/Labsection-By-Captured-Results','AnalysisElementsController@
 
 
 
+
 Route::post('/add-analyte-guide', 'AnalysisMethodElementsController@update_guide')->name('add-analyte-guide');
 Route::post('/clone-analyte-guide','AnalysisMethodElementsController@clone_analysis_guide')->name('clone_analysis_guide');
 Route::post('/delete-analyte-guide','AnalysisMethodElementsController@delete_analysis_guide')->name('delete_analysis_guide');
@@ -129,6 +130,7 @@ Route::post('/update-method-reagents/{method_id}', 'MethodReagentController@modi
 Route::get('/reporting-units', 'ReportingUnitController@index')->name('reporting-units')->middleware('haspermission:Laboratory.components.Reporting-Units.View');
 Route::post('/reporting-units', 'ReportingUnitController@add')->name('add-reporting-unit')->middleware('haspermission:Laboratory.components.Reporting-Units.Add');
 Route::post('/reporting-unit/{id}', 'ReportingUnitController@update')->name('edit-reporting-unit')->middleware('haspermission:Laboratory.components.Reporting-Units.Edit');
+Route::get('/reporting-unit/addAjax','ReportingUnitController@addAjax')->name('reporting-addAjax');
 
 Route::get('/sample-analysis-stages', 'SampleAnalysisStageController@index')->name('sample-analysis-stages')->middleware('haspermission:Laboratory.components.Sample-Tracking-Stages.View');
 Route::post('/sample-analysis-stages', 'SampleAnalysisStageController@add')->name('add-sample-analysis-stage')->middleware('haspermission:Laboratory.components.Sample-Tracking-Stages.Add');

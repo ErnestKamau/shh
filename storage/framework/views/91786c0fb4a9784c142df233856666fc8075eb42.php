@@ -1482,6 +1482,33 @@
 		</form>
 	</div>
 </div>
+<?php if(isset($batch->status) && $batch->status == 'Samples In Lab'): ?>
+<div class="modal fade" id="add-reporting-unit" role="dialog" data-backdrop="static" data-keyboard="false"  role="dialog" style="z-index: 3000">
+	<div class="modal-dialog">
+		<div class="modal-content">
+			<form action="">
+				<div class="modal-body">
+					<div class="alert alert-primary d-flex">
+						<i class="mdi mdi-plus" style="font-size: 30px"></i>
+						<span class="p-2">Add reporting unit below</span>
+					</div>
+					<div class="form-group">
+						<label for="" class="control-label">Reporting Unit</label>
+						<input type="text" name="reporting_unit" id="a_reporting_unit" class="form-control">
+					</div>
+					<div class="message-area">
+						
+					</div> 
+				</div>
+				<div class="modal-footer">
+					<span class="btn btn-sm btn-outline btn-primary save-reporting"><i class="mdi mdi-content-save"></i> Save</span>
+					<span class="btn btn-sm text-danger btn-default" data-dismiss="modal">Close</span>
+				</div>
+			</form>
+		</div>
+	</div>
+</div>
+<?php endif; ?>
 <div class="modal fade" id="change-approval-status" role="dialog">
 	<div class="modal-dialog">
 
@@ -4468,8 +4495,57 @@
 		$('#edit-standard').on('hidden.bs.modal',()=>{
 			$('body').addClass('modal-open');
 		})
+		$('#add-reporting-unit').on('hidden.bs.modal',()=>{
+			$('body').addClass('modal-open');
+		})
 		
+		$('#add-reporting-unit').on('show.bs.modal',(e)=>{
+			var rec = $(e.relatedTarget).data('record');
+			var name= `reporting_unit[${rec}]`;
+			$('#add-reporting-unit').find('#a_reporting_unit').val('')
+			$('#add-reporting-unit').find('.save-reporting').removeClass('hidden');
+			$('#add-reporting-unit').find('.message-area').empty();
+			$('#add-reporting-unit').find('.save-reporting').on('click',(e)=>{
+				var r_value = $('#add-reporting-unit').find('#a_reporting_unit').val();
+				if(r_value == ''){
+					alert('The field is a required field');
+				}else{
+					$('#add-reporting-unit').find('.save-reporting').addClass('hidden');
+					$.ajax({
+						url:`/reporting-unit/addAjax`,
+						method:'GET',
+						data:{
+							r_value:r_value
+						},
+						success:(data)=>{
+							if(data){
+								var option = `<option value="${data.id}">${data.name}</option>`;
+								$('#sample-parameters-holder').find('.sample-reporting-unit').append(option);
+								$('#sample-parameters-holder').find(`[name="${name}"]`).append(option);
+								$('#sample-parameters-holder').find(`[name="${name}"]`).val(data.id);
+								var r_body = `
+								<div class="alert alert-success p-2 d-flex">
+									<i class="mdi mdi-check-decagram" style="font-size:30px"></i>
+									<span class="p-2">Reporting unit saved successfully!</span>
+								</div>`;
+								$('#add-reporting-unit').find('.message-area').append(r_body)
 		
+							}else{
+								var r_body = `
+								<div class="alert alert-danger p-2 d-flex">
+									<i class="mdi mdi-alert-octagram" style="font-size:30px"></i>
+									<span class="p-2">There is a reporting unit with the given name</span>
+								</div>`;
+								$('#add-reporting-unit').find('.message-area').append(r_body)
+							}
+						},
+						error:(data)=>{
+							alert('An error occured');
+						}
+					});
+				}
+			});
+		});
 		$('#edit-standard').on('show.bs.modal',(e)=>{
 			// e.stopPropagation();
 			relatedTargetElement = e.relatedTarget
@@ -4669,8 +4745,8 @@
 					</div>
 				</td>
 				<td nowrap">
-					<div class="form-group form-group-sm">
-						<select class="form-control form-control-sm sample-reporting-unit"  name="reporting_unit[${data.id}]" style="width: 200px !important" placeholder="Select Sample Reporting Unit...">
+					<div class="form-group form-group-sm d-flex">
+						<select class="form-control form-control-sm sample-reporting-unit"  name="reporting_unit[${data.id}]" style="width: 100px !important" placeholder="Select Sample Reporting Unit...">
 							<option></option>
 							<?php if($reportingUnits): ?>
 								<?php $__currentLoopData = $reportingUnits; $__env->addLoop($__currentLoopData); foreach($__currentLoopData as $unit): $__env->incrementLoopIndices(); $loop = $__env->getLastLoop(); ?>
@@ -4678,8 +4754,8 @@
 								<?php endforeach; $__env->popLoop(); $loop = $__env->getLastLoop(); ?>
 							<?php endif; ?>
 						</select>
+						<span class="btn btn-sm btn-default text-primary" data-target="#add-reporting-unit" data-toggle="modal" data-record="${data.id}"><i class="mdi mdi-plus" data-toggle="tooltip" title="Add Reporting Unit" ></i></span>
 					</div>
-					<span class="text"></span>
 				</td>
 				<td>
 					<div class="form-group" name="operators" placeholder="Select Operator...">
