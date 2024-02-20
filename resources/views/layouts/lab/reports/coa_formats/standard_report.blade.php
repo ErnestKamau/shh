@@ -62,6 +62,9 @@
         left: 0;
         right: 0;
         z-index: 1000;
+        /* height: 200px!important; */
+        background-color: white!important;
+        /*border: 1px solid red*/
     }
 
     .dotted-line {
@@ -93,6 +96,7 @@
         position: fixed;
         bottom: 145px;
         right: -4px!important;
+        z-index: 1100!important;
     }
 </style>
 
@@ -129,7 +133,7 @@
             </table>
         </div>
     </footer>
-    <div class="main-lab" style="position:fixed;bottom:22%;left:1%;font-size:8px">
+    <div class="main-lab" style="position:fixed;bottom:22%;left:1%;font-size:8px;z-index:1100!important;">
         <b>{{ strtoupper($main_lab) }}</b><br>
         <b>{{ $batch->approval_date != '' && $batch->prelim_report_status != 2 ? convertDateFormatReports($batch->approval_date, 'dateShortMonth') : '-' }}</b>
     </div>
@@ -172,11 +176,10 @@
                         <td style="width:10%"></td>
                         @foreach ($batch_approvers as $approver)
                             <td style="font-size: 8px !important;width:23%">
-                                @if (!in_array($approver->id, $printed_title) && in_array($approver->lab_section_ids,$sample['lab_sect_ids_arr']))
+                                @if (in_array($approver->lab_section_ids,$sample['lab_sect_ids_arr']))
                                     <div style="text-align:center">
                                         <b>{{ $approver->title }}</b>
                                     </div>
-                                    <?php array_push($printed_title, $approver->id); ?>
                                 @endif
                             </td>
                         @endforeach
@@ -191,13 +194,12 @@
                         <td style="width:10%"></td>
                         @foreach ($batch_approvers as $approver)
                             <td style="font-size: 8px !important;width:23%">
-                                @if (!in_array($approver->id, $printed_sig) && in_array($approver->lab_section_ids,$sample['lab_sect_ids_arr']))
+                                @if (in_array($approver->lab_section_ids,$sample['lab_sect_ids_arr']))
                                     <div class="dotted-line text-align:center"
                                         style="text-align:center; width:fit-content!important;">
                                         <img src="{{ getCoaApproverSignature($approver->getApproverDetails()->electronic_sig) }}"
                                             style="height:48px;z-index:-10;position:relative;" alt="signature">
                                     </div>
-                                    <?php array_push($printed_sig, $approver->id); ?>
                                 @endif
                             </td>
                         @endforeach
@@ -212,11 +214,10 @@
                         <td style="width:10%"></td>
                         @foreach ($batch_approvers as $approver)
                             <td style="font-size: 9px !important;">
-                                @if (!in_array($approver->id, $printed_pos) && in_array($approver->lab_section_ids,$sample['lab_sect_ids_arr']))
+                                @if (in_array($approver->lab_section_ids,$sample['lab_sect_ids_arr']))
                                     <div style="text-align:center">{{ $approver->approvershortname }} -
                                         <i>{{ $approver->getApproverPositionDetails() }}</i>
                                     </div>
-                                    <?php array_push($printed_sig, $approver->id); ?>
                                 @endif
                             </td>
                         @endforeach
