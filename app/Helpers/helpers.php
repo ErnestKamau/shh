@@ -1572,7 +1572,7 @@ function getStandardLimitValue($captured_id,$standard_id){
 			$value_id = StandardValue::find($analyte_standard->standard_value_id);
 			if (isset($value_id->id)) {
 				if ($value_id->code == 'IsValue') {
-					return $analyte_standard->value_type;
+					return $analyte_standard->value_type == 'NS' ? '--' : $analyte_standard->value_type;
 				}
 			}else{
 				return '';
