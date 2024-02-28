@@ -62,6 +62,9 @@
         left: 0;
         right: 0;
         z-index: 1000;
+        /* height: 200px!important; */
+        background-color: white!important;
+        /*border: 1px solid red*/
     }
 
     .dotted-line {
@@ -93,7 +96,7 @@
         position: fixed;
         bottom: 145px;
         right: -4px!important;
-        z-index: 1100;
+        z-index: 1100!important;
     }
 </style>
 
@@ -130,7 +133,7 @@
             </table>
         </div>
     </footer>
-    <div class="main-lab" style="position:fixed;bottom:22%;left:1%;font-size:8px">
+    <div class="main-lab" style="position:fixed;bottom:22%;left:1%;font-size:8px;z-index:1100!important;">
         <b>{{ strtoupper($main_lab) }}</b><br>
         <b>{{ $batch->approval_date != '' && $batch->prelim_report_status != 2 ? convertDateFormatReports($batch->approval_date, 'dateShortMonth') : '-' }}</b>
     </div>
@@ -177,7 +180,6 @@
                                     <div style="text-align:center">
                                         <b>{{ $approver->title }}</b>
                                     </div>
-                                    
                                 @endif
                             </td>
                         @endforeach
@@ -198,7 +200,6 @@
                                         <img src="{{ getCoaApproverSignature($approver->getApproverDetails()->electronic_sig) }}"
                                             style="height:48px;z-index:-10;position:relative;" alt="signature">
                                     </div>
-                                    
                                 @endif
                             </td>
                         @endforeach
@@ -384,7 +385,7 @@
                                     {{ $captured->reporting_unit_id ?? '' }}
                                 </td>
                                 <td class="parameter " style="font-size: 9px !important;padding-left:3px !important;">
-                                    {{ $captured->main_value ?? '' }}
+                                    {{ $captured->main_value == 'NS' ? '--' : ($captured->main_value ?? '') }}
                                     {{ getStandardLimitValue($captured->id, $sample->main_standard) ?? '' }}
                                 </td>
 
