@@ -1226,7 +1226,10 @@ class SampleWorkFlowController extends Controller
 			// 		}
 			// 	}
 			// }
-			$not_captured = CapturedResult::where('sample_header_id', $batch->id)->whereNull('result')->join('analysis_elements as ae','ae.analysis_type_id','=','captured_results.analysis_type_id','ae.analyte_id','=','captured_results.analyte_id')->where('ae.active',1)->selectRaw('group_concat(analyte_code) as codes,sample_detail_code')->groupBy('sample_detail_id')->get();
+			$not_captured = CapturedResult::where('sample_header_id', $batch->id)->whereNull('result')->join('analysis_elements as ae',function($join){
+				$join->on('ae.analysis_type_id','=','captured_results.analysis_type_id');
+				$join->on('ae.analyte_id','=','captured_results.analyte_id');
+			})->where('ae.active',1)->selectRaw('group_concat(analyte_code) as codes,sample_detail_code')->groupBy('sample_detail_id')->get();
 			// return response()->json($test);
 		}
 
@@ -3811,7 +3814,10 @@ class SampleWorkFlowController extends Controller
 			// 		}
 			// 	}
 			// }
-			$not_captured = CapturedResult::where('sample_header_id', $batch->id)->whereNull('result')->join('analysis_elements as ae','ae.analysis_type_id','=','captured_results.analysis_type_id','ae.analyte_id','=','captured_results.analyte_id')->where('ae.active',1)->selectRaw('group_concat(analyte_code) as codes,sample_detail_code')->groupBy('sample_detail_id')->get();
+			$not_captured = CapturedResult::where('sample_header_id', $batch->id)->whereNull('result')->join('analysis_elements as ae',function($join){
+				$join->on('ae.analysis_type_id','=','captured_results.analysis_type_id');
+				$join->on('ae.analyte_id','=','captured_results.analyte_id');
+			})->where('ae.active',1)->where('ae.active',1)->selectRaw('group_concat(analyte_code) as codes,sample_detail_code')->groupBy('sample_detail_id')->get();
 			// return response()->json($test);
 		}
 
@@ -4135,8 +4141,14 @@ class SampleWorkFlowController extends Controller
 	}
 	public function getSampleResultCapturedNot($sample_id){
 		$sample = SampleDetails::where('sample_code',$sample_id)->first();
-		$captured = CapturedResult::where('sample_detail_id',$sample->id)->WhereNotNull('result')->join('analysis_elements as ae','ae.analysis_type_id','=','captured_results.analysis_type_id','ae.analyte_id','=','captured_results.analyte_id')->where('ae.active',1)->get()->count();
-		$captured_not = CapturedResult::where('sample_detail_id',$sample->id)->WhereNull('result')->join('analysis_elements as ae','ae.analysis_type_id','=','captured_results.analysis_type_id','ae.analyte_id','=','captured_results.analyte_id')->where('ae.active',1)->get()->count();
+		$captured = CapturedResult::where('sample_detail_id',$sample->id)->WhereNotNull('result')->join('analysis_elements as ae',function($join){
+			$join->on('ae.analysis_type_id','=','captured_results.analysis_type_id');
+			$join->on('ae.analyte_id','=','captured_results.analyte_id');
+		})->where('ae.active',1)->where('ae.active',1)->get()->count();
+		$captured_not = CapturedResult::where('sample_detail_id',$sample->id)->WhereNull('result')->join('analysis_elements as ae',function($join){
+			$join->on('ae.analysis_type_id','=','captured_results.analysis_type_id');
+			$join->on('ae.analyte_id','=','captured_results.analyte_id');
+		})->where('ae.active',1)->where('ae.active',1)->get()->count();
 		return response()->json(['captured'=>$captured,"not_captured"=>$captured_not]);
 	}
 }
