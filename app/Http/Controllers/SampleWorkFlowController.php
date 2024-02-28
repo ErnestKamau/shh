@@ -1226,12 +1226,12 @@ class SampleWorkFlowController extends Controller
 			// 		}
 			// 	}
 			// }
-			$not_captured = CapturedResult::where('sample_header_id', $batch->id)->whereNull('result')->selectRaw('group_concat(analyte_code) as codes,sample_detail_code')->groupBy('sample_detail_id')->get();
+			$not_captured = CapturedResult::where('sample_header_id', $batch->id)->whereNull('result')->join('analysis_elements as ae','ae.analysis_type_id','=','captured_results.analysis_type_id','ae.analyte_id','=','captured_results.analyte_id')->where('ae.active',1)->selectRaw('group_concat(analyte_code) as codes,sample_detail_code')->groupBy('sample_detail_id')->get();
 			// return response()->json($test);
 		}
 
 		$selectedSampleType = \App\SampleType::find($batch->sample_type_id ?? 0) ?? false;
-		
+
 		$selected_analysis_types = isset($batch->sample_type_id) ? $selectedSampleType->analysis_types : [];
 		if (isset($batch->id)) {
 			if ($batch->is_qc_batch) {
@@ -3811,7 +3811,7 @@ class SampleWorkFlowController extends Controller
 			// 		}
 			// 	}
 			// }
-			$not_captured = CapturedResult::where('sample_header_id', $batch->id)->whereNull('result')->selectRaw('group_concat(analyte_code) as codes,sample_detail_code')->groupBy('sample_detail_id')->get();
+			$not_captured = CapturedResult::where('sample_header_id', $batch->id)->whereNull('result')->join('analysis_elements as ae','ae.analysis_type_id','=','captured_results.analysis_type_id','ae.analyte_id','=','captured_results.analyte_id')->where('ae.active',1)->selectRaw('group_concat(analyte_code) as codes,sample_detail_code')->groupBy('sample_detail_id')->get();
 			// return response()->json($test);
 		}
 
