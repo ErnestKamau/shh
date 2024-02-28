@@ -153,4 +153,25 @@ class CustomerContactController extends Controller
 		}
 		return $contacts;
 	}
+	public function addAjax(Request $request){
+		$contact = new CustomerContact;
+		$contact->first_name = $request->first_name;
+		$contact->middle_name = $request->second_name;
+		$contact->last_name = $request->third_name;
+		$contact->job_occupation = $request->job_occupation;
+		$contact->unit_name =  $request->unit_name == '' ? '' : implode(",", $request->unit_name);
+		$contact->email = $request->email;
+		$contact->telephone = $request->telephone;
+		$contact->mobile = $request->mobile;
+		$contact->company_id = getUserCompany();
+		$contact->crm_customer_id = $request->customer_id;
+		$contact->receive_price_list = $request->receive_price_list ?? 0;
+		$contact->receive_invoice = $request->receive_invoice ?? 0;
+		$contact->receive_report = 1;
+		$contact->title_id = $request->title;
+		$contact->active = $request->active ?? 0;
+		$contact->save();
+
+		return response()->json($contact);
+	}
 }

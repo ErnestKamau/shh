@@ -1327,7 +1327,7 @@
 @endsection
 @section('script2')
 
-<div class="carry_data hidden" data-userlabsection="{{json_encode($userLabSections)}}"></div>
+<div class="carry_data hidden" data-userlabsection="{{json_encode($userLabSections)}}" ></div>
 
 <div id="add-company-unit" class="modal fade" role="dialog">
 	<div class="modal-dialog">
@@ -2178,13 +2178,22 @@
 
 									<span class="">Verification approvers for batch {{$batch->batch_code}} are :
 									</span>
-									<ul>
-										@foreach($section_approvers_users as $s_approvers)
-										<li>{{$s_approvers->username}}</li>
-										@endforeach
-									</ul>
+									
 								</div>
 							</div>
+							@foreach($section_approvers_users as $s_approvers)
+								<div class="form-group">
+									<label for="" class="control-label">{{$s_approvers->labsection}} Verifier</label>
+									<select required name="appover_user[{{$s_approvers->lab_section_id}}]" id="" class="form-control">
+										@foreach($users as $user)
+											<option value="{{$user->id}}" {{$s_approvers->user_id == $user->id ? 'selected' : ''}} >{{$user->name}}</option>
+										@endforeach
+									</select>
+									<input type="hidden" name="section_id[]" value="{{$s_approvers->lab_section_id}}">
+									<input type="hidden" name="title[{{$s_approvers->lab_section_id}}]" value="{{$s_approvers->title}}">
+								</div>
+							
+							@endforeach
 							
 							<input type="hidden" name="status" value="Sample Verification">
 							<input type="hidden" name="batch_id" value="{{$batch->id}}">
@@ -2695,6 +2704,28 @@
 		</div>
 	</div>
 </div>
+<div class="modal fade" id="capture-markings" role="dialog">
+	<div class="modal-dialog modal-lg">
+		<div class="modal-content">
+			<form action="" method="post">
+				<div class="modal-body">
+					<div class="alert alert-primary d-flex">
+						<i class="mdi mdi-plus" style="font-size:35px"></i>
+						<span class="p-2 mt-2">Update Sample markings of this sample below:</span>
+					</div>
+					<div class="form-group">
+						<label for="" class="control-label">Sample Markings</label>
+						<textarea name="markings" id="sample_markings" rows="10" class="form-control"></textarea>
+					</div>
+				</div>
+				<div class="modal-footer">
+					<span class="btn btn-sm btn-outline-primary save-markings"><i class="mdi mdi-content-save"></i> Update</span>
+					<span class="btn btn-sm btn-default text-center" data-dismiss="modal">Close</span>
+				</div>
+			</form>
+		</div>
+	</div>
+</div>
 
 <script src="https://maps.googleapis.com/maps/api/js?v=3.exp&key=AIzaSyBqS4AEZ-gVeXjG794Rh0eTd6yvdfMKTjg&sensor=false" type="text/javascript"></script>
 {{-- @if(isset($batch->status)) --}}
@@ -2706,6 +2737,9 @@
 <script>
 	tinymce.init({
 		selector: 'textarea.editor'
+	});
+	tinymce.init({
+		selector: '#sample_markings'
 	});
 
 	
@@ -2735,6 +2769,22 @@
 	const userLabSection  = $('.carry_data').data('userlabsection');
 	var thebatch = $('#sample-detail-rows').data('batch');
 	$(function(){
+		$('#capture-markings').on('show.bs.modal',(e)=>{
+			$('#capture-markings').find('.save-markings').removeClass('hidden');
+			var parentDiv = $(e.relatedTarget).parent('div');
+			var marking = $(parentDiv).find('.sample-comments').val();
+			$('#capture-markings').find('#sample_markings').val(marking);
+			tinymce.get('sample_markings').setContent('');
+			tinymce.get('sample_markings').setContent(marking);
+
+			$('#capture-markings').find('.save-markings').on('click',()=>{
+				$('#capture-markings').find('.save-markings').addClass('hidden');
+				var update_markings   = tinymce.get('sample_markings').getContent();
+				$(parentDiv).find('.sample-comments').val(update_markings);
+				$('#capture-markings').modal('hide');
+			})
+			console.log(marking);
+		})
 		var getClientDetails = (id,callback)=>{
 			$.ajax({
 				url:`/get/Client-Details/Ajax/${id}`,
@@ -3476,8 +3526,10 @@
 					<input type="date" class="start_analysis_date" value="${datevalue}" style="margin-left:1%;width:20%">
 					<span class="btn btn-sm btn-success save-analysis-start-date" style="font-size:14px !important"><i class="mdi mdi-sync"></i>Click to Save Date</span>
 				</td>
+				
 			</tr>
 			`).clone();
+			
 			$(body).find('.save-analysis-start-date').on('click',(e)=>{
 				var start_date = $(body).find('.start_analysis_date').val();
 				$.ajaxSetup({
@@ -4189,6 +4241,7 @@
 			$row.find('[name="sample_details[sample_reporting_unit][]"]').val(data['unit_type']);
 
 			$row.find('[name="sample_details[comments][]"]').val(data['comments']);
+			
 			$row.find('[name="sample_details[barcode][]"]').val(data['barcode']);
 			if(data){
 				$row.find('[name="sample_details[disposal_date][]"').val(data['disposal_date']);
@@ -4299,8 +4352,12 @@
 				var ClassID = $(this).attr('name');
 				
 				// values = ['lab 1','lab 2']
+				if($(this).is("textarea")){
+					textHolder.append(values.join(','));
+				}else{
+					textHolder.text(values.join(','));
 
-				textHolder.text(values.join(','));
+				}
 			});
 			$row.find('.sample-analysis').on('change',(e)=>{
 				var value = $row.find('.sample-analysis').val();
@@ -5012,7 +5069,9 @@
 		
 		<td class="comments-field" nowrap>
 			<div class="form-group form-group-sm">
-				<textarea rows="1" style="width: 300px" class="form-control form-control-sm sample-comments" name="sample_details[comments][]" placeholder="Sample Comments..."></textarea>
+
+				<span class="btn btn-sm btn-default bg-white text-primary float-left" data-toggle="modal" data-target="#capture-markings" style=""><i class="mdi mdi-pencil" data-toggle="tooltip" title="Capture Markings"></i></span>
+				<textarea rows="1" style="" class="form-control hidden form-control-sm sample-comments" name="sample_details[comments][]" placeholder="Sample Comments..."></textarea>
 			</div>
 			<span class="text"></span>
 		</td>

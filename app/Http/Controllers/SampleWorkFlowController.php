@@ -3568,12 +3568,13 @@ class SampleWorkFlowController extends Controller
 			}
 			if ($request->level != "2") {
 				$request->level != 0 ? BatchLabSectionApprover::where('batch_id', $batch->id)->delete() : BatchLabSectionApprover::where('batch_id', $batch->id)->where('is_prelim', 0)->delete();
-				foreach ($section_users as $user_id) {
-					$approvers = BatchLabSectionApprover::where('batch_id', $batch->id)->where('user_id', $user_id->user_id)->where('title','$user_id->title')->first() ?? new BatchLabSectionApprover();
+				foreach ($request->section_id as $section_id) {
+					$user_id = $request->appover_user[$section_id];
+					$approvers = BatchLabSectionApprover::where('batch_id', $batch->id)->where('user_id', $user_id)->where('title','$user_id->title')->first() ?? new BatchLabSectionApprover();
 					$approvers->status = 0;
-					$approvers->user_id = $user_id->user_id;
-					$approvers->title = $user_id->title;
-					$approvers->lab_section_ids = $approvers->lab_section_ids == '' ?  $approvers->lab_section_ids . $user_id->lab_section_id : $approvers->lab_section_ids . ',' . $user_id->lab_section_id;
+					$approvers->user_id = $user_id;
+					$approvers->title = $request->title[$section_id];
+					$approvers->lab_section_ids = $approvers->lab_section_ids == '' ?  $approvers->lab_section_ids . $section_id : $approvers->lab_section_ids . ',' . $section_id;
 					$approvers->batch_id = $batch->id;
 					$approvers->batch_status = $request->status;
 					$approvers->is_prelim = $request->level != "0" ? 1 : 0;
@@ -4133,8 +4134,8 @@ class SampleWorkFlowController extends Controller
 	}
 	public function getSampleResultCapturedNot($sample_id){
 		$sample = SampleDetails::where('sample_code',$sample_id)->first();
-		$captured = CapturedResult::where('sample_detail_id',$sample->id)->WhereNotNull('result')->get()->count();
-		$captured_not = CapturedResult::where('sample_detail_id',$sample->id)->WhereNull('result')->get()->count();
+		$captured = CapturedResult::where('sample_detail_id',$sample->id)->WhereNotNull('result')->join('analysis_elements as ae','ae.analysis_type_id','=','captured_results.analysis_type_id')->where('ae.analyte_id','captured_results.analyte_id')->get()->count();
+		$captured_not = CapturedResult::where('sample_detail_id',$sample->id)->WhereNull('result')->join('analysis_elements as ae','ae.analysis_type_id','=','captured_results.analysis_type_id')->where('ae.analyte_id','captured_results.analyte_id')->get()->count();
 		return response()->json(['captured'=>$captured,"not_captured"=>$captured_not]);
 	}
 }

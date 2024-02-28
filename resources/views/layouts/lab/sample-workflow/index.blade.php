@@ -375,7 +375,7 @@
 @endif
 @if ($status=="Reports for Collection")
 <div id="send-email-reports-modal" class="modal fade" role="dialog">
-	<div class="modal-dialog">
+	<div class="modal-dialog modal-lg">
 		<!-- Modal content-->
 		<form class="modal-content" id="print-labels-form" method="POST" action="{{ route('send-out-email-reports') }}" enctype="multipart/form-data">
 			@csrf
@@ -384,8 +384,114 @@
 			</div>
 			<div class="modal-body">
 				<div class="form-group">
-					<label class="control-label">Client Contacts</label>
+					<label class="control-label">Client Contacts <span class="btn btn-sm btn-default text-primary add-contact"><i class="mdi mdi-plus"></i></span></label>
 					<select class="form-control" name="contacts[]" required multiple placeholder="Select Contact..."></select>
+				</div>
+				<div class="form-group">
+					<label for="" class="control-label">Other Emails to CC</label>
+					<input type="text" name="cc_emails" class="form-control" placeholder="a@gmail.com,b@gmail.com...">
+				</div>
+				<div class="add-contact-fields card bg-light mb-3" style="box-shadow: rgba(0, 0, 0, 0.35) 0px 5px 15px;">
+					<div class="card-body">
+						<div class="row border-bottom">
+							<div class="col-sm-4">
+								<div class="form-group">
+									<label class="control-label">Title *</label>
+									<select name="title" class="form-control title" placeholder="Title...">
+										<option></option>
+										@foreach (getModulePreconfig("Designation", "Personnel-Management") as $item)
+										<option value="{{ $item->id }}">{{ $item->name }}</option>
+										@endforeach
+									</select>
+								</div>
+							</div>
+							<div class="col-sm-4">
+								<div class="form-group">
+									<label class="control-label">First Name <span class="text-danger">*</span></label>
+									<input type="text" class="form-control first_name" name="first_name" value="" placeholder="First Name..." />
+								</div>
+							</div>
+							<div class="col-sm-4">
+								<div class="form-group">
+									<label class="control-label">Middle Name</label>
+									<input type="text" class="form-control middle_name" name="second_name" value="" placeholder="Middle Name..." />
+								</div>
+							</div>
+							<div class="col-sm-4">
+								<div class="form-group">
+									<label class="control-label">Surname</label>
+									<input type="text" class="form-control surname" name="third_name" value="" placeholder="Surame..." />
+								</div>
+							</div>
+						</div>
+						
+						<div class="row mt-2">
+							<div class="col-sm-4">
+								<div class="form-group">
+									<label class="control-label">Job Occupation</label>
+									<input type="text" class="form-control job_occupation" name="job_occupation" value="" placeholder="Job Title..." />
+								</div>
+							</div>
+							<div class="col-sm-4">
+								<div class="form-group">
+									<label class="control-label">Company Units <span class="text-danger">*</span> </label>
+									<select class="form-control unit_name" name="unit_name[]" multiple>
+										<option value="">Select Company Unit...</option>
+										{{-- @foreach ($customer->units as $unit)
+										<option value="{{ $unit->name }}">{{ $unit->name }}</option>
+										@endforeach --}}
+									</select>
+								</div>
+							</div>
+							<div class="col-sm-4">
+								<div class="form-group">
+									<label class="control-label">Email <span class="text-danger">*</span></label>
+									<input type="email" class="form-control email" name="email" value="" placeholder="Email..." />
+								</div>
+							</div>
+						</div>
+						
+						<div class="row border-bottom">
+							<div class="col-sm-4">
+								<div class="form-group">
+									<label class="control-label">Telephone <span class="text-danger">*</span></label>
+									<input type="text" class="form-control telephone" name="telephone" value="" placeholder="Telephone..."  />
+								</div>
+							</div>
+							<div class="col-sm-4">
+								<div class="form-group">
+									<label class="control-label">Mobile</label>
+									<input type="text" class="form-control mobile" name="mobile" value="" placeholder="Mobile..." />
+								</div>
+							</div>
+		
+						</div>
+					
+						<div class="row mt-2">
+							<div class="col-sm-4">
+								<div class="form-group">
+									<label class="control-label"><input type="checkbox" value="1" name="receive_price_list" class="receive_price_list" /> Receives Pricelist?</label>
+								</div>
+							</div>
+							<div class="col-sm-4">
+								<div class="form-group">
+									<label class="control-label"><input type="checkbox" value="1" class="receive_report" name="receive_report" /> Receives Report?</label>
+								</div>
+							</div>
+							<div class="col-sm-4">
+								<div class="form-group">
+									<label class="control-label"><input type="checkbox" value="1" class="receive_invoice" name="receive_invoice" /> Receives Invoice?</label>
+								</div>
+							</div>
+		
+						</div>
+						<div class="row">
+							<div class="col-md-12">
+								<span class="float-right btn btn-default btn-sm text-danger close-add-contact">Close Setion</span>
+								<span class="float-right btn btn-sm btn-primary save-add-contact"><i class="mdi mdi-content-save"></i> Save Contact</span>
+							</div>
+						</div>
+					</div>
 				</div>
 				<div class="form-group">
 					<label class="control-label">Batches</label>
@@ -400,6 +506,7 @@
 				<button type="button" class="btn btn-info btn-sm send-report-to-client-btn" data-dismiss="modal"><i class="mdi mdi-send"></i> Email Reports</button>
 				<button type="button" class="btn btn-default btn-sm" data-dismiss="modal">Close</button>
 			</div>
+			
 		</form>
 	</div>
 </div>
@@ -850,6 +957,7 @@
 	var sampleCondtions = [];
 	var defaultClass = '';
 	var notPaid = [];
+	
 	$('#dispatch-to-labs-modal').on('show.bs.modal', function() {
 		$('#not-paid-parent').empty();
 		if (notPaid.length > 0) {
@@ -869,7 +977,7 @@
 				$('#NotPaidBatches').append(batch_body);
 			})
 		}
-	})
+	});
 
 	
 	$("input[name='table_sample_id[]']").on('change', function() {
@@ -994,6 +1102,37 @@
 	});
 	@endif
 	@if($status == "Reports for Collection")
+	$('#send-email-reports-modal').on('show.bs.modal',(e)=>{
+		$('#send-email-reports-modal').find('.add-contact').on('click',()=>{
+			$('#send-email-reports-modal').find('.add-contact-fields').removeClass('hidden');
+		})
+		$('#send-email-reports-modal').find('.save-add-contact').on('click',()=>{
+			console.log('am here');
+			var body = {
+				first_name : $('.add-contact-fields').find('.first_name').val(),
+				middle_name : $('.add-contact-fields').find('.middle_name').val(),
+				surname:$('.add-contact-fields').find('.surname').val(),
+				job_occupation:$('.add-contact-fields').find('.job_occupation').val(),
+				unit_name:$('.add-contact-fields').find('.unit_name').val(),
+				email:$('.add-contact-fields').find('.email').val(),
+				telephone:$('.add-contact-fields').find('.telephone').val(),
+				mobile:$('.add-contact-fields').find('.mobile').val(),
+				receive_price_list:$('.add-contact-fields').find('.receive_price_list').is(':checked') ? 1 : 0,
+				receive_invoice : $('.add-contact-fields').find('.receive_invoice').is(':checked') ? 1 : 0,
+			}
+			if
+			$.ajax({
+				url:``,
+				type:'POST',
+				success:(data)=>{
+					$('#send-email-reports-modal').find('.add-contact-fields').addClass('hidden');
+				},
+				error:(data)=>{
+					console.log(data);
+				}
+			})
+		})
+	})
 	$("input[name='table_sample_id[]']").on('change', function() {
 		if ($("input[name='table_sample_id[]']:checked").length > 0) {
 			$('[data-target="#send-email-reports-modal"]').removeAttr('disabled').addClass('btn-primary').removeClass('btn-outline-primary');
