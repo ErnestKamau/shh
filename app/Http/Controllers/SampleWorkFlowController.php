@@ -1231,6 +1231,7 @@ class SampleWorkFlowController extends Controller
 		}
 
 		$selectedSampleType = \App\SampleType::find($batch->sample_type_id ?? 0) ?? false;
+		
 		$selected_analysis_types = isset($batch->sample_type_id) ? $selectedSampleType->analysis_types : [];
 		if (isset($batch->id)) {
 			if ($batch->is_qc_batch) {
