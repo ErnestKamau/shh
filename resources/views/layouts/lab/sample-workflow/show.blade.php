@@ -3532,28 +3532,32 @@
 			
 			$(body).find('.save-analysis-start-date').on('click',(e)=>{
 				var start_date = $(body).find('.start_analysis_date').val();
-				$.ajaxSetup({
-					headers: {
-						'X-CSRF-TOKEN': jQuery('meta[name="csrf-token"]').attr('content')
-					}
-				});
-				$.ajax({
-					url:'/save-Sample/AnalysisDate',
-					method:'POST',
-					data:{
-						lab_section_id:id,
-						start_analysis_date:start_date,
-						batch_id:batch_id,
-						sample_id:sample_id
-					},
-					success:(data)=>{
-						console.log(data);
-						alert('Date of Analysis saved successfully!');
-					},
-					error:(data)=>{
-						console.log(data);
-					}
-				})
+				if(id < 1){
+					alert('kindly set the lab section first');
+				}else{
+					$.ajaxSetup({
+						headers: {
+							'X-CSRF-TOKEN': jQuery('meta[name="csrf-token"]').attr('content')
+						}
+					});
+					$.ajax({
+						url:'/save-Sample/AnalysisDate',
+						method:'POST',
+						data:{
+							lab_section_id:id,
+							start_analysis_date:start_date,
+							batch_id:batch_id,
+							sample_id:sample_id
+						},
+						success:(data)=>{
+							console.log(data);
+							alert('Date of Analysis saved successfully!');
+						},
+						error:(data)=>{
+							console.log(data);
+						}
+					})
+				}
 
 			});
 			return body;

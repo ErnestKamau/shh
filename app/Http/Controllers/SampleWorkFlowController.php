@@ -4095,7 +4095,6 @@ class SampleWorkFlowController extends Controller
 	}
 	public function saveSampleAnalysisDate(Request $request){
 		$sample = SampleDetails::where('sample_code',$request->sample_id)->first();
-		
 		$analysis_date = SampleAnalysisDates::where('sample_header_id',$request->batch_id)->where('sample_detail_id',$sample->id)->first() ?? new SampleAnalysisDates();
 		if(isset($analysis_date->id)){
 			$prev_dates = $analysis_date->analysis_dates != '' ? json_decode($analysis_date->analysis_dates,true) : array();
