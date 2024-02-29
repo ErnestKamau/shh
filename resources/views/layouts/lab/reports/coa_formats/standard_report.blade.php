@@ -321,7 +321,7 @@
                                         MARKINGS</td>
                                     <td
                                         style="border: solid 0 transparent !important;padding:2px;padding-left:10px !important;font-size:8px !important;border-bottom:1px solid rgba(0, 0, 0, 0.35);border-right:1px solid rgba(0, 0, 0, 0.35);border-left: 1px solid rgba(0, 0, 0, 0.35);">
-                                        {{ $sample->comments ?? 'N/A' }}</td>
+                                        {!! $sample->comments ?? 'N/A' !!}</td>
                                 </tr>
 
                             </table>
