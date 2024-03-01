@@ -703,7 +703,8 @@ class SampleWorkFlowController extends Controller
 			$detail->sample_point_id = $request->sample_details['sample_point'][$k];
 			$detail->company_product_id = $request->sample_details['product'][$k];
 			$detail->barcode = $request->sample_details['barcode'][$k];
-			$detail->comments = $request->sample_details['comments'][$k];
+			$s_samples_comments = str_replace('<p>&nbsp;</p>', '', $request->sample_details['comments'][$k]);
+			$detail->comments = trim($s_samples_comments);
 			$detail->disposal_date = $request->sample_details['disposal_date'][$k];
 			// $detail->lab_sub_no = $request->sample_details['submission_no'][$k];
 
