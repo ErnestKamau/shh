@@ -2162,12 +2162,13 @@ class SampleWorkFlowController extends Controller
 				// return response()->json('here '.$cID);
 				$captured->analyte_accredited = 0;
 			}
-			$captured->result_reporting_symbol = $request->result_reporting_symbol[$cID];
-			$captured->reporting_unit_id = $request->reporting_unit[$cID];
+			$captured->result_reporting_symbol = $request->result_reporting_symbol[$cID] ?? '';
+			// 10013 - id for blank reporting unit
+			$captured->reporting_unit_id = $request->reporting_unit[$cID] ?? 10013;
 			$captured->measure_uncertanity = $request->measure_uncertanity[$cID] ?? 0;
-			$captured->method_id = $request->method_id[$cID];
-			$captured->result = $request->result[$cID];
-			$captured->result_reporting_symbol = $request->result_reporting_symbol[$cID];
+			$captured->method_id = $request->method_id[$cID] ?? '';
+			$captured->result = $request->result[$cID] ?? '';
+			$captured->result_reporting_symbol = $request->result_reporting_symbol[$cID] ?? '';
 			$captured->operator_id = $request->operators[$cID] ?? 0;
 			$captured->analyte_code = Analyte::find($captured->analyte_id)->code;
 
