@@ -138,7 +138,7 @@
                                     <td>{{$sample->sample_type_name}}</td>
                                     <td>{{ $sample->getAnalysisRelation() ?? '-' }}</td>
                                     <td>{{ $sample->main_standard_code ?? '-'}}</td>
-                                    <td>{{ $sample->comments }}</td>
+                                    <td>{!! $sample->comments !!}</td>
                                 </tr>
                             @endforeach
                         </tbody>
