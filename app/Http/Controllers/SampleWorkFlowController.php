@@ -662,6 +662,9 @@ class SampleWorkFlowController extends Controller
 				// $config_start_no = SystemConfiguration::where('key', 'start_sample_no')->first();
 				if ($detail->lab_id != $request->sample_details['lab_id'][$k]) {
 					$lab = Lab::find($request->sample_details['lab_id'][$k]);
+					
+					CapturedResult::where('sample_detail_id', $detail->id)->delete();
+					Result::where('sample_detail_id', $detail->id)->delete();
 
 					if (isset(SampleDetails::where('lab_id', $lab->id)->orderBy('id', 'DESC')->first()->id)) {
 						$code = SampleDetails::where('lab_id', $lab->id)->orderBy('id', 'DESC')->first()->sample_code;
