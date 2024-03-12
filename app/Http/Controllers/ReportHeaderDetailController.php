@@ -158,11 +158,12 @@ class ReportHeaderDetailController extends Controller
 		// $batch_view  = SampleResults::where('batch_id', $batch->id)->orderBy('analysis_level','asc')->orderBy('analyte_level','asc')->get();
 
 		$customer_name = preg_replace('/[^A-Za-z0-9]/', '', $customer->name);
+		$batch_code = preg_replace('/[^A-Za-z0-9]/', '', $batch->batch_code); 
 		if ($batch->document_number != '') {
-			$filename = $customer_name . '-' . $batch->batch_code . '-' . date("d-M-Y-H-i-s") . '-' . $batch->document_number . '.pdf';
+			$filename = $customer_name . '-' . $batch_code . '-' . date("d-M-Y-H-i-s") . '-' . $batch->document_number . '.pdf';
 		} else {
 
-			$filename = $customer_name . '-' . $batch->batch_code . '-' . date("d-M-Y-H-i-s") . '.pdf';
+			$filename = $customer_name . '-' . $batch_code . '-' . date("d-M-Y-H-i-s") . '.pdf';
 		}
 		$filename = urlencode($filename);
 		$company = getActiveCompany();
