@@ -4185,13 +4185,13 @@
 			$.each(standards,function(j,s){
 
 				$row.find('[name="sample_details[main_standard][]"]').append(`
-					<option value="${s.id}" ${ s.id === data['main_standard'] ? 'selected' : '' }>${s.code}</option>
+					<option value="${s.id}" ${ s.id === data['main_standard'] ? 'selected' : '' }>${s.name}</option>
 				`);
 			});
 			$row.find('[name="sample_details[secondary_standard][]"]').html('<option></option>');
 			$.each(standards,function(j,s){
 				$row.find('[name="sample_details[secondary_standard][]"]').append(`
-					<option value="${s.id}" ${ s.id === data['secondary_standard'] ? 'selected' : '' }>${s.code}</option>
+					<option value="${s.id}" ${ s.id === data['secondary_standard'] ? 'selected' : '' }>${s.name}</option>
 				`);
 			});
 			// $row.find('[name="sample_details[product][]"]').html('<option></option>');
@@ -5051,7 +5051,7 @@
 				<select class="form-control form-control-sm is-required main-standard" name="sample_details[main_standard][]" style"width:200px" placeholder="Select Main Standard..." required >
 				@if($standards)
 					@foreach($standards as $standard)
-					<option value="{{$standard->id}}">{{$standard->code}}</option>
+					<option value="{{$standard->id}}">{{$standard->name}}</option>
 					@endforeach
 				@endif
 				</select>
@@ -5063,7 +5063,7 @@
 				<select class="form-control form-control-sm secondary-standard" name="sample_details[secondary_standard][]" style"width:200px" placeholder="Select Sec Standard...">
 				@if($standards)
 					@foreach($standards as $standard)
-					<option value="{{$standard->id}}">{{$standard->code}}</option>
+					<option value="{{$standard->id}}">{{$standard->name}}</option>
 					@endforeach
 				@endif
 				</select>

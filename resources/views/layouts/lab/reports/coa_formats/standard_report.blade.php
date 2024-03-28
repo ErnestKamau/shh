@@ -98,6 +98,10 @@
         right: -4px!important;
         z-index: 1100!important;
     }
+    .markings-comments p{
+        margin: 0 !important;
+        padding : 0 !important
+    }
 </style>
 
 <body>
@@ -316,11 +320,11 @@
                                     </td>
                                 </tr>
                                 <tr>
-                                    <td
+                                    <td 
                                         style="border: solid 0 transparent !important;border-right:1px solid rgba(0, 0, 0, 0.35);font-size:8px !important;border-bottom:1px solid rgba(0, 0, 0, 0.35);border-left:1px solid rgba(0, 0, 0, 0.35);padding:2px;padding-left:4px">
                                         MARKINGS</td>
                                     <td
-                                        style="border: solid 0 transparent !important;padding:2px;padding-left:10px !important;font-size:8px !important;border-bottom:1px solid rgba(0, 0, 0, 0.35);border-right:1px solid rgba(0, 0, 0, 0.35);border-left: 1px solid rgba(0, 0, 0, 0.35);">
+                                    class="markings-comments" style="border: solid 0 transparent !important;padding:2px;padding-left:10px !important;font-size:8px !important;border-bottom:1px solid rgba(0, 0, 0, 0.35);border-right:1px solid rgba(0, 0, 0, 0.35);border-left: 1px solid rgba(0, 0, 0, 0.35);">
                                         {!! str_replace('<p>&nbsp;</p>', '', $sample->comments ?? 'N/A') !!}</td>
                                 </tr>
 
