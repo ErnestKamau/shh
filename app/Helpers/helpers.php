@@ -1584,7 +1584,12 @@ function getStandardLimitValue($captured_id,$standard_id){
 		return '';
 	}
 }
+
 function formatReportResults($value){
 	return $value == 'ND' ? 'Not Detected' : $value;
 }
 
+function refreshPermissions(){
+	$home = new App\Http\Controllers\HomeController;
+	return $home->index(true);
+}
