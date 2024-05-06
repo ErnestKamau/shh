@@ -3413,52 +3413,21 @@ class SampleWorkFlowController extends Controller
 		$customer = CrmCustomer::find($batch->crm_customer_id);
 		$sampleTrs = '';
 		$contact = CustomerContact::find($request->contact_id);
-		foreach ($samples as $sample) {
-			$sampleTrs = $sampleTrs . '
-			<tr style="border: 1px solid black">
-				<td style="border: 1px solid black">' . $sample->sample_code . '</td>
-				<td style="border: 1px solid black">' . $sample->getAnalysisTestDone() . ' </td>
-				<td style="border: 1px solid black">-</td>
-			</tr>
-			';
-		}
-		$specified_days = SystemConfiguration::where('key', 'specified_duration_days')->first();
-
-		// return response()->json($sampleTrs);
-
-		$body = '
-		<p>
-				Dear ' . $customer->name . ', <br><br>
-				Thank you for chosing our laboratory for sample testing.We will be running the following tests on your sample:
-			</p>
-			<table class="table-sm table-bordered" style="border: 1px solid black;width:100%">
-				<thead>
-
-					<tr style="border: 1px solid black">
-						<th style="border: 1px solid black">Sample No</th>
-						<th style="border: 1px solid black">Analysis</th>
-						<th style="border: 1px solid black">#</th>
-					</tr>
-				</thead>
-				<tbody>
-					' . $sampleTrs . '
-					<tr>
-						<td colspan="2" style="border: 1px solid black"><b>Total Amount</b></td>
-						<td style="text-align: right;border: 1px solid black">' . number_format($batch->invoice_amount, 2) . '</td>
-					</tr>
-				</tbody>
-			</table>
-			<br>
+		if(isset($contact->id) && $contact->email != ''){
+			// return response()->json($sampleTrs);
+	
+			$body = '
 			<p>
-				If we don`t hear from you within ' . $specified_days->value . ', we will proceed with the analysis as shared. <br>
-				For any questions or modifications, please contact us at polucon@polucon.com | laboratory@polucon.com. <br><br>
-				Thank you, <br>
-				' . auth()->user()->name . '
+					Dear Esteemed client, <br><br>
+					We acknowledge receipt of your sample(s) submitted to our laboratory. The sample(s) have been forwarded to our laboratory and analysis is scheduled to start anytime from now.<br><br>We will keep you updated on the progress report(s).<br><br>Thank you for the opportunity to serve you.
+					
+				</p>
+			';
+			notify_user($body, $contact->email, '[POLUCON LIMS] Schedule Of Analysis ' . $batch->batch_code);
+			return redirect()->back()->with('success', 'Schedule of analysis sent out successfully');
 
-			</p>
-		';
-		notify_user($body, $contact->email, '[POLUCON LIMS] Schedule Of Analysis ' . $batch->batch_code);
-		return redirect()->back()->with('success', 'Schedule of analysis sent out successfully');
+		}
+		return redirect()->back()->with('error','Kindly choose the customer contact first on the form before sending the schedule of analysis');
 	}
 	public function sendBatchPaymentReminder(Request $request)
 	{

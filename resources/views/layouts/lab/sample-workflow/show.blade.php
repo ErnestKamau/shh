@@ -1613,8 +1613,8 @@
 						</span>
 					</div>
 					<div class="form-group">
-						<label for="" class="control-label">Customer Contact</label>
-						<select name="contact_id" id="" class="form-control">
+						<label for="" class="control-label">Customer Contact <small class="text-danger">*</small></label>
+						<select name="contact_id" id="" required class="form-control">
 							<option value="">Choose Contact...</option>
 							@foreach($contacts as $contact) 
 							<option value="{{$contact->id}}">{{$contact->first_name}} {{$contact->middle_name}} {{$contact->last_name}}</option>
