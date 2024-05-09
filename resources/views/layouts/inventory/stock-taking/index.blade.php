@@ -123,8 +123,12 @@
 					<label>Select Stores</label>
 					<select name="stores[]" class="form-control selected-store" placeholder="Select Stores..." multiple required>
 						<option></option>
-						@foreach (getUserStores(false, true) as $store)
-							<option value="{{ $store->id }} zZ {{ $store->name }}" ${store_ids.indexOf('{{ $store->id }}') > -1 ? 'selected' : 's'}>{{ $store->name }}</option>
+						<?php $theSTORES = []; ?>
+						@foreach (getUserStores() as $store)
+							@if(!in_array($store->id, $theSTORES))
+								<option value="{{ $store->id }} zZ {{ $store->name }}" ${store_ids.indexOf('{{ $store->id }}') > -1 ? 'selected' : 's'}>{{ $store->name }}</option>
+							@endif
+							<?php $theSTORES[] = $store->id; ?>
 						@endforeach
 					</select>
 				</div>

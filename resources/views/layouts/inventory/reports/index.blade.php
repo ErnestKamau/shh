@@ -49,13 +49,17 @@
 	?>
 	<x-bread-crumb :items="$items"></x-bread-crumb>
 	<h4 class="p-4">
-		<i class="mdi mdi-format-list-bulleted-type"></i>Reports <small class="text-muted"></small>
+		<i class="mdi mdi-format-list-bulleted-type"></i>Reports
+		<small class="badge badge-pill bg-white my-small-text"><i class="mdi mdi-hammer-wrench"></i> In Development</small>
 		<button class="btn bg-white text-info badge-pill btn-sm hidden" data-toggle="modal" data-target="#filter-configurations-modla" id="unsaved-query"><i class="fa fa-info-circle"></i> Unsaved Report Query</button>
 		@if(Request::get('edit') == 'true')
 			<button class="btn btn-primary btn-sm float-right" data-toggle="modal" data-target="#filter-configurations-modla">
-				<i class="md md-add"></i> Create Report
+				<i class="md md-plus"></i> Create Report
 			</button>
 		@endif
+		<a class="btn btn-transparent text-success btn-sm float-right mr-1 ml-1" href="{{ route('consumption-reports') }}">
+			<i class="md md-file-compare"></i> Consumption Reports
+		</a>
 	</h4>
 	<br>
 	<div class="section-body">
@@ -72,7 +76,7 @@
 				<div id="accordion1-1" class="collapse in">
 					<div class="card-body">
 						<div class="table-responsive" style="clear: both">
-							<table class="dt-table table table-condensed table-sm table-striped table-banded table-bordered">
+							<table class="server-side table table-condensed table-sm table-striped table-banded table-bordered">
 								<thead>
 									<tr>
 										<th>No</th>
@@ -134,7 +138,7 @@
 				</div>
 			</div><!--end .panel -->
 			<div class="card panel mt-2">
-				<div class="card-head collapsed" style="border-bottom: 1px solid #cecece" data-toggle="collapse" data-parent="#accordion1" data-target="#accordion1-2" >
+				<div class="card-head" style="border-bottom: 1px solid #cecece" data-toggle="collapse" data-parent="#accordion1" data-target="#accordion1-2" >
 					<h4 class="pl-3 pr-3 pt-4 pb-2">
 						Generated Report
 						<div class="tools pull-right float-right">
@@ -142,7 +146,7 @@
 						</div>
 					</h4>
 				</div>
-				<div id="accordion1-2" class="collapse">
+				<div id="accordion1-2" class="">
 					<div class="card-body">
             <div class="tab-content">
 							<div class="tab-pane active" id="first8" style="position: relative">
@@ -150,15 +154,16 @@
 									<div class="btn btn-success btn-sm float-left mr-2 mb-2" data-target="#print-this-report-modal" data-toggle="modal">
 										<i class="mdi mdi-printer"></i> Print
 									</div>
+									<div class="btn btn-primary btn-sm float-left mr-2 mb-2" data-target="#csv-this-report-modal" data-toggle="modal">
+										<i class="mdi mdi-download-alt"></i> Download
+									</div>
 									<div class="btn btn-info btn-sm float-left mr-2 mb-2" data-target="#add-report-filter" data-toggle="modal">
 										<i class="mdi mdi-filter"></i> Filter
 									</div>
 									<div class="float-left p-1" id="selected-filters"></div>
 								</div>
 								<div id="fetching-data-msg"></div>
-                <div class="table-responsive" id="dynamically-generated-report">
-									<table id="generated-report-table" class="table table-collapse server-side table-condensed table-bordered table-striped table-sm"></table>
-								</div>
+                <div class="table-responsive" id="dynamically-generated-report"></div>
                 <br>
                 <h3><i class="fas fa-chart-pie"></i> Graph</h3>
                 <br>
@@ -477,14 +482,20 @@
 			}
 		});
 
-		$('#print-this-report-modal').on('show.bs.modal', function(){
-			$(this).find('.add-new-filter-row').trigger('click');
-		});
+		// $('#print-this-report-modal').on('show.bs.modal', function(){
+		// 	$(this).find('.add-new-filter-row').trigger('click');
+		// });
 
 		$('#print-this-report-modal').on('show.bs.modal', function(){
-			$('#report-sql').val(preProcessedSQL);
-			$('#report-title').val(selectedQueryTitle);
-			$('.report-title').text(selectedQueryTitle);
+			$(this).find('.report-sql').val(preProcessedSQL);
+			$(this).find('.report-title').val(selectedQueryTitle);
+			$(this).find('.report-title').text(selectedQueryTitle);
+		});
+
+		$('#csv-this-report-modal').on('show.bs.modal', function(){
+			$(this).find('.report-sql').val(preProcessedSQL);
+			$(this).find('.report-title').val(selectedQueryTitle);
+			$(this).find('.report-title').text(selectedQueryTitle);
 		});
 
 		$('#filter-configurations-modla').on('click', '.check-select', function(){
@@ -527,7 +538,7 @@
 			$('#selected-filters').empty();
 
       if(graph.indexOf("SELECT") > -1){
-        $('[data-target="#accordion1-2"]').trigger('click');
+        // $('[data-target="#accordion1-2"]').trigger('click');
         fetchGraphData(graph);
       }
       else{
@@ -693,15 +704,11 @@
 				type: "POST",
 				data: {"raw": sql, "_token": $('[name="_token"]').val(), "filters": FilterFields},
 				beforeSend: function(){
-          $('[data-target="#accordion1-2"]').trigger('click');
+          // $('[data-target="#accordion1-2"]').trigger('click');
 					$('#fetching-data-msg').html('<center style="padding: 100px"><i class="fas fa-spin fa-4x fa-spinner text-muted"></i><br>FETCHING DATA</center>');
 				},
 				success: function(js){
 					$('#fetching-data-msg').html('');
-
-					$('#generated-report-table').empty();
-
-					var newTable = $('#generated-report-table');
 
 					var columns = Object.keys(js.data[0]);
 
@@ -728,29 +735,56 @@
 						$columns.push({title: b.toUpperCase()});
 					});
 
-					// console.log($data, $columns);
+					console.log($data, $columns);
 
-					if(setTable){
-						setTable.destroy();
-					}
+					$('#dynamically-generated-report').empty();
 
-					setTable = $('#generated-report-table').DataTable({
-						dom: 'Blfrtip',
-						buttons: [
-							'copy', 'csv', 'excel', 'pdf', 'print'
-						],
-						"order": [],
-						"language": {
-							// "lengthMenu": lengthMenu,
-							"search": '<i class="fa fa-search"></i>',
-							"paginate": {
-								"previous": '<i class="fa fa-angle-left"></i>',
-								"next": '<i class="fa fa-angle-right"></i>'
-							}
-						},
-						data: $data,
-						columns: $columns
+					var $nTable = $(`<table class="table table-sm table-condensed table-striped table-sm table-bordered"></table>`);
+					var $thead = $(`<thead></thead>`);
+					var $thTR = $(`<tr></tr>`);
+					$columns.forEach(function(th){
+						$thead.append(`<th>${th.title}</th>`);
 					});
+					var dateRow = $(`<th>Date</th>`)
+					$thead.append(dateRow);
+					$thead.append($thTR);
+
+					var $tbody = $(`<tbody></tbody>`);
+
+					$data.forEach(function(rw){
+						var $row = $(`<tr></tr>`);
+						rw.forEach(function(r){
+							var $td = $(`<td>${$.trim(r)}</td>`);
+							$row.append($td);
+						});
+						var dateRow = $(`<td>{{ date('d/m/Y') }}</td>`)
+						$row.append(dateRow);
+						$tbody.append($row);
+					});
+
+					$nTable.append($thead);
+					$nTable.append($tbody);
+
+					$('#dynamically-generated-report').html($nTable);
+
+					window.setTimeout(()=>{
+						$('#dynamically-generated-report').find('table').DataTable({
+							lengthMenu: [[100, 500, 1000, -1], [50, 100, 500, 1000, "All"]],
+							dom: 'Blfrtip',
+							buttons: [
+								'copy', 'csv', 'excel', 'pdf', 'print'
+							],
+							"order": [],
+							"language": {
+								// "lengthMenu": lengthMenu,
+								"search": '<i class="fa fa-search"></i>',
+								"paginate": {
+									"previous": '<i class="fa fa-angle-left"></i>',
+									"next": '<i class="fa fa-angle-right"></i>'
+								}
+							}
+						});
+					}, 3000);
 				}
 			})
 		}
@@ -909,17 +943,50 @@
 				@csrf
 				<div class="form-group">
 					<label>Report Title</label>
-					<input type="text" class="form-control" name="title" id="report-title" />
+					<input type="text" class="form-control report-title" name="title" />
 				</div>
 				<div class="alert alert-primary">
 					<i class="mdi mdi-information"></i> Continue to print this report?
 				</div>
-				<input type="hidden" name="sql" id="report-sql" />
+				<input type="hidden" name="sql" class="report-sql" />
 			</div>
 			<div class="card-footer">
 				<div class="form-group small-padding">
 					<button type="button" class="btn btn-flat btn-default ink-reaction" data-dismiss="modal" aria-label="Close">CANCEL</button>
 					<button class="btn btn-flat btn-primary ink-reaction">YES, PRINT</button>
+				</div>
+			</div>
+		</form>
+	</div>
+</div>
+<div class="modal fade" tabindex="-1" role="dialog" id="csv-this-report-modal">
+	<div class="modal-dialog" role="document">
+		<form class="card form floating-label modal-content" download method="POST" action="{{ route('report_csv') }}" target="_blank">
+			<div class="modal-header">
+				<h4 class="modal-title" style="width: 100%">
+					<i class="mdi mdi-printer"></i> Download this Report
+				</h4>
+			</div>
+			<div class="card-body modal-body">
+				@csrf
+				<div class="form-group">
+					<label>Document Name</label>
+					<input type="text" class="form-control report-title" name="title" />
+					<div class="row pl-3 pt-3">
+						<div class="pull-left pr-5">
+							<label><input type="radio" name="file_type" value="xlsx" checked="true" /> Excel File</label>
+						</div>
+						<div class="pull-left">
+							<label><input type="radio" name="file_type" value="pdf" /> PDF File</label>
+						</div>
+					</div>
+				</div>
+				<input type="hidden" name="sql" class="report-sql" />
+			</div>
+			<div class="card-footer">
+				<div class="form-group small-padding">
+					<button type="button" class="btn btn-flat btn-default ink-reaction" data-dismiss="modal" aria-label="Close">CANCEL</button>
+					<button class="btn btn-flat btn-primary ink-reaction">Download</button>
 				</div>
 			</div>
 		</form>

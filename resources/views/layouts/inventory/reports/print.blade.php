@@ -7,16 +7,17 @@
 	<title>Report - {{ $title }}</title>
   <meta name="csrf-token" content="{{ csrf_token() }}">
 	<link rel="stylesheet" href="/material-design/css/materialdesignicons.min.css">
-	<link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.4.1/css/bootstrap.min.css" integrity="sha384-Vkoo8x4CGsO3+Hhxv8T/Q5PaXtkKtu6ug5TOeNV6gBiFeWPGFN9MuhOf23Q9Ifjh" crossorigin="anonymous">
+  	<link rel="stylesheet" href="/css/bootstrap.min.css">
 </head>
 <body>
 	<div class="text-center pb-3">
-		<img src="/images/sygenta.png" style="max-height: 150px" />
+		<img src="{{ imageTobase64('/storage/companies/9RUZQlhlqNlYp1icQFROCRLgLTtvqRrTtcXyms2g.png') }}" style="max-height: 70px" />
 	</div>
 	<hr>
 	<div class="pv-2 text-center mb-2">
 		<h4><span style="border-bottom:2px solid #000">{{ strtoupper($title) }}</span></h4>
 	</div>
+	<small>Date : {{ date('d/m/Y') }}</small>
 	<br>
 	<div class="main-table mt-2">
 		<table class="table table-bordered table-condensed table-banded">

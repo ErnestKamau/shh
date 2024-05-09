@@ -61,6 +61,95 @@
 			box-shadow: 0px 0px 5px rgba(0,0,0,0.08);
 		}
 
+		input[type="range"] {
+			-webkit-appearance: none;
+			-moz-appearance: none;
+			width: 300px;
+			height: 5px;
+			padding: 0;
+			border-radius: 2px;
+			outline: none;
+			cursor: pointer;
+		}
+
+
+		/*Chrome thumb*/
+
+		input[type="range"]::-webkit-slider-thumb {
+			-webkit-appearance: none;
+			-moz-appearance: none;
+			-webkit-border-radius: 5px;
+			/*16x16px adjusted to be same as 14x14px on moz*/
+			height: 16px;
+			width: 16px;
+			border-radius: 5px;
+			background: #e7e7e7;
+			border: 1px solid #c5c5c5;
+		}
+
+
+		/*Mozilla thumb*/
+
+		input[type="range"]::-moz-range-thumb {
+			-webkit-appearance: none;
+			-moz-appearance: none;
+			-moz-border-radius: 5px;
+			height: 14px;
+			width: 14px;
+			border-radius: 5px;
+			background: #e7e7e7;
+			border: 1px solid #c5c5c5;
+		}
+
+
+		/*IE & Edge input*/
+
+		input[type=range]::-ms-track {
+			width: 300px;
+			height: 6px;
+			/*remove bg colour from the track, we'll use ms-fill-lower and ms-fill-upper instead */
+			background: transparent;
+			/*leave room for the larger thumb to overflow with a transparent border */
+			border-color: transparent;
+			border-width: 2px 0;
+			/*remove default tick marks*/
+			color: transparent;
+		}
+
+
+		/*IE & Edge thumb*/
+
+		input[type=range]::-ms-thumb {
+			height: 14px;
+			width: 14px;
+			border-radius: 5px;
+			background: #e7e7e7;
+			border: 1px solid #c5c5c5;
+		}
+
+
+		/*IE & Edge left side*/
+
+		input[type=range]::-ms-fill-lower {
+			background: #919e4b;
+			border-radius: 2px;
+		}
+
+
+		/*IE & Edge right side*/
+
+		input[type=range]::-ms-fill-upper {
+			background: #c5c5c5;
+			border-radius: 2px;
+		}
+
+
+		/*IE disable tooltip*/
+
+		input[type=range]::-ms-tooltip {
+			display: none;
+		}
+
 	</style>
 @endsection
 @section('content2')
@@ -83,13 +172,18 @@
           'icon' => null
         )
       );
+
+
+			$procurement_officer_roles = getConfigByName('procurement_officer_role_id');
+			$procurement_officer_role_id = count($procurement_officer_roles) > 0 ? $procurement_officer_roles[0]->value : 0;
     ?>
     <x-bread-crumb :items="$items"></x-bread-crumb>
 		<h2 class="p-4">
-			<i class="mdi mdi-mdi-user"></i> {{ $supplier->name }} <small class="badge {{ $supplier->average_rating() < 6 ? 'badge-warning' : 'badge-success' }}">{{ $supplier->average_rating() }}<i class="mdi mdi-star"></i> </small> <small class="text-muted"> | Suppliers</small>
+			<i class="mdi mdi-mdi-user"></i> {{ $supplier->name }} <small class="badge {{ $supplier->average_rating() < 60 ? 'badge-warning' : 'badge-success' }}">{{ $supplier->average_rating() }}%<i class="mdi mdi-star"></i> </small> <small class="text-muted"> | Suppliers</small>
+
 		</h2>
 		<div class="row no-gutters">
-			<div class="col-sm-4 p-2">
+			<div class="col-md-4 p-2">
 				<div class="card">
 					<div class="card-body">
 						<h5 class="card-title"><i class="mdi mdi-pencil-outline"></i> Edit Supplier</h5>
@@ -147,6 +241,15 @@
 								<input type="text" class="form-control" name="payment_method" value="{{ $supplier->payment_method }}" placeholder="Payment Methods..." required />
 							</div>
 							<div class="form-group">
+								<label class="control-label">Supplier Currency</label>
+								<select name="default_currency" class='form-control trigger-save' data-placeholder="Select Currency...">
+									<option></option>
+									@foreach (getCurrencies() as $p)
+										<option value="{{ $p->id }}" {{ $p->id == ($supplier->default_currency ?? '') ? 'selected' : '' }}>{{ $p->name }}</option>
+									@endforeach
+								</select>
+							</div>
+							<div class="form-group">
 								<label class="control-label"><input type="checkbox" name="active" value="1" {{ $supplier->active == 1 ? 'checked' : '' }} /> Is Active?</label>
 							</div>
 							<div class="p-0">
@@ -156,7 +259,7 @@
 					</div>
 				</div>
 			</div>
-			<div class="col-sm-8 p-2">
+			<div class="col-md-8 p-2">
 				<div class="card tab-card">
 					<div class="card-header tab-card-header">
 						<ul class="nav nav-tabs card-header-tabs" id="Categories-tabs" role="tablist">
@@ -173,18 +276,24 @@
 								<a class="nav-link" id="Goods-Return-tab" data-toggle="tab" href="#Goods-Return" role="tab" aria-controls="Orders" aria-selected="true">Goods Return</a>
 							</li>
 							<li class="nav-item">
-								<a class="nav-link" id="Categories-tab" data-toggle="tab" href="#Categories" role="tab" aria-controls="Categories" aria-selected="true">Supplier Items</a>
+								<a class="nav-link" id="Main-Categories-tab" data-toggle="tab" href="#Main-Categories" role="tab" aria-controls="Supplier Categories" aria-selected="true">Supplier Categories</a>
+							</li>
+							<li class="nav-item">
+								<a class="nav-link" id="Categories-tab" data-toggle="tab" href="#Categories" role="tab" aria-controls="Supplier Items" aria-selected="true">Supplier Items</a>
 							</li>
 							<li class="nav-item">
 								<a class="nav-link" id="Ratings-tab" data-toggle="tab" href="#Ratings" role="tab" aria-controls="Ratings" aria-selected="true">Ratings</a>
 							</li>
 							<li class="nav-item">
-								<a class="nav-link" id="Contracts-tab" data-toggle="tab" href="#Contracts" role="tab" aria-controls="Contracts" aria-selected="true">Contracts</a>
+								<a class="nav-link" id="Contacts-tab" data-toggle="tab" href="#Contacts" role="tab" aria-controls="Contacts" aria-selected="true">Contacts</a>
 							</li>
+							{{-- <li class="nav-item">
+								<a class="nav-link" id="Contracts-tab" data-toggle="tab" href="#Contracts" role="tab" aria-controls="Contracts" aria-selected="true">Contracts</a>
+							</li> --}}
 						</ul>
 					</div>
 					<div class="tab-content" id="Orders-tabs-content">
-						<div class="tab-pane fade p-3" id="Contracts" role="tabpanel" aria-labelledby="one-tab">
+						{{-- <div class="tab-pane fade p-3" id="Contracts" role="tabpanel" aria-labelledby="one-tab">
 							<h5 class="card-title">
 								Contracts
 								<div class="btn btn-sm btn-info float-right" data-target="#add-a-contract" data-toggle="modal"><i class="mdi mdi-plus"></i> Contract</div>
@@ -206,10 +315,10 @@
 									<tbody>
 										@foreach ($supplier->contracts() as $item)
 											<?php
-												if(\Carbon\Carbon::parse($item['end']) < \Carbon\Carbon::today() && $item['status'] > 0){
-													updateContractStatus($item['id'], 0);
-													$item['status'] = 0;
-												}
+												// if(\Carbon\Carbon::parse($item['end']) < \Carbon\Carbon::today() && $item['status'] > 0){
+												// 	updateContractStatus($item['id'], 0);
+												// 	$item['status'] = 0;
+												// }
 											?>
 											<tr>
 												<td>{{ $loop->iteration }}</td>
@@ -229,39 +338,61 @@
 									</tbody>
 								</table>
 							</div>
-						</div>
+						</div> --}}
 						<div class="tab-pane fade p-3" id="Ratings" role="tabpanel" aria-labelledby="one-tab">
-							<h5 class="card-title">Ratings </h5>
-							<div class="table-responsive">
-								<table
-									class="table table-condensed my-small-text table-striped server-side table-hover table-bordered table-sm">
-									<thead class="bg-light p-2">
-										<tr>
-											<th>No</th>
-											<th>Inventory Item</th>
-											<th>Date</th>
-											<th>Rating</th>
-											<th>Title</th>
-											<th>Comments</th>
-											<th>Rated By</th>
-											<th></th>
-										</tr>
-									</thead>
-									<tbody>
-										@foreach ($supplier->ratings as $item)
-											<tr>
-												<td>{{ $loop->iteration }}</td>
-												<td>{{ $item->inventory_item->batch_code ?? '' }}</td>
-												<td>{{ $item->inventory_item->created_at ?? '' }}</td>
-												<td>{{ $item->rating }}</td>
-												<td>{{ $item->title }}</td>
-												<td>{{ $item->comments }}</td>
-												<td>{{ $item->creator->name }}</td>
-												<td></td>
-											</tr>
-										@endforeach
-									</tbody>
-								</table>
+							<h5 class="card-title">
+								Ratings
+								@if(\Auth::user()->hasRole($procurement_officer_role_id, true))
+									<div class="btn btn-sm btn-transparent text-info" data-target="#add-rating-criteria-modal" data-toggle="modal">
+										<i class="mdi mdi-plus"></i> Criteria
+									</div>
+									<div class="btn btn-sm text-info text-danger float-right" data-target="#update-supplier-criteria-rating-modal" data-toggle="modal">
+										<i class="mdi mdi-update"></i> Update Rating
+									</div>
+								@endif
+							</h5>
+							<div class="row">
+								<div class="col-md-4 col-sm-5">
+									<div class="p-3 text-center">
+										<h1 style="font-size: 5.2em">{{ $supplier->average_rating() }}</h1>
+										<div class="progress">
+											<div class="progress-bar progress-bar-striped" role="progressbar" style="width: {{ $supplier->average_rating() }}%" aria-valuenow="10" aria-valuemin="0" aria-valuemax="100"></div>
+										</div>
+										<div class="pt-1 pb-1">
+											<small>A score of {{ $supplier->average_rating() }} out of 100%</small>
+										</div>
+									</div>
+								</div>
+								<div class="col-md-8 col-sm-7">
+									@foreach (getSupplierRatingCriteria() as $gSRC)
+										<?php
+											$score = $ratingScores[$gSRC->id] ?? 0;
+											$scorePerc = $score/$gSRC->max_score*100;
+											$mRatingColor = supplierRatingColorFromScore($scorePerc);
+										?>
+										<div class="mt-1 mb-1">
+											<div class="pt-1 pb-1" style="clear: both">
+												<h6>{{ $gSRC->title }}</h6>
+												@if(\Auth::user()->hasRole($procurement_officer_role_id, true))
+												<div class="mtools float-right pull-right">
+													<div class="btn-group" role="group">
+														<button type="button" class="btn btn-transparent text-info btn-sm"
+															data-criteria="{{ json_encode($gSRC) }}" data-target="#edit-rating-criteria-modal" data-toggle="modal">
+															<i class="mdi mdi-pencil"></i>
+														</button>
+													</div>
+												</div>
+												@endif
+											</div>
+											<div class="progress">
+												<div class="progress-bar progress-bar-striped {{ $mRatingColor }}" role="progressbar" style="width: {{ $scorePerc }}%" aria-valuenow="10" aria-valuemin="0" aria-valuemax="100"></div>
+											</div>
+											<div class="pt-1 pb-1 text-muted">
+												<small>{{ number_format($score,1) }} out of {{ number_format($gSRC->max_score,1) }}</small>
+											</div>
+										</div>
+									@endforeach
+								</div>
 							</div>
 						</div>
 						<div class="tab-pane fade show active p-3" id="Orders" role="tabpanel" aria-labelledby="one-tab">
@@ -273,7 +404,7 @@
 									<thead class="bg-light p-2">
 										<tr>
 											<th></th>
-											<th>GR Number</th>
+											<th>GR Number </th>
 											<th>Description</th>
 											<th>Due Date</th>
 											<th>Source</th>
@@ -301,7 +432,7 @@
 									<thead class="bg-light p-2">
 										<tr>
 											<th>No</th>
-											<th>GRN Number</th>
+											<th>GRN Number </th>
 											<th>Description</th>
 											<th>Due Date</th>
 											<th>Source</th>
@@ -329,7 +460,7 @@
 									<thead class="bg-light p-2">
 										<tr>
 											<th>No</th>
-											<th>Order No</th>
+											<th>Order No </th>
 											<th>Description</th>
 											<th>Due Date</th>
 											<th>Source</th>
@@ -348,15 +479,45 @@
 								@endif
 							</div>
 						</div>
-						<div class="tab-pane fade p-3" id="Categories" role="tabpanel" aria-labelledby="one-tab">
-							<h5 class="card-title">Supplier Items <div class="btn btn-sm btn-info float-right" data-target="#add-supplier-items" data-toggle="modal"><i class="mdi mdi-plus"></i> Add Item</div></h5>
+						<div class="tab-pane fade p-3" id="Main-Categories" role="tabpanel" aria-labelledby="one-tab">
+							<h5 class="card-title">Supplier Category <div class="btn btn-sm btn-info float-right" data-target="#add-supplier-category" data-toggle="modal"><i class="mdi mdi-plus"></i> Category</div></h5>
 							<hr>
 							<div class="table-responsive">
 								<table class="table table-condensed my-small-text table-striped table-hover table-bordered table-sm">
 									<thead class="bg-light p-2">
 										<tr>
 											<th>No</th>
-											<th nowrap>Image</th>
+											<th nowrap>Category </th>
+											<th nowrap>Items</th>
+											<th></th>
+										</tr>
+									</thead>
+									<tbody>
+										@foreach ($supplier_categories as $item)
+											<tr>
+												<td>{{ $loop->iteration }}</td>
+												<td>{{ $item->name }}</td>
+												<td>{{ $item->items }}</td>
+												<td>
+													<div class="btn-sm btn-block">
+														<button class="btn btn-default text-danger btn-sm" data-toggle="modal" data-target="#delete-supplier-main-category" data-item="{{ $item->row_id }}"><i class="mdi mdi-delete"></i></button>
+													</div>
+												</td>
+											</tr>
+										@endforeach
+									</tbody>
+								</table>
+							</div>
+						</div>
+						<div class="tab-pane fade p-3" id="Categories" role="tabpanel" aria-labelledby="one-tab">
+							{{-- <h5 class="card-title">Supplier Items <div class="btn btn-sm btn-info float-right" data-target="#add-supplier-items" data-toggle="modal"><i class="mdi mdi-plus"></i> Add Item</div></h5> --}}
+							<hr>
+							<div class="table-responsive">
+								<table class="table table-condensed my-small-text table-striped table-hover table-bordered table-sm">
+									<thead class="bg-light p-2">
+										<tr>
+											<th>No</th>
+											<th nowrap>Image </th>
 											<th nowrap>Item</th>
 											<th nowrap>Code</th>
 											<th nowrap>Brand</th>
@@ -377,6 +538,43 @@
 												<td>
 													<div class="btn-sm btn-block">
 														<button class="btn btn-default text-danger btn-sm" data-toggle="modal" data-target="#delete-supplier-category" data-item="{{ $item->id }}"><i class="mdi mdi-delete"></i></button>
+													</div>
+												</td>
+											</tr>
+										@endforeach
+									</tbody>
+								</table>
+							</div>
+						</div>
+						<div class="tab-pane fade p-3" id="Contacts" role="tabpanel" aria-labelledby="one-tab">
+							<h5 class="card-title">Contacts <div class="btn btn-sm btn-transparent text-info float-right" data-target="#add-supplier-contact" data-toggle="modal"><i class="mdi mdi-plus"></i> Add Contact</div></h5>
+							<hr>
+							<div class="table-responsive">
+								<table class="table table-condensed my-small-text table-striped table-hover table-bordered table-sm">
+									<thead class="bg-light p-2">
+										<tr>
+											<th>No</th>
+											<th nowrap>Name </th>
+											<th nowrap>ID</th>
+											<th nowrap>Phone</th>
+											<th nowrap>Email</th>
+											<th nowrap>PIN</th>
+											<th></th>
+										</tr>
+									</thead>
+									<tbody>
+										@foreach ($supplier->contacts as $contact)
+											<tr>
+												<td>{{ $loop->iteration }}</td>
+												<td>{{ $contact->name }}</td>
+												<td>{{ $contact->id_number }}</td>
+												<td>{{ $contact->phone }}</td>
+												<td>{{ $contact->email }}</td>
+												<td>{{ $contact->pin }}</td>
+												<td nowrap>
+													<div class="btn-sm btn-block">
+														<button class="btn btn-transparent text-primary btn-sm" data-toggle="modal" data-target="#add-supplier-contact" data-action="Edit" data-contact="{{ $contact }}"><i class="mdi mdi-pencil"></i></button>
+														<button class="btn btn-transparent text-danger btn-sm" data-toggle="modal" data-target="#delete-supplier-contact" data-contact="{{ $contact->id }}"><i class="mdi mdi-delete"></i></button>
 													</div>
 												</td>
 											</tr>
@@ -425,7 +623,77 @@
 	</main>
 @endsection
 @section('script2')
-<div id="add-supplier-items" class="modal fade" role="dialog">
+<div id="add-supplier-category" class="modal fade" role="dialog">
+	<div class="modal-dialog">
+		<!-- Modal content-->
+		<form class="modal-content" method="POST" action="{{ route('add-supplier-main-category', ['supplier_id'=>$supplier->id]) }}" enctype="multipart/form-data">
+			@csrf
+			<div class="modal-header">
+				<h4 class="modal-title"><i class="mdi mdi-plus"></i> Add Supplier Category</h4>
+			</div>
+			<div class="modal-body">
+				{{-- <pre> {{ json_encode(getSubCategoriesByBrand(0, true), JSON_PRETTY_PRINT) }}</pre>; --}}
+				<div class="form-group">
+					<label class="control-label">Category</label>
+					<select class="form-control" name="category_id[]" required multiple placeholder="Select Category...">
+						<option></option>
+						@foreach ($all_categories as $ac)
+							<option value="{{ $ac->id }}">{{ $ac->name }}</option>
+						@endforeach
+					</select>
+
+				</div>
+			</div>
+			<div class="modal-footer">
+				<button type="submit" class="btn btn-primary"><i class="mdi mdi-content-save"></i> Save</button>
+				<button type="button" class="btn btn-default" data-dismiss="modal">Close</button>
+			</div>
+		</form>
+	</div>
+</div>
+<div id="add-supplier-contact" class="modal fade" role="dialog">
+	<div class="modal-dialog">
+		<!-- Modal content-->
+		<form class="modal-content" method="POST" action="{{ route('update-supplier-contact', ['supplier_id'=>$supplier->id]) }}" enctype="multipart/form-data">
+			@csrf
+			<div class="modal-header">
+				<h4 class="modal-title"><span class="action"><i class="mdi mdi-plus"></i> Add </span>Supplier Contact</h4>
+			</div>
+			<div class="modal-body">
+				{{-- <pre> {{ json_encode(getSubCategoriesByBrand(0, true), JSON_PRETTY_PRINT) }}</pre>; --}}
+				<div class="form-group">
+					<label class="control-label">Name</label>
+					<input type="text" class="form-control" name="name" placeholder="Name..." />
+				</div>
+				<div class="form-group">
+					<label class="control-label">Contact Type</label>
+					<input type="text" class="form-control" name="type" placeholder="Contact Type e.g Director..." />
+				</div>
+				<div class="form-group">
+					<label class="control-label">Phone</label>
+					<input type="tel" class="form-control" name="phone" placeholder="Phone..." />
+				</div>
+				<div class="form-group">
+					<label class="control-label">Email</label>
+					<input type="email" class="form-control" name="email" placeholder="Email..." />
+				</div>
+				<div class="form-group">
+					<label class="control-label">ID Number</label>
+					<input type="text" class="form-control" name="id_number" placeholder="ID Number..." />
+				</div>
+				<div class="form-group">
+					<label class="control-label">PIN Number</label>
+					<input type="text" class="form-control" name="pin" placeholder="PIN Number..." />
+				</div>
+			</div>
+			<div class="modal-footer">
+				<button type="submit" class="btn btn-primary"><i class="mdi mdi-content-save"></i> Save</button>
+				<button type="button" class="btn btn-default" data-dismiss="modal">Close</button>
+			</div>
+		</form>
+	</div>
+</div>
+{{-- <div id="add-supplier-items" class="modal fade" role="dialog">
 	<div class="modal-dialog">
 		<!-- Modal content-->
 		<form class="modal-content" method="POST" action="{{ route('add-supplier-category', ['supplier'=>$supplier->id]) }}" enctype="multipart/form-data">
@@ -434,7 +702,6 @@
 				<h4 class="modal-title"><i class="mdi mdi-plus"></i> Add Supplier Item</h4>
 			</div>
 			<div class="modal-body">
-				{{-- <pre> {{ json_encode(getSubCategoriesByBrand(0, true), JSON_PRETTY_PRINT) }}</pre>; --}}
 				<div class="form-group">
 					<label class="control-label">Item</label>
 					<select class="form-control" name="brands[]" required multiple placeholder="Select Item...">
@@ -455,6 +722,120 @@
 			</div>
 		</form>
 	</div>
+</div> --}}
+<div id="delete-supplier-main-category" class="modal fade" role="dialog">
+	<div class="modal-dialog">
+		<!-- Modal content-->
+		<form class="modal-content" method="POST" enctype="multipart/form-data">
+			@csrf
+			<div class="modal-header">
+				<h4 class="modal-title"><i class="mdi mdi-plus"></i> Remove Supplier Category</h4>
+			</div>
+			<div class="modal-body">
+				<div class="form-group">
+					<div class="alert alert-callout alert-danger">
+						<i class="fas fa-exclamation-triangle"></i> Are you sure that you want to remove this Category?
+
+					</div>
+				</div>
+			</div>
+			<div class="modal-footer">
+				<button type="submit" class="btn btn-danger"><i class="mdi mdi-trash"></i> Remove</button>
+				<button type="button" class="btn btn-default" data-dismiss="modal">Close</button>
+			</div>
+		</form>
+	</div>
+</div>
+
+<div id="update-supplier-criteria-rating-modal" class="modal fade" role="dialog">
+	<div class="modal-dialog">
+		<!-- Modal content-->
+		<form class="modal-content" action="{{ route('update-rating-criteria-score', ['id'=>$supplier->id]) }}" method="POST" enctype="multipart/form-data">
+			@csrf
+			<div class="modal-header">
+				<h4 class="modal-title"><i class="mdi mdi-content-save"></i> Update Supplier Criteria Scored</h4>
+			</div>
+			<div class="modal-body">
+				@foreach (getSupplierRatingCriteria() as $gSRC)
+					<?php
+						$c_score = $ratingScores[$gSRC->id] ?? 0;
+						$scorePerc = $c_score/$gSRC->max_score*100;
+					?>
+					<div class="form-group">
+						<h6 style="width: 100%" for="crit-{{ $gSRC->id }}">{{ $gSRC->title }} <span class="badge badge-pill badge-info float-right">0</span></h6>
+						<input style="width: 100%" type="range" step="0.1" value="{{ $c_score }}" name="criteria[{{ $gSRC->id }}]" class="form-range" min="0" max="{{ $gSRC->max_score }}" id="crit-{{ $gSRC->id }}">
+					</div>
+				@endforeach
+			</div>
+			<div class="modal-footer">
+				<button type="submit" class="btn btn-primary"><i class="mdi mdi-content-save"></i> Save</button>
+				<button type="button" class="btn btn-default" data-dismiss="modal">Close</button>
+			</div>
+		</form>
+	</div>
+</div>
+<div id="add-rating-criteria-modal" class="modal fade" role="dialog">
+	<div class="modal-dialog">
+		<!-- Modal content-->
+		<form class="modal-content" action="{{ route('rating-criteria') }}" method="POST" enctype="multipart/form-data">
+			@csrf
+			<div class="modal-header">
+				<h4 class="modal-title"><i class="mdi mdi-plus"></i> Add a new rating Criteria</h4>
+			</div>
+			<div class="modal-body">
+				<div class="form-group">
+					<div class="alert alert-callout alert-danger">
+						<i class="fas fa-exclamation-triangle"></i> Please note that this action will add a new criteria to all the supplier on the system?
+					</div>
+				</div>
+				<div class="form-group">
+					<label class="control-label">Title</label>
+					<input type="text" class="form-control" name="title" placeholder="Title" />
+				</div>
+				<div class="form-group">
+					<label class="control-label">Max Score</label>
+					<input type="number" min="0" class="form-control" name="max_score" placeholder="Max Score..." />
+				</div>
+			</div>
+			<div class="modal-footer">
+				<button type="submit" class="btn btn-danger"><i class="mdi mdi-plus"></i> Criteria</button>
+				<button type="button" class="btn btn-default" data-dismiss="modal">Close</button>
+			</div>
+		</form>
+	</div>
+</div>
+<div id="edit-rating-criteria-modal" class="modal fade" role="dialog">
+	<div class="modal-dialog">
+		<!-- Modal content-->
+		<form class="modal-content" method="POST" enctype="multipart/form-data">
+			@csrf
+			<div class="modal-header">
+				<h4 class="modal-title"><i class="mdi mdi-pencil"></i> Edit Criteria</h4>
+			</div>
+			<div class="modal-body">
+				<div class="form-group">
+					<div class="alert alert-callout alert-warning">
+						<i class="fas fa-exclamation-triangle"></i> Please note that this edit will affect all suppliers?
+					</div>
+				</div>
+				<div class="form-group">
+					<label class="control-label">Title</label>
+					<input type="text" class="form-control" name="title" placeholder="Title" />
+				</div>
+				<div class="form-group">
+					<label class="control-label">Max Score</label>
+					<input type="number" min="0" class="form-control" name="max_score" placeholder="Max Score..." />
+				</div>
+				<div class="form-group">
+					<label class="control-label"><input type="checkbox" name="active" checked="true" /> Is Active?</label>
+				</div>
+			</div>
+			<div class="modal-footer">
+				<button type="submit" class="btn btn-primary"><i class="mdi mdi-content-save"></i> Save</button>
+				<button type="button" class="btn btn-default" data-dismiss="modal">Close</button>
+			</div>
+		</form>
+	</div>
 </div>
 <div id="delete-supplier-category" class="modal fade" role="dialog">
 	<div class="modal-dialog">
@@ -462,12 +843,35 @@
 		<form class="modal-content" method="POST" enctype="multipart/form-data">
 			@csrf
 			<div class="modal-header">
-				<h4 class="modal-title"><i class="mdi mdi-plus"></i> Remove Supplier Item</h4>
+				<h4 class="modal-title"><i class="mdi mdi-delete"></i> Remove Supplier Item</h4>
 			</div>
 			<div class="modal-body">
 				<div class="form-group">
 					<div class="alert alert-callout alert-danger">
 						<i class="fas fa-exclamation-triangle"></i> Are you sure that you want to remove this Item?
+
+					</div>
+				</div>
+			</div>
+			<div class="modal-footer">
+				<button type="submit" class="btn btn-danger"><i class="mdi mdi-trash"></i> Remove</button>
+				<button type="button" class="btn btn-default" data-dismiss="modal">Close</button>
+			</div>
+		</form>
+	</div>
+</div>
+<div id="delete-supplier-contact" class="modal fade" role="dialog">
+	<div class="modal-dialog">
+		<!-- Modal content-->
+		<form class="modal-content" method="POST" enctype="multipart/form-data">
+			@csrf
+			<div class="modal-header">
+				<h4 class="modal-title"><i class="mdi mdi-delete"></i> Remove Supplier Contact</h4>
+			</div>
+			<div class="modal-body">
+				<div class="form-group">
+					<div class="alert alert-callout alert-danger">
+						<i class="fas fa-exclamation-triangle"></i> Are you sure that you want to remove this Contact?
 					</div>
 				</div>
 			</div>
@@ -493,103 +897,7 @@
 		</div>
 	</div>
 </div>
-{{-- <div id="create-an-order" class="modal fade" role="dialog">
-	<div class="modal-dialog">
-		<!-- Modal content-->
-		<form class="modal-content" method="POST" action="{{ route('create-order', ['supplier'=>$supplier->id]) }}" enctype="multipart/form-data">
-			@csrf
-			<div class="modal-header">
-				<h4 class="modal-title"><i class="mdi mdi-plus"></i> Create Requisition Order</h4>
-			</div>
-			<div class="modal-body">
-				<div class="form-group">
-					<label class="control-label">Order Comments</label>
-					<textarea class="form-control" name="order_comments" placeholder="Info for the supplier..."></textarea>
-				</div>
-				<fieldset class="form-group">
-					<legend>Order Items</legend>
-					<div class="row">
-						<div class="col-sm-7">
-							<label class="control-label">Category</label>
-							<select class="form-control" name="items[sub_category_id][]" required>
-								<option value="">Select Category...</option>
-								@foreach ($supplier->categories() as $cat)
-									<optgroup label="{{ $cat->item->category->name }}">
-										<option value="{{ $cat->item->id }}">{{ $cat->item->name }}</option>
-									</optgroup>
-								@endforeach
-							</select>
-						</div>
-						<div class="col-sm-5">
-							<label class="control-label">Quantity</label>
-							<input type="number" min="0" class="form-control" name="items[quantity][]" placeholder="Enter Quantity" required />
-						</div>
-					</div>
-					<div class="form-group add-category-btn" style="margin-top: 12px">
-						<button type="button" class="btn btn-outline-info btn-sm btn-block">
-							<i class="mdi mdi-plus text-primary"></i> Add Order Category
-						</button>
-					</div>
-				</fieldset>
-			</div>
-			<div class="modal-footer">
-				<button type="submit" class="btn btn-primary"><i class="mdi mdi-content-save"></i> Save</button>
-				<button type="button" class="btn btn-default" data-dismiss="modal">Close</button>
-			</div>
-		</form>
-	</div>
-</div> --}}
-<div id="edit-an-order" class="modal fade" role="dialog">
-	<div class="modal-dialog">
-		<!-- Modal content-->
-		<form class="modal-content" id="edit-an-order-form" method="POST" enctype="multipart/form-data">
-			@csrf
-			<div class="modal-header">
-				<h4 class="modal-title">
-					<i class="mdi mdi-pencil"></i> Edit Order <small class="text-muted" id="edit-order-number"></small>
-				</h4>
-			</div>
-			<div class="modal-body">
-				<div class="form-group">
-					<label class="control-label">Order Comments</label>
-					<textarea class="form-control" id="edit_order_comments" name="order_comments" placeholder="Info for the supplier..."></textarea>
-				</div>
-				<fieldset class="form-group">
-					<legend>Order Items</legend>
-					<div id="edit-an-order-msg"></div>
-					<div class="form-group add-category-btn" style="margin-top: 12px">
-						<button type="button" class="btn btn-outline-info btn-sm btn-block">
-							<i class="mdi mdi-plus text-primary"></i> Add Order Category
-						</button>
-					</div>
-				</fieldset>
-			</div>
-			<div class="modal-footer">
-				<button type="submit" class="btn btn-primary"><i class="mdi mdi-content-save"></i> Save</button>
-				<button type="button" class="btn btn-default" data-dismiss="modal">Close</button>
-			</div>
-		</form>
-	</div>
-</div>
-<div id="accept-goods" class="modal fade" role="dialog">
-	<div class="modal-dialog modal-lg">
-		<!-- Modal content-->
-		<form class="modal-content" id="accept-goods-form" method="POST" enctype="multipart/form-data">
-			@csrf
-			<div class="modal-header">
-				<h4 class="modal-title">
-					<i class="mdi mdi-dolly"></i> Accept Order <small class="text-muted">(<span id="accept-goods-order-number"></span>)</small> Items
-				</h4>
-			</div>
-			<div class="modal-body" id="accept-goods-items"></div>
-			<div class="modal-footer">
-				<button type="submit" class="btn btn-primary"><i class="mdi mdi-content-save"></i> Save</button>
-				<button type="button" class="btn btn-default" data-dismiss="modal">Close</button>
-			</div>
-		</form>
-	</div>
-</div>
-<div id="add-a-contract" class="modal fade" role="dialog">
+{{-- <div id="add-a-contract" class="modal fade" role="dialog">
 	<div class="modal-dialog">
 		<!-- Modal content-->
 		<form class="modal-content" action="{{ route("create-supplier-contract", ['supplier'=>$supplier->id]) }}" id="add-a-contract-form" method="POST" enctype="multipart/form-data">
@@ -605,7 +913,7 @@
 					<input type="text" class="form-control" name="description" placeholder="Description..." />
 				</div>
 				<div class="form-group">
-					<label class="control-label">Items</label>
+					<label class="control-label">Items </label>
 					<select class="form-control" name="item[]" placeholder="Select Items" multiple>
 						<option value="">Select Item...</option>
 						@foreach ($cats as $item)
@@ -687,115 +995,79 @@
 			</div>
 		</form>
 	</div>
-</div>
+</div> --}}
 <script>
-	var rowHTML = `<div class="row dynamic-row" style="margin-top: 12px; position: relative">
-		<div class="col-sm-7">
-			<input type="hidden" name="items[order_item_id][]" />
-			<label class="control-label">Category <small class="fulfilled-msg text-info"></small></label>
-			<select class="form-control" name="items[sub_category_id][]" required>
-				<option value="">Select Category...</option>
-				@foreach ($cats as $item)
-					<optgroup label="{{ $item->name }}">
-						@foreach ($item->subcategories as $it)
-							<option value="{{ $item->id }} {{ $it->id }}"><em>{{ $item->name }}</em> > {{ $it->name }}</option>
-						@endforeach
-					</optgroup>
-				@endforeach
-			</select>
-		</div>
-		<div class="col-sm-5">
-			<label class="control-label">Quantity <small class="fulfilled-msg text-info"></small></label>
-			<input type="number" min="0" class="form-control" name="items[quantity][]" placeholder="Enter Quantity" required />
-		</div>
-		<span class="removeThis"><i class="mdi mdi-delete"></i></span>
-	</div>`;
 
-	var rowReceivedHTML = `<div class="row dynamic-row" style="margin-top: 12px; position: relative">
-		<div class="col-sm-4">
-			<input type="hidden" name="items[order_item_id][]" />
-			<label class="control-label">Category <small class="fulfilled-msg text-info"></small></label>
-			<select class="form-control" name="items[sub_category_id][]" required>
-				<option value="">Select Category...</option>
-				@foreach ($cats as $item)
-					<optgroup label="{{ $item->name }}">
-						@foreach ($item->subcategories as $it)
-							<option value="{{ $item->id }} {{ $it->id }}"><em>{{ $item->name }}</em> > {{ $it->name }}</option>
-						@endforeach
-					</optgroup>
-				@endforeach
-			</select>
-		</div>
-		<div class="col-sm-4">
-			<label class="control-label">Quantity <small class="fulfilled-msg text-info"></small></label>
-			<input type="number" min="0" class="form-control" name="items[quantity][]" placeholder="Enter Quantity" required />
-		</div>
-		<div class="col-sm-4">
-			<label class="control-label">Price <small class="fulfilled-msg text-info"></small></label>
-			<input type="number" min="0" class="form-control" name="items[price][]" placeholder="Enter Price" required />
-		</div>
-		<div class="col-sm-4">
-			<label class="control-label">Expiry <small class="fulfilled-msg text-info"></small></label>
-			<input type="date" min="0" value="2099-12-31" class="form-control" name="items[expiry][]" placeholder="Expiry date..." required />
-		</div>
-		<div class="col-sm-4">
-			<label class="control-label">Slot <small class="fulfilled-msg text-info"></small></label>
-			<select class="form-control" name="items[slot][]" required placeholder="Select Slot" required>
-				<option></option>
-				@foreach ($stores as $item)
-					<optgroup label="{{ $item->name }}">
-						@foreach ($item->slots as $it)
-							<option value="{{ $item->id }} {{ $it->id }}">{{ $it->name }}</option>
-						@endforeach
-					</optgroup>
-				@endforeach
-			</select>
-		</div>
-		<div class="col-sm-2 checkbox-holder pt-1">
-			<label class="control-label">Receive </label><br>
-			<input type="hidden" name="items[receive][]" value="0">
-			<input type="checkbox" class="items-receive">
-		</div>
-		<div class="col-sm-2 qc-holder pt-1">
-			<label class="control-label" title="Requires Quality Control">Quality Control</label><br>
-			<input type="hidden" name="items[requires_qc][]" value="0">
-			<input type="checkbox" class="items-requires_qc">
-		</div>
-	</div>`;
 
 	$(function(){
 		//triggered when edit-an-order modal is about to be shown
-		$('#accept-goods').on('show.bs.modal', function(e) {
-
-			//get data-id attribute of the clicked element
-			var orderDetails = $(e.relatedTarget).data('order');
-			$('#accept-goods-order-number').text(orderDetails.order_number);
-
-			$('#accept-goods-form').prop('action', '/accept-order-items/'+orderDetails.id);
-
-			$.ajax({
-				url: "/get-order-items/inventory_order_id/"+orderDetails.id,
-				dataType: "json",
-				beforeSend: function(){
-					$('#accept-goods-items').append(`<div class="alert alert-primary">
-						<i class="fas fa-spin fa-spinner"></i> Loading order items...
-					</div>`);
-				},
-				success: function(js){
-					$('#accept-goods-items').empty();
-
-					$.each(js, function(j,s){
-						createNewReceivedRow(s);
-					});
-
-				}
-			})
-		});
-
 		$('#view-image-large').on('show.bs.modal', function(e){
 			var img = $(e.relatedTarget).data('img');
 
 			$(this).find('.modal-body').html(`<img src="${img}" style="width:100%" />`);
+		});
+
+		$('.form-range').on('change', function(){
+			var $rat = parseFloat($(this).val()).toFixed(1);
+			var max_score = parseFloat($(this).attr('max'));
+
+			var $rating = $rat/max_score*100;
+
+			var $cls = $rating == 100 ? 'bg-success' : ($rating < 100 && $rating > 60 ?
+			'bg-info' : ($rating <= 60 && $rating > 35 ? 'bg-warning' : 'bg-danger'));
+
+			$(this).removeClass('bg-success bg-info bg-warning bg-danger');
+			$(this).addClass($cls);
+
+			$(this).parents('.form-group').find('h6').find('.badge').text($rat+"/"+max_score);
+		});
+
+		$('#update-supplier-criteria-rating-modal').on('show.bs.modal', function(e){
+			$('.form-range').trigger('change');
+		});
+
+		$('#add-supplier-contact').on('show.bs.modal', function(e){
+			var action = $(e.relatedTarget).data('action');
+			var contact = $(e.relatedTarget).data('contact');
+			var cid = action != "Edit" ? contact : contact.id;
+
+			if(action != "Edit"){
+				$(this).find('input').not('[type="hidden"]').val('');
+				$(this).find('span.action').html(`<i class="mdi mdi-plus"></i> Add `);
+			}
+			else{
+				var $form = $(this).find('form');
+				$.each(contact, function(k,v){
+					console.log(k,v);
+					$form.find('input[name="'+k+'"]').not('[type="hidden"]').val(v);
+				});
+				$(this).find('span.action').html(`<i class="mdi mdi-pencil"></i> Edit `);
+			}
+
+			$(this).find('form').attr('action', '{{ route("update-supplier-contact", ["supplier_id"=>$supplier->id]) }}'+(action == "Edit" ? '/'+cid : ''))
+			$(this).find('form').prop('action', '{{ route("update-supplier-contact", ["supplier_id"=>$supplier->id]) }}'+(action == "Edit" ? '/'+cid : ''))
+
+		});
+
+		$('#edit-rating-criteria-modal').on('show.bs.modal', function(e){
+			var criteria = $(e.relatedTarget).data('criteria');
+
+			var form = $(this).find('form');
+
+			form.find('[name="title"]').val(criteria.title);
+			form.find('[name="max_score"]').val(criteria.max_score);
+
+			form.prop('action', '/rating-criteria/'+criteria.id);
+			form.attr('action', '/rating-criteria/'+criteria.id);
+		});
+
+		$('#delete-supplier-main-category').on('show.bs.modal', function(e){
+			var $item = $(e.relatedTarget).data('item');
+
+			var form = $(this).find('form');
+
+			form.prop('action', '/delete-supplier-main-category/'+$item);
+			form.attr('action', '/delete-supplier-main-category/'+$item);
 		});
 
 		$('#delete-supplier-category').on('show.bs.modal', function(e){
@@ -805,6 +1077,15 @@
 
 			form.prop('action', '/delete-supplier-category/'+$item);
 			form.attr('action', '/delete-supplier-category/'+$item);
+		});
+
+		$('#delete-supplier-contact').on('show.bs.modal', function(e){
+			var $item = $(e.relatedTarget).data('contact');
+
+			var form = $(this).find('form');
+
+			form.prop('action', '/remove-supplier-contact/'+$item);
+			form.attr('action', '/remove-supplier-contact/'+$item);
 		});
 
 		$('#edit-contract-modal').on('show.bs.modal', function(e) {
@@ -822,125 +1103,6 @@
 			var items = Object.keys($item.items);
 
 			$('#edit-contract-form').find('[name="item[]"]').val(items).trigger('change');
-		});
-
-		$('#edit-an-order').on('show.bs.modal', function(e) {
-
-			//get data-id attribute of the clicked element
-			var orderDetails = $(e.relatedTarget).data('order');
-			$('#edit-order-number').text(" | "+orderDetails.order_number);
-			$('#edit_order_comments').val(orderDetails.comments);
-			$('#edit-an-order-form').prop('action', '/edit-order/{{ $supplier->id }}/'+orderDetails.id);
-
-			$.ajax({
-				url: "/get-order-items/inventory_order_id/"+orderDetails.id,
-				dataType: "json",
-				beforeSend: function(){
-					$('#edit-an-order-msg').html(`<div class="alert alert-primary">
-						<i class="fas fa-spin fa-spinner"></i> Loading order items...
-					</div>`);
-
-					$('#edit-an-order').find('.dynamic-row').remove();
-				},
-				success: function(js){
-					$('#edit-an-order-msg').html('');
-
-					$.each(js, function(j,s){
-						createNewRow($('#edit-an-order-form').find('.add-category-btn'), s);
-					});
-
-				}
-			})
-		});
-
-		var createNewReceivedRow = function(data=false){
-			var $row = $(rowReceivedHTML).clone(true, true);
-
-			$receivedprop = data.fulfilled == 1 ? 'disabled' : 'readonly';
-
-			if($receivedprop == 'disabled'){
-				$row.find('.fulfilled-msg').text('Fulfilled');
-				$row.find('.qc-holder').remove();
-				$row.find('.checkbox-holder').html(`
-					<i class="fas fa-check-circle text-success mt-4"></i> Items Delivered
-				`).removeClass('col-sm-2 col-sm-4');
-			}
-
-			$row.find('.items-requires_qc').on('click', function(){
-				if($(this).is(":checked")){
-					$row.find('[name="items[requires_qc][]"]').val(1);
-				}
-				else{
-					$row.find('[name="items[requires_qc][]"]').val(0);
-				}
-			});
-
-			$row.find('.items-receive').on('click', function(){
-				if($(this).is(":checked")){
-					$row.find('[name="items[receive][]"]').val(1);
-				}
-				else{
-					$row.find('[name="items[receive][]"]').val(0);
-				}
-			});
-
-			$row.find('[name="items[order_item_id][]"]').val(data.id).prop($receivedprop, true);
-			$row.find('[name="items[quantity][]"]').val(data.quantity).prop($receivedprop, true);
-			$row.find('[name="items[sub_category_id][]"]').val(data.inventory_category_id+" "+data.inventory_sub_category_id).prop($receivedprop, true).trigger('change');
-
-			$row.find('select').select2();
-
-			$('#accept-goods-items').append($row);
-		}
-
-		var createNewRow = function($ts=false,data=false){
-			var $row = $(rowHTML).clone(true, true);
-
-			$row.find('.removeThis').on('click', function(){
-				if(confirm("Are you sure you want to delete this?")){
-					if(data.id){
-						$.ajax({
-							url: "/delete-order-items/"+data.id,
-							dataType: "json",
-							method: "POST",
-							success: function(js){
-								if(js.message){
-									alert(js.message);
-								}
-
-								if(js.status){
-									$row.remove();
-								}
-							}
-						})
-					}
-					else{
-						$row.remove();
-					}
-				}
-			});
-
-			if(data){
-				$row.find('[name="items[order_item_id][]"]').val(data.id);
-				$row.find('[name="items[quantity][]"]').val(data.quantity);
-				$row.find('[name="items[sub_category_id][]"]').val(data.inventory_category_id+" "+data.inventory_sub_category_id).trigger('change');
-
-				if(data.fulfilled != 0){
-					$row.find('.fulfilled-msg').text('Fulfilled');
-					$row.find('[name="items[quantity][]"]').prop('readonly', true);
-					$row.find('[name="items[sub_category_id][]"]').prop('readonly', true);
-				}
-
-			}
-
-			$row.find('select').select2();
-
-			$ts.before($row);
-		}
-
-
-		$('.add-category-btn').on('click', function(){
-			createNewRow($(this), false);
 		});
 
 		var tables = ['#server-side-goods-receipt', '#server-side-goods-return', '#server-side-orders'];

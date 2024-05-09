@@ -21,7 +21,7 @@ class EntityApprovalsTableSeeder extends Seeder
             array (
                 'id' => '1',
                 'approval_id' => '1',
-                'model' => 'Material Requisition',
+                'model' => 'Purchase Request',
                 'model_id' => '9',
                 'user_id' => '3',
                 'approved_at' => '2020-07-05 19:36:36.510',
@@ -35,7 +35,7 @@ class EntityApprovalsTableSeeder extends Seeder
             array (
                 'id' => '2',
                 'approval_id' => '1',
-                'model' => 'Material Requisition',
+                'model' => 'Purchase Request',
                 'model_id' => '11',
                 'user_id' => '3',
                 'approved_at' => '2020-07-06 04:50:40.830',
@@ -63,7 +63,7 @@ class EntityApprovalsTableSeeder extends Seeder
             array (
                 'id' => '5',
                 'approval_id' => '1',
-                'model' => 'Material Requisition',
+                'model' => 'Purchase Request',
                 'model_id' => '19',
                 'user_id' => '3',
                 'approved_at' => '2020-07-06 10:52:43.810',
@@ -91,7 +91,7 @@ class EntityApprovalsTableSeeder extends Seeder
             array (
                 'id' => '7',
                 'approval_id' => '1',
-                'model' => 'Material Requisition',
+                'model' => 'Purchase Request',
                 'model_id' => '16',
                 'user_id' => '3',
                 'approved_at' => '2020-07-13 00:37:04.820',
@@ -105,7 +105,7 @@ class EntityApprovalsTableSeeder extends Seeder
             array (
                 'id' => '8',
                 'approval_id' => '1',
-                'model' => 'Material Requisition',
+                'model' => 'Purchase Request',
                 'model_id' => '21',
                 'user_id' => '3',
                 'approved_at' => '2020-07-06 11:47:14.150',
@@ -399,7 +399,7 @@ class EntityApprovalsTableSeeder extends Seeder
             array (
                 'id' => '10021',
                 'approval_id' => '1',
-                'model' => 'Material Requisition',
+                'model' => 'Purchase Request',
                 'model_id' => '12',
                 'user_id' => '3',
                 'approved_at' => '2020-08-02 21:58:05.730',
@@ -427,7 +427,7 @@ class EntityApprovalsTableSeeder extends Seeder
             array (
                 'id' => '10023',
                 'approval_id' => '1',
-                'model' => 'Material Requisition',
+                'model' => 'Purchase Request',
                 'model_id' => '10',
                 'user_id' => '3',
                 'approved_at' => '2020-08-03 20:09:04.183',
@@ -455,7 +455,7 @@ class EntityApprovalsTableSeeder extends Seeder
             array (
                 'id' => '10025',
                 'approval_id' => '1',
-                'model' => 'Material Requisition',
+                'model' => 'Purchase Request',
                 'model_id' => '10033',
                 'user_id' => '3',
                 'approved_at' => '2020-08-04 16:45:43.620',
@@ -609,7 +609,7 @@ class EntityApprovalsTableSeeder extends Seeder
             array (
                 'id' => '10037',
                 'approval_id' => '1',
-                'model' => 'Material Requisition',
+                'model' => 'Purchase Request',
                 'model_id' => '10039',
                 'user_id' => '3',
                 'approved_at' => '2020-08-04 21:11:21.737',
@@ -623,7 +623,7 @@ class EntityApprovalsTableSeeder extends Seeder
             array (
                 'id' => '10038',
                 'approval_id' => '1',
-                'model' => 'Material Requisition',
+                'model' => 'Purchase Request',
                 'model_id' => '10040',
                 'user_id' => '3',
                 'approved_at' => '2020-08-05 10:06:24.077',
@@ -819,7 +819,7 @@ class EntityApprovalsTableSeeder extends Seeder
             array (
                 'id' => '10052',
                 'approval_id' => '1',
-                'model' => 'Material Requisition',
+                'model' => 'Purchase Request',
                 'model_id' => '10056',
                 'user_id' => '3',
                 'approved_at' => '2020-08-05 12:16:00.053',

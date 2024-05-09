@@ -22,7 +22,7 @@ class InventoryItemController extends Controller
 	 * @return \Illuminate\Http\Response
 	 */
 
-	public function index(){
+	public function index($type='', $term=''){
 		viewableLocations();
 		$items = InventoryItem::join('inventory_categories as ic', 'ic.id', '=', 'inventory_items.inventory_category_id')
 			->join('inventory_sub_categories as isc', 'isc.id', '=', 'inventory_items.inventory_sub_category_id')
@@ -30,17 +30,63 @@ class InventoryItemController extends Controller
 				$join->on('ib.id', 'inventory_items.item_brand_id');
 				$join->on('ib.inventory_sub_category_id', 'inventory_items.inventory_sub_category_id');
 			})
+			->leftJoin('request_entities as re', 're.request_code', 'inventory_items.po_number')
+			->leftJoin('request_entities as re2', 're2.id', 're.parent_material_requisition')
+			->leftJoin('request_entity_items as rei', 're.id', 'rei.request_id')
 			->join('inventory_stores as is', 'is.id', 'inventory_items.inventory_store_id')
 			->join('inventory_store_slots as iss', 'iss.id', 'inventory_items.inventory_store_slot_id')
 			->join('users as u', 'u.id', '=', 'inventory_items.created_by')
 			->join('inventory_departments as id', 'id.id', '=', 'inventory_items.inventory_department_id')
 			->where('ic.inventory_location_id', getCurrentUserLocation()->id)
-			->selectRaw('isc.code, inventory_items.created_at,inventory_items.stock_in, id.name as department, inventory_items.stock_out, ic.name as category, isc.unit_type, isc.name as sub_category, COALESCE(ib.name, "Non-Specific") as brand, is.name as store, iss.name as slot, u.name as creator, u.email as creator_email, po_number as entity_code')->get();
+			->selectRaw('isc.code, inventory_items.created_at, re2.created_at as req_date, inventory_items.stock_in, id.name as department, inventory_items.stock_out, ic.name as category, isc.unit_type, isc.name as sub_category, COALESCE(ib.name, "Non-Specific") as brand, is.name as store, iss.name as slot, u.name as creator, u.email as creator_email, po_number as entity_code, rei.comments, re2.description, re.cost_center');
 
-		return view('layouts.inventory.activity.index', compact('items'));
+		$termOBJ = ['classification'=>'', 'range'=>[], 'category'=>'', 'department'=>''];
+		$typeParts = explode(',', $type);
+		$termParts = explode(',', $term);
+
+		if(count($typeParts) > 0){
+			if(in_array('department', $typeParts)){
+				$inx = array_search('department', $typeParts);
+				$items = $items->where('re.cost_center', 'like', '%' . $termParts[$inx] . '%');
+
+				$termOBJ['department'] = $termParts[$inx];
+			}
+
+			if(in_array('classification', $typeParts)){
+				$inx = array_search('classification', $typeParts);
+				$items = $items->where('isc.item_classification', $termParts[$inx]);
+
+				$termOBJ['classification'] = $termParts[$inx];
+			}
+
+			if(in_array('category', $typeParts)){
+				$inx = array_search('category', $typeParts);
+				$items = $items->where('ic.id', $termParts[$inx]);
+				$termOBJ['category'] = $termParts[$inx];
+			}
+
+			if(in_array('range', $typeParts)){
+				$inx = array_search('range', $typeParts);
+				$range = explode('_', $termParts[$inx]);
+				$items = $items->whereBetween('inventory_items.created_at', $range);
+				$termOBJ['range'] = $range;
+			}
+			else{
+				$range = [date('Y-m-01'), date('Y-m-30')];
+				$items = $items->whereBetween('inventory_items.created_at', $range);
+				$termOBJ['range'] = $range;
+			}
+		}
+		
+		$term = $termOBJ;
+		$items = $items->groupBy('inventory_items.id')->orderBy('re2.id', 'desc')->get();
+
+		// return response()->json($term, 200);
+
+		return view('layouts.inventory.activity.index', compact('items', 'term'));
 	}
 
-	public function activity_serverside(Request $request){
+	public function activity_serverside(Request $request, $type=false, $term=0){
 		$columns = array(
 			array( 'db' => 'id',  'dt' => 0),
 			array( 'db' => 'request_code',  'dt' => 1 ),
@@ -56,8 +102,19 @@ class InventoryItemController extends Controller
 		$items = InventoryItem::join('inventory_categories as ic', 'ic.id', '=', 'inventory_items.inventory_category_id')
 			->join('inventory_sub_categories as isc', 'isc.id', '=', 'inventory_items.inventory_sub_category_id')
 			->join('users as u', 'u.id', '=', 'inventory_items.created_by')
+			->leftJoin('request_entities as re', 're.request_code', 'inventory_items.po_number')
+			->leftJoin('request_entities as re2', 're2.id', 're.parent_material_requisition')
+			->leftJoin('request_entity_items as rei', 're.id', 'rei.request_id')
 			->where('ic.inventory_location_id', getCurrentUserLocation()->id)
-			->selectRaw('inventory_items.created_at,inventory_items.stock_in, inventory_items.stock_out, ic.name as category, isc.unit_type, isc.name as sub_category, isc.manufacturer, u.name as creator, u.email as creator_email')->get();
+			->selectRaw('inventory_items.created_at,inventory_items.stock_in, inventory_items.stock_out, ic.name as category, isc.unit_type, isc.name as sub_category, isc.manufacturer, u.name as creator, u.email as creator_email, rei.comments, re2.description');
+
+		if($type!=false && $term !=0){
+			$items = $items->where('isc.item_classification', $term);
+		}
+
+		// return response()->json($items->get(), 200);
+
+		// $items =$items->groupBy('inventory_items.id');
 
 		$results = new Datatables($items, $request, $columns);
 		$results = $results->execute();
@@ -162,6 +219,7 @@ class InventoryItemController extends Controller
 		$item->supplier_id = $request->supplier_id;
 		$item->created_by = \Auth::user()->id;
 		$item->stock_out = $request->quantity;
+		$item->po_number = $request->po_number ?? 'n/a';
 		$item->expiry = $request->expiry;
 		$item->lot_no = $request->lot_no ?? null;
 		$item->inventory_department_id = $request->transfer_to;
@@ -190,7 +248,7 @@ class InventoryItemController extends Controller
 		if($internal){
 			return $item;
 		}
-    return redirect()->back()->with('success', 'Inventory Items Transfered.');
+	    return redirect()->back()->with('success', 'Inventory Items Transfered.');
 	}
 
 	public function item_disposal(Request $request){

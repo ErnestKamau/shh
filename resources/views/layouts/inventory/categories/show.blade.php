@@ -69,6 +69,13 @@
           'icon' => null
         )
       );
+			$procurement_officer_roles = getConfigByName('procurement_officer_role_id');
+			$procurement_officer_role_id = count($procurement_officer_roles) > 0 ? $procurement_officer_roles[0]->value : 0;
+
+			$store_manager_roles = getConfigByName('store_manager_role_id');
+			$store_manager_role_id = count($store_manager_roles) > 0 ? $store_manager_roles[0]->value : 0;
+
+			$userCanDelete = (\Auth::user()->hasRole($store_manager_role_id, true) || \Auth::user()->hasRole($procurement_officer_role_id, true));
     ?>
     <x-bread-crumb :items="$items"></x-bread-crumb>
 		<h3 class="p-4">
@@ -76,16 +83,26 @@
 			<div class="btn btn-sm btn-transparent text-primary float-right m-2" data-target="#edit-category-modal" data-toggle="modal"><i class="mdi mdi-share"></i> Edit</div>
 			<div class="btn btn-sm btn-transparent text-success float-right m-2" data-target="#add-sub-category" data-toggle="modal"><i class="mdi mdi-plus"></i> Add Item</div>
 		</h3>
+		<div class="p-4">
+			<small data-target="#toggle-default-location-modal" data-toggle="modal" style="cursor: pointer">
+				<i class="mdi mdi-pencil text-success"></i> Default Location:
+				@if(trim($category->default_store_id) != "")
+					<i class="mdi mdi-package-variant-closed"></i> {{ $category->store }} -
+					<i class="mdi mdi-grid-large"></i> {{ $category->slot }}
+				@endif
+			</small>
+		</div>
 		<div class="p-4 bg-light">
 			<div class="table-responsive">
 				<table class="table table-condensed my-small-text table-striped table-hover table-bordered table-sm">
 					<thead class="bg-light p-2">
 						<tr>
 							<th>No</th>
+							<th></th>
 							<th nowrap>Image</th>
 							<th nowrap>Name</th>
-							<th nowrap>Cat/Lot No</th>
-							<th nowrap>Sub Category</th>
+							<th nowrap>Code</th>
+							<th nowrap>SAP Code</th>
 							<th nowrap>Stock</th>
 							<th nowrap>Classification</th>
 							<th nowrap>Maximum Order Quantity</th>
@@ -94,7 +111,6 @@
 							<th nowrap>Cash Price</th>
 							<th nowrap>Credit Price</th>
 							<th nowrap>Description</th>
-							<th></th>
 						</tr>
 					</thead>
 					<tbody>
@@ -102,18 +118,25 @@
 							@foreach($category->subcategories as $element)
 								<tr>
 									<td valign="center">{{ $loop->iteration }}</td>
-									<td><img src="{{ $element->image }}" style="width: 100px" /></td>
 									<td nowrap>
-									<a class="" href="{{ route('show-inventory-items', ['category'=>$category->id,'id'=>$element->id]) }}"> {{ $element->name }}</a>
+										@if($userCanDelete)
+											<button class="btn btn-transparent text-danger btn-sm" data-id="{{ $element->id }}" data-target="#delete-this-sub-modal" data-toggle="modal">
+												<i class="mdi mdi-delete-empty"></i>
+												<small class="hidden-sm-up">Delete</small>
+											</button>
+										@endif
+										<a class="btn btn-transparent text-success btn-sm" href="{{ route('show-inventory-items', ['category'=>$category->id,'id'=>$element->id]) }}"><i class="mdi mdi-eye-outline"></i> <small class="hidden-sm-up">Show</small> </a>
 									</td>
-									<td>{{ $element->sap_code ?? '-'}}</small></td>
-									<td>{{getsystemconfigbyid($element->sub_category_id)->value ?? '-'}}</td>
+									<td><img src="{{ $element->image }}" style="width: 100px" /></td>
+									<td nowrap><a href="{{ route('show-inventory-items', ['category'=>$category->id,'id'=>$element->id]) }}">{{ $element->name }}</a></td>
+									<td>{{ $element->code }}</td>
+									<td><span class="text-muted">{{ trim($element->sap_code) != "" ? $element->sap_code : "" }}</span></td>
 									<td nowrap>
 										<span class="badge badge-primary" style="margin-right: 10px; padding: 3px 5px !important; font-size: 11px!important">
 											{{ number_format($element->available_stock) }} In Stock
 										</span>
 										@if($element->requires_reorder == 1)
-											<a class="badge badge-danger" href="{{ route('go_to_stage', ['stage'=>'Material Requisition']) }}"><i class="mdi mdi-cart-arrow-down"></i> ReOrder</a>
+											<a class="badge badge-danger" href="{{ route('go_to_stage', ['stage'=>'Purchase Request']) }}"><i class="mdi mdi-cart-arrow-down"></i> ReOrder</a>
 										@endif
 									</td>
 									<td>{{ getInventoryItemClassification($element->item_classification ?? 0) }}</td>
@@ -123,10 +146,6 @@
 									<td>{{ $element->unit_price }}</td>
 									<td>{{ $element->unit_price_credit }}</td>
 									<td>{{ $element->description }}</td>
-									<td nowrap>
-										{{-- <button class="btn btn-danger btn-sm"><i class="mdi mdi-delete-empty"></i> <small class="hidden-sm-up">Delete</small> </button> --}}
-										<a class="btn btn-success btn-sm" href="{{ route('show-inventory-items', ['category'=>$category->id,'id'=>$element->id]) }}"><i class="mdi mdi-eye-outline"></i> <small class="hidden-sm-up">Show</small> </a>
-									</td>
 								</tr>
 							@endforeach
 						@endif
@@ -193,22 +212,16 @@
 					<label class="control-label">Name</label>
 					<input type="text" class="form-control" name="name" value="" placeholder="Name..." required />
 				</div>
-				<div class="form-group">
-					<label class="control-label">CAT/Lot No</label>
-					<input type="text" class="form-control" name="sap_code" placeholder="SAP Code..." />
+					<div class="form-group"><?php
+						$third_party_item_code = getConfigByName('third_party_item_code');
+						$third_party_item_code = count($third_party_item_code) > 0 ? $third_party_item_code[0]->value : 'SAP Code';
+					?>
+					<label class="control-label">{{ $third_party_item_code }}</label>
+					<input type="text" class="form-control" name="sap_code" placeholder="{{ $third_party_item_code }}..." />
 				</div>
 				<div class="form-group">
 					<label class="control-label">Description</label>
 					<textarea class="form-control" name="description" placeholder="Description..." required></textarea>
-				</div>
-				<div class="form-group">
-					<label class="control-label">Sub Categories</label>
-					<select name="sub_category_id" id="" class="form-control">
-						<option value=""> Select Sub Category</option>
-						@foreach(getInventorySubs() as $sub)
-	  					<option value="{{$sub->id}}">{{$sub->value}}</option>
-						@endforeach
-					</select>
 				</div>
 				<div class="form-group">
 					<label class="control-label">Image</label>
@@ -233,7 +246,7 @@
 				</div>
 				<div class="form-group">
 					<label class="control-label">Unit of Measure</label>
-					<select class="form-control" name="unit_type">
+					<select class="form-control" name="unit_type" required>
 						<option value="">Select Unit of Measure...</option>
 						@foreach (getReportingUnits() as $g)
 							<option value="{{ $g['name'] }}">{{ $g['name'] }}</option>
@@ -242,7 +255,7 @@
 				</div>
 				<div class="form-group">
 					<label class="control-label">Issuing Unit of Measure</label>
-					<select class="form-control" name="secondary_unit_type">
+					<select class="form-control" name="secondary_unit_type" required>
 						<option value="">Select Unit of Measure...</option>
 						@foreach (getReportingUnits() as $g)
 							<option value="{{ $g['name'] }}">{{ $g['name'] }}</option>
@@ -251,11 +264,11 @@
 				</div>
 				<div class="form-group">
 					<label class="control-label">Cash Price</label>
-					<input type="number" min="0" class="form-control" name="unit_price" value="" placeholder="Cash Price..."/>
+					<input type="number" min="0" class="form-control" name="unit_price" value="" placeholder="Cash Price..." required />
 				</div>
 				<div class="form-group">
 					<label class="control-label">Credit Price</label>
-					<input type="number" min="0" class="form-control" name="unit_price_credit" value="" placeholder="Credit Price..."/>
+					<input type="number" min="0" class="form-control" name="unit_price_credit" value="" placeholder="Credit Price..." required />
 				</div>
 				<div class="form-group">
 					<label class="control-label">Annual Consumption</label>
@@ -271,11 +284,11 @@
 				</div>
 				<div class="form-group">
 					<label class="control-label">Internal Lead Time</label>
-					<input type="number" class="form-control" name="internal_lead_time" placeholder="Internal Lead Time..." required />
+					<input type="number" class="form-control" value="{{ getConfigByName('default_internal_lead_time')[0]['value'] }}" name="internal_lead_time" placeholder="Internal Lead Time..." required />
 				</div>
 				<div class="form-group">
 					<label class="control-label">External Lead Time</label>
-					<input type="number" class="form-control" name="external_lead_time" placeholder="External Lead Time..." required />
+					<input type="number" class="form-control" value="{{ getConfigByName('default_external_lead_time')[0]['value'] }}" name="external_lead_time" placeholder="External Lead Time..." required />
 				</div>
 				<div class="form-group">
 					<label class="control-label">Material Type</label>
@@ -331,6 +344,58 @@
 		</form>
 	</div>
 </div>
+<div id="toggle-default-location-modal" class="modal fade" role="dialog">
+	<div class="modal-dialog">
+		<!-- Modal content-->
+		<form class="modal-content" method="POST" action="{{ route('set-default-store', ['id'=>$category->id]) }}" enctype="multipart/form-data">
+			@csrf
+			<div class="modal-header">
+				<h4 class="modal-title"><i class="mdi mdi-pencil"></i> Set Default Location</h4>
+			</div>
+			<div class="modal-body">
+				<div class="form-group">
+					<label class="control-label">Select Store</label>
+					<select name="store_id" class="form-control select-store" placeholder="Select Store..." required>
+						<option value="">Select Store...</option>
+						@foreach (getUserStores(false, true) as $store)
+							<option value="{{ $store->id }}" {{ $store->id  == $category->default_store_id ? 'selected' : '' }} data-slots="{{ json_encode($store->slots) }}">{{ $store->name }}</option>
+						@endforeach
+					</select>
+				</div>
+				<div class="form-group">
+					<label class="control-label">Select Slot</label>
+					<select name="slot_id" data-seleted="{{ $category->default_slot_id }}" class="form-control select-slot" placeholder="Select Slot..." required></select>
+				</div>
+			</div>
+			<div class="modal-footer">
+				<button type="submit" class="btn btn-primary"><i class="mdi mdi-content-save"></i> Save</button>
+				<button type="button" class="btn btn-default" data-dismiss="modal">Close</button>
+			</div>
+		</form>
+	</div>
+</div>
+@if($userCanDelete)
+<div id="delete-this-sub-modal" class="modal fade" role="dialog">
+	<div class="modal-dialog">
+		<!-- Modal content-->
+		<form class="modal-content" method="POST" enctype="multipart/form-data">
+			@csrf
+			<div class="modal-header">
+				<h4 class="modal-title"><i class="mdi mdi-delete"></i> Delete Item</h4>
+			</div>
+			<div class="modal-body">
+				<div class="alert alert-danger">
+					<i class="mdi mdi-delete"></i> Proceed with removing this Item?
+				</div>
+			</div>
+			<div class="modal-footer">
+				<button type="submit" class="btn btn-danger"><i class="mdi mdi-trash"></i> Yes, Delete</button>
+				<button type="button" class="btn btn-default" data-dismiss="modal">Close</button>
+			</div>
+		</form>
+	</div>
+</div>
+@endif
 <script type="text/javascript">
 	$(function(){
 		$('#create-an-order').on('show.bs.modal', function(e) {
@@ -338,6 +403,34 @@
 
 			$('#create-an-order').find('[name="items[sub_category_id][]"]').val(subCat);
 		});
+
+		$('#delete-this-sub-modal').on('show.bs.modal', function(e){
+			var $form = $(this).find('form');
+			var id = $(e.relatedTarget).data('id');
+
+			$form.prop('action', '/inventory-sub-category/'+id+'/delete');
+			$form.attr('action', '/inventory-sub-category/'+id+'/delete');
+		});
+
+		$('.select-store').on('change', function(){
+			var selected = $(this).children('option:selected');
+			var slots = selected.data('slots');
+
+			var slotDiv = $('select[name="slot_id"]');
+			slotDiv.attr('placeholder', 'Select Slot...')
+			slotDiv.html(`<option>Select Slot...</option>`);
+			var selectedSlot = slotDiv.data('selected')
+			$.each(slots, function(i, s){
+				var newOption = new Option(s.name, s.id, false, false);
+				slotDiv.append(newOption).trigger('change');
+			});
+
+			console.log(selectedSlot);
+
+			slotDiv.val(selectedSlot).trigger('change');
+		});
+
+		$('select[name="store_id"]').trigger('change');
 
 		$('.set-sub-suppliers').on('click', function(){
 			var $suppliers = $(this).data('suppliers');

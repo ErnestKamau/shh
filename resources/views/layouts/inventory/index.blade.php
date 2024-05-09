@@ -20,6 +20,7 @@
   <main>
     <h2 class="p-4">
       <i class="mdi mdi-desktop-mac-dashboard"></i> Dashboard
+			<small class="badge badge-pill bg-white my-small-text"><i class="mdi mdi-hammer-wrench"></i> In Development</small>
     </h2>
     <br>
     <div class="row p-4 no-gutters">

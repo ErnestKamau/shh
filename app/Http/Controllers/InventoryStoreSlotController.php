@@ -26,7 +26,7 @@ class InventoryStoreSlotController extends Controller
 			->leftJoin('item_states as ist', 'ist.id', '=', 'inventory_items.storage_state_id')
 			->leftJoin('reporting_units as ru', 'ru.id', '=', 'ist.uom')
 			->join('inventory_store_slots as ss', 'ss.id', '=', 'inventory_items.inventory_store_slot_id')
-			->selectRaw('ist.id as storage_state_id, ist.name as storage_state, ru.name as state_unit_type, ic.name as category_name, isc.name, isc.unit_type as item_unit_type, isc.code, s.name as store, ss.name as slot, SUM(inventory_items.stock_in) as stock_in, SUM(inventory_items.stock_out) as stock_out, inventory_items.inventory_store_id as store_id, inventory_items.inventory_store_slot_id as slot_id, inventory_items.inventory_sub_category_id as item_id')
+			->selectRaw('ist.id as storage_state_id, ist.name as storage_state, ru.name as state_unit_type, ic.name as category_name, isc.name, isc.unit_type as item_unit_type, isc.code, s.name as store, ss.name as slot, SUM(inventory_items.stock_in) as stock_in, SUM(inventory_items.stock_out) as stock_out, inventory_items.inventory_store_id as store_id, inventory_items.inventory_store_slot_id as slot_id, inventory_items.inventory_sub_category_id as item_id')->where('isc.active', 1)
 			->groupBy('ist.id', 'ist.name', 'ru.name', 'ic.name', 'isc.name', 'isc.unit_type', 'isc.code', 's.name', 'ss.name', 'inventory_items.inventory_store_id', 'inventory_items.inventory_store_slot_id', 'inventory_items.inventory_sub_category_id')
 			->orderBy('s.name', 'asc')->orderBy('ss.name', 'asc')->orderBy('isc.name', 'asc')->get();
 

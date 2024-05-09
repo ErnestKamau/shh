@@ -122,9 +122,11 @@
 							<hr>
 							<h6>
 								<i class="mdi mdi-warehouse mt-2"></i> {{ $items[0]->store }}
+								@if(isset($taking->status) && !in_array($taking->status, array("Rejected", "Completed")))
 								<small class="btn btn-transparent btn-sm text-primary float-right pull-right add-row-item" data-store="{{ $items[0]->store_id }}">
 									<i class="mdi mdi-plus"></i> Add Row
 								</small>
+								@endif
 							</h6>
 							<div class="table-responsive mb-2">
 								<div class="table-responsive">

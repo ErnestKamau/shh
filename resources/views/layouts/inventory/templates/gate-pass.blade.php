@@ -7,12 +7,24 @@
 	$normalItems = empty($allItems) ? array() : ($allItems['normal'] ?? array());
 
 ?>
+<style type="text/css">
+	@media print{
+		button{
+				display:none;
+		}
+	}
+</style>
+@if(!$isHTML)
+<div style="padding: 10px 15px">
+	<button style="padding: 5px 10px; font-size: 13px" onclick="window.print()">Print</button>
+</div>
+@endif
 <table style="border-collapse: collapse; width: 100%; height: 231px; margin-bottom: 10px;" border="0">
 	<tbody>
 	<tr style="height: 21px;">
-	<td style="width: 66.3334%; height: 21px;"><img src="https://www.logolynx.com/images/logolynx/03/037a165cfa584a7e0d01df3c2f850ddf.png" alt="" width="100" height="auto" /></td>
+	<td style="width: 66.3334%; height: 21px;"><img src="{{ url('/storage/companies/9RUZQlhlqNlYp1icQFROCRLgLTtvqRrTtcXyms2g.png') }}" alt="" width="100" height="auto" /></td>
 	<td style="width: 33.6666%; height: 21px; text-align: right;">
-	<p>P.O. Box 2777 - 0056<br />Nairobi - Kenya<br />Tel: 254-060-02030270/81<br />Fax: 254-060-02030279</p>
+	<p>{!! getConfigByName('site_po_box')->count() > 0 ? getConfigByName('site_po_box')[0]->value : 'P.O. BOX 27774 - 0056 Nairobi' !!}</p>
 	</td>
 	</tr>
 	<tr style="height: 35px;">
@@ -62,7 +74,7 @@
 		<tbody>
 			@foreach ($normalItems as $item)
 				<tr style="height: 21px;">
-				<td style="width: 21.6667%; height: 21px; text-align:center">{{ number_format($item->quantity ?? 0) }}</td>
+				<td style="width: 21.6667%; height: 21px; text-align:center">{{ number_format($item->quantity ?? 0, 3) }}{{ $item->unit_type }}</td>
 				<td style="width: 68.3333%; height: 21px; padding-left: 12px;">{{ $item->item_name ?? "" }}</td>
 				</tr>
 			@endforeach
@@ -76,13 +88,13 @@
 		</td>
 		</tr>
 		<?php
-			$approvers = \App\User::join('entity_approvals as ea', 'ea.user_id', 'users.id')
+			$approvers = \App\User::join('entity_approvals as ea', 'ea.user_id', 'users.id')->where('ea.status', 'Approved')
 			->where('model', $entity->request_type)->where('model_id', $entity->id)->get()->toArray();
 		?>
 		<tr>
 		<td style="width: 60%;">
 		<p></p>
-		@if(count($approvers) > 1)
+		@if(count($approvers) >= 1)
 		<p style="padding: 5px">Stores Manager: {!! isset($approvers[0]) ? '<span style="border-bottom: 1px solid #000; padding: 5px 10px; width: 100%">'.$approvers[0]['name'].'</span>'
 			: '_______________________' !!}</p>
 		@endif
@@ -90,9 +102,9 @@
 		</td>
 		<td style="width: 40%;">
 		<p></p>
-		@if(count($approvers) > 1)
+		@if(count($approvers) >= 1)
 		<p style="padding: 5px">Signature: <span style="border-bottom: 1px solid #000; padding: 5px 10px; width: 100%">{!! trim($approvers[0]['electronic_sig']) != "" ?
-			' <img src="'.$approvers[0]['electronic_sig'].'" style="height: 25px" />' : '_________________' !!}</span></p>
+			' <img src="'.$approvers[0]['electronic_sig'].'" style="height: 25px" />' : '' !!}</span></p>
 		@endif
 
 		</td>
@@ -105,25 +117,25 @@
 		<tr>
 		<td style="width: 60%;">
 		<p></p>
-		@if(count($approvers) > 2)
-		<p style="padding: 5px">Stores Manager: {!! isset($approvers[1]) ? '<span style="border-bottom: 1px solid #000; padding: 5px 10px; width: 100%">'.$approvers[0]['name'].'</span>'
+		@if(count($approvers) >= 2)
+		<p style="padding: 5px">Stores Manager: {!! isset($approvers[1]) ? '<span style="border-bottom: 1px solid #000; padding: 5px 10px; width: 100%">'.$approvers[1]['name'].'</span>'
 			: '_______________________' !!}</p>
 		@endif
 
 		</td>
 		<td style="width: 40%;">
 		<p></p>
-		@if(count($approvers) > 2)
+		@if(count($approvers) >= 2)
 		<p style="padding: 5px">Signature: <span style="border-bottom: 1px solid #000; padding: 5px 10px; width: 100%">{!! trim($approvers[1]['electronic_sig']) != "" ?
 			' <img src="'.$approvers[1]['electronic_sig'].'" style="height: 25px" />' : '_________________' !!}</span></p>
 		@endif
-
 		</td>
 		</tr>
 		</tbody>
 		</table>
-		<script>
-			window.onload = function(){
-				window.print();
-			}
-		</script>
+		<div style="text-align:center; padding: 15px; font-size: 12px">
+			Nature of Purchase : {{ $entity->nature_of_purchase }}
+			@if($entity->nature_of_purchase == "Capex")
+				- <small>{{ $entity->capex_project_number }}</small>
+			@endif
+		</div>

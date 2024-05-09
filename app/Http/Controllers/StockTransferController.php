@@ -32,6 +32,7 @@ class StockTransferController extends Controller
 	}
 
 	public function transfer_items($request, $id){
+		// return '<pre>'.json_encode($request->all(), JSON_PRETTY_PRINT).'</pre>';
 		$items = $request->items;
 		$transfer = StockTransfer::find($id);
 		$companyDetails = getCompanyDetails();
@@ -44,8 +45,8 @@ class StockTransferController extends Controller
 
 			$item = StockTransferItem::find($tid) ?? new StockTransferItem;
 
-			$localSubCat = \App\InventorySubCategories::find($items['local_item_id'][$i]);
-			$targetSubCat = \App\InventorySubCategories::find($items['target_item_id'][$i]);
+			$localSubCat = \App\InventorySubCategories::find($items['source_sub_category_id'][$i]);
+			$targetSubCat = \App\InventorySubCategories::find($items['target_sub_category_id'][$i]);
 
 			$batchCode = getNamingConventionCode("Internal-Transfer", false, 'INTERNAL-TRANSFER-');
 
@@ -53,72 +54,72 @@ class StockTransferController extends Controller
 			$req->batchcode = $batchCode;
 			$req->category_id = $localSubCat->inventory_category_id;
 			$req->sub_category_id = $localSubCat->id;
-			$req->quantity = $items['target_quantity'][$i];
-			$req->slot = $items['local_slot_id'][$i];
-			$req->store = $items['local_store_id'][$i];
+			$req->quantity = $items['transfer_quantity'][$i];
+			$req->slot = $items['source_slot_id'][$i];
+			$req->store = $items['source_store_id'][$i];
 			$req->transfer_to = systemVariables("inter_store_department_id");
 			$req->issued_to = \Auth::user()->id;
-			$req->storage_state_id = $items['local_state_id'][$i];
+			$req->storage_state_id = 0;
 
 			$itemsTransferredArray['out'][] = array(
 				"item"=>$localSubCat->code." - ".$localSubCat->name,
 				"item_id"=>$localSubCat->id,
 				"category_id"=>$localSubCat->inventory_category_id,
-				"quantity"=>$items['target_quantity'][$i],
-				"slot" => $items['local_slot_id'][$i],
-				"store" => $items['local_store_id'][$i]
+				"quantity"=>$items['transfer_quantity'][$i],
+				"slot" => $items['source_slot_id'][$i],
+				"store" => $items['source_store_id'][$i]
 			);
 
-			$contactEmailStores[] = $items['local_store_id'][$i];
+			$contactEmailStores[] = $items['source_store_id'][$i];
 
 			$issueOut = $inventoryC->transfer($req, true);
 
 			$item->local_inventory_item_id = $issueOut->id;
 
-			$transferrableQuantity = $items['target_quantity'][$i];
+			$transferrableQuantity = $items['transfer_quantity'][$i];
 
-			if($items['target_state_id'][$i] != $items['local_state_id'][$i]){
-				$conversion = \App\UnitOfMeasureConversion::where('unit_of_measure_conversions.material_type_id', $targetSubCat->material_type_id)
-					->join('item_states as s1', function($join){
-						$join->on('s1.material_type_id', 'unit_of_measure_conversions.material_type_id');
-						$join->on('s1.uom', 'unit_of_measure_conversions.uom1');
-					})
-					->join('item_states as s2', function($join){
-						$join->on('s2.material_type_id', 'unit_of_measure_conversions.material_type_id');
-						$join->on('s2.uom', 'unit_of_measure_conversions.uom2');
-					})
-					->selectRaw('unit_of_measure_conversions.conversion')
-					->where('s1.id', $items['local_state_id'][$i])
-					->where('s2.id', $items['target_state_id'][$i])->first();
+			// if($items['target_state_id'][$i] != $items['source_state_id'][$i]){
+			// 	$conversion = \App\UnitOfMeasureConversion::where('unit_of_measure_conversions.material_type_id', $targetSubCat->material_type_id)
+			// 		->join('item_states as s1', function($join){
+			// 			$join->on('s1.material_type_id', 'unit_of_measure_conversions.material_type_id');
+			// 			$join->on('s1.uom', 'unit_of_measure_conversions.uom1');
+			// 		})
+			// 		->join('item_states as s2', function($join){
+			// 			$join->on('s2.material_type_id', 'unit_of_measure_conversions.material_type_id');
+			// 			$join->on('s2.uom', 'unit_of_measure_conversions.uom2');
+			// 		})
+			// 		->selectRaw('unit_of_measure_conversions.conversion')
+			// 		->where('s1.id', $items['source_state_id'][$i])
+			// 		->where('s2.id', $items['target_state_id'][$i])->first();
 
-				if(isset($conversion->conversion)){
-					$transferrableQuantity = floatval($transferrableQuantity)*floatval($conversion->conversion);
-				}
-				else{
-					$conversion = \App\UnitOfMeasureConversion::where('unit_of_measure_conversions.material_type_id', $targetSubCat->material_type_id)
-					->join('item_states as s1', function($join){
-						$join->on('s1.material_type_id', 'unit_of_measure_conversions.material_type_id');
-						$join->on('s1.id', 'unit_of_measure_conversions.uom2');
-					})
-					->join('item_states as s2', function($join){
-						$join->on('s2.material_type_id', 'unit_of_measure_conversions.material_type_id');
-						$join->on('s2.id', 'unit_of_measure_conversions.uom1');
-					})
-					->selectRaw('unit_of_measure_conversions.conversion')
-					->where('s1.id', $items['local_state_id'][$i])
-					->where('s2.id', $items['target_state_id'][$i])->first();
+			// 	if(isset($conversion->conversion)){
+			// 		$transferrableQuantity = floatval($transferrableQuantity)*floatval($conversion->conversion);
+			// 	}
+			// 	else{
+			// 		$conversion = \App\UnitOfMeasureConversion::where('unit_of_measure_conversions.material_type_id', $targetSubCat->material_type_id)
+			// 		->join('item_states as s1', function($join){
+			// 			$join->on('s1.material_type_id', 'unit_of_measure_conversions.material_type_id');
+			// 			$join->on('s1.id', 'unit_of_measure_conversions.uom2');
+			// 		})
+			// 		->join('item_states as s2', function($join){
+			// 			$join->on('s2.material_type_id', 'unit_of_measure_conversions.material_type_id');
+			// 			$join->on('s2.id', 'unit_of_measure_conversions.uom1');
+			// 		})
+			// 		->selectRaw('unit_of_measure_conversions.conversion')
+			// 		->where('s1.id', $items['source_state_id'][$i])
+			// 		->where('s2.id', $items['target_state_id'][$i])->first();
 
-					if(isset($conversion->conversion)){
-						$transferrableQuantity = floatval($transferrableQuantity)*floatval($conversion->conversion);
-					}
-				}
-			}
+			// 		if(isset($conversion->conversion)){
+			// 			$transferrableQuantity = floatval($transferrableQuantity)*floatval($conversion->conversion);
+			// 		}
+			// 	}
+			// }
 
 			$myRequest = new Request;
 			$myRequest->category_id = $targetSubCat->inventory_category_id;
 			$myRequest->sub_category_id = $targetSubCat->id;
 			$myRequest->supplier_id = systemVariables("internal_supplier_id");
-			$myRequest->price = floatval($targetSubCat->unit_price)*floatval($items['target_quantity'][$i]);
+			$myRequest->price = floatval($targetSubCat->unit_price)*floatval($items['transfer_quantity'][$i]);
 			$myRequest->po_number = $batchCode;
 			$myRequest->quantity = $transferrableQuantity;
 			$myRequest->slot = $items['target_slot_id'][$i];
@@ -126,7 +127,7 @@ class StockTransferController extends Controller
 			$myRequest->expiry = $items['expiry'][$i];
 			$myRequest->inventory_department_id = $transfer->department_id;
 			$myRequest->override_location_id = $transfer->location_id;
-			$myRequest->storage_state_id = $items['target_state_id'][$i];
+			$myRequest->storage_state_id = $items['target_state_id'][$i] ?? 0;
 
 			$itemsTransferredArray['in'][] = array(
 				"item"=>$targetSubCat->code." - ".$targetSubCat->name,
@@ -194,7 +195,6 @@ class StockTransferController extends Controller
 		$transfer->save();
 
 		return redirect()->back()->with('success', 'Stock Transfer Completed.');
-
 	}
 
 	public function save_items($request, $id){
@@ -203,16 +203,20 @@ class StockTransferController extends Controller
 		foreach($items['transfer_item_id'] as $i=>$tid){
 			$item = StockTransferItem::find($tid) ?? new StockTransferItem;
 			$item->stock_transfer_id = $id;
-			$item->local_item_id = $items['local_item_id'][$i];
-			$item->local_store_id = $items['local_store_id'][$i];
-			$item->local_store_slot_id = $items['local_slot_id'][$i];
-			$item->target_item_id = $items['target_item_id'][$i];
+			$item->local_item_id = $items['source_sub_category_id'][$i];
+			$item->local_inventory_item_name = $items['source_sub_category_name'][$i];
+			$item->local_store_id = $items['source_store_id'][$i];
+			$item->local_store_slot_id = $items['source_slot_id'][$i];
+			$item->target_item_id = $items['target_sub_category_id'][$i];
+			$item->target_inventory_item_name = $items['source_sub_category_name'][$i];
 			$item->target_store_id = $items['target_store_id'][$i];
 			$item->target_store_slot_id = $items['target_slot_id'][$i];
-			$item->target_quantity = $items['target_quantity'][$i];
-			$item->local_state_id = $items['local_state_id'][$i];
-			$item->target_state_id = $items['target_state_id'][$i];
-			$item->expiry = $items['expiry'][$i];
+			$item->target_quantity = $items['transfer_quantity'][$i];
+			$item->local_uom = $items['source_uom'][$i] ?? null;
+			$item->target_uom = $items['transfer_uom'][$i] ?? null;
+			$item->local_lot_no = $items['source_lot_number'][$i];
+			$item->target_lot_no = $items['target_lot_number'][$i];
+			$item->expiry = $items['expiry'][$i] ?? '2099-12-31';
 
 			$item->save();
 		}
@@ -240,8 +244,8 @@ class StockTransferController extends Controller
 	public function update(Request $request, $id)
 	{
 		$transfer = StockTransfer::find($id) ?? new StockTransfer;
-		$transfer->location_id = $request->location_id;
-		$transfer->department_id = $request->department_id;
+		$transfer->location_id = $request->location_id ?? \Auth::user()->location_id;
+		$transfer->department_id = $request->department_id ?? \Auth::user()->department_id;
 		$transfer->description = $request->description;
 
 		if(!isset($transfer->created_at)){

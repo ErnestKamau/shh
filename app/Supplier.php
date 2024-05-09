@@ -19,7 +19,7 @@ class Supplier extends Model implements Auditable
 		return SupplierCategory::join('inventory_sub_categories as isc', 'isc.id', 'supplier_categories.inventory_sub_category_id')
 		->leftJoin('item_brands as ib', 'ib.id','supplier_categories.inventory_item_brand_id')
 		->where('supplier_categories.supplier_id', $this->id)->where('supplier_categories.status', 1)
-		->selectRaw('isc.id')->pluck('id')->toArray();
+		->selectRaw('isc.id')->groupBy('isc.id')->pluck('id')->toArray();
 	}
 
 	public function contracts(){
@@ -44,6 +44,10 @@ class Supplier extends Model implements Auditable
 	  return $this->hasMany('App\InventoryItem');
 	}
 
+	public function contacts(){
+	  return $this->hasMany('App\SupplierContact', 'supplier_id');
+	}
+
 	public function purchase_orders(){
 		return $this->hasMany('App\RequestEntity')->where('request_type', 'Purchase Orders')->orderBy('created_at', 'desc');
 	}
@@ -57,6 +61,13 @@ class Supplier extends Model implements Auditable
 	}
 
 	public function average_rating(){
-		return InventorySupplierRating::where('supplier_id', $this->id)->avg('rating') ?? 0;
+		$rating = \App\RatingCriteria::leftJoin('suppliers_rating_criterias as src', function($join){
+			$join->on('src.criteria_id', '=', 'rating_criterias.id');
+			$join->where('src.supplier_id', '=', $this->id);
+		})->selectRaw('SUM(src.score) as score, SUM(rating_criterias.max_score) as max_score')
+		->where('src.is_current', 1)->where('rating_criterias.active', 1)->first();
+
+
+		return $rating->max_score == 0 ? 0 : number_format(floatval($rating->score)/floatval($rating->max_score)*100, 0);
 	}
 }

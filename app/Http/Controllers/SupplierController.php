@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Supplier;
 use App\User;
+use App\SupplierRFQ;
 use Illuminate\Http\File;
 use App\InventoryCategories;
 use Illuminate\Http\Request;
@@ -23,7 +24,6 @@ class SupplierController extends Controller
 	public function index()
 	{
 		// return json_encode(getInventoryItems(), JSON_PRETTY_PRINT);
-
 		$suppliers = Supplier::orderBy('name', 'asc')->where('inventory_location_id', getCurrentUserLocation()->id)->get();
 		return view('layouts.inventory.suppliers.index', compact('suppliers'));
 	}
@@ -53,6 +53,7 @@ class SupplierController extends Controller
     $supplier->vat_number = $request->vat_number;
     $supplier->payment_terms = $request->payment_terms;
     $supplier->payment_method = $request->payment_method;
+    $supplier->default_currency = $request->default_currency;
 
     $supplier->company_id = getUserCompany();
     $supplier->save();
@@ -107,6 +108,7 @@ class SupplierController extends Controller
     $supplier->vat_number = $request->vat_number;
     $supplier->payment_terms = $request->payment_terms;
     $supplier->payment_method = $request->payment_method;
+    $supplier->default_currency = $request->default_currency;
 
     $supplier->company_id = getUserCompany();
 		$supplier->save();
@@ -124,7 +126,25 @@ class SupplierController extends Controller
 		$cats = InventoryCategories::orderBy('name', 'asc')->where('inventory_location_id', getCurrentUserLocation()->id)
 			->where('category_type', '!=', $exclude_lab_storage)->get();
 
-		return view('layouts.inventory.suppliers.show', compact('supplier', 'cats', 'stores'));
+		$all_categories = InventoryCategories::orderBy('name', 'asc')->selectRaw('id,name')->get();
+
+
+		$supplier_categories = \App\SupplierByCategory::join('inventory_categories as ic', 'ic.id', 'supplier_by_categories.category_id')
+			->leftJoin('inventory_sub_categories as isc', 'isc.inventory_category_id', 'ic.id')
+			->selectRaw('supplier_by_categories.id as row_id, ic.name, count(isc.id) as items')->where('supplier_id', $id)
+			->groupBy('name')->orderBy('name', 'asc')->get();
+
+		// return json_encode($all_categories, JSON_PRETTY_PRINT);
+
+		$criteria = \App\SuppliersRatingCriteria::where('supplier_id', $id)->where('is_current', 1)->get();
+
+		$ratingScores = [];
+
+		foreach($criteria as $c){
+			$ratingScores[$c->criteria_id] = $c->score;
+		}
+
+		return view('layouts.inventory.suppliers.show', compact('ratingScores', 'supplier', 'cats', 'stores', 'all_categories', 'supplier_categories'));
 	}
 
 	public function remove_supplier_from_inventory($id, $itemID){
@@ -153,5 +173,27 @@ class SupplierController extends Controller
 			"results"=>$items['data'],
 			"pagination"=>["more"=>$items['prev_page_url'] != null]
 		], 200);
+	}
+
+  public function fetch_supplier_items(Request $request, $sID){
+    return Supplier::find($sID)->itemIDs();
+  }
+
+	public function delete_supplier($id){
+		$supplier = Supplier::find($id);
+
+		if(!isset($supplier->id)){
+			return redirect()->back()->with('error', 'No supplier was found.');
+		}
+
+		$rfqs = SupplierRFQ::where('supplier_id', $id)->get();
+
+		if($rfqs->count() > 0){
+			return redirect()->back()->with('error', 'This supplier is already assigned to some RFQs.');
+		}
+
+		// return json_encode($supplier);
+		$supplier->delete();
+		return redirect()->back()->with('success', 'The Supplier has been deleted.');
 	}
 }

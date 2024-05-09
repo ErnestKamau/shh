@@ -22,7 +22,7 @@ class ApprovalsTableSeeder extends Seeder
                 'id' => '1',
                 'title' => 'Line Manager Approval',
                 'for' => 'Requisition',
-                'stage' => 'Material Requisition',
+                'stage' => 'Purchase Request',
                 'role_id' => '2',
                 'level' => '1',
                 'created_at' => '2020-07-04 15:11:58.233',

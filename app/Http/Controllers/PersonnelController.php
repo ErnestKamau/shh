@@ -329,4 +329,14 @@ class PersonnelController extends Controller
 		return view('layouts.personnel.users.user_profile', compact('user','license_count','stages'));
 	}
 
+	public function get_personnel_via_ajax($id=false){
+		if($id==false){
+			$id = getUserCompany();
+		}
+
+		$personnel = User::selectRaw('id, name as text')->where('company_id', $id)->get();
+
+		return json_encode($personnel);
+	}
+
 }

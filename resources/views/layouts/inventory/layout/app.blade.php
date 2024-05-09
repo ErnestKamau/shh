@@ -129,12 +129,6 @@
 					</span>
 				</div>
 			</a>
-			<a href="{{ route('general-requisition-list') }}" class="bg-dark list-group-item list-group-item-action">
-				<div class="d-flex w-100 justify-content-start align-items-center">
-					<span class="mdi mdi-file fa-fw mr-3"></span>
-					<span class="menu-collapsed">General Requisitions</span>
-				</div>
-			</a>
 			<a href="#request-to-order" data-toggle="collapse" aria-expanded="false" class="bg-dark list-group-item list-group-item-action flex-column align-items-start">
 				<div class="d-flex w-100 justify-content-start align-items-center">
 					<span class="mdi mdi-file-tree mr-3"></span>
@@ -170,6 +164,27 @@
 					</a>
 				@endforeach
 			</div>
+			@if(isETCU())
+				<a href="#loan-lend" data-toggle="collapse" aria-expanded="false" class="bg-dark list-group-item list-group-item-action flex-column align-items-start">
+					<div class="d-flex w-100 justify-content-start align-items-center">
+						<span class="mdi mdi-file-tree mr-3"></span>
+						<span class="menu-collapsed">Loan/Lend</span>
+						<span class="submenu-icon ml-auto"></span>
+					</div>
+				</a>
+				<div id="loan-lend" class="collapse sidebar-submenu">
+					<a href="{{ route('go_to_stage', ['stage'=>'Lend']) }}" class="list-group-item list-group-item-action bg-dark text-white">
+						<span class="menu-collapsed"><i class="mdi mdi-circle-medium"></i>Lend
+							<small class="float-right badge badge-pill">{{ $menuTotals['Lend'] ?? 0 }}</small>
+						</span>
+					</a>
+					<a href="{{ route('go_to_stage', ['stage'=>'Loan']) }}" class="list-group-item list-group-item-action bg-dark text-white">
+						<span class="menu-collapsed"><i class="mdi mdi-circle-medium"></i>Loan
+							<small class="float-right badge badge-pill">{{ $menuTotals['Loan'] ?? 0 }}</small>
+						</span>
+					</a>
+				</div>
+			@endif
 			{{-- <a href="{{route('user-detail-supplier')}}" class="bg-dark list-group-item list-group-item-action">
 				<div class="d-flex w-100 justify-content-start align-items-center">
 					<span class="mdi mdi-chat-processing fa-fw mr-3"></span>
@@ -222,6 +237,12 @@
 				<div class="d-flex w-100 justify-content-start align-items-center">
 					<span class="mdi mdi-file-chart fa-fw mr-3"></span>
 					<span class="menu-collapsed">Reports</span>
+				</div>
+			</a>
+			<a href="{{ route('inventory-reporting-units', ['module'=>'inventory']) }}" class="bg-dark list-group-item list-group-item-action">
+				<div class="d-flex w-100 justify-content-start align-items-center">
+					<span class="mdi mdi-file-document-edit fa-fw mr-3"></span>
+					<span class="menu-collapsed">Unit of Measure</span>
 				</div>
 			</a>
 			<a href="#sample-workflow-menu" data-toggle="collapse" aria-expanded="false" class="bg-dark list-group-item list-group-item-action flex-column align-items-start">
@@ -298,6 +319,7 @@
 				window.location.href = loc;
 			@endif
 		});
+
 	</script>
 	@yield('script2')
 @endsection

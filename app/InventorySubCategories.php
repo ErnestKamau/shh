@@ -19,6 +19,37 @@ class InventorySubCategories extends Model implements Auditable
     );
 	}
 
+	public function availableByStoreSlot($req_id){
+		$req = \App\RequestEntity::find($req_id);
+
+		$myCCs = explode(',', $req->cost_center ?? '');
+		$zStore = \App\StoreToCostCenter::whereIn('cost_center', $myCCs)->first();
+		if(isset($zStore->store_id)){
+			$zStoreSlot = \App\InventoryStoreSlot::where('inventory_store_id', $zStore->store_id)->first();
+		}
+
+		$defaultStore['store'] = isset($zStore->store_id) ? $zStore->store_id : 0;
+		$defaultStore['slot'] = isset($zStoreSlot) && isset($zStoreSlot->id) ? $zStoreSlot->id : 0;
+
+
+		$stock = \App\InventoryItem::join('inventory_stores as ins', 'inventory_items.inventory_store_id', 'ins.id')
+			->join('inventory_store_slots as iss', 'iss.id', 'inventory_items.inventory_store_slot_id')
+			->selectRaw('SUM(stock_in) as stockin, SUM(stock_out) as stockout')
+			->where('inventory_sub_category_id', $this->id);
+
+		if($defaultStore['store'] > 0){
+			$stock = $stock->where('inventory_items.inventory_store_id', $defaultStore['store']);
+		}
+
+		if($defaultStore['slot'] > 0){
+			$stock = $stock->where('inventory_items.inventory_store_slot_id', $defaultStore['slot']);
+		}
+
+		$stock = $stock->first();
+
+		return floatval($stock->stockin) - floatval($stock->stockout);
+	}
+
 	public function suppliers(){
 		return \App\SupplierCategory::where('inventory_sub_category_id', $this->id)
 			->join('suppliers as s', 's.id', '=', 'supplier_categories.supplier_id')
@@ -92,7 +123,7 @@ class InventorySubCategories extends Model implements Auditable
 	}
 
 	public function daily_demand(){
-		return $this->annual_consumption/($this->working_days ?? 365);
+		return ($this->working_days== 0 || $this->annual_consumption == 0) ? 0 : $this->annual_consumption/($this->working_days ?? 365);
 	}
 
 	public function total_lead_time(){

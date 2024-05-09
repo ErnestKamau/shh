@@ -30,6 +30,7 @@
         <thead class="bg-light p-2">
           <tr>
             <th>No</th>
+            <th></th>
             <th>Logo</th>
             <th>Name</th>
             <th>Rating <small class="text-muted">(avg.)</small></th>
@@ -40,7 +41,6 @@
             <th>Town</th>
             <th>Postal Address</th>
             <th>PIN Number</th>
-            <th></th>
           </tr>
         </thead>
         <tbody>
@@ -48,8 +48,14 @@
             @foreach($suppliers as $supplier)
               <tr>
                 <td valign="center">{{ $loop->iteration }}</td>
+								<td nowrap>
+                  <a class="btn btn-transparent text-success btn-sm" href="{{ route('show-inventory-supplier', ['id'=>$supplier->id]) }}"><i class="mdi mdi-eye-outline"></i> <small class="hidden-sm-up">Show</small> </a>
+                  <span data-supplier="{{ $supplier }}" data-target="#delete-this-supplier" data-toggle="modal" class="btn btn-transparent text-danger btn-sm">
+										<i class="mdi mdi-delete"></i> <small class="hidden-sm-up">Show</small>
+									</span>
+                </td>
                 <td><img src="{{ $supplier->logo }}" style="width: 75px" /></td>
-                <td>{{ $supplier->name }}</td>
+                <td><a href="{{ route('show-inventory-supplier', ['id'=>$supplier->id]) }}">{{ $supplier->name }}</a></td>
                 <td>{{ $supplier->average_rating() }}<i class="mdi mdi-star text-success"></i></td>
 								<td>{{ $supplier->email }}</td>
 								<td>{{ $supplier->phone }}</td>
@@ -58,9 +64,6 @@
 								<td>{{ $supplier->town }}</td>
 								<td>{{ $supplier->address }}</td>
 								<td>{{ $supplier->pin_number }}</td>
-								<td nowrap>
-                  <a class="btn btn-success btn-sm" href="{{ route('show-inventory-supplier', ['id'=>$supplier->id]) }}"><i class="mdi mdi-eye-outline"></i> <small class="hidden-sm-up">Show</small> </a>
-                </td>
               </tr>
             @endforeach
           @endif
@@ -76,6 +79,38 @@
 @endsection
 
 @section('script2')
+	<script>
+		$(function(){
+			$('#delete-this-supplier').on('show.bs.modal', function(e){
+				var supplier = $(e.relatedTarget).data('supplier');
+
+				var action = '/inventory-supplier/'+supplier.id+'/delete';
+
+				$(this).find('form').attr('action', action);
+				$(this).find('form').prop('action', action);
+
+				$(this).find('.supplier-name').text(supplier.name);
+			});
+		});
+	</script>
+  <div id="delete-this-supplier" class="modal fade" role="dialog">
+    <div class="modal-dialog">
+      <!-- Modal content-->
+      <form class="modal-content" method="POST" enctype="multipart/form-data">
+        @csrf
+        <div class="modal-header">
+          <h4 class="modal-title"><i class="mdi mdi-delete"></i> Delete Supplier - <span class="supplier-name"></span></h4>
+        </div>
+        <div class="modal-body">
+					<div class="alert alert-danger"><i class="mdi mdi-alert"></i> Are you sure you want to delete supplier - <span class="supplier-name"></span>?</div>
+				</div>
+				<div class="modal-footer">
+          <button type="submit" class="btn btn-danger"><i class="mdi mdi-delete"></i> Remove</button>
+          <button type="button" class="btn btn-default" data-dismiss="modal">Close</button>
+        </div>
+			</form>
+		</div>
+	</div>
   <div id="add-inventory-supplier" class="modal fade" role="dialog">
     <div class="modal-dialog">
       <!-- Modal content-->
@@ -133,6 +168,15 @@
             <label class="control-label">Payment Methods</label>
             <input type="text" class="form-control" name="payment_method" value="" placeholder="Payment Methods..." required />
           </div>
+					<div class="form-group">
+						<label class="control-label">Supplier Currency</label>
+						<select name="default_currency" class='form-control trigger-save' data-placeholder="Select Currency...">
+							<option></option>
+							@foreach (getCurrencies() as $p)
+								<option value="{{ $p->id }}">{{ $p->name }}</option>
+							@endforeach
+						</select>
+					</div>
         </div>
         <div class="modal-footer">
           <button type="submit" class="btn btn-primary"><i class="mdi mdi-content-save"></i> Save</button>

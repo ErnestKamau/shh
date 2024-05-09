@@ -32,7 +32,7 @@
     <x-bread-crumb :items="$items"></x-bread-crumb>
     <h2 class="p-4">
 			<i class="mdi mdi-clipboard-list"></i>Slot Contents
-      <button class="btn btn-primary btn-sm float-right" data-toggle="modal" data-target="#add-inventory-slot-content"><i class="mdi mdi-plus"></i> Add</button>
+      {{-- <button class="btn btn-primary btn-sm float-right" data-toggle="modal" data-target="#add-inventory-slot-content"><i class="mdi mdi-plus"></i> Add</button> --}}
     </h2>
     <br>
     <div class="table-responsive bg-light p-4">

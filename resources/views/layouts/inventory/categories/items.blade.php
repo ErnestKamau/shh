@@ -124,27 +124,30 @@
 						<h5 class="card-title"><i class="mdi mdi-pencil-outline"></i> Edit Inventory Item</h5>
 						<form method="POST" action="{{ route('edit-inventory-sub-category', ['id'=>$subcategory->id]) }}" enctype="multipart/form-data">
 							@csrf
-							<input type="hidden" name="category_id" value="{{ $category->id }}">
+							{{-- <input type="hidden" name="category_id" value="{{ $category->id }}"> --}}
+							<div class="form-group">
+								<label class="control-label">Item Category</label>
+								<select class="form-control" name="category_id" style="width:100% !important" data-placeholder="Select a Category...">
+									@foreach ($categories as $c)
+										<option value="{{ $c->id }}" {{ $category->id == $c->id ? 'selected' : '' }}>{{ ucwords($c->name) }}</option>
+									@endforeach
+								</select>
+							</div>
 							<div class="form-group">
 								<label class="control-label">Name</label>
 								<input type="text" class="form-control" name="name" value="{{ $subcategory->name }}" placeholder="Name..." required />
 							</div>
 							<div class="form-group">
-								<label class="control-label">CAT/Lot No</label>
-								<input type="text" class="form-control" name="sap_code" value="{{ $subcategory->sap_code }}" placeholder="CAT/Lot No..." />
+								<?php
+									$third_party_item_code = getConfigByName('third_party_item_code');
+									$third_party_item_code = count($third_party_item_code) > 0 ? $third_party_item_code[0]->value : 'SAP Code';
+								?>
+								<label class="control-label">{{ $third_party_item_code }}</label>
+								<input type="text" class="form-control" name="sap_code" value="{{ $subcategory->sap_code }}" placeholder="{{ $third_party_item_code }}..." />
 							</div>
 							<div class="form-group">
 								<label class="control-label">Description</label>
 								<textarea class="form-control" name="description" placeholder="Description..." required>{{ $subcategory->description }}</textarea>
-							</div>
-							<div class="form-group">
-								<label class="control-label">Sub Categories</label>
-								<select name="sub_category_id" id="" class="form-control">
-									<option value=""> Select Sub Category</option>
-									@foreach(getInventorySubs() as $sub)
-									<option value="{{$sub->id}}" {{$subcategory->sub_category_id == $sub->id ? 'selected' : ''}}>{{$sub->value}}</option>
-									@endforeach
-								</select>
 							</div>
 							<div class="form-group">
 								<div class="row">
@@ -159,7 +162,7 @@
 							</div>
 							<div class="form-group">
 								<label class="control-label">Manufacturer</label>
-								<input type="text" class="form-control" name="manufacturer" value="{{ $subcategory->manufacturer }}" placeholder="Manufacturer..." required />
+								<input type="text" class="form-control" name="manufacturer" value="{{ $subcategory->manufacturer }}" placeholder="Manufacturer..." />
 							</div>
 							<div class="form-group">
 								<label class="control-label">Maximum Order Quantity</label>
@@ -176,7 +179,7 @@
 							</div>
 							<div class="form-group">
 								<label class="control-label">Unit of Measure</label>
-								<select class="form-control" name="unit_type">
+								<select class="form-control" name="unit_type" required>
 									<option value="">Select Unit of Measure...</option>
 									@foreach ($systemUnitsofMeasure as $g)
 										<option value="{{ $g['name'] }}" {{ $subcategory->unit_type == $g['name'] ? 'selected' : '' }}>{{ $g['name'] }}</option>
@@ -185,7 +188,7 @@
 							</div>
 							<div class="form-group">
 								<label class="control-label">Issuing Unit of Measure</label>
-								<select class="form-control" name="secondary_unit_type">
+								<select class="form-control" name="secondary_unit_type" required>
 									<option value="">Select Unit of Measure...</option>
 									@foreach (getReportingUnits() as $g)
 										<option value="{{ $g['name'] }}" {{ $subcategory->secondary_unit_type == $g['name'] ? 'selected' : '' }}>{{ $g['name'] }}</option>
@@ -224,11 +227,11 @@
 							</div>
 							<div class="form-group">
 								<label class="control-label">Internal Lead Time</label>
-								<input type="number" class="form-control" value="{{ $subcategory->internal_lead_time }}" name="internal_lead_time" placeholder="Internal Lead Time..." required />
+								<input type="number" class="form-control" value="{{ floatval($subcategory->internal_lead_time) == 0 ? getConfigByName('default_internal_lead_time')[0]['value'] : $subcategory->internal_lead_time }}" name="internal_lead_time" placeholder="Internal Lead Time..." required />
 							</div>
 							<div class="form-group">
 								<label class="control-label">External Lead Time</label>
-								<input type="number" class="form-control" value="{{ $subcategory->external_lead_time }}" name="external_lead_time" placeholder="External Lead Time..." required />
+								<input type="number" class="form-control" value="{{ floatval($subcategory->external_lead_time) == 0 ? getConfigByName('default_external_lead_time')[0]['value'] : $subcategory->external_lead_time }}" name="external_lead_time" placeholder="External Lead Time..." required />
 							</div>
 							<div class="form-group">
 								<label class="control-label">Material Type</label>
@@ -252,12 +255,12 @@
 						<div class="row">
 							<div class="col-sm-3 text-center">
 								<div class="icon"><i class="mdi mdi-package-variant-closed text-success fa-2x"></i></div>
-								<div class="value">{{ number_format($subcategory->available_stock, 2) }}{{ $subcategory->unit_type }}</div>
+								<div class="value">{{ number_format($subcategory->available_stock, 3) }}{{ $subcategory->unit_type }}</div>
 								<div class="text p-1">Available</div>
 							</div>
 							<div class="col-sm-3 text-center">
 								<div class="icon"><i class="mdi mdi-package-variant text-info fa-2x"></i></div>
-								<div class="value">~{{ number_format($subcategory->daily_demand(), 2) }}{{ $subcategory->unit_type }}</div>
+								<div class="value">~{{ number_format($subcategory->daily_demand(), 3) }}{{ $subcategory->unit_type }}</div>
 								<div class="text p-1">Daily Demand</div>
 							</div>
 							<div class="col-sm-3 text-center">
@@ -267,7 +270,7 @@
 							</div>
 							<div class="col-sm-3 text-center">
 								<div class="icon"><i class="mdi mdi-file-clock text-warning fa-2x"></i></div>
-								<div class="value">{{ number_format($subcategory->lead_time_consumption(),2) }}{{ $subcategory->unit_type }}</div>
+								<div class="value">{{ number_format($subcategory->lead_time_consumption(),3) }}{{ $subcategory->unit_type }}</div>
 								<div class="text p-1" title="Lead Time Consumption" data-toggle="tooltip" style="">Lead Time Consumption</div>
 							</div>
 							<div class="col-sm-3 text-center">
@@ -315,7 +318,7 @@
 								<a class="nav-link" id="return-tab" data-toggle="tab" href="#Return" role="tab" aria-controls="Return" aria-selected="false">Return</a>
 							</li>
 							<li class="nav-item">
-								<a class="nav-link" id="stock-keeping-tab" data-toggle="tab" href="#Stock-Keeping" role="tab" aria-controls="Return" aria-selected="false">Stock Taking</a>
+								<a class="nav-link" id="stock-keeping-tab" data-toggle="tab" href="#Stock-Keeping" role="tab" aria-controls="Return" aria-selected="false">Stock Adjustment</a>
 							</li>
 							<li class="nav-item">
 								<a class="nav-link" id="disposal-tab" data-toggle="tab" href="#Disposal" role="tab" aria-controls="Disposal" aria-selected="false">Disposal</a>
@@ -357,7 +360,7 @@
 												<td nowrap>{{ number_format($item->stock_in, $item->sub_category->reporting_decimal_places) }} {{ $item->sub_category->unit_type }}</td>
 												<td nowrap>Ksh. {{ number_format($item->stock_in * $item->sub_category->unit_price, 2) }}</td>
 												<td nowrap>Ksh. {{ number_format($item->price,2) }}</td>
-												<td nowrap>{{ $item->supplier->name }}</td>
+												<td nowrap>{{ $item->supplier->name ?? '' }}</td>
 												<td nowrap>{{ $item->created_at }}</td>
 												<td nowrap>{{ $item->creator->name }}</td>
 												<td nowrap>{{ $item->expiry == '2099-12-31' ? '-' : $item->expiry }}</td>
@@ -366,7 +369,7 @@
 												<td nowrap>
 													@if (!isset($item->rating))
 														<span class="btn btn-transparent btn-sm text-primary"
-															data-data='{{ json_encode(array("supplier"=>$item->supplier->id, "item"=>$item->id)) }}'
+															data-data='{{ json_encode(array("supplier"=>$item->supplier->id ?? 0, "item"=>$item->id)) }}'
 															data-target="#supplier-rating-modal" data-toggle="modal">
 															<i class="mdi mdi-star"></i> Rate
 														</span>
@@ -595,7 +598,12 @@
 							</div>
 						</div>
 						<div class="tab-pane fade p-3" id="Stock-Keeping" role="tabpanel" aria-labelledby="one-tab">
-							<h5 class="card-title mb-3">Stock Taking</h5>
+							<h5 class="card-title mb-3">
+								Adjustment
+								<span class="float-right btn btn-sm btn-transparent text-primary" data-target="#add-stock-modal" data-toggle="modal">
+									<i class="mdi mdi-pencil"></i> Make Adjustment
+								</span>
+							</h5>
 							<div class="table-responsive">
 								<table class="table table-condensed my-small-text table-striped table-hover table-bordered table-sm">
 									<thead class="bg-light p-2">
@@ -695,6 +703,21 @@
 								<span class="">Inventory Items</span>
 							</h5>
 							<hr>
+								<?php
+									$stockbySS = \App\InventoryItem::join('inventory_stores as ins', 'inventory_items.inventory_store_id', 'ins.id')
+										->join('inventory_store_slots as iss', 'iss.id', 'inventory_items.inventory_store_slot_id')
+										->selectRaw('ins.name as store, iss.name as slot, SUM(stock_in) as stockin, SUM(stock_out) as stockout')
+										->where('inventory_sub_category_id', $subcategory->id)->groupBy('store')->groupBy('slot')->get();
+								?>
+								<div class="">
+									@foreach ($stockbySS as $sss)
+										<span class="btn btn-transparent btn-sm text-default mr-2" style="background-color: rgba(0,0,0,0.08)">
+											{{ $sss->store." - ".$sss->slot }}
+											<span class="badge badge-pill {{ $loop->iteration % 2 ? 'badge-primary' : 'badge-danger' }}">{{ floatval($sss->stockin) - floatval($sss->stockout) }}{{ $subcategory->unit_type }}</span>
+										</span>
+									@endforeach
+								</div>
+							<hr>
 							<div class="table-responsive mt-2">
 								<table class="table table-condensed my-small-text table-striped table-hover table-bordered table-sm"
 									data-url="">
@@ -758,7 +781,7 @@
 				</div>
 				<div class="form-group">
 					<label class="control-label">Manufacturer</label>
-					<input type="text" class="form-control" name="manufacturer" value="" placeholder="Manufacturer..." required />
+					<input type="text" class="form-control" name="manufacturer" value="" placeholder="Manufacturer..." />
 				</div>
 				<div class="form-group">
 					<label class="control-label">Minimum Level</label>
@@ -1076,6 +1099,55 @@
 	</div>
 </div>
 
+<div id="add-stock-modal" class="modal fade" role="dialog">
+	<div class="modal-dialog">
+		<!-- Modal content-->
+		<form class="modal-content" method="POST" action="{{ route('adjust-stock-keeping', ['catid'=>$category->id, 'subid'=>$subcategory->id]) }}" enctype="multipart/form-data">
+			@csrf
+			<div class="modal-header">
+				<h4 class="modal-title"><i class="mdi mdi-information"></i> Adjust Stock for {{ $subcategory->name }}</h4>
+			</div>
+			<div class="modal-body">
+				<div class="form-group">
+					<label class="control-label">Select Store</label>
+					<select name="store_id" class="form-control selected-store" data-placeholder="Select Store...">
+						<option></option>
+						@foreach (getUserStores() as $store)
+							<option value="{{ $store->id }}" style="width: 100%" data-slots="{{ json_encode($store->slots) }}">{{ $store->name }}</option>
+						@endforeach
+					</select>
+				</div>
+				<div class="form-group">
+					<label class="control-label">Select Slot</label>
+					<select name="slot_id" style="width: 100%" class="form-control store-slots" data-placeholder="Select Slot..."></select>
+				</div>
+				<div class="form-group">
+					<label class="control-label">Expiry</label>
+					<input type="date" name="expiry" class="form-control" placeholder="Expiry..." />
+				</div>
+				<div class="form-group">
+					<label class="control-label">UoM</label>
+					<input type="text" name="uom" class="form-control" value="{{ $subcategory->unit_type }}" readonly />
+				</div>
+				<div class="form-group">
+					<label class="control-label">Quantity</label>
+					<input type="number" step="any" min="0" name="quantity" class="form-control" placeholder="Quantity in {{ $subcategory->unit_type }}..." required="true" />
+				</div>
+				<div class="form-group hidden hide" id="confirm-adjust-message">
+					<div class="alert alert-danger">
+						<i class="mdi mdi-alert"></i> Please confirm that you have captured the correct Store, Slot and Quantity of the item.
+						Are you sure that you want to proceed with this stock adjustment?
+					</div>
+				</div>
+			</div>
+			<div class="modal-footer">
+				<span class="btn btn-success" id="trigger-adjust-stock-btn">Adjust</span>
+				<button type="button" class="btn btn-default" data-dismiss="modal">Close</button>
+			</div>
+		</form>
+	</div>
+</div>
+
 <div id="transfer-inventory-items" class="modal fade" role="dialog">
 	<div class="modal-dialog">
 		<!-- Modal content-->
@@ -1230,6 +1302,31 @@
 
 		});
 
+		$('#trigger-adjust-stock-btn').on('click', function(){
+			var isMessageVisible = $('#confirm-adjust-message').hasClass('hidden');
+			if(isMessageVisible){
+				$('#confirm-adjust-message').removeClass('hidden hide');
+				$(this).removeClass('btn-success');
+				$(this).addClass('btn-danger');
+				$(this).text('Yes, Proceed with Adjustment');
+			}
+			else{
+				var quantity = prompt("Please confirm the adjustment quantity.", '');
+				var quantity0 = $(this).parents('form').find('[name="quantity"]').val();
+				if(quantity != quantity0){
+					$(this).parents('form').find('[name="quantity"]').val('');
+					$(this).text('Adjust');
+					$('#confirm-adjust-message').addClass('hidden hide');
+					$(this).addClass('btn-success');
+					$(this).removeClass('btn-danger');
+					alert("Quantities did not match. Please enter the amounts again!");
+				}
+				else{
+					$(this).parents('form').submit();
+				}
+			}
+		});
+
 		$('#select-supplier').select2({
 			ajax: {
 				url: '{{ route("get_suppliers_via_ajax") }}',
@@ -1330,7 +1427,6 @@
 
 		$('#item-return-modal').on('show.bs.modal', function(e) {
 			var item = $(e.relatedTarget).data('item');
-
 			$('#item-return-modal').find('[name="item_to_return"]').val(JSON.stringify(item));
 		});
 
@@ -1349,17 +1445,13 @@
 		$('select.selected-store').on('change', function(){
 			var selected = $(this).children('option:selected');
 			var slots = selected.data('slots');
-			var location = $(this).data('location');
 
-			var slotDiv = $(this).parents('.modal-body').find('select.store-slots');
-			slotDiv.attr('placeholder', 'Select Slot...')
-			slotDiv.html(`<option></option>`);
-			var selectedSlot = slotDiv.data('selected')
+			var slotDiv = $(this).parents('.modal-body').find('select.store-slots').html(`<option></option>`);
+			slotDiv.attr('placeholder', 'Select Slot...');
 			$.each(slots, function(i, s){
 				var newOption = new Option(s.name, s.id, false, false);
 				slotDiv.append(newOption).trigger('change');
 			});
-			slotDiv.val(selectedSlot).trigger('change');
 		});
 	});
 </script>

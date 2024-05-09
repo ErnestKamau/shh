@@ -128,6 +128,7 @@ Route::post('/update-method-reagents/{method_id}', 'MethodReagentController@modi
 
 
 Route::get('/reporting-units', 'ReportingUnitController@index')->name('reporting-units')->middleware('haspermission:Laboratory.components.Reporting-Units.View');
+Route::get('/reporting-units/{module?}', 'ReportingUnitController@index')->name('inventory-reporting-units');
 Route::post('/reporting-units', 'ReportingUnitController@add')->name('add-reporting-unit')->middleware('haspermission:Laboratory.components.Reporting-Units.Add');
 Route::post('/reporting-unit/{id}', 'ReportingUnitController@update')->name('edit-reporting-unit')->middleware('haspermission:Laboratory.components.Reporting-Units.Edit');
 Route::get('/reporting-unit/addAjax','ReportingUnitController@addAjax')->name('reporting-addAjax');
@@ -265,6 +266,8 @@ Route::post('/inventory-categories', 'InventoryCategoriesController@add')->name(
 Route::post('/inventory-category/{id}', 'InventoryCategoriesController@edit')->name('edit-inventory-category')->middleware('haspermission:Inventory.components.Categories.Edit');
 Route::post('/inventory-category/{id}/delete', 'InventoryCategoriesController@destroy')->name('delete-inventory-category')->middleware('haspermission:Inventory.components.Categories.Delete');
 Route::get('/inventory-category/{id}', 'InventoryCategoriesController@show')->name('show-inventory-category');
+Route::post('/inventory-category/set-default-store/{id}', 'InventoryCategoriesController@set_default_store')->name('set-default-store');
+
 
 Route::post('/change-brand-details/{id}', 'ItemBrandController@edit')->name('change-brand-image')->middleware('haspermission:Inventory.components.Categories.Edit');
 Route::post('/add-item-brand/{subcategory}', 'ItemBrandController@add')->name('add-item-brand')->middleware('haspermission:Inventory.components.Categories.Edit');
@@ -315,6 +318,7 @@ Route::get('/stock-taking-update/{id}/{print?}', 'StockTakingController@show')->
 Route::post('/stock-taking-update/{id?}', 'StockTakingController@update')->name('stock-taking-update')->middleware('haspermission:Inventory.components.Stock-Taking.Edit');
 Route::post('/stock-taking-freeze-stores/{id?}', 'StockTakingController@freeze_stores')->name('stock-taking-freeze-stores')->middleware('haspermission:Inventory.components.Stock-Taking.Edit');
 Route::post('/stock-taking-save-capture/{id?}', 'StockTakingController@save_capture')->name('stock-taking-save-capture');
+Route::post('/adjust-stock-keeping/{catid}/{subid}', 'StockTakingController@adjust_stock')->name('adjust-stock-keeping');
 
 Route::get('/stock-transfer-list', 'StockTransferController@index')->name('stock-transfer-list')->middleware('haspermission:Inventory.components.Stock-Transfer.View');
 Route::get('/stock-transfer-update/{id}', 'StockTransferController@show')->name('stock-transfer-sheet');
@@ -393,18 +397,24 @@ Route::post('/delete/log','Equipment\MaintainanceCalibrationLogController@delete
 
 #############################################EQUIPMENT##########################################################
 
-
 #############################################SUPPLIER###########################################################
 Route::get('/inventory-suppliers', 'SupplierController@index')->name('inventory-suppliers')->middleware('haspermission:Inventory.components.Suppliers.View');
 Route::post('/inventory-suppliers', 'SupplierController@add')->name('add-inventory-supplier')->middleware('haspermission:Inventory.components.Suppliers.Add');
 Route::get('/inventory-supplier/{id}', 'SupplierController@show')->name('show-inventory-supplier');
 Route::post('/inventory-supplier/{id}', 'SupplierController@edit')->name('edit-inventory-supplier')->middleware('haspermission:Inventory.components.Suppliers.Edit');
+Route::post('/inventory-supplier/{id}/delete', 'SupplierController@delete_supplier')->name('delete-inventory-supplier')->middleware('haspermission:Inventory.components.Suppliers.Edit');
 
-Route::post('/add-supplier-category/{supplier}', 'SupplierCategoryController@add')->name('add-supplier-category');
-Route::post('/add-supplier-to-inventory/{itemID}', 'SupplierController@add_supplier_to_inventory')->name('add-supplier-to-inventory');
-Route::post('/delete-supplier-category/{id}', 'SupplierCategoryController@destroy')->name('delete-supplier-category');
+Route::post('/add-supplier-category/{supplier}', 'SupplierCategoryController@add')->name('add-supplier-category')->middleware('haspermission:Inventory.components.Suppliers.Add');
+Route::post('/add-supplier-main-category/{supplier_id}', 'SupplierByCategoryController@add')->name('add-supplier-main-category')->middleware('haspermission:Inventory.components.Suppliers.Add');
+Route::post('/add-supplier-to-inventory/{itemID}', 'SupplierController@add_supplier_to_inventory')->name('add-supplier-to-inventory')->middleware('haspermission:Inventory.components.Suppliers.Add');
+Route::post('/delete-supplier-category/{id}', 'SupplierCategoryController@destroy')->name('delete-supplier-category')->middleware('haspermission:Inventory.components.Suppliers.Edit');
+Route::post('/delete-supplier-main-category/{id}', 'SupplierByCategoryController@remove')->name('delete-supplier-main-category')->middleware('haspermission:Inventory.components.Suppliers.Edit');
 Route::post('/change-category-image/{id}', 'SupplierCategoryController@change_image')->name('change-category-image');
-Route::post('/supplier-rating', 'InventorySupplierRatingController@add')->name('supplier-rating');
+Route::post('/supplier-rating', 'InventorySupplierRatingController@add')->name('supplier-rating')->middleware('haspermission:Inventory.components.Suppliers.Edit');
+
+
+Route::post('/update-supplier-contact/{supplier_id}/{contact_id?}', 'SupplierContactController@update')->name('update-supplier-contact')->middleware('haspermission:Inventory.components.Suppliers.Edit');
+Route::post('/remove-supplier-contact/{contact_id}', 'SupplierContactController@destroy')->name('remove-supplier-contact')->middleware('haspermission:Inventory.components.Suppliers.Edit');
 #############################################SUPPLIER##########################################################
 
 #############################################SUPPLIER CONTRACTS##########################################################
@@ -509,19 +519,41 @@ Route::get('/server-side-audit_log/{id}/details', 'AuditController@server_side_d
 ####################################AUDIT TRAIL#######################################
 
 ####################################REQUISITION TRAIL#######################################
-Route::get('/req/{stage}', 'RequisitionController@open_stage')->name('go_to_stage')->middleware('haspermission:Inventory.components.empty.View');
-Route::get('/req/{stage}/{id}/{ammendement?}', 'RequisitionController@show')->name('view-request-details');
-Route::post('/req/{stage}/{id}/{ammendement?}', 'RequisitionController@update')->name('save-request-details');
+Route::get('/req/{stage}', 'RequisitionController@open_stage')->name('go_to_stage')->middleware('haspermission:Inventory.components.stage.View');
+Route::get('/get_req_enitites_server_side/{stage}/{type}', 'RequestEntityController@get_entities_server_side')->name('get_req_enitites_server_side');
+Route::post('/make-po-ammendment/{id}/{stage}', 'RequisitionController@make_po_ammendment')->name('make-po-ammendment')->middleware('haspermission:Inventory.components.stage.Delete');
+
+Route::get('/requester_verification_confirmation/{id}', 'RequisitionController@requester_verification_confirmation')->name('requester_verification_confirmation');
+
+Route::post('/req/{stage}/{id}/delete', 'RequisitionController@removeRequestEntity')->name('delete-request-details')->middleware('haspermission:Inventory.components.stage.Delete');
+Route::post('/req/{stage}/cloned', 'RequisitionController@clone_entity')->name('clone-request-details')->middleware('haspermission:Inventory.components.stage.Edit');
+Route::get('/req/{stage}/{id}/{ammendement?}', 'RequisitionController@show')->name('view-request-details')->middleware('haspermission:Inventory.components.stage.View');
+Route::post('/req/{stage}/{id}/{ammendement?}', 'RequisitionController@update')->name('save-request-details')->middleware('haspermission:Inventory.components.stage.Edit');
 Route::get('/req-report-generate/{id}/{supply?}', 'ReportGeneratorController@generate_report')->name('req-report-generate');
+Route::get('/req-report-generate-pdf/{id}', 'ReportGeneratorController@generate_report_pdf')->name('req-report-generate-pdf');
+Route::get('/check-pdf-processing-progress/{id}', 'ReportGeneratorController@check_pdf_processing_progress')->name('check-pdf-processing-progress');
+
+Route::get('/supplier-rfq-pdf/{supplier}/{id}', 'ReportGeneratorController@generate_supplier_pdf')->name('generate-supplier-pdf');
 
 Route::get('/download-request-items/{id}/{isPDF?}', 'ReportGeneratorController@download_items_xlsx')->name('download-request-items');
-Route::get('/req-report-generate-pdf/{id}', 'ReportGeneratorController@generate_report_pdf')->name('req-report-generate-pdf');
 
-Route::post('/create-lpo-from-mr/{id}', 'RequisitionController@create_lpo_from_mr')->name('create-lpo-from-mr');
-Route::post('/change-req-approver/{id}', 'RequisitionController@change_req_approver')->name('change-req-approver');
+Route::post('/create-lpo-from-mr/{id}', 'RequisitionController@create_lpo_from_mr')->name('create-lpo-from-mr')->middleware('haspermission:Inventory.components.Purchase Orders.Edit');
+Route::post('/change-req-approver/{stage}/{id}', 'RequisitionController@change_req_approver')->name('change-req-approver')->middleware('haspermission:Inventory.components.stage.Edit');
+
+Route::post('/add-extra-charge/{id}', 'RequisitionController@add_extra_charge')->name('add-extra-charge')->middleware('haspermission:Inventory.components.Purchase Orders.Edit');
+Route::post('/remove-extra-charge/{id}', 'RequisitionController@remove_extra_charge')->name('remove-extra-charge')->middleware('haspermission:Inventory.components.Purchase Orders.Edit');
+
+Route::post('/reverse-entity-action/{id}', 'RequisitionController@reverse_entity_action')->name('reverse-entity-action');
 
 Route::post('/req/download/{id}/{type}', 'RequisitionController@download')->name('download-requisition-doc');
-Route::post('/mark-gr-as-complete/{id}', 'RequisitionController@mark_gr_as_complete')->name('mark-gr-as-complete');
+Route::post('/mark-gr-as-complete/{id}', 'RequisitionController@mark_gr_as_complete')->name('mark-gr-as-complete')->middleware('haspermission:Inventory.components.Goods Receipt.Edit');
+Route::post('/submit-bank-details/{id}', 'RequisitionController@submit_bank_details')->name('submit-bank-details')->middleware('haspermission:Inventory.components.Purchase Orders.Edit');
+Route::post('/upload-bank-confirmation/{id}', 'RequisitionController@upload_bank_confirmation')->name('upload-bank-confirmation')->middleware('haspermission:Inventory.components.Purchase Orders.Edit');
+
+Route::post('/jump-request-to-status/{id}', 'RequisitionController@jump_request_to_status')->name('jump-request-to-status')->middleware('haspermission:Inventory.components.Request for Quotation.Edit');
+
+Route::post('/req-locations-add', 'RequisitionLocationController@add')->name('req-locations-add');
+Route::post('/req-locations-remove', 'RequisitionLocationController@remove')->name('req-locations-remove')->middleware('haspermission:Inventory.components.stage.Edit');
 ####################################REQUISITION TRAIL#######################################
 
 ###############################################BATCH COMMENTS#######################################
@@ -653,6 +685,8 @@ Route::get('rfqs-item/{id}','Suppliers\ChatMessageController@getSingleRequestIte
 Route::post('/add/supplier-quote/{id}','Suppliers\ChatMessageController@addSupplierQuote')->name('add-supplier-quote');
 
 
+Route::post('/rating-criteria/{id?}','RatingCriteriaController@update')->name('rating-criteria');
+Route::post('/update-rating-criteria-score/{id}','SuppliersRatingCriteriaController@update')->name('update-rating-criteria-score');
 
 Route::get('rfq-item/quotation/{id}','Suppliers\QuotationAttachmentControler@index')->name('get-quotation');
 Route::post('add-quotation/notes','Suppliers\QuotationAttachmentControler@addNotes')->name('add-quotation-note');
@@ -702,17 +736,21 @@ Route::get('/lab/standard/show/{id}','Lab\StandardsController@show')->name('view
 ####################################Standards#######################################
 
 ####################################API ROUTES#######################################
-Route::get('/api-get-available-items/{item_id}/{brand_id}','API\APIController@items_available')->name('api-get-available-items');
+Route::get('/api-get-available-items/{item_id}/{brand_id}/{request_id?}','API\APIController@items_available')->name('api-get-available-items');
 ####################################API ROUTES#######################################
 
 ####################################REMINDERS ROUTES#######################################
 Route::get('/trigger-reminders/{send_reminder}/{type}/{days}/{entity_id?}','ReminderController@get_notifiable_entities')->name('trigger-system-reminders');
+Route::get('/trigger-pending-approvals-reminder/{id?}','ReminderController@send_approval_reminders')->name('trigger-pending-approvals-reminder');
 ####################################REMINDERS ROUTES#######################################
 
 ####################################API ROUTES#######################################
-Route::get('/get_items_via_ajax','InventorySubCategoriesController@get_items_via_ajax')->name('get_items_via_ajax');
+Route::get('/get_personnel_via_ajax/{id?}','PersonnelController@get_personnel_via_ajax')->name('get_personnel_via_ajax');
+Route::get('/get_items_via_ajax/{cat_id?}/{name?}','InventorySubCategoriesController@get_items_via_ajax')->name('get_items_via_ajax');
 Route::get('/get_suppliers_via_ajax','SupplierController@get_suppliers_via_ajax')->name('get_suppliers_via_ajax');
-Route::get('/get_item_details/{inv_sub_cat}','InventorySubCategoriesController@get_item_details')->name('get_item_details');
+Route::get('/get_item_details/{inv_sub_cat}/{req_id?}','InventorySubCategoriesController@get_item_details')->name('get_item_details');
+Route::get('/workorder_resources/{wid}','WorkOrder\WorkOrderController@workorder_resources')->name('workorder_resources');
+Route::get('/fetch-supplier-items/{sID}','SupplierController@fetch_supplier_items')->name('fetch_supplier_items');
 ####################################API ROUTES#######################################
 
 Route::get('/event/update/schedule','Event\EventController@eventUpdateSchedule')->name('eventUpdateSchedule');
@@ -817,6 +855,13 @@ Route::get('/getSampleResultCapturedNot/{sample_id}','SampleWorkFlowController@g
 
 ################################################Polucon#########################################
 
+###############################################EMAILAPPROVALS#######################################
+Route::get('/email-approval/{link_key}/{type}/{userid}', 'ExternalApprovalController@approve')->name('email-approval');
+Route::get('/email-rejection/{link_key}/{type}/{userid}', 'ExternalApprovalController@reject')->name('email-rejection');
+Route::post('/email-rejection/{link_key}/{type}/{userid}', 'ExternalApprovalController@reject')->name('send-email-rejection');
+Route::get('/email-recheck/{link_key}/{type}/{userid}', 'ExternalApprovalController@recheck')->name('email-recheck');
+Route::post('/email-recheck/{link_key}/{type}/{userid}', 'ExternalApprovalController@recheck')->name('send-email-recheck');
+###############################################EMAILAPPROVALS#######################################
 
 #STORAGE ROUTES
 Route::get('storage/{type}/{filename}', function ($type, $filename)

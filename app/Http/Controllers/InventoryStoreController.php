@@ -23,7 +23,7 @@ class InventoryStoreController extends Controller
 			->leftJoin('item_states as ist', 'ist.id', '=', 'inventory_items.storage_state_id')
 			->leftJoin('reporting_units as ru', 'ru.id', '=', 'ist.uom')
 			->join('inventory_store_slots as ss', 'ss.id', '=', 'inventory_items.inventory_store_slot_id')
-			->selectRaw('ist.id as storage_state_id, ist.name as storage_state, ru.name as state_unit_type, ic.name as category_name, isc.name, isc.unit_type as item_unit_type, isc.code, s.name as store, ss.name as slot, SUM(inventory_items.stock_in) as stock_in, SUM(inventory_items.stock_out) as stock_out, inventory_items.inventory_store_id as store_id, inventory_items.inventory_store_slot_id as slot_id, inventory_items.inventory_sub_category_id as item_id')
+			->selectRaw('ist.id as storage_state_id, ist.name as storage_state, ru.name as state_unit_type, ic.name as category_name, isc.name, isc.unit_type as item_unit_type, isc.code, s.name as store, ss.name as slot, SUM(inventory_items.stock_in) as stock_in, SUM(inventory_items.stock_out) as stock_out, inventory_items.inventory_store_id as store_id, inventory_items.inventory_store_slot_id as slot_id, inventory_items.inventory_sub_category_id as item_id')->where('isc.active', 1)
 			->groupBy('ist.id', 'ist.name', 'ru.name', 'ic.name', 'isc.name', 'isc.unit_type', 'isc.code', 's.name', 'ss.name', 'inventory_items.inventory_store_id', 'inventory_items.inventory_store_slot_id', 'inventory_items.inventory_sub_category_id')
 			->orderBy('s.name', 'asc')->orderBy('ss.name', 'asc')->orderBy('isc.name', 'asc')->get();
 
@@ -82,8 +82,8 @@ class InventoryStoreController extends Controller
 	}
 
 	public function store_slots_by_item($item){
-		$data = getUserStores(false, false, $item);
-		
+		$data = getUserStores(false, false,$item, true);
+
 		$stores = array();
 
 		foreach($data as $s){
@@ -95,5 +95,23 @@ class InventoryStoreController extends Controller
 		}
 
 		return json_encode(array_values($stores));
+	}
+
+	public function add_cost_center(Request $request, $id){
+		foreach($request->cost_center as $costc){
+			$cc = \App\StoreToCostCenter::where('store_id', $id)->where('cost_center', $costc)->first() ?? new \App\StoreToCostCenter;
+			$cc->cost_center = $costc;
+			$cc->store_id = $id;
+			$cc->save();
+		}
+
+		return redirect()->back()->with('success', 'Cost Center added.');
+	}
+
+	public function remove_cost_center(Request $request, $id){
+		$cc = \App\StoreToCostCenter::where('store_id', $id)->where('cost_center', $request->cc_to_remove)->first();
+		$cc->delete();
+
+		return redirect()->back()->with('success', 'Cost Center removed.');
 	}
 }

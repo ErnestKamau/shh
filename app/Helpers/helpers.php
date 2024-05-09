@@ -179,7 +179,7 @@ function getStatus()
 
 function getRequisitionWorkflow()
 {
-	return array("Material Requisition", "Request for Quotation", "Purchase Orders", "Goods Receipt", "Goods Return");
+	return array("Purchase Request", "Request for Quotation", "Purchase Orders", "Goods Receipt", "Goods Return");
 }
 
 function getRequestToStoreWorkflow()
@@ -1417,8 +1417,9 @@ function getDocumentTemplates()
 		"Goods Receipt" => 'layouts.inventory.templates.goods-receipt',
 		"Goods Return" => 'layouts.inventory.templates.goods-return',
 		"Purchase Orders" => 'layouts.inventory.templates.purchase-order',
-		"Material Requisition" => 'layouts.inventory.templates.requisition-sheet',
-		"Supply Inspection Form" => 'layouts.inventory.templates.supply-inspection-form'
+		"Request for Quotation" => 'layouts.inventory.templates.requisition-sheet',
+		"Supply Inspection Form" => 'layouts.inventory.templates.supply-inspection-form',
+		"Gate Pass" => 'layouts.inventory.templates.gate-pass'
 	];
 }
 
@@ -1589,7 +1590,184 @@ function formatReportResults($value){
 	return $value == 'ND' ? 'Not Detected' : $value;
 }
 
+function isETCU(){
+	$is_etcu_build = getConfigByName('is_etcu_build');
+	$is_etcu_build_id = count($is_etcu_build) > 0 ? $is_etcu_build[0]->value : 0;
+	return $is_etcu_build_id == 1;
+}
+
+function isKECU(){
+	$is_kecu_build = getConfigByName('is_kecu_build');
+	$is_kecu_build_id = count($is_kecu_build) > 0 ? $is_kecu_build[0]->value : 0;
+	return $is_kecu_build_id == 1;
+}
+
+function getSupplierRatingCriteria(){
+	return App\RatingCriteria::where('active', 1)->orderBy('title')->get();
+}
+
+function has_exceeding_quantities($id){
+	$req = \App\RequestEntity::find($id);
+	if(!isset($req->id) || $req->request_type != "Request to Store"){
+		return false;
+	}
+	$items = \App\RequestEntityItem::where('request_id', $id)->get();
+
+
+	$apiC = new \App\Http\Controllers\API\APIController();
+	$hasExceeded = false;
+	$request = new \Illuminate\Http\Request;
+
+	$subItems = [];
+
+	foreach($items as $i){
+		$dc = $apiC->items_available($request, $i->inventory_sub_category_id, $i->item_brand_id, $id);
+
+		$dc = json_decode($dc, true);
+
+		if(!isset($subItems[$i->inventory_sub_category_id])){
+			$subItems[$i->inventory_sub_category_id] = ["available"=> 0, "total"=>0];
+		}
+
+		$subItems[$i->inventory_sub_category_id]['available'] = floatval($dc['value']);
+		$subItems[$i->inventory_sub_category_id]['total'] += floatval($i->quantity);
+	}
+
+	foreach($subItems as $si){
+		if($si['available'] < $si['total']){
+			$hasExceeded = true;
+		}
+	}
+
+	return $hasExceeded;
+}
+
+function areThereFrozenStores()
+{
+	$frozen = \App\InventoryStore::where('is_frozen', 1)->get()->pluck('name')->toArray();
+
+	return $frozen ?? [];
+}
+
+function getShippingMode()
+{
+	return ["Not Specified", "Air", "Ocean", "Rail", "Road"];
+}
+
+function getCostCenter()
+{
+	return getDepartments()->pluck('name')->toArray();
+}
+
+function isUserSomebody($USER)
+{
+	$procurement_officer_roles = getConfigByName('procurement_officer_role_id');
+	$procurement_officer_role_id = count($procurement_officer_roles) > 0 ? $procurement_officer_roles[0]->value : 0;
+
+	$finance_department_roles = getConfigByName('finance_department_role_id');
+	$finance_department_role_id = count($finance_department_roles) > 0 ? $finance_department_roles[0]->value : 0;
+
+	$manager_roles = getConfigByName('manager_role_id');
+	$manager_role_id = count($manager_roles) > 0 ? $manager_roles[0]->value : 0;
+
+	$store_manager_roles = getConfigByName('store_manager_role_id');
+	$store_manager_role_id = count($store_manager_roles) > 0 ? $store_manager_roles[0]->value : 0;
+
+	$admin_role_id = 1;
+
+	$somebodyRoles = [$procurement_officer_role_id, $finance_department_role_id, $manager_role_id, $store_manager_role_id, $admin_role_id];
+
+	$isSomeBody = false;
+
+	foreach ($somebodyRoles as $sR) {
+		if ($isSomeBody === false) {
+			$isSomeBody = $USER->hasRole($sR, true);
+		}
+	}
+
+	return $isSomeBody;
+}
+
 function refreshPermissions(){
 	$home = new App\Http\Controllers\HomeController;
 	return $home->index(true);
+}
+
+function permissionInModule($vars, $altVar=false){
+	$perms = getModulePermissions();
+
+	if(count($vars) == 2){
+		$check = isset($perms[$vars[0]]) ? isset($perms[$vars[0]][$vars[1]]) : false;
+	}
+	else{
+		$items = $perms[$vars[0]][$vars[1]];
+		$check = in_array($vars[2], $items);
+
+		if($check == false){
+			$vars[2] = $altVar ?? false;
+			$check = in_array($vars[2], $items);
+		}
+	}
+
+	return $check == false ? false : $vars;
+}
+
+function status_colors($status){
+	$colors = [
+		'Approval Complete'=> 'border-left:10px solid #6dff00!important',
+		'Purchase Order Sent'=> 'border-left:10px solid #6dff00!important',
+		'Awaiting Approval'=> 'border-left:10px solid #fff911!important',
+		'Partially Approved'=> 'border-left:10px solid #ffbe00!important',
+	];
+
+	return $colors[$status] ?? 'border-left:10px solid rgba(0,0,0,0.3)!important';
+}
+
+function auditableDelete($collection){
+	foreach($collection as $c){
+		$c->delete();
+	}
+
+	return true;
+}
+
+function isOTPOptional(){
+	$otp_is_optional = getConfigByName('otp_is_optional');
+	$otp_is_optional_id = count($otp_is_optional) > 0 ? $otp_is_optional[0]->value : 0;
+	return $otp_is_optional_id == 1;
+}
+
+function isGRNDocumentsOptional(){
+	$grn_documents_optional = getConfigByName('grn_documents_optional');
+	$grn_documents_optional_id = count($grn_documents_optional) > 0 ? $grn_documents_optional[0]->value : 0;
+	return $grn_documents_optional_id == 1;
+}
+
+function getAvailableStockByCostCenter($item_id, $cc){
+	$items = \App\InventoryItem::where('inventory_sub_category_id', $item_id)->selectRaw('SUM(stock_in) as stock_in, SUM(stock_out) as stock_out, item_brand_id')
+	->groupBy('item_brand_id');
+
+	$cc = explode(',', $cc);
+	$ccs = array_map('trim', $cc);
+	$store_ids = \App\StoreToCostCenter::whereIn('cost_center', $ccs)->get();
+
+	if($store_ids->count() > 0){
+		$storeIDs = $store_ids->pluck('store_id');
+		$items = $items->whereIn('inventory_store_id', $storeIDs);
+	}
+
+
+	$totalItems = 0;
+
+	foreach($items->get() as $item){
+		$available = floatval($item->stock_in) - floatval($item->stock_out);
+		$totalItems+=$available;
+	}
+
+	return $totalItems;
+}
+
+function getDepartmentalHeadID(){
+	$departmental_head_roles = getConfigByName('departmental_head_role_id');
+	return count($departmental_head_roles) > 0 ? $departmental_head_roles[0]->value : 0;
 }

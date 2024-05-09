@@ -8,7 +8,7 @@ use OwenIt\Auditing\Contracts\Auditable;
 class RequestEntity extends Model implements Auditable
 {
 	use \OwenIt\Auditing\Auditable;
-	public function items($ammendment_id)
+	public function items($ammendment_id, $grp=false, $grpItems=false)
 	{
 		$itemCount = RequestEntityItem::where('request_id', $this->id)->where('ammendment', $ammendment_id)->get()->count();
 
@@ -19,8 +19,32 @@ class RequestEntity extends Model implements Auditable
 		}
 
 		$items = RequestEntityItem::join('inventory_sub_categories as isc', 'isc.id', 'request_entity_items.inventory_sub_category_id')
-		->where('request_entity_items.request_id', $this->id)->where('request_entity_items.ammendment', $ammendment_id)
-		->selectRaw('request_entity_items.*, isc.item_classification, isc.unit_type, isc.secondary_unit_type, isc.sap_code, isc.name as item_name, available_stock, isc.code')->get();
+		->leftJoin('module_pre_configs as mpc', function($join){
+			$join->on('mpc.id', '=', 'request_entity_items.currency');
+			$join->where('mpc.type', "Currency");
+		})
+		->where('request_entity_items.request_id', $this->id)->where('request_entity_items.ammendment', $ammendment_id);
+
+		;
+		if($grp){
+			$items = $items->selectRaw('request_entity_items.*, request_entity_items.catalog_number, isc.item_classification, "" as unit_type, isc.unit_price as price, isc.secondary_unit_type,
+			GROUP_CONCAT(request_entity_items.id) as kit_item_ids, GROUP_CONCAT(CONCAT(IFNULL(isc.name,""), " - ", IFNULL(request_entity_items.quantity, ""), "", IFNULL(request_entity_items.uom, ""), " ",
+			IFNULL(request_entity_items.comments, "")))
+			as kit_item_name, isc.unit_type, isc.name as item_name, available_stock, isc.code')
+				->orderBy('request_entity_items.catalog_number', 'desc')->groupBy('catalog_number');
+		}
+		else{
+			if($grpItems){
+				$items = $items->selectRaw('request_entity_items.*, request_entity_items.catalog_number, isc.item_classification, isc.unit_type, isc.unit_price as price, isc.secondary_unit_type, isc.name as item_name, available_stock, isc.code, sum(request_entity_items.quantity) as quantity')->orderBy('request_entity_items.catalog_number', 'asc')
+				->groupBy('request_entity_items.inventory_sub_category_id')->groupBy('request_entity_items.comments');
+			}
+			else{
+				$items = $items->selectRaw('request_entity_items.*, request_entity_items.catalog_number, isc.item_classification, isc.unit_type, isc.unit_price as price, isc.secondary_unit_type, isc.name as item_name, available_stock, isc.code')->orderBy('request_entity_items.catalog_number', 'asc');
+			}
+		}
+
+		$items = $items->get();
+
 		$data = array();
 
 		foreach($items as $i){
@@ -55,11 +79,39 @@ class RequestEntity extends Model implements Auditable
 		return Supplier::find($this->supplier_id);
 	}
 
-	public function quotes(){
-		$quotes =  \App\SupplierQuote::join('request_entity_items as rei', 'rei.id', '=', 'supplier_quotes.request_item_id')
+	public function quotes($item_id=false, $grp=false){
+		if($grp){
+			$quotes =  \App\SupplierQuote::join('request_entity_items as rei', 'rei.id', '=', 'supplier_quotes.request_item_id')
 			->join('inventory_sub_categories as ics', 'ics.id', '=', 'rei.inventory_sub_category_id')
-			->where('supplier_quotes.request_id', $this->id)->selectRaw('supplier_quotes.*, ics.name as item_name, ics.sap_code, rei.item_brand_id as brand_id')
-			->orderBy('ics.inventory_category_id', 'asc')->orderBy('supplier_quotes.quote_amount', 'asc')->get();
+			->where('supplier_quotes.request_id', $this->id)->selectRaw('supplier_quotes.*, COALESCE(mpc.name, "-1") as currency, rei.catalog_number, GROUP_CONCAT(supplier_quotes.id) as quotes_id, GROUP_CONCAT(CONCAT(IFNULL(ics.name,""), " - ", IFNULL(rei.quantity, ""), "", IFNULL(rei.uom, ""), " ",
+			IFNULL(rei.comments, "")))
+			as kit_item_name, ics.name as item_name, rei.item_brand_id as brand_id');
+		}
+		else{
+			$quotes =  \App\SupplierQuote::join('request_entity_items as rei', 'rei.id', '=', 'supplier_quotes.request_item_id')
+			->join('inventory_sub_categories as ics', 'ics.id', '=', 'rei.inventory_sub_category_id')
+			->where('supplier_quotes.request_id', $this->id)->selectRaw('supplier_quotes.*, COALESCE(mpc.name, "-1") as currency, ics.name as item_name, rei.item_brand_id as brand_id');
+		}
+
+		$quotes = $quotes->leftJoin('module_pre_configs as mpc', 'mpc.id', 'supplier_quotes.currency_id');
+
+		if($item_id){
+			$quotes = $quotes->where('ics.id', $item_id)
+				->orderBy('supplier_quotes.quote_amount', 'asc');
+		}
+		else{
+			if($grp){
+				$quotes = $quotes->orderBy('kit_item_name', 'asc')->orderBy('supplier_quotes.quote_amount', 'asc');
+			}
+			else{
+				$quotes = $quotes->orderBy('ics.name', 'asc')->orderBy('supplier_quotes.quote_amount', 'asc');
+			}
+		}
+		if($grp){
+			$quotes = $quotes->groupBy('rei.catalog_number', 'supplier_quotes.supplier_id');
+		}
+
+		$quotes = $quotes->get();
 
 		$return = [];
 
@@ -77,7 +129,7 @@ class RequestEntity extends Model implements Auditable
 	public function approvals(){
 		return array(
 			"done" => $this->done_approvals(),
-			"total" => getStageApprovals('Requisition', $this->request_type)
+			"total" => $this->defined_approvals()
 		);
 	}
 
@@ -111,5 +163,13 @@ class RequestEntity extends Model implements Auditable
 		return EntityAttachment::join('users as u', 'u.id', '=', 'entity_attachments.created_by')
 			->selectRaw('entity_attachments.*, u.id as user_id, u.name as user_name, u.email as user_email')
 			->where('model', $this->request_type)->where('model_id', $this->id)->get();
+	}
+
+	public function request_entity_items(){
+		return $this->hasMany(RequestEntityItem::class, 'request_id');
+	}
+
+	public function getNetValueAttribute(){
+		return $this->request_entity_items->sum('net_value');
 	}
 }

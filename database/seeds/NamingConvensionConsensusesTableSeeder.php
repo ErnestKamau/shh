@@ -240,9 +240,9 @@ class NamingConvensionConsensusesTableSeeder extends Seeder
             22 => 
             array (
                 'id' => '40012',
-                'string_part' => 'MR',
+                'string_part' => 'PR',
                 'integer_part' => '0020',
-                'model' => 'Material Requisition',
+                'model' => 'Purchase Request',
                 'created_at' => '2020-07-05 12:44:29.517',
                 'updated_at' => '2020-08-05 12:07:52.340',
                 'company_id' => '1',

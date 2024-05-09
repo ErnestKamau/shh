@@ -8,11 +8,13 @@ use Illuminate\Http\Request;
 class SupplierQuoteController extends Controller
 {
   public function edit(Request $request, $id){
-		$quote = SupplierQuote::find($id);
+		$ids = explode(',', $id);
 
-		$quote->quote_amount = $request->amount;
-
-		$quote->save();
+		foreach($ids as $i){
+			$quote = SupplierQuote::find($i);
+			$quote->quote_amount = $request->amount;
+			$quote->save();
+		}
 
 		return redirect()->back()->with('success', 'Supplier Quote Updated.');
 	}
@@ -33,11 +35,13 @@ class SupplierQuoteController extends Controller
 		return redirect()->back()->with('success', 'Supplier Awarding Undone.');
 	}
 
-
   public function remove(Request $request, $id){
-		$quote = SupplierQuote::find($id);
+		$ids = explode(',', $id);
 
-		$quote->delete();
+		foreach($ids as $i){
+			$quote = SupplierQuote::find($i);
+			$quote->delete();
+		}
 
 		return redirect()->back()->with('error', 'Supplier Quote Removed.');
 	}

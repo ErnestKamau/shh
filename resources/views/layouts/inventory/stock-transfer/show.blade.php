@@ -2,6 +2,14 @@
 
 @section('title2')
 <title>{{ $transfer->code ?? 'New Transfer' }} - Stock Transfer | Inventory Departments</title>
+<style type="text/css">
+	th.bg-light{
+		background-color: rgb(233, 233, 255) !important;
+	}
+	th.bg-dark{
+		background-color: rgb(234, 245, 227) !important;
+	}
+</style>
 @endsection
 @section('content2')
 
@@ -37,66 +45,32 @@
 		@endif
 	</h4>
 	<br>
-	<div class="row no-gutters">
-		<div class="col-sm-4 p-2">
+	<div class="row">
+		<div class="col-sm-12">
 			<div class="card">
 				<div class="card-body">
-					<h5 class="card-title"><i class="mdi mdi-information-outline"></i> Transfer Details</h5>
+					<h5 class="card-title"><i class="mdi mdi-information-outline"></i> Transfer Details
+						<small class="text-info toggle-desc float-right {{ !isset($transfer->status) ? 'text' : '' }}"><i class="mdi mdi-pencil"></i> Edit</small>
+					</h5>
+					<hr>
 					<form method="POST" action="{{ route('stock-transfer-update', ['id'=>$transfer->id ?? time()]) }}" enctype="multipart/form-data">
 						@csrf
 						<div class="form-group">
-							<label class="control-label">Location*</label>
-							<select class="form-control location-selector" data-selected="{{ $transfer->location_id }}" name="location_id" placeholder="Location..." required>
-								<option></option>
-								@foreach (viewableLocations() as $key=>$item)
-									@if(isset($item->level))
-										<option value="{{ $item->id }}">
-											{{ $key }}
-										</option>
-									@else
-										@foreach ($item as $key1=>$item1)
-											@if(isset($item1->level))
-											<option value="{{ $item1->id }}">
-												{{ $key }} <small class="text-muted"> > </small> {{ $key1 }}
-											</option>
-											@else
-												@foreach ($item1 as $key2=>$item2)
-													@if(isset($item2->level))
-														<option value="{{ $item2->id }}">
-															{{ $key }} <small class="text-muted"> > </small> {{ $key1 }} <small class="text-muted"> > </small> {{ $key2 }}
-														</option>
-													@else
-														@foreach ($item2 as $key3=>$item3)
-															<option value="{{ $item3->id }}">
-																{{ $key }} <small class="text-muted"> > </small> {{ $key1 }} <small class="text-muted"> > </small> {{ $key2 }} <small class="text-muted"> > </small> {{ $key3 }}
-															</option>
-														@endforeach
-													@endif
-												@endforeach
-											@endif
-										@endforeach
-									@endif
-								@endforeach
-							</select>
-						</div>
-						<div class="form-group">
-							<label>Department*</label>
-							<select class="form-control location-departments" data-selected="{{ $transfer->department_id }}" name="department_id" placeholder="Department..." required><option></option></select>
-						</div>
-						<div class="form-group">
-							<label>Description*</label>
-							<textarea class="form-control" name="description" placeholder="Description..." required>{{ $transfer->description }}</textarea>
-						</div>
-						<div class="form-group">
-							<button class="btn btn-outline-success btn-block" {{ isset($transfer->status) && in_array($transfer->status, array("Completed", "Transfer Items Updated")) ? 'disabled' : '' }}>
-								<i class="mdi mdi-content-save"></i> Save
-							</button>
+							<div id="wyswyg-desc-text" class="text-view">{!! $transfer->description !!}</div>
+							<div id="parent-wyswyg" class="text-view">
+								<textarea id="wyswyg-desc" class="form-control" name="description" placeholder="Description..." required>{{ $transfer->description }}</textarea>
+								<br>
+								<button class="btn btn-outline-success btn-block" {!! isset($transfer->status) && in_array($transfer->status, array("Completed", "Transfer Items Updated")) ? 'disabled' : ' onclick="tinyMCE.triggerSave()"' !!}>
+									<i class="mdi mdi-content-save"></i> Save
+								</button>
+							</div>
 						</div>
 					</form>
 				</div>
 			</div>
+			<br>
 		</div>
-		<div class="col-sm-8">
+		<div class="col-sm-12">
 			<form class="card" method="POST" id="save-transfer-items" action="{{ route('stock-transfer-items-update', ['id'=>$transfer->id ?? time()]) }}">
 				@csrf
 				<div class="card-body">
@@ -111,18 +85,24 @@
 							<thead>
 								<tr>
 									<th></th>
-									<th>Local Item</th>
-									<th>Local UoM</th>
-									<th>Local Store</th>
-									<th>Local Slot</th>
-									<th>Current State</th>
-									<th>Available Quantity</th>
-									<th>Target Item</th>
-									<th>Target UoM</th>
-									<th>Target Store</th>
-									<th>Target Slot</th>
-									<th>Target State</th>
-									<th>Local Quantity to Transfer</th>
+									<th colspan="6" class="bg-light">Source</th>
+									<th colspan="4" class="bg-dark">Destination</th>
+									<th colspan="3"></th>
+								</tr>
+								<tr>
+									<th></th>
+									<th class="bg-light">Item</th>
+									<th class="bg-light">Store</th>
+									<th class="bg-light">Slot</th>
+									<th class="bg-light">Lot Number</th>
+									<th class="bg-light">Available Quantity</th>
+									<th class="bg-light">UoM</th>
+									<th class="bg-dark">Item</th>
+									<th class="bg-dark">Store</th>
+									<th class="bg-dark">Slot</th>
+									<th class="bg-dark">Lot Number</th>
+									<th>Quantity to Transfer</th>
+									<th>UoM</th>
 									<th>Expiry/Target Date</th>
 								</tr>
 							</thead>
@@ -136,10 +116,17 @@
 </main>
 @endsection
 @section('script2')
+	<script type="text/javascript" src="/tinymce/tinymce.min.js"></script>
 	<script>
+		function randomIntFromInterval(min, max) { // min and max included
+			return Math.floor(Math.random() * (max - min + 1) + min)
+		}
+
 		var itemrow = function(data = {}){
-			var isDisabled = "{{ isset($transfer->location_id) && $transfer->status != "Completed" ? '' : 'disabled' }}";
-			var r = $(`
+			var isDisabled = "{{ isset($transfer->location_id) && $transfer->status != 'Completed' ? '' : 'disabled' }}";
+
+			var dataID = data.id ?? randomIntFromInterval(2345123213, 4545123213);
+			var rowww = $(`
 			<tr>
 				<td>
 					@if(isset($transfer->location_id) && $transfer->status != "Completed")
@@ -147,102 +134,188 @@
 							<i class="mdi mdi-delete"></i>
 						</span>
 					@endif
-					<input type="hidden" name="items[transfer_item_id][]" value="${data.id != undefined ? data.id : 0}" />
+					<input type="hidden" name="items[transfer_item_id][${dataID}]" value="${data.id != undefined ? data.id : dataID}" />
+				</td>
+				<td style="width: 300px">
+					<select data-type="source" ${isDisabled} name="items[source_sub_category_id][${dataID}]" style="width: 100%; font-size: 12px" class="form-control selected-item" data-placeholder="Select Item..." required>
+						${ data.local_item_id ? '<option value="'+data.local_item_id+'" selected="selected">'+data.local_inventory_item_name+'</option>' : ''}
+					</select>
+					<input type="hidden" data-type="source" class="sub_category_name" name="items[source_sub_category_name][${dataID}]" />
 				</td>
 				<td>
-					<div class="form-group">
-						<select ${isDisabled} name="items[local_item_id][]" data-selected="${data.local_item_id != undefined ? data.local_item_id : 0}" style="min-width: 150px; font-size: 12px" class="form-control selected-item" data-type="local" placeholder="Select Item..." required>
-							<option selected></option>
-							@foreach (getInventoryItems(0, true) as $item)
-								<option value="{{ $item->id }}" data-unit_val="{{ $item->unit_price }}" data-text="{{ $item->name }}"
-									data-material_type_id="{{ $item->material_type_id }}" data-unit-type="{{ $item->unit_type }}">{{ $item->code }} - {{ $item->name }}</option>
-							@endforeach
-						</select>
-					</div>
+					<select data-type="source" ${isDisabled} name="items[source_store_id][${dataID}]" class="form-control selected-store" data-placeholder="Select Store..." style="min-width: 130px">
+						<option value="">Select Store...</option>
+						@foreach (getUserStores(false, true) as $store)
+							<option value="{{ $store->id }}" ${ {{ $store->id }} == data.local_store_id ? 'selected' : '' } data-slots="{{ json_encode($store->slots) }}">{{ $store->name }}</option>
+						@endforeach
+					</select>
 				</td>
 				<td>
-					<div class="form-group">
-						<input ${isDisabled} type="text" disabled class="form-control local-unit-type" style="width: 120px" placeholder="UoM..." />
-					</div>
+					<select data-type="source" ${isDisabled} name="items[source_slot_id][${dataID}]" style="min-width: 100px" class="form-control slot_id" data-placeholder="Select Slot..."></select>
 				</td>
 				<td>
-					<div class="form-group">
-						<select ${isDisabled} style="min-width: 150px" data-selected="${data.local_store_id != undefined ? data.local_store_id : 0}" name="items[local_store_id][]" class="form-control selected-store" data-location="local" placeholder="Select Store..." required>
-							<option selected></option>
-							@foreach (getUserStores(getCurrentUserLocation()->id) as $store)
-								<option value="{{ $store->id }}" data-slots="{{ json_encode($store->slots) }}">{{ $store->name }}</option>
-							@endforeach
-						</select>
-					</div>
+					<input type="text" ${isDisabled} class="form-control" style="min-width: 200px; font-size: 12px" value="${data.local_lot_no || ''}" name="items[source_lot_number][${dataID}]" data-type="source" placeholder="Lot Number..." />
 				</td>
 				<td>
-					<div class="form-group">
-						<select ${isDisabled} style="min-width: 150px" data-selected="${data.local_store_slot_id != undefined ? data.local_store_slot_id : 0}" data-location="local" name="items[local_slot_id][]" style="min-width: 100px" class="form-control store-slots" placeholder="Select Store First..." required><option></option></select>
-					</div>
+					<input type="number" class="form-control available-quantity" name="items[source_available_quantity][${dataID}]" data-type="source" disabled="true" />
 				</td>
 				<td>
-					<div class="form-group">
-						<select ${isDisabled} style="min-width: 150px" data-selected="${data.local_state_id != undefined ? data.local_state_id : 0}" data-location="local" name="items[local_state_id][]" style="min-width: 100px" class="form-control local-states" placeholder="Select Local State..."><option></option></select>
-					</div>
+					<select data-type="source" ${isDisabled} name="items[source_uom][${dataID}]" style="min-width: 200px" class="uom form-control" data-placeholder="Select UoM..."></select>
+				</td>
+				<td style="width: 300px">
+					<select data-type="target" ${isDisabled} name="items[target_sub_category_id][${dataID}]" style="width: 100%; font-size: 12px" class="form-control selected-item" data-placeholder="Select Item..." required>
+						${ data.target_item_id ? '<option value="'+data.target_item_id+'" selected="selected">'+data.target_inventory_item_name+'</option>' : ''}
+					</select>
+					<input type="hidden" data-type="target" class="sub_category_name" name="items[target_sub_category_name][${dataID}]" />
 				</td>
 				<td>
-					<div class="form-group">
-						<input ${isDisabled} style="min-width: 150px" step="any" type="number" class="form-control" name="items[local_quantity][]" placeholder="Quantity" readonly=true />
-					</div>
+					<select data-type="target" ${isDisabled} name="items[target_store_id][${dataID}]" class="form-control selected-store" data-placeholder="Select Store..." style="min-width: 130px">
+						<option value="">Select Store...</option>
+						@foreach (getUserStores(false, true) as $store)
+							<option value="{{ $store->id }}" ${ {{ $store->id }} == data.target_store_id ? 'selected' : '' } data-slots="{{ json_encode($store->slots) }}">{{ $store->name }}</option>
+						@endforeach
+					</select>
 				</td>
 				<td>
-					<div class="form-group">
-						<select ${isDisabled} name="items[target_item_id][]" data-selected="${data.target_item_id != undefined ? data.target_item_id : 0}" style="min-width: 150px; font-size: 12px" class="form-control selected-item" data-type="target" placeholder="Select Item..." required>
-							<option selected></option>
-							@foreach (getInventoryItems(0, true, $transfer->location_id) as $item)
-								<option value="{{ $item->id }}" data-material_type_id="{{ $item->material_type_id }}" data-unit_val="{{ $item->unit_price }}" data-text="{{ $item->name }}"
-									data-unit-type="{{ $item->unit_type }}">{{ $item->code }} - {{ $item->name }}</option>
-							@endforeach
-						</select>
-					</div>
+					<select data-type="target" ${isDisabled} name="items[target_slot_id][${dataID}]" style="min-width: 100px" class="form-control slot_id" data-placeholder="Select Slot..."></select>
 				</td>
 				<td>
-					<div class="form-group">
-						<input ${isDisabled} type="text" disabled class="form-control target-unit-type" style="width: 120px" placeholder="UoM..." />
-					</div>
+					<input type="text" ${isDisabled} class="form-control" style="min-width: 200px; font-size: 12px" value="${data.target_lot_no || ''}" name="items[target_lot_number][${dataID}]" data-type="target" placeholder="Lot Number..." />
 				</td>
 				<td>
-					<div class="form-group">
-						<select ${isDisabled} style="min-width: 150px" data-selected="${data.target_store_id != undefined ? data.target_store_id : 0}" data-location="target" name="items[target_store_id][]" class="form-control selected-store" placeholder="Select Store..." required>
-							<option selected></option>
-							@foreach (getUserStores($transfer->location_id) as $store)
-								<option value="{{ $store->id }}" data-slots="{{ json_encode($store->slots) }}">{{ $store->name }}</option>
-							@endforeach
-						</select>
-					</div>
+					<input type="number" ${isDisabled} class="form-control transfer-quantity" value="${data.target_quantity}" name="items[transfer_quantity][${dataID}]" data-type="target" placeholder="Transfer Quantity" />
 				</td>
 				<td>
-					<div class="form-group">
-						<select ${isDisabled} style="min-width: 150px" data-selected="${data.target_store_slot_id != undefined ? data.target_store_slot_id : 0}" data-location="target" name="items[target_slot_id][]" class="form-control store-slots" placeholder="Select Store First..." required><option></option></select>
-					</div>
+					<select data-type="target" ${isDisabled} name="items[transfer_uom][${dataID}]" style="width: 200px" class="uom form-control" data-placeholder="Select UoM..."></select>
 				</td>
 				<td>
-					<div class="form-group">
-						<select ${isDisabled} style="min-width: 150px" data-selected="${data.target_state_id != undefined ? data.target_state_id : 0}" data-location="local" name="items[target_state_id][]" style="min-width: 100px" class="form-control target-states" placeholder="Select Target State..."><option></option></select>
-					</div>
-				</td>
-				<td>
-					<div class="form-group">
-						<input ${isDisabled} style="min-width: 150px" step="any" value="${data.target_quantity != undefined ? data.target_quantity : 0}" type="number" class="form-control" name="items[target_quantity][]" placeholder="Quantity" required />
-					</div>
-				</td>
-				<td>
-					<div class="form-group">
-						<input ${isDisabled} style="min-width: 150px" value="${data.expiry != undefined ? data.expiry : ''}" type="date" class="form-control" name="items[expiry][]" placeholder="Expiry Date..." />
-					</div>
+					<input type="date" ${isDisabled} class="form-control" value="${data.expiry}" name="items[expiry][${dataID}]" data-type="target" placeholder="Expiry Date..." />
 				</td>
 			</tr>
 			`);
-			return r.clone();
+
+			var $row = rowww.clone();
+
+			$row.find('select').not('.selected-item').select2();
+
+			$row.find('.selected-item').select2({
+				ajax: {
+					url: '{{ route("get_items_via_ajax") }}',
+					data: function (params) {
+						var query = {
+							search: params.term,
+							page: params.page || 1
+						}
+						return query;
+					}
+				},
+				placeholder: 'Please Select Inventory Item...'
+			});
+
+			// var hasAlreadyBeenClicked = [];
+
+			$row.on('change', '.selected-item', function(){
+				var itemID = $(this).val();
+				var typ = $(this).data('type');
+
+				$row.find('.sub_category_name[data-type="'+typ+'"]').val($(this).children('option:selected').text());
+
+				var $this = $(this);
+				$.ajax({
+					url: '/get_item_details/'+itemID,
+					beforeSend: function(){
+
+					},
+					success: function(js){
+						var uonSel = $row.find('.uom[data-type="'+typ+'"]');
+						uonSel.html(`<option value="${js.uom}" selected>${js.uom}</option>`);
+						if($.trim(js.uom2)!= ""){
+							uonSel.append(`<option value="${js.uom2}">${js.uom2}</option>`);
+						}
+
+						uonSel.trigger('change');
+
+						if(typ == "source"){
+							$row.find('.transfer-quantity').attr('max', js.available);
+							$row.find('.available-quantity[data-type="'+typ+'"]').val(js.available);
+						}
+					}
+				});
+			});
+
+			$row.find('.selected-store').on('change', function(){
+				var selected = $(this).children('option:selected');
+				var slots = selected.data('slots');
+				var typ = $(this).data('type');
+
+				var slotDiv = $row.find('.slot_id[data-type="'+typ+'"]');
+				var defaultSlotValue = typ == "target" ? data.target_store_slot_id : data.local_store_slot_id;
+				slotDiv.empty();
+				$.each(slots, function(i, s){
+					var newOption = new Option(s.name, s.id, false, false);
+					slotDiv.append(newOption).trigger('change');
+				});
+
+				slotDiv.val(defaultSlotValue || '').trigger('change');
+			});
+
+
+			$row.find('.selected-store').trigger('change');
+
+			$row.find('.remove-item-row').on('click', function(){
+				if(confirm("Are you sure you want to remove this item?")){
+					if(data.id){
+						$.ajax({
+							url: "{{ route('stock-transfer-item-delete') }}",
+							dataType: 'json',
+							method: 'POST',
+							data: {
+								transfer_item_id: data.id,
+								'_token': "{{ csrf_token() }}"
+							},
+							success: function(js){
+								if(js && js.status){
+									$row.remove();
+								}
+								else{
+									alert("Couldn't remove item.");
+								}
+							}
+						})
+					}
+					else{
+						$row.remove();
+					}
+				}
+			});
+
+			$row.find('.selected-item').trigger('change');
+			return $row;
 		}
+
 		$(function(){
 			var LOCATIONS = {"local": '{{ getCurrentUserLocation()->id }}', "target": '{{ $transfer->location_id }}'}
 			var transferItems = $('#items-holder').data('items');
+			var editorInstance;
+			$('.toggle-desc').on('click', function(){
+				$(this).toggleClass('text');
+				$('.text-view').slideUp(0);
+
+				$($(this).hasClass('text') ? "#wyswyg-desc-text" : '#parent-wyswyg').slideDown(200);
+
+				if(!$(this).hasClass('text')){
+					editorInstance = tinymce.init({
+						selector: "#wyswyg-desc"
+					});
+				}
+				else{
+					if(editorInstance){
+						tinymce.remove("#wyswyg-desc");
+					}
+				}
+			});
+
+			$('.toggle-desc').trigger('click');
 
 			$('.location-selector').on('change', function(){
 				var val = $(this).val();
@@ -336,7 +409,6 @@
 							parentTr.find('[name="items['+typ+'_quantity][]"]').val('');
 						},
 						success: function(js){
-							console.log(js);
 							parentTr.find('[name="items['+typ+'_quantity][]"]').val(js.available);
 							parentTr.find('[name="items[target_quantity][]"]').attr('max', js.available);
 						}
@@ -358,7 +430,6 @@
 
 				$('#items-holder').find('[required]').each(function(){
 					var val = $(this).val();
-					console.log($(this).attr('name'), val)
 					if($.trim(val) == ""){
 						var parentTD = $(this).parents('td');
 						var titleTH = parentTD.parents('table').find('thead th').eq(parentTD.index());
@@ -384,49 +455,8 @@
 
 			var itemRowCreator = function (data={}){
 				var row = itemrow(data);
-				row.find('select').select2();
 				// $('#items-holder').parents('table').destroy();
 				$('#items-holder').append(row);
-
-				row.find('.remove-item-row').on('click', function(){
-					if(confirm("Are you sure you want to remove this item?")){
-						if(data.id){
-							$.ajax({
-								url: "{{ route('stock-transfer-item-delete') }}",
-								dataType: 'json',
-								method: 'POST',
-								data: {
-									transfer_item_id: data.id,
-									'_token': "{{ csrf_token() }}"
-								},
-								success: function(js){
-									if(js && js.status){
-										row.remove();
-									}
-									else{
-										alert("Couldn't remove item.")
-									}
-								}
-							})
-						}
-						else{
-							row.remove();
-						}
-					}
-				});
-
-				if(data.id){
-					var t=0;
-					row.find('select').each(function(){
-						t+=100;
-						var selected = $(this).data('selected');
-						$(this).val(selected);
-						var ths = $(this);
-						window.setTimeout(function(){
-							ths.trigger('change');
-						}, t);
-					});
-				}
 
 			}
 

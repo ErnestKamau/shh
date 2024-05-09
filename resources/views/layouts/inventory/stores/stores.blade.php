@@ -1,4 +1,4 @@
-@extends('layouts.inventory.layout.app', ['dataTable'=>true])
+@extends('layouts.inventory.layout.app', ['dataTable'=>true, 'select2'=>true])
 
 @section('title2')
   <title>Inventory Store Details | Inventory Management</title>
@@ -42,9 +42,39 @@
 						<li class="nav-item">
 							<a class="nav-link" id="Contents-tab" data-toggle="tab" href="#Contents" role="tab" aria-controls="Contents" aria-selected="true">Contents</a>
 						</li>
+						<li class="nav-item">
+							<a class="nav-link" id="Cost-Center-tab" data-toggle="tab" href="#Cost-Center" role="tab" aria-controls="Cost Centers" aria-selected="true">Cost Centers</a>
+						</li>
 					</ul>
 				</div>
 				<div class="tab-content" id="Data-tabs-content">
+					<div class="tab-pane fade p-3" id="Cost-Center" role="tabpanel" aria-labelledby="one-tab">
+						<h5>
+							<i class="mdi mdi-home-city"></i> Cost Centers
+							<button class="btn btn-default text-primary btn-sm float-right" data-toggle="modal" data-target="#add-cost-centers"><i class="mdi mdi-plus"></i> Add</button>
+						</h5>
+						<hr>
+						<table class="table table-condensed my-small-text table-striped table-hover table-bordered table-sm">
+							<thead class="bg-light p-2">
+								<tr>
+									<th>No</th>
+									<th>Cost Center</th>
+									<th></th>
+								</tr>
+							</thead>
+							<tbody>
+								@foreach($store->cost_centers() as $item)
+									<tr>
+										<td valign="center">{{ $loop->iteration }}</td>
+										<td>{{ $item->cost_center }}</td>
+										<td nowrap>
+											<button class="btn btn-default text-danger btn-sm" data-cc="{{ $item->cost_center }}" data-target="#remove-cost-center" data-toggle="modal" data-item="{{ json_encode($item) }}"><i class="mdi mdi-delete-empty"></i> <small class="hidden-sm-up">Remove</small> </button>
+										</td>
+									</tr>
+								@endforeach
+							</tbody>
+						</table>
+					</div>
 					<div class="tab-pane fade p-3" id="Contacts" role="tabpanel" aria-labelledby="one-tab">
 						<h5>
 							<i class="mdi mdi-account-group"></i> Contacts
@@ -194,7 +224,6 @@
     </div>
   </main>
 @endsection
-
 @section('script2')
   <div id="add-inventory-slot" class="modal fade" role="dialog">
     <div class="modal-dialog">
@@ -212,6 +241,52 @@
         </div>
         <div class="modal-footer">
           <button type="submit" class="btn btn-primary"><i class="mdi mdi-content-save"></i> Save</button>
+          <button type="button" class="btn btn-default" data-dismiss="modal">Close</button>
+        </div>
+      </form>
+    </div>
+  </div>
+  <div id="add-cost-centers" class="modal fade" role="dialog">
+    <div class="modal-dialog">
+      <!-- Modal content-->
+      <form class="modal-content" method="POST" action="{{ route('add-store-cost-center', ['id'=>$store->id]) }}" enctype="multipart/form-data">
+        @csrf
+        <div class="modal-header">
+          <h4 class="modal-title"><i class="mdi mdi-plus"></i> Add Cost Center</h4>
+        </div>
+        <div class="modal-body">
+          <div class="form-group">
+						<label class="control-label">Select Cost Centers</label>
+						<select name="cost_center[]" class="form-control" placeholder="Select Cost Center..." data-placeholder="Select Cost Center..." multiple>
+							@foreach (getCostCenter() as $cc)
+								<option value="{{ $cc }}">{{ $cc }}</option>
+							@endforeach
+						</select>
+					</div>
+        </div>
+        <div class="modal-footer">
+          <button type="submit" class="btn btn-primary"><i class="mdi mdi-plus"></i> Add</button>
+          <button type="button" class="btn btn-default" data-dismiss="modal">Close</button>
+        </div>
+      </form>
+    </div>
+  </div>
+  <div id="remove-cost-center" class="modal fade" role="dialog">
+    <div class="modal-dialog">
+      <!-- Modal content-->
+      <form class="modal-content" method="POST" action="{{ route('remove-store-cost-center', ['id'=>$store->id]) }}" enctype="multipart/form-data">
+        @csrf
+        <div class="modal-header">
+          <h4 class="modal-title"><i class="mdi mdi-delete"></i> Remove Cost Center</h4>
+        </div>
+        <div class="modal-body">
+          <div class="alert alert-danger">
+						<i class="mdi mdi-alert"></i> Remove cost center from this store?
+					</div>
+					<input type="hidden" name="cc_to_remove" />
+        </div>
+        <div class="modal-footer">
+          <button type="submit" class="btn btn-danger"><i class="mdi mdi-delete"></i> Yes, Delete</button>
           <button type="button" class="btn btn-default" data-dismiss="modal">Close</button>
         </div>
       </form>
@@ -269,6 +344,12 @@
 				var contact = $(e.relatedTarget).data('item');
 
 				$(this).find('[name="store_contact_id"]').val(contact.store_contact_id);
+			});
+
+			$('#remove-cost-center').on('show.bs.modal', function(e){
+				var cc = $(e.relatedTarget).data('cc');
+
+				$(this).find('[name="cc_to_remove"]').val(cc);
 			});
 		});
 	</script>

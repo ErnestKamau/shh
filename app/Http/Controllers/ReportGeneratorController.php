@@ -46,12 +46,176 @@ class ReportGeneratorController extends Controller
     // return view('layouts.configuration.index');
 	}
 
+	public function consumption(Request $request){
+		$year = date('Y');
+		$month = date('F');
+		$group = 'Cost Center';
+
+		$category = false;
+		$topColumns = [];
+		$title = 'Consumption';
+		$consumption = [];
+
+		$columns = [
+			"main"=>["Date", "Week", "Requisition Number"]
+		];
+
+		$theData = [];
+		$theWeekData = [];
+
+		$sub_cats = ['All Items...'=>''];
+
+		$categories = InventoryCategories::orderBy('name')->get();
+
+		if($request->has('category')){
+			if($request->has('filter_item') && trim($request->filter_item) !=""){
+				$group = 'Department';
+			}
+
+			if($request->has('year')){
+				$year = $request->year;
+			}
+
+			if($request->has('month')){
+				$month = $request->month;
+			}
+
+			$consumption = DB::table('view_consumption_by_category_reports')
+				->where('Year', $year)->where('Month', $month)->where('Category', $request->category);
+
+			$zumption = DB::table('view_consumption_by_category_reports')
+				->where('Year', $year)->where('Month', $month)->where('Category', $request->category)->get();
+
+			if($group == 'Department'){
+				$consumption = $consumption->where('Item', $request->filter_item);
+			}
+
+			$consumption = $consumption->get();
+
+			foreach($zumption as $z){
+				$sub_cats[$z->Item] = $z->Item;
+			}
+
+			foreach($consumption as $c){
+				$cA = (array) $c;
+				$keyStr = implode(" - ", [$c->Date,$c->Week]);
+
+				if(!isset($theData[$keyStr])){
+					$theData[$keyStr] = [
+						"Date" => $c->Date,
+						"Week" => $c->Week,
+						"Requisition Number" => '',
+					];
+				}
+
+				if(!isset($theWeekData[$c->Week])){
+					$theWeekData[$c->Week] = [];
+				}
+
+				$theData[$keyStr]["Requisition Number"] = explode('/', $theData[$keyStr]["Requisition Number"]);
+
+				$theData[$keyStr]["Requisition Number"][] = $cA['Requisition Number'];
+
+				$theData[$keyStr]["Requisition Number"] = trim(implode('/', array_unique($theData[$keyStr]["Requisition Number"])), '/');
+
+				$topLevel= $group=="Department" ? $cA['Cost Center'] : trim($c->Item);
+				$lowerLevel= $group=="Department" ? $cA['Department'] : $cA['Cost Center'];
+
+				if(!isset($theData[$keyStr][$topLevel])){
+					$theData[$keyStr][$topLevel] = [];
+				}
+
+				if(!isset($theWeekData[$c->Week][$topLevel])){
+					$theWeekData[$c->Week][$topLevel] = [];
+				}
+
+				if(!isset($theData[$keyStr][$topLevel][$lowerLevel])){
+					$theData[$keyStr][$topLevel][$lowerLevel] = ["quantity"=>0, "price"=>0];
+				}
+
+				if(!isset($theWeekData[$c->Week][$topLevel][$lowerLevel])){
+					$theWeekData[$c->Week][$topLevel][$lowerLevel] = ["quantity"=>0, "price"=>0];
+				}
+
+				$theData[$keyStr][$topLevel][$lowerLevel]["quantity"] += floatval($cA['Quantity']);
+				$theData[$keyStr][$topLevel][$lowerLevel]["price"] += floatval($cA['TOTAL PRICE']);
+
+				$theWeekData[$c->Week][$topLevel][$lowerLevel]["quantity"] += floatval($cA['Quantity']);
+				$theWeekData[$c->Week][$topLevel][$lowerLevel]["price"] += floatval($cA['TOTAL PRICE']);
+
+				if(!isset($topColumns[$topLevel])){
+					$topColumns[$topLevel] = [];
+				}
+
+				$topColumns[$topLevel][] = trim($group=="Department" ? $c->Department : $cA['Cost Center']);
+				$topColumns[$topLevel] = array_unique($topColumns[$topLevel]);
+			}
+
+			$title = $request->category.' Consumption';
+		}
+
+		// return response()->json($topColumns, 200);
+
+    	return view('layouts.inventory.reports.consumption', compact('sub_cats', 'theWeekData', 'theData', 'month', 'year', 'consumption', 'categories', 'title', 'columns', 'topColumns'));
+	}
+
+
+	public function check_pdf_processing_progress($id){
+		$entity = RequestEntity::find($id);
+		if($entity->downloadable_link == "pending"){
+			return json_encode([
+				"status"=>false
+			]);
+		}
+		else{
+			return json_encode([
+				"status"=> trim($entity->downloadable_link == "") && trim($entity->downloadable_link == "pending") ? false : url($entity->downloadable_link)
+			]);
+		}
+	}
+
+	public function generate_supplier_pdf($spl, $id){
+		$entity = \App\RequestEntity::find($id);
+		$requisition = \App\RequestEntity::find($entity->parent_material_requisition);
+		$supplier = \App\Supplier::find($spl);
+
+		$itemIDs = $supplier->itemIDs();
+
+		$items = \App\RequestEntityItem::join('inventory_sub_categories as isc', 'isc.id', 'request_entity_items.inventory_sub_category_id')
+			->whereIn('isc.id', $itemIDs)->where('request_entity_items.request_id', $id)
+			->selectRaw('isc.id, isc.name, isc.unit_type, request_entity_items.quantity')->get();
+
+		$preparedBy = $entity->creator();
+
+		$supplierQuoteDate = \App\SupplierQuote::where('supplier_id', $spl)->where('request_id', $id)->first();
+
+		$rfq_approval_id = getConfigByName('rfq_approval_id');
+		$rfq_approval_id = count($rfq_approval_id) > 0 ? $rfq_approval_id[0]->value : 0;
+
+		$finalApproval = \App\EntityApproval::join('users as u', 'u.id', 'entity_approvals.user_id')
+			->where('entity_approvals.model_id', $requisition->id)
+			->where('entity_approvals.approval_id', $rfq_approval_id)->first();
+
+		// return json_encode($finalApproval);
+
+		return view('layouts.inventory.templates.supplier-rfq', compact('supplier', 'entity', 'items', 'requisition', 'preparedBy', 'finalApproval', 'supplierQuoteDate'));
+	}
+
+	public function generate_report_pdf($id, $isHTML=false){
+		$job = PDFGenerator::dispatch($id, $isHTML);
+		$entity = RequestEntity::find($id);
+		$entity->downloadable_link ="pending";
+		$entity->save();
+
+		return redirect()->back()->with('success', 'Preparing PDF...');
+	}
+
 	public function generate_report($id, $is_supply=false){
 		$entity = RequestEntity::find($id);
 
 		$arrays = getDocumentTemplates();
 
-		if($entity->request_type == "Material Requisition"){
+		if($entity->request_type == "Purchase Request"){
 			$hasRFQ = RequestEntity::where('parent_request_id', $id)->get()->count();
 		}
 
@@ -159,45 +323,6 @@ class ReportGeneratorController extends Controller
 		return view('layouts.inventory.reports.print', compact('data', 'title', 'columns'));
 	}
 
-	public function generate_supplier_pdf($spl, $id, $isHTML=false){
-		$entity = \App\RequestEntity::find($id);
-		$requisition = \App\RequestEntity::find($entity->parent_material_requisition);
-		$supplier = \App\Supplier::find($spl);
-
-		if(!isset($supplier->id)){
-			return redirect()->back()->with('error', 'No Supplier found. Ensure you have saved all information');
-		}
-
-		$itemIDs = $supplier->itemIDs();
-
-		$items = \App\RequestEntityItem::join('inventory_sub_categories as isc', 'isc.id', 'request_entity_items.inventory_sub_category_id')
-			->whereIn('isc.id', $itemIDs)->where('request_entity_items.request_id', $id)
-			->selectRaw('isc.id, isc.name, isc.sap_code, isc.unit_type, request_entity_items.quantity')->get();
-
-		$preparedBy = $entity->creator();
-
-		$supplierQuoteDate = \App\SupplierQuote::where('supplier_id', $spl)->where('request_id', $id)->first();
-
-		$rfq_approval_id = getConfigByName('rfq_approval_id');
-		$rfq_approval_id = count($rfq_approval_id) > 0 ? $rfq_approval_id[0]->value : 0;
-
-		$approvals = \App\EntityApproval::join('users as u', 'u.id', 'entity_approvals.user_id')
-			->where('entity_approvals.model_id', $entity->id)->get();
-
-		// return json_encode($finalApproval);
-
-		return view('layouts.inventory.templates.supplier-rfq', compact('isHTML', 'supplier', 'entity', 'items', 'requisition', 'preparedBy', 'approvals', 'supplierQuoteDate'));
-	}
-
-	public function generate_report_pdf($id, $isHTML=false){
-		PDFGenerator::dispatchNow($id, $isHTML);
-		$entity = RequestEntity::find($id);
-		$entity->downloadable_link ="pending";
-		$entity->save();
-
-		return redirect()->back()->with('success', 'Preparing PDF...');
-	}
-
 	public function download_items_xlsx(Request $request, $id, $isPDF=false){
 		if($isPDF){
 			$ids = explode(',', $id);
@@ -222,6 +347,8 @@ class ReportGeneratorController extends Controller
 				->selectRaw('re.request_type, re.cost_center, re.request_code as `Request Code`, isc.sap_code, ea.approved_at, re.created_at, isc.name as Item, isc.code as `Code`, request_entity_items.comments as Comments, request_entity_items.uom as `Unit Type`, request_entity_items.quantity as Quantity, is.name as Store, iss.name as Slot')
 				->whereIn('request_entity_items.request_id', $ids)->groupBy('request_entity_items.id')->orderBy('isc.name', 'asc')->get()->toArray();
 			}
+
+			// return json_encode($items);
 
 			$entities = [];
 
@@ -269,11 +396,36 @@ class ReportGeneratorController extends Controller
 				->leftJoin('inventory_stores as is', 'is.id', 'request_entity_items.store_id')
 				->leftJoin('inventory_store_slots as iss', 'iss.inventory_store_id', 'is.id')
 				->selectRaw('re.request_code as `Request Code`, isc.name as Item, isc.code as `Code`, request_entity_items.comments as Comments, request_entity_items.uom as `Unit Type`, request_entity_items.quantity as Quantity, is.name as Store, iss.name as Slot')
-				->where('request_entity_items.request_id', $id)->orderBy('isc.name', 'asc')->get()->toArray();
+				->where('request_entity_items.request_id', $id)->groupBy('request_entity_items.request_id')->orderBy('isc.name', 'asc')->get()->toArray();
 			$columns = array_keys((array) $items[0]);
 			$title = "Request-Items.xlsx";
 			return Excel::download(new ReportExporter($items, $columns), $title);
 		}
 
+	}
+
+	public function exportCsv(Request $request)
+	{
+		$data = DB::select($request->sql);
+
+		if(count($data) == 0){
+			return redirect()->back()->with('error', 'No data found for the report');
+		}
+
+		$title = urlencode(space_underscore($request->title)).'.'.$request->file_type;
+
+		$newData = [];
+
+		foreach($data as $i=>$s){
+			$s = (array) $s;
+			$s = array_merge(['No' => $i+1] + $s);
+			$s['Date Generated'] = date('Y-m-d');
+			$newData[] = $s;
+		}
+
+		$columns = array_keys((array) $newData[0]);
+		// return json_encode($newData);
+
+		return Excel::download(new ReportExporter($newData, $columns), $title);
 	}
 }

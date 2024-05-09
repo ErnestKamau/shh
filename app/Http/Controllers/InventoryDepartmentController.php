@@ -42,7 +42,10 @@ class InventoryDepartmentController extends Controller
 		$department->module = $module;
 		$department->company_id = getUserCompany();
 		$department->location_id = getCurrentUserLocation()->id;
+		$department->department_head_id =  $request->proccess_owner;
 		$department->save();
+		
+		
 
 		return redirect()->back()->with('success', 'Department Added');
 	}
@@ -65,10 +68,14 @@ class InventoryDepartmentController extends Controller
 	 */
 	public function edit(Request $request, $id)
 	{
+		
 		$department = InventoryDepartment::find($id);
 		$department->name = $request->name;
 		$department->active = $request->active ?? 0;
+		
+		$department->department_head_id =  $request->proccess_owner;
 		$department->save();
+		// return response()->json($department);
 
 		return redirect()->back()->with('success', 'Department Edited.');
 	}

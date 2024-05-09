@@ -3,6 +3,8 @@
 namespace App\Http\Controllers;
 
 use App\InventoryCategories;
+use App\InventorySubCategories;
+
 use Illuminate\Http\File;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
@@ -30,7 +32,7 @@ class InventoryCategoriesController extends Controller
   {
     $category = new InventoryCategories;
     $category->name = $request->name;
-    $category->description = $request->description;
+    $category->description = $request->description ?? $request->name;
     if ($request->hasFile('image')){
       $path = $request->image->path();
       $file = Storage::putFile('categories', new File($path));
@@ -53,7 +55,7 @@ class InventoryCategoriesController extends Controller
   {
     $category = InventoryCategories::find($id);
     $category->name = $request->name;
-    $category->description = $request->description;
+    $category->description = $request->description ?? $request->name;
     if ($request->hasFile('image')){
       $path = $request->image->path();
       $file = Storage::putFile('categories', new File($path));
@@ -72,7 +74,44 @@ class InventoryCategoriesController extends Controller
 	}
 
 	public function show($id){
-		$category = InventoryCategories::find($id);
+		$category = InventoryCategories::leftJoin('inventory_stores as is', 'is.id', 'inventory_categories.default_store_id')
+		->leftJoin('inventory_store_slots as iss', 'iss.inventory_store_id', 'is.id')
+		->selectRaw('inventory_categories.*, is.name as store, iss.name as slot')->where('inventory_categories.id', $id)->first();
+
+		// return response()->json($category, 200);
+
 		return view('layouts.inventory.categories.show', compact('category'));
+	}
+
+	public function destroy($id){
+		$subs = InventorySubCategories::where('inventory_category_id', $id)->where('active', 1)->count();
+		$inactiveSubs = InventorySubCategories::where('inventory_category_id', $id)->where('active', 0)->count();
+		if($subs > 0){
+			return \redirect()->back()->with('error', 'Category not empty. Please delete or move items to another category.');
+		}
+
+		$cat = InventoryCategories::find($id);
+
+		if($inactiveSubs > 0){
+			$cat->active = 0;
+			$cat->save();
+		}
+		else{
+			$cat->delete();
+		}
+
+		return \redirect()->back()->with('success', 'Category not removed successfully.');
+	}
+
+	public function set_default_store(Request $request, $id){
+		$category = InventoryCategories::find($id);
+
+		$category->default_store_id = $request->store_id;
+		$category->default_slot_id = $request->slot_id;
+		$category->save();
+
+		// return response()->json($category, 200);
+
+		return \redirect()->back()->with('success', 'Default stores set.');
 	}
 }
