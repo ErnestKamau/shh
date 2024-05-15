@@ -583,6 +583,28 @@ class SampleWorkFlowController extends Controller
 		$targetDate->date = \Carbon\Carbon::parse($header->receipt_date)->addDays($maxReportingTime);
 		$targetDate->save();
 
+		if(isset($request->send_schedule) && $request->send_schedule == 1 && $header->schedule_analysis_sender == ''){
+
+			$body = '
+			<p>
+					Dear Esteemed client, <br><br>
+					We acknowledge receipt of your sample(s) submitted to our laboratory. The sample(s) have been forwarded to our laboratory and analysis is scheduled to start anytime from now.<br><br>We will keep you updated on the progress report(s).<br><br>Thank you for the opportunity to serve you.
+					
+				</p>
+			';
+			notify_user($body, $selectedCustomer->email, '[POLUCON LIMS] Schedule Of Analysis ' . $batch->batch_code);
+			$header->schedule_analysis_sent = date('Y-m-d');
+			$header->schedule_analysis_sender  =auth()->user()->id;
+			$header->save();
+
+			$scheduleDateStr = "Schedule of Analysis Sendoff Date";
+			$scheduleDate = \App\SampleDate::where('sample_header_id', $header->id)->where('name', $scheduleDateStr)->first() ?? new \App\SampleDate;
+			$scheduleDate->name = $scheduleDateStr;
+			$scheduleDate->sample_header_id = $header->id;
+			$scheduleDate->date = date('Y-m-d');
+			$scheduleDate->save();
+		}
+
 		if ($isNew) {
 			$custodyDetails = array(
 				"batch_id" => $header->id,
@@ -635,6 +657,7 @@ class SampleWorkFlowController extends Controller
 		$duplicate_samples = [];
 		$duplicate_samples_ids = [];
 		$duplicateDataSampleIds = [];
+
 		foreach ($request->sample_details['sample_code'] as $k => $v) {
 			$detailId = $request->sample_details['detail_header'][$k];
 
@@ -713,6 +736,7 @@ class SampleWorkFlowController extends Controller
 
 			$detail->main_standard = $request->sample_details['main_standard'][$k];
 			$detail->secondary_standard = $request->sample_details['secondary_standard'][$k];
+			$detail->third_standard_id = $request->sample_details['third_standard'][$k];
 			$detail->lab_id = $request->sample_details['lab_id'][$k];
 			$detail->save();
 			if ($request->sample_details['is_duplicate'][$k] != "0") {
@@ -752,12 +776,20 @@ class SampleWorkFlowController extends Controller
 				$sampleLabItemExists = \App\InventorySubCategories::where('name', $SampleHeader->batch_code . "/" . $detail->sample_code)->first();
 
 				if (!isset($sampleLabItemExists->id)) {
-					$category = InventorySubCategories::where('is_lab', 1)->first();
+					$category = SystemConfiguration::where('key','lab_samples_inventory_category_id')->first();
+					$labSupplier = SystemConfiguration::where('key','lab_samples_supplier_id')->first();
+					$inventoryLabDep = SystemConfiguration::where('key','inventory_lab_dep_id')->first();
 					if (!isset($category->id)) {
 						return redirect()->back()->with('error', 'Kindly a inventory sub-category for lab items;');
 					}
+					if(!isset($labSupplier->id)){
+						return redirect()->back()->with('error','Kindly set the default lab supplier for lab sample storage;');
+					}
+					if(!isset($inventoryLabDep->id)){
+						return redirect()->back()->with('error','Kindly set Inventory Lab Department;');
+					}
 					$req = new Request();
-					$req->category_id = 20003;
+					$req->category_id = $category->value;
 					$req->name = $SampleHeader->batch_code . "/" . $detail->sample_code;
 					$req->description = "Sample for batch - " . $SampleHeader->batch_code;
 					$req->manufacturer = "Source: Lab";
@@ -771,16 +803,16 @@ class SampleWorkFlowController extends Controller
 
 					$sampleItem = $ISCC->add($req, true); //Create Item in Inventory for storage
 
-					// return json_encode($sampleItem);
+					// return response()->json($sampleItem);
 
 					$IIC = new InventoryItemController;
 
 					$req = new Request();
-					$req->category_id = 20003;
+					$req->category_id = $category->value;
 					$req->sub_category_id = $sampleItem->id;
 					$req->batchcode = $sampleItem->name;
-					$req->inventory_department_id = 1;
-					$req->supplier_id = 4;
+					$req->inventory_department_id = $inventoryLabDep->value;
+					$req->supplier_id = $labSupplier->value;
 					$req->received_by = 0;
 					$req->previous_batch_code = 'N/A';
 					$req->quantity = $request->sample_details['sample_quantity'][$k] ?? 0;
@@ -858,10 +890,14 @@ class SampleWorkFlowController extends Controller
 		$batch->days_of_analysis = $maxReportingTime;
 		$batch->sample_tracking_stage = $stage->id;
 		$batch->save();
+		$duplicateSampleAnalysis = [];
 		if (sizeof($duplicate_samples_ids) > 0) {
 			foreach ($duplicate_samples as $key => $value) {
-				$captured_results = CapturedResult::where('sample_detail_code', $value)->get();
+				$choosen_analysis = explode(',',SampleDetails::find($key)->analysis_type_id);
+				$done_analysis = [];
+				$captured_results = CapturedResult::where('sample_detail_code', $value)->whereIn('analysis_type_id',$choosen_analysis)->get();
 				foreach ($captured_results as $c_value) {
+					array_push($done_analysis,$c_value->analysis_type_id);
 					$new_cr = $c_value->replicate()->fill([
 						'sample_detail_id' => $key,
 						'sample_detail_code' => $duplicateDataSampleIds[$key],
@@ -881,6 +917,8 @@ class SampleWorkFlowController extends Controller
 					]);
 					$new_result->save();
 				}
+				$analysis_diff = array_diff($choosen_analysis,$done_analysis);
+				$duplicateSampleAnalysis[$key] = $analysis_diff;
 			}
 		}
 
@@ -903,6 +941,12 @@ class SampleWorkFlowController extends Controller
 			if (!in_array($a->id, $duplicate_samples_ids)) {
 
 				$analysis_to_be_done[$a->sample_code]["analysis_to_do"] = array_merge($analysis_to_be_done[$a->sample_code]["analysis_to_do"], $a->analysis());
+			}
+			if(in_array($a->id,$duplicate_samples_ids)){
+				if(sizeof($duplicateSampleAnalysis[$a->id]) > 0){
+					$analysis_d = AnalysisType::whereIn('id',$duplicateSampleAnalysis[$a->id])->get();
+					$analysis_to_be_done[$a->sample_code]["analysis_to_do"] = array_merge($analysis_to_be_done[$a->sample_code]["analysis_to_do"], $analysis_d);
+				}
 			}
 		}
 
@@ -1175,6 +1219,7 @@ class SampleWorkFlowController extends Controller
 		$users = User::where('is_client', 0)->where('supplier_id', 0)->where('active', 1)->get();
 		$labsections = SampleAnalysisStage::where('active', 1)->get();
 		$reportingUnits = getReportingUnits();
+		$labStores = getStorageByType("lab_store");
 		// return response()->json($reportingUnits);
 		$conditions = SampleCondition::where('active', 1)->get();
 		$products = CompanyProduct::all();
@@ -1410,7 +1455,7 @@ class SampleWorkFlowController extends Controller
 		$notesReminderType = getNotesReminderTypes();
 		$clients = getClients();
 		// return response()->json($analaytesHolderPesticide);
-		return view('layouts.lab.sample-workflow.show', compact('batch', 'batchID', 'defaultClient', 'selectedSampleType', 'client_portal', 'ammendable', 'standards', 'attachments', 'not_captured', 'analysts', 'countries', 'accounts', 'methods', 'atachment_type', 'batch_scope', 'customer_survey', 'interlabs', 'labs', 'users', 'payment_detail', 'labsections', 'contacts', 'batch_sample_codes', 'report_formats', 'approvers', 'reportingUnits', 'conditions', 'products', 'headerDetails', 'analaytesHolder', 'analysisBySample', 'analysisBySampleNames', 'labSamples', 'workflowstages', 'workflows', 'sample_types', 'samplingmethods', 'active_company', 'ammendments', 'allsamples', 'selected_analysis_types', 'userLabSections', 'customer', 'requestTypes', 'notifiable_users', 'notesReminderType', 'clients', 'disposal_date', 'status','recieving_users','section_approvers_users','analaytesHolderPesticide'));
+		return view('layouts.lab.sample-workflow.show', compact('batch','labStores','batchID', 'defaultClient', 'selectedSampleType', 'client_portal', 'ammendable', 'standards', 'attachments', 'not_captured', 'analysts', 'countries', 'accounts', 'methods', 'atachment_type', 'batch_scope', 'customer_survey', 'interlabs', 'labs', 'users', 'payment_detail', 'labsections', 'contacts', 'batch_sample_codes', 'report_formats', 'approvers', 'reportingUnits', 'conditions', 'products', 'headerDetails', 'analaytesHolder', 'analysisBySample', 'analysisBySampleNames', 'labSamples', 'workflowstages', 'workflows', 'sample_types', 'samplingmethods', 'active_company', 'ammendments', 'allsamples', 'selected_analysis_types', 'userLabSections', 'customer', 'requestTypes', 'notifiable_users', 'notesReminderType', 'clients', 'disposal_date', 'status','recieving_users','section_approvers_users','analaytesHolderPesticide'));
 	}
 
 	public function fetch_unit_stuff($name, $client)

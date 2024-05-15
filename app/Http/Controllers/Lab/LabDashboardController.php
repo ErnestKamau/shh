@@ -161,7 +161,7 @@ class LabDashboardController extends Controller
         $notification = getBatchNotificationUser();
         foreach ($notification as $note) {
             $batch = getSampleHeaderByID($note->batch_id);
-            if ($batch->status != $note->status) {
+            if (isset($batch->status) && $batch->status != $note->status) {
                 $note->delete();
             }
         }

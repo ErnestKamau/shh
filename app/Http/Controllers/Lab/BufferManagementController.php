@@ -3,18 +3,14 @@
 namespace App\Http\Controllers\Lab;
 
 use App\Http\Controllers\Controller;
-use Illuminate\Http\Request;
 use App\InventoryCategories;
 use App\InventoryItem;
-use Illuminate\Support\Facades\Storage;
-use Illuminate\Http\File;
-use App\ReportingUnit;
-use App\InventorySubCategories;
-use App\LabSubCategory;
 use App\LabCategoryItems;
-
-
-
+use App\LabSubCategory;
+use App\ReportingUnit;
+use Illuminate\Http\File;
+use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Storage;
 
 class BufferManagementController extends Controller
 {
@@ -25,7 +21,7 @@ class BufferManagementController extends Controller
 
     public function add_lab_inventory_categories(Request $request)
     {
-        $category = new InventoryCategories;
+        $category = new InventoryCategories();
         $category->name = $request->name;
         $category->description = $request->description;
         $category->is_lab = 1;
@@ -34,7 +30,7 @@ class BufferManagementController extends Controller
             $file = Storage::putFile('categories', new File($path));
             $file = explode('/', $file);
 
-            $fName = '/storage/categories/' . urlencode(end($file));
+            $fName = '/storage/categories/'.urlencode(end($file));
 
             $category->image = (string) $fName;
         }
@@ -43,13 +39,13 @@ class BufferManagementController extends Controller
         $category->inventory_location_id = getCurrentUserLocation()->id;
         $category->save();
 
-
         return redirect()->back()->with('success', 'Inventory Category Added.');
     }
+
     public function add_lab_sub_category(Request $request, $id, $internal = false)
     {
         $category = InventoryCategories::find($request->category_id);
-        $subcategory = new LabSubCategory;
+        $subcategory = new LabSubCategory();
         $subcategory->name = $request->name;
         $subcategory->description = $request->description;
         if ($request->hasFile('image')) {
@@ -57,24 +53,20 @@ class BufferManagementController extends Controller
             $file = Storage::putFile('subcategory', new File($path));
             $file = explode('/', $file);
 
-            $fName = '/storage/subcategory/' . urlencode(end($file));
+            $fName = '/storage/subcategory/'.urlencode(end($file));
 
             $subcategory->image = (string) $fName;
         }
-        
+
         $subcategory->reporting_unit = $request->reporting_unit;
         $subcategory->rate = $request->rate;
         $subcategory->category_id = $category->id;
 
-
-
-
         $subcategory->save();
-
-
 
         return redirect()->back()->with('success', 'Lab Sub-Category Added.');
     }
+
     public function delete_category($id)
     {
         $category = InventoryCategories::find($id);
@@ -83,13 +75,17 @@ class BufferManagementController extends Controller
         }
         $category->active = 0;
         $category->save();
+
         return redirect()->back()->with('success', 'Category deleted successfully!');
     }
+
     public function index()
     {
         $categories = InventoryCategories::where('is_lab', 1)->get();
+
         return view('layouts.lab.buffer.index', compact('categories'));
     }
+
     public function stock_management_index(Request $request)
     {
         $suppliers = getSuppliers();
@@ -103,17 +99,20 @@ class BufferManagementController extends Controller
         }
         $categories = InventoryCategories::where('is_lab', 1)->get();
         $selected = [];
-        return view('layouts.lab.buffer.stock_management.index', compact('suppliers', 'subcategory', 'categories','selected'));
+
+        return view('layouts.lab.buffer.stock_management.index', compact('suppliers', 'subcategory', 'categories', 'selected'));
     }
-    public function add_lab_category_item(Request $request){       
+
+    public function add_lab_category_item(Request $request)
+    {
         $sub = LabSubCategory::find($request->subcategory_id);
         // $reagent = InventoryItem::find($id);
-        if(!isset($sub->id)){
-            return redirect()->back()->with('error','Kindly provide all the data needed!');
+        if (!isset($sub->id)) {
+            return redirect()->back()->with('error', 'Kindly provide all the data needed!');
         }
         $counter = 0;
         // return response()->json($request->reagent_id[$counter],200);
-        foreach($request->reagent_id as $reagent){
+        foreach ($request->reagent_id as $reagent) {
             $item = new LabCategoryItems();
             $item->category_id = $sub->category_id;
             $item->unit_measure_id = $request->reporting_unit[$counter];
@@ -123,39 +122,49 @@ class BufferManagementController extends Controller
             $item->save();
             ++$counter;
         }
-        return redirect()->back()->with('success','Items added successfully!');
+
+        return redirect()->back()->with('success', 'Items added successfully!');
     }
-    public function show_lab_sub_category($id){
+
+    public function show_lab_sub_category($id)
+    {
         $subcategory = LabSubCategory::find($id);
-        $category = InventoryCategories::where('category_type','is_lab_reagents')->get();
-        $categories = InventoryCategories::where('is_lab',1)->get();
-        $reagents = InventoryItem::where('inventory_category_id',$category[0]->id)->get();
-        $category_items = LabCategoryItems::where('sub_category_id',$id)->get();
-        foreach($category_items as $item){
+        $category = InventoryCategories::where('category_type', 'is_lab_reagents')->get();
+        $categories = InventoryCategories::where('is_lab', 1)->get();
+        $reagents = InventoryItem::where('inventory_category_id', $category[0]->id)->get();
+        $category_items = LabCategoryItems::where('sub_category_id', $id)->get();
+        foreach ($category_items as $item) {
             $reagent = InventoryItem::find($item->reagent_id);
             $item['reagent_name'] = $reagent->batch_code;
         }
-       
-        return view('layouts.lab.buffer.stock_management.show',compact('category_items','subcategory','category','reagents','categories'));
+
+        return view('layouts.lab.buffer.stock_management.show', compact('category_items', 'subcategory', 'category', 'reagents', 'categories'));
     }
-    public function delete_show_lab_category_item(Request $request){
+
+    public function delete_show_lab_category_item(Request $request)
+    {
         $item = LabCategoryItems::find($request->item_id);
-        if(!isset($item->id)){
-            return redirect()->back()->with('error','There is no category item with the specified ID!');
+        if (!isset($item->id)) {
+            return redirect()->back()->with('error', 'There is no category item with the specified ID!');
         }
         $item->delete();
-        return redirect()->back()->with('success','Category item deleted successfully!');
+
+        return redirect()->back()->with('success', 'Category item deleted successfully!');
     }
-    public function edit_lab_category_item(Request $request){
+
+    public function edit_lab_category_item(Request $request)
+    {
         $item = LabCategoryItems::find($request->item_id);
         $item->reagent_id = $request->reagent_id;
         $item->unit_measure_id = $request->reporting_unit;
         $item->amount_used = $request->amount_used;
         $item->save();
         // return response()->json( $request->amount_used,200);
-        return redirect()->back()->with('success','Category item edited successfully!');
+        return redirect()->back()->with('success', 'Category item edited successfully!');
     }
-    public function edit_lab_sub_category(Request $request){
+
+    public function edit_lab_sub_category(Request $request)
+    {
         $sub = LabSubCategory::find($request->sub_category_id);
         $sub->name = $request->name;
         if ($request->hasFile('image')) {
@@ -163,7 +172,7 @@ class BufferManagementController extends Controller
             $file = Storage::putFile('subcategory', new File($path));
             $file = explode('/', $file);
 
-            $fName = '/storage/subcategory/' . urlencode(end($file));
+            $fName = '/storage/subcategory/'.urlencode(end($file));
 
             $sub->image = (string) $fName;
         }
@@ -172,19 +181,25 @@ class BufferManagementController extends Controller
         $sub->rate = $request->rate;
         $sub->description = $request->description;
         $sub->save();
-        return redirect()->back()->with('success','Lab sub Category edited successfully!');
+
+        return redirect()->back()->with('success', 'Lab sub Category edited successfully!');
     }
-    public function delete_sub_category(Request $request){
+
+    public function delete_sub_category(Request $request)
+    {
         $sub = LabSubCategory::find($request->sub_category_id);
         $sub->active = 0;
         $sub->save();
-        return redirect()->back()->with('success','Sub category deleted successfully!');
+
+        return redirect()->back()->with('success', 'Sub category deleted successfully!');
     }
-    public function filter_data(Request $request){
+
+    public function filter_data(Request $request)
+    {
         $suppliers = getSuppliers();
-        
+
         // return response()->json($request->category,200);
-        $subcategory = LabSubCategory::whereIn('category_id',$request->category)->get();
+        $subcategory = $request->category ? LabSubCategory::whereIn('category_id', $request->category)->get() : LabSubCategory::all();
         // return response()->json($subcategory,200);
         foreach ($subcategory as $sub) {
             $category = InventoryCategories::find($sub->category_id);
@@ -192,14 +207,16 @@ class BufferManagementController extends Controller
             $sub['category_name'] = $category->name;
             $sub['reporting_name'] = $reporting->name ?? '';
         }
-        $selected = $request->category;
+        $selected = $request->category ?? [];
         $categories = InventoryCategories::where('is_lab', 1)->get();
-        return view('layouts.lab.buffer.stock_management.index', compact('suppliers', 'subcategory', 'categories','selected'));
 
+        return view('layouts.lab.buffer.stock_management.index', compact('suppliers', 'subcategory', 'categories', 'selected'));
     }
-    public function clone_sub_category(Request $request){
+
+    public function clone_sub_category(Request $request)
+    {
         $sub = LabSubCategory::find($request->sub_category_id);
-        $items = LabCategoryItems::where('sub_category_id',$sub->id)->get();
+        $items = LabCategoryItems::where('sub_category_id', $sub->id)->get();
         $new_sub = new LabSubCategory();
         $new_sub->name = $sub->name;
         $new_sub->description = $sub->description;
@@ -208,7 +225,7 @@ class BufferManagementController extends Controller
         $new_sub->rate = $sub->rate;
         $new_sub->category_id = $sub->category_id;
         $new_sub->save();
-        foreach($items as $item){
+        foreach ($items as $item) {
             $new_item = new LabCategoryItems();
             $new_item->category_id = $item->category_id;
             $new_item->unit_measure_id = $item->unit_measure_id;
@@ -217,6 +234,7 @@ class BufferManagementController extends Controller
             $new_item->sub_category_id = $new_sub->id;
             $new_item->save();
         }
-        return redirect()->back()->with('success','Cloned successfully!');
+
+        return redirect()->back()->with('success', 'Cloned successfully!');
     }
 }

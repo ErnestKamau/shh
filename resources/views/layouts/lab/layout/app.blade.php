@@ -221,10 +221,10 @@
 				</div>
 			</a>
 
-			{{-- <a href="#stock-monitoring-menu" data-toggle="collapse" aria-expanded="false" class="bg-dark list-group-item list-group-item-action flex-column align-items-start">
+			<a href="#stock-monitoring-menu" data-toggle="collapse" aria-expanded="false" class="bg-dark list-group-item list-group-item-action flex-column align-items-start">
 				<div class="d-flex w-100 justify-content-start align-items-center">
 					<span class=" fas fa-money-bill-alt mr-3"></span>
-					<span class="menu-collapsed">Stock Monitoring</span>
+					<span class="menu-collapsed">Solutions Monitoring</span>
 					<span class="submenu-icon ml-auto"></span>
 				</div>
 			</a>
@@ -235,16 +235,16 @@
 				<small class="float-right badge badge-pill"></small></span>
 			</a>
 			<a href="{{route('stock_management_index')}}" class="list-group-item list-group-item-action bg-dark text-white">
-				<span class="menu-collapsed"><i class="mdi mdi-circle-medium"></i> Stock Management
+				<span class="menu-collapsed"><i class="mdi mdi-circle-medium"></i> Solutions Management
 					<small class="float-right badge badge-pill"></small></span>
 			</a>
 			<a href="/" class="bg-dark list-group-item list-group-item-action">
-				<span class="menu-collapsed"><i class="mdi mdi-circle-medium"></i> Stock Movement
+				<span class="menu-collapsed"><i class="mdi mdi-circle-medium"></i> Solutions Movement
 					<small class="float-right badge badge-pill"></small></span>
 			</a>
 
 
-	</div> --}}
+	</div>
 
 	<a href="/sample-analysis-stages" class="bg-dark list-group-item list-group-item-action">
 		<div class="d-flex w-100 justify-content-start align-items-center">

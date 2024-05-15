@@ -63,7 +63,7 @@
 								</tr>
 							</thead>
 							<tbody>
-								@foreach($store->cost_centers() as $item)
+								@foreach($store->cost_centers() ?? [] as $item)
 									<tr>
 										<td valign="center">{{ $loop->iteration }}</td>
 										<td>{{ $item->cost_center }}</td>

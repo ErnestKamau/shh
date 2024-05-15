@@ -171,7 +171,14 @@ class CustomerContactController extends Controller
 		$contact->title_id = $request->title;
 		$contact->active = $request->active ?? 0;
 		$contact->save();
-
+		if(isset($request->not_ajax)){
+			return redirect()->back()->with('success','Customer contact added succesfully!');
+		}
 		return response()->json($contact);
 	}
+
+	public function getCustomerUnits($id){
+		return CRMCustomer::find($id)->units ?? [];
+	}
 }
+

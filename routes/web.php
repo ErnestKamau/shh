@@ -165,7 +165,7 @@ Route::post('/stock-taking-counter/{id}/remove','StockTakingCounterController@re
 
 ##############################################Sample Workflow###################################################
   Route::get('/sample-workflow/{status?}', 'SampleWorkFlowController@index')->name('sample-workflow');
-  Route::get('/sample-workflow/{status?}/stage', 'SampleWorkFlowController@index')->name('sample-workflow')->middleware('haspermission:Laboratory.components.empty.View');
+  Route::get('/sample-workflow/{status?}/stage', 'SampleWorkFlowController@index')->name('sample-workflow')->middleware('haspermission:Laboratory.components.status.View');
   Route::get('/sample-workflow/batch/{batch}/details/{client?}/{portal?}/{status?}', 'SampleWorkFlowController@show')->name('view-batch-details');
   Route::post('/add-batch-info/{batch}', 'SampleWorkFlowController@add_batch_info')->name('add-batch-info');
   Route::post('/add-batch-samples/{batch}', 'SampleWorkFlowController@add_batch_samples')->name('add-batch-samples');
@@ -453,7 +453,7 @@ Route::get('/complaint-type/home','CRM\Complaint\ComplaintTypeController@index')
 Route::post('/edit/complaint-type/{id}','CRM\Complaint\ComplaintTypeController@edit')->name('edit-complaint-type')->middleware('haspermission:CRM.components.Complaint Type.Edit');
 Route::post('/add/complaint-type','CRM\Complaint\ComplaintTypeController@add')->name('add-complaint-type')->middleware('haspermission:CRM.components.Complaint Type.Add');
 
-Route::get('/complaint/{stage}','CRM\Complaint\ComplaintController@index')->name('complaint-workflow')->middleware('haspermission:CRM.components.empty.View');
+Route::get('/complaint/{stage}','CRM\Complaint\ComplaintController@index')->name('complaint-workflow')->middleware('haspermission:CRM.components.stage.View');
 Route::post('/add/open-complaint','CRM\Complaint\ComplaintController@add')->name('add-complaint')->middleware('haspermission:CRM.components.Open Complaints.Add');
 Route::post('/add-open-complaint/customer','CRM\Complaint\ComplaintController@customer_add')->name('customer-add-complaint');
 Route::post('/edit-complaint/{id}','CRM\Complaint\ComplaintController@edit')->name('edit-complaint')->middleware('haspermission:CRM.components.Complaints.Edit');
@@ -490,6 +490,8 @@ Route::post('/customer-product/edit/{id?}', 'CRM\CompanyProductController@edit')
 
 Route::post('/company-contacts/{cust_id}', 'CRM\CustomerContactController@add')->name('add-company-contacts')->middleware('haspermission:CRM.components.Contacts.Add');
 Route::post('/company-contact/{id}/{cust_id}', 'CRM\CustomerContactController@edit')->name('edit-company-contact')->middleware('haspermission:CRM.components.Contacts.Edit');
+Route::post('/customer-contact/add','CRM\CustomerContactController@addAjax')->name('customer-contact-add-ajax');
+Route::get('/get/customer/ajax/{id}','CRM\CustomerContactController@getCustomerUnits')->name('getCustomerUnits');
 
 Route::get('/fetch-customer-contacts/{id}','CRM\CustomerContactController@get_customer_client')->name('get_customer_client');
 Route::get('/validate-Crm-Customer/Name/{name}/Ajax','CRM\CRMCustomerController@validateCrmCustomerNameAjax')->name('validateCrmCustomerNameAjax');
