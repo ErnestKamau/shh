@@ -1258,6 +1258,9 @@
 								</button> &nbsp; &nbsp;
 							
 						@endif
+						@if(isset($batch->status) && in_array($batch->status, array("Sample Verification","Sample Approval","Samples In Lab")))
+						<button type="button" class="btn btn-danger btn-sm text-white float-right ml-2 save-samples"><i class="mdi mdi-content-save"></i> Save</button> &nbsp; &nbsp;
+						@endif
 						@if(isset($batch->status) && in_array($batch->status, array("Samples Reception","Samples En-Route")))
 							@if(Auth::user()->is_client == 1 && $batch->status == 'Samples Reception')
 							@else
@@ -2674,7 +2677,9 @@
 										@if(isset($batch->id) && $batch->repeat_sample_id > 0)
 										<th>Prev Result (<small>+- {{$qc_config_perc}} %</small>)</th>
 										@endif
-										<th>Standard</th>
+										<th class="first_standard" >First Standard</th>
+										<th class="sec_standard" >Secondary Standard</th>
+										<th class="third_standard" >Third Standard</th>
 										@if(Auth::user()->is_client == 0)
 										<th>Remarks</th>
 										<th>Reporting Unit</th>
@@ -2690,7 +2695,7 @@
 								</thead>
 								<tbody id="sample-parameters-holder">
 									<tr>
-										<td colspan="12"><b>Loading...</b></td>
+										<td colspan="14"><b>Loading...</b></td>
 									</tr>
 								</tbody>
 							</table>
@@ -3704,14 +3709,15 @@
 		var pesticideBySampleCode = $('#sample-detail-rows').data('pesticides');
 		var analysisIDsBySampleCode = $('#sample-detail-rows').data('sample_analysis_ids');
 		var analysisNames = $('#sample-detail-rows').data('analysis_names');
-		var labSectionRow = (section,id,batch_id,sample_id,datevalue)=>{
+		var labSectionRow = (section,id,batch_id,sample_id,datevalue,standard_count = 0)=>{
+			var colspan_value = <?php isset($batch->id) && $batch->require_mu == 1 ? 12 : 11; ?>
 			var body = $(`
 			<tr>
 				<td colspan="3" style="padding-left:2%">
 					<h5>${section}</h5>
 					
 				</td>
-				<td class="pull-right" colspan="{{isset($batch->id) && $batch->require_mu == 1 ? 12 : 11}}" style="padding-left:1%">
+				<td class="pull-right" colspan="${colspan_value + standard_count}" style="padding-left:1%">
 					<b>Date of Analysis</b>
 					<input type="date" class="start_analysis_date" value="${datevalue}" style="margin-left:1%;width:20%">
 					<span class="btn btn-sm btn-success save-analysis-start-date" style="font-size:14px !important"><i class="mdi mdi-sync"></i>Click to Save Date</span>
@@ -3814,12 +3820,24 @@
 			// console.log(parametersBySampleCode['2023L00217463']);
 			// console.log(parameters);
 			getSampleInterlabTransferApproval(sampleCode,(data)=>{
+
+				var selected_sample = data['sample'];
+				var standard_count = 0;
+				if(selected_sample.main_standard > 0){
+					standard_count = 0
+				}
+				if(selected_sample.secondary_standard > 0){
+					standard_count = 1
+				}
+				if(selected_sample.third_standard_id > 0){
+					standard_count = 2
+				}
 				
-				if(data == 0){
+				if(data['approval_status'] == 0){
 					InterlabStatus = 0;
 					$('#show-sample-analysis-analytes').find('.not-approved').addClass('hidden');
 				}
-				if(data == 1){
+				if(data['approval_status'] == 1){
 					InterlabStatus = 1;
 					$('#show-sample-analysis-analytes').find('.not-approved').removeClass('hidden');
 				}
@@ -3827,11 +3845,11 @@
 					
 					var a_date =analysis_dates && analysis_dates[p] ? analysis_dates[p] : '';
 					
-					var sectionRow = labSectionRow(param['section'],p,thebatch.id,sampleCode,a_date);
+					var sectionRow = labSectionRow(param['section'],p,thebatch.id,sampleCode,a_date,standard_count);
 					$('#sample-parameters-holder').append(sectionRow);
 					
 					$.each(param['cr'],(i,obj)=>{
-						var sampleRow = sampleCodeParameters(obj,loop,InterlabStatus);
+						var sampleRow = sampleCodeParameters(obj,loop,InterlabStatus,sample);
 						$('#sample-parameters-holder').append(sampleRow);
 						loop = loop + 1;
 					})
@@ -4402,6 +4420,9 @@
 					<option value="${s.id}" ${ s.id === data['third_standard'] ? 'selected' : '' }>${s.name}</option>
 				`);
 			});
+			$row.find('.show-parameter-initiator').data('standard',data['main_standard']);
+			$row.find('.show-parameter-initiator').data('standard2',data['secondary_standard']);
+			$row.find('.show-parameter-initiator').data('standard3',data['third_standard']);
 			
 			// $row.find('[name="sample_details[product][]"]').html('<option></option>');
 
@@ -4949,7 +4970,7 @@
 
 	});
 
-	var sampleCodeParameters = function(data,loop,interLabApproval=0){
+	var sampleCodeParameters = function(data,loop,interLabApproval=0,sample = null){
 		
 		var readonly = '';
 		$('.main-standard-name').text(data.main_standard === undefined ? '' : (data.main_standard === null ? '' : data.main_standard));
@@ -5191,8 +5212,10 @@
 		<td>
 		<input type="checkbox" class="select-row-check mt-1" /></td>
 		<td class="block toolbar" nowrap>
+			@if(isset($batch->status) && in_array($batch->status, array("Samples En-Route" ,"Samples Reception","Sample Approval","Samples In Lab","Sample Verification","Samples In Lab")))
+			<span class="btn edit-remove btn-default text-primary btn-sm no-data hidden toggle-row-edit-mode" data-toggle="tooltip" title="Edit"><i class="mdi mdi-lead-pencil"></i></span> &nbsp;
+			@endif
 			@if(isset($batch->status) && in_array($batch->status, array("Samples En-Route" ,"Samples Reception")))
-				<span class="btn edit-remove btn-default text-primary btn-sm no-data hidden toggle-row-edit-mode" data-toggle="tooltip" title="Edit"><i class="mdi mdi-lead-pencil"></i></span> &nbsp;
 				<span class="btn btn-default delete-remove text-danger btn-sm delete-row" data-toggle="tooltip" title="Delete"><i class="mdi mdi-trash-can"></i></span>
 			@endif
 			@if(isset($batch->status) && in_array($batch->status, array("Sample Approval","Samples In Lab","Sample Verification")))
@@ -5211,7 +5234,7 @@
 		</td>
 		<td class="analysis-field" nowrap>
 			<div class="form-group form-group-sm">
-				<select class="form-control form-control-sm is-required sample-analysis" multiple style="width: 200px" placeholder="Select Analysis...">
+				<select class="form-control form-control-sm is-required sample-analysis" multiple {!! isset($batch->id) && in_array($batch->status,["Sample Approval","Samples In Lab","Sample Verification","Samples In Lab"]) ? 'disabled' : '' !!} style="width: 200px" placeholder="Select Analysis...">
 					@if($selectedSampleType)
 						@foreach($selectedSampleType->analysis_types as $typ)
 							<option value="{{ $typ->id }}">{{ $typ->name }}</option>
@@ -5225,14 +5248,14 @@
 		
 		<td class="sample-lab-field">
 			<div class="form-group form-group-sm">
-				<select class="form-control form-control-sm  is-required sample-lab" name="sample_details[lab_id][]" style="width: 200px" placeholder="Select..." required></select>
+				<select class="form-control form-control-sm  is-required sample-lab" {!! isset($batch->id) && in_array($batch->status,["Sample Approval","Samples In Lab","Sample Verification","Samples In Lab"]) ? 'disabled' : '' !!} name="sample_details[lab_id][]" style="width: 200px" placeholder="Select..." required></select>
 			</div>
 			<input type="hidden" name="sample_details[is_duplicate][]" value="" class="">
 			<span class="text"></span>
 		</td>
 		<td class="sample-condition-field">
 			<div class="form-group form-group-sm">
-				<select class="form-control form-control-sm is-required sample-condition" name="sample_details[sample_condition][]" style="width: 200px" placeholder="Select Sample Condition..." required>
+				<select class="form-control form-control-sm is-required sample-condition" {!! isset($batch->id) && in_array($batch->status,["Sample Approval","Samples In Lab","Sample Verification","Samples In Lab"]) ? 'disabled' : '' !!} name="sample_details[sample_condition][]" style="width: 200px" placeholder="Select Sample Condition..." required>
 					@foreach($conditions as $con)
 						<option value="{{ $con->id }}">{{ $con->name }}</option>
 					@endforeach
@@ -5242,13 +5265,13 @@
 		</td>
 		<td class="sample-sample_point-field">
 			<div class="form-group form-group-sm">
-				<select class="form-control form-control-sm  is-required sample-point" name="sample_details[sample_point][]" style="width: 200px" placeholder="Select..." required></select>
+				<select class="form-control form-control-sm  is-required sample-point" {!! isset($batch->id) && in_array($batch->status,["Sample Approval","Samples In Lab","Sample Verification","Samples In Lab"]) ? 'disabled' : '' !!} name="sample_details[sample_point][]" style="width: 200px" placeholder="Select..." required></select>
 			</div>
 			<span class="text"></span>
 		</td>
 		<td class="sample-product-field">
 			<div class="form-group form-group-sm">
-				<select class="form-control form-control-sm is-required sample-product" name="sample_details[product][]" style="width: 200px" placeholder="Select..." required>
+				<select class="form-control form-control-sm is-required sample-product" {!! isset($batch->id) && in_array($batch->status,["Sample Approval","Samples In Lab","Sample Verification","Samples In Lab"]) ? 'disabled' : '' !!} name="sample_details[product][]" style="width: 200px" placeholder="Select..." required>
 					@foreach($products as $product)
 					<option value="{{$product->id}}">{{$product->name}}</option>
 					@endforeach
@@ -5258,13 +5281,13 @@
 		</td>
 		<td class="sample-code-field" nowrap>
 			<div class="form-group form-group-sm">
-				<input type="date" style="width: 200px" class="form-control form-control-sm disposal-date" value={{$disposal_date}} name="sample_details[disposal_date][]"/>
+				<input type="date" style="width: 200px" {!! isset($batch->id) && in_array($batch->status,["Sample Approval","Samples In Lab","Sample Verification","Samples In Lab"]) ? 'disabled' : '' !!} class="form-control form-control-sm disposal-date" value={{$disposal_date}} name="sample_details[disposal_date][]"/>
 			</div>
 			<span class="text"></span>
 		</td>
 		<td class ="main-standard-field">
 			<div class="form-group form-group-sm">
-				<select class="form-control form-control-sm is-required main-standard" name="sample_details[main_standard][]" style"width:200px" placeholder="Select Main Standard..." required >
+				<select class="form-control form-control-sm is-required main-standard" {!! isset($batch->id) && in_array($batch->status,["Sample Approval","Samples In Lab","Sample Verification","Samples In Lab"]) ? 'disabled' : '' !!} name="sample_details[main_standard][]" style"width:200px" placeholder="Select Main Standard..." required >
 				@if($standards)
 					@foreach($standards as $standard)
 					<option value="{{$standard->id}}">{{$standard->name}}</option>
@@ -5276,7 +5299,7 @@
 		</td>
 		<td class ="secondary-standard-field">
 			<div class="form-group form-group-sm">
-				<select class="form-control form-control-sm secondary-standard" name="sample_details[secondary_standard][]" style"width:200px" placeholder="Select Sec Standard...">
+				<select class="form-control form-control-sm secondary-standard" {!! isset($batch->id) && in_array($batch->status,["Sample Approval","Samples In Lab","Sample Verification","Samples In Lab"]) ? 'disabled' : '' !!} name="sample_details[secondary_standard][]" style"width:200px" placeholder="Select Sec Standard...">
 				@if($standards)
 					@foreach($standards as $standard)
 					<option value="{{$standard->id}}">{{$standard->name}}</option>
@@ -5288,7 +5311,7 @@
 		</td>
 		<td class ="third-standard-field">
 			<div class="form-group form-group-sm">
-				<select class="form-control form-control-sm third-standard" name="sample_details[third_standard][]" style"width:200px" placeholder="Select Third Standard...">
+				<select class="form-control form-control-sm third-standard" {!! isset($batch->id) && in_array($batch->status,["Sample Approval","Samples In Lab","Sample Verification","Samples In Lab"]) ? 'disabled' : '' !!} name="sample_details[third_standard][]" style"width:200px" placeholder="Select Third Standard...">
 				@if($standards)
 					@foreach($standards as $standard)
 					<option value="{{$standard->id}}">{{$standard->name}}</option>
@@ -5309,7 +5332,7 @@
 		</td>
 		<td class="sample-store-field" nowrap>
 			<div class="form-group form-group-sm">
-				<select class="form-control form-control-sm sample-store" name="sample_details[sample_store][]" style="width: 200px" placeholder="Select Sample Storage...">
+				<select class="form-control form-control-sm sample-store" {!! isset($batch->id) && in_array($batch->status,["Sample Approval","Samples In Lab","Sample Verification","Samples In Lab"]) ? 'disabled' : '' !!} name="sample_details[sample_store][]" style="width: 200px" placeholder="Select Sample Storage...">
 					<option></option>
 					@if($labStores)
 						@foreach($labStores as $store)
@@ -5322,7 +5345,7 @@
 		</td>
 		<td class="sample-slot-field" nowrap>
 			<div class="form-group form-group-sm">
-				<select class="form-control form-control-sm sample-store-slot" name="sample_details[sample_store_slot][]" style="width: 200px !important" placeholder="Select a Srore First...">
+				<select class="form-control form-control-sm sample-store-slot" {!! isset($batch->id) && in_array($batch->status,["Sample Approval","Samples In Lab","Sample Verification","Samples In Lab"]) ? 'disabled' : '' !!} name="sample_details[sample_store_slot][]" style="width: 200px !important" placeholder="Select a Srore First...">
 					<option></option>
 				</select>
 			</div>
@@ -5331,13 +5354,13 @@
 		
 		<td class="sample-quantity-field">
 			<div class="form-group form-group-sm">
-				<input type="number" min="0" style="width: 200px !important" class="form-control form-control-sm sample-quantity"  name="sample_details[sample_quantity][]" placeholder="Sample Quantity..." />
+				<input type="number" min="0" style="width: 200px !important" {!! isset($batch->id) && in_array($batch->status,["Sample Approval","Samples In Lab","Sample Verification","Samples In Lab"]) ? 'disabled' : '' !!} class="form-control form-control-sm sample-quantity"  name="sample_details[sample_quantity][]" placeholder="Sample Quantity..." />
 			</div>
 			<span class="text"></span>
 		</td>
 		<td class="sample-reporting-unit-field">
 			<div class="form-group form-group-sm">
-				<select class="form-control form-control-sm sample-reporting-unit"  name="sample_details[sample_reporting_unit][]" style="width: 200px !important" placeholder="Select Sample Reporting Unit...">
+				<select class="form-control form-control-sm sample-reporting-unit" {!! isset($batch->id) && in_array($batch->status,["Sample Approval","Samples In Lab","Sample Verification","Samples In Lab"]) ? 'disabled' : '' !!} name="sample_details[sample_reporting_unit][]" style="width: 200px !important" placeholder="Select Sample Reporting Unit...">
 					<option></option>
 					@if($reportingUnits)
 						@foreach($reportingUnits as $unit)

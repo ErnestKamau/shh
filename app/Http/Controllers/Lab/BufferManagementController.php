@@ -5,7 +5,9 @@ namespace App\Http\Controllers\Lab;
 use App\Http\Controllers\Controller;
 use App\InventoryCategories;
 use App\InventoryItem;
+use App\InventorySubCategories;
 use App\LabCategoryItems;
+use App\LabInventoryCategory;
 use App\LabSubCategory;
 use App\ReportingUnit;
 use Illuminate\Http\File;
@@ -81,7 +83,7 @@ class BufferManagementController extends Controller
 
     public function index()
     {
-        $categories = InventoryCategories::where('is_lab', 1)->get();
+        $categories = LabInventoryCategory::where('active', 1)->get();
 
         return view('layouts.lab.buffer.index', compact('categories'));
     }
@@ -89,15 +91,9 @@ class BufferManagementController extends Controller
     public function stock_management_index(Request $request)
     {
         $suppliers = getSuppliers();
-        $subcategory = LabSubCategory::all();
-
-        foreach ($subcategory as $sub) {
-            $category = InventoryCategories::find($sub->category_id);
-            $reporting = ReportingUnit::find($sub->reporting_unit);
-            $sub['category_name'] = $category->name;
-            $sub['reporting_name'] = $reporting->name ?? '';
-        }
-        $categories = InventoryCategories::where('is_lab', 1)->get();
+        $subcategory = LabSubCategory::join('lab_inventory_category as lic', 'lic.id', '=', 'lab_sub_category.category_id')->join('reporting_units as ru', 'ru.id', 'lab_sub_category.reporting_unit')
+        ->selectRaw('lab_sub_category.*,lic.name as categroy_name,ru.name as reporting_name')->get();
+        $categories = LabInventoryCategory::where('active', 1)->get();
         $selected = [];
 
         return view('layouts.lab.buffer.stock_management.index', compact('suppliers', 'subcategory', 'categories', 'selected'));
@@ -118,6 +114,7 @@ class BufferManagementController extends Controller
             $item->unit_measure_id = $request->reporting_unit[$counter];
             $item->amount_used = $request->amount_used[$counter];
             $item->reagent_id = $request->reagent_id[$counter];
+            $item->inventory_sub_category_id = $request->reagent_id[$counter];
             $item->sub_category_id = $sub->id;
             $item->save();
             ++$counter;
@@ -129,16 +126,12 @@ class BufferManagementController extends Controller
     public function show_lab_sub_category($id)
     {
         $subcategory = LabSubCategory::find($id);
-        $category = InventoryCategories::where('category_type', 'is_lab_reagents')->get();
-        $categories = InventoryCategories::where('is_lab', 1)->get();
-        $reagents = InventoryItem::where('inventory_category_id', $category[0]->id)->get();
-        $category_items = LabCategoryItems::where('sub_category_id', $id)->get();
-        foreach ($category_items as $item) {
-            $reagent = InventoryItem::find($item->reagent_id);
-            $item['reagent_name'] = $reagent->batch_code;
-        }
+        $categories = InventoryCategories::where('active', 1)->get();
+        $reagents = InventorySubCategories::where('active', 1)->get();
+        $category_items = LabCategoryItems::where('lab_category_items.sub_category_id', $id)->join('inventory_sub_categories as isc', 'isc.id', '=', 'lab_category_items.inventory_sub_category_id')
+        ->selectRaw('lab_category_items.*,isc.name as reagent_name,isc.code as reagent_code')->get();
 
-        return view('layouts.lab.buffer.stock_management.show', compact('category_items', 'subcategory', 'category', 'reagents', 'categories'));
+        return view('layouts.lab.buffer.stock_management.show', compact('category_items', 'subcategory', 'reagents', 'categories'));
     }
 
     public function delete_show_lab_category_item(Request $request)

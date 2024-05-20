@@ -88,8 +88,8 @@
 			</a>
 			<div id="sample-workflow-menu" class="collapse sidebar-submenu">
 				<?php
-				$menuTotals = getSampleWorkFLowTotals();
-				?>
+                $menuTotals = getSampleWorkFLowTotals();
+                ?>
 				@foreach (getSampleWorflowStages() as $item)
 				@if($item == 'Samples In Lab')
 				<a href="{{route('interLabTransferIndex')}}" class="list-group-item list-group-item-action bg-dark text-white">
@@ -238,7 +238,7 @@
 				<span class="menu-collapsed"><i class="mdi mdi-circle-medium"></i> Solutions Management
 					<small class="float-right badge badge-pill"></small></span>
 			</a>
-			<a href="/" class="bg-dark list-group-item list-group-item-action">
+			<a href="{{route('solution-movement-index')}}" class="bg-dark list-group-item list-group-item-action">
 				<span class="menu-collapsed"><i class="mdi mdi-circle-medium"></i> Solutions Movement
 					<small class="float-right badge badge-pill"></small></span>
 			</a>
