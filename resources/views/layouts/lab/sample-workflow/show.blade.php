@@ -2677,9 +2677,9 @@
 										@if(isset($batch->id) && $batch->repeat_sample_id > 0)
 										<th>Prev Result (<small>+- {{$qc_config_perc}} %</small>)</th>
 										@endif
-										<th class="first_standard" >First Standard</th>
-										<th class="sec_standard" >Secondary Standard</th>
-										<th class="third_standard" >Third Standard</th>
+										<th class="first_standard_th" >First Standard</th>
+										<th class="sec_standard_th" >Secondary Standard</th>
+										<th class="third_standard_th" >Third Standard</th>
 										@if(Auth::user()->is_client == 0)
 										<th>Remarks</th>
 										<th>Reporting Unit</th>
@@ -3710,7 +3710,7 @@
 		var analysisIDsBySampleCode = $('#sample-detail-rows').data('sample_analysis_ids');
 		var analysisNames = $('#sample-detail-rows').data('analysis_names');
 		var labSectionRow = (section,id,batch_id,sample_id,datevalue,standard_count = 0)=>{
-			var colspan_value = <?php isset($batch->id) && $batch->require_mu == 1 ? 12 : 11; ?>
+			var colspan_value = thebatch  && thebatch.reqire_mu ? 13 : 12;
 			var body = $(`
 			<tr>
 				<td colspan="3" style="padding-left:2%">
@@ -3786,6 +3786,10 @@
 		}
 		$('#show-sample-analysis-analytes').on('show.bs.modal', function(e){
 
+			// console.log('---------------');
+			// console.log($(e.relatedTarget).data('standards'));
+			// console.log('-----end----------')
+
 			var sampleCode = $(e.relatedTarget).data('sample_code');
 			var analysis_dates = JSON.parse($(e.relatedTarget).data('analysisdate'));
 			var InterlabStatus=0;
@@ -3828,9 +3832,13 @@
 				}
 				if(selected_sample.secondary_standard > 0){
 					standard_count = 1
+				}else{
+					$('#show-sample-analysis-analytes').find('.sec_standard_th').addClass('hidden');
 				}
 				if(selected_sample.third_standard_id > 0){
 					standard_count = 2
+				}else{
+					$('#show-sample-analysis-analytes').find('.third_standard_th').addClass('hidden');
 				}
 				
 				if(data['approval_status'] == 0){
@@ -3847,9 +3855,16 @@
 					
 					var sectionRow = labSectionRow(param['section'],p,thebatch.id,sampleCode,a_date,standard_count);
 					$('#sample-parameters-holder').append(sectionRow);
+					console.log('--------here1')
+					console.log(param['cr'])
+					console.log('--------here1')
 					
 					$.each(param['cr'],(i,obj)=>{
-						var sampleRow = sampleCodeParameters(obj,loop,InterlabStatus,sample);
+						console.log(`here 1 --------------------`)
+						console.log(obj);
+						console.log(`here end --------------------`)
+
+						var sampleRow = sampleCodeParameters(obj,loop,InterlabStatus,selected_sample);
 						$('#sample-parameters-holder').append(sampleRow);
 						loop = loop + 1;
 					})
@@ -4381,11 +4396,6 @@
 			$row.find('.initiate-interlab').data('analysistype',data.lab_id);
 			$row.find('.show-parameter-initiator').data('analysisdate',data.analysis_dates);
 			$row.find('[name="sample_details[is_duplicate][]"]').val(data.is_duplicate ? data.is_duplicate : 0)
-			console.log('-------------------------------');
-			console.log(data)
-			console.log('-------------------------------')
-
-
 			$row.find('[name="sample_details[sample_store][]"]').val(data['store_id']).trigger('change');
 			$row.find('[name="sample_details[sample_store_slot][]"]').data('selected', data['slot_id']);
 
@@ -4420,9 +4430,13 @@
 					<option value="${s.id}" ${ s.id === data['third_standard'] ? 'selected' : '' }>${s.name}</option>
 				`);
 			});
-			$row.find('.show-parameter-initiator').data('standard',data['main_standard']);
-			$row.find('.show-parameter-initiator').data('standard2',data['secondary_standard']);
-			$row.find('.show-parameter-initiator').data('standard3',data['third_standard']);
+			console.log('-------------bqegwgeuwugeuw---------------------')
+			console.log(data.main_standard)
+			console.log('---------------------end eke-------------')
+
+			$row.find('.show-parameter-initiator').data('standards',data.main_standard);
+			// $row.find('.show-parameter-initiator').data('standard2',data['secondary_standard']);
+			// $row.find('.show-parameter-initiator').data('standard3',data['third_standard']);
 			
 			// $row.find('[name="sample_details[product][]"]').html('<option></option>');
 
@@ -5026,6 +5040,32 @@
 				<input type="hidden" class="standard-value-field" name="main_value[${data.id}]" value="${data.standard_value}"/>
 				<input type="hidden" name="main_standard[${data.id}]" value="${data.main_standard}"/>
 				<input type="hidden" name="secondary_standard[${data.id}]" value="${data.secondary_standard}"/>
+				<input type="hidden" name="third_standard[${data.id}]" value="${data.third_standard}"/>
+				</td>
+				<td nowrap class="${data.secondary_standard && data.secondary_standard != '' ? '' : 'hidden'}">
+					<div class="d-flex">
+						<input type="text" class="form-control sec-value-field" style="width:100px;border:0" name="sec_s_value[${data.id}]" value="${data.sec_standard_value && data.sec_standard_value == null ? '-': data.sec_standard_value} ${data.sec_standard_limit_value &&  data.sec_standard_limit_value != '' && data.sec_standard_limit_value != null ? data.sec_standard_limit_value : ''}" disabled />
+						<span class="btn btn-sm btn-default text-primary float-right" data-toggle="modal" data-target="#edit-standard" data-standard="${data.secondary_standard}" data-analyte="${data.analyte_id}" data-analytename="${data.analyte_code}" data-valueid="${data.id}" data-standardvalue="${data.sec_standard_value}"><i class="mdi mdi-pencil" data-toggle="tooltip" title="Edit Standard"></i></span>	
+					</div>
+					
+							
+				<input type="hidden" class="standard-value-field" name="sec_value[${data.id}]" value="${data.sec_standard_value}"/>
+				<input type="hidden" name="main_standard[${data.id}]" value="${data.main_standard}"/>
+				<input type="hidden" name="secondary_standard[${data.id}]" value="${data.secondary_standard}"/>
+				<input type="hidden" name="third_standard[${data.id}]" value="${data.third_standard}"/>
+				
+				</td>
+				<td nowrap class="${data.third_standard && data.third_standard != '' ? '' : 'hidden'}">
+					<div class="d-flex">
+						<input type="text" class="form-control sec-value-field" style="width:100px;border:0" name="sec_s_value[${data.id}]" value="${data.third_standard_value && data.third_standard_value == null ? '-': data.third_standard_value} ${data.third_standard_limit_value &&  data.third_standard_limit_value != '' && data.third_standard_limit_value != null ? data.third_standard_limit_value : ''}" disabled />
+						<span class="btn btn-sm btn-default text-primary float-right" data-toggle="modal" data-target="#edit-standard" data-standard="${data.third_standard}" data-analyte="${data.analyte_id}" data-analytename="${data.analyte_code}" data-valueid="${data.id}" data-standardvalue="${data.third_standard_value}"><i class="mdi mdi-pencil" data-toggle="tooltip" title="Edit Standard"></i></span>	
+					</div>
+					
+							
+				<input type="hidden" class="standard-value-field" name="third_value[${data.id}]" value="${data.third_standard_value}"/>
+				<input type="hidden" name="main_standard[${data.id}]" value="${data.main_standard}"/>
+				<input type="hidden" name="secondary_standard[${data.id}]" value="${data.secondary_standard}"/>
+				<input type="hidden" name="third_standard[${data.id}]" value="${data.third_standard}"/>
 				</td>
 				@if(Auth::user()->is_client == 0)
 				<td nowrap>

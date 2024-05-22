@@ -704,136 +704,135 @@ class SampleWorkFlowController extends Controller
                     }
                 }
             }
-			if($SampleHeader->status == 'Samples Reception'){
+            if ($SampleHeader->status == 'Samples Reception') {
+                $detail->analysis_type_id = implode(',', $request->sample_details['sample_analysis'][$k] ?? []);
+                $detail->sample_condition_id = $request->sample_details['sample_condition'][$k];
+                $detail->sample_point_id = $request->sample_details['sample_point'][$k];
+                $detail->company_product_id = $request->sample_details['product'][$k];
+                $detail->barcode = $request->sample_details['barcode'][$k];
 
-				$detail->analysis_type_id = implode(',', $request->sample_details['sample_analysis'][$k] ?? []);
-				$detail->sample_condition_id = $request->sample_details['sample_condition'][$k];
-				$detail->sample_point_id = $request->sample_details['sample_point'][$k];
-				$detail->company_product_id = $request->sample_details['product'][$k];
-				$detail->barcode = $request->sample_details['barcode'][$k];
-				
-				$detail->disposal_date = $request->sample_details['disposal_date'][$k];
-				// $detail->lab_sub_no = $request->sample_details['submission_no'][$k];
-	
-				$detail->main_standard = $request->sample_details['main_standard'][$k];
-				$detail->secondary_standard = $request->sample_details['secondary_standard'][$k];
-				$detail->third_standard_id = $request->sample_details['third_standard'][$k];
-				$detail->lab_id = $request->sample_details['lab_id'][$k];
-			}
-			$s_samples_comments = str_replace('<p>&nbsp;</p>', '', $request->sample_details['comments'][$k]);
-			$detail->comments = trim($s_samples_comments);
+                $detail->disposal_date = $request->sample_details['disposal_date'][$k];
+                // $detail->lab_sub_no = $request->sample_details['submission_no'][$k];
+
+                $detail->main_standard = $request->sample_details['main_standard'][$k];
+                $detail->secondary_standard = $request->sample_details['secondary_standard'][$k];
+                $detail->third_standard_id = $request->sample_details['third_standard'][$k];
+                $detail->lab_id = $request->sample_details['lab_id'][$k];
+            }
+            $s_samples_comments = str_replace('<p>&nbsp;</p>', '', $request->sample_details['comments'][$k]);
+            $detail->comments = trim($s_samples_comments);
             $detail->save();
-			if($SampleHeader->status == 'Samples Reception'){
-				if ($request->sample_details['is_duplicate'][$k] != '0') {
-					$duplicate_samples[$detail->id] = $request->sample_details['is_duplicate'][$k];
-					array_push($duplicate_samples_ids, $detail->id);
-					$duplicateDataSampleIds[$detail->id] = $detail->sample_code;
-				}
-	
-				$this->createDetailAnalysisRelation($SampleHeader->id, $detail->id, explode(',', $detail->analysis_type_id));
-	
-				if (isset($current_analysis) && sizeof($current_analysis) > 0) {
-					$update = $request->sample_details['sample_analysis'][$k];
-					foreach ($current_analysis as $ca) {
-						if (!in_array($ca, $update)) {
-							$analysis_type = AnalysisType::find(intval($ca));
-							if (isset($analysis_type->id)) {
-								$captured_reults = CapturedResult::where('analysis_type_id', $analysis_type->id)->where('sample_detail_id', $detail->id)->where('sample_header_id', $detail->sample_header_id)->get();
-								foreach ($captured_reults as $cr) {
-									$result = Result::where('captured_result_id', $cr->id)->first();
-									$result->delete();
-									$cr->delete();
-								}
-							}
-						}
-					}
-				}
-				$analysis_max_report_time = AnalysisType::whereIn('id', $request->sample_details['sample_analysis'][$k])->max('reporting_time');
-				$analytes_max_report_time = AnalysisElements::whereIn('analysis_type_id', $request->sample_details['sample_analysis'][$k])->max('reporting_time');
-				$maxReportingTime = $analysis_max_report_time > $analytes_max_report_time ? $analysis_max_report_time : $analytes_max_report_time;
-	
-				if (trim($request->sample_details['sample_store'][$k]) != '' && trim($request->sample_details['sample_store_slot'][$k]) != '' && trim($request->sample_details['sample_quantity'][$k]) != '') {
-					$ISCC = new InventorySubCategoriesController();
-	
-					$sampleLabItemExists = \App\InventorySubCategories::where('name', $SampleHeader->batch_code.'/'.$detail->sample_code)->first();
-	
-					if (!isset($sampleLabItemExists->id)) {
-						$category = SystemConfiguration::where('key', 'lab_samples_inventory_category_id')->first();
-						$labSupplier = SystemConfiguration::where('key', 'lab_samples_supplier_id')->first();
-						$inventoryLabDep = SystemConfiguration::where('key', 'inventory_lab_dep_id')->first();
-						if (!isset($category->id)) {
-							return redirect()->back()->with('error', 'Kindly a inventory sub-category for lab items;');
-						}
-						if (!isset($labSupplier->id)) {
-							return redirect()->back()->with('error', 'Kindly set the default lab supplier for lab sample storage;');
-						}
-						if (!isset($inventoryLabDep->id)) {
-							return redirect()->back()->with('error', 'Kindly set Inventory Lab Department;');
-						}
-						$req = new Request();
-						$req->category_id = $category->value;
-						$req->name = $SampleHeader->batch_code.'/'.$detail->sample_code;
-						$req->description = 'Sample for batch - '.$SampleHeader->batch_code;
-						$req->manufacturer = 'Source: Lab';
-						$req->minimum_level = 0;
-						$req->unit_type = $request->sample_details['sample_reporting_unit'][$k];
-						$req->unit_price = 0;
-						$req->reporting_decimal_places = 2;
-						$req->parent = "\App\SampleDetails";
-						$req->parent_id = $detail->id;
-	
-						$sampleItem = $ISCC->add($req, true); //Create Item in Inventory for storage
-	
-						// return response()->json($sampleItem);
-	
-						$IIC = new InventoryItemController();
-	
-						$req = new Request();
-						$req->category_id = $category->value;
-						$req->sub_category_id = $sampleItem->id;
-						$req->batchcode = $sampleItem->name;
-						$req->inventory_department_id = $inventoryLabDep->value;
-						$req->supplier_id = $labSupplier->value;
-						$req->received_by = 0;
-						$req->previous_batch_code = 'N/A';
-						$req->quantity = $request->sample_details['sample_quantity'][$k] ?? 0;
-						$req->barcode = $request->sample_details['barcode'][$k] ?? 'n/a';
-						$req->store = $request->sample_details['sample_store'][$k] ?? 0;
-						$req->slot = $request->sample_details['sample_store_slot'][$k] ?? 0;
-						$req->price = 0;
-	
-						$inventoryItem = $IIC->add($req, true);
-	
-						$samplesRequiringStorage['samples'][] = $detail->sample_code;
-						$samplesRequiringStorage['store_ids'][] = $request->sample_details['sample_store'][$k] ?? 0;
-	
-						// $ISSCC = new InventoryStoreSlotContentController;
-	
-						// $req = new Request();
-						// $req->item = $inventoryItem->batchcode;
-	
-						// $content = $ISSCC->add($req, $request->sample_details['sample_store_slot'][$k], $request->sample_details['sample_store'][$k], true);
-						// return json_encode($content);
-					}
-				}
-			}
+            if ($SampleHeader->status == 'Samples Reception') {
+                if ($request->sample_details['is_duplicate'][$k] != '0') {
+                    $duplicate_samples[$detail->id] = $request->sample_details['is_duplicate'][$k];
+                    array_push($duplicate_samples_ids, $detail->id);
+                    $duplicateDataSampleIds[$detail->id] = $detail->sample_code;
+                }
+
+                $this->createDetailAnalysisRelation($SampleHeader->id, $detail->id, explode(',', $detail->analysis_type_id));
+
+                if (isset($current_analysis) && sizeof($current_analysis) > 0) {
+                    $update = $request->sample_details['sample_analysis'][$k];
+                    foreach ($current_analysis as $ca) {
+                        if (!in_array($ca, $update)) {
+                            $analysis_type = AnalysisType::find(intval($ca));
+                            if (isset($analysis_type->id)) {
+                                $captured_reults = CapturedResult::where('analysis_type_id', $analysis_type->id)->where('sample_detail_id', $detail->id)->where('sample_header_id', $detail->sample_header_id)->get();
+                                foreach ($captured_reults as $cr) {
+                                    $result = Result::where('captured_result_id', $cr->id)->first();
+                                    $result->delete();
+                                    $cr->delete();
+                                }
+                            }
+                        }
+                    }
+                }
+                $analysis_max_report_time = AnalysisType::whereIn('id', $request->sample_details['sample_analysis'][$k])->max('reporting_time');
+                $analytes_max_report_time = AnalysisElements::whereIn('analysis_type_id', $request->sample_details['sample_analysis'][$k])->max('reporting_time');
+                $maxReportingTime = $analysis_max_report_time > $analytes_max_report_time ? $analysis_max_report_time : $analytes_max_report_time;
+
+                if (trim($request->sample_details['sample_store'][$k]) != '' && trim($request->sample_details['sample_store_slot'][$k]) != '' && trim($request->sample_details['sample_quantity'][$k]) != '') {
+                    $ISCC = new InventorySubCategoriesController();
+
+                    $sampleLabItemExists = \App\InventorySubCategories::where('name', $SampleHeader->batch_code.'/'.$detail->sample_code)->first();
+
+                    if (!isset($sampleLabItemExists->id)) {
+                        $category = SystemConfiguration::where('key', 'lab_samples_inventory_category_id')->first();
+                        $labSupplier = SystemConfiguration::where('key', 'lab_samples_supplier_id')->first();
+                        $inventoryLabDep = SystemConfiguration::where('key', 'inventory_lab_dep_id')->first();
+                        if (!isset($category->id)) {
+                            return redirect()->back()->with('error', 'Kindly a inventory sub-category for lab items;');
+                        }
+                        if (!isset($labSupplier->id)) {
+                            return redirect()->back()->with('error', 'Kindly set the default lab supplier for lab sample storage;');
+                        }
+                        if (!isset($inventoryLabDep->id)) {
+                            return redirect()->back()->with('error', 'Kindly set Inventory Lab Department;');
+                        }
+                        $req = new Request();
+                        $req->category_id = $category->value;
+                        $req->name = $SampleHeader->batch_code.'/'.$detail->sample_code;
+                        $req->description = 'Sample for batch - '.$SampleHeader->batch_code;
+                        $req->manufacturer = 'Source: Lab';
+                        $req->minimum_level = 0;
+                        $req->unit_type = $request->sample_details['sample_reporting_unit'][$k];
+                        $req->unit_price = 0;
+                        $req->reporting_decimal_places = 2;
+                        $req->parent = "\App\SampleDetails";
+                        $req->parent_id = $detail->id;
+
+                        $sampleItem = $ISCC->add($req, true); //Create Item in Inventory for storage
+
+                        // return response()->json($sampleItem);
+
+                        $IIC = new InventoryItemController();
+
+                        $req = new Request();
+                        $req->category_id = $category->value;
+                        $req->sub_category_id = $sampleItem->id;
+                        $req->batchcode = $sampleItem->name;
+                        $req->inventory_department_id = $inventoryLabDep->value;
+                        $req->supplier_id = $labSupplier->value;
+                        $req->received_by = 0;
+                        $req->previous_batch_code = 'N/A';
+                        $req->quantity = $request->sample_details['sample_quantity'][$k] ?? 0;
+                        $req->barcode = $request->sample_details['barcode'][$k] ?? 'n/a';
+                        $req->store = $request->sample_details['sample_store'][$k] ?? 0;
+                        $req->slot = $request->sample_details['sample_store_slot'][$k] ?? 0;
+                        $req->price = 0;
+
+                        $inventoryItem = $IIC->add($req, true);
+
+                        $samplesRequiringStorage['samples'][] = $detail->sample_code;
+                        $samplesRequiringStorage['store_ids'][] = $request->sample_details['sample_store'][$k] ?? 0;
+
+                        // $ISSCC = new InventoryStoreSlotContentController;
+
+                        // $req = new Request();
+                        // $req->item = $inventoryItem->batchcode;
+
+                        // $content = $ISSCC->add($req, $request->sample_details['sample_store_slot'][$k], $request->sample_details['sample_store'][$k], true);
+                        // return json_encode($content);
+                    }
+                }
+            }
         }
 
-		if($SampleHeader->status == 'Samples Reception'){
-			if (count($samplesRequiringStorage['samples']) > 0) {
-				$companyDetails = getCompanyDetails();
-				$samplesRequiringStorage['batch_route'] = route('view-batch-details', ['batch' => $SampleHeader->id]);
-				$samplesRequiringStorage['batch_code'] = $SampleHeader->batch_code;
-	
-				$samplesOL = '<ol>';
-	
-				foreach ($samplesRequiringStorage['samples'] as $sampleC) {
-					$samplesOL .= '<li>'.$sampleC.'</li>';
-				}
-	
-				$samplesOL .= '</ol>';
-	
-				$body = '
+        if ($SampleHeader->status == 'Samples Reception') {
+            if (count($samplesRequiringStorage['samples']) > 0) {
+                $companyDetails = getCompanyDetails();
+                $samplesRequiringStorage['batch_route'] = route('view-batch-details', ['batch' => $SampleHeader->id]);
+                $samplesRequiringStorage['batch_code'] = $SampleHeader->batch_code;
+
+                $samplesOL = '<ol>';
+
+                foreach ($samplesRequiringStorage['samples'] as $sampleC) {
+                    $samplesOL .= '<li>'.$sampleC.'</li>';
+                }
+
+                $samplesOL .= '</ol>';
+
+                $body = '
 					Hi,<br>
 					<p>
 						The following samples have been added to the batch '.$SampleHeader->batch_code.'.<br>
@@ -846,165 +845,165 @@ class SampleWorkFlowController extends Controller
 					Regards,<br>
 					'.$companyDetails['name'].'
 				';
-	
-				$subject = '['.$companyDetails['name'].'] Samples En-Route Storage Notification for Batch - '.$SampleHeader->batch_code;
-	
-				$emails = \App\InventoryStoreContact::join('users as u', 'u.id', 'inventory_store_contacts.user_id')
-					->selectRaw('u.email')->whereIn('inventory_store_contacts.store', $samplesRequiringStorage['store_ids'])->get()->pluck('email')->toArray();
-	
-				// return json_encode($emails, JSON_PRETTY_PRINT);
-	
-				$emails = array_unique($emails);
-				notify_user($body, $emails, $subject);
-			}
-	
-			$targetDateStr = 'Target Date';
-			$targetDate = \App\SampleDate::where('sample_header_id', $SampleHeader->id)->where('name', $targetDateStr)->first() ?? new \App\SampleDate();
-			$targetDate->name = $targetDateStr;
-			$targetDate->sample_header_id = $SampleHeader->id;
-			$targetDate->date = \Carbon\Carbon::parse($SampleHeader->receipt_date)->addDays($maxReportingTime);
-			$targetDate->save();
-	
-			$batch = SampleHeader::find($request->batch);
-			$strStage = 'Sample Labeling';
-			$samWk = 'Samples Reception';
-	
-			$stage = SampleAnalysisStage::where('name', $strStage)->where('sample_workflow', $samWk)->first();
-			$batch->days_of_analysis = $maxReportingTime;
-			$batch->sample_tracking_stage = $stage->id;
-			$batch->save();
-			$duplicateSampleAnalysis = [];
-			if (sizeof($duplicate_samples_ids) > 0) {
-				foreach ($duplicate_samples as $key => $value) {
-					$choosen_analysis = explode(',', SampleDetails::find($key)->analysis_type_id);
-					$done_analysis = [];
-					$captured_results = CapturedResult::where('sample_detail_code', $value)->whereIn('analysis_type_id', $choosen_analysis)->get();
-					foreach ($captured_results as $c_value) {
-						array_push($done_analysis, $c_value->analysis_type_id);
-						$new_cr = $c_value->replicate()->fill([
-							'sample_detail_id' => $key,
-							'sample_detail_code' => $duplicateDataSampleIds[$key],
-							'result' => '',
-							'user_id' => auth()->user()->id,
-							'remark' => '',
-						]);
-						$new_cr->save();
-						$result = Result::where('captured_result_id', $c_value->id)->first();
-						$new_result = $result->replicate()->fill([
-							'captured_result_id' => $new_cr->id,
-	
-							'sample_detail_id' => $new_cr->sample_detail_id,
-							'sample_detail_code' => $new_cr->sample_detail_code,
-							'result' => '',
-							'remarks' => '',
-						]);
-						$new_result->save();
-					}
-					$analysis_diff = array_diff($choosen_analysis, $done_analysis);
-					$duplicateSampleAnalysis[$key] = $analysis_diff;
-				}
-			}
-	
-			$hasCapturedResults = false;
-			$analysis_to_be_done = [];
-	
-			$batch_analysis = $batch->samples;
-	
-			foreach ($batch_analysis as $a) {
-				if (!isset($analysis_to_be_done[$a->sample_code]) && !in_array($a->id, $duplicate_samples_ids)) {
-					$analysis_to_be_done[$a->sample_code] = [
-						'sample_detail_code' => $a->sample_code,
-						'sample_detail_id' => $a->id,
-						'sample_header_id' => $batch->id,
-						'analysis_to_do' => [],
-					];
-				}
-				if (!in_array($a->id, $duplicate_samples_ids)) {
-					$analysis_to_be_done[$a->sample_code]['analysis_to_do'] = array_merge($analysis_to_be_done[$a->sample_code]['analysis_to_do'], $a->analysis());
-				}
-				if (in_array($a->id, $duplicate_samples_ids)) {
-					if (sizeof($duplicateSampleAnalysis[$a->id]) > 0) {
-						$analysis_d = AnalysisType::whereIn('id', $duplicateSampleAnalysis[$a->id])->get();
-						$analysis_to_be_done[$a->sample_code]['analysis_to_do'] = array_merge($analysis_to_be_done[$a->sample_code]['analysis_to_do'], $analysis_d);
-					}
-				}
-			}
-	
-			$analysis_to_be_done = array_values($analysis_to_be_done);
-			$labstr = implode(',', $batch->labs(true));
-			$labarr = explode(' - ', $labstr);
-			$checklab = Lab::where('code', $labarr[0])->where('name', $labarr[1])->first();
-			if (!isset($checklab->id)) {
-				$param = explode(',', $labarr[1]);
-				$lab = Lab::where('code', $labarr[0])->where('name', $param[0])->first();
-			} else {
-				$lab = $checklab;
-			}
-	
-			// return response()->json($analysis_to_be_done,200);
-	
-			foreach ($analysis_to_be_done as $atbs) {
-				foreach ($atbs['analysis_to_do'] as $a) {
-					if (isset($currentAnalysisSample[$atbs['sample_detail_code']]) && in_array($a->id, $currentAnalysisSample[$atbs['sample_detail_code']])) {
-						$analytes = [];
-					} else {
-						$analytes = $a->active_analysis_elements();
-					}
-	
-					// return response()->json($analytes,200);
-	
-					foreach ($analytes as $an) {
-						$analysisType = AnalysisElements::where('analysis_type_id', $a->id)
-							->where('analyte_id', $an->analyte_id)->where('equipment_id', $an->equipment_id)->first();
-	
-						$captured = CapturedResult::where('sample_detail_code', $atbs['sample_detail_code'])
-							->where('sample_detail_id', $atbs['sample_detail_id'])
-							->where('analyte_id', $an->analyte_id)
-							->where('analysis_type_id', $a->id)
-							->where('sample_header_id', $atbs['sample_header_id'])->first() ?? new CapturedResult();
-						$captured->sample_detail_code = $atbs['sample_detail_code'];
-						$captured->sample_detail_id = $atbs['sample_detail_id'];
-						$captured->sample_header_id = $atbs['sample_header_id'];
-						$captured->analyte_id = $an->analyte_id;
-						$captured->analysis_type_id = $a->id;
-						$captured->analyte_code = $an->analyte_code;
-						$captured->equipment_id = $an->equipment_id;
-						$captured->method_id = $analysisType->method;
-						$captured->user_id = \Auth::user()->id;
-						$captured->analyte_accredited = $analysisType->non_accredited;
-						$captured->analyte_status_contracted = $lab->is_external ?? 0;
-						$captured->lab_section_id = $analysisType->lab_section_id;
-						$captured->parameters_order = $analysisType->level ?? 0;
-						$captured->remark_is_manual = $analysisType->remark_is_manual;
-	
-						$captured->save();
-	
-						$result = Result::where('sample_detail_code', $atbs['sample_detail_code'])
-							->where('sample_detail_id', $atbs['sample_detail_id'])
-							->where('captured_result_id', $captured->id)
-							->where('analyte_id', $an->analyte_id)
-							->where('analysis_type_id', $a->id)
-							->where('sample_header_id', $atbs['sample_header_id'])->first() ?? new Result();
-						$result->captured_result_id = $captured->id;
-						$result->sample_detail_code = $atbs['sample_detail_code'];
-						$result->sample_detail_id = $atbs['sample_detail_id'];
-						$result->sample_header_id = $atbs['sample_header_id'];
-						$result->analyte_id = $an->analyte_id;
-						$result->analysis_type_id = $a->id;
-						$result->analyte_code = $an->analyte_code;
-						$result->unit_code = $an->reporting_unit;
-						$result->reporting_symbol = $an->reporting_symbol;
-						$result->recheck = 0;
-						$result->analyte_status_contracted = $lab->is_external ?? 0;
-						$result->lab_section_id = $analysisType->lab_section_id;
-						$result->parameters_order = $analysisType->level ?? 0;
-						$result->remark_is_manual = $analysisType->remark_is_manual;
-	
-						$result->save();
-					}
-				}
-			}
-		}
+
+                $subject = '['.$companyDetails['name'].'] Samples En-Route Storage Notification for Batch - '.$SampleHeader->batch_code;
+
+                $emails = \App\InventoryStoreContact::join('users as u', 'u.id', 'inventory_store_contacts.user_id')
+                    ->selectRaw('u.email')->whereIn('inventory_store_contacts.store', $samplesRequiringStorage['store_ids'])->get()->pluck('email')->toArray();
+
+                // return json_encode($emails, JSON_PRETTY_PRINT);
+
+                $emails = array_unique($emails);
+                notify_user($body, $emails, $subject);
+            }
+
+            $targetDateStr = 'Target Date';
+            $targetDate = \App\SampleDate::where('sample_header_id', $SampleHeader->id)->where('name', $targetDateStr)->first() ?? new \App\SampleDate();
+            $targetDate->name = $targetDateStr;
+            $targetDate->sample_header_id = $SampleHeader->id;
+            $targetDate->date = \Carbon\Carbon::parse($SampleHeader->receipt_date)->addDays($maxReportingTime);
+            $targetDate->save();
+
+            $batch = SampleHeader::find($request->batch);
+            $strStage = 'Sample Labeling';
+            $samWk = 'Samples Reception';
+
+            $stage = SampleAnalysisStage::where('name', $strStage)->where('sample_workflow', $samWk)->first();
+            $batch->days_of_analysis = $maxReportingTime;
+            $batch->sample_tracking_stage = $stage->id;
+            $batch->save();
+            $duplicateSampleAnalysis = [];
+            if (sizeof($duplicate_samples_ids) > 0) {
+                foreach ($duplicate_samples as $key => $value) {
+                    $choosen_analysis = explode(',', SampleDetails::find($key)->analysis_type_id);
+                    $done_analysis = [];
+                    $captured_results = CapturedResult::where('sample_detail_code', $value)->whereIn('analysis_type_id', $choosen_analysis)->get();
+                    foreach ($captured_results as $c_value) {
+                        array_push($done_analysis, $c_value->analysis_type_id);
+                        $new_cr = $c_value->replicate()->fill([
+                            'sample_detail_id' => $key,
+                            'sample_detail_code' => $duplicateDataSampleIds[$key],
+                            'result' => '',
+                            'user_id' => auth()->user()->id,
+                            'remark' => '',
+                        ]);
+                        $new_cr->save();
+                        $result = Result::where('captured_result_id', $c_value->id)->first();
+                        $new_result = $result->replicate()->fill([
+                            'captured_result_id' => $new_cr->id,
+
+                            'sample_detail_id' => $new_cr->sample_detail_id,
+                            'sample_detail_code' => $new_cr->sample_detail_code,
+                            'result' => '',
+                            'remarks' => '',
+                        ]);
+                        $new_result->save();
+                    }
+                    $analysis_diff = array_diff($choosen_analysis, $done_analysis);
+                    $duplicateSampleAnalysis[$key] = $analysis_diff;
+                }
+            }
+
+            $hasCapturedResults = false;
+            $analysis_to_be_done = [];
+
+            $batch_analysis = $batch->samples;
+
+            foreach ($batch_analysis as $a) {
+                if (!isset($analysis_to_be_done[$a->sample_code]) && !in_array($a->id, $duplicate_samples_ids)) {
+                    $analysis_to_be_done[$a->sample_code] = [
+                        'sample_detail_code' => $a->sample_code,
+                        'sample_detail_id' => $a->id,
+                        'sample_header_id' => $batch->id,
+                        'analysis_to_do' => [],
+                    ];
+                }
+                if (!in_array($a->id, $duplicate_samples_ids)) {
+                    $analysis_to_be_done[$a->sample_code]['analysis_to_do'] = array_merge($analysis_to_be_done[$a->sample_code]['analysis_to_do'], $a->analysis());
+                }
+                if (in_array($a->id, $duplicate_samples_ids)) {
+                    if (sizeof($duplicateSampleAnalysis[$a->id]) > 0) {
+                        $analysis_d = AnalysisType::whereIn('id', $duplicateSampleAnalysis[$a->id])->get();
+                        $analysis_to_be_done[$a->sample_code]['analysis_to_do'] = array_merge($analysis_to_be_done[$a->sample_code]['analysis_to_do'], $analysis_d);
+                    }
+                }
+            }
+
+            $analysis_to_be_done = array_values($analysis_to_be_done);
+            $labstr = implode(',', $batch->labs(true));
+            $labarr = explode(' - ', $labstr);
+            $checklab = Lab::where('code', $labarr[0])->where('name', $labarr[1])->first();
+            if (!isset($checklab->id)) {
+                $param = explode(',', $labarr[1]);
+                $lab = Lab::where('code', $labarr[0])->where('name', $param[0])->first();
+            } else {
+                $lab = $checklab;
+            }
+
+            // return response()->json($analysis_to_be_done,200);
+
+            foreach ($analysis_to_be_done as $atbs) {
+                foreach ($atbs['analysis_to_do'] as $a) {
+                    if (isset($currentAnalysisSample[$atbs['sample_detail_code']]) && in_array($a->id, $currentAnalysisSample[$atbs['sample_detail_code']])) {
+                        $analytes = [];
+                    } else {
+                        $analytes = $a->active_analysis_elements();
+                    }
+
+                    // return response()->json($analytes,200);
+
+                    foreach ($analytes as $an) {
+                        $analysisType = AnalysisElements::where('analysis_type_id', $a->id)
+                            ->where('analyte_id', $an->analyte_id)->where('equipment_id', $an->equipment_id)->first();
+
+                        $captured = CapturedResult::where('sample_detail_code', $atbs['sample_detail_code'])
+                            ->where('sample_detail_id', $atbs['sample_detail_id'])
+                            ->where('analyte_id', $an->analyte_id)
+                            ->where('analysis_type_id', $a->id)
+                            ->where('sample_header_id', $atbs['sample_header_id'])->first() ?? new CapturedResult();
+                        $captured->sample_detail_code = $atbs['sample_detail_code'];
+                        $captured->sample_detail_id = $atbs['sample_detail_id'];
+                        $captured->sample_header_id = $atbs['sample_header_id'];
+                        $captured->analyte_id = $an->analyte_id;
+                        $captured->analysis_type_id = $a->id;
+                        $captured->analyte_code = $an->analyte_code;
+                        $captured->equipment_id = $an->equipment_id;
+                        $captured->method_id = $analysisType->method;
+                        $captured->user_id = \Auth::user()->id;
+                        $captured->analyte_accredited = $analysisType->non_accredited;
+                        $captured->analyte_status_contracted = $lab->is_external ?? 0;
+                        $captured->lab_section_id = $analysisType->lab_section_id;
+                        $captured->parameters_order = $analysisType->level ?? 0;
+                        $captured->remark_is_manual = $analysisType->remark_is_manual;
+
+                        $captured->save();
+
+                        $result = Result::where('sample_detail_code', $atbs['sample_detail_code'])
+                            ->where('sample_detail_id', $atbs['sample_detail_id'])
+                            ->where('captured_result_id', $captured->id)
+                            ->where('analyte_id', $an->analyte_id)
+                            ->where('analysis_type_id', $a->id)
+                            ->where('sample_header_id', $atbs['sample_header_id'])->first() ?? new Result();
+                        $result->captured_result_id = $captured->id;
+                        $result->sample_detail_code = $atbs['sample_detail_code'];
+                        $result->sample_detail_id = $atbs['sample_detail_id'];
+                        $result->sample_header_id = $atbs['sample_header_id'];
+                        $result->analyte_id = $an->analyte_id;
+                        $result->analysis_type_id = $a->id;
+                        $result->analyte_code = $an->analyte_code;
+                        $result->unit_code = $an->reporting_unit;
+                        $result->reporting_symbol = $an->reporting_symbol;
+                        $result->recheck = 0;
+                        $result->analyte_status_contracted = $lab->is_external ?? 0;
+                        $result->lab_section_id = $analysisType->lab_section_id;
+                        $result->parameters_order = $analysisType->level ?? 0;
+                        $result->remark_is_manual = $analysisType->remark_is_manual;
+
+                        $result->save();
+                    }
+                }
+            }
+        }
 
         return redirect()->back()->within('success', 'Batch Samples updated.');
     }
@@ -1408,7 +1407,7 @@ class SampleWorkFlowController extends Controller
                     } else {
                         $item->sec_standard_value = 'NS';
                     }
-                    
+
                     $item->secondary_standard = Standards::find($sec)->code ?? '';
                 }
                 if ($third != '') {
@@ -1430,15 +1429,14 @@ class SampleWorkFlowController extends Controller
                     } else {
                         $item->third_standard_value = 'NS';
                     }
-                    
+
                     $item->third_standard = Standards::find($third)->code ?? '';
                 }
-
             }
             // return response()->json($batch);
         }
 
-        return response()->json($analaytesHolder);
+        // return response()->json($analaytesHolder);
 
         foreach ($batch->samples ?? [] as $sample) {
             $labSamples[$sample->sample_code] = getSampleDetailsLab($sample->id);
@@ -4175,7 +4173,7 @@ class SampleWorkFlowController extends Controller
         $sample = SampleDetails::where('sample_code', $sample_id)->first();
         $approval = InterLabLog::where('sample_id', $sample->id)->where('status', 0)->first();
 
-        return response()->json(['approval_status'=>isset($approval->id) ? 1 : 0,"sample"=>$sample]) ;
+        return response()->json(['approval_status' => isset($approval->id) ? 1 : 0, 'sample' => $sample]);
     }
 
     public function getSampleResultCapturedNot($sample_id)
