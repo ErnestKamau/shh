@@ -4699,7 +4699,7 @@
 					
 					<div class="alert alert-primary d-flex">
 						<i class="mdi mdi-alert-decagram-outline" style="font-size: 30px"></i>
-						<span class="p-2">Change <b class="analyte_name"></b> Standard Limits by updating the information below  <br>
+						<span class="p-2"> ${data}: <br><br>Change <b class="analyte_name"></b> Standard Limits by updating the information below  <br>
 					</div>
 					<div class="form-group">
 						<label for="" class="control-label">Analyte</label>
@@ -4857,8 +4857,10 @@
 		$('#edit-standard').on('show.bs.modal',(e)=>{
 			// e.stopPropagation();
 			relatedTargetElement = e.relatedTarget
+			var standard = $(e.relatedTarget).data('standard');
+			
 			$('#edit-standard').find('.modal-body').empty();
-			$body = editStandardModal()
+			$body = editStandardModal(standard)
 			$('#edit-standard').find('.modal-body').append($body);
 
 
@@ -4871,6 +4873,7 @@
 
 			var analyte_id = $(e.relatedTarget).data('analyte')
 			var standard = $(e.relatedTarget).data('standard');
+			
 			$('#edit-standard').find('.standard_value_field').val($(e.relatedTarget).data('standardvalue'));
 			
 			$.ajax({
@@ -4901,6 +4904,7 @@
 		$('#edit-standard').find('.save-standard-value').on('click',()=>{
 			var analyte_id = $(relatedTargetElement).data('analyte')
 			var standard = $(relatedTargetElement).data('standard');
+			var standard_level = $(relatedTargetElement).data('standardlevel');
 			$.ajaxSetup({
 				headers: {
 					'X-CSRF-TOKEN': jQuery('meta[name="csrf-token"]').attr('content')
@@ -4932,8 +4936,18 @@
 					// e.preventDefault();
 					var parentDiv = $(relatedTargetElement).data('valueid');
 					$(relatedTargetElement).data('standardvalue',data['value']);
-					$('#sample-parameters-holder').find(`[name="main_s_value[${parentDiv}]"]`).val(data['format_value'])
-					$('#sample-parameters-holder').find(`[name="main_value[${parentDiv}]"]`).val(data['value']);
+					if(standard_level ==1){
+						$('#sample-parameters-holder').find(`[name="main_s_value[${parentDiv}]"]`).val(data['format_value'])
+						$('#sample-parameters-holder').find(`[name="main_value[${parentDiv}]"]`).val(data['value']);
+					}
+					if(standard_level == 2){
+						$('#sample-parameters-holder').find(`[name="sec_s_value[${parentDiv}]"]`).val(data['format_value'])
+						$('#sample-parameters-holder').find(`[name="sec_value[${parentDiv}]"]`).val(data['value']);
+					}
+					if(standard_level == 3){
+						$('#sample-parameters-holder').find(`[name="third_s_value[${parentDiv}]"]`).val(data['format_value'])
+						$('#sample-parameters-holder').find(`[name="third_value[${parentDiv}]"]`).val(data['value']);
+					}
 
 					var result = $('#sample-parameters-holder').find(`[name="result[${parentDiv}]"]`).val()
 					var reportSymbol = $('#sample-parameters-holder').find(`[name="result_reporting_symbol[${parentDiv}]"]`).val()
@@ -5033,7 +5047,7 @@
 				<td nowrap class="">
 					<div class="d-flex">
 						<input type="text" class="form-control main-value-field" style="width:100px;border:0" name="main_s_value[${data.id}]" value="${data.standard_value == null ? '-': data.standard_value} ${data.standard_limit_value != '' && data.standard_limit_value!= null ? data.standard_limit_value : ''}" disabled />
-						<span class="btn btn-sm btn-default text-primary float-right" data-toggle="modal" data-target="#edit-standard" data-standard="${data.main_standard}" data-analyte="${data.analyte_id}" data-analytename="${data.analyte_code}" data-valueid="${data.id}" data-standardvalue="${data.standard_value}"><i class="mdi mdi-pencil" data-toggle="tooltip" title="Edit Standard"></i></span>	
+						<span class="btn btn-sm btn-default text-primary float-right" data-toggle="modal" data-target="#edit-standard" data-standard="${data.main_standard}" data-analyte="${data.analyte_id}" data-analytename="${data.analyte_code}" data-standardlevel="1" data-valueid="${data.id}" data-standardvalue="${data.standard_value}"><i class="mdi mdi-pencil" data-toggle="tooltip" title="Edit Standard"></i></span>	
 					</div>
 					
 							
@@ -5045,7 +5059,7 @@
 				<td nowrap class="${data.secondary_standard && data.secondary_standard != '' ? '' : 'hidden'}">
 					<div class="d-flex">
 						<input type="text" class="form-control sec-value-field" style="width:100px;border:0" name="sec_s_value[${data.id}]" value="${data.sec_standard_value && data.sec_standard_value == null ? '-': data.sec_standard_value} ${data.sec_standard_limit_value &&  data.sec_standard_limit_value != '' && data.sec_standard_limit_value != null ? data.sec_standard_limit_value : ''}" disabled />
-						<span class="btn btn-sm btn-default text-primary float-right" data-toggle="modal" data-target="#edit-standard" data-standard="${data.secondary_standard}" data-analyte="${data.analyte_id}" data-analytename="${data.analyte_code}" data-valueid="${data.id}" data-standardvalue="${data.sec_standard_value}"><i class="mdi mdi-pencil" data-toggle="tooltip" title="Edit Standard"></i></span>	
+						<span class="btn btn-sm btn-default text-primary float-right" data-toggle="modal" data-target="#edit-standard" data-standard="${data.secondary_standard}" data-analyte="${data.analyte_id}" data-analytename="${data.analyte_code}" data-standardlevel="2" data-valueid="${data.id}" data-standardvalue="${data.sec_standard_value}"><i class="mdi mdi-pencil" data-toggle="tooltip" title="Edit Standard"></i></span>	
 					</div>
 					
 							
@@ -5057,8 +5071,8 @@
 				</td>
 				<td nowrap class="${data.third_standard && data.third_standard != '' ? '' : 'hidden'}">
 					<div class="d-flex">
-						<input type="text" class="form-control sec-value-field" style="width:100px;border:0" name="sec_s_value[${data.id}]" value="${data.third_standard_value && data.third_standard_value == null ? '-': data.third_standard_value} ${data.third_standard_limit_value &&  data.third_standard_limit_value != '' && data.third_standard_limit_value != null ? data.third_standard_limit_value : ''}" disabled />
-						<span class="btn btn-sm btn-default text-primary float-right" data-toggle="modal" data-target="#edit-standard" data-standard="${data.third_standard}" data-analyte="${data.analyte_id}" data-analytename="${data.analyte_code}" data-valueid="${data.id}" data-standardvalue="${data.third_standard_value}"><i class="mdi mdi-pencil" data-toggle="tooltip" title="Edit Standard"></i></span>	
+						<input type="text" class="form-control sec-value-field" style="width:100px;border:0" name="third_s_value[${data.id}]" value="${data.third_standard_value && data.third_standard_value == null ? '-': data.third_standard_value} ${data.third_standard_limit_value &&  data.third_standard_limit_value != '' && data.third_standard_limit_value != null ? data.third_standard_limit_value : ''}" disabled />
+						<span class="btn btn-sm btn-default text-primary float-right" data-toggle="modal" data-target="#edit-standard" data-standard="${data.third_standard}" data-standardlevel="3" data-analyte="${data.analyte_id}" data-analytename="${data.analyte_code}" data-valueid="${data.id}" data-standardvalue="${data.third_standard_value}"><i class="mdi mdi-pencil" data-toggle="tooltip" title="Edit Standard"></i></span>	
 					</div>
 					
 							

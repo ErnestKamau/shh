@@ -4190,4 +4190,6 @@ class SampleWorkFlowController extends Controller
 
         return response()->json(['captured' => $captured, 'not_captured' => $captured_not]);
     }
+
+    
 }
