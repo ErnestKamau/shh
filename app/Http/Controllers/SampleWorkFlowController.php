@@ -924,6 +924,14 @@ class SampleWorkFlowController extends Controller
                 if (in_array($a->id, $duplicate_samples_ids)) {
                     if (sizeof($duplicateSampleAnalysis[$a->id]) > 0) {
                         $analysis_d = AnalysisType::whereIn('id', $duplicateSampleAnalysis[$a->id])->get();
+                        if(!isset($analysis_to_be_done[$a->sample_code])){
+                            $analysis_to_be_done[$a->sample_code] = [
+                                'sample_detail_code' => $a->sample_code,
+                                'sample_detail_id' => $a->id,
+                                'sample_header_id' => $batch->id,
+                                'analysis_to_do' => [],
+                            ];
+                        }
                         $analysis_to_be_done[$a->sample_code]['analysis_to_do'] = array_merge($analysis_to_be_done[$a->sample_code]['analysis_to_do'], $analysis_d);
                     }
                 }
