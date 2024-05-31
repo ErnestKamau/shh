@@ -2263,11 +2263,17 @@ class SampleWorkFlowController extends Controller
 
     public function fetch_results_remark(Request $request)
     {
+        $first_res = '';
+        $second_res = '';
+        $third_res = '';
+
         $data = explode(',', $request->sample_code);
         $sample_detail = SampleDetails::where('sample_code', $data[0])->first();
         $reporting_symbol = $request->reporting_symbol;
         $analyte = Analyte::find($data[3]);
         $standard = Standards::find($sample_detail->main_standard);
+        $sec_standard = Standards::find($sample_detail->secondary_standard);
+        $third_standard = Standards::find($sample_detail->third_standard_id);
         $captured_result = CapturedResult::find($request->captured_result_id);
         if ($captured_result->repeat_captured_id > 0) {
             $result = $request->result;
@@ -2278,17 +2284,40 @@ class SampleWorkFlowController extends Controller
                 return response()->json('FAIL', 200);
             }
         }
-        // $check_arr = ['NIL','ND',0];
 
+        $first_res = isset($standard->id) ? $this->getResultRenark($standard,$analyte,$request->result,$reporting_symbol) : $first_res;
+        $second_res = isset($sec_standard->id) ? $this->getResultRenark($sec_standard,$analyte,$request->result,$reporting_symbol) : $second_res;
+        $third_res = isset($third_standard->id) ? $this->getResultRenark($third_standard,$analyte,$request->result,$reporting_symbol) : $third_res;
+        $remarkArr = [];
+        if($first_res != ''){
+            array_push($remarkArr, $first_res);
+        }
+        if($second_res != ''){
+            array_push($remarkArr, $second_res);
+        }
+        if($third_res != ''){
+            array_push($remarkArr, $third_res);
+        }
+
+        if(in_array('FAIL',array_unique($remarkArr))){
+            return response()->json('FAIL', 200);
+        }elseif(in_array('-',array_unique($remarkArr)) && in_array('PASS',array_unique($remarkArr))){
+            return response()->json('PASS', 200);
+        }elseif(in_array('PASS',array_unique($remarkArr))){
+            return response()->json('PASS', 200);
+        }else{
+            return response()->json('-', 200);
+        }
+    }
+    private function getResultRenark($standard,$analyte,$result,$reporting_symbol){
         if (isset($standard->id) && isset($analyte->id)) {
-            $result = $request->result;
             $analyte_guide = StandardAnalytes::where('analyte_id', $analyte->id)->where('standard_id', $standard->id)->first();
             if (isset($analyte_guide->standard_value_type)) {
                 if ($analyte_guide->standard_value_type == 'is_range') {
                     if ($analyte_guide->low <= $result && $result <= $analyte_guide->high) {
-                        return response()->json('PASS', 200);
+                        return 'PASS';
                     } else {
-                        return response()->json('FAIL', 200);
+                        return 'FAIL';
                     }
                 } else {
                     $standard_value = StandardValue::find($analyte_guide->standard_value_id);
@@ -2336,7 +2365,7 @@ class SampleWorkFlowController extends Controller
                                 }
                             }
 
-                            return response()->json($response, 200);
+                            return $response;
                         } else {
                             if ($analyte_guide->standard_is_value != '') {
                                 if (trim($reporting_symbol) == '>') {
@@ -2380,28 +2409,28 @@ class SampleWorkFlowController extends Controller
                                     }
                                 }
 
-                                return response()->json($response, 200);
+                                return $response;
                             } else {
                                 if (strtoupper(trim($standard_value->code)) == 'NS') {
                                     $response = '-';
 
-                                    return response()->json($response, 200);
+                                    return $response;
                                 } elseif (strtoupper(trim($standard_value->code)) == 'NIL') {
                                     $response = $result <= 0 ? 'PASS' : 'FAIL';
 
-                                    return response()->json($response, 200);
+                                    return $response;
                                 } elseif (strtoupper(trim($standard_value->code)) == 'ND') {
                                     $response = $result <= 0 ? 'PASS' : 'FAIL';
 
-                                    return response()->json($response, 200);
+                                    return $response;
                                 } elseif (strtoupper(trim($standard_value->code)) == 'ABSENT') {
-                                    $response = in_array(strtoupper($result), ['ABSENT', 'ND']) == 'ABSENT' ? 'PASS' : 'FAIL';
+                                    $response = in_array(strtoupper($result), ['ABSENT', 'ND']) ? 'PASS' : 'FAIL';
 
-                                    return response()->json($response, 200);
+                                    return $response;
                                 } else {
                                     $response = '-';
 
-                                    return response()->json($response, 200);
+                                    return $response;
                                 }
                             }
                             // $eresult->remarks = trim($analyte_guide->standard_is_value) == "" ? "PASS" : "++";
@@ -2412,32 +2441,36 @@ class SampleWorkFlowController extends Controller
                         if (strtoupper($result) == 'TN') {
                             $response = 'FAIL';
 
-                            return response()->json($response, 200);
+                            return $response;
                         } elseif (strtoupper($result) == 'ND' && strtoupper(trim($standard_value->code)) == 'NS') {
                             $response = '-';
 
-                            return response()->json($response, 200);
+                            return $response;
                         } elseif (strtoupper($result) == 'ND' && strtoupper(trim($standard_value->code)) == 'NIL') {
                             $response = 'PASS';
 
-                            return response()->json($response, 200);
+                            return $response;
                         } elseif (strtoupper($result) == 'ND' && strtoupper(trim($standard_value->code)) == 'ND') {
                             $response = 'PASS';
 
-                            return response()->json($response, 200);
+                            return $response;
                         } elseif (strtoupper($result) == 'NIL' && strtoupper(trim($standard_value->code)) == 'ND') {
                             $response = 'PASS';
 
-                            return response()->json($response, 200);
+                            return $response;
+                        }elseif (strtoupper($result) == 'ABSENT' && strtoupper(trim($standard_value->code)) == 'ABSENT') {
+                            $response = 'PASS';
+
+                            return $response;
                         } else {
                             $response = '-';
 
-                            return response()->json($response, 200);
+                            return $response;
                         }
                     }
                 }
             } else {
-                return response()->json('-', 200);
+                return '-';
             }
 
             // if (isset($analyte_guide->id)) {
@@ -2476,7 +2509,7 @@ class SampleWorkFlowController extends Controller
             // 	return response()->json('-', 200);
             // }
         } else {
-            return response()->json('-', 200);
+            return '-';
         }
     }
 

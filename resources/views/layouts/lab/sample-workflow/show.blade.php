@@ -4998,6 +4998,16 @@
 
 	});
 
+	var getStandardLimitSymbol = (data)=>{
+		if(data == 'less_than'){
+			return '<';
+		}
+		if(data == 'greater_than'){
+			return '>';
+		}
+		return data;
+	}
+
 	var sampleCodeParameters = function(data,loop,interLabApproval=0,sample = null){
 		
 		var readonly = '';
@@ -5007,6 +5017,8 @@
 		@if(isset($batch->status) && $batch->status != "Samples In Lab")
 			readonly = 'disabled';
 		@endif
+
+		
 		
 	
 		var $oGRow = $(`
@@ -5046,7 +5058,7 @@
 				@endif
 				<td nowrap class="">
 					<div class="d-flex">
-						<input type="text" class="form-control main-value-field" style="width:100px;border:0" name="main_s_value[${data.id}]" value="${data.standard_value == null ? '-': data.standard_value} ${data.standard_limit_value != '' && data.standard_limit_value!= null ? data.standard_limit_value : ''}" disabled />
+						<input type="text" class="form-control main-value-field" style="width:100px;border:0" name="main_s_value[${data.id}]" value="${data.standard_limit_value != '' && data.standard_limit_value!= null && (data.standard_limit_value == 'less_than' || data.standard_limit_value == 'greater_than') ? getStandardLimitSymbol(data.standard_limit_value) : ''} ${data.standard_value == null ? '-': data.standard_value} ${data.standard_limit_value != '' && data.standard_limit_value!= null && data.standard_limit_value != 'less_than' && data.standard_limit_value != 'greater_than'  ? data.standard_limit_value : ''}" disabled />
 						<span class="btn btn-sm btn-default text-primary float-right" data-toggle="modal" data-target="#edit-standard" data-standard="${data.main_standard}" data-analyte="${data.analyte_id}" data-analytename="${data.analyte_code}" data-standardlevel="1" data-valueid="${data.id}" data-standardvalue="${data.standard_value}"><i class="mdi mdi-pencil" data-toggle="tooltip" title="Edit Standard"></i></span>	
 					</div>
 					
@@ -5058,7 +5070,7 @@
 				</td>
 				<td nowrap class="${data.secondary_standard && data.secondary_standard != '' ? '' : 'hidden'}">
 					<div class="d-flex">
-						<input type="text" class="form-control sec-value-field" style="width:100px;border:0" name="sec_s_value[${data.id}]" value="${data.sec_standard_value && data.sec_standard_value == null ? '-': data.sec_standard_value} ${data.sec_standard_limit_value &&  data.sec_standard_limit_value != '' && data.sec_standard_limit_value != null ? data.sec_standard_limit_value : ''}" disabled />
+						<input type="text" class="form-control sec-value-field" style="width:100px;border:0" name="sec_s_value[${data.id}]" value="${data.sec_standard_limit_value &&  data.sec_standard_limit_value != '' && data.sec_standard_limit_value != null && (data.sec_standard_limit_value == 'less_than' || data.sec_standard_limit_value == 'greater_than') ? getStandardLimitSymbol(data.sec_standard_limit_value) : ''} ${data.sec_standard_value && data.sec_standard_value == null ? '-': data.sec_standard_value} ${data.sec_standard_limit_value &&  data.sec_standard_limit_value != '' && data.sec_standard_limit_value != null && data.sec_standard_limit_value != 'less_than' && data.sec_standard_limit_value != 'greater_than'  ? data.sec_standard_limit_value : ''}" disabled />
 						<span class="btn btn-sm btn-default text-primary float-right" data-toggle="modal" data-target="#edit-standard" data-standard="${data.secondary_standard}" data-analyte="${data.analyte_id}" data-analytename="${data.analyte_code}" data-standardlevel="2" data-valueid="${data.id}" data-standardvalue="${data.sec_standard_value}"><i class="mdi mdi-pencil" data-toggle="tooltip" title="Edit Standard"></i></span>	
 					</div>
 					
@@ -5071,7 +5083,7 @@
 				</td>
 				<td nowrap class="${data.third_standard && data.third_standard != '' ? '' : 'hidden'}">
 					<div class="d-flex">
-						<input type="text" class="form-control sec-value-field" style="width:100px;border:0" name="third_s_value[${data.id}]" value="${data.third_standard_value && data.third_standard_value == null ? '-': data.third_standard_value} ${data.third_standard_limit_value &&  data.third_standard_limit_value != '' && data.third_standard_limit_value != null ? data.third_standard_limit_value : ''}" disabled />
+						<input type="text" class="form-control sec-value-field" style="width:100px;border:0" name="third_s_value[${data.id}]" value="${data.third_standard_limit_value &&  data.third_standard_limit_value != '' && data.third_standard_limit_value != null && (data.third_standard_limit_value == 'less_than' || data.third_standard_limit_value == 'greater_than')  ? getStandardLimitSymbol(data.third_standard_limit_value) : ''} ${data.third_standard_value && data.third_standard_value == null ? '-': data.third_standard_value} ${data.third_standard_limit_value &&  data.third_standard_limit_value != '' && data.third_standard_limit_value != null && data.third_standard_limit_value != 'less_than' && data.third_standard_limit_value != 'greater_than'  ? data.third_standard_limit_value : ''}" disabled />
 						<span class="btn btn-sm btn-default text-primary float-right" data-toggle="modal" data-target="#edit-standard" data-standard="${data.third_standard}" data-standardlevel="3" data-analyte="${data.analyte_id}" data-analytename="${data.analyte_code}" data-valueid="${data.id}" data-standardvalue="${data.third_standard_value}"><i class="mdi mdi-pencil" data-toggle="tooltip" title="Edit Standard"></i></span>	
 					</div>
 					
