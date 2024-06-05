@@ -200,9 +200,17 @@
 					<span class="btn btn-sm dropdown-item"  data-target="#process-results-modal" data-toggle="modal" title="Process Results"><i class="mdi mdi-subdirectory-arrow-right mr-2"></i> Process Results</span>
 				</li>
 				<?php $reportpath = '/storage'.$batch->batch_report_url; ?>
-						<li>
-							<a target="_blank" href="{{$reportpath}}" style="font-size:0.875rem!important; font-weight:400;line-height: 1.5;" class="btn btn-sm dropdown-item"><i class="mdi mdi-download mr-2"></i> Download COA</a>
-						</li>
+					@if($batch->invoice_number != '')
+					<li>
+						<a target="_blank" href="{{$reportpath}}" class="dropdown-item"><i class="mdi mdi-download mr-2"></i> Download
+							COA</a>
+					</li>
+					@else
+					<li>
+						<span class="dropdown-item btn btn-sm" data-target="#download-coa-invoice-exception" data-toggle="modal"><i
+								class="mdi mdi-download mr-2"></i> Download COA</span>
+					</li>
+					@endif
 				@endif						
 				@endif
 				
@@ -228,9 +236,17 @@
 				@endif
 				@if(isset($batch->status) && $batch->status == 'Samples In Lab' && $batch->prelim_report_status == 2)
 				<?php $reportpath = '/storage'.$batch->batch_report_url; ?>
-				<li>
-					<a target="_blank" href="{{$reportpath}}" class="dropdown-item"><i class="mdi mdi-download mr-2"></i> Download COA</a>
-				</li>
+					@if($batch->invoice_number != '')
+					<li>
+						<a target="_blank" href="{{$reportpath}}" class="dropdown-item"><i class="mdi mdi-download mr-2"></i> Download
+							COA</a>
+					</li>
+					@else
+					<li>
+						<span class="dropdown-item btn btn-sm" data-target="#download-coa-invoice-exception" data-toggle="modal"><i
+								class="mdi mdi-download mr-2"></i> Download COA</span>
+					</li>
+					@endif
 				@endif
 				@if(isset($batch->status) && in_array($batch->status, array("Sample Verification","Sample Approval","Reports for Collection","Reports In Payment")) && Auth::user()->is_client == 0)
 				
@@ -265,9 +281,17 @@
 					
 					@if(in_array($batch->status,["Sample Approval","Reports for Collection","Reports In Payment"]) && $batch->batch_report_url != '')
 						<?php $reportpath = '/storage'.$batch->batch_report_url; ?>
+						@if($batch->invoice_number != '')
 						<li>
-							<a target="_blank" href="{{$reportpath}}" class="dropdown-item"><i class="mdi mdi-download mr-2"></i> Download COA</a>
+							<a target="_blank" href="{{$reportpath}}" class="dropdown-item"><i class="mdi mdi-download mr-2"></i> Download
+								COA</a>
 						</li>
+						@else
+						<li>
+							<span class="dropdown-item btn btn-sm" data-target="#download-coa-invoice-exception" data-toggle="modal"><i
+									class="mdi mdi-download mr-2"></i> Download COA</span>
+						</li>
+						@endif
 					
 					@endif 
 					@if($batch->status == "Sample Approval")
@@ -2876,6 +2900,54 @@
 		</div>
 	</div>
 </div>
+@if(isset($batch->id) && $batch->invoice_number == '')
+<div id="download-coa-invoice-exception" class="modal fade" role="dialog">
+	<div class="modal-dialog">
+		<div class="modal-content">
+			<div class="modal-body">
+				<div class="alert alert-danger p-2 d-flex">
+					<i class="mdi mdi-alert-decagram" style="font-size:20px"></i>
+					<spam class="p-2">Kindly add invoice details for this batch to be able to download the batch COA.
+					</spam>
+				</div>
+			</div>
+			<div class="modal-footer">
+				<span class="btn btn-sm btn-default" data-dismiss="modal">Close</span>
+			</div>
+		</div>
+	</div>
+</div>
+<div class="modal fade" id="add-batch-invoice" role="dialog">
+	<div class="modal-dialog">
+		<div class="modal-content">
+			<form action="{{route('addBatchInvoice')}}" method="post">
+				@csrf
+				<div class="modal-header">
+					<h4>Add Batch Invoice Details</h4>
+				</div>
+				<div class="modal-body">
+					<div class="form-group">
+						<label for="" class="control-label">Invoice Number <small class="text-danger">*</small></label>
+						<input type="text" name="invoice_number" placeholder="Invoice No..." class="form-control"
+							required>
+					</div>
+					<div class="form-group">
+						<label for="" class="control-label">Invoice Amount <small class="text-danger">*</small></label>
+						<input type="text" name="invoice_amount" placeholder="Invoice amount..." class="form-control"
+							required>
+					</div>
+					<input type="hidden" name="batch_id" value="{{$batch->id}}">
+				</div>
+				<div class="modal-footer">
+					<button class="btn btn-sm btn-default" type="submit"><i class="mdi mdi-content-save"></i>
+						Save</button>
+					<span class="btn btn-sm btn-default text-danger" data-dismiss="modal">Close</span>
+				</div>
+			</form>
+		</div>
+	</div>
+</div>
+@endif
 
 <script src="https://maps.googleapis.com/maps/api/js?v=3.exp&key=AIzaSyBqS4AEZ-gVeXjG794Rh0eTd6yvdfMKTjg&sensor=false" type="text/javascript"></script>
 {{-- @if(isset($batch->status)) --}}
