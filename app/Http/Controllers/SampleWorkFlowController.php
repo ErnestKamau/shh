@@ -1193,6 +1193,7 @@ class SampleWorkFlowController extends Controller
             $batch->save();
         }
         $section_approvers_users = isset($batch->id) ? LabSectionApproverRelationShip::whereIn('lab_section_id', explode(',', $batch->lab_section_ids))->get() : [];
+
         $receiving_role = SystemConfiguration::where('key', 'receiving_role_id')->first();
         // $test =  UserRole::where('role_id',isset($receiving_role->value) ? $receiving_role->value : 0)->get();
         // return response()->json($test);
@@ -1228,6 +1229,7 @@ class SampleWorkFlowController extends Controller
         $batch_sample_codes = '';
         $report_formats = [];
         $approvers = [];
+        $approvers_user_ids =[];
         $headerDetails = isset($batch->id) ? $batch->report_header_details() : [];
         $ammendments = isset($batch->id) ? getBatchAmmendmentsById($batch->id) : [];
         $allsamples = isset($batch->id) ? $batch->all_samples() : [];
@@ -1247,6 +1249,8 @@ class SampleWorkFlowController extends Controller
             $interlabs = InterLabLogView::where('sample_header_id', $batch->id)->orderBy('status', 'ASC')->orderBy('id', 'DESC')->get();
             // $equipment_data = $batch->get_captured();
             $approvers = BatchLabSectionApprover::where('batch_id', $batch->id)->get();
+            $approvers_user_ids = BatchLabSectionApprover::where('batch_id', $batch->id)->pluck('user_id')->toArray();
+            // return response()->json(["ids"=>$approvers_user_ids,'users'=>$users]);
             // foreach ($equipment_data['items'] as $b => $d) {
             // 	foreach ($d as $a => $k) {
             // 		foreach ($k as $i => $e) {
@@ -1474,7 +1478,7 @@ class SampleWorkFlowController extends Controller
         $notesReminderType = getNotesReminderTypes();
         $clients = getClients();
         // return response()->json($analaytesHolderPesticide);
-        return view('layouts.lab.sample-workflow.show', compact('batch', 'labStores', 'batchID', 'defaultClient', 'selectedSampleType', 'client_portal', 'ammendable', 'standards', 'attachments', 'not_captured', 'analysts', 'countries', 'accounts', 'methods', 'atachment_type', 'batch_scope', 'customer_survey', 'interlabs', 'labs', 'users', 'payment_detail', 'labsections', 'contacts', 'batch_sample_codes', 'report_formats', 'approvers', 'reportingUnits', 'conditions', 'products', 'headerDetails', 'analaytesHolder', 'analysisBySample', 'analysisBySampleNames', 'labSamples', 'workflowstages', 'workflows', 'sample_types', 'samplingmethods', 'active_company', 'ammendments', 'allsamples', 'selected_analysis_types', 'userLabSections', 'customer', 'requestTypes', 'notifiable_users', 'notesReminderType', 'clients', 'disposal_date', 'status', 'recieving_users', 'section_approvers_users', 'analaytesHolderPesticide'));
+        return view('layouts.lab.sample-workflow.show', compact('batch', 'labStores', 'batchID', 'defaultClient', 'selectedSampleType', 'client_portal', 'ammendable', 'standards', 'attachments', 'not_captured', 'analysts', 'countries', 'accounts', 'methods', 'atachment_type', 'batch_scope', 'customer_survey', 'interlabs', 'labs', 'users', 'payment_detail', 'labsections', 'contacts', 'batch_sample_codes', 'report_formats', 'approvers', 'reportingUnits', 'conditions', 'products', 'headerDetails', 'analaytesHolder', 'analysisBySample', 'analysisBySampleNames', 'labSamples', 'workflowstages', 'workflows', 'sample_types', 'samplingmethods', 'active_company', 'ammendments', 'allsamples', 'selected_analysis_types', 'userLabSections', 'customer', 'requestTypes', 'notifiable_users', 'notesReminderType', 'clients', 'disposal_date', 'status', 'recieving_users', 'section_approvers_users', 'analaytesHolderPesticide','approvers_user_ids'));
     }
 
     public function fetch_unit_stuff($name, $client)
@@ -2202,15 +2206,18 @@ class SampleWorkFlowController extends Controller
             $captured->remark = $captured->remark_is_manual == 0 ? $request->remark[$cID] : $request->remarkmanual[$cID];
             $standard_main = Standards::where('code', $request->main_standard[$cID])->first();
             $sec_standard = Standards::where('code', $request->secondary_standard[$cID])->first();
+            $third_standard = Standards::where('code', $request->third_standard[$cID])->first();
             if (isset($standard_main->id)) {
                 $main_standard_analyte = StandardAnalytes::where('analyte_id', $captured->analyte_id)->where('standard_id', $standard_main->id)->first();
                 $sec_standard_analyte = isset($sec_standard->id) ? StandardAnalytes::where('analyte_id', $captured->analyte_id)->where('standard_id', $sec_standard->id)->first() : '';
+                $third_standard_analyte = isset($third_standard->id) ? StandardAnalytes::where('analyte_id', $captured->analyte_id)->where('standard_id', $third_standard->id)->first() :'';
             } else {
-                return redirect()->back()->with('error', 'Kindly set Main and Secondary standard for tghe following sample!');
+                return redirect()->back()->with('error', 'Kindly set Main and Secondary standard for the following sample!');
             }
             // return response()->json($captured->analyte_id);
             $captured->main_standard_id = isset($main_standard_analyte->id) ? $main_standard_analyte->id : 0;
             $captured->secondary_standard_id = isset($sec_standard_analyte->id) ? $sec_standard_analyte->id : 0;
+            $captured->third_standard_id = isset($third_standard_analyte->id) ? $third_standard_analyte->id : 0;
             // return response()->json($request);
             $captured->main_value = $request->main_value[$cID];
             if (isset($sec_standard_analyte->id)) {
@@ -2226,6 +2233,20 @@ class SampleWorkFlowController extends Controller
                 }
             } else {
                 $captured->secondary_value = '-';
+            }
+            if(isset($third_standard_analyte->id)){
+                if ($third_standard_analyte->standard_value_type == 'is_range'){
+                    $captured->third_value = $third_standard_analyte->low.' - '.$third_standard_analyte->high;
+                }else{
+                    if($third_standard_analyte->standard_is_value == ''){
+                        $standard_value = StandardValue::find($third_standard_analyte->standard_value_id);
+                        $captured->third_value = $standard_value->code;
+                    }else{
+                        $captured->third_value = $third_standard_analyte->standard_is_value;
+                    }
+                }
+            }else{
+                $captured->third_value = '-';
             }
             // return response()->json($captured,200);
             $captured->save();
@@ -2298,6 +2319,8 @@ class SampleWorkFlowController extends Controller
         if($third_res != ''){
             array_push($remarkArr, $third_res);
         }
+
+        // return response()->json($remarkArr);
 
         if(in_array('FAIL',array_unique($remarkArr))){
             return response()->json('FAIL', 200);
@@ -3594,6 +3617,7 @@ class SampleWorkFlowController extends Controller
     {
         // return response()->json($request->all());
         $batch = SampleHeader::find($request->batch_id);
+        
         $previousWorkflow = $batch->status;
         if ($batch->lab_section_ids == '') {
             return redirect()->back()->with('error', 'Kindly provide the lab sections associated with the sample at batch information section');
@@ -3657,6 +3681,11 @@ class SampleWorkFlowController extends Controller
             $batch->save();
 
             return redirect()->route('sample-workflow', ['status' => $previousWorkflow])->with('success', 'Batch move was successful');
+        }
+
+        $approvers_user_ids = BatchLabSectionApprover::where('batch_id', $batch->id)->pluck('user_id')->toArray();
+        if(in_array($request->user_id,$approvers_user_ids)){
+            return redirect()->back()->with('error','System cannot assign the specified user as an approver since the user is already an approver');
         }
 
         BatchLabSectionApprover::where('batch_id', $batch->id)->where('lab_section_ids', 0)->delete();

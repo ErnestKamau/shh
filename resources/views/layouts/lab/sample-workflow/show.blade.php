@@ -2017,7 +2017,9 @@
 								<label for="" class="control-label">Approver</label>
 								<select name="user_id" id="" class="form-control">
 									@foreach($users as $user)
-									<option value="{{$user->id}}">{{$user->name}}</option>
+										@if(!in_array($user->id,$approvers_user_ids ?? []))
+											<option value="{{$user->id}}">{{$user->name}}</option>
+										@endif
 									@endforeach
 								</select>
 							</div>

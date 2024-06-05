@@ -240,10 +240,10 @@
                         <thead>
                             <tr>
                                 <th class="parameter"
-                                    style="font-size: 9px !important; width:25% !important;vertical-align: top !important;padding:5px !important;">
+                                    style="font-size: 9px !important; width:20% !important;vertical-align: top !important;padding:5px !important;">
                                     TESTS</th>
                                 <th class="parameter"
-                                    style="font-size:9px !important;width:25% !important;vertical-align: top !important;padding:5px !important">
+                                    style="font-size:9px !important;width:16% !important;vertical-align: top !important;padding:5px !important">
                                     TEST METHODS</th>
                                 <th class="parameter"
                                     style="font-size: 9px !important;width:10% !important;vertical-align: top !important;padding:5px !important">
@@ -254,6 +254,17 @@
                                 <th class="parameter text-center"
                                     style="font-size: 9px !important;width:15% !important;vertical-align: top !important;padding:5px !important">
                                     {{ $sample->main_standard_code }}</th>
+
+                                @if($sample->secondary_standard > 0)
+                                <th class="parameter text-center"
+                                    style="font-size: 9px !important;width:15% !important;vertical-align: top !important;padding:5px !important">
+                                    {{ $sample->sec_standard_code }}</th>
+                                @endif
+                                @if($sample->third_standard_id > 0)
+                                <th class="parameter text-center"
+                                    style="font-size: 9px !important;width:15% !important;vertical-align: top !important;padding:5px !important">
+                                    {{ $sample->third_standard_code }}</th>
+                                @endif
 
                             </tr>
                         </thead>
@@ -297,6 +308,18 @@
                                             style="font-size: 9px !important;padding-left:3px !important;">
                                             {{ $captured->main_value }} {{getStandardLimitValue($captured->id,$sample->main_standard) ?? ''}}
                                         </td>
+                                        @if($sample->secondary_standard >0)
+                                            <td class="parameter " style="font-size: 9px !important;padding-left:3px !important;">
+                                                {{ $captured->secondary_value == 'NS' ? '--' : ($captured->secondary_value ?? '') }}
+                                                {{ getStandardLimitValue($captured->id, $sample->secondary_standard) ?? '' }}
+                                            </td>
+                                        @endif
+                                        @if($sample->third_standard_id > 0)
+                                            <td class="parameter " style="font-size: 9px !important;padding-left:3px !important;">
+                                                {{ $captured->third_value == 'NS' ? '--' : ($captured->third_value ?? '') }}
+                                                {{ getStandardLimitValue($captured->id, $sample->third_standard_id) ?? '' }}
+                                            </td>
+                                        @endif
 
                                     </tr>
                                 @endforeach
