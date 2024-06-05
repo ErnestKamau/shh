@@ -211,6 +211,11 @@
 								class="mdi mdi-download mr-2"></i> Download COA</span>
 					</li>
 					@endif
+					@if($batch->invoice_number == '' )
+						<li>
+							<span class="dropdown-item btn btn-sm" data-target="#add-batch-invoice" data-toggle="modal"><i class="mdi mdi-cash-plus mr-2"></i> Add Invoice Details</span>
+						</li>
+					@endif
 				@endif						
 				@endif
 				
@@ -246,6 +251,11 @@
 						<span class="dropdown-item btn btn-sm" data-target="#download-coa-invoice-exception" data-toggle="modal"><i
 								class="mdi mdi-download mr-2"></i> Download COA</span>
 					</li>
+					@endif
+					@if($batch->invoice_number == '' )
+						<li>
+							<span class="dropdown-item btn btn-sm" data-target="#add-batch-invoice" data-toggle="modal"><i class="mdi mdi-cash-plus mr-2"></i> Add Invoice Details</span>
+						</li>
 					@endif
 				@endif
 				@if(isset($batch->status) && in_array($batch->status, array("Sample Verification","Sample Approval","Reports for Collection","Reports In Payment")) && Auth::user()->is_client == 0)
@@ -290,6 +300,11 @@
 						<li>
 							<span class="dropdown-item btn btn-sm" data-target="#download-coa-invoice-exception" data-toggle="modal"><i
 									class="mdi mdi-download mr-2"></i> Download COA</span>
+						</li>
+						@endif
+						@if($batch->invoice_number == '' )
+						<li>
+							<span class="dropdown-item btn btn-sm" data-target="#add-batch-invoice" data-toggle="modal"><i class="mdi mdi-cash-plus mr-2"></i> Add Invoice Details</span>
 						</li>
 						@endif
 					
@@ -2900,6 +2915,7 @@
 		</div>
 	</div>
 </div>
+
 @if(isset($batch->id) && $batch->invoice_number == '')
 <div id="download-coa-invoice-exception" class="modal fade" role="dialog">
 	<div class="modal-dialog">

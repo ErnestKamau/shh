@@ -210,6 +210,7 @@ Route::post('/stock-taking-counter/{id}/remove', 'StockTakingCounterController@r
   Route::post('filter-Quotations', 'Invoice\QuotationController@filterQuotations')->name('filterQuotations');
   Route::get('populate/Quotation-Detail/Split', 'Invoice\QuotationController@populateQuotationDetailSplit')->name('populateQuotationDetailSplit');
   Route::get('get/Labs-By-Analysis/Type-Id-Ajax', 'SampleWorkFlowController@getLabsByAnalysisTypeIdAjax')->name('getLabsByAnalysisTypeIdAjax');
+  Route::post('addBatchInvoice','SampleWorkFlowController@addBatchInvoice')->name('addBatchInvoice');
 
   //#####################################################################################################################################
 
