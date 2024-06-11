@@ -3777,6 +3777,31 @@ class SampleWorkFlowController extends Controller
             if ($batch->status == 'Sample Approval') {
                 $batch->approval_date = getTodayDate();
                 $batch->save();
+                $link = $ip_address_link.'/sample-workflow/batch/'.$batch->id.'/details/0/0/All%20Samples';
+                $samplescodes = SampleDetails::where('sample_header_id', $batch->id)->pluck('sample_code')->toArray();
+                $li_str = '';
+                foreach ($samplescodes as $code) {
+                    $li_str.='<li><a href="'.$link.'" >'.$code.'</a></li>';
+                }
+                $subject = 'Automated Invoice Request - Job ['.implode(', ', $samplescodes).']';
+                $message = 'Dear Finance Team,<br><br>
+
+				This is an automated notification to inform you that the following job is now ready to be invoiced: <br>
+				
+				<b>*Job Number/Report Number:*</b> <br>
+				<ul>'.$li_str.'</ul>
+				Please proceed with creating an invoice for this job at your earliest convenience. If additional information is required, kindly reach out to the relevant department.
+				Thank you for your attention.';
+                $emails = [' laboratory@polucongroup.com'];
+                // $emails = ['danmuv12@gmail.com'];
+                // notify_user($message, 'dannyagah13@gmail.com', $subject, false, true, $emails);
+                try {
+                    notify_user($message,'Accounts@polucongroup.com',$subject,false,true,$emails);
+                  
+                  } catch (\Exception $e) {
+                  
+                    return redirect()->back()->with('success', 'Batch Approval updated successfully but notifications to accouts and lab were not set');
+                  }
             }
         }
 
