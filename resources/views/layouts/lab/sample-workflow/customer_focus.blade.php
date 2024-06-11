@@ -115,7 +115,7 @@
                     </tr>
                     <tr>
                         <td>CLIENT REF / LPO:</td>
-                        <td style="border-bottom: 1px dotted #000;">{{ $batch->reference_number }}</td>
+                        <td style="border-bottom: 1px dotted #000;">{{ $batch->quote_no }}</td>
                     </tr>
                 </table>
                 <div class="sample-table mt-2">
