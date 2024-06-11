@@ -164,6 +164,15 @@
 			</button>
 			<div class="dropdown-menu dropdown-menu-right">
 				@if(isset($batch->id))
+					@if($batch->status == 'Finished Sample')
+					<?php $reportpath = '/storage'.$batch->batch_report_url; ?>
+					
+					<li>
+						<a target="_blank" href="{{$reportpath}}" class="dropdown-item"><i class="mdi mdi-download mr-2"></i> Download
+							COA</a>
+					</li>
+					
+					@endif
 					@if(!in_array($batch->status,array('Samples In Lab',"Sample Verification","Sample Approval")))
 						<li>
 							<a target="_blank" href="{{route('generateCustomerFocusIndex',['batch_id'=>$batch->id])}}" class="btn btn-sm dropdown-item"><i class="mdi mdi-eye mr-2"></i> View Customer Focus</a>
@@ -185,10 +194,10 @@
 					<i class="mdi mdi-subdirectory-arrow-right mr-2"></i> Send for Verification
 					</span>
 				</li>
-        <li class="">
-              <span class="btn btn-sm dropdown-item"  data-target="#view-coa-report" data-toggle="modal" title="View Sample(s) COA"><i class="mdi mdi-subdirectory-arrow-right mr-2"></i> View Report</span>
-              
-            </li>
+				<li class="">
+				<span class="btn btn-sm dropdown-item"  data-target="#view-coa-report" data-toggle="modal" title="View Sample(s) COA"><i class="mdi mdi-subdirectory-arrow-right mr-2"></i> View Report</span>
+				
+				</li>
 				
 				@if( $batch->prelim_report_status != 0 && $status == 'Sample Verification')
 				<li>

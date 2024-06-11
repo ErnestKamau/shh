@@ -78,6 +78,43 @@ class SampleWorkFlowController extends Controller
         $labsections = SampleAnalysisStage::where('active', 1)->get();
 
         // return response()->json('test');
+        if($status == 'Finished Sample'){
+            $filter = [];
+            if(isset($request->has_filter)){
+                $batchesquery = SampleHeader::query();
+
+                if($request->sample_codes != ''){
+                    $filter['sample_codes'] = $request->sample_codes;
+                    $sample_Batches = SampleDetails::whereIn('sample_code',explode(',',trim($request->sample_codes)))->pluck('sample_header_id')->toArray();
+                    $batchesquery = sizeof($sample_Batches) > 0 ? $batchesquery->whereIn('id',$sample_Batches) : $batchesquery;
+                }
+                if($request->receipt_from != ''){
+                    $filter['receipt_from'] = $request->receipt_from;
+                    $batchesquery = $batchesquery->where('receipt_date','>=',$request->receipt_from);
+                }
+                if($request->receipt_to != ''){
+                    $filter['receipt_to'] = $request->receipt_to;
+                    $batchesquery = $batchesquery->where('receipt_date','<=',$request->receipt_to);
+                }
+                if($request->customer_id != ''){
+                    $filter['customer_id'] = $request->customer_id;
+                    $batchesquery = $batchesquery->where('crm_customer_id',$request->customer_id);
+                }
+                $batches = $batchesquery->with('samples')->where('status','Finished Sample')->where('isactive', 1)->orderBy('receipt_date', 'desc')->get();
+            }else{
+                $batches = [];
+            }
+            $role_a = SystemConfiguration::where('key', 'analyst_role_id')->first();
+            $analysts = User::orderBy('name')->join('user_roles as ur', 'ur.user_id', '=', 'users.id')
+                ->join('roles as r', 'r.id', '=', 'ur.role_id')
+                ->where('r.id', $role_a->value)->where('users.active', 1)->where('users.is_support_staff', 0)->selectRaw('users.*')->get();
+            $users = User::where('is_client', 0)->where('supplier_id', 0)->where('active', 1)->get();
+            $customers = CRMCustomer::where('active',1)->get();
+
+            return view('layouts.lab.sample-workflow.index', compact('batches', 'status', 'analysts', 'labsections', 'users','customers','filter'));
+
+
+        }
         $batches = SampleHeader::with('samples')->where('isactive', 1)->orderBy('receipt_date', 'desc');
 
         if ($status != 'All Samples') {
@@ -4259,6 +4296,23 @@ class SampleWorkFlowController extends Controller
         })->where('ae.active', 1)->where('ae.active', 1)->get()->count();
 
         return response()->json(['captured' => $captured, 'not_captured' => $captured_not]);
+    }
+    public function addBatchInvoice(Request $request)
+    {
+        $batch = SampleHeader::find($request->batch_id);
+        $batch->invoice_number = $request->invoice_number;
+        $batch->invoice_amount = $request->invoice_amount;
+        $batch->save();
+
+        return redirect()->back()->with('success', 'Invoice Details added successfully');
+    }
+    public function markBatchesFinished(Request $request){
+        $batches = SampleHeader::whereIn('batch_code',$request->batch_code)->update(['status'=>'Finished Sample']);
+        return redirect()->back()->with('success','Samples moved to finished samples successfully');
+    }
+    public function returnFromFinished(Request $request){
+        SampleHeader::whereIn('batch_code', $request->batch_code)->update(['status'=> 'Sample Approval']);
+        return redirect()->back()->with('success','Samples moved to Sample Approval successfully');
     }
 
     

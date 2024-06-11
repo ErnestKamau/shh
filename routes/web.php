@@ -210,7 +210,8 @@ Route::post('/stock-taking-counter/{id}/remove', 'StockTakingCounterController@r
   Route::post('filter-Quotations', 'Invoice\QuotationController@filterQuotations')->name('filterQuotations');
   Route::get('populate/Quotation-Detail/Split', 'Invoice\QuotationController@populateQuotationDetailSplit')->name('populateQuotationDetailSplit');
   Route::get('get/Labs-By-Analysis/Type-Id-Ajax', 'SampleWorkFlowController@getLabsByAnalysisTypeIdAjax')->name('getLabsByAnalysisTypeIdAjax');
-  Route::post('addBatchInvoice','SampleWorkFlowController@addBatchInvoice')->name('addBatchInvoice');
+  Route::post('/add/Batch-Invoice','SampleWorkFlowController@addBatchInvoice')->name('addBatchInvoice');
+
 
   //#####################################################################################################################################
 
@@ -838,6 +839,9 @@ Route::post('/save-Sample/AnalysisDate', 'SampleWorkFlowController@saveSampleAna
 
 Route::get('/get/Sample-IntelabLogs-Approval/Status/{sample_id}', 'SampleWorkFlowController@getSampleIntelabLogsApprovalStatus')->name('getSampleIntelabLogsApprovalStatus');
 Route::get('/getSampleResultCapturedNot/{sample_id}', 'SampleWorkFlowController@getSampleResultCapturedNot')->name('getSampleResultCapturedNot');
+
+Route::post('/mark/finished-sample','SampleWorkFlowController@markBatchesFinished')->name('mark-finished');
+Route::post('/return/finished-sample','SampleWorkFlowController@returnFromFinished')->name('return-finished');
 
 //###############################################Polucon#########################################
 
