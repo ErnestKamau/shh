@@ -3770,6 +3770,7 @@ class SampleWorkFlowController extends Controller
 
     public function changeBatchApprovalStatus(Request $request)
     {
+        $ip_address_link = request()->root();
         BatchLabSectionApprover::where('id', $request->approver_id)->update(['status' => $request->status, 'approval_date' => date('Y-m-d H:i:s'), 'remark' => $request->remark]);
         if (BatchLabSectionApprover::where('id', $request->approver_id)->where('status', 0)->get()->count() == 0) {
             $approver = BatchLabSectionApprover::find($request->approver_id);
@@ -3792,15 +3793,13 @@ class SampleWorkFlowController extends Controller
 				<ul>'.$li_str.'</ul>
 				Please proceed with creating an invoice for this job at your earliest convenience. If additional information is required, kindly reach out to the relevant department.
 				Thank you for your attention.';
-                $emails = [' laboratory@polucongroup.com'];
+                $emails = ['laboratory@polucongroup.com'];
                 // $emails = ['danmuv12@gmail.com'];
                 // notify_user($message, 'dannyagah13@gmail.com', $subject, false, true, $emails);
                 try {
                     notify_user($message,'Accounts@polucongroup.com',$subject,false,true,$emails);
-                  
                   } catch (\Exception $e) {
-                  
-                    return redirect()->back()->with('success', 'Batch Approval updated successfully but notifications to accouts and lab were not set');
+                    return redirect()->back()->with('success', 'Batch Approval updated successfully but notifications to accounts and lab were not set');
                   }
             }
         }
