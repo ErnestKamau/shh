@@ -1442,7 +1442,7 @@ class SampleWorkFlowController extends Controller
                     if (isset($s_analyte_standard->id)) {
                         if ($s_analyte_standard->standard_value_type == 'is_range') {
                             $item->sec_Standard_value = $s_analyte_standard->low.' - '.$s_analyte_standard->high;
-                        } elseif ($analyte_standard->standard_value_type == 'is_standard_value') {
+                        } elseif ($s_analyte_standard->standard_value_type == 'is_standard_value') {
                             $value_id = StandardValue::find($s_analyte_standard->standard_value_id);
                             if (isset($value_id->id)) {
                                 if ($value_id->code == 'IsValue') {
