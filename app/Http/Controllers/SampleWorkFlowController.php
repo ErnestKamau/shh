@@ -4339,5 +4339,47 @@ class SampleWorkFlowController extends Controller
         return redirect()->back()->with('success','Samples moved to Sample Approval successfully');
     }
 
+    public function sendBatchesScheduleAnalysis(Request $request){
+        $batch_customers = SampleHeader::whereIn('batch_code',$request->batch_code)->pluck('crm_customer_id')->toArray();
+        if(sizeof(array_unique($batch_customers)) > 1){
+            return redirect()->back()->with('error','Ensure that the selected batches are for the same client');
+        }
+        $customer = CrmCustomer::find(array_unique($batch_customers)[0]);
+        // return response()->json(array_unique($batch_customers));
+        $batch_ids = SampleHeader::whereIn('batch_code',$request->batch_code)->pluck('id')->toArray();
+        $samples = SampleDetails::whereIn('sample_header_id', $batch_ids)->pluck('sample_code')->toArray();
+        if($customer->email != ''){
+            foreach($batch_ids as $b_ids){
+                $header = SampleHeader::find($b_ids);
+                $header->schedule_sent = 1;
+                $header->schedule_analysis_sent = date('Y-m-d');
+                $header->schedule_analysis_sender = auth()->user()->id;
+                $header->save();
+                $schedule_str = 'Schedule Of Analysis Sendoff';
+                $schedueDate = \App\SampleDate::where('sample_header_id', $header->id)->where('name', $schedule_str)->first() ?? new
+                \App\SampleDate();
+                $schedueDate->name = $schedule_str;
+                $schedueDate->sample_header_id = $header->id;
+                $schedueDate->date = date('Y-m-d');
+                $schedueDate->save();
+            }
+            
+            $body = '
+            <p>
+                Dear Esteemed client, <br><br>
+                We acknowledge receipt of your sample(s) submitted to our laboratory. The sample(s) have been forwarded to our
+                laboratory and analysis is scheduled to start anytime from now.<br>The sample(s) number(s) are : '.implode(',
+                ',$samples).'. <br><br>We will keep you updated on the progress report(s).<br><br>Thank you for the opportunity to
+                serve you.
+            
+            </p>
+            ';
+            notify_user($body, $customer->email, '[POLUCON LIMS] Schedule Of Analysis');
+            return redirect()->back()->with('success','Schedule of analysis sent successfully!');
+        }else{
+            return redirect()->back()->with('error','Kindly set an email to the specified customer');
+        }
+    }
+
     
 }

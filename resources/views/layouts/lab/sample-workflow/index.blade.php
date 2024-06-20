@@ -128,6 +128,11 @@
 					<span class="btn btn-sm dropdown-item" disabled data-target="#generarate_customer_focus" data-toggle="modal" title="Generate Customer Focus"><i class="mdi mdi-file-document-outline mr-2"></i> Generate Customer Focus</span>
 				</li>
 				<li>
+					<span class="btn btn-sm dropdown-item" data-toggle="modal" data-target="#send-schedule-analysis" disabled>
+						<i class="mr-2 mdi mdi-email-send-outline"></i> Send Schedule of Analysis
+					</span>
+				</li>
+				<li>
 					<span class="btn btn-sm dropdown-item" data-target="#clone-batches" data-toggle="modal"><i class="mdi mdi-content-duplicate mr-2"></i> Clone Batch(es)</span>
 				</li>
 				@endif
@@ -777,6 +782,31 @@
 	</div>
 </div>
 @if($status == 'Samples Reception')
+<div class="modal fade" id="send-schedule-analysis" role="dialog">
+	<div class="modal-dialog">
+		<div class="modal-content">
+			<form action="{{route('send-batches-soa')}}" method="POST">
+				@csrf
+				<div class="modal-body">
+					<div class="alert alert-primary p-2 d-flex">
+						<i class="mdi mdi-alert-decagram" style="font-size: 30px"></i>
+						<span class="p-2">Confirm you want to send schedule of analysis for the following batches:
+							<br> Ensure all the batches are from the same client</span>
+					</div>
+					<div class="form-group">
+						<label class="control-label">Batch(es)</label>
+						<div class="selected-batches-review"></div>
+					</div>
+				</div>
+				<div class="modal-footer">
+					<button type="submit" class="btn btn-sm btn-outline-primary"><i class="mdi mdi-thumb-up"></i> Yes,
+						Send</button>
+					<span class="btn btn-sm btn-default" data-dismiss="modal">Close</span>
+				</div>
+			</form>
+		</div>
+	</div>
+</div>
 <div class="modal fade"  id="generarate_customer_focus" role="dialog">
 	<div class="modal-dialog">
 		<div class="modal-content">
@@ -1093,6 +1123,7 @@
 			$('[data-target="#clone-batches"]').removeAttr('disabled')
 			$('[data-target="#move-batch-complete"]').removeAttr('disabled')
 			$('[data-target="#move-sample-approval"]').removeAttr('disabled')
+			$('[data-target="#send-schedule-analysis"]').removeAttr('disabled')
 
 			$('[data-target="#dispatch-to-labs-modal"]').removeAttr('disabled').addClass('btn-warning').removeClass('btn-outline-warning');
 			$('[data-target="#dispatch-to-labs-modal-approve"]').removeAttr('disabled').addClass('btn-success').removeClass('btn-outline-success');
@@ -1108,6 +1139,7 @@
 			$('[data-target="#clone-batches"]').attr('disabled')
 			$('[data-target="#move-batch-complete"]').attr('disabled')
 			$('[data-target="#move-sample-approval"]').attr('disabled');
+			$('[data-target="#send-schedule-analysis"]').attr('disabled')
 
 			$('[data-target="#dispatch-to-labs-modal"]').attr('disabled', true).removeClass('btn-warning').addClass('btn-outline-warning');
 			$('[data-target = "#approve-begin-process"]').removeAttr('disabled').addClass('btn-default').removeClass('btn-outline-success');

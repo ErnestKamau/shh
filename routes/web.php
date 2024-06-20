@@ -787,7 +787,7 @@ Route::get('/assign-Lab/Section-To-Analysis-Element/{id}', 'SampleWorkFlowContro
 Route::get('/generate/Customer-Focus/Index/{batch_id}', 'SampleWorkFlowController@generateCustomerFocusIndex')->name('generateCustomerFocusIndex');
 Route::post('/send/Batch-Schedule/Analysis', 'SampleWorkFlowController@sendBatchScheduleAnalysis')->name('sendBatchScheduleAnalysis');
 Route::post('/send/Batch-Payment/Reminder', 'SampleWorkFlowController@sendBatchPaymentReminder')->name('sendBatchPaymentReminder');
-
+Route::post('/send/batches-SOA','SampleWorkFlowController@sendBatchesScheduleAnalysis')->name('send-batches-soa');
 //###################Inter Lab Log ####################################
 Route::get('/getSampleCurrentLabSection/{id}', 'SampleWorkFlowController@getSampleCurrentLabSection')->name('getSampleCurrentLabSection');
 Route::post('/create-sample-inter-lab-log', 'SampleWorkFlowController@create_sample_inter_lab_log')->name('create_sample_inter_lab_log');
