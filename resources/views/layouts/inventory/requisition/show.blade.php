@@ -334,10 +334,10 @@
 								<i class="mdi mdi-alert"></i> Awaiting Requester Confirmation
 							</button>
 						@endif
+						<button class="btn btn-default text-dark float-right btn-sm" data-target="#accept-goods-otp-modal" data-toggle="modal">
+							<i class="mdi mdi-package-variant-closed"></i> Accept Goods
+						</button>
 					@endif
-					<button class="btn btn-default text-dark float-right btn-sm" data-target="#accept-goods-otp-modal" data-toggle="modal">
-						<i class="mdi mdi-package-variant-closed"></i> Accept Goods
-					</button>
 				@endif
 				@if($request->status == "Goods Accepted")
 					@if(!in_array($parentIsLoanLend->request_type, ['Loan', 'Lend']))
@@ -446,9 +446,9 @@
 			@endif
 		</h3>
 		<br>
-		@if($similarItems->count() > 0)
+		@if($similarItems->count() > 0 && in_array($stage, ['Purchase Request']))
 			<div class="alert alert-warning" style="font-size: 11px; display:flex; align-items: center; justify-content: center">
-				<i class="fas fa-info-circle m-2 p-2 fa-2x"></i> The following items in your Purchase Request have been found in a recent Purchase Order.<br>
+				<i class="fas fa-info-circle m-2 p-2 fa-2x"></i> The following items in your Purchase Request have been found in a recent Purchase Request.<br>
 				<ul style="clear: both; width: 100%">
 					@foreach ($similarItems as $sm)
 					<li><b><a href="{{ route('view-request-details', ['stage'=>$stage, 'id'=>$sm->request_id]) }}">Purchase Request {{ $sm->request_code }}</a><small>(Created {{ $sm->days_ago == 0 ? 'Today' : $sm->days_ago." day(s) ago" }})</small></b> - <em>Item : {{ $sm->sub_category->name }}, Quantity: {{ $sm->quantity }}{{ $sm->uom }} </em></li>
@@ -1454,7 +1454,13 @@
 									<select name="nature_of_purchase" class="form-control trigger-save" placeholder="Select Nature of Purchase..." {!! isETCU() ? (!in_array($stage, ['Request to Store', 'Loan', 'Lend']) ? 'required' : '') : 'required'  !!}>
 										<option value="">Select Nature of Purchase...</option>
 										@foreach (getNatureOfExpense() as $np)
-											<option value="{{ $np }}" {{ $np == ($request->nature_of_purchase ?? '') ? 'selected' : '' }}>{{ $np }}</option>
+											@if (in_array($stage, ['Request to Store', 'Material Issuance']))
+												@if($np == "Normal")
+													<option value="{{ $np }}" selected>{{ $np }}</option>
+												@endif
+											@else
+												<option value="{{ $np }}" {{ $np == ($request->nature_of_purchase ?? '') ? 'selected' : '' }}>{{ $np }}</option>
+											@endif
 										@endforeach
 									</select>
 								</div>
@@ -1509,6 +1515,12 @@
 									<div class="form-group">
 										<label class="control-label">Submission Deadline</label>
 										<input type="datetime-local" name="submission_deadline" value="{{ \Carbon\Carbon::parse($request->submission_deadline)->format('Y-m-d\TH:i') ?? '' }}" class="form-control trigger-save" placeholder="Submission Deadline..." />
+									</div>
+									@endif
+									@if($stage == "Purchase Orders" && !empty($request->validity_period))
+									<div class="form-group">
+										<label class="control-label">Valid Until</label>
+										<input type="date" name="validity_period" value="{{ $request->validity_period ?? '' }}" class="form-control trigger-save" placeholder="Validity Period..." />
 									</div>
 									@endif
 									<div class="form-group">

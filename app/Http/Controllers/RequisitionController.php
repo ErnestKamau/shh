@@ -207,7 +207,7 @@ class RequisitionController extends Controller
 			->whereIn('inventory_sub_category_id', $itempIDs)
 			->where('re.id', '<', $id)
 			->where('request_type', 'Purchase Request')
-			->where('request_entity_items.created_at', '>=', Carbon::now()->subDays(7))
+			->where('request_entity_items.created_at', '>=', Carbon::now()->subDays(4))
 			->get();
 
 		// return response()->json($similarItems);
@@ -2012,7 +2012,7 @@ class RequisitionController extends Controller
 			->where('supplier_id', $request->supplier_id)->get();
 
 		if ($existsreq->count() > 0) {
-			return redirect()->back()->with('error', 'An LPO for this material requision and the same supplier already exists!');
+			return redirect()->back()->with('error', 'An LPO for this purchase request and the same supplier already exists!');
 		}
 
 
@@ -2555,7 +2555,11 @@ class RequisitionController extends Controller
 
 				$body = '
 					Hi ' . $supplier->name . ',<br><br>
-					Please provide us with a quote for the following items. Provide your quote as per the template attached. Send your quotes to <b>' . $pro_contact_email . '</b> . Please indicate the validity period for your quotes.
+					<p>Please provide us with a quote for the following items. Feel free to use your preferred quote template for this RFQ. 
+					If you don`t have one, no problem - the attached template is available for your convenience. <br>
+					Our only request is that you ensure all essential details are included, such as itemized costs, anticipated lead times, etc. 
+					Please indicate the validity period for your quotes. <br>
+					Send your quotes to <b>' . $pro_contact_email . '</b>.</p>
 					<table style="width: 100%; border-collapse: collapse; font-size: 13px; border: 1px solid #aaa !important">
 						<thead>
 							<tr>
@@ -2736,11 +2740,10 @@ class RequisitionController extends Controller
 			if ($req->request_type == "Purchase Orders" && $req->status == "Approval Complete") {
 				$rptG = new ReportGeneratorController;
 				$rptG->generate_report_pdf($req->id, false);
-			}
+				$currentDate = Carbon::now(); // Get current date/time
+				$newDate = $currentDate->addDays(90);
 
-			if ($req->request_type == "Purchase Orders" && $req->status == "Approval Complete") {
-				$rptG = new ReportGeneratorController;
-				$rptG->generate_report_pdf($req->id, false);
+				$req->validity_period = $newDate->format('Y-m-d');
 			}
 
 			if ($req->request_type == "Purchase Request" && $req->status == "Approval Complete") {

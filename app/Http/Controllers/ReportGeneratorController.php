@@ -12,6 +12,9 @@ use App\RequestEntity;
 use App\SavedReportConfiguration;
 use Maatwebsite\Excel\Facades\Excel;
 
+use App\InventoryCategories;
+
+
 class ReportGeneratorController extends Controller
 {
   public function __construct()
@@ -210,16 +213,26 @@ class ReportGeneratorController extends Controller
 		return redirect()->back()->with('success', 'Preparing PDF...');
 	}
 
-	public function generate_report($id, $is_supply=false){
+	public function generate_report($id, $is_supply=false, $isHTML=false){
+		$currentE = RequestEntity::find($id);
+
+		// if(in_array($currentE->request_type, ['Lend', 'Loan'])){
+		// 	return redirect()->back()->with('error', 'No templates available');
+		// }
+
+		$swapper = false;
+		if($currentE->request_type == "Request for Quotation"){
+			$id = RequestEntity::find($id)->parent_material_requisition;
+			$swapper = true;
+		}
+
 		$entity = RequestEntity::find($id);
 
 		$arrays = getDocumentTemplates();
 
-		if($entity->request_type == "Purchase Request"){
-			$hasRFQ = RequestEntity::where('parent_request_id', $id)->get()->count();
-		}
+		$isInternal = true;
 
-		return view($is_supply ? $arrays['Supply Inspection Form'] : $arrays[$entity->request_type], compact('entity'));
+		return view($is_supply ? $arrays[$is_supply] : $arrays[$swapper ? $currentE->request_type : $entity->request_type], compact('entity', 'isHTML', 'isInternal'));
 	}
 
 	public function inventory_reports(){
@@ -303,7 +316,7 @@ class ReportGeneratorController extends Controller
 			$savedConfiguration->save();
 			$msg = array("status"=>true);
 		}
-		catch(Exception $e){
+		catch(\Exception $e){
 			$msg = array("error"=> $e->getMessage());
 		}
 

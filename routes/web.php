@@ -259,6 +259,9 @@ Route::post('/reports/save', 'ReportGeneratorController@store')->name('store_rep
 Route::post('/reports/fetch', 'ReportGeneratorController@fetch')->name('fetch_report')->middleware('haspermission:Inventory.components.Inventory-Movement.View');
 Route::post('/reports/delete', 'ReportGeneratorController@delete')->name('delete_report')->middleware('haspermission:Inventory.components.Inventory-Movement.View');
 Route::post('/reports/print','ReportGeneratorController@print')->name('report_print')->middleware('haspermission:Inventory.components.Inventory-Movement.View');
+Route::post('/reports/csv','ReportGeneratorController@exportCsv')->name('report_csv')->middleware('haspermission:Inventory.components.Inventory-Movement.View');
+
+Route::get('/reports/consumption-reports','ReportGeneratorController@consumption')->name('consumption-reports')->middleware('haspermission:Inventory.components.Inventory-Movement.View');
 
 
 Route::get('/inventory-categories', 'InventoryCategoriesController@index')->name('inventory-categories')->middleware('haspermission:Inventory.components.Categories.View');
@@ -276,6 +279,8 @@ Route::post('/delete-item-brand/{id}', 'ItemBrandController@delete')->name('dele
 Route::get('/inventory-stores', 'InventoryStoreController@index')->name('inventory-stores')->middleware('haspermission:Inventory.components.Store.View');
 Route::post('/inventory-stores', 'InventoryStoreController@add')->name('add-inventory-store')->middleware('haspermission:Inventory.components.Store.Add');
 Route::post('/inventory-store/{id}', 'InventoryStoreController@edit')->name('edit-inventory-store')->middleware('haspermission:Inventory.components.Store.Edit');
+Route::post('/add-store-cost-center/{id}', 'InventoryStoreController@add_cost_center')->name('add-store-cost-center')->middleware('haspermission:Inventory.components.Store.Edit');
+Route::post('/remove-store-cost-center/{id}', 'InventoryStoreController@remove_cost_center')->name('remove-store-cost-center')->middleware('haspermission:Inventory.components.Store.Edit');
 Route::post('/inventory-store/{id}/delete', 'InventoryStoreController@delete')->name('delete-inventory-store')->middleware('haspermission:Inventory.components.Store.Delete');
 
 Route::get('/inventory-store-slots/{store}', 'InventoryStoreSlotController@index')->name('inventory-store-slots');
@@ -862,6 +867,17 @@ Route::post('/email-rejection/{link_key}/{type}/{userid}', 'ExternalApprovalCont
 Route::get('/email-recheck/{link_key}/{type}/{userid}', 'ExternalApprovalController@recheck')->name('email-recheck');
 Route::post('/email-recheck/{link_key}/{type}/{userid}', 'ExternalApprovalController@recheck')->name('send-email-recheck');
 ###############################################EMAILAPPROVALS#######################################
+
+###############################################NOTIFICATIONS#######################################
+Route::get('/send-restock-notifications','InventoryItemController@sendReorderNotifications')->name('send-restock-notifications');
+###############################################NOTIFICATIONS#######################################
+
+###############################################ZOHO INTEGRATION#######################################
+Route::get('/zoho-auth-redirect','ZohoController@redirect')->name('zoho-auth-redirect');
+Route::get('/zoho-purchase-orders','ZohoController@getPurchaseOrders')->name('zoho-purchase-orders');
+// Route::get('/zoho-purchase-orders','ZohoController@getPurchaseOrders')->name('zoho-purchase-orders');
+###############################################ZOHO INTEGRATION#######################################
+
 
 #STORAGE ROUTES
 Route::get('storage/{type}/{filename}', function ($type, $filename)
