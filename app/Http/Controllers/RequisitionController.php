@@ -2370,6 +2370,9 @@ class RequisitionController extends Controller
 		}
 
 		if ($request->has('get_approval')) {
+			if(trim($req->zoho_status) == "" && $stage == "Purchase Orders"){
+				$req->zoho_status = "sync_zoho";
+			}
 			$req->status = "Awaiting Approval";
 			$req->save();
 

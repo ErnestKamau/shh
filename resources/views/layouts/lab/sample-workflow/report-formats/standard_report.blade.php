@@ -89,7 +89,7 @@
                 'icon' => null,
             ],
             [
-                'link' => '/sample-workflow/batch/' . $batch->id . '/details',
+                'link' => '/sample-workflow/batch/'.$batch->id.'/details',
                 'name' => $batch->batch_code,
                 'icon' => null,
             ],
@@ -108,13 +108,14 @@
         
         <?php $check_v = 0; ?>
         @foreach ($samples as $sample)
-        <?php $accreditted_status = $sample->getAcredditedStatus() ?>
+        <?php $accreditted_status = $sample->getAcredditedStatus(); ?>
             <div class="card m-4 mt-5" style="clear:both;box-shadow: rgba(100, 100, 111, 0.2) 0px 7px 29px 0px;">
                 <div class="card-body p-4">
                     <div class="d-flex justify-content-between p-2">
                         <div class="company-logo" style="width:50%">
                             <img src="{{ $company->logo }}" style="width:20% !important" alt="">
                         </div>
+                        @if($batch->status != 'Samples In Lab')
                         <div class="company_details"  style="text-align: right" >
                             <p class="mt-2" style="font-size: 17px !important">
                                 {{ $sample->crm_name }} <br>
@@ -123,6 +124,7 @@
                             </p>
 
                         </div>
+                        @endif
                     </div>
                     <div class="report-no p-2 border" style="font-weight: 750 !important ;">
                         TEST REPORT NO : R{{ substr($sample->sample_code, 1, strlen($sample->sample_code)) }}
@@ -150,7 +152,7 @@
                         </tr>
                         <tr>
                             <td style="border-right:1px solid #dee2e6">MARKINGS</td>
-                            <td style="padding-left:10px !important">{{ $sample->comments ?? 'N/A' }}</td>
+                            <td style="padding-left:10px !important">{!! $sample->comments ?? 'N/A' !!}</td>
                         </tr>
                     </table>
 
@@ -166,7 +168,7 @@
                                 </tr>
                             </thead>
                             <tbody>
-                                <?php $pesticideAnalysis = []?>
+                                <?php $pesticideAnalysis = []; ?>
                                 
                                 @foreach ($sample->getSampleByAnalysisType($exclude_pesticides) as $analysis_type_level)
                                 @if($analysis_type_level->is_pesticide == 0)
@@ -182,15 +184,15 @@
                                                 {!! $captured->analyte_status_contracted == 1 ? '<small>+</small>' : '' !!} {!! $captured->analyte_accredited == 1 ? '<small>*</small>' : '' !!}  {!! $captured->is_italic == 1 ? '<i>'. $captured->analyte_code.'</i>' : $captured->analyte_code !!}
                                                 @endif
                                                 </td>
-                                            <td>{{ $captured->method()->name }}</td>
+                                            <td>{{ isset($captured->method()->name) ? $captured->method()->name : '-' }}</td>
                                             <td>{{ $captured->result_reporting_symbol ?? '' }}{{ $captured->result }}</td>
-                                            <td>{{ $captured->reporting_unit_id }}</td>
-                                            <td>{{ $captured->main_value }}</td>
+                                            <td>{{ $captured->reporting_unit_id  ?? ''}}</td>
+                                            <td>{{ $captured->main_value ?? '' }}</td>
                                         </tr>
                                     @endforeach
 
                                 @else
-                                <?php $pesticideAnalysis[]= $analysis_type_level?>
+                                <?php $pesticideAnalysis[] = $analysis_type_level; ?>
                                 @endif
                                    
 
@@ -223,10 +225,10 @@
                                                 {!! $captured->analyte_status_contracted == 1 ? '<small>+</small>' : '' !!} {!! $captured->analyte_accredited == 1 ? '<small>*</small>' : '' !!}  {!! $captured->is_italic == 1 ? '<i>'. $captured->analyte_code.'</i>' : $captured->analyte_code !!}
                                                 @endif
                                                 </td>
-                                            <td>{{ $captured->method()->name }}</td>
-                                            <td>{{ $captured->result_reporting_symbol ?? '' }}{{ $captured->result }}</td>
-                                            <td>{{ $captured->reporting_unit_id }}</td>
-                                            <td>{{ $captured->main_value }}</td>
+                                            <td>{{ isset($captured->method()->name) ? $captured->method()->name : '-' }}</td>
+                                            <td>{{ $captured->result_reporting_symbol ?? '' }}{{ $captured->result ?? '' }}</td>
+                                            <td>{{ $captured->reporting_unit_id  ?? ''}}</td>
+                                            <td>{{ $captured->main_value ?? '' }}</td>
                                         </tr>
                                     @endforeach
                                 @endforeach

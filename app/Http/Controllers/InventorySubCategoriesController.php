@@ -75,7 +75,8 @@ class InventorySubCategoriesController extends Controller
 			}
 		}
 
-		if(floatval($request->unit_price) == 0 && $request->item_classification!=3){
+		if(floatval($request->unit_price) == 0 && $request->item_classification!=3 && !$internal){
+			// return 7;
 			return redirect()->back()->with('error', 'Item price can not be 0 for Non-Service items.');
 		}
 
@@ -86,7 +87,7 @@ class InventorySubCategoriesController extends Controller
 
     $subcategory->inventory_category_id = $request->category_id;
     $subcategory->manufacturer = $request->manufacturer ?? 'Any';
-    $subcategory->maximum_order_quantity = $request->maximum_order_quantity;
+    $subcategory->maximum_order_quantity = $request->maximum_order_quantity ?? 0;
     $subcategory->item_classification = $request->item_classification;
     $subcategory->unit_type = $request->unit_type;
     $subcategory->secondary_unit_type = $request->secondary_unit_type;
@@ -95,10 +96,10 @@ class InventorySubCategoriesController extends Controller
     $subcategory->company_id = getUserCompany();
     $subcategory->location_id = getCurrentUserLocation()->id;
 		$subcategory->annual_consumption = $request->annual_consumption;
-		$subcategory->working_days = $request->working_days;
+		$subcategory->working_days = $request->working_days ?? 90;
 		$subcategory->estimated_variation_in_demand_average_consumption = $request->estimated_variation_in_demand_average_consumption;
-		$subcategory->internal_lead_time = $request->internal_lead_time;
-		$subcategory->external_lead_time = $request->external_lead_time;
+		$subcategory->internal_lead_time = $request->internal_lead_time ?? 0;
+		$subcategory->external_lead_time = $request->external_lead_time ?? 0;
 		$subcategory->sap_code = $request->sap_code;
 
     $subcategory->save();

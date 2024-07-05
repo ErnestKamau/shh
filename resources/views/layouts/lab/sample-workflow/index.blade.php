@@ -128,6 +128,11 @@
 					<span class="btn btn-sm dropdown-item" disabled data-target="#generarate_customer_focus" data-toggle="modal" title="Generate Customer Focus"><i class="mdi mdi-file-document-outline mr-2"></i> Generate Customer Focus</span>
 				</li>
 				<li>
+					<span class="btn btn-sm dropdown-item" data-toggle="modal" data-target="#send-schedule-analysis" disabled>
+						<i class="mr-2 mdi mdi-email-send-outline"></i> Send Schedule of Analysis
+					</span>
+				</li>
+				<li>
 					<span class="btn btn-sm dropdown-item" data-target="#clone-batches" data-toggle="modal"><i class="mdi mdi-content-duplicate mr-2"></i> Clone Batch(es)</span>
 				</li>
 				@endif
@@ -162,6 +167,18 @@
 					<span class="btn btn-sm dropdown-item" data-target="#print-labels-modal" data-toggle="modal"><i class="mdi mdi-printe mr-2r"></i>Print Labels</span>
 				</li>
 				@endif
+				@if($status == 'Sample Approval')
+				<li>
+					<span class="btn btn-sm dropdown-item" disabled data-target="#move-batch-complete" data-toggle="modal"><i class="mdi mdi-subdirectory-arrow-right mr-2"></i>Mark Complete</span>
+				</li>
+				@endif
+				@if($status == 'Finished Sample')
+					<li>
+						<sppan class="btn btn-sm dropdown-item" disabled data-target="#move-sample-approval" data-toggle="modal">
+						<i class="mdi mdi-subdirectory-arrow-right mr-2"></i> Return to Approval
+						</sppan>
+					</li>
+				@endif
 
 			</div>
 		</div>
@@ -175,6 +192,47 @@
 
 	</h4>
 	<div class="table-responsive bg-light p-4">
+		@if($status == 'Finished Sample')
+			<b><u>Apply Filters?</u></b>
+			<form action="/sample-workflow/Finished Sample" class="mb-4" method="get">
+				<div class="row mt-2 p-2 bg-white">
+					<div class="col-md-4">
+						<div class="form-group">
+							<label for="" class="control-label">Receipt Date From</label>
+							<input type="date" name="receipt_from" id="" value="{{$filter['receipt_from'] ?? ''}}" class="form-control">
+						</div>
+					</div>
+					<div class="col-md-4">
+						<div class="form-group">
+							<label for="" class="control-label">Receipt Date To</label>
+							<input type="date" name="receipt_to" id="" value="{{$filter['receipt_to'] ?? ''}}" class="form-control">
+						</div>
+					</div>
+					<div class="col-md-4">
+						<div class="form-group">
+							<label for="" class="control-label">Customer</label>
+							<select name="customer_id" id="" class="form-control">
+								<option value="">Select Customer</option>
+								@foreach($customers as $customer)
+									<option value="{{$customer->id}}" {{isset($filter['customer_id']) && $customer->id == $filter['customer_id'] ? 'selected' : ''}} >{{$customer->name}}</option>
+								@endforeach
+							</select>
+						</div>
+					</div>
+					<div class="col-md-12">
+						<div class="form-group">
+							<label for="" class="control-label">Sample Codes <small>(can provide multiple sample codes comma separated)</small></label>
+							<input type="text" name="sample_codes" value="{{$filter['sample_codes'] ?? ''}}" class="form-control">
+						</div>
+					</div>
+					<input type="hidden" name="has_filter" value="1">
+					<div class="col-md-12">
+						<button type="submit" class="btn btn-sm btn-outline-primary float-right"><i class="mdi mdi-filter"></i> Apply</button>
+					</div>
+				</div>
+	
+			</form>
+		@endif
 		<table class="table table-condensed my-small-text table-bordered table-sm" data-fixedcls="{{json_encode(["left"=>3])}}">
 			<thead>
 				<th></th>
@@ -724,6 +782,31 @@
 	</div>
 </div>
 @if($status == 'Samples Reception')
+<div class="modal fade" id="send-schedule-analysis" role="dialog">
+	<div class="modal-dialog">
+		<div class="modal-content">
+			<form action="{{route('send-batches-soa')}}" method="POST">
+				@csrf
+				<div class="modal-body">
+					<div class="alert alert-primary p-2 d-flex">
+						<i class="mdi mdi-alert-decagram" style="font-size: 30px"></i>
+						<span class="p-2">Confirm you want to send schedule of analysis for the following batches:
+							<br> Ensure all the batches are from the same client</span>
+					</div>
+					<div class="form-group">
+						<label class="control-label">Batch(es)</label>
+						<div class="selected-batches-review"></div>
+					</div>
+				</div>
+				<div class="modal-footer">
+					<button type="submit" class="btn btn-sm btn-outline-primary"><i class="mdi mdi-thumb-up"></i> Yes,
+						Send</button>
+					<span class="btn btn-sm btn-default" data-dismiss="modal">Close</span>
+				</div>
+			</form>
+		</div>
+	</div>
+</div>
 <div class="modal fade"  id="generarate_customer_focus" role="dialog">
 	<div class="modal-dialog">
 		<div class="modal-content">
@@ -950,6 +1033,57 @@
 	</div>
 </div>
 @endif
+@if($status == 'Sample Approval')
+<div class="modal fade" id="move-batch-complete" role="dialog">
+	<div class="modal-dialog">
+		<div class="modal-content">
+			<form action="{{route('mark-finished')}}" method="post">
+				@csrf  
+				<div class="modal-body">
+					<div class="alert alert-primary p-2 d-flex">
+						<i class="mdi mdi-alert-decagram-outline" style="font-size:25px"></i>
+						<span class="p-2">Confirm you want to move the follwing batche(s) to Finished Sample(s). </span>
+					</div>
+					<div class="form-group">
+						<label class="control-label">Batches</label>
+						<div class="selected-batches-review"></div>
+					</div>
+
+				</div>
+				<div class="modal-footer">
+					<button type="submit" class="btn btn-sm btn-outline-primary"><i class="mdi mdi-thumb-up-outline"></i> Yes, Move</button>
+					<span class="btn btn-sm btn-default" data-dismiss="modal">Cancel</span>
+				</div>
+			</form>								
+		</div>
+	</div>
+</div>
+@endif
+@if($status == 'Finished Sample')
+<div class="modal fade" id="move-sample-approval" role="dialog">
+	<div class="modal-dialog">
+		<div class="modal-content">
+			<form action="{{route('return-finished')}}" method="post">
+				@csrf 
+				<div class="modal-body">
+					<div class="alert alert-primary p-2 d-flex">
+						<i class="mdi mdi-alert-decagram-outline" style="font-size:25px"></i>
+						<span class="p-2">Confirm you want to move the follwing batche(s) to Sample(s) Approval Section. </span>
+					</div>
+					<div class="form-group">
+						<label class="control-label">Batches</label>
+						<div class="selected-batches-review"></div>
+					</div>
+				</div> 
+				<div class="modal-footer">
+					<button type="submit" class="btn btn-sm btn-outline-primary"><i class="mdi mdi-thumb-up-outline"></i> Yes, Move</button>
+					<span class="btn btn-sm btn-default" data-dismiss="modal">Cancel</span>
+				</div>
+			</form>
+		</div>
+	</div>
+</div>
+@endif
 <script src="https://cdn.jsdelivr.net/gh/gitbrent/bootstrap4-toggle@3.6.1/js/bootstrap4-toggle.min.js"></script>
 <script type="text/javascript">
 	var selectedSampleIDs = [];
@@ -987,6 +1121,9 @@
 			$('[data-target="#move-to-lab"]').removeAttr('disabled');
 			$('[data-target="#generarate_customer_focus"]').removeAttr('disabled');
 			$('[data-target="#clone-batches"]').removeAttr('disabled')
+			$('[data-target="#move-batch-complete"]').removeAttr('disabled')
+			$('[data-target="#move-sample-approval"]').removeAttr('disabled')
+			$('[data-target="#send-schedule-analysis"]').removeAttr('disabled')
 
 			$('[data-target="#dispatch-to-labs-modal"]').removeAttr('disabled').addClass('btn-warning').removeClass('btn-outline-warning');
 			$('[data-target="#dispatch-to-labs-modal-approve"]').removeAttr('disabled').addClass('btn-success').removeClass('btn-outline-success');
@@ -1000,7 +1137,9 @@
 			$('[data-target="#move-to-lab"]').attr('disabled');
 			$('[data-target="#generarate_customer_focus"]').attr('disabled');
 			$('[data-target="#clone-batches"]').attr('disabled')
-
+			$('[data-target="#move-batch-complete"]').attr('disabled')
+			$('[data-target="#move-sample-approval"]').attr('disabled');
+			$('[data-target="#send-schedule-analysis"]').attr('disabled')
 
 			$('[data-target="#dispatch-to-labs-modal"]').attr('disabled', true).removeClass('btn-warning').addClass('btn-outline-warning');
 			$('[data-target = "#approve-begin-process"]').removeAttr('disabled').addClass('btn-default').removeClass('btn-outline-success');

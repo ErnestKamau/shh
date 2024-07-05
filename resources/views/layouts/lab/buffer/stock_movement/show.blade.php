@@ -68,29 +68,28 @@
 @section('content2')
 <main>
     <?php
-    $items = array(
-        array(
+    $items = [
+        [
             'link' => route('lab-home'),
             'name' => 'Lab',
-            'icon' => null
-        ),
-        array(
+            'icon' => null,
+        ],
+        [
             'link' => null,
             'name' => 'Stock Monitoring',
-            'icon' => null
-        ),
-        array(
-            'link' => route('stock-movement-index'),
+            'icon' => null,
+        ],
+        [
+            'link' => route('solution-movement-index'),
             'name' => 'Stock-Movement',
-            'icon' => null
-        ),
-        array(
+            'icon' => null,
+        ],
+        [
             'link' => null,
             'name' => $category->name,
-            'icon' => null
-        ),
-
-    );
+            'icon' => null,
+        ],
+    ];
     ?>
     <x-bread-crumb :items="$items"></x-bread-crumb>
     <h3 class="p-3">
@@ -165,8 +164,8 @@
                                 <td><img src="{{$category->image}}" style="width: 30px; height:30px" alt=""> {{$category->name}}</td>
                                 <td>{{number_format($sm->stock_in,2)}}</td>
                                 <td>{{number_format($sm->stock_out,2)}}</td>
-                                <td>{{getReportingUnitsByID($sm->uom_id)->name}}</td>
-                                <td>{{getUserById($sm->created_by)->name}}</td>
+                                <td>{{$sm->reporting_name}}</td>
+                                <td>{{ $sm->creator }}</td>
                                 <td>{{date('Y-m-d h:i:sa',strtotime($sm->created_at))}}</td>
                                 <td>{{$sm->description}}</td>
                             </tr>
@@ -184,7 +183,7 @@
 <div class="modal fade" id="add-stock-movement" role="dialog">
     <div class="modal-dialog">
         <div class="modal-content">
-            <form action="{{ route('stock-movement-add') }}" method="post" enctype="multipart/form-data">
+            <form action="{{ route('solution-movement-add') }}" method="post" enctype="multipart/form-data">
                 @csrf
                 <div class="modal-header p-2">
 
@@ -195,7 +194,7 @@
                 <div class="modal-body">
                     @if($category->stock > 0)
                         <div class="alert alert-success">
-                        <i class="mdi mdi-package-variant-closed pull-left"></i> {{$category->name}} available stock {{$category->stock}} {{getReportingUnitsByID($category->reporting_unit)->name}} .
+                        <i class="mdi mdi-package-variant-closed pull-left"></i> {{$category->name}} available stock {{$category->stock}} {{$category->reporting_name}} .
                         </div>
                     @elseif($category->stock <= 0)
                         <div class="alert alert-danger">

@@ -613,7 +613,7 @@ function getModulePreconfig($type, $module)
 
 function getSampleWorflowStages()
 {
-	return array("All Samples", "Samples En-Route", "Samples Reception", "Samples Request Review", "Samples In Lab", "Sample Verification", "Sample Approval", "Reports In Payment", "Reports for Collection");
+	return array("All Samples", "Samples En-Route", "Samples Reception", "Samples Request Review", "Samples In Lab", "Sample Verification", "Sample Approval", "Reports In Payment", "Reports for Collection","Finished Sample");
 }
 function getComplaintWorkflowStages()
 {

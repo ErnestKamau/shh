@@ -68,29 +68,28 @@
 @section('content2')
 <main>
     <?php
-    $items = array(
-        array(
+    $items = [
+        [
             'link' => route('lab-home'),
             'name' => 'Lab',
-            'icon' => null
-        ),
-        array(
+            'icon' => null,
+        ],
+        [
             'link' => null,
             'name' => 'Stock Monitoring',
-            'icon' => null
-        ),
-        array(
+            'icon' => null,
+        ],
+        [
             'link' => route('stock_management_index'),
             'name' => 'Stock-Management',
-            'icon' => null
-        ),
-        array(
+            'icon' => null,
+        ],
+        [
             'link' => null,
             'name' => $subcategory->name,
-            'icon' => null
-        ),
-
-    );
+            'icon' => null,
+        ],
+    ];
     ?>
     <x-bread-crumb :items="$items"></x-bread-crumb>
     <h3 class="p-3">
@@ -152,7 +151,7 @@
                 <span class="btn btn-outline-info float-right btn-sm mb-2" data-toggle="modal" onclick=" addrow()"><i class="mdi mdi-plus"></i></span>
                 <div class="table-responsive">
 
-                    <table class="table table-condensed my-small-text table-striped table-hover table-bordered">
+                    <table class="table table-condensed my-small-text table-striped table-hover table-bordered" style="width:100%">
                         <thead class="bg-light">
                             <th>No</th>
                             <th>Reagent</th>
@@ -163,21 +162,21 @@
 
                             @foreach($category_items as $item)
                             <tr>
-                                <td style="display: flex;border:0px ">
+                                <td style="display: flex;border:0px ;width:10% !important">
                                     <span style="font-size:11px; flex:1" data-toggle="modal" data-target="#edit-item-{{$loop->iteration}}" class="btn mdi mdi-pencil "></span>
 
                                     <span style="font-size:12px;flex:1 ;border-bottom:0px" data-toggle="modal" data-target="#delete-item-{{$loop->iteration}}" class="btn mdi mdi-delete-empty text-danger"></span>
                                 </td>
-                                <td>
+                                <td style="width:55% !important">
                                     <div class="form-group">
                                         <select name="reagent" id="Reagents" disabled="disabled" class="form-control">
                                             @foreach($reagents as $reagent)
-                                            <option value="{{$reagent->id}}" {{ $reagent->id == $item->reagent_id ? 'selected' : '' }}>{{$reagent->batch_code}}</option>
+                                            <option value="{{$reagent->id}}" {{ $reagent->id == $item->reagent_id ? 'selected' : '' }}>{{$reagent->name.' - '.$reagent->code}}</option>
                                             @endforeach
                                         </select>
                                     </div>
                                 </td>
-                                <td>
+                                <td style="width:25% !important">
                                     <div class="form-group">
                                         <select name="reporting_unit" id="" disabled="disabled" class="form-control">
                                             @foreach(getReportingUnits() as $g)
@@ -186,7 +185,7 @@
                                         </select>
                                     </div>
                                 </td>
-                                <td>
+                                <td style="width:10% !important">
                                     <div class="form-group">
                                         <input type="text" name="amount_used" id="" class="form-control" value="{{$item->amount_used}}" disabled>
                                     </div>
@@ -231,7 +230,7 @@
                                                     <label class="control-label">Reagent</label>
                                                     <select name="reagent_id" id="" class="form-control">
                                                         @foreach($reagents as $reagent)
-                                                        <option value="{{$reagent->id}}" {!! $reagent->id == $item->reagent_id ? 'selected':'' !!}>{{$reagent->batch_code}}</option>
+                                                        <option value="{{$reagent->id}}" {!! $reagent->id == $item->reagent_id ? 'selected':'' !!}>{{$reagent->reagent_name.' - '. $reagent->reagent_come}}</option>
                                                         @endforeach
                                                     </select>
                                                 </div>
@@ -274,20 +273,20 @@
         var current = t + 1;
         var $row = $(`
             <tr>
-                <td class="text-center item-${current}">${current}
+                <td class="text-center item-${current}" style="width:10% !important">${current}
                     <i class="mdi mdi-minus-circle-outline text-danger btn" onclick="deleterow(${current})"></i>
                 </td>
-                <td>   
+                <td style="width:55% !important">   
                     <div class="form-group">
-                        <select name="reagent_id[]" id="Reagents" class="form-control" required>
+                        <select name="reagent_id[]" class="form-control reagent_id" required>
                             @foreach($reagents as $reagent)
-                            <option value="{{$reagent->id}}">{{$reagent->batch_code}}</option>
+                            <option value="{{$reagent->id}}">{{$reagent->name}} - {{$reagent->code}}</option>
                             @endforeach
                         </select>
                     </div>
                     
                 </td>
-                <td>
+                <td style="width:25% !important">
                     <div class="form-group">
                         <select name="reporting_unit[]" id="" required class="form-control">
                             @foreach(getReportingUnits() as $g)
@@ -297,7 +296,7 @@
                     </div>
 
                 </td>
-                <td>
+                <td style="width:10% !important">
                     <div class="form-group">
                     <input type="text" name="amount_used[]" class="form-control" />
                     </div>
@@ -305,6 +304,7 @@
             </tr>
         `).clone();
         $('tbody').append($row);
+        $('tbody').find('.reagent_id').select2();
     }
 
     function deleterow(index) {

@@ -41,6 +41,7 @@ class ReportHeaderDetailController extends Controller
 
 		$detail->main_body = $request->main_body;
 		$detail->header_body = $request->header_body;
+		$detail->notes_body = $request->notes_body;
 		$detail->save();
 
 		return \redirect()->back()->with('success', 'Sample Comments and Interpretations have been saved');

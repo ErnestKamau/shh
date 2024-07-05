@@ -71,24 +71,23 @@
 @section('content2')
 <main>
     <?php
-    $items = array(
-        array(
+    $items = [
+        [
             'link' => route('lab-home'),
             'name' => 'Lab',
-            'icon' => null
-        ),
-        array(
+            'icon' => null,
+        ],
+        [
             'link' => null,
             'name' => 'Stock Movement',
-            'icon' => null
-        ),
-        array(
+            'icon' => null,
+        ],
+        [
             'link' => null,
             'name' => 'Lab Stock',
-            'icon' => null
-        ),
-
-    );
+            'icon' => null,
+        ],
+    ];
     ?>
     <x-bread-crumb :items="$items"></x-bread-crumb>
     <h3 class="p-4">
@@ -112,7 +111,7 @@
                     <tr>
                         <td>{{$loop->iteration}}</td>
                         <td>
-                            <a href="{{ route('stock-movement-show',['id'=>$sub->id]) }}">{{$sub->name}}</a>
+                            <a href="{{ route('solution-movement-show',['id'=>$sub->id]) }}">{{$sub->name}}</a>
                         </td>
                         <td>{{$sub->category_name}}</td>
                         <td>{{$sub->description}}</td>
@@ -120,7 +119,7 @@
                             <img src="{{$sub->image}}" style="height: 100px;width:100px" alt="">
                         </td>
                         <td>
-                            <a href="{{ route('stock-movement-show',['id'=>$sub->id]) }}" data-target="tooltip" title="View Stock" class="btn btn-outline-success btn-sm"><i class="mdi mdi-eye"></i></a>
+                            <a href="{{ route('solution-movement-show',['id'=>$sub->id]) }}" data-target="tooltip" title="View Stock" class="btn btn-outline-success btn-sm"><i class="mdi mdi-eye"></i></a>
                         </td>
                     </tr>
                     @endforeach

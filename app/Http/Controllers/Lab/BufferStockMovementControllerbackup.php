@@ -4,13 +4,15 @@ namespace App\Http\Controllers\Lab;
 
 use App\Http\Controllers\Controller;
 use App\InventoryCategories;
+use App\LabCategoryItems;
+use App\LabInventoryCategory;
 use App\LabStockMovement;
 use App\LabSubCategory;
 use App\ReportingUnit;
 use App\UnitOfMeasureConversion;
 use Illuminate\Http\Request;
 
-class BufferStockMovementController extends Controller
+class BufferStockMovementControllerbackup extends Controller
 {
     public function __construct()
     {
@@ -19,10 +21,10 @@ class BufferStockMovementController extends Controller
 
     public function index()
     {
-        $sub_category = LabSubCategory::join('lab_inventory_category as lic', 'lic.id', '=', 'lab_sub_category.category_id')
-        ->where('lab_sub_category.active', 1)->selectRaw('lab_sub_category.*,lic.name as category_name')->get();
-
-        // return response()->json($sub_category);
+        $sub_category = LabSubCategory::where('active', 1)->get();
+        foreach ($sub_category as $sub) {
+            $sub->category_name = LabInventoryCategory::find($sub->category_id)->name;
+        }
 
         return view('layouts.lab.buffer.stock_movement.index', compact('sub_category'));
     }
@@ -35,9 +37,7 @@ class BufferStockMovementController extends Controller
         if (!isset($category->id)) {
             return redirect()->back()->with('error', 'There is no record of lab sub category item with specified ID! ');
         }
-        $stock_movement = LabStockMovement::where('lab_stock_movement.lab_sub_category_id', $category->id)
-        ->join('reporting_units as ru', 'ru.id', '=', 'lab_stock_movement.uom_id')
-        ->join('users as u', 'u.id', '=', 'lab_stock_movement.created_by')->selectRaw('lab_stock_movement.*,ru.name as reporting_unit_name,u.name as creator')->orderBy('lab_stock_movement.id', 'desc')->get();
+        $stock_movement = LabStockMovement::where('lab_sub_category_id', $category->id)->orderBy('id', 'desc')->get();
         $uoms = ReportingUnit::all();
         $report = ReportingUnit::find($category->reporting_unit);
         // return response()->json($report,200);
@@ -55,6 +55,31 @@ class BufferStockMovementController extends Controller
         $stock->lab_sub_category_id = $request->category_id;
         $stock->stock_type = $request->stock_type;
         if ($request->stock_type == 'stock_in') {
+            $items = LabCategoryItems::where('sub_category_id', $category->id)->get();
+            $inventoryC = new \App\Http\Controllers\InventoryItemController();
+            $items_store = new \App\Http\Controllers\InventoryStoreController();
+            foreach ($items as $item) {
+                $store = $items_store->store_slots_by_item($item->reagent_id);
+
+                $theUser = \Auth::user();
+
+                $req = new Request();
+                $req->category_id = $item->inventory_category_id;
+                $req->sub_category_id = $item->inventory_sub_category_id;
+                $req->quantity = $request->amount * $item->amount_used;
+
+                $req->slot = $store->slot_id ?? 0;
+                $req->store = $store->id ?? 0;
+                $req->transfer_to = $theUser->department_id;
+                $req->issued_to = $theUser->id;
+                $req->item_brand_id = $item->item_brand_id ?? 0;
+
+                $issueOut = $inventoryC->transfer($req, true);
+                // return response()->json($issueOut, 200);
+
+                $item->inventory_item_id = $issueOut->id;
+            }
+
             // return response()->json($items, 200);
             $stock->stock_in = $request->amount;
             if ($category->reporting_unit == $request->uom_id) {
