@@ -231,7 +231,7 @@ function getStorageByType($type)
 
 function getAttachmentTypes()
 {
-	return array("Document File", "Image File", "Video File", "GR - Invoice", "GR - Delivery Note", "GR - Credit Note");
+	return array("Document File", "Image File", "Video File", "GR - Invoice", "GR - Delivery Note", "GR - Credit Note", "Proof of Payment", "Certificate of Analysis");
 }
 
 function getRequestPriority()
@@ -970,6 +970,20 @@ function getUsersByRole($role, $is_id = false)
 	return $users;
 }
 
+function getReportingUnitsByID($id)
+{
+	return App\ReportingUnit::find($id);
+}
+
+function getInventoryCategories(){
+	return App\InventoryCategories::orderBy('name', 'asc')->get();
+}
+
+function getInventoryCatByID($id)
+{
+	return App\InventoryCategories::find($id);
+}
+
 function getComplaintChainOfCustody($id)
 {
 	return App\Models\CRM\Chain_of_Custody_Complaint::where('complaint_id', $id)->get();
@@ -1606,6 +1620,12 @@ function getSupplierRatingCriteria(){
 	return App\RatingCriteria::where('active', 1)->orderBy('title')->get();
 }
 
+function supplierRatingColorFromScore($rating){
+	$rating = floatval($rating);
+	return floatval($rating) == 100 ? 'bg-success' : ($rating < 100 && $rating > 60 ?
+		'bg-info' : ($rating <= 60 && $rating > 35 ? 'bg-warning' : 'bg-danger'));
+}
+
 function has_exceeding_quantities($id){
 	$req = \App\RequestEntity::find($id);
 	if(!isset($req->id) || $req->request_type != "Request to Store"){
@@ -1729,6 +1749,47 @@ function auditableDelete($collection){
 	}
 
 	return true;
+}
+
+function issue_received_complete($parentID){
+	$parentEntityItems = \App\RequestEntityItem::where('request_id', $parentID)->get();
+	$childEntitiesIds = \App\RequestEntity::where('parent_request_id', $parentID)
+	->whereNotIn('status', ['Reversed', 'Rejected'])->selectRaw('id')->get()->pluck('id');
+	$childrenEntitiesNormal = \App\RequestEntityItem::whereIn('request_id', $childEntitiesIds)->where('action', 'normal')->get();
+	$childrenEntitiesActioned = \App\RequestEntityItem::whereIn('request_id', $childEntitiesIds)->where('action', '!=', 'normal')->get();
+
+	//whereNotIn('status', ['Reversed', 'Rejected'])
+
+	$quantitiesHolder = ["parent"=>[], "children"=>[]];
+	//first set maximum quantities
+	foreach($parentEntityItems as $pei){
+		if(!isset($quantitiesHolder['parent'][$pei->inventory_sub_category_id])){
+		$quantitiesHolder['parent'][$pei->inventory_sub_category_id] = 0;
+		$quantitiesHolder['children'][$pei->inventory_sub_category_id] = ["normal"=>0, "actioned"=>0];
+		}
+		$quantitiesHolder['parent'][$pei->inventory_sub_category_id] += floatval($pei->quantity);
+	}
+
+	//set normal children quantities
+	foreach($childrenEntitiesNormal as $cen){
+		$quantitiesHolder['children'][$cen->inventory_sub_category_id]['normal'] += floatval($cen->quantity);
+	}
+
+	//set normal children quantities
+	foreach($childrenEntitiesActioned as $cea){
+		$quantitiesHolder['children'][$cea->inventory_sub_category_id]['actioned'] += floatval($cea->quantity);
+	}
+
+	$entityType = ["items"=>0, "completed"=>0, "all"=>0];
+
+	foreach($quantitiesHolder['parent'] as $sID=>$amount){
+		$entityType['all'] += floatval($amount);
+
+		$entityType['items'] += $quantitiesHolder['children'][$sID]['normal'];
+		$entityType['completed'] += $quantitiesHolder['children'][$sID]['actioned'];
+	}
+
+	return $entityType;
 }
 
 function isOTPOptional(){

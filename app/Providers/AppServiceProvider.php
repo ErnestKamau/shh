@@ -4,6 +4,12 @@ namespace App\Providers;
 
 use App\CapturedResult;
 use App\Observers\CapturedObserver;
+use App\InventorySubCategories;
+use App\Observers\ItemObserver;
+use App\Observers\PurchaseOrderObserver;
+use App\Observers\SupplierObserver;
+use App\RequestEntity;
+use App\Supplier;
 use Illuminate\Support\ServiceProvider;
 use Illuminate\Support\Facades\URL;
 
@@ -30,5 +36,8 @@ class AppServiceProvider extends ServiceProvider
         //     URL::forceScheme('https');
         // }
         CapturedResult::observe(CapturedObserver::class);
+        Supplier::observe(SupplierObserver::class);
+        InventorySubCategories::observe(ItemObserver::class);
+        RequestEntity::observe(PurchaseOrderObserver::class);
     }
 }

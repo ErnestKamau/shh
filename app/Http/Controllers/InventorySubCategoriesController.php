@@ -211,7 +211,8 @@ class InventorySubCategoriesController extends Controller
 			"uom2"=>$item->secondary_unit_type,
 			"available_formated"=>number_format($availableStock, 2),
 			"available"=>$availableStock,
-			"brands"=> \App\ItemBrand::where('inventory_sub_category_id', $inv_sub_cat)->selectRaw('id, name')->orderBy('name')->get()
+			"brands"=> \App\ItemBrand::where('inventory_sub_category_id', $inv_sub_cat)->selectRaw('id, name')->orderBy('name')->get(),
+			"account_id" => $item->zoho_account_id
 		];
 	}
 

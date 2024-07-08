@@ -8,8 +8,8 @@ use OwenIt\Auditing\Contracts\Auditable;
 class RequestEntityItem extends Model implements Auditable
 {
 	use \OwenIt\Auditing\Auditable;
-	
-	public function pending(){
+	// protected $with = ['sub_category'];
+	public function pending(){	
 		$action = "issued_received";
 
 		$parentEntity = RequestEntity::find($this->request_id);

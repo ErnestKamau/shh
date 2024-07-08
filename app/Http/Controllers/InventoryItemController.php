@@ -9,24 +9,26 @@ use Illuminate\Http\File;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
+use App\Http\Controllers\MailController as Mailer;
 
 class InventoryItemController extends Controller
 {
 	public function __construct()
-  {
+	{
 		$this->middleware('auth');
-  }
+	}
 	/**
 	 * Display a listing of the resource.
 	 *
 	 * @return \Illuminate\Http\Response
 	 */
 
-	public function index($type='', $term=''){
+	public function index($type = '', $term = '')
+	{
 		viewableLocations();
 		$items = InventoryItem::join('inventory_categories as ic', 'ic.id', '=', 'inventory_items.inventory_category_id')
 			->join('inventory_sub_categories as isc', 'isc.id', '=', 'inventory_items.inventory_sub_category_id')
-			->leftJoin('item_brands as ib', function($join){
+			->leftJoin('item_brands as ib', function ($join) {
 				$join->on('ib.id', 'inventory_items.item_brand_id');
 				$join->on('ib.inventory_sub_category_id', 'inventory_items.inventory_sub_category_id');
 			})
@@ -40,44 +42,43 @@ class InventoryItemController extends Controller
 			->where('ic.inventory_location_id', getCurrentUserLocation()->id)
 			->selectRaw('isc.code, inventory_items.created_at, re2.created_at as req_date, inventory_items.stock_in, id.name as department, inventory_items.stock_out, ic.name as category, isc.unit_type, isc.name as sub_category, COALESCE(ib.name, "Non-Specific") as brand, is.name as store, iss.name as slot, u.name as creator, u.email as creator_email, po_number as entity_code, rei.comments, re2.description, re.cost_center');
 
-		$termOBJ = ['classification'=>'', 'range'=>[], 'category'=>'', 'department'=>''];
+		$termOBJ = ['classification' => '', 'range' => [], 'category' => '', 'department' => ''];
 		$typeParts = explode(',', $type);
 		$termParts = explode(',', $term);
 
-		if(count($typeParts) > 0){
-			if(in_array('department', $typeParts)){
+		if (count($typeParts) > 0) {
+			if (in_array('department', $typeParts)) {
 				$inx = array_search('department', $typeParts);
 				$items = $items->where('re.cost_center', 'like', '%' . $termParts[$inx] . '%');
 
 				$termOBJ['department'] = $termParts[$inx];
 			}
 
-			if(in_array('classification', $typeParts)){
+			if (in_array('classification', $typeParts)) {
 				$inx = array_search('classification', $typeParts);
 				$items = $items->where('isc.item_classification', $termParts[$inx]);
 
 				$termOBJ['classification'] = $termParts[$inx];
 			}
 
-			if(in_array('category', $typeParts)){
+			if (in_array('category', $typeParts)) {
 				$inx = array_search('category', $typeParts);
 				$items = $items->where('ic.id', $termParts[$inx]);
 				$termOBJ['category'] = $termParts[$inx];
 			}
 
-			if(in_array('range', $typeParts)){
+			if (in_array('range', $typeParts)) {
 				$inx = array_search('range', $typeParts);
 				$range = explode('_', $termParts[$inx]);
 				$items = $items->whereBetween('inventory_items.created_at', $range);
 				$termOBJ['range'] = $range;
-			}
-			else{
+			} else {
 				$range = [date('Y-m-01'), date('Y-m-30')];
 				$items = $items->whereBetween('inventory_items.created_at', $range);
 				$termOBJ['range'] = $range;
 			}
 		}
-		
+
 		$term = $termOBJ;
 		$items = $items->groupBy('inventory_items.id')->orderBy('re2.id', 'desc')->get();
 
@@ -86,17 +87,18 @@ class InventoryItemController extends Controller
 		return view('layouts.inventory.activity.index', compact('items', 'term'));
 	}
 
-	public function activity_serverside(Request $request, $type=false, $term=0){
+	public function activity_serverside(Request $request, $type = false, $term = 0)
+	{
 		$columns = array(
-			array( 'db' => 'id',  'dt' => 0),
-			array( 'db' => 'request_code',  'dt' => 1 ),
-			array( 'db' => 'description', 'dt' => 2 ),
-			array( 'db' => 'due_date', 'dt' => 3 ),
-			array( 'db' => 'status',  'dt' => 4 ),
-			array( 'db' => 'parent_id',   'dt' => 5 ),
-			array( 'db' => 'parent_request_code',     'dt' => 6 ),
-			array( 'db' => 'created_by',     'dt' => 7 ),
-			array( 'db' => 'created_at',     'dt' => 8 ),
+			array('db' => 'id',  'dt' => 0),
+			array('db' => 'request_code',  'dt' => 1),
+			array('db' => 'description', 'dt' => 2),
+			array('db' => 'due_date', 'dt' => 3),
+			array('db' => 'status',  'dt' => 4),
+			array('db' => 'parent_id',   'dt' => 5),
+			array('db' => 'parent_request_code',     'dt' => 6),
+			array('db' => 'created_by',     'dt' => 7),
+			array('db' => 'created_at',     'dt' => 8),
 		);
 
 		$items = InventoryItem::join('inventory_categories as ic', 'ic.id', '=', 'inventory_items.inventory_category_id')
@@ -108,7 +110,7 @@ class InventoryItemController extends Controller
 			->where('ic.inventory_location_id', getCurrentUserLocation()->id)
 			->selectRaw('inventory_items.created_at,inventory_items.stock_in, inventory_items.stock_out, ic.name as category, isc.unit_type, isc.name as sub_category, isc.manufacturer, u.name as creator, u.email as creator_email, rei.comments, re2.description');
 
-		if($type!=false && $term !=0){
+		if ($type != false && $term != 0) {
 			$items = $items->where('isc.item_classification', $term);
 		}
 
@@ -122,7 +124,7 @@ class InventoryItemController extends Controller
 		return response()->json($results, 200);
 	}
 
-	public function add(Request $request, $internal=false)
+	public function add(Request $request, $internal = false)
 	{
 		// return json_encode($request->all());
 		// Log::info("ADD Request ".json_encode($request, JSON_PRETTY_PRINT));
@@ -130,7 +132,7 @@ class InventoryItemController extends Controller
 		$category = \App\InventoryCategories::find($request->category_id);
 		$sub_category = \App\InventorySubCategories::find($request->sub_category_id);
 
-		$cP = \substr($category->name, 0, 2)."-".substr($sub_category->name, 0, 2);
+		$cP = \substr($category->name, 0, 2) . "-" . substr($sub_category->name, 0, 2);
 
 		$batchcode = getNamingConventionCode("Samples", false, strtoupper($cP));
 
@@ -153,16 +155,15 @@ class InventoryItemController extends Controller
 		$item->status = isset($request->requires_qc) ? 'pending' : 'approved';
 		$item->inventory_location_id = $request->override_location_id ?? getCurrentUserLocation()->id;
 
-		if($internal){
+		if ($internal) {
 			$item->inventory_department_id = $request->inventory_department_id;
 			$item->received_by = $request->received_by;
 			$item->previous_batch_code = $request->previous_batch_code;
 		}
 
-		if($request->storage_state_id){
+		if ($request->storage_state_id) {
 			$item->storage_state_id = $request->storage_state_id;
-		}
-		else{
+		} else {
 			$material_type_id = $sub_category->material_type_id;
 			$state = \App\ItemState::where('material_type_id', $material_type_id)
 				->where('is_default', 1)->first();
@@ -181,31 +182,31 @@ class InventoryItemController extends Controller
 		$slotContent = $slotContentController->add($req, $request->slot, $request->store, true);
 
 		calculateAvailableStock($sub_category->id);
-    setItemReorderLevel($sub_category->id, $sub_category->reorder_level());
+		setItemReorderLevel($sub_category->id, $sub_category->reorder_level());
 
-		if($internal){
+		if ($internal) {
 			return $item;
 		}
 
-		if($request->has('comments')){
+		if ($request->has('comments')) {
 			$newNote = new \App\InventoryItemNote;
 			$newNote->inventory_item_id = $item->id;
 			$newNote->comments = $request->comments;
 
-			if ($request->hasFile('file')){
+			if ($request->hasFile('file')) {
 				$path = $request->file->path();
 				$file = Storage::putFile('inventory_notes', new File($path));
 				$file = explode('/', $file);
 
-				$fName = '/storage/inventory_notes/'.urlencode(end($file));
+				$fName = '/storage/inventory_notes/' . urlencode(end($file));
 
-				$newNote->document = (String) $fName;
+				$newNote->document = (string) $fName;
 			}
 
 			$newNote->save();
 		}
 
-    return redirect()->back()->with('success', 'Inventory Items Added.');
+		return redirect()->back()->with('success', 'Inventory Items Added.');
 	}
 
 	public function transfer(Request $request, $internal = false)
@@ -229,10 +230,9 @@ class InventoryItemController extends Controller
 		$item->inventory_store_id = $request->store ?? 0;
 		$item->item_brand_id = $request->item_brand_id ?? 0;
 
-		if($request->storage_state_id){
+		if ($request->storage_state_id) {
 			$item->storage_state_id = $request->storage_state_id;
-		}
-		else{
+		} else {
 			$material_type_id = $sub_category->material_type_id;
 			$state = \App\ItemState::where('material_type_id', $material_type_id)
 				->where('is_default', 1)->first();
@@ -243,22 +243,23 @@ class InventoryItemController extends Controller
 		$item->save();
 
 		calculateAvailableStock($sub_category->id);
-    setItemReorderLevel($sub_category->id, $sub_category->reorder_level());
+		setItemReorderLevel($sub_category->id, $sub_category->reorder_level());
 
-		if($internal){
+		if ($internal) {
 			return $item;
 		}
-	    return redirect()->back()->with('success', 'Inventory Items Transfered.');
+		return redirect()->back()->with('success', 'Inventory Items Transfered.');
 	}
 
-	public function item_disposal(Request $request){
+	public function item_disposal(Request $request)
+	{
 		// return response()->json($request->all(), 200);
 		$category = \App\InventoryCategories::find($request->category_id);
 		$sub_category = \App\InventorySubCategories::find($request->sub_category_id);
 
 		$req = new Request;
 
-		$cP = "IDS-".\substr($category->name, 0, 2)."-".substr($sub_category->name, 0, 2);
+		$cP = "IDS-" . \substr($category->name, 0, 2) . "-" . substr($sub_category->name, 0, 2);
 
 		$req->category_id = $request->category_id;
 		$req->batchcode = getNamingConventionCode("Samples", false, strtoupper($cP));
@@ -274,7 +275,7 @@ class InventoryItemController extends Controller
 
 		$disposalReason = $request->reason;
 
-		if($request->reason == "Other"){
+		if ($request->reason == "Other") {
 			$otherReason = addDisposalReason($request->other_reason);
 			$disposalReason = $otherReason->description;
 		}
@@ -284,22 +285,22 @@ class InventoryItemController extends Controller
 		$newNote->comments = $request->comments;
 		$newNote->title = $disposalReason ?? '-';
 
-		if ($request->hasFile('file')){
-      $path = $request->file->path();
-      $file = Storage::putFile('inventory_notes', new File($path));
-      $file = explode('/', $file);
+		if ($request->hasFile('file')) {
+			$path = $request->file->path();
+			$file = Storage::putFile('inventory_notes', new File($path));
+			$file = explode('/', $file);
 
-      $fName = '/storage/inventory_notes/'.urlencode(end($file));
+			$fName = '/storage/inventory_notes/' . urlencode(end($file));
 
-      $newNote->document = (String) $fName;
+			$newNote->document = (string) $fName;
 		}
 
 		$newNote->save();
 
 		calculateAvailableStock($sub_category->id);
-    setItemReorderLevel($sub_category->id, $sub_category->reorder_level());
+		setItemReorderLevel($sub_category->id, $sub_category->reorder_level());
 
-    return redirect()->back()->with('success', 'Item Disposal Completed.');
+		return redirect()->back()->with('success', 'Item Disposal Completed.');
 	}
 
 	public function stock_keeping(Request $request)
@@ -310,7 +311,7 @@ class InventoryItemController extends Controller
 
 		$req = new Request;
 
-		$cP = "STK-".\substr($category->name, 0, 2)."-".substr($sub_category->name, 0, 2);
+		$cP = "STK-" . \substr($category->name, 0, 2) . "-" . substr($sub_category->name, 0, 2);
 
 		$req->category_id = $request->category_id;
 		$req->batchcode = getNamingConventionCode("Samples", false, strtoupper($cP));
@@ -323,11 +324,10 @@ class InventoryItemController extends Controller
 
 		$req->quantity = abs($diff);
 
-		if($diff >=0 ){
+		if ($diff >= 0) {
 			$req->transfer_to = $request->transfer_to;
 			$newItem = $this->transfer($req, true);
-		}
-		else{
+		} else {
 			$req->inventory_department_id = $request->transfer_to;
 			$newItem = $this->add($req, true);
 		}
@@ -336,24 +336,25 @@ class InventoryItemController extends Controller
 		$newNote->inventory_item_id = $newItem->id;
 		$newNote->comments = $request->comments;
 
-		if ($request->hasFile('file')){
-      $path = $request->file->path();
-      $file = Storage::putFile('inventory_notes', new File($path));
-      $file = explode('/', $file);
+		if ($request->hasFile('file')) {
+			$path = $request->file->path();
+			$file = Storage::putFile('inventory_notes', new File($path));
+			$file = explode('/', $file);
 
-      $fName = '/storage/inventory_notes/'.urlencode(end($file));
+			$fName = '/storage/inventory_notes/' . urlencode(end($file));
 
-      $newNote->document = (String) $fName;
+			$newNote->document = (string) $fName;
 		}
 
 		$newNote->save();
 
 		calculateAvailableStock($sub_category->id);
-    setItemReorderLevel($sub_category->id, $sub_category->reorder_level());
-    return redirect()->back()->with('success', 'Stock Keeping Completed.');
+		setItemReorderLevel($sub_category->id, $sub_category->reorder_level());
+		return redirect()->back()->with('success', 'Stock Keeping Completed.');
 	}
 
-	public function return_2_store(Request $request){
+	public function return_2_store(Request $request)
+	{
 		// return response()->json($request->all(), 200);
 
 
@@ -378,21 +379,84 @@ class InventoryItemController extends Controller
 		$newNote->inventory_item_id = $newItem->id;
 		$newNote->comments = $request->comments;
 
-		if ($request->hasFile('file')){
-      $path = $request->file->path();
-      $file = Storage::putFile('inventory_notes', new File($path));
-      $file = explode('/', $file);
+		if ($request->hasFile('file')) {
+			$path = $request->file->path();
+			$file = Storage::putFile('inventory_notes', new File($path));
+			$file = explode('/', $file);
 
-      $fName = '/storage/inventory_notes/'.urlencode(end($file));
+			$fName = '/storage/inventory_notes/' . urlencode(end($file));
 
-      $newNote->document = (String) $fName;
+			$newNote->document = (string) $fName;
 		}
 
 		$newNote->save();
 
 		$sub_category = \App\InventorySubCategories::find($request->sub_category_id);
 		calculateAvailableStock($sub_category->id);
-    setItemReorderLevel($sub_category->id, $sub_category->reorder_level());
-    return redirect()->back()->with('success', 'Items Returned to store.');
+		setItemReorderLevel($sub_category->id, $sub_category->reorder_level());
+		return redirect()->back()->with('success', 'Items Returned to store.');
+	}
+
+	public function sendReorderNotifications()
+	{
+		$restockItems = getRestockNotifications();
+
+		// return response()->json($restockItems);
+
+		$tbody = '<tbody>';
+		$id = 0;
+		foreach ($restockItems['items'] as $item) {
+			$id++;
+			$tbody .= '<tr>
+				<td>' . $id . '</td>
+				<td>' . $item['url_name'] . '</td>
+				<td><a class="dropdown-item" href="' . $item["alert_url"] . '">
+				<small>' . $item['alert_url'] . '</small>
+			</a></td>
+			</tr>';
+		}
+		$tbody .= '</tbody>';
+		$body = 'Hi,<br><br>
+			There are ' . $restockItems['count'] . ' items in your inventory that require restocking. 
+			<h5>Item List</h5>
+			<table style="border-collapse: collapse; font-size: 12px"
+				<thead>
+					<tr>
+					<th>No</th>
+					<th>Name</th>
+					<th>Link</th>
+					</tr>
+				</thead>
+				' . $tbody . '
+			</table>
+			<br>Regards,<br>
+			Inventory System
+			';
+
+		// return $body;
+
+		$contacts = [];
+		$procurement_officer_roles = getConfigByName('procurement_officer_role_id');
+		$procurement_officer_role_id = count($procurement_officer_roles) > 0 ? $procurement_officer_roles[0]->value : 0;
+
+		$users = getUsersByRole($procurement_officer_role_id, true);
+
+		foreach ($users as $s) {
+			$contacts[] = $s->email;
+		}
+
+		$contacts = array_unique($contacts);
+
+		$mailData = array(
+			'contacts' => array_filter($contacts),
+			'body' => $body,
+			'subject' => '[Inventory Reorder Notification] '.$restockItems['count'].' items require restocking.'
+		);
+
+		$mailer = new Mailer;
+
+		$mailer->html_email($mailData, 'default');
+
+		return response()->json(["status"=>true]);
 	}
 }
