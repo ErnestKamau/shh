@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use Carbon\Carbon;
 use App\Approvals;
+use App\ChartOfAccount;
 use App\EntityNote;
 use App\RequestEntity;
 use App\EntityAttachment;
@@ -220,9 +221,10 @@ class RequisitionController extends Controller
 			$ratingScores[$c->criteria_id] = $c->score;
 		}
 
-		// return json_encode($ratingScores);
+		$accounts = ChartOfAccount::whereIn('type', ['accounts_payable','cost_of_goods_sold','expense','fixed_asset','other_current_asset','other_expense', 'stock'])
+		->orderBy('name')->get();
 
-		return view('layouts.inventory.requisition.show', compact('ratingScores', 'similarItems', 'reqlocs', 'stage', 'request', 'documentFlow', 'ammendment', 'ammendment_count', 'isLL'));
+		return view('layouts.inventory.requisition.show', compact('accounts', 'ratingScores', 'similarItems', 'reqlocs', 'stage', 'request', 'documentFlow', 'ammendment', 'ammendment_count', 'isLL'));
 	}
 
 	public function create_goods_receipt($request, $entity)
@@ -2130,6 +2132,8 @@ class RequisitionController extends Controller
 
 	public function update(Request $request, $stage, $id, $isInternal = false)
 	{
+		// return response()->json($request->all());
+
 		// return $isInternal;
 		if (!is_numeric($id)) {
 			$req = RequestEntity::where('request_code', $id)->where('request_type', $stage)->where('ammendment', $isInternal)->first();
@@ -3113,6 +3117,7 @@ class RequisitionController extends Controller
 				// }
 
 				$subCatID = $request->items['item_id'][$i];
+				$account_id = $request->items['item_account_id'][$i];
 
 				$subCat = \App\InventorySubCategories::find($subCatID);
 				$itemCat = \App\InventoryCategories::find($subCat->inventory_category_id);
@@ -3128,6 +3133,7 @@ class RequisitionController extends Controller
 				$item->slot_id = $request->items['slot_id'][$i] ?? $defaultStore['slot'];
 				$item->uom = $request->items['uom'][$i] ?? 0;
 				$item->inventory_sub_category_id = $subCatID;
+				$item->item_account_id = $account_id;
 
 				$item->comments = $request->items['comments'][$i];
 				$item->quantity = isset($request->items['quantity'][$i]) ? $request->items['quantity'][$i] : $request->items['received_quantity'][$i];

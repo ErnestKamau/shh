@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\InventorySubCategories;
+use App\ModulePreConfigs;
 use App\RequestEntity;
 use App\RequestEntityItem;
 use App\Supplier;
@@ -155,22 +156,28 @@ class ZohoController extends Controller
 	function createPurchaseOrder($requestEntity)
 	{
 		$id = $requestEntity->id;
+		$requestEntity->load('currency');
 		$requestItems = RequestEntityItem::with('sub_category')->where('request_id', $id)->get();
 
 		$themItems = [];
 		$itemOrder = 0;
+
 		foreach ($requestItems as $item) {
 			$themItems[] = [
+				"account_id" => $item->item_account_id,
 				"item_id" => $item->sub_category->zoho_item_code, // Replace with the appropriate item ID
-				"name" => $item->sub_category->name, // Using the description from the request item
+				"name" => $item->sub_category->name."(".$item->uom.")", // Using the description from the request item
 				"description" => trim($item['comments']) == "" ? $item->sub_category->name : $item['comments'],
 				"item_order" => $itemOrder++,
 				"rate" => round(floatval($item['net_value']) / floatval($item['quantity']), 2), // Using the net_value from the request item
 				"quantity" => $item['quantity'], // Using the quantity from the request item
 			];
 		}
+
 		$supplier = $requestEntity->supplier();
+
 		$purchaseOrderData = array(
+			"currency_id" => $requestEntity->currency->zoho_id,
 			"vendor_id" => $supplier->zoho_supplier_id,
 			"reference_number" => $requestEntity['request_code'],
 			"date" => Carbon::now()->format('Y-m-d'),
@@ -188,7 +195,7 @@ class ZohoController extends Controller
 		]);
 
 		$zItem = json_decode($response, true);
-		\Log::error(">>>>>>>>>>>>>>>>>>>>>>> ".$response);
+		
 		$requestEntity->zoho_id = $zItem['purchaseorder']['purchaseorder_id'];
 		$requestEntity->save();
 
@@ -324,6 +331,45 @@ class ZohoController extends Controller
 		if (isset($response['page_context']) && $response['page_context']['has_more_page'] == true) {
 			$this->sync_zoho_vendors($page + 1);
 		}
+	}
+
+	public function sync_zoho_things($things, $single=null){
+		$response = $this->get($things, [
+			'query' => [
+				'organization_id' => $this->orgID,
+			],
+		]);
+
+		// \Log::warning($response);
+
+		$data = json_decode($response, true);
+		$lists = $single ? $data[$single] : $data[$things];
+
+		return json_encode($lists);
+	}
+
+	public function sync_zoho_currencies(){
+		$currencies = $this->sync_zoho_things('/settings/currencies', 'currencies');
+		$currencies = json_decode($currencies, true);
+		$config = "Currency";
+		$module = "Inventory-Management";
+
+		ModulePreConfigs::where('type', $config)->where('module', $module)->delete();
+
+		$arr = [];
+
+		foreach($currencies as $cu){
+			$arr[] = [
+				"type" => $config,
+				"module" => $module,
+				"name" => $cu['currency_code'],
+				"zoho_id" => $cu['currency_id'],
+				"description" => $cu['currency_name']
+			];
+		}
+		ModulePreConfigs::insert($arr);
+
+		return ModulePreConfigs::where('type', $config)->where('module', $module)->get();
 	}
 
 	public function sync_zoho_customers()

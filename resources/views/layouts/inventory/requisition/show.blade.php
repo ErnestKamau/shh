@@ -928,13 +928,20 @@
 									<td>
 										<div class="form-group">
 											<?php
-														$readonly = isset($request->status) && $request->status == "In Preparation" || !isset($request->status) ? false : true;
-													?>
+												$readonly = isset($request->status) && $request->status == "In Preparation" || !isset($request->status) ? false : true;
+											?>
 											<select name="items[item_id][]" style="min-width: 200px; font-size: 12px"
-												class="form-control selected-item" data-selected="{{ $req_item->inventory_sub_category_id }}"
+												class="form-control selected-item" data-selected="{{ $req_item->inventory_sub_category_id }}" data-account="{{ $req_item->item_account_id }}"
 												placeholder="Please select inventory item..." {{ $readonly ? "disabled" : "" }}>
 												<option value="{{ $req_item->inventory_sub_category_id }}" selected="selected">{{
 													$req_item->item_name }}</option>
+											</select>
+											<div style="padding:3px 2px">Account</div>
+											<select name="items[item_account_id][]" style="min-width: 200px; font-size: 12px; margin-top: 5px" class="form-control" placeholder="Select Acoount..." required>
+												<option value="">Select Account...</option>
+												@foreach ($accounts as $acc)
+													<option value="{{ $acc->account_id }}" {{ $req_item->item_account_id == $acc->account_id ? "selected" : "" }}><small>({{ clear_underscore($acc->type) }}) {{ $acc->name }}</small></option>
+ 												@endforeach
 											</select>
 										</div>
 									</td>
@@ -3603,6 +3610,12 @@ Issuance"]))
 					<td>
 						<div class="form-group">
 							<select name="items[item_id][]" style="min-width: 200px; font-size: 12px" class="form-control selected-item" placeholder="Select Item..." required><option></option></select>
+							<select name="items[item_account_id][]" style="min-width: 200px; font-size: 12px" class="form-control" placeholder="Select Acoount..." required>
+								<option value="">Select Account...</option>
+								@foreach ($accounts as $acc)
+									<option value="{{ $acc->account_id }}"><small>({{ clear_underscore($acc->type) }}) {{ $acc->name }}</small></option>
+								@endforeach
+							</select>
 						</div>
 					</td>
 					<td>
@@ -3728,6 +3741,7 @@ Issuance"]))
 					</td>
 					@endif
 				</tr>`;
+
 			return $($row).clone();
 		}
 
@@ -4568,6 +4582,10 @@ Issuance"]))
 				var quantityField = $this.parents('tr').find('input.user-quantity');
 				var $UoMSelect = $this.parents('tr').find('select.selected-item-uom');
 				var selectedUoM = $UoMSelect.data('selected') || js.uom;
+
+				var addedAcc = $this.data('account');
+				var itemAccount = $this.parents('td').find('select').not('.selected-item');
+				itemAccount.val(trim(addedAcc) == '' ? js.account_id : addedAcc).trigger('change');
 
 				$.each(brands, function(j,s){
 					var $op = $(`<option value="${s.id}">${s.name}</option>`);
