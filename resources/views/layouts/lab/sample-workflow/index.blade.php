@@ -669,7 +669,7 @@
 <div id="dispatch-to-labs-modal-approve" class="modal fade" role="dialog">
 	<div class="modal-dialog">
 		<!-- Modal content-->
-		<form class="modal-content" method="POST" action="{{ route('generate_batch_invoice') }}" enctype="multipart/form-data">
+		<form class="modal-content" id="generate-invoice-form" method="POST" action="{{ route('generate_batch_invoice') }}" enctype="multipart/form-data">
 			@csrf
 			<div class="modal-header">
 				<h4 class="modal-title"><i class="mdi mdi-clipboard-arrow-right"></i> Generate Invoice</h4>
@@ -1091,6 +1091,34 @@
 	var sampleCondtions = [];
 	var defaultClass = '';
 	var notPaid = [];
+
+	var sendSalesOrder = (invoice_id,callback)=>{
+		$.ajax({
+			url:``,
+			method:'GET',
+			success:(data)=>{
+				callback(data);
+			},
+			error:(data)=>{
+				console.log(data);
+			}
+		})
+	}
+
+	$('#generate-invoice-form').on('submit',(event)=>{
+		event.preventDefault();
+		var formdata = $(this).serializeArray();
+		$.ajax({
+			url:``,
+			method:'POST',
+			success:(data)=>{
+
+			},
+			error:(data)=>{
+
+			}
+		})
+	})
 	
 	$('#dispatch-to-labs-modal').on('show.bs.modal', function() {
 		$('#not-paid-parent').empty();

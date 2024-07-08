@@ -2,6 +2,8 @@
 
 namespace App\Providers;
 
+use App\CapturedResult;
+use App\Observers\CapturedObserver;
 use Illuminate\Support\ServiceProvider;
 use Illuminate\Support\Facades\URL;
 
@@ -27,5 +29,6 @@ class AppServiceProvider extends ServiceProvider
         // if (config('app.env') === 'production') {
         //     URL::forceScheme('https');
         // }
+        CapturedResult::observe(CapturedObserver::class);
     }
 }

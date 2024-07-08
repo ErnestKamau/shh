@@ -104,14 +104,14 @@
 				@endforeach
 
 			</div>
-			<a href="#billing-menu" data-toggle="collapse" aria-expanded="false" class="bg-dark list-group-item list-group-item-action hidden flex-column align-items-start">
+			<a href="#billing-menu" data-toggle="collapse" aria-expanded="false" class="bg-dark list-group-item list-group-item-action flex-column align-items-start">
 				<div class="d-flex w-100 justify-content-start align-items-center">
 					<span class=" fas fa-money-bill-alt mr-3"></span>
 					<span class="menu-collapsed">Billing</span>
 					<span class="submenu-icon ml-auto"></span>
 				</div>
 			</a>
-			<div id="billing-menu" class="collapse sidebar-submenu hidden">
+			<div id="billing-menu" class="collapse sidebar-submenu">
 
 				<a href="{{route('invoice-home')}}" class="list-group-item list-group-item-action bg-dark text-white">
 					<span class="menu-collapsed"><i class="mdi mdi-circle-medium"></i> Proforma Invoices
@@ -128,7 +128,7 @@
 
 				</a>
 
-				<a href="#quotation-menu" data-toggle="collapse" aria-expanded="false" class="bg-dark list-group-item list-group-item-action flex-column align-items-start">
+				<a href="#quotation-menu" data-toggle="collapse" aria-expanded="false" class=" hidden bg-dark list-group-item list-group-item-action flex-column align-items-start">
 					<div class="d-flex w-100 justify-content-start align-items-center">
 						<span class=" mdi mdi-clipboard-text-outline mr-3"></span>
 						<span class="menu-collapsed">Quotation</span>
@@ -282,12 +282,31 @@
 			<span class="menu-collapsed">Certifications</span>
 		</div>
 	</a>
-	<a href="{{ route('lab-reports-home') }}" class="bg-dark list-group-item list-group-item-action">
+	
+	<a href="#report-menu" data-toggle="collapse" aria-expanded="false" class="bg-dark list-group-item list-group-item-action flex-column align-items-start">
 		<div class="d-flex w-100 justify-content-start align-items-center">
-			<span class="mdi mdi-file-certificate fa-fw mr-3"></span>
+			<span class="mdi mdi-cogs mr-3"></span>
 			<span class="menu-collapsed">Reports</span>
+			<span class="submenu-icon ml-auto"></span>
 		</div>
 	</a>
+	<div id="report-menu" class="collapse sidebar-submenu">
+
+		<a href="{{ route('lab-reports-home') }}" class="list-group-item list-group-item-action bg-dark text-white">
+			<span class="menu-collapsed"><i class="mdi mdi-circle-medium"></i> Lab Reports
+				<small class="float-right badge badge-pill"></small></span>
+		</a>
+		<a href="{{ route('lab-report-tat') }}" class="list-group-item list-group-item-action bg-dark text-white">
+			<span class="menu-collapsed"><i class="mdi mdi-circle-medium"></i> TAT Reports
+				<small class="float-right badge badge-pill"></small></span>
+		</a>
+		<a href="{{ route('lab-report-disposal') }}" class="list-group-item list-group-item-action bg-dark text-white">
+			<span class="menu-collapsed"><i class="mdi mdi-circle-medium"></i> Disposal Reports
+				<small class="float-right badge badge-pill"></small></span>
+		</a>
+		
+	</div>
+
 	<div class="list-group-item copyright-lims p-4 text-center text-white">
 		Copyright {{ date('Y') }} <span class="text-red">Imara LIMS</span>
 	</div>

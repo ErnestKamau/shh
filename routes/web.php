@@ -709,6 +709,12 @@ Route::post('/lab/report/show', 'Lab\Reports\SamplesReportsController@show')->na
 
 Route::get('/lab/sample-generate/certificate-analysis/{id}', 'SampleWorkFlowController@certificate_analysis')->name('certificate-analysis');
 Route::get('/getAnalysisTypeBySampleTypeAjax/{type_id}', 'Lab\Reports\SamplesReportsController@getAnalysisTypeBySampleTypeAjax')->name('getAnalysisTypeBySampleTypeAjax');
+
+Route::get('/lab/disposal/report','SampleWorkFlowController@disposalReportIndex')->name('lab-report-disposal');
+Route::get('/lab/tat/report','SampleWorkFlowController@tatReportIndex')->name('lab-report-tat');
+
+Route::get('/get-analysis-type/{id}/Ajax','SampleWorkFlowController@getAnalysisTypeAjax')->name('getAnalysisTypeAjax');
+Route::get('/get-Analyte/{id}/Ajax','SampleWorkFlowController@getAnalyteAjax')->name('getAnalyteAjax');
 //#################################LAB REPORTSS#######################################
 
 //###################################DISPOSED EQUIPMENT REPORTS######################################

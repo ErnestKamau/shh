@@ -972,6 +972,12 @@
 									</div>
 									<div class="col-sm-3">
 										<div class="form-group">
+											<label class="control-label">Zoho Code <span class="text-danger">*</span></label>
+											<input type="text" class="form-control" value="{{$customer.zoho_id}}" name="zoho_code" placeholder="Zoho Code..." required />
+										</div>
+									</div>
+									<div class="col-sm-3">
+										<div class="form-group">
 											<label class="control-label">Physical Address <span class="text-danger">*</span></label>
 											<input type="text" class="form-control" name="physical_address" value="{{ $customer->physical_address }}" placeholder="Location..." required />
 										</div>

@@ -67,6 +67,7 @@ class CRMCustomerController extends Controller
 	$customer->active = $request->active ?? 0;
 	$customer->account_status = $request->account_id;
 	$customer->vat_no = $request->vat_no;
+	$customer->zoho_id = $request->zoho_code;
 	if(isset($request->lpos_required)){
 		$customer->lpos_required = 1;
 	}
@@ -162,6 +163,7 @@ class CRMCustomerController extends Controller
 	$customer->active = $request->active ?? 0;
 	$customer->account_status = $request->account_id;
 	$customer->vat_no = $request->vat_no;
+	$customer->zoho_id = $request->zoho_code;
 	if(isset($request->lpos_required)){
 		$customer->lpos_required = 1;
 	}elseif(!isset($request->lpos_required) && $customer->lpos_required == 1){
