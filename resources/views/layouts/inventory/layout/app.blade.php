@@ -68,12 +68,12 @@
 		?>
 		Alerts {!! $alerts > 0 ? '<small class="badge badge-danger badge">'.number_format($alerts).' '.($alerts == 10 ? '+' : '').'</small>' : '' !!}
 	</a>
-	<div class="dropdown-menu dropdown-menu-right" aria-labelledby="dropdownMenuButton" style="width: 250px;overflow-x: hidden; ">
+	<div class="dropdown-menu dropdown-menu-right" aria-labelledby="dropdownMenuButton" style="width: 350px; overflow-x: hidden; text=overflow: ellipsis ">
 		@foreach ($alertsArray as $alert=>$data)
 			@if($data['count'] > 0)
 				<span class="dropdown-header" style="text-overflow: ellipsis; whitespace: nowrap">{{ $alert }} Alerts</span>
 				@foreach ($data['items'] as $item)
-					<a class="dropdown-item" href="{{ $item['alert_url'] }}">
+					<a class="dropdown-item" href="{{ $item['alert_url'] }}" style="overflow: hidden; text-overflow:ellipsis">
 						<small>{{ $item['url_name'] }}</small>
 					</a>
 				@endforeach
@@ -86,7 +86,9 @@
 				<span class="text-muted"><i class="mdi mdi-information-circle"></i> No Alerts</span>
 			@endif
 		@endforeach
-
+		<div class="m-2 mt-4">
+			<a href="{{ route('send-restock-notifications') }}" class="btn btn-success btn-sm btn-block">Send Re-order Notifications</a>
+		</div>
 	</div>
 </li>
 @endsection

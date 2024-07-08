@@ -212,7 +212,17 @@ class RequisitionController extends Controller
 
 		// return response()->json($similarItems);
 
-		return view('layouts.inventory.requisition.show', compact('similarItems', 'reqlocs', 'stage', 'request', 'documentFlow', 'ammendment', 'ammendment_count', 'isLL'));
+		$criteria = \App\SuppliersRatingCriteria::where('request_id', $id)->where('is_current', 1)->get();
+
+		$ratingScores = [];
+
+		foreach($criteria as $c){
+			$ratingScores[$c->criteria_id] = $c->score;
+		}
+
+		// return json_encode($ratingScores);
+
+		return view('layouts.inventory.requisition.show', compact('ratingScores', 'similarItems', 'reqlocs', 'stage', 'request', 'documentFlow', 'ammendment', 'ammendment_count', 'isLL'));
 	}
 
 	public function create_goods_receipt($request, $entity)
@@ -2371,7 +2381,7 @@ class RequisitionController extends Controller
 
 		if ($request->has('get_approval')) {
 			if(trim($req->zoho_status) == "" && $stage == "Purchase Orders"){
-				$req->zoho_status = "sync_zoho";
+				$req->zoho_status = "draft";
 			}
 			$req->status = "Awaiting Approval";
 			$req->save();

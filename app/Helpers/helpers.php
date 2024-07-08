@@ -1620,6 +1620,12 @@ function getSupplierRatingCriteria(){
 	return App\RatingCriteria::where('active', 1)->orderBy('title')->get();
 }
 
+function supplierRatingColorFromScore($rating){
+	$rating = floatval($rating);
+	return floatval($rating) == 100 ? 'bg-success' : ($rating < 100 && $rating > 60 ?
+		'bg-info' : ($rating <= 60 && $rating > 35 ? 'bg-warning' : 'bg-danger'));
+}
+
 function has_exceeding_quantities($id){
 	$req = \App\RequestEntity::find($id);
 	if(!isset($req->id) || $req->request_type != "Request to Store"){

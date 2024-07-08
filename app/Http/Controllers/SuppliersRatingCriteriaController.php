@@ -25,6 +25,7 @@ class SuppliersRatingCriteriaController extends Controller
 				$newScore = new SuppliersRatingCriteria;
 				$newScore->criteria_id = $cid;
 				$newScore->supplier_id = $id;
+				$newScore->request_id = $request->has('request_id') ? $request->request_id : 0;
 				$newScore->score = $score;
 				$newScore->rating_by = \Auth::user()->id;
 				$newScore->is_current = 1;
