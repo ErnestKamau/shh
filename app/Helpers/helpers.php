@@ -606,9 +606,9 @@ function getDepartments()
 		->orderBy('name', 'asc')->get();
 }
 
-function getModulePreconfig($type, $module)
+function getModulePreconfig($type, $module, $sortBy='name', $sortOrder='asc')
 {
-	return App\ModulePreConfigs::where('type', $type)->where('module', $module)->orderBy('name', 'asc')->get();
+	return App\ModulePreConfigs::where('type', $type)->where('module', $module)->orderBy($sortBy, $sortOrder)->get();
 }
 
 function getSampleWorflowStages()

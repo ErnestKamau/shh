@@ -156,7 +156,7 @@ class ZohoController extends Controller
 	function createPurchaseOrder($requestEntity)
 	{
 		$id = $requestEntity->id;
-		$requestEntity->load('currency');
+
 		$requestItems = RequestEntityItem::with('sub_category')->where('request_id', $id)->get();
 
 		$themItems = [];
@@ -175,13 +175,13 @@ class ZohoController extends Controller
 		}
 
 		$supplier = $requestEntity->supplier();
-
+		$currency = ModulePreConfigs::find($requestEntity->currency);
 		$purchaseOrderData = array(
-			"currency_id" => $requestEntity->currency->zoho_id,
+			"currency_id" => $currency->zoho_id,
 			"vendor_id" => $supplier->zoho_supplier_id,
 			"reference_number" => $requestEntity['request_code'],
 			"date" => Carbon::now()->format('Y-m-d'),
-			"delivery_date" => Carbon::now()->addDays(30)->format('Y-m-d'),
+			"delivery_date" => Carbon::parse($requestEntity->due_date)->format('Y-m-d'),
 			"line_items" => $themItems,
 			"notes" => $requestEntity['description'],
 			"terms" => $supplier->payment_terms
