@@ -35,13 +35,13 @@ class ZohoController extends Controller
 	 */
 	public function __construct()
 	{
-		$this->orgID = "856810415";
+		$this->orgID = "792893305";
 		$this->token = null;
 		$this->url = "www.zohoapis.com/books/v3/";
-		$this->clientID = "1000.41T7VE3F537WHDSMOKWLJSQ8H00WMF";
-		$this->clientSecret = "eeaf33ae5330bf4ee85bdcbadc2cba98219c6cc2e1";
+		$this->clientID = "1000.AZFK87K8IRT2QCIOIF3I6RUV0XBZNC";
+		$this->clientSecret = "24daaa8599526522b4e0cfb012bb94b127ffe0b4e9";
 		$this->refresh = "1000.c9638189c2876422d190884369a71cb6.4b3c94e0c657d5a03e68de763499dc10";
-		$this->refreshUrl = "http://127.0.0.1:8000/zoho-auth-redirect";
+		$this->refreshUrl = "http://172.16.16.252:8080/zoho-auth-redirect";
 
 		$this->authClient = new Client([
 			'base_uri' => 'https://accounts.zoho.com/oauth/v2/',
@@ -62,6 +62,7 @@ class ZohoController extends Controller
 
 	public function authenticate()
 	{
+		return $this->getToken();
 		$url = "https://accounts.zoho.com/oauth/v2/auth?scope=ZohoBooks.fullaccess.ALL&client_id=" . $this->clientID . "&state=testing&response_type=code&redirect_uri=" . $this->refreshUrl . "&access_type=offline";
 		return $url;
 	}
@@ -259,6 +260,23 @@ class ZohoController extends Controller
 		return $items['item'];
 	}
 
+	public function sync_all($type){
+		try{
+			if($type == "items"){
+				$this->sync_zoho_items();
+			}
+			if($type == "vendors"){
+				$this->sync_zoho_vendors();
+			}
+			if($type == "currencies"){
+				return $this->sync_zoho_currencies();
+			}
+		}
+		catch(Exception $e){
+			throw new Error($e->getMessage());
+		}
+	}
+
 	public function sync_zoho_items($page = 1)
 	{
 		$response = $this->get('items', [
@@ -340,7 +358,7 @@ class ZohoController extends Controller
 			],
 		]);
 
-		// \Log::warning($response);
+		\Log::warning($response);
 
 		$data = json_decode($response, true);
 		$lists = $single ? $data[$single] : $data[$things];
@@ -350,6 +368,9 @@ class ZohoController extends Controller
 
 	public function sync_zoho_currencies(){
 		$currencies = $this->sync_zoho_things('/settings/currencies', 'currencies');
+
+		return ">>>>>>>>>>>>>>>>>>>>>".json_encode($currencies);
+
 		$currencies = json_decode($currencies, true);
 		$config = "Currency";
 		$module = "Inventory-Management";

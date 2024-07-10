@@ -868,6 +868,8 @@ Route::get('/send-restock-notifications','InventoryItemController@sendReorderNot
 Route::get('/zoho-auth-redirect','ZohoController@redirect')->name('zoho-auth-redirect');
 Route::get('/zoho-purchase-orders','ZohoController@getPurchaseOrders')->name('zoho-purchase-orders');
 Route::get('/zoho-get-things', 'ZohoController@sync_zoho_things')->name('zoho-sync-things');
+Route::get('/zoho-sync-all/{type}','ZohoController@sync_all')->name('zoho-sync-all');
+Route::get('/zoho-authenticate', 'ZohoController@authenticate')->name('zoho-authenticate');
 // Route::get('/zoho-purchase-orders','ZohoController@getPurchaseOrders')->name('zoho-purchase-orders');
 ###############################################ZOHO INTEGRATION#######################################
 
