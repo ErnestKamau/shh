@@ -43,12 +43,11 @@
 					<br />
 					<div>MANDATORY/SUPPLIER ADDRESS</div>
 					<hr />
-					Business Name :- Ethiopia Cuttings PLC
+					Business Name :- Polucon
 					<br /> Location of Business Premises:
 					<br /> Postal Address:
-					<br /> TEL No : 0914 31 68 01
-					<br /> FAX No : 022 45 90 1 72
-					<br /> E-mail : Akalu.Ermias@SYNGENTA.COM
+					<br /> TEL No : 254 72222 99 44 | 716 200 222
+					<br /> E-mail : polucon@polucon.com
 					<br /> Date 23/08/2021
 					<br /> Attn:- Ermias Akalu
 					<br />

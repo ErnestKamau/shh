@@ -86,6 +86,11 @@
 					</ul>
 				</div>
 				<div class="tab-content" id="Requests-tabs-content">
+					@if($stage == "Purchase Orders")
+					<div class="alert alert-info text-small m-2" id="zoho-sync">
+						<small><i class="fas fa-spin fa-spinner"></i> Please wait as we sync with zoho...</small>
+					</div>
+					@endif
 					<div class="tab-pane fade show active p-3" id="Requests" role="tabpanel" aria-labelledby="one-tab">
 						<h5 class="card-title mb-3">Requests</h5>
 						<div class="table-responsive">
@@ -543,6 +548,23 @@
 				$(this).find('form').attr('action', '/req/{{ $stage }}/'+id+'/delete');
 				$(this).find('form').prop('action', '/req/{{ $stage }}/'+id+'/delete');
 			});
+
+			if($('#zoho-sync').length > 0){
+				$('#zoho-sync').slideUp(0);
+				$.ajax({
+					url: '{{ route("zoho-purchase-orders") }}',
+					dataType: "json",
+					beforeSend: function(){
+						$('#zoho-sync').slideDown(300);
+					},
+					success: function(js){
+						$('#zoho-sync').html(`
+							<small><i class="fas fa-info-circle"></i> ${js.message}</small>
+						`);
+						$('#zoho-sync').slideUp(300);
+					}
+				});
+			}
 		});
 	</script>
 @endsection

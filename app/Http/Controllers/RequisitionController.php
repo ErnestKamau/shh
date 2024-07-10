@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use Carbon\Carbon;
 use App\Approvals;
+use App\ChartOfAccount;
 use App\EntityNote;
 use App\RequestEntity;
 use App\EntityAttachment;
@@ -207,12 +208,23 @@ class RequisitionController extends Controller
 			->whereIn('inventory_sub_category_id', $itempIDs)
 			->where('re.id', '<', $id)
 			->where('request_type', 'Purchase Request')
-			->where('request_entity_items.created_at', '>=', Carbon::now()->subDays(7))
+			->where('request_entity_items.created_at', '>=', Carbon::now()->subDays(4))
 			->get();
 
 		// return response()->json($similarItems);
 
-		return view('layouts.inventory.requisition.show', compact('similarItems', 'reqlocs', 'stage', 'request', 'documentFlow', 'ammendment', 'ammendment_count', 'isLL'));
+		$criteria = \App\SuppliersRatingCriteria::where('request_id', $id)->where('is_current', 1)->get();
+
+		$ratingScores = [];
+
+		foreach($criteria as $c){
+			$ratingScores[$c->criteria_id] = $c->score;
+		}
+
+		$accounts = ChartOfAccount::whereIn('type', ['accounts_payable','cost_of_goods_sold','expense','fixed_asset','other_current_asset','other_expense', 'stock'])
+		->orderBy('name')->get();
+
+		return view('layouts.inventory.requisition.show', compact('accounts', 'ratingScores', 'similarItems', 'reqlocs', 'stage', 'request', 'documentFlow', 'ammendment', 'ammendment_count', 'isLL'));
 	}
 
 	public function create_goods_receipt($request, $entity)
@@ -2012,7 +2024,7 @@ class RequisitionController extends Controller
 			->where('supplier_id', $request->supplier_id)->get();
 
 		if ($existsreq->count() > 0) {
-			return redirect()->back()->with('error', 'An LPO for this material requision and the same supplier already exists!');
+			return redirect()->back()->with('error', 'An LPO for this purchase request and the same supplier already exists!');
 		}
 
 
@@ -2120,6 +2132,8 @@ class RequisitionController extends Controller
 
 	public function update(Request $request, $stage, $id, $isInternal = false)
 	{
+		// return response()->json($request->all());
+
 		// return $isInternal;
 		if (!is_numeric($id)) {
 			$req = RequestEntity::where('request_code', $id)->where('request_type', $stage)->where('ammendment', $isInternal)->first();
@@ -2370,6 +2384,9 @@ class RequisitionController extends Controller
 		}
 
 		if ($request->has('get_approval')) {
+			if(trim($req->zoho_status) == "" && $stage == "Purchase Orders"){
+				$req->zoho_status = "draft";
+			}
 			$req->status = "Awaiting Approval";
 			$req->save();
 
@@ -2555,7 +2572,11 @@ class RequisitionController extends Controller
 
 				$body = '
 					Hi ' . $supplier->name . ',<br><br>
-					Please provide us with a quote for the following items. Provide your quote as per the template attached. Send your quotes to <b>' . $pro_contact_email . '</b> . Please indicate the validity period for your quotes.
+					<p>Please provide us with a quote for the following items. Feel free to use your preferred quote template for this RFQ. 
+					If you don`t have one, no problem - the attached template is available for your convenience. <br>
+					Our only request is that you ensure all essential details are included, such as itemized costs, anticipated lead times, etc. 
+					Please indicate the validity period for your quotes. <br>
+					Send your quotes to <b>' . $pro_contact_email . '</b>.</p>
 					<table style="width: 100%; border-collapse: collapse; font-size: 13px; border: 1px solid #aaa !important">
 						<thead>
 							<tr>
@@ -2736,11 +2757,10 @@ class RequisitionController extends Controller
 			if ($req->request_type == "Purchase Orders" && $req->status == "Approval Complete") {
 				$rptG = new ReportGeneratorController;
 				$rptG->generate_report_pdf($req->id, false);
-			}
+				$currentDate = Carbon::now(); // Get current date/time
+				$newDate = $currentDate->addDays(90);
 
-			if ($req->request_type == "Purchase Orders" && $req->status == "Approval Complete") {
-				$rptG = new ReportGeneratorController;
-				$rptG->generate_report_pdf($req->id, false);
+				$req->validity_period = $newDate->format('Y-m-d');
 			}
 
 			if ($req->request_type == "Purchase Request" && $req->status == "Approval Complete") {
@@ -3097,6 +3117,7 @@ class RequisitionController extends Controller
 				// }
 
 				$subCatID = $request->items['item_id'][$i];
+				$account_id = $request->items['item_account_id'][$i];
 
 				$subCat = \App\InventorySubCategories::find($subCatID);
 				$itemCat = \App\InventoryCategories::find($subCat->inventory_category_id);
@@ -3112,6 +3133,7 @@ class RequisitionController extends Controller
 				$item->slot_id = $request->items['slot_id'][$i] ?? $defaultStore['slot'];
 				$item->uom = $request->items['uom'][$i] ?? 0;
 				$item->inventory_sub_category_id = $subCatID;
+				$item->item_account_id = $account_id;
 
 				$item->comments = $request->items['comments'][$i];
 				$item->quantity = isset($request->items['quantity'][$i]) ? $request->items['quantity'][$i] : $request->items['received_quantity'][$i];

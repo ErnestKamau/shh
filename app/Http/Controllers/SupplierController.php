@@ -136,7 +136,9 @@ class SupplierController extends Controller
 
 		// return json_encode($all_categories, JSON_PRETTY_PRINT);
 
-		$criteria = \App\SuppliersRatingCriteria::where('supplier_id', $id)->where('is_current', 1)->get();
+		$criteria = \App\SuppliersRatingCriteria::where('supplier_id', $id)
+			->selectRaw('`id`, `supplier_id`, `request_id`, `criteria_id`, AVG(`score`) as score, `rating_by`, `is_current`, `created_at`, `updated_at`')
+			->where('is_current', 1)->groupBy('criteria_id')->get();
 
 		$ratingScores = [];
 
@@ -144,7 +146,11 @@ class SupplierController extends Controller
 			$ratingScores[$c->criteria_id] = $c->score;
 		}
 
-		return view('layouts.inventory.suppliers.show', compact('ratingScores', 'supplier', 'cats', 'stores', 'all_categories', 'supplier_categories'));
+		// return json_encode($ratingScores);
+
+		$paymentTerms = getModulePreconfig('Payment-Terms', 'Inventory-Management', 'level');
+
+		return view('layouts.inventory.suppliers.show', compact('paymentTerms','ratingScores', 'supplier', 'cats', 'stores', 'all_categories', 'supplier_categories'));
 	}
 
 	public function remove_supplier_from_inventory($id, $itemID){

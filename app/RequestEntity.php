@@ -27,7 +27,7 @@ class RequestEntity extends Model implements Auditable
 
 		;
 		if($grp){
-			$items = $items->selectRaw('request_entity_items.*, request_entity_items.catalog_number, isc.item_classification, "" as unit_type, isc.unit_price as price, isc.secondary_unit_type,
+			$items = $items->selectRaw('request_entity_items.*, request_entity_items.catalog_number, isc.zoho_account_id, isc.item_classification, "" as unit_type, isc.unit_price as price, isc.secondary_unit_type, isc.zoho_account_id,
 			GROUP_CONCAT(request_entity_items.id) as kit_item_ids, GROUP_CONCAT(CONCAT(IFNULL(isc.name,""), " - ", IFNULL(request_entity_items.quantity, ""), "", IFNULL(request_entity_items.uom, ""), " ",
 			IFNULL(request_entity_items.comments, "")))
 			as kit_item_name, isc.unit_type, isc.name as item_name, available_stock, isc.code')
@@ -35,11 +35,11 @@ class RequestEntity extends Model implements Auditable
 		}
 		else{
 			if($grpItems){
-				$items = $items->selectRaw('request_entity_items.*, request_entity_items.catalog_number, isc.item_classification, isc.unit_type, isc.unit_price as price, isc.secondary_unit_type, isc.name as item_name, available_stock, isc.code, sum(request_entity_items.quantity) as quantity')->orderBy('request_entity_items.catalog_number', 'asc')
+				$items = $items->selectRaw('request_entity_items.*, request_entity_items.catalog_number, isc.zoho_account_id, isc.item_classification, isc.unit_type, isc.unit_price as price, isc.secondary_unit_type, isc.name as item_name, available_stock, isc.code, sum(request_entity_items.quantity) as quantity')->orderBy('request_entity_items.catalog_number', 'asc')
 				->groupBy('request_entity_items.inventory_sub_category_id')->groupBy('request_entity_items.comments');
 			}
 			else{
-				$items = $items->selectRaw('request_entity_items.*, request_entity_items.catalog_number, isc.item_classification, isc.unit_type, isc.unit_price as price, isc.secondary_unit_type, isc.name as item_name, available_stock, isc.code')->orderBy('request_entity_items.catalog_number', 'asc');
+				$items = $items->selectRaw('request_entity_items.*, request_entity_items.catalog_number, isc.zoho_account_id, isc.item_classification, isc.unit_type, isc.unit_price as price, isc.secondary_unit_type, isc.name as item_name, available_stock, isc.code')->orderBy('request_entity_items.catalog_number', 'asc');
 			}
 		}
 
@@ -144,6 +144,10 @@ class RequestEntity extends Model implements Auditable
 		return EntityApproval::where('model', $this->request_type)
 			->whereIn('status', $completed)
 			->where('model_id', $this->id)->get();
+	}
+
+	public function currency(){
+		return $this->belongsTo(ModulePreConfigs::class, 'currency');
 	}
 
 	public function pending_approvals(){
