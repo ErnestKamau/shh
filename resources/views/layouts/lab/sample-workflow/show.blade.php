@@ -3818,7 +3818,7 @@
 				</td>
 				<td class="pull-right" colspan="${colspan_value + standard_count}" style="padding-left:1%">
 					<b>Date of Analysis</b>
-					<input type="date" class="start_analysis_date" value="${datevalue}" style="margin-left:1%;width:20%">
+					<input type="date" class="start_analysis_date" value="${datevalue}" min="{{isset($batch->id) ? $batch->receipt_date : date('Y-m-d')}}" style="margin-left:1%;width:20%">
 					<span class="btn btn-sm btn-success save-analysis-start-date" style="font-size:14px !important"><i class="mdi mdi-sync"></i>Click to Save Date</span>
 				</td>
 				

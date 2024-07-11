@@ -675,11 +675,8 @@
 				<h4 class="modal-title"><i class="mdi mdi-clipboard-arrow-right"></i> Generate Invoice</h4>
 			</div>
 			<div class="modal-body">
-				<input type="hidden" name="status" value="Samples Request Review" />
-				<div class="form-group">
-					<div class="alert alert-callout alert-primary">
-						<i class="fas fa-info-circle"></i> By approving this you will generate an invoice with the following Batches</b>?
-					</div>
+				<div class="to-be-updated">
+					
 				</div>
 
 				<div class="form-group">
@@ -689,7 +686,7 @@
 
 			</div>
 			<div class="modal-footer">
-				<button type="submit" class="btn btn-info btn-sm"><i class="mdi mdi-thumb-up"></i> Generate</button>
+				<button type="submit" class="btn btn-info btn-sm submit-btn"><i class="mdi mdi-thumb-up"></i> Generate</button>
 				<button type="button" class="btn btn-default btn-sm" data-dismiss="modal">Close</button>
 			</div>
 		</form>
@@ -1094,8 +1091,8 @@
 
 	var sendSalesOrder = (invoice_id,callback)=>{
 		$.ajax({
-			url:``,
-			method:'GET',
+			url:`/send/Sales-Order/${invoice_id}`,
+			type:'GET',
 			success:(data)=>{
 				callback(data);
 			},
@@ -1104,15 +1101,100 @@
 			}
 		})
 	}
+	var generateInvoiceBody = ()=>{
+		var body = $(`
+		<div class="before-save">
+			<input type="hidden" name="status" value="Samples Request Review" />
+			<div class="form-group">
+				<div class="alert alert-callout alert-primary d-flex">
+					<i class="fas fa-info-circle" style="font-size:30px"></i>
+					<span class="pl-3">
+						By approving this you will generate an invoice with the following Batches</b>?
+					</span>
+				</div>
+			</div>
+		</div>
+		<div class="after-save hidden">
+			<center class="loader">
+				<img src="/images/load.gif" height="250px" width="auto" alt="">
+			</center>
+			<p><i class="mdi mdi-minus saving-invoice"></i> Saving proforma invoice / sales order details.</p>
+			<p><i class="mdi mdi-minus send-sales"></i> Sending sales order details to Zoho.</p> <br>
+		</div>
+		
+		<div class="alert alert-danger d-flex error-area hidden">
+			<i class="mdi mdi-alert-decagram-outline" style="font-size:25px"></i>
+			<span class="p-2 error-body"></span>
+		</div>
+		`).clone();
+		return body;
+	}
+	$('#dispatch-to-labs-modal-approve').on('show.bs.modal',(e)=>{
+		$('#generate-invoice-form').find('.submit-btn').removeClass('hidden');
+		var body = generateInvoiceBody();
+		$('#dispatch-to-labs-modal-approve').find('.to-be-updated').empty();
+		$('#dispatch-to-labs-modal-approve').find('.to-be-updated').append(body);
 
+	})
 	$('#generate-invoice-form').on('submit',(event)=>{
 		event.preventDefault();
-		var formdata = $(this).serializeArray();
-		$.ajax({
-			url:``,
-			method:'POST',
-			success:(data)=>{
+		$('#generate-invoice-form').find('.submit-btn').addClass('hidden');
+		$('#generate-invoice-form').find('.before-save').addClass('hidden');
+		$('#generate-invoice-form').find('.after-save').removeClass('hidden');
+		$('#generate-invoice-form').find('.saving-invoice').addClass('mdi-spin');
 
+		var formdata = $(this).serializeArray();
+		$.ajaxSetup({
+			headers: {
+				'X-CSRF-TOKEN': jQuery('meta[name="csrf-token"]').attr('content')
+			}
+		});
+		$.ajax({
+			url:`/generate/batch-invoice/ajax`,
+			type:'POST',
+			data : formdata,
+			success:(data)=>{
+				if(data['error']){
+					$('#generate-invoice-form').find('.loader').addClass('hidden');
+					$('#generate-invoice-form').find('.saving-invoice').removeClass('mdi-spin');
+					$('#generate-invoice-form').find('.send-sales').removeClass('mdi-spin');
+
+					$('#generate-invoice-form').find('.error-body').empty();
+					$('#generate-invoice-form').find('.error-body').append(data['error']);
+					$('#generate-invoice-form').find('.error-area').removeClass('hidden');
+				}else{
+					console.log(data['error']);
+					$('#generate-invoice-form').find('.saving-invoice').removeClass('mdi-spin');
+					$('#generate-invoice-form').find('.saving-invoice').removeClass('mdi-minus');
+					$('#generate-invoice-form').find('.saving-invoice').addClass('mdi-check-circle-outline text-success');
+
+
+					$('#generate-invoice-form').find('.send-sales').addClass('mdi-spin');
+
+					sendSalesOrder(data['invoice_id'].id,(data)=>{
+						if(data['error']){
+							$('#generate-invoice-form').find('.loader').addClass('hidden');
+							$('#generate-invoice-form').find('.saving-invoice').removeClass('mdi-spin');
+							$('#generate-invoice-form').find('.send-sales').removeClass('mdi-spin');
+
+							$('#generate-invoice-form').find('.error-body').empty();
+							$('#generate-invoice-form').find('.error-body').append(data['error']);
+							$('#generate-invoice-form').find('.error-area').removeClass('hidden');
+						}else{
+							$('#generate-invoice-form').find('.send-sales').removeClass('mdi-spin');
+							$('#generate-invoice-form').find('.send-sales').removeClass('mdi-minus');
+							$('#generate-invoice-form').find('.send-sales').addClass('mdi-check-circle-outline text-success');
+
+							$('#generate-invoice-form').find('.loader').empty();
+							var imgElem= $(`<img src="/images/suc.gif" height="250px" width="auto" alt="">`);
+							$('#generate-invoice-form').find('.loader').append(imgElem);
+
+							
+							
+							
+						}
+					})
+				}
 			},
 			error:(data)=>{
 
@@ -1211,14 +1293,14 @@
 				)
 				$('.selected-batches-request').append(
 					`<span class="p-2 mr-2">
-						<input type="checkbox" name="batch_code[]" value="${$value}" checked>${$value}
+						<input type="checkbox" name="batch_code[]" value="${$value}" checked> ${$value}
 					</span>
 					`
 
 				);
 				$('.selected-batches-request-approve').append(
 					`<span class="p-2 mr-2">
-						<input type="checkbox" name="batch_code[]" value="${$value}" checked>${$value}
+						<input type="checkbox" name="batch_code[]" value="${$value}" checked> ${$value}
 					</span>
 					`
 				)
@@ -1253,12 +1335,12 @@
 
 				$('.selected-batches-review').append(
 					`<span class="p-2 mr-2">
-						<input type="checkbox" name="batch_code[]" value="${ $value }"  checked >${ $value }
+						<input type="checkbox" name="batch_code[]" value="${ $value }"  checked > ${ $value }
 					</span>`
 				);
 				$('.selected-batches-request-approve').append(
 					`<span class="p-2 mr-2">
-						<input type="checkbox" name="batch_code[]" value="${$value}" checked>${$value}
+						<input type="checkbox" name="batch_code[]" value="${$value}" checked> ${$value}
 					</span>
 					`
 				)

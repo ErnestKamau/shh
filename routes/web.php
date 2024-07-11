@@ -173,6 +173,11 @@ Route::post('/stock-taking-counter/{id}/remove', 'StockTakingCounterController@r
   Route::post('/batch-approve-payment', 'SampleWorkFlowController@generate_batch_invoice')->name('generate_batch_invoice')->middleware('haspermission:Laboratory.components.Generate Invoice.View');
   Route::post('/batch-payment-reminders', 'SampleWorkFlowController@send_payment_notification')->name('send_payment_notification');
   Route::post('/return-back-verification', 'SampleWorkFlowController@return_back_verification')->name('return_back_verification');
+  // -----------------------------------SALES ORDERS----------------------
+  Route::post('/generate/batch-invoice/ajax','SampleWorkFlowController@generate_batch_invoice_ajax')->name('generate_batch_invoice_ajax');
+  Route::get('/send/Sales-Order/{id}','SampleWorkFlowController@sendSalesOrder')->name('sendSalesOrder');
+  // -----------------------------------SALES ORDERS----------------------
+
 
   Route::get('/send_notification_reminders', 'Event\EventController@send_notification_reminders')->name('send_notification_reminders');
 

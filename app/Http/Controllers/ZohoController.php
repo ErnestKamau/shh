@@ -396,6 +396,20 @@ class ZohoController extends Controller
 		return $vendors;
 	}
 
+	function createSalesrder($salesOrder)
+	{
+		$response = $this->post('salesorders', [
+			'form_params' => ['JSONString' => json_encode($salesOrder)],
+			'query' => [
+				'organization_id' => $this->orgID,
+			],
+		]);
+
+		$zItem = json_decode($response, true);
+		
+		return isset($zItem['salesorder']['salesorder_id']) ? 0 : $zItem['salesorder']['salesorder_id'];
+	}
+
 	public function query_to_string($query)
 	{
 		$str = [];

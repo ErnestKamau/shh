@@ -3013,7 +3013,7 @@ class SampleWorkFlowController extends Controller
     {
         $config = getConfigByName('generate_sample_invoice');
         if (!isset($config[0]->id)) {
-            return response()->json(['error', 'generate_sample_invoice configuration is not set']);
+            return response()->json(['error'=>'generate_sample_invoice configuration is not set']);
         }
         if ($config[0]->value == 'true') {
             $customer_ids = [];
@@ -3021,26 +3021,26 @@ class SampleWorkFlowController extends Controller
             foreach ($request->batch_code as $code) {
                 $batch = SampleHeader::where('batch_code', $code)->first();
                 if ($batch->invoice_id != 0) {
-                    return redirect()->back()->with('error', 'Batch'.$code.' has an existing Invoice!');
+                    return response()->json(['error'=>'Batch'.$code.' has an existing Invoice!']);
                 }
                 array_push($customer_ids, $batch->crm_customer_id);
             }
             $check_customer = array_unique($customer_ids);
             if (sizeof($check_customer) > 1) {
-                return response()->json(['error', 'The choosen batches are of different customers!']);
+                return response()->json(['error'=>'The choosen batches are of different customers!']);
             }
             $customer = CRMCustomer::find($check_customer[0]);
             if (!isset($customer->id)) {
-                return  response()->json(['error', 'There is no customer with the specified Batches!']);
+                return  response()->json(['error'=>'There is no customer with the specified Batches!']);
             }
             $customer_pricelist = PricelistCustomer::where('customer_id', $customer->id)->get();
             if (!isset($customer_pricelist[0]->id)) {
-                return response()->json(['error', 'The specified customer has no pricelist assigned']);
+                return response()->json(['error'=>'The specified customer has no pricelist assigned']);
             }
 
             $pricelist = Pricelist::find($customer_pricelist[0]->pricelist_id);
             if (!isset($pricelist->id)) {
-                return response()->json(['error', 'There is no pricelist with the specified customer pricelist ID!']);
+                return response()->json(['error'=>'There is no pricelist with the specified customer pricelist ID!']);
             }
             $invoice = new Invoice();
             $invoice->pricelist_id = $customer_pricelist[0]->pricelist_id;
@@ -3073,7 +3073,7 @@ class SampleWorkFlowController extends Controller
                         foreach ($analysis_ids as $analysis_id) {
                             $price = PricelistItem::where('pricelist_id', $pricelist->id)->where('analysis_id', (int) $analysis_id)->where('sample_type_id', $batch->sample_type_id)->first();
                             if (!isset($price->id)) {
-                                return response()->json(['error', 'kindly add analysis to pricelist!']);
+                                return response()->json(['error'=>'kindly add analysis to pricelist!']);
                             }
                             $check_invoice_detail = InvoiceDetails::where('invoice_id', $invoice->id)->where('analysis_type', (int) $analysis_id)->first();
                             if (!isset($check_invoice_detail->id)) {
@@ -3134,9 +3134,9 @@ class SampleWorkFlowController extends Controller
             $invoice->total_tax = $total_invoice_tax;
             $invoice->save();
 
-            return response()->json(['success', 'Invoice Created Successfully',"invoice"=>$invoice]);
+            return response()->json(['success'=>'Invoice Created Successfully',"invoice"=>$invoice]);
         } else {
-            return response()->json(['error', 'Kindly set generate_sample_invoice configuration value to true!']);
+            return response()->json(['error'=>'Kindly set generate_sample_invoice configuration value to true!']);
         }
     }
     public function sendSalesOrder($invoice_id){
@@ -3163,6 +3163,14 @@ class SampleWorkFlowController extends Controller
             "line_items" => $lineitems,
             "reference_number" => $invoice->invoice_number,
         ];
+        $zohoService = new ZohoController();
+        $zoho_sales = $zohoService->createSalesrder($salesOrder);
+        if($zoho_sales != 0){
+            $invoice->sales_order_id = $zoho_sales;
+            $invoice->save();
+            return response()->json(['success'=>'Sales Order Created successfully!','invoice'=>$invoice]);
+        }
+        return response()->json(['error'=>'Sales Order not created successfully!','invoice'=>$invoice]);
     }
 
     public function return_back_verification(Request $request)
