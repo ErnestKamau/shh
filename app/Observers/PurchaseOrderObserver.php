@@ -27,7 +27,7 @@ class PurchaseOrderObserver
     public function updated(RequestEntity $requestEntity)
     {
         if($requestEntity->request_type == "Purchase Orders"){
-            if($requestEntity->zoho_status == "draft" && trim($requestEntity->zoho_id) == ""){
+            if(trim($requestEntity->zoho_id) == ""){
                 $zoho = new ZohoController();
                 $zoho->createPurchaseOrder($requestEntity);
             }

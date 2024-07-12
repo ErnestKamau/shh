@@ -215,7 +215,6 @@
 		</span>
 		@endif
 		@endif
-
 		@if(isset($request->status) && $request->in_ammendment > 0)
 		<?php $isRequestIniator = $request->status == "Amendment Awaiting Approval" && $request->request_initiator = \Auth::user()->id ?>
 		<div class="btn-group float-right" role="group">
@@ -297,8 +296,8 @@
 		@if (in_array($request->status, array("Approval Complete", "Purchase Order Sent", "Goods Accepted")))
 		@if(\Auth::user()->hasRole($store_manager_role_id, true))
 		<?php
-							$hasMI = issue_received_complete($request->id);
-						?>
+			$hasMI = issue_received_complete($request->id);
+		?>
 
 		@if($hasMI['items'] < $hasMI['all']) <span class="btn btn-default text-dark float-right btn-sm"
 			data-target="#Create-Goods-Receipt-Modal" data-toggle="modal">
@@ -426,16 +425,26 @@
 				<i class="mdi mdi-account-check"></i> Get Approval
 			</button>
 			@endif
-			@if (in_array($request->status, ["Approval Complete"]))
+			@if (in_array($request->status, ["Approval Complete"]) && trim($request->email_body) != "")
 			<button class="btn btn-default text-dark float-right save-details-form btn-sm" data-type="send-rfq-details">
 				<i class="mdi mdi-email-send"></i> Send Out RFQS
 			</button>
 			@endif
 			@endif
 
+			@if(trim($request->email_body) != "")
+			<span class="btn btn-default text-success float-right btn-sm" data-target="#Send-RFQ-modal" data-toggle="modal">
+				<i class="fas fa-eye"></i> Preview Email Body
+			</span>
+			@else
+			<span class="btn btn-default text-info float-right btn-sm" data-target="#Send-RFQ-modal" data-toggle="modal">
+				<i class="fas fa-plus"></i> Add Email Body
+			</span>
+			@endif
+
 			@if ($stage == "Request for Quotation" && $request->supplier_rfqs()->count() > 0)
 			@if (!in_array($request->status, ["Approval Complete", "Rejected"]) &&
-			\Auth::user()->hasRole($procurement_officer_role_id, true))
+			\Auth::user()->hasRole($procurement_officer_role_id, true) && trim($request->email_body) != "")
 			<button class="btn btn-default text-dark float-right save-details-form btn-sm" data-type="send-rfq-details">
 				<i class="mdi mdi-email-send"></i> Send Out RFQS
 			</button>
@@ -459,8 +468,7 @@
 			@endif
 			@endif
 			@endif
-			@if (in_array($request->status,["Approval Complete", "Items Issued Out"]) && in_array($stage,["Request to
-			Store"]))
+			@if (in_array($request->status,["Approval Complete", "Items Issued Out"]) && in_array($stage,["Request to Store"]))
 			<?php
 						$hasMI = issue_received_complete($request->id);
 					?>
@@ -936,13 +944,19 @@
 												<option value="{{ $req_item->inventory_sub_category_id }}" selected="selected">{{
 													$req_item->item_name }}</option>
 											</select>
-											<div style="padding:3px 2px">Account</div>
-											<select name="items[item_account_id][]" style="min-width: 200px; font-size: 12px; margin-top: 5px" class="form-control" placeholder="Select Acoount..." required>
-												<option value="">Select Account...</option>
-												@foreach ($accounts as $acc)
-													<option value="{{ $acc->account_id }}" {{ $req_item->item_account_id == $acc->account_id ? "selected" : "" }}><small>({{ clear_underscore($acc->type) }}) {{ $acc->name }}</small></option>
- 												@endforeach
-											</select>
+
+											@php($hiddenAccount = in_array($stage, ['Request to Store', 'Material Issuance']))
+
+											<div {!! $hiddenAccount ? 'style="display: none"' : 'unset' !!}>
+												<div style="padding:3px 2px">Account</div>
+
+												<select {{ $readonly ? "disabled" : "" }} name="items[item_account_id][]" style="min-width: 200px; font-size: 12px; margin-top: 5px" class="form-control" placeholder="Select Acoount..." required>
+													<option value="">Select Account...</option>
+													@foreach ($accounts as $acc)
+														<option value="{{ $acc->account_id }}" {{ $req_item->item_account_id == $acc->account_id ? "selected" : "" }}><small>({{ clear_underscore($acc->type) }}) {{ $acc->name }}</small></option>
+													@endforeach
+												</select>
+											</div>
 										</div>
 									</td>
 									<td>
@@ -2209,6 +2223,31 @@
 		</div>
 	</div>
 </div>
+<div id="accept-goods-otp-modal" class="modal fade" role="dialog">
+	<div class="modal-dialog">
+		<!-- Modal content-->
+		<div class="modal-content">
+			@csrf
+			<div class="modal-header">
+				<h5 class="modal-title"><i class="mdi mdi-numeric"></i> Confirmation OTP</h5>
+			</div>
+			<div class="modal-body">
+				<div class="alert alert-callout alert-info text-lg">
+					<i class="mdi mdi-information fa-1x"></i> Please provide the confirmation OTP code:
+				</div>
+				<div class="form-group">
+					<label>Requester OTP</label>
+					<input type="text" name="requester_otp" class="form-control" placeholder="Requester OTP..." />
+				</div>
+			</div>
+			<div class="modal-footer">
+				<button type="button" class="btn btn-success save-details-form" id="accept-goods-otp-modal-save-btn"
+					data-type="accept-goods-receipt">Confirm</button>
+				<button type="button" class="btn btn-default" data-dismiss="modal">Close</button>
+			</div>
+		</div>
+	</div>
+</div>
 <div id="add-note-modal" class="modal fade" role="dialog">
 	<div class="modal-dialog">
 		<!-- Modal content-->
@@ -2977,30 +3016,82 @@ Issuance"]))
 	</div>
 </div>
 @else
-<div id="accept-goods-otp-modal" class="modal fade" role="dialog">
-	<div class="modal-dialog">
+<div id="Send-RFQ-modal" class="modal fade" role="dialog">
+	<form class="modal-dialog" action="{{ route('add-email-body-rfq', $request->id ?? 0) }}" method="POST">
 		<!-- Modal content-->
 		<div class="modal-content">
 			@csrf
 			<div class="modal-header">
-				<h5 class="modal-title"><i class="mdi mdi-numeric"></i> Confirmation OTP</h5>
+				<h5 class="modal-title"><i class="mdi mdi-text"></i> Configure Email Body</h5>
 			</div>
 			<div class="modal-body">
-				<div class="alert alert-callout alert-info text-lg">
-					<i class="mdi mdi-information fa-1x"></i> Please provide the confirmation OTP code:
+				<div class="col-xs-12">
+					Dear Supplier,
 				</div>
-				<div class="form-group">
-					<label>Requester OTP</label>
-					<input type="text" name="requester_otp" class="form-control" placeholder="Requester OTP..." />
+				<?php $hasEmailBody = trim($request->email_body) != "" ?>
+				<?php
+					$pro_contact = getConfigByName('po_contact_email');
+					$pro_contact_email = count($pro_contact) > 0 ? $pro_contact[0]->value : 'contact not set';
+					$defaultBody = "<p>Please provide us with a quote for the following items. Feel free to use your preferred quote template for this RFQ. 
+					If you don`t have one, no problem - the attached template is available for your convenience. <br>
+					Our only request is that you ensure all essential details are included, such as itemized costs, anticipated lead times, etc. 
+					Please indicate the validity period for your quotes. <br>
+					Send your quotes to <b>" . $pro_contact_email . "</b>.</p>";
+				?>
+				<div>
+					<div class="my-2" id="rfq-body-editor">
+						<textarea id="rfq-body" class="form-control editor" rows="8" 
+							style="border:none !important; outline: none!important" name="body" 
+							placeholder="Email Body..." required>{{ $hasEmailBody ? $request->email_body : $defaultBody }}</textarea>
+					</div>
+					<div class="my-1" id="rfq-body-preview">
+						{!! $request->email_body !!}
+					</div>
 				</div>
+				<div>
+					<div class="my-1" style="cursor:pointer">
+						<small class="text-info" id="edit-body-preview">
+							<i class="fas fa-edit"></i> Edit
+						</small>
+					</div>
+				</div>
+				
+			</div>
+			<div class="modal-body">
+				<h6>RFQ Items</h6>
+				<table style="border-collapse: collapse;">
+					<thead>
+						<tr style="border: 1px solid #999">
+							<th style="border: 1px solid #999">No.</th>
+							<th style="border: 1px solid #999">RFQ Code</th>
+							<th style="border: 1px solid #999">Item Code</th>
+							<th style="border: 1px solid #999">Description</th>
+							<th style="border: 1px solid #999">Comments</th>
+							<th style="border: 1px solid #999">Quantity</th>
+						</tr>
+					</thead>
+					<tbody>
+						@foreach ($normalItems ?? array() as $req_item)
+							<tr style="border: 1px solid #999">
+								<td style="border: 1px solid #999">{{ $loop->iteration }}</td>
+								<td style="border: 1px solid #999">{{ $request->request_code }}</td>
+								<td style="border: 1px solid #999">{{ $req_item->sub_category->code }}</td>
+								<td style="border: 1px solid #999">{{ $req_item->sub_category->name }}
+									<br>{{ $request->comments }}
+								</td>
+								<td style="border: 1px solid #999">{{ $req_item->comments }}</td>
+								<td style="border: 1px solid #999">{{ number_format($req_item->quantity, 3) }} <small>({{ $req_item->uom }})</small></td> 
+							</tr>
+						@endforeach
+					</tbody>
+				</table>
 			</div>
 			<div class="modal-footer">
-				<button type="button" class="btn btn-success save-details-form" id="accept-goods-otp-modal-save-btn"
-					data-type="accept-goods-receipt">Confirm</button>
+				<button class="btn btn-success" onclick="tinyMCE.triggerSave()">Update</button>
 				<button type="button" class="btn btn-default" data-dismiss="modal">Close</button>
 			</div>
 		</div>
-	</div>
+	</form>
 </div>
 @endif
 <div id="send-to-finance-modal" class="modal fade" role="dialog">
@@ -3415,7 +3506,14 @@ Issuance"]))
 	</div>
 </div>
 <div id="data-attr-holder" class="hidden" data-stores="{{ json_encode($allStores) }}"></div>
+@if($stage == "Request for Quotation")
+	<script type="text/javascript" src="/tinymce/tinymce.min.js"></script>
+@endif
 <script>
+	tinymce.init({
+		selector: 'textarea.editor',
+		height: 200
+	});
 	var EmailsWithIssues = {};
 		var markCompleted = $(`<input type="hidden" name="get_approval" value="1" />`);
 		var getQuoteAcceptModalBody = function(){
@@ -3462,7 +3560,27 @@ Issuance"]))
 				$('.trigger-change-approver:first').each(function(i, e){
 					e.click();
 				});
-			}, 2000)
+			}, 2000);
+			var isAlreadyInPreview = false;
+			@if($hasEmailBody)
+				isAlreadyInPreview = true;
+				$('#rfq-body-editor').slideUp(0);
+				$('#rfq-body-preview').slideDown(0);
+			@endif
+			$('#edit-body-preview').on('click', function(){
+				if(isAlreadyInPreview){
+					$('#rfq-body-editor').slideUp(0);
+					$('#rfq-body-preview').slideDown(0);
+					$('#edit-body-preview').html(`<i class="fas fa-edit"></i> Edit Body`);
+				}
+				else{
+					$('#rfq-body-editor').slideDown(0);
+					$('#rfq-body-preview').slideUp(0);
+					$('#edit-body-preview').html(`<i class="fas fa-eye"></i> Preview Body`);
+				}
+				isAlreadyInPreview = !isAlreadyInPreview;
+			});
+
 		});
 
 		var getNoteRow = function($data){

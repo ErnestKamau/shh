@@ -3596,6 +3596,15 @@ class RequisitionController extends Controller
 		return redirect()->back()->with('success', 'The ' . $entity->request_code . ' has been reversed');
 	}
 
+	public function add_email_body_rfq(Request $request, $id){
+		$entity = RequestEntity::find($id);
+
+		$entity->email_body = $request->body;
+		$entity->save();
+
+		return redirect()->back()->with('success', 'RFQ email body has been updated!');
+	}
+
 	public function streamlineSlotStockOut()
 	{
 		$items = \App\InventorySubCategories::where('available_stock', '>', 0)->get();

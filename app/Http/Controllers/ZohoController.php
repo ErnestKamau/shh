@@ -130,9 +130,9 @@ class ZohoController extends Controller
 			$purchaseOrders = json_decode($response, true);
 			$lists = $purchaseOrders['purchaseorders'];
 
-			foreach($lists as $list){
-				if($list['status'] != "draft")
-				$request = RequestEntity::where('zoho_id', $list['purchaseorder_id'])->first();
+			foreach ($lists as $list) {
+				if ($list['status'] != "draft")
+					$request = RequestEntity::where('zoho_id', $list['purchaseorder_id'])->first();
 				$request->update([
 					"status" => "Approval Complete",
 					"zoho_status" => $list['status']
@@ -140,7 +140,7 @@ class ZohoController extends Controller
 				$updatedPOs[] = $request->request_code;
 			}
 		}
-		return response()->json(['status'=>true, "message"=>"POs updated : ".implode(",", $updatedPOs)]);
+		return response()->json(['status' => true, "message" => "POs updated : " . implode(",", $updatedPOs)]);
 	}
 
 	public function redirect(Request $request)
@@ -167,7 +167,7 @@ class ZohoController extends Controller
 			$themItems[] = [
 				"account_id" => $item->item_account_id,
 				"item_id" => $item->sub_category->zoho_item_code, // Replace with the appropriate item ID
-				"name" => $item->sub_category->name."(".$item->uom.")", // Using the description from the request item
+				"name" => $item->sub_category->name . "(" . $item->uom . ")", // Using the description from the request item
 				"description" => trim($item['comments']) == "" ? $item->sub_category->name : $item['comments'],
 				"item_order" => $itemOrder++,
 				"rate" => round(floatval($item['net_value']) / floatval($item['quantity']), 2), // Using the net_value from the request item
@@ -196,7 +196,7 @@ class ZohoController extends Controller
 		]);
 
 		$zItem = json_decode($response, true);
-		
+
 		$requestEntity->zoho_id = $zItem['purchaseorder']['purchaseorder_id'];
 		$requestEntity->save();
 
@@ -260,19 +260,19 @@ class ZohoController extends Controller
 		return $items['item'];
 	}
 
-	public function sync_all($type){
-		try{
-			if($type == "items"){
+	public function sync_all($type)
+	{
+		try {
+			if ($type == "items") {
 				$this->sync_zoho_items();
 			}
-			if($type == "vendors"){
+			if ($type == "vendors") {
 				$this->sync_zoho_vendors();
 			}
-			if($type == "currencies"){
+			if ($type == "currencies") {
 				return $this->sync_zoho_currencies();
 			}
-		}
-		catch(Exception $e){
+		} catch (Exception $e) {
 			throw new Error($e->getMessage());
 		}
 	}
@@ -310,7 +310,7 @@ class ZohoController extends Controller
 			$itemExists->save();
 		}
 
-		if (isset($response['page_context']) && $response['page_context']['has_more_page'] == true) {
+		if (isset($items['page_context']) && $items['page_context']['has_more_page'] == true) {
 			$this->sync_zoho_items($page + 1);
 		}
 
@@ -350,8 +350,9 @@ class ZohoController extends Controller
 			$this->sync_zoho_vendors($page + 1);
 		}
 	}
-
-	public function sync_zoho_things($things, $single=null){
+	
+	public function sync_zoho_things($things, $single = null)
+	{
 		$response = $this->get($things, [
 			'query' => [
 				'organization_id' => $this->orgID,
@@ -366,10 +367,15 @@ class ZohoController extends Controller
 		return json_encode($lists);
 	}
 
-	public function sync_zoho_currencies(){
+	public function save_zoho_item_account_id($id){
+		$getItem = $this->sync_zoho_things('');
+	}
+
+	public function sync_zoho_currencies()
+	{
 		$currencies = $this->sync_zoho_things('/settings/currencies', 'currencies');
 
-		return ">>>>>>>>>>>>>>>>>>>>>".json_encode($currencies);
+		return ">>>>>>>>>>>>>>>>>>>>>" . json_encode($currencies);
 
 		$currencies = json_decode($currencies, true);
 		$config = "Currency";
@@ -379,7 +385,7 @@ class ZohoController extends Controller
 
 		$arr = [];
 
-		foreach($currencies as $cu){
+		foreach ($currencies as $cu) {
 			$arr[] = [
 				"type" => $config,
 				"module" => $module,
@@ -444,9 +450,18 @@ class ZohoController extends Controller
 				'Authorization: Zoho-oauthtoken ' . $this->token,
 				'Content-Type: application/json'
 			),
+			CURLOPT_SSL_VERIFYPEER => false, // Disable SSL verification
+			CURLOPT_SSL_VERIFYHOST => false, // Disable SSL verification
 		));
 
 		$response = curl_exec($curl);
+
+		if (curl_errno($curl)) {
+			$error_msg = curl_error($curl);
+			curl_close($curl);
+			// Handle the error as needed, for example:
+			return 'Error: ' . $error_msg;
+		}
 
 		curl_close($curl);
 		return $response;
@@ -468,9 +483,18 @@ class ZohoController extends Controller
 			CURLOPT_HTTPHEADER => array(
 				'Authorization: Zoho-oauthtoken ' . $this->token
 			),
+			CURLOPT_SSL_VERIFYPEER => false, // Disable SSL verification
+			CURLOPT_SSL_VERIFYHOST => false, // Disable SSL verification
 		));
 
 		$response = curl_exec($curl);
+
+		if (curl_errno($curl)) {
+			$error_msg = curl_error($curl);
+			curl_close($curl);
+			// Handle the error as needed, for example:
+			return 'Error: ' . $error_msg;
+		}
 
 		curl_close($curl);
 		return $response;
