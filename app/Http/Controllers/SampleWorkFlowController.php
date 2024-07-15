@@ -3152,7 +3152,6 @@ class SampleWorkFlowController extends Controller
                 "name" => $detail->analysistype->name,
                 "description" => $detail->analysistype->description,
                 "quantity" => 1,
-                "product_type" => $detail->analysistype->name,
             ];
             $itemcounter = $itemcounter + 1;
         }
@@ -3165,6 +3164,7 @@ class SampleWorkFlowController extends Controller
         ];
         $zohoService = new ZohoController();
         $zoho_sales = $zohoService->createSalesrder($salesOrder);
+        return response()->json($zoho_sales);
         if($zoho_sales != 0){
             $invoice->sales_order_id = $zoho_sales;
             $invoice->save();

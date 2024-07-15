@@ -1094,9 +1094,11 @@
 			url:`/send/Sales-Order/${invoice_id}`,
 			type:'GET',
 			success:(data)=>{
+				console.log('here2')
 				callback(data);
 			},
 			error:(data)=>{
+				console.log('here3')
 				console.log(data);
 			}
 		})
@@ -1136,7 +1138,7 @@
 		$('#dispatch-to-labs-modal-approve').find('.to-be-updated').append(body);
 
 	})
-	$('#generate-invoice-form').on('submit',(event)=>{
+	$('#generate-invoice-form').on('submit',function(event){
 		event.preventDefault();
 		$('#generate-invoice-form').find('.submit-btn').addClass('hidden');
 		$('#generate-invoice-form').find('.before-save').addClass('hidden');
@@ -1163,7 +1165,6 @@
 					$('#generate-invoice-form').find('.error-body').append(data['error']);
 					$('#generate-invoice-form').find('.error-area').removeClass('hidden');
 				}else{
-					console.log(data['error']);
 					$('#generate-invoice-form').find('.saving-invoice').removeClass('mdi-spin');
 					$('#generate-invoice-form').find('.saving-invoice').removeClass('mdi-minus');
 					$('#generate-invoice-form').find('.saving-invoice').addClass('mdi-check-circle-outline text-success');
@@ -1171,7 +1172,8 @@
 
 					$('#generate-invoice-form').find('.send-sales').addClass('mdi-spin');
 
-					sendSalesOrder(data['invoice_id'].id,(data)=>{
+					sendSalesOrder(data['invoice'].id,(data)=>{
+						console.log('hereee');
 						if(data['error']){
 							$('#generate-invoice-form').find('.loader').addClass('hidden');
 							$('#generate-invoice-form').find('.saving-invoice').removeClass('mdi-spin');
