@@ -159,7 +159,8 @@ Route::post('/stock-taking-counter/{id}/remove', 'StockTakingCounterController@r
 
 //#############################################Sample Workflow###################################################
   Route::get('/sample-workflow/{status?}', 'SampleWorkFlowController@index')->name('sample-workflow');
-  Route::get('/sample-workflow/{status?}/stage', 'SampleWorkFlowController@index')->name('sample-workflow')->middleware('haspermission:Laboratory.components.status.View');
+//   Route::get('/sample-workflow/{status?}/stage', 'SampleWorkFlowController@index')->name('sample-workflow')->middleware('haspermission:Laboratory.components.status.View');
+    Route::get('/sample-workflow/{status?}/stage', 'SampleWorkFlowController@index')->name('sample-workflow');
   Route::get('/sample-workflow/batch/{batch}/details/{client?}/{portal?}/{status?}', 'SampleWorkFlowController@show')->name('view-batch-details');
   Route::post('/add-batch-info/{batch}', 'SampleWorkFlowController@add_batch_info')->name('add-batch-info');
   Route::post('/add-batch-samples/{batch}', 'SampleWorkFlowController@add_batch_samples')->name('add-batch-samples');
@@ -551,6 +552,7 @@ Route::post('/req/download/{id}/{type}', 'RequisitionController@download')->name
 Route::post('/mark-gr-as-complete/{id}', 'RequisitionController@mark_gr_as_complete')->name('mark-gr-as-complete')->middleware('haspermission:Inventory.components.Goods Receipt.Edit');
 Route::post('/submit-bank-details/{id}', 'RequisitionController@submit_bank_details')->name('submit-bank-details')->middleware('haspermission:Inventory.components.Purchase Orders.Edit');
 Route::post('/upload-bank-confirmation/{id}', 'RequisitionController@upload_bank_confirmation')->name('upload-bank-confirmation')->middleware('haspermission:Inventory.components.Purchase Orders.Edit');
+Route::post('/add-email-body-rfq/{id}', 'RequisitionController@add_email_body_rfq')->name('add-email-body-rfq')->middleware('haspermission:Inventory.components.Request for Quotation.Edit');
 
 Route::post('/jump-request-to-status/{id}', 'RequisitionController@jump_request_to_status')->name('jump-request-to-status')->middleware('haspermission:Inventory.components.Request for Quotation.Edit');
 
@@ -878,6 +880,10 @@ Route::get('/send-restock-notifications','InventoryItemController@sendReorderNot
 Route::get('/zoho-auth-redirect','ZohoController@redirect')->name('zoho-auth-redirect');
 Route::get('/zoho-purchase-orders','ZohoController@getPurchaseOrders')->name('zoho-purchase-orders');
 Route::get('/zoho-get-things', 'ZohoController@sync_zoho_things')->name('zoho-sync-things');
+Route::get('/zoho-sync-coa', 'ChartOfAccountController@synchronize')->name('zoho-sync-coa');
+Route::get('/zoho-sync-all/{type}','ZohoController@sync_all')->name('zoho-sync-all');
+Route::get('/zoho-authenticate', 'ZohoController@authenticate')->name('zoho-authenticate');
+Route::get('/recreate-purchase-order/{id}', 'RequisitionController@resend_to_zoho')->name('recreate-purchase-order');
 // Route::get('/zoho-purchase-orders','ZohoController@getPurchaseOrders')->name('zoho-purchase-orders');
 ###############################################ZOHO INTEGRATION#######################################
 

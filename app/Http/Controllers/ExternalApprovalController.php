@@ -16,11 +16,11 @@ class ExternalApprovalController extends Controller
 				return redirect()->back()->with('error', 'Approval not found');
 			}
 
+			$req = $approval->entity;
+			$title = "Approval for ".$req->request_type." - ".$req->request_code;
+
 			if($approval->status == "Approved"){
 				$action = 'already';
-
-				$title = "Approval Notification";
-				$req = $approval->entity;
 				
 				return view('blank', compact('title', 'type', 'action', 'req'));
 			}
@@ -36,8 +36,6 @@ class ExternalApprovalController extends Controller
 			\Auth::loginUsingId($userid);
 
 			$req = $ReqController->update($request, $approval->model, $approval->model_id, true);
-
-			$title = "Approval for ".$req->request_type." - ".$req->request_code;
 			$action = "approve";
 
 			\Auth::logout();
@@ -56,6 +54,15 @@ class ExternalApprovalController extends Controller
 
 		if(!isset($approval->id)){
 			return redirect()->back()->with('error', 'Approval not found');
+		}
+
+		$req = $approval->entity;
+		$title = "Rejection for ".$req->request_type." - ".$req->request_code;
+
+		if($approval->status == "Approved"){
+			$action = 'already';
+			
+			return view('blank', compact('title', 'type', 'action', 'req'));
 		}
 
 		$req = \App\RequestEntity::find($approval->model_id);
@@ -77,8 +84,6 @@ class ExternalApprovalController extends Controller
 			\Auth::logout();
 		}
 
-		$title = "Rejection for ".$req->request_type." - ".$req->request_code;
-
 		$action = "reject";
 
 		return view('blank', compact('title', 'type', 'action', 'req', 'isComplete'));
@@ -91,6 +96,15 @@ class ExternalApprovalController extends Controller
 
 		if(!isset($approval->id)){
 			return redirect()->back()->with('error', 'Approval not found');
+		}
+
+		$req = $approval->entity;
+		$title = $req->request_type." - ".$req->request_code." returned";
+
+		if($approval->status == "Approved"){
+			$action = 'already';
+			
+			return view('blank', compact('title', 'type', 'action', 'req'));
 		}
 
 		$req = \App\RequestEntity::find($approval->model_id);
@@ -111,8 +125,6 @@ class ExternalApprovalController extends Controller
 
 			\Auth::logout();
 		}
-
-		$title = $req->request_type." - ".$req->request_code." returned";
 
 		$action = "recheck";
 

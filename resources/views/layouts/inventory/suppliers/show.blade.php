@@ -234,7 +234,11 @@
 							</div>
 							<div class="form-group">
 								<label class="control-label">Payment Terms</label>
-								<input type="text" class="form-control" name="payment_terms" value="{{ $supplier->payment_terms }}" placeholder="Payment Terms..." required />
+								<select type="text" class="form-control" name="payment_terms"  placeholder="Payment Terms..." required>
+								@foreach ($paymentTerms as $term)
+									<option value="{{ $term->name }}" {{ $supplier->payment_terms == $term->name ? "selected" : "" }}>{{ $term->name }}</option>
+								@endforeach
+								</select>
 							</div>
 							<div class="form-group">
 								<label class="control-label">Payment Methods</label>

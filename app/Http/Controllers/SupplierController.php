@@ -148,7 +148,9 @@ class SupplierController extends Controller
 
 		// return json_encode($ratingScores);
 
-		return view('layouts.inventory.suppliers.show', compact('ratingScores', 'supplier', 'cats', 'stores', 'all_categories', 'supplier_categories'));
+		$paymentTerms = getModulePreconfig('Payment-Terms', 'Inventory-Management', 'level');
+
+		return view('layouts.inventory.suppliers.show', compact('paymentTerms','ratingScores', 'supplier', 'cats', 'stores', 'all_categories', 'supplier_categories'));
 	}
 
 	public function remove_supplier_from_inventory($id, $itemID){

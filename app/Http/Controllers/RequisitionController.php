@@ -895,7 +895,7 @@ class RequisitionController extends Controller
 				$purchaseOrder->request_code = getNamingConventionCode("Purchase Orders", false, "PO");
 				$purchaseOrder->parent_request_id = $entity->id;
 				$purchaseOrder->request_type = "Purchase Orders";
-				$purchaseOrder->status = in_array($quote->supplier_id, $split_suppliers) ? "In Preparation" : "Awaiting Approval";
+				$purchaseOrder->status = "In Preparation";
 				$purchaseOrder->approval_status = "";
 				$purchaseOrder->supplier_id = $quote->supplier_id;
 				$purchaseOrder->created_by = \Auth::user()->id;
@@ -1040,7 +1040,6 @@ class RequisitionController extends Controller
 				$this->send_creation_email($purchaseOrder, [], true, true, true);
 			}
 		}
-
 
 		// foreach($firstTime as $fT){
 		// 	$REQ = new Request;
@@ -3596,6 +3595,15 @@ class RequisitionController extends Controller
 		return redirect()->back()->with('success', 'The ' . $entity->request_code . ' has been reversed');
 	}
 
+	public function add_email_body_rfq(Request $request, $id){
+		$entity = RequestEntity::find($id);
+
+		$entity->email_body = $request->body;
+		$entity->save();
+
+		return redirect()->back()->with('success', 'RFQ email body has been updated!');
+	}
+
 	public function streamlineSlotStockOut()
 	{
 		$items = \App\InventorySubCategories::where('available_stock', '>', 0)->get();
@@ -3621,5 +3629,13 @@ class RequisitionController extends Controller
 				}
 			}
 		}
+	}
+
+	public function resend_to_zoho($id){
+		$request = RequestEntity::find($id);
+		$request->zoho_id = null;
+		$request->save();
+
+		return redirect()->back()->with('success', 'Retrying Zoho PO creation.');
 	}
 }

@@ -13,4 +13,8 @@ class EntityApproval extends Model implements Auditable
 	{
 		return User::find($this->user_id);
 	}
+	
+	public function entity(){
+		return $this->hasOne(RequestEntity::class, 'id', 'model_id');
+	}
 }

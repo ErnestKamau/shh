@@ -159,12 +159,6 @@
         </table>
     </header>
 
-    @if (isset($is_stamp->id))
-        <div class="stamp-section">
-            <img src="{{ $stamp }}" style="height:160px; z-index:1000;position: relative;" alt="">
-        </div>
-    @endif
-
     <?php
     $printed_title = [];
     $printed_sig = [];
@@ -172,11 +166,10 @@
     
     ?>
     @foreach ($samples as $sample)
-        <div class="footer_signatures" style="background-color:white !important">
+        <div class="footer_signatures" style="background-color:white !important; height: 125px!important; overflow: hidden">
             @if ($batch_approvers->count() > 0)
                 <table style="margin-top: 1px !important;margin-bottom:6px!important;width:100%;">
                     <tr>
-
                         <td style="width:10%"></td>
                         @foreach ($batch_approvers as $approver)
                             <td style="font-size: 8px !important;width:23%">
@@ -197,10 +190,17 @@
                     <tr>
                         <td style="width:10%"></td>
                         @foreach ($batch_approvers as $approver)
-                            <td style="font-size: 8px !important;width:23%">
+                            <td style="font-size: 8px !important;width:23%; position: relative">
+                                @if($loop->last)
+                                    @if (isset($is_stamp->id))
+                                        <div class="stamp-section" style="position: absolute; top:-10px; left: 5px; z-index: 10">
+                                                <img src="{{ $stamp }}" style="height:105px; z-index:1000;position: relative;" alt="">
+                                        </div>
+                                    @endif
+                                @endif
                                 @if (in_array($approver->lab_section_ids,$sample['lab_sect_ids_arr']))
                                     <div class="dotted-line text-align:center"
-                                        style="text-align:center; width:fit-content!important;">
+                                        style="text-align:center;">
                                         <img src="{{ getCoaApproverSignature($approver->getApproverDetails()->electronic_sig) }}"
                                             style="height:48px;z-index:-10;position:relative;" alt="signature">
                                     </div>
@@ -443,6 +443,15 @@
                         </td>
                     </tr>
                 @endif
+                @if ($sample->notes_body != '')
+                    <tr style="margin:0px !important">
+                        <td style="font-size:8px !important;">
+                            <b>Notes : </b>{!! $sample->notes_body !!}
+
+                        </td>
+                    </tr>
+                @endif
+
                 @if ($sample->notes_body != '')
                     <tr style="margin:0px !important">
                         <td style="font-size:8px !important;">

@@ -147,7 +147,7 @@ class RequestEntity extends Model implements Auditable
 	}
 
 	public function currency(){
-		return $this->hasMany(ModulePreConfigs::class);
+		return $this->belongsTo(ModulePreConfigs::class, 'currency');
 	}
 
 	public function pending_approvals(){

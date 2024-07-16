@@ -231,7 +231,7 @@ function getStorageByType($type)
 
 function getAttachmentTypes()
 {
-	return array("Document File", "Image File", "Video File", "GR - Invoice", "GR - Delivery Note", "GR - Credit Note", "Proof of Payment", "Certificate of Analysis");
+	return array("Document File", "Image File", "Video File", "GR - Invoice", "GR - Delivery Note", "GR - Credit Note", "Proof of Payment", "Material Safety Datasheet");
 }
 
 function getRequestPriority()
@@ -374,7 +374,7 @@ function getCurrencies()
 {
 	$config = "Currency";
 	$module = "Inventory-Management";
-	return \App\ModulePreConfigs::where('type', $config)->where('module', $module)->get();
+	return \App\ModulePreConfigs::where('type', $config)->where('module', $module)->orderBy('level', 'desc')->orderBy('name', 'asc')->get();
 }
 
 function getLocations()
@@ -603,12 +603,13 @@ function getDepartments()
 {
 	return App\InventoryDepartment::where('company_id', getUserCompany())
 		->where('location_id', getCurrentUserLocation()->id)
+
 		->orderBy('name', 'asc')->get();
 }
 
-function getModulePreconfig($type, $module)
+function getModulePreconfig($type, $module, $sortBy='name', $sortOrder='asc')
 {
-	return App\ModulePreConfigs::where('type', $type)->where('module', $module)->orderBy('name', 'asc')->get();
+	return App\ModulePreConfigs::where('type', $type)->where('module', $module)->orderBy($sortBy, $sortOrder)->get();
 }
 
 function getSampleWorflowStages()
@@ -1676,7 +1677,9 @@ function getShippingMode()
 
 function getCostCenter()
 {
-	return getDepartments()->pluck('name')->toArray();
+	return App\InventoryDepartment::where('company_id', getUserCompany())
+	->where('location_id', getCurrentUserLocation()->id)->where('module', 'organizational')
+	->orderBy('name', 'asc')->get()->pluck('name')->toArray();
 }
 
 function isUserSomebody($USER)
