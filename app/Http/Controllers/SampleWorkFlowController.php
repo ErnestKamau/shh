@@ -2219,6 +2219,9 @@ class SampleWorkFlowController extends Controller
         foreach ($request->captured_result_id as $cID) {
             $captured = CapturedResult::find($cID);
 
+            $batchid = $captured->sample_header_id;
+            $batch = SampleHeader::find($batchid);
+
             if (isset($request->subcontracted[$cID])) {
                 $captured->analyte_status_contracted = 1;
             } else {
@@ -2241,56 +2244,57 @@ class SampleWorkFlowController extends Controller
             $captured->operator_id = $request->operators[$cID] ?? 0;
             $captured->analyte_code = Analyte::find($captured->analyte_id)->code;
 
-            $captured->remark = $captured->remark_is_manual == 0 ? $request->remark[$cID] : $request->remarkmanual[$cID];
-            $standard_main = Standards::where('code', $request->main_standard[$cID])->first();
-            $sec_standard = Standards::where('code', $request->secondary_standard[$cID])->first();
-            $third_standard = Standards::where('code', $request->third_standard[$cID])->first();
-            if (isset($standard_main->id)) {
-                $main_standard_analyte = StandardAnalytes::where('analyte_id', $captured->analyte_id)->where('standard_id', $standard_main->id)->first();
-                $sec_standard_analyte = isset($sec_standard->id) ? StandardAnalytes::where('analyte_id', $captured->analyte_id)->where('standard_id', $sec_standard->id)->first() : '';
-                $third_standard_analyte = isset($third_standard->id) ? StandardAnalytes::where('analyte_id', $captured->analyte_id)->where('standard_id', $third_standard->id)->first() :'';
-            } else {
-                return redirect()->back()->with('error', 'Kindly set Main and Secondary standard for the following sample!');
-            }
-            // return response()->json($captured->analyte_id);
-            $captured->main_standard_id = isset($main_standard_analyte->id) ? $main_standard_analyte->id : 0;
-            $captured->secondary_standard_id = isset($sec_standard_analyte->id) ? $sec_standard_analyte->id : 0;
-            $captured->third_standard_id = isset($third_standard_analyte->id) ? $third_standard_analyte->id : 0;
-            // return response()->json($request);
-            $captured->main_value = $request->main_value[$cID];
-            if (isset($sec_standard_analyte->id)) {
-                if ($sec_standard_analyte->standard_value_type == 'is_range') {
-                    $captured->secondary_value = $sec_standard_analyte->low.' - '.$sec_standard_analyte->high;
+            if($batch->status == 'Samples In Lab'){
+                $captured->remark = $captured->remark_is_manual == 0 ? $request->remark[$cID] : $request->remarkmanual[$cID];
+                $standard_main = Standards::where('code', $request->main_standard[$cID])->first();
+                $sec_standard = Standards::where('code', $request->secondary_standard[$cID])->first();
+                $third_standard = Standards::where('code', $request->third_standard[$cID])->first();
+                if (isset($standard_main->id)) {
+                    $main_standard_analyte = StandardAnalytes::where('analyte_id', $captured->analyte_id)->where('standard_id', $standard_main->id)->first();
+                    $sec_standard_analyte = isset($sec_standard->id) ? StandardAnalytes::where('analyte_id', $captured->analyte_id)->where('standard_id', $sec_standard->id)->first() : '';
+                    $third_standard_analyte = isset($third_standard->id) ? StandardAnalytes::where('analyte_id', $captured->analyte_id)->where('standard_id', $third_standard->id)->first() :'';
                 } else {
-                    if ($sec_standard_analyte->standard_is_value == '') {
-                        $standard_value = StandardValue::find($sec_standard_analyte->standard_value_id);
-                        $captured->secondary_value = $standard_value->code;
+                    return redirect()->back()->with('error', 'Kindly set Main and Secondary standard for the following sample!');
+                }
+                // return response()->json($captured->analyte_id);
+                $captured->main_standard_id = isset($main_standard_analyte->id) ? $main_standard_analyte->id : 0;
+                $captured->secondary_standard_id = isset($sec_standard_analyte->id) ? $sec_standard_analyte->id : 0;
+                $captured->third_standard_id = isset($third_standard_analyte->id) ? $third_standard_analyte->id : 0;
+                // return response()->json($request);
+                $captured->main_value = $request->main_value[$cID];
+                if (isset($sec_standard_analyte->id)) {
+                    if ($sec_standard_analyte->standard_value_type == 'is_range') {
+                        $captured->secondary_value = $sec_standard_analyte->low.' - '.$sec_standard_analyte->high;
                     } else {
-                        $captured->secondary_value = $sec_standard_analyte->standard_is_value;
+                        if ($sec_standard_analyte->standard_is_value == '') {
+                            $standard_value = StandardValue::find($sec_standard_analyte->standard_value_id);
+                            $captured->secondary_value = $standard_value->code;
+                        } else {
+                            $captured->secondary_value = $sec_standard_analyte->standard_is_value;
+                        }
                     }
+                } else {
+                    $captured->secondary_value = '-';
                 }
-            } else {
-                $captured->secondary_value = '-';
-            }
-            if(isset($third_standard_analyte->id)){
-                if ($third_standard_analyte->standard_value_type == 'is_range'){
-                    $captured->third_value = $third_standard_analyte->low.' - '.$third_standard_analyte->high;
-                }else{
-                    if($third_standard_analyte->standard_is_value == ''){
-                        $standard_value = StandardValue::find($third_standard_analyte->standard_value_id);
-                        $captured->third_value = $standard_value->code;
+                if(isset($third_standard_analyte->id)){
+                    if ($third_standard_analyte->standard_value_type == 'is_range'){
+                        $captured->third_value = $third_standard_analyte->low.' - '.$third_standard_analyte->high;
                     }else{
-                        $captured->third_value = $third_standard_analyte->standard_is_value;
+                        if($third_standard_analyte->standard_is_value == ''){
+                            $standard_value = StandardValue::find($third_standard_analyte->standard_value_id);
+                            $captured->third_value = $standard_value->code;
+                        }else{
+                            $captured->third_value = $third_standard_analyte->standard_is_value;
+                        }
                     }
+                }else{
+                    $captured->third_value = '-';
                 }
-            }else{
-                $captured->third_value = '-';
             }
             // return response()->json($captured,200);
             $captured->save();
             // return response()->json($captured);
-            $batchid = $captured->sample_header_id;
-            $batch = SampleHeader::find($batchid);
+            
             $sample_detail = getSampleDetailById($captured->sample_detail_id);
             $sample_detail->ammendment_number = $batch->is_amendment;
             $sample_detail->save();

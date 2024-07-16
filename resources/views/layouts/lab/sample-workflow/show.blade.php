@@ -2645,14 +2645,14 @@
 								<span class="bg-red analytes-without-results-count small-badge">0</span> Missing Results
 							</span>
 							
-							@if(isset($batch->status) &&  $batch->status == "Samples In Lab")
+							@if(isset($batch->status) &&  in_array($batch->status,['Samples In Lab','Sample Approval']))
 								<button class="btn btn-sm btn-primary float-right"><i class="mdi mdi-content-save"></i> Save</button>
 							@endif
 							@if(isset($batch->status) && in_array($batch->status,array('Samples Reception','Samples Request Review','Samples En-Route')))
 								<a href="/sample-workflow/batch/{{$batch->id}}/details" class="btn btn-outline-primary float-right btn-sm"><i class="mdi mdi-content-save"></i> Save</a>
 								<span class="btn btn-sm btn-outline-warning float-right mr-2" id="delete-parameter"><i class="mdi mdi-delete-empty"></i> Delete</span>
 							@endif
-							@if(isset($batch->status) && in_array($batch->status,array('Samples Reception','Samples Request Review','Samples En-Route','Samples In Lab')))
+							@if(isset($batch->status) && in_array($batch->status,array('Samples Reception','Samples Request Review','Samples En-Route','Samples In Lab','Sample Approval')))
 							<span class="btn btn-sm btn-outline-dark float-right mr-2" id="change-section"><i class="mdi mdi-compare-vertical"></i> Change Section</span>
 							@endif
 							@endif
@@ -5134,7 +5134,7 @@
 				<td  nowrap>${data.analysis_type.code}</td>
 				<td  nowrap><input type="hidden" name="captured_result_id[]" value="${data.id}">${data.analyte_name}</td>
 				@if(Auth::user()->is_client == 0)
-				<td><input type="text" {{isset($batch->status) && $batch->status != 'Samples In Lab' ? 'disabled' : ''}} name="result_reporting_symbol[${data.id}]" id="reporting-symbol" placeholder="Reporting Symbol..." value="${data.result_reporting_symbol == null ? '' :data.result_reporting_symbol }" ></td>
+				<td><input type="text" {{isset($batch->status) && !in_array($batch->status,['Samples In Lab','Sample Approval']) ? 'disabled' : ''}} name="result_reporting_symbol[${data.id}]" id="reporting-symbol" placeholder="Reporting Symbol..." value="${data.result_reporting_symbol == null ? '' :data.result_reporting_symbol }" ></td>
 				<td>
 					<div class="form-group">
 						<input {{isset($batch->status) && $batch->status != 'Samples In Lab' ? 'disabled' : ''}} id="${data.sample_detail_code},${data.analyte_id},${data.id},${data.analyte_id}" data-resultid="${data.sample_detail_code},${data.analyte_id},${data.id},${data.analyte_id}" style="min-width: 150px" type="text"

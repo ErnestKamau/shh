@@ -84,7 +84,7 @@ $items = array(
     <div class="table-responsive bg-light p-4">
 
         <b><u>Apply Filters?</u></b>
-        <form action="/sample-workflow/Finished Sample" class="mb-4" method="get">
+        <form action="{{route('lab-report-tat')}}" class="mb-4" method="get">
             <div class="row mt-2 p-2 bg-white">
                 <div class="col-md-4">
                     <div class="form-group">
@@ -184,7 +184,7 @@ $items = array(
                         <td class="{{$tat->tat_date > $tat->finished_date ? 'text-success' : 'text-danger'}}">
                             {{$tat->tat_date > $tat->finished_date ? '-' . $tat->tat_overdue_days : '+' . $tat->tat_overdue_days }}
                         </td>
-                        <td>{{$tat->analyst->name}}</td>
+                        <td>{{$tat->analyst_name}}</td>
                         <td
                             class="{{$tat->tat_remark == 4 ? 'bg-warning' : ''}} {{$tat->tat_remark == 5 ? 'bg-danger' : ''}}">
                             {{getTatRemark($tat->tat_remark)}}</td>
