@@ -2239,12 +2239,12 @@ class SampleWorkFlowController extends Controller
             $captured->reporting_unit_id = $request->reporting_unit[$cID] ?? 10013;
             $captured->measure_uncertanity = $request->measure_uncertanity[$cID] ?? 0;
             $captured->method_id = $request->method_id[$cID] ?? '';
-            $captured->result = $request->result[$cID] ?? '';
             $captured->result_reporting_symbol = $request->result_reporting_symbol[$cID] ?? '';
             $captured->operator_id = $request->operators[$cID] ?? 0;
             $captured->analyte_code = Analyte::find($captured->analyte_id)->code;
-
+            
             if($batch->status == 'Samples In Lab'){
+                $captured->result = $request->result[$cID] ?? '';
                 $captured->remark = $captured->remark_is_manual == 0 ? $request->remark[$cID] : $request->remarkmanual[$cID];
                 $standard_main = Standards::where('code', $request->main_standard[$cID])->first();
                 $sec_standard = Standards::where('code', $request->secondary_standard[$cID])->first();
