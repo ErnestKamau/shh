@@ -443,14 +443,6 @@
                         </td>
                     </tr>
                 @endif
-                @if ($sample->notes_body != '')
-                    <tr style="margin:0px !important">
-                        <td style="font-size:8px !important;">
-                            <b>Notes : </b>{!! $sample->notes_body !!}
-
-                        </td>
-                    </tr>
-                @endif
 
                 @if ($sample->notes_body != '')
                     <tr style="margin:0px !important">
