@@ -4722,7 +4722,7 @@ Issuance"]))
 
 				var addedAcc = $this.data('account');
 				var itemAccount = $this.parents('td').find('select').not('.selected-item');
-				itemAccount.val(trim(addedAcc) == '' ? js.account_id : addedAcc).trigger('change');
+				itemAccount.val($.trim(addedAcc) == '' ? js.account_id : addedAcc).trigger('change');
 
 				$.each(brands, function(j,s){
 					var $op = $(`<option value="${s.id}">${s.name}</option>`);

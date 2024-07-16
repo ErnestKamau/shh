@@ -9,7 +9,6 @@ class RequestEntityItem extends Model implements Auditable
 {
 	use \OwenIt\Auditing\Auditable;
 	// protected $with = ['sub_category'];
-
 	public function pending(){
 		$requestEntity = RequestEntity::find($this->request_id);
 		$siblingEntityIds = RequestEntity::where('parent_request_id', $requestEntity->id)

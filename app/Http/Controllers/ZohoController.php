@@ -40,11 +40,12 @@ class ZohoController extends Controller
 		$this->url = "www.zohoapis.com/books/v3/";
 		$this->clientID = "1000.AZFK87K8IRT2QCIOIF3I6RUV0XBZNC";
 		$this->clientSecret = "24daaa8599526522b4e0cfb012bb94b127ffe0b4e9";
-		$this->refresh = "1000.c9638189c2876422d190884369a71cb6.4b3c94e0c657d5a03e68de763499dc10";
+		$this->refresh = "1000.b724aa4d4a7c438d12de6309a6124e79.7141aca357b23fb1130594de25dc0173";
 		$this->refreshUrl = "http://172.16.16.252:8080/zoho-auth-redirect";
 
 		$this->authClient = new Client([
 			'base_uri' => 'https://accounts.zoho.com/oauth/v2/',
+			'verify' => false,
 			'headers' => [
 				'Content-Type' => 'application/json',
 			],
@@ -53,6 +54,7 @@ class ZohoController extends Controller
 		$this->token = $this->getToken();
 		$this->client = new Client([
 			'base_uri' => $this->url,
+			'verify' => false,
 			'headers' => [
 				'Authorization' => 'Zoho-oauthtoken ' . $this->token,
 				'Content-Type' => 'application/json',
@@ -89,7 +91,7 @@ class ZohoController extends Controller
 			'redirect_uri' => $this->refreshUrl,
 			'grant_type' => 'refresh_token',
 		];
-
+		$responseBody = null;
 		try {
 			$response = $this->authClient->post('token', [
 				'form_params' => $data,
@@ -103,7 +105,7 @@ class ZohoController extends Controller
 			]);
 			return $responseBody['access_token'];
 		} catch (\Exception $e) {
-			return response()->json(['error' => 'Failed to refresh token', 'message' => $e->getMessage()], 500);
+			return response()->json(['error' => 'Failed to refresh token', 'message' => [$e->getMessage(), $responseBody]], 500);
 		}
 	}
 
@@ -121,6 +123,7 @@ class ZohoController extends Controller
 				$response = $this->get('purchaseorders', [
 					'query' => [
 						'organization_id' => $this->orgID,
+						'purchaseorder_number' => $number
 					],
 				]);
 			} catch (ClientException $e) {
@@ -274,7 +277,7 @@ class ZohoController extends Controller
 			if ($type == "currencies") {
 				return $this->sync_zoho_currencies();
 			}
-		} catch (Exception $e) {
+		} catch (\Exception $e) {
 			throw new Error($e->getMessage());
 		}
 	}
@@ -294,6 +297,7 @@ class ZohoController extends Controller
 		// throw new Error(json_encode($items));
 
 		$zItems = $items['items'];
+		$pref = "IM";
 
 		foreach ($zItems as $c) {
 			$itemExists = InventorySubCategories::where(function ($query) use ($c) {
@@ -307,8 +311,27 @@ class ZohoController extends Controller
 
 			$itemExists->name = $c['name'];
 			$itemExists->description = $c['description'];
+			$itemExists->zoho_account_id = $c['purchase_account_id'];
 			$itemExists->unit_price = $c['rate'];
 			$itemExists->zoho_item_code = $c['item_id'];
+			$itemExists->unit_type = "Piece(s)";
+			$itemExists->secondary_unit_type = "Piece(s)";
+			$itemExists->delivery_days = 2;
+			$itemExists->internal_lead_time = 2;
+			$itemExists->external_lead_time = 2;
+			$itemExists->location_id = 3;
+			$itemExists->company_id = 1;
+			$itemExists->annual_consumption = 365;
+			$itemExists->item_classification = $c['product_type'] == 'goods' ? 1 : 3;
+			$itemExists->estimated_variation_in_demand_average_consumption = 10;
+			$itemExists->maximum_order_quantity = 50;
+			$itemExists->reaorder_level = 1;
+			$itemExists->requires_reorder = 1;
+			$itemExists->active = 1;
+			$itemExists->minimum_level = 1;
+			$itemExists->inventory_category_id = 3;
+			$itemExists->code = getNamingConventionCode("SubCategories", false, $pref);
+
 			$itemExists->save();
 		}
 
@@ -360,8 +383,6 @@ class ZohoController extends Controller
 				'organization_id' => $this->orgID,
 			],
 		]);
-
-		\Log::warning($response);
 
 		$data = json_decode($response, true);
 		$lists = $single ? $data[$single] : $data[$things];
