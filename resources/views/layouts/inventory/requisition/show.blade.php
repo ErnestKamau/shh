@@ -459,8 +459,7 @@
 			@endif
 			@endif
 			@endif
-			@if (in_array($request->status,["Approval Complete", "Items Issued Out"]) && in_array($stage,["Request to
-			Store"]))
+			@if (in_array($request->status,["Approval Complete", "Items Issued Out"]) && in_array($stage,["Request to Store"]))
 			<?php
 						$hasMI = issue_received_complete($request->id);
 					?>
@@ -937,7 +936,7 @@
 													$req_item->item_name }}</option>
 											</select>
 											<div style="padding:3px 2px">Account</div>
-											<select name="items[item_account_id][]" style="min-width: 200px; font-size: 12px; margin-top: 5px" class="form-control" placeholder="Select Acoount..." required>
+											<select {{ $readonly ? "disabled" : "" }} name="items[item_account_id][]" style="min-width: 200px; font-size: 12px; margin-top: 5px" class="form-control" placeholder="Select Acoount..." required>
 												<option value="">Select Account...</option>
 												@foreach ($accounts as $acc)
 													<option value="{{ $acc->account_id }}" {{ $req_item->item_account_id == $acc->account_id ? "selected" : "" }}><small>({{ clear_underscore($acc->type) }}) {{ $acc->name }}</small></option>
@@ -4585,7 +4584,7 @@ Issuance"]))
 
 				var addedAcc = $this.data('account');
 				var itemAccount = $this.parents('td').find('select').not('.selected-item');
-				itemAccount.val(trim(addedAcc) == '' ? js.account_id : addedAcc).trigger('change');
+				itemAccount.val($.trim(addedAcc) == '' ? js.account_id : addedAcc).trigger('change');
 
 				$.each(brands, function(j,s){
 					var $op = $(`<option value="${s.id}">${s.name}</option>`);

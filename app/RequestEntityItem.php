@@ -9,7 +9,18 @@ class RequestEntityItem extends Model implements Auditable
 {
 	use \OwenIt\Auditing\Auditable;
 	// protected $with = ['sub_category'];
-	public function pending(){	
+	public function pending(){
+		$requestEntity = RequestEntity::find($this->request_id);
+		$siblingEntityIds = RequestEntity::where('parent_request_id', $requestEntity->id)
+			->whereNotIn('status', ['Reversed', 'Rejected'])->pluck('id');
+
+			$quantityIssued = RequestEntityItem::whereIn('request_id', $siblingEntityIds)->where('action', 'normal')
+				->where('inventory_sub_category_id', $this->inventory_sub_category_id)
+				->selectRaw('sum(quantity) as quantity')->pluck('quantity');
+		return floatval($quantityIssued[0] ?? 0);
+	}
+
+	public function pending2(){	
 		$action = "issued_received";
 
 		$parentEntity = RequestEntity::find($this->request_id);

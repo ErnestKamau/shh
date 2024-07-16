@@ -895,7 +895,7 @@ class RequisitionController extends Controller
 				$purchaseOrder->request_code = getNamingConventionCode("Purchase Orders", false, "PO");
 				$purchaseOrder->parent_request_id = $entity->id;
 				$purchaseOrder->request_type = "Purchase Orders";
-				$purchaseOrder->status = in_array($quote->supplier_id, $split_suppliers) ? "In Preparation" : "Awaiting Approval";
+				$purchaseOrder->status = "In Preparation";
 				$purchaseOrder->approval_status = "";
 				$purchaseOrder->supplier_id = $quote->supplier_id;
 				$purchaseOrder->created_by = \Auth::user()->id;
@@ -1040,7 +1040,6 @@ class RequisitionController extends Controller
 				$this->send_creation_email($purchaseOrder, [], true, true, true);
 			}
 		}
-
 
 		// foreach($firstTime as $fT){
 		// 	$REQ = new Request;
