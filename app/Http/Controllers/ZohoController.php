@@ -196,7 +196,9 @@ class ZohoController extends Controller
 		]);
 
 		$zItem = json_decode($response, true);
-
+		if(!isset($zItem['purchaseorder'])){
+			return ['error'=>$zItem['message']];
+		}
 		$requestEntity->zoho_id = $zItem['purchaseorder']['purchaseorder_id'];
 		$requestEntity->save();
 

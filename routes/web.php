@@ -872,6 +872,7 @@ Route::get('/zoho-get-things', 'ZohoController@sync_zoho_things')->name('zoho-sy
 Route::get('/zoho-sync-coa', 'ChartOfAccountController@synchronize')->name('zoho-sync-coa');
 Route::get('/zoho-sync-all/{type}','ZohoController@sync_all')->name('zoho-sync-all');
 Route::get('/zoho-authenticate', 'ZohoController@authenticate')->name('zoho-authenticate');
+Route::get('/recreate-purchase-order/{id}', 'RequisitionController@resend_to_zoho')->name('recreate-purchase-order');
 // Route::get('/zoho-purchase-orders','ZohoController@getPurchaseOrders')->name('zoho-purchase-orders');
 ###############################################ZOHO INTEGRATION#######################################
 

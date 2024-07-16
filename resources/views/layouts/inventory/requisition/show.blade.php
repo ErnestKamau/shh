@@ -432,14 +432,16 @@
 			@endif
 			@endif
 
-			@if(trim($request->email_body) != "")
-			<span class="btn btn-default text-success float-right btn-sm" data-target="#Send-RFQ-modal" data-toggle="modal">
-				<i class="fas fa-eye"></i> Preview Email Body
-			</span>
-			@else
-			<span class="btn btn-default text-info float-right btn-sm" data-target="#Send-RFQ-modal" data-toggle="modal">
-				<i class="fas fa-plus"></i> Add Email Body
-			</span>
+			@if ($stage == "Request for Quotation")
+				@if(trim($request->email_body) != "")
+					<span class="btn btn-default text-primary float-right btn-sm" data-target="#Send-RFQ-modal" data-toggle="modal">
+						<i class="fas fa-eye"></i> Preview Email Body
+					</span>
+				@else
+					<span class="btn btn-default text-info float-right btn-sm" data-target="#Send-RFQ-modal" data-toggle="modal">
+						<i class="fas fa-plus"></i> Add Email Body
+					</span>
+				@endif
 			@endif
 
 			@if ($stage == "Request for Quotation" && $request->supplier_rfqs()->count() > 0)
@@ -514,8 +516,23 @@
 	@endif
 	@if($hasExceeded && isset($request->status) && in_array($request->status, ['In Preparation', 'Awaiting Approval']))
 	<div class="alert alert-danger" style="font-size: 18px; display:flex; align-items: center; justify-content: center">
-		<i class="mdi mdi-alert" style="font-size: 24px"></i> &nbsp;&nbspSome items in your request exceed the available
+		<i class="mdi mdi-alert" style="font-size: 24px"></i> &nbsp;&nbsp;Some items in your request exceed the available
 		quantity. Please adjust the requested quantities or create a new Purchase Request.
+	</div>
+	@endif
+	@php($zerrors = json_decode(trim($request->errors ?? "") == "" ? '[]' : $request->errors, true))
+	@if(count(empty($request->errors ?? null) ? [] : $zerrors) > 0)
+	<div class="alert alert-danger" style="font-size: 12px;">
+		<h6><i class="mdi mdi-alert"></i> Integration Error:</h6>
+		<br>
+		<ul>
+			@foreach ($zerrors as $err)
+				<li>{{ $err }}</li>
+			@endforeach
+		</ul>
+		<div class="pv-2 pl-0 text-small text-primary">
+			<a href="{{ route('recreate-purchase-order', $request->id ?? 0) }}"><i class="fas fa-sync"></i> Retry creating the Purchase Order on Zoho...</a>
+		</div>
 	</div>
 	@endif
 	<form id="details-form" class="bg-light" method="POST" enctype="multipart/form-data" action=""
@@ -3022,7 +3039,7 @@ Issuance"]))
 		<div class="modal-content">
 			@csrf
 			<div class="modal-header">
-				<h5 class="modal-title"><i class="mdi mdi-text"></i> Configure Email Body</h5>
+				<h5 class="modal-title"><i class="mdi mdi-cog"></i> Configure Email Body</h5>
 			</div>
 			<div class="modal-body">
 				<div class="col-xs-12">
@@ -3062,25 +3079,25 @@ Issuance"]))
 				<table style="border-collapse: collapse;">
 					<thead>
 						<tr style="border: 1px solid #999">
-							<th style="border: 1px solid #999">No.</th>
-							<th style="border: 1px solid #999">RFQ Code</th>
-							<th style="border: 1px solid #999">Item Code</th>
-							<th style="border: 1px solid #999">Description</th>
-							<th style="border: 1px solid #999">Comments</th>
-							<th style="border: 1px solid #999">Quantity</th>
+							<th style="border: 1px solid #999; padding:2px">No.</th>
+							<th style="border: 1px solid #999; padding:2px">RFQ Code</th>
+							<th style="border: 1px solid #999; padding:2px">Item Code</th>
+							<th style="border: 1px solid #999; padding:2px">Description</th>
+							<th style="border: 1px solid #999; padding:2px">Comments</th>
+							<th style="border: 1px solid #999; padding:2px">Quantity</th>
 						</tr>
 					</thead>
 					<tbody>
 						@foreach ($normalItems ?? array() as $req_item)
 							<tr style="border: 1px solid #999">
-								<td style="border: 1px solid #999">{{ $loop->iteration }}</td>
-								<td style="border: 1px solid #999">{{ $request->request_code }}</td>
-								<td style="border: 1px solid #999">{{ $req_item->sub_category->code }}</td>
-								<td style="border: 1px solid #999">{{ $req_item->sub_category->name }}
+								<td style="border: 1px solid #999; padding:2px">{{ $loop->iteration }}</td>
+								<td style="border: 1px solid #999; padding:2px">{{ $request->request_code }}</td>
+								<td style="border: 1px solid #999; padding:2px">{{ $req_item->sub_category->code }}</td>
+								<td style="border: 1px solid #999; padding:2px">{{ $req_item->sub_category->name }}
 									<br>{{ $request->comments }}
 								</td>
-								<td style="border: 1px solid #999">{{ $req_item->comments }}</td>
-								<td style="border: 1px solid #999">{{ number_format($req_item->quantity, 3) }} <small>({{ $req_item->uom }})</small></td> 
+								<td style="border: 1px solid #999; padding:2px">{{ $req_item->comments }}</td>
+								<td style="border: 1px solid #999; padding:2px">{{ number_format($req_item->quantity, 3) }} <small>({{ $req_item->uom }})</small></td> 
 							</tr>
 						@endforeach
 					</tbody>
@@ -3508,12 +3525,14 @@ Issuance"]))
 <div id="data-attr-holder" class="hidden" data-stores="{{ json_encode($allStores) }}"></div>
 @if($stage == "Request for Quotation")
 	<script type="text/javascript" src="/tinymce/tinymce.min.js"></script>
+	<script type="text/javascript">
+		tinymce.init({
+			selector: 'textarea.editor',
+			height: 315
+		});
+	</script>
 @endif
 <script>
-	tinymce.init({
-		selector: 'textarea.editor',
-		height: 200
-	});
 	var EmailsWithIssues = {};
 		var markCompleted = $(`<input type="hidden" name="get_approval" value="1" />`);
 		var getQuoteAcceptModalBody = function(){
@@ -3568,7 +3587,7 @@ Issuance"]))
 				$('#rfq-body-preview').slideDown(0);
 			@endif
 			$('#edit-body-preview').on('click', function(){
-				if(isAlreadyInPreview){
+				if(!isAlreadyInPreview){
 					$('#rfq-body-editor').slideUp(0);
 					$('#rfq-body-preview').slideDown(0);
 					$('#edit-body-preview').html(`<i class="fas fa-edit"></i> Edit Body`);
