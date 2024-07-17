@@ -71,6 +71,94 @@
 		padding: 5px;
 		color: #34f;
 	}
+	input[type="range"] {
+			-webkit-appearance: none;
+			-moz-appearance: none;
+			width: 300px;
+			height: 5px;
+			padding: 0;
+			border-radius: 2px;
+			outline: none;
+			cursor: pointer;
+		}
+
+
+		/*Chrome thumb*/
+
+		input[type="range"]::-webkit-slider-thumb {
+			-webkit-appearance: none;
+			-moz-appearance: none;
+			-webkit-border-radius: 5px;
+			/*16x16px adjusted to be same as 14x14px on moz*/
+			height: 16px;
+			width: 16px;
+			border-radius: 5px;
+			background: #e7e7e7;
+			border: 1px solid #c5c5c5;
+		}
+
+
+		/*Mozilla thumb*/
+
+		input[type="range"]::-moz-range-thumb {
+			-webkit-appearance: none;
+			-moz-appearance: none;
+			-moz-border-radius: 5px;
+			height: 14px;
+			width: 14px;
+			border-radius: 5px;
+			background: #e7e7e7;
+			border: 1px solid #c5c5c5;
+		}
+
+
+		/*IE & Edge input*/
+
+		input[type=range]::-ms-track {
+			width: 300px;
+			height: 6px;
+			/*remove bg colour from the track, we'll use ms-fill-lower and ms-fill-upper instead */
+			background: transparent;
+			/*leave room for the larger thumb to overflow with a transparent border */
+			border-color: transparent;
+			border-width: 2px 0;
+			/*remove default tick marks*/
+			color: transparent;
+		}
+
+
+		/*IE & Edge thumb*/
+
+		input[type=range]::-ms-thumb {
+			height: 14px;
+			width: 14px;
+			border-radius: 5px;
+			background: #e7e7e7;
+			border: 1px solid #c5c5c5;
+		}
+
+
+		/*IE & Edge left side*/
+
+		input[type=range]::-ms-fill-lower {
+			background: #919e4b;
+			border-radius: 2px;
+		}
+
+
+		/*IE & Edge right side*/
+
+		input[type=range]::-ms-fill-upper {
+			background: #c5c5c5;
+			border-radius: 2px;
+		}
+
+
+		/*IE disable tooltip*/
+
+		input[type=range]::-ms-tooltip {
+			display: none;
+		}
 </style>
 @endsection
 @section('content2')
@@ -634,10 +722,18 @@
 								$score = $ratingScores[$gSRC->id] ?? 0;
 								$scorePerc = $score/$gSRC->max_score*100;
 								$mRatingColor = supplierRatingColorFromScore($scorePerc);
+
+								$guideTitle = '';
+
+								foreach($gSRC->guides as $gd){
+									if(floatval($score) >= $gd->lower_value && floatval($score) <= $gd->upper_value){
+										$guideTitle = $gd->title;
+									}
+								}
 							?>
 							<div class="mt-1 mb-1">
 								<div class="pt-1 pb-1" style="clear: both">
-									<h6>{{ $gSRC->title }}</h6>
+									<h6>{{ $gSRC->title }} <small class="badge badge-pill badge-primary">{{ $guideTitle }}</small></h6>
 								</div>
 								<div class="progress">
 									<div class="progress-bar progress-bar-striped {{ $mRatingColor }}" role="progressbar"
@@ -2043,15 +2139,17 @@
 			<div class="modal-body">
 				@foreach (getSupplierRatingCriteria() as $gSRC)
 				<?php
-						$c_score = $ratingScores[$gSRC->id] ?? 0;
-						$scorePerc = $c_score/$gSRC->max_score*100;
-					?>
+					$c_score = $ratingScores[$gSRC->id] ?? 0;
+					$scorePerc = $c_score/$gSRC->max_score*100;
+					$guidesOBJ = $gSRC->guides;
+				?>
 				<div class="form-group">
-					<h6 style="width: 100%" for="crit-{{ $gSRC->id }}">{{ $gSRC->title }} <span
+					<h6 style="width: 100%" for="crit-{{ $gSRC->id }}">{{ $gSRC->title }} 
+						<span
 							class="badge badge-pill badge-info float-right">0</span></h6>
-					<input style="width: 100%" type="range" step="0.1" value="{{ $c_score }}" name="criteria[{{ $gSRC->id }}]"
-						class="form-range" min="0" max="{{ $gSRC->max_score }}" id="crit-{{ $gSRC->id }}">
-
+						<input style="width: 100%" type="range" step="0.1" value="{{ $c_score }}" name="criteria[{{ $gSRC->id }}]"
+						class="form-range" min="0" max="{{ $gSRC->max_score }}" id="crit-{{ $gSRC->id }}" data-guides="{{ $guidesOBJ }}">
+						<div><i class="fas fa-star" style="font-size:11px"></i> <small class="badge badge-default guide-title"></small></div>
 					<input type="hidden" name="request_id" value="{{ $request->id ?? 0 }}" />
 				</div>
 				@endforeach
@@ -4122,6 +4220,35 @@ Issuance"]))
 				else{
 					fileField.addClass('hide');
 				}
+			});
+
+			
+			$('.form-range').on('change', function(){
+				var $rat = parseFloat($(this).val()).toFixed(1);
+				var max_score = parseFloat($(this).attr('max'));
+				let guides = $(this).data('guides');
+
+				let guideLabel = $(this).parent().find('.guide-title');
+				
+				guides.forEach(element => {
+					if(element.lower_value){
+						if($rat >= element.lower_value && $rat <= element.upper_value){
+							guideLabel.text(element.title);
+						}
+					}
+				});
+
+				var $rating = $rat/max_score*100;
+
+				var $cls = $rating == 100 ? 'bg-success' : ($rating < 100 && $rating > 60 ?
+				'bg-info' : ($rating <= 60 && $rating > 35 ? 'bg-warning' : 'bg-danger'));
+
+				console.log($cls, $rating, $rat, max_score);
+
+				$(this).removeClass('bg-success bg-info bg-warning bg-danger');
+				$(this).addClass($cls);
+
+				$(this).parents('.form-group').find('h6').find('.badge').text($rat+"/"+max_score);
 			});
 
 			$('#update-supplier-criteria-rating-modal').on('show.bs.modal', function(e){

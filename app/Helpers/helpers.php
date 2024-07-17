@@ -231,7 +231,7 @@ function getStorageByType($type)
 
 function getAttachmentTypes()
 {
-	return array("Document File", "Image File", "Video File", "GR - Invoice", "GR - Delivery Note", "GR - Credit Note", "Proof of Payment", "Material Safety Datasheet");
+	return array("Document File", "Image File", "Video File", "GR - Invoice", "GR - Delivery Note", "GR - Credit Note", "Proof of Payment", "Material Safety Datasheet", "Supplier Item Specification File");
 }
 
 function getRequestPriority()
@@ -270,7 +270,7 @@ function getCurrency()
 
 function getNoteTypes()
 {
-	return array("Rejection", "General Note", "Supplier Awarded");
+	return array("Rejection", "General Note", "Supplier Awarded", "Delivery Rating");
 }
 
 function getStageApprovals($type, $entity)

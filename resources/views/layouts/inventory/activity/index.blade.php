@@ -108,7 +108,7 @@
 				@foreach ($items as $item)
 					<tr>
 						<td>{{ $loop->iteration }}</td>
-						<td nowrap>{{ $item->req_date }}</td>
+						<td nowrap>{{ $item->req_date ?? $item->created_at }}</td>
 						<td nowrap>{{ $item->sap_code }}</td>
 						<td nowrap>{{ $item->sub_category }}</td>
 						<td nowrap>{{ $item->code }}</td>

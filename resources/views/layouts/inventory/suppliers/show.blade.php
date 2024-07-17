@@ -794,11 +794,21 @@
 				</div>
 				<div class="form-group">
 					<label class="control-label">Title</label>
-					<input type="text" class="form-control" name="title" placeholder="Title" />
+					<input type="text" class="form-control" name="title" placeholder="Title" required/>
 				</div>
 				<div class="form-group">
 					<label class="control-label">Max Score</label>
-					<input type="number" min="0" class="form-control" name="max_score" placeholder="Max Score..." />
+					<input type="number" min="0" class="form-control" name="max_score" placeholder="Max Score..." required />
+				</div>
+				<div class="py-2">
+					<h6><i class="fas fa-info-circle"></i> Criteria Guides</h6>
+					<div class="criteria-guides"></div>
+					<div class="py-2">
+						<span class="btn btn-block btn-outline-primary add-guide-btn"><i class="fas fa-plus"></i> Add Guide</span>
+					</div>
+					<div class="error-guide" class="py-2 alert alert-warning">
+						<i class="fas fa-exclamation-triangle"></i> You can not create guides above the max score. Please increase max score. 
+					</div>
 				</div>
 			</div>
 			<div class="modal-footer">
@@ -829,6 +839,16 @@
 				<div class="form-group">
 					<label class="control-label">Max Score</label>
 					<input type="number" min="0" class="form-control" name="max_score" placeholder="Max Score..." />
+				</div>
+				<div class="py-2">
+					<h6><i class="fas fa-info-circle"></i> Criteria Guides</h6>
+					<div class="criteria-guides"></div>
+					<div class="py-2">
+						<span class="btn btn-block btn-outline-primary add-guide-btn"><i class="fas fa-plus"></i> Add Guide</span>
+					</div>
+					<div class="error-guide" class="py-2 alert alert-warning">
+						<i class="fas fa-exclamation-triangle"></i> You can not create guides above the max score. Please increase max score. 
+					</div>
 				</div>
 				<div class="form-group">
 					<label class="control-label"><input type="checkbox" name="active" checked="true" /> Is Active?</label>
@@ -1001,14 +1021,59 @@
 	</div>
 </div> --}}
 <script>
-
-
 	$(function(){
+		var guideRow = function (data=null, ind, guideLimit, id=null){
+			console.log(data, ind, guideLimit, id);
+			let rw = $(`<div class="row guide-row my-1 no-gutter no-gutters">
+				<div class="col-sm-6 pr-1">
+					<small><b>Title</b></small>
+					<input type="text" value="${ data ? data.title : '' }" class="form-control form-control-sm" name="guide[${ind}][title]" placeholder="Guide Title..." required />
+					<small class="py-1 text-danger text-underline remove-row" style="cursor:pointer">Remove Row</small>
+				</div>	
+				<div class="col-sm-3 pr-1">
+					<small><b>Lower Score</b></small>
+					<input type="number" value="${ data ? data.lower_value : '0' }" readonly step="any" class="form-control form-control-sm" name="guide[${ind}][lower_value]" placeholder="Lower Value..." required />
+				</div>	
+				<div class="col-sm-3">
+					<small><b>Upper Score</b></small>
+					<input type="number" step="any" max="${guideLimit}" value="${ data ? data.upper_value : '0' }" class="form-control form-control-sm upper" name="guide[${ind}][upper_value]" placeholder="Upper Value..." required />
+				</div>	
+			</div>`).clone();
+
+			rw.on('click', '.remove-row', function(){
+				$(this).parents('.guide-row').delete();
+			});
+
+			if(id){
+				rw.append(`<input type="hidden" name="guide[${ind}]id" value="${id ? id : ''}" />`);
+			}
+
+			return rw;
+		}
 		//triggered when edit-an-order modal is about to be shown
 		$('#view-image-large').on('show.bs.modal', function(e){
 			var img = $(e.relatedTarget).data('img');
 
 			$(this).find('.modal-body').html(`<img src="${img}" style="width:100%" />`);
+		});
+
+		$('.error-guide').hide(0);
+
+		$('.add-guide-btn').on('click', function(){
+			let ind = $(this).parents('form').find('.criteria-guides').find('.guide-row').length;
+			let upperLast = $(this).parents('form').find('.criteria-guides').find('.guide-row:last-child').find('.upper').val();
+
+			let lastUpperVal = parseFloat(upperLast) > 0 ? parseFloat(upperLast) : 0;
+			let guideLimit = $(this).parents('form').find('[name="max_score"]').val();
+
+			if(lastUpperVal >= guideLimit){
+				$(this).parents('form').find('.error-guide').show();
+			}
+			else{
+				$(this).parents('form').find('.error-guide').hide(0);
+				let row = guideRow({title:'', lower_value: lastUpperVal, upper_value:parseFloat(guideLimit)}, ind-1, guideLimit);
+				$(this).parents('form').find('.criteria-guides').append(row);
+			}
 		});
 
 		$('.form-range').on('change', function(){
@@ -1056,7 +1121,17 @@
 		$('#edit-rating-criteria-modal').on('show.bs.modal', function(e){
 			var criteria = $(e.relatedTarget).data('criteria');
 
+			var guidesDIV = $(this).find('.criteria-guides');
+
 			var form = $(this).find('form');
+			let guides = criteria.guides;
+
+			let guideLimit = $(this).find('[name="max_score"]').val();
+
+			guides.forEach((element, ind) => {
+				let row = guideRow({title: element.title, lower_value: element.lower_value, upper_value: element.upper_value }, ind, guideLimit, element.id);
+				guidesDIV.append(row);
+			});
 
 			form.find('[name="title"]').val(criteria.title);
 			form.find('[name="max_score"]').val(criteria.max_score);
