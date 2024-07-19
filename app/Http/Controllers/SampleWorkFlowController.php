@@ -4640,7 +4640,7 @@ class SampleWorkFlowController extends Controller
     public function getTatDelayedSample(){
         $date = \Carbon\Carbon::now();
         $date->addDays(1);
-        $headers  = SampleDate::join('sample_headers as s','s.id','=','sample_dates.sample_header_id')->where('sample_dates.date','<=',$date)->whereIn('s.status',["Samples En-Route", "Samples Reception", "Samples Request Review", "Samples In Lab", "Sample Verification", "Sample Approval"])->where('name','Target Date')->selectRaw('s.*,sample_dates.date as tat_date,date(sample_dates.date) < date(now()) as is_late,date(sample_dates.date) = date(now()) as is_today')->get();
+        $headers  = SampleDate::join('sample_headers as s','s.id','=','sample_dates.sample_header_id')->where('sample_dates.date','<=',$date)->whereIn('s.status',["Samples En-Route", "Samples Reception", "Samples Request Review", "Samples In Lab", "Sample Verification", "Sample Approval"])->where('name','Target Date')->selectRaw('s.*,sample_dates.date as tat_date,date(sample_dates.date) < date(now()) as is_late,date(sample_dates.date) = date(now()) as is_today')->orderBy('tat_date','DESC')->get();
         return response()->json($headers);
     }
     public function awaitingApprovalSamples($status){
