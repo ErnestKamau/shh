@@ -27,7 +27,7 @@ class PurchaseOrderObserver
      */
     public function updated(RequestEntity $requestEntity)
     {
-        if($requestEntity->request_type == "Purchase Orders"){
+        if($requestEntity->request_type == "Purchase Orders" && trim($requestEntity->status) != "In Preparation"){
             if(trim($requestEntity->zoho_id) == ""){
                 $errors = [];
                 try{

@@ -48,27 +48,33 @@ class MailController extends Controller
 					$message->bcc($bcc_emails_arr);
 				}
 
+				$emailSent = new \App\EmailSent;
+
+				$emailSent->email = gettype($data['contacts']) == 'array' ?  implode(",", $data['contacts']) : $data['contacts'];
+				$emailSent->subject = $data['subject'];
+				$emailSent->body = json_encode($data);
+				$emailSent->save();
+
 				if(isset($data['file'])){
-					if (is_array($data['file'])) {
-						// If it's an array, check if it has a 'path' key
-						if (isset($data['file']['path'])) {
-							$message->attach($data['file']['path']);
-						} else {
-							// If it doesn't have a 'path' key, convert the array to a string
-							$message->attach(implode(',', $data['file']));
+					if(gettype($data['file']) == "array"){
+						foreach($data['file'] as $f){
+							$message->attach($f);
 						}
-					} else {
-						// If it's a string, attach the file directly
+					}
+					else{
 						$message->attach($data['file']);
 					}
 				}
-			
-				// if(isset($data['file'])){
-				// 	$message->attach($data['file']);
-				// }
-				// if($file){
-				// 	$message->attach($file);
-				// }
+				if($file){
+					if(gettype($file) == "array"){
+						foreach($file as $f){
+							$message->attach($f);
+						}
+					}
+					else{
+						$message->attach($file);
+					}
+				}
 
 				$message->from($mail_username, $app_name);
 			});

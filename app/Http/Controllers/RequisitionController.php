@@ -2571,11 +2571,7 @@ class RequisitionController extends Controller
 
 				$body = '
 					Hi ' . $supplier->name . ',<br><br>
-					<p>Please provide us with a quote for the following items. Feel free to use your preferred quote template for this RFQ. 
-					If you don`t have one, no problem - the attached template is available for your convenience. <br>
-					Our only request is that you ensure all essential details are included, such as itemized costs, anticipated lead times, etc. 
-					Please indicate the validity period for your quotes. <br>
-					Send your quotes to <b>' . $pro_contact_email . '</b>.</p>
+					'.$req->email_body.'
 					<table style="width: 100%; border-collapse: collapse; font-size: 13px; border: 1px solid #aaa !important">
 						<thead>
 							<tr>

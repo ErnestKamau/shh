@@ -69,22 +69,42 @@
 			<title>{{ $title }}</title>
 	 </head>
 	 <body>
-		<div class="flex-center position-ref full-height">
-			<div class="content">
-				<div class="container">
-					<div class="alert alert-danger">
-						<h5 class="pt-3">{{ $title }}</h5>
-						<div class="py-3">
-							<b><i class="fas fa-warning"></i> ACTION FAILED.</b> An action has already been performed on this approval.
-						</div>
-						<div class="py-2">
-							<a href="{{ route('view-request-details', [$req->request_type, $req->id]) }}" class="btn btn-primary">
-								<i class="md md-eye"></i> View {{ $req->request_type }} {{ $req->request_code }} 
-							</a>
+		@if($action == "already")
+			<div class="flex-center position-ref full-height">
+				<div class="content">
+					<div class="container">
+						<div class="alert alert-warning">
+							<h5 class="pt-3">{{ $title }}</h5>
+							<div class="py-3">
+								<b><i class="fas fa-warning"></i> ACTION FAILED.</b> An action has already been performed on this approval.
+							</div>
+							<div class="py-2">
+								<a href="{{ route('view-request-details', [$req->request_type, $req->id]) }}" class="btn btn-danger">
+									<i class="md md-eye"></i> View {{ $req->request_type }} {{ $req->request_code }} 
+								</a>
+							</div>
 						</div>
 					</div>
 				</div>
 			</div>
-		</div>
+		@else
+			<div class="flex-center position-ref full-height">
+				<div class="content">
+					<div class="container">
+						<div class="alert alert-success">
+							<h5 class="pt-3">{{ $title }}</h5>
+							<div class="py-3">
+								<b><i class="fas fa-check"></i> {{ strtoupper($action) }} SUCCESSFUL.</b> The request has successfully been {{ $action != "rechecked" ? $action."ed" : "sent for recheck" }}.
+							</div>
+							<div class="py-2">
+								<a href="{{ route('view-request-details', [$req->request_type, $req->id]) }}" class="btn btn-success">
+									<i class="md md-eye"></i> View {{ $req->request_type }} {{ $req->request_code }} 
+								</a>
+							</div>
+						</div>
+					</div>
+				</div>
+			</div>
+		@endif
 	 </body>
 </html>
