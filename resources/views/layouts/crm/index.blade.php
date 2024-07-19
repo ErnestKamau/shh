@@ -37,6 +37,7 @@
 
 					<th>Code</th>
 					<th>Name</th>
+					<th>Zoho ID</th>
 					<th>Postal Address</th>
 					<th>Physical Address</th>
 					<th>Website</th>
@@ -63,6 +64,7 @@
 						<a href="{{ route('show-customer', ['id'=>$customer->id]) }}">{{ $customer->code }} </a>
 					</td>
 					<td>{{ $customer->name }}</td>
+					<td>{{$customer->zoho_id}}</td>
 					<td>{{ $customer->postal_address }}</td>
 					<td>{{ $customer->physical_address }}</td>
 					<td>{{ $customer->website }}</td>
@@ -173,6 +175,10 @@
 						<input type="text" class="form-control name-check-trigger" name="name" placeholder="Name..." required />
 					</div>
 					<div class="form-group">
+						<label class="control-label">Zoho Code <span class="text-danger">*</span></label>
+						<input type="text" class="form-control name-check-trigger" name="zoho_code" placeholder="Zoho Code..." required />
+					</div>
+					<div class="form-group">
 						<label class="control-label">Postal Address <span class="text-danger">*</span></label>
 						<textarea class="form-control" name="postal_address" placeholder="Postal Address..."></textarea>
 					</div>
@@ -268,6 +274,10 @@
 					<div class="form-group">
 						<label class="control-label">Name</label>
 						<input type="text" class="form-control" name="name" value="${customer.name }" placeholder="Name..." required />
+					</div>
+					<div class="form-group">
+						<label class="control-label">Zoho Code <span class="text-danger">*</span></label>
+						<input type="text" class="form-control" value="${customer.zoho_id}" name="zoho_code" placeholder="Zoho Code..." required />
 					</div>
 					<div class="form-group">
 						<label class="control-label">Postal Address</label>

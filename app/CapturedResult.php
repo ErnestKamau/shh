@@ -3,9 +3,13 @@
 namespace App;
 
 use App\Models\System\SystemConfiguration;
+use App\Observers\CapturedObserver;
 use Illuminate\Database\Eloquent\Model;
 use OwenIt\Auditing\Contracts\Auditable;
+use Illuminate\Database\Eloquent\Attributes\ObservedBy;
 
+
+// [ObservedBy([CapturedObserver::class])];
 class CapturedResult extends Model implements Auditable
 {
 	use \OwenIt\Auditing\Auditable;

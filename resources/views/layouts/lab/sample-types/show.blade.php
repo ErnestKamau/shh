@@ -200,10 +200,12 @@
                   <th></th>
                   <th>Code</th>
                   <th>Name</th>
+                  <th>Zoho Code</th>
                   <th>Short Name</th>
                   <th>Reporting Time</th>
                   <th>Description</th>
                   <th>Sample Type</th>
+                  <th>Product Type</th>
                   <th>Lab</th>
                   <th>Lab Section</th>
                   <th>Report Brand</th>
@@ -226,10 +228,12 @@
                   </td>
                   <td>{{ $analysis_type->code }}</td>
                   <td>{{ $analysis_type->name }}</td>
+                  <td>{{$analysis_type->zoho_id}}</td>
                   <td>{{ $analysis_type->short_name ?? 'N/A' }}</td>
                   <td>{{ $analysis_type->reporting_time ?? 0 }}</td>
                   <td>{{ $analysis_type->description }}</td>
                   <td>{{ $analysis_type->sample_type->name }}</td>
+                  <td>{{$analysis_type->product_type}}</td>
                   <td>{{ $analysis_type->lab->name }} - {{ $analysis_type->lab->code }}</td>
                   <td>{{ $analysis_type->labsectionname }}</td>
                   <td>
@@ -270,6 +274,14 @@
                             <div class="form-group">
                               <label class="control-label">Code</label>
                               <input type="text" class="form-control" name="code" value="{{ $analysis_type->code }}" placeholder="Analysis Type Code..." required />
+                            </div>
+                            <div class="form-group">
+                              <label class="control-label">Zoho Code <small class="text-danger">*</small></label>
+                              <input type="text" class="form-control" name="zoho_id" value="{{ $analysis_type->zoho_id }}" placeholder="Zoho Code..." required />
+                            </div>
+                            <div class="form-group">
+                              <label class="control-label">Product Type </label>
+                              <input type="text" class="form-control" name="product_type" value="{{ $analysis_type->product_type }}" placeholder="Product Type..."/>
                             </div>
                             <div class="form-group">
                               <label class="control-label">Description</label>
@@ -410,6 +422,14 @@
                             <div class="form-group">
                               <label class="control-label">Code</label>
                               <input type="text" class="form-control" name="code" value="{{ $analysis_type->code }}" placeholder="Analysis Type Code..." required />
+                            </div>
+                            <div class="form-group">
+                              <label class="control-label">Zoho Code <small class="text-danger">*</small></label>
+                              <input type="text" class="form-control" name="zoho_id" value="{{ $analysis_type->zoho_id }}" placeholder="Zoho Code..." required />
+                            </div>
+                            <div class="form-group">
+                              <label class="control-label">Product Type </label>
+                              <input type="text" class="form-control" name="product_type" value="{{ $analysis_type->product_type }}" placeholder="Product Type..."/>
                             </div>
                             <div class="form-group">
                               <label class="control-label">Description</label>
@@ -609,6 +629,14 @@
         <div class="form-group">
           <label class="control-label">Code</label>
           <input type="text" class="form-control" name="code" placeholder="Analysis Type Code..." required />
+        </div>
+        <div class="form-group">
+          <label class="control-label">Zoho Code <small class="text-danger">*</small></label>
+          <input type="text" class="form-control" name="zoho_id" value="" placeholder="Zoho Code..." required />
+        </div>
+        <div class="form-group">
+          <label class="control-label">Product Type </label>
+          <input type="text" class="form-control" name="product_type" value="" placeholder="Product Type..."/>
         </div>
         <div class="form-group">
           <label class="control-label">Reporting Time <small class="text-muted">(in days)</small></label>

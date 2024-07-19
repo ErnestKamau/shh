@@ -29,6 +29,8 @@ use App\Models\CRM\CRMCustomer;
 use App\Models\CRM\CustomerContact;
 use App\Models\CRM\SamplePoint;
 use App\Models\Equipments\Equipment;
+use App\Models\Lab\TatCaptured;
+use App\Models\Lab\TatCapturedView;
 use App\Models\System\SystemConfiguration;
 use App\Pricelist;
 use App\PricelistCustomer;
@@ -40,6 +42,7 @@ use App\SampleAnalysisStage;
 use App\sampleAnalysisTypeRelation;
 use App\SampleAnalysisTypeRelationView;
 use App\SampleCondition;
+use App\SampleDate;
 use App\SampleDetails;
 use App\SampleHeader;
 use App\SamplesCategory;
@@ -2218,6 +2221,9 @@ class SampleWorkFlowController extends Controller
         foreach ($request->captured_result_id as $cID) {
             $captured = CapturedResult::find($cID);
 
+            $batchid = $captured->sample_header_id;
+            $batch = SampleHeader::find($batchid);
+
             if (isset($request->subcontracted[$cID])) {
                 $captured->analyte_status_contracted = 1;
             } else {
@@ -2235,61 +2241,62 @@ class SampleWorkFlowController extends Controller
             $captured->reporting_unit_id = $request->reporting_unit[$cID] ?? 10013;
             $captured->measure_uncertanity = $request->measure_uncertanity[$cID] ?? 0;
             $captured->method_id = $request->method_id[$cID] ?? '';
-            $captured->result = $request->result[$cID] ?? '';
             $captured->result_reporting_symbol = $request->result_reporting_symbol[$cID] ?? '';
             $captured->operator_id = $request->operators[$cID] ?? 0;
             $captured->analyte_code = Analyte::find($captured->analyte_id)->code;
-
-            $captured->remark = $captured->remark_is_manual == 0 ? $request->remark[$cID] : $request->remarkmanual[$cID];
-            $standard_main = Standards::where('code', $request->main_standard[$cID])->first();
-            $sec_standard = Standards::where('code', $request->secondary_standard[$cID])->first();
-            $third_standard = Standards::where('code', $request->third_standard[$cID])->first();
-            if (isset($standard_main->id)) {
-                $main_standard_analyte = StandardAnalytes::where('analyte_id', $captured->analyte_id)->where('standard_id', $standard_main->id)->first();
-                $sec_standard_analyte = isset($sec_standard->id) ? StandardAnalytes::where('analyte_id', $captured->analyte_id)->where('standard_id', $sec_standard->id)->first() : '';
-                $third_standard_analyte = isset($third_standard->id) ? StandardAnalytes::where('analyte_id', $captured->analyte_id)->where('standard_id', $third_standard->id)->first() :'';
-            } else {
-                return redirect()->back()->with('error', 'Kindly set Main and Secondary standard for the following sample!');
-            }
-            // return response()->json($captured->analyte_id);
-            $captured->main_standard_id = isset($main_standard_analyte->id) ? $main_standard_analyte->id : 0;
-            $captured->secondary_standard_id = isset($sec_standard_analyte->id) ? $sec_standard_analyte->id : 0;
-            $captured->third_standard_id = isset($third_standard_analyte->id) ? $third_standard_analyte->id : 0;
-            // return response()->json($request);
-            $captured->main_value = $request->main_value[$cID];
-            if (isset($sec_standard_analyte->id)) {
-                if ($sec_standard_analyte->standard_value_type == 'is_range') {
-                    $captured->secondary_value = $sec_standard_analyte->low.' - '.$sec_standard_analyte->high;
+            
+            if($batch->status == 'Samples In Lab'){
+                $captured->result = $request->result[$cID] ?? '';
+                $captured->remark = $captured->remark_is_manual == 0 ? $request->remark[$cID] : $request->remarkmanual[$cID];
+                $standard_main = Standards::where('code', $request->main_standard[$cID])->first();
+                $sec_standard = Standards::where('code', $request->secondary_standard[$cID])->first();
+                $third_standard = Standards::where('code', $request->third_standard[$cID])->first();
+                if (isset($standard_main->id)) {
+                    $main_standard_analyte = StandardAnalytes::where('analyte_id', $captured->analyte_id)->where('standard_id', $standard_main->id)->first();
+                    $sec_standard_analyte = isset($sec_standard->id) ? StandardAnalytes::where('analyte_id', $captured->analyte_id)->where('standard_id', $sec_standard->id)->first() : '';
+                    $third_standard_analyte = isset($third_standard->id) ? StandardAnalytes::where('analyte_id', $captured->analyte_id)->where('standard_id', $third_standard->id)->first() :'';
                 } else {
-                    if ($sec_standard_analyte->standard_is_value == '') {
-                        $standard_value = StandardValue::find($sec_standard_analyte->standard_value_id);
-                        $captured->secondary_value = $standard_value->code;
+                    return redirect()->back()->with('error', 'Kindly set Main and Secondary standard for the following sample!');
+                }
+                // return response()->json($captured->analyte_id);
+                $captured->main_standard_id = isset($main_standard_analyte->id) ? $main_standard_analyte->id : 0;
+                $captured->secondary_standard_id = isset($sec_standard_analyte->id) ? $sec_standard_analyte->id : 0;
+                $captured->third_standard_id = isset($third_standard_analyte->id) ? $third_standard_analyte->id : 0;
+                // return response()->json($request);
+                $captured->main_value = $request->main_value[$cID];
+                if (isset($sec_standard_analyte->id)) {
+                    if ($sec_standard_analyte->standard_value_type == 'is_range') {
+                        $captured->secondary_value = $sec_standard_analyte->low.' - '.$sec_standard_analyte->high;
                     } else {
-                        $captured->secondary_value = $sec_standard_analyte->standard_is_value;
+                        if ($sec_standard_analyte->standard_is_value == '') {
+                            $standard_value = StandardValue::find($sec_standard_analyte->standard_value_id);
+                            $captured->secondary_value = $standard_value->code;
+                        } else {
+                            $captured->secondary_value = $sec_standard_analyte->standard_is_value;
+                        }
                     }
+                } else {
+                    $captured->secondary_value = '-';
                 }
-            } else {
-                $captured->secondary_value = '-';
-            }
-            if(isset($third_standard_analyte->id)){
-                if ($third_standard_analyte->standard_value_type == 'is_range'){
-                    $captured->third_value = $third_standard_analyte->low.' - '.$third_standard_analyte->high;
-                }else{
-                    if($third_standard_analyte->standard_is_value == ''){
-                        $standard_value = StandardValue::find($third_standard_analyte->standard_value_id);
-                        $captured->third_value = $standard_value->code;
+                if(isset($third_standard_analyte->id)){
+                    if ($third_standard_analyte->standard_value_type == 'is_range'){
+                        $captured->third_value = $third_standard_analyte->low.' - '.$third_standard_analyte->high;
                     }else{
-                        $captured->third_value = $third_standard_analyte->standard_is_value;
+                        if($third_standard_analyte->standard_is_value == ''){
+                            $standard_value = StandardValue::find($third_standard_analyte->standard_value_id);
+                            $captured->third_value = $standard_value->code;
+                        }else{
+                            $captured->third_value = $third_standard_analyte->standard_is_value;
+                        }
                     }
+                }else{
+                    $captured->third_value = '-';
                 }
-            }else{
-                $captured->third_value = '-';
             }
             // return response()->json($captured,200);
             $captured->save();
             // return response()->json($captured);
-            $batchid = $captured->sample_header_id;
-            $batch = SampleHeader::find($batchid);
+            
             $sample_detail = getSampleDetailById($captured->sample_detail_id);
             $sample_detail->ammendment_number = $batch->is_amendment;
             $sample_detail->save();
@@ -2903,7 +2910,7 @@ class SampleWorkFlowController extends Controller
             }
             $customer_pricelist = PricelistCustomer::where('customer_id', $customer->id)->get();
             if (!isset($customer_pricelist[0]->id)) {
-                return redirect()->back()->with('error', 'The specified has no pricelist assigned');
+                return redirect()->back()->with('error', 'The specified customer has no pricelist assigned');
             }
 
             $pricelist = Pricelist::find($customer_pricelist[0]->pricelist_id);
@@ -3006,6 +3013,170 @@ class SampleWorkFlowController extends Controller
         } else {
             return redirect()->back()->with('error', 'Kindly set generate_sample_invoice configuration value to true! ');
         }
+    }
+
+    public function generate_batch_invoice_ajax(Request $request)
+    {
+        $config = getConfigByName('generate_sample_invoice');
+        if (!isset($config[0]->id)) {
+            return response()->json(['error'=>'generate_sample_invoice configuration is not set']);
+        }
+        if ($config[0]->value == 'true') {
+            $customer_ids = [];
+            // return response()->json($request->batch_code,200);
+            foreach ($request->batch_code as $code) {
+                $batch = SampleHeader::where('batch_code', $code)->first();
+                if ($batch->invoice_id != 0) {
+                    return response()->json(['error'=>'Batch'.$code.' has an existing Invoice!']);
+                }
+                array_push($customer_ids, $batch->crm_customer_id);
+            }
+            $check_customer = array_unique($customer_ids);
+            if (sizeof($check_customer) > 1) {
+                return response()->json(['error'=>'The choosen batches are of different customers!']);
+            }
+            $customer = CRMCustomer::find($check_customer[0]);
+            if (!isset($customer->id)) {
+                return  response()->json(['error'=>'There is no customer with the specified Batches!']);
+            }
+            $customer_pricelist = PricelistCustomer::where('customer_id', $customer->id)->get();
+            if (!isset($customer_pricelist[0]->id)) {
+                return response()->json(['error'=>'The specified customer has no pricelist assigned']);
+            }
+
+            $pricelist = Pricelist::find($customer_pricelist[0]->pricelist_id);
+            if (!isset($pricelist->id)) {
+                return response()->json(['error'=>'There is no pricelist with the specified customer pricelist ID!']);
+            }
+            $invoice = new Invoice();
+            $invoice->pricelist_id = $customer_pricelist[0]->pricelist_id;
+            $invoice->currency_id = $pricelist->currency_id;
+            $invoice->customer_id = $customer->id;
+            $invoice->save();
+            if ($customer->credit_days > 0) {
+                $date = date('Y-m-d', strtotime($invoice->created_at.'+'.$customer->credit_days.' days'));
+            } else {
+                $date = date('Y-m-d', strtotime($invoice->created_at.'+ 30 days'));
+            }
+            $invoice->due_date = $date;
+            $id_str = strval($invoice->id);
+            if (strlen($id_str) < 4) {
+                $count = 4 - strlen($id_str);
+                $zeros = str_repeat('0', $count);
+                $number = 'INV-'.$zeros.$id_str;
+            } else {
+                $number = 'INV-'.$id_str;
+            }
+            $invoice->invoice_number = $number;
+            $invoice->save();
+            foreach ($request->batch_code as $code) {
+                $batch = SampleHeader::where('batch_code', $code)->first();
+                if (isset($batch->id)) {
+                    $batch->invoice_id = $invoice->id;
+                    $details = SampleDetails::where('sample_header_id', $batch->id)->get();
+                    foreach ($details as $detail) {
+                        $analysis_ids = explode(',', $detail->analysis_type_id);
+                        foreach ($analysis_ids as $analysis_id) {
+                            $price = PricelistItem::where('pricelist_id', $pricelist->id)->where('analysis_id', (int) $analysis_id)->where('sample_type_id', $batch->sample_type_id)->first();
+                            if (!isset($price->id)) {
+                                return response()->json(['error'=>'kindly add analysis to pricelist!']);
+                            }
+                            $check_invoice_detail = InvoiceDetails::where('invoice_id', $invoice->id)->where('analysis_type', (int) $analysis_id)->first();
+                            if (!isset($check_invoice_detail->id)) {
+                                $invoice_detail = new InvoiceDetails();
+                                $invoice_detail->crm_customer_id = $batch->crm_customer_id;
+                                $invoice_detail->analysis_type = $analysis_id;
+                                $analysis = getAnalysisTypeID($analysis_id);
+                                $invoice_detail->analysis_type_name = $analysis->name;
+                                $invoice_detail->sample_header_id = $batch->id;
+                                $invoice_detail->sample_detail_id = $detail->id;
+                                $invoice_detail->invoice_id = $invoice->id;
+                                $invoice_detail->cost_price = $price->cost_price;
+                                $invoice_detail->selling_price = $price->selling_price;
+                                if ($price->vat == 1) {
+                                    $rate = TaxRegime::where('active', 1)->first();
+                                    $tax = $rate->value / 100 * $price->selling_price;
+                                    $total_price = $tax + $price->selling_price;
+                                    $invoice_detail->selling_amount = $total_price;
+                                    $invoice_detail->tax_rate = strval($rate->value);
+                                    $invoice_detail->tax_amount = $tax;
+                                    $invoice_detail->total = $total_price;
+                                } else {
+                                    $invoice_detail->selling_amount = $price->selling_price;
+                                    $invoice_detail->total = $price->selling_price;
+                                }
+                                // return response()->json($price,200);
+                                $invoice_detail->save();
+                            } else {
+                                $current = $check_invoice_detail->quantity;
+                                $current_tax = $check_invoice_detail->tax_amount;
+                                $unit_price = $check_invoice_detail->selling_amount;
+                                $current_total = $check_invoice_detail->total;
+                                $check_invoice_detail->total = $unit_price + $current_total;
+                                $check_invoice_detail->quantity = $current + 1;
+                                if ($check_invoice_detail->tax_rate != 0) {
+                                    $taxable = strval($check_invoice_detail->tax_rate / 100 * $check_invoice_detail->selling_price);
+                                    $check_invoice_detail->tax_amount = $taxable + $current_tax;
+                                }
+                                $check_invoice_detail->save();
+                            }
+                        }
+                    }
+                    $batch->save();
+                }
+            }
+            $details_invoice = InvoiceDetails::where('invoice_id', $invoice->id);
+            $details_invoice_total_including_tax = InvoiceDetails::where('invoice_id', $invoice->id)->pluck('total')->toarray();
+            $details_invoice_total_tax = InvoiceDetails::where('invoice_id', $invoice->id)->pluck('tax_amount')->toarray();
+            foreach ($details_invoice as $detail) {
+                $selling_amount = $detail->selling_price * $detail->quantity;
+                $detail->selling_price_amount = $selling_amount;
+                $detail->save();
+            }
+            $total_including_tax = array_sum($details_invoice_total_including_tax);
+            $total_invoice_tax = array_sum($details_invoice_total_tax);
+
+            $invoice->total = $total_including_tax;
+            $invoice->total_tax = $total_invoice_tax;
+            $invoice->save();
+
+            return response()->json(['success'=>'Invoice Created Successfully',"invoice"=>$invoice]);
+        } else {
+            return response()->json(['error'=>'Kindly set generate_sample_invoice configuration value to true!']);
+        }
+    }
+    public function sendSalesOrder($invoice_id){
+        $invoice = Invoice::with(['currencyinfo','crmCustomer'])->find($invoice_id);
+        $details = InvoiceDetails::with('analysisType')->where('invoice_id',$invoice_id)->get();
+        $lineitems = [];
+        $itemcounter = 0;
+        foreach($details as $detail){
+            $lineitems [] =[
+                "item_order" => 0,
+                "item_id" => $detail->analysistype->zoho_id,
+                "rate" => $detail->total,
+                "name" => $detail->analysistype->name,
+                "description" => $detail->analysistype->description,
+                "quantity" => 1,
+            ];
+            $itemcounter = $itemcounter + 1;
+        }
+        $salesOrder = [
+            "customer_id" => $invoice->crmCustomer->zoho_id,
+            "currency_id" => $invoice->currencyinfo->zoho_id,
+            "date" => date('Y-m-d'),
+            "line_items" => $lineitems,
+            "reference_number" => $invoice->invoice_number,
+        ];
+        $zohoService = new ZohoController();
+        $zoho_sales = $zohoService->createSalesrder($salesOrder);
+        return response()->json($zoho_sales);
+        if($zoho_sales != 0){
+            $invoice->sales_order_id = $zoho_sales;
+            $invoice->save();
+            return response()->json(['success'=>'Sales Order Created successfully!','invoice'=>$invoice]);
+        }
+        return response()->json(['error'=>'Sales Order not created successfully!','invoice'=>$invoice]);
     }
 
     public function return_back_verification(Request $request)
@@ -3677,6 +3848,7 @@ class SampleWorkFlowController extends Controller
             return redirect()->back()->with('error', 'Kindly provide approval configuration for the selected batch lab sections');
         }
         if ($request->status == 'Sample Verification') {
+            TatCaptured::where('sample_header_id',$batch->id)->update(['is_complete'=>1]);
             $batch->status = $request->level == '0' ? $request->status : $batch->status;
             $batch->report_status = $request->level == '0' ? $request->level : $batch->report_status;
             $batch->prelim_report_status = $request->level != '0' ? $request->level : $batch->prelim_report_status;
@@ -4381,5 +4553,114 @@ class SampleWorkFlowController extends Controller
         }
     }
 
+    public function disposalReportIndex(Request $request){
+        $data = [];
+        $filter = [];
+        if(isset($request->has_filter)){
+            $filter = [
+                'date_from'=>$request->date_from,
+                "date_to" => $request->date_to,
+                "customer_id" => $request->customer_id,
+                "sample_type_id" => $request->sample_type_id,
+                "store_id"=>$request->store_id,
+            ];
+            $data = SamplesCategory::query();
+            if(isset($request->date_from) && $request->date_from != ''){
+                $data = $data->where('disposal_date','>=',$request->date_from);
+            }
+            if(isset($request->date_to) && $request->date_to != ''){ 
+                $data = $data->where('disposal_date','<=',$request->date_to);
+            }
+            if(isset($request->customer_id) && $request->customer_id != '' && $request->customer_id != 'All'){
+                $data = $data->where('crm_customer_id',$request->customer_id);
+            }
+            if(isset($request->sample_type_id) && $request->sample_type_id != '' && $request->sample_type_id != 'All' ){
+                $data = $data->where('sample_type_id',$request->sample_type_id);
+            }
+            if(isset($request->store_id) && $request->store_id != '' && $request->store_id != 'All'){
+                $data = $data->where('store_id',$request->store_id);
+            }
+            $data = $data->orderBy('disposal_date','DESC')->get();
+        }
+        $sampletypes = SampleType::where('active',1)->get();
+        $customers = CRMCustomer::where('active',1)->get();
+        $stores = getStorageByType('lab_store');
+        return view('layouts.lab.reports.disposal',compact('sampletypes','customers','stores','filter','data'));
+    }
+    public function tatReportIndex(Request $request){
+        $data = [];
+        $filter = [];
+        if(isset($request->has_filter)){
+            $filter = [
+                "date_from" => $request->date_from,
+                "date_to" => $request->date_to,
+                "user_id" => $request->user_id,
+                'sample_type_id' => $request->sample_type_id,
+                'analysis_type_id' => $request->analysis_type_id,
+    
+            ];
+            $data = TatCapturedView::query();
+            if(isset($request->date_from) && $request->date_from != ''){
+                $data = $data->where('receipt_date','>=',$request->date_from);
+            }
+            if(isset($request->date_to) && $request->date_to != ''){
+                $data = $data->where('receipt_date','<=',$request->date_to);
+            }
+            if(isset($request->user_id) && $request->user_id != '' && $request->user_id != 'All'){
+                $data  = $data->where('analyst_id',$request->user_id);
+            }
+            if(isset($request->sample_type_id) && $request->sample_type_id != '' && $request->sample_type_id != 'All'){
+                $data = $data->where('sample_type_id',$request->sample_type_id);
+            }
+            if(isset($request->analysis_type_id) && $request->analysis_type_id != '' && $request->analysis_type_id != 'All'){
+                $data = $data->where('analysis_type_id',$request->analysis_type_id);
+            }
+            if(isset($request->analyte_id) && $request->analyte_id != '' && $request->analyte_id != 'All'){
+                $data = $data->where('analyte_id',$request->analyte_id);
+            }
+
+            $data = $data->where('is_complete',1)->orderBy('created_at','ASC')->get();
+        }
+        $sampletypes = SampleType::where('active',1)->get();
+        $role_a = SystemConfiguration::where('key', 'analyst_role_id')->first();
+        $analysts = User::orderBy('name')->join('user_roles as ur', 'ur.user_id', '=', 'users.id')
+            ->join('roles as r', 'r.id', '=', 'ur.role_id')
+            ->where('r.id', $role_a->value)->where('users.active', 1)->where('users.is_support_staff', 0)->selectRaw('users.*')->get();
+        return view('layouts.lab.reports.tat-report',compact('sampletypes','analysts','filter','data'));
+    }
+    public function getAnalysisTypeAjax($sampletype){
+        $analysis = AnalysisType::where('sample_type_id',$sampletype)->where('active',1)->get();
+        return response()->json($analysis);
+    }
+    public function getAnalyteAjax($analysistype){
+        $analytes = Analyte::where('analysis_type_id',$analysistype)->where('active',1)->get();
+        return response()->json($analytes);
+    }
+
+    public function getTatDelayedSample(){
+        $date = \Carbon\Carbon::now();
+        $date->addDays(1);
+        $headers  = SampleDate::join('sample_headers as s','s.id','=','sample_dates.sample_header_id')->where('sample_dates.date','<=',$date)->whereIn('s.status',["Samples En-Route", "Samples Reception", "Samples Request Review", "Samples In Lab", "Sample Verification", "Sample Approval"])->where('name','Target Date')->selectRaw('s.*,sample_dates.date as tat_date,date(sample_dates.date) < date(now()) as is_late,date(sample_dates.date) = date(now()) as is_today')->orderBy('tat_date','DESC')->get();
+        return response()->json($headers);
+    }
+    public function awaitingApprovalSamples($status){
+        // return response()->json($status);
+        $headers = BatchLabSectionApprover::join('sample_headers as s','s.id','=','batch_labsection_approval.batch_id')->join('users as u','u.id','=','batch_labsection_approval.user_id')->where('batch_labsection_approval.status',0)->where('batch_labsection_approval.batch_status',$status)->selectRaw('s.*,u.name as batch_approver')->get();
+        return response()->json($headers);
+    }
+    public function updateTatCaptured(){
+        $batches = SampleHeader::whereIn('status',["Sample Verification", "Sample Approval", "Reports In Payment", "Reports for Collection","Finished Sample"])->pluck('id')->toArray();
+        TatCaptured::whereIn('sample_header_id',$batches)->update(['is_complete'=>1]);
+        return response()->json('success');
+    }
+
+    public function getTatBatchApprovalCounterAjax($status){
+        $approval =  $headers = BatchLabSectionApprover::join('sample_headers as s','s.id','=','batch_labsection_approval.batch_id')->join('users as u','u.id','=','batch_labsection_approval.user_id')->where('batch_labsection_approval.status',0)->where('batch_labsection_approval.batch_status',$status)->selectRaw('s.*,u.name as batch_approver')->get()->count();
+
+        $date = \Carbon\Carbon::now();
+        $date->addDays(1);
+        $atat_count  = SampleDate::join('sample_headers as s','s.id','=','sample_dates.sample_header_id')->where('sample_dates.date','<=',$date)->whereIn('s.status',["Samples En-Route", "Samples Reception", "Samples Request Review", "Samples In Lab", "Sample Verification", "Sample Approval"])->where('name','Target Date')->selectRaw('s.*,sample_dates.date as tat_date')->get()->count();
+        return response()->json(['tat_count'=>$atat_count,'approval_count'=>$approval]);
+    }
     
 }

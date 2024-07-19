@@ -66,6 +66,10 @@ class AnalysisTypeController extends Controller
     $analysis_type->lab_section_id = $request->lab_section_id;
     $analysis_type->brand_id = $request->brand_id;
     $analysis_type->is_pesticide = $request->is_pesticide ?? 0;
+    $analysis_type->zoho_id = $request->zoho_id;
+    $analysis_type->product_type = $request->product_type;
+
+
 
     $analysis_type->save();
     
@@ -93,6 +97,8 @@ class AnalysisTypeController extends Controller
     $analysis_type->lab_section_id = $request->lab_section_id;
     $analysis_type->brand_id = $request->brand_id;
     $analysis_type->is_pesticide = $request->is_pesticide ?? 0;
+    $analysis_type->zoho_id = $request->zoho_id;
+    $analysis_type->product_type = $request->product_type;
     $analysis_type->save();
     AnalysisElements::where('analysis_type_id',$analysis_type->id)->update(['lab_section_id'=>$analysis_type->lab_section_id,'is_pesticide'=>$analysis_type->is_pesticide]);
     CapturedResult::where('analysis_type_id',$analysis_type->id)->update(['lab_section_id'=>$analysis_type->lab_section_id,'is_pesticide'=>$analysis_type->is_pesticide]);

@@ -2,6 +2,8 @@
 
 namespace App\Providers;
 
+use App\CapturedResult;
+use App\Observers\CapturedObserver;
 use App\InventorySubCategories;
 use App\Observers\ItemObserver;
 use App\Observers\PurchaseOrderObserver;
@@ -33,7 +35,7 @@ class AppServiceProvider extends ServiceProvider
         // if (config('app.env') === 'production') {
         //     URL::forceScheme('https');
         // }
-
+        CapturedResult::observe(CapturedObserver::class);
         Supplier::observe(SupplierObserver::class);
         InventorySubCategories::observe(ItemObserver::class);
         RequestEntity::observe(PurchaseOrderObserver::class);

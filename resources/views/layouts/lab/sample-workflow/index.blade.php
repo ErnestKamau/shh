@@ -179,17 +179,17 @@
 						</sppan>
 					</li>
 				@endif
-
 			</div>
 		</div>
+		
 		@if ($status=="Samples Reception")
 		<a class="btn btn-sm btn-info float-right mr-2" href="{{ route('view-batch-details', ['batch'=>time()]) }}"><i class="mdi mdi-plus mr-2"></i> Add Batch</a>
 		
 		@endif
-		
-
-
-
+		<span class="btn btn-sm btn-danger float-right mr-2" style="border-radius:25px" data-toggle="modal" data-target="#get-batch-tat"><i class="mdi mdi-clock-outline"></i> TAT Today Batches  <span class="badge badge-light badge-pill pt-1" id="tat-counter">0</span> </span>
+		@if(in_array($status,['Sample Approval','Sample Verification']))
+		<span class="btn btn-sm btn-outline-danger float-right mr-2" style="border-radius:25px"  data-status="{{$status}}" data-toggle="modal" data-target="#awaiting-approval-modal" ><i class="mdi mdi-account-check-outline"></i> Batch(es) Awaiting Approval <span class="badge badge-danger badge-pill pt-1" id="approval-counter"></span> </span>
+		@endif
 	</h4>
 	<div class="table-responsive bg-light p-4">
 		@if($status == 'Finished Sample')
@@ -363,6 +363,54 @@
 @endsection
 
 @section('script2')
+<div class="modal fade" id="get-batch-tat" role="dialog">
+	<div class="modal-dialog">
+		<div class="modal-content">
+			<div class="modal-header text-center">
+				<h6> <i class="mdi mdi-alert"></i> Batches with Today as Expected Date Out</h6>
+			</div>
+			<div class="modal-body">
+				<table class="table table-bordered table-sm table-stripped">
+					<thead class="bg-light">
+						<th>Batch Code</th>
+						<th>Tat Date</th>
+					</thead>
+					<tbody>
+
+					</tbody>
+				</table>
+			</div>
+			<div class="modal-footer">
+				<span class="btn btn-sm btn-default text-danger" data-dismiss="modal">Close</span>
+			</div>
+		</div>
+	</div>
+</div>
+@if(in_array($status,['Sample Approval','Sample Verification']))
+<div class="modal fade" id="awaiting-approval-modal" role="dialog">
+	<div class="modal-dialog">
+		<div class="modal-content">
+			<div class="modal-header">
+				<h6><i class="mdi mdi-alert"></i> Batches Awaiting Approval</h6>
+			</div>
+			<div class="modal-body">
+				<div class="data">
+					<table class="table table-sm table-bordered table-stripped">
+						<thead class="bg-light">
+							<th>Batch</th>
+							<th>Approver</th>
+						</thead>
+						<tbody></tbody>
+					</table>
+				</div>
+			</div>
+			<div class="modal-footer">
+				<span class="btn btn-sm btn-default text-danger" data-dismiss="modal">Close</span>
+			</div>
+		</div>
+	</div>
+</div>
+@endif
 @if(isset($status) && in_array($status, array("Samples En-Route","Samples Request Review","Samples Reception","Samples In Lab")))
 <div class="modal fade" id="inter-lab-add" data-backdrop="static" data-keyboard="false" role="dialog">
 	<div class="modal-dialog">
@@ -669,17 +717,14 @@
 <div id="dispatch-to-labs-modal-approve" class="modal fade" role="dialog">
 	<div class="modal-dialog">
 		<!-- Modal content-->
-		<form class="modal-content" method="POST" action="{{ route('generate_batch_invoice') }}" enctype="multipart/form-data">
+		<form class="modal-content" id="generate-invoice-form" method="POST" action="{{ route('generate_batch_invoice') }}" enctype="multipart/form-data">
 			@csrf
 			<div class="modal-header">
 				<h4 class="modal-title"><i class="mdi mdi-clipboard-arrow-right"></i> Generate Invoice</h4>
 			</div>
 			<div class="modal-body">
-				<input type="hidden" name="status" value="Samples Request Review" />
-				<div class="form-group">
-					<div class="alert alert-callout alert-primary">
-						<i class="fas fa-info-circle"></i> By approving this you will generate an invoice with the following Batches</b>?
-					</div>
+				<div class="to-be-updated">
+					
 				</div>
 
 				<div class="form-group">
@@ -689,7 +734,7 @@
 
 			</div>
 			<div class="modal-footer">
-				<button type="submit" class="btn btn-info btn-sm"><i class="mdi mdi-thumb-up"></i> Generate</button>
+				<button type="submit" class="btn btn-info btn-sm submit-btn"><i class="mdi mdi-thumb-up"></i> Generate</button>
 				<button type="button" class="btn btn-default btn-sm" data-dismiss="modal">Close</button>
 			</div>
 		</form>
@@ -1083,6 +1128,7 @@
 		</div>
 	</div>
 </div>
+
 @endif
 <script src="https://cdn.jsdelivr.net/gh/gitbrent/bootstrap4-toggle@3.6.1/js/bootstrap4-toggle.min.js"></script>
 <script type="text/javascript">
@@ -1091,6 +1137,208 @@
 	var sampleCondtions = [];
 	var defaultClass = '';
 	var notPaid = [];
+
+	$('[data-target="#get-batch-tat"]').hide();
+	$('[data-target="#awaiting-approval-modal"]').hide();
+
+	var getTatApprovalCounter = ()=>{
+		var status = $('[data-target="#awaiting-approval-modal"]').data('status');
+		$.ajax({
+			url:`/get/Tat/Batch/ApprovalCounter/Ajax/${status}`,
+			type:'GET',
+			success:(data)=>{
+				if(data['approval_count'] > 0){
+					$('#approval-counter').empty();
+					$('#approval-counter').append(data['approval_count']);
+					$('[data-target="#awaiting-approval-modal"]').show();
+				}
+				if(data['tat_count'] > 0){
+					$('#tat-counter').empty();
+					$('#tat-counter').append(data['tat_count']);
+					$('[data-target="#get-batch-tat"]').show();
+				}
+			}
+		})
+	};
+	getTatApprovalCounter();
+
+
+	var sendSalesOrder = (invoice_id,callback)=>{
+		$.ajax({
+			url:`/send/Sales-Order/${invoice_id}`,
+			type:'GET',
+			success:(data)=>{
+				console.log('here2')
+				callback(data);
+			},
+			error:(data)=>{
+				console.log('here3')
+				console.log(data);
+			}
+		})
+	}
+	var getTatBatch = (callback)=>{
+		$.ajax({
+			url:`/get-Tat/Delayed/Sample`,
+			type:'GET',
+			success:(data)=>{
+				callback(data);
+			},
+			error:(data)=>{
+				console.log(data);
+			}
+		})
+	}
+	var tatBatchTr = (data)=>{
+		var body = $(`
+		<tr>
+			<td><a href="/sample-workflow/batch/${data.id}/details/0/0/${data.status}">${data.batch_code}</a></td>
+			<td class="${data.is_late == 1 ? 'text-danger' : ''} ${data.is_today == 1 ? 'text-warning' : ''}" >${data.tat_date}</td>
+		</tr>
+		`).clone()
+		return body;
+	}
+	$('#get-batch-tat').on('show.bs.modal',(e)=>{
+		$('#get-batch-tat').find('tbody').empty();
+		getTatBatch((data)=>{
+			$.each(data,(i,obj)=>{
+				var trbody = tatBatchTr(obj);
+				$('#get-batch-tat').find('tbody').append(trbody);
+			})
+		})
+	});
+	var getAwaitingTr = (data)=>{
+		var body =$(`
+		<tr>
+			<td><a href="/sample-workflow/batch/${data.id}/details/0/0/${data.status}">${data.batch_code}</a></td>
+			<td>${data.batch_approver}</td>
+		</tr>
+		`).clone();
+		return body;
+	}
+	var getBatchesAwaitingApproval = (status,callback)=>{
+		$.ajax({
+			url:`/awaiting/Approval/Samples/${status}`,
+			type:'GET',
+			success:(data)=>{
+				callback(data);
+			},
+			error:(data)=>{
+				console.log(data);
+			}
+		})
+	}
+	$('#awaiting-approval-modal').on('show.bs.modal',(e)=>{
+		var status = $(e.relatedTarget).data('status');
+		$('#awaiting-approval-modal').find('tbody').empty();
+		getBatchesAwaitingApproval(status,(data)=>{
+			$.each(data,(i,obj)=>{
+				var tr =getAwaitingTr(obj);
+				$('#awaiting-approval-modal').find('tbody').append(tr);
+
+			})
+		})
+	})
+	var generateInvoiceBody = ()=>{
+		var body = $(`
+		<div class="before-save">
+			<input type="hidden" name="status" value="Samples Request Review" />
+			<div class="form-group">
+				<div class="alert alert-callout alert-primary d-flex">
+					<i class="fas fa-info-circle" style="font-size:30px"></i>
+					<span class="pl-3">
+						By approving this you will generate an invoice with the following Batches</b>?
+					</span>
+				</div>
+			</div>
+		</div>
+		<div class="after-save hidden">
+			<center class="loader">
+				<img src="/images/load.gif" height="250px" width="auto" alt="">
+			</center>
+			<p><i class="mdi mdi-minus saving-invoice"></i> Saving proforma invoice / sales order details.</p>
+			<p><i class="mdi mdi-minus send-sales"></i> Sending sales order details to Zoho.</p> <br>
+		</div>
+		
+		<div class="alert alert-danger d-flex error-area hidden">
+			<i class="mdi mdi-alert-decagram-outline" style="font-size:25px"></i>
+			<span class="p-2 error-body"></span>
+		</div>
+		`).clone();
+		return body;
+	}
+	$('#dispatch-to-labs-modal-approve').on('show.bs.modal',(e)=>{
+		$('#generate-invoice-form').find('.submit-btn').removeClass('hidden');
+		var body = generateInvoiceBody();
+		$('#dispatch-to-labs-modal-approve').find('.to-be-updated').empty();
+		$('#dispatch-to-labs-modal-approve').find('.to-be-updated').append(body);
+
+	})
+	$('#generate-invoice-form').on('submit',function(event){
+		event.preventDefault();
+		$('#generate-invoice-form').find('.submit-btn').addClass('hidden');
+		$('#generate-invoice-form').find('.before-save').addClass('hidden');
+		$('#generate-invoice-form').find('.after-save').removeClass('hidden');
+		$('#generate-invoice-form').find('.saving-invoice').addClass('mdi-spin');
+
+		var formdata = $(this).serializeArray();
+		$.ajaxSetup({
+			headers: {
+				'X-CSRF-TOKEN': jQuery('meta[name="csrf-token"]').attr('content')
+			}
+		});
+		$.ajax({
+			url:`/generate/batch-invoice/ajax`,
+			type:'POST',
+			data : formdata,
+			success:(data)=>{
+				if(data['error']){
+					$('#generate-invoice-form').find('.loader').addClass('hidden');
+					$('#generate-invoice-form').find('.saving-invoice').removeClass('mdi-spin');
+					$('#generate-invoice-form').find('.send-sales').removeClass('mdi-spin');
+
+					$('#generate-invoice-form').find('.error-body').empty();
+					$('#generate-invoice-form').find('.error-body').append(data['error']);
+					$('#generate-invoice-form').find('.error-area').removeClass('hidden');
+				}else{
+					$('#generate-invoice-form').find('.saving-invoice').removeClass('mdi-spin');
+					$('#generate-invoice-form').find('.saving-invoice').removeClass('mdi-minus');
+					$('#generate-invoice-form').find('.saving-invoice').addClass('mdi-check-circle-outline text-success');
+
+
+					$('#generate-invoice-form').find('.send-sales').addClass('mdi-spin');
+
+					sendSalesOrder(data['invoice'].id,(data)=>{
+						console.log('hereee');
+						if(data['error']){
+							$('#generate-invoice-form').find('.loader').addClass('hidden');
+							$('#generate-invoice-form').find('.saving-invoice').removeClass('mdi-spin');
+							$('#generate-invoice-form').find('.send-sales').removeClass('mdi-spin');
+
+							$('#generate-invoice-form').find('.error-body').empty();
+							$('#generate-invoice-form').find('.error-body').append(data['error']);
+							$('#generate-invoice-form').find('.error-area').removeClass('hidden');
+						}else{
+							$('#generate-invoice-form').find('.send-sales').removeClass('mdi-spin');
+							$('#generate-invoice-form').find('.send-sales').removeClass('mdi-minus');
+							$('#generate-invoice-form').find('.send-sales').addClass('mdi-check-circle-outline text-success');
+
+							$('#generate-invoice-form').find('.loader').empty();
+							var imgElem= $(`<img src="/images/suc.gif" height="250px" width="auto" alt="">`);
+							$('#generate-invoice-form').find('.loader').append(imgElem);
+
+							
+							
+							
+						}
+					})
+				}
+			},
+			error:(data)=>{
+
+			}
+		})
+	})
 	
 	$('#dispatch-to-labs-modal').on('show.bs.modal', function() {
 		$('#not-paid-parent').empty();
@@ -1183,14 +1431,14 @@
 				)
 				$('.selected-batches-request').append(
 					`<span class="p-2 mr-2">
-						<input type="checkbox" name="batch_code[]" value="${$value}" checked>${$value}
+						<input type="checkbox" name="batch_code[]" value="${$value}" checked> ${$value}
 					</span>
 					`
 
 				);
 				$('.selected-batches-request-approve').append(
 					`<span class="p-2 mr-2">
-						<input type="checkbox" name="batch_code[]" value="${$value}" checked>${$value}
+						<input type="checkbox" name="batch_code[]" value="${$value}" checked> ${$value}
 					</span>
 					`
 				)
@@ -1225,12 +1473,12 @@
 
 				$('.selected-batches-review').append(
 					`<span class="p-2 mr-2">
-						<input type="checkbox" name="batch_code[]" value="${ $value }"  checked >${ $value }
+						<input type="checkbox" name="batch_code[]" value="${ $value }"  checked > ${ $value }
 					</span>`
 				);
 				$('.selected-batches-request-approve').append(
 					`<span class="p-2 mr-2">
-						<input type="checkbox" name="batch_code[]" value="${$value}" checked>${$value}
+						<input type="checkbox" name="batch_code[]" value="${$value}" checked> ${$value}
 					</span>
 					`
 				)

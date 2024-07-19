@@ -1,0 +1,205 @@
+<?php
+
+namespace App\Observers;
+
+use App\CapturedResult;
+use App\Models\Lab\TatCaptured;
+use App\SampleAnalysisDates;
+use App\SampleDate;
+use App\SampleHeader;
+
+class CapturedObserver
+{
+    /**
+     * Handle the captured "created" event.
+     *
+     * @param  \App\CapturedResult  $captured
+     * @return void
+     */
+    public function created(CapturedResult $captured)
+    {
+        //
+    }
+
+    /**
+     * Handle the captured "updated" event.
+     *
+     * @param  \App\CapturedResult  $captured
+     * @return void
+     */
+    public function updated(CapturedResult $captured)
+    {
+        $remarks = [
+            "1"=>"Excelent",
+            "2"=>"Satisfactory",
+            "3"=>"Good",
+            "4"=>"NEED IMPROVEMENT",
+            "5"=>"UNSATISFACTORY",
+        ];
+        
+        $tat_exist = TatCaptured::where('captured_result_id',$captured->id)->where('is_complete',0)->first();
+        $tat_complete = TatCaptured::where('captured_result_id',$captured->id)->where('is_complete',1)->first();
+        $analysis_date = SampleAnalysisDates::where('sample_detail_id',$captured->sample_detail_id)->where('sample_header_id',$captured->sample_header_id)->first();
+        if(isset($tat_complete->id) && $tat_complete->result == $captured->result){
+            return "done";
+        }
+        if(isset($tat_exist->id) && $tat_exist->result == $captured->result){
+            return "done";
+        }
+
+        if(isset($tat_exist->id) && $tat_exist->result != $captured->result){
+           $tat_exist->result = $captured->result;
+           $tat_exist->analyst_id = $captured->operator_id;
+           $tat_exist->start_date_analysis = $analysis_date->start_analysis_date;
+
+           $batch = SampleHeader::find($captured->sample_header_id);
+           $sample_date = SampleDate::where('sample_header_id',$batch->id)->where('name','Target Date')->first();
+           $date_sample = \Carbon\Carbon::parse($sample_date->date);
+           $now = \Carbon\Carbon::now();
+           $diff = $date_sample->diffInDays($now);
+           $tat_remark_counter = $date_sample > $now ? 1 : 0;
+
+           $tat_exist->finished_date = date('Y-m-d H:i:s');
+            $tat_exist->tat_overdue_days = $diff;
+
+            if($tat_remark_counter ==1){
+                if($diff >= 2){
+                    $tat_exist->tat_remark = 1;
+                }elseif($diff == 1){
+                    $tat_exist->tat_remark = 2;
+                }else{
+                    $tat_exist->tat_remark = 3; 
+                }
+            }else{
+                if($diff >= 2){
+                    $tat_exist->tat_remark = 5;
+                }elseif($diff == 1){
+                    $tat_exist->tat_remark = 4;
+                }else{
+                    $tat_exist->tat_remark = 4;
+                }
+            }
+
+           $tat_exist->save();
+           return "done";
+        }
+        if(!isset($tat_complete->id) && !isset($tat_exist->id)){
+            $batch = SampleHeader::find($captured->sample_header_id);
+            $sample_date = SampleDate::where('sample_header_id',$batch->id)->where('name','Target Date')->first();
+            $date_sample = \Carbon\Carbon::parse($sample_date->date);
+            $now = \Carbon\Carbon::now();
+            $diff = $date_sample->diffInDays($now);
+            $tat_remark_counter = $date_sample > $now ? 1 : 0;
+
+            $tat = new TatCaptured();
+            $tat->captured_result_id = $captured->id;
+            $tat->analysis_type_id = $captured->analysis_type_id;
+            $tat->analyte_id = $captured->analyte_id;
+            $tat->sample_type_id = $batch->sample_type_id;
+            $tat->sample_detail_id = $captured->sample_detail_id;
+            $tat->result = $captured->result;
+            $tat->analyst_id = $captured->operator_id;
+            $tat->tat_date = $sample_date->date;
+            $tat->sample_header_id = $batch->id;
+            $tat->finished_date = date('Y-m-d H:i:s');
+            $tat->tat_overdue_days = $diff;
+            $tat->start_date_analysis = $analysis_date->start_analysis_date;
+
+            if($tat_remark_counter ==1){
+                if($diff >= 2){
+                    $tat->tat_remark = 1;
+                }elseif($diff == 1){
+                    $tat->tat_remark = 2;
+                }else{
+                    $tat->tat_remark = 3; 
+                }
+            }else{
+                if($diff >= 2){
+                    $tat->tat_remark = 5;
+                }elseif($diff == 1){
+                    $tat->tat_remark = 4;
+                }else{
+                    $tat->tat_remark = 4;
+                }
+            }
+            $tat->save();
+            return "done";
+        }
+        if(isset($tat_complete->id) && $tat_complete->result == $captured->result && !isset($tat_exist->id)){
+            $batch = SampleHeader::find($captured->sample_header_id);
+            $sample_date = SampleDate::where('sample_header_id',$batch->id)->where('name','Target Date')->first();
+            $date_sample = \Carbon\Carbon::parse($sample_date->date);
+            $now = \Carbon\Carbon::now();
+            $diff = $date_sample->diffInDays($now);
+            $tat_remark_counter = $date_sample > $now ? 1 : 0;
+
+            $tat = new TatCaptured();
+            $tat->captured_result_id = $captured->id;
+            $tat->analysis_type_id = $captured->analysis_type_id;
+            $tat->analyte_id = $captured->analyte_id;
+            $tat->sample_type_id = $batch->sample_type_id;
+            $tat->sample_detail_id = $captured->sample_detail_id;
+            $tat->result = $captured->result;
+            $tat->analyst_id = $captured->operator_id;
+            $tat->tat_date = $sample_date->date;
+            $tat->sample_header_id = $batch->id;
+            $tat->finished_date = date('Y-m-d H:i:s');
+            $tat->tat_overdue_days = $diff;
+            $tat->start_date_analysis = $analysis_date->start_analysis_date;
+
+            if($tat_remark_counter ==1){
+                if($diff >= 2){
+                    $tat->tat_remark = 1;
+                }elseif($diff == 1){
+                    $tat->tat_remark = 2;
+                }else{
+                    $tat->tat_remark = 3; 
+                }
+            }else{
+                if($diff >= 2){
+                    $tat->tat_remark = 5;
+                }elseif($diff == 1){
+                    $tat->tat_remark = 4;
+                }else{
+                    $tat->tat_remark = 4;
+                }
+            }
+            $tat->save();
+            return "done";
+        }
+        return "Done";
+    }
+
+    /**
+     * Handle the captured "deleted" event.
+     *
+     * @param  \App\CapturedResult  $captured
+     * @return void
+     */
+    public function deleted(CapturedResult $captured)
+    {
+        //
+    }
+
+    /**
+     * Handle the captured "restored" event.
+     *
+     * @param  \App\CapturedResult  $captured
+     * @return void
+     */
+    public function restored(CapturedResult $captured)
+    {
+        //
+    }
+
+    /**
+     * Handle the captured "force deleted" event.
+     *
+     * @param  \App\CapturedResult  $captured
+     * @return void
+     */
+    public function forceDeleted(CapturedResult $captured)
+    {
+        //
+    }
+}

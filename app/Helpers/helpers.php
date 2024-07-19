@@ -1835,3 +1835,25 @@ function getDepartmentalHeadID(){
 	$departmental_head_roles = getConfigByName('departmental_head_role_id');
 	return count($departmental_head_roles) > 0 ? $departmental_head_roles[0]->value : 0;
 }
+
+function getTatRemark($id = null){
+	$remarks = [
+		"1"=>"Excelent",
+		"2"=>"Satisfactory",
+		"3"=>"Good",
+		"4"=>"NEED IMPROVEMENT",
+		"5"=>"UNSATISFACTORY",
+	];
+	if($id){
+		return $remarks[strval($id)];
+	}else{
+		return $remarks;
+	}
+}
+function getDiffBtnDates($date1,$date2){
+	$c_date = \Carbon\Carbon::parse($date1);
+	$c_date2 = \Carbon\Carbon::parse($date2);
+	$diff = $c_date->diffInDays($c_date2);
+	return $diff;
+
+}

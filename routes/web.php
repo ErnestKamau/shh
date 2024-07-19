@@ -158,6 +158,11 @@ Route::post('/stock-taking-counter/{id}/add', 'StockTakingCounterController@add'
 Route::post('/stock-taking-counter/{id}/remove', 'StockTakingCounterController@remove')->name('remove-stock-taking-counter');
 
 //#############################################Sample Workflow###################################################
+Route::get('/get-Tat/Delayed/Sample','SampleWorkFlowController@getTatDelayedSample')->name('getTatDelayedSample');
+Route::get('/awaiting/Approval/Samples/{status}','SampleWorkFlowController@awaitingApprovalSamples')->name('awaitingApprovalSamples');
+Route::get('/updateTatCaptured','SampleWorkFlowController@updateTatCaptured')->name('updateTatCaptured');
+Route::get('/get/Tat/Batch/ApprovalCounter/Ajax/{status}','SampleWorkFlowController@getTatBatchApprovalCounterAjax')->name('getTatBatchApprovalCounterAjax');
+
   Route::get('/sample-workflow/{status?}', 'SampleWorkFlowController@index')->name('sample-workflow');
 //   Route::get('/sample-workflow/{status?}/stage', 'SampleWorkFlowController@index')->name('sample-workflow')->middleware('haspermission:Laboratory.components.status.View');
     Route::get('/sample-workflow/{status?}/stage', 'SampleWorkFlowController@index')->name('sample-workflow');
@@ -174,6 +179,11 @@ Route::post('/stock-taking-counter/{id}/remove', 'StockTakingCounterController@r
   Route::post('/batch-approve-payment', 'SampleWorkFlowController@generate_batch_invoice')->name('generate_batch_invoice')->middleware('haspermission:Laboratory.components.Generate Invoice.View');
   Route::post('/batch-payment-reminders', 'SampleWorkFlowController@send_payment_notification')->name('send_payment_notification');
   Route::post('/return-back-verification', 'SampleWorkFlowController@return_back_verification')->name('return_back_verification');
+  // -----------------------------------SALES ORDERS----------------------
+  Route::post('/generate/batch-invoice/ajax','SampleWorkFlowController@generate_batch_invoice_ajax')->name('generate_batch_invoice_ajax');
+  Route::get('/send/Sales-Order/{id}','SampleWorkFlowController@sendSalesOrder')->name('sendSalesOrder');
+  // -----------------------------------SALES ORDERS----------------------
+
 
   Route::get('/send_notification_reminders', 'Event\EventController@send_notification_reminders')->name('send_notification_reminders');
 
@@ -717,6 +727,12 @@ Route::post('/lab/report/show', 'Lab\Reports\SamplesReportsController@show')->na
 
 Route::get('/lab/sample-generate/certificate-analysis/{id}', 'SampleWorkFlowController@certificate_analysis')->name('certificate-analysis');
 Route::get('/getAnalysisTypeBySampleTypeAjax/{type_id}', 'Lab\Reports\SamplesReportsController@getAnalysisTypeBySampleTypeAjax')->name('getAnalysisTypeBySampleTypeAjax');
+
+Route::get('/lab/disposal/report','SampleWorkFlowController@disposalReportIndex')->name('lab-report-disposal');
+Route::get('/lab/tat/report','SampleWorkFlowController@tatReportIndex')->name('lab-report-tat');
+
+Route::get('/get-analysis-type/{id}/Ajax','SampleWorkFlowController@getAnalysisTypeAjax')->name('getAnalysisTypeAjax');
+Route::get('/get-Analyte/{id}/Ajax','SampleWorkFlowController@getAnalyteAjax')->name('getAnalyteAjax');
 //#################################LAB REPORTSS#######################################
 
 //###################################DISPOSED EQUIPMENT REPORTS######################################
