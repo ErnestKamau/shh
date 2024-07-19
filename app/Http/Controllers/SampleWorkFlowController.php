@@ -29,6 +29,7 @@ use App\Models\CRM\CRMCustomer;
 use App\Models\CRM\CustomerContact;
 use App\Models\CRM\SamplePoint;
 use App\Models\Equipments\Equipment;
+use App\Models\Lab\TatCaptured;
 use App\Models\Lab\TatCapturedView;
 use App\Models\System\SystemConfiguration;
 use App\Pricelist;
@@ -41,6 +42,7 @@ use App\SampleAnalysisStage;
 use App\sampleAnalysisTypeRelation;
 use App\SampleAnalysisTypeRelationView;
 use App\SampleCondition;
+use App\SampleDate;
 use App\SampleDetails;
 use App\SampleHeader;
 use App\SamplesCategory;
@@ -3846,6 +3848,7 @@ class SampleWorkFlowController extends Controller
             return redirect()->back()->with('error', 'Kindly provide approval configuration for the selected batch lab sections');
         }
         if ($request->status == 'Sample Verification') {
+            TatCaptured::where('sample_header_id',$batch->id)->update(['is_complete'=>1]);
             $batch->status = $request->level == '0' ? $request->status : $batch->status;
             $batch->report_status = $request->level == '0' ? $request->level : $batch->report_status;
             $batch->prelim_report_status = $request->level != '0' ? $request->level : $batch->prelim_report_status;
@@ -4634,6 +4637,19 @@ class SampleWorkFlowController extends Controller
         return response()->json($analytes);
     }
 
-
+    public function getTatDelayedSample(){
+        $headers  = SampleDate::join('sample_headers as s','s.id','=','sample_dates.sample_header_id')->where('sample_dates.date',date('Y-m-d'))->whereIn('s.status',["Samples En-Route", "Samples Reception", "Samples Request Review", "Samples In Lab", "Sample Verification", "Sample Approval"])->selectRaw('s.*,sample_dates.date as tat_date')->get();
+        return response()->json($headers);
+    }
+    public function awaitingApprovalSamples($status){
+        // return response()->json($status);
+        $headers = BatchLabSectionApprover::join('sample_headers as s','s.id','=','batch_labsection_approval.batch_id')->join('users as u','u.id','=','batch_labsection_approval.user_id')->where('batch_labsection_approval.status',0)->where('batch_labsection_approval.batch_status',$status)->selectRaw('s.*,u.name as batch_approver')->get();
+        return response()->json($headers);
+    }
+    public function updateTatCaptured(){
+        $batches = SampleHeader::whereIn('status',["Sample Verification", "Sample Approval", "Reports In Payment", "Reports for Collection","Finished Sample"])->pluck('id')->toArray();
+        TatCaptured::whereIn('sample_header_id',$batches)->update(['is_complete'=>1]);
+        return response()->json('success');
+    }
     
 }

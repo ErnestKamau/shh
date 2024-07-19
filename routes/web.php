@@ -158,6 +158,10 @@ Route::post('/stock-taking-counter/{id}/add', 'StockTakingCounterController@add'
 Route::post('/stock-taking-counter/{id}/remove', 'StockTakingCounterController@remove')->name('remove-stock-taking-counter');
 
 //#############################################Sample Workflow###################################################
+Route::get('/get-Tat/Delayed/Sample','SampleWorkFlowController@getTatDelayedSample')->name('getTatDelayedSample');
+Route::get('/awaiting/Approval/Samples/{status}','SampleWorkFlowController@awaitingApprovalSamples')->name('awaitingApprovalSamples');
+Route::get('/updateTatCaptured','SampleWorkFlowController@updateTatCaptured')->name('updateTatCaptured');
+
   Route::get('/sample-workflow/{status?}', 'SampleWorkFlowController@index')->name('sample-workflow');
 //   Route::get('/sample-workflow/{status?}/stage', 'SampleWorkFlowController@index')->name('sample-workflow')->middleware('haspermission:Laboratory.components.status.View');
     Route::get('/sample-workflow/{status?}/stage', 'SampleWorkFlowController@index')->name('sample-workflow');

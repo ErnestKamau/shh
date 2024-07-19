@@ -180,6 +180,19 @@
 					</li>
 				@endif
 
+				
+				<li>
+					<span class="btn btn-sm dropdown-item " data-toggle="modal" data-target="#get-batch-tat" ><i class="mdi mdi-clock-outline mr-2"></i> TAT Today Batch(es)</span>
+
+				</li>
+				@if(in_array($status,['Sample Approval','Sample Verification']))
+				<li>
+					<span class="btn btn-sm dropdown-item" data-status="{{$status}}" data-toggle="modal" data-target="#awaiting-approval-modal" ><i class="mdi mdi-account-check-outline mr-2"></i> Batch(es) Awaiting Approval</span>
+
+				</li>
+				@endif
+				
+
 			</div>
 		</div>
 		@if ($status=="Samples Reception")
@@ -363,6 +376,54 @@
 @endsection
 
 @section('script2')
+<div class="modal fade" id="get-batch-tat" role="dialog">
+	<div class="modal-dialog">
+		<div class="modal-content">
+			<div class="modal-body">
+				<div class="header bg-light text-center p-2">
+					<p><b>Batches with Today as Expected Date Out</b></p>
+				</div>
+				<table class="table mt-3 table-bordered table-sm table-stripped">
+					<thead class="bg-light">
+						<th>Batch Code</th>
+						<th>Tat Date</th>
+					</thead>
+					<tbody>
+
+					</tbody>
+				</table>
+			</div>
+			<div class="modal-footer">
+				<span class="btn btn-sm btn-default text-danger" data-dismiss="modal">Close</span>
+			</div>
+		</div>
+	</div>
+</div>
+@if(in_array($status,['Sample Approval','Sample Verification']))
+<div class="modal fade" id="awaiting-approval-modal" role="dialog">
+	<div class="modal-dialog">
+		<div class="modal-content">
+			<div class="modal-body">
+				<div class="header text-center bg-light p-2">
+					<p><b>Batches Awaiting Approval </b></p>
+				</div>
+				<div class="data mt-3">
+					<table class="table table-sm table-bordered table-stripped">
+						<thead class="bg-light">
+							<th>Batch</th>
+							<th>Approver</th>
+						</thead>
+						<tbody></tbody>
+					</table>
+				</div>
+			</div>
+			<div class="modal-footer">
+				<span class="btn btn-sm btn-default text-danger" data-dismiss="modal">Close</span>
+			</div>
+		</div>
+	</div>
+</div>
+@endif
 @if(isset($status) && in_array($status, array("Samples En-Route","Samples Request Review","Samples Reception","Samples In Lab")))
 <div class="modal fade" id="inter-lab-add" data-backdrop="static" data-keyboard="false" role="dialog">
 	<div class="modal-dialog">
@@ -1080,6 +1141,7 @@
 		</div>
 	</div>
 </div>
+
 @endif
 <script src="https://cdn.jsdelivr.net/gh/gitbrent/bootstrap4-toggle@3.6.1/js/bootstrap4-toggle.min.js"></script>
 <script type="text/javascript">
@@ -1103,6 +1165,68 @@
 			}
 		})
 	}
+	var getTatBatch = (callback)=>{
+		$.ajax({
+			url:`/get-Tat/Delayed/Sample`,
+			type:'GET',
+			success:(data)=>{
+				callback(data);
+			},
+			error:(data)=>{
+				console.log(data);
+			}
+		})
+	}
+	var tatBatchTr = (data)=>{
+		var body = $(`
+		<tr>
+			<td><a href="/sample-workflow/batch/${data.id}/details/0/0/${data.status}">${data.batch_code}</a></td>
+			<td>${data.tat_date}</td>
+		</tr>
+		`).clone()
+		return body;
+	}
+	$('#get-batch-tat').on('show.bs.modal',(e)=>{
+		$('#get-batch-tat').find('tbody').empty();
+		getTatBatch((data)=>{
+			$.each(data,(i,obj)=>{
+				var trbody = tatBatchTr(obj);
+				$('#get-batch-tat').find('tbody').append(trbody);
+			})
+		})
+	});
+	var getAwaitingTr = (data)=>{
+		var body =$(`
+		<tr>
+			<td><a href="/sample-workflow/batch/${data.id}/details/0/0/${data.status}">${data.batch_code}</a></td>
+			<td>${data.batch_approver}</td>
+		</tr>
+		`).clone();
+		return body;
+	}
+	var getBatchesAwaitingApproval = (status,callback)=>{
+		$.ajax({
+			url:`/awaiting/Approval/Samples/${status}`,
+			type:'GET',
+			success:(data)=>{
+				callback(data);
+			},
+			error:(data)=>{
+				console.log(data);
+			}
+		})
+	}
+	$('#awaiting-approval-modal').on('show.bs.modal',(e)=>{
+		var status = $(e.relatedTarget).data('status');
+		$('#awaiting-approval-modal').find('tbody').empty();
+		getBatchesAwaitingApproval(status,(data)=>{
+			$.each(data,(i,obj)=>{
+				var tr =getAwaitingTr(obj);
+				$('#awaiting-approval-modal').find('tbody').append(tr);
+
+			})
+		})
+	})
 	var generateInvoiceBody = ()=>{
 		var body = $(`
 		<div class="before-save">
