@@ -4638,7 +4638,9 @@ class SampleWorkFlowController extends Controller
     }
 
     public function getTatDelayedSample(){
-        $headers  = SampleDate::join('sample_headers as s','s.id','=','sample_dates.sample_header_id')->where('sample_dates.date',date('Y-m-d'))->whereIn('s.status',["Samples En-Route", "Samples Reception", "Samples Request Review", "Samples In Lab", "Sample Verification", "Sample Approval"])->selectRaw('s.*,sample_dates.date as tat_date')->get();
+        $date = \Carbon\Carbon::now();
+        $date->addDays(1);
+        $headers  = SampleDate::join('sample_headers as s','s.id','=','sample_dates.sample_header_id')->where('sample_dates.date','<=',$date)->whereIn('s.status',["Samples En-Route", "Samples Reception", "Samples Request Review", "Samples In Lab", "Sample Verification", "Sample Approval"])->where('name','Target Date')->selectRaw('s.*,sample_dates.date as tat_date,date(sample_dates.date) < date(now()) as is_late,date(sample_dates.date) = date(now()) as is_today')->get();
         return response()->json($headers);
     }
     public function awaitingApprovalSamples($status){
@@ -4650,6 +4652,15 @@ class SampleWorkFlowController extends Controller
         $batches = SampleHeader::whereIn('status',["Sample Verification", "Sample Approval", "Reports In Payment", "Reports for Collection","Finished Sample"])->pluck('id')->toArray();
         TatCaptured::whereIn('sample_header_id',$batches)->update(['is_complete'=>1]);
         return response()->json('success');
+    }
+
+    public function getTatBatchApprovalCounterAjax($status){
+        $approval =  $headers = BatchLabSectionApprover::join('sample_headers as s','s.id','=','batch_labsection_approval.batch_id')->join('users as u','u.id','=','batch_labsection_approval.user_id')->where('batch_labsection_approval.status',0)->where('batch_labsection_approval.batch_status',$status)->selectRaw('s.*,u.name as batch_approver')->get()->count();
+
+        $date = \Carbon\Carbon::now();
+        $date->addDays(1);
+        $atat_count  = SampleDate::join('sample_headers as s','s.id','=','sample_dates.sample_header_id')->where('sample_dates.date','<=',$date)->whereIn('s.status',["Samples En-Route", "Samples Reception", "Samples Request Review", "Samples In Lab", "Sample Verification", "Sample Approval"])->where('name','Target Date')->selectRaw('s.*,sample_dates.date as tat_date')->get()->count();
+        return response()->json(['tat_count'=>$atat_count,'approval_count'=>$approval]);
     }
     
 }

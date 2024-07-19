@@ -161,6 +161,7 @@ Route::post('/stock-taking-counter/{id}/remove', 'StockTakingCounterController@r
 Route::get('/get-Tat/Delayed/Sample','SampleWorkFlowController@getTatDelayedSample')->name('getTatDelayedSample');
 Route::get('/awaiting/Approval/Samples/{status}','SampleWorkFlowController@awaitingApprovalSamples')->name('awaitingApprovalSamples');
 Route::get('/updateTatCaptured','SampleWorkFlowController@updateTatCaptured')->name('updateTatCaptured');
+Route::get('/get/Tat/Batch/ApprovalCounter/Ajax/{status}','SampleWorkFlowController@getTatBatchApprovalCounterAjax')->name('getTatBatchApprovalCounterAjax');
 
   Route::get('/sample-workflow/{status?}', 'SampleWorkFlowController@index')->name('sample-workflow');
 //   Route::get('/sample-workflow/{status?}/stage', 'SampleWorkFlowController@index')->name('sample-workflow')->middleware('haspermission:Laboratory.components.status.View');

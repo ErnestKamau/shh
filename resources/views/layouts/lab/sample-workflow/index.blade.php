@@ -179,30 +179,17 @@
 						</sppan>
 					</li>
 				@endif
-
-				
-				<li>
-					<span class="btn btn-sm dropdown-item " data-toggle="modal" data-target="#get-batch-tat" ><i class="mdi mdi-clock-outline mr-2"></i> TAT Today Batch(es)</span>
-
-				</li>
-				@if(in_array($status,['Sample Approval','Sample Verification']))
-				<li>
-					<span class="btn btn-sm dropdown-item" data-status="{{$status}}" data-toggle="modal" data-target="#awaiting-approval-modal" ><i class="mdi mdi-account-check-outline mr-2"></i> Batch(es) Awaiting Approval</span>
-
-				</li>
-				@endif
-				
-
 			</div>
 		</div>
+		
 		@if ($status=="Samples Reception")
 		<a class="btn btn-sm btn-info float-right mr-2" href="{{ route('view-batch-details', ['batch'=>time()]) }}"><i class="mdi mdi-plus mr-2"></i> Add Batch</a>
 		
 		@endif
-		
-
-
-
+		<span class="btn btn-sm btn-danger float-right mr-2" style="border-radius:25px" data-toggle="modal" data-target="#get-batch-tat"><i class="mdi mdi-clock-outline"></i> TAT Today Batches  <span class="badge badge-light badge-pill pt-1" id="tat-counter">0</span> </span>
+		@if(in_array($status,['Sample Approval','Sample Verification']))
+		<span class="btn btn-sm btn-outline-danger float-right mr-2" style="border-radius:25px"  data-status="{{$status}}" data-toggle="modal" data-target="#awaiting-approval-modal" ><i class="mdi mdi-account-check-outline"></i> Batch(es) Awaiting Approval <span class="badge badge-danger badge-pill pt-1" id="approval-counter"></span> </span>
+		@endif
 	</h4>
 	<div class="table-responsive bg-light p-4">
 		@if($status == 'Finished Sample')
@@ -379,11 +366,11 @@
 <div class="modal fade" id="get-batch-tat" role="dialog">
 	<div class="modal-dialog">
 		<div class="modal-content">
+			<div class="modal-header text-center">
+				<h6> <i class="mdi mdi-alert"></i> Batches with Today as Expected Date Out</h6>
+			</div>
 			<div class="modal-body">
-				<div class="header bg-light text-center p-2">
-					<p><b>Batches with Today as Expected Date Out</b></p>
-				</div>
-				<table class="table mt-3 table-bordered table-sm table-stripped">
+				<table class="table table-bordered table-sm table-stripped">
 					<thead class="bg-light">
 						<th>Batch Code</th>
 						<th>Tat Date</th>
@@ -403,11 +390,11 @@
 <div class="modal fade" id="awaiting-approval-modal" role="dialog">
 	<div class="modal-dialog">
 		<div class="modal-content">
+			<div class="modal-header">
+				<h6><i class="mdi mdi-alert"></i> Batches Awaiting Approval</h6>
+			</div>
 			<div class="modal-body">
-				<div class="header text-center bg-light p-2">
-					<p><b>Batches Awaiting Approval </b></p>
-				</div>
-				<div class="data mt-3">
+				<div class="data">
 					<table class="table table-sm table-bordered table-stripped">
 						<thead class="bg-light">
 							<th>Batch</th>
@@ -1151,6 +1138,31 @@
 	var defaultClass = '';
 	var notPaid = [];
 
+	$('[data-target="#get-batch-tat"]').hide();
+	$('[data-target="#awaiting-approval-modal"]').hide();
+
+	var getTatApprovalCounter = ()=>{
+		var status = $('[data-target="#awaiting-approval-modal"]').data('status');
+		$.ajax({
+			url:`/get/Tat/Batch/ApprovalCounter/Ajax/${status}`,
+			type:'GET',
+			success:(data)=>{
+				if(data['approval_count'] > 0){
+					$('#approval-counter').empty();
+					$('#approval-counter').append(data['approval_count']);
+					$('[data-target="#awaiting-approval-modal"]').show();
+				}
+				if(data['tat_count'] > 0){
+					$('#tat-counter').empty();
+					$('#tat-counter').append(data['tat_count']);
+					$('[data-target="#get-batch-tat"]').show();
+				}
+			}
+		})
+	};
+	getTatApprovalCounter();
+
+
 	var sendSalesOrder = (invoice_id,callback)=>{
 		$.ajax({
 			url:`/send/Sales-Order/${invoice_id}`,
@@ -1181,7 +1193,7 @@
 		var body = $(`
 		<tr>
 			<td><a href="/sample-workflow/batch/${data.id}/details/0/0/${data.status}">${data.batch_code}</a></td>
-			<td>${data.tat_date}</td>
+			<td class="${data.is_late == 1 ? 'text-danger' : ''} ${data.is_today == 1 ? 'text-warning' : ''}" >${data.tat_date}</td>
 		</tr>
 		`).clone()
 		return body;
