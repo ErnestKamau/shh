@@ -20,11 +20,13 @@ class SuppliersRatingCriteriaController extends Controller
 		foreach($criteria as $cid=>$score){
 			$cScore = SuppliersRatingCriteria::where('supplier_id', $id)
 				->where('criteria_id', $cid)->where('is_current', 1)->first();
+			$reason = $request->reason[$cid];
 
-			if(!isset($cScore->score) || $cScore->score != $score){
+			if(!isset($cScore->score) || $cScore->score != $score || $reason != $cScore->reason){
 				$newScore = new SuppliersRatingCriteria;
 				$newScore->criteria_id = $cid;
 				$newScore->supplier_id = $id;
+				$newScore->reason = $reason;
 				$newScore->request_id = $request->has('request_id') ? $request->request_id : 0;
 				$newScore->score = $score;
 				$newScore->rating_by = \Auth::user()->id;

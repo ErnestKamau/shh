@@ -1058,17 +1058,18 @@
 													$req_item->item_name }}</option>
 											</select>
 
-											@php($hiddenAccount = in_array($stage, ['Request to Store', 'Material Issuance']))
+											@php($hiddenAccount = in_array($stage, ['Request to Store', 'Material Issuance', 'Goods Receipt']))
 
 											<div {!! $hiddenAccount ? 'style="display: none"' : 'unset' !!}>
 												<div style="padding:3px 2px">Account</div>
-
-												<select {{ $readonly ? "disabled" : "" }} name="items[item_account_id][]" style="min-width: 200px; font-size: 12px; margin-top: 5px" class="form-control" placeholder="Select Acoount..." required>
-													<option value="">Select Account...</option>
-													@foreach ($accounts as $acc)
-														<option value="{{ $acc->account_id }}" {{ $req_item->item_account_id == $acc->account_id ? "selected" : "" }}><small>({{ clear_underscore($acc->type) }}) {{ $acc->name }}</small></option>
-													@endforeach
-												</select>
+												@if ($stage != 'Goods Receipt')
+													<select {{ $readonly ? "disabled" : "" }} name="items[item_account_id][]" style="min-width: 200px; font-size: 12px; margin-top: 5px" class="form-control" placeholder="Select Account..." required>
+														<option value="">Select Account...</option>
+														@foreach ($accounts as $acc)
+															<option value="{{ $acc->account_id }}" {{ $req_item->item_account_id == $acc->account_id ? "selected" : "" }}><small>({{ clear_underscore($acc->type) }}) {{ $acc->name }}</small></option>
+														@endforeach
+													</select>
+												@endif
 											</div>
 										</div>
 									</td>
@@ -1183,11 +1184,15 @@
 									</td>
 									@else
 									<td>
+										@php($notifyQuantityChange = in_array($stage,["Request for Quotation", "Purchase Orders"]) ? 'notify-item-change' : '')
 										<div class="form-group">
-											<input type="number" min="0.00" name="items[quantity][]" value="{{ $req_item->quantity }}"
-												step="any" style="min-width: 100px" class="form-control user-quantity" placeholder="Quantity..."
+											<input type="number" min="0.00" data-item="{{ $req_item->sub_category->name }}" name="items[quantity][]" data-value="{{ $req_item->quantity }}" value="{{ $req_item->quantity }}"
+												step="any" style="min-width: 100px" class="form-control user-quantity {{ $notifyQuantityChange }}" placeholder="Quantity..."
 												{!! isset($request->status) && $request->status == "In Preparation" || !isset($request->status)
-											? '' : 'readonly="true"' !!} {!! $stage == "Material Issuance" ? 'readonly="true"' : '' !!} />
+											? '' : 'readonly="true"' !!} {!! $stage == "Material Issuance" ? 'readonly="true"' : '' !!} required />
+										</div>
+										<div class="mt-1 item-change-reason-div form-group">
+											<textarea class="form-control form-control-sm" name="items[quantity_change_reason][]" placeholder="Reason for Quantity Change"></textarea>
 										</div>
 									</td>
 									@endif
@@ -1574,11 +1579,14 @@
 											@else
 											@if($quote->is_awarded == 1)
 											<i class="mdi mdi-check-bold text-green"></i> {{ $quote->awarded_at }}
-											<span class="btn btn-transparent btn-sm" data-quote="{{ $quote }}"
-												data-target="#undo-supplier-award" data-toggle="modal">
-												<i class="mdi mdi-backup-restore text-danger" data-toggle="tooltip" data-placement="left"
-													title="Undo Supplier Award"></i>
-											</span>
+											
+											@if (count($request->children) == 0)
+												<span class="btn btn-transparent btn-sm" data-quote="{{ $quote }}"
+													data-target="#undo-supplier-award" data-toggle="modal">
+													<i class="mdi mdi-backup-restore text-danger" data-toggle="tooltip" data-placement="left"
+														title="Undo Supplier Award"></i>
+												</span>
+											@endif
 											@else
 											<i class="mdi mdi-cancel text-muted"></i>
 											@endif
@@ -2127,7 +2135,7 @@
 
 @section('script2')
 @if($stage == "Goods Receipt")
-<div id="update-supplier-criteria-rating-modal" class="modal fade" role="dialog">
+<div id="update-supplier-criteria-rating-modal" class="modal fade update-supplier-criteria-rating-modal" role="dialog">
 	<div class="modal-dialog">
 		<!-- Modal content-->
 		<form class="modal-content" action="{{ route('update-rating-criteria-score', ['id'=>$supplier->id]) }}"
@@ -2140,6 +2148,7 @@
 				@foreach (getSupplierRatingCriteria() as $gSRC)
 				<?php
 					$c_score = $ratingScores[$gSRC->id] ?? 0;
+					$score_reason = $ratingReason[$gSRC->id] ?? '';
 					$scorePerc = $c_score/$gSRC->max_score*100;
 					$guidesOBJ = $gSRC->guides;
 				?>
@@ -2147,10 +2156,14 @@
 					<h6 style="width: 100%" for="crit-{{ $gSRC->id }}">{{ $gSRC->title }} 
 						<span
 							class="badge badge-pill badge-info float-right">0</span></h6>
-						<input style="width: 100%" type="range" step="0.1" value="{{ $c_score }}" name="criteria[{{ $gSRC->id }}]"
+						<input style="width: 100%" type="range" step="0.1" value="{{ $c_score }}" name="rating[{{ $gSRC->id }}][criteria]"
 						class="form-range" min="0" max="{{ $gSRC->max_score }}" id="crit-{{ $gSRC->id }}" data-guides="{{ $guidesOBJ }}">
 						<div><i class="fas fa-star" style="font-size:11px"></i> <small class="badge badge-default guide-title"></small></div>
-					<input type="hidden" name="request_id" value="{{ $request->id ?? 0 }}" />
+					<input type="hidden" name="rating_request_id" value="{{ $request->id ?? 0 }}" />
+					<div class="form-group reason-textarea mt-1">
+						<label class="control-label"><em>Reason for your rating</em></label>
+						<textarea class="form-control form-control-sm" name="rating[{{ $gSRC->id }}][reason]" placeholder="Reason..." required>{{ $score_reason }}</textarea>
+					</div>
 				</div>
 				@endforeach
 			</div>
@@ -2338,14 +2351,38 @@
 		</div>
 	</div>
 </div>
-<div id="accept-goods-otp-modal" class="modal fade" role="dialog">
+<div id="accept-goods-otp-modal" class="modal fade update-supplier-criteria-rating-modal" role="dialog">
 	<div class="modal-dialog">
 		<!-- Modal content-->
 		<div class="modal-content">
 			@csrf
 			<div class="modal-header">
-				<h5 class="modal-title"><i class="mdi mdi-numeric"></i> Confirmation OTP</h5>
+				<h5 class="modal-title"><i class="mdi mdi-numeric"></i> Rate Supplier and Confirm Receipt</h5>
 			</div>
+			<div class="modal-body">
+				@foreach (getSupplierRatingCriteria() as $gSRC)
+				<?php
+					$c_score = $ratingScores[$gSRC->id] ?? 0;
+					$score_reason = $ratingReason[$gSRC->id] ?? '';
+					$scorePerc = $c_score/$gSRC->max_score*100;
+					$guidesOBJ = $gSRC->guides;
+				?>
+				<div class="form-group">
+					<h6 style="width: 100%" for="crit-{{ $gSRC->id }}">{{ $gSRC->title }} 
+						<span
+							class="badge badge-pill badge-info float-right">0</span></h6>
+						<input style="width: 100%" type="range" step="0.1" value="{{ $c_score }}" name="criteria[{{ $gSRC->id }}]"
+						class="form-range" min="0" max="{{ $gSRC->max_score }}" id="crit-{{ $gSRC->id }}" data-guides="{{ $guidesOBJ }}">
+						<div><i class="fas fa-star" style="font-size:11px"></i> <small class="badge badge-default guide-title"></small></div>
+					<input type="hidden" name="request_id" value="{{ $request->id ?? 0 }}" />
+					<div class="form-group reason-textarea mt-1">
+						<label class="control-label"><em>Reason for your rating</em></label>
+						<textarea class="form-control form-control-sm" name="reason[{{ $gSRC->id }}]" placeholder="Reason..." required>{{ $score_reason }}</textarea>
+					</div>
+				</div>
+				@endforeach
+			</div>
+			<div class="divider"></div>
 			<div class="modal-body">
 				<div class="alert alert-callout alert-info text-lg">
 					<i class="mdi mdi-information fa-1x"></i> Please provide the confirmation OTP code:
@@ -2380,6 +2417,10 @@
 						<option value="{{ $item }}">{{ $item }}</option>
 						@endforeach
 					</select>
+				</div>
+				<div class="form-group">
+					<label class="control-label">Title</label>
+					<input class="form-control" name="title" placeholder="Note Title ...">
 				</div>
 				<div class="form-group">
 					<label class="control-label">Description</label>
@@ -3090,12 +3131,16 @@ Issuance"]))
 		<form action="{{ route('reverse-entity-action', ['id'=>$request->id ?? 0]) }}" method="POST" class="modal-content">
 			@csrf
 			<div class="modal-header">
-				<h5 class="modal-title"><i class="mdi mdi-check-bold"></i> Reverse {{ $request->request_type }}</h5>
+				<h5 class="modal-title"><i class="mdi mdi-undo"></i> Reverse {{ $request->request_type }}</h5>
 			</div>
 			<div class="modal-body">
 				<div class="alert alert-callout alert-info text-lg">
 					<i class="mdi mdi-information-circle"></i> Proceed with reversing this {{ $request->request_type }} - {{
 					$request->request_code }}?
+				</div>
+				<div class="form-group">
+					<label>Reason</label>
+					<textarea class="form-control" placeholder="Reason..." name="reason" required></textarea>
 				</div>
 			</div>
 			<div class="modal-footer">
@@ -3496,7 +3541,11 @@ Issuance"]))
 			<div class="modal-body">
 				<div class="form-group">
 					<label><strong>Quote Amount</strong></label>
-					<input class="form-control" type="text" name="amount" value="" />
+					<input class="form-control" type="text" name="amount" value="" required />
+				</div>
+				<div class="form-group">
+					<label><strong>Reason</strong></label>
+					<textarea class="form-control" name="amount" placeholder="Reason for Quote Adjustment..." required></textarea>
 				</div>
 			</div>
 			<div class="modal-footer">
@@ -3705,8 +3754,8 @@ Issuance"]))
 				<tr class="note-row new">
 					<td class="row-id"></td>
 					<td>
+						<em>${ $data.title }</em>
 						<select class="form-control" name="notes[type][]" placeholder="Type..." required>
-
 							@foreach (getNoteTypes() as $item)
 								<option value="{{ $item }}" ${ $data.type == '{{ $item }}' ? 'selected' : '' } >{{ $item }}</option>
 							@endforeach
@@ -4173,6 +4222,24 @@ Issuance"]))
 				}
 			});
 
+			$('.item-change-reason-div').slideUp(0);
+
+			$('.notify-item-change').on('change', function(){
+				let changedVal = $(this).data('value');
+				let val = $(this).val();
+				let item = $(this).data('item');
+
+				if(val != changedVal){
+					$(this).parents('td').find('.item-change-reason-div').slideDown(200);
+					$(this).parents('td').find('.item-change-reason-div textarea').prop('required', true);
+				}
+				else{
+					$(this).parents('td').find('.item-change-reason-div textarea').val('');
+					$(this).parents('td').find('.item-change-reason-div').slideUp(200);
+					$(this).parents('td').find('.item-change-reason-div textarea').prop('required', false).removeProp('required');
+				}
+			});
+
 			$("#delete-supplier-quote").on('show.bs.modal', function(e){
 				var btn = $(e.relatedTarget);
 				var item = btn.data('item');
@@ -4251,7 +4318,7 @@ Issuance"]))
 				$(this).parents('.form-group').find('h6').find('.badge').text($rat+"/"+max_score);
 			});
 
-			$('#update-supplier-criteria-rating-modal').on('show.bs.modal', function(e){
+			$('.update-supplier-criteria-rating-modal').on('show.bs.modal', function(e){
 				$('.form-range').trigger('change');
 			});
 
@@ -4655,7 +4722,7 @@ Issuance"]))
 				var allInvalidHolder = [];
 				var theFieldsInval = [];
 
-				$('#details-form input:required').map(function() {
+				$('#details-form input:required, #details-form textarea:required').map(function() {
 					isValidIn &= this.validity['valid'] ;
 
 					theField = this;
@@ -4666,6 +4733,7 @@ Issuance"]))
 					else{
 						$(theSelect).parent().css('border', 'inherit');
 					}
+
 				}) ;
 
 				if (isValidIn) {
@@ -4694,6 +4762,7 @@ Issuance"]))
 					console.log('invalid select!');
 					subMit = false;
 				}
+
 				if(allInvalidHolder.length > 0){
 					$.each(allInvalidHolder, function(j,s){
 						if(s[1] != 'select'){
@@ -5028,6 +5097,7 @@ Issuance"]))
 				if($modal){
 					var data = {
 						"type": $modal.find('[name="type"]').val(),
+						"title": $dt.title,
 						"description": $modal.find('[name="description"]').val(),
 						"current_user": $modal.find('[name="current_user"]').val(),
 						"current_user_name": $modal.find('[name="current_user_name"]').val(),
@@ -5039,6 +5109,7 @@ Issuance"]))
 				if($dt){
 					var data = {
 						"type": $dt.type,
+						"title": $dt.title,
 						"description": $dt.description,
 						"current_user": $dt.user_id,
 						"current_user_name": $dt.user_name,

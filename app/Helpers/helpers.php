@@ -270,7 +270,7 @@ function getCurrency()
 
 function getNoteTypes()
 {
-	return array("Rejection", "General Note", "Supplier Awarded", "Delivery Rating");
+	return array("Rejection", "General Note", "Supplier Awarded", "Delivery Rating", "Item Quantity Change Reason", "Reversal Reason");
 }
 
 function getStageApprovals($type, $entity)

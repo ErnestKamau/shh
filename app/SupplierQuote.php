@@ -12,4 +12,9 @@ class SupplierQuote extends Model implements Auditable
 	{
 		return $this->belongsTo('App\Supplier');
 	}
+	
+	public function request_item()
+	{
+		return $this->belongsTo('App\RequestEntityItem');
+	}
 }
