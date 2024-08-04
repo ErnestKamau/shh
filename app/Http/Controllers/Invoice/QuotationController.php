@@ -852,7 +852,7 @@ class QuotationController extends Controller
         // return response()->json($header);
         $qr_url = url('/storage/quotations/' . $customer_name . '/' . $filename);
         $qrcode = base64_encode(\QrCode::format('svg')->size(50)->errorCorrection('H')->generate($qr_url));
-        $path = public_path('images/aqua.jpg');
+        $path = public_path('images/logo-imara.png');
 
         
         $tick = public_path('images/tick.png');
