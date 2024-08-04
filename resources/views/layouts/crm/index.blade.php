@@ -38,6 +38,7 @@
 					<th>Code</th>
 					<th>Name</th>
 					<th>Zoho ID</th>
+					<th>Currency</th>
 					<th>Postal Address</th>
 					<th>Physical Address</th>
 					<th>Website</th>
@@ -65,6 +66,7 @@
 					</td>
 					<td>{{ $customer->name }}</td>
 					<td>{{$customer->zoho_id}}</td>
+					<td>{{isset($customer->currencyinfo->id) ? $customer->currencyinfo->name : 'N/A'}}</td>
 					<td>{{ $customer->postal_address }}</td>
 					<td>{{ $customer->physical_address }}</td>
 					<td>{{ $customer->website }}</td>
@@ -178,6 +180,7 @@
 						<label class="control-label">Zoho Code <span class="text-danger">*</span></label>
 						<input type="text" class="form-control name-check-trigger" name="zoho_code" placeholder="Zoho Code..." required />
 					</div>
+					
 					<div class="form-group">
 						<label class="control-label">Postal Address <span class="text-danger">*</span></label>
 						<textarea class="form-control" name="postal_address" placeholder="Postal Address..."></textarea>

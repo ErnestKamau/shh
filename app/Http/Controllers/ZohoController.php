@@ -8,6 +8,7 @@ use App\RequestEntity;
 use App\RequestEntityItem;
 use App\Supplier;
 use App\ZohoApiTokens;
+use App\ZohoCustomers;
 use Carbon\Carbon;
 use Error;
 use GuzzleHttp\Client;
@@ -35,13 +36,19 @@ class ZohoController extends Controller
 	 */
 	public function __construct()
 	{
-		$this->orgID = "792893305";
+		// $this->orgID = "792893305";
+		$this->orgID = "858980880";
 		$this->token = null;
 		$this->url = "www.zohoapis.com/books/v3/";
-		$this->clientID = "1000.AZFK87K8IRT2QCIOIF3I6RUV0XBZNC";
-		$this->clientSecret = "24daaa8599526522b4e0cfb012bb94b127ffe0b4e9";
-		$this->refresh = "1000.b724aa4d4a7c438d12de6309a6124e79.7141aca357b23fb1130594de25dc0173";
-		$this->refreshUrl = "http://172.16.16.252:8080/zoho-auth-redirect";
+		// $this->clientID = "1000.AZFK87K8IRT2QCIOIF3I6RUV0XBZNC";
+		$this->clientID = '1000.GKE2UABGGPE8SY5XQP14OYBZY642CL';
+		// $this->clientSecret = "24daaa8599526522b4e0cfb012bb94b127ffe0b4e9";
+		$this->clientSecret = "c6bbc59787daba398d762bd323ea88b75f155216b4";
+
+		// $this->refresh = "1000.b724aa4d4a7c438d12de6309a6124e79.7141aca357b23fb1130594de25dc0173";
+		$this->refresh= "1000.273a2de7e12b7204f6d0c7b0f1f0e192.be9f2accc1da7665d6ce50c2a10793e9";
+		// $this->refreshUrl = "http://172.16.16.252:8080/zoho-auth-redirect";
+		$this->refreshUrl = "http://127.0.0.1:8000/zoho-auth-redirect";
 
 		$this->authClient = new Client([
 			'base_uri' => 'https://accounts.zoho.com/oauth/v2/',
@@ -64,7 +71,7 @@ class ZohoController extends Controller
 
 	public function authenticate()
 	{
-		return $this->getToken();
+		// return $this->getToken();
 		$url = "https://accounts.zoho.com/oauth/v2/auth?scope=ZohoBooks.fullaccess.ALL&client_id=" . $this->clientID . "&state=testing&response_type=code&redirect_uri=" . $this->refreshUrl . "&access_type=offline";
 		return $url;
 	}
@@ -139,7 +146,8 @@ class ZohoController extends Controller
 				$request->update([
 					"status" => "Approval Complete",
 					"zoho_status" => $list['status']
-				])->save();;
+				])->save();
+				;
 				$updatedPOs[] = $request->request_code;
 			}
 		}
@@ -199,8 +207,8 @@ class ZohoController extends Controller
 		]);
 
 		$zItem = json_decode($response, true);
-		if(!isset($zItem['purchaseorder'])){
-			return ['error'=>$zItem['message']];
+		if (!isset($zItem['purchaseorder'])) {
+			return ['error' => $zItem['message']];
 		}
 		$requestEntity->zoho_id = $zItem['purchaseorder']['purchaseorder_id'];
 		$requestEntity->save();
@@ -281,6 +289,7 @@ class ZohoController extends Controller
 			throw new Error($e->getMessage());
 		}
 	}
+	
 
 	public function sync_zoho_items($page = 1)
 	{
@@ -295,9 +304,10 @@ class ZohoController extends Controller
 		// echo $this->token;
 
 		// throw new Error(json_encode($items));
-
+		
 		$zItems = $items['items'];
 		$pref = "IM";
+		// return $zItems;
 
 		foreach ($zItems as $c) {
 			$itemExists = InventorySubCategories::where(function ($query) use ($c) {
@@ -375,7 +385,7 @@ class ZohoController extends Controller
 			$this->sync_zoho_vendors($page + 1);
 		}
 	}
-	
+
 	public function sync_zoho_things($things, $single = null)
 	{
 		$response = $this->get($things, [
@@ -390,15 +400,18 @@ class ZohoController extends Controller
 		return json_encode($lists);
 	}
 
-	public function save_zoho_item_account_id($id){
+	public function save_zoho_item_account_id($id)
+	{
 		$getItem = $this->sync_zoho_things('');
 	}
+
 
 	public function sync_zoho_currencies()
 	{
 		$currencies = $this->sync_zoho_things('/settings/currencies', 'currencies');
+		// return json_decode($currencies);
 
-		return ">>>>>>>>>>>>>>>>>>>>>" . json_encode($currencies);
+		// return ">>>>>>>>>>>>>>>>>>>>>" . json_encode($currencies);
 
 		$currencies = json_decode($currencies, true);
 		$config = "Currency";
@@ -422,7 +435,7 @@ class ZohoController extends Controller
 		return ModulePreConfigs::where('type', $config)->where('module', $module)->get();
 	}
 
-	public function sync_zoho_customers()
+	public function sync_zoho_customers($page =1)
 	{
 		$response = $this->get('contacts', [
 			'query' => [
@@ -431,6 +444,20 @@ class ZohoController extends Controller
 			],
 		]);
 		$customers = json_decode($response, true);
+
+		foreach($customers as $customer){
+			$n_customer = ZohoCustomers::where('zoho_contact_id',$customer['contact_id'])->first() ?? new ZohoCustomers();
+			$n_customer->zoho_account_id = $customer['contact_id'];
+			$n_customer->name  = $customer['name'];
+			$n_customer->currency_id = $customer['currency_id'];
+			$n_customer->status = $customer['status'];
+			$n_customer->currency_code = $customer['currency_code'];
+			$n_customer->save();
+		}
+
+		if (isset($customers['page_context']) && $customers['page_context']['has_more_page'] == true) {
+			$this->sync_zoho_customers($page + 1);
+		}
 		return $customers;
 	}
 
@@ -456,8 +483,8 @@ class ZohoController extends Controller
 		]);
 
 		$zItem = json_decode($response, true);
-		return $zItem;
-		
+		// return $zItem;
+
 		return isset($zItem['salesorder']['salesorder_id']) ? $zItem['salesorder']['salesorder_id'] : 0;
 	}
 
@@ -475,22 +502,25 @@ class ZohoController extends Controller
 	{
 		$curl = curl_init();
 
-		curl_setopt_array($curl, array(
-			CURLOPT_URL => 'https://www.zohoapis.com/books/v3/' . $endpoint . $this->query_to_string($configs['query']),
-			CURLOPT_RETURNTRANSFER => true,
-			CURLOPT_ENCODING => '',
-			CURLOPT_MAXREDIRS => 10,
-			CURLOPT_TIMEOUT => 0,
-			CURLOPT_FOLLOWLOCATION => true,
-			CURLOPT_HTTP_VERSION => CURL_HTTP_VERSION_1_1,
-			CURLOPT_CUSTOMREQUEST => 'GET',
-			CURLOPT_HTTPHEADER => array(
-				'Authorization: Zoho-oauthtoken ' . $this->token,
-				'Content-Type: application/json'
-			),
-			CURLOPT_SSL_VERIFYPEER => false, // Disable SSL verification
-			CURLOPT_SSL_VERIFYHOST => false, // Disable SSL verification
-		));
+		curl_setopt_array(
+			$curl,
+			array(
+				CURLOPT_URL => 'https://www.zohoapis.com/books/v3/' . $endpoint . $this->query_to_string($configs['query']),
+				CURLOPT_RETURNTRANSFER => true,
+				CURLOPT_ENCODING => '',
+				CURLOPT_MAXREDIRS => 10,
+				CURLOPT_TIMEOUT => 0,
+				CURLOPT_FOLLOWLOCATION => true,
+				CURLOPT_HTTP_VERSION => CURL_HTTP_VERSION_1_1,
+				CURLOPT_CUSTOMREQUEST => 'GET',
+				CURLOPT_HTTPHEADER => array(
+					'Authorization: Zoho-oauthtoken ' . $this->token,
+					'Content-Type: application/json'
+				),
+				CURLOPT_SSL_VERIFYPEER => false, // Disable SSL verification
+				CURLOPT_SSL_VERIFYHOST => false, // Disable SSL verification
+			)
+		);
 
 		$response = curl_exec($curl);
 
@@ -505,25 +535,28 @@ class ZohoController extends Controller
 		return $response;
 	}
 
-	public function post($endpoint, $configs)
+	public function post($endpoint, $configs, $method = 'POST')
 	{
 		$curl = curl_init();
-		curl_setopt_array($curl, array(
-			CURLOPT_URL => 'https://www.zohoapis.com/books/v3/' . $endpoint . $this->query_to_string($configs['query']),
-			CURLOPT_RETURNTRANSFER => true,
-			CURLOPT_ENCODING => '',
-			CURLOPT_MAXREDIRS => 10,
-			CURLOPT_TIMEOUT => 0,
-			CURLOPT_FOLLOWLOCATION => true,
-			CURLOPT_HTTP_VERSION => CURL_HTTP_VERSION_1_1,
-			CURLOPT_CUSTOMREQUEST => 'POST',
-			CURLOPT_POSTFIELDS => $configs['form_params'],
-			CURLOPT_HTTPHEADER => array(
-				'Authorization: Zoho-oauthtoken ' . $this->token
-			),
-			CURLOPT_SSL_VERIFYPEER => false, // Disable SSL verification
-			CURLOPT_SSL_VERIFYHOST => false, // Disable SSL verification
-		));
+		curl_setopt_array(
+			$curl,
+			array(
+				CURLOPT_URL => 'https://www.zohoapis.com/books/v3/' . $endpoint . $this->query_to_string($configs['query']),
+				CURLOPT_RETURNTRANSFER => true,
+				CURLOPT_ENCODING => '',
+				CURLOPT_MAXREDIRS => 10,
+				CURLOPT_TIMEOUT => 0,
+				CURLOPT_FOLLOWLOCATION => true,
+				CURLOPT_HTTP_VERSION => CURL_HTTP_VERSION_1_1,
+				CURLOPT_CUSTOMREQUEST => $method,
+				CURLOPT_POSTFIELDS => $configs['form_params'],
+				CURLOPT_HTTPHEADER => array(
+					'Authorization: Zoho-oauthtoken ' . $this->token
+				),
+				CURLOPT_SSL_VERIFYPEER => false, // Disable SSL verification
+				CURLOPT_SSL_VERIFYHOST => false, // Disable SSL verification
+			)
+		);
 
 		$response = curl_exec($curl);
 
@@ -537,4 +570,55 @@ class ZohoController extends Controller
 		curl_close($curl);
 		return $response;
 	}
+
+	public function getItemsTest()
+	{
+		// $items = $this->sync_zoho_items();
+		$customers = $this->sync_zoho_customers();
+		// $currency = $this->sync_zoho_currencies();
+		return response()->json($customers);
+
+		// $invoice = Invoice::with(['currencyinfo','crmCustomer'])->find($invoice_id);
+		// $details = InvoiceDetails::with('analysisType')->where('invoice_id',$invoice_id)->get();
+		$lineitems = [];
+		$itemcounter = 0;
+		$lineitems[] = [
+			"item_order" => 0,
+			"item_id" => '5453571000000088240',
+			"rate" => 1000,
+			"name" => 'AGRI INPUTS:Agricultural Soil',
+			"description" => 'AGRI INPUTS:Agricultural Soil',
+			"quantity" => 2,
+		];
+
+		$salesOrder = [
+			"customer_id" => '5453571000000088212',
+			"currency_id" => '5453571000000088099',
+			"date" => date('Y-m-d'),
+			"line_items" => $lineitems,
+			"reference_number" => 'INV0001',
+		];
+		$response = $this->post('salesorders', [
+			'form_params' => ['JSONString' => json_encode($salesOrder)],
+			'query' => [
+				'organization_id' => $this->orgID,
+			],
+		]);
+		return  response()->json($response);
+	}
+	
+	public function changeSalesOrderStatus($sales_order_id){
+		$saleorders = ["status"=>"Confirmed"];
+		$response = $this->post('salesorders/'.$sales_order_id.'/status/confirmed', [
+			'form_params' => ['JSONString' => ''],
+			'query' => [
+				'organization_id' => $this->orgID,
+			],
+		]);
+		$res = json_decode($response,true);
+		return  $res;
+	}
+
+
+
 }

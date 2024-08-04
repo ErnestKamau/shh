@@ -13,4 +13,10 @@ class InvoiceDetails extends Model implements Auditable
     public function analysisType(){
         return $this->belongsTo(AnalysisType::class,'analysis_type');
     }
+    public function getZohoID(){
+        $analysis = AnalysisType::find($this->analysis_type);
+        $sample_type_category = SampleTypeCategory::find($analysis->sample_type()->sample_type_category);
+        return $sample_type_category;
+
+    }
 }

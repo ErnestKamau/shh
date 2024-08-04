@@ -32,7 +32,7 @@ class CRMCustomerController extends Controller
 	}
 	public function index()
 	{
-		$customers = CRMCustomer::where('company_id', getUserCompany())->where('active',1)->orderBy('name')->get();
+		$customers = CRMCustomer::where('company_id', getUserCompany())->with('currencyinfo')->where('active',1)->orderBy('name')->get();
 		$countries = Country::orderBy('name')->get();
 		$account_settings = getConfigTypeByName('Account Settings');
 		if(isset($account_settings->id)){

@@ -81,30 +81,30 @@ class SampleWorkFlowController extends Controller
         $labsections = SampleAnalysisStage::where('active', 1)->get();
 
         // return response()->json('test');
-        if($status == 'Finished Sample'){
+        if ($status == 'Finished Sample') {
             $filter = [];
-            if(isset($request->has_filter)){
+            if (isset($request->has_filter)) {
                 $batchesquery = SampleHeader::query();
 
-                if($request->sample_codes != ''){
+                if ($request->sample_codes != '') {
                     $filter['sample_codes'] = $request->sample_codes;
-                    $sample_Batches = SampleDetails::whereIn('sample_code',explode(',',trim($request->sample_codes)))->pluck('sample_header_id')->toArray();
-                    $batchesquery = sizeof($sample_Batches) > 0 ? $batchesquery->whereIn('id',$sample_Batches) : $batchesquery;
+                    $sample_Batches = SampleDetails::whereIn('sample_code', explode(',', trim($request->sample_codes)))->pluck('sample_header_id')->toArray();
+                    $batchesquery = sizeof($sample_Batches) > 0 ? $batchesquery->whereIn('id', $sample_Batches) : $batchesquery;
                 }
-                if($request->receipt_from != ''){
+                if ($request->receipt_from != '') {
                     $filter['receipt_from'] = $request->receipt_from;
-                    $batchesquery = $batchesquery->where('receipt_date','>=',$request->receipt_from);
+                    $batchesquery = $batchesquery->where('receipt_date', '>=', $request->receipt_from);
                 }
-                if($request->receipt_to != ''){
+                if ($request->receipt_to != '') {
                     $filter['receipt_to'] = $request->receipt_to;
-                    $batchesquery = $batchesquery->where('receipt_date','<=',$request->receipt_to);
+                    $batchesquery = $batchesquery->where('receipt_date', '<=', $request->receipt_to);
                 }
-                if($request->customer_id != ''){
+                if ($request->customer_id != '') {
                     $filter['customer_id'] = $request->customer_id;
-                    $batchesquery = $batchesquery->where('crm_customer_id',$request->customer_id);
+                    $batchesquery = $batchesquery->where('crm_customer_id', $request->customer_id);
                 }
-                $batches = $batchesquery->with('samples')->where('status','Finished Sample')->where('isactive', 1)->orderBy('receipt_date', 'desc')->get();
-            }else{
+                $batches = $batchesquery->with('samples')->where('status', 'Finished Sample')->where('isactive', 1)->orderBy('receipt_date', 'desc')->get();
+            } else {
                 $batches = [];
             }
             $role_a = SystemConfiguration::where('key', 'analyst_role_id')->first();
@@ -112,9 +112,9 @@ class SampleWorkFlowController extends Controller
                 ->join('roles as r', 'r.id', '=', 'ur.role_id')
                 ->where('r.id', $role_a->value)->where('users.active', 1)->where('users.is_support_staff', 0)->selectRaw('users.*')->get();
             $users = User::where('is_client', 0)->where('supplier_id', 0)->where('active', 1)->get();
-            $customers = CRMCustomer::where('active',1)->get();
+            $customers = CRMCustomer::where('active', 1)->get();
 
-            return view('layouts.lab.sample-workflow.index', compact('batches', 'status', 'analysts', 'labsections', 'users','customers','filter'));
+            return view('layouts.lab.sample-workflow.index', compact('batches', 'status', 'analysts', 'labsections', 'users', 'customers', 'filter'));
 
 
         }
@@ -422,7 +422,7 @@ class SampleWorkFlowController extends Controller
             }
         }
 
-        $cP = implode('', $code).$batch_config->value.implode('', $values).$selectedSampleType->code;
+        $cP = implode('', $code) . $batch_config->value . implode('', $values) . $selectedSampleType->code;
         $isNew = false;
         $isInReception = false;
         $header = SampleHeader::find($batch) ?? new SampleHeader();
@@ -439,11 +439,11 @@ class SampleWorkFlowController extends Controller
             $final_no = '';
             if (strlen(strval($batch_no_s)) < 4) {
                 $zerosss = str_repeat('0', 4 - strlen(strval($batch_no_s)));
-                $final_no = $zerosss.''.strval($batch_no_s);
+                $final_no = $zerosss . '' . strval($batch_no_s);
             } else {
                 $final_no = strval($batch_no_s);
             }
-            $header->batch_code = $cP.''.$final_no;
+            $header->batch_code = $cP . '' . $final_no;
         }
         // return response()->json($header->batch_code,200);
 
@@ -574,7 +574,7 @@ class SampleWorkFlowController extends Controller
             $last_sample = isset(SampleDetails::latest('id')->first()->id) ? explode('-', SampleDetails::max('sample_code'))[1] : $config_start_no->value;
             $sample_number = intval($last_sample) + 1;
 
-            $new_sample->sample_code = 'S0513-'.$sample_number;
+            $new_sample->sample_code = 'S0513-' . $sample_number;
             $new_sample->sample_header_id = $header->id;
             $new_sample->save();
             $captureds = CapturedResult::where('sample_detail_id', $samples->id)->get();
@@ -615,7 +615,7 @@ class SampleWorkFlowController extends Controller
 					
 				</p>
 			';
-            notify_user($body, $selectedCustomer->email, '[POLUCON LIMS] Schedule Of Analysis '.$batch->batch_code);
+            notify_user($body, $selectedCustomer->email, '[POLUCON LIMS] Schedule Of Analysis ' . $batch->batch_code);
             $header->schedule_analysis_sent = date('Y-m-d');
             $header->schedule_analysis_sender = auth()->user()->id;
             $header->save();
@@ -665,7 +665,7 @@ class SampleWorkFlowController extends Controller
 
         $configuration = SystemConfiguration::where('key', 'sample_code_naming')->first();
         if (isset($configuration->id)) {
-            $codePrefix = $configuration->value.'-';
+            $codePrefix = $configuration->value . '-';
         } else {
             return redirect()->back()->with('error', 'Setup the naming convention of samples in system configurations');
         }
@@ -700,8 +700,8 @@ class SampleWorkFlowController extends Controller
                 $sample_number = intval($last_sample) + 1;
                 // $sample_number = str_pad($sample_number, 4, '0', STR_PAD_LEFT);
 
-                $detail->sample_code = 'S'.date('Y').$lab->code.sprintf('%0'.'4'.'d', $sample_number);
-                $detail->sample_no = sprintf('%0'.'4'.'d', $sample_number);
+                $detail->sample_code = 'S' . date('Y') . $lab->code . sprintf('%0' . '4' . 'd', $sample_number);
+                $detail->sample_no = sprintf('%0' . '4' . 'd', $sample_number);
             } else {
                 // $config_start_no = SystemConfiguration::where('key', 'start_sample_no')->first();
                 if ($SampleHeader->status == 'Samples Reception') {
@@ -720,8 +720,8 @@ class SampleWorkFlowController extends Controller
 
                         $sample_number = intval($last_sample) + 1;
 
-                        $detail->sample_code = 'S'.date('Y').$lab->code.sprintf('%0'.'4'.'d', $sample_number);
-                        $detail->sample_no = sprintf('%0'.'4'.'d', $sample_number);
+                        $detail->sample_code = 'S' . date('Y') . $lab->code . sprintf('%0' . '4' . 'd', $sample_number);
+                        $detail->sample_no = sprintf('%0' . '4' . 'd', $sample_number);
                     }
                 }
             }
@@ -794,7 +794,7 @@ class SampleWorkFlowController extends Controller
                 if (trim($request->sample_details['sample_store'][$k]) != '' && trim($request->sample_details['sample_store_slot'][$k]) != '' && trim($request->sample_details['sample_quantity'][$k]) != '') {
                     $ISCC = new InventorySubCategoriesController();
 
-                    $sampleLabItemExists = \App\InventorySubCategories::where('name', $SampleHeader->batch_code.'/'.$detail->sample_code)->first();
+                    $sampleLabItemExists = \App\InventorySubCategories::where('name', $SampleHeader->batch_code . '/' . $detail->sample_code)->first();
 
                     if (!isset($sampleLabItemExists->id)) {
                         $category = SystemConfiguration::where('key', 'lab_samples_inventory_category_id')->first();
@@ -811,8 +811,8 @@ class SampleWorkFlowController extends Controller
                         }
                         $req = new Request();
                         $req->category_id = $category->value;
-                        $req->name = $SampleHeader->batch_code.'/'.$detail->sample_code;
-                        $req->description = 'Sample for batch - '.$SampleHeader->batch_code;
+                        $req->name = $SampleHeader->batch_code . '/' . $detail->sample_code;
+                        $req->description = 'Sample for batch - ' . $SampleHeader->batch_code;
                         $req->manufacturer = 'Source: Lab';
                         $req->minimum_level = 0;
                         $req->unit_type = $request->sample_details['sample_reporting_unit'][$k];
@@ -867,7 +867,7 @@ class SampleWorkFlowController extends Controller
                 $samplesOL = '<ol>';
 
                 foreach ($samplesRequiringStorage['samples'] as $sampleC) {
-                    $samplesOL .= '<li>'.$sampleC.'</li>';
+                    $samplesOL .= '<li>' . $sampleC . '</li>';
                 }
 
                 $samplesOL .= '</ol>';
@@ -875,18 +875,18 @@ class SampleWorkFlowController extends Controller
                 $body = '
 					Hi,<br>
 					<p>
-						The following samples have been added to the batch '.$SampleHeader->batch_code.'.<br>
-						'.$samplesOL.'
+						The following samples have been added to the batch ' . $SampleHeader->batch_code . '.<br>
+						' . $samplesOL . '
 					</p>
-					'.($SampleHeader->status == 'Samples En-Route' ? 'The samples are expected on '.$SampleHeader->date_expected : '').'
+					' . ($SampleHeader->status == 'Samples En-Route' ? 'The samples are expected on ' . $SampleHeader->date_expected : '') . '
 					<p>
-						Please view the batch for more information about the samples: <a href="'.$samplesRequiringStorage['batch_route'].'">'.$samplesRequiringStorage['batch_route'].'</a>
+						Please view the batch for more information about the samples: <a href="' . $samplesRequiringStorage['batch_route'] . '">' . $samplesRequiringStorage['batch_route'] . '</a>
 					</p>
 					Regards,<br>
-					'.$companyDetails['name'].'
+					' . $companyDetails['name'] . '
 				';
 
-                $subject = '['.$companyDetails['name'].'] Samples En-Route Storage Notification for Batch - '.$SampleHeader->batch_code;
+                $subject = '[' . $companyDetails['name'] . '] Samples En-Route Storage Notification for Batch - ' . $SampleHeader->batch_code;
 
                 $emails = \App\InventoryStoreContact::join('users as u', 'u.id', 'inventory_store_contacts.user_id')
                     ->selectRaw('u.email')->whereIn('inventory_store_contacts.store', $samplesRequiringStorage['store_ids'])->get()->pluck('email')->toArray();
@@ -964,7 +964,7 @@ class SampleWorkFlowController extends Controller
                 if (in_array($a->id, $duplicate_samples_ids)) {
                     if (sizeof($duplicateSampleAnalysis[$a->id]) > 0) {
                         $analysis_d = AnalysisType::whereIn('id', $duplicateSampleAnalysis[$a->id])->get();
-                        if(!isset($analysis_to_be_done[$a->sample_code])){
+                        if (!isset($analysis_to_be_done[$a->sample_code])) {
                             $analysis_to_be_done[$a->sample_code] = [
                                 'sample_detail_code' => $a->sample_code,
                                 'sample_detail_id' => $a->id,
@@ -1269,7 +1269,7 @@ class SampleWorkFlowController extends Controller
         $batch_sample_codes = '';
         $report_formats = [];
         $approvers = [];
-        $approvers_user_ids =[];
+        $approvers_user_ids = [];
         $headerDetails = isset($batch->id) ? $batch->report_header_details() : [];
         $ammendments = isset($batch->id) ? getBatchAmmendmentsById($batch->id) : [];
         $allsamples = isset($batch->id) ? $batch->all_samples() : [];
@@ -1423,7 +1423,7 @@ class SampleWorkFlowController extends Controller
                     $analyte_standard = StandardAnalytes::where('standard_id', $standard)->where('analyte_id', $item->analyte_id)->first();
                     if (isset($analyte_standard->id)) {
                         if ($analyte_standard->standard_value_type == 'is_range') {
-                            $item->standard_value = $analyte_standard->low.' - '.$analyte_standard->high;
+                            $item->standard_value = $analyte_standard->low . ' - ' . $analyte_standard->high;
                         } elseif ($analyte_standard->standard_value_type == 'is_standard_value') {
                             $value_id = StandardValue::find($analyte_standard->standard_value_id);
                             if (isset($value_id->id)) {
@@ -1444,7 +1444,7 @@ class SampleWorkFlowController extends Controller
                     $s_analyte_standard = StandardAnalytes::where('standard_id', $sec)->where('analyte_id', $item->analyte_id)->first();
                     if (isset($s_analyte_standard->id)) {
                         if ($s_analyte_standard->standard_value_type == 'is_range') {
-                            $item->sec_Standard_value = $s_analyte_standard->low.' - '.$s_analyte_standard->high;
+                            $item->sec_Standard_value = $s_analyte_standard->low . ' - ' . $s_analyte_standard->high;
                         } elseif ($s_analyte_standard->standard_value_type == 'is_standard_value') {
                             $value_id = StandardValue::find($s_analyte_standard->standard_value_id);
                             if (isset($value_id->id)) {
@@ -1466,7 +1466,7 @@ class SampleWorkFlowController extends Controller
                     $t_analyte_standard = StandardAnalytes::where('standard_id', $third)->where('analyte_id', $item->analyte_id)->first();
                     if (isset($t_analyte_standard->id)) {
                         if ($t_analyte_standard->standard_value_type == 'is_range') {
-                            $item->third_Standard_value = $t_analyte_standard->low.' - '.$t_analyte_standard->high;
+                            $item->third_Standard_value = $t_analyte_standard->low . ' - ' . $t_analyte_standard->high;
                         } elseif ($t_analyte_standard->standard_value_type == 'is_standard_value') {
                             $value_id = StandardValue::find($t_analyte_standard->standard_value_id);
                             if (isset($value_id->id)) {
@@ -1518,7 +1518,7 @@ class SampleWorkFlowController extends Controller
         $notesReminderType = getNotesReminderTypes();
         $clients = getClients();
         // return response()->json($analaytesHolderPesticide);
-        return view('layouts.lab.sample-workflow.show', compact('batch', 'labStores', 'batchID', 'defaultClient', 'selectedSampleType', 'client_portal', 'ammendable', 'standards', 'attachments', 'not_captured', 'analysts', 'countries', 'accounts', 'methods', 'atachment_type', 'batch_scope', 'customer_survey', 'interlabs', 'labs', 'users', 'payment_detail', 'labsections', 'contacts', 'batch_sample_codes', 'report_formats', 'approvers', 'reportingUnits', 'conditions', 'products', 'headerDetails', 'analaytesHolder', 'analysisBySample', 'analysisBySampleNames', 'labSamples', 'workflowstages', 'workflows', 'sample_types', 'samplingmethods', 'active_company', 'ammendments', 'allsamples', 'selected_analysis_types', 'userLabSections', 'customer', 'requestTypes', 'notifiable_users', 'notesReminderType', 'clients', 'disposal_date', 'status', 'recieving_users', 'section_approvers_users', 'analaytesHolderPesticide','approvers_user_ids'));
+        return view('layouts.lab.sample-workflow.show', compact('batch', 'labStores', 'batchID', 'defaultClient', 'selectedSampleType', 'client_portal', 'ammendable', 'standards', 'attachments', 'not_captured', 'analysts', 'countries', 'accounts', 'methods', 'atachment_type', 'batch_scope', 'customer_survey', 'interlabs', 'labs', 'users', 'payment_detail', 'labsections', 'contacts', 'batch_sample_codes', 'report_formats', 'approvers', 'reportingUnits', 'conditions', 'products', 'headerDetails', 'analaytesHolder', 'analysisBySample', 'analysisBySampleNames', 'labSamples', 'workflowstages', 'workflows', 'sample_types', 'samplingmethods', 'active_company', 'ammendments', 'allsamples', 'selected_analysis_types', 'userLabSections', 'customer', 'requestTypes', 'notifiable_users', 'notesReminderType', 'clients', 'disposal_date', 'status', 'recieving_users', 'section_approvers_users', 'analaytesHolderPesticide', 'approvers_user_ids'));
     }
 
     public function fetch_unit_stuff($name, $client)
@@ -1535,10 +1535,10 @@ class SampleWorkFlowController extends Controller
     {
         \App\ChainOfCustody::where('sample_header_id', $data['batch_id'])
             ->whereNull('moved_out_date')->update([
-                'moved_out_date' => \Carbon\Carbon::now(),
-                'moved_out_by' => \Auth::user()->id,
-                'comments' => $data['comments'],
-            ]);
+                    'moved_out_date' => \Carbon\Carbon::now(),
+                    'moved_out_by' => \Auth::user()->id,
+                    'comments' => $data['comments'],
+                ]);
 
         $custody = new \App\ChainOfCustody();
         $custody->workflow_stage = $data['target']['status'];
@@ -1574,7 +1574,7 @@ class SampleWorkFlowController extends Controller
                 $responsibility = SystemConfiguration::where('key', $batch->status)->first();
 
                 $users = JobDescription::where('config_id', $responsibility->id)->join('users', 'users.position', '=', 'job_designation_responsibility.job_id')->get('users.*');
-                $message = 'Batch '.$batch->batch_code.' needs your attention - '.$request->status.'.';
+                $message = 'Batch ' . $batch->batch_code . ' needs your attention - ' . $request->status . '.';
 
                 $emails = $users->pluck('email')->toarray();
                 $position = $users->pluck('position')->toarray();
@@ -1583,8 +1583,8 @@ class SampleWorkFlowController extends Controller
                     return redirect()->back()->with('error', 'Your are not allowed to perform this task!');
                 }
                 foreach ($users as $user) {
-                    $body = 'Hi '.$user->name.',<br><br><br>'.$message.'<br><br> Regards, <br><br>'.$companyDetails['name'];
-                    $subject = '['.$companyDetails['name'].'] Batch Notification';
+                    $body = 'Hi ' . $user->name . ',<br><br><br>' . $message . '<br><br> Regards, <br><br>' . $companyDetails['name'];
+                    $subject = '[' . $companyDetails['name'] . '] Batch Notification';
                     notify_user($body, $user->email, $subject);
                 }
 
@@ -1600,7 +1600,7 @@ class SampleWorkFlowController extends Controller
                     $responsibility = SystemConfiguration::where('key', $batch->status)->first();
 
                     $users = JobDescription::where('config_id', $responsibility->id)->join('users', 'users.position', '=', 'job_designation_responsibility.job_id')->get('users.*');
-                    $message = 'Batch '.$code.' needs your attention - '.$request->status.'.';
+                    $message = 'Batch ' . $code . ' needs your attention - ' . $request->status . '.';
                     $emails = $users->pluck('email')->toarray();
                     $position = $users->pluck('position')->toarray();
                     $position = array_unique($position);
@@ -1608,8 +1608,8 @@ class SampleWorkFlowController extends Controller
                         return redirect()->back()->with('error', 'Your are not allowed to perform this task!');
                     }
                     foreach ($users as $user) {
-                        $body = 'Hi '.$user->name.',<br><br><br>'.$message.'<br><br> Regards, <br><br>'.$companyDetails['name'];
-                        $subject = '['.$companyDetails['name'].'] Batch Notification';
+                        $body = 'Hi ' . $user->name . ',<br><br><br>' . $message . '<br><br> Regards, <br><br>' . $companyDetails['name'];
+                        $subject = '[' . $companyDetails['name'] . '] Batch Notification';
                         notify_user($body, $user->email, $subject);
                     }
 
@@ -1629,7 +1629,7 @@ class SampleWorkFlowController extends Controller
                     $responsibility = SystemConfiguration::where('key', $batch->status)->first();
 
                     $users = JobDescription::where('config_id', $responsibility->id)->join('users', 'users.position', '=', 'job_designation_responsibility.job_id')->get('users.*');
-                    $message = 'Batch '.$code.' needs your attention - '.$request->status.'.';
+                    $message = 'Batch ' . $code . ' needs your attention - ' . $request->status . '.';
                     $emails = $users->pluck('email')->toarray();
                     $position = $users->pluck('position')->toarray();
                     $position = array_unique($position);
@@ -1646,7 +1646,7 @@ class SampleWorkFlowController extends Controller
                 $responsibility = SystemConfiguration::where('key', $batch->status)->first();
 
                 $users = JobDescription::where('config_id', $responsibility->id)->join('users', 'users.position', '=', 'job_designation_responsibility.job_id')->get('users.*');
-                $message = 'Batch '.$batch->batch_code.' needs your attention - '.$request->status.'.';
+                $message = 'Batch ' . $batch->batch_code . ' needs your attention - ' . $request->status . '.';
 
                 $emails = $users->pluck('email')->toarray();
                 $position = $users->pluck('position')->toarray();
@@ -1747,7 +1747,7 @@ class SampleWorkFlowController extends Controller
                     $this->updateChainofCustody($custodyDetails);
                 }
 
-                return redirect()->route('sample-workflow', ['status' => $previousStatus])->with('success', 'Batches Successfully Moved to '.$request->status);
+                return redirect()->route('sample-workflow', ['status' => $previousStatus])->with('success', 'Batches Successfully Moved to ' . $request->status);
             }
         } elseif ($request->status = 'Samples Request Review') {
             $strStage = 'Sample Labeling';
@@ -1772,22 +1772,22 @@ class SampleWorkFlowController extends Controller
                 $batch = SampleHeader::where('status', $samWk)->where('sample_tracking_stage', $stage->id)->where('batch_code', $code)->first();
 
                 if (!isset($batch->id)) {
-                    return redirect()->back()->with('error', 'No label for batch '.$code.'.');
+                    return redirect()->back()->with('error', 'No label for batch ' . $code . '.');
                 }
                 // return response()->json('test',200);
                 if (($batch->current_account_status == 'Account Holder(Overdue)' || $batch->current_account_status == 'Pay Upfront') && ($batch->begin_proccess == 0)) {
-                    return redirect()->back()->with('error', 'Please check account status - '.$batch->current_account_status);
+                    return redirect()->back()->with('error', 'Please check account status - ' . $batch->current_account_status);
                 }
                 $stages = $batch->stages($request->status);
                 $batch->status = $request->status;
                 $batch->sample_tracking_stage = '20007';
-                $message = 'Batch '.$batch->batch_code.' needs your attention - '.$request->status.'.';
+                $message = 'Batch ' . $batch->batch_code . ' needs your attention - ' . $request->status . '.';
                 if (isset($request->notification)) {
                     $emails = $users->pluck('email')->toarray();
 
                     foreach ($users as $user) {
-                        $body = 'Hi '.$user->name.',<br><br><br>'.$message.'<br><br> Regards, <br><br>'.$companyDetails['name'];
-                        $subject = '['.$companyDetails['name'].'] Batch Notification';
+                        $body = 'Hi ' . $user->name . ',<br><br><br>' . $message . '<br><br> Regards, <br><br>' . $companyDetails['name'];
+                        $subject = '[' . $companyDetails['name'] . '] Batch Notification';
                         notify_user($body, $user->email, $subject);
                     }
                 }
@@ -1821,7 +1821,7 @@ class SampleWorkFlowController extends Controller
             $users = JobDescription::where('config_id', $responsibility->id)->join('users', 'users.position', '=', 'job_designation_responsibility.job_id')->get('users.*');
 
             $numbers = $users->pluck('phone')->toarray();
-            $message = 'Batch '.$batch->batch_code.' needs your attention - '.$request->status.'.';
+            $message = 'Batch ' . $batch->batch_code . ' needs your attention - ' . $request->status . '.';
             foreach ($numbers as $num) {
                 $send = sendTextMessage($num, $message);
                 if ($send == 'error') {
@@ -1832,7 +1832,7 @@ class SampleWorkFlowController extends Controller
 
         // return;
 
-        return redirect()->route('sample-workflow', ['status' => $previousStatus])->with('success', 'Batches Successfully Moved to '.$request->status);
+        return redirect()->route('sample-workflow', ['status' => $previousStatus])->with('success', 'Batches Successfully Moved to ' . $request->status);
     }
 
     public function move_to_stage(Request $request, $stage, $batch_id)
@@ -1965,7 +1965,7 @@ class SampleWorkFlowController extends Controller
                 $users = JobDescription::where('config_id', $responsibility->id)->join('users', 'users.position', '=', 'job_designation_responsibility.job_id')->get('users.*');
 
                 $numbers = $users->pluck('phone')->toarray();
-                $message = 'Batch '.$batch->batch_code.' needs your attention - '.$request->status.'.';
+                $message = 'Batch ' . $batch->batch_code . ' needs your attention - ' . $request->status . '.';
                 foreach ($numbers as $num) {
                     $send = sendTextMessage($num, $message);
                     if ($send == 'error') {
@@ -1987,9 +1987,9 @@ class SampleWorkFlowController extends Controller
                 $batch->approval_email_date = getTodayDate();
             }
             if (isset($request->type) && $request->type == 'Recheck') {
-                $message = 'Batch '.$batch->batch_code.' needs a recheck - Samples In Lab.';
+                $message = 'Batch ' . $batch->batch_code . ' needs a recheck - Samples In Lab.';
             } else {
-                $message = 'Batch '.$batch->batch_code.' needs your attention - '.$request->status.'.';
+                $message = 'Batch ' . $batch->batch_code . ' needs your attention - ' . $request->status . '.';
             }
 
             if (isset($responsibility->id)) {
@@ -2005,8 +2005,8 @@ class SampleWorkFlowController extends Controller
                 $active_company = getActiveCompany();
                 if (!isset($request->type)) {
                     foreach ($users as $user) {
-                        $body = 'Hi '.$user->name.',<br><br><br>'.$message.'<br><br> Regards, <br><br>'.$active_company->name;
-                        $subject = '['.$active_company->name.'] Batch Notification';
+                        $body = 'Hi ' . $user->name . ',<br><br><br>' . $message . '<br><br> Regards, <br><br>' . $active_company->name;
+                        $subject = '[' . $active_company->name . '] Batch Notification';
                         notify_user($body, $user->email, $subject);
                     }
                 }
@@ -2025,7 +2025,7 @@ class SampleWorkFlowController extends Controller
                     if (isset($responsibility->id)) {
                         $users = JobDescription::where('config_id', $responsibility->id)->join('users', 'users.position', '=', 'job_designation_responsibility.job_id')->get('users.*');
                         // return response()->json($users,200);
-                        $message = 'Batch '.$code.' needs your attention - '.$request->status.'.';
+                        $message = 'Batch ' . $code . ' needs your attention - ' . $request->status . '.';
                         $emails = $users->pluck('email')->toarray();
                         $position = $users->pluck('position')->toarray();
                         $position = array_unique($position);
@@ -2043,7 +2043,7 @@ class SampleWorkFlowController extends Controller
                 if (isset($responsibility->id)) {
                     $users = JobDescription::where('config_id', $responsibility->id)->join('users', 'users.position', '=', 'job_designation_responsibility.job_id')->get('users.*');
                     // return response()->json($responsibility,200);
-                    $message = 'Batch '.$batch->batch_code.' needs your attention - '.$request->status.'.';
+                    $message = 'Batch ' . $batch->batch_code . ' needs your attention - ' . $request->status . '.';
 
                     $emails = $users->pluck('email')->toarray();
                     $position = $users->pluck('position')->toarray();
@@ -2075,22 +2075,22 @@ class SampleWorkFlowController extends Controller
                 array_push($contacts, $comment->reminder_for);
                 foreach ($contacts as $contact) {
                     $user = getUserById((int) $contact);
-                    $message = 'There is a new note for batch '.$batch->batch_code.'.<br><br> Kindly review the notes.';
-                    $body = 'Hi '.$user->name.',<br><br>'
-                        .$message.'<br>
+                    $message = 'There is a new note for batch ' . $batch->batch_code . '.<br><br> Kindly review the notes.';
+                    $body = 'Hi ' . $user->name . ',<br><br>'
+                        . $message . '<br>
 							Regards, <br>'
-                        .$active_company->name.' ';
-                    $subject = '['.$companyDetails['name'].'] Batch Recheck Notification';
+                        . $active_company->name . ' ';
+                    $subject = '[' . $companyDetails['name'] . '] Batch Recheck Notification';
                     $notify = notify_user($body, $user->email, $subject);
                 }
             } else {
                 $user = getUserById($comment->reminder_for);
-                $message = 'There is a new note for batch '.$batch->batch_code.'. Kindly review the notes.';
-                $body = 'Hi '.$user->name.',<br><br>'
-                    .$message.'<br>
+                $message = 'There is a new note for batch ' . $batch->batch_code . '. Kindly review the notes.';
+                $body = 'Hi ' . $user->name . ',<br><br>'
+                    . $message . '<br>
 						Regards, <br><br>'
-                    .$companyDetails['name'].' ';
-                $subject = '['.$companyDetails['name'].'] Batch Recheck Notification';
+                    . $companyDetails['name'] . ' ';
+                $subject = '[' . $companyDetails['name'] . '] Batch Recheck Notification';
                 $notify = notify_user($body, $user->email, $subject);
             }
         }
@@ -2198,8 +2198,8 @@ class SampleWorkFlowController extends Controller
                 $customer = CRMCustomer::find($batch->crm_customer_id);
 
                 if (isset($customer->id)) {
-                    $body = 'Hi '.$customer->name.',<br><br>This is a reminder of payment for batch '.$batch->batch_code.' from '.$company->name.'.<br><br>Kindly ignore this if you have already made the payment. <br><br> Regards,<br><br>'.$company->name;
-                    $subject = '['.$company->name.'] Payment Reminder Batch - '.$batch->batch_code;
+                    $body = 'Hi ' . $customer->name . ',<br><br>This is a reminder of payment for batch ' . $batch->batch_code . ' from ' . $company->name . '.<br><br>Kindly ignore this if you have already made the payment. <br><br> Regards,<br><br>' . $company->name;
+                    $subject = '[' . $company->name . '] Payment Reminder Batch - ' . $batch->batch_code;
                     $customer_contacts = CustomerContact::where('crm_customer_id', $customer->id)->where('receive_invoice', 1)->get();
                     foreach ($customer_contacts as $contact) {
                         notify_user($body, $contact->email, $subject);
@@ -2244,8 +2244,8 @@ class SampleWorkFlowController extends Controller
             $captured->result_reporting_symbol = $request->result_reporting_symbol[$cID] ?? '';
             $captured->operator_id = $request->operators[$cID] ?? 0;
             $captured->analyte_code = Analyte::find($captured->analyte_id)->code;
-            
-            if($batch->status == 'Samples In Lab'){
+
+            if ($batch->status == 'Samples In Lab') {
                 $captured->result = $request->result[$cID] ?? '';
                 $captured->remark = $captured->remark_is_manual == 0 ? $request->remark[$cID] : $request->remarkmanual[$cID];
                 $standard_main = Standards::where('code', $request->main_standard[$cID])->first();
@@ -2254,7 +2254,7 @@ class SampleWorkFlowController extends Controller
                 if (isset($standard_main->id)) {
                     $main_standard_analyte = StandardAnalytes::where('analyte_id', $captured->analyte_id)->where('standard_id', $standard_main->id)->first();
                     $sec_standard_analyte = isset($sec_standard->id) ? StandardAnalytes::where('analyte_id', $captured->analyte_id)->where('standard_id', $sec_standard->id)->first() : '';
-                    $third_standard_analyte = isset($third_standard->id) ? StandardAnalytes::where('analyte_id', $captured->analyte_id)->where('standard_id', $third_standard->id)->first() :'';
+                    $third_standard_analyte = isset($third_standard->id) ? StandardAnalytes::where('analyte_id', $captured->analyte_id)->where('standard_id', $third_standard->id)->first() : '';
                 } else {
                     return redirect()->back()->with('error', 'Kindly set Main and Secondary standard for the following sample!');
                 }
@@ -2266,7 +2266,7 @@ class SampleWorkFlowController extends Controller
                 $captured->main_value = $request->main_value[$cID];
                 if (isset($sec_standard_analyte->id)) {
                     if ($sec_standard_analyte->standard_value_type == 'is_range') {
-                        $captured->secondary_value = $sec_standard_analyte->low.' - '.$sec_standard_analyte->high;
+                        $captured->secondary_value = $sec_standard_analyte->low . ' - ' . $sec_standard_analyte->high;
                     } else {
                         if ($sec_standard_analyte->standard_is_value == '') {
                             $standard_value = StandardValue::find($sec_standard_analyte->standard_value_id);
@@ -2278,25 +2278,25 @@ class SampleWorkFlowController extends Controller
                 } else {
                     $captured->secondary_value = '-';
                 }
-                if(isset($third_standard_analyte->id)){
-                    if ($third_standard_analyte->standard_value_type == 'is_range'){
-                        $captured->third_value = $third_standard_analyte->low.' - '.$third_standard_analyte->high;
-                    }else{
-                        if($third_standard_analyte->standard_is_value == ''){
+                if (isset($third_standard_analyte->id)) {
+                    if ($third_standard_analyte->standard_value_type == 'is_range') {
+                        $captured->third_value = $third_standard_analyte->low . ' - ' . $third_standard_analyte->high;
+                    } else {
+                        if ($third_standard_analyte->standard_is_value == '') {
                             $standard_value = StandardValue::find($third_standard_analyte->standard_value_id);
                             $captured->third_value = $standard_value->code;
-                        }else{
+                        } else {
                             $captured->third_value = $third_standard_analyte->standard_is_value;
                         }
                     }
-                }else{
+                } else {
                     $captured->third_value = '-';
                 }
             }
             // return response()->json($captured,200);
             $captured->save();
             // return response()->json($captured);
-            
+
             $sample_detail = getSampleDetailById($captured->sample_detail_id);
             $sample_detail->ammendment_number = $batch->is_amendment;
             $sample_detail->save();
@@ -2350,33 +2350,34 @@ class SampleWorkFlowController extends Controller
             }
         }
 
-        $first_res = isset($standard->id) ? $this->getResultRenark($standard,$analyte,$request->result,$reporting_symbol) : $first_res;
-        $second_res = isset($sec_standard->id) ? $this->getResultRenark($sec_standard,$analyte,$request->result,$reporting_symbol) : $second_res;
-        $third_res = isset($third_standard->id) ? $this->getResultRenark($third_standard,$analyte,$request->result,$reporting_symbol) : $third_res;
+        $first_res = isset($standard->id) ? $this->getResultRenark($standard, $analyte, $request->result, $reporting_symbol) : $first_res;
+        $second_res = isset($sec_standard->id) ? $this->getResultRenark($sec_standard, $analyte, $request->result, $reporting_symbol) : $second_res;
+        $third_res = isset($third_standard->id) ? $this->getResultRenark($third_standard, $analyte, $request->result, $reporting_symbol) : $third_res;
         $remarkArr = [];
-        if($first_res != ''){
+        if ($first_res != '') {
             array_push($remarkArr, $first_res);
         }
-        if($second_res != ''){
+        if ($second_res != '') {
             array_push($remarkArr, $second_res);
         }
-        if($third_res != ''){
+        if ($third_res != '') {
             array_push($remarkArr, $third_res);
         }
 
         // return response()->json($remarkArr);
 
-        if(in_array('FAIL',array_unique($remarkArr))){
+        if (in_array('FAIL', array_unique($remarkArr))) {
             return response()->json('FAIL', 200);
-        }elseif(in_array('-',array_unique($remarkArr)) && in_array('PASS',array_unique($remarkArr))){
+        } elseif (in_array('-', array_unique($remarkArr)) && in_array('PASS', array_unique($remarkArr))) {
             return response()->json('PASS', 200);
-        }elseif(in_array('PASS',array_unique($remarkArr))){
+        } elseif (in_array('PASS', array_unique($remarkArr))) {
             return response()->json('PASS', 200);
-        }else{
+        } else {
             return response()->json('-', 200);
         }
     }
-    private function getResultRenark($standard,$analyte,$result,$reporting_symbol){
+    private function getResultRenark($standard, $analyte, $result, $reporting_symbol)
+    {
         if (isset($standard->id) && isset($analyte->id)) {
             $analyte_guide = StandardAnalytes::where('analyte_id', $analyte->id)->where('standard_id', $standard->id)->first();
             if (isset($analyte_guide->standard_value_type)) {
@@ -2525,7 +2526,7 @@ class SampleWorkFlowController extends Controller
                             $response = 'PASS';
 
                             return $response;
-                        }elseif (strtoupper($result) == 'ABSENT' && strtoupper(trim($standard_value->code)) == 'ABSENT') {
+                        } elseif (strtoupper($result) == 'ABSENT' && strtoupper(trim($standard_value->code)) == 'ABSENT') {
                             $response = 'PASS';
 
                             return $response;
@@ -2763,16 +2764,16 @@ class SampleWorkFlowController extends Controller
             foreach ($contact as $c) {
                 $body = 'Dear Sir / Madam, <br><br>
 				I hope this email finds you well. <br><br>
-				We are pleased to let you know that the <b>'.$samples->count().'</b> test reports are ready as attached..<br><br>'
-                    .$message.'<br><br>
+				We are pleased to let you know that the <b>' . $samples->count() . '</b> test reports are ready as attached..<br><br>'
+                    . $message . '<br><br>
 				We are grateful for giving us an opportunity to be of service to you. <br><br>
 				We look forward to more engagements in the future. <br><br>
 				Should you have any questions or concerns please do not hesitate to contact us.<br><br>
 				Regards, <br>
 				
-				'.$company->name;
-                $subject = 'TEST REPORTS;'.$customer->name.' - '.$start->sample_code.' - '.$end->sample_code;
-                $file = \storage_path().'/app'.$batch->batch_report_url;
+				' . $company->name;
+                $subject = 'TEST REPORTS;' . $customer->name . ' - ' . $start->sample_code . ' - ' . $end->sample_code;
+                $file = \storage_path() . '/app' . $batch->batch_report_url;
                 $bcc = true;
                 $notify = notify_user($body, $c->email, $subject, $file, $bcc);
             }
@@ -2896,7 +2897,7 @@ class SampleWorkFlowController extends Controller
             foreach ($request->batch_code as $code) {
                 $batch = SampleHeader::where('batch_code', $code)->first();
                 if ($batch->invoice_id != 0) {
-                    return redirect()->back()->with('error', 'Batch'.$code.' has an existing Invoice!');
+                    return redirect()->back()->with('error', 'Batch' . $code . ' has an existing Invoice!');
                 }
                 array_push($customer_ids, $batch->crm_customer_id);
             }
@@ -2923,18 +2924,18 @@ class SampleWorkFlowController extends Controller
             $invoice->customer_id = $customer->id;
             $invoice->save();
             if ($customer->credit_days > 0) {
-                $date = date('Y-m-d', strtotime($invoice->created_at.'+'.$customer->credit_days.' days'));
+                $date = date('Y-m-d', strtotime($invoice->created_at . '+' . $customer->credit_days . ' days'));
             } else {
-                $date = date('Y-m-d', strtotime($invoice->created_at.'+ 30 days'));
+                $date = date('Y-m-d', strtotime($invoice->created_at . '+ 30 days'));
             }
             $invoice->due_date = $date;
             $id_str = strval($invoice->id);
             if (strlen($id_str) < 4) {
                 $count = 4 - strlen($id_str);
                 $zeros = str_repeat('0', $count);
-                $number = 'INV-'.$zeros.$id_str;
+                $number = 'INV-' . $zeros . $id_str;
             } else {
-                $number = 'INV-'.$id_str;
+                $number = 'INV-' . $id_str;
             }
             $invoice->invoice_number = $number;
             $invoice->save();
@@ -3019,7 +3020,7 @@ class SampleWorkFlowController extends Controller
     {
         $config = getConfigByName('generate_sample_invoice');
         if (!isset($config[0]->id)) {
-            return response()->json(['error'=>'generate_sample_invoice configuration is not set']);
+            return response()->json(['error' => 'generate_sample_invoice configuration is not set']);
         }
         if ($config[0]->value == 'true') {
             $customer_ids = [];
@@ -3027,26 +3028,26 @@ class SampleWorkFlowController extends Controller
             foreach ($request->batch_code as $code) {
                 $batch = SampleHeader::where('batch_code', $code)->first();
                 if ($batch->invoice_id != 0) {
-                    return response()->json(['error'=>'Batch'.$code.' has an existing Invoice!']);
+                    return response()->json(['error' => 'Batch' . $code . ' has an existing Invoice!']);
                 }
                 array_push($customer_ids, $batch->crm_customer_id);
             }
             $check_customer = array_unique($customer_ids);
             if (sizeof($check_customer) > 1) {
-                return response()->json(['error'=>'The choosen batches are of different customers!']);
+                return response()->json(['error' => 'The choosen batches are of different customers!']);
             }
             $customer = CRMCustomer::find($check_customer[0]);
             if (!isset($customer->id)) {
-                return  response()->json(['error'=>'There is no customer with the specified Batches!']);
+                return response()->json(['error' => 'There is no customer with the specified Batches!']);
             }
             $customer_pricelist = PricelistCustomer::where('customer_id', $customer->id)->get();
             if (!isset($customer_pricelist[0]->id)) {
-                return response()->json(['error'=>'The specified customer has no pricelist assigned']);
+                return response()->json(['error' => 'The specified customer has no pricelist assigned']);
             }
 
             $pricelist = Pricelist::find($customer_pricelist[0]->pricelist_id);
             if (!isset($pricelist->id)) {
-                return response()->json(['error'=>'There is no pricelist with the specified customer pricelist ID!']);
+                return response()->json(['error' => 'There is no pricelist with the specified customer pricelist ID!']);
             }
             $invoice = new Invoice();
             $invoice->pricelist_id = $customer_pricelist[0]->pricelist_id;
@@ -3054,18 +3055,18 @@ class SampleWorkFlowController extends Controller
             $invoice->customer_id = $customer->id;
             $invoice->save();
             if ($customer->credit_days > 0) {
-                $date = date('Y-m-d', strtotime($invoice->created_at.'+'.$customer->credit_days.' days'));
+                $date = date('Y-m-d', strtotime($invoice->created_at . '+' . $customer->credit_days . ' days'));
             } else {
-                $date = date('Y-m-d', strtotime($invoice->created_at.'+ 30 days'));
+                $date = date('Y-m-d', strtotime($invoice->created_at . '+ 30 days'));
             }
             $invoice->due_date = $date;
             $id_str = strval($invoice->id);
             if (strlen($id_str) < 4) {
                 $count = 4 - strlen($id_str);
                 $zeros = str_repeat('0', $count);
-                $number = 'INV-'.$zeros.$id_str;
+                $number = 'INV-' . $zeros . $id_str;
             } else {
-                $number = 'INV-'.$id_str;
+                $number = 'INV-' . $id_str;
             }
             $invoice->invoice_number = $number;
             $invoice->save();
@@ -3079,7 +3080,7 @@ class SampleWorkFlowController extends Controller
                         foreach ($analysis_ids as $analysis_id) {
                             $price = PricelistItem::where('pricelist_id', $pricelist->id)->where('analysis_id', (int) $analysis_id)->where('sample_type_id', $batch->sample_type_id)->first();
                             if (!isset($price->id)) {
-                                return response()->json(['error'=>'kindly add analysis to pricelist!']);
+                                return response()->json(['error' => 'kindly add analysis to pricelist!']);
                             }
                             $check_invoice_detail = InvoiceDetails::where('invoice_id', $invoice->id)->where('analysis_type', (int) $analysis_id)->first();
                             if (!isset($check_invoice_detail->id)) {
@@ -3140,23 +3141,25 @@ class SampleWorkFlowController extends Controller
             $invoice->total_tax = $total_invoice_tax;
             $invoice->save();
 
-            return response()->json(['success'=>'Invoice Created Successfully',"invoice"=>$invoice]);
+            return response()->json(['success' => 'Invoice Created Successfully', "invoice" => $invoice]);
         } else {
-            return response()->json(['error'=>'Kindly set generate_sample_invoice configuration value to true!']);
+            return response()->json(['error' => 'Kindly set generate_sample_invoice configuration value to true!']);
         }
     }
-    public function sendSalesOrder($invoice_id){
-        $invoice = Invoice::with(['currencyinfo','crmCustomer'])->find($invoice_id);
-        $details = InvoiceDetails::with('analysisType')->where('invoice_id',$invoice_id)->get();
+    public function sendSalesOrder($invoice_id)
+    {
+        $invoice = Invoice::with(['currencyinfo', 'crmCustomer'])->find($invoice_id);
+        $details = InvoiceDetails::with('analysisType')->where('invoice_id', $invoice_id)->get();
         $lineitems = [];
         $itemcounter = 0;
-        foreach($details as $detail){
-            $lineitems [] =[
+        foreach ($details as $detail) {
+            $sample_category = $detail->getZohoID();
+            $lineitems[] = [
                 "item_order" => 0,
-                "item_id" => $detail->analysistype->zoho_id,
+                "item_id" => $sample_category->zoho_id,
                 "rate" => $detail->total,
-                "name" => $detail->analysistype->name,
-                "description" => $detail->analysistype->description,
+                "name" => $sample_category->sample_type_category,
+                "description" => $detail->analysistype->name,
                 "quantity" => 1,
             ];
             $itemcounter = $itemcounter + 1;
@@ -3170,13 +3173,13 @@ class SampleWorkFlowController extends Controller
         ];
         $zohoService = new ZohoController();
         $zoho_sales = $zohoService->createSalesrder($salesOrder);
-        return response()->json($zoho_sales);
-        if($zoho_sales != 0){
+        // return response()->json($zoho_sales);
+        if ($zoho_sales != 0) {
             $invoice->sales_order_id = $zoho_sales;
             $invoice->save();
-            return response()->json(['success'=>'Sales Order Created successfully!','invoice'=>$invoice]);
+            return response()->json(['success' => 'Sales Order Created successfully!', 'invoice' => $invoice]);
         }
-        return response()->json(['error'=>'Sales Order not created successfully!','invoice'=>$invoice]);
+        return response()->json(['error' => 'Sales Order not created successfully!', 'invoice' => $invoice]);
     }
 
     public function return_back_verification(Request $request)
@@ -3224,7 +3227,7 @@ class SampleWorkFlowController extends Controller
                 $batch->begin_proccess = 1;
                 $batch->save();
             } else {
-                return redirect()->back()->with('error', 'There is no batch with the specified code -'.$code);
+                return redirect()->back()->with('error', 'There is no batch with the specified code -' . $code);
             }
         }
 
@@ -3247,7 +3250,7 @@ class SampleWorkFlowController extends Controller
             $file = Storage::putFile('batch-attachments', new File($path));
             $file = explode('/', $file);
 
-            $fName = '/storage/batch-attachments/'.urlencode(end($file));
+            $fName = '/storage/batch-attachments/' . urlencode(end($file));
 
             $new->attachment_url = (string) $fName;
             $new->save();
@@ -3378,7 +3381,7 @@ class SampleWorkFlowController extends Controller
 
                 $numbers = $users->pluck('phone')->toarray();
 
-                $message = 'Batch '.$header->batch_code.' Approval Request has been rejected because - '.$request->comment.'.';
+                $message = 'Batch ' . $header->batch_code . ' Approval Request has been rejected because - ' . $request->comment . '.';
                 if (isset($request->send_message)) {
                     foreach ($numbers as $num) {
                         $send = sendTextMessage($num, $message);
@@ -3389,8 +3392,8 @@ class SampleWorkFlowController extends Controller
                 }
                 if (isset($request->send_email)) {
                     foreach ($users as $user) {
-                        $subject = '['.$header->batch_code.'] Approval Request Reject.';
-                        $body = 'Hi '.$user->name.',<br>'.$message;
+                        $subject = '[' . $header->batch_code . '] Approval Request Reject.';
+                        $body = 'Hi ' . $user->name . ',<br>' . $message;
                         notify_user($body, $user->email, $subject);
                     }
                 }
@@ -3610,10 +3613,10 @@ class SampleWorkFlowController extends Controller
             $samplecodesList = '';
 
             foreach ($sample_codes as $s_code) {
-                $samplecodesList .= '<li><a href="http://172.16.16.252:8080/sample-workflow/batch/'.$s_code->sample_header_id.'/details/0/0/'.$s_code->getSampleHeader()->status.'">'.$s_code->sample_code.'</a></li>';
+                $samplecodesList .= '<li><a href="http://172.16.16.252:8080/sample-workflow/batch/' . $s_code->sample_header_id . '/details/0/0/' . $s_code->getSampleHeader()->status . '">' . $s_code->sample_code . '</a></li>';
             }
             $bcc_emails = User::whereIn('id', $request->also_notify ?? [])->pluck('email')->toArray();
-            $body = 'Hi Team, <br> The following sample(s) require  your attention for approval of inter laboratory transfer raised by '.auth()->user()->name.'<br>Click the sample codes to access the sample InterLab Log <br><ul>'.$samplecodesList.'</ul>';
+            $body = 'Hi Team, <br> The following sample(s) require  your attention for approval of inter laboratory transfer raised by ' . auth()->user()->name . '<br>Click the sample codes to access the sample InterLab Log <br><ul>' . $samplecodesList . '</ul>';
             $to_email = getUserById($request->notify_user);
 
             if (isset($to_email->id)) {
@@ -3632,7 +3635,7 @@ class SampleWorkFlowController extends Controller
     {
         $last_log = InterLabLogView::where('sample_id', $id)->where('status', 1)->orderBy('date_received', 'DESC')->orderBy('id', 'DESC')->first();
 
-        return response()->json(isset($last_log->id) ? $last_log->to_lab_code.' '.$last_log->to_lab_name : 'Reception');
+        return response()->json(isset($last_log->id) ? $last_log->to_lab_code . ' ' . $last_log->to_lab_name : 'Reception');
     }
 
     public function changeInterLabLogStatus(Request $request)
@@ -3732,7 +3735,7 @@ class SampleWorkFlowController extends Controller
 					
 				</p>
 			';
-            notify_user($body, $contact->email, '[POLUCON LIMS] Schedule Of Analysis '.$batch->batch_code);
+            notify_user($body, $contact->email, '[POLUCON LIMS] Schedule Of Analysis ' . $batch->batch_code);
 
             return redirect()->back()->with('success', 'Schedule of analysis sent out successfully');
         }
@@ -3744,7 +3747,7 @@ class SampleWorkFlowController extends Controller
     {
         $contact = CustomerContact::find($request->contact_id);
         $batch = SampleHeader::find($request->batch_id);
-        notify_user($request->body, $contact->email, '[POLUCON LIMS] Payment Reminder '.$batch->batch_code);
+        notify_user($request->body, $contact->email, '[POLUCON LIMS] Payment Reminder ' . $batch->batch_code);
 
         return redirect()->back()->with('success', 'Payment reminder sent out successfully');
     }
@@ -3825,7 +3828,7 @@ class SampleWorkFlowController extends Controller
     {
         // return response()->json($request->all());
         $batch = SampleHeader::find($request->batch_id);
-        
+
         $previousWorkflow = $batch->status;
         if ($batch->lab_section_ids == '') {
             return redirect()->back()->with('error', 'Kindly provide the lab sections associated with the sample at batch information section');
@@ -3848,7 +3851,7 @@ class SampleWorkFlowController extends Controller
             return redirect()->back()->with('error', 'Kindly provide approval configuration for the selected batch lab sections');
         }
         if ($request->status == 'Sample Verification') {
-            TatCaptured::where('sample_header_id',$batch->id)->update(['is_complete'=>1]);
+            TatCaptured::where('sample_header_id', $batch->id)->update(['is_complete' => 1]);
             $batch->status = $request->level == '0' ? $request->status : $batch->status;
             $batch->report_status = $request->level == '0' ? $request->level : $batch->report_status;
             $batch->prelim_report_status = $request->level != '0' ? $request->level : $batch->prelim_report_status;
@@ -3866,7 +3869,7 @@ class SampleWorkFlowController extends Controller
                     $approvers->status = 0;
                     $approvers->user_id = $user_id;
                     $approvers->title = $request->title[$section_id];
-                    $approvers->lab_section_ids = $approvers->lab_section_ids == '' ? $approvers->lab_section_ids.$section_id : $approvers->lab_section_ids.','.$section_id;
+                    $approvers->lab_section_ids = $approvers->lab_section_ids == '' ? $approvers->lab_section_ids . $section_id : $approvers->lab_section_ids . ',' . $section_id;
                     $approvers->batch_id = $batch->id;
                     $approvers->batch_status = $request->status;
                     $approvers->is_prelim = $request->level != '0' ? 1 : 0;
@@ -3878,7 +3881,7 @@ class SampleWorkFlowController extends Controller
                     $approvers->status = 1;
                     $approvers->user_id = $analyst->id;
                     $approvers->title = $section->title ?? 'Verifier';
-                    $approvers->lab_section_ids = $approvers->lab_section_ids == '' ? $approvers->lab_section_ids.$section->id : $approvers->lab_section_ids.','.$section->id;
+                    $approvers->lab_section_ids = $approvers->lab_section_ids == '' ? $approvers->lab_section_ids . $section->id : $approvers->lab_section_ids . ',' . $section->id;
                     $approvers->batch_id = $batch->id;
                     $approvers->batch_status = $request->status;
                     $approvers->is_prelim = $request->level != '0' ? 1 : 0;
@@ -3893,8 +3896,8 @@ class SampleWorkFlowController extends Controller
         }
 
         $approvers_user_ids = BatchLabSectionApprover::where('batch_id', $batch->id)->pluck('user_id')->toArray();
-        if(in_array($request->user_id,$approvers_user_ids)){
-            return redirect()->back()->with('error','System cannot assign the specified user as an approver since the user is already an approver');
+        if (in_array($request->user_id, $approvers_user_ids)) {
+            return redirect()->back()->with('error', 'System cannot assign the specified user as an approver since the user is already an approver');
         }
 
         BatchLabSectionApprover::where('batch_id', $batch->id)->where('lab_section_ids', 0)->delete();
@@ -3911,12 +3914,12 @@ class SampleWorkFlowController extends Controller
         $batch->save();
         if (isset($request->notification)) {
             $user = User::find($request->user_id);
-            $message = 'Hi '.$user->name.', <br>'.$batch->batch_code.' COA needs your approval at '.$batch->status.'. <br> Comments : '.$request->comments;
-            notify_user($message, $user->email, '[Polucon LIMS] '.$batch->batch_code.' Batch Approval Notification');
+            $message = 'Hi ' . $user->name . ', <br>' . $batch->batch_code . ' COA needs your approval at ' . $batch->status . '. <br> Comments : ' . $request->comments;
+            notify_user($message, $user->email, '[Polucon LIMS] ' . $batch->batch_code . ' Batch Approval Notification');
         }
         if (isset($request->send_message)) {
             $user = User::find($request->user_id);
-            $sms_message = 'Hi '.$user->name.', '.$batch->batch_code.' COA needs your approval at '.$batch->status.'. Comments : '.$request->comments;
+            $sms_message = 'Hi ' . $user->name . ', ' . $batch->batch_code . ' COA needs your approval at ' . $batch->status . '. Comments : ' . $request->comments;
             sendTextMessage($user->phone, $sms_message);
         }
 
@@ -3950,29 +3953,38 @@ class SampleWorkFlowController extends Controller
             if ($batch->status == 'Sample Approval') {
                 $batch->approval_date = getTodayDate();
                 $batch->save();
-                $link = $ip_address_link.'/sample-workflow/batch/'.$batch->id.'/details/0/0/All%20Samples';
+                $link = $ip_address_link . '/sample-workflow/batch/' . $batch->id . '/details/0/0/All%20Samples';
                 $samplescodes = SampleDetails::where('sample_header_id', $batch->id)->pluck('sample_code')->toArray();
                 $li_str = '';
                 foreach ($samplescodes as $code) {
-                    $li_str.='<li><a href="'.$link.'" >'.$code.'</a></li>';
+                    $li_str .= '<li><a href="' . $link . '" >' . $code . '</a></li>';
                 }
-                $subject = 'Automated Invoice Request - Job ['.implode(', ', $samplescodes).']';
+                $subject = 'Automated Invoice Request - Job [' . implode(', ', $samplescodes) . ']';
                 $message = 'Dear Finance Team,<br><br>
 
 				This is an automated notification to inform you that the following job is now ready to be invoiced: <br>
 				
 				<b>*Job Number/Report Number:*</b> <br>
-				<ul>'.$li_str.'</ul>
+				<ul>' . $li_str . '</ul>
 				Please proceed with creating an invoice for this job at your earliest convenience. If additional information is required, kindly reach out to the relevant department.
 				Thank you for your attention.';
                 $emails = ['laboratory@polucongroup.com'];
+
+                $zohoService = new ZohoController();
+                $invoice = Invoice::find($batch->invoice_id);
+                $zoho_sales = $zohoService->changeSalesOrderStatus($invoice->zoho_id);
+                if($zoho_sales['code'] == 0){
+                    $invoice->zoho_so_confirmed = date('Y-m-d');
+                    $invoice->save();
+                }
+
                 // $emails = ['danmuv12@gmail.com'];
                 // notify_user($message, 'dannyagah13@gmail.com', $subject, false, true, $emails);
                 try {
-                    notify_user($message,'Accounts@polucongroup.com',$subject,false,true,$emails);
-                  } catch (\Exception $e) {
+                    notify_user($message, 'Accounts@polucongroup.com', $subject, false, true, $emails);
+                } catch (\Exception $e) {
                     return redirect()->back()->with('success', 'Batch Approval updated successfully but notifications to accounts and lab were not set');
-                  }
+                }
             }
         }
 
@@ -3995,10 +4007,10 @@ class SampleWorkFlowController extends Controller
 
     public function generateTabletCustomerFocusIndex(Request $request)
     {
-        $sample_code = 'S'.date('Y').$request->sample_no;
+        $sample_code = 'S' . date('Y') . $request->sample_no;
         $sample = SampleDetails::where('sample_code', $sample_code)->first();
         if (!isset($sample->id)) {
-            return redirect()->back()->with('error', 'There is no sample with '.$request->sample_no.' sample/job number');
+            return redirect()->back()->with('error', 'There is no sample with ' . $request->sample_no . ' sample/job number');
         }
         $batch = SampleHeader::find($sample->sample_header_id);
         if (!isset($batch->id)) {
@@ -4291,7 +4303,7 @@ class SampleWorkFlowController extends Controller
                 }
             }
 
-            $cP = implode('', $code).$batch_config->value.implode('', $values).$batch_data->sample_type_code;
+            $cP = implode('', $code) . $batch_config->value . implode('', $values) . $batch_data->sample_type_code;
             $config_batch_no = SystemConfiguration::where('key', 'batch_start_no')->first();
             if (!isset($config_batch_no->id)) {
                 return redirect()->back()->with('error', 'Kindly set the start batch no');
@@ -4301,11 +4313,11 @@ class SampleWorkFlowController extends Controller
             $final_no = '';
             if (strlen(strval($batch_no_s)) < 4) {
                 $zerosss = str_repeat('0', 4 - strlen(strval($batch_no_s)));
-                $final_no = $zerosss.''.strval($batch_no_s);
+                $final_no = $zerosss . '' . strval($batch_no_s);
             } else {
                 $final_no = strval($batch_no_s);
             }
-            $new_batch_code = $cP.''.$final_no;
+            $new_batch_code = $cP . '' . $final_no;
 
             $new_batch = $batch->replicate()->fill([
                 'updated_at' => '',
@@ -4328,13 +4340,13 @@ class SampleWorkFlowController extends Controller
 
                 // return response()->json($request->sample_details['lab_id'][$k]);
                 $sample_number = intval($last_sample) + 1;
-                $new_sample_code = 'S'.date('Y').$sample_data->main_lab_code.sprintf('%0'.'4'.'d', $sample_number);
+                $new_sample_code = 'S' . date('Y') . $sample_data->main_lab_code . sprintf('%0' . '4' . 'd', $sample_number);
 
                 $new_sample = $sample->replicate()->fill([
                     'sample_code' => $new_sample_code,
                     'sample_header_id' => $new_batch->id,
                     'disposal_date' => \Carbon\Carbon::parse($new_batch->receipt_date)->addMonths(3)->format('Y-m-d'),
-                    'sample_no' => sprintf('%0'.'4'.'d', $sample_number),
+                    'sample_no' => sprintf('%0' . '4' . 'd', $sample_number),
                 ]);
                 $new_sample->save();
 
@@ -4423,9 +4435,9 @@ class SampleWorkFlowController extends Controller
         $standard_analyte->save();
         $value = 'NS';
 
-        $value = $request->standard_value_type == 1 ? $request->low.' - '.$request->high : $value;
+        $value = $request->standard_value_type == 1 ? $request->low . ' - ' . $request->high : $value;
         $value = $request->standard_value_type == 2 && $request->limit_measure == '' ? StandardValue::find($request->standard_valuetype)->code : $value;
-        $value = $request->standard_value_type == 2 && $request->limit_measure != '' ? $request->value.' '.$request->limit_measure : $value;
+        $value = $request->standard_value_type == 2 && $request->limit_measure != '' ? $request->value . ' ' . $request->limit_measure : $value;
         $format_value = $request->standard_value_type == 2 && $request->limit_measure != '' ? $request->value : $value;
 
         return response()->json(['format_value' => $value, 'value' => $format_value]);
@@ -4502,26 +4514,29 @@ class SampleWorkFlowController extends Controller
 
         return redirect()->back()->with('success', 'Invoice Details added successfully');
     }
-    public function markBatchesFinished(Request $request){
-        $batches = SampleHeader::whereIn('batch_code',$request->batch_code)->update(['status'=>'Finished Sample']);
-        return redirect()->back()->with('success','Samples moved to finished samples successfully');
+    public function markBatchesFinished(Request $request)
+    {
+        $batches = SampleHeader::whereIn('batch_code', $request->batch_code)->update(['status' => 'Finished Sample']);
+        return redirect()->back()->with('success', 'Samples moved to finished samples successfully');
     }
-    public function returnFromFinished(Request $request){
-        SampleHeader::whereIn('batch_code', $request->batch_code)->update(['status'=> 'Sample Approval']);
-        return redirect()->back()->with('success','Samples moved to Sample Approval successfully');
+    public function returnFromFinished(Request $request)
+    {
+        SampleHeader::whereIn('batch_code', $request->batch_code)->update(['status' => 'Sample Approval']);
+        return redirect()->back()->with('success', 'Samples moved to Sample Approval successfully');
     }
 
-    public function sendBatchesScheduleAnalysis(Request $request){
-        $batch_customers = SampleHeader::whereIn('batch_code',$request->batch_code)->pluck('crm_customer_id')->toArray();
-        if(sizeof(array_unique($batch_customers)) > 1){
-            return redirect()->back()->with('error','Ensure that the selected batches are for the same client');
+    public function sendBatchesScheduleAnalysis(Request $request)
+    {
+        $batch_customers = SampleHeader::whereIn('batch_code', $request->batch_code)->pluck('crm_customer_id')->toArray();
+        if (sizeof(array_unique($batch_customers)) > 1) {
+            return redirect()->back()->with('error', 'Ensure that the selected batches are for the same client');
         }
         $customer = CrmCustomer::find(array_unique($batch_customers)[0]);
         // return response()->json(array_unique($batch_customers));
-        $batch_ids = SampleHeader::whereIn('batch_code',$request->batch_code)->pluck('id')->toArray();
+        $batch_ids = SampleHeader::whereIn('batch_code', $request->batch_code)->pluck('id')->toArray();
         $samples = SampleDetails::whereIn('sample_header_id', $batch_ids)->pluck('sample_code')->toArray();
-        if($customer->email != ''){
-            foreach($batch_ids as $b_ids){
+        if ($customer->email != '') {
+            foreach ($batch_ids as $b_ids) {
                 $header = SampleHeader::find($b_ids);
                 $header->schedule_sent = 1;
                 $header->schedule_analysis_sent = date('Y-m-d');
@@ -4529,138 +4544,146 @@ class SampleWorkFlowController extends Controller
                 $header->save();
                 $schedule_str = 'Schedule Of Analysis Sendoff';
                 $schedueDate = \App\SampleDate::where('sample_header_id', $header->id)->where('name', $schedule_str)->first() ?? new
-                \App\SampleDate();
+                    \App\SampleDate();
                 $schedueDate->name = $schedule_str;
                 $schedueDate->sample_header_id = $header->id;
                 $schedueDate->date = date('Y-m-d');
                 $schedueDate->save();
             }
-            
+
             $body = '
             <p>
                 Dear Esteemed client, <br><br>
                 We acknowledge receipt of your sample(s) submitted to our laboratory. The sample(s) have been forwarded to our
-                laboratory and analysis is scheduled to start anytime from now.<br>The sample(s) number(s) are : '.implode(',
-                ',$samples).'. <br><br>We will keep you updated on the progress report(s).<br><br>Thank you for the opportunity to
+                laboratory and analysis is scheduled to start anytime from now.<br>The sample(s) number(s) are : ' . implode(',
+                ', $samples) . '. <br><br>We will keep you updated on the progress report(s).<br><br>Thank you for the opportunity to
                 serve you.
             
             </p>
             ';
             notify_user($body, $customer->email, '[POLUCON LIMS] Schedule Of Analysis');
-            return redirect()->back()->with('success','Schedule of analysis sent successfully!');
-        }else{
-            return redirect()->back()->with('error','Kindly set an email to the specified customer');
+            return redirect()->back()->with('success', 'Schedule of analysis sent successfully!');
+        } else {
+            return redirect()->back()->with('error', 'Kindly set an email to the specified customer');
         }
     }
 
-    public function disposalReportIndex(Request $request){
+    public function disposalReportIndex(Request $request)
+    {
         $data = [];
         $filter = [];
-        if(isset($request->has_filter)){
+        if (isset($request->has_filter)) {
             $filter = [
-                'date_from'=>$request->date_from,
+                'date_from' => $request->date_from,
                 "date_to" => $request->date_to,
                 "customer_id" => $request->customer_id,
                 "sample_type_id" => $request->sample_type_id,
-                "store_id"=>$request->store_id,
+                "store_id" => $request->store_id,
             ];
             $data = SamplesCategory::query();
-            if(isset($request->date_from) && $request->date_from != ''){
-                $data = $data->where('disposal_date','>=',$request->date_from);
+            if (isset($request->date_from) && $request->date_from != '') {
+                $data = $data->where('disposal_date', '>=', $request->date_from);
             }
-            if(isset($request->date_to) && $request->date_to != ''){ 
-                $data = $data->where('disposal_date','<=',$request->date_to);
+            if (isset($request->date_to) && $request->date_to != '') {
+                $data = $data->where('disposal_date', '<=', $request->date_to);
             }
-            if(isset($request->customer_id) && $request->customer_id != '' && $request->customer_id != 'All'){
-                $data = $data->where('crm_customer_id',$request->customer_id);
+            if (isset($request->customer_id) && $request->customer_id != '' && $request->customer_id != 'All') {
+                $data = $data->where('crm_customer_id', $request->customer_id);
             }
-            if(isset($request->sample_type_id) && $request->sample_type_id != '' && $request->sample_type_id != 'All' ){
-                $data = $data->where('sample_type_id',$request->sample_type_id);
+            if (isset($request->sample_type_id) && $request->sample_type_id != '' && $request->sample_type_id != 'All') {
+                $data = $data->where('sample_type_id', $request->sample_type_id);
             }
-            if(isset($request->store_id) && $request->store_id != '' && $request->store_id != 'All'){
-                $data = $data->where('store_id',$request->store_id);
+            if (isset($request->store_id) && $request->store_id != '' && $request->store_id != 'All') {
+                $data = $data->where('store_id', $request->store_id);
             }
-            $data = $data->orderBy('disposal_date','DESC')->get();
+            $data = $data->orderBy('disposal_date', 'DESC')->get();
         }
-        $sampletypes = SampleType::where('active',1)->get();
-        $customers = CRMCustomer::where('active',1)->get();
+        $sampletypes = SampleType::where('active', 1)->get();
+        $customers = CRMCustomer::where('active', 1)->get();
         $stores = getStorageByType('lab_store');
-        return view('layouts.lab.reports.disposal',compact('sampletypes','customers','stores','filter','data'));
+        return view('layouts.lab.reports.disposal', compact('sampletypes', 'customers', 'stores', 'filter', 'data'));
     }
-    public function tatReportIndex(Request $request){
+    public function tatReportIndex(Request $request)
+    {
         $data = [];
         $filter = [];
-        if(isset($request->has_filter)){
+        if (isset($request->has_filter)) {
             $filter = [
                 "date_from" => $request->date_from,
                 "date_to" => $request->date_to,
                 "user_id" => $request->user_id,
                 'sample_type_id' => $request->sample_type_id,
                 'analysis_type_id' => $request->analysis_type_id,
-    
+
             ];
             $data = TatCapturedView::query();
-            if(isset($request->date_from) && $request->date_from != ''){
-                $data = $data->where('receipt_date','>=',$request->date_from);
+            if (isset($request->date_from) && $request->date_from != '') {
+                $data = $data->where('receipt_date', '>=', $request->date_from);
             }
-            if(isset($request->date_to) && $request->date_to != ''){
-                $data = $data->where('receipt_date','<=',$request->date_to);
+            if (isset($request->date_to) && $request->date_to != '') {
+                $data = $data->where('receipt_date', '<=', $request->date_to);
             }
-            if(isset($request->user_id) && $request->user_id != '' && $request->user_id != 'All'){
-                $data  = $data->where('analyst_id',$request->user_id);
+            if (isset($request->user_id) && $request->user_id != '' && $request->user_id != 'All') {
+                $data = $data->where('analyst_id', $request->user_id);
             }
-            if(isset($request->sample_type_id) && $request->sample_type_id != '' && $request->sample_type_id != 'All'){
-                $data = $data->where('sample_type_id',$request->sample_type_id);
+            if (isset($request->sample_type_id) && $request->sample_type_id != '' && $request->sample_type_id != 'All') {
+                $data = $data->where('sample_type_id', $request->sample_type_id);
             }
-            if(isset($request->analysis_type_id) && $request->analysis_type_id != '' && $request->analysis_type_id != 'All'){
-                $data = $data->where('analysis_type_id',$request->analysis_type_id);
+            if (isset($request->analysis_type_id) && $request->analysis_type_id != '' && $request->analysis_type_id != 'All') {
+                $data = $data->where('analysis_type_id', $request->analysis_type_id);
             }
-            if(isset($request->analyte_id) && $request->analyte_id != '' && $request->analyte_id != 'All'){
-                $data = $data->where('analyte_id',$request->analyte_id);
+            if (isset($request->analyte_id) && $request->analyte_id != '' && $request->analyte_id != 'All') {
+                $data = $data->where('analyte_id', $request->analyte_id);
             }
 
-            $data = $data->where('is_complete',1)->orderBy('created_at','ASC')->get();
+            $data = $data->where('is_complete', 1)->orderBy('created_at', 'ASC')->get();
         }
-        $sampletypes = SampleType::where('active',1)->get();
+        $sampletypes = SampleType::where('active', 1)->get();
         $role_a = SystemConfiguration::where('key', 'analyst_role_id')->first();
         $analysts = User::orderBy('name')->join('user_roles as ur', 'ur.user_id', '=', 'users.id')
             ->join('roles as r', 'r.id', '=', 'ur.role_id')
             ->where('r.id', $role_a->value)->where('users.active', 1)->where('users.is_support_staff', 0)->selectRaw('users.*')->get();
-        return view('layouts.lab.reports.tat-report',compact('sampletypes','analysts','filter','data'));
+        return view('layouts.lab.reports.tat-report', compact('sampletypes', 'analysts', 'filter', 'data'));
     }
-    public function getAnalysisTypeAjax($sampletype){
-        $analysis = AnalysisType::where('sample_type_id',$sampletype)->where('active',1)->get();
+    public function getAnalysisTypeAjax($sampletype)
+    {
+        $analysis = AnalysisType::where('sample_type_id', $sampletype)->where('active', 1)->get();
         return response()->json($analysis);
     }
-    public function getAnalyteAjax($analysistype){
-        $analytes = Analyte::where('analysis_type_id',$analysistype)->where('active',1)->get();
+    public function getAnalyteAjax($analysistype)
+    {
+        $analytes = Analyte::where('analysis_type_id', $analysistype)->where('active', 1)->get();
         return response()->json($analytes);
     }
 
-    public function getTatDelayedSample(){
+    public function getTatDelayedSample()
+    {
         $date = \Carbon\Carbon::now();
         $date->addDays(1);
-        $headers  = SampleDate::join('sample_headers as s','s.id','=','sample_dates.sample_header_id')->where('sample_dates.date','<=',$date)->whereIn('s.status',["Samples En-Route", "Samples Reception", "Samples Request Review", "Samples In Lab", "Sample Verification", "Sample Approval"])->where('name','Target Date')->selectRaw('s.*,sample_dates.date as tat_date,date(sample_dates.date) < date(now()) as is_late,date(sample_dates.date) = date(now()) as is_today')->orderBy('tat_date','DESC')->get();
+        $headers = SampleDate::join('sample_headers as s', 's.id', '=', 'sample_dates.sample_header_id')->where('sample_dates.date', '<=', $date)->whereIn('s.status', ["Samples En-Route", "Samples Reception", "Samples Request Review", "Samples In Lab", "Sample Verification", "Sample Approval"])->where('name', 'Target Date')->selectRaw('s.*,sample_dates.date as tat_date,date(sample_dates.date) < date(now()) as is_late,date(sample_dates.date) = date(now()) as is_today')->orderBy('tat_date', 'DESC')->get();
         return response()->json($headers);
     }
-    public function awaitingApprovalSamples($status){
+    public function awaitingApprovalSamples($status)
+    {
         // return response()->json($status);
-        $headers = BatchLabSectionApprover::join('sample_headers as s','s.id','=','batch_labsection_approval.batch_id')->join('users as u','u.id','=','batch_labsection_approval.user_id')->where('batch_labsection_approval.status',0)->where('batch_labsection_approval.batch_status',$status)->selectRaw('s.*,u.name as batch_approver')->get();
+        $headers = BatchLabSectionApprover::join('sample_headers as s', 's.id', '=', 'batch_labsection_approval.batch_id')->join('users as u', 'u.id', '=', 'batch_labsection_approval.user_id')->where('batch_labsection_approval.status', 0)->where('batch_labsection_approval.batch_status', $status)->selectRaw('s.*,u.name as batch_approver')->get();
         return response()->json($headers);
     }
-    public function updateTatCaptured(){
-        $batches = SampleHeader::whereIn('status',["Sample Verification", "Sample Approval", "Reports In Payment", "Reports for Collection","Finished Sample"])->pluck('id')->toArray();
-        TatCaptured::whereIn('sample_header_id',$batches)->update(['is_complete'=>1]);
+    public function updateTatCaptured()
+    {
+        $batches = SampleHeader::whereIn('status', ["Sample Verification", "Sample Approval", "Reports In Payment", "Reports for Collection", "Finished Sample"])->pluck('id')->toArray();
+        TatCaptured::whereIn('sample_header_id', $batches)->update(['is_complete' => 1]);
         return response()->json('success');
     }
 
-    public function getTatBatchApprovalCounterAjax($status){
-        $approval =  $headers = BatchLabSectionApprover::join('sample_headers as s','s.id','=','batch_labsection_approval.batch_id')->join('users as u','u.id','=','batch_labsection_approval.user_id')->where('batch_labsection_approval.status',0)->where('batch_labsection_approval.batch_status',$status)->selectRaw('s.*,u.name as batch_approver')->get()->count();
+    public function getTatBatchApprovalCounterAjax($status)
+    {
+        $approval = $headers = BatchLabSectionApprover::join('sample_headers as s', 's.id', '=', 'batch_labsection_approval.batch_id')->join('users as u', 'u.id', '=', 'batch_labsection_approval.user_id')->where('batch_labsection_approval.status', 0)->where('batch_labsection_approval.batch_status', $status)->selectRaw('s.*,u.name as batch_approver')->get()->count();
 
         $date = \Carbon\Carbon::now();
         $date->addDays(1);
-        $atat_count  = SampleDate::join('sample_headers as s','s.id','=','sample_dates.sample_header_id')->where('sample_dates.date','<=',$date)->whereIn('s.status',["Samples En-Route", "Samples Reception", "Samples Request Review", "Samples In Lab", "Sample Verification", "Sample Approval"])->where('name','Target Date')->selectRaw('s.*,sample_dates.date as tat_date')->get()->count();
-        return response()->json(['tat_count'=>$atat_count,'approval_count'=>$approval]);
+        $atat_count = SampleDate::join('sample_headers as s', 's.id', '=', 'sample_dates.sample_header_id')->where('sample_dates.date', '<=', $date)->whereIn('s.status', ["Samples En-Route", "Samples Reception", "Samples Request Review", "Samples In Lab", "Sample Verification", "Sample Approval"])->where('name', 'Target Date')->selectRaw('s.*,sample_dates.date as tat_date')->get()->count();
+        return response()->json(['tat_count' => $atat_count, 'approval_count' => $approval]);
     }
-    
+
 }
