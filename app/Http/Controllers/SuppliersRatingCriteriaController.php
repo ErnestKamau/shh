@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\RequestEntity;
 use App\SuppliersRatingCriteria;
 use Illuminate\Http\Request;
 
@@ -40,6 +41,6 @@ class SuppliersRatingCriteriaController extends Controller
 			}
 		}
 
-		return redirect()->back()->with('success', 'Supplier criteria score updated.');
+		return redirect()->back()->with('success', 'Items issued out and supplier criteria score updated.');
 	}
 }
