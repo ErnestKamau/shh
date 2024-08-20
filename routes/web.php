@@ -584,6 +584,7 @@ Route::post('/organizational-departments', 'PersonnelController@add_department')
 Route::post('/personnel-organizational/{id}', 'PersonnelController@edit_department')->name('edit-organizational-department');
 
 Route::post('/add-personnel-role/{user_id}', 'UserRoleController@add')->name('add-personnel-role');
+Route::post('/edit-approval-departments/{user_id}/{role}', 'UserRoleController@edit_departments')->name('edit-approval-departments');
 Route::post('/remove-personnel-role/{id}', 'UserRoleController@remove')->name('remove-personnel-role');
 
 Route::post('/personnel-state-change/{id}', 'PersonnelController@deactivate_personnel')->name('personnel-state');

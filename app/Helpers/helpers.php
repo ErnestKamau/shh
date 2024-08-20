@@ -1214,6 +1214,10 @@ function getNamingConventionCode($model, $name, $requiredName = '')
 		$nameString = $requiredName;
 	}
 
+	if(in_array($requiredName, ['PR', 'RFQ', 'PO', 'GR', 'GRN', 'RS', 'MI', 'GP'])){
+		$nameString = $requiredName.date("Y");
+	}
+
 	$namingConV = App\NamingConvensionConsensus::where('string_part', $nameString)->where('model', $model)->first();
 	if ($model == 'Samples') {
 		$header = App\SampleHeader::latest('id')->first();
@@ -1234,7 +1238,7 @@ function getNamingConventionCode($model, $name, $requiredName = '')
 	}
 
 
-	$nameInteger = "15001";
+	$nameInteger = "1";
 
 	if ($namingConV && isset($namingConV->string_part)) {
 		$nameInteger = intval($namingConV->integer_part) + 1;
@@ -1245,6 +1249,7 @@ function getNamingConventionCode($model, $name, $requiredName = '')
 		$namingConV->model = $model;
 		$namingConV->company_id = getUserCompany();
 	}
+	$nameInteger = str_pad($nameInteger, $defaultPadding, "0", STR_PAD_LEFT);
 	$namingConV->integer_part = $nameInteger;
 	$namingConV->save();
 

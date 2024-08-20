@@ -17,7 +17,7 @@ class SupplierObserver
     {
         $zoho = new ZohoController();
         if(empty($supplier->zoho_supplier_id)){
-            $zoho->createZohoSupplier($supplier);
+            // $zoho->createZohoSupplier($supplier);
         }
     }
 
