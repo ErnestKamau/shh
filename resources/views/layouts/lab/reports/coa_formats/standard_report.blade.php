@@ -58,7 +58,7 @@
 
     .footer_signatures {
         position: fixed;
-        bottom: 180px;
+        bottom: 160px;
         left: 0;
         right: 0;
         z-index: 1000;
