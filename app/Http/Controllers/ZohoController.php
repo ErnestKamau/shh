@@ -272,7 +272,7 @@ class ZohoController extends Controller
 				$this->sync_zoho_items();
 			}
 			if ($type == "vendors") {
-				$this->sync_zoho_vendors();
+				return $this->sync_zoho_vendors();
 			}
 			if ($type == "currencies") {
 				return $this->sync_zoho_currencies();
@@ -354,6 +354,8 @@ class ZohoController extends Controller
 		$vendors = json_decode($response, true);
 		$contacts = $vendors['contacts'];
 
+		// return ">>>>>>>>>>>>>>>>>>>>>".json_encode($contacts);
+
 		foreach ($contacts as $c) {
 			$supplierExists = Supplier::where(function ($query) use ($c) {
 				$query->where('email', $c['email']);
@@ -368,6 +370,7 @@ class ZohoController extends Controller
 			$supplierExists->email = $c['email'];
 			$supplierExists->phone = $c['phone'];
 			$supplierExists->company_id = 1;
+			$supplierExists->inventory_location_id = 3;
 			$supplierExists->zoho_supplier_id = $c['contact_id'];
 			$supplierExists->save();
 		}
@@ -398,7 +401,7 @@ class ZohoController extends Controller
 	{
 		$currencies = $this->sync_zoho_things('/settings/currencies', 'currencies');
 
-		return ">>>>>>>>>>>>>>>>>>>>>" . json_encode($currencies);
+		// return ">>>>>>>>>>>>>>>>>>>>>" . json_encode($currencies);
 
 		$currencies = json_decode($currencies, true);
 		$config = "Currency";
