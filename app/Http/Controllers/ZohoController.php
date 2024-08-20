@@ -368,6 +368,7 @@ class ZohoController extends Controller
 			$supplierExists->email = $c['email'];
 			$supplierExists->phone = $c['phone'];
 			$supplierExists->company_id = 1;
+			$supplierExists->inventory_location_id = 3;
 			$supplierExists->zoho_supplier_id = $c['contact_id'];
 			$supplierExists->save();
 		}
