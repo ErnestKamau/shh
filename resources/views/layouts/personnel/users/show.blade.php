@@ -262,6 +262,9 @@
 								</thead>
 								<tbody>
 									@foreach ($user->roles as $item)
+									<?php
+										$hasDepartmentalApprovals = \App\UserDepartmentalApproval::where('role_id', $item->role_id)->where('user_id', $user->id)->selectRaw('department_id')->get()->pluck('department_id');
+									?>
 									<tr>
 										<td>{{ $loop->iteration }}</td>
 										<td>{{ $item->role->name }}</td>
@@ -271,6 +274,11 @@
 												@csrf
 												<i class="mdi mdi-delete"></i>
 											</form>
+											<span class="btn btn-transparent btn-sm text-primary"
+											data-departments='{{ json_encode($hasDepartmentalApprovals) }}' data-role="{{ $item->role_id }}"
+											data-target="#edit-approval-departments" data-toggle="modal">
+											<i class="mdi mdi-home-group {{ count($hasDepartmentalApprovals) == 0 ? 'text-muted' : '' }}"></i>
+										</span>
 										</td>
 									</tr>
 									@endforeach
@@ -531,6 +539,30 @@
 </main>
 @endsection
 @section('script2')
+<div id="edit-approval-departments" class="modal fade" role="dialog">
+	<div class="modal-dialog">
+		<!-- Modal content-->
+		<form  method="POST" class="modal-content">
+			@csrf
+			<div class="modal-header">
+				<h4 class="modal-title"><i class="mdi mdi-home-group"></i> Approval Departments</h4>
+			</div>
+			<div class="modal-body">
+				<div class="form-group">
+					<select class="form-control" name="departments[]" data-placeholder="Select Departments..." multiple>
+						@foreach (getDepartments() as $item)
+							<option value="{{ $item->id }}" {{ $user->department_id == $item->id ? 'selected' : ''  }}>{{ $item->name }}</option>
+						@endforeach
+					</select>
+				</div>
+			</div>
+			<div class="modal-footer">
+				<button type="submit" class="btn btn-primary"> <i class="mdi mdi-content-save"></i> Save</button>
+				<button type="button" class="btn btn-default" data-dismiss="modal">Close</button>
+			</div>
+		</form>
+	</div>
+</div>
 <div id="show-changes-modal" class="modal fade" role="dialog">
 	<div class="modal-dialog">
 		<!-- Modal content-->
@@ -636,6 +668,21 @@
 </div>
 <script>
 	$(function() {
+		$('#edit-approval-departments').on('show.bs.modal', function(e){
+			var departments = $(e.relatedTarget).data('departments');
+			var role = $(e.relatedTarget).data('role');
+
+			$(this).find('[name="departments[]"]').val('').trigger('change');
+			$(this).find('[name="departments[]"]').val(departments).trigger('change');
+
+			console.log(departments);
+
+			var $form = $(this).find('form');
+
+			$form.prop('action', '/edit-approval-departments/{{ $user->id }}/'+role);
+			$form.attr('action', '/edit-approval-departments/{{ $user->id }}/'+role);
+		});
+
 		$('#show-changes-modal').on('show.bs.modal', function(e) {
 			var auditID = $(e.relatedTarget).data('audit');
 			$.ajax({

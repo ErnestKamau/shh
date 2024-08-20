@@ -12,6 +12,22 @@ class UserRoleController extends Controller
     $this->middleware('auth');
   }
 
+	public function edit_departments(Request $request, $user_id, $role){
+		$submittedDepartments = $request->has('departments') ? $request->departments : [];
+
+		\App\UserDepartmentalApproval::where('role_id', $role)->where('user_id', $user_id)->delete();
+
+		foreach($submittedDepartments as $d){
+			$departmentA = new \App\UserDepartmentalApproval;
+			$departmentA->role_id = $role;
+			$departmentA->user_id = $user_id;
+			$departmentA->department_id = $d;
+			$departmentA->save();
+		}
+
+		return redirect()->back()->with('success', 'Approval Departments have been updated.');
+	}
+
 	public function add(Request $request, $user_id){
 		foreach($request->roles as $role){
 			$user_role = new UserRole;
