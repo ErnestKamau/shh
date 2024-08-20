@@ -973,8 +973,22 @@
 									<div class="col-sm-3">
 										<div class="form-group">
 											<label class="control-label">Zoho Code <span class="text-danger">*</span></label>
-											<input type="text" class="form-control" value="{{$customer.zoho_id}}" name="zoho_code" placeholder="Zoho Code..." required />
+											<select name="zoho_code" id="zoho_code" class="form-control">
+												<option value="">Select Zoho Customer</option>
+												@foreach($zoho_customers as $z_cust)
+													<option value="{{$z_cust->id}}" {{$z_cust->id == $customer0->zoho_id ? 'selected' : ''}}>{{$z_cust->name}}</option>
+												@endforeach
+											</select>
 										</div>
+									</div>
+									<div class="form-group">
+										<label for="" class="control-label">Currency</label>
+										<select name="currency_id" id="" class="form-control">
+											<option value="">Currency</option>
+											@foreach($currencies as $currency)
+												<option value="{{$currency->id}}" {{$customer->currency_id == $currency->id ? 'selected' : ''}}>{{$currency->name}}</option>
+											@endforeach
+										</select>
 									</div>
 									<div class="col-sm-3">
 										<div class="form-group">

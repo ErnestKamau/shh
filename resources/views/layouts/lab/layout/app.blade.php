@@ -114,7 +114,7 @@
 			<div id="billing-menu" class="collapse sidebar-submenu">
 
 				<a href="{{route('invoice-home')}}" class="list-group-item list-group-item-action bg-dark text-white">
-					<span class="menu-collapsed"><i class="mdi mdi-circle-medium"></i> Proforma Invoices
+					<span class="menu-collapsed"><i class="mdi mdi-circle-medium"></i> Sales Order
 						<small class="float-right badge badge-pill"></small></span>
 				</a>
 				<a href="{{route('tax-home')}}" class="list-group-item list-group-item-action bg-dark text-white">
@@ -124,7 +124,6 @@
 				<a href="/pricelists" class="bg-dark list-group-item list-group-item-action">
 					<span class="menu-collapsed"><i class="mdi mdi-circle-medium"></i> Pricelists
 						<small class="float-right badge badge-pill"></small></span>
-
 
 				</a>
 

@@ -21,6 +21,7 @@ class SampleTypeCategoryController extends Controller
         $category = SampleTypeCategory::find($request->category_id) ?? new SampleTypeCategory();
         $category->active = $request->active ?? 0;
         $category->sample_type_category = $request->name;
+        $category->zoho_id = $request->zoho_id;
         $category->save();
         return redirect()->back()->with('success','Categories updated successfully');
     }

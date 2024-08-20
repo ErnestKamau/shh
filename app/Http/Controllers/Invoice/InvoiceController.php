@@ -31,43 +31,19 @@ class InvoiceController extends Controller
         $end = isset($request->end_date) ? \Carbon\Carbon::parse($request->end_date)->format('Y-m-d') : \Carbon\Carbon::now()->endOfMonth()->format('Y-m-d');
         $selection = $request->selection_date ?? 'receipt_date';
         if($request->selection_date == 'invoice_date'){
-            $headers = SampleHeader::where('invoice_id','!=',0)->orderBy('receipt_date','desc')->join('customer_invoice as ci','ci.id','=','sample_headers.invoice_id')->where('ci.created_at','>=',$start)->where('ci.created_at','<=',$end)->selectRaw('sample_headers.*')->get();
+            $sales = Invoice::with(['crmcustomer','currencyinfo'])->where('created_at','>=',$start)->where('created_at','<=',$end)->get();
+        }elseif($request->selection_date == 'due_date'){
+            $sales = Invoice::with(['crmcustomer','currencyinfo'])->where('due_date','>=',$start)->where('due_date','<=',$end)->get();
         }else{
-            $headers = SampleHeader::where('invoice_id','!=',0)->where('receipt_date','>=',$start)->where('receipt_date','<=',$end)->orderBy('receipt_date','desc')->join('customer_invoice as ci','ci.id','=','sample_headers.invoice_id')->selectRaw('sample_headers.*')->get();
+            $sales = Invoice::with(['crmcustomer','currencyinfo'])->where('created_at','>=',$start)->where('created_at','<=',$end)->get();
         }
         
-        foreach($headers as $header){
-            $invoice = Invoice::find($header->invoice_id);
-            if(isset($invoice->id)){
-
-                $payments= InvoicePaymentDetail::where('invoice_id',$invoice->id)->get();
-                $methods = array();
-                $ref = array();
-                $trans = array();
-                // $amount = array();
-                foreach($payments as $p){
-                    array_push($methods, $p->payment_method);
-                    array_push($ref,$p->ref_no);
-                    array_push($trans,$p->transaction_no);
-                    // array_push($ammount,intval($p->amount));
-                }
-                $m = array_unique($methods);
-                $header->invoice_number = $invoice->invoice_number;
-                $header->payment_method = implode(' , ',$m);
-                $header->transaction = implode(' , ',$trans);
-                // $header->ammount = array_sum($ammount);
-                $header->p_ref_no = implode(' , ',$ref);
-            }
-            
-
-        }
+        
         // return response()->json($headers);
-        return view('layouts.lab.invoice.index',compact('headers','start','end','selection'));
+        return view('layouts.lab.invoice.index',compact('sales','start','end','selection'));
     }
     public function show($id){
-        $details = SampleDetails::where('sample_header_id',$id)->get();
-        $header = SampleHeader::find($id);
-        $invoice = Invoice::find($header->invoice_id);
+        $invoice = Invoice::with(['crmcustomer','currencyinfo'])->find($id);
         $payments= InvoicePaymentDetail::where('invoice_id',$invoice->id)->get();
         $methods = array();
         $ref = array();
@@ -80,10 +56,10 @@ class InvoiceController extends Controller
         $invoice->payment_method = implode(',',$methods);
         $invoice->transaction_no = implode(',',$trans);
         $invoice->ref_no = implode(',',$ref);
-        $customer = getCrmCustomerByID($header->crm_customer_id);
+        // $customer = getCrmCustomerByID($header->crm_customer_id);
         // return response()->json($customer,200);
         
-        return view('layouts.lab.invoice.show',compact('details','header','customer','invoice','payments'));
+        return view('layouts.lab.invoice.show',compact('invoice','payments'));
     }
     public function edit_invoice(Request $request){
         $loop = 0;

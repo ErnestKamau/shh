@@ -3,7 +3,7 @@
 
 
 @section('title2')
-<title> Proforma-Invoice </title>
+<title> Sales-Order </title>
 <style type="text/css">
     .tab-card {
         border: 1px solid #eee;
@@ -94,7 +94,7 @@
     ?>
     <x-bread-crumb :items="$items"></x-bread-crumb>
     <h2 class="p-4">
-        <i class="mdi mdi-file-cad"></i>Proforma Invoices
+        <i class="mdi mdi-file-cad"></i> Sales Orders
     </h2>
 
 
@@ -103,7 +103,7 @@
             <ul class="nav nav-tabs card-header-tabs" id="Categories-tabs" role="tablist">
 
                 <li class="nav-item">
-                    <a class="nav-link" id="invoice-tab" data-toggle="tab" href="#Invoice" role="tab" aria-controls="Invoice" aria-selected="true"><i style="font-size: 20px;" class="mdi mdi-file-cad"></i> Proforma Invoices</a>
+                    <a class="nav-link" id="invoice-tab" data-toggle="tab" href="#Invoice" role="tab" aria-controls="Invoice" aria-selected="true"><i style="font-size: 20px;" class="mdi mdi-file-cad"></i> Sales Order</a>
                 </li>
 
             </ul>
@@ -131,8 +131,8 @@
                                 <div class="form-group">
                                     <label class="control-label">Selection Date</label>
                                     <select name="selection_date" id="" class="form-control">
-                                        <option value="receipt_date" {{$selection == 'receipt_date' ? 'selected' : ''}} >Batch Receipt Date</option>
-                                        <option value="invoice_date" {{$selection == 'invoice_date' ? 'selected' : ''}}>Invoice Created Date</option>
+                                        <option value="due_date" {{$selection == 'due_date' ? 'selected' : ''}} >Sales Order Due Date</option>
+                                        <option value="invoice_date" {{$selection == 'invoice_date' ? 'selected' : ''}}> Created Date</option>
                                     </select>
                                 </div>
                             </div>
@@ -148,58 +148,35 @@
                     <table data-filename="ProformaInvoice-{{$start}}-to-{{$end}}" class="table table-condensed my-small-text table-striped table-hover table-bordered table-sm">
                         <thead class="bg-light p-2">
                             <tr>
-                                <th>No</th>
-                                <th>Priority</th>
-                                <th>Batch Code</th>
-                                <th>Sample Codes</th>
-                                <th>Receipt Date</th>
-                                <th>Approval Date</th>
-                                <th>Tax Invoice No</th>
-                                <th>Batch Scope</th>
-                                <th>Customer Survey</th>
-                                <th>Customer</th>
-                                <th>Sample Type</th>
-                                <th>Reference No</th>
+                                <th>Sales Order No</th>
                                 <th>Status</th>
-                                <th>Invoice No</th>
-
-                                <th nowrap>Payment Method</th>
-                                <th>Payment Ref No</th>
-                                <th>Transaction No</th>
+                                <th>Zoho ID</th>
                                 <th>Amount</th>
+                                <th>Batch Codes</th>
+                                <th>Sample Codes</th>
+                                <th>Created At</th>
+                                <th>Customer</th>
+                                <th>Currency</th>
+                                <th>Confirmed Date</th>
+                                
                             </tr>
                         </thead>
                         <tbody>
-                            @foreach($headers as $header)
-                            <tr>
-                                <td>{{$loop->iteration}}</td>
-                                <td>{!! $header->priority == 'High' ? '<span class="mdi mdi-star text-danger"><span>High':$header->priority !!}</td>
-                                <td><a href="{{route('invoice-sample-header',['id'=>$header->id])}}">{{$header->batch_code}}</a></td>
-                                <td>{{getSampleCodesBySampleHeaderID($header->id)}}</td>
-                                <td>{{$header->receipt_date}}</td>
-                                <td>{{$header->approval_date ?? '-'}}</td>
-                                <td>{{getInvoiceById($header->invoice_id)->tax_invoice ?? '-'}}</td>
-                                <td>{{$header->batch_scope}}</td>
-                                <td>{{$header->customer_survey}}</td>
-                                <td>
-                                    <?php
-                                    $customer = getCrmCustomerByID($header->crm_customer_id);
-                                    $sample = getSampleTypeByID($header->sample_type_id);
-                                    ?>
-                                    {{$customer->name}}
-                                </td>
-                                <td>
-                                    {{$sample->name}}
-                                </td>
-                                <td>{{$header->reference_number}}</td>
-                                <td>{{$header->status}}</td>
-                                <td nowrap>{{$header->invoice_number != '' ? $header->invoice_number : 'N/a'}}</td>
-                                <td nowrap>{{$header->payment_method != '' ?$header->payment_method :  'N/a'}}</td>
-                                <td nowrap>{{$header->p_ref_no != '' ? $header->p_ref_no: 'N/a'}}</td>
-                                <td nowrap>{{$header->transaction != '' ? $header->transaction : 'N/a'}}</td>
-                                <td nowrap style="text-align: right;">{{number_format($header->get_invoice_total(),2)}}</td>
-                            </tr>
+                            @foreach ($sales as $sale)
+                                <tr>
+                                    <td>{{$sale->invoice_number}}</td>
+                                    <td><b>{{$sale->zoho_so_confirmed ? 'Confirmed' : 'Draft'}}</b></td>
+                                    <td>{{$sale->sales_order_id  ? $sale->sales_order_id : 'N/A'}}</td>
+                                    <td>{{$sale->total}}</td>
+                                    <td>{{sizeof($sale->batchcodes) > 0 ? implode(',',$sale->batchcodes) : 'N/A' }}</td>
+                                    <td>{{sizeof($sale->samplecodes) > 0 ? implode(',',$sale->samplecodes) : 'N/A'}}</td>
+                                    <td>{{$sale->created_at}}</td>
+                                    <td>{{$sale->crmcustomer->name}}</td>
+                                    <td>{{$sale->currencyinfo->name}}</td>
+                                    <td>{{$sale->zoho_so_confirmed }}</td>
+                                </tr>
                             @endforeach
+                            
                         </tbody>
                     </table>
                 </div>

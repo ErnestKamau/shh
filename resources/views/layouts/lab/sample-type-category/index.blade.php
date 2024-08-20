@@ -32,6 +32,7 @@
                 <tr>
                     <th>#</th>
                     <th nowrap>Name</th>
+                    <th>Zoho ID</th>
                     <th>Created At</th>
                     <th nowrap>Active</th>
                     
@@ -45,6 +46,7 @@
                         <span class="btn btn-sm btn-default text-primary" data-toggle="modal" data-target="#add-sample-type-category" data-record="{{json_encode($category)}}" data-action="edit"><i class="mdi mdi-pencil" data-toggle="tooltip" title="Edit"></i></span>
                     </td>
                     <td>{{ $category->sample_type_category }}</td>
+                    <td>{{ $category->zoho_id }}</td>
                     <td>{{ $category->created_at }}</td>
                     <td class="text-small">{!! $category->active == '1' ? '<i class="mdi mdi-marker-check text-success"></i>' : '<i class="mdi mdi-close-circle text-danger"></i>' !!}</td>
                     
@@ -77,6 +79,7 @@
 </div>
 
 
+
   <script>
     $(()=>{
       var editSampleConditionBody = (data=false)=>{
@@ -89,6 +92,10 @@
                 <div class="form-group">
                     <label for="" class="control-label">Name</label>
                     <input type="text" value="${data.sample_type_category}"  name="name" class="form-control">
+                </div>
+                <div class="form-group">
+                  <label for="" class="control-label">Zoho ID</label>
+                  <input type="text" name="zoho_id" value="${data.zoho_id}" class="form-control">
                 </div>
                 <div class="form-group">
                     <label for="" class="control-label">
@@ -106,6 +113,10 @@
                 <div class="form-group">
                     <label for="" class="control-label">Name</label>
                     <input type="text" value=""  name="name" class="form-control">
+                </div>
+                <div class="form-group">
+                  <label for="" class="control-label">Zoho ID</label>
+                  <input type="text" name="zoho_id" value="" class="form-control">
                 </div>
                 <div class="form-group">
                     <label for="" class="control-label">

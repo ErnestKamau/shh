@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\InventorySubCategories;
 use App\Lab;
 use App\Company;
 use App\SampleType;
@@ -42,6 +43,7 @@ class SampleTypeController extends Controller
     $qualifications = SampleTypeQualification::where('sample_id',$id)->orderBy('is_mandatory','desc')->get();
     $qualification_list = Qualification::all();
     
+    $zoho_items = InventorySubCategories::where('item_classification',3)->get();
 
     $analysis_types = SampleType::find($id)->analysis_types;
 
@@ -59,7 +61,7 @@ class SampleTypeController extends Controller
 
     $analysis_types = $analysis_typesArr;
 
-    return view('layouts.lab.sample-types.show', compact('analysis_types', 'labs', 'sample_type', 'sample_analysis_stage','qualifications','qualification_list'));
+    return view('layouts.lab.sample-types.show', compact('analysis_types', 'labs', 'sample_type', 'sample_analysis_stage','qualifications','qualification_list','zoho_items'));
   }
 
   /**
