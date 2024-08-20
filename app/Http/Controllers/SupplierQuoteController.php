@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\EntityNote;
 use App\SupplierQuote;
 use Illuminate\Http\Request;
 
@@ -9,12 +10,27 @@ class SupplierQuoteController extends Controller
 {
   public function edit(Request $request, $id){
 		$ids = explode(',', $id);
-
+		$items = [];
+		$suppliers = [];
+		$previousAmount = 0;
 		foreach($ids as $i){
-			$quote = SupplierQuote::find($i);
+			$quote = SupplierQuote::find($i)->load(['supplier', 'request_item.sub_category']);
+
+			$items[] = $quote->request_item->sub_category->name;
+			$suppliers[] = $quote->supplier->name;
+			$previousAmount = $quote->quote_amount;
 			$quote->quote_amount = $request->amount;
 			$quote->save();
 		}
+
+		$note = new EntityNote;
+		$note->type = "Quote Edit Reason";
+		$note->title = "Amount changed from ".$previousAmount." to ".$quote->quote_amount;
+		$note->description = "Item(s) ".implode(", ",array_unique($suppliers))." from ".implode(", ",array_unique($suppliers))." quote changes <br>Reason <br>".$request->reason;
+		$note->model = $entity->request_type;
+		$note->model_id = $entity->id;
+		$note->created_by = \Auth::user()->id;
+		$note->save();
 
 		return redirect()->back()->with('success', 'Supplier Quote Updated.');
 	}

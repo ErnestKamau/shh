@@ -9,4 +9,6 @@ class SuppliersRatingCriteria extends Model implements Auditable
 {
 	use \OwenIt\Auditing\Auditable;
     //
+
+	
 }

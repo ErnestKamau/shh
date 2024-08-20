@@ -8,10 +8,10 @@ use App\InventoryStore;
 use App\StockTakingSheet;
 use App\InventoryStoreSlotContent;
 
-use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
-class StockTakingController extends Controller
+use Illuminate\Http\Request;
 
+class StockTakingController extends Controller
 {
 	public function __construct()
   {
@@ -61,7 +61,7 @@ class StockTakingController extends Controller
 				->join('inventory_sub_categories as isc', 'isc.id', '=', 'inventory_items.inventory_sub_category_id')
 				->join('inventory_stores as s', 's.id', '=', 'inventory_items.inventory_store_id')
 				->join('inventory_store_slots as ss', 'ss.id', '=', 'inventory_items.inventory_store_slot_id')
-				->selectRaw('sts.comments, sts.system_quantity, COALESCE(sts.lot_no, inventory_items.lot_no) as lot_no, COALESCE(sts.expiry, inventory_items.expiry) as expiry, sts.available_quantity, isc.name, isc.unit_type, isc.unit_price, isc.code, s.name as store, ss.name as slot, SUM(inventory_items.stock_in) as stock_in, SUM(inventory_items.stock_out) as stock_out, inventory_items.inventory_store_id as store_id, inventory_items.inventory_store_slot_id as slot_id, inventory_items.inventory_sub_category_id as item_id')
+				->selectRaw('sts.comments, sts.system_quantity, COALESCE(sts.lot_no, COALESCE(inventory_items.lot_no, "NA")) as lot_no, COALESCE(sts.expiry, inventory_items.expiry) as expiry, sts.available_quantity, isc.name, isc.unit_type, isc.unit_price, isc.code, s.name as store, ss.name as slot, SUM(inventory_items.stock_in) as stock_in, SUM(inventory_items.stock_out) as stock_out, inventory_items.inventory_store_id as store_id, inventory_items.inventory_store_slot_id as slot_id, inventory_items.inventory_sub_category_id as item_id')
 				->groupBy('lot_no', 'inventory_items.inventory_store_id', 'inventory_items.inventory_store_slot_id', 'inventory_items.inventory_sub_category_id')
 				->orderBy('s.name', 'asc')->orderBy('ss.name', 'asc')->orderBy('isc.name', 'asc')->get();
 		}
@@ -128,17 +128,15 @@ class StockTakingController extends Controller
 				$stock_taking_item = StockTakingSheet::where('stock_taking_id', $id)->where('inventory_sub_category_id', $sub_cat_id)
 				->where('store_id', $request->store_id[$i])->where('slot_id', $request->slot_id[$i])->first();
 
-
-				$batchCode = getNamingConventionCode("Stock-Taking", false, 'STOCK-TAKING-');
-
 				if($systemQuantity > $availableQuantity){
 					$theQuantity = floatval($systemQuantity) - floatval($availableQuantity);
 					if($theQuantity > 0){
 						$req = new Request;
-						$req->batchcode = $batchCode;
+						$req->batchcode = $taking->code;
 						$req->category_id = $subcat->inventory_category_id;
 						$req->sub_category_id = $subcat->id;
 						$req->quantity = $theQuantity;
+						$req->po_number = $taking->code;
 						$req->slot = $request->slot_id[$i];
 						$req->store = $request->store_id[$i];
 						$req->lot_no = $request->lot_no[$i];
@@ -157,12 +155,12 @@ class StockTakingController extends Controller
 					if($theQuantity > 0){
 
 						$myRequest = new Request;
-						$myRequest->batchcode = $batchCode;
+						$myRequest->batchcode = $taking->code;
 						$myRequest->category_id = $subcat->inventory_category_id;
 						$myRequest->sub_category_id = $subcat->id;
 						$myRequest->supplier_id = systemVariables("internal_supplier_id");
 						$myRequest->price = floatval($subcat->unit_price)*floatval($theQuantity);
-						$myRequest->po_number = $batchCode;
+						$myRequest->po_number = $taking->code;
 						$myRequest->quantity = $theQuantity;
 						$myRequest->slot = $request->slot_id[$i];
 						$myRequest->store = $request->store_id[$i];
@@ -245,6 +243,45 @@ class StockTakingController extends Controller
 		$taking->save();
 
 		return redirect()->back()->with('success', 'Stock Taking Sheet Quantities Updated.');
+	}
+
+	public function adjust_stock(Request $request, $catid, $subid){
+
+		if(!$request->has('quantity') || $request->quantity == 0){
+			return redirect()->back()->with('error', 'Quantity missing.');
+		}
+
+		if(!$request->has('slot_id')){
+			return redirect()->back()->with('error', 'Store Slot was not selected.');
+		}
+
+		if(!$request->has('store_id')){
+			return redirect()->back()->with('error', 'Store was not selected.');
+		}
+
+		$SUBCAT = \App\InventorySubCategories::find($subid);
+		$inventoryC = new \App\Http\Controllers\InventoryItemController;
+
+		$stockAdj = getNamingConventionCode("Stock Taking Adjustment", false, 'Stock-Adjustment');
+
+		$myRequest = new Request;
+		$myRequest->category_id = $catid;
+		$myRequest->sub_category_id = $subid;
+		$myRequest->supplier_id = 0;
+		$myRequest->price = floatval($SUBCAT->unit_price)*floatval($request->quantity);
+		$myRequest->po_number = $stockAdj;
+		$myRequest->quantity = $request->quantity;
+		$myRequest->slot = $request->slot_id;
+		$myRequest->item_brand_id = 0;
+		$myRequest->lot_no = $stockAdj;
+		$myRequest->store = $request->store_id;
+		$myRequest->expiry = $request->expiry ?? '2099-12-31';
+		$myRequest->date_of_manufacture = NULL;
+		$myRequest->inventory_department_id = systemVariables('stock_taking_department_id');
+
+		$receivedItem = $inventoryC->add($myRequest, true);
+
+		return redirect()->back()->with('success', 'Stock Adjustment Complete.');
 	}
 
 	public function update(Request $request, $id=false)

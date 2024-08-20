@@ -216,15 +216,16 @@ class RequisitionController extends Controller
 		$criteria = \App\SuppliersRatingCriteria::where('request_id', $id)->where('is_current', 1)->get();
 
 		$ratingScores = [];
-
+		$ratingReason = [];
 		foreach($criteria as $c){
 			$ratingScores[$c->criteria_id] = $c->score;
+			$ratingReason[$c->criteria_id] = $c->reason;
 		}
 
 		$accounts = ChartOfAccount::whereIn('type', ['accounts_payable','cost_of_goods_sold','expense','fixed_asset','other_current_asset','other_expense', 'stock'])
 		->orderBy('name')->get();
 
-		return view('layouts.inventory.requisition.show', compact('accounts', 'ratingScores', 'similarItems', 'reqlocs', 'stage', 'request', 'documentFlow', 'ammendment', 'ammendment_count', 'isLL'));
+		return view('layouts.inventory.requisition.show', compact('ratingReason', 'accounts', 'ratingScores', 'similarItems', 'reqlocs', 'stage', 'request', 'documentFlow', 'ammendment', 'ammendment_count', 'isLL'));
 	}
 
 	public function create_goods_receipt($request, $entity)
@@ -232,16 +233,21 @@ class RequisitionController extends Controller
 		// return json_encode($request->all());
 
 		$files = ["invoice", "delivery_note", "job_card"];
-		$hasAttachments = false;
+		$hasAnInvoice = false;
+		$hasAttachments = 0;
 		foreach ($files as $file) {
 			if ($request->hasFile($file)) {
-				$hasAttachments = true;
+				$hasAttachments++;
+			}
+
+			if($file == "invoice"){
+				$hasAnInvoice = true;
 			}
 		}
 
 		if (isGRNDocumentsOptional() == false) {
-			if ($hasAttachments == false && !in_array($entity->request_type, ['Lend', 'Loan'])) {
-				return redirect()->back()->with('error', 'Please upload either an invoice or delivery note.');
+			if (!$hasAnInvoice || $hasAttachments < 2) {
+				return redirect()->back()->with('error', 'Please upload an invoice and a delivery note or job card.');
 			}
 		}
 
@@ -1680,6 +1686,31 @@ class RequisitionController extends Controller
 			return true;
 		}
 
+		if($request->has('supplier_rating_criteria')){
+			$criterias = json_decode($request->supplier_rating_criteria); 
+
+			// return json_encode($criterias);
+
+			$reasons = [];
+			$ratings =[];
+			foreach($criterias as $crit){
+				$reasons[$crit->id] = $crit->reason;
+				$ratings[$crit->id] = $crit->rating;
+			}
+
+			$newReqOBJ = new Request();
+
+			$newReqOBJ->merge(['criteria'=>$ratings]);
+			$newReqOBJ->merge(['reason'=>$reasons]);
+			$newReqOBJ->merge(['request_id'=>$entity->id]);
+
+			$suppRating = new SuppliersRatingCriteriaController();
+			return $suppRating->update($newReqOBJ, $parentReq->supplier_id);
+		}
+		else{
+			throw new \Error("Issue setting rating.");
+		}
+
 		return redirect()->back()->with('success', ' Items Received.');
 	}
 
@@ -3112,10 +3143,21 @@ class RequisitionController extends Controller
 				// }
 
 				$subCatID = $request->items['item_id'][$i];
-				$account_id = $request->items['item_account_id'][$i];
+				$account_id = isset($request->items['item_account_id']) ? $request->items['item_account_id'][$i] : null;
 
 				$subCat = \App\InventorySubCategories::find($subCatID);
 				$itemCat = \App\InventoryCategories::find($subCat->inventory_category_id);
+
+				if(isset($request->items['quantity_change_reason']) && trim($request->items['quantity_change_reason'][$i])!=""){
+					$note = new EntityNote;
+					$note->type = "Item Quantity Change Reason";
+					$note->title = "Quantity Changed for ".$subCat->name;
+					$note->description = $request->items['quantity_change_reason'][$i];
+					$note->model = $stage;
+					$note->model_id = $req->id;
+					$note->created_by = \Auth::user()->id;
+					$note->save();
+				}
 
 				$defaultStore['store'] = $itemCat->default_store_id == 0 ? $defaultStore['store'] : $itemCat->default_store_id;
 				$defaultStore['slot'] = $defaultStore['slot'] ?? 0;
@@ -3552,6 +3594,7 @@ class RequisitionController extends Controller
 		$items = RequestEntityItem::where('request_id', $id)->where('action', 'issued_received')->get();
 		$entity = RequestEntity::find($id);
 		$res_code = $entity->request_code;
+
 		// return "Here";
 
 		$companyDetails = getCompanyDetails();
@@ -3569,6 +3612,15 @@ class RequisitionController extends Controller
 
 		$entity->status = "Reversed";
 		$entity->save();
+
+		$note = new EntityNote;
+		$note->type = "Reversal Reason";
+		$note->title = "Reversal of ".$entity->request_type." - ".$res_code;
+		$note->description = $request->reason;
+		$note->model = $entity->request_type;
+		$note->model_id = $entity->id;
+		$note->created_by = \Auth::user()->id;
+		$note->save();
 
 		$requestInitiator = \App\User::find($entity->request_initiator);
 

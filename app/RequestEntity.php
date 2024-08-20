@@ -176,4 +176,8 @@ class RequestEntity extends Model implements Auditable
 	public function getNetValueAttribute(){
 		return $this->request_entity_items->sum('net_value');
 	}
+
+	public function children(){
+		return $this->hasMany(RequestEntity::class, 'parent_request_id');
+	}
 }

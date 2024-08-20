@@ -9,4 +9,9 @@ class RatingCriteria extends Model implements Auditable
 {
 	use \OwenIt\Auditing\Auditable;
 
+	protected $with = ['guides'];
+
+	public function guides(){
+		return $this->hasMany(SupplierRatingCriteriaGuide::class, 'criteria_id')->orderBy('upper_value', 'asc');
+	}
 }

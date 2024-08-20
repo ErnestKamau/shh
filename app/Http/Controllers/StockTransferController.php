@@ -51,7 +51,7 @@ class StockTransferController extends Controller
 			$batchCode = getNamingConventionCode("Internal-Transfer", false, 'INTERNAL-TRANSFER-');
 
 			$req = new Request;
-			$req->batchcode = $batchCode;
+			$req->batchcode = $transfer->code;
 			$req->category_id = $localSubCat->inventory_category_id;
 			$req->sub_category_id = $localSubCat->id;
 			$req->quantity = $items['transfer_quantity'][$i];
@@ -60,6 +60,7 @@ class StockTransferController extends Controller
 			$req->transfer_to = systemVariables("inter_store_department_id");
 			$req->issued_to = \Auth::user()->id;
 			$req->storage_state_id = 0;
+			$req->po_number = $transfer->code;
 
 			$itemsTransferredArray['out'][] = array(
 				"item"=>$localSubCat->code." - ".$localSubCat->name,
@@ -116,11 +117,12 @@ class StockTransferController extends Controller
 			// }
 
 			$myRequest = new Request;
+			$myRequest->batchcode = $transfer->code;
 			$myRequest->category_id = $targetSubCat->inventory_category_id;
 			$myRequest->sub_category_id = $targetSubCat->id;
 			$myRequest->supplier_id = systemVariables("internal_supplier_id");
 			$myRequest->price = floatval($targetSubCat->unit_price)*floatval($items['transfer_quantity'][$i]);
-			$myRequest->po_number = $batchCode;
+			$myRequest->po_number = $transfer->code;
 			$myRequest->quantity = $transferrableQuantity;
 			$myRequest->slot = $items['target_slot_id'][$i];
 			$myRequest->store = $items['target_store_id'][$i];
