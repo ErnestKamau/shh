@@ -3,6 +3,7 @@
 namespace App\Models\CRM;
 
 use App\ModulePreConfigs;
+use App\ZohoCustomers;
 use Illuminate\Database\Eloquent\Model;
 use OwenIt\Auditing\Contracts\Auditable;
 
@@ -29,6 +30,6 @@ class CRMCustomer extends Model implements Auditable
     return $this->belongsTo(ModulePreConfigs::class,'currency_id');
   }
   public function zohocustomer(){
-    
+    return $this->belongsTo(ZohoCustomers::class,'zoho_id');
   }
 }

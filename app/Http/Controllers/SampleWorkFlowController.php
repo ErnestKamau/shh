@@ -3032,6 +3032,11 @@ class SampleWorkFlowController extends Controller
                 }
                 array_push($customer_ids, $batch->crm_customer_id);
             }
+            $batch_ids = SampleHeader::whereIn('batch_code',$request->batch_code)->pluck('id')->toArray();
+            $analysis_with_no_zoho = sampleAnalysisTypeRelation::whereIn('batch_id',$batch_ids)->join('analysis_types','analysis_types.id','=','sample_analysis_type_relation.analysis_type_id')->whereNull('analysis_types.zoho_id')->pluck('analysis_types.name')->toArray();
+            if(sizeof($analysis_with_no_zoho) > 0){
+                return response()->json(['error' => 'The following analysis types ('.implode(',',$analysis_with_no_zoho).') have not been tied to a zoho item']);
+            }
             $check_customer = array_unique($customer_ids);
             if (sizeof($check_customer) > 1) {
                 return response()->json(['error' => 'The choosen batches are of different customers!']);
@@ -3040,19 +3045,16 @@ class SampleWorkFlowController extends Controller
             if (!isset($customer->id)) {
                 return response()->json(['error' => 'There is no customer with the specified Batches!']);
             }
-            $customer_pricelist = PricelistCustomer::where('customer_id', $customer->id)->get();
-            if (!isset($customer_pricelist[0]->id)) {
-                return response()->json(['error' => 'The specified customer has no pricelist assigned']);
+            if($customer->currency_id == ''){
+                
+                return response()->json(['error' => 'The specified customer has no currency assigned']);
             }
 
-            $pricelist = Pricelist::find($customer_pricelist[0]->pricelist_id);
-            if (!isset($pricelist->id)) {
-                return response()->json(['error' => 'There is no pricelist with the specified customer pricelist ID!']);
-            }
             $invoice = new Invoice();
-            $invoice->pricelist_id = $customer_pricelist[0]->pricelist_id;
-            $invoice->currency_id = $pricelist->currency_id;
+            $invoice->pricelist_id = 0;
+            $invoice->currency_id = $customer->currency_id;
             $invoice->customer_id = $customer->id;
+            $invoice->zoho_customer_id = $customer->zohocustomer->zoho_contact_id;
             $invoice->save();
             if ($customer->credit_days > 0) {
                 $date = date('Y-m-d', strtotime($invoice->created_at . '+' . $customer->credit_days . ' days'));
@@ -3064,84 +3066,56 @@ class SampleWorkFlowController extends Controller
             if (strlen($id_str) < 4) {
                 $count = 4 - strlen($id_str);
                 $zeros = str_repeat('0', $count);
-                $number = 'INV-' . $zeros . $id_str;
+                $number = 'IM/SO-' . $zeros . $id_str;
             } else {
-                $number = 'INV-' . $id_str;
+                $number = 'IM/SO-' . $id_str;
             }
             $invoice->invoice_number = $number;
             $invoice->save();
-            foreach ($request->batch_code as $code) {
-                $batch = SampleHeader::where('batch_code', $code)->first();
-                if (isset($batch->id)) {
-                    $batch->invoice_id = $invoice->id;
-                    $details = SampleDetails::where('sample_header_id', $batch->id)->get();
-                    foreach ($details as $detail) {
-                        $analysis_ids = explode(',', $detail->analysis_type_id);
-                        foreach ($analysis_ids as $analysis_id) {
-                            $price = PricelistItem::where('pricelist_id', $pricelist->id)->where('analysis_id', (int) $analysis_id)->where('sample_type_id', $batch->sample_type_id)->first();
-                            if (!isset($price->id)) {
-                                return response()->json(['error' => 'kindly add analysis to pricelist!']);
-                            }
-                            $check_invoice_detail = InvoiceDetails::where('invoice_id', $invoice->id)->where('analysis_type', (int) $analysis_id)->first();
-                            if (!isset($check_invoice_detail->id)) {
-                                $invoice_detail = new InvoiceDetails();
-                                $invoice_detail->crm_customer_id = $batch->crm_customer_id;
-                                $invoice_detail->analysis_type = $analysis_id;
-                                $analysis = getAnalysisTypeID($analysis_id);
-                                $invoice_detail->analysis_type_name = $analysis->name;
-                                $invoice_detail->sample_header_id = $batch->id;
-                                $invoice_detail->sample_detail_id = $detail->id;
-                                $invoice_detail->invoice_id = $invoice->id;
-                                $invoice_detail->cost_price = $price->cost_price;
-                                $invoice_detail->selling_price = $price->selling_price;
-                                if ($price->vat == 1) {
-                                    $rate = TaxRegime::where('active', 1)->first();
-                                    $tax = $rate->value / 100 * $price->selling_price;
-                                    $total_price = $tax + $price->selling_price;
-                                    $invoice_detail->selling_amount = $total_price;
-                                    $invoice_detail->tax_rate = strval($rate->value);
-                                    $invoice_detail->tax_amount = $tax;
-                                    $invoice_detail->total = $total_price;
-                                } else {
-                                    $invoice_detail->selling_amount = $price->selling_price;
-                                    $invoice_detail->total = $price->selling_price;
-                                }
-                                // return response()->json($price,200);
-                                $invoice_detail->save();
-                            } else {
-                                $current = $check_invoice_detail->quantity;
-                                $current_tax = $check_invoice_detail->tax_amount;
-                                $unit_price = $check_invoice_detail->selling_amount;
-                                $current_total = $check_invoice_detail->total;
-                                $check_invoice_detail->total = $unit_price + $current_total;
-                                $check_invoice_detail->quantity = $current + 1;
-                                if ($check_invoice_detail->tax_rate != 0) {
-                                    $taxable = strval($check_invoice_detail->tax_rate / 100 * $check_invoice_detail->selling_price);
-                                    $check_invoice_detail->tax_amount = $taxable + $current_tax;
-                                }
-                                $check_invoice_detail->save();
-                            }
-                        }
-                    }
-                    $batch->save();
-                }
-            }
-            $details_invoice = InvoiceDetails::where('invoice_id', $invoice->id);
-            $details_invoice_total_including_tax = InvoiceDetails::where('invoice_id', $invoice->id)->pluck('total')->toarray();
-            $details_invoice_total_tax = InvoiceDetails::where('invoice_id', $invoice->id)->pluck('tax_amount')->toarray();
-            foreach ($details_invoice as $detail) {
-                $selling_amount = $detail->selling_price * $detail->quantity;
-                $detail->selling_price_amount = $selling_amount;
-                $detail->save();
-            }
-            $total_including_tax = array_sum($details_invoice_total_including_tax);
-            $total_invoice_tax = array_sum($details_invoice_total_tax);
+            $analyis_types = sampleAnalysisTypeRelation::whereIn('batch_id',$batch_ids)->join('analysis_types','analysis_types.id','=','sample_analysis_type_relation.analysis_type_id')->join('inventory_sub_categories','inventory_sub_categories.id','=','analysis_types.zoho_id')->selectRaw('sample_analysis_type_relation.*,analysis_types.name,inventory_sub_categories.name as zoho_name,inventory_sub_categories.unit_price,inventory_sub_categories.zoho_item_code,inventory_sub_categories.id as zoho_analysis_type')->get();
 
-            $invoice->total = $total_including_tax;
-            $invoice->total_tax = $total_invoice_tax;
+            $details_arr = [];
+            foreach($analyis_types as $a_type){
+                if(!isset($details_arr[$a_type->zoho_item_code])){
+                    // $details_arr[$a_type->zoho_item_code] = [];
+                    $details_arr[$a_type->zoho_item_code] = [
+                        "crm_customer_id"=>$customer->id,
+                        "analysis_type"=> $a_type->zoho_analysis_type,
+                        "analysis_type_name"=>$a_type->name,
+                        "sample_header_id"=>$a_type->batch_id,
+                        "sample_detail_id"=>$a_type->sample_detail_id,
+                        "invoice_id"=>$invoice->id,
+                        "selling_price"=>$a_type->unit_price,
+                        "cost_price"=>0,
+                        "zoho_item_id"=>$a_type->zoho_item_code,
+                        "zoho_item_name"=>$a_type->zoho_name,
+                        "quantity"=>1,
+                        "total"=>$a_type->unit_price
+                    ];
+                }else{
+                    $analysis_arr = explode(',',$details_arr[$a_type->zoho_item_code]['analysis_type_name']);
+                    if(!in_array($a_type->name,$analysis_arr)){
+                        $details_arr[$a_type->zoho_item_code]['analysis_type_name'] .=', '.$a_type->name; 
+                    }
+                    $details_arr[$a_type->zoho_item_code]['sample_header_id'] .=', '.$a_type->batch_id; 
+                    $details_arr[$a_type->zoho_item_code]['sample_detail_id'] .=', '.$a_type->sample_detail_id; 
+                    $details_arr[$a_type->zoho_item_code]['quantity'] +=1;
+                    $details_arr[$a_type->zoho_item_code]['total'] = $details_arr[$a_type->zoho_item_code]['quantity'] * $a_type->unit_price;
+                }
+                
+            }
+            InvoiceDetails::where('invoice_id',$invoice->id)->delete();
+            $details = array_values($details_arr);
+            InvoiceDetails::insert($details);
+            $details_invoice = InvoiceDetails::where('invoice_id', $invoice->id)->get();
+
+            $invoice->total = InvoiceDetails::where('invoice_id', $invoice->id)->sum('total');
+            // $invoice->total_tax = 0;
             $invoice->save();
 
-            return response()->json(['success' => 'Invoice Created Successfully', "invoice" => $invoice]);
+            SampleHeader::wherein('id',$batch_ids)->update(['invoice_id'=>$invoice->id]);
+
+            return response()->json(['success' => 'Invoice Created Successfully', "invoice" => $invoice,"details"=>$details_invoice,'customer'=>$customer]);
         } else {
             return response()->json(['error' => 'Kindly set generate_sample_invoice configuration value to true!']);
         }
@@ -3149,23 +3123,22 @@ class SampleWorkFlowController extends Controller
     public function sendSalesOrder($invoice_id)
     {
         $invoice = Invoice::with(['currencyinfo', 'crmCustomer'])->find($invoice_id);
-        $details = InvoiceDetails::with('analysisType')->where('invoice_id', $invoice_id)->get();
+        $details = InvoiceDetails::where('invoice_id', $invoice_id)->get();
         $lineitems = [];
         $itemcounter = 0;
         foreach ($details as $detail) {
-            $sample_category = $detail->getZohoID();
             $lineitems[] = [
-                "item_order" => 0,
-                "item_id" => $sample_category->zoho_id,
-                "rate" => $detail->total,
-                "name" => $sample_category->sample_type_category,
-                "description" => $detail->analysistype->name,
-                "quantity" => 1,
+                "item_order" => $itemcounter,
+                "item_id" => $detail->zoho_item_id,
+                "rate" => $detail->selling_price,
+                "name" => $detail->zoho_item_name,
+                "description" => $detail->analysis_type_name,
+                "quantity" => $detail->quantity,
             ];
             $itemcounter = $itemcounter + 1;
         }
         $salesOrder = [
-            "customer_id" => $invoice->crmCustomer->zoho_id,
+            "customer_id" => $invoice->zoho_customer_id,
             "currency_id" => $invoice->currencyinfo->zoho_id,
             "date" => date('Y-m-d'),
             "line_items" => $lineitems,

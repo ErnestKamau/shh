@@ -9,6 +9,8 @@ use App\AnalysisType;
 class InvoiceDetails extends Model implements Auditable
 {
 	use \OwenIt\Auditing\Auditable;
+
+    protected $fillable = ["crm_customer_id","analysis_type","analysis_type_name","sample_header_id","sample_detail_id","invoice_id","selling_price","cost_price","zoho_item_id","zoho_item_name","quantity","total"];
     
     public function analysisType(){
         return $this->belongsTo(AnalysisType::class,'analysis_type');

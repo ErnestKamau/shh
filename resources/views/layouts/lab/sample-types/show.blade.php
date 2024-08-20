@@ -318,10 +318,10 @@ $items = array(
           <div class="form-group">
             <label class="control-label">Zoho Item <small class="text-danger">*</small></label>
             <select name="zoho_id" id="" class="form-control" required>
-            <option value="">Select Zoho Item</option>
-            @foreach($zoho_items as $z_item)
-        <option value="{{$z_item->id}}" {{$z_item->id == $analysis_type->zoho_id ? 'selected' : ''}}>{{$z_item->name . ' - ' . $z_item->unit_price}}</option>
-      @endforeach
+              <option value="">Select Zoho Item</option>
+              @foreach($zoho_items as $z_item)
+                <option value="{{$z_item->id}}" {{$z_item->id == $analysis_type->zoho_id ? 'selected' : ''}}>{{$z_item->name . ' - ' . $z_item->unit_price}}</option>
+              @endforeach
             </select>
             <!-- <input type="text" class="form-control" name="zoho_id" value="{{ $analysis_type->zoho_id }}" placeholder="Zoho Code..." required /> -->
           </div>
