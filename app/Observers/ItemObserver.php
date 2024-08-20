@@ -17,7 +17,7 @@ class ItemObserver
     {
         $zoho = new ZohoController();
         if(empty($inventoryItem->zoho_item_code)){
-            $zoho->createZohoItem($inventoryItem);
+            // $zoho->createZohoItem($inventoryItem);
         }
     }
 
