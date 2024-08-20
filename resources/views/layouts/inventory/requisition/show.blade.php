@@ -2021,8 +2021,8 @@
 								<label class="control-label">Issue To</label>
 								<select class="form-control trigger-save" name="issue_to" placeholder="Issue To...">
 									<?php
-												$request->issue_to = trim($request->issue_to) == "" ? ($RequestedBy ? $RequestedBy->id : \Auth::user()->id) : $request->issue_to;
-											?>
+										$request->issue_to = trim($request->issue_to) == "" ? ($RequestedBy ? $RequestedBy->id : \Auth::user()->id) : $request->issue_to;
+									?>
 									@foreach (getUsers() as $user)
 									<option value="{{ $user->id }}" {{ $user->id == $request->issue_to ? 'selected' : '' }}>{{ $user->name
 										}}</option>
@@ -2142,7 +2142,7 @@
 			method="POST" enctype="multipart/form-data">
 			@csrf
 			<div class="modal-header">
-				<h4 class="modal-title"><i class="mdi mdi-content-save"></i> Update Supplier Criteria Scored</h4>
+				<h5 class="modal-title"><i class="mdi mdi-content-save"></i> Update Supplier Criteria Scored</h5>
 			</div>
 			<div class="modal-body">
 				@foreach (getSupplierRatingCriteria() as $gSRC)
@@ -2158,7 +2158,7 @@
 							class="badge badge-pill badge-info float-right">0</span></h6>
 						<input style="width: 100%" type="range" step="0.1" value="{{ $c_score }}" name="rating[{{ $gSRC->id }}][criteria]"
 						class="form-range" min="0" max="{{ $gSRC->max_score }}" id="crit-{{ $gSRC->id }}" data-guides="{{ $guidesOBJ }}">
-						<div><i class="fas fa-star" style="font-size:11px"></i> <small class="badge badge-default guide-title"></small></div>
+						{{-- <div><i class="fas fa-star" style="font-size:11px"></i> <small class="badge badge-default guide-title"></small></div> --}}
 					<input type="hidden" name="rating_request_id" value="{{ $request->id ?? 0 }}" />
 					<div class="form-group reason-textarea mt-1">
 						<label class="control-label"><em>Reason for your rating</em></label>
@@ -2166,6 +2166,17 @@
 					</div>
 				</div>
 				@endforeach
+			</div>
+			<div class="divider"></div>
+			<div class="modal-body">
+				<div class="alert alert-callout alert-info text-lg">
+					<i class="mdi mdi-information fa-1x"></i> Please provide the confirmation OTP code:
+				</div>
+				<div class="form-group">
+					<label>Requester OTP</label>
+					<input type="text" name="requester_otp" class="form-control" placeholder="Requester OTP..." />
+					<input type="hidden" name="issue_out_items" value="1" />
+				</div>
 			</div>
 			<div class="modal-footer">
 				<button type="submit" class="btn btn-primary"><i class="mdi mdi-content-save"></i> Save</button>
@@ -2367,17 +2378,18 @@
 					$scorePerc = $c_score/$gSRC->max_score*100;
 					$guidesOBJ = $gSRC->guides;
 				?>
-				<div class="form-group">
+				<div class="form-group rating-delivery" data-rid="{{ $gSRC->id }}">
 					<h6 style="width: 100%" for="crit-{{ $gSRC->id }}">{{ $gSRC->title }} 
 						<span
-							class="badge badge-pill badge-info float-right">0</span></h6>
-						<input style="width: 100%" type="range" step="0.1" value="{{ $c_score }}" name="criteria[{{ $gSRC->id }}]"
-						class="form-range" min="0" max="{{ $gSRC->max_score }}" id="crit-{{ $gSRC->id }}" data-guides="{{ $guidesOBJ }}">
-						<div><i class="fas fa-star" style="font-size:11px"></i> <small class="badge badge-default guide-title"></small></div>
-					<input type="hidden" name="request_id" value="{{ $request->id ?? 0 }}" />
+							class="badge badge-pill badge-info float-right">0</span>
+						</h6>
+						{{-- <div><i class="fas fa-star" style="font-size:11px"></i> <small class="badge badge-default guide-title"></small></div> --}}
+						<input style="width: 100%" type="range" step="0.1" value="{{ $c_score }}" name="delivery_rating[{{ $gSRC->id }}]criteria"
+						class="form-range rating-delivery-criteria" data-type="criteria" min="0" max="{{ $gSRC->max_score }}" id="crit-{{ $gSRC->id }}" data-guides="{{ $guidesOBJ }}">
+					<input type="hidden" name="request_id" value="{{ $request->id ?? 0 }}" required />
 					<div class="form-group reason-textarea mt-1">
 						<label class="control-label"><em>Reason for your rating</em></label>
-						<textarea class="form-control form-control-sm" name="reason[{{ $gSRC->id }}]" placeholder="Reason..." required>{{ $score_reason }}</textarea>
+						<textarea class="form-control form-control-sm rating-delivery-reason" data-type="reason" name="delivery_rating[{{ $gSRC->id }}]reason" placeholder="Reason..." required>{{ $score_reason }}</textarea>
 					</div>
 				</div>
 				@endforeach
@@ -4572,6 +4584,21 @@ Issuance"]))
 						alert("Please provide the OTP Code(6 characters).");
 						return false;
 					}
+
+					var delivery_rating = [];
+					$('#accept-goods-otp-modal').find('.rating-delivery').each(function(){
+						let gSID = $(this).data('rid');
+						let criteria = $(this).find('.rating-delivery-criteria').val();
+						let reason = $(this).find('.rating-delivery-reason').val();
+
+						delivery_rating.push({
+							"id": gSID,
+							"rating": criteria,
+							"reason": reason
+						});
+					});
+
+					$('#details-form').append(`<input type="hidden" name="supplier_rating_criteria" value='${JSON.stringify(delivery_rating)}' />`);
 					$('#details-form').append(`<input type="hidden" name="accept_goods_receipt" value="1" />`);
 					$('#details-form').append(`<input type="hidden" name="otp_value" value="${otp_value}" />`);
 				}

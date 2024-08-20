@@ -1686,6 +1686,31 @@ class RequisitionController extends Controller
 			return true;
 		}
 
+		if($request->has('supplier_rating_criteria')){
+			$criterias = json_decode($request->supplier_rating_criteria); 
+
+			// return json_encode($criterias);
+
+			$reasons = [];
+			$ratings =[];
+			foreach($criterias as $crit){
+				$reasons[$crit->id] = $crit->reason;
+				$ratings[$crit->id] = $crit->rating;
+			}
+
+			$newReqOBJ = new Request();
+
+			$newReqOBJ->merge(['criteria'=>$ratings]);
+			$newReqOBJ->merge(['reason'=>$reasons]);
+			$newReqOBJ->merge(['request_id'=>$entity->id]);
+
+			$suppRating = new SuppliersRatingCriteriaController();
+			return $suppRating->update($newReqOBJ, $parentReq->supplier_id);
+		}
+		else{
+			throw new \Error("Issue setting rating.");
+		}
+
 		return redirect()->back()->with('success', ' Items Received.');
 	}
 
@@ -3118,12 +3143,12 @@ class RequisitionController extends Controller
 				// }
 
 				$subCatID = $request->items['item_id'][$i];
-				$account_id = $request->items['item_account_id'][$i];
+				$account_id = isset($request->items['item_account_id']) ? $request->items['item_account_id'][$i] : null;
 
 				$subCat = \App\InventorySubCategories::find($subCatID);
 				$itemCat = \App\InventoryCategories::find($subCat->inventory_category_id);
 
-				if(trim($request->items['quantity_change_reason'][$i])!=""){
+				if(isset($request->items['quantity_change_reason']) && trim($request->items['quantity_change_reason'][$i])!=""){
 					$note = new EntityNote;
 					$note->type = "Item Quantity Change Reason";
 					$note->title = "Quantity Changed for ".$subCat->name;
