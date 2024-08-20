@@ -445,14 +445,22 @@ class ZohoController extends Controller
 		]);
 		$customers = json_decode($response, true);
 		// return $customers;
+		$insertCst = [];
 		foreach($customers['contacts'] as $customer){
-			$n_customer = ZohoCustomers::where('zoho_contact_id',$customer['contact_id'])->first() ?? new ZohoCustomers();
-			$n_customer->zoho_contact_id = $customer['contact_id'];
-			$n_customer->name  = $customer['customer_name'];
-			$n_customer->currency_id = $customer['currency_id'];
-			$n_customer->status = $customer['status'];
-			$n_customer->currency_code = $customer['currency_code'];
-			$n_customer->save();
+			$n_customer = ZohoCustomers::where('zoho_contact_id',$customer['contact_id'])->first();
+			if(!isset($n_customer->id)){
+				$insertCst[]=[
+					"zoho_contact_id"=>$customer['contact_id'],
+					"name"=>$customer['customer_name'],
+					"currency_id"=>$customer['currency_id'],
+					"status" => $customer['status'],
+					"currency_code"=>$customer['currency_code']
+				];
+			}
+			
+		}
+		if(sizeof($insertCst) > 0){
+			ZohoCustomers::insert($insertCst);
 		}
 
 		if (isset($customers['page_context']) && $customers['page_context']['has_more_page'] == true) {
