@@ -435,7 +435,8 @@ class ZohoController extends Controller
 		$response = $this->get('contacts', [
 			'query' => [
 				'organization_id' => $this->orgID,
-				'contact_type' => 'customer'
+				'contact_type' => 'customer',
+				'page' => $page
 			],
 		]);
 		$customers = json_decode($response, true);

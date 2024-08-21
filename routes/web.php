@@ -182,6 +182,7 @@ Route::get('/get/Tat/Batch/ApprovalCounter/Ajax/{status}','SampleWorkFlowControl
   // -----------------------------------SALES ORDERS----------------------
   Route::post('/generate/batch-invoice/ajax','SampleWorkFlowController@generate_batch_invoice_ajax')->name('generate_batch_invoice_ajax');
   Route::get('/send/Sales-Order/{id}','SampleWorkFlowController@sendSalesOrder')->name('sendSalesOrder');
+  Route::get('/delete/sales-order/{id}','SampleWorkFlowController@deleteSalesOrder')->name('deleteSalesOrder');
   // -----------------------------------SALES ORDERS----------------------
 
 

@@ -1164,7 +1164,18 @@
 	};
 	getTatApprovalCounter();
 
-
+	var deleteSalesOrder = (invoice_id,callback)=>{
+		$.ajax({
+			url:`/delete/sales-order/${invoice_id}`,
+			type:'GET',
+			success:(data)=>{
+				callback(data);
+			},
+			error:(err)=>{
+				console.log(err);
+			}
+		})
+	}
 	var sendSalesOrder = (invoice_id,callback)=>{
 		$.ajax({
 			url:`/send/Sales-Order/${invoice_id}`,
@@ -1258,8 +1269,10 @@
 			<center class="loader">
 				<img src="/images/load.gif" height="250px" width="auto" alt="">
 			</center>
-			<p><i class="mdi mdi-minus saving-invoice"></i> Saving sales order details.</p>
-			<p><i class="mdi mdi-minus send-sales"></i> Sending sales order details to Zoho.</p> <br>
+			<div class="a-detail">
+				<p><i class="mdi mdi-minus saving-invoice"></i> Saving sales order details.</p>
+				<p><i class="mdi mdi-minus send-sales"></i> Sending sales order details to Zoho.</p> <br>
+			</div>
 		</div>
 		
 		<div class="alert alert-danger d-flex error-area hidden">
@@ -1332,6 +1345,26 @@
 
 				}
 			})
+		});
+
+		$(body).find('#cancel_sales').on('click',(e)=>{
+			var errorBody = `Deleting created sales order in process!`;
+			var invoice_id = $(body).find('#send_sales').data('invoice');
+			$('#generate-invoice-form').find('.loader').removeClass('hidden');
+			$('#generate-invoice-form').find('.invoice_body').addClass('hidden');
+			$('#generate-invoice-form').find('.send-sales').addClass('mdi-spin');
+			$('#generate-invoice-form').find('.error-body').empty();
+			$('#generate-invoice-form').find('.error-body').append(errorBody);
+			$('#generate-invoice-form').find('.error-area').removeClass('hidden');
+			deleteSalesOrder(invoice_id,(data)=>{
+				$('#generate-invoice-form').find('.loader').empty();
+				$('#generate-invoice-form').find('.a-detail').addClass('hidden');
+				var imgElem= $(`<img src="/images/suc.gif" height="250px" width="auto" alt="">`);
+				$('#generate-invoice-form').find('.loader').append(imgElem);
+				$('#generate-invoice-form').find('.error-area').addClass('hidden');
+			})
+
+
 		})
 		$.each(details,(i,obj)=>{
 			var tr = `

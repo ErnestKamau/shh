@@ -4659,4 +4659,12 @@ class SampleWorkFlowController extends Controller
         return response()->json(['tat_count' => $atat_count, 'approval_count' => $approval]);
     }
 
+    public function deleteSalesOrder($id){
+        InvoiceDetails::where('invoice_id',$id)->delete();
+        SampleHeader::where('invoice_id',$id)->update(['invoice_id'=>0]);
+        Invoice::find($id)->delete();
+        return response()->json(['status'=>"success","message"=>"Sales order deleted successfully!"]);
+
+    }
+
 }
