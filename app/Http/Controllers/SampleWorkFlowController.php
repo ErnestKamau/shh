@@ -3943,12 +3943,14 @@ class SampleWorkFlowController extends Controller
 				Thank you for your attention.';
                 $emails = ['laboratory@polucongroup.com'];
 
-                $zohoService = new ZohoController();
                 $invoice = Invoice::find($batch->invoice_id);
-                $zoho_sales = $zohoService->changeSalesOrderStatus($invoice->zoho_id);
-                if($zoho_sales['code'] == 0){
-                    $invoice->zoho_so_confirmed = date('Y-m-d');
-                    $invoice->save();
+                if(isset($invoice->id)){
+                    $zohoService = new ZohoController();
+                    $zoho_sales = $zohoService->changeSalesOrderStatus($invoice->zoho_id);
+                    if($zoho_sales['code'] == 0){
+                        $invoice->zoho_so_confirmed = date('Y-m-d');
+                        $invoice->save();
+                    }
                 }
 
                 // $emails = ['danmuv12@gmail.com'];
@@ -4657,6 +4659,14 @@ class SampleWorkFlowController extends Controller
         $date->addDays(1);
         $atat_count = SampleDate::join('sample_headers as s', 's.id', '=', 'sample_dates.sample_header_id')->where('sample_dates.date', '<=', $date)->whereIn('s.status', ["Samples En-Route", "Samples Reception", "Samples Request Review", "Samples In Lab", "Sample Verification", "Sample Approval"])->where('name', 'Target Date')->selectRaw('s.*,sample_dates.date as tat_date')->get()->count();
         return response()->json(['tat_count' => $atat_count, 'approval_count' => $approval]);
+    }
+
+    public function deleteSalesOrder($id){
+        InvoiceDetails::where('invoice_id',$id)->delete();
+        SampleHeader::where('invoice_id',$id)->update(['invoice_id'=>0]);
+        Invoice::find($id)->delete();
+        return response()->json(['status'=>"success","message"=>"Sales order deleted successfully!"]);
+
     }
 
 }
