@@ -3943,12 +3943,14 @@ class SampleWorkFlowController extends Controller
 				Thank you for your attention.';
                 $emails = ['laboratory@polucongroup.com'];
 
-                $zohoService = new ZohoController();
                 $invoice = Invoice::find($batch->invoice_id);
-                $zoho_sales = $zohoService->changeSalesOrderStatus($invoice->zoho_id);
-                if($zoho_sales['code'] == 0){
-                    $invoice->zoho_so_confirmed = date('Y-m-d');
-                    $invoice->save();
+                if(isset($invoice->id)){
+                    $zohoService = new ZohoController();
+                    $zoho_sales = $zohoService->changeSalesOrderStatus($invoice->zoho_id);
+                    if($zoho_sales['code'] == 0){
+                        $invoice->zoho_so_confirmed = date('Y-m-d');
+                        $invoice->save();
+                    }
                 }
 
                 // $emails = ['danmuv12@gmail.com'];
