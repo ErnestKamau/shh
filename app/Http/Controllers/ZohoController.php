@@ -39,15 +39,10 @@ class ZohoController extends Controller
 		$this->orgID = "838949546";
 		$this->token = null;
 		$this->url = "www.zohoapis.com/books/v3/";
-		// $this->clientID = "1000.AZFK87K8IRT2QCIOIF3I6RUV0XBZNC";
-		$this->clientID = '1000.GKE2UABGGPE8SY5XQP14OYBZY642CL';
-		// $this->clientSecret = "24daaa8599526522b4e0cfb012bb94b127ffe0b4e9";
-		$this->clientSecret = "c6bbc59787daba398d762bd323ea88b75f155216b4";
-
-		// $this->refresh = "1000.b724aa4d4a7c438d12de6309a6124e79.7141aca357b23fb1130594de25dc0173";
-		$this->refresh= "1000.273a2de7e12b7204f6d0c7b0f1f0e192.be9f2accc1da7665d6ce50c2a10793e9";
-		// $this->refreshUrl = "http://172.16.16.252:8080/zoho-auth-redirect";
-		$this->refreshUrl = "http://127.0.0.1:8000/zoho-auth-redirect";
+		$this->clientID = "1000.AZFK87K8IRT2QCIOIF3I6RUV0XBZNC";
+		$this->clientSecret = "24daaa8599526522b4e0cfb012bb94b127ffe0b4e9";
+		$this->refresh = "1000.b724aa4d4a7c438d12de6309a6124e79.7141aca357b23fb1130594de25dc0173";
+		$this->refreshUrl = "http://172.16.16.252:8080/zoho-auth-redirect";
 
 		$this->authClient = new Client([
 			'base_uri' => 'https://accounts.zoho.com/oauth/v2/',
@@ -448,18 +443,20 @@ class ZohoController extends Controller
 		$customers = json_decode($response, true);
 		// return $customers;
 		$insertCst = [];
-		foreach($customers['contacts'] as $customer){
-			$n_customer = ZohoCustomers::where('zoho_contact_id',$customer['contact_id'])->first();
-			if(!isset($n_customer->id)){
-				$insertCst[]=[
-					"zoho_contact_id"=>$customer['contact_id'],
-					"name"=>$customer['customer_name'],
-					"currency_id"=>$customer['currency_id'],
-					"status" => $customer['status'],
-					"currency_code"=>$customer['currency_code']
-				];
+		if(isset($customers['contacts'])){
+			foreach($customers['contacts'] as $customer){
+				$n_customer = ZohoCustomers::where('zoho_contact_id',$customer['contact_id'])->first();
+				if(!isset($n_customer->id)){
+					$insertCst[]=[
+						"zoho_contact_id"=>$customer['contact_id'],
+						"name"=>$customer['customer_name'],
+						"currency_id"=>$customer['currency_id'],
+						"status" => $customer['status'],
+						"currency_code"=>$customer['currency_code']
+					];
+				}
+				
 			}
-			
 		}
 		if(sizeof($insertCst) > 0){
 			ZohoCustomers::insert($insertCst);
