@@ -4300,6 +4300,11 @@ class SampleWorkFlowController extends Controller
                 'batch_code' => $new_batch_code,
                 'receipt_date' => getTodayDate(),
                 'status' => 'Samples Reception',
+                'c_focus_ids_clustered'=>"",
+                'cluster_amount'=>"",
+                'cluster_balance'=>"",
+                'cluster_vat'=>"",
+                'cluster_amount_paid'=>"",
             ]);
             $new_batch->save();
             $samples = SampleDetails::with('captured_results')
