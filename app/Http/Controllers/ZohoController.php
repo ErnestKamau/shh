@@ -274,7 +274,7 @@ class ZohoController extends Controller
 				$this->sync_zoho_items();
 			}
 			if ($type == "vendors") {
-				$this->sync_zoho_vendors();
+				return $this->sync_zoho_vendors();
 			}
 			if ($type == "currencies") {
 				return $this->sync_zoho_currencies();
@@ -355,12 +355,15 @@ class ZohoController extends Controller
 				'page' => $page
 			],
 		]);
+
 		$vendors = json_decode($response, true);
+
+		\Log::error($page.">>>>>>>").json_encode($vendors);
+
 		$contacts = $vendors['contacts'];
 
 		foreach ($contacts as $c) {
 			$supplierExists = Supplier::where(function ($query) use ($c) {
-				$query->where('email', $c['email']);
 				$query->orWhere('zoho_supplier_id', $c['contact_id']);
 			})->first();
 
@@ -376,7 +379,7 @@ class ZohoController extends Controller
 			$supplierExists->zoho_supplier_id = $c['contact_id'];
 			$supplierExists->save();
 		}
-		if (isset($response['page_context']) && $response['page_context']['has_more_page'] == true) {
+		if (isset($vendors['page_context']) && $vendors['page_context']['has_more_page'] == true) {
 			$this->sync_zoho_vendors($page + 1);
 		}
 	}
