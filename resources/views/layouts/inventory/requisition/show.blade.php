@@ -412,9 +412,9 @@
 			@endif
 
 			@if($request->status == "Approval Complete")
-			<button class="btn btn-default text-dark float-right save-details-form btn-sm" data-type="send-purchase-order">
+			{{-- <button class="btn btn-default text-dark float-right save-details-form btn-sm" data-type="send-purchase-order">
 				<i class="mdi mdi-send"></i> Send Purchase Order
-			</button>
+			</button> --}}
 			@endif
 			@if (isset($request->status) && \Auth::user()->hasRole($procurement_officer_role_id, true))
 			<button class="btn btn-default text-success float-right save-details-form btn-sm" data-type="mark-as-completed"

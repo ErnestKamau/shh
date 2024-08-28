@@ -38,6 +38,7 @@
 					<th>Code</th>
 					<th>Name</th>
 					<th>Zoho ID</th>
+					<th>Currency</th>
 					<th>Postal Address</th>
 					<th>Physical Address</th>
 					<th>Website</th>
@@ -64,7 +65,8 @@
 						<a href="{{ route('show-customer', ['id'=>$customer->id]) }}">{{ $customer->code }} </a>
 					</td>
 					<td>{{ $customer->name }}</td>
-					<td>{{$customer->zoho_id}}</td>
+					<td>{{isset($customer->zohocustomer->id) ? $customer->zohocustomer->name : 'N/A'}}</td>
+					<td>{{isset($customer->currencyinfo->id) ? $customer->currencyinfo->name : 'N/A'}}</td>
 					<td>{{ $customer->postal_address }}</td>
 					<td>{{ $customer->physical_address }}</td>
 					<td>{{ $customer->website }}</td>
@@ -176,8 +178,23 @@
 					</div>
 					<div class="form-group">
 						<label class="control-label">Zoho Code <span class="text-danger">*</span></label>
-						<input type="text" class="form-control name-check-trigger" name="zoho_code" placeholder="Zoho Code..." required />
+						<select name="zoho_code" id="zoho_code" class="form-control">
+							<option value="">Select Zoho Customer</option>
+							@foreach($zoho_customers as $z_cust)
+								<option value="{{$z_cust->id}}">{{$z_cust->name}}</option>
+							@endforeach
+						</select>
 					</div>
+					<div class="form-group">
+						<label for="" class="control-label">Currency</label>
+						<select name="currency_id" id="" class="form-control">
+							<option value="">Currency</option>
+							@foreach($currencies as $currency)
+								<option value="{{$currency->id}}">{{$currency->name}}</option>
+							@endforeach
+						</select>
+					</div>
+					
 					<div class="form-group">
 						<label class="control-label">Postal Address <span class="text-danger">*</span></label>
 						<textarea class="form-control" name="postal_address" placeholder="Postal Address..."></textarea>
@@ -265,6 +282,7 @@
 
 
 
+
 <script>
 
 	$(function() {
@@ -276,8 +294,22 @@
 						<input type="text" class="form-control" name="name" value="${customer.name }" placeholder="Name..." required />
 					</div>
 					<div class="form-group">
-						<label class="control-label">Zoho Code <span class="text-danger">*</span></label>
-						<input type="text" class="form-control" value="${customer.zoho_id}" name="zoho_code" placeholder="Zoho Code..." required />
+						<label class="control-label">Zoho Customer <span class="text-danger">*</span></label>
+						<select name="zoho_code" id="zoho_code" class="form-control">
+							<option value="">Select Zoho Customer</option>
+							@foreach($zoho_customers as $z_cust)
+								<option value="{{$z_cust->id}}">{{$z_cust->name}}</option>
+							@endforeach
+						</select>
+					</div>
+					<div class="form-group">
+						<label for="" class="control-label">Currency</label>
+						<select name="currency_id" id="currency_id" class="form-control">
+							<option value="">Currency</option>
+							@foreach($currencies as $currency)
+								<option value="{{$currency->id}}">{{$currency->name}}</option>
+							@endforeach
+						</select>
 					</div>
 					<div class="form-group">
 						<label class="control-label">Postal Address</label>
@@ -349,7 +381,11 @@
 					</div>
 
 				</div>
-			`).clone()
+			`).clone();
+			$(body_).find('#zoho_code').val(customer.zoho_id);
+			$(body_).find('#currency_id').val(customer.currency_id);
+			$(body_).find('#currency_id').select2();
+			$(body_).find('#zoho_code').select2();
 			return body_
 		}
 		$('#edit-customer').on('show.bs.modal',function(e){

@@ -11,7 +11,7 @@ use App\Models\CRM\CRMCompanyUnit;
 class SampleHeader extends Model implements Auditable
 {
 	use \OwenIt\Auditing\Auditable;
-	protected $fillable = ['declaration_customer_approval_date','declaration_customer_signature','declaration_customer_contact_name','c_focus_ids_clustered','cluster_amount','cluster_amount_paid','cluster_vat','cluster_balance','created_at','updated_at','batch_code','receipt_date','status','crm_unit_name'];
+	protected $fillable = ['declaration_customer_approval_date','declaration_customer_signature','declaration_customer_contact_name','c_focus_ids_clustered','cluster_amount','cluster_amount_paid','cluster_vat','cluster_balance','created_at','updated_at','batch_code','receipt_date','status','crm_unit_name','invoice_id'];
 	// public $with = ['get_target_date', 'client', 'samples', 'specialist_analyst', 'custody', 'comments'];
 	protected $appends = ['unitname'];
 	

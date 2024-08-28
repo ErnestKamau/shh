@@ -116,7 +116,7 @@
 					<span class="btn btn-sm dropdown-item" disabled data-target="#dispatch-to-labs-modal" data-toggle="modal"><i class="mdi mdi-file-send mr-2"></i> Request Review</span>
 				</li>
 				<li>
-					<span class="btn btn-sm dropdown-item" disabled data-target="#dispatch-to-labs-modal-approve" data-toggle="modal"><i class="mdi mdi-check-decagram mr-2"></i> Generate Invoice</span>
+					<span class="btn btn-sm dropdown-item" disabled data-target="#dispatch-to-labs-modal-approve" data-toggle="modal"><i class="mdi mdi-check-decagram mr-2"></i> Generate Sales Order</span>
 				</li>
 				<li>
 					<span class="btn btn-sm dropdown-item" disabled data-target="#approve-begin-process" data-toggle="modal"><i class="mdi mdi-checkbox-marked-circle-outline mr-2"></i> Approve For Analysis</span>
@@ -146,7 +146,7 @@
 				@endif
 				@if($status == "Samples Request Review")
 				<li>
-					<span class="btn btn-sm dropdown-item" disabled data-target="#dispatch-to-labs-modal-approve" data-toggle="modal"><i class="mdi mdi-check-decagram mr-2"></i> Generate Invoice</span>
+					<span class="btn btn-sm dropdown-item" disabled data-target="#dispatch-to-labs-modal-approve" data-toggle="modal"><i class="mdi mdi-check-decagram mr-2"></i> Generate Sales Order</span>
 				</li>
 				<li>
 					<span class="btn btn-sm dropdown-item" disabled data-target="#dispatch-to-labs-modal-review" data-toggle="modal" title="Approve Request"><i class="mdi mdi-clipboard-arrow-right mr-2"></i> Approve Request</span>
@@ -715,12 +715,12 @@
 </div>
 
 <div id="dispatch-to-labs-modal-approve" class="modal fade" role="dialog">
-	<div class="modal-dialog">
+	<div class="modal-dialog modal-lg">
 		<!-- Modal content-->
 		<form class="modal-content" id="generate-invoice-form" method="POST" action="{{ route('generate_batch_invoice') }}" enctype="multipart/form-data">
 			@csrf
 			<div class="modal-header">
-				<h4 class="modal-title"><i class="mdi mdi-clipboard-arrow-right"></i> Generate Invoice</h4>
+				<h4 class="modal-title"><i class="mdi mdi-clipboard-arrow-right"></i> Generate Sales Order</h4>
 			</div>
 			<div class="modal-body">
 				<div class="to-be-updated">
@@ -731,6 +731,7 @@
 					<label class="control-label">Batches</label>
 					<div class="selected-batches-request-approve"></div>
 				</div>
+				<div class="invoice-part"></div>
 
 			</div>
 			<div class="modal-footer">
@@ -1129,6 +1130,7 @@
 	</div>
 </div>
 
+
 @endif
 <script src="https://cdn.jsdelivr.net/gh/gitbrent/bootstrap4-toggle@3.6.1/js/bootstrap4-toggle.min.js"></script>
 <script type="text/javascript">
@@ -1162,7 +1164,18 @@
 	};
 	getTatApprovalCounter();
 
-
+	var deleteSalesOrder = (invoice_id,callback)=>{
+		$.ajax({
+			url:`/delete/sales-order/${invoice_id}`,
+			type:'GET',
+			success:(data)=>{
+				callback(data);
+			},
+			error:(err)=>{
+				console.log(err);
+			}
+		})
+	}
 	var sendSalesOrder = (invoice_id,callback)=>{
 		$.ajax({
 			url:`/send/Sales-Order/${invoice_id}`,
@@ -1245,9 +1258,9 @@
 			<input type="hidden" name="status" value="Samples Request Review" />
 			<div class="form-group">
 				<div class="alert alert-callout alert-primary d-flex">
-					<i class="fas fa-info-circle" style="font-size:30px"></i>
-					<span class="pl-3">
-						By approving this you will generate an invoice with the following Batches</b>?
+					<i class="fas fa-info-circle" style="font-size:25px"></i>
+					<span class="pl-2">
+						By approving this you will generate a Sales Order with the following Batches</b>?
 					</span>
 				</div>
 			</div>
@@ -1256,8 +1269,10 @@
 			<center class="loader">
 				<img src="/images/load.gif" height="250px" width="auto" alt="">
 			</center>
-			<p><i class="mdi mdi-minus saving-invoice"></i> Saving proforma invoice / sales order details.</p>
-			<p><i class="mdi mdi-minus send-sales"></i> Sending sales order details to Zoho.</p> <br>
+			<div class="a-detail">
+				<p><i class="mdi mdi-minus saving-invoice"></i> Saving sales order details.</p>
+				<p><i class="mdi mdi-minus send-sales"></i> Sending sales order details to Zoho.</p> <br>
+			</div>
 		</div>
 		
 		<div class="alert alert-danger d-flex error-area hidden">
@@ -1268,12 +1283,109 @@
 		return body;
 	}
 	$('#dispatch-to-labs-modal-approve').on('show.bs.modal',(e)=>{
+		console.log('-----------------here-------------------')
 		$('#generate-invoice-form').find('.submit-btn').removeClass('hidden');
 		var body = generateInvoiceBody();
 		$('#dispatch-to-labs-modal-approve').find('.to-be-updated').empty();
 		$('#dispatch-to-labs-modal-approve').find('.to-be-updated').append(body);
+	});
+	var getInvoiceBody = (customer,invoice,details)=>{
+		var body = $(`
+		<div class="invoice_body bordered p-2" style="box-shadow: rgba(99, 99, 99, 0.2) 0px 2px 8px 0px;">
+			<h4 class="text-center bg-light p-2">
+				<b>Sales Order ${invoice.invoice_number} Preview</b>
+			</h4>
+			<div class="header mt-5">
+				<b>CUSTOMER : </b> ${customer.name}
+			</div>
+			<div class="table-responsive mt-4">
+				<table class="table table-sm table-bordered">
+					<thead class="bg-light">
+						<th>Item</th>
+						<th>Quantity</th>
+						<th>Unit Price</th>
+						<th>Total</th>
+					</thead>
+					<tbody>
+						
+					</tbody>
+				</table>
+			</div>
+			
+			<div class="alert alert-default bg-light p-2 mt-5 d-flex">
+				<i class="mdi mdi-alert-decagram-outline"></i>
+				<span class="ml-2">Confirm you want to create above DRAFT sales order to zoho</span>
+			</div>
+			<span class="btn btn-outline-primary btn-block btn-sm" data-invoice="${invoice.id}" id="send_sales"><i class="mdi mdi-thumb-up-outline"> Yes, Send Sales Order</i></span> <br>
+			<span class="btn btn-outline-danger btn-block btn-sm" data-invoice="${invoice.id}" id="cancel_sales"><i class="mdi mdi-thumb-down-outline"> Cancel Sales Order</i></span>
+		</div>
+		`).clone();
+		$(body).find('#send_sales').on('click',(e)=>{
+			var invoice_id = $(body).find('#send_sales').data('invoice');
+			$('#generate-invoice-form').find('.loader').removeClass('hidden');
+			$('#generate-invoice-form').find('.invoice_body').addClass('hidden');
+			$('#generate-invoice-form').find('.send-sales').addClass('mdi-spin');
+			sendSalesOrder(invoice_id,(res)=>{
+				if(res['error']){
+					$('#generate-invoice-form').find('.loader').addClass('hidden');
+					$('#generate-invoice-form').find('.saving-invoice').removeClass('mdi-spin');
+					$('#generate-invoice-form').find('.send-sales').removeClass('mdi-spin');
 
-	})
+					$('#generate-invoice-form').find('.error-body').empty();
+					$('#generate-invoice-form').find('.error-body').append(res['error']);
+					$('#generate-invoice-form').find('.error-area').removeClass('hidden');
+				}else{
+					$('#generate-invoice-form').find('.send-sales').removeClass('mdi-spin');
+					$('#generate-invoice-form').find('.send-sales').removeClass('mdi-minus');
+					$('#generate-invoice-form').find('.send-sales').addClass('mdi-check-circle-outline text-success');
+
+					$('#generate-invoice-form').find('.loader').empty();
+					var imgElem= $(`<img src="/images/suc.gif" height="250px" width="auto" alt="">`);
+					$('#generate-invoice-form').find('.loader').append(imgElem);
+
+				}
+			})
+		});
+
+		$(body).find('#cancel_sales').on('click',(e)=>{
+			var errorBody = `Deleting created sales order in process!`;
+			var invoice_id = $(body).find('#send_sales').data('invoice');
+			$('#generate-invoice-form').find('.loader').removeClass('hidden');
+			$('#generate-invoice-form').find('.invoice_body').addClass('hidden');
+			$('#generate-invoice-form').find('.send-sales').addClass('mdi-spin');
+			$('#generate-invoice-form').find('.error-body').empty();
+			$('#generate-invoice-form').find('.error-body').append(errorBody);
+			$('#generate-invoice-form').find('.error-area').removeClass('hidden');
+			deleteSalesOrder(invoice_id,(data)=>{
+				$('#generate-invoice-form').find('.loader').empty();
+				$('#generate-invoice-form').find('.a-detail').addClass('hidden');
+				var imgElem= $(`<img src="/images/suc.gif" height="250px" width="auto" alt="">`);
+				$('#generate-invoice-form').find('.loader').append(imgElem);
+				$('#generate-invoice-form').find('.error-area').addClass('hidden');
+			})
+
+
+		})
+		$.each(details,(i,obj)=>{
+			var tr = `
+			<tr>
+				<td>${obj.zoho_item_name} <br> ${obj.analysis_type_name}</td>
+				<td>${obj.quantity}</td>
+				<td>${obj.selling_price}</td>
+				<td>${obj.total}</td>
+			</tr>`;
+			$(body).find('tbody').append(tr);
+		});
+		var finaltr = `
+		<tr class="bg-light">
+			<td colspan="3"><b>TOTAL:</b></td>
+			<td>${invoice.total}</td>
+		</tr>`;
+		$(body).find('tbody').append(finaltr);
+
+		return body;
+
+	}
 	$('#generate-invoice-form').on('submit',function(event){
 		event.preventDefault();
 		$('#generate-invoice-form').find('.submit-btn').addClass('hidden');
@@ -1296,49 +1408,27 @@
 					$('#generate-invoice-form').find('.loader').addClass('hidden');
 					$('#generate-invoice-form').find('.saving-invoice').removeClass('mdi-spin');
 					$('#generate-invoice-form').find('.send-sales').removeClass('mdi-spin');
+					$('#generate-invoice-form').find('.after-save').addClass('hidden');
 
 					$('#generate-invoice-form').find('.error-body').empty();
 					$('#generate-invoice-form').find('.error-body').append(data['error']);
 					$('#generate-invoice-form').find('.error-area').removeClass('hidden');
 				}else{
+					$('#generate-invoice-form').find('.loader').addClass('hidden');
 					$('#generate-invoice-form').find('.saving-invoice').removeClass('mdi-spin');
 					$('#generate-invoice-form').find('.saving-invoice').removeClass('mdi-minus');
 					$('#generate-invoice-form').find('.saving-invoice').addClass('mdi-check-circle-outline text-success');
 
-
-					$('#generate-invoice-form').find('.send-sales').addClass('mdi-spin');
-
-					sendSalesOrder(data['invoice'].id,(data)=>{
-						console.log('hereee');
-						if(data['error']){
-							$('#generate-invoice-form').find('.loader').addClass('hidden');
-							$('#generate-invoice-form').find('.saving-invoice').removeClass('mdi-spin');
-							$('#generate-invoice-form').find('.send-sales').removeClass('mdi-spin');
-
-							$('#generate-invoice-form').find('.error-body').empty();
-							$('#generate-invoice-form').find('.error-body').append(data['error']);
-							$('#generate-invoice-form').find('.error-area').removeClass('hidden');
-						}else{
-							$('#generate-invoice-form').find('.send-sales').removeClass('mdi-spin');
-							$('#generate-invoice-form').find('.send-sales').removeClass('mdi-minus');
-							$('#generate-invoice-form').find('.send-sales').addClass('mdi-check-circle-outline text-success');
-
-							$('#generate-invoice-form').find('.loader').empty();
-							var imgElem= $(`<img src="/images/suc.gif" height="250px" width="auto" alt="">`);
-							$('#generate-invoice-form').find('.loader').append(imgElem);
-
-							
-							
-							
-						}
-					})
+					// $('#generate-invoice-form').find('.send-sales').addClass('mdi-spin');
+					var invoicePreview = getInvoiceBody(data['customer'],data['invoice'],data['details']);
+					$('#generate-invoice-form').find('.invoice-part').append(invoicePreview)
 				}
 			},
 			error:(data)=>{
 
 			}
 		})
-	})
+	});
 	
 	$('#dispatch-to-labs-modal').on('show.bs.modal', function() {
 		$('#not-paid-parent').empty();

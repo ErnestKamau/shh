@@ -58,7 +58,7 @@
 
     .footer_signatures {
         position: fixed;
-        bottom: 180px;
+        bottom: 160px;
         left: 0;
         right: 0;
         z-index: 1000;
@@ -443,6 +443,7 @@
                         </td>
                     </tr>
                 @endif
+
                 @if ($sample->notes_body != '')
                     <tr style="margin:0px !important">
                         <td style="font-size:8px !important;">

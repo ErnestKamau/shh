@@ -35,5 +35,8 @@ class AnalysisType extends Model implements Auditable
   public function getLabSectionNameAttribute(){
     return SampleAnalysisStage::find($this->lab_section_id)->name ?? '';
   }
+  public function zohoitem(){
+    return $this->belongsTo(InventorySubCategories::class,'zoho_id');
+  }
 
 }

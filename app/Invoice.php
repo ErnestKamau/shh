@@ -11,11 +11,19 @@ class Invoice extends Model implements Auditable
 {
 	use \OwenIt\Auditing\Auditable;
     protected $table = 'customer_invoice';
+    protected $appends = ['batchcodes','samplecodes'];
 
     public function crmCustomer(){
         return $this->belongsTo(CRMCustomer::class,'customer_id');
     }
     public function currencyinfo(){
         return $this->belongsTo(ModulePreConfigs::class,'currency_id');
+    }
+    public function getbatchcodesAttribute(){
+        return SampleHeader::where('invoice_id',$this->id)->pluck('batch_code')->toArray();
+    }
+    public function getsamplecodesAttribute(){
+        $ids = SampleHeader::where('invoice_id',$this->id)->pluck('id')->toArray();
+        return SampleDetails::whereIn('sample_header_id',$ids)->pluck('sample_code')->toArray();
     }
 }

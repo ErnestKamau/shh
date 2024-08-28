@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\CRM;
 
 use App\Country;
+use App\ModulePreConfigs;
 use App\User;
 use App\SampleHeader;
 use App\Models\CRM\CRMCustomer;
@@ -14,6 +15,7 @@ use App\Models\CRM\Complaint_Type;
 use App\Models\CRM\CustomerFeedback;
 
 
+use App\ZohoCustomers;
 use Illuminate\Http\Request;
 
 use App\Http\Controllers\Controller;
@@ -32,16 +34,19 @@ class CRMCustomerController extends Controller
 	}
 	public function index()
 	{
-		$customers = CRMCustomer::where('company_id', getUserCompany())->where('active',1)->orderBy('name')->get();
+		$customers = CRMCustomer::where('company_id', getUserCompany())->with('currencyinfo')->where('active',1)->orderBy('name')->get();
 		$countries = Country::orderBy('name')->get();
 		$account_settings = getConfigTypeByName('Account Settings');
+		$zoho_customers = ZohoCustomers::all();
+		$currencies  = ModulePreConfigs::where('type','Currency')->get();
+		
 		if(isset($account_settings->id)){
 			$accounts = getconfigByID($account_settings->id);		
 		}else{
 
 			$accounts = array();
 		}
-		return view('layouts.crm.index', compact('customers', 'countries','accounts','account_settings'));
+		return view('layouts.crm.index', compact('customers', 'countries','accounts','account_settings','zoho_customers','currencies'));
 	}
 
 	public function add(Request $request)
@@ -68,6 +73,7 @@ class CRMCustomerController extends Controller
 	$customer->account_status = $request->account_id;
 	$customer->vat_no = $request->vat_no;
 	$customer->zoho_id = $request->zoho_code;
+	$customer->currency_id = $request->currency_id;
 	if(isset($request->lpos_required)){
 		$customer->lpos_required = 1;
 	}
@@ -79,7 +85,7 @@ class CRMCustomerController extends Controller
 
 	public function show($id){
     $customer = CRMCustomer::find($id);
-
+	$zoho_customers = ZohoCustomers::all();
 	$countries = Country::orderBy('name')->get();
 	$certifications = CustomerCertification::where('customer_id',$customer->id)->get();
 	$qualification_list = Qualification::all();
@@ -120,7 +126,7 @@ class CRMCustomerController extends Controller
 
 		// return response()->json($samples, 200);
 
-		return view('layouts.crm.show', compact('customer', 'countries', 'samples','complaints','feedbacks','complaint_types','ordersSel','certifications','qualification_list','accounts','quotes'));
+		return view('layouts.crm.show', compact('customer', 'countries', 'samples','complaints','feedbacks','complaint_types','ordersSel','certifications','qualification_list','accounts','quotes','zoho_customers'));
 		
 	}
 
@@ -164,6 +170,7 @@ class CRMCustomerController extends Controller
 	$customer->account_status = $request->account_id;
 	$customer->vat_no = $request->vat_no;
 	$customer->zoho_id = $request->zoho_code;
+	$customer->currency_id = $request->currency_id;
 	if(isset($request->lpos_required)){
 		$customer->lpos_required = 1;
 	}elseif(!isset($request->lpos_required) && $customer->lpos_required == 1){

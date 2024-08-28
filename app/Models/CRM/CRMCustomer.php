@@ -2,6 +2,8 @@
 
 namespace App\Models\CRM;
 
+use App\ModulePreConfigs;
+use App\ZohoCustomers;
 use Illuminate\Database\Eloquent\Model;
 use OwenIt\Auditing\Contracts\Auditable;
 
@@ -23,5 +25,11 @@ class CRMCustomer extends Model implements Auditable
   }
   public function quotes(){
     return $this->hasMany('App\QuotationHeader','crm_customer_id');
+  }
+  public function currencyinfo(){
+    return $this->belongsTo(ModulePreConfigs::class,'currency_id');
+  }
+  public function zohocustomer(){
+    return $this->belongsTo(ZohoCustomers::class,'zoho_id');
   }
 }
