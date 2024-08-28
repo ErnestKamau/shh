@@ -1862,3 +1862,7 @@ function getDiffBtnDates($date1,$date2){
 	return $diff;
 
 }
+
+function getTaxes(){
+	return [0,8,16];
+}

@@ -267,8 +267,7 @@
 				@endfor
 			</div>
 		</span>
-		<small style="cursor: pointer" class="badge badge-pill bg-white my-small-text" {!! in_array($stage, ["Purchase
-			Request", "Request for Quotation" , "Purchase Orders" , "Request to Store" , "Material Issuance" ])
+		<small style="cursor: pointer" class="badge badge-pill bg-white my-small-text" {!! in_array($stage, ["Purchase Request", "Request for Quotation" , "Purchase Orders" , "Request to Store" , "Material Issuance" ])
 			? 'data-target="#jump-to-status-modal" data-toggle="modal"' : '' !!}>
 			<i class="mdi mdi-information-outline"></i> {{ isset($request->status) ? $request->status : 'In Preparation' }}
 			<small class="text-muted"><i class="mdi mdi-pan-right"></i> {{ in_array($request->status, ["Goods Accepted",
@@ -2589,19 +2588,7 @@ Issuance"]))
 			</div>
 			<div class="modal-body">
 				<ul class="list-group list-group-flush">
-					<li class="list-group-item"><label class="control-label"><input name="status" value="In Preparation"
-								type="radio" /> In Preparation</label></li>
-					@if(($request->done_approvals()->count() == $request->defined_approvals()->count()) ||
-					in_array($stage,["Request to Store", "Material Issuance"]))
-					<li class="list-group-item"><label class="control-label"><input name="status" value="Approval Complete"
-								type="radio" /> Approval Complete</label></li>
-					@endif
-					@if($stage=="Request for Quotation")
-					<li class="list-group-item"><label class="control-label"><input name="status" value="Awarded" type="radio" />
-							Awarded</label></li>
-					<li class="list-group-item"><label class="control-label"><input name="status" value="RFQs sent out"
-								type="radio" /> RFQs sent out</label></li>
-					@endif
+					<li class="list-group-item"><label class="control-label"><input name="status" value="In Preparation" type="radio" /> In Preparation</label></li>
 				</ul>
 			</div>
 			<div class="modal-footer">
@@ -3706,6 +3693,7 @@ Issuance"]))
 						<th>Quantity</th>
 						<th>Currency</th>
 						<th>Amount</th>
+						<th>VAT(?)</th>
 					</thead>
 					<tbody>
 						@foreach ($kitPossibleItems ?? array() as $req_item)
@@ -3723,6 +3711,21 @@ Issuance"]))
 								</td>
 								<td>
 									<input type="number" style="min-width: 200px" min="0" step="any" value="" readonly class="form-control form-control-sm duplicatable" name="quote[amount][{{$isKitRow ? $req_item->kit_item_ids : $req_item->id}}]" />
+								</td>
+								<td>
+									<select name="quote[vat][{{$isKitRow ? $req_item->kit_item_ids : $req_item->id}}]" class='form-control duplicatable' data-placeholder="Select VAT...">
+										@foreach (getTaxes() as $p)
+											<option value="{{ $p }}">{{ $p }}%</option>
+										@endforeach
+									</select>
+									<div style="font-size:11px; display: flex; width: 100%; align-items: center">
+										<div style="padding:4px">
+											<input class="duplicatable" type="radio" checked name="quote[inc][{{$isKitRow ? $req_item->kit_item_ids : $req_item->id}}]" value="0"> Exc
+										</div>	
+										<div style="padding:4px">
+											<input class="duplicatable" type="radio" name="quote[inc][{{$isKitRow ? $req_item->kit_item_ids : $req_item->id}}]" value="1"> Inc
+										</div>
+									</div>
 								</td>
 							</tr>
 						@endforeach

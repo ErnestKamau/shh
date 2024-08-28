@@ -35,7 +35,7 @@ class ZohoController extends Controller
 	 */
 	public function __construct()
 	{
-		$this->orgID = "838949546";
+		$this->orgID = env('792893305');
 		$this->token = null;
 		$this->url = "www.zohoapis.com/books/v3/";
 		$this->clientID = "1000.AZFK87K8IRT2QCIOIF3I6RUV0XBZNC";
@@ -167,7 +167,9 @@ class ZohoController extends Controller
 		$itemOrder = 0;
 
 		foreach ($requestItems as $item) {
-			$themItems[] = [
+			$isInclusive = intval($item->vat_inc) == 1;
+			$vatPerc = intval($item->vat_perc);
+			$cIt = [
 				"account_id" => $item->item_account_id,
 				"item_id" => $item->sub_category->zoho_item_code, // Replace with the appropriate item ID
 				"name" => $item->sub_category->name . "(" . $item->uom . ")", // Using the description from the request item
@@ -176,7 +178,40 @@ class ZohoController extends Controller
 				"rate" => round(floatval($item['net_value']) / floatval($item['quantity']), 2), // Using the net_value from the request item
 				"quantity" => $item['quantity'], // Using the quantity from the request item
 			];
+
+			if($vatPerc > 0){
+				if($isInclusive){
+					$totalPerc = 100+$vatPerc;
+					$totalN = $item['net_value']*100/$totalPerc;
+
+					$cIt['item_total'] = $totalN;
+					$cIt['tax_percentage'] = $vatPerc;
+					$cIt['item_total_inclusive_of_tax'] = floatval($item['net_value']);
+				}
+				if(!$isInclusive){
+					$totalPerc = 100+$vatPerc;
+					$totalN = $item['net_value']*$totalPerc/100;
+
+					$cIt['item_total'] = floatval($item['net_value']);
+					$cIt['tax_percentage'] = $vatPerc;
+					$cIt['item_total_inclusive_of_tax'] = $totalN;
+				}
+				$cIt['rate'] = round(floatval($cIt['item_total']) / floatval($item['quantity']), 2);
+			}
+
+			$themItems[] = $cIt;
 		}
+
+		$custom_fields = [
+			[
+				"customfield_id" =>"4740426000005119025",
+				"value" =>''
+			],
+			[
+				"customfield_id"=>"4740426000000278113",
+				"value" =>''
+			]
+		];
 
 		$supplier = $requestEntity->supplier();
 		$currency = ModulePreConfigs::find($requestEntity->currency);
@@ -188,7 +223,8 @@ class ZohoController extends Controller
 			"delivery_date" => Carbon::parse($requestEntity->due_date)->format('Y-m-d'),
 			"line_items" => $themItems,
 			"notes" => $requestEntity['description'],
-			"terms" => $supplier->payment_terms
+			"terms" => $supplier->payment_terms,
+			"custom_fields" => $custom_fields
 		);
 
 		$response = $this->post('purchaseorders', [
@@ -356,7 +392,6 @@ class ZohoController extends Controller
 
 		foreach ($contacts as $c) {
 			$supplierExists = Supplier::where(function ($query) use ($c) {
-				$query->where('email', $c['email']);
 				$query->orWhere('zoho_supplier_id', $c['contact_id']);
 			})->first();
 
@@ -372,7 +407,7 @@ class ZohoController extends Controller
 			$supplierExists->zoho_supplier_id = $c['contact_id'];
 			$supplierExists->save();
 		}
-		if (isset($response['page_context']) && $response['page_context']['has_more_page'] == true) {
+		if (isset($vendors['page_context']) && $vendors['page_context']['has_more_page'] == true) {
 			$this->sync_zoho_vendors($page + 1);
 		}
 	}
@@ -423,7 +458,7 @@ class ZohoController extends Controller
 		return ModulePreConfigs::where('type', $config)->where('module', $module)->get();
 	}
 
-	public function sync_zoho_customers()
+	public function sync_zoho_customers($page =1)
 	{
 		$response = $this->get('contacts', [
 			'query' => [
@@ -432,6 +467,30 @@ class ZohoController extends Controller
 			],
 		]);
 		$customers = json_decode($response, true);
+		// return $customers;
+		$insertCst = [];
+		if(isset($customers['contacts'])){
+			foreach($customers['contacts'] as $customer){
+				$n_customer = ZohoCustomers::where('zoho_contact_id',$customer['contact_id'])->first();
+				if(!isset($n_customer->id)){
+					$insertCst[]=[
+						"zoho_contact_id"=>$customer['contact_id'],
+						"name"=>$customer['customer_name'],
+						"currency_id"=>$customer['currency_id'],
+						"status" => $customer['status'],
+						"currency_code"=>$customer['currency_code']
+					];
+				}
+				
+			}
+		}
+		if(sizeof($insertCst) > 0){
+			ZohoCustomers::insert($insertCst);
+		}
+
+		if (isset($customers['page_context']) && $customers['page_context']['has_more_page'] == true) {
+			$this->sync_zoho_customers($page + 1);
+		}
 		return $customers;
 	}
 
