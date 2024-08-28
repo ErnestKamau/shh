@@ -36,7 +36,7 @@ class ZohoController extends Controller
 	 */
 	public function __construct()
 	{
-		$this->orgID = env('792893305');
+		$this->orgID = env('ZOHO_ORGID');
 		$this->token = null;
 		$this->url = "www.zohoapis.com/books/v3/";
 		$this->clientID = "1000.AZFK87K8IRT2QCIOIF3I6RUV0XBZNC";
@@ -65,7 +65,7 @@ class ZohoController extends Controller
 
 	public function authenticate()
 	{
-		// return $this->getToken();
+		return $this->orgID;
 		$url = "https://accounts.zoho.com/oauth/v2/auth?scope=ZohoBooks.fullaccess.ALL&client_id=" . $this->clientID . "&state=testing&response_type=code&redirect_uri=" . $this->refreshUrl . "&access_type=offline";
 		return $url;
 	}
@@ -429,6 +429,9 @@ class ZohoController extends Controller
 		]);
 
 		$data = json_decode($response, true);
+
+		return response()->json($data);
+
 		$lists = $single ? $data[$single] : $data[$things];
 
 		return json_encode($lists);
@@ -445,7 +448,7 @@ class ZohoController extends Controller
 		$currencies = $this->sync_zoho_things('/settings/currencies', 'currencies');
 		// return json_decode($currencies);
 
-		// return ">>>>>>>>>>>>>>>>>>>>>" . json_encode($currencies);
+		return ">>>>>>>>>>>>>>>>>>>>>" . json_encode($currencies);
 
 		$currencies = json_decode($currencies, true);
 		$config = "Currency";
