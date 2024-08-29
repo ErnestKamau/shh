@@ -32,6 +32,7 @@ use App\Models\Equipments\Equipment;
 use App\Models\Lab\TatCaptured;
 use App\Models\Lab\TatCapturedView;
 use App\Models\System\SystemConfiguration;
+use App\ModulePreConfigs;
 use App\Pricelist;
 use App\PricelistCustomer;
 use App\PricelistItem;
@@ -54,6 +55,7 @@ use App\TaxRegime;
 use App\User;
 use App\UserRole;
 use App\UserRoleView;
+use App\ZohoCustomers;
 use Illuminate\Http\File;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -4300,6 +4302,11 @@ class SampleWorkFlowController extends Controller
                 'batch_code' => $new_batch_code,
                 'receipt_date' => getTodayDate(),
                 'status' => 'Samples Reception',
+                'c_focus_ids_clustered'=>"",
+                'cluster_amount'=>"",
+                'cluster_balance'=>"",
+                'cluster_vat'=>"",
+                'cluster_amount_paid'=>"",
             ]);
             $new_batch->save();
             $samples = SampleDetails::with('captured_results')
@@ -4667,6 +4674,18 @@ class SampleWorkFlowController extends Controller
         Invoice::find($id)->delete();
         return response()->json(['status'=>"success","message"=>"Sales order deleted successfully!"]);
 
+    }
+    public function matchCrmCurrency(){
+        $customers = CRMCustomer::where('zoho_id','>',0)->whereNull('currency_id')->get();
+        foreach($customers as $customer){
+            $zoho = ZohoCustomers::find($customer->zoho_id);
+            $z_currency = ModulePreConfigs::where('zoho_id',$zoho->currency_id)->first();
+            if(isset($z_currency->id)){
+                $customer->currency_id = $z_currency->id;
+                $customer->save();
+            }
+        }
+        return response()->json('success');
     }
 
 }

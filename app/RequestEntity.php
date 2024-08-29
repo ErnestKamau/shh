@@ -173,6 +173,10 @@ class RequestEntity extends Model implements Auditable
 		return $this->hasMany(RequestEntityItem::class, 'request_id');
 	}
 
+	public function source_request(){
+		return $this->belongsTo(RequestEntity::class, 'parent_material_requisition');
+	}
+
 	public function getNetValueAttribute(){
 		return $this->request_entity_items->sum('net_value');
 	}
