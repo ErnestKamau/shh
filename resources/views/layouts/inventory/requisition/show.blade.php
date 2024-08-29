@@ -267,8 +267,7 @@
 				@endfor
 			</div>
 		</span>
-		<small style="cursor: pointer" class="badge badge-pill bg-white my-small-text" {!! in_array($stage, ["Purchase
-			Request", "Request for Quotation" , "Purchase Orders" , "Request to Store" , "Material Issuance" ])
+		<small style="cursor: pointer" class="badge badge-pill bg-white my-small-text" {!! in_array($stage, ["Purchase Request", "Request for Quotation" , "Purchase Orders" , "Request to Store" , "Material Issuance" ])
 			? 'data-target="#jump-to-status-modal" data-toggle="modal"' : '' !!}>
 			<i class="mdi mdi-information-outline"></i> {{ isset($request->status) ? $request->status : 'In Preparation' }}
 			<small class="text-muted"><i class="mdi mdi-pan-right"></i> {{ in_array($request->status, ["Goods Accepted",
@@ -2591,17 +2590,6 @@ Issuance"]))
 				<ul class="list-group list-group-flush">
 					<li class="list-group-item"><label class="control-label"><input name="status" value="In Preparation"
 								type="radio" /> In Preparation</label></li>
-					@if(($request->done_approvals()->count() == $request->defined_approvals()->count()) ||
-					in_array($stage,["Request to Store", "Material Issuance"]))
-					<li class="list-group-item"><label class="control-label"><input name="status" value="Approval Complete"
-								type="radio" /> Approval Complete</label></li>
-					@endif
-					@if($stage=="Request for Quotation")
-					<li class="list-group-item"><label class="control-label"><input name="status" value="Awarded" type="radio" />
-							Awarded</label></li>
-					<li class="list-group-item"><label class="control-label"><input name="status" value="RFQs sent out"
-								type="radio" /> RFQs sent out</label></li>
-					@endif
 				</ul>
 			</div>
 			<div class="modal-footer">

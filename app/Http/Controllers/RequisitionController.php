@@ -719,6 +719,8 @@ class RequisitionController extends Controller
 
 	public function send_creation_email($entity, $contacts, $requiresProcurement = false, $requiresSiteManager = false, $requiresDepartmentHead = false)
 	{
+		return true;
+		
 		$companyDetails = getCompanyDetails();
 
 		$emailList = [];
