@@ -971,6 +971,7 @@ class RequisitionController extends Controller
 				$iO = $i->replicate();
 				$iO->request_id = $purchaseOrder->id;
 				$iO->net_value = $quote->quote_amount;
+				$iO->currency = $quote->currency_id;
 				$iO->vat_inc = $quote->vat_inc;
 				$iO->vat_perc = $quote->vat_perc;
 				if ($request->has('split_items') && in_array($i->id, $split_items) && in_array($quote->supplier_id, $split_suppliers)) {
@@ -2510,7 +2511,7 @@ class RequisitionController extends Controller
 					$newQuote->supplier_id = $request->supplier_id;
 					$newQuote->request_id = $req->id;
 					$newQuote->request_item_id = $i;
-					$newQuote->vat_type = $request->quote['inc'][$j];
+					$newQuote->vat_inc = $request->quote['inc'][$j];
 					$newQuote->vat_perc = $request->quote['vat'][$j];
 					$newQuote->currency_id = $request->quote['currency'][$j];
 					$newQuote->quote_amount = floatval($request->quote['amount'][$j]);

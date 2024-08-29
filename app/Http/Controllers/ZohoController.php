@@ -11,6 +11,7 @@ use App\ZohoApiTokens;
 use App\ZohoCustomers;
 use Carbon\Carbon;
 use Error;
+use Exception;
 use GuzzleHttp\Client;
 use GuzzleHttp\Exception\ClientException;
 use Illuminate\Http\Request;
@@ -116,7 +117,7 @@ class ZohoController extends Controller
 		if ($request->has("purchaseorder_number")) {
 			$pArrays[] = $request->purchaseorder_number;
 		} else {
-			$pArrays = RequestEntity::where('zoho_status', 'draft')->select('zoho_id')->pluck('zoho_id')->toArray();
+			$pArrays = RequestEntity::whereIn('zoho_status', ['open', 'draft'])->select('zoho_id')->pluck('zoho_id')->toArray();
 		}
 		$updatedPOs = [];
 		foreach ($pArrays as $number) {
@@ -135,14 +136,16 @@ class ZohoController extends Controller
 			$lists = $purchaseOrders['purchaseorders'];
 
 			foreach ($lists as $list) {
-				if ($list['status'] != "draft")
-					$request = RequestEntity::where('zoho_id', $list['purchaseorder_id'])->first();
-				$request->update([
-					"status" => "Approval Complete",
-					"zoho_status" => $list['status']
-				])->save();
-				;
-				$updatedPOs[] = $request->request_code;
+				if ($list['status'] != "draft"){
+					$po = RequestEntity::where('zoho_id', $list['purchaseorder_id'])->first();
+					if($po){
+						$po->update([
+							"status" => $list['status'] != "cancelled" ? "Approval Complete" : "Rejected",
+							"zoho_status" => $list['status']
+						])->save();
+						$updatedPOs[] = $po->request_code;
+					}
+				}
 			}
 		}
 		return response()->json(['status' => true, "message" => "POs updated : " . implode(",", $updatedPOs)]);
@@ -206,12 +209,12 @@ class ZohoController extends Controller
 
 		$custom_fields = [
 			[
-				"customfield_id" =>"4740426000005119025",
-				"value" =>''
+				"customfield_id" =>env("ZOHO_PO_INSERTED_BY_FIELD"), //Inserted by
+				"value" => trim($requestEntity->creator()->name)
 			],
 			[
-				"customfield_id"=>"4740426000000278113",
-				"value" =>''
+				"customfield_id"=>env("ZOHO_PO_DESCRIPTION_FIELD"), //description
+				"value" =>$requestEntity->source_request->description
 			]
 		];
 
@@ -229,17 +232,22 @@ class ZohoController extends Controller
 			"custom_fields" => $custom_fields
 		);
 
-		$response = $this->post('purchaseorders', [
-			'form_params' => ['JSONString' => json_encode($purchaseOrderData)],
-			'query' => [
-				'organization_id' => $this->orgID,
-			],
-		]);
-
-		$zItem = json_decode($response, true);
-		if (!isset($zItem['purchaseorder'])) {
-			return ['error' => $zItem['message']];
+		try{
+			$response = $this->post('purchaseorders', [
+				'form_params' => ['JSONString' => json_encode($purchaseOrderData)],
+				'query' => [
+					'organization_id' => $this->orgID,
+				],
+			]);
+			$zItem = json_decode($response, true);
+			if (!isset($zItem['purchaseorder'])) {
+				return ['error' => $zItem['message']];
+			}
 		}
+		catch(Exception $e){
+			return ['error' => $e->getMessage()];
+		}
+
 		$requestEntity->zoho_id = $zItem['purchaseorder']['purchaseorder_id'];
 		$requestEntity->save();
 
@@ -337,7 +345,7 @@ class ZohoController extends Controller
 		
 		$zItems = $items['items'];
 		$pref = "IM";
-		return $zItems;
+		// return $zItems;
 
 		foreach ($zItems as $c) {
 			$itemExists = InventorySubCategories::where(function ($query) use ($c) {
@@ -430,8 +438,6 @@ class ZohoController extends Controller
 
 		$data = json_decode($response, true);
 
-		return response()->json($data);
-
 		$lists = $single ? $data[$single] : $data[$things];
 
 		return json_encode($lists);
@@ -448,7 +454,7 @@ class ZohoController extends Controller
 		$currencies = $this->sync_zoho_things('/settings/currencies', 'currencies');
 		// return json_decode($currencies);
 
-		return ">>>>>>>>>>>>>>>>>>>>>" . json_encode($currencies);
+		// return ">>>>>>>>>>>>>>>>>>>>>" . json_encode($currencies);
 
 		$currencies = json_decode($currencies, true);
 		$config = "Currency";

@@ -71,94 +71,95 @@
 		padding: 5px;
 		color: #34f;
 	}
+
 	input[type="range"] {
-			-webkit-appearance: none;
-			-moz-appearance: none;
-			width: 300px;
-			height: 5px;
-			padding: 0;
-			border-radius: 2px;
-			outline: none;
-			cursor: pointer;
-		}
+		-webkit-appearance: none;
+		-moz-appearance: none;
+		width: 300px;
+		height: 5px;
+		padding: 0;
+		border-radius: 2px;
+		outline: none;
+		cursor: pointer;
+	}
 
 
-		/*Chrome thumb*/
+	/*Chrome thumb*/
 
-		input[type="range"]::-webkit-slider-thumb {
-			-webkit-appearance: none;
-			-moz-appearance: none;
-			-webkit-border-radius: 5px;
-			/*16x16px adjusted to be same as 14x14px on moz*/
-			height: 16px;
-			width: 16px;
-			border-radius: 5px;
-			background: #e7e7e7;
-			border: 1px solid #c5c5c5;
-		}
-
-
-		/*Mozilla thumb*/
-
-		input[type="range"]::-moz-range-thumb {
-			-webkit-appearance: none;
-			-moz-appearance: none;
-			-moz-border-radius: 5px;
-			height: 14px;
-			width: 14px;
-			border-radius: 5px;
-			background: #e7e7e7;
-			border: 1px solid #c5c5c5;
-		}
+	input[type="range"]::-webkit-slider-thumb {
+		-webkit-appearance: none;
+		-moz-appearance: none;
+		-webkit-border-radius: 5px;
+		/*16x16px adjusted to be same as 14x14px on moz*/
+		height: 16px;
+		width: 16px;
+		border-radius: 5px;
+		background: #e7e7e7;
+		border: 1px solid #c5c5c5;
+	}
 
 
-		/*IE & Edge input*/
+	/*Mozilla thumb*/
 
-		input[type=range]::-ms-track {
-			width: 300px;
-			height: 6px;
-			/*remove bg colour from the track, we'll use ms-fill-lower and ms-fill-upper instead */
-			background: transparent;
-			/*leave room for the larger thumb to overflow with a transparent border */
-			border-color: transparent;
-			border-width: 2px 0;
-			/*remove default tick marks*/
-			color: transparent;
-		}
-
-
-		/*IE & Edge thumb*/
-
-		input[type=range]::-ms-thumb {
-			height: 14px;
-			width: 14px;
-			border-radius: 5px;
-			background: #e7e7e7;
-			border: 1px solid #c5c5c5;
-		}
+	input[type="range"]::-moz-range-thumb {
+		-webkit-appearance: none;
+		-moz-appearance: none;
+		-moz-border-radius: 5px;
+		height: 14px;
+		width: 14px;
+		border-radius: 5px;
+		background: #e7e7e7;
+		border: 1px solid #c5c5c5;
+	}
 
 
-		/*IE & Edge left side*/
+	/*IE & Edge input*/
 
-		input[type=range]::-ms-fill-lower {
-			background: #919e4b;
-			border-radius: 2px;
-		}
+	input[type=range]::-ms-track {
+		width: 300px;
+		height: 6px;
+		/*remove bg colour from the track, we'll use ms-fill-lower and ms-fill-upper instead */
+		background: transparent;
+		/*leave room for the larger thumb to overflow with a transparent border */
+		border-color: transparent;
+		border-width: 2px 0;
+		/*remove default tick marks*/
+		color: transparent;
+	}
 
 
-		/*IE & Edge right side*/
+	/*IE & Edge thumb*/
 
-		input[type=range]::-ms-fill-upper {
-			background: #c5c5c5;
-			border-radius: 2px;
-		}
+	input[type=range]::-ms-thumb {
+		height: 14px;
+		width: 14px;
+		border-radius: 5px;
+		background: #e7e7e7;
+		border: 1px solid #c5c5c5;
+	}
 
 
-		/*IE disable tooltip*/
+	/*IE & Edge left side*/
 
-		input[type=range]::-ms-tooltip {
-			display: none;
-		}
+	input[type=range]::-ms-fill-lower {
+		background: #919e4b;
+		border-radius: 2px;
+	}
+
+
+	/*IE & Edge right side*/
+
+	input[type=range]::-ms-fill-upper {
+		background: #c5c5c5;
+		border-radius: 2px;
+	}
+
+
+	/*IE disable tooltip*/
+
+	input[type=range]::-ms-tooltip {
+		display: none;
+	}
 </style>
 @endsection
 @section('content2')
@@ -270,9 +271,20 @@
 		<small style="cursor: pointer" class="badge badge-pill bg-white my-small-text" {!! in_array($stage, ["Purchase Request", "Request for Quotation" , "Purchase Orders" , "Request to Store" , "Material Issuance" ])
 			? 'data-target="#jump-to-status-modal" data-toggle="modal"' : '' !!}>
 			<i class="mdi mdi-information-outline"></i> {{ isset($request->status) ? $request->status : 'In Preparation' }}
-			<small class="text-muted"><i class="mdi mdi-pan-right"></i> {{ in_array($request->status, ["Goods Accepted",
+			@if ($stage == "Purchase Orders" )
+			@if (trim($request->zoho_status) != "")
+			<small class="text-muted"><i class="mdi mdi-pan-right"></i>
+				ZOHO Status: {{ $request->zoho_status }}
+			</small>
+			@endif
+			@else
+			<small class="text-muted"><i class="mdi mdi-pan-right"></i>
+				{{ in_array($request->status, ["Goods Accepted",
 				"Items Issued Out"]) ? (in_array($request->approval_status, ['Fully', 'Partially']) ? $request->approval_status
-				: '' ) : '' }}</small>
+				: '' ) : '' }}
+			</small>
+			@endif
+
 		</small>
 		@if ((isset($request->status) && $request->status == "In Preparation" || !isset($request->status)))
 		<button class="btn btn-default text-primary float-right save-details-form btn-sm" data-type="save-details">
@@ -412,7 +424,8 @@
 			@endif
 
 			@if($request->status == "Approval Complete")
-			{{-- <button class="btn btn-default text-dark float-right save-details-form btn-sm" data-type="send-purchase-order">
+			{{-- <button class="btn btn-default text-dark float-right save-details-form btn-sm"
+				data-type="send-purchase-order">
 				<i class="mdi mdi-send"></i> Send Purchase Order
 			</button> --}}
 			@endif
@@ -520,15 +533,15 @@
 			@endif
 
 			@if ($stage == "Request for Quotation")
-				@if(trim($request->email_body) != "")
-					<span class="btn btn-default text-primary float-right btn-sm" data-target="#Send-RFQ-modal" data-toggle="modal">
-						<i class="fas fa-eye"></i> Preview Email Body
-					</span>
-				@else
-					<span class="btn btn-default text-info float-right btn-sm" data-target="#Send-RFQ-modal" data-toggle="modal">
-						<i class="fas fa-plus"></i> Add Email Body
-					</span>
-				@endif
+			@if(trim($request->email_body) != "")
+			<span class="btn btn-default text-primary float-right btn-sm" data-target="#Send-RFQ-modal" data-toggle="modal">
+				<i class="fas fa-eye"></i> Preview Email Body
+			</span>
+			@else
+			<span class="btn btn-default text-info float-right btn-sm" data-target="#Send-RFQ-modal" data-toggle="modal">
+				<i class="fas fa-plus"></i> Add Email Body
+			</span>
+			@endif
 			@endif
 
 			@if ($stage == "Request for Quotation" && $request->supplier_rfqs()->count() > 0)
@@ -557,7 +570,8 @@
 			@endif
 			@endif
 			@endif
-			@if (in_array($request->status,["Approval Complete", "Items Issued Out"]) && in_array($stage,["Request to Store"]))
+			@if (in_array($request->status,["Approval Complete", "Items Issued Out"]) && in_array($stage,["Request to
+			Store"]))
 			<?php
 						$hasMI = issue_received_complete($request->id);
 					?>
@@ -614,11 +628,12 @@
 		<br>
 		<ul>
 			@foreach ($zerrors as $err)
-				<li>{{ $err }}</li>
+			<li>{{ $err }}</li>
 			@endforeach
 		</ul>
 		<div class="pv-2 pl-0 text-small text-primary">
-			<a href="{{ route('recreate-purchase-order', $request->id ?? 0) }}"><i class="fas fa-sync"></i> Retry creating the Purchase Order on Zoho...</a>
+			<a href="{{ route('recreate-purchase-order', $request->id ?? 0) }}"><i class="fas fa-sync"></i> Retry creating the
+				Purchase Order on Zoho...</a>
 		</div>
 	</div>
 	@endif
@@ -708,8 +723,8 @@
 					<h5 class="card-title">
 						Ratings
 						@if(\Auth::user()->hasRole($procurement_officer_role_id, true))
-						<div class="btn btn-sm text-info float-right"
-							data-target="#update-supplier-criteria-rating-modal" data-toggle="modal">
+						<div class="btn btn-sm text-info float-right" data-target="#update-supplier-criteria-rating-modal"
+							data-toggle="modal">
 							<i class="mdi mdi-star"></i> Rate Goods Receipt
 						</div>
 						@endif
@@ -1051,23 +1066,29 @@
 												$readonly = isset($request->status) && $request->status == "In Preparation" || !isset($request->status) ? false : true;
 											?>
 											<select name="items[item_id][]" style="min-width: 200px; font-size: 12px"
-												class="form-control selected-item" data-selected="{{ $req_item->inventory_sub_category_id }}" data-account="{{ $req_item->item_account_id }}"
-												placeholder="Please select inventory item..." {{ $readonly ? "disabled" : "" }}>
+												class="form-control selected-item" data-selected="{{ $req_item->inventory_sub_category_id }}"
+												data-account="{{ $req_item->item_account_id }}" placeholder="Please select inventory item..." {{
+												$readonly ? "disabled" : "" }}>
 												<option value="{{ $req_item->inventory_sub_category_id }}" selected="selected">{{
 													$req_item->item_name }}</option>
 											</select>
 
-											@php($hiddenAccount = in_array($stage, ['Request to Store', 'Material Issuance', 'Goods Receipt']))
+											@php($hiddenAccount = in_array($stage, ['Request to Store', 'Material Issuance', 'Goods
+											Receipt']))
 
 											<div {!! $hiddenAccount ? 'style="display: none"' : 'unset' !!}>
 												<div style="padding:3px 2px">Account</div>
 												@if ($stage != 'Goods Receipt')
-													<select {{ $readonly ? "disabled" : "" }} name="items[item_account_id][]" style="min-width: 200px; font-size: 12px; margin-top: 5px" class="form-control" placeholder="Select Account..." required>
-														<option value="">Select Account...</option>
-														@foreach ($accounts as $acc)
-															<option value="{{ $acc->account_id }}" {{ $req_item->item_account_id == $acc->account_id ? "selected" : "" }}><small>({{ clear_underscore($acc->type) }}) {{ $acc->name }}</small></option>
-														@endforeach
-													</select>
+												<select {{ $readonly ? "disabled" : "" }} name="items[item_account_id][]"
+													style="min-width: 200px; font-size: 12px; margin-top: 5px" class="form-control"
+													placeholder="Select Account..." required>
+													<option value="">Select Account...</option>
+													@foreach ($accounts as $acc)
+													<option value="{{ $acc->account_id }}" {{ $req_item->item_account_id == $acc->account_id ?
+														"selected" : "" }}><small>({{ clear_underscore($acc->type) }}) {{ $acc->name }}</small>
+													</option>
+													@endforeach
+												</select>
 												@endif
 											</div>
 										</div>
@@ -1183,15 +1204,20 @@
 									</td>
 									@else
 									<td>
-										@php($notifyQuantityChange = in_array($stage,["Request for Quotation", "Purchase Orders"]) ? 'notify-item-change' : '')
+										@php($notifyQuantityChange = in_array($stage,["Request for Quotation", "Purchase Orders"]) ?
+										'notify-item-change' : '')
 										<div class="form-group">
-											<input type="number" min="0.00" data-item="{{ $req_item->sub_category->name }}" name="items[quantity][]" data-value="{{ $req_item->quantity }}" value="{{ $req_item->quantity }}"
-												step="any" style="min-width: 100px" class="form-control user-quantity {{ $notifyQuantityChange }}" placeholder="Quantity..."
-												{!! isset($request->status) && $request->status == "In Preparation" || !isset($request->status)
-											? '' : 'readonly="true"' !!} {!! $stage == "Material Issuance" ? 'readonly="true"' : '' !!} required />
+											<input type="number" min="0.00" data-item="{{ $req_item->sub_category->name }}"
+												name="items[quantity][]" data-value="{{ $req_item->quantity }}"
+												value="{{ $req_item->quantity }}" step="any" style="min-width: 100px"
+												class="form-control user-quantity {{ $notifyQuantityChange }}" placeholder="Quantity..." {!!
+												isset($request->status) && $request->status == "In Preparation" || !isset($request->status)
+											? '' : 'readonly="true"' !!} {!! $stage == "Material Issuance" ? 'readonly="true"' : '' !!}
+											required />
 										</div>
 										<div class="mt-1 item-change-reason-div form-group">
-											<textarea class="form-control form-control-sm" name="items[quantity_change_reason][]" placeholder="Reason for Quantity Change"></textarea>
+											<textarea class="form-control form-control-sm" name="items[quantity_change_reason][]"
+												placeholder="Reason for Quantity Change"></textarea>
 										</div>
 									</td>
 									@endif
@@ -1549,7 +1575,8 @@
 										</td>
 										<td>{{ $quote->brand }}</td>
 										<td>{{ $quote->currency == '-1' ? $systemCurrency : $quote->currency }} {{
-											number_format($quote->quote_amount, 2) }}</td>
+											number_format($quote->quote_amount, 2) }} <small>(VAT {{ $quote->vat_perc }}%) {{ $quote->vat_inc
+												? 'Inc' : 'Exc' }}</small></td>
 										<td nowrap>
 											@if(trim($quote->awarded_at) == "")
 											@if(!$isKitRow)
@@ -1578,13 +1605,13 @@
 											@else
 											@if($quote->is_awarded == 1)
 											<i class="mdi mdi-check-bold text-green"></i> {{ $quote->awarded_at }}
-											
+
 											@if (count($request->children) == 0)
-												<span class="btn btn-transparent btn-sm" data-quote="{{ $quote }}"
-													data-target="#undo-supplier-award" data-toggle="modal">
-													<i class="mdi mdi-backup-restore text-danger" data-toggle="tooltip" data-placement="left"
-														title="Undo Supplier Award"></i>
-												</span>
+											<span class="btn btn-transparent btn-sm" data-quote="{{ $quote }}"
+												data-target="#undo-supplier-award" data-toggle="modal">
+												<i class="mdi mdi-backup-restore text-danger" data-toggle="tooltip" data-placement="left"
+													title="Undo Supplier Award"></i>
+											</span>
 											@endif
 											@else
 											<i class="mdi mdi-cancel text-muted"></i>
@@ -2152,16 +2179,19 @@
 					$guidesOBJ = $gSRC->guides;
 				?>
 				<div class="form-group">
-					<h6 style="width: 100%" for="crit-{{ $gSRC->id }}">{{ $gSRC->title }} 
-						<span
-							class="badge badge-pill badge-info float-right">0</span></h6>
-						<input style="width: 100%" type="range" step="0.1" value="{{ $c_score }}" name="rating[{{ $gSRC->id }}][criteria]"
-						class="form-range" min="0" max="{{ $gSRC->max_score }}" id="crit-{{ $gSRC->id }}" data-guides="{{ $guidesOBJ }}">
-						{{-- <div><i class="fas fa-star" style="font-size:11px"></i> <small class="badge badge-default guide-title"></small></div> --}}
+					<h6 style="width: 100%" for="crit-{{ $gSRC->id }}">{{ $gSRC->title }}
+						<span class="badge badge-pill badge-info float-right">0</span>
+					</h6>
+					<input style="width: 100%" type="range" step="0.1" value="{{ $c_score }}"
+						name="rating[{{ $gSRC->id }}][criteria]" class="form-range" min="0" max="{{ $gSRC->max_score }}"
+						id="crit-{{ $gSRC->id }}" data-guides="{{ $guidesOBJ }}">
+					{{-- <div><i class="fas fa-star" style="font-size:11px"></i> <small
+							class="badge badge-default guide-title"></small></div> --}}
 					<input type="hidden" name="rating_request_id" value="{{ $request->id ?? 0 }}" />
 					<div class="form-group reason-textarea mt-1">
 						<label class="control-label"><em>Reason for your rating</em></label>
-						<textarea class="form-control form-control-sm" name="rating[{{ $gSRC->id }}][reason]" placeholder="Reason..." required>{{ $score_reason }}</textarea>
+						<textarea class="form-control form-control-sm" name="rating[{{ $gSRC->id }}][reason]"
+							placeholder="Reason..." required>{{ $score_reason }}</textarea>
 					</div>
 				</div>
 				@endforeach
@@ -2378,17 +2408,21 @@
 					$guidesOBJ = $gSRC->guides;
 				?>
 				<div class="form-group rating-delivery" data-rid="{{ $gSRC->id }}">
-					<h6 style="width: 100%" for="crit-{{ $gSRC->id }}">{{ $gSRC->title }} 
-						<span
-							class="badge badge-pill badge-info float-right">0</span>
-						</h6>
-						{{-- <div><i class="fas fa-star" style="font-size:11px"></i> <small class="badge badge-default guide-title"></small></div> --}}
-						<input style="width: 100%" type="range" step="0.1" value="{{ $c_score }}" name="delivery_rating[{{ $gSRC->id }}]criteria"
-						class="form-range rating-delivery-criteria" data-type="criteria" min="0" max="{{ $gSRC->max_score }}" id="crit-{{ $gSRC->id }}" data-guides="{{ $guidesOBJ }}">
+					<h6 style="width: 100%" for="crit-{{ $gSRC->id }}">{{ $gSRC->title }}
+						<span class="badge badge-pill badge-info float-right">0</span>
+					</h6>
+					{{-- <div><i class="fas fa-star" style="font-size:11px"></i> <small
+							class="badge badge-default guide-title"></small></div> --}}
+					<input style="width: 100%" type="range" step="0.1" value="{{ $c_score }}"
+						name="delivery_rating[{{ $gSRC->id }}]criteria" class="form-range rating-delivery-criteria"
+						data-type="criteria" min="0" max="{{ $gSRC->max_score }}" id="crit-{{ $gSRC->id }}"
+						data-guides="{{ $guidesOBJ }}">
 					<input type="hidden" name="request_id" value="{{ $request->id ?? 0 }}" required />
 					<div class="form-group reason-textarea mt-1">
 						<label class="control-label"><em>Reason for your rating</em></label>
-						<textarea class="form-control form-control-sm rating-delivery-reason" data-type="reason" name="delivery_rating[{{ $gSRC->id }}]reason" placeholder="Reason..." required>{{ $score_reason }}</textarea>
+						<textarea class="form-control form-control-sm rating-delivery-reason" data-type="reason"
+							name="delivery_rating[{{ $gSRC->id }}]reason" placeholder="Reason..."
+							required>{{ $score_reason }}</textarea>
 					</div>
 				</div>
 				@endforeach
@@ -2576,8 +2610,7 @@
 		</form>
 	</div>
 </div>
-@if(in_array($stage, ["Purchase Request", "Request for Quotation", "Purchase Orders", "Request to Store", "Material
-Issuance"]))
+@if(in_array($stage, ["Purchase Request", "Request for Quotation", "Purchase Orders", "Request to Store", "Material Issuance"]))
 <div id="jump-to-status-modal" class="modal fade" role="dialog">
 	<div class="modal-dialog">
 		<!-- Modal content-->
@@ -2588,7 +2621,8 @@ Issuance"]))
 			</div>
 			<div class="modal-body">
 				<ul class="list-group list-group-flush">
-					<li class="list-group-item"><label class="control-label"><input name="status" value="In Preparation" type="radio" /> In Preparation</label></li>
+					<li class="list-group-item"><label class="control-label"><input name="status" value="In Preparation"
+								type="radio" /> In Preparation</label></li>
 				</ul>
 			</div>
 			<div class="modal-footer">
@@ -3199,9 +3233,9 @@ Issuance"]))
 				?>
 				<div>
 					<div class="my-2" id="rfq-body-editor">
-						<textarea id="rfq-body" class="form-control editor" rows="8" 
-							style="border:none !important; outline: none!important" name="body" 
-							placeholder="Email Body..." required>{{ $hasEmailBody ? $request->email_body : $defaultBody }}</textarea>
+						<textarea id="rfq-body" class="form-control editor" rows="8"
+							style="border:none !important; outline: none!important" name="body" placeholder="Email Body..."
+							required>{{ $hasEmailBody ? $request->email_body : $defaultBody }}</textarea>
 					</div>
 					<div class="my-1" id="rfq-body-preview">
 						{!! $request->email_body !!}
@@ -3214,7 +3248,7 @@ Issuance"]))
 						</small>
 					</div>
 				</div>
-				
+
 			</div>
 			<div class="modal-body">
 				<h6>RFQ Items</h6>
@@ -3231,16 +3265,17 @@ Issuance"]))
 					</thead>
 					<tbody>
 						@foreach ($normalItems ?? array() as $req_item)
-							<tr style="border: 1px solid #999">
-								<td style="border: 1px solid #999; padding:2px">{{ $loop->iteration }}</td>
-								<td style="border: 1px solid #999; padding:2px">{{ $request->request_code }}</td>
-								<td style="border: 1px solid #999; padding:2px">{{ $req_item->sub_category->code }}</td>
-								<td style="border: 1px solid #999; padding:2px">{{ $req_item->sub_category->name }}
-									<br>{{ $request->comments }}
-								</td>
-								<td style="border: 1px solid #999; padding:2px">{{ $req_item->comments }}</td>
-								<td style="border: 1px solid #999; padding:2px">{{ number_format($req_item->quantity, 3) }} <small>({{ $req_item->uom }})</small></td> 
-							</tr>
+						<tr style="border: 1px solid #999">
+							<td style="border: 1px solid #999; padding:2px">{{ $loop->iteration }}</td>
+							<td style="border: 1px solid #999; padding:2px">{{ $request->request_code }}</td>
+							<td style="border: 1px solid #999; padding:2px">{{ $req_item->sub_category->code }}</td>
+							<td style="border: 1px solid #999; padding:2px">{{ $req_item->sub_category->name }}
+								<br>{{ $request->comments }}
+							</td>
+							<td style="border: 1px solid #999; padding:2px">{{ $req_item->comments }}</td>
+							<td style="border: 1px solid #999; padding:2px">{{ number_format($req_item->quantity, 3) }} <small>({{
+									$req_item->uom }})</small></td>
+						</tr>
 						@endforeach
 					</tbody>
 				</table>
@@ -3670,13 +3705,13 @@ Issuance"]))
 </div>
 <div id="data-attr-holder" class="hidden" data-stores="{{ json_encode($allStores) }}"></div>
 @if($stage == "Request for Quotation")
-	<script type="text/javascript" src="/tinymce/tinymce.min.js"></script>
-	<script type="text/javascript">
-		tinymce.init({
+<script type="text/javascript" src="/tinymce/tinymce.min.js"></script>
+<script type="text/javascript">
+	tinymce.init({
 			selector: 'textarea.editor',
 			height: 315
 		});
-	</script>
+</script>
 @endif
 <script>
 	var EmailsWithIssues = {};
