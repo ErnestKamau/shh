@@ -404,6 +404,9 @@ Route::get('/revert/equipment/{id}', 'Equipment\EquipmentController@revert')->na
 Route::post('/delete/part-repaired', 'Equipment\MaintainanceCalibrationLogController@delete')->name('delete-part-repaired')->middleware('haspermission:Equipment.components.Repair-Log.Delete');
 Route::post('/delete/log', 'Equipment\MaintainanceCalibrationLogController@delete_logs')->name('delete-logs')->middleware('haspermission:Equipment.components.Repair-Log.Delete');
 
+Route::post('/add/equipment/frequency','Equipment\EquipmentController@addEquipmentNotification')->name('add-equipment-frequency');
+Route::post('/delete/equipment/notification','Equipment\EquipmentController@deleteEquipmentNotification')->name('delete-equipment-frequency');
+
 //############################################EQUIPMENT##########################################################
 
 //############################################SUPPLIER###########################################################
