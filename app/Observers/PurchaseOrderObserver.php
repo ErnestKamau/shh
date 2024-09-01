@@ -36,9 +36,6 @@ class PurchaseOrderObserver
                     if(isset($msg['error'])){
                         $errors[] = $msg['error'];
                     }
-                    else{
-
-                    }
                 }
                 catch(Exception $e){
                     $errors[] = $e->getMessage();

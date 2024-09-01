@@ -11,6 +11,7 @@ use App\ZohoApiTokens;
 use App\ZohoCustomers;
 use Carbon\Carbon;
 use Error;
+use Exception;
 use GuzzleHttp\Client;
 use GuzzleHttp\Exception\ClientException;
 use Illuminate\Http\Request;
@@ -36,7 +37,7 @@ class ZohoController extends Controller
 	 */
 	public function __construct()
 	{
-		$this->orgID = "838949546";
+		$this->orgID = env('ZOHO_ORGID');
 		$this->token = null;
 		$this->url = "www.zohoapis.com/books/v3/";
 		$this->clientID = "1000.AZFK87K8IRT2QCIOIF3I6RUV0XBZNC";
@@ -65,7 +66,7 @@ class ZohoController extends Controller
 
 	public function authenticate()
 	{
-		// return $this->getToken();
+		return $this->orgID;
 		$url = "https://accounts.zoho.com/oauth/v2/auth?scope=ZohoBooks.fullaccess.ALL&client_id=" . $this->clientID . "&state=testing&response_type=code&redirect_uri=" . $this->refreshUrl . "&access_type=offline";
 		return $url;
 	}
@@ -116,7 +117,7 @@ class ZohoController extends Controller
 		if ($request->has("purchaseorder_number")) {
 			$pArrays[] = $request->purchaseorder_number;
 		} else {
-			$pArrays = RequestEntity::where('zoho_status', 'draft')->select('zoho_id')->pluck('zoho_id')->toArray();
+			$pArrays = RequestEntity::whereIn('zoho_status', ['open', 'draft'])->select('zoho_id')->pluck('zoho_id')->toArray();
 		}
 		$updatedPOs = [];
 		foreach ($pArrays as $number) {
@@ -135,14 +136,16 @@ class ZohoController extends Controller
 			$lists = $purchaseOrders['purchaseorders'];
 
 			foreach ($lists as $list) {
-				if ($list['status'] != "draft")
-					$request = RequestEntity::where('zoho_id', $list['purchaseorder_id'])->first();
-				$request->update([
-					"status" => "Approval Complete",
-					"zoho_status" => $list['status']
-				])->save();
-				;
-				$updatedPOs[] = $request->request_code;
+				if ($list['status'] != "draft"){
+					$po = RequestEntity::where('zoho_id', $list['purchaseorder_id'])->first();
+					if($po){
+						$po->update([
+							"status" => $list['status'] != "cancelled" ? "Approval Complete" : "Rejected",
+							"zoho_status" => $list['status']
+						])->save();
+						$updatedPOs[] = $po->request_code;
+					}
+				}
 			}
 		}
 		return response()->json(['status' => true, "message" => "POs updated : " . implode(",", $updatedPOs)]);
@@ -169,7 +172,9 @@ class ZohoController extends Controller
 		$itemOrder = 0;
 
 		foreach ($requestItems as $item) {
-			$themItems[] = [
+			$isInclusive = intval($item->vat_inc) == 1;
+			$vatPerc = intval($item->vat_perc);
+			$cIt = [
 				"account_id" => $item->item_account_id,
 				"item_id" => $item->sub_category->zoho_item_code, // Replace with the appropriate item ID
 				"name" => $item->sub_category->name . "(" . $item->uom . ")", // Using the description from the request item
@@ -178,7 +183,40 @@ class ZohoController extends Controller
 				"rate" => round(floatval($item['net_value']) / floatval($item['quantity']), 2), // Using the net_value from the request item
 				"quantity" => $item['quantity'], // Using the quantity from the request item
 			];
+
+			if($vatPerc > 0){
+				if($isInclusive){
+					$totalPerc = 100+$vatPerc;
+					$totalN = $item['net_value']*100/$totalPerc;
+
+					$cIt['item_total'] = $totalN;
+					$cIt['tax_percentage'] = $vatPerc;
+					$cIt['item_total_inclusive_of_tax'] = floatval($item['net_value']);
+				}
+				if(!$isInclusive){
+					$totalPerc = 100+$vatPerc;
+					$totalN = $item['net_value']*$totalPerc/100;
+
+					$cIt['item_total'] = floatval($item['net_value']);
+					$cIt['tax_percentage'] = $vatPerc;
+					$cIt['item_total_inclusive_of_tax'] = $totalN;
+				}
+				$cIt['rate'] = round(floatval($cIt['item_total']) / floatval($item['quantity']), 2);
+			}
+
+			$themItems[] = $cIt;
 		}
+
+		$custom_fields = [
+			[
+				"customfield_id" =>env("ZOHO_PO_INSERTED_BY_FIELD"), //Inserted by
+				"value" => trim($requestEntity->creator()->name)
+			],
+			[
+				"customfield_id"=>env("ZOHO_PO_DESCRIPTION_FIELD"), //description
+				"value" =>$requestEntity->source_request->description
+			]
+		];
 
 		$supplier = $requestEntity->supplier();
 		$currency = ModulePreConfigs::find($requestEntity->currency);
@@ -190,20 +228,26 @@ class ZohoController extends Controller
 			"delivery_date" => Carbon::parse($requestEntity->due_date)->format('Y-m-d'),
 			"line_items" => $themItems,
 			"notes" => $requestEntity['description'],
-			"terms" => $supplier->payment_terms
+			"terms" => $supplier->payment_terms,
+			"custom_fields" => $custom_fields
 		);
 
-		$response = $this->post('purchaseorders', [
-			'form_params' => ['JSONString' => json_encode($purchaseOrderData)],
-			'query' => [
-				'organization_id' => $this->orgID,
-			],
-		]);
-
-		$zItem = json_decode($response, true);
-		if (!isset($zItem['purchaseorder'])) {
-			return ['error' => $zItem['message']];
+		try{
+			$response = $this->post('purchaseorders', [
+				'form_params' => ['JSONString' => json_encode($purchaseOrderData)],
+				'query' => [
+					'organization_id' => $this->orgID,
+				],
+			]);
+			$zItem = json_decode($response, true);
+			if (!isset($zItem['purchaseorder'])) {
+				return ['error' => $zItem['message']];
+			}
 		}
+		catch(Exception $e){
+			return ['error' => $e->getMessage()];
+		}
+
 		$requestEntity->zoho_id = $zItem['purchaseorder']['purchaseorder_id'];
 		$requestEntity->save();
 
@@ -301,7 +345,7 @@ class ZohoController extends Controller
 		
 		$zItems = $items['items'];
 		$pref = "IM";
-		return $zItems;
+		// return $zItems;
 
 		foreach ($zItems as $c) {
 			$itemExists = InventorySubCategories::where(function ($query) use ($c) {
@@ -393,6 +437,7 @@ class ZohoController extends Controller
 		]);
 
 		$data = json_decode($response, true);
+
 		$lists = $single ? $data[$single] : $data[$things];
 
 		return json_encode($lists);
@@ -627,7 +672,4 @@ class ZohoController extends Controller
 		$res = json_decode($response,true);
 		return  $res;
 	}
-
-
-
 }
