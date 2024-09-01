@@ -896,6 +896,8 @@ Route::get('/zoho-authenticate', 'ZohoController@authenticate')->name('zoho-auth
 Route::get('/recreate-purchase-order/{id}', 'RequisitionController@resend_to_zoho')->name('recreate-purchase-order');
 Route::get('/getItemsTest','ZohoController@getItemsTest')->name('getItemsTest');
 Route::get('/changeSalesOrderStatus','ZohoController@changeSalesOrderStatus')->name('changeSalesOrderStatus');
+
+Route::get('/matchCrmCurrency','SampleWorkFlowController@matchCrmCurrency')->name('matchCrmCurrency');
 // Route::get('/zoho-purchase-orders','ZohoController@getPurchaseOrders')->name('zoho-purchase-orders');
 ###############################################ZOHO INTEGRATION#######################################
 
