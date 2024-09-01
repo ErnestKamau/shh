@@ -1514,7 +1514,7 @@ $locations = getAssetLocation();
 				</div>
 			`).clone();
 			return body;
-		}\
+		}
 		$('#delete-notification').on('show.bs.modal',(e)=>{
 			var data = $(e.relatedTarget).data('record');
 			var body = deleteNotificationBody(data);
@@ -1563,8 +1563,9 @@ $locations = getAssetLocation();
 		$('#add-notification').on('show.bs.modal', (e) => {
 			$(body).find('.equipment-info').empty();
 			$("#add-notification").find('.save-notification').removeClass('hidden');
-			var action = $(e.relatedTarget).data('record');
+			var action = $(e.relatedTarget).data('action');
 			var data = action == 'edit' ? $(e.relatedTarget).data('record') : null;
+			console.log(`data-------${data}`)
 			var body = addnotificationbody(data);
 			$('#add-notification').find('.modal-body').empty();
 			$('#add-notification').find('.modal-body').append(body);
@@ -1602,7 +1603,7 @@ $locations = getAssetLocation();
 					$("#add-notification").find('.save-notification').addClass('hidden');
 				}
 
-			})
+			});
 		})
 		$('#delete-maintainance').on('show.bs.modal', function (e) {
 			var item = $(e.relatedTarget).data('item');
