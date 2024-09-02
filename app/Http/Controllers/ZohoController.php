@@ -37,7 +37,7 @@ class ZohoController extends Controller
 	 */
 	public function __construct()
 	{
-		$this->orgID = env('ZOHO_ORGID');
+		$this->orgID = config('zoho.ZOHO_ORGID');
 		$this->token = null;
 		$this->url = "www.zohoapis.com/books/v3/";
 		$this->clientID = "1000.AZFK87K8IRT2QCIOIF3I6RUV0XBZNC";
@@ -142,7 +142,7 @@ class ZohoController extends Controller
 						$po->update([
 							"status" => $list['status'] != "cancelled" ? "Approval Complete" : "Rejected",
 							"zoho_status" => $list['status']
-						])->save();
+						]);
 						$updatedPOs[] = $po->request_code;
 					}
 				}
@@ -209,11 +209,11 @@ class ZohoController extends Controller
 
 		$custom_fields = [
 			[
-				"customfield_id" =>env("ZOHO_PO_INSERTED_BY_FIELD"), //Inserted by
+				"customfield_id" =>config("zoho.ZOHO_PO_INSERTED_BY_FIELD"), //Inserted by
 				"value" => trim($requestEntity->creator()->name)
 			],
 			[
-				"customfield_id"=>env("ZOHO_PO_DESCRIPTION_FIELD"), //description
+				"customfield_id"=>config("zoho.ZOHO_PO_DESCRIPTION_FIELD"), //description
 				"value" =>$requestEntity->source_request->description
 			]
 		];
@@ -231,6 +231,8 @@ class ZohoController extends Controller
 			"terms" => $supplier->payment_terms,
 			"custom_fields" => $custom_fields
 		);
+
+		\Log::error($purchaseOrderData);
 
 		try{
 			$response = $this->post('purchaseorders', [
