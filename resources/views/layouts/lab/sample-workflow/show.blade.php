@@ -2606,7 +2606,7 @@
 </div>
 @endif
 <div id="show-sample-analysis-analytes" class="modal fade" data-backdrop="static" data-keyboard="false" role="dialog">
-	<div class="modal-dialog" style="min-width: 90%">
+	<div class="modal-dialog" style="min-width: 90%;">
 		<!-- Modal content-->
 		<div class="modal-content">
 			<div class="modal-header">
@@ -2696,7 +2696,7 @@
 							</div>
 						</div>
 						<div class="table-responsive" id="sph-parent">
-							<table class="table table-condensed my-small-text table-striped table-hover table-bordered table" style="width: 100%">
+							<table class="table table-condensed my-small-text table-striped table-hover table-bordered table" style="width: 100%;">
 								<thead class="bg-light p-2">
 									<tr>
 										<th>
@@ -5134,8 +5134,8 @@
 				<td  nowrap>${data.analysis_type.code}</td>
 				<td  nowrap><input type="hidden" name="captured_result_id[]" value="${data.id}">${data.analyte_name}</td>
 				@if(Auth::user()->is_client == 0)
-				<td><input type="text" {{isset($batch->status) && !in_array($batch->status,['Samples In Lab','Sample Approval']) ? 'disabled' : ''}} name="result_reporting_symbol[${data.id}]" id="reporting-symbol" placeholder="Reporting Symbol..." value="${data.result_reporting_symbol == null ? '' :data.result_reporting_symbol }" ></td>
-				<td>
+				<td data-toggle="tooltip" title="${data.analyte_name}"><input type="text" {{isset($batch->status) && !in_array($batch->status,['Samples In Lab','Sample Approval']) ? 'disabled' : ''}} name="result_reporting_symbol[${data.id}]" id="reporting-symbol" placeholder="Reporting Symbol..." value="${data.result_reporting_symbol == null ? '' :data.result_reporting_symbol }" ></td>
+				<td data-toggle="tooltip" title="${data.analyte_name}">
 					<div class="form-group">
 						<input {{isset($batch->status) && $batch->status != 'Samples In Lab' ? 'disabled' : ''}} id="${data.sample_detail_code},${data.analyte_id},${data.id},${data.analyte_id}" data-resultid="${data.sample_detail_code},${data.analyte_id},${data.id},${data.analyte_id}" style="min-width: 150px" type="text"
 						class="form-control ${data.remark_is_manual == 0 ? 'first-result' : ''} ${data.pesticide == 1 ? 'pest-result': '' }" ${interLabApproval == 1 ? "disabled" : ""}  id="result-${loop}" value="${data.result == null ? '' : data.result}" name="result[${data.id}]" placeholder="Result..." />
@@ -5143,7 +5143,7 @@
 					</div>
 				</td>measure_uncertanity
 				@if(isset($batch->id) && $batch->require_mu == 1)
-				<td>
+				<td data-toggle="tooltip" title="${data.analyte_name}">
 					<div class="form-group">
 						<input type="text" name="measure_uncertanity[${data.id}]" value="${data.measure_uncertanity == null ? '' : data.measure_uncertanity}" placeholder="Measure..." class="form-control">
 					</div>
@@ -5151,11 +5151,11 @@
 				@endif
 				@endif
 				@if($batch && $batch->is_qc_batch == 1 && $batch->repeat_sample_id > 0)
-				<td style="width:150px !important">
+				<td style="width:150px !important" data-toggle="tooltip" title="${data.analyte_name}">
 				<input type="text" class="form-control" style="width:150px" name="repeat_sample[${data.id}]" value="${data.repeatsampleresult}" disabled />
 				</td>
 				@endif
-				<td nowrap class="">
+				<td nowrap class="" data-toggle="tooltip" title="${data.analyte_name}">
 					<div class="d-flex">
 						<input type="text" class="form-control main-value-field" style="width:100px;border:0" name="main_s_value[${data.id}]" value="${data.standard_limit_value != '' && data.standard_limit_value!= null && (data.standard_limit_value == 'less_than' || data.standard_limit_value == 'greater_than') ? getStandardLimitSymbol(data.standard_limit_value) : ''} ${data.standard_value == null ? '-': data.standard_value} ${data.standard_limit_value != '' && data.standard_limit_value!= null && data.standard_limit_value != 'less_than' && data.standard_limit_value != 'greater_than'  ? data.standard_limit_value : ''}" disabled />
 						<span class="btn btn-sm btn-default text-primary float-right" data-toggle="modal" data-target="#edit-standard" data-standard="${data.main_standard}" data-analyte="${data.analyte_id}" data-analytename="${data.analyte_code}" data-standardlevel="1" data-valueid="${data.id}" data-standardvalue="${data.standard_value}"><i class="mdi mdi-pencil" data-toggle="tooltip" title="Edit Standard"></i></span>	
@@ -5167,7 +5167,7 @@
 				<input type="hidden" name="secondary_standard[${data.id}]" value="${data.secondary_standard}"/>
 				<input type="hidden" name="third_standard[${data.id}]" value="${data.third_standard}"/>
 				</td>
-				<td nowrap class="${data.secondary_standard && data.secondary_standard != '' ? '' : 'hidden'}">
+				<td nowrap class="${data.secondary_standard && data.secondary_standard != '' ? '' : 'hidden'}" data-toggle="tooltip" title="${data.analyte_name}">
 					<div class="d-flex">
 						<input type="text" class="form-control sec-value-field" style="width:100px;border:0" name="sec_s_value[${data.id}]" value="${data.sec_standard_limit_value &&  data.sec_standard_limit_value != '' && data.sec_standard_limit_value != null && (data.sec_standard_limit_value == 'less_than' || data.sec_standard_limit_value == 'greater_than') ? getStandardLimitSymbol(data.sec_standard_limit_value) : ''} ${data.sec_standard_value && data.sec_standard_value == null ? '-': data.sec_standard_value} ${data.sec_standard_limit_value &&  data.sec_standard_limit_value != '' && data.sec_standard_limit_value != null && data.sec_standard_limit_value != 'less_than' && data.sec_standard_limit_value != 'greater_than'  ? data.sec_standard_limit_value : ''}" disabled />
 						<span class="btn btn-sm btn-default text-primary float-right" data-toggle="modal" data-target="#edit-standard" data-standard="${data.secondary_standard}" data-analyte="${data.analyte_id}" data-analytename="${data.analyte_code}" data-standardlevel="2" data-valueid="${data.id}" data-standardvalue="${data.sec_standard_value}"><i class="mdi mdi-pencil" data-toggle="tooltip" title="Edit Standard"></i></span>	
@@ -5180,7 +5180,7 @@
 				<input type="hidden" name="third_standard[${data.id}]" value="${data.third_standard}"/>
 				
 				</td>
-				<td nowrap class="${data.third_standard && data.third_standard != '' ? '' : 'hidden'}">
+				<td nowrap class="${data.third_standard && data.third_standard != '' ? '' : 'hidden'}" data-toggle="tooltip" title="${data.analyte_name}">
 					<div class="d-flex">
 						<input type="text" class="form-control sec-value-field" style="width:100px;border:0" name="third_s_value[${data.id}]" value="${data.third_standard_limit_value &&  data.third_standard_limit_value != '' && data.third_standard_limit_value != null && (data.third_standard_limit_value == 'less_than' || data.third_standard_limit_value == 'greater_than')  ? getStandardLimitSymbol(data.third_standard_limit_value) : ''} ${data.third_standard_value && data.third_standard_value == null ? '-': data.third_standard_value} ${data.third_standard_limit_value &&  data.third_standard_limit_value != '' && data.third_standard_limit_value != null && data.third_standard_limit_value != 'less_than' && data.third_standard_limit_value != 'greater_than'  ? data.third_standard_limit_value : ''}" disabled />
 						<span class="btn btn-sm btn-default text-primary float-right" data-toggle="modal" data-target="#edit-standard" data-standard="${data.third_standard}" data-standardlevel="3" data-analyte="${data.analyte_id}" data-analytename="${data.analyte_code}" data-valueid="${data.id}" data-standardvalue="${data.third_standard_value}"><i class="mdi mdi-pencil" data-toggle="tooltip" title="Edit Standard"></i></span>	
@@ -5193,7 +5193,7 @@
 				<input type="hidden" name="third_standard[${data.id}]" value="${data.third_standard}"/>
 				</td>
 				@if(Auth::user()->is_client == 0)
-				<td nowrap>
+				<td nowrap data-toggle="tooltip" title="${data.analyte_name}">
 					<input id="${data.sample_detail_code}-${data.id}" style="min-width: 150px" type="text" 
 					class="form-control disabled ${data.remark_is_manual == 0 ? 'first-remark' : 'hidden'} ${data.pesticide == 1 ? 'pest-remark': '' }" readonly="true" value="${data.remark ?? ''}" name="remark[${data.id}]" placeholder="Remark..." />
 					<div class="form-group is-manual ${data.remark_is_manual == 0 ? "hidden" : ""} ${data.pesticide == 1 ? 'pest-remark': '' }">
@@ -5203,7 +5203,7 @@
 						</select>
 					</div>
 				</td>
-				<td nowrap">
+				<td nowrap data-toggle="tooltip" title="${data.analyte_name}">
 					<div class="form-group form-group-sm d-flex">
 						<select class="form-control form-control-sm sample-reporting-unit"  name="reporting_unit[${data.id}]" style="width: 100px !important" placeholder="Select Sample Reporting Unit...">
 							<option></option>
@@ -5216,26 +5216,26 @@
 						<span class="btn btn-sm btn-default text-primary" data-target="#add-reporting-unit" data-toggle="modal" data-record="${data.id}"><i class="mdi mdi-plus" data-toggle="tooltip" title="Add Reporting Unit" ></i></span>
 					</div>
 				</td>
-				<td>
+				<td data-toggle="tooltip" title="${data.analyte_name}">
 					<div class="form-group" name="operators" placeholder="Select Operator...">
 						<select style="min-width: 150px" class="form-control item-operators"  name="operators[${data.id}]" placeholder="Select Operator..." data-selected="${data.def_operator ? data.def_operator.id : 0 }"></select>
 					</div>
 				</td>
 				@endif
-				<td  nowrap>
+				<td  nowrap data-toggle="tooltip" title="${data.analyte_name}">
 				<div class="form-group"  placeholder="Select Method...">
 						<select style="min-width: 150px" class="form-control method-id"  name="method_id[${data.id}]" placeholder="Select Method..." data-selected="${data.method_id ? data.method_id : 0 }"></select>
 					</div>
 				</td>
 				@if(Auth::user()->is_client == 0)
-				<td  nowrap>${data.equip_name}</td>
+				<td  nowrap data-toggle="tooltip" title="${data.analyte_name}">${data.equip_name}</td>
 				@endif
-				<td class="text-center" nowrap>
+				<td class="text-center" nowrap data-toggle="tooltip" title="${data.analyte_name}">
 				<div class="form-group">
 				<input class="form-check" type="checkbox" {{Auth::user()->is_client == 1 ? 'disabled' : ''}}  name="subcontracted[${data.id}]" ${data.analyte_status_contracted  == 1 ? 'checked':''}/>
 				</div>
 				</td>
-				<td class="text-small text-center">
+				<td class="text-small text-center" data-toggle="tooltip" title="${data.analyte_name}">
 				<div class="form-group">
 				<input class="form-check" type="checkbox" {{Auth::user()->is_client == 1 ? 'disabled' : ''}}  name="accredited[${data.id}]" ${data.analyte_accredited  == 1  ? 'checked':''}/>
 				</div>

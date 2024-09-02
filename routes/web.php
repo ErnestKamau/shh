@@ -404,6 +404,9 @@ Route::get('/revert/equipment/{id}', 'Equipment\EquipmentController@revert')->na
 Route::post('/delete/part-repaired', 'Equipment\MaintainanceCalibrationLogController@delete')->name('delete-part-repaired')->middleware('haspermission:Equipment.components.Repair-Log.Delete');
 Route::post('/delete/log', 'Equipment\MaintainanceCalibrationLogController@delete_logs')->name('delete-logs')->middleware('haspermission:Equipment.components.Repair-Log.Delete');
 
+Route::post('/add/equipment/frequency','Equipment\EquipmentController@addEquipmentNotification')->name('add-equipment-frequency');
+Route::post('/delete/equipment/notification','Equipment\EquipmentController@deleteEquipmentNotification')->name('delete-equipment-frequency');
+
 //############################################EQUIPMENT##########################################################
 
 //############################################SUPPLIER###########################################################
@@ -893,6 +896,8 @@ Route::get('/zoho-authenticate', 'ZohoController@authenticate')->name('zoho-auth
 Route::get('/recreate-purchase-order/{id}', 'RequisitionController@resend_to_zoho')->name('recreate-purchase-order');
 Route::get('/getItemsTest','ZohoController@getItemsTest')->name('getItemsTest');
 Route::get('/changeSalesOrderStatus','ZohoController@changeSalesOrderStatus')->name('changeSalesOrderStatus');
+
+Route::get('/matchCrmCurrency','SampleWorkFlowController@matchCrmCurrency')->name('matchCrmCurrency');
 // Route::get('/zoho-purchase-orders','ZohoController@getPurchaseOrders')->name('zoho-purchase-orders');
 ###############################################ZOHO INTEGRATION#######################################
 
