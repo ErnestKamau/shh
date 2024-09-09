@@ -398,6 +398,8 @@ class ZohoController extends Controller
 			$this->sync_zoho_items($page + 1);
 		}
 
+		$this->supplier_to_item_sync();
+
 		return true;
 	}
 
