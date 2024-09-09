@@ -2,6 +2,8 @@
 
 namespace App\Http\Controllers\Equipment;
 
+use App\Models\Equipments\EquipmentNotifications;
+use App\Models\Equipments\MaintainanceCalibrationLog;
 use App\Models\Equipments\PartsRepaired;
 use App\Supplier;
 use App\Models\Equipments\VerificationLog;
@@ -43,7 +45,8 @@ class EquipmentController extends Controller
 		$departments = InventoryDepartment::where('module','organizational')->get();
 		$statuses = getStatus();
 		$verifys = VerificationLog::all();
-		return view('layouts.equipment.show', compact('equipment','parts','employees','suppliers','verifys','statuses','attachments','departments'));
+		$notifications = EquipmentNotifications::where('equipment_id',$id)->get();
+		return view('layouts.equipment.show', compact('equipment','parts','employees','suppliers','verifys','statuses','attachments','departments','notifications'));
 	}
 
 	public function add(Request $request){
@@ -151,6 +154,73 @@ class EquipmentController extends Controller
 
 		return redirect()->back()->with('success', 'Equipment Reverted!');
 
+	}
+	public function addEquipmentNotification(Request $request){
+		$equipment = Equipment::find($request->equipment_id);
+
+		
+		$notification  = EquipmentNotifications::find($request->notification_id) ?? new EquipmentNotifications();
+		$notification->equipment_id = $request->equipment_id;
+		$notification->value = $request->value;
+		$notification->frequency = $request->frequency;
+		$notification->notification_type = $request->notification_type;
+
+		if($request->notification_type == 'calibration'){
+			if($equipment->calibration_days == ""){
+				return redirect()->back()->with('error','Kindly set equipment calibration days');
+			}
+			if($equipment->calibration_days < $request->value){
+				return redirect()->back()->with('error','Ensure the notification days is less than the equipment calibration days');
+			}
+			$daysToAdd = $equipment->calibration_days - $request->value;
+
+			$last_calibration = MaintainanceCalibrationLog::where('equipment_id',$request->equipment_id)->where('type','Calibration')->orderBy('id','DESC')->first();
+			if(isset($last_calibration->id)){
+				$notification->next_date = \Carbon\Carbon::parse($last_calibration->date)->addDays($daysToAdd);
+			}else{
+				$notification->next_date = \Carbon\Carbon::parse($equipment->date_purchased)->addDays($daysToAdd);
+			}
+		}
+		if($request->notification_type == 'maintanance'){
+			if($equipment->maintainance_days == ""){
+				return redirect()->back()->with('error','Kindly set equipment maintainance days');
+			}
+			if($equipment->maintainance_days < $request->value){
+				return redirect()->back()->with('error','Ensure the notification days is less than the equipment maintainance days');
+			}
+			$daysToAdd = $equipment->maintainance_days - $request->value;
+
+			$last_maintain = MaintainanceCalibrationLog::where('equipment_id',$request->equipment_id)->where('type','Maintainance')->orderBy('id','DESC')->first();
+			if(isset($last_maintain->id)){
+				$notification->next_date = \Carbon\Carbon::parse($last_maintain->date)->addDays($daysToAdd);
+			}else{
+				$notification->next_date = \Carbon\Carbon::parse($equipment->date_purchased)->addDays($daysToAdd);
+			}
+		}
+		if($request->notification_type == 'verification'){
+			if($equipment->verification_days == ""){
+				return redirect()->back()->with('error','Kindly set equipment verification days');
+			}
+			if($equipment->verification_days < $request->value){
+				return redirect()->back()->with('error','Ensure the notification days is less than the equipment verification days');
+			}
+			$daysToAdd = $equipment->verification_days - $request->value;
+
+			$last_verification = VerificationLog::where('equipment_id',$request->equipment_id)->orderBy('id','DESC')->first();
+			if(isset($last_calibration->id)){
+				$notification->next_date = \Carbon\Carbon::parse($last_verification->date)->addDays($daysToAdd);
+			}else{
+				$notification->next_date = \Carbon\Carbon::parse($equipment->date_purchased)->addDays($daysToAdd);
+			}
+		}
+		$notification->save();
+
+		return redirect()->back()->with('success','Equipment Notification added successfully');
+
+	}
+	public function deleteEquipmentNotification(Request $request){
+		EquipmentNotifications::find($request->notification_id)->delete();
+		return redirect()->back()->with('success','Equipment deleted successfully');
 	}
 
 
