@@ -7,6 +7,7 @@ use App\ModulePreConfigs;
 use App\RequestEntity;
 use App\RequestEntityItem;
 use App\Supplier;
+use App\SupplierCategory;
 use App\ZohoApiTokens;
 use App\ZohoCustomers;
 use Carbon\Carbon;
@@ -14,6 +15,8 @@ use Error;
 use Exception;
 use GuzzleHttp\Client;
 use GuzzleHttp\Exception\ClientException;
+
+use Illuminate\Support\Facades\DB;
 use Illuminate\Http\Request;
 
 class ZohoController extends Controller
@@ -185,6 +188,7 @@ class ZohoController extends Controller
 			];
 
 			if($vatPerc > 0){
+				$tax_ids = env("tax_ids");
 				if($isInclusive){
 					$totalPerc = 100+$vatPerc;
 					$totalN = $item['net_value']*100/$totalPerc;
@@ -201,6 +205,11 @@ class ZohoController extends Controller
 					$cIt['tax_percentage'] = $vatPerc;
 					$cIt['item_total_inclusive_of_tax'] = $totalN;
 				}
+
+				if(isset($tax_ids[$vatPerc])){
+					$cIt['tax_id'] = $tax_ids[$vatPerc];
+				}
+
 				$cIt['rate'] = round(floatval($cIt['item_total']) / floatval($item['quantity']), 2);
 			}
 
@@ -673,5 +682,24 @@ class ZohoController extends Controller
 		]);
 		$res = json_decode($response,true);
 		return  $res;
+	}
+
+	public function supplier_to_item_sync(){
+		SupplierCategory::whereNotNull('supplier_id')->delete();
+		
+		DB::statement("
+			INSERT INTO supplier_categories (supplier_id, inventory_sub_category_id, status, inventory_item_brand_id, supplier_image)
+			SELECT 
+				s.id AS supplier_id, 
+				i.id AS inventory_sub_category_id, 
+				1 AS status, 
+				0 AS inventory_item_brand_id, 
+				'/images/no-logo.png' AS supplier_image
+			FROM 
+				suppliers s, 
+				inventory_sub_categories i;
+		");
+
+		return true;
 	}
 }

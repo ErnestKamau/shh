@@ -899,6 +899,7 @@ Route::get('/changeSalesOrderStatus','ZohoController@changeSalesOrderStatus')->n
 
 Route::get('/matchCrmCurrency','SampleWorkFlowController@matchCrmCurrency')->name('matchCrmCurrency');
 // Route::get('/zoho-purchase-orders','ZohoController@getPurchaseOrders')->name('zoho-purchase-orders');
+Route::get('/sync-all-suppliers-to-items','ZohoController@supplier_to_item_sync')->name('sync-all-suppliers-to-items');
 ###############################################ZOHO INTEGRATION#######################################
 
 
