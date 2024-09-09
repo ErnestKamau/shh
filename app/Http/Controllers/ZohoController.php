@@ -40,10 +40,15 @@ class ZohoController extends Controller
 		$this->orgID = env('ZOHO_ORGID');
 		$this->token = null;
 		$this->url = "www.zohoapis.com/books/v3/";
-		$this->clientID = "1000.AZFK87K8IRT2QCIOIF3I6RUV0XBZNC";
-		$this->clientSecret = "24daaa8599526522b4e0cfb012bb94b127ffe0b4e9";
-		$this->refresh = "1000.b724aa4d4a7c438d12de6309a6124e79.7141aca357b23fb1130594de25dc0173";
-		$this->refreshUrl = "http://172.16.16.252:8080/zoho-auth-redirect";
+		// $this->clientID = "1000.AZFK87K8IRT2QCIOIF3I6RUV0XBZNC";
+		// $this->clientSecret = "24daaa8599526522b4e0cfb012bb94b127ffe0b4e9";
+		// $this->refresh = "1000.b724aa4d4a7c438d12de6309a6124e79.7141aca357b23fb1130594de25dc0173";
+		// $this->refreshUrl = "http://172.16.16.252:8080/zoho-auth-redirect";
+
+		$this->clientID = "1000.HDGXSESBNWE0S92DE8RRJRN6MDSITE";
+		$this->clientSecret = "a733bd7dad6fde602266bc2308dd132775122a28cb";
+		$this->refresh = "1000.f20686128e31ebcc61557992f1165b81.f7405f82f2188c85df4da516840c7061";
+		$this->refreshUrl = "http://localhost:8000/zoho-auth-redirect";
 
 		$this->authClient = new Client([
 			'base_uri' => 'https://accounts.zoho.com/oauth/v2/',
@@ -66,14 +71,14 @@ class ZohoController extends Controller
 
 	public function authenticate()
 	{
-		return $this->orgID;
+		return $this->getToken();
 		$url = "https://accounts.zoho.com/oauth/v2/auth?scope=ZohoBooks.fullaccess.ALL&client_id=" . $this->clientID . "&state=testing&response_type=code&redirect_uri=" . $this->refreshUrl . "&access_type=offline";
 		return $url;
 	}
 
 	public function getRefreshToken()
 	{
-		$url = "https://accounts.zoho.com/oauth/v2/token?scope=ZohoBooks.fullaccess.ALL&code=1000.3fdfb76f5da3f0f8352c2dc18ed17293.7e06f97dadde31021552b11c12c0fcf2&client_id=" . $this->clientID . "&client_secret=" . $this->clientSecret . "&redirect_uri=" . $this->refreshUrl . "&grant_type=authorization_code";
+		$url = "https://accounts.zoho.com/oauth/v2/token?scope=ZohoBooks.fullaccess.ALL&code=1000.dbb3f46fe8f72d37c1105ebd851a00f1.62712660552623dbe47312ed78493401&client_id=" . $this->clientID . "&client_secret=" . $this->clientSecret . "&redirect_uri=" . $this->refreshUrl . "&grant_type=authorization_code";
 		return $url;
 	}
 
@@ -171,6 +176,8 @@ class ZohoController extends Controller
 		$themItems = [];
 		$itemOrder = 0;
 
+		
+
 		foreach ($requestItems as $item) {
 			$isInclusive = intval($item->vat_inc) == 1;
 			$vatPerc = intval($item->vat_perc);
@@ -185,6 +192,7 @@ class ZohoController extends Controller
 			];
 
 			if($vatPerc > 0){
+				$tax_ids = env("tax_ids");
 				if($isInclusive){
 					$totalPerc = 100+$vatPerc;
 					$totalN = $item['net_value']*100/$totalPerc;
@@ -200,6 +208,10 @@ class ZohoController extends Controller
 					$cIt['item_total'] = floatval($item['net_value']);
 					$cIt['tax_percentage'] = $vatPerc;
 					$cIt['item_total_inclusive_of_tax'] = $totalN;
+				}
+
+				if(isset($tax_ids[$vatPerc])){
+					$cIt['tax_id'] = $tax_ids[$vatPerc];
 				}
 				$cIt['rate'] = round(floatval($cIt['item_total']) / floatval($item['quantity']), 2);
 			}
