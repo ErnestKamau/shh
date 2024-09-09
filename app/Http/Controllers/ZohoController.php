@@ -641,9 +641,9 @@ class ZohoController extends Controller
 	public function getItemsTest()
 	{
 		// $items = $this->sync_zoho_items();
-		$customers = $this->sync_zoho_customers();
-		// $currency = $this->sync_zoho_currencies();
-		return response()->json($customers);
+		// $customers = $this->sync_zoho_customers();
+		$currency = $this->sync_zoho_currencies();
+		return response()->json($currency);
 
 		// $invoice = Invoice::with(['currencyinfo','crmCustomer'])->find($invoice_id);
 		// $details = InvoiceDetails::with('analysisType')->where('invoice_id',$invoice_id)->get();
