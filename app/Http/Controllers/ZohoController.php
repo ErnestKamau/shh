@@ -43,10 +43,11 @@ class ZohoController extends Controller
 		$this->orgID = config('zoho.ZOHO_ORGID');
 		$this->token = null;
 		$this->url = "www.zohoapis.com/books/v3/";
-		$this->clientID = "1000.AZFK87K8IRT2QCIOIF3I6RUV0XBZNC";
-		$this->clientSecret = "24daaa8599526522b4e0cfb012bb94b127ffe0b4e9";
-		$this->refresh = "1000.b724aa4d4a7c438d12de6309a6124e79.7141aca357b23fb1130594de25dc0173";
-		$this->refreshUrl = "http://172.16.16.252:8080/zoho-auth-redirect";
+
+		$this->clientID = config('zoho.ZOHO_CLIENT_ID');
+		$this->clientSecret = config('zoho.ZOHO_CLIENT_SECRET');
+		$this->refresh = config('zoho.ZOHO_REFRESH_TOKEN');
+		$this->refreshUrl = config('zoho.ZOHO_URL');
 
 		$this->authClient = new Client([
 			'base_uri' => 'https://accounts.zoho.com/oauth/v2/',
@@ -69,14 +70,14 @@ class ZohoController extends Controller
 
 	public function authenticate()
 	{
-		return $this->orgID;
+		return $this->getToken();
 		$url = "https://accounts.zoho.com/oauth/v2/auth?scope=ZohoBooks.fullaccess.ALL&client_id=" . $this->clientID . "&state=testing&response_type=code&redirect_uri=" . $this->refreshUrl . "&access_type=offline";
 		return $url;
 	}
 
 	public function getRefreshToken()
 	{
-		$url = "https://accounts.zoho.com/oauth/v2/token?scope=ZohoBooks.fullaccess.ALL&code=1000.3fdfb76f5da3f0f8352c2dc18ed17293.7e06f97dadde31021552b11c12c0fcf2&client_id=" . $this->clientID . "&client_secret=" . $this->clientSecret . "&redirect_uri=" . $this->refreshUrl . "&grant_type=authorization_code";
+		$url = "https://accounts.zoho.com/oauth/v2/token?scope=ZohoBooks.fullaccess.ALL&code=1000.dbb3f46fe8f72d37c1105ebd851a00f1.62712660552623dbe47312ed78493401&client_id=" . $this->clientID . "&client_secret=" . $this->clientSecret . "&redirect_uri=" . $this->refreshUrl . "&grant_type=authorization_code";
 		return $url;
 	}
 
@@ -188,7 +189,7 @@ class ZohoController extends Controller
 			];
 
 			if($vatPerc > 0){
-				$tax_ids = env("tax_ids");
+				$tax_ids = config("zoho.ZOHO_TAX_IDS");
 				if($isInclusive){
 					$totalPerc = 100+$vatPerc;
 					$totalN = $item['net_value']*100/$totalPerc;
@@ -206,10 +207,12 @@ class ZohoController extends Controller
 					$cIt['item_total_inclusive_of_tax'] = $totalN;
 				}
 
+				\Log::error("<<<<<<<<<<<<<<<<<<<<<<<".gettype($tax_ids));
+				\Log::error(">>>>>>>>>>>>>>>>>>>>>>>>>>".$tax_ids[$vatPerc]);
+
 				if(isset($tax_ids[$vatPerc])){
 					$cIt['tax_id'] = $tax_ids[$vatPerc];
 				}
-
 				$cIt['rate'] = round(floatval($cIt['item_total']) / floatval($item['quantity']), 2);
 			}
 
@@ -352,7 +355,7 @@ class ZohoController extends Controller
 
 		// echo $this->token;
 
-		// throw new Error(json_encode($items));
+		// throw new Error(json_encode($response));
 		
 		$zItems = $items['items'];
 		$pref = "IM";
@@ -415,7 +418,7 @@ class ZohoController extends Controller
 
 		$vendors = json_decode($response, true);
 
-		\Log::error($page.">>>>>>>").json_encode($vendors);
+		// \Log::error($page.">>>>>>>").json_encode($vendors);
 
 		$contacts = $vendors['contacts'];
 
