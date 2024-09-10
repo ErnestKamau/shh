@@ -1130,7 +1130,6 @@
 	</div>
 </div>
 
-
 @endif
 <script src="https://cdn.jsdelivr.net/gh/gitbrent/bootstrap4-toggle@3.6.1/js/bootstrap4-toggle.min.js"></script>
 <script type="text/javascript">
@@ -1176,7 +1175,40 @@
 			}
 		})
 	}
+	var getUpdateFields = ()=>{
+		var invoice_details = [];
+		$('#generate-invoice-form').find('tbody tr.carry_data').each(function(){
+			var detail = {
+				invoice_detail_id : $(this).find('[name="invoice_detail_id[]"]').val(),
+				unit_price : $(this).find('.invoice_price').val(),
+				quantity : $(this).find('.invoice_quantity').val(),
+			}
+			invoice_details.push(detail);
+		});
+		console.log('Invoice details');
+		console.log(invoice_details)
+		return invoice_details;
+	}
+	var updateInvoiceAjax = (invoice_details,callback)=>{
+		$.ajaxSetup({
+			headers: {
+				'X-CSRF-TOKEN': jQuery('meta[name="csrf-token"]').attr('content')
+			}
+		});
+		$.ajax({
+			url:'/update-invoice',
+			type:'POST',
+			data:{details:invoice_details},
+			success:(data)=>{
+				callback(data);
+			},
+			error:(data)=>{
+				console.log(data);
+			}
+		})
+	}
 	var sendSalesOrder = (invoice_id,callback)=>{
+		
 		$.ajax({
 			url:`/send/Sales-Order/${invoice_id}`,
 			type:'GET',
@@ -1286,6 +1318,7 @@
 		console.log('-----------------here-------------------')
 		$('#generate-invoice-form').find('.submit-btn').removeClass('hidden');
 		var body = generateInvoiceBody();
+		
 		$('#dispatch-to-labs-modal-approve').find('.to-be-updated').empty();
 		$('#dispatch-to-labs-modal-approve').find('.to-be-updated').append(body);
 	});
@@ -1325,25 +1358,28 @@
 			$('#generate-invoice-form').find('.loader').removeClass('hidden');
 			$('#generate-invoice-form').find('.invoice_body').addClass('hidden');
 			$('#generate-invoice-form').find('.send-sales').addClass('mdi-spin');
-			sendSalesOrder(invoice_id,(res)=>{
-				if(res['error']){
-					$('#generate-invoice-form').find('.loader').addClass('hidden');
-					$('#generate-invoice-form').find('.saving-invoice').removeClass('mdi-spin');
-					$('#generate-invoice-form').find('.send-sales').removeClass('mdi-spin');
-
-					$('#generate-invoice-form').find('.error-body').empty();
-					$('#generate-invoice-form').find('.error-body').append(res['error']);
-					$('#generate-invoice-form').find('.error-area').removeClass('hidden');
-				}else{
-					$('#generate-invoice-form').find('.send-sales').removeClass('mdi-spin');
-					$('#generate-invoice-form').find('.send-sales').removeClass('mdi-minus');
-					$('#generate-invoice-form').find('.send-sales').addClass('mdi-check-circle-outline text-success');
-
-					$('#generate-invoice-form').find('.loader').empty();
-					var imgElem= $(`<img src="/images/suc.gif" height="250px" width="auto" alt="">`);
-					$('#generate-invoice-form').find('.loader').append(imgElem);
-
-				}
+			var invoice_details =getUpdateFields();
+			updateInvoiceAjax(invoice_details,(res1)=>{
+				sendSalesOrder(invoice_id,(res)=>{
+					if(res['error']){
+						$('#generate-invoice-form').find('.loader').addClass('hidden');
+						$('#generate-invoice-form').find('.saving-invoice').removeClass('mdi-spin');
+						$('#generate-invoice-form').find('.send-sales').removeClass('mdi-spin');
+	
+						$('#generate-invoice-form').find('.error-body').empty();
+						$('#generate-invoice-form').find('.error-body').append(res['error']);
+						$('#generate-invoice-form').find('.error-area').removeClass('hidden');
+					}else{
+						$('#generate-invoice-form').find('.send-sales').removeClass('mdi-spin');
+						$('#generate-invoice-form').find('.send-sales').removeClass('mdi-minus');
+						$('#generate-invoice-form').find('.send-sales').addClass('mdi-check-circle-outline text-success');
+	
+						$('#generate-invoice-form').find('.loader').empty();
+						var imgElem= $(`<img src="/images/suc.gif" height="250px" width="auto" alt="">`);
+						$('#generate-invoice-form').find('.loader').append(imgElem);
+	
+					}
+				})
 			})
 		});
 
@@ -1368,19 +1404,46 @@
 		})
 		$.each(details,(i,obj)=>{
 			var tr = `
-			<tr>
+			<tr class="carry_data">
+				<input type="hidden" name="invoice_detail_id[]" value="${obj.id}">
 				<td>${obj.zoho_item_name} <br> ${obj.analysis_type_name}</td>
-				<td>${obj.quantity}</td>
-				<td>${obj.selling_price}</td>
-				<td>${obj.total}</td>
+				<td><input type="text" name="quantity[${obj.id}]" data-id="${obj.id}" value="${obj.quantity}" class="form-control invoice_quantity"></td>
+				<td><input type="text" name="unit_price[${obj.id}]"  data-id="${obj.id}" value="${obj.selling_price}" class="form-control invoice_price"></td>
+				<td><input type="text" readonly name="total[${obj.id}]" value="${obj.total}" class="form-control invoice_total"></td>
 			</tr>`;
 			$(body).find('tbody').append(tr);
 		});
 		var finaltr = `
 		<tr class="bg-light">
 			<td colspan="3"><b>TOTAL:</b></td>
-			<td>${invoice.total}</td>
+			<td class="total_amount" >${invoice.total}</td>
 		</tr>`;
+
+		var changeofinvoicedetails = (detail_id)=>{
+			var quantity = $('#generate-invoice-form').find(`[name="quantity[${detail_id}]"]`).val();
+			var unit_price = $('#generate-invoice-form').find(`[name="unit_price[${detail_id}]"]`).val();
+			var total = parseInt(quantity) * parseInt(unit_price);
+
+			$('#generate-invoice-form').find(`[name="total[${detail_id}]"]`).val(total);
+			var current_total = 0;
+			$('#generate-invoice-form').find('.invoice_total').each(function(){
+				current_total += parseInt($(this).val());
+			});
+			$('#generate-invoice-form').find('.total_amount').empty();
+			$('#generate-invoice-form').find('.total_amount').append(current_total);
+		}
+
+		$(body).find('.invoice_quantity').on('change',(e)=>{
+			var detail_id = $(e.currentTarget).data('id');
+			changeofinvoicedetails(detail_id);
+		});
+
+		$(body).find('.invoice_price').on('change',(e)=>{
+			var detail_id = $(e.currentTarget).data('id');
+			changeofinvoicedetails(detail_id);
+		});
+
+		
 		$(body).find('tbody').append(finaltr);
 
 		return body;
@@ -1399,6 +1462,7 @@
 				'X-CSRF-TOKEN': jQuery('meta[name="csrf-token"]').attr('content')
 			}
 		});
+		console.log('am here ')
 		$.ajax({
 			url:`/generate/batch-invoice/ajax`,
 			type:'POST',

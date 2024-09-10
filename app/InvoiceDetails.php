@@ -11,6 +11,8 @@ class InvoiceDetails extends Model implements Auditable
 	use \OwenIt\Auditing\Auditable;
 
     protected $fillable = ["crm_customer_id","analysis_type","analysis_type_name","sample_header_id","sample_detail_id","invoice_id","selling_price","cost_price","zoho_item_id","zoho_item_name","quantity","total"];
+
+    protected $appends = ['samplecodes'];
     
     public function analysisType(){
         return $this->belongsTo(AnalysisType::class,'analysis_type');
@@ -20,5 +22,18 @@ class InvoiceDetails extends Model implements Auditable
         $sample_type_category = SampleTypeCategory::find($analysis->sample_type()->sample_type_category);
         return $sample_type_category;
 
+    }
+    public function getSamplecodesAttribute(){
+        $sample_arr = explode(',',$this->sample_detail_id);
+        sort($sample_arr);
+        if(sizeof($sample_arr) > 1){
+            $codes = 'Our Report Nos. '.SampleDetails::find($sample_arr[0])->sample_code.' - '.SampleDetails::find($sample_arr[sizeof($sample_arr) - 1])->sample_code;
+        }else{
+            $codes = 'Our Report No. '.SampleDetails::find($sample_arr[0])->sample_code;
+        }
+        return $codes;
+    }
+    public function invoice(){
+        return $this->belongsTo(Invoice::class,'invoice_id');
     }
 }
