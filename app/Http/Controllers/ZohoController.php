@@ -7,6 +7,7 @@ use App\ModulePreConfigs;
 use App\RequestEntity;
 use App\RequestEntityItem;
 use App\Supplier;
+use App\SupplierCategory;
 use App\ZohoApiTokens;
 use App\ZohoCustomers;
 use Carbon\Carbon;
@@ -14,6 +15,8 @@ use Error;
 use Exception;
 use GuzzleHttp\Client;
 use GuzzleHttp\Exception\ClientException;
+
+use Illuminate\Support\Facades\DB;
 use Illuminate\Http\Request;
 
 class ZohoController extends Controller
@@ -37,13 +40,14 @@ class ZohoController extends Controller
 	 */
 	public function __construct()
 	{
-		$this->orgID = env('ZOHO_ORGID');
+		$this->orgID = config('zoho.ZOHO_ORGID');
 		$this->token = null;
 		$this->url = "www.zohoapis.com/books/v3/";
-		$this->clientID = "1000.AZFK87K8IRT2QCIOIF3I6RUV0XBZNC";
-		$this->clientSecret = "24daaa8599526522b4e0cfb012bb94b127ffe0b4e9";
-		$this->refresh = "1000.b724aa4d4a7c438d12de6309a6124e79.7141aca357b23fb1130594de25dc0173";
-		$this->refreshUrl = "http://172.16.16.252:8080/zoho-auth-redirect";
+
+		$this->clientID = config('zoho.ZOHO_CLIENT_ID');
+		$this->clientSecret = config('zoho.ZOHO_CLIENT_SECRET');
+		$this->refresh = config('zoho.ZOHO_REFRESH_TOKEN');
+		$this->refreshUrl = config('zoho.ZOHO_URL');
 
 		$this->authClient = new Client([
 			'base_uri' => 'https://accounts.zoho.com/oauth/v2/',
@@ -66,14 +70,14 @@ class ZohoController extends Controller
 
 	public function authenticate()
 	{
-		return $this->orgID;
+		return $this->getToken();
 		$url = "https://accounts.zoho.com/oauth/v2/auth?scope=ZohoBooks.fullaccess.ALL&client_id=" . $this->clientID . "&state=testing&response_type=code&redirect_uri=" . $this->refreshUrl . "&access_type=offline";
 		return $url;
 	}
 
 	public function getRefreshToken()
 	{
-		$url = "https://accounts.zoho.com/oauth/v2/token?scope=ZohoBooks.fullaccess.ALL&code=1000.3fdfb76f5da3f0f8352c2dc18ed17293.7e06f97dadde31021552b11c12c0fcf2&client_id=" . $this->clientID . "&client_secret=" . $this->clientSecret . "&redirect_uri=" . $this->refreshUrl . "&grant_type=authorization_code";
+		$url = "https://accounts.zoho.com/oauth/v2/token?scope=ZohoBooks.fullaccess.ALL&code=1000.dbb3f46fe8f72d37c1105ebd851a00f1.62712660552623dbe47312ed78493401&client_id=" . $this->clientID . "&client_secret=" . $this->clientSecret . "&redirect_uri=" . $this->refreshUrl . "&grant_type=authorization_code";
 		return $url;
 	}
 
@@ -142,7 +146,7 @@ class ZohoController extends Controller
 						$po->update([
 							"status" => $list['status'] != "cancelled" ? "Approval Complete" : "Rejected",
 							"zoho_status" => $list['status']
-						])->save();
+						]);
 						$updatedPOs[] = $po->request_code;
 					}
 				}
@@ -185,6 +189,7 @@ class ZohoController extends Controller
 			];
 
 			if($vatPerc > 0){
+				$tax_ids = config("zoho.ZOHO_TAX_IDS");
 				if($isInclusive){
 					$totalPerc = 100+$vatPerc;
 					$totalN = $item['net_value']*100/$totalPerc;
@@ -201,6 +206,13 @@ class ZohoController extends Controller
 					$cIt['tax_percentage'] = $vatPerc;
 					$cIt['item_total_inclusive_of_tax'] = $totalN;
 				}
+
+				\Log::error("<<<<<<<<<<<<<<<<<<<<<<<".gettype($tax_ids));
+				\Log::error(">>>>>>>>>>>>>>>>>>>>>>>>>>".$tax_ids[$vatPerc]);
+
+				if(isset($tax_ids[$vatPerc])){
+					$cIt['tax_id'] = $tax_ids[$vatPerc];
+				}
 				$cIt['rate'] = round(floatval($cIt['item_total']) / floatval($item['quantity']), 2);
 			}
 
@@ -209,11 +221,11 @@ class ZohoController extends Controller
 
 		$custom_fields = [
 			[
-				"customfield_id" =>env("ZOHO_PO_INSERTED_BY_FIELD"), //Inserted by
+				"customfield_id" =>config("zoho.ZOHO_PO_INSERTED_BY_FIELD"), //Inserted by
 				"value" => trim($requestEntity->creator()->name)
 			],
 			[
-				"customfield_id"=>env("ZOHO_PO_DESCRIPTION_FIELD"), //description
+				"customfield_id"=>config("zoho.ZOHO_PO_DESCRIPTION_FIELD"), //description
 				"value" =>$requestEntity->source_request->description
 			]
 		];
@@ -231,6 +243,8 @@ class ZohoController extends Controller
 			"terms" => $supplier->payment_terms,
 			"custom_fields" => $custom_fields
 		);
+
+		\Log::error($purchaseOrderData);
 
 		try{
 			$response = $this->post('purchaseorders', [
@@ -341,7 +355,7 @@ class ZohoController extends Controller
 
 		// echo $this->token;
 
-		// throw new Error(json_encode($items));
+		// throw new Error(json_encode($response));
 		
 		$zItems = $items['items'];
 		$pref = "IM";
@@ -387,6 +401,8 @@ class ZohoController extends Controller
 			$this->sync_zoho_items($page + 1);
 		}
 
+		$this->supplier_to_item_sync();
+
 		return true;
 	}
 
@@ -402,7 +418,7 @@ class ZohoController extends Controller
 
 		$vendors = json_decode($response, true);
 
-		\Log::error($page.">>>>>>>").json_encode($vendors);
+		// \Log::error($page.">>>>>>>").json_encode($vendors);
 
 		$contacts = $vendors['contacts'];
 
@@ -628,9 +644,9 @@ class ZohoController extends Controller
 	public function getItemsTest()
 	{
 		// $items = $this->sync_zoho_items();
-		$customers = $this->sync_zoho_customers();
-		// $currency = $this->sync_zoho_currencies();
-		return response()->json($customers);
+		// $customers = $this->sync_zoho_customers();
+		$currency = $this->sync_zoho_currencies();
+		return response()->json($currency);
 
 		// $invoice = Invoice::with(['currencyinfo','crmCustomer'])->find($invoice_id);
 		// $details = InvoiceDetails::with('analysisType')->where('invoice_id',$invoice_id)->get();
@@ -671,5 +687,24 @@ class ZohoController extends Controller
 		]);
 		$res = json_decode($response,true);
 		return  $res;
+	}
+
+	public function supplier_to_item_sync(){
+		SupplierCategory::whereNotNull('supplier_id')->delete();
+		
+		DB::statement("
+			INSERT INTO supplier_categories (supplier_id, inventory_sub_category_id, status, inventory_item_brand_id, supplier_image)
+			SELECT 
+				s.id AS supplier_id, 
+				i.id AS inventory_sub_category_id, 
+				1 AS status, 
+				0 AS inventory_item_brand_id, 
+				'/images/no-logo.png' AS supplier_image
+			FROM 
+				suppliers s, 
+				inventory_sub_categories i;
+		");
+
+		return true;
 	}
 }

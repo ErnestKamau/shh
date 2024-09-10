@@ -8,6 +8,7 @@ use OwenIt\Auditing\Contracts\Auditable;
 class RequestEntity extends Model implements Auditable
 {
 	use \OwenIt\Auditing\Auditable;
+	protected $guarded = ['id'];
 	public function items($ammendment_id, $grp=false, $grpItems=false)
 	{
 		$itemCount = RequestEntityItem::where('request_id', $this->id)->where('ammendment', $ammendment_id)->get()->count();
