@@ -56,6 +56,7 @@ use App\User;
 use App\UserRole;
 use App\UserRoleView;
 use App\ZohoCustomers;
+use App\ZohoPricelist;
 use Illuminate\Http\File;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -3074,10 +3075,14 @@ class SampleWorkFlowController extends Controller
             }
             $invoice->invoice_number = $number;
             $invoice->save();
-            $analyis_types = sampleAnalysisTypeRelation::whereIn('batch_id',$batch_ids)->join('analysis_types','analysis_types.id','=','sample_analysis_type_relation.analysis_type_id')->join('inventory_sub_categories','inventory_sub_categories.id','=','analysis_types.zoho_id')->selectRaw('sample_analysis_type_relation.*,analysis_types.name,inventory_sub_categories.name as zoho_name,inventory_sub_categories.unit_price,inventory_sub_categories.zoho_item_code,inventory_sub_categories.id as zoho_analysis_type')->get();
+            $analyis_types = sampleAnalysisTypeRelation::whereIn('batch_id',$batch_ids)->join('analysis_types','analysis_types.id','=','sample_analysis_type_relation.analysis_type_id')->join('inventory_sub_categories','inventory_sub_categories.id','=','analysis_types.zoho_id')->leftjoin('zoho_items_pricelist',function($join) use ($customer) {
+                $join->on('inventory_sub_categories.id','=','zoho_items_pricelist.item_id');
+                $join->on('zoho_items_pricelist.customer_id','=',DB::raw($customer->id));
+            })->selectRaw('sample_analysis_type_relation.*,analysis_types.name,inventory_sub_categories.name as zoho_name,inventory_sub_categories.unit_price,inventory_sub_categories.zoho_item_code,inventory_sub_categories.id as zoho_analysis_type,zoho_items_pricelist.unit_price as unit_price_rate')->get();
 
             $details_arr = [];
             foreach($analyis_types as $a_type){
+                $unit_price = $a_type->unit_price_rate > 0 ? $a_type->unit_price_rate : $a_type->unit_price ?? 0;
                 if(!isset($details_arr[$a_type->zoho_item_code])){
                     // $details_arr[$a_type->zoho_item_code] = [];
                     $details_arr[$a_type->zoho_item_code] = [
@@ -3087,12 +3092,12 @@ class SampleWorkFlowController extends Controller
                         "sample_header_id"=>$a_type->batch_id,
                         "sample_detail_id"=>$a_type->sample_detail_id,
                         "invoice_id"=>$invoice->id,
-                        "selling_price"=>$a_type->unit_price,
+                        "selling_price"=>$unit_price,
                         "cost_price"=>0,
                         "zoho_item_id"=>$a_type->zoho_item_code,
                         "zoho_item_name"=>$a_type->zoho_name,
                         "quantity"=>1,
-                        "total"=>$a_type->unit_price
+                        "total"=>$unit_price
                     ];
                 }else{
                     $analysis_arr = explode(',',$details_arr[$a_type->zoho_item_code]['analysis_type_name']);
@@ -3102,7 +3107,7 @@ class SampleWorkFlowController extends Controller
                     $details_arr[$a_type->zoho_item_code]['sample_header_id'] .=', '.$a_type->batch_id; 
                     $details_arr[$a_type->zoho_item_code]['sample_detail_id'] .=', '.$a_type->sample_detail_id; 
                     $details_arr[$a_type->zoho_item_code]['quantity'] +=1;
-                    $details_arr[$a_type->zoho_item_code]['total'] = $details_arr[$a_type->zoho_item_code]['quantity'] * $a_type->unit_price;
+                    $details_arr[$a_type->zoho_item_code]['total'] = $details_arr[$a_type->zoho_item_code]['quantity'] * $unit_price;
                 }
                 
             }
@@ -3134,7 +3139,7 @@ class SampleWorkFlowController extends Controller
                 "item_id" => $detail->zoho_item_id,
                 "rate" => $detail->selling_price,
                 "name" => $detail->zoho_item_name,
-                "description" => $detail->analysis_type_name,
+                "description" => $detail->analysis_type_name.' '.$detail->samplecodes,
                 "quantity" => $detail->quantity,
             ];
             $itemcounter = $itemcounter + 1;
@@ -3146,9 +3151,9 @@ class SampleWorkFlowController extends Controller
             "line_items" => $lineitems,
             "reference_number" => $invoice->invoice_number,
         ];
+        // return response()->json($salesOrder);
         $zohoService = new ZohoController();
         $zoho_sales = $zohoService->createSalesrder($salesOrder);
-        // return response()->json($zoho_sales);
         if ($zoho_sales != 0) {
             $invoice->sales_order_id = $zoho_sales;
             $invoice->save();
@@ -4686,6 +4691,26 @@ class SampleWorkFlowController extends Controller
             }
         }
         return response()->json('success');
+    }
+
+    public function updateInvoiceDetails(Request $request){
+        
+        foreach($request->details as $detail){
+            $total = $detail['unit_price'] * $detail['quantity'];
+            InvoiceDetails::find($detail['invoice_detail_id'])->update(['quantity'=>$detail['quantity'],'selling_price'=>$detail['unit_price'],'total'=>$total]);
+            $invoice_detail = InvoiceDetails::with('invoice')->find($detail['invoice_detail_id']);
+            
+            $check_pl = ZohoPricelist::where('customer_id',$invoice_detail->invoice->customer_id)->where('item_id',$invoice_detail->analysis_type)->first();
+            if(isset($check_pl->id)){
+                $check_pl->unit_price = $detail['unit_price'];
+                $check_pl->save();
+            }else{
+                ZohoPricelist::create(["customer_id"=>$invoice_detail->invoice->customer_id,"item_id"=>$invoice_detail->analysis_type,'unit_price'=>$detail['unit_price']]);
+            }
+            
+
+        }
+        return response()->json('done');
     }
 
 }

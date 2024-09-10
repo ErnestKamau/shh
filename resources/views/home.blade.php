@@ -61,11 +61,11 @@
 				<div class="small w3-padding-small">Personnel</div>
 			</a>
 		@endif
-		<span class="app" data-toggle="modal" data-target="#to-be-configured">
+		<a class="app" href="/full-calendar/view">
 			{{-- href="/full-calendar/view" --}}
 			<div class="icon w3-amber"><i class="mdi mdi-calendar"></i></div>
 			<div class="small w3-padding-small">System Planner</div>
-		</span>
+		</a>
 		<!-- <a class="app"  href="/personnel-home">
 				<div class="icon w3-grey"><i class="mdi mdi-tools"></i></div>
 				<div class="small w3-padding-small">Work Orders</div>
