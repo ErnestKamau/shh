@@ -3052,10 +3052,11 @@ class SampleWorkFlowController extends Controller
                 
                 return response()->json(['error' => 'The specified customer has no currency assigned']);
             }
+            $default_currency = ModulePreConfigs::find(338);
 
             $invoice = new Invoice();
             $invoice->pricelist_id = 0;
-            $invoice->currency_id = $customer->currency_id;
+            $invoice->currency_id = $customer->currency_id > 0  ? $customer->currency_id : 338;
             $invoice->customer_id = $customer->id;
             $invoice->zoho_customer_id = $customer->zohocustomer->zoho_contact_id;
             $invoice->save();
