@@ -3688,6 +3688,7 @@ class RequisitionController extends Controller
 	public function resend_to_zoho($id){
 		$request = RequestEntity::find($id);
 		$request->zoho_id = null;
+		$request->errors = null;
 		$request->save();
 
 		return redirect()->back()->with('success', 'Retrying Zoho PO creation.');
