@@ -1068,8 +1068,14 @@ class RequisitionController extends Controller
 			return redirect()->back()->with('error', 'RFQ already created!');
 		}
 
+		$config = "Currency";
+		$module = "Inventory-Management";
+		
+		$defaultCurrency = \App\ModulePreConfigs::where('type', $config)->where('module', $module)->where("name", "KES")->first();
+
 		$rfq = $entity->replicate();
 		$rfq->parent_request = $entity->request_type;
+		$rfq->currency = $defaultCurrency->id;
 		$rfq->request_code = getNamingConventionCode("Request for Quotation", false, "RFQ");
 		$rfq->parent_request_id = $entity->id;
 		$rfq->request_type = "Request for Quotation";
