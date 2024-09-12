@@ -17,6 +17,7 @@ use App\Country;
 use App\Http\Controllers\System\SystemNotifications;
 use App\InterLabLog;
 use App\InterLabLogView;
+use App\InventorySubCategories;
 use App\Invoice;
 use App\InvoiceDetails;
 use App\InvoicePaymentDetail;
@@ -82,6 +83,7 @@ class SampleWorkFlowController extends Controller
             $status = getSampleWorflowStages()[0];
         }
         $labsections = SampleAnalysisStage::where('active', 1)->get();
+        $zoho_items = InventorySubCategories::all();
 
         // return response()->json('test');
         if ($status == 'Finished Sample') {
@@ -117,7 +119,7 @@ class SampleWorkFlowController extends Controller
             $users = User::where('is_client', 0)->where('supplier_id', 0)->where('active', 1)->get();
             $customers = CRMCustomer::where('active', 1)->get();
 
-            return view('layouts.lab.sample-workflow.index', compact('batches', 'status', 'analysts', 'labsections', 'users', 'customers', 'filter'));
+            return view('layouts.lab.sample-workflow.index', compact('batches', 'status', 'analysts', 'labsections', 'users', 'customers', 'filter','zoho_items'));
 
 
         }
@@ -146,7 +148,7 @@ class SampleWorkFlowController extends Controller
             ->where('r.id', $role_a->value)->where('users.active', 1)->where('users.is_support_staff', 0)->selectRaw('users.*')->get();
         $users = User::where('is_client', 0)->where('supplier_id', 0)->where('active', 1)->get();
 
-        return view('layouts.lab.sample-workflow.index', compact('batches', 'status', 'analysts', 'labsections', 'users'));
+        return view('layouts.lab.sample-workflow.index', compact('batches', 'status', 'analysts', 'labsections', 'users','zoho_items'));
     }
 
     public function print_labels(Request $request)
@@ -3098,7 +3100,8 @@ class SampleWorkFlowController extends Controller
                         "zoho_item_id"=>$a_type->zoho_item_code,
                         "zoho_item_name"=>$a_type->zoho_name,
                         "quantity"=>1,
-                        "total"=>$unit_price
+                        "total"=>$unit_price,
+                        "final_unit_price"=>$unit_price,
                     ];
                 }else{
                     $analysis_arr = explode(',',$details_arr[$a_type->zoho_item_code]['analysis_type_name']);
@@ -3138,10 +3141,11 @@ class SampleWorkFlowController extends Controller
             $lineitems[] = [
                 "item_order" => $itemcounter,
                 "item_id" => $detail->zoho_item_id,
-                "rate" => $detail->selling_price,
+                "rate" => $detail->final_unit_price,
                 "name" => $detail->zoho_item_name,
                 "description" => $detail->analysis_type_name.' '.$detail->samplecodes,
                 "quantity" => $detail->quantity,
+                "discount" => $detail->discount > 0 ? ($detail->discount_type == 'percentage' ? $detail->discount.'%' : $detail->discount) : 0,
             ];
             $itemcounter = $itemcounter + 1;
         }
@@ -3151,6 +3155,10 @@ class SampleWorkFlowController extends Controller
             "date" => date('Y-m-d'),
             "line_items" => $lineitems,
             "reference_number" => $invoice->invoice_number,
+            "custom_fields"=>[
+                "customfield_id" => config('zoho.ZOHO_SO_IMARAUSER_FIELD'),
+                "value" => auth()->user()->name,
+            ],
         ];
         // return response()->json($salesOrder);
         $zohoService = new ZohoController();
@@ -4695,11 +4703,41 @@ class SampleWorkFlowController extends Controller
     }
 
     public function updateInvoiceDetails(Request $request){
-        
+
         foreach($request->details as $detail){
-            $total = $detail['unit_price'] * $detail['quantity'];
-            InvoiceDetails::find($detail['invoice_detail_id'])->update(['quantity'=>$detail['quantity'],'selling_price'=>$detail['unit_price'],'total'=>$total]);
-            $invoice_detail = InvoiceDetails::with('invoice')->find($detail['invoice_detail_id']);
+            
+            $total = $detail['final_price'] * $detail['quantity'];
+
+            if($detail['invoice_detail_id'] > 0){
+
+                InvoiceDetails::find($detail['invoice_detail_id'])->update(['quantity'=>$detail['quantity'],'selling_price'=>$detail['unit_price'],"final_unit_price"=>$detail['final_price'],'total'=>$total,'discount'=>$detail['discount'],'discount_type'=>$detail['discount_type']]);
+                $invoice_detail = InvoiceDetails::with('invoice')->find($detail['invoice_detail_id']);
+            }else{
+                $invoice = Invoice::find($detail['invoice_id']);
+                $item = InventorySubCategories::where('inventory_sub_categories.id',$detail['item_id'])->leftjoin('zoho_items_pricelist',function($join) use ($invoice) {
+                    $join->on('inventory_sub_categories.id','=','zoho_items_pricelist.item_id');
+                    $join->on('zoho_items_pricelist.customer_id','=',DB::raw($invoice->customer_id));
+                })->selectRaw('inventory_sub_categories.name as zoho_name,inventory_sub_categories.unit_price,inventory_sub_categories.zoho_item_code,inventory_sub_categories.id as zoho_analysis_type,zoho_items_pricelist.unit_price as unit_price_rate')->first();
+        
+                $invoice_detail = new InvoiceDetails();
+                $invoice_detail->invoice_id = $detail['invoice_id'];
+                $invoice_detail->analysis_type = $detail['item_id'];
+                $invoice_detail->quantity = $detail['quantity'];
+                $invoice_detail->selling_price = $detail['unit_price'];
+                $invoice_detail->final_unit_price = $detail['final_price'];
+                $invoice_detail->discount = $detail['discount'];
+                $invoice_detail->discount_type = $detail['discount_type'];
+                $invoice_detail->total = $total;
+                $invoice_detail->crm_customer_id = $invoice->customer_id;
+                $invoice_detail->analysis_type_name = $item->zoho_name;
+                $invoice_detail->sample_detail_id = 0;
+                $invoice_detail->sample_header_id = 0;
+                $invoice_detail->cost_price = 0;
+                $invoice_detail->zoho_item_id = $item->zoho_item_code;
+                $invoice_detail->zoho_item_name = $item->zoho_name;
+                $invoice_detail->save();
+            }
+
             
             $check_pl = ZohoPricelist::where('customer_id',$invoice_detail->invoice->customer_id)->where('item_id',$invoice_detail->analysis_type)->first();
             if(isset($check_pl->id)){
@@ -4707,11 +4745,18 @@ class SampleWorkFlowController extends Controller
                 $check_pl->save();
             }else{
                 ZohoPricelist::create(["customer_id"=>$invoice_detail->invoice->customer_id,"item_id"=>$invoice_detail->analysis_type,'unit_price'=>$detail['unit_price']]);
-            }
-            
-
+            }            
         }
         return response()->json('done');
     }
 
+    public function getInvoiceItemData($invoice_id,$item_id){
+        $invoice = Invoice::find($invoice_id);
+        $item = InventorySubCategories::where('inventory_sub_categories.id',$item_id)->leftjoin('zoho_items_pricelist',function($join) use ($invoice) {
+            $join->on('inventory_sub_categories.id','=','zoho_items_pricelist.item_id');
+            $join->on('zoho_items_pricelist.customer_id','=',DB::raw($invoice->customer_id));
+        })->selectRaw('inventory_sub_categories.name as zoho_name,inventory_sub_categories.unit_price,inventory_sub_categories.zoho_item_code,inventory_sub_categories.id as zoho_analysis_type,zoho_items_pricelist.unit_price as unit_price_rate')->first();
+
+        return response()->json($item);
+    }
 }
