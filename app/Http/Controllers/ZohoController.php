@@ -337,6 +337,9 @@ class ZohoController extends Controller
 			if ($type == "currencies") {
 				return $this->sync_zoho_currencies();
 			}
+			if($type == "customers"){
+				return $this->sync_zoho_customers();
+			}
 		} catch (\Exception $e) {
 			throw new Error($e->getMessage());
 		}
@@ -470,13 +473,13 @@ class ZohoController extends Controller
 		$currencies = $this->sync_zoho_things('/settings/currencies', 'currencies');
 		// return json_decode($currencies);
 
-		// return ">>>>>>>>>>>>>>>>>>>>>" . json_encode($currencies);
+		return ">>>>>>>>>>>>>>>>>>>>>" . json_encode($currencies);
 
 		$currencies = json_decode($currencies, true);
 		$config = "Currency";
 		$module = "Inventory-Management";
 
-		ModulePreConfigs::where('type', $config)->where('module', $module)->delete();
+		// ModulePreConfigs::where('type', $config)->where('module', $module)->delete();
 
 		$arr = [];
 

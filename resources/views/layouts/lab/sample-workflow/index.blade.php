@@ -714,7 +714,7 @@
 	</div>
 </div>
 
-<div id="dispatch-to-labs-modal-approve" class="modal fade" role="dialog">
+<div id="dispatch-to-labs-modal-approve" data-backdrop="static" data-keyboard="false" class="modal fade" role="dialog">
 	<div class="modal-dialog modal-lg">
 		<!-- Modal content-->
 		<form class="modal-content" id="generate-invoice-form" method="POST" action="{{ route('generate_batch_invoice') }}" enctype="multipart/form-data">
@@ -736,7 +736,8 @@
 			</div>
 			<div class="modal-footer">
 				<button type="submit" class="btn btn-info btn-sm submit-btn"><i class="mdi mdi-thumb-up"></i> Generate</button>
-				<button type="button" class="btn btn-default btn-sm" data-dismiss="modal">Close</button>
+				<a href="/sample-workflow/Samples Reception/stage" class="btn btn-sm btn-default">Close</a>
+				<!-- < type="button" class="btn btn-default btn-sm" data-dismiss="modal">Close</> -->
 			</div>
 		</form>
 	</div>
@@ -1428,8 +1429,8 @@
 				<td>
 				<select name="discount_type[${obj.id}]" data-id="${obj.id}" id="" class="form-control discount_type">
 					<option value="" ${obj.discount_type == "" ? 'selected' : ''}>Select Discount Type</option>
-					<option value="percentage" ${obj.discount_type == "percentage" ? 'selected' : ''}>% Figure</option>
-					<option value="amount" ${obj.discount_type == "amount" ? 'selected' : ''}>Amount</option>
+					<option value="percentage" ${obj.discount_type == "percentage" ? 'selected' : ''}>Percentage</option>
+					<option value="amount" ${obj.discount_type == "amount" ? 'selected' : ''}>Fixed</option>
 				</select>
 					
 				</td>
@@ -1460,8 +1461,8 @@
 				<td>
 				<select name="discount_type[nw${counter}]" data-id="nw${counter}" id="" class="form-control discount_type">
 					<option value="">Select Discount Type</option>
-					<option value="percentage">% Figure</option>
-					<option value="amount">Amount</option>
+					<option value="percentage">Percentage</option>
+					<option value="amount">Fixed</option>
 				</select>
 					
 				</td>

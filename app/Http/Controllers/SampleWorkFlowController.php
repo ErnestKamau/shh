@@ -3054,11 +3054,12 @@ class SampleWorkFlowController extends Controller
                 
                 return response()->json(['error' => 'The specified customer has no currency assigned']);
             }
-            $default_currency = ModulePreConfigs::find(338);
+            $module = "Inventory-Management";
+            $defaultCurrency = ModulePreConfigs::where('type', 'Currency')->where('module', $module)->where("name", "KES")->first();
 
             $invoice = new Invoice();
             $invoice->pricelist_id = 0;
-            $invoice->currency_id = $customer->currency_id > 0  ? $customer->currency_id : 338;
+            $invoice->currency_id = $customer->currency_id > 0  ? $customer->currency_id : $defaultCurrency->id;
             $invoice->customer_id = $customer->id;
             $invoice->zoho_customer_id = $customer->zohocustomer->zoho_contact_id;
             $invoice->save();
@@ -3141,7 +3142,7 @@ class SampleWorkFlowController extends Controller
             $lineitems[] = [
                 "item_order" => $itemcounter,
                 "item_id" => $detail->zoho_item_id,
-                "rate" => $detail->final_unit_price,
+                "rate" => $detail->selling_price,
                 "name" => $detail->zoho_item_name,
                 "description" => $detail->analysis_type_name.' '.$detail->samplecodes,
                 "quantity" => $detail->quantity,
@@ -3159,7 +3160,9 @@ class SampleWorkFlowController extends Controller
                 "customfield_id" => config('zoho.ZOHO_SO_IMARAUSER_FIELD'),
                 "value" => auth()->user()->name,
             ],
+
         ];
+       
         // return response()->json($salesOrder);
         $zohoService = new ZohoController();
         $zoho_sales = $zohoService->createSalesrder($salesOrder);
