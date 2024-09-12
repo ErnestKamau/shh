@@ -10,7 +10,7 @@ class InvoiceDetails extends Model implements Auditable
 {
 	use \OwenIt\Auditing\Auditable;
 
-    protected $fillable = ["crm_customer_id","analysis_type","analysis_type_name","sample_header_id","sample_detail_id","invoice_id","selling_price","cost_price","zoho_item_id","zoho_item_name","quantity","total"];
+    protected $fillable = ["crm_customer_id","analysis_type","analysis_type_name","sample_header_id","sample_detail_id","invoice_id","selling_price","cost_price","zoho_item_id","zoho_item_name","quantity","total","final_unit_price",'discount','discount_type'];
 
     protected $appends = ['samplecodes'];
     
@@ -29,7 +29,7 @@ class InvoiceDetails extends Model implements Auditable
         if(sizeof($sample_arr) > 1){
             $codes = 'Our Report Nos. '.SampleDetails::find($sample_arr[0])->sample_code.' - '.SampleDetails::find($sample_arr[sizeof($sample_arr) - 1])->sample_code;
         }else{
-            $codes = 'Our Report No. '.SampleDetails::find($sample_arr[0])->sample_code;
+            $codes = $this->sample_detail_id != 0 ?  'Our Report No. '.SampleDetails::find($sample_arr[0])->sample_code : '';
         }
         return $codes;
     }
