@@ -386,7 +386,7 @@ class ZohoController extends Controller
 			$itemExists->annual_consumption = 365;
 			$itemExists->item_classification = $c['product_type'] == 'goods' ? 1 : 3;
 			$itemExists->estimated_variation_in_demand_average_consumption = 10;
-			$itemExists->maximum_order_quantity = 50;
+			$itemExists->maximum_order_quantity = 100000;
 			$itemExists->reaorder_level = 1;
 			$itemExists->requires_reorder = 1;
 			$itemExists->active = 1;
