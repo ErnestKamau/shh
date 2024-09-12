@@ -207,7 +207,7 @@ class ZohoController extends Controller
 					$cIt['item_total_inclusive_of_tax'] = $totalN;
 				}
 
-				\Log::error("<<<<<<<<<<<<<<<<<<<<<<<".gettype($tax_ids));
+				\Log::error("<<<<<<<<<<<<<<<<<<<<<<<".json_encode($tax_ids));
 				\Log::error(">>>>>>>>>>>>>>>>>>>>>>>>>>".$tax_ids[$vatPerc]);
 
 				if(isset($tax_ids[$vatPerc])){

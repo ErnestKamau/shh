@@ -1130,7 +1130,6 @@
 	</div>
 </div>
 
-
 @endif
 <script src="https://cdn.jsdelivr.net/gh/gitbrent/bootstrap4-toggle@3.6.1/js/bootstrap4-toggle.min.js"></script>
 <script type="text/javascript">
@@ -1139,6 +1138,7 @@
 	var sampleCondtions = [];
 	var defaultClass = '';
 	var notPaid = [];
+	var invoiceItemCounter = 0;
 
 	$('[data-target="#get-batch-tat"]').hide();
 	$('[data-target="#awaiting-approval-modal"]').hide();
@@ -1176,7 +1176,47 @@
 			}
 		})
 	}
+	var getUpdateFields = (invoice_id)=>{
+		var invoice_details = [];
+		$('#generate-invoice-form').find('tbody tr.carry_data').each(function(){
+			var mode = $(this).data('mode');
+			var detail = {
+				invoice_detail_id : mode == 'new' ? 0 : $(this).find('[name="invoice_detail_id[]"]').val(),
+				unit_price : $(this).find('.invoice_price').val(),
+				quantity : $(this).find('.invoice_quantity').val(),
+				discount : $(this).find('.invoice_discount').val(),
+				discount_type : $(this).find('.discount_type').val(),
+				final_price : $(this).find('.invoice_final_price').val(),
+				item_id : $(this).find('.item_id').val(),
+				invoice_id : invoice_id
+
+			}
+			invoice_details.push(detail);
+		});
+		console.log('Invoice details');
+		console.log(invoice_details)
+		return invoice_details;
+	}
+	var updateInvoiceAjax = (invoice_details,callback)=>{
+		$.ajaxSetup({
+			headers: {
+				'X-CSRF-TOKEN': jQuery('meta[name="csrf-token"]').attr('content')
+			}
+		});
+		$.ajax({
+			url:'/update-invoice',
+			type:'POST',
+			data:{details:invoice_details},
+			success:(data)=>{
+				callback(data);
+			},
+			error:(data)=>{
+				console.log(data);
+			}
+		})
+	}
 	var sendSalesOrder = (invoice_id,callback)=>{
+		
 		$.ajax({
 			url:`/send/Sales-Order/${invoice_id}`,
 			type:'GET',
@@ -1284,8 +1324,10 @@
 	}
 	$('#dispatch-to-labs-modal-approve').on('show.bs.modal',(e)=>{
 		console.log('-----------------here-------------------')
+		invoiceItemCounter = 0;
 		$('#generate-invoice-form').find('.submit-btn').removeClass('hidden');
 		var body = generateInvoiceBody();
+		
 		$('#dispatch-to-labs-modal-approve').find('.to-be-updated').empty();
 		$('#dispatch-to-labs-modal-approve').find('.to-be-updated').append(body);
 	});
@@ -1297,13 +1339,18 @@
 			</h4>
 			<div class="header mt-5">
 				<b>CUSTOMER : </b> ${customer.name}
+				<span class="btn btn-sm btn-outline-primary add-item-initiator float-right"><i class="mdi mdi-plus"></i> Add Item</span>
 			</div>
 			<div class="table-responsive mt-4">
 				<table class="table table-sm table-bordered">
 					<thead class="bg-light">
+						<th>#</th>
 						<th>Item</th>
 						<th>Quantity</th>
-						<th>Unit Price</th>
+						<th>Initial Unit Price</th>
+						<th>Discount Type</th>
+						<th>Discount</th>
+						<th>Final Unit Price</th>
 						<th>Total</th>
 					</thead>
 					<tbody>
@@ -1325,25 +1372,28 @@
 			$('#generate-invoice-form').find('.loader').removeClass('hidden');
 			$('#generate-invoice-form').find('.invoice_body').addClass('hidden');
 			$('#generate-invoice-form').find('.send-sales').addClass('mdi-spin');
-			sendSalesOrder(invoice_id,(res)=>{
-				if(res['error']){
-					$('#generate-invoice-form').find('.loader').addClass('hidden');
-					$('#generate-invoice-form').find('.saving-invoice').removeClass('mdi-spin');
-					$('#generate-invoice-form').find('.send-sales').removeClass('mdi-spin');
-
-					$('#generate-invoice-form').find('.error-body').empty();
-					$('#generate-invoice-form').find('.error-body').append(res['error']);
-					$('#generate-invoice-form').find('.error-area').removeClass('hidden');
-				}else{
-					$('#generate-invoice-form').find('.send-sales').removeClass('mdi-spin');
-					$('#generate-invoice-form').find('.send-sales').removeClass('mdi-minus');
-					$('#generate-invoice-form').find('.send-sales').addClass('mdi-check-circle-outline text-success');
-
-					$('#generate-invoice-form').find('.loader').empty();
-					var imgElem= $(`<img src="/images/suc.gif" height="250px" width="auto" alt="">`);
-					$('#generate-invoice-form').find('.loader').append(imgElem);
-
-				}
+			var invoice_details =getUpdateFields(invoice_id);
+			updateInvoiceAjax(invoice_details,(res1)=>{
+				sendSalesOrder(invoice_id,(res)=>{
+					if(res['error']){
+						$('#generate-invoice-form').find('.loader').addClass('hidden');
+						$('#generate-invoice-form').find('.saving-invoice').removeClass('mdi-spin');
+						$('#generate-invoice-form').find('.send-sales').removeClass('mdi-spin');
+	
+						$('#generate-invoice-form').find('.error-body').empty();
+						$('#generate-invoice-form').find('.error-body').append(res['error']);
+						$('#generate-invoice-form').find('.error-area').removeClass('hidden');
+					}else{
+						$('#generate-invoice-form').find('.send-sales').removeClass('mdi-spin');
+						$('#generate-invoice-form').find('.send-sales').removeClass('mdi-minus');
+						$('#generate-invoice-form').find('.send-sales').addClass('mdi-check-circle-outline text-success');
+	
+						$('#generate-invoice-form').find('.loader').empty();
+						var imgElem= $(`<img src="/images/suc.gif" height="250px" width="auto" alt="">`);
+						$('#generate-invoice-form').find('.loader').append(imgElem);
+	
+					}
+				})
 			})
 		});
 
@@ -1368,19 +1418,159 @@
 		})
 		$.each(details,(i,obj)=>{
 			var tr = `
-			<tr>
+			<tr class="carry_data" data-mode="existing">
+				<input type="hidden" name="invoice_detail_id[]" value="${obj.id}">
+				<input type="hidden" name="item_id[${obj.id}]" class="item_id" value="${obj.analysis_type}">
+				<td>#</td>
 				<td>${obj.zoho_item_name} <br> ${obj.analysis_type_name}</td>
-				<td>${obj.quantity}</td>
-				<td>${obj.selling_price}</td>
-				<td>${obj.total}</td>
+				<td><input type="text" name="quantity[${obj.id}]" data-id="${obj.id}" value="${obj.quantity}" class="form-control invoice_quantity"></td>
+				<td><input type="text" name="unit_price[${obj.id}]"  data-id="${obj.id}" value="${obj.selling_price}" class="form-control invoice_price"></td>
+				<td>
+				<select name="discount_type[${obj.id}]" data-id="${obj.id}" id="" class="form-control discount_type">
+					<option value="" ${obj.discount_type == "" ? 'selected' : ''}>Select Discount Type</option>
+					<option value="percentage" ${obj.discount_type == "percentage" ? 'selected' : ''}>% Figure</option>
+					<option value="amount" ${obj.discount_type == "amount" ? 'selected' : ''}>Amount</option>
+				</select>
+					
+				</td>
+				<td><input type="text" data-id="${obj.id}" name="discount[${obj.id}]" value="${obj.discount || 0}" class="form-control invoice_discount"></td>
+				<td><input type="text" readonly name="final_unit_price[${obj.id}]" value="${obj.final_unit_price || 0}" class="form-control invoice_final_price"></td>
+
+				<td><input type="text" readonly name="total[${obj.id}]" value="${obj.total}" class="form-control invoice_total"></td>
+
 			</tr>`;
 			$(body).find('tbody').append(tr);
 		});
+		var addItemBody = (counter)=>{
+			var tr = `
+			<tr class="carry_data" data-mode="new">
+				<input type="hidden" name="invoice_detail_id[]" value="nw${counter}">
+				
+				<td><span class="remove-item btn btn-sm btn-default"><i class="mdi mdi-delete-empty"><i/></span></td>
+				<td>
+				<select name="item_id[nw${counter}]" data-id="nw${counter}" id="" class="form-control item_id">
+					<option value="">Select Item</option>
+					@foreach ($zoho_items as $z_item)
+					<option value="{{$z_item->id}}">{{$z_item->name}}</option>
+					@endforeach
+				</select>
+				</td>
+				<td><input type="text" name="quantity[nw${counter}]" data-id="nw${counter}" value="0" class="form-control invoice_quantity"></td>
+				<td><input type="text" name="unit_price[nw${counter}]"  data-id="nw${counter}" value="0" class="form-control invoice_price"></td>
+				<td>
+				<select name="discount_type[nw${counter}]" data-id="nw${counter}" id="" class="form-control discount_type">
+					<option value="">Select Discount Type</option>
+					<option value="percentage">% Figure</option>
+					<option value="amount">Amount</option>
+				</select>
+					
+				</td>
+				<td><input type="text" name="discount[nw${counter}]" data-id="nw${counter}" value="0" class="form-control invoice_discount"></td>
+				<td><input type="text" readonly name="final_unit_price[nw${counter}]" data-id="nw${counter}" value="0" class="form-control invoice_final_price"></td>
+
+				<td><input type="text" readonly name="total[nw${counter}]" value="0" class="form-control invoice_total"></td>
+			</tr>`;
+
+			return tr;
+		}
+		$(body).find('.add-item-initiator').on('click',(ev)=>{
+			invoiceItemCounter += 1;
+			var trbody =addItemBody(invoiceItemCounter)
+			$(trbody).find('.item_id').select2();
+			$(body).find('tbody tr.final-row').before(trbody)
+			$(body).find('.invoice_discount').on('change',(e)=>{
+				var detail_id = $(e.currentTarget).data('id');
+				console.log(detail_id);
+				changeofinvoicedetails(detail_id);
+			});
+			$(body).find('.discount_type').on('change',(e)=>{
+				var detail_id = $(e.currentTarget).data('id');
+				changeofinvoicedetails(detail_id);
+			});
+			$(body).find('.invoice_quantity').on('change',(e)=>{
+				var detail_id = $(e.currentTarget).data('id');
+				changeofinvoicedetails(detail_id);
+			});
+
+			$(body).find('.invoice_price').on('change',(e)=>{
+				var detail_id = $(e.currentTarget).data('id');
+				changeofinvoicedetails(detail_id);
+			});
+		});
+		$(body).on('click', '.remove-item', function() {
+			$(this).closest('tr').remove();
+		});
+		var getItemData = (item_id,callback)=>{
+			var invoiceID = $(body).find('#send_sales').data('invoice');
+			$.ajax({
+				url:`/get-invoice/itemData/${invoiceID}/${item_id}`,
+				type:'GET',
+				success:(data)=>{
+					callback(data);
+				},
+				error:(err)=>{
+					console.log();
+				}
+			});
+		}
+		$(body).on('change', '.item_id', function() {
+			var trElem = $(this).closest('tr');
+			var item_id = $(this).val();
+			getItemData(item_id,(item)=>{
+				var price = item.unit_price_rate > 0  ? item.unit_price_rate : item.unit_price;
+				$(trElem).find('.invoice_price').val(price);
+				$(trElem).find('.invoice_final_price').val(price);
+			});
+			
+		});
 		var finaltr = `
-		<tr class="bg-light">
-			<td colspan="3"><b>TOTAL:</b></td>
-			<td>${invoice.total}</td>
+		<tr class="bg-light final-row">
+			<td colspan="7"><b>TOTAL:</b></td>
+			<td class="total_amount" >${invoice.total}</td>
 		</tr>`;
+
+		var changeofinvoicedetails = (detail_id)=>{
+			var quantity = $('#generate-invoice-form').find(`[name="quantity[${detail_id}]"]`).val();
+			var unit_price = $('#generate-invoice-form').find(`[name="unit_price[${detail_id}]"]`).val();
+			var discount_type = $('#generate-invoice-form').find(`[name="discount_type[${detail_id}]"]`).val();
+			var discount = $('#generate-invoice-form').find(`[name="discount[${detail_id}]"]`).val();
+			var final_unit_price = unit_price;
+			if(discount_type != '' && parseInt(discount) > 0 ){
+				final_unit_price = discount_type == 'percentage' ? (100 - parseInt(discount))/100 * unit_price : parseInt(unit_price) - parseInt(discount);
+			}
+			var total = parseInt(quantity) * parseInt(final_unit_price);
+
+			$('#generate-invoice-form').find(`[name="total[${detail_id}]"]`).val(total);
+			$('#generate-invoice-form').find(`[name="final_unit_price[${detail_id}]"]`).val(final_unit_price);
+
+			var current_total = 0;
+			$('#generate-invoice-form').find('.invoice_total').each(function(){
+				current_total += parseInt($(this).val());
+			});
+			$('#generate-invoice-form').find('.total_amount').empty();
+			$('#generate-invoice-form').find('.total_amount').append(current_total);
+		}
+
+		$(body).find('.invoice_quantity').on('change',(e)=>{
+			var detail_id = $(e.currentTarget).data('id');
+			changeofinvoicedetails(detail_id);
+		});
+
+		$(body).find('.invoice_price').on('change',(e)=>{
+			var detail_id = $(e.currentTarget).data('id');
+			changeofinvoicedetails(detail_id);
+		});
+		$(body).find('.invoice_discount').on('change',(e)=>{
+			var detail_id = $(e.currentTarget).data('id');
+			console.log(detail_id);
+			changeofinvoicedetails(detail_id);
+		});
+		$(body).find('.discount_type').on('change',(e)=>{
+			var detail_id = $(e.currentTarget).data('id');
+			changeofinvoicedetails(detail_id);
+		});
+
+		
 		$(body).find('tbody').append(finaltr);
 
 		return body;
@@ -1399,6 +1589,7 @@
 				'X-CSRF-TOKEN': jQuery('meta[name="csrf-token"]').attr('content')
 			}
 		});
+		console.log('am here ')
 		$.ajax({
 			url:`/generate/batch-invoice/ajax`,
 			type:'POST',

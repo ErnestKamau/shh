@@ -179,6 +179,9 @@ Route::get('/get/Tat/Batch/ApprovalCounter/Ajax/{status}','SampleWorkFlowControl
   Route::post('/batch-approve-payment', 'SampleWorkFlowController@generate_batch_invoice')->name('generate_batch_invoice')->middleware('haspermission:Laboratory.components.Generate Invoice.View');
   Route::post('/batch-payment-reminders', 'SampleWorkFlowController@send_payment_notification')->name('send_payment_notification');
   Route::post('/return-back-verification', 'SampleWorkFlowController@return_back_verification')->name('return_back_verification');
+
+  Route::post('/update-invoice','SampleWorkFlowController@updateInvoiceDetails')->name('updateinvoicedetail');
+  Route::get('/get-invoice/itemData/{invoice_id}/{item_id}','SampleWorkFlowController@getInvoiceItemData')->name('getInvoiceItemData');
   // -----------------------------------SALES ORDERS----------------------
   Route::post('/generate/batch-invoice/ajax','SampleWorkFlowController@generate_batch_invoice_ajax')->name('generate_batch_invoice_ajax');
   Route::get('/send/Sales-Order/{id}','SampleWorkFlowController@sendSalesOrder')->name('sendSalesOrder');
