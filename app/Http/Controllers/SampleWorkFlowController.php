@@ -3139,6 +3139,8 @@ class SampleWorkFlowController extends Controller
     {
         $invoice = Invoice::with(['currencyinfo', 'crmCustomer'])->find($invoice_id);
         $details = InvoiceDetails::where('invoice_id', $invoice_id)->get();
+        $batchids = SampleHeader::where('invoice_id',$invoice->id)->pluck('id')->toArray();
+        $sample = SampleDetails::whereIn('sample_header_id',$batchids)->orderBy('id','ASC')->first();
         $lineitems = [];
         $itemcounter = 0;
         foreach ($details as $detail) {
@@ -3153,12 +3155,13 @@ class SampleWorkFlowController extends Controller
             ];
             $itemcounter = $itemcounter + 1;
         }
+
         $salesOrder = [
             "customer_id" => $invoice->zoho_customer_id,
             "currency_id" => $invoice->currencyinfo->zoho_id,
             "date" => date('Y-m-d'),
             "line_items" => $lineitems,
-            "reference_number" => $invoice->invoice_number,
+            "reference_number" => $sample->sample_code,
             "custom_fields"=>[
                 [
                     "customfield_id" => config('zoho.ZOHO_SO_IMARAUSER_FIELD'),
