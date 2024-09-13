@@ -3174,7 +3174,7 @@ class SampleWorkFlowController extends Controller
             return response()->json(['success' => 'Sales Order Created successfully!', 'invoice' => $invoice]);
         }
         $invoice->save();
-        return response()->json(['error' => 'Sales Order not created successfully!', 'invoice' => $invoice,'zoho_res'=>$zoho_sales]);
+        return response()->json(['error' => 'Sales Order not created successfully!', 'invoice' => $invoice,'zoho_res'=>$zoho_sales,'salesorder'=>$salesOrder]);
     }
 
     public function return_back_verification(Request $request)
