@@ -556,9 +556,9 @@ class ZohoController extends Controller
 		]);
 
 		$zItem = json_decode($response, true);
-		// return $zItem;
+		return $zItem;
 
-		return isset($zItem['salesorder']['salesorder_id']) ? $zItem['salesorder']['salesorder_id'] : 0;
+		// return isset($zItem['salesorder']['salesorder_id']) ? $zItem['salesorder']['salesorder_id'] : 0;
 	}
 
 	public function query_to_string($query)

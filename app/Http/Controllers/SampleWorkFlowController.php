@@ -3166,12 +3166,15 @@ class SampleWorkFlowController extends Controller
         // return response()->json($salesOrder);
         $zohoService = new ZohoController();
         $zoho_sales = $zohoService->createSalesrder($salesOrder);
-        if ($zoho_sales != 0) {
-            $invoice->sales_order_id = $zoho_sales;
+        $zoho_sales_id =  isset($zoho_sales['salesorder']['salesorder_id']) ? $zoho_sales['salesorder']['salesorder_id'] : 0;
+        $invoice->zoho_response = json_encode($zoho_sales);
+        if ($zoho_sales_id != 0) {
+            $invoice->sales_order_id = $zoho_sales_id;
             $invoice->save();
             return response()->json(['success' => 'Sales Order Created successfully!', 'invoice' => $invoice]);
         }
-        return response()->json(['error' => 'Sales Order not created successfully!', 'invoice' => $invoice]);
+        $invoice->save();
+        return response()->json(['error' => 'Sales Order not created successfully!', 'invoice' => $invoice,'zoho_res'=>$zoho_sales,'salesorder'=>$salesOrder]);
     }
 
     public function return_back_verification(Request $request)
