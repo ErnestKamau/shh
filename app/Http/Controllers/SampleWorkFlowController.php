@@ -3054,6 +3054,9 @@ class SampleWorkFlowController extends Controller
                 
                 return response()->json(['error' => 'The specified customer has no currency assigned']);
             }
+            if(!isset($customer->zohocustomer->zoho_contact_id)){
+                return response()->json(['error' => 'The specified customer has not been tied to zoho customer']);
+            }
             $module = "Inventory-Management";
             $defaultCurrency = ModulePreConfigs::where('type', 'Currency')->where('module', $module)->where("name", "KES")->first();
 
