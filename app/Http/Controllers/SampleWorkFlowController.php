@@ -3157,8 +3157,10 @@ class SampleWorkFlowController extends Controller
             "line_items" => $lineitems,
             "reference_number" => $invoice->invoice_number,
             "custom_fields"=>[
-                "customfield_id" => config('zoho.ZOHO_SO_IMARAUSER_FIELD'),
-                "value" => auth()->user()->name,
+                [
+                    "customfield_id" => config('zoho.ZOHO_SO_IMARAUSER_FIELD'),
+                    "value" => auth()->user()->name,
+                ]
             ],
 
         ];
