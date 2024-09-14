@@ -3766,6 +3766,10 @@ class SampleWorkFlowController extends Controller
     {
         // return response()->json($request->all());
         $status = 'Samples In Lab';
+        $checkSalesOrder = SampleHeader::whereIn('batch_code',$request->batch_code)->where('invoice_id',0)->get();
+        if($checkSalesOrder->count() > 0){
+            return redirect()->back()->with('error','Some of the selected selected batches have no Sales Order generated. Kindly generate the Sales Order before proceeding with the proccess!');
+        }
         foreach ($request->batch_code as $code) {
             $batch = SampleHeader::where('batch_code', $code)->first();
             $previousWorkflow = $batch->status;
