@@ -715,7 +715,7 @@
 </div>
 
 <div id="dispatch-to-labs-modal-approve" data-backdrop="static" data-keyboard="false" class="modal fade" role="dialog">
-	<div class="modal-dialog modal-lg">
+	<div class="modal-dialog modal-xl">
 		<!-- Modal content-->
 		<form class="modal-content" id="generate-invoice-form" method="POST" action="{{ route('generate_batch_invoice') }}" enctype="multipart/form-data">
 			@csrf
@@ -1188,6 +1188,7 @@
 				discount : $(this).find('.invoice_discount').val(),
 				discount_type : $(this).find('.discount_type').val(),
 				final_price : $(this).find('.invoice_final_price').val(),
+				title : $(this).find('.invoice_title').val(),
 				item_id : $(this).find('.item_id').val(),
 				invoice_id : invoice_id
 
@@ -1347,6 +1348,7 @@
 					<thead class="bg-light">
 						<th>#</th>
 						<th>Item</th>
+						<th>Title</th>
 						<th>Quantity</th>
 						<th>Initial Unit Price</th>
 						<th>Discount Type</th>
@@ -1424,7 +1426,8 @@
 				<input type="hidden" name="item_id[${obj.id}]" class="item_id" value="${obj.analysis_type}">
 				<td>#</td>
 				<td>${obj.zoho_item_name} <br> ${obj.analysis_type_name}</td>
-				<td><input type="text" name="quantity[${obj.id}]" data-id="${obj.id}" value="${obj.quantity}" class="form-control invoice_quantity"></td>
+				<td style="width:30%"><textarea name="title[${obj.id}]" data-id="${obj.id}" class="form-control invoice_title">${obj.analysis_type_name} ${obj.samplecodes}</textarea></td>
+				<td style="width:5%"><input type="text" name="quantity[${obj.id}]" data-id="${obj.id}" value="${obj.quantity}" class="form-control invoice_quantity"></td>
 				<td><input type="text" name="unit_price[${obj.id}]"  data-id="${obj.id}" value="${obj.selling_price}" class="form-control invoice_price"></td>
 				<td>
 				<select name="discount_type[${obj.id}]" data-id="${obj.id}" id="" class="form-control discount_type">
@@ -1443,7 +1446,7 @@
 			$(body).find('tbody').append(tr);
 		});
 		var addItemBody = (counter)=>{
-			var tr = `
+			var tr = $(`
 			<tr class="carry_data" data-mode="new">
 				<input type="hidden" name="invoice_detail_id[]" value="nw${counter}">
 				
@@ -1456,6 +1459,7 @@
 					@endforeach
 				</select>
 				</td>
+				<td><textarea name="title[nw${counter}]" data-id="nw${counter}" class="form-control invoice_title"></textarea></td>
 				<td><input type="text" name="quantity[nw${counter}]" data-id="nw${counter}" value="0" class="form-control invoice_quantity"></td>
 				<td><input type="text" name="unit_price[nw${counter}]"  data-id="nw${counter}" value="0" class="form-control invoice_price"></td>
 				<td>
@@ -1470,7 +1474,13 @@
 				<td><input type="text" readonly name="final_unit_price[nw${counter}]" data-id="nw${counter}" value="0" class="form-control invoice_final_price"></td>
 
 				<td><input type="text" readonly name="total[nw${counter}]" value="0" class="form-control invoice_total"></td>
-			</tr>`;
+			</tr>`).clone();
+
+			$(tr).find('.item_id').on('change',function(){
+				var value = $(this).val();
+				var valueText = $(this).find("option:selected").text();
+				$(tr).find('.invoice_title').val(valueText);
+			})
 
 			return tr;
 		}
@@ -1526,7 +1536,7 @@
 		});
 		var finaltr = `
 		<tr class="bg-light final-row">
-			<td colspan="7"><b>TOTAL:</b></td>
+			<td colspan="8"><b>TOTAL:</b></td>
 			<td class="total_amount" >${invoice.total}</td>
 		</tr>`;
 
