@@ -494,7 +494,7 @@ $thePath = request()->path();
 			</button>
 			<a class="navbar-brand" href="{{ url('/home') }}">
 			<?php $active_company = getActiveCompany()?>
-				<img src="{{$active_company->logo}}" style="height: 40px" />
+				<img src="{{$active_company->logo ?? ''}}" style="height: 40px" />
 			</a>
 			<form method="post" action="{{ route('search-sample-code') }}" class="float-right text-info ml-5m">
 				@csrf

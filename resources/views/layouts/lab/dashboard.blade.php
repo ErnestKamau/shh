@@ -255,6 +255,7 @@
                         <td>{{ $item->is_routine == 1 ? number_format($item->routine_frequency,0).' days' : 'n/a' }}</td>
                         
                     </tr>
+                    
                     @endforeach
                 </tbody>
             </table>

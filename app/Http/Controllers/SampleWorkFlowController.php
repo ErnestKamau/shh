@@ -3149,7 +3149,7 @@ class SampleWorkFlowController extends Controller
                 "item_id" => $detail->zoho_item_id,
                 "rate" => $detail->selling_price,
                 "name" => $detail->zoho_item_name,
-                "description" => $detail->analysis_type_name.' '.$detail->samplecodes,
+                "description" => $detail->analysis_title,
                 "quantity" => $detail->quantity,
                 "discount" => $detail->discount > 0 ? ($detail->discount_type == 'percentage' ? $detail->discount.'%' : $detail->discount) : 0,
             ];
@@ -4721,14 +4721,13 @@ class SampleWorkFlowController extends Controller
     }
 
     public function updateInvoiceDetails(Request $request){
-
         foreach($request->details as $detail){
             
             $total = $detail['final_price'] * $detail['quantity'];
 
             if($detail['invoice_detail_id'] > 0){
 
-                InvoiceDetails::find($detail['invoice_detail_id'])->update(['quantity'=>$detail['quantity'],'selling_price'=>$detail['unit_price'],"final_unit_price"=>$detail['final_price'],'total'=>$total,'discount'=>$detail['discount'],'discount_type'=>$detail['discount_type']]);
+                InvoiceDetails::find($detail['invoice_detail_id'])->update(['quantity'=>$detail['quantity'],'selling_price'=>$detail['unit_price'],"final_unit_price"=>$detail['final_price'],'total'=>$total,'discount'=>$detail['discount'],'discount_type'=>$detail['discount_type'],'analysis_title'=>$detail['title']]);
                 $invoice_detail = InvoiceDetails::with('invoice')->find($detail['invoice_detail_id']);
             }else{
                 $invoice = Invoice::find($detail['invoice_id']);
@@ -4745,6 +4744,7 @@ class SampleWorkFlowController extends Controller
                 $invoice_detail->final_unit_price = $detail['final_price'];
                 $invoice_detail->discount = $detail['discount'];
                 $invoice_detail->discount_type = $detail['discount_type'];
+                $invoice_detail->analysis_title = $detail['title'];
                 $invoice_detail->total = $total;
                 $invoice_detail->crm_customer_id = $invoice->customer_id;
                 $invoice_detail->analysis_type_name = $item->zoho_name;
