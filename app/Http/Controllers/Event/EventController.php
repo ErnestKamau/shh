@@ -38,7 +38,7 @@ class EventController extends Controller
     }
     public function created(Request $request)
     {
-        // return response()->json($request->all());
+        return response()->json($request->all());
         $newEvent = new Event();
         $newEvent->title = $request->title;
         $newEvent->description = $request->description;
