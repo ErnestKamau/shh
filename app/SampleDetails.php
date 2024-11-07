@@ -67,4 +67,8 @@ class SampleDetails extends Model implements Auditable
 	public function getAnalysisTestDone(){
 		return implode(', ',array_unique(CapturedResult::where('sample_detail_id',$this->id)->where('sample_header_id',$this->sample_header_id)->pluck('analyte_code')->toArray()) ?? []);
 	}
+	public function targetDateRelation(){
+		$target = SampleDate::where('sample_header_id',$this->sample_header_id)->where('name','Target Date')->first();
+		return $target->date;
+	}
 }

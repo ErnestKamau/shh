@@ -27,9 +27,9 @@ class EventController extends Controller
     }
     public function indexed()
     {
-        $config = SystemConfiguration::where('key','view_all_events_role_id')->first();
-        if(!isset($config->id)){
-            return redirect()->back()->with('error','kindly add view_all_events_role_id configuration');
+        $config = SystemConfiguration::where('key', 'view_all_events_role_id')->first();
+        if (!isset($config->id)) {
+            return redirect()->back()->with('error', 'kindly add view_all_events_role_id configuration');
         }
         // $events = Event::all();
         $users = getCompanyUsers();
@@ -38,7 +38,7 @@ class EventController extends Controller
     }
     public function created(Request $request)
     {
-        return response()->json($request->all());
+        // return response()->json($request->all());
         $newEvent = new Event();
         $newEvent->title = $request->title;
         $newEvent->description = $request->description;
@@ -49,6 +49,9 @@ class EventController extends Controller
         $newEvent->client_id = $request->client_id;
         $newEvent->location = $request->location;
         $newEvent->responsible_id = implode(',', $request->responsible_id);
+        $newEvent->latitude = $request->latitude;
+        $newEvent->longitude = $request->longitude;
+        $newEvent->logistics = $request->logistics;
         $newEvent->status = $request->event_status;
         if (isset($request->notify_client)) {
             $client = getCrmCustomerByID($request->client_id);
@@ -72,7 +75,7 @@ class EventController extends Controller
         }
 
         if ($request->hasFile('attachment')) {
-            
+
             $path = $request->attachment->path();
             $file = Storage::putFile('Event', new File($path));
             $file = explode('/', $file);
@@ -82,18 +85,18 @@ class EventController extends Controller
         $newEvent->created_by = auth()->user()->id;
         $newEvent->save();
         $newEvent->parent_id = $newEvent->id;
-        
+
         if (isset($request->is_routine)) {
             $newEvent->frequency = $request->frequency;
             $newEvent->is_routine = 1;
-            
-            
+
+
 
             $reset_start = $newEvent->start_date;
             $reset_end = $newEvent->end_date;
             $interval = floor(360 / intval($request->frequency));
             // return response()->json($interval);
-            foreach (range(1, $interval-1) as $days) {
+            foreach (range(1, $interval - 1) as $days) {
                 $set = ' + ' . $request->frequency . ' days';
                 $start_date = date('Y-m-d', strtotime($reset_start . $set));
                 $end_date = date('Y-m-d', strtotime($reset_end . $set));
@@ -104,9 +107,9 @@ class EventController extends Controller
                 $event = new Event();
                 $event->title = $request->title;
                 $event->description = $request->description;
-                $event->start_date =   $reset_start;
+                $event->start_date = $reset_start;
                 $event->end_date = $reset_end;
-                $event->start_time =  $request->start_time;
+                $event->start_time = $request->start_time;
                 $event->end_time = $request->end_time;
                 $event->client_id = $request->client_id;
                 $event->location = $request->location;
@@ -178,97 +181,60 @@ class EventController extends Controller
     }
     public function index()
     {
-        $config = SystemConfiguration::where('key','view_all_events_role_id')->first();
-        if(!isset($config->id)){
-            return redirect()->back()->with('error','kindly add view_all_events_role_id configuration');
+        $config = SystemConfiguration::where('key', 'view_all_events_role_id')->first();
+        if (!isset($config->id)) {
+            return redirect()->back()->with('error', 'kindly add view_all_events_role_id configuration');
         }
-        $user_role = UserRole::where('user_id',auth()->user()->id)->where('role_id',$config->value)->first();
+        $statusCounts = Event::selectRaw('status, COUNT(*) as count')
+            ->whereIn('status', ['Upcoming', 'Complete', 'Delayed', 'Cancelled', 'Expired'])
+            ->groupBy('status')
+            ->pluck('count', 'status');
         $today = getTodayDate();
-        $end = date('Y-m-t',strtotime($today));
+        $end = date('Y-m-t', strtotime($today));
         $start = date("Y-m-01");
         $data = Event::all();
-        $data2 = Event::where('status','Upcoming')->get();
-        // if(isset($user_role->id)){
-            
-        // }else{
-        //     $data= Event::where('responsible_id',auth()->user()->id)->get();
-        // }
-        
-        
-        $events = [];
         $today_date = getTodayDate();
+        $data2 = Event::whereIn('status', ['Upcoming', 'Delayed'])->get();
+        $events = [];
+        
         foreach ($data2 as $d) {
-            
-            if ($d->status == 'Upcoming') {
-                $events[] = [
-                    'allDay' => false,
-                    'title' => $d->title,
-                    'start' => $d->start_date . ' ' . $d->start_time,
-                    'end' => $d->end_date . ' ' . $d->end_time,
-                    'id' => $d->id,
-                    'responsible_id' => $d->responsible_id,
-                    'color' => '#2196f3',
-                    'textColor' => 'white',
-                    'status' => $d->status,
-                    
-                    
-                ];
-            } elseif ($d->status == 'Delayed') {
-                $events[] = [
-                    'allDay' => false,
-                    'title' => $d->title,
-                    'start' => $d->start_date . ' ' . $d->start_time,
-                    'end' => $d->end_date . ' ' . $d->end_time,
-                    'id' => $d->id,
-                    'responsible_id' => $d->responsible_id,
-                    'color' => '#e65100',
-                    'textColor' => 'white',
-                    'status' => $d->status,
-                    
-                ];
-            } elseif ($d->status == 'Complete') {
-                $events[] = [
-                    'allDay' => false,
-                    'title' => $d->title,
-                    'start' => $d->start_date . ' ' . $d->start_time,
-                    'end' => $d->end_date . ' ' . $d->end_time,
-                    'id' => $d->id,
-                    'responsible_id' => $d->responsible_id,
-                    'color' => '#2e7d32',
-                    'textColor' => 'white',
-                    'status' => $d->status,
-                    
-                ];
-            } elseif ($d->status == 'Cancelled') {
-                $events[] = [
-                    'allDay' => false,
-                    'title' => $d->title,
-                    'start' => $d->start_date . ' ' . $d->start_time,
-                    'end' => $d->end_date . ' ' . $d->end_time,
-                    'id' => $d->id,
-                    'responsible_id' => $d->responsible_id,
-                    'color' => '#c62828',
-                    'textColor' => 'white',
-                    'status' => $d->status,
-                    
-                ];
+            switch ($d->status) {
+                case 'Upcoming':
+                    $color = '#2196f3';
+                    break;
+                case 'Delayed':
+                    $color = '#e65100';
+                    break;
+                default:
+                    $color = '#000000'; // default color if needed
             }
+            
+            $events[] = [
+                'allDay' => false,
+                'title' => $d->title,
+                'start' => $d->start_date . ' ' . $d->start_time,
+                'end' => $d->end_date . ' ' . $d->end_time,
+                'id' => $d->id,
+                'responsible_id' => $d->responsible_id,
+                'color' => $color,
+                'textColor' => 'white',
+                'status' => $d->status,
+            ];
         }
- 
-        // return response()->json($events, 200);
-        $users = User::where('is_client', 0)->where('supplier_id', 0)->where('active',1)->where('is_support_staff',0)->get();
-        $up = Event::where('status', 'Upcoming')->count();
-        $c = Event::where('status', 'Complete')->count();
-        $dl  = Event::where('status', 'Delayed')->count();
-        $canc = Event::where('status', 'Cancelled')->count();
-        $exp = Event::where('status','Expired')->count();
-        $ong = Event::where('start_date',date('Y-m-d'))->count();
+        // return response()->json($events);
+
+        $users = User::where('is_client', 0)->where('supplier_id', 0)->where('active', 1)->where('is_support_staff', 0)->get();
+        // $up = Event::where('status', 'Upcoming')->count();
+        // $c = Event::where('status', 'Complete')->count();
+        // $dl = Event::where('status', 'Delayed')->count();
+        // $canc = Event::where('status', 'Cancelled')->count();
+        // $exp = Event::where('status', 'Expired')->count();
+        $ong = Event::where('start_date', date('Y-m-d'))->count();
 
         $clients = CRMCustomer::where('active', 1)->get();
-        // return response()->json('test');
-        return view('layouts.configuration.system.fullcalendar_', compact('users', 'clients', 'up', 'c', 'dl', 'canc','events','data','exp','ong'));
+        return view('layouts.configuration.system.fullcalendar_', compact('users', 'clients', 'events', 'data','ong','statusCounts'));
     }
-    
+
 
     public function getEventByUser(Request $request)
     {
@@ -343,6 +309,9 @@ class EventController extends Controller
         $event->responsible_id = implode(',', $request->responsible_id);
         $event->client_id = $request->client_id;
         $event->location = $request->location;
+        $event->latitude = $request->latitude;
+        $event->longitude = $request->longitude;
+        $event->logistics = $request->logistics;
 
         if (isset($request->is_routine)) {
             $event->is_routine = 1;
@@ -378,32 +347,35 @@ class EventController extends Controller
         return redirect()->back()->with('success', 'Event updated successfully!');
     }
 
-    public function delete_event(Request $request){
+    public function delete_event(Request $request)
+    {
         $event = Event::find($request->event_id);
-        if(!isset($event->id)){
-            return redirect()->back()->with('error','No Event with the specified ID!');
+        if (!isset($event->id)) {
+            return redirect()->back()->with('error', 'No Event with the specified ID!');
         }
         $parent = $event->parent_id;
-        if(isset($request->delete_future)){
-            $events = Event::where('id','>',$event->id)->where('parent_id',$event->parent_id)->get();
+        if (isset($request->delete_future)) {
+            $events = Event::where('id', '>', $event->id)->where('parent_id', $event->parent_id)->get();
             // return response()->json($events);
-            foreach($events as $e){
+            foreach ($events as $e) {
                 $e->delete();
             }
         }
         $event->delete();
         // return response()->json($request->all());
-        return redirect()->back()->with('success','Event deleted successfully!');
+        return redirect()->back()->with('success', 'Event deleted successfully!');
     }
-    public function getEvent($id){
+    public function getEvent($id)
+    {
         $event = Event::find($id);
-        $history = EventHistory::where('event_id',$event->id)->join('users','users.id','=','event_history.action_by')->selectRaw('event_history.*,users.name')->get();
+        $history = EventHistory::where('event_id', $event->id)->join('users', 'users.id', '=', 'event_history.action_by')->selectRaw('event_history.*,users.name')->get();
         $notification = getEventNotification($event->id);
-        return ['event'=>$event,'history'=>$history,'notification'=>$notification];
+        return ['event' => $event, 'history' => $history, 'notification' => $notification];
     }
 
-    public function eventUpdateSchedule(){
-        $expired = Event::where('end_date','<',date('Y-m-d'))->update(['status'=>'Expired']);
+    public function eventUpdateSchedule()
+    {
+        $expired = Event::where('end_date', '<', date('Y-m-d'))->update(['status' => 'Expired']);
         return response()->json('success');
     }
 }
