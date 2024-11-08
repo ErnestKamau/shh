@@ -905,6 +905,42 @@ Route::get('/matchCrmCurrency','SampleWorkFlowController@matchCrmCurrency')->nam
 Route::get('/sync-all-suppliers-to-items','ZohoController@supplier_to_item_sync')->name('sync-all-suppliers-to-items');
 ###############################################ZOHO INTEGRATION#######################################
 
+#################################### Matrix CONFIGURATIONS#######################################
+
+/* MODULE PRECONFIG */
+Route::get('/module-skills-pre-configs/{config}/{module}', 'SkillsMatrix\ModuleSkillsPreConfigsController@index')->name('module-skills-pre-configs')->middleware('haspermission:Inventory.components.Configuration.View');
+Route::post('/add-module-skills-pre-configs/{id}/{config}/{module}', 'ModulePreConfigsController@update')->name('add-module-skills-pre-configs')->middleware('haspermission:Inventory.components.Configuration.Add');
+Route::post('/update-module-skills-pre-configs/{id}/{config}/{module}', 'SkillsMatrix\ModuleSkillsPreConfigsController@update')->name('update-module-skills-pre-configs');
+Route::get('/move-skills-type/{direction}/{module}/{element}', 'SkillsMatrix\ModuleSkillsPreConfigsController@move_skills_types')->name('move-skills-type');
+/* MODULE SKILLS MATRIX */
+Route::get('/matrix', 'SkillsMatrix\SkillsMatrixController@index')->name('matrix');
+Route::post('/matrix', 'SkillsMatrix\SkillsMatrixController@add')->name('assign-matrix');
+Route::post('/matrix/{condition}', 'SkillsMatrix\SkillsMatrixController@edit')->name('edit-matrix');
+Route::get('/matrix-config/{module}', 'SkillsMatrix\SkillsMatrixConfigController@index')->name('matrix-config');
+Route::get('/matrix-config/{module}/{id}', 'SkillsMatrix\SkillsMatrixConfigController@getTopologies')->name('topology');
+Route::post('/matrix-config-add/{matrix_id}/{id}', 'SkillsMatrix\SkillsMatrixConfigController@add')->name('topology-add');
+Route::post('/update-matrix-Config', 'SkillsMatrix\SkillsMatrixConfigController@updat_matrix_Config')->name('update-matrix-Config');
+Route::post('/update-user-role-matrix-Config', 'SkillsMatrix\SkillsMatrixConfigController@updat_user_role_matrix_Config')->name('update-user-role-matrix-Config');
+Route::get('/matrix-config-topology', 'SkillsMatrix\SkillsMatrixConfigController@index')->name('topology');
+Route::get('/matrix-config-topology/{id}/{matrix_id}/', 'SkillsMatrix\SkillsMatrixConfigController@getTopologies')->name('topology-parent');
+Route::post('/matrix-config-topology/{id}/{matrix_id}/', 'SkillsMatrix\SkillsMatrixConfigController@add')->name('topology-add');
+Route::post('/matrix-config-topology/{id}/{matrix_id}/remove', 'SkillsMatrix\SkillsMatrixConfigController@remove')->name('topology-remove');
+Route::get('/matrix-competence', 'SkillsMatrix\SkillsMatrixConfigController@competence_history')->name('matrix-competence');
+Route::post('/get-week-listing', 'SkillsMatrix\SkillsMatrixConfigController@get_weeks_listing')->name('get-week-listing');
+Route::post('/save-new-week', 'SkillsMatrix\SkillsMatrixConfigController@save_new_week')->name('save-new-week');
+Route::post('/assign-trainner', 'SkillsMatrix\SkillsMatrixConfigController@assign_trainner')->name('assign-trainner');
+Route::post('/update-trainner', 'SkillsMatrix\SkillsMatrixConfigController@update_trainner')->name('update-trainner');
+Route::post('/get-skills-phase-comments', 'SkillsMatrix\SkillsMatrixConfigController@get_phase_comments')->name('get-skills-phase-comments');
+Route::post('/assign-skills-phase-comments', 'SkillsMatrix\SkillsMatrixConfigController@assign_phase_comments')->name('assign-skills-phase-comments');
+/* MODULE OTHER TRAINING */
+
+Route::get('/other-training', 'Training\SkillsOtherTrainingController@index')->name('other-training');
+Route::post('/other-training', 'Training\SkillsOtherTrainingController@add')->name('assign-other-training');
+Route::post('/update-other-trainner/{condition}', 'Training\SkillsOtherTrainingController@edit')->name('update-other-training');
+Route::get('/training-acceptance/{training_id}/{dept_number}/{user_id}/{acceptance?}', 'Training\SkillsOtherTrainingController@training_acceptance')->name('training-acceptance');
+
+#################################### Matrix CONFIGURATIONS#######################################
+
 
 #STORAGE ROUTES
 Route::get('storage/{type}/{filename}', function ($type, $filename)

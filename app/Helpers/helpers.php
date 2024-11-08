@@ -1866,3 +1866,233 @@ function getDiffBtnDates($date1,$date2){
 function getTaxes(){
 	return [0,8,16];
 }
+
+function getTrainingDepartments($dept_ids){		
+	$dept_array =  explode(',', $dept_ids);
+	return App\InventoryDepartment::where('company_id', getUserCompany())
+	->where('location_id', getCurrentUserLocation()->id)
+	->whereIn('id', $dept_array)
+	->selectRaw('name')
+	->orderBy('name', 'asc')->get();
+}
+
+function getTrainingParticipantCnt($training_id){		
+	return  App\Models\Training\SkillsOtherTrainingParticipant::where('skills_other_training_id',$training_id)->count();
+}
+
+function getTrainingPreviousComments($training_id){	
+	return  App\Models\Training\SkillsOtherTrainingComment::where('skills_other_training_id',$training_id)->orderBy('created_at', 'desc')->get();		
+}
+
+function getSkillsTrainingPreviousComments($training_id,$matrix_id){	
+	return  App\Models\SkillsMatrix\SkillsMatrixTrainingComment::where('skills_matrix_id',$matrix_id)->where('skills_matrix_config_id',$training_id)->orderBy('created_at', 'desc')->get();		
+}
+
+function getTrainingParticipantDetails($training_id,$dept_id){
+	$participant = array();	
+	if(!empty($dept_id)){			
+		$participant =  App\Models\Training\SkillsOtherTrainingParticipant::where('skills_other_training_id',$training_id)
+		->leftJoin('users as u', function($join){
+			$join->on('u.id', 'skills_other_training_participants.participant_id');
+			$join->on('u.department_id', 'skills_other_training_participants.department_id');				
+		})
+		->selectRaw('u.name,is_attended')
+		->get();				
+	}	
+	return $participant;
+}
+
+function getMatrixRoles($role_ids){		
+	return  \App\ModulePreConfigs::whereIn('id', $role_ids)->selectRaw('description')->get();		
+}
+function getMatrixRole($role_id){		
+	return  \App\ModulePreConfigs::where('id', $role_id)->selectRaw('description')->first();		
+}
+
+function getStartAndEndDate($week, $year) {
+	$time = strtotime("1 January $year", time());
+	$day = date('w', $time);
+	$time += ((7*$week)+1-$day)*24*3600;
+	$dates[0] = date('M j', $time);
+	$time += 6*24*3600;
+	$dates[1] = date('M j', $time);		
+	$status = "";
+	$currentDate = date('Y-m-d');
+	$currentDate=date('Y-m-d', strtotime($currentDate));
+	$contractDateBegin = date('Y-m-d', strtotime($dates[0]));
+	$contractDateEnd = date('Y-m-d', strtotime($dates[1]));
+	if ($currentDate > $contractDateEnd){		
+		$status =  "Done";
+	}else if (($currentDate >= $contractDateBegin) && ($currentDate <= $contractDateEnd)){			
+		$status =  "On going";
+	}else{		
+		$status =  "Coming Soon"; 
+	}
+	$response = array();
+	$response = array('dates'=>$dates,'status'=>$status);
+	return $response;
+}
+
+function getTrainerName($training_type, $trainer_id) {		
+	if($training_type=='Inhouse'){
+		$user = App\User::where('id', $trainer_id)->selectRaw('name')->first();	
+	}else{
+		$user = App\Supplier::where('id', $trainer_id)->selectRaw('name')->first();
+	}
+	return $user->name;
+}
+
+function getMatrixRolesValues($skills_matrix_config_id,$skills_matrix_id){			 
+	  $role_values =  App\Models\Skillsmatrix\SkillsMatrixRoleRequirment::leftJoin('skills_matrix_configurations as c', 'c.id', '=', 'skills_matrix_role_requirments.skills_matrix_config_id')
+		  ->leftJoin('module_pre_configs as a', 'a.id', '=','skills_matrix_role_requirments.color_code')
+		  ->where('skills_matrix_role_requirments.skills_matrix_config_id', $skills_matrix_config_id)
+		->where('skills_matrix_role_requirments.skills_matrix_id', $skills_matrix_id)
+		->where('skills_matrix_role_requirments.active', 1)
+		->selectRaw('skills_matrix_role_requirments.id as role_auto_id,role_id, color_code,color')
+		->orderBy('skills_matrix_role_requirments.role_id', 'asc')
+		->get();			
+	return $role_values;		 		
+}
+
+function getTrainingRolesValues($training_matrix_config_id,$skills_training_id){ 
+	$role_values =  App\Models\Training\SkillsTrainingMatrixRoleRequirment::leftJoin('skills_training_configurations as c', 'c.id', '=', 'skills_training_matrix_role_requirments.training_matrix_config_id')
+		->leftJoin('module_pre_configs as a', 'a.id', '=','skills_training_matrix_role_requirments.color_code')
+		->where('skills_training_matrix_role_requirments.training_matrix_config_id', $training_matrix_config_id)
+	  ->where('skills_training_matrix_role_requirments.training_matrix_id', $skills_training_id)
+	  ->selectRaw('skills_training_matrix_role_requirments.id as role_auto_id,role_id, color_code,color')
+	  ->get();
+	return $role_values;		 		
+}
+
+function getUserRolesValues($user_id,$user_role,$skills_matrix_config_id,$skills_matrix_id,$competence_history_date){	
+
+	if(isset($competence_history_date) && !empty($competence_history_date)){
+
+		$role_values =  App\Models\Skillsmatrix\SkillsMatrixUserRoleRequirment::leftJoin('skills_matrix_configurations as c', 'c.id', '=', 'skills_matrix_user_role_requirments.skills_matrix_config_id')
+		->leftJoin('module_pre_configs as a', 'a.id', '=','skills_matrix_user_role_requirments.color_code')
+		->where('skills_matrix_user_role_requirments.skills_matrix_config_id', $skills_matrix_config_id)
+		->where('skills_matrix_user_role_requirments.skills_matrix_id', $skills_matrix_id)
+		->where('skills_matrix_user_role_requirments.role_id', $user_role)
+		->where('skills_matrix_user_role_requirments.user_id', $user_id)
+		->where('skills_matrix_user_role_requirments.active', 1)
+		->whereDate('skills_matrix_user_role_requirments.created_at', $competence_history_date)
+		->selectRaw('skills_matrix_user_role_requirments.id as role_auto_id,role_id, color_code,color')
+		->orderBy('version_id', 'desc')->first();
+	
+		$role_total_cnt =  App\Models\Skillsmatrix\SkillsMatrixUserRoleRequirment::leftJoin('skills_matrix_configurations as c', 'c.id', '=', 'skills_matrix_user_role_requirments.skills_matrix_config_id')
+		->leftJoin('module_pre_configs as a', 'a.id', '=','skills_matrix_user_role_requirments.color_code')
+		->where('skills_matrix_user_role_requirments.skills_matrix_config_id', $skills_matrix_config_id)
+		->where('skills_matrix_user_role_requirments.skills_matrix_id', $skills_matrix_id)
+		->where('skills_matrix_user_role_requirments.user_id', $user_id)
+		->where('skills_matrix_user_role_requirments.active', 1)
+		->whereDate('skills_matrix_user_role_requirments.created_at', $competence_history_date)
+		->count();
+
+	}else{
+
+		$role_values =  App\Models\Skillsmatrix\SkillsMatrixUserRoleRequirment::leftJoin('skills_matrix_configurations as c', 'c.id', '=', 'skills_matrix_user_role_requirments.skills_matrix_config_id')
+		->leftJoin('module_pre_configs as a', 'a.id', '=','skills_matrix_user_role_requirments.color_code')
+		->where('skills_matrix_user_role_requirments.skills_matrix_config_id', $skills_matrix_config_id)
+		->where('skills_matrix_user_role_requirments.skills_matrix_id', $skills_matrix_id)
+		->where('skills_matrix_user_role_requirments.role_id', $user_role)
+		->where('skills_matrix_user_role_requirments.user_id', $user_id)
+		->where('skills_matrix_user_role_requirments.active', 1)
+		->selectRaw('skills_matrix_user_role_requirments.id as role_auto_id,role_id, color_code,color')
+		->orderBy('version_id', 'desc')->first();
+			
+		$role_total_cnt =  App\Models\Skillsmatrix\SkillsMatrixUserRoleRequirment::leftJoin('skills_matrix_configurations as c', 'c.id', '=', 'skills_matrix_user_role_requirments.skills_matrix_config_id')
+		->leftJoin('module_pre_configs as a', 'a.id', '=','skills_matrix_user_role_requirments.color_code')
+		->where('skills_matrix_user_role_requirments.skills_matrix_config_id', $skills_matrix_config_id)
+		->where('skills_matrix_user_role_requirments.skills_matrix_id', $skills_matrix_id)
+		->where('skills_matrix_user_role_requirments.active', 1)
+		->where('skills_matrix_user_role_requirments.user_id', $user_id)
+		->count();
+
+	}				
+	  $response = array();
+	  $response = array('role_values'=>$role_values,'role_total_cnt'=>$role_total_cnt);	
+	return $response;		 		
+}
+
+function check_is_new_user($user_id,$skills_matrix_config_id,$skills_matrix_id){
+
+$default_color_code = App\ModulePreConfigs::where('type','Training')->where('color','#ffffff')->first();
+
+$user_exists =  App\Models\Training\SkillsMatrixTrainingNeed::leftJoin('skills_matrix_configurations as c', 'c.id', '=', 'skills_matrix_training_needs.skills_matrix_config_id')
+	->leftJoin('module_pre_configs as a', 'a.id', '=','skills_matrix_training_needs.color_code')
+	->where('skills_matrix_training_needs.skills_matrix_config_id', $skills_matrix_config_id)
+	->where('skills_matrix_training_needs.skills_matrix_id', $skills_matrix_id)
+	->where('skills_matrix_training_needs.user_id', $user_id)
+	->where('skills_matrix_training_needs.active', 1)
+	->count();
+
+	if($user_exists=='0'){
+		$matrix_role_requirment_topology = App\Models\SkillsMatrix\SkillsMatrixRoleRequirment::where('skills_matrix_id', $skills_matrix_id)->where('active', 1)->get();	
+		if(sizeof($matrix_role_requirment_topology)){							
+				foreach($matrix_role_requirment_topology as $matrix_role){
+					$training_need_config =  new App\Models\Training\SkillsMatrixTrainingNeed;	
+					$training_need_config->skills_matrix_config_id = $matrix_role->skills_matrix_config_id;
+					$training_need_config->skills_matrix_id =$matrix_role->skills_matrix_id;
+					$training_need_config->user_id =$user_id;
+					$training_need_config->version_id = 1;		
+					$training_need_config->role_id = $matrix_role->role_id;
+					$training_need_config->role_name = $matrix_role->role_name;
+					$training_need_config->color_code = $default_color_code->id;
+					$training_need_config->code = $default_color_code->code;
+					$training_need_config->save();
+				}	
+		}			
+	}	
+}
+
+function getUserTrainingRolesValues($user_id,$user_role,$skills_matrix_config_id,$skills_matrix_id,$competence_history_date){
+	// If new user is added then add the defult tranning conf settings
+	check_is_new_user($user_id,$skills_matrix_config_id,$skills_matrix_id);
+
+	if(isset($competence_history_date) && !empty($competence_history_date)){
+		
+		$role_values =  App\Models\Training\SkillsMatrixTrainingNeed::leftJoin('skills_matrix_configurations as c', 'c.id', '=', 'skills_matrix_training_needs.skills_matrix_config_id')
+		->leftJoin('module_pre_configs as a', 'a.id', '=','skills_matrix_training_needs.color_code')
+		->where('skills_matrix_training_needs.skills_matrix_config_id', $skills_matrix_config_id)
+		->where('skills_matrix_training_needs.skills_matrix_id', $skills_matrix_id)
+		->where('skills_matrix_training_needs.role_id', $user_role)
+		->where('skills_matrix_training_needs.user_id', $user_id)
+		->where('skills_matrix_training_needs.active', 1)
+		->whereDate('skills_matrix_training_needs.created_at', $competence_history_date)
+		->selectRaw('skills_matrix_training_needs.id as role_auto_id,role_id, color_code,color,skills_matrix_training_needs.code')
+		->orderBy('version_id', 'desc')->first();
+			
+		$role_total_cnt =  App\Models\Training\SkillsMatrixTrainingNeed::leftJoin('skills_matrix_configurations as c', 'c.id', '=', 'skills_matrix_training_needs.skills_matrix_config_id')
+		->leftJoin('module_pre_configs as a', 'a.id', '=','skills_matrix_training_needs.color_code')
+		->where('skills_matrix_training_needs.skills_matrix_config_id', $skills_matrix_config_id)
+		->where('skills_matrix_training_needs.skills_matrix_id', $skills_matrix_id)
+		->where('skills_matrix_training_needs.user_id', $user_id)
+		->where('skills_matrix_training_needs.active', 1)
+		->whereDate('skills_matrix_training_needs.created_at', $competence_history_date)
+		->count();
+
+	}else{
+
+		$role_values =  App\Models\Training\SkillsMatrixTrainingNeed::leftJoin('skills_matrix_configurations as c', 'c.id', '=', 'skills_matrix_training_needs.skills_matrix_config_id')
+		->leftJoin('module_pre_configs as a', 'a.id', '=','skills_matrix_training_needs.color_code')
+		->where('skills_matrix_training_needs.skills_matrix_config_id', $skills_matrix_config_id)
+		->where('skills_matrix_training_needs.skills_matrix_id', $skills_matrix_id)
+		->where('skills_matrix_training_needs.role_id', $user_role)
+		->where('skills_matrix_training_needs.user_id', $user_id)
+		->where('skills_matrix_training_needs.active', 1)
+		->selectRaw('skills_matrix_training_needs.id as role_auto_id,role_id, color_code,color,skills_matrix_training_needs.code')
+		->orderBy('version_id', 'desc')->first();
+			
+		$role_total_cnt =  App\Models\Training\SkillsMatrixTrainingNeed::leftJoin('skills_matrix_configurations as c', 'c.id', '=', 'skills_matrix_training_needs.skills_matrix_config_id')
+		->leftJoin('module_pre_configs as a', 'a.id', '=','skills_matrix_training_needs.color_code')
+		->where('skills_matrix_training_needs.skills_matrix_config_id', $skills_matrix_config_id)
+		->where('skills_matrix_training_needs.skills_matrix_id', $skills_matrix_id)
+		->where('skills_matrix_training_needs.user_id', $user_id)
+		->where('skills_matrix_training_needs.active', 1)
+		->count();
+	}			
+	$response = array();
+	$response = array('role_values'=>$role_values,'role_total_cnt'=>$role_total_cnt);	  
+	
+	return $response;		 		
+}
