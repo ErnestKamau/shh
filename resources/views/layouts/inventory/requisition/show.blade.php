@@ -995,7 +995,7 @@
 									<th>#</th>
 									<th nowrap>Item</th>
 									<th nowrap>Brand</th>
-									<th nowrap>Comments/Location</th>
+									<th nowrap>Description/Location</th>
 									@if(in_array($stage, ['Request to Store', 'Material Issuance']))
 									<th nowrap>Issuing UoM</th>
 									@else

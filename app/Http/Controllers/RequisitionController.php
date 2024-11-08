@@ -3160,7 +3160,7 @@ class RequisitionController extends Controller
 				$subCat = \App\InventorySubCategories::find($subCatID);
 				$itemCat = \App\InventoryCategories::find($subCat->inventory_category_id);
 
-				if(isset($request->items['quantity_change_reason']) && trim($request->items['quantity_change_reason'][$i])!=""){
+				if(isset($request->items['quantity_change_reason']) && (isset($request->items['quantity_change_reason'][$i]) && trim($request->items['quantity_change_reason'][$i])!="")){
 					$note = new EntityNote;
 					$note->type = "Item Quantity Change Reason";
 					$note->title = "Quantity Changed for ".$subCat->name;
