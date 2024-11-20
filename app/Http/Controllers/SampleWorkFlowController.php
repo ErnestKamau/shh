@@ -686,7 +686,7 @@ class SampleWorkFlowController extends Controller
             </div>
 			';
             $contact = CustomerContact::find($header->crm_contact_id);
-            notify_user($body, $contact->email, '[POLUCON LIMS] Schedule Of Analysis ' . $header->batch_code,false,true,['customerservice@polucon.com']);
+            notify_user($body, $contact->email, '[POLUCON LIMS] Schedule Of Analysis ' . $header->batch_code,false,true,['donotreply@polucon.com']);
             $header->schedule_analysis_sent = date('Y-m-d');
             $header->schedule_analysis_sender = auth()->user()->id;
             $header->save();
@@ -3829,7 +3829,7 @@ class SampleWorkFlowController extends Controller
                 </p>
             </div>
 			';
-            notify_user($body, $contact->email, '[POLUCON LIMS] Schedule Of Analysis ' . $batch->batch_code,false,true,['customerservice@polucon.com']);
+            notify_user($body, $contact->email, '[POLUCON LIMS] Schedule Of Analysis ' . $batch->batch_code,false,true,['donotreply@polucon.com']);
 
             $batch->schedule_sent = 1;
             $batch->schedule_analysis_sent = date('Y-m-d');
@@ -4705,7 +4705,7 @@ class SampleWorkFlowController extends Controller
                 </p>
             </div>
             ';
-            notify_user($body, $customer->email, '[POLUCON LIMS] Schedule Of Analysis',false,true,['customerservice@polucon.com']);
+            notify_user($body, $customer->email, '[POLUCON LIMS] Schedule Of Analysis',false,true,['donotreply@polucon.com']);
             
             return redirect()->back()->with('success', 'Schedule of analysis sent successfully!');
         } else {
