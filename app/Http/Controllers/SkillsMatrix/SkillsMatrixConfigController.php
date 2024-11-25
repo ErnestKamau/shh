@@ -88,7 +88,7 @@ class SkillsMatrixConfigController extends Controller
 		}   
 
 		$training_type_phase = getConfigByName('skills_training_phase')->first();
-		$training_phases= explode(',',$training_type_phase->value);
+		$training_phases= isset($training_type_phase->id) ? explode(',',$training_type_phase->value) : [];
 
 		// Get all matrix role user 
 		$users = User::join('inventory_departments as d', 'd.id', '=', 'users.department_id')			

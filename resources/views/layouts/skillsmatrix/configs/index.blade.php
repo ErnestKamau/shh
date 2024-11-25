@@ -35,7 +35,7 @@
     ?>
     <x-bread-crumb :items="$items"></x-bread-crumb>
     <h2 class="p-4">
-      <i class="mdi mdi-format-list-bulleted-type"></i> @if($config  == 'Training' ) Training Proficiency  @else {{ $config }}  @endif          
+      <i class="mdi mdi-cogs"></i> @if($config  == 'Training' ) Training Proficiency  @else {{ $config == "Proficiency"  ? 'Skill ' : ""  }} {{ $config == "Competence" ? 'Areas of '.$config : $config  }}  @endif          
       <button class="btn btn-primary btn-sm float-right" data-toggle="modal" data-target="#add-config"><i class="mdi mdi-plus"></i> Add</button>
     </h2>
     <br>
@@ -43,9 +43,9 @@
       <table class="table table-condensed my-small-text table-striped table-hover table-bordered table-sm">
         <thead class="bg-light p-2">
           <tr>
-            @if($config  == 'Proficiency' || $config  == 'Roles' || $config  == 'Training')
-            <th>Level</th>  
-            @endif          
+            
+            <th>#</th>  
+                    
             <th>Name</th>
             <th>Description</th>
             
@@ -54,21 +54,17 @@
             <th class="text-center">Code</th>
             @endif
             <th>Active?</th>
-            <th></th>
           </tr>
         </thead>
         <tbody id="analytes-holder">
             @foreach($config_items as $item)
               <tr data-element="{{ $item->id }}">
-               @if($config  == 'Proficiency' || $config  == 'Job Description' || $config  == 'Training')
-                <td valign="center" nowrap style="font-size: 17px">
-                  <span style="cursor: pointer">
-                    <i class="mdi mdi-arrow-up-drop-circle move-analyte-up move-analyte" data-action="move-up"></i>
-                  </span>
-                  <span style="cursor: pointer">
-                    <i class="mdi mdi-arrow-down-drop-circle move-analyte-down move-analyte" data-action="move-down"></i> </span>
-                </td>  
-                @endif                     
+                <td>
+									<span class="btn btn-sm btn-default text-info" data-target="#edit-config" data-toggle="modal" data-config = "{{ json_encode($item) }}">
+										<i class="mdi mdi-pencil"></i>
+									</span>	
+                 			
+								</td>                   
                 <td>{{ $item->name ?? '' }}</td>
                 <td>{{ $item->description ?? '' }}</td>
                
@@ -77,12 +73,7 @@
                 <td class="text-center">{{ $item->code ?? '' }}</td>
                 @endif
                 <td class="text-small">{!! $item->active == '1' ? '<i class="mdi mdi-marker-check text-success"></i>' : '<i class="mdi mdi-close-circle text-danger"></i>' !!}</td>
-                <td>
-									<span class="btn btn-sm btn-default text-info" data-target="#edit-config" data-toggle="modal" data-config = "{{ json_encode($item) }}">
-										<i class="mdi mdi-pencil"></i>
-									</span>	
-                 			
-								</td>
+                
               </tr>
             @endforeach
         </tbody>
