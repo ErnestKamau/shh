@@ -14,3 +14,4 @@ yarn-error.log
 storage/*
 vendor_old/*
 vendor_old
+/public/images
