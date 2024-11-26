@@ -19,7 +19,7 @@ class SkillsMatrix extends Model implements Auditable
     }
     public function getJobDescriptionAttribute(){
         $descriptionIDS = SkillMarixRole::where('skills_matrix_id',$this->id)->pluck('job_description_id')->toArray();
-        $descriptionNames = ModulePreConfigs::where('id',$descriptionIDS)->pluck('name')->toArray();
+        $descriptionNames = ModulePreConfigs::whereIn('id',$descriptionIDS)->pluck('name')->toArray();
         return ['ids'=>$descriptionIDS,"names"=>$descriptionNames];
     }
 }

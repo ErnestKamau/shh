@@ -915,7 +915,9 @@ Route::get('/move-skills-type/{direction}/{module}/{element}', 'SkillsMatrix\Mod
 /* MODULE SKILLS MATRIX */
 Route::get('/matrix', 'SkillsMatrix\SkillsMatrixController@index')->name('matrix');
 Route::post('/matrix', 'SkillsMatrix\SkillsMatrixController@add')->name('assign-matrix');
-Route::post('/matrix/{condition}', 'SkillsMatrix\SkillsMatrixController@edit')->name('edit-matrix');
+Route::post('/matrix/edit', 'SkillsMatrix\SkillsMatrixController@edit')->name('edit-matrix');
+Route::get('/matrix/show/{id}','SkillsMatrix\SkillsMatrixController@show')->name('show-matrix');
+
 Route::get('/matrix-config/{module}', 'SkillsMatrix\SkillsMatrixConfigController@index')->name('matrix-config');
 Route::get('/matrix-config/{module}/{id}', 'SkillsMatrix\SkillsMatrixConfigController@getTopologies')->name('topology');
 Route::post('/matrix-config-add/{matrix_id}/{id}', 'SkillsMatrix\SkillsMatrixConfigController@add')->name('topology-add');

@@ -66,7 +66,7 @@
 			<div class="icon w3-amber"><i class="mdi mdi-calendar"></i></div>
 			<div class="small w3-padding-small">System Planner</div>
 		</a>
-		<a class="app"  href="#">
+		<a class="app"  href="{{route('matrix')}}">
 				<div class="icon w3-grey"><i class="mdi mdi-account-star-outline"></i></div>
 				<div class="small w3-padding-small">Skills Matrix</div>
 			</a>

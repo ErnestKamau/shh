@@ -22,7 +22,9 @@
    <x-bread-crumb :items="$items"></x-bread-crumb>
    <h2 class="p-4">
       <i class="mdi mdi-account-star-outline"></i> Skills <small class="text-muted">  | Matrix </small>
+      @if($matrix_info->count() == 0 && $can_edit_skills_matrix == 1)
       <span class="btn btn-sm btn-outline-primary float-right" data-target="#add-config" data-toggle="modal"><i class="mdi mdi-plus"></i> Generate Matrix</span>
+      @endif
    </h2>
    <div class="p-4">
       <div class="card">
@@ -33,96 +35,26 @@
                      <tr>
                         <th>#</th>
                         <th>Matrix Name</th>
+                        <th>Department</th>
+                        <th>Roles</th>
                         <th>Created At</th>
-                        <th>Align Roles</th>
                      </tr>
                   </thead>
                   <tbody>
-                     
-                     @if(count($matrix_information['active']) > 0)
-                     @foreach($matrix_information['active'] as $matrix_info)
-                     <?php
-                        $roles = explode(',',$matrix_info->matrix_role_ids);
-                        $roles_information = getMatrixRoles($roles);
-                        
-                        ?>
-                     <tr data-element="{{ $matrix_info->id }}">
-                        <td valign="center">{{ $loop->iteration }}</td>
-                        <td>{{ $matrix_info->name }}</td>
-                        <td>{{ $matrix_info->department}}</td>
-                        <td>{{ $matrix_info->training_year}}</td>
-                        <td> 
-                           @if($roles_information)  
-                           @foreach($roles_information as $role)					
-                           {{ $loop->iteration }}. {{$role->description}}<br/>				
-                           @endforeach
-                           @endif
-                        </td>
-                        <td class="text-small">{!! $matrix_info->status == '1' ? '<i class="mdi mdi-marker-check text-success"></i>' : '<i class="mdi mdi-close-circle text-danger"></i>' !!}</td>
+                     @foreach($matrix_info as $matrix)
+                     <tr>
                         <td>
-                           @if($can_edit_skills_matrix)
-                           <button class="btn btn-primary btn-sm" data-target="#edit-active-matrix-{{ $matrix_info->id }}" data-toggle="modal"><i class="mdi mdi-pencil-outline"></i> <small class="hidden-sm-up">Edit</small> </button>
-                           @endif 
-                           <a class="btn btn-outline-success btn-sm" href="{{ route('matrix-config', ['module'=>$matrix_info->id]) }}"  title="View"><i class="mdi mdi-eye-outline"></i> <small class="hidden-sm-up">Show</small> </a>
-                           <div id="edit-active-matrix-{{ $matrix_info->id}}" class="modal fade" role="dialog">
-                              <div class="modal-dialog">
-                                 <!-- Modal content-->
-                                 <form class="modal-content edit" method="POST" action="{{ route('edit-matrix', ['condition'=>$matrix_info->id]) }}" enctype="multipart/form-data">
-                                    @csrf
-                                    <div class="modal-header">
-                                       <h4 class="modal-title"><i class="mdi mdi-pencil-outline"></i> Edit  Matrix - {{ $matrix_info->name }}</h4>
-                                    </div>
-                                    <div class="modal-body">
-                                       <div class="form-group">
-                                          <label class="control-label">Matrix Name<span class="text-danger">*</span></label>
-                                          <input type="text" class="form-control" id="matrix_name" name="name"  value="{{$matrix_info->name}}" placeholder="Name..." required />
-                                       </div>
-                                       <div class="form-group">
-                                          <label class="control-label">Department<span class="text-danger">*</span></label>
-                                          <select class="form-control" name="department_id" data-placeholder required>
-                                             <option value="">Select Department...</option>
-                                             @foreach ($departments as $c)
-                                             <option value="{{ $c->id }}" {{ $c->id == $matrix_info->department_id ? 'selected' : '' }}>{{ $c->name }}</option>
-                                             @endforeach
-                                          </select>
-                                       </div>
-
-                                       <div class="form-group">
-                                          <label class="control-label">Select Training Year<span class="text-danger">*</span></label>
-                                          <select class="form-control" name="training_year" data-placeholder required>
-                                             @for ($year = (int)date('Y'); date('Y', strtotime('+5 year')) >= $year; $year++)
-                                                @if ($year == $matrix_info->training_year)
-                                                <option selected value="{{ $year }}">{{ $year }}</option>
-                                                @else
-                                                <option value="{{ $year }}">{{ $year }}</option>
-                                                @endif
-                                             @endfor
-                                          </select>
-                                       </div>
-
-                                       <div class="form-group">
-                                          <label class="control-label">Matrix Align Roles<span class="text-danger">*</span></label>
-                                          <select class="form-control" id="selMulti" name="matrix_role_ids[]" data-placeholder multiple required>                                              
-                                             @foreach ($roles_info as $c)
-                                             <option value="{{ $c->id }}" {{ in_array($c->id, $roles) ? 'selected' : '' }} >{{ $c->description }}</option>
-                                             @endforeach
-                                          </select>
-                                       </div>
-                                       <div class="form-group">                            
-                                          <label class="control-label"><input type="checkbox" name="status" value="1" {{ $matrix_info->status == 1 ? 'checked' : '' }} /> Active</label>
-                                       </div>
-                                    </div>
-                                    <div class="modal-footer">                                          
-                                       <button type="submit" data-roles="{{$matrix_info->matrix_role_ids}}"  class="btn btn-primary update_matrix"><i class="mdi mdi-content-save"></i> Save</button>
-                                       <button type="button" class="btn btn-default" data-dismiss="modal">Close</button>
-                                    </div>
-                                 </form>
-                              </div>
-                           </div>
+                           @if($can_edit_skills_matrix == 1)
+                           <span class="btn btn-sm btn-default text-primary" data-toggle="modal" data-target="#edit-matrix" data-record="{{json_encode($matrix)}}"><i class="mdi mdi-pencil" data-toggle="tooltip" data-title="Edit"></i></span>
+                           @endif
+                           <a href="{{route('show-matrix',['id'=>$matrix->id])}}" class="btn btn-sm btn-default test-success"><i class="mdi mdi-eye" data-toggle="tooltip" data-title="View" ></i></a>
                         </td>
+                        <td>{{$matrix->name}}</td>
+                        <td>{{$matrix->department}}</td>
+                        <td>{{implode(', ',$matrix->jobdescription['names'])}}</td>
+                        <td>{{date('Y-m-d',strtotime($matrix->created_at))}}</td>
                      </tr>
                      @endforeach
-                     @endif
                   </tbody>
                </table>
             </div>
@@ -146,9 +78,21 @@
                <label class="control-label">Matrix Name <span class="text-danger">*</span></label>
                <input type="text" class="form-control" name="name"  value="" placeholder="Name..." required />
             </div> 
+
             <div class="form-group">
-               <label class="control-label">Matrix Job Descriptions <span class="text-danger">*</span></label>
+               <label for="" class="control-label">Department</label>
+               <select name="department_id" id="" class="form-control">
+                  <option value="">Select Department</option>
+                  @foreach ($departments as $department)
+                     <option value="{{$department->id}}">{{$department->name}}</option>
+                  @endforeach
+               </select>
+            </div>
+
+            <div class="form-group">
+               <label class="control-label">Matrix Roles <span class="text-danger">*</span></label>
                <select class="form-control" name="matrix_role_ids[]" data-placeholder multiple required>                
+                  <option value="">Select Role</option>
                   @foreach ($roles_info as $c)
                   <option value="{{ $c->id }}">{{ $c->description }}</option>
                   @endforeach
@@ -160,16 +104,78 @@
          </div>
          <div class="modal-footer">
             <input type="hidden" name="matrix_id" value="0" />
-            <button type="submit" class="btn btn-primary"><i class="mdi mdi-content-save"></i> Save</button>
+            <button type="submit" class="btn btn-outline-primary"><i class="mdi mdi-content-save"></i> Save</button>
             <button type="button" class="btn btn-default" data-dismiss="modal">Close</button>
          </div>
       </form>
    </div>
 </div>
+<div class="modal fade" id="edit-matrix" role="dialog">
+   <div class="modal-dialog">
+      <div class="modal-content">
+         <form action="{{route('edit-matrix')}}" method="post">
+            @csrf
+            <div class="modal-body">
+              
+            </div>
+            <div class="modal-footer">
+               <button type="submit" class="btn btn-outline-primary"><i class="mdi mdi-content-save"></i> Save</button>
+               <button type="button" class="btn btn-default" data-dismiss="modal">Close</button>
+            </div>
+         </form>
+      </div>
+   </div>
+</div>
 <script type="text/javascript">
 			
     $(document).ready(function(){
-			
+			var editMatrixBody = (data)=>{
+            var body = $(`
+             <div class="alert alert-primary d-flex p-2">
+                  <i class="mdi mdi-alert-decagram-outline" style="font-size:30px"></i>
+                  <div class="pl-2">Edit ${data.name} skills matrixs information below. Kindly note the changes made may affect the capability matrix configuration as well as training plan and needs generated by the system.</div>
+               </div>
+               <div class="form-group">
+                  <label class="control-label">Matrix Name <span class="text-danger">*</span></label>
+                  <input type="text" class="form-control" name="name"  value="${data.name}" placeholder="Name..." required />
+               </div> 
+
+               <div class="form-group">
+                  <label for="" class="control-label">Department</label>
+                  <select name="department_id" id="" class="form-control department_id">
+                     <option value="">Select Department</option>
+                     @foreach ($departments as $department)
+                        <option value="{{$department->id}}">{{$department->name}}</option>
+                     @endforeach
+                  </select>
+               </div>
+
+               <div class="form-group">
+                  <label class="control-label">Matrix Roles <span class="text-danger">*</span></label>
+                  <select class="form-control role_id" name="matrix_role_ids[]" data-placeholder multiple required>                
+                     <option value="">Select Role</option>
+                     @foreach ($roles_info as $c)
+                     <option value="{{ $c->id }}">{{ $c->description }}</option>
+                     @endforeach
+                  </select>
+               </div>
+               <div class="form-group">                            
+                  <label class="control-label"><input type="checkbox" name="status" value="1" ${data.status == 1 ? 'checked' : '' }/> Active</label>
+               </div>
+               <input type="hidden" name="matrix_id" value="${data.id}" />
+            `).clone();
+            $(body).find('.department_id').val(data.department_id);
+            $(body).find('.role_id').val(data.jobdescription['ids']);
+            $(body).find('.department_id').select2();
+            $(body).find('.role_id').select2();
+            return body;
+         }
+         $('#edit-matrix').on('show.bs.modal',(e)=>{
+            $('#edit-matrix').find('.modal-body').empty();
+            var data = $(e.relatedTarget).data('record');
+            var body =editMatrixBody(data);
+            $('#edit-matrix').find('.modal-body').append(body);
+         });
     });
 
 	
