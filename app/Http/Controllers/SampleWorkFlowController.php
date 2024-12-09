@@ -84,6 +84,14 @@ class SampleWorkFlowController extends Controller
         }
         $labsections = SampleAnalysisStage::where('active', 1)->get();
         $zoho_items = InventorySubCategories::all();
+        $role_a = SystemConfiguration::where('key', 'analyst_role_id')->first();
+        $analysts = User::orderBy('name')->join('user_roles as ur', 'ur.user_id', '=', 'users.id')
+            ->join('roles as r', 'r.id', '=', 'ur.role_id')
+            ->where('r.id', $role_a->value)->where('users.active', 1)->where('users.is_support_staff', 0)->selectRaw('users.*')->get();
+        $users = User::where('is_client', 0)->where('supplier_id', 0)->where('active', 1)->get();
+        
+        $clients = [];
+        $sampletypes = [];
 
         // return response()->json('test');
         if ($status == 'Finished Sample') {
@@ -123,9 +131,49 @@ class SampleWorkFlowController extends Controller
 
 
         }
-        $batches = SampleHeader::with('samples')->where('isactive', 1)->orderBy('receipt_date', 'desc');
-
-        if ($status != 'All Samples') {
+        if($status == 'All Samples'){
+            $clients = CRMCustomer::where('active',1)->get();
+            $sampletypes = SampleType::where('active',1)->get();
+            $tat_to = 0;
+            $batches = SampleHeader::query();
+            $batches = $batches->with('samples')->where('isactive', 1)->orderBy('receipt_date', 'desc');
+            if($request->customer_id && $request->customer_id != '' && $request->customer_id != 'All'){
+                $batches = $batches->where('crm_customer_id',$request->customer_id);
+            }
+            if($request->sample_type_id && $request->sample_type_id != '' && $request->sample_type_id != 'All'){
+                $batches = $batches->where('sample_type_id',$request->sample_type_id);
+            }
+            if($request->receipt_date_from && $request->receipt_date_from != ''){
+                $batches = $batches->where('receipt_date','>=',$request->receipt_date_from);
+            }
+            if($request->receipt_date_to && $request->receipt_date_to != '' ){
+                $batches = $batches->where('receipt_date','<=',$request->receipt_date_to);
+            }
+            if($request->tat_date_from && $request->tat_date_from != ''){
+                $tatbatch = SampleDate::query();
+                $tatbatch = $tatbatch->where('name','Target Date');
+                $tatbatch = $tatbatch->where('date','>=',$request->tat_date_from);
+                if($request->tat_date_to && $request->tat_date_to != ''){
+                    $tatbatch = $tatbatch->where('date','<=',$request->tat_date_from);
+                    $tat_to = 1;
+                }
+                $tatbatchIDs = $tatbatch->pluck('sample_header_id')->toArray();
+                $batches = $batches->whereIn('id',$tatbatchIDs);
+            }
+            if($request->tat_date_to && $request->tat_date_to != ''){
+                $tatbatch = SampleDate::where('name','Target Date')->where('date','<=',$request->tat_date_to);
+                $batches = $batches->whereIn('id',$tatbatch);
+            }
+            if($request->schedule_sent && $request->schedule_sent != ''){
+                if($request->schedule_sent == 'sent'){
+                    $batches = $batches->where('schedule_analysis_sent',1);
+                }elseif($request->schedule_sent == 'not_sent'){
+                    $batches = $batches->where('schedule_analysis_sent',0); 
+                }
+            }
+            $batches = $batches->orderBy('receipt_date', 'desc')->get();
+        }else{
+            $batches = SampleHeader::with('samples')->where('isactive', 1)->orderBy('receipt_date', 'desc');
             if ($status == 'Schedule of Analysis') {
                 $q = 'Samples In Lab';
                 $l = 1;
@@ -133,22 +181,10 @@ class SampleWorkFlowController extends Controller
             } else {
                 $batches = $batches->where('status', $status)->orWhere('prelim_batch_status', $status);
             }
-        } else {
-            $batches = $batches->where('status', '!=', 'Completed')->orWhere('prelim_batch_status', '!=', '');
+            $batches = $batches->get();
         }
 
-        $batches = $batches->get();
-        // return response()->json($batches);
-
-        // return json_encode($batches);
-
-        $role_a = SystemConfiguration::where('key', 'analyst_role_id')->first();
-        $analysts = User::orderBy('name')->join('user_roles as ur', 'ur.user_id', '=', 'users.id')
-            ->join('roles as r', 'r.id', '=', 'ur.role_id')
-            ->where('r.id', $role_a->value)->where('users.active', 1)->where('users.is_support_staff', 0)->selectRaw('users.*')->get();
-        $users = User::where('is_client', 0)->where('supplier_id', 0)->where('active', 1)->get();
-
-        return view('layouts.lab.sample-workflow.index', compact('batches', 'status', 'analysts', 'labsections', 'users','zoho_items'));
+        return view('layouts.lab.sample-workflow.index', compact('batches', 'status', 'analysts', 'labsections', 'users','zoho_items','sampletypes','clients'));
     }
 
     public function print_labels(Request $request)
@@ -613,14 +649,44 @@ class SampleWorkFlowController extends Controller
         $targetDate->save();
 
         if (isset($request->send_schedule) && $request->send_schedule == 1 && $header->schedule_analysis_sender == '') {
+            $samples = SampleDetails::where('sample_header_id',$header->id)->pluck('sample_code')->toArray();
+            $sampleTrs = '';
+            foreach($samples as $sample){
+                $sampleTrs = "";
+                foreach($samples as $sample){
+                    $target_date = date('Y-m-d',strtotime($targetDate->date));
+                    $sampleTrs .= '
+                    <tr>
+                        <td style="padding: 8px; border: 1px solid #ddd;">'.htmlspecialchars($sample).'</td>
+                        <td style="padding: 8px; border: 1px solid #ddd;">'.htmlspecialchars($target_date).'</td>
+                    </tr>';
+                    
+                }
+            }
             $body = '
-			<p>
-					Dear Esteemed client, <br><br>
-					We acknowledge receipt of your sample(s) submitted to our laboratory. The sample(s) have been forwarded to our laboratory and analysis is scheduled to start anytime from now.<br><br>We will keep you updated on the progress report(s).<br><br>Thank you for the opportunity to serve you.
-					
-				</p>
+			<div style="font-family: Arial, sans-serif; color: #333; line-height: 1.6;">
+                <p style="font-size: 16px;">
+                    Dear Esteemed Client, <br><br>
+                    We acknowledge receipt of your sample(s) submitted to our laboratory. The sample(s) have been forwarded to our laboratory, and analysis is scheduled to start anytime from now.<br>Sample Information : 
+                </p>
+
+                <table style="width: 100%; border-collapse: collapse; margin-top: 15px;">
+                    <tr>
+                        <th style="text-align: left; padding: 8px; background-color: #f2f2f2; border: 1px solid #ddd;">Sample Reference No</th>
+                        <th style="text-align: left; padding: 8px; background-color: #f2f2f2; border: 1px solid #ddd;">Expected Results Date</th>
+                    </tr>
+                    '.$sampleTrs.'
+                </table>
+
+                <p style="font-size: 16px; margin-top: 15px;">
+                    <br>
+                    We will keep you updated on the progress report(s).<br>
+                    Thank you for the opportunity to serve you.
+                </p>
+            </div>
 			';
-            notify_user($body, $selectedCustomer->email, '[POLUCON LIMS] Schedule Of Analysis ' . $batch->batch_code);
+            $contact = CustomerContact::find($header->crm_contact_id);
+            notify_user($body, $contact->email, '[POLUCON LIMS] Schedule Of Analysis ' . $header->batch_code,false,true,['donotreply@polucon.com']);
             $header->schedule_analysis_sent = date('Y-m-d');
             $header->schedule_analysis_sender = auth()->user()->id;
             $header->save();
@@ -3054,11 +3120,15 @@ class SampleWorkFlowController extends Controller
                 
                 return response()->json(['error' => 'The specified customer has no currency assigned']);
             }
-            $default_currency = ModulePreConfigs::find(338);
+            if(!isset($customer->zohocustomer->zoho_contact_id)){
+                return response()->json(['error' => 'The specified customer has not been tied to zoho customer']);
+            }
+            $module = "Inventory-Management";
+            $defaultCurrency = ModulePreConfigs::where('type', 'Currency')->where('module', $module)->where("name", "KES")->first();
 
             $invoice = new Invoice();
             $invoice->pricelist_id = 0;
-            $invoice->currency_id = $customer->currency_id > 0  ? $customer->currency_id : 338;
+            $invoice->currency_id = $customer->currency_id > 0  ? $customer->currency_id : $defaultCurrency->id;
             $invoice->customer_id = $customer->id;
             $invoice->zoho_customer_id = $customer->zohocustomer->zoho_contact_id;
             $invoice->save();
@@ -3135,40 +3205,50 @@ class SampleWorkFlowController extends Controller
     {
         $invoice = Invoice::with(['currencyinfo', 'crmCustomer'])->find($invoice_id);
         $details = InvoiceDetails::where('invoice_id', $invoice_id)->get();
+        $batchids = SampleHeader::where('invoice_id',$invoice->id)->pluck('id')->toArray();
+        $sample = SampleDetails::whereIn('sample_header_id',$batchids)->orderBy('id','ASC')->first();
         $lineitems = [];
         $itemcounter = 0;
         foreach ($details as $detail) {
             $lineitems[] = [
                 "item_order" => $itemcounter,
                 "item_id" => $detail->zoho_item_id,
-                "rate" => $detail->final_unit_price,
+                "rate" => $detail->selling_price,
                 "name" => $detail->zoho_item_name,
-                "description" => $detail->analysis_type_name.' '.$detail->samplecodes,
+                "description" => $detail->analysis_title,
                 "quantity" => $detail->quantity,
                 "discount" => $detail->discount > 0 ? ($detail->discount_type == 'percentage' ? $detail->discount.'%' : $detail->discount) : 0,
             ];
             $itemcounter = $itemcounter + 1;
         }
+
         $salesOrder = [
             "customer_id" => $invoice->zoho_customer_id,
             "currency_id" => $invoice->currencyinfo->zoho_id,
             "date" => date('Y-m-d'),
             "line_items" => $lineitems,
-            "reference_number" => $invoice->invoice_number,
+            "reference_number" => $sample->sample_code,
             "custom_fields"=>[
-                "customfield_id" => config('zoho.ZOHO_SO_IMARAUSER_FIELD'),
-                "value" => auth()->user()->name,
+                [
+                    "customfield_id" => config('zoho.ZOHO_SO_IMARAUSER_FIELD'),
+                    "value" => auth()->user()->name,
+                ]
             ],
+
         ];
+       
         // return response()->json($salesOrder);
         $zohoService = new ZohoController();
         $zoho_sales = $zohoService->createSalesrder($salesOrder);
-        if ($zoho_sales != 0) {
-            $invoice->sales_order_id = $zoho_sales;
+        $zoho_sales_id =  isset($zoho_sales['salesorder']['salesorder_id']) ? $zoho_sales['salesorder']['salesorder_id'] : 0;
+        $invoice->zoho_response = json_encode($zoho_sales);
+        if ($zoho_sales_id != 0) {
+            $invoice->sales_order_id = $zoho_sales_id;
             $invoice->save();
             return response()->json(['success' => 'Sales Order Created successfully!', 'invoice' => $invoice]);
         }
-        return response()->json(['error' => 'Sales Order not created successfully!', 'invoice' => $invoice]);
+        $invoice->save();
+        return response()->json(['error' => 'Sales Order not created successfully!', 'invoice' => $invoice,'zoho_res'=>$zoho_sales,'salesorder'=>$salesOrder]);
     }
 
     public function return_back_verification(Request $request)
@@ -3711,20 +3791,56 @@ class SampleWorkFlowController extends Controller
     {
         $batch = SampleHeader::find($request->batch_id);
         $samples = SampleDetails::where('sample_header_id', $batch->id)->get();
+        $sampleTrs = "";
+        foreach($samples as $sample){
+            $target_date = date('Y-m-d',strtotime($sample->targetDateRelation()));
+            $sampleTrs .= '
+            <tr>
+                <td style="padding: 8px; border: 1px solid #ddd;">'.htmlspecialchars($sample->sample_code).'</td>
+                <td style="padding: 8px; border: 1px solid #ddd;">'.htmlspecialchars($target_date).'</td>
+            </tr>';
+            
+        }
+        
         $customer = CrmCustomer::find($batch->crm_customer_id);
-        $sampleTrs = '';
         $contact = CustomerContact::find($request->contact_id);
         if (isset($contact->id) && $contact->email != '') {
             // return response()->json($sampleTrs);
 
             $body = '
-			<p>
-					Dear Esteemed client, <br><br>
-					We acknowledge receipt of your sample(s) submitted to our laboratory. The sample(s) have been forwarded to our laboratory and analysis is scheduled to start anytime from now.<br><br>We will keep you updated on the progress report(s).<br><br>Thank you for the opportunity to serve you.
-					
-				</p>
+			<div style="font-family: Arial, sans-serif; color: #333; line-height: 1.6;">
+                <p style="font-size: 16px;">
+                    Dear Esteemed Client, <br><br>
+                    We acknowledge receipt of your sample(s) submitted to our laboratory. The sample(s) have been forwarded to our laboratory, and analysis is scheduled to start anytime from now.<br>Sample Information : 
+                </p>
+
+                <table style="width: 100%; border-collapse: collapse; margin-top: 15px;">
+                    <tr>
+                        <th style="text-align: left; padding: 8px; background-color: #f2f2f2; border: 1px solid #ddd;">Sample Reference No</th>
+                        <th style="text-align: left; padding: 8px; background-color: #f2f2f2; border: 1px solid #ddd;">Expected Results Date</th>
+                    </tr>
+                    '.$sampleTrs.'
+                </table>
+
+                <p style="font-size: 16px; margin-top: 15px;">
+                    <br>
+                    We will keep you updated on the progress report(s).<br>
+                    Thank you for the opportunity to serve you.
+                </p>
+            </div>
 			';
-            notify_user($body, $contact->email, '[POLUCON LIMS] Schedule Of Analysis ' . $batch->batch_code);
+            notify_user($body, $contact->email, '[POLUCON LIMS] Schedule Of Analysis ' . $batch->batch_code,false,true,['donotreply@polucon.com']);
+
+            $batch->schedule_sent = 1;
+            $batch->schedule_analysis_sent = date('Y-m-d');
+            $batch->schedule_analysis_sender = auth()->user()->id;
+            $batch->save();
+            $schedule_str = 'Schedule Of Analysis Sendoff';
+            $schedueDate = SampleDate::where('sample_header_id', $batch->id)->where('name',$schedule_str)->first() ?? new SampleDate();
+            $schedueDate->name = $schedule_str;
+            $schedueDate->sample_header_id = $batch->id;
+            $schedueDate->date = date('Y-m-d');
+            $schedueDate->save();
 
             return redirect()->back()->with('success', 'Schedule of analysis sent out successfully');
         }
@@ -3752,6 +3868,10 @@ class SampleWorkFlowController extends Controller
     {
         // return response()->json($request->all());
         $status = 'Samples In Lab';
+        $checkSalesOrder = SampleHeader::whereIn('batch_code',$request->batch_code)->where('invoice_id',0)->get();
+        if($checkSalesOrder->count() > 0){
+            return redirect()->back()->with('error','Some of the selected selected batches have no Sales Order generated. Kindly generate the Sales Order before proceeding with the proccess!');
+        }
         foreach ($request->batch_code as $code) {
             $batch = SampleHeader::where('batch_code', $code)->first();
             $previousWorkflow = $batch->status;
@@ -4530,7 +4650,23 @@ class SampleWorkFlowController extends Controller
         $customer = CrmCustomer::find(array_unique($batch_customers)[0]);
         // return response()->json(array_unique($batch_customers));
         $batch_ids = SampleHeader::whereIn('batch_code', $request->batch_code)->pluck('id')->toArray();
-        $samples = SampleDetails::whereIn('sample_header_id', $batch_ids)->pluck('sample_code')->toArray();
+        $samples = SampleDetails::whereIn('sample_header_id', $batch_ids)->get();
+        $sampletrs = '';
+        $sampleTrs = "";
+        foreach($samples as $sample){
+            $target_date = date('Y-m-d',strtotime($sample->targetDateRelation()));
+            $sampleTrs .= '
+            <tr>
+                <td style="padding: 8px; border: 1px solid #ddd;">'.htmlspecialchars($sample->sample_code).'</td>
+                <td style="padding: 8px; border: 1px solid #ddd;">'.htmlspecialchars($target_date).'</td>
+            </tr>';
+            
+        }
+        
+        // return response()->json(samples);
+        foreach($samples as $sample){
+            
+        }
         if ($customer->email != '') {
             foreach ($batch_ids as $b_ids) {
                 $header = SampleHeader::find($b_ids);
@@ -4548,16 +4684,29 @@ class SampleWorkFlowController extends Controller
             }
 
             $body = '
-            <p>
-                Dear Esteemed client, <br><br>
-                We acknowledge receipt of your sample(s) submitted to our laboratory. The sample(s) have been forwarded to our
-                laboratory and analysis is scheduled to start anytime from now.<br>The sample(s) number(s) are : ' . implode(',
-                ', $samples) . '. <br><br>We will keep you updated on the progress report(s).<br><br>Thank you for the opportunity to
-                serve you.
-            
-            </p>
+            <div style="font-family: Arial, sans-serif; color: #333; line-height: 1.6;">
+                <p style="font-size: 16px;">
+                    Dear Esteemed Client, <br><br>
+                    We acknowledge receipt of your sample(s) submitted to our laboratory. The sample(s) have been forwarded to our laboratory, and analysis is scheduled to start anytime from now.<br>Sample Information : 
+                </p>
+
+                <table style="width: 100%; border-collapse: collapse; margin-top: 15px;">
+                    <tr>
+                        <th style="text-align: left; padding: 8px; background-color: #f2f2f2; border: 1px solid #ddd;">Sample Reference No</th>
+                        <th style="text-align: left; padding: 8px; background-color: #f2f2f2; border: 1px solid #ddd;">Expected Results Date</th>
+                    </tr>
+                    '.$sampleTrs.'
+                </table>
+
+                <p style="font-size: 16px; margin-top: 15px;">
+                    <br>
+                    We will keep you updated on the progress report(s).<br>
+                    Thank you for the opportunity to serve you.
+                </p>
+            </div>
             ';
-            notify_user($body, $customer->email, '[POLUCON LIMS] Schedule Of Analysis');
+            notify_user($body, $customer->email, '[POLUCON LIMS] Schedule Of Analysis',false,true,['donotreply@polucon.com']);
+            
             return redirect()->back()->with('success', 'Schedule of analysis sent successfully!');
         } else {
             return redirect()->back()->with('error', 'Kindly set an email to the specified customer');
@@ -4703,14 +4852,13 @@ class SampleWorkFlowController extends Controller
     }
 
     public function updateInvoiceDetails(Request $request){
-
         foreach($request->details as $detail){
             
             $total = $detail['final_price'] * $detail['quantity'];
 
             if($detail['invoice_detail_id'] > 0){
 
-                InvoiceDetails::find($detail['invoice_detail_id'])->update(['quantity'=>$detail['quantity'],'selling_price'=>$detail['unit_price'],"final_unit_price"=>$detail['final_price'],'total'=>$total,'discount'=>$detail['discount'],'discount_type'=>$detail['discount_type']]);
+                InvoiceDetails::find($detail['invoice_detail_id'])->update(['quantity'=>$detail['quantity'],'selling_price'=>$detail['unit_price'],"final_unit_price"=>$detail['final_price'],'total'=>$total,'discount'=>$detail['discount'],'discount_type'=>$detail['discount_type'],'analysis_title'=>$detail['title']]);
                 $invoice_detail = InvoiceDetails::with('invoice')->find($detail['invoice_detail_id']);
             }else{
                 $invoice = Invoice::find($detail['invoice_id']);
@@ -4727,6 +4875,7 @@ class SampleWorkFlowController extends Controller
                 $invoice_detail->final_unit_price = $detail['final_price'];
                 $invoice_detail->discount = $detail['discount'];
                 $invoice_detail->discount_type = $detail['discount_type'];
+                $invoice_detail->analysis_title = $detail['title'];
                 $invoice_detail->total = $total;
                 $invoice_detail->crm_customer_id = $invoice->customer_id;
                 $invoice_detail->analysis_type_name = $item->zoho_name;

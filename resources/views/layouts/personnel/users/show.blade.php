@@ -382,7 +382,7 @@
 										<label class="control-label">Position *</label>
 										<select name="position" class="form-control" placeholder="Position..." required>
 											<option></option>
-											@foreach (getModulePreconfig("Job Description", "Personnel-Management") as $item)
+											@foreach (getModulePreconfig("Job Description", ["Personnel-Management","Skills-Matrix"]) as $item)
 											<option value="{{ $item->id }}" {{ $user->position == $item->id ? 'selected' : ''  }}>{{ $item->name }}</option>
 											@endforeach
 										</select>

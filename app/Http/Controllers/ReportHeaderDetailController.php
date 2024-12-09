@@ -123,7 +123,7 @@ class ReportHeaderDetailController extends Controller
 		return redirect()->back()->with('success', 'Report .processed successfully.');
 	}
 
-	public function process_pdf_report($batch_id, $report_format,$include_pesticide = 0)
+	public function process_pdf_report($batch_id, $report_format, $include_pesticide = 0)
 	{
 		// return response()->json('success3');
 		$path = public_path('images/company_logo.png');
@@ -137,17 +137,17 @@ class ReportHeaderDetailController extends Controller
 		$batch->processing_date = getTodayDate();
 		$batch->in_ammendment_proccess = 0;
 		$batch->save();
-		$main_lab = implode(' ,',array_unique(SamplesCategory::where('sample_header_id', $batch->id)->pluck('main_lab_name')->toArray()));
+		$main_lab = implode(' ,', array_unique(SamplesCategory::where('sample_header_id', $batch->id)->pluck('main_lab_name')->toArray()));
 		//AnalysisType::whereNull('brand_id')->update(['brand_id'=>0]);
-		$ammendment = BatchAmmendment::where('batch_id',$batch->id)->where('version_number',$batch->is_amendment)->first();
+		$ammendment = BatchAmmendment::where('batch_id', $batch->id)->where('version_number', $batch->is_amendment)->first();
 		$report_type = '';
 		$report_type = $batch->prelim_report_status == 1 ? 'PRELIM' : $report_type;
 		$report_type = $batch->prelim_report_status == 2 ? 'DRAFT' : $report_type;
-		
-		$batch_approvers = BatchLabSectionApprover::where('batch_id', $batch->id)->where('show_report',1)->where('status', 1)->get();
-		
-		$is_stamp =  BatchLabSectionApprover::where('batch_id', $batch->id)->where('show_report',1)->where('status', 1)->where('batch_status','Sample Approval')->first();
-		$analysis_date = SampleAnalysisDates::where('sample_header_id',$batch->id)->orderBy('start_analysis_date','DESC')->first();
+
+		$batch_approvers = BatchLabSectionApprover::where('batch_id', $batch->id)->where('show_report', 1)->where('status', 1)->get();
+
+		$is_stamp = BatchLabSectionApprover::where('batch_id', $batch->id)->where('show_report', 1)->where('status', 1)->where('batch_status', 'Sample Approval')->first();
+		$analysis_date = SampleAnalysisDates::where('sample_header_id', $batch->id)->orderBy('start_analysis_date', 'DESC')->first();
 		// return response()->json($analysis_date->start_analysis_date);
 
 		$disclaimer = SystemConfiguration::where('key', 'lab_report_disclaimer_config')->first();
@@ -159,7 +159,7 @@ class ReportHeaderDetailController extends Controller
 		// $batch_view  = SampleResults::where('batch_id', $batch->id)->orderBy('analysis_level','asc')->orderBy('analyte_level','asc')->get();
 
 		$customer_name = preg_replace('/[^A-Za-z0-9]/', '', $customer->name);
-		$batch_code = preg_replace('/[^A-Za-z0-9]/', '', $batch->batch_code); 
+		$batch_code = preg_replace('/[^A-Za-z0-9]/', '', $batch->batch_code);
 		if ($batch->document_number != '') {
 			$filename = $customer_name . '-' . $batch_code . '-' . date("d-M-Y-H-i-s") . '-' . $batch->document_number . '.pdf';
 		} else {
@@ -169,23 +169,27 @@ class ReportHeaderDetailController extends Controller
 		$filename = urlencode($filename);
 		$company = getActiveCompany();
 		// $date = date("d-M-Y", strtotime(getTodayDate()));
-		$qr_url = url('/storage/reports/' . $customer_name . '/' . $filename);
+		// $qr_url = url('/storage/reports/' . $customer_name . '/' . $filename);
+
+		$ftppath = 'reports/' . $customer_name . '/' . $filename;
+		$new_qr_url = 'https://polucon.co.ke/imara_reports/' . $ftppath;
 		// return response()->json($batch_result,200);
 
-		$qrcode = base64_encode(\QrCode::format('svg')->size(50)->errorCorrection('H')->generate($qr_url));
+		$qrcode = base64_encode(\QrCode::format('svg')->size(50)->errorCorrection('H')->generate($new_qr_url));
+		// return response()->json($batch_result,200);
 		$samples = SamplesCategory::where('sample_header_id', $batch->id)->get();
 		if ($report_format == '1') {
 			foreach ($samples as $sample) {
-				$allCapturedResultsCount = CapturedResult::where('sample_detail_id',$sample->id)->where('sample_header_id',$batch->id)->get()->count();
-				$isAccreditedCount = CapturedResult::where('sample_detail_id',$sample->id)->where('sample_header_id',$batch->id)->where('analyte_accredited',1)->get()->count();
-				$sample['is_accreddited_status'] = $isAccreditedCount >= $allCapturedResultsCount/2 ? 1 : 0;
-				$idArrs = array_unique(CapturedResult::where('sample_detail_id',$sample->id)->where('sample_header_id',$batch->id)->pluck('lab_section_id')->toArray());
-				array_push($idArrs,0);
+				$allCapturedResultsCount = CapturedResult::where('sample_detail_id', $sample->id)->where('sample_header_id', $batch->id)->get()->count();
+				$isAccreditedCount = CapturedResult::where('sample_detail_id', $sample->id)->where('sample_header_id', $batch->id)->where('analyte_accredited', 1)->get()->count();
+				$sample['is_accreddited_status'] = $isAccreditedCount >= $allCapturedResultsCount / 2 ? 1 : 0;
+				$idArrs = array_unique(CapturedResult::where('sample_detail_id', $sample->id)->where('sample_header_id', $batch->id)->pluck('lab_section_id')->toArray());
+				array_push($idArrs, 0);
 				$sample['lab_sect_ids_arr'] = $idArrs;
 				$sample['getBrandOuts'] = [
-					"normal" => SampleAnalysisTypeRelationView::where('brand_id', 0)->where('sample_detail_id',$sample->id)->where('batch_id',$sample->sample_header_id)->orderBy('analysis_level', 'DESC')->get(),
-					"physical" => SampleAnalysisTypeRelationView::where('brand_id', 1)->where('sample_detail_id',$sample->id)->where('batch_id',$sample->sample_header_id)->orderBy('analysis_level', 'DESC')->get(),
-					"pesticide" => $include_pesticide == 1 ? SampleAnalysisTypeRelationView::where('brand_id', 2)->where('sample_detail_id',$sample->id)->where('batch_id',$sample->sample_header_id)->orderBy('analysis_level', 'DESC')->get() : [],
+					"normal" => SampleAnalysisTypeRelationView::where('brand_id', 0)->where('sample_detail_id', $sample->id)->where('batch_id', $sample->sample_header_id)->orderBy('analysis_level', 'DESC')->get(),
+					"physical" => SampleAnalysisTypeRelationView::where('brand_id', 1)->where('sample_detail_id', $sample->id)->where('batch_id', $sample->sample_header_id)->orderBy('analysis_level', 'DESC')->get(),
+					"pesticide" => $include_pesticide == 1 ? SampleAnalysisTypeRelationView::where('brand_id', 2)->where('sample_detail_id', $sample->id)->where('batch_id', $sample->sample_header_id)->orderBy('analysis_level', 'DESC')->get() : [],
 				];
 			}
 			// return response()->json($samples);
@@ -193,7 +197,7 @@ class ReportHeaderDetailController extends Controller
 			$pdf = app('dompdf.wrapper');
 			$pdf->getDomPDF()->set_option("enable_php", true);
 			$pdf->setPaper('A4', 'portrait');
-			$pdf = PDF::loadView('layouts.lab.reports.coa_formats.ktda_report', compact('samples', 'company', 'qrcode', 'path', 'kenas', 'batch_approvers', 'pdf', 'batch', 'non_accredited', 'disclaimer', 'nema','customer','analysis_date', 'polucon_disclaimer','stamp','is_stamp','ammendment','polucon_disclaimer_not','main_lab','report_type'));
+			$pdf = PDF::loadView('layouts.lab.reports.coa_formats.ktda_report', compact('samples', 'company', 'qrcode', 'path', 'kenas', 'batch_approvers', 'pdf', 'batch', 'non_accredited', 'disclaimer', 'nema', 'customer', 'analysis_date', 'polucon_disclaimer', 'stamp', 'is_stamp', 'ammendment', 'polucon_disclaimer_not', 'main_lab', 'report_type'));
 
 			if (is_dir(storage_path() . '/app/reports/' . $customer_name)) {
 				$pdf->save(storage_path() . '/app/reports/' . $customer_name . '/' . $filename);
@@ -215,25 +219,25 @@ class ReportHeaderDetailController extends Controller
 		}
 		if ($report_format == '2') {
 			foreach ($samples as $sample) {
-				$allCapturedResultsCount = CapturedResult::where('sample_detail_id',$sample->id)->where('sample_header_id',$batch->id)->get()->count();
-				$isAccreditedCount = CapturedResult::where('sample_detail_id',$sample->id)->where('sample_header_id',$batch->id)->where('analyte_accredited',1)->get()->count();
-				$sample['is_accreddited_status'] = $isAccreditedCount >= $allCapturedResultsCount/2 ? 1 : 0;
-				$idArrs = array_unique(CapturedResult::where('sample_detail_id',$sample->id)->where('sample_header_id',$batch->id)->pluck('lab_section_id')->toArray());
-				array_push($idArrs,0);
+				$allCapturedResultsCount = CapturedResult::where('sample_detail_id', $sample->id)->where('sample_header_id', $batch->id)->get()->count();
+				$isAccreditedCount = CapturedResult::where('sample_detail_id', $sample->id)->where('sample_header_id', $batch->id)->where('analyte_accredited', 1)->get()->count();
+				$sample['is_accreddited_status'] = $isAccreditedCount >= $allCapturedResultsCount / 2 ? 1 : 0;
+				$idArrs = array_unique(CapturedResult::where('sample_detail_id', $sample->id)->where('sample_header_id', $batch->id)->pluck('lab_section_id')->toArray());
+				array_push($idArrs, 0);
 				$sample['lab_sect_ids_arr'] = $idArrs;
 
 				$sample['getBrandOuts'] = [
-					"normal" => SampleAnalysisTypeRelationView::where('brand_id',0)->where('sample_detail_id',$sample->id)->where('batch_id',$sample->sample_header_id)->orderBy('analysis_level', 'DESC')->get(),
-					"physical" => SampleAnalysisTypeRelationView::where('brand_id', 1)->where('sample_detail_id',$sample->id)->where('batch_id',$sample->sample_header_id)->orderBy('analysis_level', 'DESC')->get(),
-					"pesticide" => SampleAnalysisTypeRelationView::where('brand_id', 2)->where('sample_detail_id',$sample->id)->where('batch_id',$sample->sample_header_id)->orderBy('analysis_level', 'DESC')->get(),
+					"normal" => SampleAnalysisTypeRelationView::where('brand_id', 0)->where('sample_detail_id', $sample->id)->where('batch_id', $sample->sample_header_id)->orderBy('analysis_level', 'DESC')->get(),
+					"physical" => SampleAnalysisTypeRelationView::where('brand_id', 1)->where('sample_detail_id', $sample->id)->where('batch_id', $sample->sample_header_id)->orderBy('analysis_level', 'DESC')->get(),
+					"pesticide" => SampleAnalysisTypeRelationView::where('brand_id', 2)->where('sample_detail_id', $sample->id)->where('batch_id', $sample->sample_header_id)->orderBy('analysis_level', 'DESC')->get(),
 				];
 			}
 			// return response()->json($samples);
 			ini_set('max_execution_time', 300); //300 seconds = 5 minutes 
-			
+
 			$pdf = app('dompdf.wrapper');
 			$pdf->getDomPDF()->set_option("enable_php", true);
-			$pdf = PDF::loadView('layouts.lab.reports.coa_formats.iran_report', compact('samples', 'company', 'qrcode', 'path', 'kenas', 'batch_approvers', 'pdf', 'batch', 'non_accredited', 'disclaimer','nema','customer','analysis_date', 'polucon_disclaimer','stamp','is_stamp','ammendment','polucon_disclaimer_not','main_lab','report_type'));
+			$pdf = PDF::loadView('layouts.lab.reports.coa_formats.iran_report', compact('samples', 'company', 'qrcode', 'path', 'kenas', 'batch_approvers', 'pdf', 'batch', 'non_accredited', 'disclaimer', 'nema', 'customer', 'analysis_date', 'polucon_disclaimer', 'stamp', 'is_stamp', 'ammendment', 'polucon_disclaimer_not', 'main_lab', 'report_type'));
 
 			if (is_dir(storage_path() . '/app/reports/' . $customer_name)) {
 				$pdf->save(storage_path() . '/app/reports/' . $customer_name . '/' . $filename);
@@ -255,18 +259,18 @@ class ReportHeaderDetailController extends Controller
 		}
 
 		foreach ($samples as $sample) {
-			$allCapturedResultsCount = CapturedResult::where('sample_detail_id',$sample->id)->where('sample_header_id',$batch->id)->get()->count();
-			$isAccreditedCount = CapturedResult::where('sample_detail_id',$sample->id)->where('sample_header_id',$batch->id)->where('analyte_accredited',1)->get()->count();
-			$sample['is_accreddited_status'] = $isAccreditedCount >= $allCapturedResultsCount/2 ? 1 : 0;
-			$idArrs = array_unique(CapturedResult::where('sample_detail_id',$sample->id)->where('sample_header_id',$batch->id)->pluck('lab_section_id')->toArray());
-			array_push($idArrs,0);
+			$allCapturedResultsCount = CapturedResult::where('sample_detail_id', $sample->id)->where('sample_header_id', $batch->id)->get()->count();
+			$isAccreditedCount = CapturedResult::where('sample_detail_id', $sample->id)->where('sample_header_id', $batch->id)->where('analyte_accredited', 1)->get()->count();
+			$sample['is_accreddited_status'] = $isAccreditedCount >= $allCapturedResultsCount / 2 ? 1 : 0;
+			$idArrs = array_unique(CapturedResult::where('sample_detail_id', $sample->id)->where('sample_header_id', $batch->id)->pluck('lab_section_id')->toArray());
+			array_push($idArrs, 0);
 			$sample['lab_sect_ids_arr'] = $idArrs;
 		}
 		// $samples = SamplesCategory::where('sample_header_id',$batch->id)->get();
 		ini_set('max_execution_time', 300); //300 seconds = 5 minutes 
 		$pdf = app('dompdf.wrapper');
 		$pdf->getDomPDF()->set_option("enable_php", true);
-		$pdf = PDF::loadView('layouts.lab.reports.coa_formats.standard_report', compact('samples', 'company', 'qrcode', 'path', 'kenas', 'batch_approvers', 'pdf', 'batch', 'non_accredited', 'disclaimer', 'nema','customer','report_type','analysis_date', 'polucon_disclaimer','stamp','is_stamp','ammendment','polucon_disclaimer_not','main_lab'));
+		$pdf = PDF::loadView('layouts.lab.reports.coa_formats.standard_report', compact('samples', 'company', 'qrcode', 'path', 'kenas', 'batch_approvers', 'pdf', 'batch', 'non_accredited', 'disclaimer', 'nema', 'customer', 'report_type', 'analysis_date', 'polucon_disclaimer', 'stamp', 'is_stamp', 'ammendment', 'polucon_disclaimer_not', 'main_lab'));
 
 		if (is_dir(storage_path() . '/app/reports/' . $customer_name)) {
 			$pdf->save(storage_path() . '/app/reports/' . $customer_name . '/' . $filename);
@@ -281,9 +285,23 @@ class ReportHeaderDetailController extends Controller
 				return redirect()->back()->with('error', 'Error while creating customer storage folder');
 			}
 		}
+		$local_path = storage_path() . '/app/reports/' . $customer_name . '/' . $filename;
+
+		$this->moveFTP($ftppath, $local_path);
+
 		$batch->batch_report_url = '/reports/' . $customer_name . '/' . $filename;
+		$batch->batch_report_online_url = 'https://polucon.co.ke/imara_reports/' . $ftppath;
 		$batch->save();
 
 		return 'success';
+	}
+	public function moveFTP($ftpPath, $localPath)
+	{
+		// Upload to FTP
+		if (Storage::disk('ftp')->put($ftpPath, file_get_contents($localPath))) {
+			return redirect()->back()->with('success', 'PDF successfully saved to FTP!');
+		} else {
+			return redirect()->back()->with('error', 'Failed to upload PDF to FTP server');
+		}
 	}
 }
