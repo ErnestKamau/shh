@@ -917,6 +917,23 @@ Route::get('/matrix', 'SkillsMatrix\SkillsMatrixController@index')->name('matrix
 Route::post('/matrix', 'SkillsMatrix\SkillsMatrixController@add')->name('assign-matrix');
 Route::post('/matrix/edit', 'SkillsMatrix\SkillsMatrixController@edit')->name('edit-matrix');
 Route::get('/matrix/show/{id}','SkillsMatrix\SkillsMatrixController@show')->name('show-matrix');
+Route::post('/matrix/create','SkillsMatrix\SkillsMatrixController@createSkillsMatrix')->name('create-matrix');
+Route::post('/matrix/detail/delete','SkillsMatrix\SkillsMatrixController@deleteMatrixDetail')->name('delete-matrix-detail');
+Route::post('/matrix/detail/role/edit','SkillsMatrix\SkillsMatrixController@editMatrixdetailRole')->name('edit-matrix-detail-role');
+
+Route::get('/matrix/capability/index','SkillsMatrix\CapabilityController@index')->name('capability-index');
+Route::post('/matrix/capability/add','SkillsMatrix\CapabilityController@store')->name('capability.add');
+Route::get('/matrix/get/role/{matrix_id}/ajax','SkillsMatrix\CapabilityController@getSkillMatrixRolesAjax')->name('capability.get.role');
+Route::post('/matrix/get/user/position/ajax','SkillsMatrix\CapabilityController@getMatrixUsersByPositionAjax')->name('capability.get.userby.position');
+Route::get('/matrix/capability/show/{id}','SkillsMatrix\CapabilityController@show')->name('capability.show');
+Route::post('/matrix/capability/show/{id}','SkillsMatrix\CapabilityController@show')->name('capability.show');
+Route::post('/matrix/capability/details/store','SkillsMatrix\CapabilityController@storeDetails')->name('capability.detail.store');
+
+Route::get('/matrix/training-needs','SkillsMatrix\TrainingNeedsController@index')->name('train.needs.index');
+Route::post('/matrix/train-needs/store','SkillsMatrix\TrainingNeedsController@store')->name('train.needs.store');
+Route::get('/matrix/get-capability-users/{id}','SkillsMatrix\TrainingNeedsController@getCapabilityUsers')->name('train.needs.get.cabailityusers');
+Route::get('/matrix/train-needs/{id}','SkillsMatrix\TrainingNeedsController@show')->name('train.needs.show');
+
 
 Route::get('/matrix-config/{module}', 'SkillsMatrix\SkillsMatrixConfigController@index')->name('matrix-config');
 Route::get('/matrix-config/{module}/{id}', 'SkillsMatrix\SkillsMatrixConfigController@getTopologies')->name('topology');

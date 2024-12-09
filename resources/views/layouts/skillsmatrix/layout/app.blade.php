@@ -76,7 +76,7 @@
 				</div>
 			</a>
 			
-			<a href="#" class="bg-dark list-group-item list-group-item-action">
+			<a href="{{route('capability-index')}}" class="bg-dark list-group-item list-group-item-action">
 				<div class="d-flex w-100 justify-content-start align-items-center">
 					<span class="mdi mdi mdi-account-check-outline fa-fw mr-3"></span>
 					<span class="menu-collapsed">Capability Matrix</span>
@@ -92,7 +92,7 @@
 				</div>
 			</a>
 			<div id="training-menu" class="collapse sidebar-submenu">
-				<a href="{{route('other-training')}}" class="list-group-item list-group-item-action bg-dark text-white">
+				<a href="{{route('train.needs.index')}}" class="list-group-item list-group-item-action bg-dark text-white">
 					<span class="menu-collapsed"><i class="mdi mdi-circle-medium"></i> Training Needs
 						<small class="float-right badge badge-pill"></small></span>
 				</a>

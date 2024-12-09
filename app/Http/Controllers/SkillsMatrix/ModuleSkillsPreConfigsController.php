@@ -82,10 +82,13 @@ class ModuleSkillsPreConfigsController extends Controller
 	}
 
 	public function update(Request $request, $id, $config, $moduleT){
+
+		// return response()->json($request->all());
 		
 		$module = ModulePreConfigs::find($id) ?? new ModulePreConfigs;
 		$module->name = $request->name;
 		$module->type = $config;
+		$module->code = $request->code;
 		$module->description = $request->description;
 		if(!ModulePreConfigs::find($id)){
 			$currentMaxLevel = $this->getLastLevelID();

@@ -3,6 +3,7 @@
 namespace App\Models\SkillsMatrix;
 
 use App\ModulePreConfigs;
+use App\User;
 use Illuminate\Database\Eloquent\Model;
 use OwenIt\Auditing\Contracts\Auditable;
 
@@ -14,5 +15,8 @@ class SkillMarixRole extends Model implements Auditable
 
     public function jobdescription(){
         return $this->belongsTo(ModulePreConfigs::class,'job_description_id');
+    }
+    public function users(){
+        return $this->hasMany(User::class, 'position', 'job_description_id');
     }
 }

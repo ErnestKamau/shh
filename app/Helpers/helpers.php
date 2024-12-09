@@ -609,6 +609,9 @@ function getDepartments()
 
 function getModulePreconfig($type, $module, $sortBy='name', $sortOrder='asc')
 {
+	if(gettype($module) == 'array'){
+		return App\ModulePreConfigs::where('type', $type)->whereIn('module', $module)->orderBy($sortBy, $sortOrder)->get();
+	}
 	return App\ModulePreConfigs::where('type', $type)->where('module', $module)->orderBy($sortBy, $sortOrder)->get();
 }
 

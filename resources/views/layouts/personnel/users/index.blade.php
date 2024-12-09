@@ -325,7 +325,7 @@
 								<label class="control-label">Position <span class="text-danger">*</span></label>
 								<select name="position" class="form-control" placeholder="Position..." required>
 									<option></option>
-									@foreach (getModulePreconfig("Job Description", "Personnel-Management") as $item)
+									@foreach (getModulePreconfig("Job Description", ["Personnel-Management","Skills-Matrix"]) as $item)
 										<option value="{{ $item->id }}">{{ $item->name }}</option>
 									@endforeach
 								</select>

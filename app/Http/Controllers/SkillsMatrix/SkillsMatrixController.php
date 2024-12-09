@@ -2,6 +2,8 @@
 
 namespace App\Http\Controllers\SkillsMatrix;
 use App\Models\SkillsMatrix\SkillMarixRole;
+use App\Models\SkillsMatrix\SkillMatrixDetailRole;
+use App\Models\SkillsMatrix\SkillMatrixDetails;
 use App\Models\System\SystemConfiguration;
 use App\UserRole;
 use Auth;
@@ -112,8 +114,75 @@ class SkillsMatrixController extends Controller
 		$competence_types = ModulePreConfigs::where('type', 'Competence Type')->selectRaw('id,description')->orderBy('level', 'asc')->get();
 		// Get all competence description collection
 		$competence_description = ModulePreConfigs::where('type', 'Competence Description')->selectRaw('id,description')->orderBy('level', 'asc')->get();
-		// return response()->json(['matrix'=>$matrix,"roles"=>$roles,"skills_proficiency"=>$skills_proficiency]);
-		return view('layouts.skillsmatrix.show', compact('matrix','roles','skills_proficiency','module','competence_areas','competence_types','competence_description'));
+
+		$details = SkillMatrixDetails::with(['competencyarea','competencytype','competencydescription','roles.role'])->where('skill_matrix_id',$id)->get();
+		// return response()->json(['details'=>$details]);
+		return view('layouts.skillsmatrix.show', compact('matrix','roles','skills_proficiency','module','competence_areas','competence_types','competence_description','details'));
 	}
+	public function createSkillsMatrix(Request $request){
+		// return response()->json($request->all());
+		$loop = 0;
+		$roles = SkillMarixRole::with('jobdescription')->where('skills_matrix_id',$request->matrix_id)->orderBy('job_description_id','ASC')->get();
+		$role_proficiency = [];
+		foreach($request->competency_description as $competency_d){
+			$matrix = isset($request->detail_id[$loop]) && $request->detail_id[$loop] > 0 ? SkillMatrixDetails::find($request->detail_id[$loop]) : new SkillMatrixDetails();
+			$matrix->competency_description_id = $competency_d;
+			$matrix->competency_type_id = $request->competency_id[$loop];
+			$matrix->competency_area_id = $request->area_id[$loop];
+			$matrix->skill_matrix_id = $request->matrix_id;
+			$matrix->save();
+			foreach($roles as $role){
+				$check_exist = SkillMatrixDetailRole::where('matrix_detail_id',$matrix->id)->where('role_id',$role->job_description_id)->first();
+				if(isset($check_exist->id)){
+					$updatearr = [
+						"matrix_role_id" => $role->id,
+						"proficiency_id"=>$request->role[strval($role->id)][$loop]
+					];
+					SkillMatrixDetailRole::where('matrix_detail_id',$matrix->id)->where('role_id',$role->job_description_id)->update($updatearr);
+				}else{
+					$role_proficiency[] = [
+						"matrix_detail_id" => $matrix->id,
+						"role_id" => $role->job_description_id,
+						"matrix_role_id" => $role->id,
+						"proficiency_id"=>$request->role[strval($role->id)][$loop]
+					];
+				}
+			}
+
+			++$loop;
+		}
+		if(sizeof($role_proficiency) > 0){
+			SkillMatrixDetailRole::insert($role_proficiency);
+		}
+
+		return redirect()->back()->with('success','Skills-Matrix Details saved successfully');
+	}
+
+	public function deleteMatrixDetail(Request $request){
+		$entity = $request->entity;
+		if($entity == 'area'){
+			$detail_ids = SkillMatrixDetails::where('skill_matrix_id',$request->matrix_id)->where('competency_area_id',$request->entity_id)->pluck('id')->toArray();
+			SkillMatrixDetailRole::whereIn('matrix_detail_id',$detail_ids)->delete();
+			SkillMatrixDetails::whereIn('id',$detail_ids)->delete();
+		}
+		if($entity == 'type'){
+			$detail_ids = SkillMatrixDetails::where('skill_matrix_id',$request->matrix_id)->where('competency_type_id',$request->entity_id)->pluck('id')->toArray();
+			SkillMatrixDetailRole::whereIn('matrix_detail_id',$detail_ids)->delete();
+			SkillMatrixDetails::whereIn('id',$detail_ids)->delete();
+		}
+		if($entity == 'description'){
+			SkillMatrixDetailRole::where('matrix_detail_id',$request->entity_id)->delete();
+			SkillMatrixDetails::whereIn('id',$detail_ids)->delete();
+		}
+		// return response()->json(['success'=>"Competencies deleted successfully!"]);
+		return redirect()->back()->with('success','Competency record(s) deleted successfully!');
+	}
+
+	public function editMatrixdetailRole(Request $request){
+		$detail_role = SkillMatrixDetailRole::find($request->matrix_detail_role_id)->update(['proficiency_id'=>$request->proficiency_id]);
+		return redirect()->back()->with('success','Matrix Proficiency edited successfully!');
+	}
+
+	
 
 }

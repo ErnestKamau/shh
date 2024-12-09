@@ -22,4 +22,5 @@ class SkillsMatrix extends Model implements Auditable
         $descriptionNames = ModulePreConfigs::whereIn('id',$descriptionIDS)->pluck('name')->toArray();
         return ['ids'=>$descriptionIDS,"names"=>$descriptionNames];
     }
+    
 }

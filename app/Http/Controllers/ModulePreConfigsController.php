@@ -90,6 +90,7 @@ class ModulePreConfigsController extends Controller
 		$module->type = $config;
 		$module->description = $request->description;
 		$module->module = $moduleT;
+		
 		$module->inventory_location_id = getCurrentUserLocation()->id;
 		$module->save();
 
