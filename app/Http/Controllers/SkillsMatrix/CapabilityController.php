@@ -71,7 +71,7 @@ class CapabilityController extends Controller
     public function show(Request $request, $id){
         $capability = CapabilityMatrix::with(['skillmatrix','creator','roles.user'])->find($id);
         
-        $capability_roles = $capability->grouproles->pluck('jobdescription.name')->toArray();
+        $capability_roles = array_unique($capability->grouproles->pluck('jobdescription.name')->toArray());
         if(isset($request->role_id)){
             $selectedUsers = $request->role_id;
         }else{
@@ -92,7 +92,7 @@ class CapabilityController extends Controller
         });
         // return response()->json($capability->roles);
         $proficiencies = ModulePreConfigs::where('type', 'Proficiency')->where('module','Skills-Matrix')
-		->where('inventory_location_id', getCurrentUserLocation()->id)->selectRaw('id,color,code,description')->orderBy('level', 'asc')->get();
+		->where('inventory_location_id', getCurrentUserLocation()->id)->selectRaw('id,color,code,description')->orderBy('code', 'asc')->get();
         // return response()->json($capability);
         $module = 'Skills Matrix';
         return view('layouts.skillsmatrix.capability.show', compact('module', 'capability','capability_roles','selectedUsers','competencies','proficiencies','competencyUserIds'));
@@ -113,5 +113,20 @@ class CapabilityController extends Controller
         }
         return redirect()->back()->with('success','Capability Matrix stored succesfully!');
     }
+
+    public function editCapabaility(Request $request){
+        // return response()->json($request->all());
+        $matrix = CapabilityMatrix::find($request->matrix_id);
+        $matrix->name = $request->name;
+        $matrix->save();
+        return redirect()->back()->with('success','Matrix edited successfully');
+    }
+    public function deleteCapabaility(Request $request){
+        // return response()->json($request->all());
+        CapabilityMatrix::find($request->matrix_id)->update(['deleted_at'=>date('Y-m-d')]);
+        
+        return redirect()->back()->with('success','Matrix deleted successfully');
+    }
+   
 
 }

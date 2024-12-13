@@ -7,10 +7,6 @@
     foreach ($proficiencies as $s_p) {
         $skillcss .= '.sp' . $s_p->id . '{ background-color : ' . $s_p->color . ' !important; }';
     }
-
-
-
-
 ?>
 <style>
     {{$skillcss}}
@@ -64,6 +60,16 @@ $items = array(
                 <div class="col-md-4 p-2">
                     <b class="text-muted"><i class="mdi mdi-chevron-right"></i> No of Staff</b> <br>
                     <span class="pl-3">{{$train_header->users->count()}}</span>
+                </div>
+                <div class="col-md-12 p-2">
+                    <b class="text-muted"><i class="mdi mdi-chevron-right"></i> Proficiencies Key</b> <br>
+                    <div class="d-flex mt-2">
+                        @foreach ($proficiencies as $proficiency)
+                            <div class="prof {{$loop->iteration == 1 ? 'pl-3' : 'pl-5'}}">
+                                <span class="btn btn-sm btn-default p-2 sp{{$proficiency->id}}"></span> <span class="pl-3">{{$proficiency->description}}</span>
+                            </div>
+                        @endforeach
+                    </div>
                 </div>
                 <div class="col-md-12 pb-3 border-bottom">
                     <b class="text-muted"><i class="mdi mdi-chevron-right"></i> Roles</b> <br>
@@ -142,7 +148,6 @@ $items = array(
                                     @foreach($train_header->users as $role)
                                         @if(count($selectedUsers) > 0)
                                             @if(in_array($role->id,$selectedUsers))
-                                                
                                                 <td><span class="btn btn-rounded btn-default p-2 {{in_array($role->id,$detail->needtraining) ? 'sp'.$proficiencies[0]->id : 'sp'.$proficiencies[1]->id }}" data-toggle="tooltip" title="{{in_array($role->id,$detail->needtraining) ? $proficiencies[0]->description : $proficiencies[1]->description   }}" ></span></td>
                                             @endif
                                         @else

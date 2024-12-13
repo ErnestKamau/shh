@@ -923,6 +923,9 @@ Route::post('/matrix/detail/role/edit','SkillsMatrix\SkillsMatrixController@edit
 
 Route::get('/matrix/capability/index','SkillsMatrix\CapabilityController@index')->name('capability-index');
 Route::post('/matrix/capability/add','SkillsMatrix\CapabilityController@store')->name('capability.add');
+Route::post('/matrix/capability/edit','SkillsMatrix\CapabilityController@editCapabaility')->name('capability.edit');
+Route::post('/matrix/capability/delete','SkillsMatrix\CapabilityController@deleteCapabaility')->name('capability.delete');
+
 Route::get('/matrix/get/role/{matrix_id}/ajax','SkillsMatrix\CapabilityController@getSkillMatrixRolesAjax')->name('capability.get.role');
 Route::post('/matrix/get/user/position/ajax','SkillsMatrix\CapabilityController@getMatrixUsersByPositionAjax')->name('capability.get.userby.position');
 Route::get('/matrix/capability/show/{id}','SkillsMatrix\CapabilityController@show')->name('capability.show');
@@ -933,6 +936,20 @@ Route::get('/matrix/training-needs','SkillsMatrix\TrainingNeedsController@index'
 Route::post('/matrix/train-needs/store','SkillsMatrix\TrainingNeedsController@store')->name('train.needs.store');
 Route::get('/matrix/get-capability-users/{id}','SkillsMatrix\TrainingNeedsController@getCapabilityUsers')->name('train.needs.get.cabailityusers');
 Route::get('/matrix/train-needs/{id}','SkillsMatrix\TrainingNeedsController@show')->name('train.needs.show');
+Route::post('/matrix/train-need/edit','SkillsMatrix\TrainingNeedsController@editTrainNeed')->name('train.needs.edit');
+Route::post('/matrix/train-need/delete','SkillsMatrix\TrainingNeedsController@deleteTrainNeed')->name('train.needs.delete');
+
+
+Route::get('/matrix/train-plan/index','SkillsMatrix\TrainingPlanController@index')->name('train.plan.index');
+Route::post('/matrix/train-plan/store','SkillsMatrix\TrainingPlanController@store')->name('train.plan.store');
+Route::post('/matrix/train/plan/edit','SkillsMatrix\TrainingPlanController@editPlan')->name('train.plan.edit');
+Route::post('/matrix/train/plan/delete','SkillsMatrix\TrainingPlanController@deletePlan')->name('train.plan.delete');
+Route::get('/matrix/train-plan/show/{id}','SkillsMatrix\TrainingPlanController@show')->name('train.plan.show');
+Route::post('/matrix/train-plan/show/{id}','SkillsMatrix\TrainingPlanController@show')->name('train.plan.show');
+
+Route::post('/matrix/train/plan/other/store','SkillsMatrix\TrainingPlanController@storeOther')->name('train.plan.store.other');
+Route::post('/matrix/train/planner/detail/store','SkillsMatrix\TrainingPlanController@storeDetail')->name('train.plan.detail.store');
+Route::post('/matrix/train/plan/others/delete','SkillsMatrix\TrainingPlanController@deleteOtherDetail')->name('train.plan.others.delete');
 
 
 Route::get('/matrix-config/{module}', 'SkillsMatrix\SkillsMatrixConfigController@index')->name('matrix-config');

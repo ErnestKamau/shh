@@ -40,17 +40,18 @@ $items = array(
                             @foreach($capabilities as $capability)
                                 <tr>
                                     <td>
-                                        <span class="btn btn-sm btn-deafault text-primary" data-toggle="modal" data-target="#edit-capability" data-record="{{json_encode($capability)}}"><i class="mdi mdi-pencil"></i></span>
+                                        <span class="btn btn-sm btn-deafault text-primary" data-toggle="modal" data-target="#edit-capability" data-record="{{json_encode($capability)}}"><i data-togglel="tooltip" title="Edit" class="mdi mdi-pencil"></i></span>
+                                        <span class="btn btn-sm btn-default text-danger" data-toggle="modal" data-target="#delete-capability" data-record="{{json_encode($capability)}}" ><i data-togglel="tooltip" title="Delete" class="mdi mdi-delete-empty"></i></span>
                                         <a href="{{route('capability.show',['id'=>$capability->id])}}" class="btn btn-sm btn-default text-success"><i class="mdi mdi-eye"></i></a>
                                     </td>
                                     <td>{{$capability->name}}</td>
                                     <td>{{$capability->skillmatrix->name}}</td>
                                     <td>
                                         <?php 
-                                        $rolenames = [];
-                                        foreach($capability->grouproles as $g_role){
-                                            array_push($rolenames,$g_role->jobdescription->name);
-                                        }
+                                        $rolenames = array_unique($capability->grouproles->pluck('jobdescription.name')->toArray());
+                                        // foreach($capability->grouproles as $g_role){
+                                        //     array_push($rolenames,$g_role->jobdescription->name);
+                                        // }
                                         ?>
                                         {{implode(', ',$rolenames)}}
                                     </td>
@@ -126,6 +127,42 @@ $items = array(
         </div>
     </div>
 </div>
+<div class="modal fade" id="edit-capability" role="dialog">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <form action="{{route('capability.edit')}}" method="post">
+                @csrf
+                <div class="modal-header">
+                    <h5>Edit Capability Matrix</h5>
+                </div>
+                <div class="modal-body">
+                   
+                </div>
+                <div class="modal-footer">
+                    <button type="submit" class="btn btn-sm btn-outline-primary"><i class="mdi mdi-content-save"></i>
+                        Save</button>
+                    <span class="btn btn-sm btn-default" data-dismiss="modal">Close</span>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+<div class="modal fade" id="delete-capability" role="dialog">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <form action="{{route('capability.delete')}}" method="post">
+                @csrf
+                <div class="modal-body">
+                   
+                </div>
+                <div class="modal-footer">
+                    <button type="submit" class="btn btn-sm btn-outline-danger"><i class="mdi mdi-thumb-up"></i> yes, Delete</button>
+                    <span class="btn btn-sm btn-default" data-dismiss="modal">Close</span>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
 
 <script type="text/javascript">
 
@@ -195,6 +232,38 @@ $items = array(
             })
             return tr;
         }
+        var editCapabilityBody = (data)=>{
+            var body = $(`
+                <div class="form-group">
+                    <label for="" class="control-label">Name</label>
+                    <input type="text" name="name" value="${data.name}" id="" class="form-control">
+                    <input type="hidden" name="matrix_id" value="${data.id}">
+                </div>  
+            `).clone();
+            return body;
+        }
+        var deleteCapabilityBody = (data)=>{
+            var body = $(`
+                <div class="alert alert-danger p-2 d-flex">
+                    <i class="mdi mdi-delete-empty"></i>
+                    <span class="pl-2">Condfirm you want to delete ${data.name} capability matrix</span>
+                </div>
+                <input type="hidden" name="matrix_id" value="${data.id}">
+            `).clone();
+            return body;
+        }
+        $('#edit-capability').on('show.bs.modal',(e)=>{
+            var data = $(e.relatedTarget).data('record');
+            var body =editCapabilityBody(data);
+            $('#edit-capability').find('.modal-body').empty();
+            $('#edit-capability').find('.modal-body').append(body);
+        });
+        $('#delete-capability').on('show.bs.modal',(e)=>{
+            var data = $(e.relatedTarget).data('record');
+            var body =deleteCapabilityBody(data);
+            $('#delete-capability').find('.modal-body').empty();
+            $('#delete-capability').find('.modal-body').append(body);
+        });
         $('#add-capability').on('show.bs.modal', (e) => {
             $('#add-capability').find('.skills_matrix_id').on('change', (e) => {
                 var matrix_id = $('#add-capability').find('.skills_matrix_id').val();

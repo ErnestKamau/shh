@@ -96,7 +96,7 @@
 					<span class="menu-collapsed"><i class="mdi mdi-circle-medium"></i> Training Needs
 						<small class="float-right badge badge-pill"></small></span>
 				</a>
-				<a href="{{route('other-training')}}" class="list-group-item list-group-item-action bg-dark text-white">
+				<a href="{{route('train.plan.index')}}" class="list-group-item list-group-item-action bg-dark text-white">
 					<span class="menu-collapsed"><i class="mdi mdi-circle-medium"></i> Training Plans
 						<small class="float-right badge badge-pill"></small></span>
 				</a>
@@ -139,6 +139,12 @@ $menuTotals = array(
 					</a>
 				@endforeach
 			</div>
+			<a href="#" class="bg-dark list-group-item list-group-item-action">
+				<div class="d-flex w-100 justify-content-start align-items-center">
+					<span class="mdi mdi-file-document-multiple-outline fa-fw mr-3"></span>
+					<span class="menu-collapsed">Reports</span>
+				</div>
+			</a>
 
 			<div class="list-group-item copyright-lims p-4 text-center text-white" style="bottom:0">
 				Copyright {{ date('Y') }} <span class="text-red">Imara LIMS</span>

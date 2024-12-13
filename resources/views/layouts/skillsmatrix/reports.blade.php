@@ -8,24 +8,16 @@
    <?php
       $items = array(
         array(
-          'link' => route('matrix'),
-          'name' =>'Matrix',
-          'icon' => null
-        ),
-        array(
-          'link' => null,
-          'name' => 'Configurations',
+          'link' => route('matrix-reports'),
+          'name' =>'Reports',
           'icon' => null
         )
       );
       ?>
    <x-bread-crumb :items="$items"></x-bread-crumb>
    <h2 class="p-4">
-      <i class="mdi mdi-account-star-outline"></i> Skills <small class="text-muted">  | Matrix </small>
-      <span class="btn btn-sm btn-outline-primary float-right" data-target="#add-config" data-toggle="modal"><i class="mdi mdi-plus"></i> Generate Matrix</span>
-      <!-- @if($matrix_info->count() == 0 && $can_edit_skills_matrix == 1)
-      <span class="btn btn-sm btn-outline-primary float-right" data-target="#add-config" data-toggle="modal"><i class="mdi mdi-plus"></i> Generate Matrix</span>
-      @endif -->
+      <i class="mdi mdi-file-document-multiple-outline"></i> Skills Matrix <small class="text-muted">  | Report </small>
+      
    </h2>
    <div class="p-4">
       <div class="card">
@@ -42,20 +34,7 @@
                      </tr>
                   </thead>
                   <tbody>
-                     @foreach($matrix_info as $matrix)
-                     <tr>
-                        <td>
-                           @if($can_edit_skills_matrix == 1)
-                           <span class="btn btn-sm btn-default text-primary" data-toggle="modal" data-target="#edit-matrix" data-record="{{json_encode($matrix)}}"><i class="mdi mdi-pencil" data-toggle="tooltip" data-title="Edit"></i></span>
-                           @endif
-                           <a href="{{route('show-matrix',['id'=>$matrix->id])}}" class="btn btn-sm btn-default test-success"><i class="mdi mdi-eye" data-toggle="tooltip" data-title="View" ></i></a>
-                        </td>
-                        <td>{{$matrix->name}}</td>
-                        <td>{{$matrix->department}}</td>
-                        <td>{{implode(', ',$matrix->jobdescription['names'])}}</td>
-                        <td>{{date('Y-m-d',strtotime($matrix->created_at))}}</td>
-                     </tr>
-                     @endforeach
+                     
                   </tbody>
                </table>
             </div>

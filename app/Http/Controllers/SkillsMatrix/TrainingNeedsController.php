@@ -86,4 +86,17 @@ class TrainingNeedsController extends Controller
         return view('layouts.skillsmatrix.trainingNeeds.show', compact('train_header','selectedUsers','module','proficiencies'));
     }
 
+    public function editTrainNeed(Request $request){
+        // return response()->json($request->all());
+        $need = TrainingHeader::find($request->need_id);
+        $need->name = $request->name;
+        $need->save();
+        return redirect()->back()->with('success','Training need edited successfully!');
+    }
+    public function deleteTrainNeed(Request $request){
+        // return response()->json($request->all());
+        TrainingHeader::find($request->need_id)->update(['deleted_at'=>date('Y/m/d')]);
+        return redirect()->back()->with('success','Training need deleted successfully!');
+    }
+
 }

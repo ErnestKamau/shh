@@ -25,7 +25,7 @@ $items = array(
             <div class="card-body">
                 <div class="table-responsive">
                     <table
-                        class="table table-condensed my-small-text table-striped table-hover table-bordered table-sm">
+                        class="table table-condensed my-small-text table-striped table-hover table-bordered table-sm" style="width:120%">
                         <thead class="bg-light p-2">
                             <tr>
                                 <th>#</th>
@@ -41,7 +41,8 @@ $items = array(
                             @foreach($trainings as $train)
                                <tr>
                                     <td>
-                                        <span class="btn btn-sm btn-default text-danger"><i class="mdi mdi-delete-empty"></i></span>
+                                        <span class="btn btn-sm btn-default text-primary" data-record="{{json_encode($train)}}" data-target="#edit-train" data-toggle="modal"><i data-toggle="tooltip" title="Edit" class="mdi mdi-pencil"></i></span>
+                                        <span class="btn btn-sm btn-default text-danger" data-record="{{json_encode($train)}}" data-target="#delete-train" data-toggle="modal"><i data-toggle="tooltip" title="Delete" class="mdi mdi-delete-empty"></i></span>
                                         <a href="{{route('train.needs.show',['id'=>$train->id])}}" class="btn btn-sm btn-default text-success"><i class="mdi mdi-eye"></i></a>
                                     </td>
                                     <td>{{$train->name}}</td>
@@ -114,10 +115,78 @@ $items = array(
         </div>
     </div>
 </div>
+<div class="modal fade" id="edit-train" role="dialog">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <form action="{{route('train.needs.edit')}}" method="post">
+                @csrf
+                <div class="modal-body">
+
+                </div>
+                <div class="modal-footer">
+                    <button type="submit" class="btn btn-sm btn-outline-primary"><i class="mdi mdi-content-save"></i> Save</button>
+                    <span class="btn btn-sm btn-default" data-dismiss="modal">Close</span>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+<div class="modal fade" id="delete-train" role="dialog">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <form action="{{route('train.needs.delete')}}" method="post">
+                @csrf
+                <div class="modal-body">
+                    
+                </div>
+                <div class="modal-footer">
+                    <button type="submit" class="btn btn-sm btn-outline-danger"><i class="mdi mdi-thumb-up"></i> Yes, Delete</button>
+                    <span class="btn btn-sm btn-default" data-dismiss="modal">Close</span>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
 
 <script type="text/javascript">
 
     $(document).ready(function () {
+        var getEditTrainBody = (data)=>{
+            var body = $(`
+                <div class="alert alert-primary p-2 d-flex">
+                    <i class="mdi mdi-pencil-box-outline"></i>
+                    <span class="pl-2">Edit ${data.name} train need</span>
+                </div>
+                <div class="form-group">
+                    <label for="" class="control-label">Name</label>
+                    <input type="text" name="name" class="form-control" value="${data.name}">
+                    <input type="hidden" name="need_id" value="${data.id}">
+                </div>
+            `).clone();
+            return body;
+        }
+        var getDeleteTrainBody = (data)=>{
+            var body = $(`
+                <div class="alert alert-danger p-2 d-flex">
+                    <i class="mdi mdi-delete-empty"></i>
+                    <span class="pl-2">Confirm you want to delete <b>${data.name}</b> training needs</span>
+                </div>
+                <input type="hidden" name="need_id" value="${data.id}">
+            `).clone();
+            return body;
+        }
+        $('#delete-train').on('show.bs.modal',(e)=>{
+            var data = $(e.relatedTarget).data('record');
+            var body = getDeleteTrainBody(data);
+            $('#delete-train').find('.modal-body').empty();
+            $('#delete-train').find('.modal-body').append(body);
+        });
+        $('#edit-train').on('show.bs.modal',(e)=>{
+            var data = $(e.relatedTarget).data('record');
+            var body =getEditTrainBody(data);
+            $('#edit-train').find('.modal-body').empty();
+            $('#edit-train').find('.modal-body').append(body);
+        })
         var getCapabilityUsers = (matrix_id, callback) => {
             $.ajax({
                 url: `/matrix/get-capability-users/${matrix_id}`,

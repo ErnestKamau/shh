@@ -155,7 +155,7 @@ $items = array(
                                                             $proficiencyClass= $proficientuser['proficiency_id'];
                                                             $existProficientId = $proficientuser['id'];
                                                         } else {
-                                                            $proficiencyClass = null;
+                                                            $proficiencyClass = $proficiencies[0]->id;
                                                             $existProficientId = null;
                                                         } 
                                                      ?>
