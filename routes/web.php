@@ -327,7 +327,7 @@ Route::post('/item-disposal', 'InventoryItemController@item_disposal')->name('it
 Route::post('/return-item-to-store', 'InventoryItemController@return_2_store')->name('return-item-to-store');
 
 Route::get('/stock-taking-list', 'StockTakingController@index')->name('stock-taking-list')->middleware('haspermission:Inventory.components.Stock-Taking.View');
-Route::get('/stock-taking-update/{id}/{print?}', 'StockTakingController@show')->name('stock-taking-sheet');
+Route::get('/stock-taking-update/{id}/{print?}', 'StockTaking\Main@show')->name('stock-taking-sheet');
 Route::post('/stock-taking-update/{id?}', 'StockTakingController@update')->name('stock-taking-update')->middleware('haspermission:Inventory.components.Stock-Taking.Edit');
 Route::post('/stock-taking-freeze-stores/{id?}', 'StockTakingController@freeze_stores')->name('stock-taking-freeze-stores')->middleware('haspermission:Inventory.components.Stock-Taking.Edit');
 Route::post('/stock-taking-save-capture/{id?}', 'StockTakingController@save_capture')->name('stock-taking-save-capture');

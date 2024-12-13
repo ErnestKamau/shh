@@ -181,7 +181,7 @@ class ZohoController extends Controller
 			$cIt = [
 				"account_id" => $item->item_account_id,
 				"item_id" => $item->sub_category->zoho_item_code, // Replace with the appropriate item ID
-				"name" => $item->sub_category->name . "(" . $item->uom . ")", // Using the description from the request item
+				"name" => $item->sub_category->name, // Using the description from the request item
 				"description" => trim($item['comments']) == "" ? $item->sub_category->name : $item['comments'],
 				"item_order" => $itemOrder++,
 				"rate" => round(floatval($item['net_value']) / floatval($item['quantity']), 2), // Using the net_value from the request item
