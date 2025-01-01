@@ -760,7 +760,7 @@ class SampleWorkFlowController extends Controller
                 // $config_start_no = SystemConfiguration::where('key', 'start_sample_no')->first();
                 $lab = Lab::find($request->sample_details['lab_id'][$k]);
                 if (isset(SampleDetails::where('lab_id', $lab->id)->orderBy('id', 'DESC')->first()->id)) {
-                    $code = SampleDetails::where('lab_id', $lab->id)->orderBy('id', 'DESC')->first()->sample_code;
+                    $code = SampleDetails::where('lab_id', $lab->id)->whereYear('created_at',date('Y'))->orderBy('id', 'DESC')->first()->sample_code;
                     $last_sample = substr($code, 9, strlen($code));
                 } else {
                     $last_sample = $lab->start_sample_no != '' ? $lab->start_sample_no : 0;
@@ -783,7 +783,7 @@ class SampleWorkFlowController extends Controller
                         Result::where('sample_detail_id', $detail->id)->delete();
 
                         if (isset(SampleDetails::where('lab_id', $lab->id)->orderBy('id', 'DESC')->first()->id)) {
-                            $code = SampleDetails::where('lab_id', $lab->id)->orderBy('id', 'DESC')->first()->sample_code;
+                            $code = SampleDetails::where('lab_id', $lab->id)->whereYear('created_at',date('Y'))->orderBy('id', 'DESC')->first()->sample_code;
                             $last_sample = substr($code, 9, strlen($code));
                         } else {
                             $last_sample = $lab->start_sample_no != '' ? $lab->start_sample_no : 0;
@@ -4450,7 +4450,7 @@ class SampleWorkFlowController extends Controller
             foreach ($samples as $sample) {
                 // $config_start_no = SystemConfiguration::where('key', 'start_sample_no')->first();
                 $sample_data = SamplesCategory::where('id', $sample->id)->first();
-                $code = SampleDetails::where('lab_id', $sample_data->main_lab_id)->orderBy('id', 'DESc')->first()->sample_code;
+                $code = SampleDetails::where('lab_id', $sample_data->main_lab_id)->whereYear('created_at',date('Y'))->orderBy('id', 'DESc')->first()->sample_code;
                 $last_sample = substr($code, 9, strlen($code));
                 // $last_sample = isset(SampleDetails::latest('id')->first()->id) ? substr(SampleDetails::latest('id')->first()->sample_code,9,strlen(SampleDetails::latest('id')->first()->sample_code) -1) : $config_start_no->value;
 

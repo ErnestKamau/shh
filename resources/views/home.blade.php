@@ -67,9 +67,13 @@
 			<div class="small w3-padding-small">System Planner</div>
 		</a>
 		<a class="app"  href="{{route('matrix')}}">
-				<div class="icon w3-grey"><i class="mdi mdi-account-star-outline"></i></div>
-				<div class="small w3-padding-small">Skills Matrix</div>
-			</a>
+			<div class="icon w3-grey"><i class="mdi mdi-account-star-outline"></i></div>
+			<div class="small w3-padding-small">Skills Matrix</div>
+		</a>
+		<a class="app"  href="{{route('vgm.index')}}">
+			<div class="icon w3-grey"><i class="mdi mdi-file-find-outline"></i></div>
+			<div class="small w3-padding-small">VGM Module</div>
+		</a>
 		@if(auth()->user()->is_support_staff)
 			<a class="app" href="/system-settings">
 				<div class="icon w3-black"><i class="fas fa-cogs"></i></div>

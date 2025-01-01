@@ -976,6 +976,11 @@ Route::post('/update-other-trainner/{condition}', 'Training\SkillsOtherTrainingC
 Route::get('/training-acceptance/{training_id}/{dept_number}/{user_id}/{acceptance?}', 'Training\SkillsOtherTrainingController@training_acceptance')->name('training-acceptance');
 
 #################################### Matrix CONFIGURATIONS#######################################
+###############################VGM MODULE###############################
+Route::get('/vgm/index','Inspection\InspectionController@index')->name('vgm.index');
+Route::get('/vgm/show/{id}','Inspection\InspectionController@show')->name('vgm.show');
+Route::post('/vgm/store','Inspection\InspectionController@store')->name('vgm.store');
+Route::post('/vgm/delete','Inspection\InspectionController@delete')->name('vgm.delete');
 
 
 #STORAGE ROUTES
