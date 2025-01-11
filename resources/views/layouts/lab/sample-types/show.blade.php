@@ -737,7 +737,6 @@ $items = array(
                 {{$z_item->name . ' - ' . $z_item->unit_price}}</option>
             @endforeach
           </select>
-          <!-- <input type="text" class="form-control" name="zoho_id" value="{{ $analysis_type->zoho_id }}" placeholder="Zoho Code..." required /> -->
         </div>
         <div class="form-group">
           <label class="control-label">Product Type </label>

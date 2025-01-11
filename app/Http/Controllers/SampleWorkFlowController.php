@@ -89,7 +89,7 @@ class SampleWorkFlowController extends Controller
             ->join('roles as r', 'r.id', '=', 'ur.role_id')
             ->where('r.id', $role_a->value)->where('users.active', 1)->where('users.is_support_staff', 0)->selectRaw('users.*')->get();
         $users = User::where('is_client', 0)->where('supplier_id', 0)->where('active', 1)->get();
-        
+
         $clients = [];
         $sampletypes = [];
 
@@ -127,52 +127,52 @@ class SampleWorkFlowController extends Controller
             $users = User::where('is_client', 0)->where('supplier_id', 0)->where('active', 1)->get();
             $customers = CRMCustomer::where('active', 1)->get();
 
-            return view('layouts.lab.sample-workflow.index', compact('batches', 'status', 'analysts', 'labsections', 'users', 'customers', 'filter','zoho_items'));
+            return view('layouts.lab.sample-workflow.index', compact('batches', 'status', 'analysts', 'labsections', 'users', 'customers', 'filter', 'zoho_items'));
 
 
         }
-        if($status == 'All Samples'){
-            $clients = CRMCustomer::where('active',1)->get();
-            $sampletypes = SampleType::where('active',1)->get();
+        if ($status == 'All Samples') {
+            $clients = CRMCustomer::where('active', 1)->get();
+            $sampletypes = SampleType::where('active', 1)->get();
             $tat_to = 0;
             $batches = SampleHeader::query();
             $batches = $batches->with('samples')->where('isactive', 1)->orderBy('receipt_date', 'desc');
-            if($request->customer_id && $request->customer_id != '' && $request->customer_id != 'All'){
-                $batches = $batches->where('crm_customer_id',$request->customer_id);
+            if ($request->customer_id && $request->customer_id != '' && $request->customer_id != 'All') {
+                $batches = $batches->where('crm_customer_id', $request->customer_id);
             }
-            if($request->sample_type_id && $request->sample_type_id != '' && $request->sample_type_id != 'All'){
-                $batches = $batches->where('sample_type_id',$request->sample_type_id);
+            if ($request->sample_type_id && $request->sample_type_id != '' && $request->sample_type_id != 'All') {
+                $batches = $batches->where('sample_type_id', $request->sample_type_id);
             }
-            if($request->receipt_date_from && $request->receipt_date_from != ''){
-                $batches = $batches->where('receipt_date','>=',$request->receipt_date_from);
+            if ($request->receipt_date_from && $request->receipt_date_from != '') {
+                $batches = $batches->where('receipt_date', '>=', $request->receipt_date_from);
             }
-            if($request->receipt_date_to && $request->receipt_date_to != '' ){
-                $batches = $batches->where('receipt_date','<=',$request->receipt_date_to);
+            if ($request->receipt_date_to && $request->receipt_date_to != '') {
+                $batches = $batches->where('receipt_date', '<=', $request->receipt_date_to);
             }
-            if($request->tat_date_from && $request->tat_date_from != ''){
+            if ($request->tat_date_from && $request->tat_date_from != '') {
                 $tatbatch = SampleDate::query();
-                $tatbatch = $tatbatch->where('name','Target Date');
-                $tatbatch = $tatbatch->where('date','>=',$request->tat_date_from);
-                if($request->tat_date_to && $request->tat_date_to != ''){
-                    $tatbatch = $tatbatch->where('date','<=',$request->tat_date_from);
+                $tatbatch = $tatbatch->where('name', 'Target Date');
+                $tatbatch = $tatbatch->where('date', '>=', $request->tat_date_from);
+                if ($request->tat_date_to && $request->tat_date_to != '') {
+                    $tatbatch = $tatbatch->where('date', '<=', $request->tat_date_from);
                     $tat_to = 1;
                 }
                 $tatbatchIDs = $tatbatch->pluck('sample_header_id')->toArray();
-                $batches = $batches->whereIn('id',$tatbatchIDs);
+                $batches = $batches->whereIn('id', $tatbatchIDs);
             }
-            if($request->tat_date_to && $request->tat_date_to != ''){
-                $tatbatch = SampleDate::where('name','Target Date')->where('date','<=',$request->tat_date_to);
-                $batches = $batches->whereIn('id',$tatbatch);
+            if ($request->tat_date_to && $request->tat_date_to != '') {
+                $tatbatch = SampleDate::where('name', 'Target Date')->where('date', '<=', $request->tat_date_to);
+                $batches = $batches->whereIn('id', $tatbatch);
             }
-            if($request->schedule_sent && $request->schedule_sent != ''){
-                if($request->schedule_sent == 'sent'){
-                    $batches = $batches->where('schedule_analysis_sent',1);
-                }elseif($request->schedule_sent == 'not_sent'){
-                    $batches = $batches->where('schedule_analysis_sent',0); 
+            if ($request->schedule_sent && $request->schedule_sent != '') {
+                if ($request->schedule_sent == 'sent') {
+                    $batches = $batches->where('schedule_analysis_sent', 1);
+                } elseif ($request->schedule_sent == 'not_sent') {
+                    $batches = $batches->where('schedule_analysis_sent', 0);
                 }
             }
             $batches = $batches->orderBy('receipt_date', 'desc')->get();
-        }else{
+        } else {
             $batches = SampleHeader::with('samples')->where('isactive', 1)->orderBy('receipt_date', 'desc');
             if ($status == 'Schedule of Analysis') {
                 $q = 'Samples In Lab';
@@ -184,7 +184,7 @@ class SampleWorkFlowController extends Controller
             $batches = $batches->get();
         }
 
-        return view('layouts.lab.sample-workflow.index', compact('batches', 'status', 'analysts', 'labsections', 'users','zoho_items','sampletypes','clients'));
+        return view('layouts.lab.sample-workflow.index', compact('batches', 'status', 'analysts', 'labsections', 'users', 'zoho_items', 'sampletypes', 'clients'));
     }
 
     public function print_labels(Request $request)
@@ -516,6 +516,7 @@ class SampleWorkFlowController extends Controller
             $header->invoice_amount = $request->invoice_amount;
             $header->lab_section_ids = implode(',', $request->lab_section_ids ?? []);
             $header->crm_contact_id = $request->crm_contact_id;
+            $header->schedule_customer_email = $request->customer_email;
 
             if ($isInReception) {
                 $header->sample_type_id = $request->sample_type_id;
@@ -574,6 +575,7 @@ class SampleWorkFlowController extends Controller
                 }
             }
         }
+
 
         $header->sampling_method_id = $request->sampling_method_id;
         $header->how_sample_was_obtained = $request->how_sample_was_obtained;
@@ -648,57 +650,6 @@ class SampleWorkFlowController extends Controller
         $targetDate->date = \Carbon\Carbon::parse($header->receipt_date)->addDays($maxReportingTime);
         $targetDate->save();
 
-        if (isset($request->send_schedule) && $request->send_schedule == 1 && $header->schedule_analysis_sender == '') {
-            $samples = SampleDetails::where('sample_header_id',$header->id)->pluck('sample_code')->toArray();
-            $sampleTrs = '';
-            foreach($samples as $sample){
-                $sampleTrs = "";
-                foreach($samples as $sample){
-                    $target_date = date('Y-m-d',strtotime($targetDate->date));
-                    $sampleTrs .= '
-                    <tr>
-                        <td style="padding: 8px; border: 1px solid #ddd;">'.htmlspecialchars($sample).'</td>
-                        <td style="padding: 8px; border: 1px solid #ddd;">'.htmlspecialchars($target_date).'</td>
-                    </tr>';
-                    
-                }
-            }
-            $body = '
-			<div style="font-family: Arial, sans-serif; color: #333; line-height: 1.6;">
-                <p style="font-size: 16px;">
-                    Dear Esteemed Client, <br><br>
-                    We acknowledge receipt of your sample(s) submitted to our laboratory. The sample(s) have been forwarded to our laboratory, and analysis is scheduled to start anytime from now.<br>Sample Information : 
-                </p>
-
-                <table style="width: 100%; border-collapse: collapse; margin-top: 15px;">
-                    <tr>
-                        <th style="text-align: left; padding: 8px; background-color: #f2f2f2; border: 1px solid #ddd;">Sample Reference No</th>
-                        <th style="text-align: left; padding: 8px; background-color: #f2f2f2; border: 1px solid #ddd;">Expected Results Date</th>
-                    </tr>
-                    '.$sampleTrs.'
-                </table>
-
-                <p style="font-size: 16px; margin-top: 15px;">
-                    <br>
-                    We will keep you updated on the progress report(s).<br>
-                    Thank you for the opportunity to serve you.
-                </p>
-            </div>
-			';
-            $contact = CustomerContact::find($header->crm_contact_id);
-            notify_user($body, $contact->email, '[POLUCON LIMS] Schedule Of Analysis ' . $header->batch_code,false,true,['donotreply@polucon.com']);
-            $header->schedule_analysis_sent = date('Y-m-d');
-            $header->schedule_analysis_sender = auth()->user()->id;
-            $header->save();
-
-            $scheduleDateStr = 'Schedule of Analysis Sendoff Date';
-            $scheduleDate = \App\SampleDate::where('sample_header_id', $header->id)->where('name', $scheduleDateStr)->first() ?? new \App\SampleDate();
-            $scheduleDate->name = $scheduleDateStr;
-            $scheduleDate->sample_header_id = $header->id;
-            $scheduleDate->date = date('Y-m-d');
-            $scheduleDate->save();
-        }
-
         if ($isNew) {
             $custodyDetails = [
                 'batch_id' => $header->id,
@@ -760,7 +711,7 @@ class SampleWorkFlowController extends Controller
                 // $config_start_no = SystemConfiguration::where('key', 'start_sample_no')->first();
                 $lab = Lab::find($request->sample_details['lab_id'][$k]);
                 if (isset(SampleDetails::where('lab_id', $lab->id)->orderBy('id', 'DESC')->first()->id)) {
-                    $code = SampleDetails::where('lab_id', $lab->id)->whereYear('created_at',date('Y'))->orderBy('id', 'DESC')->first()->sample_code;
+                    $code = SampleDetails::where('lab_id', $lab->id)->whereYear('created_at', date('Y'))->orderBy('id', 'DESC')->first()->sample_code;
                     $last_sample = substr($code, 9, strlen($code));
                 } else {
                     $last_sample = $lab->start_sample_no != '' ? $lab->start_sample_no : 0;
@@ -783,7 +734,7 @@ class SampleWorkFlowController extends Controller
                         Result::where('sample_detail_id', $detail->id)->delete();
 
                         if (isset(SampleDetails::where('lab_id', $lab->id)->orderBy('id', 'DESC')->first()->id)) {
-                            $code = SampleDetails::where('lab_id', $lab->id)->whereYear('created_at',date('Y'))->orderBy('id', 'DESC')->first()->sample_code;
+                            $code = SampleDetails::where('lab_id', $lab->id)->whereYear('created_at', date('Y'))->orderBy('id', 'DESC')->first()->sample_code;
                             $last_sample = substr($code, 9, strlen($code));
                         } else {
                             $last_sample = $lab->start_sample_no != '' ? $lab->start_sample_no : 0;
@@ -3094,19 +3045,16 @@ class SampleWorkFlowController extends Controller
             return response()->json(['error' => 'generate_sample_invoice configuration is not set']);
         }
         if ($config[0]->value == 'true') {
-            $customer_ids = [];
             // return response()->json($request->batch_code,200);
-            foreach ($request->batch_code as $code) {
-                $batch = SampleHeader::where('batch_code', $code)->first();
-                if ($batch->invoice_id != 0) {
-                    return response()->json(['error' => 'Batch' . $code . ' has an existing Invoice!']);
-                }
-                array_push($customer_ids, $batch->crm_customer_id);
+            $batch_ids = SampleHeader::whereIn('batch_code',$request->code)->leftJoin('customer_invoice','customer_invoice.id','=','sample_headers.invoice_id')->whereNull('customer_invoice.sales_order_id')->pluck('sample_headers.id')->toArray();
+            $customer_ids = SampleHeader::whereIn('id',$batch_ids)->pluck('crm_customer_id')->toArray();
+            
+            if(sizeof($batch_ids) < 1){
+                return response()->json(['error' => 'The selected batch(es) have sales order attached to already sent to zoho']);
             }
-            $batch_ids = SampleHeader::whereIn('batch_code',$request->batch_code)->pluck('id')->toArray();
-            $analysis_with_no_zoho = sampleAnalysisTypeRelation::whereIn('batch_id',$batch_ids)->join('analysis_types','analysis_types.id','=','sample_analysis_type_relation.analysis_type_id')->whereNull('analysis_types.zoho_id')->pluck('analysis_types.name')->toArray();
-            if(sizeof($analysis_with_no_zoho) > 0){
-                return response()->json(['error' => 'The following analysis types ('.implode(',',$analysis_with_no_zoho).') have not been tied to a zoho item']);
+            $analysis_with_no_zoho = sampleAnalysisTypeRelation::whereIn('batch_id', $batch_ids)->join('analysis_types', 'analysis_types.id', '=', 'sample_analysis_type_relation.analysis_type_id')->whereNull('analysis_types.zoho_id')->pluck('analysis_types.name')->toArray();
+            if (sizeof($analysis_with_no_zoho) > 0) {
+                return response()->json(['error' => 'The following analysis types (' . implode(',', $analysis_with_no_zoho) . ') have not been tied to a zoho item']);
             }
             $check_customer = array_unique($customer_ids);
             if (sizeof($check_customer) > 1) {
@@ -3116,11 +3064,11 @@ class SampleWorkFlowController extends Controller
             if (!isset($customer->id)) {
                 return response()->json(['error' => 'There is no customer with the specified Batches!']);
             }
-            if($customer->currency_id == ''){
-                
+            if ($customer->currency_id == '') {
+
                 return response()->json(['error' => 'The specified customer has no currency assigned']);
             }
-            if(!isset($customer->zohocustomer->zoho_contact_id)){
+            if (!isset($customer->zohocustomer->zoho_contact_id)) {
                 return response()->json(['error' => 'The specified customer has not been tied to zoho customer']);
             }
             $module = "Inventory-Management";
@@ -3128,7 +3076,7 @@ class SampleWorkFlowController extends Controller
 
             $invoice = new Invoice();
             $invoice->pricelist_id = 0;
-            $invoice->currency_id = $customer->currency_id > 0  ? $customer->currency_id : $defaultCurrency->id;
+            $invoice->currency_id = $customer->currency_id > 0 ? $customer->currency_id : $defaultCurrency->id;
             $invoice->customer_id = $customer->id;
             $invoice->zoho_customer_id = $customer->zohocustomer->zoho_contact_id;
             $invoice->save();
@@ -3148,44 +3096,44 @@ class SampleWorkFlowController extends Controller
             }
             $invoice->invoice_number = $number;
             $invoice->save();
-            $analyis_types = sampleAnalysisTypeRelation::whereIn('batch_id',$batch_ids)->join('analysis_types','analysis_types.id','=','sample_analysis_type_relation.analysis_type_id')->join('inventory_sub_categories','inventory_sub_categories.id','=','analysis_types.zoho_id')->leftjoin('zoho_items_pricelist',function($join) use ($customer) {
-                $join->on('inventory_sub_categories.id','=','zoho_items_pricelist.item_id');
-                $join->on('zoho_items_pricelist.customer_id','=',DB::raw($customer->id));
+            $analyis_types = sampleAnalysisTypeRelation::whereIn('batch_id', $batch_ids)->join('analysis_types', 'analysis_types.id', '=', 'sample_analysis_type_relation.analysis_type_id')->join('inventory_sub_categories', 'inventory_sub_categories.id', '=', 'analysis_types.zoho_id')->leftjoin('zoho_items_pricelist', function ($join) use ($customer) {
+                $join->on('inventory_sub_categories.id', '=', 'zoho_items_pricelist.item_id');
+                $join->on('zoho_items_pricelist.customer_id', '=', DB::raw($customer->id));
             })->selectRaw('sample_analysis_type_relation.*,analysis_types.name,inventory_sub_categories.name as zoho_name,inventory_sub_categories.unit_price,inventory_sub_categories.zoho_item_code,inventory_sub_categories.id as zoho_analysis_type,zoho_items_pricelist.unit_price as unit_price_rate')->get();
 
             $details_arr = [];
-            foreach($analyis_types as $a_type){
+            foreach ($analyis_types as $a_type) {
                 $unit_price = $a_type->unit_price_rate > 0 ? $a_type->unit_price_rate : $a_type->unit_price ?? 0;
-                if(!isset($details_arr[$a_type->zoho_item_code])){
+                if (!isset($details_arr[$a_type->zoho_item_code])) {
                     // $details_arr[$a_type->zoho_item_code] = [];
                     $details_arr[$a_type->zoho_item_code] = [
-                        "crm_customer_id"=>$customer->id,
-                        "analysis_type"=> $a_type->zoho_analysis_type,
-                        "analysis_type_name"=>$a_type->name,
-                        "sample_header_id"=>$a_type->batch_id,
-                        "sample_detail_id"=>$a_type->sample_detail_id,
-                        "invoice_id"=>$invoice->id,
-                        "selling_price"=>$unit_price,
-                        "cost_price"=>0,
-                        "zoho_item_id"=>$a_type->zoho_item_code,
-                        "zoho_item_name"=>$a_type->zoho_name,
-                        "quantity"=>1,
-                        "total"=>$unit_price,
-                        "final_unit_price"=>$unit_price,
+                        "crm_customer_id" => $customer->id,
+                        "analysis_type" => $a_type->zoho_analysis_type,
+                        "analysis_type_name" => $a_type->name,
+                        "sample_header_id" => $a_type->batch_id,
+                        "sample_detail_id" => $a_type->sample_detail_id,
+                        "invoice_id" => $invoice->id,
+                        "selling_price" => $unit_price,
+                        "cost_price" => 0,
+                        "zoho_item_id" => $a_type->zoho_item_code,
+                        "zoho_item_name" => $a_type->zoho_name,
+                        "quantity" => 1,
+                        "total" => $unit_price,
+                        "final_unit_price" => $unit_price,
                     ];
-                }else{
-                    $analysis_arr = explode(',',$details_arr[$a_type->zoho_item_code]['analysis_type_name']);
-                    if(!in_array($a_type->name,$analysis_arr)){
-                        $details_arr[$a_type->zoho_item_code]['analysis_type_name'] .=', '.$a_type->name; 
+                } else {
+                    $analysis_arr = explode(',', $details_arr[$a_type->zoho_item_code]['analysis_type_name']);
+                    if (!in_array($a_type->name, $analysis_arr)) {
+                        $details_arr[$a_type->zoho_item_code]['analysis_type_name'] .= ', ' . $a_type->name;
                     }
-                    $details_arr[$a_type->zoho_item_code]['sample_header_id'] .=', '.$a_type->batch_id; 
-                    $details_arr[$a_type->zoho_item_code]['sample_detail_id'] .=', '.$a_type->sample_detail_id; 
-                    $details_arr[$a_type->zoho_item_code]['quantity'] +=1;
+                    $details_arr[$a_type->zoho_item_code]['sample_header_id'] .= ', ' . $a_type->batch_id;
+                    $details_arr[$a_type->zoho_item_code]['sample_detail_id'] .= ', ' . $a_type->sample_detail_id;
+                    $details_arr[$a_type->zoho_item_code]['quantity'] += 1;
                     $details_arr[$a_type->zoho_item_code]['total'] = $details_arr[$a_type->zoho_item_code]['quantity'] * $unit_price;
                 }
-                
+
             }
-            InvoiceDetails::where('invoice_id',$invoice->id)->delete();
+            InvoiceDetails::where('invoice_id', $invoice->id)->delete();
             $details = array_values($details_arr);
             InvoiceDetails::insert($details);
             $details_invoice = InvoiceDetails::where('invoice_id', $invoice->id)->get();
@@ -3194,9 +3142,9 @@ class SampleWorkFlowController extends Controller
             // $invoice->total_tax = 0;
             $invoice->save();
 
-            SampleHeader::wherein('id',$batch_ids)->update(['invoice_id'=>$invoice->id]);
+            SampleHeader::wherein('id', $batch_ids)->update(['invoice_id' => $invoice->id]);
 
-            return response()->json(['success' => 'Invoice Created Successfully', "invoice" => $invoice,"details"=>$details_invoice,'customer'=>$customer]);
+            return response()->json(['success' => 'Invoice Created Successfully', "invoice" => $invoice, "details" => $details_invoice, 'customer' => $customer]);
         } else {
             return response()->json(['error' => 'Kindly set generate_sample_invoice configuration value to true!']);
         }
@@ -3205,8 +3153,8 @@ class SampleWorkFlowController extends Controller
     {
         $invoice = Invoice::with(['currencyinfo', 'crmCustomer'])->find($invoice_id);
         $details = InvoiceDetails::where('invoice_id', $invoice_id)->get();
-        $batchids = SampleHeader::where('invoice_id',$invoice->id)->pluck('id')->toArray();
-        $sample = SampleDetails::whereIn('sample_header_id',$batchids)->orderBy('id','ASC')->first();
+        $batchids = SampleHeader::where('invoice_id', $invoice->id)->pluck('id')->toArray();
+        $sample = SampleDetails::whereIn('sample_header_id', $batchids)->orderBy('id', 'ASC')->first();
         $lineitems = [];
         $itemcounter = 0;
         foreach ($details as $detail) {
@@ -3217,7 +3165,7 @@ class SampleWorkFlowController extends Controller
                 "name" => $detail->zoho_item_name,
                 "description" => $detail->analysis_title,
                 "quantity" => $detail->quantity,
-                "discount" => $detail->discount > 0 ? ($detail->discount_type == 'percentage' ? $detail->discount.'%' : $detail->discount) : 0,
+                "discount" => $detail->discount > 0 ? ($detail->discount_type == 'percentage' ? $detail->discount . '%' : $detail->discount) : 0,
             ];
             $itemcounter = $itemcounter + 1;
         }
@@ -3228,7 +3176,7 @@ class SampleWorkFlowController extends Controller
             "date" => date('Y-m-d'),
             "line_items" => $lineitems,
             "reference_number" => $sample->sample_code,
-            "custom_fields"=>[
+            "custom_fields" => [
                 [
                     "customfield_id" => config('zoho.ZOHO_SO_IMARAUSER_FIELD'),
                     "value" => auth()->user()->name,
@@ -3236,11 +3184,11 @@ class SampleWorkFlowController extends Controller
             ],
 
         ];
-       
+
         // return response()->json($salesOrder);
         $zohoService = new ZohoController();
         $zoho_sales = $zohoService->createSalesrder($salesOrder);
-        $zoho_sales_id =  isset($zoho_sales['salesorder']['salesorder_id']) ? $zoho_sales['salesorder']['salesorder_id'] : 0;
+        $zoho_sales_id = isset($zoho_sales['salesorder']['salesorder_id']) ? $zoho_sales['salesorder']['salesorder_id'] : 0;
         $invoice->zoho_response = json_encode($zoho_sales);
         if ($zoho_sales_id != 0) {
             $invoice->sales_order_id = $zoho_sales_id;
@@ -3248,7 +3196,7 @@ class SampleWorkFlowController extends Controller
             return response()->json(['success' => 'Sales Order Created successfully!', 'invoice' => $invoice]);
         }
         $invoice->save();
-        return response()->json(['error' => 'Sales Order not created successfully!', 'invoice' => $invoice,'zoho_res'=>$zoho_sales,'salesorder'=>$salesOrder]);
+        return response()->json(['error' => 'Sales Order not created successfully!', 'invoice' => $invoice, 'zoho_res' => $zoho_sales, 'salesorder' => $salesOrder]);
     }
 
     public function return_back_verification(Request $request)
@@ -3792,16 +3740,16 @@ class SampleWorkFlowController extends Controller
         $batch = SampleHeader::find($request->batch_id);
         $samples = SampleDetails::where('sample_header_id', $batch->id)->get();
         $sampleTrs = "";
-        foreach($samples as $sample){
-            $target_date = date('Y-m-d',strtotime($sample->targetDateRelation()));
+        foreach ($samples as $sample) {
+            $target_date = date('Y-m-d', strtotime($sample->targetDateRelation()));
             $sampleTrs .= '
             <tr>
-                <td style="padding: 8px; border: 1px solid #ddd;">'.htmlspecialchars($sample->sample_code).'</td>
-                <td style="padding: 8px; border: 1px solid #ddd;">'.htmlspecialchars($target_date).'</td>
+                <td style="padding: 8px; border: 1px solid #ddd;">' . htmlspecialchars($sample->sample_code) . '</td>
+                <td style="padding: 8px; border: 1px solid #ddd;">' . htmlspecialchars($target_date) . '</td>
             </tr>';
-            
+
         }
-        
+
         $customer = CrmCustomer::find($batch->crm_customer_id);
         $contact = CustomerContact::find($request->contact_id);
         if (isset($contact->id) && $contact->email != '') {
@@ -3819,7 +3767,7 @@ class SampleWorkFlowController extends Controller
                         <th style="text-align: left; padding: 8px; background-color: #f2f2f2; border: 1px solid #ddd;">Sample Reference No</th>
                         <th style="text-align: left; padding: 8px; background-color: #f2f2f2; border: 1px solid #ddd;">Expected Results Date</th>
                     </tr>
-                    '.$sampleTrs.'
+                    ' . $sampleTrs . '
                 </table>
 
                 <p style="font-size: 16px; margin-top: 15px;">
@@ -3829,14 +3777,14 @@ class SampleWorkFlowController extends Controller
                 </p>
             </div>
 			';
-            notify_user($body, $contact->email, '[POLUCON LIMS] Schedule Of Analysis ' . $batch->batch_code,false,true,['donotreply@polucon.com']);
+            notify_user($body, $contact->email, '[POLUCON LIMS] Schedule Of Analysis ' . $batch->batch_code, false, true, ['donotreply@polucon.com']);
 
             $batch->schedule_sent = 1;
             $batch->schedule_analysis_sent = date('Y-m-d');
             $batch->schedule_analysis_sender = auth()->user()->id;
             $batch->save();
             $schedule_str = 'Schedule Of Analysis Sendoff';
-            $schedueDate = SampleDate::where('sample_header_id', $batch->id)->where('name',$schedule_str)->first() ?? new SampleDate();
+            $schedueDate = SampleDate::where('sample_header_id', $batch->id)->where('name', $schedule_str)->first() ?? new SampleDate();
             $schedueDate->name = $schedule_str;
             $schedueDate->sample_header_id = $batch->id;
             $schedueDate->date = date('Y-m-d');
@@ -3868,9 +3816,9 @@ class SampleWorkFlowController extends Controller
     {
         // return response()->json($request->all());
         $status = 'Samples In Lab';
-        $checkSalesOrder = SampleHeader::whereIn('batch_code',$request->batch_code)->where('invoice_id',0)->get();
-        if($checkSalesOrder->count() > 0){
-            return redirect()->back()->with('error','Some of the selected selected batches have no Sales Order generated. Kindly generate the Sales Order before proceeding with the proccess!');
+        $checkSalesOrder = SampleHeader::whereIn('batch_code', $request->batch_code)->where('invoice_id', 0)->get();
+        if ($checkSalesOrder->count() > 0) {
+            return redirect()->back()->with('error', 'Some of the selected selected batches have no Sales Order generated. Kindly generate the Sales Order before proceeding with the proccess!');
         }
         foreach ($request->batch_code as $code) {
             $batch = SampleHeader::where('batch_code', $code)->first();
@@ -3892,6 +3840,57 @@ class SampleWorkFlowController extends Controller
             $this->updateChainofCustody($custodyDetails);
             $batch->status = $status;
             $batch->save();
+            if ($batch->schedule_analysis_sent == '') {
+                $samples = SampleDetails::where('sample_header_id', $batch->id)->pluck('sample_code')->toArray();
+                $sampleTrs = '';
+                foreach ($samples as $sample) {
+                    $sampleTrs = "";
+                    foreach ($samples as $sample) {
+                        $target_date = date('Y-m-d');
+                        $sampleTrs .= '
+                    <tr>
+                        <td style="padding: 8px; border: 1px solid #ddd;">' . htmlspecialchars($sample) . '</td>
+                        <td style="padding: 8px; border: 1px solid #ddd;">' . htmlspecialchars($target_date) . '</td>
+                    </tr>';
+
+                    }
+                }
+                $body = '
+                <div style="font-family: Arial, sans-serif; color: #333; line-height: 1.6;">
+                    <p style="font-size: 16px;">
+                        Dear Esteemed Client, <br><br>
+                        We acknowledge receipt of your sample(s) submitted to our laboratory. The sample(s) have been forwarded to our laboratory, and analysis is scheduled to start anytime from now.<br>Sample Information : 
+                    </p>
+
+                    <table style="width: 100%; border-collapse: collapse; margin-top: 15px;">
+                        <tr>
+                            <th style="text-align: left; padding: 8px; background-color: #f2f2f2; border: 1px solid #ddd;">Sample Reference No</th>
+                            <th style="text-align: left; padding: 8px; background-color: #f2f2f2; border: 1px solid #ddd;">Expected Results Date</th>
+                        </tr>
+                        ' . $sampleTrs . '
+                    </table>
+
+                    <p style="font-size: 16px; margin-top: 15px;">
+                        <br>
+                        We will keep you updated on the progress report(s).<br>
+                        Thank you for the opportunity to serve you.
+                    </p>
+                </div>
+                ';
+                // $contact = CustomerContact::find($header->crm_contact_id);
+                // $customer = CRMCustomer::find($batch->crm_customer_id);
+                notify_user($body, $batch->customer_email, '[POLUCON LIMS] Schedule Of Analysis ' . $batch->batch_code, false, true, ['donotreply@polucon.com']);
+                $batch->schedule_analysis_sent = date('Y-m-d');
+                $batch->schedule_analysis_sender = auth()->user()->id;
+                $batch->save();
+
+                $scheduleDateStr = 'Schedule of Analysis Sendoff Date';
+                $scheduleDate = SampleDate::where('sample_header_id', $batch->id)->where('name', $scheduleDateStr)->first() ?? new SampleDate();
+                $scheduleDate->name = $scheduleDateStr;
+                $scheduleDate->sample_header_id = $batch->id;
+                $scheduleDate->date = date('Y-m-d');
+                $scheduleDate->save();
+            }
         }
 
         return redirect()->back()->with('success', 'Sample(s) moved to samples in Lab section successfully');
@@ -4080,10 +4079,10 @@ class SampleWorkFlowController extends Controller
                 $emails = ['laboratory@polucongroup.com'];
 
                 $invoice = Invoice::find($batch->invoice_id);
-                if(isset($invoice->id)){
+                if (isset($invoice->id)) {
                     $zohoService = new ZohoController();
                     $zoho_sales = $zohoService->changeSalesOrderStatus($invoice->zoho_id);
-                    if($zoho_sales['code'] == 0){
+                    if ($zoho_sales['code'] == 0) {
                         $invoice->zoho_so_confirmed = date('Y-m-d');
                         $invoice->save();
                     }
@@ -4111,6 +4110,7 @@ class SampleWorkFlowController extends Controller
             'unit_name' => 'Company Units',
             'sample_point_name' => 'Sample Point',
             'contacts' => $customer->contacts,
+            'customer' => $customer
         ];
 
         return response()->json($res);
@@ -4436,11 +4436,11 @@ class SampleWorkFlowController extends Controller
                 'batch_code' => $new_batch_code,
                 'receipt_date' => getTodayDate(),
                 'status' => 'Samples Reception',
-                'c_focus_ids_clustered'=>"",
-                'cluster_amount'=>"",
-                'cluster_balance'=>"",
-                'cluster_vat'=>"",
-                'cluster_amount_paid'=>"",
+                'c_focus_ids_clustered' => "",
+                'cluster_amount' => "",
+                'cluster_balance' => "",
+                'cluster_vat' => "",
+                'cluster_amount_paid' => "",
             ]);
             $new_batch->save();
             $samples = SampleDetails::with('captured_results')
@@ -4450,7 +4450,7 @@ class SampleWorkFlowController extends Controller
             foreach ($samples as $sample) {
                 // $config_start_no = SystemConfiguration::where('key', 'start_sample_no')->first();
                 $sample_data = SamplesCategory::where('id', $sample->id)->first();
-                $code = SampleDetails::where('lab_id', $sample_data->main_lab_id)->whereYear('created_at',date('Y'))->orderBy('id', 'DESc')->first()->sample_code;
+                $code = SampleDetails::where('lab_id', $sample_data->main_lab_id)->whereYear('created_at', date('Y'))->orderBy('id', 'DESc')->first()->sample_code;
                 $last_sample = substr($code, 9, strlen($code));
                 // $last_sample = isset(SampleDetails::latest('id')->first()->id) ? substr(SampleDetails::latest('id')->first()->sample_code,9,strlen(SampleDetails::latest('id')->first()->sample_code) -1) : $config_start_no->value;
 
@@ -4653,19 +4653,19 @@ class SampleWorkFlowController extends Controller
         $samples = SampleDetails::whereIn('sample_header_id', $batch_ids)->get();
         $sampletrs = '';
         $sampleTrs = "";
-        foreach($samples as $sample){
-            $target_date = date('Y-m-d',strtotime($sample->targetDateRelation()));
+        foreach ($samples as $sample) {
+            $target_date = date('Y-m-d', strtotime($sample->targetDateRelation()));
             $sampleTrs .= '
             <tr>
-                <td style="padding: 8px; border: 1px solid #ddd;">'.htmlspecialchars($sample->sample_code).'</td>
-                <td style="padding: 8px; border: 1px solid #ddd;">'.htmlspecialchars($target_date).'</td>
+                <td style="padding: 8px; border: 1px solid #ddd;">' . htmlspecialchars($sample->sample_code) . '</td>
+                <td style="padding: 8px; border: 1px solid #ddd;">' . htmlspecialchars($target_date) . '</td>
             </tr>';
-            
+
         }
-        
+
         // return response()->json(samples);
-        foreach($samples as $sample){
-            
+        foreach ($samples as $sample) {
+
         }
         if ($customer->email != '') {
             foreach ($batch_ids as $b_ids) {
@@ -4695,7 +4695,7 @@ class SampleWorkFlowController extends Controller
                         <th style="text-align: left; padding: 8px; background-color: #f2f2f2; border: 1px solid #ddd;">Sample Reference No</th>
                         <th style="text-align: left; padding: 8px; background-color: #f2f2f2; border: 1px solid #ddd;">Expected Results Date</th>
                     </tr>
-                    '.$sampleTrs.'
+                    ' . $sampleTrs . '
                 </table>
 
                 <p style="font-size: 16px; margin-top: 15px;">
@@ -4705,8 +4705,8 @@ class SampleWorkFlowController extends Controller
                 </p>
             </div>
             ';
-            notify_user($body, $customer->email, '[POLUCON LIMS] Schedule Of Analysis',false,true,['donotreply@polucon.com']);
-            
+            notify_user($body, $customer->email, '[POLUCON LIMS] Schedule Of Analysis', false, true, ['donotreply@polucon.com']);
+
             return redirect()->back()->with('success', 'Schedule of analysis sent successfully!');
         } else {
             return redirect()->back()->with('error', 'Kindly set an email to the specified customer');
@@ -4831,19 +4831,21 @@ class SampleWorkFlowController extends Controller
         return response()->json(['tat_count' => $atat_count, 'approval_count' => $approval]);
     }
 
-    public function deleteSalesOrder($id){
-        InvoiceDetails::where('invoice_id',$id)->delete();
-        SampleHeader::where('invoice_id',$id)->update(['invoice_id'=>0]);
+    public function deleteSalesOrder($id)
+    {
+        InvoiceDetails::where('invoice_id', $id)->delete();
+        SampleHeader::where('invoice_id', $id)->update(['invoice_id' => 0]);
         Invoice::find($id)->delete();
-        return response()->json(['status'=>"success","message"=>"Sales order deleted successfully!"]);
+        return response()->json(['status' => "success", "message" => "Sales order deleted successfully!"]);
 
     }
-    public function matchCrmCurrency(){
-        $customers = CRMCustomer::where('zoho_id','>',0)->whereNull('currency_id')->get();
-        foreach($customers as $customer){
+    public function matchCrmCurrency()
+    {
+        $customers = CRMCustomer::where('zoho_id', '>', 0)->whereNull('currency_id')->get();
+        foreach ($customers as $customer) {
             $zoho = ZohoCustomers::find($customer->zoho_id);
-            $z_currency = ModulePreConfigs::where('zoho_id',$zoho->currency_id)->first();
-            if(isset($z_currency->id)){
+            $z_currency = ModulePreConfigs::where('zoho_id', $zoho->currency_id)->first();
+            if (isset($z_currency->id)) {
                 $customer->currency_id = $z_currency->id;
                 $customer->save();
             }
@@ -4851,22 +4853,23 @@ class SampleWorkFlowController extends Controller
         return response()->json('success');
     }
 
-    public function updateInvoiceDetails(Request $request){
-        foreach($request->details as $detail){
-            
+    public function updateInvoiceDetails(Request $request)
+    {
+        foreach ($request->details as $detail) {
+
             $total = $detail['final_price'] * $detail['quantity'];
 
-            if($detail['invoice_detail_id'] > 0){
+            if ($detail['invoice_detail_id'] > 0) {
 
-                InvoiceDetails::find($detail['invoice_detail_id'])->update(['quantity'=>$detail['quantity'],'selling_price'=>$detail['unit_price'],"final_unit_price"=>$detail['final_price'],'total'=>$total,'discount'=>$detail['discount'],'discount_type'=>$detail['discount_type'],'analysis_title'=>$detail['title']]);
+                InvoiceDetails::find($detail['invoice_detail_id'])->update(['quantity' => $detail['quantity'], 'selling_price' => $detail['unit_price'], "final_unit_price" => $detail['final_price'], 'total' => $total, 'discount' => $detail['discount'], 'discount_type' => $detail['discount_type'], 'analysis_title' => $detail['title']]);
                 $invoice_detail = InvoiceDetails::with('invoice')->find($detail['invoice_detail_id']);
-            }else{
+            } else {
                 $invoice = Invoice::find($detail['invoice_id']);
-                $item = InventorySubCategories::where('inventory_sub_categories.id',$detail['item_id'])->leftjoin('zoho_items_pricelist',function($join) use ($invoice) {
-                    $join->on('inventory_sub_categories.id','=','zoho_items_pricelist.item_id');
-                    $join->on('zoho_items_pricelist.customer_id','=',DB::raw($invoice->customer_id));
+                $item = InventorySubCategories::where('inventory_sub_categories.id', $detail['item_id'])->leftjoin('zoho_items_pricelist', function ($join) use ($invoice) {
+                    $join->on('inventory_sub_categories.id', '=', 'zoho_items_pricelist.item_id');
+                    $join->on('zoho_items_pricelist.customer_id', '=', DB::raw($invoice->customer_id));
                 })->selectRaw('inventory_sub_categories.name as zoho_name,inventory_sub_categories.unit_price,inventory_sub_categories.zoho_item_code,inventory_sub_categories.id as zoho_analysis_type,zoho_items_pricelist.unit_price as unit_price_rate')->first();
-        
+
                 $invoice_detail = new InvoiceDetails();
                 $invoice_detail->invoice_id = $detail['invoice_id'];
                 $invoice_detail->analysis_type = $detail['item_id'];
@@ -4887,23 +4890,24 @@ class SampleWorkFlowController extends Controller
                 $invoice_detail->save();
             }
 
-            
-            $check_pl = ZohoPricelist::where('customer_id',$invoice_detail->invoice->customer_id)->where('item_id',$invoice_detail->analysis_type)->first();
-            if(isset($check_pl->id)){
+
+            $check_pl = ZohoPricelist::where('customer_id', $invoice_detail->invoice->customer_id)->where('item_id', $invoice_detail->analysis_type)->first();
+            if (isset($check_pl->id)) {
                 $check_pl->unit_price = $detail['unit_price'];
                 $check_pl->save();
-            }else{
-                ZohoPricelist::create(["customer_id"=>$invoice_detail->invoice->customer_id,"item_id"=>$invoice_detail->analysis_type,'unit_price'=>$detail['unit_price']]);
-            }            
+            } else {
+                ZohoPricelist::create(["customer_id" => $invoice_detail->invoice->customer_id, "item_id" => $invoice_detail->analysis_type, 'unit_price' => $detail['unit_price']]);
+            }
         }
         return response()->json('done');
     }
 
-    public function getInvoiceItemData($invoice_id,$item_id){
+    public function getInvoiceItemData($invoice_id, $item_id)
+    {
         $invoice = Invoice::find($invoice_id);
-        $item = InventorySubCategories::where('inventory_sub_categories.id',$item_id)->leftjoin('zoho_items_pricelist',function($join) use ($invoice) {
-            $join->on('inventory_sub_categories.id','=','zoho_items_pricelist.item_id');
-            $join->on('zoho_items_pricelist.customer_id','=',DB::raw($invoice->customer_id));
+        $item = InventorySubCategories::where('inventory_sub_categories.id', $item_id)->leftjoin('zoho_items_pricelist', function ($join) use ($invoice) {
+            $join->on('inventory_sub_categories.id', '=', 'zoho_items_pricelist.item_id');
+            $join->on('zoho_items_pricelist.customer_id', '=', DB::raw($invoice->customer_id));
         })->selectRaw('inventory_sub_categories.name as zoho_name,inventory_sub_categories.unit_price,inventory_sub_categories.zoho_item_code,inventory_sub_categories.id as zoho_analysis_type,zoho_items_pricelist.unit_price as unit_price_rate')->first();
 
         return response()->json($item);
