@@ -3822,6 +3822,9 @@ class SampleWorkFlowController extends Controller
         }
         foreach ($request->batch_code as $code) {
             $batch = SampleHeader::where('batch_code', $code)->first();
+            if($batch->schedule_analysis_sent && $batch->schedule_customer_email == ''){
+                return redirect()->back()->with('Kindly set the customer email under batch information for batch '.$code);
+            }
             $previousWorkflow = $batch->status;
 
             $custodyDetails = [
@@ -3879,7 +3882,8 @@ class SampleWorkFlowController extends Controller
                 ';
                 // $contact = CustomerContact::find($header->crm_contact_id);
                 // $customer = CRMCustomer::find($batch->crm_customer_id);
-                notify_user($body, $batch->customer_email, '[POLUCON LIMS] Schedule Of Analysis ' . $batch->batch_code, false, true, ['donotreply@polucon.com']);
+                
+                notify_user($body, $batch->schedule_customer_email, '[POLUCON LIMS] Schedule Of Analysis ' . $batch->batch_code, false, true, ['donotreply@polucon.com']);
                 $batch->schedule_analysis_sent = date('Y-m-d');
                 $batch->schedule_analysis_sender = auth()->user()->id;
                 $batch->save();
