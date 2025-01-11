@@ -3817,13 +3817,13 @@ class SampleWorkFlowController extends Controller
         // return response()->json($request->all());
         $status = 'Samples In Lab';
         $checkSalesOrder = SampleHeader::whereIn('batch_code', $request->batch_code)->where('invoice_id', 0)->get();
-        if ($checkSalesOrder->count() > 0) {
-            return redirect()->back()->with('error', 'Some of the selected selected batches have no Sales Order generated. Kindly generate the Sales Order before proceeding with the proccess!');
-        }
+        // if ($checkSalesOrder->count() > 0) {
+        //     return redirect()->back()->with('error', 'Some of the selected selected batches have no Sales Order generated. Kindly generate the Sales Order before proceeding with the proccess!');
+        // }
         foreach ($request->batch_code as $code) {
             $batch = SampleHeader::where('batch_code', $code)->first();
-            if($batch->schedule_analysis_sent && $batch->schedule_customer_email == ''){
-                return redirect()->back()->with('Kindly set the customer email under batch information for batch '.$code);
+            if($batch->schedule_analysis_sent == '' && $batch->schedule_customer_email == ''){
+                return redirect()->back()->with('error','Kindly set the customer email under batch information for batch '.$code);
             }
             $previousWorkflow = $batch->status;
 
@@ -3882,7 +3882,7 @@ class SampleWorkFlowController extends Controller
                 ';
                 // $contact = CustomerContact::find($header->crm_contact_id);
                 // $customer = CRMCustomer::find($batch->crm_customer_id);
-                
+                // return response()->json($batch);
                 notify_user($body, $batch->schedule_customer_email, '[POLUCON LIMS] Schedule Of Analysis ' . $batch->batch_code, false, true, ['donotreply@polucon.com']);
                 $batch->schedule_analysis_sent = date('Y-m-d');
                 $batch->schedule_analysis_sender = auth()->user()->id;
