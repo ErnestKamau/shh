@@ -832,7 +832,7 @@ $items = array(
 	<div class="modal fade" id="move-to-lab" role="dialog" data-backdrop="static" data-keyboard="false">
 		<div class="modal-dialog modal-xl">
 			<div class="modal-content">
-				<form action="{{route('moveToLab')}}" id="send-to-lab-form" method="post">
+				<form action="{{route('moveToLab')}}" id="send-to-lab-formss" method="post">
 					@csrf
 					<div class="modal-body">
 						<div class="card border-0">
