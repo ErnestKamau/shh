@@ -319,4 +319,7 @@ class SampleHeader extends Model implements Auditable
 		}
 		return $this->crm_unit_name;
 	}
+	public function invoice(){
+		return $this->belongsTo(Invoice::class,'invoice_id');
+	}
 }

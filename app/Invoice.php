@@ -11,7 +11,9 @@ class Invoice extends Model implements Auditable
 {
 	use \OwenIt\Auditing\Auditable;
     protected $table = 'customer_invoice';
-    protected $appends = ['batchcodes','samplecodes'];
+    protected $appends = ['batchcodes','samplecodes','invoicetotal'];
+
+    protected $fillable = ['deleted_at','delete_reason'];
 
     public function crmCustomer(){
         return $this->belongsTo(CRMCustomer::class,'customer_id');
@@ -25,5 +27,11 @@ class Invoice extends Model implements Auditable
     public function getsamplecodesAttribute(){
         $ids = SampleHeader::where('invoice_id',$this->id)->pluck('id')->toArray();
         return SampleDetails::whereIn('sample_header_id',$ids)->pluck('sample_code')->toArray();
+    }
+    public function getInvoiceTotalAttribute(){
+        return InvoiceDetails::where('invoice_id',$this->id)->sum('total');
+    }
+    public function details(){
+        return $this->hasMany(InvoiceDetails::class,'invoice_id');
     }
 }

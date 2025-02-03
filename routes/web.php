@@ -186,6 +186,10 @@ Route::get('/get/Tat/Batch/ApprovalCounter/Ajax/{status}','SampleWorkFlowControl
   Route::post('/generate/batch-invoice/ajax','SampleWorkFlowController@generate_batch_invoice_ajax')->name('generate_batch_invoice_ajax');
   Route::get('/send/Sales-Order/{id}','SampleWorkFlowController@sendSalesOrder')->name('sendSalesOrder');
   Route::get('/delete/sales-order/{id}','SampleWorkFlowController@deleteSalesOrder')->name('deleteSalesOrder');
+  Route::post('/send/sales/order-ajax','SampleWorkFlowController@moveToLabAjax')->name('move-to-lab-ajax');
+
+  Route::get('/zoho-item/analysis-types','SampleTypeController@zohotoAnalysisTypes')->name('zoho-item-analysis');
+  Route::post('zoho/item/analysis-store','SampleTypeController@zohoAnalysisStore')->name('zoho-item-analysis-store');
   // -----------------------------------SALES ORDERS----------------------
 
 
@@ -981,6 +985,13 @@ Route::get('/vgm/index','Inspection\InspectionController@index')->name('vgm.inde
 Route::get('/vgm/show/{id}','Inspection\InspectionController@show')->name('vgm.show');
 Route::post('/vgm/store','Inspection\InspectionController@store')->name('vgm.store');
 Route::post('/vgm/delete','Inspection\InspectionController@delete')->name('vgm.delete');
+
+#################################SAMPLE WORKFLOW SEND SALES ORDER#######################
+Route::post('/validate/client-batches','SampleWorkFlowController@validateClientBatches')->name('validate-clients');
+Route::post('/ajax/send-schedule','SampleWorkFlowController@sendScheduleAjax')->name('ajax-send-schedule');
+#######################################################################################
+
+
 
 
 #STORAGE ROUTES

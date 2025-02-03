@@ -148,6 +148,7 @@
                     <table data-filename="ProformaInvoice-{{$start}}-to-{{$end}}" class="table table-condensed my-small-text table-striped table-hover table-bordered table-sm">
                         <thead class="bg-light p-2">
                             <tr>
+                                <th>#</th>
                                 <th>Sales Order No</th>
                                 <th>Status</th>
                                 <th>Zoho ID</th>
@@ -164,10 +165,11 @@
                         <tbody>
                             @foreach ($sales as $sale)
                                 <tr>
-                                    <td>{{$sale->invoice_number}}</td>
+                                    <td><a href="{{route('invoice-sample-header',['id'=>$sale->id])}}" class="btn btn-sm btn-default text-success"><i class="mdi mdi-eye"></i></a></td>
+                                    <td> <a href="{{route('invoice-sample-header',['id'=>$sale->id])}}" class="btn btn-sm text-primary">{{$sale->invoice_number}}</a></td>
                                     <td><b>{{$sale->zoho_so_confirmed ? 'Confirmed' : 'Draft'}}</b></td>
                                     <td>{{$sale->sales_order_id  ? $sale->sales_order_id : 'N/A'}}</td>
-                                    <td>{{$sale->total}}</td>
+                                    <td>{{$sale->invoicetotal}}</td>
                                     <td>{{sizeof($sale->batchcodes) > 0 ? implode(',',$sale->batchcodes) : 'N/A' }}</td>
                                     <td>{{sizeof($sale->samplecodes) > 0 ? implode(',',$sale->samplecodes) : 'N/A'}}</td>
                                     <td>{{$sale->created_at}}</td>

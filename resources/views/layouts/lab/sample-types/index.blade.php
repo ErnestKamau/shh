@@ -22,7 +22,7 @@
   <x-bread-crumb :items="$items"></x-bread-crumb>
   <h2 class="p-4">
     <i class="mdi mdi-test-tube"></i> Sample Types
-
+  <a href="{{route('zoho-item-analysis')}}" class="btn btn-sm btn-default float-right" style="background-color:white !important;box-shadow: rgba(149, 157, 165, 0.2) 0px 8px 24px;"><i class="mdi mdi-swap-horizontal"></i> Match Zoho Items</a>
   </h2>
   <br>
   <!-- ------------------------------------ -->

@@ -197,4 +197,13 @@ class SampleTypeController extends Controller
 
     return redirect()->back()->with('success', 'Cloning was successful');
   }
+  public function zohotoAnalysisTypes(){
+    $analysis_types = AnalysisType::with(['sample_type','zohoitem'])->where('active',1)->get();
+    $zoho_items = InventorySubCategories::where('item_classification',3)->get();
+    return view('layouts.lab.sample-types.zoho-sync-index', compact('zoho_items','analysis_types'));
+  }
+  public function zohoAnalysisStore(Request $request){
+    AnalysisType::find($request->analysis_type_id)->update(['zoho_id'=>$request->zoho_id]);
+    return redirect()->back()->with('success','Analysis Type has been tied successfully!');
+  }
 }

@@ -97,7 +97,7 @@ class SampleWorkFlowController extends Controller
         if ($status == 'Finished Sample') {
             $filter = [];
             if (isset($request->has_filter)) {
-                $batchesquery = SampleHeader::query();
+                $batchesquery = SampleHeader::with('invoice')->query();
 
                 if ($request->sample_codes != '') {
                     $filter['sample_codes'] = $request->sample_codes;
@@ -3046,10 +3046,11 @@ class SampleWorkFlowController extends Controller
         }
         if ($config[0]->value == 'true') {
             // return response()->json($request->batch_code,200);
-            $batch_ids = SampleHeader::whereIn('batch_code',$request->code)->leftJoin('customer_invoice','customer_invoice.id','=','sample_headers.invoice_id')->whereNull('customer_invoice.sales_order_id')->pluck('sample_headers.id')->toArray();
-            $customer_ids = SampleHeader::whereIn('id',$batch_ids)->pluck('crm_customer_id')->toArray();
-            
-            if(sizeof($batch_ids) < 1){
+            $batch_ids = SampleHeader::whereIn('batch_code', $request->batch_code)->leftJoin('customer_invoice', 'customer_invoice.id', '=', 'sample_headers.invoice_id')->whereNull('customer_invoice.sales_order_id')->pluck('sample_headers.id')->toArray();
+            $customer_ids = SampleHeader::whereIn('id', $batch_ids)->pluck('crm_customer_id')->toArray();
+
+
+            if (sizeof($batch_ids) < 1) {
                 return response()->json(['error' => 'The selected batch(es) have sales order attached to already sent to zoho']);
             }
             $analysis_with_no_zoho = sampleAnalysisTypeRelation::whereIn('batch_id', $batch_ids)->join('analysis_types', 'analysis_types.id', '=', 'sample_analysis_type_relation.analysis_type_id')->whereNull('analysis_types.zoho_id')->pluck('analysis_types.name')->toArray();
@@ -3065,12 +3066,17 @@ class SampleWorkFlowController extends Controller
                 return response()->json(['error' => 'There is no customer with the specified Batches!']);
             }
             if ($customer->currency_id == '') {
-
                 return response()->json(['error' => 'The specified customer has no currency assigned']);
             }
             if (!isset($customer->zohocustomer->zoho_contact_id)) {
                 return response()->json(['error' => 'The specified customer has not been tied to zoho customer']);
             }
+            $invoices_ids = SampleHeader::whereIn('batch_code', $request->batch_code)->leftJoin('customer_invoice', 'customer_invoice.id', '=', 'sample_headers.invoice_id')->whereNull('customer_invoice.sales_order_id')->pluck('customer_invoice.id')->toArray();
+            if (sizeof($invoices_ids) > 0) {
+                Invoice::whereIn('id', $invoices_ids)->update(['deleted_at' => date('Y-m-d'), 'delete_reason' => 'Generation of another invoice for batch ' . implode(', ', $request->batch_code)]);
+                SampleHeader::whereIn('invoice_id', $invoices_ids)->update(['invoice_id' => null]);
+            }
+
             $module = "Inventory-Management";
             $defaultCurrency = ModulePreConfigs::where('type', 'Currency')->where('module', $module)->where("name", "KES")->first();
 
@@ -3090,9 +3096,9 @@ class SampleWorkFlowController extends Controller
             if (strlen($id_str) < 4) {
                 $count = 4 - strlen($id_str);
                 $zeros = str_repeat('0', $count);
-                $number = 'IM/SO-' . $zeros . $id_str;
+                $number = 'IM/SO/' . $zeros . $id_str;
             } else {
-                $number = 'IM/SO-' . $id_str;
+                $number = 'IM/SO/' . $id_str;
             }
             $invoice->invoice_number = $number;
             $invoice->save();
@@ -3141,9 +3147,7 @@ class SampleWorkFlowController extends Controller
             $invoice->total = InvoiceDetails::where('invoice_id', $invoice->id)->sum('total');
             // $invoice->total_tax = 0;
             $invoice->save();
-
             SampleHeader::wherein('id', $batch_ids)->update(['invoice_id' => $invoice->id]);
-
             return response()->json(['success' => 'Invoice Created Successfully', "invoice" => $invoice, "details" => $details_invoice, 'customer' => $customer]);
         } else {
             return response()->json(['error' => 'Kindly set generate_sample_invoice configuration value to true!']);
@@ -3822,8 +3826,8 @@ class SampleWorkFlowController extends Controller
         // }
         foreach ($request->batch_code as $code) {
             $batch = SampleHeader::where('batch_code', $code)->first();
-            if($batch->schedule_analysis_sent == '' && $batch->schedule_customer_email == ''){
-                return redirect()->back()->with('error','Kindly set the customer email under batch information for batch '.$code);
+            if ($batch->schedule_analysis_sent == '' && $batch->schedule_customer_email == '') {
+                return redirect()->back()->with('error', 'Kindly set the customer email under batch information for batch ' . $code);
             }
             $previousWorkflow = $batch->status;
 
@@ -3844,12 +3848,13 @@ class SampleWorkFlowController extends Controller
             $batch->status = $status;
             $batch->save();
             if ($batch->schedule_analysis_sent == '') {
+                $targetDate = SampleDate::where('sample_header_id', $batch->id)->where('name', 'Target Date')->first();
                 $samples = SampleDetails::where('sample_header_id', $batch->id)->pluck('sample_code')->toArray();
                 $sampleTrs = '';
                 foreach ($samples as $sample) {
                     $sampleTrs = "";
                     foreach ($samples as $sample) {
-                        $target_date = date('Y-m-d');
+                        $target_date = $targetDate->date;
                         $sampleTrs .= '
                     <tr>
                         <td style="padding: 8px; border: 1px solid #ddd;">' . htmlspecialchars($sample) . '</td>
@@ -3883,7 +3888,7 @@ class SampleWorkFlowController extends Controller
                 // $contact = CustomerContact::find($header->crm_contact_id);
                 // $customer = CRMCustomer::find($batch->crm_customer_id);
                 // return response()->json($batch);
-                notify_user($body, $batch->schedule_customer_email, '[POLUCON LIMS] Schedule Of Analysis ' . $batch->batch_code, false, true, ['donotreply@polucon.com']);
+                notify_user($body, $batch->schedule_customer_email, '[POLUCON LIMS] Schedule Of Analysis ' . $batch->batch_code, false, true, ['dannyagah13@gmail.com']);
                 $batch->schedule_analysis_sent = date('Y-m-d');
                 $batch->schedule_analysis_sender = auth()->user()->id;
                 $batch->save();
@@ -4915,5 +4920,99 @@ class SampleWorkFlowController extends Controller
         })->selectRaw('inventory_sub_categories.name as zoho_name,inventory_sub_categories.unit_price,inventory_sub_categories.zoho_item_code,inventory_sub_categories.id as zoho_analysis_type,zoho_items_pricelist.unit_price as unit_price_rate')->first();
 
         return response()->json($item);
+    }
+    public function validateClientBatches(Request $request)
+    {
+        $clients = SampleHeader::whereIn('batch_code', $request->batch_code)->pluck('crm_customer_id')->toArray();
+        $res = sizeof(array_unique($clients)) > 1 ? ['error' => "Ensure the batches are from 1 client before proceeding"] : ["client_id" => $clients[0]];
+        return response()->json($res);
+    }
+    public function sendScheduleAjax(Request $request)
+    {
+        $check_customer_email = SampleHeader::whereIn('batch_code', $request->batch_code)->whereNull('schedule_customer_email')->first();
+        if ($check_customer_email) {
+            return response()->json(['error' => 'Kindly ensure the selected batches have customer email field']);
+        }
+        $sampleTrs = "";
+        $customer_email = '';
+        foreach ($request->batch_code as $code) {
+            $batch = SampleHeader::where('batch_code', $code)->first();
+            $customer_email = $batch->schedule_customer_email;
+            if ($batch->schedule_analysis_sent == '') {
+                $targetDate = SampleDate::where('sample_header_id', $batch->id)->where('name', 'Target Date')->first();
+                $samples = SampleDetails::where('sample_header_id', $batch->id)->pluck('sample_code')->toArray();
+                foreach ($samples as $sample) {
+                    foreach ($samples as $sample) {
+                        $target_date = $targetDate->date;
+                        $sampleTrs .= '
+                    <tr>
+                        <td style="padding: 8px; border: 1px solid #ddd;">' . htmlspecialchars($sample) . '</td>
+                        <td style="padding: 8px; border: 1px solid #ddd;">' . htmlspecialchars($target_date) . '</td>
+                    </tr>';
+
+                    }
+                }
+                $scheduleDateStr = 'Schedule of Analysis Sendoff Date';
+                $scheduleDate = SampleDate::where('sample_header_id', $batch->id)->where('name', $scheduleDateStr)->first() ?? new SampleDate();
+                $scheduleDate->name = $scheduleDateStr;
+                $scheduleDate->sample_header_id = $batch->id;
+                $scheduleDate->date = date('Y-m-d');
+                $scheduleDate->save();
+            }
+        }
+        $body = '
+            <div style="font-family: Arial, sans-serif; color: #333; line-height: 1.6;">
+                <p style="font-size: 16px;">
+                    Dear Esteemed Client, <br><br>
+                    We acknowledge receipt of your sample(s) submitted to our laboratory. The sample(s) have been forwarded to our laboratory, and analysis is scheduled to start anytime from now.<br>Sample Information : 
+                </p>
+
+                <table style="width: 100%; border-collapse: collapse; margin-top: 15px;">
+                    <tr>
+                        <th style="text-align: left; padding: 8px; background-color: #f2f2f2; border: 1px solid #ddd;">Sample Reference No</th>
+                        <th style="text-align: left; padding: 8px; background-color: #f2f2f2; border: 1px solid #ddd;">Expected Results Date</th>
+                    </tr>
+                    ' . $sampleTrs . '
+                </table>
+
+                <p style="font-size: 16px; margin-top: 15px;">
+                    <br>
+                    We will keep you updated on the progress report(s).<br>
+                    Thank you for the opportunity to serve you.
+                </p>
+            </div>
+            ';
+        // return response()->json(['email'=>$customer_email,'body'=>$body,'error'=>'My testing']);
+        notify_user($body, $customer_email, '[POLUCON LIMS] Schedule Of Analysis ' . implode(',',$request->batch_code), false, true, ['dannyagah13@gmail.com']);
+        SampleHeader::whereIn('batch_code', $request->batch_code)->update(["schedule_analysis_sent"=> date('Y-m-d'),"schedule_analysis_sender"=>auth()->user()->id]);
+        return response()->json(["customer_email"=>$customer_email]);
+    }
+    public function moveToLabAjax(Request $request){
+        $status = 'Samples In Lab';
+        foreach ($request->batch_code as $code) {
+            $batch = SampleHeader::where('batch_code', $code)->first();
+            if ($batch->schedule_analysis_sent == '' && $batch->schedule_customer_email == '') {
+                return redirect()->back()->with('error', 'Kindly set the customer email under batch information for batch ' . $code);
+            }
+            $previousWorkflow = $batch->status;
+
+            $custodyDetails = [
+                'batch_id' => $batch->id,
+                'comments' => $request->comments ?? '',
+                'current' => [
+                    'status' => $batch->status,
+                    'tracking_stage' => $batch->sample_tracking_stage,
+                ],
+                'target' => [
+                    'status' => $status,
+                    'tracking_stage' => $batch->sample_tracking_stage,
+                ],
+            ];
+
+            $this->updateChainofCustody($custodyDetails);
+            $batch->status = $status;
+            $batch->save();
+        }
+        return response()->json(['batch_codes'=>$request->batch_code,'process'=>'Complete']);
     }
 }

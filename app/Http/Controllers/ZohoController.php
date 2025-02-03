@@ -71,13 +71,14 @@ class ZohoController extends Controller
 	public function authenticate()
 	{
 		return $this->getToken();
-		$url = "https://accounts.zoho.com/oauth/v2/auth?scope=ZohoBooks.fullaccess.ALL&client_id=" . $this->clientID . "&state=testing&response_type=code&redirect_uri=" . $this->refreshUrl . "&access_type=offline";
+		// return $this->getRefreshToken();
+		$url = "https://accounts.zoho.com/oauth/v2/auth?scope=ZohoBooks.fullaccess.ALL&client_id=" . $this->clientID . "&state=testing&response_type=code&redirect_uri=" . $this->refreshUrl . "&access_type=offline&prompt=consent";
 		return $url;
 	}
 
 	public function getRefreshToken()
 	{
-		$url = "https://accounts.zoho.com/oauth/v2/token?scope=ZohoBooks.fullaccess.ALL&code=1000.dbb3f46fe8f72d37c1105ebd851a00f1.62712660552623dbe47312ed78493401&client_id=" . $this->clientID . "&client_secret=" . $this->clientSecret . "&redirect_uri=" . $this->refreshUrl . "&grant_type=authorization_code";
+		$url = "https://accounts.zoho.com/oauth/v2/token?scope=ZohoBooks.fullaccess.ALL&code=1000.ce2f2b02b65e05f5ef86fe63aa5752d2.5b89f11410b2a7cbe3ceba7ed2abdb0e&client_id=" . $this->clientID . "&client_secret=" . $this->clientSecret . "&redirect_uri=" . $this->refreshUrl . "&grant_type=authorization_code";
 		return $url;
 	}
 
@@ -140,9 +141,9 @@ class ZohoController extends Controller
 			$lists = $purchaseOrders['purchaseorders'];
 
 			foreach ($lists as $list) {
-				if ($list['status'] != "draft"){
+				if ($list['status'] != "draft") {
 					$po = RequestEntity::where('zoho_id', $list['purchaseorder_id'])->first();
-					if($po){
+					if ($po) {
 						$po->update([
 							"status" => $list['status'] != "cancelled" ? "Approval Complete" : "Rejected",
 							"zoho_status" => $list['status']
@@ -188,29 +189,29 @@ class ZohoController extends Controller
 				"quantity" => $item['quantity'], // Using the quantity from the request item
 			];
 
-			if($vatPerc > 0){
+			if ($vatPerc > 0) {
 				$tax_ids = config("zoho.ZOHO_TAX_IDS");
-				if($isInclusive){
-					$totalPerc = 100+$vatPerc;
-					$totalN = $item['net_value']*100/$totalPerc;
+				if ($isInclusive) {
+					$totalPerc = 100 + $vatPerc;
+					$totalN = $item['net_value'] * 100 / $totalPerc;
 
 					$cIt['item_total'] = $totalN;
 					$cIt['tax_percentage'] = $vatPerc;
 					$cIt['item_total_inclusive_of_tax'] = floatval($item['net_value']);
 				}
-				if(!$isInclusive){
-					$totalPerc = 100+$vatPerc;
-					$totalN = $item['net_value']*$totalPerc/100;
+				if (!$isInclusive) {
+					$totalPerc = 100 + $vatPerc;
+					$totalN = $item['net_value'] * $totalPerc / 100;
 
 					$cIt['item_total'] = floatval($item['net_value']);
 					$cIt['tax_percentage'] = $vatPerc;
 					$cIt['item_total_inclusive_of_tax'] = $totalN;
 				}
 
-				\Log::error("<<<<<<<<<<<<<<<<<<<<<<<".json_encode($tax_ids));
-				\Log::error(">>>>>>>>>>>>>>>>>>>>>>>>>>".$tax_ids[$vatPerc]);
+				\Log::error("<<<<<<<<<<<<<<<<<<<<<<<" . json_encode($tax_ids));
+				\Log::error(">>>>>>>>>>>>>>>>>>>>>>>>>>" . $tax_ids[$vatPerc]);
 
-				if(isset($tax_ids[$vatPerc])){
+				if (isset($tax_ids[$vatPerc])) {
 					$cIt['tax_id'] = $tax_ids[$vatPerc];
 				}
 				$cIt['rate'] = round(floatval($cIt['item_total']) / floatval($item['quantity']), 2);
@@ -221,12 +222,12 @@ class ZohoController extends Controller
 
 		$custom_fields = [
 			[
-				"customfield_id" =>config("zoho.ZOHO_PO_INSERTED_BY_FIELD"), //Inserted by
+				"customfield_id" => config("zoho.ZOHO_PO_INSERTED_BY_FIELD"), //Inserted by
 				"value" => trim($requestEntity->creator()->name)
 			],
 			[
-				"customfield_id"=>config("zoho.ZOHO_PO_DESCRIPTION_FIELD"), //description
-				"value" =>$requestEntity->source_request->description
+				"customfield_id" => config("zoho.ZOHO_PO_DESCRIPTION_FIELD"), //description
+				"value" => $requestEntity->source_request->description
 			]
 		];
 
@@ -246,7 +247,7 @@ class ZohoController extends Controller
 
 		\Log::error($purchaseOrderData);
 
-		try{
+		try {
 			$response = $this->post('purchaseorders', [
 				'form_params' => ['JSONString' => json_encode($purchaseOrderData)],
 				'query' => [
@@ -257,8 +258,7 @@ class ZohoController extends Controller
 			if (!isset($zItem['purchaseorder'])) {
 				return ['error' => $zItem['message']];
 			}
-		}
-		catch(Exception $e){
+		} catch (Exception $e) {
 			return ['error' => $e->getMessage()];
 		}
 
@@ -279,8 +279,8 @@ class ZohoController extends Controller
 		$response = $this->post('items', [
 			'form_params' => ['JSONString' => json_encode($itemArr)],
 			'query' => [
-				'organization_id' => $this->orgID,
-			],
+					'organization_id' => $this->orgID,
+				],
 		]);
 
 		$zItem = json_decode($response, true);
@@ -302,8 +302,8 @@ class ZohoController extends Controller
 		$response = $this->post('contacts', [
 			'form_params' => ['JSONString' => json_encode($itemArr)],
 			'query' => [
-				'organization_id' => $this->orgID
-			],
+					'organization_id' => $this->orgID
+				],
 		]);
 		// throw new Error($response);
 		$zItem = json_decode($response, true);
@@ -337,14 +337,14 @@ class ZohoController extends Controller
 			if ($type == "currencies") {
 				return $this->sync_zoho_currencies();
 			}
-			if($type == "customers"){
+			if ($type == "customers") {
 				return $this->sync_zoho_customers();
 			}
 		} catch (\Exception $e) {
 			throw new Error($e->getMessage());
 		}
 	}
-	
+
 
 	public function sync_zoho_items($page = 1)
 	{
@@ -355,11 +355,12 @@ class ZohoController extends Controller
 			],
 		]);
 		$items = json_decode($response, true);
+		// return $items;
 
 		// echo $this->token;
 
 		// throw new Error(json_encode($response));
-		
+
 		$zItems = $items['items'];
 		$pref = "IM";
 		// return $zItems;
@@ -406,7 +407,7 @@ class ZohoController extends Controller
 
 		$this->supplier_to_item_sync();
 
-		return true;
+		return $items;
 	}
 
 	public function sync_zoho_vendors($page = 1)
@@ -471,9 +472,9 @@ class ZohoController extends Controller
 	public function sync_zoho_currencies()
 	{
 		$currencies = $this->sync_zoho_things('/settings/currencies', 'currencies');
-		return json_decode($currencies);
+		// return json_decode($currencies);
 
-		return ">>>>>>>>>>>>>>>>>>>>>" . json_encode($currencies);
+		// return ">>>>>>>>>>>>>>>>>>>>>" . json_encode($currencies);
 
 		$currencies = json_decode($currencies, true);
 		$config = "Currency";
@@ -497,7 +498,7 @@ class ZohoController extends Controller
 		return ModulePreConfigs::where('type', $config)->where('module', $module)->get();
 	}
 
-	public function sync_zoho_customers($page =1)
+	public function sync_zoho_customers($page = 1)
 	{
 		$response = $this->get('contacts', [
 			'query' => [
@@ -509,22 +510,22 @@ class ZohoController extends Controller
 		$customers = json_decode($response, true);
 		// return $customers;
 		$insertCst = [];
-		if(isset($customers['contacts'])){
-			foreach($customers['contacts'] as $customer){
-				$n_customer = ZohoCustomers::where('zoho_contact_id',$customer['contact_id'])->first();
-				if(!isset($n_customer->id)){
-					$insertCst[]=[
-						"zoho_contact_id"=>$customer['contact_id'],
-						"name"=>$customer['customer_name'],
-						"currency_id"=>$customer['currency_id'],
+		if (isset($customers['contacts'])) {
+			foreach ($customers['contacts'] as $customer) {
+				$n_customer = ZohoCustomers::where('zoho_contact_id', $customer['contact_id'])->first();
+				if (!isset($n_customer->id)) {
+					$insertCst[] = [
+						"zoho_contact_id" => $customer['contact_id'],
+						"name" => $customer['customer_name'],
+						"currency_id" => $customer['currency_id'],
 						"status" => $customer['status'],
-						"currency_code"=>$customer['currency_code']
+						"currency_code" => $customer['currency_code']
 					];
 				}
-				
+
 			}
 		}
-		if(sizeof($insertCst) > 0){
+		if (sizeof($insertCst) > 0) {
 			ZohoCustomers::insert($insertCst);
 		}
 
@@ -551,8 +552,8 @@ class ZohoController extends Controller
 		$response = $this->post('salesorders', [
 			'form_params' => ['JSONString' => json_encode($salesOrder)],
 			'query' => [
-				'organization_id' => $this->orgID,
-			],
+					'organization_id' => $this->orgID,
+				],
 		]);
 
 		$zItem = json_decode($response, true);
@@ -587,9 +588,9 @@ class ZohoController extends Controller
 				CURLOPT_HTTP_VERSION => CURL_HTTP_VERSION_1_1,
 				CURLOPT_CUSTOMREQUEST => 'GET',
 				CURLOPT_HTTPHEADER => array(
-					'Authorization: Zoho-oauthtoken ' . $this->token,
-					'Content-Type: application/json'
-				),
+						'Authorization: Zoho-oauthtoken ' . $this->token,
+						'Content-Type: application/json'
+					),
 				CURLOPT_SSL_VERIFYPEER => false, // Disable SSL verification
 				CURLOPT_SSL_VERIFYHOST => false, // Disable SSL verification
 			)
@@ -624,8 +625,8 @@ class ZohoController extends Controller
 				CURLOPT_CUSTOMREQUEST => $method,
 				CURLOPT_POSTFIELDS => $configs['form_params'],
 				CURLOPT_HTTPHEADER => array(
-					'Authorization: Zoho-oauthtoken ' . $this->token
-				),
+						'Authorization: Zoho-oauthtoken ' . $this->token
+					),
 				CURLOPT_SSL_VERIFYPEER => false, // Disable SSL verification
 				CURLOPT_SSL_VERIFYHOST => false, // Disable SSL verification
 			)
@@ -649,7 +650,7 @@ class ZohoController extends Controller
 		$items = $this->sync_zoho_items();
 		// $customers = $this->sync_zoho_customers();
 		// $currency = $this->sync_zoho_currencies();
-		return response()->json($items);
+		return response()->json(['items'=>$items]);
 
 		// $invoice = Invoice::with(['currencyinfo','crmCustomer'])->find($invoice_id);
 		// $details = InvoiceDetails::with('analysisType')->where('invoice_id',$invoice_id)->get();
@@ -674,27 +675,29 @@ class ZohoController extends Controller
 		$response = $this->post('salesorders', [
 			'form_params' => ['JSONString' => json_encode($salesOrder)],
 			'query' => [
-				'organization_id' => $this->orgID,
-			],
+					'organization_id' => $this->orgID,
+				],
 		]);
-		return  response()->json($response);
+		return response()->json($response);
 	}
-	
-	public function changeSalesOrderStatus($sales_order_id){
-		$saleorders = ["status"=>"Confirmed"];
-		$response = $this->post('salesorders/'.$sales_order_id.'/status/confirmed', [
+
+	public function changeSalesOrderStatus($sales_order_id)
+	{
+		$saleorders = ["status" => "Confirmed"];
+		$response = $this->post('salesorders/' . $sales_order_id . '/status/confirmed', [
 			'form_params' => ['JSONString' => ''],
 			'query' => [
 				'organization_id' => $this->orgID,
 			],
 		]);
-		$res = json_decode($response,true);
-		return  $res;
+		$res = json_decode($response, true);
+		return $res;
 	}
 
-	public function supplier_to_item_sync(){
+	public function supplier_to_item_sync()
+	{
 		SupplierCategory::whereNotNull('supplier_id')->delete();
-		
+
 		DB::statement("
 			INSERT INTO supplier_categories (supplier_id, inventory_sub_category_id, status, inventory_item_brand_id, supplier_image)
 			SELECT 

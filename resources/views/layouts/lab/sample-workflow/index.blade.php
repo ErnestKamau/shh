@@ -58,6 +58,11 @@
 	.btn-white {
 		background-color: white !important;
 	}
+
+	.badge-active {
+		background-color: white !important;
+		color: black;
+	}
 </style>
 @endsection
 @section('content2')
@@ -226,9 +231,10 @@ $items = array(
 	</h4>
 	@if($status == 'All Samples')
 		<b>Apply Filter ?</b>
-		
 
-		<form style="background-color:white" class="p-3"  action="{{route('sample-workflow', ['status' => $status])}}" method="get">
+
+		<form style="background-color:white" class="p-3" action="{{route('sample-workflow', ['status' => $status])}}"
+			method="get">
 			@csrf
 			<div class="row">
 				<div class="col-md-3">
@@ -353,6 +359,7 @@ $items = array(
 
 				<th>Sample Codes</th>
 				<th>Lab Sections</th>
+				<th>Sales Order</th>
 
 				<th>Stage</th>
 				@if($status == 'Samples In Lab' || $status == 'Sample Verification')
@@ -371,7 +378,7 @@ $items = array(
 				<th>Lab</th>
 				<th nowrap>Sample Type</th>
 
-				<th>Invoice Number</th>
+
 				<th>Routine</th>
 				<th>Routine Frequency</th>
 				<th></th>
@@ -399,7 +406,7 @@ $items = array(
 
 					$sample_count = count($sample_codes);
 					$sampleEnd = end($sample_codes) ?? '';
-								?>
+												?>
 								@if($item->current_account_status == 'Account Holder(Overdue)')
 									<tr class="batch-row overdue-bg-color {{ $diff > 0 ? 'text-danger' : '' }} crm-customer-{{ $item->client->id }}"
 										data-class="{{ $item->client->id }}">
@@ -432,7 +439,8 @@ $items = array(
 										</td>
 									@else
 										<td nowrap>{!! $item->priority != "Normal" ? '<i class="mdi mdi-star text-danger"></i>' : '' !!}
-											{{ $item->priority }}</td>
+											{{ $item->priority }}
+										</td>
 
 									@endif
 									<td>
@@ -449,6 +457,18 @@ $items = array(
 										{{$sampleStart . ' - ' . $sampleEnd}}
 									</td>
 									<td nowrap>{{$item->getLabSectionsNames()}}</td>
+
+									<td>
+										@if($item->invoice)
+											@if($item->invoice->sales_order_id != '')
+												<span class="badge badge-active p-2">Generated - Synced</span>
+											@else
+												<span class="badge badge-primary p-2">Generated - Not Synced</span>
+											@endif
+										@else
+											<span class="badge badge-danger p-2">Not Generated</span>
+										@endif
+									</td>
 									<td style="min-width: 200px !important;">{{$item->status}}</td>
 									@if($status == 'Samples In Lab' || $status == 'Sample Verification')
 									@else
@@ -467,19 +487,13 @@ $items = array(
 									<td nowrap>{{ implode(", ", $item->labs(true)) }}</td>
 									<td nowrap>{{ $item->sample_type->name ?? '' }}</td>
 
-									<?php $invoice = getInvoiceById($item->invoice_id) ?>
-									@if(isset($invoice->id))
-										<td nowrap><a href="/invoice/sample/{{$item->id}}">{{$invoice->invoice_number}}</a></td>
 
-									@else
-										<td>N/a</td>
-									@endif
 
 									<td>{{ $item->is_routine == 1 ? 'Yes' : 'No' }}</td>
 									<td>{{ $item->is_routine == 1 ? number_format($item->routine_frequency, 0) . ' days' : 'n/a' }}</td>
-									<td><a href="{{ route('view-batch-details', ['batch' => $item->id]) }}" data-target="#add-new-samples"
-											class="btn btn-primary btn-sm edit-sample-details" data-header='{{ json_encode($item) }}'><i
-												class="mdi mdi-lead-pencil"></i></a></td>
+									<td><a href="{{ route('view-batch-details', ['batch' => $item->id]) }}"
+											data-target="#add-new-samples" class="btn btn-primary btn-sm edit-sample-details"
+											data-header='{{ json_encode($item) }}'><i class="mdi mdi-lead-pencil"></i></a></td>
 								</tr>
 				@endforeach
 			</tbody>
@@ -815,26 +829,69 @@ $items = array(
 		</div>
 	</div>
 
-	<div class="modal fade" id="move-to-lab" role="dialog">
-		<div class="modal-dialog">
+	<div class="modal fade" id="move-to-lab" role="dialog" data-backdrop="static" data-keyboard="false">
+		<div class="modal-dialog modal-xl">
 			<div class="modal-content">
-				<form action="{{route('moveToLab')}}" method="post">
+				<form action="{{route('moveToLab')}}" id="send-to-lab-form" method="post">
 					@csrf
 					<div class="modal-body">
-						<div class="alert alert-primary p-2 d-flex">
-							<i class="mdi mdi-alert-decagram-outline" style="font-size:25px"></i>
-							<span class="p-2">Confirm you want to send the following batch(es) to Samples In Lab
-								stage</span>
-						</div>
-						<div class="form-group">
-							<label class="control-label">Batches</label>
-							<div class="selected-batches-movetolab"></div>
+						<div class="card border-0">
+							<div class="card-body">
+								<div class="alert alert-primary p-2 d-flex">
+									<i class="mdi mdi-alert-decagram-outline" style="font-size:25px"></i>
+									<h6 class="p-2">Confirm you want to send the following batch(es) to Samples In Lab
+										stage.<br>Processes to be done:</h6>
+								</div>
+								<div class="proccesses client-validation border-bottom p-2 d-flex">
+									<i class="mdi mdi-minus" style="font-size:25px"></i>
+									<span class="p-2">Client validation</span>
+								</div>
+								<div class="proccesses send-schedule border-bottom p-2 d-flex">
+									<i class="mdi mdi-minus" style="font-size:25px"></i>
+									<span class="p-2">Sending schedule of analysis</span>
+								</div>
+								<div class="proccesses create-order border-bottom p-2 d-flex">
+									<i class="mdi mdi-minus" style="font-size:25px"></i>
+									<span class="p-2">Creating sales order</span>
+								</div>
+								<div class="proccesses sending-order border-bottom p-2 d-flex">
+									<i class="mdi mdi-minus" style="font-size:25px"></i>
+									<span class="p-2">Sending to Zoho</span>
+								</div>
+								
+								<div class="proccesses send-lab border-bottom p-2 d-flex">
+									<i class="mdi mdi-minus" style="font-size:25px"></i>
+									<span class="p-2">Sending to Lab</span>
+								</div>
+								<div class="p-2 alert hidden error-area-header">
+									<div class="alert-danger p-2 error-area-body "></div>
+								</div>
+								<div class="alert alert-success p-2 success-text mt-3 hidden d-flex">
+									<i class="mdi mdi-check-decagram text-succes" style="font-size:30px"></i>
+									<h6 class="mt-2 pl-3">All processes have been completed successfully!</h6>
+								</div>
+								<div class="success-loader mt-3 hidden">
+									<center>
+										<img src="/images/suc.gif" height="250px" width="auto" alt="">
+									</center>
+								</div>
+								<div class="loading-area mt-3 hidden">
+									<center>
+										<img src="/images/load.gif" height="250px" width="auto" alt="">
+									</center>
+								</div>
+								<div class="invoice-part mt-3"></div>
+								<div class="form-group mt-4">
+									<label class="control-label">Batches</label>
+									<div class="selected-batches-movetolab"></div>
+								</div>
+							</div>
 						</div>
 					</div>
 					<div class="modal-footer">
-						<button class="btn btn-sm btn-outline-primary" type="submit"><i class="mdi mdi-thumb-up"></i> Yes,
+						<button class="btn btn-sm btn-outline-primary submit-btn" type="submit"><i class="mdi mdi-thumb-up"></i> Yes,
 							Send</button>
-						<span class="btn btn-sm btn-default" data-dismiss="modal">Close</span>
+							<a href="{{route('sample-workflow', ['status' => $status])}}" class="btn btn-sm dismiss-btn btn-default">Close</a>
 					</div>
 				</form>
 			</div>
@@ -1075,7 +1132,7 @@ $items = array(
 					<h4 class="modal-title"><i class="mdi mdi-delete text-danger"></i> Cancel Batch(es) </h4>
 				</div>
 				<div class="modal-body>
-					<input type=" hidden" name="status" value="Samples In Lab" />
+						<input type=" hidden" name="status" value="Samples In Lab" />
 				<p class="text-center">Are you sure you want to Cancel the following Batch(es) ? </p><br>
 				<hr>
 				<div class="form-group">
@@ -1324,6 +1381,124 @@ $items = array(
 	$('[data-target="#get-batch-tat"]').hide();
 	$('[data-target="#awaiting-approval-modal"]').hide();
 
+	var checkClientValidity = (data, callback) => {
+		$.ajax({
+			url: `/validate/client-batches`,
+			data: data,
+			type: 'POST',
+			success: (res) => {
+				callback(res);
+			},
+			error: (res) => {
+				callback({ 'error': 'Error validating client' });
+			}
+
+		})
+	}
+	var sendScheduleAnaltysis = (data, callback) => {
+		$.ajax({
+			url: `/ajax/send-schedule`,
+			data: data,
+			type: 'POST',
+			success: (res) => {
+				callback(res);
+			},
+			error: (res) => {
+				callback({ 'error': 'Error sending schedule of analysis' })
+			}
+		})
+	}
+	var generateSalesorder = (data, callback) => {
+		// $.ajaxSetup({
+		// 	headers: {
+		// 		'X-CSRF-TOKEN': jQuery('meta[name="csrf-token"]').attr('content')
+		// 	}
+		// });
+		$.ajax({
+			url: `/generate/batch-invoice/ajax`,
+			type: 'POST',
+			data: data,
+			success: (data) => {
+				callback(data);
+			},
+			error: (data) => {
+				callback({'error':'Error creating the sales order'});
+			}
+		})
+	}
+	var moveToLab = (data,callback)=>{
+		$.ajax({
+			url:`/send/sales/order-ajax`,
+			data:data,
+			type:'POST',
+			success:(data)=>callback(data),
+			error: (data)=>callback({'error':'Error sending batches to lab'}),
+		})
+	}
+
+	$('#send-to-lab-form').on('submit', (e) => {
+		e.preventDefault();
+		$('#send-to-lab-form').find('.submit-btn').addClass('hidden');
+		$('#send-to-lab-form').find('.dismiss-btn').addClass('hidden');
+		$('#send-to-lab-form').find('.loading-area').removeClass('hidden')
+		$('#send-to-lab-form').find('.client-validation i').addClass('mdi-spin');
+		let formData = $('#send-to-lab-form').serializeArray(); 
+		var responseChecker = (response,currentClass,nextClass)=>{
+			if(response['error']){
+				$('#send-to-lab-form').find('.error-area-body').empty();
+				$('#send-to-lab-form').find('.error-area-body').append(response['error']);
+				$('#send-to-lab-form').find('.error-area-header').removeClass('hidden');
+				$('#send-to-lab-form').find('.dismiss-btn').removeClass('hidden');
+				$('#send-to-lab-form').find(`${currentClass} i`).removeClass('mdi-spin');
+				$('#send-to-lab-form').find(`${currentClass} i`).removeClass('mdi-minus');
+				$('#send-to-lab-form').find(`${currentClass} i`).addClass('mdi-close-circle text-danger');
+				$('#send-to-lab-form').find('.loading-area').addClass('hidden');
+				return false;
+			}else{
+				$('#send-to-lab-form').find(`${currentClass} i`).removeClass('mdi-spin');
+				$('#send-to-lab-form').find(`${currentClass} i`).removeClass('mdi-minus');
+				$('#send-to-lab-form').find(`${currentClass} i`).addClass('mdi-check-decagram text-success');
+				if(nextClass == '.success-text'){
+					$('#send-to-lab-form').find(`${nextClass}`).removeClass('hidden');
+					$('#send-to-lab-form').find('.success-loader').removeClass('hidden');
+					$('#send-to-lab-form').find('.loading-area').addClass('hidden');
+				}else{
+					$('#send-to-lab-form').find(`${nextClass} i`).addClass('mdi-spin');
+				}
+				return true;
+			}
+		}
+		checkClientValidity(formData,(data)=>{
+			var resValid =responseChecker(data,'.client-validation','.send-schedule');
+			if(resValid){
+				sendScheduleAnaltysis(formData,(res)=>{
+					var scheduleRes =responseChecker(res,'.send-schedule','.create-order');
+					if(scheduleRes){
+						console.log('here');
+						generateSalesorder(formData,(response)=>{
+							var generateRes = responseChecker(response,'.create-order','.sending-order');
+							if(generateRes){
+								$('#send-to-lab-form').find('.loading-area').addClass('hidden')
+								var invoicePreview = getInvoiceBody(response['customer'], response['invoice'], response['details']);
+								$('#send-to-lab-form').find('.invoice-part').append(invoicePreview)
+							}
+						})
+					}
+				})
+			}
+		});
+		$('#send-to-lab-form').on('allProccessesDone',(e)=>{
+			moveToLab(formData,(data)=>{
+				var tolabRes =responseChecker(data,'.send-lab','.success-text');
+				if(tolabRes){
+					$('#send-to-lab-form').find('.dismiss-btn').removeClass('hidden');
+				}
+			})
+		})
+		
+	});
+
+
 	var getTatApprovalCounter = () => {
 		var status = $('[data-target="#awaiting-approval-modal"]').data('status');
 		$.ajax({
@@ -1359,7 +1534,7 @@ $items = array(
 	}
 	var getUpdateFields = (invoice_id) => {
 		var invoice_details = [];
-		$('#generate-invoice-form').find('tbody tr.carry_data').each(function () {
+		$('#send-to-lab-form').find('tbody tr.carry_data').each(function () {
 			var mode = $(this).data('mode');
 			var detail = {
 				invoice_detail_id: mode == 'new' ? 0 : $(this).find('[name="invoice_detail_id[]"]').val(),
@@ -1393,7 +1568,7 @@ $items = array(
 				callback(data);
 			},
 			error: (data) => {
-				console.log(data);
+				callback(data);
 			}
 		})
 	}
@@ -1505,7 +1680,6 @@ $items = array(
 		return body;
 	}
 	$('#dispatch-to-labs-modal-approve').on('show.bs.modal', (e) => {
-		console.log('-----------------here-------------------')
 		invoiceItemCounter = 0;
 		$('#generate-invoice-form').find('.submit-btn').removeClass('hidden');
 		var body = generateInvoiceBody();
@@ -1542,40 +1716,51 @@ $items = array(
 				</table>
 			</div>
 			
-			<div class="alert alert-default bg-light p-2 mt-5 d-flex">
+			<div class="alert alert-default bg-light p-3 mt-3 text-center">
 				<i class="mdi mdi-alert-decagram-outline"></i>
 				<span class="ml-2">Confirm you want to create above DRAFT sales order to zoho</span>
 			</div>
-			<span class="btn btn-outline-primary btn-block btn-sm" data-invoice="${invoice.id}" id="send_sales"><i class="mdi mdi-thumb-up-outline"> Yes, Send Sales Order</i></span> <br>
-			<span class="btn btn-outline-danger btn-block btn-sm" data-invoice="${invoice.id}" id="cancel_sales"><i class="mdi mdi-thumb-down-outline"> Cancel Sales Order</i></span>
+			<div class="row">
+				<div class="col-md-6 p-2">
+					<span class="btn btn-outline-primary btn-block btn-sm" data-invoice="${invoice.id}" id="send_sales"><i class="mdi mdi-thumb-up-outline"> Yes, Send Sales Order</i></span> <br>
+				</div>
+				<div class="col-md-6 p-2">
+					<span class="btn btn-outline-danger btn-block btn-sm" data-invoice="${invoice.id}" id="cancel_sales"><i class="mdi mdi-thumb-down-outline"> Cancel Sales Order</i></span>
+				</div>
+
+				
+				
+			</div>
 		</div>
 		`).clone();
 		$(body).find('#send_sales').on('click', (e) => {
 			var invoice_id = $(body).find('#send_sales').data('invoice');
-			$('#generate-invoice-form').find('.loader').removeClass('hidden');
-			$('#generate-invoice-form').find('.invoice_body').addClass('hidden');
-			$('#generate-invoice-form').find('.send-sales').addClass('mdi-spin');
+			$('#send-to-lab-form').find('.loading-area').removeClass('hidden');
+			$('#send-to-lab-form').find('.invoice_body').addClass('hidden');
+			// $('#send-to-lab-form').find('.send-sales').addClass('mdi-spin');
 			var invoice_details = getUpdateFields(invoice_id);
 			updateInvoiceAjax(invoice_details, (res1) => {
 				sendSalesOrder(invoice_id, (res) => {
-					if (res['error']) {
-						$('#generate-invoice-form').find('.loader').addClass('hidden');
-						$('#generate-invoice-form').find('.saving-invoice').removeClass('mdi-spin');
-						$('#generate-invoice-form').find('.send-sales').removeClass('mdi-spin');
-
-						$('#generate-invoice-form').find('.error-body').empty();
-						$('#generate-invoice-form').find('.error-body').append(res['error']);
-						$('#generate-invoice-form').find('.error-area').removeClass('hidden');
-					} else {
-						$('#generate-invoice-form').find('.send-sales').removeClass('mdi-spin');
-						$('#generate-invoice-form').find('.send-sales').removeClass('mdi-minus');
-						$('#generate-invoice-form').find('.send-sales').addClass('mdi-check-circle-outline text-success');
-
-						$('#generate-invoice-form').find('.loader').empty();
-						var imgElem = $(`<img src="/images/suc.gif" height="250px" width="auto" alt="">`);
-						$('#generate-invoice-form').find('.loader').append(imgElem);
-
+					var currentClass = '.sending-order';
+					var nextClass = '.send-lab'
+					if(res['error']){
+						$('#send-to-lab-form').find('.error-area-body').empty();
+						$('#send-to-lab-form').find('.error-area-body').append(res['error']);
+						$('#send-to-lab-form').find('.error-area-header').removeClass('hidden');
+						$('#send-to-lab-form').find('.dismiss-btn').removeClass('hidden');
+						$('#send-to-lab-form').find(`${currentClass} i`).removeClass('mdi-spin');
+						$('#send-to-lab-form').find(`${currentClass} i`).removeClass('mdi-minus');
+						$('#send-to-lab-form').find(`${currentClass} i`).addClass('mdi-close-circle text-danger');
+						$('#send-to-lab-form').find('.loading-area').addClass('hidden');
+					}else{
+						$('#send-to-lab-form').find(`${currentClass} i`).removeClass('mdi-spin');
+						$('#send-to-lab-form').find(`${currentClass} i`).removeClass('mdi-minus');
+						$('#send-to-lab-form').find(`${currentClass} i`).addClass('mdi-check-decagram text-success');
+						$('#send-to-lab-form').find(`${nextClass} i`).addClass('mdi-spin');
+						
+						$('#send-to-lab-form').trigger('allProccessesDone');
 					}
+					
 				})
 			})
 		});
@@ -1721,25 +1906,25 @@ $items = array(
 		</tr>`;
 
 		var changeofinvoicedetails = (detail_id) => {
-			var quantity = $('#generate-invoice-form').find(`[name="quantity[${detail_id}]"]`).val();
-			var unit_price = $('#generate-invoice-form').find(`[name="unit_price[${detail_id}]"]`).val();
-			var discount_type = $('#generate-invoice-form').find(`[name="discount_type[${detail_id}]"]`).val();
-			var discount = $('#generate-invoice-form').find(`[name="discount[${detail_id}]"]`).val();
+			var quantity = $('#send-to-lab-form').find(`[name="quantity[${detail_id}]"]`).val();
+			var unit_price = $('#send-to-lab-form').find(`[name="unit_price[${detail_id}]"]`).val();
+			var discount_type = $('#send-to-lab-form').find(`[name="discount_type[${detail_id}]"]`).val();
+			var discount = $('#send-to-lab-form').find(`[name="discount[${detail_id}]"]`).val();
 			var final_unit_price = unit_price;
 			if (discount_type != '' && parseInt(discount) > 0) {
 				final_unit_price = discount_type == 'percentage' ? (100 - parseInt(discount)) / 100 * unit_price : parseInt(unit_price) - parseInt(discount);
 			}
 			var total = parseInt(quantity) * parseInt(final_unit_price);
 
-			$('#generate-invoice-form').find(`[name="total[${detail_id}]"]`).val(total);
-			$('#generate-invoice-form').find(`[name="final_unit_price[${detail_id}]"]`).val(final_unit_price);
+			$('#send-to-lab-form').find(`[name="total[${detail_id}]"]`).val(total);
+			$('#send-to-lab-form').find(`[name="final_unit_price[${detail_id}]"]`).val(final_unit_price);
 
 			var current_total = 0;
-			$('#generate-invoice-form').find('.invoice_total').each(function () {
+			$('#send-to-lab-form').find('.invoice_total').each(function () {
 				current_total += parseInt($(this).val());
 			});
-			$('#generate-invoice-form').find('.total_amount').empty();
-			$('#generate-invoice-form').find('.total_amount').append(current_total);
+			$('#send-to-lab-form').find('.total_amount').empty();
+			$('#send-to-lab-form').find('.total_amount').append(current_total);
 		}
 
 		$(body).find('.invoice_quantity').on('change', (e) => {
@@ -1786,6 +1971,7 @@ $items = array(
 			type: 'POST',
 			data: formdata,
 			success: (data) => {
+
 				if (data['error']) {
 					$('#generate-invoice-form').find('.loader').addClass('hidden');
 					$('#generate-invoice-form').find('.saving-invoice').removeClass('mdi-spin');
@@ -1800,8 +1986,6 @@ $items = array(
 					$('#generate-invoice-form').find('.saving-invoice').removeClass('mdi-spin');
 					$('#generate-invoice-form').find('.saving-invoice').removeClass('mdi-minus');
 					$('#generate-invoice-form').find('.saving-invoice').addClass('mdi-check-circle-outline text-success');
-
-					// $('#generate-invoice-form').find('.send-sales').addClass('mdi-spin');
 					var invoicePreview = getInvoiceBody(data['customer'], data['invoice'], data['details']);
 					$('#generate-invoice-form').find('.invoice-part').append(invoicePreview)
 				}
@@ -1898,7 +2082,7 @@ $items = array(
 				);
 				$('.selected-batches-movetolab').append(
 					`<span class="p-2 mr-2">
-						<input type="checkbox" name="batch_code[]" value="${$value}"  checked >${$value}
+						<input type="checkbox" name="batch_code[]" value="${$value}"  checked > ${$value}
 					</span>`
 				)
 				$('.selected-batches-request').append(
@@ -1945,14 +2129,14 @@ $items = array(
 
 					$('.selected-batches-review').append(
 						`<span class="p-2 mr-2">
-							<input type="checkbox" name="batch_code[]" value="${$value}"  checked > ${$value}
-						</span>`
+								<input type="checkbox" name="batch_code[]" value="${$value}"  checked > ${$value}
+							</span>`
 					);
 					$('.selected-batches-request-approve').append(
 						`<span class="p-2 mr-2">
-							<input type="checkbox" name="batch_code[]" value="${$value}" checked> ${$value}
-						</span>
-						`
+								<input type="checkbox" name="batch_code[]" value="${$value}" checked> ${$value}
+							</span>
+							`
 					)
 					return $value;
 				}).get();
@@ -1980,7 +2164,7 @@ $items = array(
 					receive_invoice: $('.add-contact-fields').find('.receive_invoice').is(':checked') ? 1 : 0,
 				}
 				if
-				$.ajax({
+					$.ajax({
 					url: ``,
 					type: 'POST',
 					success: (data) => {
@@ -1990,7 +2174,7 @@ $items = array(
 						console.log(data);
 					}
 				})
-			})
+				})
 		})
 		$("input[name='table_sample_id[]']").on('change', function () {
 			if ($("input[name='table_sample_id[]']:checked").length > 0) {
@@ -2007,8 +2191,8 @@ $items = array(
 						success: function (js) {
 							$.each(js, function (j, s) {
 								$('select[name="contacts[]"]').append(`<option value="${s.id}">
-											${s.first_name + ' ' + s.middle_name + ' ' + s.last_name} [${s.email}]
-										</option>`)
+												${s.first_name + ' ' + s.middle_name + ' ' + s.last_name} [${s.email}]
+											</option>`)
 							});
 						}
 					})
@@ -2032,10 +2216,10 @@ $items = array(
 					var $val = $(this).val();
 					var recordBatch = $(this).data('batch');
 					$('.selected-batches').append(`
-							<span class="p-2 mr-2">
-								<input type="checkbox" name="sample_code[]" value="${recordBatch.id}" checked> ${$val}
-							</span>
-						`);
+								<span class="p-2 mr-2">
+									<input type="checkbox" name="sample_code[]" value="${recordBatch.id}" checked> ${$val}
+								</span>
+							`);
 					return $val;
 				}).get();
 		});
@@ -2046,10 +2230,10 @@ $items = array(
 				.map(function () {
 					var $val = $(this).val();
 					$('.selected-samples').append(`
-							<span class="p-2 mr-2">
-								<input type="checkbox" name="sample_code[]" value="${$val}" checked> ${$val}
-							</span>
-						`);
+								<span class="p-2 mr-2">
+									<input type="checkbox" name="sample_code[]" value="${$val}" checked> ${$val}
+								</span>
+							`);
 					return $val;
 				}).get();
 		});

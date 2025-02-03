@@ -43,23 +43,11 @@ class InvoiceController extends Controller
         return view('layouts.lab.invoice.index',compact('sales','start','end','selection'));
     }
     public function show($id){
-        $invoice = Invoice::with(['crmcustomer','currencyinfo'])->find($id);
-        $payments= InvoicePaymentDetail::where('invoice_id',$invoice->id)->get();
-        $methods = array();
-        $ref = array();
-        $trans = array();
-        foreach($payments as $p){
-            array_push($methods, $p->payment_method);
-            array_push($ref,$p->ref_no);
-            array_push($trans,$p->transaction_no);
-        }
-        $invoice->payment_method = implode(',',$methods);
-        $invoice->transaction_no = implode(',',$trans);
-        $invoice->ref_no = implode(',',$ref);
+        $invoice = Invoice::with(['crmcustomer','currencyinfo','details'])->find($id);
         // $customer = getCrmCustomerByID($header->crm_customer_id);
         // return response()->json($customer,200);
         
-        return view('layouts.lab.invoice.show',compact('invoice','payments'));
+        return view('layouts.lab.invoice.show',compact('invoice'));
     }
     public function edit_invoice(Request $request){
         $loop = 0;
