@@ -70,7 +70,7 @@
 			<div class="icon w3-grey"><i class="mdi mdi-account-star-outline"></i></div>
 			<div class="small w3-padding-small">Skills Matrix</div>
 		</a>
-		<a class="app"  href="{{route('vgm.index')}}">
+		<a class="app hidden"  href="{{route('vgm.index')}}">
 			<div class="icon w3-grey"><i class="mdi mdi-file-find-outline"></i></div>
 			<div class="small w3-padding-small">VGM Module</div>
 		</a>
