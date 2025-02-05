@@ -3888,7 +3888,7 @@ class SampleWorkFlowController extends Controller
                 // $contact = CustomerContact::find($header->crm_contact_id);
                 // $customer = CRMCustomer::find($batch->crm_customer_id);
                 // return response()->json($batch);
-                notify_user($body, $batch->schedule_customer_email, '[POLUCON LIMS] Schedule Of Analysis ' . $batch->batch_code, false, true, ['dannyagah13@gmail.com']);
+                notify_user($body, $batch->schedule_customer_email, '[POLUCON LIMS] Schedule Of Analysis ' . $batch->batch_code, false, true, ['donotreply@polucon.com']);
                 $batch->schedule_analysis_sent = date('Y-m-d');
                 $batch->schedule_analysis_sender = auth()->user()->id;
                 $batch->save();
@@ -4983,11 +4983,12 @@ class SampleWorkFlowController extends Controller
             </div>
             ';
         // return response()->json(['email'=>$customer_email,'body'=>$body,'error'=>'My testing']);
-        notify_user($body, $customer_email, '[POLUCON LIMS] Schedule Of Analysis ' . implode(',',$request->batch_code), false, true, ['dannyagah13@gmail.com']);
-        SampleHeader::whereIn('batch_code', $request->batch_code)->update(["schedule_analysis_sent"=> date('Y-m-d'),"schedule_analysis_sender"=>auth()->user()->id]);
-        return response()->json(["customer_email"=>$customer_email]);
+        notify_user($body, $customer_email, '[POLUCON LIMS] Schedule Of Analysis ' . implode(',', $request->batch_code), false, true, ['donotreply@polucon.com']);
+        SampleHeader::whereIn('batch_code', $request->batch_code)->update(["schedule_analysis_sent" => date('Y-m-d'), "schedule_analysis_sender" => auth()->user()->id]);
+        return response()->json(["customer_email" => $customer_email]);
     }
-    public function moveToLabAjax(Request $request){
+    public function moveToLabAjax(Request $request)
+    {
         $status = 'Samples In Lab';
         foreach ($request->batch_code as $code) {
             $batch = SampleHeader::where('batch_code', $code)->first();
@@ -5013,6 +5014,6 @@ class SampleWorkFlowController extends Controller
             $batch->status = $status;
             $batch->save();
         }
-        return response()->json(['batch_codes'=>$request->batch_code,'process'=>'Complete']);
+        return response()->json(['batch_codes' => $request->batch_code, 'process' => 'Complete']);
     }
 }
