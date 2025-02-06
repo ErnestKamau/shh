@@ -4983,8 +4983,10 @@ class SampleWorkFlowController extends Controller
             </div>
             ';
         // return response()->json(['email'=>$customer_email,'body'=>$body,'error'=>'My testing']);
-        notify_user($body, $customer_email, '[POLUCON LIMS] Schedule Of Analysis ' . implode(',', $request->batch_code), false, true, ['donotreply@polucon.com']);
-        SampleHeader::whereIn('batch_code', $request->batch_code)->update(["schedule_analysis_sent" => date('Y-m-d'), "schedule_analysis_sender" => auth()->user()->id]);
+        if($sampleTrs != ""){
+            notify_user($body, $customer_email, '[POLUCON LIMS] Schedule Of Analysis ' . implode(',', $request->batch_code), false, true, ['donotreply@polucon.com']);
+            SampleHeader::whereIn('batch_code', $request->batch_code)->update(["schedule_analysis_sent" => date('Y-m-d'), "schedule_analysis_sender" => auth()->user()->id]);
+        }
         return response()->json(["customer_email" => $customer_email]);
     }
     public function moveToLabAjax(Request $request)
