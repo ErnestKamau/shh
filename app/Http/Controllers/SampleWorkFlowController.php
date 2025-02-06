@@ -97,7 +97,7 @@ class SampleWorkFlowController extends Controller
         if ($status == 'Finished Sample') {
             $filter = [];
             if (isset($request->has_filter)) {
-                $batchesquery = SampleHeader::with('invoice')->query();
+                $batchesquery = SampleHeader::with('invoice');
 
                 if ($request->sample_codes != '') {
                     $filter['sample_codes'] = $request->sample_codes;
