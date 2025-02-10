@@ -49,6 +49,7 @@ use App\SampleDetails;
 use App\SampleHeader;
 use App\SamplesCategory;
 use App\SampleType;
+use App\SchoolContacts;
 use App\StandardAnalytes;
 use App\Standards;
 use App\StandardValue;
@@ -5017,5 +5018,32 @@ class SampleWorkFlowController extends Controller
             $batch->save();
         }
         return response()->json(['batch_codes' => $request->batch_code, 'process' => 'Complete']);
+    }
+
+    public function splitSchoolContacts(){
+        $contacts = SchoolContacts::all();
+        $address_counter = 0;
+        foreach($contacts as $contact){
+            $ad_arr = explode("\n",$contact->address);
+            // return response()->json($ad_arr);
+            $address_counter = sizeof($ad_arr) > $address_counter ? sizeof($ad_arr) : $address_counter;
+            $a_counter = 0;
+            
+            $r_address = [];
+
+            foreach($ad_arr as $ad){
+                if($ad != ''){
+                    $address = explode('-',$ad);
+                    $r_address []= [
+                        "address"=>$address[0] ?? '',
+                        "relation" => $address[1] ?? ''
+                    ];
+                    
+                }
+            }
+            $contact['refine_address'] = $r_address;
+            // return response()->json($contact);
+        }
+        return view('layouts.lab.sample-workflow.index-other',compact('contacts'));
     }
 }

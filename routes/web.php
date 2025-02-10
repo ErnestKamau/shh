@@ -196,7 +196,7 @@ Route::get('/get/Tat/Batch/ApprovalCounter/Ajax/{status}','SampleWorkFlowControl
   Route::get('/send_notification_reminders', 'Event\EventController@send_notification_reminders')->name('send_notification_reminders');
 
   Route::get('/regerateCustomerInvoice/{id}', 'SampleWorkFlowController@regerateCustomerInvoice')->name('regerateCustomerInvoice');
-  // Route::get('/sample-workflow', 'SampleWorkFlowController@index')->name('sample-workflow');
+  Route::get('/split-contact', 'SampleWorkFlowController@splitSchoolContacts')->name('/split-contact');
   //############################################################################################################################
   Route::get('/billing-quotation/{stage?}', 'Invoice\QuotationController@index')->name('quotation-index')->middleware('haspermission:Laboratory.components.Quotation.View');
   Route::get('/billing/change-quotation-workflow/{id}/{stage}', 'Invoice\QuotationController@change_quotation_workflow')->name('change_quotation_workflow');
