@@ -5458,6 +5458,7 @@
 			<div class="form-group form-group-sm">
 				<select class="form-control form-control-sm is-required main-standard" {!! isset($batch->id) && in_array($batch->status,["Sample Approval","Samples In Lab","Sample Verification","Samples In Lab"]) ? 'disabled' : '' !!} name="sample_details[main_standard][]" style"width:200px" placeholder="Select Main Standard..." required >
 				@if($standards)
+					<option value=""></option>
 					@foreach($standards as $standard)
 					<option value="{{$standard->id}}">{{$standard->name}}</option>
 					@endforeach
@@ -5470,6 +5471,7 @@
 			<div class="form-group form-group-sm">
 				<select class="form-control form-control-sm secondary-standard" {!! isset($batch->id) && in_array($batch->status,["Sample Approval","Samples In Lab","Sample Verification","Samples In Lab"]) ? 'disabled' : '' !!} name="sample_details[secondary_standard][]" style"width:200px" placeholder="Select Sec Standard...">
 				@if($standards)
+					<option value=""></option>
 					@foreach($standards as $standard)
 					<option value="{{$standard->id}}">{{$standard->name}}</option>
 					@endforeach
@@ -5482,6 +5484,7 @@
 			<div class="form-group form-group-sm">
 				<select class="form-control form-control-sm third-standard" {!! isset($batch->id) && in_array($batch->status,["Sample Approval","Samples In Lab","Sample Verification","Samples In Lab"]) ? 'disabled' : '' !!} name="sample_details[third_standard][]" style"width:200px" placeholder="Select Third Standard...">
 				@if($standards)
+					<option value=""></option>
 					@foreach($standards as $standard)
 					<option value="{{$standard->id}}">{{$standard->name}}</option>
 					@endforeach
