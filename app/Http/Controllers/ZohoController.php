@@ -513,14 +513,18 @@ class ZohoController extends Controller
 		if (isset($customers['contacts'])) {
 			foreach ($customers['contacts'] as $customer) {
 				$n_customer = ZohoCustomers::where('zoho_contact_id', $customer['contact_id'])->first();
+				
 				if (!isset($n_customer->id)) {
 					$insertCst[] = [
 						"zoho_contact_id" => $customer['contact_id'],
 						"name" => $customer['customer_name'],
 						"currency_id" => $customer['currency_id'],
 						"status" => $customer['status'],
-						"currency_code" => $customer['currency_code']
+						"currency_code" => $customer['currency_code'],
+						"email" => $customer['email'],
 					];
+				}else{
+					ZohoCustomers::where('zoho_contact_id', $customer['contact_id'])->update(['email'=>$customer['email']]);
 				}
 
 			}
@@ -647,10 +651,10 @@ class ZohoController extends Controller
 
 	public function getItemsTest()
 	{
-		$items = $this->sync_zoho_items();
-		// $customers = $this->sync_zoho_customers();
+		// $items = $this->sync_zoho_items();
+		$customers = $this->sync_zoho_customers();
 		// $currency = $this->sync_zoho_currencies();
-		return response()->json(['items'=>$items]);
+		return response()->json(['items'=>$customers]);
 
 		// $invoice = Invoice::with(['currencyinfo','crmCustomer'])->find($invoice_id);
 		// $details = InvoiceDetails::with('analysisType')->where('invoice_id',$invoice_id)->get();

@@ -22,10 +22,11 @@
 	<x-bread-crumb :items="$items"></x-bread-crumb>
 	<h2 class="p-4">
 		<i class="mdi mdi-account-group"></i> Customer List
+		<span class="btn btn-sm btn-default float-right bg-white ml-2" style="box-shadow: rgba(0, 0, 0, 0.15) 1.95px 1.95px 2.6px;" data-toggle="modal" data-target="#sync-customer-zoho"><i class="mdi mdi-sync"></i> Sync Zoho</span>
 		@if(isset($account_settings->id))
-		<button class="btn btn-primary btn-sm float-right" data-toggle="modal" data-target="#add-customer"><i class="mdi mdi-plus"></i> Add</button>
+		<button class="btn bg-white btn-sm float-right ml-2" style="box-shadow: rgba(0, 0, 0, 0.15) 1.95px 1.95px 2.6px;" data-toggle="modal" data-target="#add-customer"><i class="mdi mdi-plus"></i> Add</button>
 		@else
-		<a href="{{ route('add-config-customer') }}" class="btn btn-sm btn-outline-primary float-right"><i class="mdi mdi-plus"></i> Add</a>
+		<a href="{{ route('add-config-customer') }}" style="box-shadow: rgba(0, 0, 0, 0.15) 1.95px 1.95px 2.6px;" class="btn btn-sm bg-white float-right"><i class="mdi mdi-plus"></i> Add</a>
 		@endif
 	</h2>
 	<br>
@@ -93,6 +94,25 @@
 @endsection
 
 @section('script2')
+<div class="modal fade" id="sync-customer-zoho" role="dialog">
+	<div class="modal-dialog">
+		<div class="modal-content">
+			<form action="" method="post">
+				@csrf
+				<div class="modal-body">
+					<div class="alert alert-primary p-2 d-flex">
+						<i class="mdi mdi-alert-decagram-outline"></i>
+						<span class="pl-2">Confirm you want to sync customers from zoho.</span>
+					</div>
+				</div>
+				<div class="modal-footer">
+					<button type="submit" class="btn btn-sm btn-outline-primary"><i class="mdi mdi-thumb-up"></i> Yes, Sync</button>
+					<span class="btn btn-sm btn-default" data-dismiss="modal">Close</span>
+				</div>
+			</form>
+		</div>
+	</div>
+</div>
 <div id="edit-customer" data-account="{{json_encode($accounts)}}" data-country="{{json_encode($countries)}}" class="modal fade" role="dialog">
 	<div class="modal-dialog modal-lg">
 		<!-- Modal content-->

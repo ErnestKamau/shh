@@ -11,5 +11,7 @@ class ZohoCustomers extends Model implements Auditable
 
     protected $table = "zoho_customers";
 
+    protected $fillable = ['email'];
+
     
 }
