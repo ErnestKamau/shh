@@ -3,7 +3,9 @@
 @section('title2')
   <title> {{ isset($batch->batch_code) ? $batch->batch_code." | Batch Info" : "New Batch" }}</title>
 	<style>
-		
+		body{
+			overflow-x: hidden !important;
+		}
 		.form-part-toggler{
 			margin: 0px 0px 5px 0px !important;
 			padding: 6px 6px 6px 6px;
@@ -423,6 +425,14 @@
 						<input type="date" max="{{ $maxDate }}" placeholder="Lab Receiption Date" value="{{ $batch->receipt_date ?? '' }}" class="form-control " name="receipt_date" {{ $defaultClient === false ? 'required' : '' }} autocomplete="off">
 						
 					</div>
+					<div class="form-group col-md-3">
+						<label for="" class="control-label">Time Of Receipt</label>
+						<input type="time" name="radio_active_levels" id="" value="{{$batch->radio_active_levels ?? ''}}" class="form-control">
+					</div>
+					<div class="form-group col-md-3">
+						<label for="" class="control-label">Temp Of Receipt</label>
+						<input type="text" name="kra_office_ref" id="" value="{{ $batch->kra_office_ref ?? '' }}" class="form-control">
+					</div>
 	
 					<div class="form-group col-md-3 qc-omit-type-field {{isset($batch->id) ? ( $batch->status == 'Samples In Lab' || $batch->is_qc_batch == 1 || $batch->status == 'Sample Verification' ? 'hidden' : '') : ''}}">
 												
@@ -545,13 +555,6 @@
 						
 						
 					</div>
-					<div class="form-group btm-group-sm col-md-3">
-						<label class="control-label">Invoice Amount</label>
-						<input type="text" class="form-control" autocomplete="off" value="{{$batch->invoice_amount ?? ''}}" name="invoice_amount"  placeholder="Invoice Amount..." />
-					</div>
-					@if(isset($batch->id)  && $batch->status == 'Samples In Lab')
-						<input type="hidden" name="is_bl_save" value="1">
-					@endif
 				</div>
 				<div class="row p-2 mt-3">
 					<div class="form-group col-md-4 btn-group-sm">
@@ -566,18 +569,13 @@
 					</div>
 					<div class="form-group col-md-4 btn-group-sm">
 						<label class="control-label">
-							<input type="checkbox" name="can_be_subcontracted" value="1" {{ isset($batch->can_be_subcontracted) && $batch->batch_subcontracted_client_approval == 1 ? 'checked' : '' }}>  If no can it be subcontracted to an approved Laboratory?
-						</label>
-					</div>
-					<div class="form-group col-md-4 btn-group-sm">
-						<label class="control-label">
-							<input type="checkbox" name="lab_capable" value="1" {{ isset($batch->lab_capable) && $batch->lab_capable == 1 ? 'checked' : '' }}>  Is the laboratory capable of performing the requested tests?
+							<input type="checkbox" class="lab_capable" name="lab_capable" value="1" {{ isset($batch->lab_capable) ? ($batch->lab_capable == 1 ? 'checked' : '' ) : 'checked' }}>  Is the laboratory capable of performing the requested tests?
 						</label>
 					</div>
 					
-					<div class="form-group col-md-4 btn-group-sm">
+					<div class="form-group col-md-4 btn-group-sm {{ isset($batch->lab_capable) ? ($batch->lab_capable == 1 ? 'hidden' : '' ) : 'hidden' }} batch_subcontracted_client_approval">
 						<label class="control-label">
-							<input type="checkbox" name="batch_subcontracted_client_approval" value="1" {{ isset($batch->batch_subcontracted_client_approval) && $batch->batch_subcontracted_client_approval == 1 ? 'checked' : '' }}>  Is the client willing for the sample to be subcontracted?
+							<input type="checkbox" class="" name="batch_subcontracted_client_approval" value="1" {{ isset($batch->batch_subcontracted_client_approval) && $batch->batch_subcontracted_client_approval == 1 ? 'checked' : '' }}>  Is the client willing for the sample to be subcontracted to an Approved Laboratory ?
 						</label>
 					</div>
 					<div class="form-group col-md-4 btn-group-sm">
@@ -585,69 +583,24 @@
 							<input type="checkbox" name="sampled_by_company_personnel" value="1" {{ isset($batch->sampled_by_company_personnel) && $batch->sampled_by_company_personnel == 1 ? 'checked' : '' }}> Sampled by {{$active_company->name}} personnel?
 						</label>
 					</div>
-					<div class="form-group btn-group-sm col-md-6">
+					<div class="form-group btn-group-sm col-md-12">
 						<label class="control-label">Samples Description</label>
 						<textarea class="form-control" name="description" placeholder="Description...">{{ $batch->description ?? '' }}</textarea>
 					</div>
-					<div class="form-group btn-group-sm col-md-6">
+					<div class="form-group btn-group-sm col-md-12">
 						<label class="control-label">Special Remarks / Instructions</label>
 						<textarea class="form-control" name="batch_instructions" placeholder="Batch Instructions...">{{ $batch->batch_instructions ?? '' }}</textarea>
 					</div>
-					<div class="form-group btn-group-sm col-md-12">
-						<label for="" class="control-label"><input type="checkbox" name="send_schedule" id=""> Save and send Sischedule of analys</label>
-					</div>
+					
 				</div>
 					
-				<div class="btn col-md-12 btn-default btn-sm text-primary btn-block toggle-more-fields mb-1">
+				<div class="btn col-md-12 btn-default btn-sm text-primary btn-block toggle-more-fields hidden mb-1">
 					<i class="mdi mdi-chevron-double-down"></i> BL Fields
 				</div>
 
 				
 				<div id="more-fields" class="hidden p-2">
 					<div class="row p-2 bg-light m-3">
-						
-						<div class="form-group col-md-3 btn-group-sm">
-							<label class="control-label">Consignee</label>
-							<input type="text" class="form-control" name="radio_active_levels" value="{{ $batch->radio_active_levels ?? '' }}" placeholder="Consignee..." />
-						</div>
-						<div class="form-group col-md-3 btn-group-sm">
-							<label class="control-label">Notify Part (1)</label>
-							<input type="text" class="form-control" name="kra_office_ref" value="{{ $batch->kra_office_ref ?? '' }}" placeholder="Notify Part (1)..." />
-						</div>
-	
-						<div class="form-group col-md-3 btn-group-sm">
-							<label class="control-label">Notify Part (2)</label>
-							<input type="text" class="form-control" name="kra_office_station" value="{{ $batch->kra_office_station ?? '' }}" placeholder="Notify Part (1)..." />
-						</div>
-						 
-						<div class="form-group col-md-3 btn-group-sm">
-							<label class="control-label">Place Sampled</label>
-							<input type="text" class="form-control" name="where_sample_was_obtained" value="{{ $batch->where_sample_was_obtained ?? '' }}" placeholder="Where Sample was Obtained..." />
-						</div>
-						<div class="form-group col-md-3 btn-group-sm">
-							<label class="control-label">Vessel Name</label>
-							<input type="text" class="form-control" name="declared_commodity_code" value="{{ $batch->declared_commodity_code ?? '' }}" placeholder="Vessel Name..." />
-						</div>
-						<div class="form-group col-md-3 btn-group-sm">
-							<label class="control-label">BL Number</label>
-							<input type="text" class="form-control" name="declared_amount" value="{{ $batch->declared_amount ?? '' }}" placeholder="BL Number..." />
-						</div>
-						<div class="form-group col-md-3 btn-group-sm">
-							<label class="control-label">Quantity</label>
-							<input type="text" class="form-control" name="net_quantity_and_unit_of_quantity" value="{{ $batch->net_quantity_and_unit_of_quantity ?? '' }}" placeholder="Quantity..." />
-						</div>
-						<div class="form-group col-md-6 btn-group-sm">
-							<label class="control-label">Shipper</label>
-							<textarea class="form-control" name="importer_address" placeholder="Shipper...">{{ $batch->importer_address ?? '' }}</textarea>
-						</div>
-						<div class="form-group col-md-6 btn-group-sm">
-							<label class="control-label">Port of Loading</label>
-							<textarea class="form-control" name="how_sample_was_obtained" placeholder="Port of Loading...">{{ $batch->how_sample_was_obtained ?? '' }}</textarea>
-						</div>
-						<div class="form-group col-md-6 btn-group-sm">
-							<label class="control-label">Port Of Discharge</label>
-							<textarea class="form-control" name="sample_appearance_description" placeholder="Sample Appearance Description...">{{ $batch->sample_appearance_description ?? '' }}</textarea>
-						</div>
 						<div class="form-group col-md-6 btn-group-sm">
 							<label class="control-label">Use of Goods</label>
 							<textarea class="form-control" name="use_of_goods" placeholder="Use of Goods...">{{ $batch->use_of_goods ?? '' }}</textarea>
@@ -659,7 +612,7 @@
 				<div class="form-group col-md-12 text-center">
 					@if(Auth::user()->is_client == 1 && isset($batch->status) && $batch->status != 'Samples En-Route')
 					@else
-						@if(!isset($batch->id) || in_array($batch->status,['Samples Reception','Samples In Lab']))
+						@if(!isset($batch->id) || in_array($batch->status,['Samples Reception']))
 							<button class="btn btn-primary btn-sm" style="width:60%" id="save-headers">
 								<i class="mdi mdi-content-save"></i> Save
 							</button>
@@ -1349,7 +1302,7 @@
 							<th>Slot</th>
 							<th>Quantity</th>
 							<th>UoM</th>
-							{{-- <th>Barcode</th> --}}
+							<th>Time Sampled</th>
 							
 						</tr>
 					</thead>
@@ -1366,6 +1319,7 @@
 						data-batch = "{{json_encode($batch ?? array())}}"
 						data-standards = "{{json_encode($standards ?? array())}}"
 						data-methods = "{{json_encode($methods)}}"
+						data-ltmethods = "{{json_encode($ltmethods)}}"
 						data-labs = "{{json_encode($labSamples)}}"
 						data-allLabs = "{{json_encode($labSamples)}}"
 						data-pesticides = "{{json_encode($analaytesHolderPesticide)}}"
@@ -1784,7 +1738,7 @@
 						<label for="" class="control-label">Body</label>
 
 						<textarea name="body" class="form-control editor" id="" cols="50" rows="50">
-						{!! getPaymentReminderBody($customer->name,$batch_sample_codes) !!},<br>
+						{!! getPaymentReminderBody($customer->name) !!},<br>
 						</textarea>
 					</div>
 					<input type="hidden" name="batch_id" value="{{$batch->id}}">
@@ -2740,6 +2694,7 @@
 										<th>Analyst</th>
 										@endif
 										<th>Method</th>
+										<th>LTM</th>
 										@if(Auth::user()->is_client == 0)
 										<th>Equipment</th>				
 										@endif				
@@ -3032,6 +2987,15 @@
 				}
 			});
 		}
+		$('.lab_capable').on('change',function(){
+			if($(this).is(':checked')){
+				console.log('here 1')
+				$('.batch_subcontracted_client_approval').addClass('hidden');
+			}else{
+				console.log('here 1')
+				$('.batch_subcontracted_client_approval').removeClass('hidden');
+			}
+		})
 		$('#add-customer-contact').on('show.bs.modal',()=>{
 			$('#add-customer-contact').find('.crm_customer_id').on('change',()=>{
 				var customer = $('#add-customer-contact').find('.crm_customer_id').val();
@@ -3958,14 +3922,10 @@
 					
 					var sectionRow = labSectionRow(param['section'],p,thebatch.id,sampleCode,a_date,standard_count);
 					$('#sample-parameters-holder').append(sectionRow);
-					console.log('--------here1')
-					console.log(param['cr'])
-					console.log('--------here1')
+					
 					
 					$.each(param['cr'],(i,obj)=>{
-						console.log(`here 1 --------------------`)
-						console.log(obj);
-						console.log(`here end --------------------`)
+						
 
 						var sampleRow = sampleCodeParameters(obj,loop,InterlabStatus,selected_sample);
 						$('#sample-parameters-holder').append(sampleRow);
@@ -5227,8 +5187,13 @@
 				</td>
 				@endif
 				<td  nowrap data-toggle="tooltip" title="${data.analyte_name}">
-				<div class="form-group"  placeholder="Select Method...">
+					<div class="form-group"  placeholder="Select Method...">
 						<select style="min-width: 150px" class="form-control method-id"  name="method_id[${data.id}]" placeholder="Select Method..." data-selected="${data.method_id ? data.method_id : 0 }"></select>
+					</div>
+				</td>
+				<td  nowrap data-toggle="tooltip" title="${data.analyte_name}">
+					<div class="form-group"  placeholder="Select LTM...">
+						<select style="min-width: 150px" class="form-control ltm-method-id"  name="ltm_method_id[${data.id}]" placeholder="Select LTM..." data-selected="${data.ltm_method_id ? data.ltm_method_id : 0 }"></select>
 					</div>
 				</td>
 				@if(Auth::user()->is_client == 0)
@@ -5248,9 +5213,9 @@
 		`);
 
 		var $row = $oGRow.clone();
-		// console.log('am here -----------1')
-		// // console.log(data.my_analyte.reporting_unit)
-		// console.log('am here -----------1')
+		console.log('am here -----------1')
+		console.log(data)
+		console.log('am here -----------1')
 
 		data.reporting_unit_id == '' ? $($row).find('.sample-reporting-unit').val(data.my_analyte.reporting_unit) :$($row).find('.sample-reporting-unit').val(data.reporting_unit_id) ;
 		$($row).find('.sample-reporting-unit').select2();
@@ -5320,23 +5285,24 @@
 
 		var selectedOperator = $row.find('select.item-operators').data('selected');
 		var selectedMethod = $row.find('select.method-id').data('selected');
-		// var methods = data.methods;
+		var selectedLTMethod = $row.find('select.ltm-method-id').data('selected');
 		var methods = $('#sample-detail-rows').data('methods');
+		var ltmethods = $('#sample-detail-rows').data('ltmethods');
+
 		
 		if(methods != '' ){
 			$row.find('select.method-id').empty();
 			$.each(methods,function(r,t){
 				$row.find('select.method-id').append(`<option value="${r}" ${r == selectedMethod ? `selected` : `` }>${t}</option>`)
 			})
-			
-
-		}else{
-			methods = $('#sample-detail-rows').data('methods');
-			$.each(methods,function(t){
-				$row.find('select.method-id').append(`<option value="${t.id}" ${t.id == selectedMethod ? `selected` : `` }>${t.name.toUpperCase()}</option>`)
-			})
-
 		}
+		if(ltmethods){
+			$row.find('select.ltm-method-id').empty();
+			$.each(ltmethods,function(r,t){
+				$row.find('select.ltm-method-id').append(`<option value="${t.id}" ${t.id == selectedLTMethod ? `selected` : `` }>${t.name}</option>`)
+			});
+		}
+
 		
 		
 		$row.find('select.item-operators').empty();
@@ -5543,9 +5509,9 @@
 			</div>
 			<span class="text"></span>
 		</td>
-		<td class="barcode-field hidden">
+		<td class="barcode-field ">
 			<div class="form-group form-group-sm">
-				<input type="text" style="width: 100px" class="form-control form-control-sm sample-barcode" name="sample_details[barcode][]" placeholder="BarCode..." />
+				<input type="time" style="width: 100px" class="form-control form-control-sm sample-barcode" name="sample_details[barcode][]" placeholder="BarCode..." />
 			</div>
 			<span class="text"></span>
 		</td>

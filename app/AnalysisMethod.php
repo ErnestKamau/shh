@@ -14,7 +14,7 @@ class AnalysisMethod extends Model implements Auditable
 	}
 
 	public function analytes(){
-    	return AnalysisElements::where('method', $this->id)->get();
+    	return $this->is_ltm == 0 ? AnalysisElements::where('method', $this->id)->get() :  AnalysisElements::where('ltm_method_id', $this->id)->get() ;
 	}
 
 	public function reagents(){

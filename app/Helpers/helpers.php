@@ -1547,24 +1547,16 @@ function getCrmCustomerContactSchedule($id)
 	return App\Models\CRM\CustomerContact::where('crm_customer_id', $id)->where('active', 1)->where('receive_report', 1)->get();
 }
 
-function getPaymentReminderBody($customer_name,$sample_codes){
+function getPaymentReminderBody($customer_name){
 	$body = '
 	<p>
-		Dear '.$customer_name.'<br><br> This is to remind you about the due payment for the Job Number.<b> '.$sample_codes.'</b><br> <br>
-		Invoice# : <br>
-		Due Date : <br> <br>
-
-		Overdue : <br>
-		Due Date :<br>
-
-		If you have already paid, please accept our apologies and kindly ignore this payment reminder. <br><br>
-
-
-		Regards,
-
-
-
-
+		Dear '.$customer_name.'<br><br> 
+		We would like to kindly remind you that payment for the services provided is due. Your
+		report is ready and will be released once payment is received.<br><br>
+		Should you have any questions or need further assistance, please feel free to contact us. <br>
+		Thank you for your prompt attention to this matter.<br><br>
+		Best regards,<br>
+		Quality Plus Laboratory and Consultancy Services
 	</p>
 	';
 	return $body;

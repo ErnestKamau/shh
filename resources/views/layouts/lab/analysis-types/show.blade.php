@@ -108,8 +108,9 @@
               <a class="nav-link active" id="parameters-tab" data-toggle="tab" href="#parameters" role="tab" aria-controls="Parameters" aria-selected="true">Analytes</a>
             </li>
             <li class="nav-item">
-              <a class="nav-link" id="guides-tab" data-toggle="tab" href="#guides" role="tab" aria-controls="Notes" aria-selected="false">Guides</a>
+              <a class="nav-link" id="guides-tab" data-toggle="tab" href="#guides" role="tab" aria-controls="Notes" aria-selected="false">Test Method Sequences</a>
             </li>
+            
           </ul>
         </div>
 
@@ -121,234 +122,17 @@
               <table class="table table-condensed my-small-text table-striped table-hover table-bordered table-sm">
                 <thead class="bg-light p-2">
                   <tr>
-                    <th>No</th>
+                    <th>#</th>
                     <th nowrap>Analyte</th>
 
-                    <th>Standard</th>
-                    <th>Value Type</th>
-                    <th>Low</th>
-                    <th>High</th>
-                    <th>Default</th>
-                    <th nowrap>Value</th>
-                    <th nowrap>Comments</th>
-                    <th nowrap>Recommendations</th>
-                    <th></th>
-                    <th></th>
-                    <th></th>
+                    <th>Method</th>
+                    <th>Sequence Stage</th>
+                    <th>Level</th>
+                    
                   </tr>
                 </thead>
                 <tbody>
-                  @foreach ($analysis_type->guides as $item)
-                  <?php
-                  $analysis_standard = getStandardByid($item->standard_id);
-                  $analysis_value = getStandardValuebyID($item->standard_value_id);
-                  ?>
-                  <tr>
-                    <td>{{ $loop->iteration }}</td>
-                    <td>{{ $item->analyte->name." - ".$item->analyte->code }}</td>
-                    <td>{{$analysis_standard->name ?? ''}}</td>
-                    <td>{{$item->standard_value_type ?? ''}}</td>
-                    <td>{{$item->low != '' ? $item->low : '-'}}</td>
-                    <td>{{$item->high != '' ? $item->high : '-'}}</td>
-                    <td>{{isset($analysis_value->id) ? $analysis_value->name : '-'}}</td>
-                    <td>{{$item->standard_is_value != '' ? $item->standard_is_value:'-'}}</td>
-
-
-                    <td>{{ $item->comments }}</td>
-                    <td>{{ $item->recommendations }}</td>
-                    <td>
-                      <span class="btn-sm btn-outline-default" data-target="#edit-guide-{{$loop->iteration}}" data-toggle="modal"><i class="mdi mdi-pencil"></i></span>
-
-                      <div id="edit-guide-{{$loop->iteration}}" class="modal fade" role="dialog">
-                        <div class="modal-dialog">
-                          <!-- Modal content-->
-                          <form class="modal-content" method="POST" action="{{ route('add-analyte-guide') }}" enctype="multipart/form-data">
-                            @csrf
-                            <input type="hidden" name="analysis_type_id" value="{{ $analysis_type->id }}" />
-                            <input type="hidden" name="guide_id" value="{{ $item->id }}" />
-                            <div class="modal-header">
-                              <h4 class="modal-title"><i class="mdi mdi-pencil text-primary"></i> Edit {{ $item->analyte->name }} Guide</h4>
-                            </div>
-                            <div class="modal-body">
-                              <div class="form-group">
-                                <label class="control-label">Analyte</label>
-                                <select class="form-control" name="analyte_id" required placeholder="Select Analyte...">
-                                  <option></option>
-                                  @foreach($analysis_type->analysis_elements as $a)
-                                  <option value="{{ $a->analyte->id }}" {{$item->analyte->id == $a->analyte->id ? 'selected':''}} data-step="{{ $a->analyte->decimal_places }}">{{ $a->analyte->name }}</option>
-                                  @endforeach
-                                </select>
-                              </div>
-
-                              <?php
-                              $standards = getStandards();
-                              $standard_values = getStandardValues();
-                              ?>
-                              <div class="form-group">
-                                <label class="control-label">Standard</label>
-                                <select class="form-control" name="standard" required>
-                                  @foreach($standards as $standard)
-                                  @if($standard->status == 1)
-                                  <option value="{{$standard->id}}" {{$standard->id == $item->standard_id ? 'selected':''}}>{{$standard->code}}</option>
-                                  @endif
-                                  @endforeach
-                                </select>
-                              </div>
-
-                              <div class="form-group">
-                                <div class="row no-gutters">
-                                  <div class="col-lg-6 col-sm-6">
-                                    <div class="form-check">
-
-                                      <input class="form-check-input" type="radio" id="is-range-{{$item->id}}" class="form-control" name="standard_value_type" value="is_range" data-id="{{$item->id}}" onclick="inhoused(this)" {{$item->standard_value_type == 'is_range' ? 'checked="checked"' : ''}} />
-                                      <label class="form-check-label" for="is-range">
-                                        Use range
-                                      </label>
-                                    </div>
-                                  </div>
-                                  <div class="col-lg-6 col-sm-6">
-                                    <div class="form-check">
-
-                                      <input class="form-check-input" type="radio" id="is-standard-value-{{$item->id}}" class="form-control" name="standard_value_type" data-id="{{$item->id}}" value="is_standard_value" onclick="externaled(this)" {{$item->standard_value_type == 'is_standard_value' ? 'checked="checked"' :''}} />
-                                      <label class="form-check-label" for="is-standard-value">
-                                        Use Value
-                                      </label>
-
-
-
-                                    </div>
-                                  </div>
-                                </div>
-                              </div>
-                              @if($item->standard_value_type == 'is_range')
-                              <div class="form-group" id="range-{{$item->id}}">
-                                <label class="control-label">Standard Range</label>
-                                <div class="row">
-                                  <div class="col-lg-6 col-sm-6">
-                                    <label class="control-label">Low <span class="text-danger">*</span></label>
-                                    <input type="text" name="low_range" id="Low-Range-{{$item->id}}" value="{{$item->low}}" class="form-control">
-                                  </div>
-                                  <div class="col-lg-6 col-sm-6">
-                                    <label class="control-label">High <span class="text-danger">*</span></label>
-                                    <input type="text" name="high_range" id="High-Range-{{$item->id}}" value="{{$item->high}}" class="form-control">
-                                  </div>
-                                </div>
-                              </div>
-                              @else
-                              <div class="form-group" id="range-{{$item->id}}" style="display: none;">
-                                <label class="control-label">Standard Range</label>
-                                <div class="row">
-                                  <div class="col-lg-6 col-sm-6">
-                                    <label class="control-label">Low <span class="text-danger">*</span></label>
-                                    <input type="text" name="low_range" id="Low-Range-{{$item->id}}" value="{{$item->low}}" class="form-control">
-                                  </div>
-                                  <div class="col-lg-6 col-sm-6">
-                                    <label class="control-label">High <span class="text-danger">*</span></label>
-                                    <input type="text" name="high_range" id="High-Range-{{$item->id}}" value="{{$item->high}}" class="form-control">
-                                  </div>
-                                </div>
-                              </div>
-                              @endif
-                              @if($item->standard_value_type == 'is_standard_value')
-                              <div class="form-group" id="standard-values-{{$item->id}}">
-                                <label class="control-label">Standard Values <span class="text-danger">*</span></label>
-                                <select name="standard_value" class="form-control" data-id="{{$item->id}}" data-count="{{$loop->iteration}} id=" Standard-Value-{{$item->id}}" onclick="checkvalued(this)" placeholder="Employee...">
-                                  @foreach($standard_values as $value)
-                                  <option value="{{$value->code}}" {{$item->standard_value_id == $value->id ? 'selected' : ''}}>{{$value->name}}</option>
-                                  @endforeach
-                                </select>
-                              </div>
-                              @else
-                              <div class="form-group" id="standard-values-{{$item->id}}" style="display: none;">
-                                <label class="control-label">Standard Values <span class="text-danger">*</span></label>
-                                <select name="standard_value[]" class="form-control" data-id="{{$item->id}}" data-count="{{$loop->iteration}}" onclick="checkvalued(this)" placeholder="Employee...">
-                                  @foreach($standard_values as $value)
-                                  <option value="{{$value->code}}" {{$item->standard_value_id == $value->id ? 'selected' : ''}}>{{$value->name}}</option>
-                                  @endforeach
-                                </select>
-                              </div>
-                              @endif
-                              <?php
-                              $standard = getStandardValuebyID($item->standard_value_id);
-                              ?>
-                              @if(isset($standard->id) && $standard->code == 'IsValue')
-                              <div class="form-group" id="is-value-{{$item->id}}">
-                                <label class="control-label">Value <span class="text-danger">*</span></label>
-                                <input type="text" name="is_value" value="{{$item->standard_is_value}}" id="Is-Value-{{$item->id}}" placeholder="Enter Value..." class="form-control">
-                              </div>
-                              @else
-                              <div class="form-group" id="is-value-{{$item->id}}" style="display: none;">
-                                <label class="control-label">Value <span class="text-danger">*</span></label>
-                                <input type="text" name="is_value" value="{{$item->standard_is_value}}" id="Is-Value-{{$item->id}}" placeholder="Enter Value..." class="form-control">
-                              </div>
-                              @endif
-                              <div class="form-group">
-                                <label class="control-label">Comments</label>
-                                <textarea name="comments" class="form-control" placeholder="Guide Comments...">{{$item->comments}}</textarea>
-                              </div>
-                              <div class="form-group">
-                                <label class="control-label">Recommendations</label>
-                                <textarea name="recommendations" class="form-control" placeholder="Guide Recommendations...">{{$item->recommendations}}</textarea>
-                              </div>
-
-                            </div>
-                            <div class="modal-footer">
-                              <button type="submit" class="btn btn-primary"><i class="mdi mdi-content-save"></i> Save</button>
-                              <button type="button" class="btn btn-default" data-dismiss="modal">Close</button>
-                            </div>
-                          </form>
-                        </div>
-                      </div>
-
-                    </td>
-                    <td>
-                      <span class="btn-sm btn-outline-warning" data-toggle="modal" data-target="#clone-guide-{{$loop->iteration}}"><i class="mdi mdi-content-duplicate"></i></span>
-
-
-                      <div class="modal fade" id="clone-guide-{{$loop->iteration}}">
-                        <div class="modal-dialog">
-                          <form action="{{ route('clone_analysis_guide') }}" method="post" class="modal-content" enctype="multipart/form-data">
-                            @csrf
-                            <div class="modal-header">
-                              <h4 class="modal-title"><i class="mdi mdi-content-duplicate text-warning"></i> Clone {{ $item->analyte->name}} Guide.</h4>
-                            </div>
-                            <div class="modal-body" style="background-color: turquoise;">
-                              <input type="hidden" name="guide_id" value="{{$item->id}}">
-                              Confirm you want to duplicate {{ $item->analyte->name}} analysis guide ?
-                            </div>
-                            <div class="modal-footer">
-                              <button type="submit" class="btn btn-outline-success"><i class="mdi mdi-content-save"></i> Yes</button>
-                              <button type="button" class="btn btn-outline-danger" data-dismiss="modal">Cancel</button>
-                            </div>
-                          </form>
-                        </div>
-                      </div>
-                    </td>
-                    <td>
-                      <span class="btn-sm btn-outline-danger" data-toggle="modal" data-target="#delete-guide-{{$loop->iteration}}"><i class="mdi mdi-delete-empty"></i></span>
-
-                      <div class="modal fade" id="delete-guide-{{$loop->iteration}}">
-                        <div class="modal-dialog">
-                          <form action="{{ route('delete_analysis_guide') }}" method="post" class="modal-content" enctype="multipart/form-data">
-                            @csrf
-                            <div class="modal-header">
-                              <h4 class="modal-title"><i class="mdi mdi-delete-empty text-danger"></i> Delete {{ $item->analyte->name}} Guide.</h4>
-                            </div>
-                            <div class="modal-body" style="background-color: turquoise;">
-                              <input type="hidden" name="guide_id" value="{{$item->id}}">
-                              Confirm you want to delete {{ $item->analyte->name}} analysis guide ?
-                            </div>
-                            <div class="modal-footer">
-                              <button type="submit" class="btn btn-outline-success"><i class="mdi mdi-content-save"></i> Yes</button>
-                              <button type="button" class="btn btn-outline-danger" data-dismiss="modal">Cancel</button>
-                            </div>
-                          </form>
-                        </div>
-                      </div>
-                    </td>
-
-                  </tr>
-                  @endforeach
+                  
                 </tbody>
               </table>
             </div>
@@ -372,6 +156,7 @@
                     <th>L.O.D.</th>
                     <th>Significant Figures</th>
                     <th>Method</th>
+                    <th>LTM</th>
                     <th>Equipment</th>
                     <th>Operator</th>
                     <th nowrap>Remark Capture Manual</th>
@@ -403,7 +188,8 @@
                     <td>{{$analyte->reporting_time > 0 ? $analyte->reporting_time : $analysis_type->reporting_time }}</td>
                     <td>{{ $analyte->lod == null ? '' : ( $analyte->significant_figures == null ? $analyte->lod : sigFig($analyte->lod, $analyte->significant_figures)) }}</td>
                     <td>{{ $analyte->significant_figures }}</td>
-                    <td nowrap>{{ $analyte->method()->name ?? '-' }}</td>
+                    <td nowrap>{{ $analyte->mmethod->name ?? '-' }}</td>
+                    <td nowrap>{{ $analyte->ltmethod->name ?? '-' }}</td>
                     <td nowrap>{{ $analyte->equipment->name  ?? '-' }}</td>
                     <td nowrap>{{ $analyte->operator->name  ?? '-' }}</td>
                     <td class="text-small">
@@ -471,7 +257,7 @@
     </div>
   </div>
 </div>
-<div id="add-analyte-guide" class="modal fade" role="dialog">
+<div id="add-analyte-gui" class="modal fade" role="dialog">
   <div class="modal-dialog">
     <!-- Modal content-->
     <form class="modal-content" method="POST" action="{{ route('add-analyte-guide') }}" enctype="multipart/form-data">
@@ -660,11 +446,22 @@
           <label class="control-label">Method <span class="text-danger">*</span></label>
           <select class="form-control" name="method" required>
             <option value="">Select Method...</option>
-            @foreach (getMethods() as $g)
+            @foreach ($methods as $g)
             <option value="{{ $g['id'] }}">{{ $g['name'] }}</option>
             @endforeach
           </select>
         </div>
+        <div class="form-group">
+          <label for="" class="control-label">Laboratory Test Method</label>
+          <select name="ltm_method_id" id="" class="form-control">
+            <option value="">Select LTM</option>
+            @foreach ($ltmethods as $ltm)
+              <option value="{{ $ltm->id }}">{{ $ltm->name }}</option>
+            
+            @endforeach
+          </select>
+        </div>
+        
         <div class="form-group">
           <label class="control-label">Equipment</label>
           <select class="form-control" name="equipment_id" placeholder="Select Equipment...">
@@ -780,23 +577,23 @@
         <input type="hidden" name="analysis_element_id" value="${data.id }" />
         <div class="form-group">
           <label class="control-label">Significant Figures</label>
-          <input type="number" min="0" step="1" class="form-control" name="significant_figures" value="${ data.significant_figures }" placeholder="Significant Figures..." />
+          <input type="number" min="0" step="1" class="form-control" name="significant_figures" value="${ data.significant_figures  || ''}" placeholder="Significant Figures..." />
         </div>
         <div class="form-group">
           <label class="control-label">Decimal Places</label>
-          <input type="number" min="0" step="1" class="form-control" name="decimal_places" value="${ data.decimal_places }" placeholder="Decimal Places..." />
+          <input type="number" min="0" step="1" class="form-control" name="decimal_places" value="${ data.decimal_places || '' }" placeholder="Decimal Places..." />
         </div>
         <div class="form-group">
           <label class="control-label">Limit of Detection</label>
-          <input type="number" step="0.0000001" class="form-control" name="lod" value="${ data.lod }" placeholder="Limit of Detection..." />
+          <input type="number" step="0.0000001" class="form-control" name="lod" value="${ data.lod || '' }" placeholder="Limit of Detection..." />
         </div>
         <div class="form-group">
           <label class="control-label">Limit of Quantification</label>
-          <input type="number" step="0.0000001" class="form-control" name="hod" value="${ data.hod }}" placeholder="Limit of Quantification..." />
+          <input type="number" step="0.0000001" class="form-control" name="hod" value="${ data.hod || '' }}" placeholder="Limit of Quantification..." />
         </div>
         <div class="form-group">
           <label class="control-label">Reporting Symbol</label>
-          <input type="text" class="form-control" name="reporting_symbol" value="${ data.reporting_symbol }" placeholder="Reporting Symbol..." />
+          <input type="text" class="form-control" name="reporting_symbol" value="${ data.reporting_symbol || '' }" placeholder="Reporting Symbol..." />
         </div>
         <div class="form-group">
           <label class="control-label">Reporting Unit</label>
@@ -811,8 +608,18 @@
           <label class="control-label">Method <span class="text-danger">*</span></label>
           <select class="form-control" name="method" id="method_id" required>
             <option value="">Select Method...</option>
-            @foreach (getMethods() as $g)
+            @foreach ($methods as $g)
             <option value="{{ $g['id'] }}">{{ $g['name'] }}</option>
+            @endforeach
+          </select>
+        </div>
+        <div class="form-group">
+          <label for="" class="control-label">Laboratory Test Method</label>
+          <select name="ltm_method_id" id="" class="form-control ltm_method_id">
+            <option value="">Select LTM</option>
+            @foreach ($ltmethods as $ltm)
+              <option value="{{ $ltm->id }}">{{ $ltm->name }}</option>
+            
             @endforeach
           </select>
         </div>
@@ -877,7 +684,9 @@
     $(body).find('#equipment_id_field').val(data.equipment_id);
     $(body).find('#operator_id_field').val(data.operator_id);
     $(body).find('.lab_section_id').val(data.lab_section_id);
-    
+    $(body).find('.ltm_method_id').val(data.ltm_method_id);
+
+    $(body).find('.ltm_method_id').select2();
     $(body).find('#analyte_id').select2();
     $(body).find('#reporting_unit').select2();
     $(body).find('#method_id').select2();

@@ -43,7 +43,7 @@ class AnalysisMethodController extends Controller
     $analysis_type->company_id = getUserCompany();
     $analysis_type->active = $request->active ?? 0;
     $analysis_type->is_sampling_method = $request->is_sampling_method ?? 0;
-
+    $analysis_type->is_ltm = $request->is_ltm ?? 0;
     $analysis_type->save();
 
     return redirect()->back()->with('success', 'Analysis Method added.');
@@ -59,7 +59,7 @@ class AnalysisMethodController extends Controller
     $analysis_type->company_id = getUserCompany();
     $analysis_type->active = $request->active ?? 0;
     $analysis_type->is_sampling_method = $request->is_sampling_method ?? 0;
-
+    $analysis_type->is_ltm = $request->is_ltm ?? 0;
     $analysis_type->save();
 
     return redirect()->back()->with('success', 'Analysis Method edited.');

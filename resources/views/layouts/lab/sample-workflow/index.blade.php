@@ -130,7 +130,7 @@ $items = array(
 					</li>
 					<li>
 						<span class="btn btn-sm dropdown-item" disabled data-target="#dispatch-to-labs-modal-approve"
-							data-toggle="modal"><i class="mdi mdi-check-decagram mr-2"></i> Generate Sales Order</span>
+							data-toggle="modal"><i class="mdi mdi-check-decagram mr-2"></i> Generate Draft Invoice</span>
 					</li>
 					<li>
 						<span class="btn btn-sm dropdown-item" disabled data-target="#approve-begin-process"
@@ -171,7 +171,7 @@ $items = array(
 				@if($status == "Samples Request Review")
 					<li>
 						<span class="btn btn-sm dropdown-item" disabled data-target="#dispatch-to-labs-modal-approve"
-							data-toggle="modal"><i class="mdi mdi-check-decagram mr-2"></i> Generate Sales Order</span>
+							data-toggle="modal"><i class="mdi mdi-check-decagram mr-2"></i> Generate Draft Invoice</span>
 					</li>
 					<li>
 						<span class="btn btn-sm dropdown-item" disabled data-target="#dispatch-to-labs-modal-review"
@@ -359,7 +359,7 @@ $items = array(
 
 				<th>Sample Codes</th>
 				<th>Lab Sections</th>
-				<th>Sales Order</th>
+				<th>Draft Invoice</th>
 
 				<th>Stage</th>
 				@if($status == 'Samples In Lab' || $status == 'Sample Verification')
@@ -936,7 +936,7 @@ $items = array(
 				action="{{ route('generate_batch_invoice') }}" enctype="multipart/form-data">
 				@csrf
 				<div class="modal-header">
-					<h4 class="modal-title"><i class="mdi mdi-clipboard-arrow-right"></i> Generate Sales Order</h4>
+					<h4 class="modal-title"><i class="mdi mdi-clipboard-arrow-right"></i> Generate Draft Invoice</h4>
 				</div>
 				<div class="modal-body">
 					<div class="to-be-updated">
@@ -2067,17 +2067,17 @@ $items = array(
 				}
 				$('.selected-batches-review').append(
 					`<span class="p-2 mr-2">
-						<input type="checkbox" name="batch_code[]" value="${$value}"  checked >${$value}
+						<input type="checkbox" name="batch_code[]" value="${$value}"  checked > ${$value}
 					</span>`
 				);
 				$('.selected-batches-interlab').append(
 					`<span class="p-2 mr-2">
-						<input type="checkbox" name="batch_code[]" value="${$value}"  checked >${$value}
+						<input type="checkbox" name="batch_code[]" value="${$value}"  checked > ${$value}
 					</span>`
 				);
 				$('.selected-batches-clone').append(
 					`<span class="p-2 mr-2">
-						<input type="checkbox" class="batch_clone" name="batch_code[]" value="${$value}"  checked >${$value}
+						<input type="checkbox" class="batch_clone" name="batch_code[]" value="${$value}"  checked > ${$value}
 					</span>`
 				);
 				$('.selected-batches-movetolab').append(

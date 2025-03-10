@@ -19,7 +19,7 @@ class AnalysisType extends Model implements Auditable
   }
 
   public function analysis_elements(){
-    return $this->hasMany('App\AnalysisElements')->orderBy('level', 'asc');
+    return $this->hasMany('App\AnalysisElements')->with(['mmethod','ltmethod','analyte','equipment','operator'])->orderBy('level', 'asc');
 	}
 
   public function guides(){

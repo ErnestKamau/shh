@@ -28,6 +28,12 @@ class AnalysisElements extends Model implements Auditable
   public function method(){
     return AnalysisMethod::find($this->method);
 	}
+  public function mmethod(){
+    return $this->belongsTo(AnalysisMethod::class,'method');
+  }
+  public function ltmethod(){
+    return $this->belongsTo(AnalysisMethod::class,'ltm_method_id');
+	}
 
   public function equipment(){
     return $this->belongsTo('App\Models\Equipments\Equipment');

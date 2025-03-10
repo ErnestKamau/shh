@@ -72,7 +72,7 @@
     ?>
     <x-bread-crumb :items="$items"></x-bread-crumb>
     <h2 class="p-4">
-      <i class="mdi mdi-cogs"></i> {{ $analysis_method->name }} <small class="text-muted"> | Analysis Method</small>
+      <i class="mdi mdi-cogs"></i> {{ $analysis_method->name }} <small class="text-muted"> | {{ $analysis_method->is_sampling_method == 0 && $analysis_method->is_ltm == 0 ? 'Analysis Method' : ($analysis_method->is_sampling_method == 1 ? 'Sampling Method' : 'Laboratory Test Method') }}</small>
     </h2>
     <div class="row no-gutters">
       <div class="col-sm-4 p-2">
@@ -109,6 +109,9 @@
               </div>
               <div class="form-group">
                 <label class="control-label"><input type="checkbox" name="is_sampling_method" value="1" {{ $analysis_method->is_sampling_method == 1 ? 'checked' :'' }} /> Is Sampling Method</label>
+              </div>
+              <div class="form-group">
+                <label class="control-label"><input type="checkbox" name="is_ltm" value="1" {{ $analysis_method->is_ltm == 1 ? 'checked' :'' }} /> Is Laboratory Test Method</label>
               </div>
               <div class="p-0">
                 <button type="submit" class="btn btn-primary float-right"><i class="mdi mdi-content-save"></i> Save</button>

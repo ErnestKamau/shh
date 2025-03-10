@@ -71,4 +71,7 @@ class SampleDetails extends Model implements Auditable
 		$target = SampleDate::where('sample_header_id',$this->sample_header_id)->where('name','Target Date')->first();
 		return $target->date;
 	}
+	public function analyteNames(){
+		return CapturedResult::where('sample_detail_id',$this->id)->pluck('analyte_code')->toArray();
+	}
 }

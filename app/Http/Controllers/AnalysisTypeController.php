@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\AnalysisElements;
+use App\AnalysisMethod;
 use App\Lab;
 use App\Analyte;
 use App\Result;
@@ -109,7 +110,9 @@ class AnalysisTypeController extends Controller
 
   public function show(Request $request, $id){
     $analytes = Analyte::all();
-    $analysis_type = AnalysisType::find($id);
+    $analysis_type = AnalysisType::with(['analysis_elements'])->find($id);
+    $methods = AnalysisMethod::where('is_sampling_method',0)->where('is_ltm',0)->where('active',1)->get();
+    $ltmethods = AnalysisMethod::where('is_sampling_method',0)->where('is_ltm',1)->where('active',1)->get();
     $sample_types = SampleType::all();
     $labs = Lab::all();
     $analyst_role = SystemConfiguration::where('key','analyst_role_id')->first();
@@ -122,7 +125,7 @@ class AnalysisTypeController extends Controller
     //   $analysis_standard = getStandardByid($ag->standard_id);
     // }
 
-    return view('layouts.lab.analysis-types.show', compact('analysis_type', 'sample_types', 'labs', 'analytes', 'analysis_type_id','usersAnalysts'));
+    return view('layouts.lab.analysis-types.show', compact('analysis_type', 'sample_types', 'labs', 'analytes', 'analysis_type_id','usersAnalysts','methods','ltmethods'));
 	}
 
 	public function by_sample_id($id){

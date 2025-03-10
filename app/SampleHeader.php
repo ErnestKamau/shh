@@ -2,6 +2,7 @@
 
 namespace App;
 
+use App\Models\CRM\CRMCustomer;
 use Illuminate\Database\Eloquent\Model;
 use OwenIt\Auditing\Contracts\Auditable;
 use App\InvoiceDetails;
@@ -322,4 +323,8 @@ class SampleHeader extends Model implements Auditable
 	public function invoice(){
 		return $this->belongsTo(Invoice::class,'invoice_id');
 	}
+	public function customer(){
+		return $this->belongsTo(CRMCustomer::class,'crm_customer_id');
+	}
+	
 }
