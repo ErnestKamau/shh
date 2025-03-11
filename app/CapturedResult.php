@@ -69,6 +69,9 @@ class CapturedResult extends Model implements Auditable
 	public function method(){
 		return AnalysisMethod::find($this->method_id);
 	}
+	public function ltmethod(){
+		return $this->belongsTo(AnalysisMethod::class,'ltm_method_id');
+	}
 
 	public function operators(){
 		$equipment = Models\Equipments\Equipment::where('id', $this->equipment_id)->get();

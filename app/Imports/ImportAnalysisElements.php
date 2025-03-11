@@ -28,6 +28,21 @@ class ImportAnalysisElements implements ToModel, WithHeadingRow
 		$mname = trim(ucwords($row['method']));
 		$method = AnalysisMethod::orWhere('name', $mname)
 			->orWhere('code', $mname)->first();
+		$ltmethodname = trim(ucwords($row['ltmethod']));
+		$elementreporttime = $row['tat'];
+		$ltmethod = AnalysisMethod::where('is_ltm', 1)
+					->where(function ($query) use ($ltmethodname) {
+						$query->where('name', $ltmethodname)
+							->orWhere('code', $ltmethodname);
+					})
+					->first();
+		if(!isset($ltmethod->id)){
+			$name_ltmethod = ucwords($ltmethodname);
+			$ltmethod = AnalysisMethod::create([
+				'name' => $name_ltmethod, 'code' => $name_ltmethod, 'description' => $name_ltmethod, 'company_id' => getUserCompany(), 'active' => 1,'is_ltm' => 1
+			]);
+		}
+
 
 		if(!isset($method->id)){
 			$method = ucwords($mname);
@@ -76,7 +91,9 @@ class ImportAnalysisElements implements ToModel, WithHeadingRow
 				'company_id' => getUserCompany(), 
 				'non_accredited' => $nonAccredited,
 				'lab_section_id' => $this->analysisType->lab_id,
-				'analysis_type_id' => $this->analysisType->id
+				'analysis_type_id' => $this->analysisType->id,
+				'ltm_method_id' =>$ltmethod->id,
+				'reporting_time' => $elementreporttime
 			]);
 		}
 		else{
@@ -87,7 +104,9 @@ class ImportAnalysisElements implements ToModel, WithHeadingRow
 				'non_accredited' => $nonAccredited,
 				'company_id' => getUserCompany(), 
 				'lab_section_id' => $this->analysisType->lab_id,
-				'analysis_type_id' => $this->analysisType->id
+				'analysis_type_id' => $this->analysisType->id,
+				'ltm_method_id' =>$ltmethod->id,
+				'reporting_time' => $elementreporttime
 			]);
 		}
 

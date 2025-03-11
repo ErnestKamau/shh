@@ -126,12 +126,11 @@ class ReportHeaderDetailController extends Controller
 	public function process_pdf_report($batch_id, $report_format, $include_pesticide = 0)
 	{
 		// return response()->json('success3');
-		$path = public_path('images/company_logo.png');
-		$kenas = public_path('images/kenas_footer.jpg');
-		$nema = public_path('images/nema_footer.jpg');
-		$polucon_disclaimer = public_path('images/polucon_disclaimer.jpg');
-		$polucon_disclaimer_not = public_path('images/polucon_disclaimer_not.jpg');
-		$stamp = public_path('images/stamp.png');
+		$path = public_path('images/qplus_header_with_sanas.png');
+		$sanas_header = public_path('images/kenas_footer.jpg');
+		$sanas_logo = public_path('images/sanas.jpeg');
+		
+		$stamp = public_path('images/stamp.jpeg');
 
 		$batch = \App\SampleHeader::find($batch_id);
 		$batch->processing_date = getTodayDate();
@@ -168,14 +167,14 @@ class ReportHeaderDetailController extends Controller
 		}
 		$filename = urlencode($filename);
 		$company = getActiveCompany();
-		// $date = date("d-M-Y", strtotime(getTodayDate()));
-		// $qr_url = url('/storage/reports/' . $customer_name . '/' . $filename);
+		$date = date("d-M-Y", strtotime(getTodayDate()));
+		$qr_url = url('/storage/reports/' . $customer_name . '/' . $filename);
 
-		$ftppath = 'reports/' . $customer_name . '/' . $filename;
-		$new_qr_url = 'https://polucon.co.ke/imara_reports/' . $ftppath;
+		// $ftppath = 'reports/' . $customer_name . '/' . $filename;
+		// $new_qr_url = 'https://polucon.co.ke/imara_reports/' . $ftppath;
 		// return response()->json($batch_result,200);
 
-		$qrcode = base64_encode(\QrCode::format('svg')->size(50)->errorCorrection('H')->generate($new_qr_url));
+		$qrcode = base64_encode(\QrCode::format('svg')->size(50)->errorCorrection('H')->generate($qr_url));
 		// return response()->json($batch_result,200);
 		$samples = SamplesCategory::where('sample_header_id', $batch->id)->get();
 		if ($report_format == '1') {
@@ -270,8 +269,9 @@ class ReportHeaderDetailController extends Controller
 		ini_set('max_execution_time', 300); //300 seconds = 5 minutes 
 		$pdf = app('dompdf.wrapper');
 		$pdf->getDomPDF()->set_option("enable_php", true);
-		$pdf = PDF::loadView('layouts.lab.reports.coa_formats.standard_report', compact('samples', 'company', 'qrcode', 'path', 'kenas', 'batch_approvers', 'pdf', 'batch', 'non_accredited', 'disclaimer', 'nema', 'customer', 'report_type', 'analysis_date', 'polucon_disclaimer', 'stamp', 'is_stamp', 'ammendment', 'polucon_disclaimer_not', 'main_lab'));
+		$pdf = PDF::loadView('layouts.lab.reports.coa_formats.standard_report', compact('samples', 'company', 'qrcode', 'path', 'batch_approvers', 'pdf', 'batch', 'non_accredited', 'disclaimer', 'customer', 'report_type', 'analysis_date', 'stamp', 'is_stamp', 'ammendment', 'sanas_logo', 'main_lab'));
 
+		// return $pdf->stream($filename);
 		if (is_dir(storage_path() . '/app/reports/' . $customer_name)) {
 			$pdf->save(storage_path() . '/app/reports/' . $customer_name . '/' . $filename);
 		} else {
@@ -287,10 +287,10 @@ class ReportHeaderDetailController extends Controller
 		}
 		$local_path = storage_path() . '/app/reports/' . $customer_name . '/' . $filename;
 
-		$this->moveFTP($ftppath, $local_path);
+		// $this->moveFTP($ftppath, $local_path);
 
 		$batch->batch_report_url = '/reports/' . $customer_name . '/' . $filename;
-		$batch->batch_report_online_url = 'https://polucon.co.ke/imara_reports/' . $ftppath;
+		// $batch->batch_report_online_url = 'https://polucon.co.ke/imara_reports/' . $ftppath;
 		$batch->save();
 
 		return 'success';

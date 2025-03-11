@@ -2090,8 +2090,6 @@
 								<select name="report_format" id="report_format" class="form-control">
 									<option value="">Choose Report Format</option>
 									<option value="0">Standard Report</option>
-									<option value="1">KTDA Report</option>
-									<option value="2">BL Report</option>
 								</select>
 							</div>
 							<div class="proccesing-point hidden">
@@ -2099,7 +2097,7 @@
 									<img src="/images/load.gif" height="250px" width="auto" alt="">
 								</center>
 							</div>
-							<div class="form-group">
+							<div class="form-group hidden">
 								<label for="" class="control-label"><input type="checkbox" name="add_pesticide" id="" class=""> Include Pesticide Results</label>
 							</div>
 							<span class="btn btn-sm btn-outline-info btn-block" id="initiate-process"><i class="mdi mdi-cogs"></i> Generate Report</span>

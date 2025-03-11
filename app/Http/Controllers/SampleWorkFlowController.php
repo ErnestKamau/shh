@@ -2244,8 +2244,10 @@ class SampleWorkFlowController extends Controller
             $captured->result_reporting_symbol = $request->result_reporting_symbol[$cID] ?? '';
             $captured->operator_id = $request->operators[$cID] ?? 0;
             $captured->analyte_code = Analyte::find($captured->analyte_id)->code;
-
+            
             if ($batch->status == 'Samples In Lab') {
+                $captured->ltm_method_id = $request->ltm_method_id[$cID] ?? '';
+                $captured->scienctific_result = !is_numeric($request->result[$cID]) ? $request->result[$cID] : $this->toScientificNotation($request->result[$cID]);
                 $captured->result = $request->result[$cID] ?? '';
                 $captured->remark = $captured->remark_is_manual == 0 ? $request->remark[$cID] : $request->remarkmanual[$cID];
                 $standard_main = Standards::where('code', $request->main_standard[$cID])->first();
@@ -3804,16 +3806,12 @@ class SampleWorkFlowController extends Controller
     {
         // return response()->json($request->all());
         $status = 'Samples In Lab';
-        $checkSalesOrder = SampleHeader::whereIn('batch_code', $request->batch_code)->where('invoice_id', 0)->get();
-        // if ($checkSalesOrder->count() > 0) {
-        //     return redirect()->back()->with('error', 'Some of the selected selected batches have no Sales Order generated. Kindly generate the Sales Order before proceeding with the proccess!');
-        // }
+        
         foreach ($request->batch_code as $code) {
             $batch = SampleHeader::where('batch_code', $code)->first();
             if ($batch->schedule_analysis_sent == '' && $batch->schedule_customer_email == '') {
                 return redirect()->back()->with('error', 'Kindly set the customer email under batch information for batch ' . $code);
             }
-            $previousWorkflow = $batch->status;
 
             $custodyDetails = [
                 'batch_id' => $batch->id,
@@ -3831,59 +3829,7 @@ class SampleWorkFlowController extends Controller
             $this->updateChainofCustody($custodyDetails);
             $batch->status = $status;
             $batch->save();
-            if ($batch->schedule_analysis_sent == '') {
-                $targetDate = SampleDate::where('sample_header_id', $batch->id)->where('name', 'Target Date')->first();
-                $samples = SampleDetails::where('sample_header_id', $batch->id)->pluck('sample_code')->toArray();
-                $sampleTrs = '';
-                foreach ($samples as $sample) {
-                    $sampleTrs = "";
-                    foreach ($samples as $sample) {
-                        $target_date = $targetDate->date;
-                        $sampleTrs .= '
-                    <tr>
-                        <td style="padding: 8px; border: 1px solid #ddd;">' . htmlspecialchars($sample) . '</td>
-                        <td style="padding: 8px; border: 1px solid #ddd;">' . htmlspecialchars($target_date) . '</td>
-                    </tr>';
-
-                    }
-                }
-                $body = '
-                <div style="font-family: Arial, sans-serif; color: #333; line-height: 1.6;">
-                    <p style="font-size: 16px;">
-                        Dear Esteemed Client, <br><br>
-                        We acknowledge receipt of your sample(s) submitted to our laboratory. The sample(s) have been forwarded to our laboratory, and analysis is scheduled to start anytime from now.<br>Sample Information : 
-                    </p>
-
-                    <table style="width: 100%; border-collapse: collapse; margin-top: 15px;">
-                        <tr>
-                            <th style="text-align: left; padding: 8px; background-color: #f2f2f2; border: 1px solid #ddd;">Sample Reference No</th>
-                            <th style="text-align: left; padding: 8px; background-color: #f2f2f2; border: 1px solid #ddd;">Expected Results Date</th>
-                        </tr>
-                        ' . $sampleTrs . '
-                    </table>
-
-                    <p style="font-size: 16px; margin-top: 15px;">
-                        <br>
-                        We will keep you updated on the progress report(s).<br>
-                        Thank you for the opportunity to serve you.
-                    </p>
-                </div>
-                ';
-                // $contact = CustomerContact::find($header->crm_contact_id);
-                // $customer = CRMCustomer::find($batch->crm_customer_id);
-                // return response()->json($batch);
-                notify_user($body, $batch->schedule_customer_email, '[QPLUS LIMS] Schedule Of Analysis ' . $batch->batch_code, false, true, ['donotreply@qplus.com']);
-                $batch->schedule_analysis_sent = date('Y-m-d');
-                $batch->schedule_analysis_sender = auth()->user()->id;
-                $batch->save();
-
-                $scheduleDateStr = 'Schedule of Analysis Sendoff Date';
-                $scheduleDate = SampleDate::where('sample_header_id', $batch->id)->where('name', $scheduleDateStr)->first() ?? new SampleDate();
-                $scheduleDate->name = $scheduleDateStr;
-                $scheduleDate->sample_header_id = $batch->id;
-                $scheduleDate->date = date('Y-m-d');
-                $scheduleDate->save();
-            }
+           
         }
 
         return redirect()->back()->with('success', 'Sample(s) moved to samples in Lab section successfully');
@@ -3974,6 +3920,7 @@ class SampleWorkFlowController extends Controller
                     $approvers->batch_id = $batch->id;
                     $approvers->batch_status = $request->status;
                     $approvers->is_prelim = $request->level != '0' ? 1 : 0;
+                    $approvers->show_report = 1;
                     $approvers->save();
                 }
                 foreach ($analysts as $analyst) {
@@ -3987,7 +3934,7 @@ class SampleWorkFlowController extends Controller
                     $approvers->batch_status = $request->status;
                     $approvers->is_prelim = $request->level != '0' ? 1 : 0;
                     $approvers->approval_date = date('Y-m-d h:i:s a');
-                    $approvers->show_report = 1;
+                    $approvers->show_report = 0;
                     $approvers->save();
                 }
             }
@@ -5030,5 +4977,11 @@ class SampleWorkFlowController extends Controller
             // return response()->json($contact);
         }
         return view('layouts.lab.sample-workflow.index-other',compact('contacts'));
+    }
+    private function toScientificNotation($number) {
+        $exponent = floor(log10(abs($number))); // Get the exponent (power of 10)
+        $coefficient = $number / pow(10, $exponent); // Get the coefficient
+        
+        return sprintf("%.1f * 10^%d", $coefficient, $exponent);
     }
 }

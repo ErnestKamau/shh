@@ -828,8 +828,32 @@ $items = array(
 			</form>
 		</div>
 	</div>
+	<div class="modal fade" id="move-to-lab" role="dialog">
+		<div class="modal-dialog">
+			<div class="modal-content">
+				<form action="{{ route('moveToLab') }}" method="post">
+					@csrf 
+					<div class="modal-body">
+						<div class="alert alert-primary p-2 d-flex">
+							<i class="mdi mdi-alert-decagram-outline" style="font-size:25px"></i>
+							<span class="pl-2 pt-2">Move the following batches to samples in laboratory </span>
+						</div>
+						<div class="form-group mt-4">
+							<label class="control-label">Batches</label>
+							<div class="selected-batches-movetolab"></div>
+						</div>
 
-	<div class="modal fade" id="move-to-lab" role="dialog" data-backdrop="static" data-keyboard="false">
+					</div>
+					<div class="modal-footer">
+						<button class="btn btn-sm btn-outline-primary submit-btn" type="submit"><i class="mdi mdi-thumb-up"></i> Yes, Send</button>
+						<span class="btn btn-sm btn-default" data-dismiss="modal">Close</span>
+							
+					</div>
+				</form>
+			</div>
+		</div>
+	</div>
+	<div class="modal fade" id="move-to-labss" role="dialog" data-backdrop="static" data-keyboard="false">
 		<div class="modal-dialog modal-xl">
 			<div class="modal-content">
 				<form action="{{route('moveToLab')}}" id="send-to-lab-form" method="post">
@@ -883,7 +907,7 @@ $items = array(
 								<div class="invoice-part mt-3"></div>
 								<div class="form-group mt-4">
 									<label class="control-label">Batches</label>
-									<div class="selected-batches-movetolab"></div>
+									<div class="selected-batches-movtolab"></div>
 								</div>
 							</div>
 						</div>

@@ -8,7 +8,7 @@ use OwenIt\Auditing\Contracts\Auditable;
 class AnalysisMethod extends Model implements Auditable
 {
 	use \OwenIt\Auditing\Auditable;
-	public $fillable = ['name','code','description','company_id','active'];
+	public $fillable = ['name','code','description','company_id','active','is_ltm'];
   public function analysis_method_elements(){
     return $this->hasMany('App\AnalysisMethodElements');
 	}
