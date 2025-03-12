@@ -511,9 +511,9 @@
 						</div>
 					</div>
 					<div class="form-group btn-group-sm col-md-3">
-						<label for="" class="control-label">Sampling Method</label>
+						<label for="" class="control-label">Sampling Plan</label>
 						<select name="sampling_method_id" id="" class="form-control">
-							<option value="">Select Sampling Method</option>
+							<option value="">Select Sampling Plan</option>
 							@foreach($samplingmethods as $b_method)
 							<option value="{{$b_method->id}}" {{isset($batch->id) && $batch->sampling_method_id == $b_method->id ? 'selected' : ''}}>{{$b_method->code}} - {{$b_method->name}}</option>
 							@endforeach
