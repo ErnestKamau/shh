@@ -646,7 +646,7 @@ $items = array(
 						<label for="" class="control-label">Other Emails to CC</label>
 						<input type="text" name="cc_emails" class="form-control" placeholder="a@gmail.com,b@gmail.com...">
 					</div>
-					<div class="add-contact-fields card bg-light mb-3"
+					<div class="add-contact-fields hidden card bg-light mb-3"
 						style="box-shadow: rgba(0, 0, 0, 0.35) 0px 5px 15px;">
 						<div class="card-body">
 							<div class="row border-bottom">
