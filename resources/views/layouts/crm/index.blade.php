@@ -22,7 +22,7 @@
 	<x-bread-crumb :items="$items"></x-bread-crumb>
 	<h2 class="p-4">
 		<i class="mdi mdi-account-group"></i> Customer List
-		<span class="btn btn-sm btn-default float-right bg-white ml-2" style="box-shadow: rgba(0, 0, 0, 0.15) 1.95px 1.95px 2.6px;" data-toggle="modal" data-target="#sync-customer-zoho"><i class="mdi mdi-sync"></i> Sync Zoho</span>
+		<span class="btn btn-sm btn-default hidden float-right bg-white ml-2" style="box-shadow: rgba(0, 0, 0, 0.15) 1.95px 1.95px 2.6px;" data-toggle="modal" data-target="#sync-customer-zoho"><i class="mdi mdi-sync"></i> Sync Zoho</span>
 		@if(isset($account_settings->id))
 		<button class="btn bg-white btn-sm float-right ml-2" style="box-shadow: rgba(0, 0, 0, 0.15) 1.95px 1.95px 2.6px;" data-toggle="modal" data-target="#add-customer"><i class="mdi mdi-plus"></i> Add</button>
 		@else
@@ -38,8 +38,8 @@
 
 					<th>Code</th>
 					<th>Name</th>
-					<th>Zoho ID</th>
-					<th>Currency</th>
+					<!-- <th>Zoho ID</th> -->
+					<!-- <th>Currency</th> -->
 					<th>Postal Address</th>
 					<th>Physical Address</th>
 					<th>Website</th>
@@ -66,8 +66,8 @@
 						<a href="{{ route('show-customer', ['id'=>$customer->id]) }}">{{ $customer->code }} </a>
 					</td>
 					<td>{{ $customer->name }}</td>
-					<td>{{isset($customer->zohocustomer->id) ? $customer->zohocustomer->name : 'N/A'}}</td>
-					<td>{{isset($customer->currencyinfo->id) ? $customer->currencyinfo->name : 'N/A'}}</td>
+					<!-- <td>{{isset($customer->zohocustomer->id) ? $customer->zohocustomer->name : 'N/A'}}</td>
+					<td>{{isset($customer->currencyinfo->id) ? $customer->currencyinfo->name : 'N/A'}}</td> -->
 					<td>{{ $customer->postal_address }}</td>
 					<td>{{ $customer->physical_address }}</td>
 					<td>{{ $customer->website }}</td>
@@ -196,7 +196,7 @@
 						<label class="control-label">Name <span class="text-danger">*</span></label>
 						<input type="text" class="form-control name-check-trigger" name="name" placeholder="Name..." required />
 					</div>
-					<div class="form-group">
+					<div class="form-group hidden">
 						<label class="control-label">Zoho Code <span class="text-danger">*</span></label>
 						<select name="zoho_code" id="zoho_code" class="form-control">
 							<option value="">Select Zoho Customer</option>
@@ -205,7 +205,7 @@
 							@endforeach
 						</select>
 					</div>
-					<div class="form-group">
+					<div class="form-group hidden">
 						<label for="" class="control-label">Currency</label>
 						<select name="currency_id" id="" class="form-control">
 							<option value="">Currency</option>
@@ -313,7 +313,7 @@
 						<label class="control-label">Name</label>
 						<input type="text" class="form-control" name="name" value="${customer.name }" placeholder="Name..." required />
 					</div>
-					<div class="form-group">
+					<div class="form-group hidden">
 						<label class="control-label">Zoho Customer <span class="text-danger">*</span></label>
 						<select name="zoho_code" id="zoho_code" class="form-control">
 							<option value="">Select Zoho Customer</option>
@@ -322,7 +322,7 @@
 							@endforeach
 						</select>
 					</div>
-					<div class="form-group">
+					<div class="form-group hidden">
 						<label for="" class="control-label">Currency</label>
 						<select name="currency_id" id="currency_id" class="form-control">
 							<option value="">Currency</option>

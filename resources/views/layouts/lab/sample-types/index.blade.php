@@ -22,7 +22,7 @@
   <x-bread-crumb :items="$items"></x-bread-crumb>
   <h2 class="p-4">
     <i class="mdi mdi-test-tube"></i> Sample Types
-  <a href="{{route('zoho-item-analysis')}}" class="btn btn-sm btn-default float-right" style="background-color:white !important;box-shadow: rgba(149, 157, 165, 0.2) 0px 8px 24px;"><i class="mdi mdi-swap-horizontal"></i> Match Zoho Items</a>
+  <a href="{{route('zoho-item-analysis')}}" class="btn btn-sm btn-default float-right hidden" style="background-color:white !important;box-shadow: rgba(149, 157, 165, 0.2) 0px 8px 24px;"><i class="mdi mdi-swap-horizontal"></i> Match Zoho Items</a>
   </h2>
   <br>
   <!-- ------------------------------------ -->
@@ -53,7 +53,7 @@
                 <th>No</th>
                 <th>Code</th>
                 <th>Name</th>
-                <th>Disclaimer</th>
+                <!-- <th>Disclaimer</th> -->
                 <th>Category</th>
                 @if(Auth::user()->company_id == 0)
                 <th>Company</th>
@@ -69,7 +69,7 @@
                 <td valign="center">{{ $loop->iteration }}</td>
                 <td>{{ $sample_type->code }}</td>
                 <td>{{ $sample_type->name }}</td>
-                <td>{{ $sample_type->description }}</td>
+                <!-- <td>{{ $sample_type->description }}</td> -->
                 <td>{{$sample_type->category()}}</td>
                 @if(Auth::user()->company_id == 0)
                 <td>{{ $sample_type->company }}</td>
@@ -97,9 +97,9 @@
                             <label class="control-label">Code</label>
                             <input type="text" class="form-control" name="code" value="{{ $sample_type->code }}" placeholder="Sample Type Code..." required />
                           </div>
-                          <div class="form-group">
+                          <div class="form-group hidden">
                             <label class="control-label">Disclaimer</label>
-                            <textarea class="form-control" name="description" placeholder="Disclaimer..." required>{{ $sample_type->description }}</textarea>
+                            <textarea class="form-control" name="description" placeholder="Disclaimer...">{{ $sample_type->description }}</textarea>
                           </div>
                           <div class="form-group">
                             <label for="" class="control-label">Category</label>
@@ -351,9 +351,9 @@
           <input type="text" class="form-control" name="code" placeholder="Sample Type Code..." required />
         </div>
 
-        <div class="form-group">
+        <div class="form-group hidden">
           <label class="control-label">Disclaimer</label>
-          <textarea class="form-control" name="description" placeholder="Disclaimer..." required></textarea>
+          <textarea class="form-control" name="description" placeholder="Disclaimer..."></textarea>
         </div>
         <div class="form-group">
           <label for="" class="control-label">Category</label>

@@ -223,7 +223,7 @@ $items = array(
                   <th></th>
                   <th>Code</th>
                   <th>Name</th>
-                  <th>Zoho Item</th>
+                  <!-- <th>Zoho Item</th> -->
                   <th>Short Name</th>
                   <th>Reporting Time</th>
                   <th>Description</th>
@@ -252,7 +252,7 @@ $items = array(
         </td>
         <td>{{ $analysis_type->code }}</td>
         <td>{{ $analysis_type->name }}</td>
-        <td>{{isset($analysis_type->zohoitem->id) ? $analysis_type->zohoitem->name : 'N/A' }}</td>
+        <!-- <td>{{isset($analysis_type->zohoitem->id) ? $analysis_type->zohoitem->name : 'N/A' }}</td> -->
         <td>{{ $analysis_type->short_name ?? 'N/A' }}</td>
         <td>{{ $analysis_type->reporting_time ?? 0 }}</td>
         <td>{{ $analysis_type->description }}</td>
@@ -315,9 +315,9 @@ $items = array(
             <input type="text" class="form-control" name="code" value="{{ $analysis_type->code }}"
             placeholder="Analysis Type Code..." required />
           </div>
-          <div class="form-group">
+          <div class="form-group hidden">
             <label class="control-label">Zoho Item <small class="text-danger">*</small></label>
-            <select name="zoho_id" id="" class="form-control" required>
+            <select name="zoho_id" id="" class="form-control">
               <option value="">Select Zoho Item</option>
               @foreach($zoho_items as $z_item)
                 <option value="{{$z_item->id}}" {{$z_item->id == $analysis_type->zoho_id ? 'selected' : ''}}>{{$z_item->name . ' - ' . $z_item->unit_price}}</option>
@@ -491,9 +491,9 @@ $items = array(
             <input type="text" class="form-control" name="code" value="{{ $analysis_type->code }}"
             placeholder="Analysis Type Code..." required />
           </div>
-          <div class="form-group">
+          <div class="form-group hidden">
             <label class="control-label">Zoho Item <small class="text-danger">*</small></label>
-            <select name="zoho_id" id="" class="form-control" required>
+            <select name="zoho_id" id="" class="form-control">
             <option value="">Select Zoho Item</option>
             @foreach($zoho_items as $z_item)
         <option value="{{$z_item->id}}" {{$z_item->id == $analysis_type->zoho_id ? 'selected' : ''}}>{{$z_item->name . ' - ' . $z_item->unit_price}}</option>
@@ -728,9 +728,9 @@ $items = array(
           <label class="control-label">Code</label>
           <input type="text" class="form-control" name="code" placeholder="Analysis Type Code..." required />
         </div>
-        <div class="form-group">
+        <div class="form-group hidden">
           <label class="control-label">Zoho Item <small class="text-danger">*</small></label>
-          <select name="zoho_id" id="" class="form-control" required>
+          <select name="zoho_id" id="" class="form-control">
             <option value="">Select Zoho Item</option>
             @foreach($zoho_items as $z_item)
               <option value="{{$z_item->id}}">
