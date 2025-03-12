@@ -3809,10 +3809,7 @@ class SampleWorkFlowController extends Controller
         
         foreach ($request->batch_code as $code) {
             $batch = SampleHeader::where('batch_code', $code)->first();
-            if ($batch->schedule_analysis_sent == '' && $batch->schedule_customer_email == '') {
-                return redirect()->back()->with('error', 'Kindly set the customer email under batch information for batch ' . $code);
-            }
-
+            
             $custodyDetails = [
                 'batch_id' => $batch->id,
                 'comments' => $request->comments ?? '',
@@ -3828,8 +3825,7 @@ class SampleWorkFlowController extends Controller
 
             $this->updateChainofCustody($custodyDetails);
             $batch->status = $status;
-            $batch->save();
-           
+            $batch->save(); 
         }
 
         return redirect()->back()->with('success', 'Sample(s) moved to samples in Lab section successfully');
@@ -4916,7 +4912,7 @@ class SampleWorkFlowController extends Controller
             </div>
             ';
         // return response()->json(['email'=>$customer_email,'body'=>$body,'error'=>'My testing']);
-        if($sampleTrs != ""){
+        if($sampleTrs != "" && $customer_email != ''){
             notify_user($body, $customer_email, '[QPLUS LIMS] Schedule Of Analysis ' . implode(',', $request->batch_code), false, true, ['donotreply@qplus.com']);
             SampleHeader::whereIn('batch_code', $request->batch_code)->update(["schedule_analysis_sent" => date('Y-m-d'), "schedule_analysis_sender" => auth()->user()->id]);
         }
@@ -4927,9 +4923,9 @@ class SampleWorkFlowController extends Controller
         $status = 'Samples In Lab';
         foreach ($request->batch_code as $code) {
             $batch = SampleHeader::where('batch_code', $code)->first();
-            if ($batch->schedule_analysis_sent == '' && $batch->schedule_customer_email == '') {
-                return redirect()->back()->with('error', 'Kindly set the customer email under batch information for batch ' . $code);
-            }
+            // if ($batch->schedule_analysis_sent == '' && $batch->schedule_customer_email == '') {
+            //     return redirect()->back()->with('error', 'Kindly set the customer email under batch information for batch ' . $code);
+            // }
             $previousWorkflow = $batch->status;
 
             $custodyDetails = [
