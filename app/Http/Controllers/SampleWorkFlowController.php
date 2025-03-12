@@ -1240,8 +1240,9 @@ class SampleWorkFlowController extends Controller
         $batch_scope = SystemConfiguration::where('key', 'batch_scope')->first();
         $customer_survey = SystemConfiguration::where('key', 'customer_survey')->first();
         $countries = Country::orderBy('name')->get();
-        $methods = AnalysisMethod::where('active', 1)->where('is_sampling_method',0)->where('is_ltm',0)->get();
+        // $methods = AnalysisMethod::where('active', 1)->where('is_sampling_method',0)->where('is_ltm',0)->get();
         $ltmethods = AnalysisMethod::where('active', 1)->where('is_sampling_method',0)->where('is_ltm',1)->get();
+        // return response()->json(['methods'=>$methods,'ltm'=>$ltmethods])
 
         $account_settings = getConfigTypeByName('Account Settings');
         $atachment_type = SystemConfiguration::where('key', 'attachment_type')->get();

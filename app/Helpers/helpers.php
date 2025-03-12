@@ -40,7 +40,7 @@ function textBetween($str, $starting_word, $ending_word)
 
 function getMethods()
 {
-	return App\AnalysisMethod::where('active',1)->where('is_sampling_method',0)->get();
+	return App\AnalysisMethod::where('active',1)->where('is_sampling_method',0)->where('is_ltm',0)->get();
 }
 
 function getCurrentDate()

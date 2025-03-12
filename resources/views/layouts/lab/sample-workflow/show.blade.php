@@ -5289,6 +5289,7 @@
 		
 		if(methods != '' ){
 			$row.find('select.method-id').empty();
+
 			$.each(methods,function(r,t){
 				$row.find('select.method-id').append(`<option value="${r}" ${r == selectedMethod ? `selected` : `` }>${t}</option>`)
 			})
