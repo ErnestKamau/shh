@@ -2016,7 +2016,7 @@
 							</div>
 							<div class="form-group">
 								<label for="" class="control-label">Title</label>
-								<input type="text"  name="title" value="Authorized Signatory" class="form-control">
+								<input type="text"  name="title" value="Authorized by" class="form-control">
 							</div>
 							<div class="form-group">
 								<label for="" class="control-label">Approver</label>
