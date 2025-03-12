@@ -2187,8 +2187,7 @@ $items = array(
 					receive_price_list: $('.add-contact-fields').find('.receive_price_list').is(':checked') ? 1 : 0,
 					receive_invoice: $('.add-contact-fields').find('.receive_invoice').is(':checked') ? 1 : 0,
 				}
-				if
-					$.ajax({
+				$.ajax({
 					url: ``,
 					type: 'POST',
 					success: (data) => {
