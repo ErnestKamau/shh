@@ -515,7 +515,7 @@
 						<select name="sampling_method_id" id="" class="form-control">
 							<option value="">Select Sampling Plan</option>
 							@foreach($samplingmethods as $b_method)
-							<option value="{{$b_method->id}}" {{isset($batch->id) && $batch->sampling_method_id == $b_method->id ? 'selected' : ''}}>{{$b_method->code}} - {{$b_method->name}}</option>
+							<option value="{{$b_method->id}}" {{isset($batch->id) && $batch->sampling_method_id == $b_method->id ? 'selected' : 'selected'}}>{{$b_method->code}} - {{$b_method->name}}</option>
 							@endforeach
 						</select>
 					</div>
@@ -577,7 +577,7 @@
 							<input type="checkbox" class="" name="batch_subcontracted_client_approval" value="1" {{ isset($batch->batch_subcontracted_client_approval) && $batch->batch_subcontracted_client_approval == 1 ? 'checked' : '' }}>  Is the client willing for the sample to be subcontracted to an Approved Laboratory ?
 						</label>
 					</div>
-					<div class="form-group col-md-4 btn-group-sm">
+					<div class="form-group col-md-4 btn-group-sm hidden">
 						<label class="control-label">
 							<input type="checkbox" name="sampled_by_company_personnel" value="1" {{ isset($batch->sampled_by_company_personnel) && $batch->sampled_by_company_personnel == 1 ? 'checked' : '' }}> Sampled by {{$active_company->name}} personnel?
 						</label>
