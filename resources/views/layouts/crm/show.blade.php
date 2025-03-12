@@ -970,7 +970,7 @@
 											<input type="text" class="form-control" name="name" value="{{ $customer->name }}" placeholder="Name..." required />
 										</div>
 									</div>
-									<div class="col-sm-3">
+									<div class="col-sm-3 hidden">
 										<div class="form-group">
 											<label class="control-label">Zoho Code <span class="text-danger">*</span></label>
 											<select name="zoho_code" id="zoho_code" class="form-control">
