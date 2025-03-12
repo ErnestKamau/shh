@@ -488,7 +488,7 @@
             var year = $(this).val();
 
             $.ajax({
-                url: "{{route('getsamplesBySampletype')}}",
+                url: "/getsamplesBySampletype",
                 data: {
                     year : year
                 },
@@ -508,7 +508,7 @@
             var year = $(this).val();
 
             $.ajax({
-                url: "{{route('getSamplesByCustomer')}}",
+                url: "/getSamplesByCustomer",
                 data: {
                     year : year
                 },
@@ -528,7 +528,7 @@
             var year = $(this).val();
 
             $.ajax({
-                url: '{{route("getSamplesByMonth")}}',
+                url: '/getSamplesByMonth',
                 data: {
                     year : year
                 },
