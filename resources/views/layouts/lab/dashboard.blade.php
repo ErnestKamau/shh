@@ -439,7 +439,7 @@
         let mychart3 = document.getElementById('sample-crm-graph').getContext('2d');
 
         $.ajax({
-            url: "{{ route('getSamplesByCustomer') }}",
+            url: "/getSamplesByCustomer",
             success: function(data) {
                 // console.log(data);
                 CrmGraph(data, mychart3)
@@ -450,7 +450,7 @@
             }
         })
         $.ajax({
-            url: "{{ route('getSamplesByGps') }}",
+            url: "/getSamplesByGps",
             success: function(data) {
                 // console.log(data);
                 mapsGraph(data)
@@ -461,7 +461,7 @@
             }
         })
         $.ajax({
-            url: "{{ route('getSamplesByMonth') }}",
+            url: "/getSamplesByMonth",
             success: function(data) {
                 // console.log(data);
                 samplesGraph(data, mychart2)
@@ -472,7 +472,7 @@
             }
         })
         $.ajax({
-            url: "{{ route('getsamplesBySampletype') }}",
+            url: "/getsamplesBySampletype",
             success: function(data) {
                 console.log('Sampletypes');
                 console.log(data);
