@@ -55,7 +55,7 @@
                   <th>Section Head</th>
                   <th>Lab</th>
                   <th>Active?</th>
-      
+                  <th>Is System Stage</th>
                   <th></th>
                 </tr>
               </thead>
@@ -72,6 +72,7 @@
                       <td>{{ $stage->getSectionHead()->name ?? '-'}}</td>
                       <td>{{ $stage->getLabDetails()->name ?? '-' }}</td>
                       <td class="text-small">{!! $stage->active == '1' ? '<i class="mdi mdi-marker-check text-success"></i>' : '<i class="mdi mdi-close-circle text-danger"></i>' !!}</td>
+                      <td class="text-center">{!! $stage->is_system == 1 ? '<i class="mdi mdi-marker-check text-success"></i>' : '<i class="mdi mdi-close-circle text-danger"></i>' !!}</td>
                       <td nowrap>
                         <button class="btn btn-primary btn-sm" data-target="#edit-stage-{{ $loop->iteration }}" data-toggle="modal"><i class="mdi mdi-pencil-outline"></i> <small class="hidden-sm-up">Edit</small> </button>
                         <div id="edit-stage-{{ $loop->iteration }}" class="modal fade" role="dialog">
@@ -129,7 +130,9 @@
                                   </div>
                                   
                                 </div>
-                                
+                                <div class="form-group mt-2">
+                                  <label for="" class="control-label"><input type="checkbox" name="is_system" {{ $stage->is_system  == 1 ? 'checked' : '' }} value="1" id=""> Is System Stage</label>
+                                </div>
                                 <div class="form-group mt-2">
                                   <label class="control-label"><input type="checkbox" name="active" value="1" {{ $stage->active == 1 ? 'checked' : '' }} /> Active</label>
                                 </div>
@@ -281,7 +284,9 @@
 							<input type="number" min="1" class="form-control" name="level" placeholder="Stage Level..." required />
 						</div>
 					</div>
-					<div class="form-group mt-2">
+          <div class="form-group mt-2">
+            <label for="" class="control-label"><input type="checkbox" value="1" name="is_system" id=""> Is System Stage</label>
+          </div>
           <div class="form-group">
             <label class="control-label"><input type="checkbox" name="active" value="1" checked /> Active</label>
           </div>

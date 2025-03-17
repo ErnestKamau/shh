@@ -20,16 +20,60 @@
         *{
             font-size: 15px;
         }
+        .hidden{
+            display: none;
+        }
         /* .bracket_cover:before {
             content: "(" counter(mycounter,lower-latin) ")";
         } */
         .bracket-cover {list-style-type: none;}
         .bracket_cover:before {content: "(" counter(section, lower-alpha) ") ";}
         .bracket_cover { counter-increment: section;}
+        .company_logo{
+            width:auto;height:130px;
+        }
+        .company-name{
+            font-size: 40px;font-weight:600;
+        }
         @media print{
             .header-print{
                 display: none;
             }
+            .row{
+                display: flex;
+            }
+            .col-md-1{
+                width:10%
+            }
+            .col-md-11{
+                width:90%
+            }
+            .col-md-6{
+                width: 50%;
+            }
+            .col-md-4{
+                width:33%
+            }
+            .col-md-3{
+                width:25%
+            }
+            .card{
+                border:none
+            }
+            .mt-2{
+                padding-top: 20px !important;
+            }
+            .mt-3{
+                padding-top: 30px !important;
+            }
+            .company_logo{
+                width:auto;height:200px;
+            }
+            .company-name{
+                font-size: 35px;font-weight:600;
+            }
+
+
         }
     </style>
 </head>
@@ -42,16 +86,16 @@
         <div class="card-body">
 
             <div class="row border-bottom">
-                <div class="col-md-3">
-                    <img src="{{ $company->logo }}" style="width:80%;height:100%;"alt="">
+                <div class="col-md-1">
+                    <img src="/images/company_logo.png" class="company_logo" alt="">
                 </div>
-                <div class="col-md-9" style="text-align: left !important">
+                <div class="col-md-11" style="text-align: center !important">
                     <div class="">
-                        <span style="font-size: 40px;font-weight:600;">{{ $company->name }}</span> <br>
+                        <span class="company-name" style="">{{ strtoupper($company->name) }}</span> <br>
                         <span>
                             {{ $company->location }} P.O. Box {{ $company->street }} Tel:
                             {{ explode(' ', $company->fax)[1] ?? '-' }} Fax: {{ explode(' ', $company->fax)[0] ?? '-' }}
-                            Cell: {{ $company->cell_phone }} Wireless: {{ $company->telephone }}
+                            Cell: {{ $company->cell_phone }} Telephone: {{ $company->telephone }}
                             {{ $company->location }} <br>
                             Email: {{ $company->email }}
                         </span>
@@ -60,29 +104,16 @@
             </div>
             <div class="title mt-2">
                 <b class="ml-5 text-danger float-right" style="font-size: 30px">{{ pad_str($batch->id, 3) }}</b>
-                <div class="text-center"><u><b style="font-size:20px">SAMPLE SUBMISSION / CUSTOMER FOCUS
-                            FORM</b></u></div>
+                <div class="text-center"><u><b style="font-size:20px">SAMPLE SUBMISSION FORM</b></u></div>
             </div>
             <div class="row mt-3">
                 <div class="col-md-6">
                     <table class="table-bordered table-sm mb-2" style="font-size:15px">
                         <tr>
-                            <td>Authorized By</td>
-                            <td>MANAGING DIRECTOR</td>
-                        </tr>
-                        <tr>
-                            <td>Controlled By</td>
-                            <td>LABORATORY HEAD</td>
+                            <td>Issued and approved By</td>
+                            <td>Quality Manager</td>
                         </tr>
                     </table>
-
-                    <p>
-                        This form shall be completed in duplicate <br>
-                        <b>(1) Original to accompany sample to the Laboratory. <br></b>
-                        <b>(2) Copy to client for reference.</b>
-
-
-                    </p>
                 </div>
                 <div class="col-md-6">
                     <div class="float-right">
@@ -123,22 +154,21 @@
                         <thead>
                             <tr>
                                 <th>Sample No</th>
-                                <th>Batch No</th>
+                                <th>Sample Description</th>
                                 <th>Sample Type</th>
                                 <th>Test(s) Required</th>
-                                <th>Specification</th>
-                                <th>Markings</th>
+                                <th>Time Sampled</th>
+                                
                             </tr>
                         </thead>
                         <tbody>
                             @foreach ($samples as $sample)
                                 <tr>
                                     <td>{{ $sample->sample_code }}</td>
-                                    <td>{{$sample->batch_code}}</td>
-                                    <td>{{$sample->sample_type_name}}</td>
-                                    <td>{{ $sample->getAnalysisRelation() ?? '-' }}</td>
-                                    <td>{{ $sample->main_standard_code ?? '-'}}</td>
                                     <td>{!! $sample->comments !!}</td>
+                                    <td>{{$sample->sample_type_name}}</td>
+                                    <td>{{ $sample->getAnalytesName() ?? '-' }}</td>
+                                    <td>{{ $sample->barcode ?? '-'}}</td>
                                 </tr>
                             @endforeach
                         </tbody>
@@ -156,12 +186,9 @@
                                     Laboratory capable of performing the requested tests? <input class="ml-5" type="checkbox" name=""
                                     {{ $batch->lab_capable == 1 ? 'checked' : '' }} disabled id=""> Yes <input  class="ml-5" type="checkbox" name=""
                                     {{ $batch->lab_capable == 1 ? '' : 'checked' }} disabled id=""> No</li>
-                                <li class="bracket_cover">If no
-                                    can it be subcontracted to an approved Laboratory? <input type="checkbox" class="ml-5" name=""
-                                    {{ $batch->can_be_subcontracted == 1 ? 'checked' : '' }} id="" disabled> Yes <input class="ml-5" type="checkbox" name=""
-                                    {{ $batch->can_be_subcontracted == 1 ? '' : 'checked' }} id="" disabled> No</li>
-                                <li class="bracket_cover">
-                                    Is the client willing for the sample to be subcontracted? <input class="ml-5" type="checkbox" name=""
+                                
+                                <li class="bracket_cover {{ $batch->lab_capable == 1 ? 'hidden' : '' }}">
+                                    Is the client willing for the sample to be subcontracted to an Approved Laboratory ? <input class="ml-5" type="checkbox" name=""
                                     {{ $batch->batch_subcontracted_client_approval == 1 ? 'checked' : '' }}
                                     id="" disabled> Yes <input class="ml-5" type="checkbox" name=""
                                     {{ $batch->batch_subcontracted_client_approval == 1 ? '' : 'checked' }}
@@ -169,14 +196,7 @@
                                 </li>
                             </ol>
                         </li>
-                        <div class="payment-details">
-                            Analysis charges Ksh. <u><span style="display: inline-block;width:10%" class="text-bold text-center text-muted">{{ $is_clustered == 0 ? $batch->invoice_amount  : $payment_detail['invoice_amount']}}
-                            </span></u> 16% VAT Kshs. <u> <span
-                                class="text-bold text-muted text-center" style="display: inline-block;width:10%" >{{ $is_clustered == 0 ? $payment_detail->vat ?? 0 : $payment_detail['vat'] }}</span></u> <b>amount paid
-                            </b>Kshs <u><span style="display: inline-block;width:10%"  class="text-bold text-center text-muted">{{ $is_clustered == 0 ? $payment_detail->amount ?? 0 : $payment_detail['amount_paid'] }}</span></u> Balance Kshs. <u><span style="display: inline-block;width:10%" class="text-bold text-center text-muted">{{ $is_clustered == 0 ? $payment_detail->balance ?? 0  : $payment_detail['balance'] }}
-                            </span></u>
-                             <br> Payments to be made by <u><span class="text-bold text-muted text-center" style="display: inline-block;width:30%">{{ $batch->payment_done_by ?? $customer->name }}</span> </u> Contact Person <u><span style="display: inline-block;width:30%" class="text-bold text-center text-muted">{{ $batch->getContactPersonDetail() ?? '-' }}</span></u> 
-                        </div>
+                      
                         <li>Remarks / Special Instructions <u><span style="display: inline-block;width:60%" class="text-bold ml-5 text-muted">{{ $batch->batch_instructions }}</span></u> </li>
 
                         <li>Duration of Analysis <u><span
@@ -192,7 +212,7 @@
                     </p>
                     <div class="row">
                         <div class="col-md-4">
-                            Sampled / Received By: <u><span style="display: inline-block;width:40%;font-size:11px" class="text-bold text-center text-muted">{{ $batch->sampling_officer_name }},
+                            Received By: <u><span style="display: inline-block;width:40%;font-size:11px" class="text-bold text-center text-muted">
                                 {{ $review_staff->name}}</span></u>
                         </div>
                         <div class="col-md-4">
@@ -203,10 +223,7 @@
                         </div>
                     </div>
                 </div>
-                <div class="terms border-bottom border-dark pb-2 mt-2">
-                    <span><b>TERMS AND CONDITIONS OF ANALYSIS</b></span><br>
-                    <span>{!! $docs_settings['terms_condition'] !!}</span>
-                </div>
+                
                 <div class="customer-declaration border-bottom border-dark mt-2 ">
                     <b>DECLARATION: TO BE FILLED BY CUSTOMER:</b>
                     <div class="row mt-2">
@@ -224,7 +241,6 @@
                         <div class="col-md-6">
                             EMAIL: <u><span style="display: inline-block;width:70%"
                                 class="text-bold text-muted ml-3">{{ $customer->email }}</span></u> <br>
-                            KRA PIN: <u> <span style="display: inline-block;width:70%" class="text-bold text-muted ml-3">{{ $customer->vat_no }}</span></u>
                         </div>
                     </div>
 
@@ -241,7 +257,7 @@
                     </div>
 
                 </div>
-                <div class="review-section row mt-2">
+                <div class="review-section row border-bottom border-dark  pb-2 mt-2">
                     <div class="col-md-3">
                         Review done by: <u> <span style="display: inline-block;width:40%" class="text-bold text-muted ml-3">{{ $review_staff->name ?? '-'}}</span></u>
                     </div>
@@ -255,6 +271,10 @@
                         Time: <u><span style="display: inline-block;width:70%"
                             class="text-bold text-muted ml-3">{{ date('H:i:s', strtotime($batch->created_at)) }}</span></u> 
                     </div>
+                </div>
+                <div class="terms text-center pb-2 mt-2">
+                    <br>
+                    <span>This sample submission form accompanying samples is considered a binding contract</span>
                 </div>
             </div>
         </div>

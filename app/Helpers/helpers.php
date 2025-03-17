@@ -1577,6 +1577,10 @@ function convertDateFormatReports($date,$format){
 		$format_date = $raw_date->format('dS F Y');
 		return $format_date;
 		
+	}else{
+		$raw_date = \Carbon\Carbon::parse($date);
+		$format_date = $raw_date->format('d/m/Y');
+		return $format_date;
 	}
 }
 function getStandardLimitValue($captured_id,$standard_id){

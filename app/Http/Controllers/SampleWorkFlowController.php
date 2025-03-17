@@ -1247,7 +1247,7 @@ class SampleWorkFlowController extends Controller
         $account_settings = getConfigTypeByName('Account Settings');
         $atachment_type = SystemConfiguration::where('key', 'attachment_type')->get();
         $users = User::where('is_client', 0)->where('supplier_id', 0)->where('active', 1)->get();
-        $labsections = SampleAnalysisStage::where('active', 1)->get();
+        $labsections = SampleAnalysisStage::where('active', 1)->where('is_system',0)->get();
         $reportingUnits = getReportingUnits();
         $labStores = getStorageByType('lab_store');
         // return response()->json($reportingUnits);
@@ -1281,7 +1281,7 @@ class SampleWorkFlowController extends Controller
                 $report_format_config = SystemConfiguration::where('key', 'coa_report_format')->first();
                 $report_formats = SystemConfiguration::where('configuration_type_id', $report_format_config->value)->get();
             }
-            $disposal_date = \Carbon\Carbon::parse($batch->receipt_date)->addMonths(3)->format('Y-m-d');
+            $disposal_date = \Carbon\Carbon::parse($batch->receipt_date)->addDays(14)->format('Y-m-d');
             // return response()->json($disposal_date);
             $contacts = getCrmCustomerContactSchedule($batch->crm_customer_id);
             // return response()->json($contacts);

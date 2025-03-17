@@ -544,8 +544,8 @@
 						<input type="text" class="form-control" autocomplete="off" value="{{$batch->submit_by ?? ''}}" name="submit_by" value="{{ $batch->submit_by ?? '' }}" placeholder="Submitted By..." />
 					</div>
 					<div class="form-group btn-group-sm col-md-3">
-						<label class="control-label">Received By</label>
-						<select name="receive_by" id="" class="form-control">
+						<label class="control-label">Received By <small class="text-danger">*</small></label>
+						<select name="receive_by" required id="" class="form-control">
 							<option value="">Select Receiving Officer</option>
 							@foreach($recieving_users as $r_user)
 							<option value="{{$r_user->id}}" {{ isset($batch->id) && $batch->receiving_officer == $r_user->id ? 'selected' : ''}}>{{$r_user->name}}</option>
@@ -1291,17 +1291,17 @@
 							<th nowrap>Condition<sup class="text-danger">*</sup> <span class="btn-primary btn-sm p-0" data-toggle="modal" data-target="#add-sample-conditions" data-target="tooltip" title="Add Sample Condition"><i class="mdi mdi-plus"></i></span></th>
 							<th nowrap><span class="client-preferred-sample_point-name"></span><sup class="text-danger">*</sup> <span class="p-0 btn-primary btn-sm" data-target="#add-company-sample-point"  data-toggle="modal" data-target="tooltip" title="Add Sample Point" ><i class="mdi mdi-plus"></i></span></th>
 							<th><span class="client-preferred-product-name"></span><sup class="text-danger">*</sup> <span class="btn-primary btn-sm p-0" data-toggle="modal" data-target="#add-company-product" data-toggle="tooltip" title="Add Product"><i class="mdi mdi-plus"></i></span></th>
-							<th>Disposal Date</th>
+							<th>Sample Description</th>
+							<th>Time Sampled</th>
 							<th>Main Standard <sup class="text-danger">*</sup></th>
 							<th>Secondary Standard</th>
 							<th>Third Standard</th>
-							
-							<th>Sample Markings</th>
+							<th>Disposal Date</th>
 							<th>Storage</th> 
 							<th>Slot</th>
 							<th>Quantity</th>
 							<th>UoM</th>
-							<th>Time Sampled</th>
+							
 							
 						</tr>
 					</thead>
@@ -2865,10 +2865,10 @@
 				<div class="modal-body">
 					<div class="alert alert-primary d-flex">
 						<i class="mdi mdi-plus" style="font-size:35px"></i>
-						<span class="p-2 mt-2">Update Sample markings of this sample below:</span>
+						<span class="p-2 mt-2">Update Sample description of this sample below:</span>
 					</div>
 					<div class="form-group">
-						<label for="" class="control-label">Sample Markings</label>
+						<label for="" class="control-label">Sample Description</label>
 						<textarea name="markings" id="sample_markings" rows="10" class="form-control"></textarea>
 					</div>
 				</div>
@@ -3011,7 +3011,7 @@
 				<div class="alert alert-default p-2">
 					<h4>
 						<b class="text-center"><i class="mdi mdi-information-outline" style="font-size:20px"></i>
-					View ${code} Sample Markings</b>
+					View ${code} Sample Description</b>
 					</h4>
 					<hr>
 					<span class="p-2">${markings}</span>
@@ -5412,12 +5412,21 @@
 			</div>
 			<span class="text"></span>
 		</td>
-		<td class="sample-code-field" nowrap>
+		<td class="comments-field text-center" nowrap>
 			<div class="form-group form-group-sm">
-				<input type="date" style="width: 200px" {!! isset($batch->id) && in_array($batch->status,["Sample Approval","Samples In Lab","Sample Verification","Samples In Lab"]) ? 'disabled' : '' !!} class="form-control form-control-sm disposal-date" value={{$disposal_date}} name="sample_details[disposal_date][]"/>
+
+				<span class="btn btn-sm btn-default bg-white text-primary float-left" data-toggle="modal" data-target="#capture-markings" style=""><i class="mdi mdi-pencil" data-toggle="tooltip" title="Capture Markings"></i></span>
+				<textarea rows="1" style="" class="form-control hidden form-control-sm sample-comments" name="sample_details[comments][]" placeholder="Sample Comments..."></textarea>
+			</div>
+			<span class=" text btn btn-sm btn-primary sample_marking_holder" data-toggle="modal" data-target="#sample-marking-show" data-samplecode="" data-marking="" data-name="sample-comment-holder"><i class="mdi mdi-card-text-outline" ></i></span>
+		</td>
+		<td class="barcode-field ">
+			<div class="form-group form-group-sm">
+				<input type="time" style="width: 100px" class="form-control form-control-sm sample-barcode" name="sample_details[barcode][]" placeholder="BarCode..." />
 			</div>
 			<span class="text"></span>
 		</td>
+
 		<td class ="main-standard-field">
 			<div class="form-group form-group-sm">
 				<select class="form-control form-control-sm is-required main-standard" {!! isset($batch->id) && in_array($batch->status,["Sample Approval","Samples In Lab","Sample Verification","Samples In Lab"]) ? 'disabled' : '' !!} name="sample_details[main_standard][]" style"width:200px" placeholder="Select Main Standard..." required >
@@ -5458,13 +5467,11 @@
 			<span class="text"></span>
 		</td>
 		
-		<td class="comments-field text-center" nowrap>
+		<td class="sample-code-field" nowrap>
 			<div class="form-group form-group-sm">
-
-				<span class="btn btn-sm btn-default bg-white text-primary float-left" data-toggle="modal" data-target="#capture-markings" style=""><i class="mdi mdi-pencil" data-toggle="tooltip" title="Capture Markings"></i></span>
-				<textarea rows="1" style="" class="form-control hidden form-control-sm sample-comments" name="sample_details[comments][]" placeholder="Sample Comments..."></textarea>
+				<input type="date" style="width: 200px" {!! isset($batch->id) && in_array($batch->status,["Sample Approval","Samples In Lab","Sample Verification","Samples In Lab"]) ? 'disabled' : '' !!} class="form-control form-control-sm disposal-date" value={{$disposal_date}} name="sample_details[disposal_date][]"/>
 			</div>
-			<span class=" text btn btn-sm btn-primary sample_marking_holder" data-toggle="modal" data-target="#sample-marking-show" data-samplecode="" data-marking="" data-name="sample-comment-holder"><i class="mdi mdi-card-text-outline" ></i></span>
+			<span class="text"></span>
 		</td>
 		<td class="sample-store-field" nowrap>
 			<div class="form-group form-group-sm">
@@ -5507,12 +5514,7 @@
 			</div>
 			<span class="text"></span>
 		</td>
-		<td class="barcode-field ">
-			<div class="form-group form-group-sm">
-				<input type="time" style="width: 100px" class="form-control form-control-sm sample-barcode" name="sample_details[barcode][]" placeholder="BarCode..." />
-			</div>
-			<span class="text"></span>
-		</td>
+		
 		
 
 	</tr>`;

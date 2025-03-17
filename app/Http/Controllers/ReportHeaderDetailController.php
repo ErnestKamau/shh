@@ -271,7 +271,7 @@ class ReportHeaderDetailController extends Controller
 		$pdf->getDomPDF()->set_option("enable_php", true);
 		$pdf = PDF::loadView('layouts.lab.reports.coa_formats.standard_report', compact('samples', 'company', 'qrcode', 'path', 'batch_approvers', 'pdf', 'batch', 'non_accredited', 'disclaimer', 'customer', 'report_type', 'analysis_date', 'stamp', 'is_stamp', 'ammendment', 'sanas_logo', 'main_lab'));
 
-		// return $pdf->stream($filename);
+		return $pdf->stream($filename);
 		if (is_dir(storage_path() . '/app/reports/' . $customer_name)) {
 			$pdf->save(storage_path() . '/app/reports/' . $customer_name . '/' . $filename);
 		} else {

@@ -31,8 +31,8 @@
     }
 
     * {
-        font: 'Arial Narrow', Arial, sans-serif;
-        font-stretch: condensed;
+        font-family: 'Times New Roman', Times, serif;
+        font-stretch: normal;
     }
 
     .header {
@@ -149,7 +149,7 @@ $printed_pos = [];
     ?>
     @foreach ($samples as $sample)
 
-        <main style="margin-bottom:150px">
+        <main style="margin-bottom:100px">
             <table class="table table-sm"
                 style="font-size: 11px;border:solid 0 transparent !important;border-bottom:solid 2px black !important;width:100%">
                 <tr>
@@ -175,50 +175,57 @@ $printed_pos = [];
             </table>
             <table class="table table-sm" style="font-size: 10px;border:solid 0 transparent !important;width:100%">
                 <tr>
-                    <td style="border:solid 0 transparent !important;"><b>TEST REPORT REF : </b></td>
-                    <td style="border:solid 0 transparent !important;">{{ $sample->report_number ?? $sample->sample_code  }}
+                    <td style="border:solid 0 transparent !important;width:15%"><b>TEST REPORT REF : </b></td>
+                    <td style="border:solid 0 transparent !important;width:25%">{{ $sample->report_number ?? $sample->sample_code  }}
                     </td>
-                    <td style="border:solid 0 transparent !important;"><b>SAMPLE TYPE :</b></td>
-                    <td style="border:solid 0 transparent !important;">{{ $sample->sample_type_name }}</td>
-                    <td style="border:solid 0 transparent !important;"><b>SAMPLE REF : </b></td>
-                    <td style="border:solid 0 transparent !important;text-align:right">{{ $sample->sample_code }}</td>
+                    <td style="border:solid 0 transparent !important;width:12%"><b>SAMPLE TYPE :</b></td>
+                    <td style="border:solid 0 transparent !important;width:20%">{{ $sample->sample_type_name }}</td>
+                    <td style="border:solid 0 transparent !important;width:18%"><b>SAMPLE REF : </b></td>
+                    <td style="border:solid 0 transparent !important;text-align:right;width:5%">{{ $sample->sample_code }}</td>
                 </tr>
             </table>
             <table class="table table-sm sample-info"
-                style="font-size: 10px;border:solid 0 transparent !important;border-bottom:solid 2px black !important;width:100%;margin-bottom : 0;padding-bottom:1% !important" >
+                style="font-size: 10px;border:solid 0 transparent !important;border-bottom:solid 2px black !important;width:100%;margin-bottom : 0;padding-bottom:1% !important">
                 <tr>
-                    <td style="border:solid 0 transparent !important;"><b>Date of sampling / time : </b></td>
+                    <td style="border:solid 0 transparent !important;width:16%"><b>Date of sampling / time : </b></td>
                     <td style="border:solid 0 transparent !important;">
-                        {{ convertDateFormatReports($sample->date_collected, 'dateShortMonth') . ' ' . $sample->barcode }}
+                        {{ convertDateFormatReports($sample->date_collected, 'normal') . ' ' . $sample->barcode }} hrs
                     </td>
-                    <td style="border:solid 0 transparent !important;"><b>Sampling plan : </b></td>
-                    <td style="border:solid 0 transparent !important;text-align:right !important">Customer`s Discretion</td>
+                    <td style="border:solid 0 transparent !important;width:30%"></td> 
+                    <td style="border:solid 0 transparent !important;width:25%"><b>Sampling plan : </b></td>
+                    <td style="border:solid 0 transparent !important;text-align:left !important;width:14%">Customer`s Discretion</td>
                 </tr>
                 <tr>
                     <td style="border:solid 0 transparent !important;"><b>Date of receipt / time : </b></td>
                     <td style="border:solid 0 transparent !important;">
-                        {{ convertDateFormatReports($sample->receipt_date, 'dateShortMonth') . ' ' . $sample->radio_active_levels }}
+                        {{ convertDateFormatReports($sample->receipt_date, 'normal') . ' ' . $sample->radio_active_levels }} hrs
                     </td>
+                    <td style="border:solid 0 transparent !important;width:9%"></td>
                     <td style="border:solid 0 transparent !important;"><b>Temp. of receipt : </b></td>
-                    <td style="border:solid 0 transparent !important; text-align:right !important">
-                        {{ $sample->kra_office_ref }}
+                    <td style="border:solid 0 transparent !important; text-align:left !important">
+                        {{ $sample->kra_office_ref }} {{ is_numeric($sample->kra_office_ref) ?  '°C'  : '' }}
                     </td>
                 </tr>
                 <tr>
                     <td style="border:solid 0 transparent !important;"><b>Date of analysis : </b></td>
                     <td style="border:solid 0 transparent !important;">
-                        {{  $analysis_date->start_analysis_date != '' ? convertDateFormatReports($analysis_date->start_analysis_date, 'dateShortMonth') : '-' }}
+                        {{  $analysis_date->start_analysis_date != '' ? convertDateFormatReports($analysis_date->start_analysis_date, 'normal') : '-' }}
                     </td>
+                    <td style="border:solid 0 transparent !important;width:9%"></td>
+                    
                     <td style="border:solid 0 transparent !important;"><b>Condition of test item & Enviroment : </b></td>
-                    <td style="border:solid 0 transparent !important;text-align:right !important;">
+                    <td style="border:solid 0 transparent !important;text-align:left !important;">
                         {{ $sample->sample_condition_name }}
                     </td>
                 </tr>
-                <tr><td colspan="4" style="border:solid 0 transparent !important;"></td></tr>
-            </table>
-            <table class="table-sm table" style="font-size: 11px;border:solid 0 transparent !important;width:100%;margin:0;padding:0">
                 <tr>
-                    <td style="border:solid 0 transparent !important;width:25%"><b>Customer’s sample description : </b></td>
+                    <td colspan="5" style="border:solid 0 transparent !important;"></td>
+                </tr>
+            </table>
+            <table class="table-sm table"
+                style="font-size: 11px;border:solid 0 transparent !important;width:100%;margin:0;padding:0">
+                <tr>
+                    <td style="border:solid 0 transparent !important;width:22%"><b>Customer’s sample description : </b></td>
                     <td style="border:solid 0 transparent !important;">
                         {!! str_replace('<p>&nbsp;</p>', '', $sample->comments ?? 'N/A') !!}
                     </td>
@@ -345,6 +352,22 @@ $printed_pos = [];
                 @endif
 
             </table>
+            <table class="table table-sm" style="width:100%;margin:0px">
+                <tr>
+                    <td style="font-size:10px !important;border:solid 0 transparent">
+                        <b><u>Additional Information : </u></b>
+                        <ul style="margin: 0;padding-left:15px;">
+                            <li>*Indicates test(s) not in SANAS accreditation schedule.</li>
+                            <li>These results only apply to the samples as received & tested; the report may not be copied
+                                except in full when authorized by the
+                                laboratory.</li>
+                            <li>Opinions & interpretations expressed herein are outside the scope of SANAS accreditations
+                                (customer specifications).</li>
+                            <li>UM will be availed on customer’s request</li>
+                        </ul>
+                    </td>
+                </tr>
+            </table>
             <div class="" style="background-color:white !important;">
                 @if ($batch_approvers->count() > 0)
                     <table style="margin-top: 1px !important;margin-bottom:6px!important;width:100%;">
@@ -376,14 +399,16 @@ $printed_pos = [];
                                             <div class="stamp-section" style="position: absolute; top:-30px; left:350px; z-index: 10">
                                                 <img src="{{ $stamp }}" style="height:105px; z-index:1000;position: relative;" alt="">
                                             </div>
-                                            <div style="position:absolute; z-index: 10000;background-color:white !important;font-weight:800;top:3px; left:390px;font-size:16px;width: 95px;color:red">{{ date('d M Y') }}</div>
+                                            <div
+                                                style="position:absolute; z-index: 10000;background-color:white !important;font-weight:800;top:3px; left:390px;font-size:16px;width: 95px;color:red">
+                                                {{ date('d M Y') }}</div>
                                         @endif
                                     @endif
                                     @if (in_array($approver->lab_section_ids, $sample['lab_sect_ids_arr']))
                                         <div class="dotted-lined text-align:center" style="text-align:center;">
                                             <img src="{{ getCoaApproverSignature($approver->getApproverDetails()->electronic_sig) }}"
                                                 style="height:48px;z-index:-10;position:relative;" alt="signature">
-                                                
+
                                         </div>
                                     @endif
                                 </td>
@@ -415,22 +440,7 @@ $printed_pos = [];
                     </table>
                 @endif
             </div>
-            <table class="table table-sm" style="width:100%;margin:0px">
-                <tr>
-                    <td style="font-size:10px !important;border:solid 0 transparent">
-                        <b><u>Additional Information : </u></b>
-                        <ul style="margin: 0;padding-left:15px;">
-                            <li>*Indicates test(s) not in SANAS accreditation schedule.</li>
-                            <li>These results only apply to the samples as received & tested; the report may not be copied
-                                except in full when authorized by the
-                                laboratory.</li>
-                            <li>Opinions & interpretations expressed herein are outside the scope of SANAS accreditations
-                                (customer specifications).</li>
-                            <li>UM will be availed on customer’s request</li>
-                        </ul>
-                    </td>
-                </tr>
-            </table>
+           
         </main>
         @if ($loop->iteration < $samples->count())
             <div style="page-break-after: always;">
