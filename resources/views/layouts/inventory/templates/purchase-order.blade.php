@@ -1,4 +1,5 @@
 <?php
+	$parentEntity = \App\RequestEntity::find($entity->parent_request_id);
 	$supplierDetails = \App\Supplier::find($entity->supplier_id);
 	$extras = \App\RequestEntityExtraCharge::join('module_pre_configs as mpc', 'mpc.id', 'request_entity_extra_charges.currency_id')
 				->selectRaw('request_entity_extra_charges.*, mpc.name as currency')->where('request_id', $entity->id)->get();
@@ -55,9 +56,10 @@
 			</tr>
       <tr>
         <td style="text-align: left;">
-          Vendor Address<br />
-          NUVEMITE TECHNOLIGIES LTD<br />
-          PIN P051745007D
+          {{ strtoupper($supplierDetails->name) }}<br />
+          Vendor Address - 
+		  {{ $supplierDetails->address }}</br>
+          VAT {{ $supplierDetails->vat_number }} PIN {{ $supplierDetails->pin_number }}
         </td>
 				<td style="font-size: 12px; white-space: nowrap">
 					<table>
@@ -67,7 +69,7 @@
 						</tr>
 						<tr>
 							<td style="text-align:right">Date:</td>
-							<td style="text-align:right">11 Jul 2023</td>
+							<td style="text-align:right">{{ \Carbon\Carbon::parse($entity->created_at)->format('d.m.Y') }}</td>
 						</tr>
 						<tr>
 							<td style="text-align:right">Terms:</td>
@@ -75,7 +77,7 @@
 						</tr>
 						<tr>
 							<td style="text-align:right">Quotation Ref#:</td>
-							<td style="text-align:right">765</td>
+							<td style="text-align:right">{{ $parentEntity->request_code }}</td>
 						</tr>
 					</table>
 				</td>
@@ -143,7 +145,7 @@
       <tr>
         <td colspan="5" style="text-align: right; font-size: 12px;">
           PA/GF/02 Rev.04<br />
-          Issued On: 11 Jul 2023.
+          Issued On: {{ \Carbon\Carbon::parse($entity->created_at)->format('d.m.Y') }}.
         </td>
       </tr>
       <tr>
