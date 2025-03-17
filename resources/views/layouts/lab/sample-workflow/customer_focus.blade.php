@@ -87,7 +87,7 @@
 
             <div class="row border-bottom">
                 <div class="col-md-1">
-                    <img src="/images/company_logo.png" class="company_logo" alt="">
+                    <img src="/images/company_logo_1.png" class="company_logo" alt="">
                 </div>
                 <div class="col-md-11" style="text-align: center !important">
                     <div class="">
