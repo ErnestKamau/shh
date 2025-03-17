@@ -4056,7 +4056,7 @@ class SampleWorkFlowController extends Controller
     public function generateTabletCustomerFocusIndex(Request $request)
     {
         $sample_code = 'S' . date('Y') . $request->sample_no;
-        $sample = SampleDetails::where('sample_code', $sample_code)->first();
+        $sample = SampleDetails::where('sample_code', $request->sample_no)->first();
         if (!isset($sample->id)) {
             return redirect()->back()->with('error', 'There is no sample with ' . $request->sample_no . ' sample/job number');
         }
