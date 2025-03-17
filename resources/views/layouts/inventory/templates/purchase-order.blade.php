@@ -1,178 +1,406 @@
 <?php
-	$parentEntity = \App\RequestEntity::find($entity->parent_request_id);
 	$supplierDetails = \App\Supplier::find($entity->supplier_id);
 	$extras = \App\RequestEntityExtraCharge::join('module_pre_configs as mpc', 'mpc.id', 'request_entity_extra_charges.currency_id')
 				->selectRaw('request_entity_extra_charges.*, mpc.name as currency')->where('request_id', $entity->id)->get();
-?>
-<html>
-	<style type="text/css">
-		@media print{
-			button{
-				display:none;
-			}
-	
-			.page-break-inside{
-				break-inside: avoid;
-				page-break-inside: avoid;
-			}
-		}
-	</style>
-	<script type="text/php">
-		if (isset($pdf)) {
-			$x = 250;
-			$y = 10;
-			$text = "Page {PAGE_NUM} of {PAGE_COUNT}";
-			$font = null;
-			$size = 14;
-			$color = array(255,0,0);
-			$word_space = 0.0;  //  default
-			$char_space = 0.0;  //  default
-			$angle = 0.0;   //  default
-			$pdf->page_text($x, $y, $text, $font, $size, $color, $word_space, $char_space, $angle);
-		}
-	</script>
-	<link href='https://fonts.googleapis.com/css?family=EB Garamond' rel='stylesheet'>
-  <body style="font-family: 'EB Garamond', Arial, sans-serif">
-    <table style="width: 100%; border-collapse: collapse; margin-top: 20px;">
-			<tr>
-        <th style="text-align: left;">
-          <img src="https://www.polucon.co.ke/assets/front/img/64c152a6a6a73.png" alt="Logo" style="max-width: 200px;" />
-        </th>
-				<td style="text-align: right; font-size: 13px">
-					<div style="font-size: 32px; clear: both">Purchase Order</div>
-					<div>LPO NO: 6718</div>
-				</td>
-      </tr>
-			<tr>
-        <td>
-					<strong style="color:darkgreen">Polucon Services (K) Ltd</strong> <br/>
-          P.O Box 99344-80107.<br />
-          Mombasa, Kenya.<br />
-          Tel:0722229944 / 041 4470775.<br />
-          Email: procurement@polucon.com.<br />
-          Polucon House, Nyati Road, Off Links Road- Nyali.<br />
-          PIN: P051097402V
-        </td>
-			</tr>
-      <tr>
-        <td style="text-align: left;">
-          {{ strtoupper($supplierDetails->name) }}<br />
-          Vendor Address - 
-		  {{ $supplierDetails->address }}</br>
-          VAT {{ $supplierDetails->vat_number }} PIN {{ $supplierDetails->pin_number }}
-        </td>
-				<td style="font-size: 12px; white-space: nowrap">
-					<table>
-						<tr>
-							<th colspan="3">Shipment preference</th>
-							<td colspan="2">Deliver To Office</td>
-						</tr>
-						<tr>
-							<td style="text-align:right">Date:</td>
-							<td style="text-align:right">{{ \Carbon\Carbon::parse($entity->created_at)->format('d.m.Y') }}</td>
-						</tr>
-						<tr>
-							<td style="text-align:right">Terms:</td>
-							<td style="text-align:right">Net 30</td>
-						</tr>
-						<tr>
-							<td style="text-align:right">Quotation Ref#:</td>
-							<td style="text-align:right">{{ $parentEntity->request_code }}</td>
-						</tr>
-					</table>
-				</td>
-      </tr>
-    </table>
-    <table style="width: 100%; border-collapse: collapse; margin-top: 20px;">
-			<thead>
-				<tr>
-					<th>#</th>
-					<th>Description</th>
-					<th>Qty</th>
-					<th>Rate</th>
-					<th>VAT Vatable</th>
-					<th>Amount</th>
-				</tr>
-			</thead>
-      <tbody>
-				<?php
-					$allItems = $entity->items($entity->ammendment, true) ?? array();
-					$normalItems = empty($allItems) ? array() : ($allItems['normal'] ?? array());
+	$active = getActiveCompany();
 
-					// echo json_encode($getRFQ);
-					$PO_TOTAL = 0;
-					$PO_VAT = 0;
-				?>
-				@foreach ($normalItems as $item)
-				<?php $isKitRow = !is_numeric($item->catalog_number); ?>
-					<tr style="font-size: 11px">
-						<td style=" text-align: center; font-size: 9px; width: 6%;">{{ $loop->iteration }}</td>
-						<td style=" font-size: 9px; width: 28%;">
-							@if($isKitRow)
-								<strong>{{ $item->kit_item_name }}</strong>
-							@else
-								<strong>{{ $item->item_name }} / {{ $item->code }}</strong><br>
-								{{ $item->comments }}
-							@endif
-						</td>
-						<td style=" text-align:right">{{ $isKitRow ? 1 : number_format($item->quantity, 3) }}{{ $isKitRow ? '-' : $item->unit_type }}</td>
-						<td style=" text-align:right">{{ $isKitRow ? '1' : number_format($item->net_value/$item->quantity,2) }}</td>
-						<td style=" text-align:right">{{ number_format($item->net_value*(0.16), 2) }}</td>
-						<td style=" text-align:right">{{ number_format($item->net_value, 2) }}</td>
-					</tr>
-					<?php $PO_TOTAL+=floatval($item->net_value); ?>
-					<?php $PO_VAT+=floatval($item->net_value*(0.16)); ?>
-				@endforeach
-				@foreach ($extras as $extra)
-					<?php $entity_currency_total = convert_currency($extra->cost, $extra->currency_id, $entity->currency) ?>
-					<tr style="font-size: 12px;">
-						<td colspan="4" style="padding-right: 2px; text-align:right"><b>{{ $extra->title }}</b></td>
-						<td style="padding-right: 2px; text-align:right" nowrap>{{ $entity->print_price_on_po == "YES" ? number_format($entity_currency_total,2) : "" }}</td>
-						<td style="padding-right: 2px; text-align:right">{{ $entity->print_price_on_po == "YES" ? getCurrencyById($entity->currency)->name : "" }}</td>
-					</tr>
-					<?php $PO_TOTAL+=floatval($entity_currency_total); ?>
-				@endforeach
-				<tr style="">
-					<td style=" text-align: center; font-size: 9px; width: 6%;">&nbsp;</td>
-					<td style=" width: 108%;" colspan="7">
-						<p style="font-size: 11px">Delivery Schedule: {{ \Carbon\Carbon::parse($entity->due_date)->format('d.m.Y') }}</p>
-					</td>
-				</tr>
+	// echo json_encode($active)
+?>
+<style type="text/css">
+	@media print{
+		button{
+			display:none;
+		}
+
+		.page-break-inside{
+			break-inside: avoid;
+			page-break-inside: avoid;
+		}
+	}
+</style>
+@if(true)
+<div style="width: {{ $isInternal ? '1024px' : '595px' }}; margin:auto">
+	@if(!$isHTML)
+		<div style="padding: 10px 15px; display: none" id="print-button">
+			<button style="padding: 5px 10px; font-size: 13px" onclick="window.print()">Print</button>
+		</div>
+	@endif
+	<table border="0" style="border-collapse: collapse; width: 100%; margin-bottom: 10px;">
+		<tbody>
+			<tr style="padding: 4px 2px;">
+				<td style="width: 61.8334%; padding: 4px 2px;">
+					<img src="{{$active->logo}}" style="max-height: 55px" />
+				</td>
+				<td style="width: 38.1666%; padding: 4px 2px; text-align: right;">
+					<p style=" font-size: 12px;">
+						<strong style="font-size: 16px">{{ $active->name }}</strong><br/>
+						{!! getConfigByName('site_po_box')->count() > 0 ? getConfigByName('site_po_box')[0]->value : $active->address !!}<br />
+						<span>Tel: {{ getConfigByName('po_contact_telephone')->count() > 0 ? getConfigByName('po_contact_telephone')[0]->value : '' }} / {{ $active->cell_phone }}</span><br />
+						<span>Email: {{ $active->email }}</span><br/>
+						<span>Website: {{ $active->website }}</span><br />
+						<span>Fax: {{ getConfigByName('po_contact_fax')->count() > 0 ? getConfigByName('po_contact_fax')[0]->value : '' }}</span>
+						<span></span>
+					</p>
+				</td>
+			</tr>
+			<tr style="padding: 4px 2px;">
+				<td colspasn="2"></td>
+			</tr>
 			</tbody>
-    </table>
-    <table style="width: 100%; border-collapse: collapse;">
-      
-      <tr>
-        <td colspan="5" style="text-align: right; font-size: 12px;">
-          PA/GF/02 Rev.04<br />
-          Issued On: {{ \Carbon\Carbon::parse($entity->created_at)->format('d.m.Y') }}.
-        </td>
-      </tr>
-      <tr>
-        <th colspan="3" style="text-align: right;">Sub Total</th>
-        <td colspan="2" style="text-align: right;">{{ $PO_TOTAL-$PO_VAT }}</td>
-      </tr>
-      <tr>
-        <th colspan="3" style="text-align: right;">General Rate (16%)</th>
-        <td colspan="2" style="text-align: right;">{{ $PO_VAT }}</td>
-      </tr>
-      <tr>
-        <th colspan="3" style="text-align: right;">Total KES</th>
-        <td colspan="2" style="text-align: right;">{{ $PO_TOTAL}}</td>
-      </tr>
-      <tr>
-        <th colspan="3">Shipment preference</th>
-        <td colspan="2">Deliver To Office</td>
-      </tr>
-    </table>
-    <p style="margin-top: 20px;">Terms &amp; Conditions</p>
-    <ul>
-      <li>This purchase order is valid for 30 days from date of issue.</li>
-      <li>Delivery Notes &amp; Invoices must accompany deliveries.</li>
-      <li>Delivery accepted subject to count, weight and condition.</li>
-      <li>This Purchase order must be quoted in the invoice.</li>
-      <li>This purchase order is ONLY valid with official accepted signatures and official company stamp.</li>
-    </ul>
-    <p>Authorized Signature &amp; Stamp</p>
-  </body>
-</html>
+	</table>
+	<div style="clear: both !important;">
+		<div style="float: left; overflow:hidden; width: 60%">
+			<table style="border-collapse: collapse; width: 90%; border: 1px solid black;">
+				<tbody>
+					<tr>
+						<td colspan="2" style="border: 1px solid black; text-align: center; font-size: 12px;">VENDOR DETAILS</td>
+					</tr>
+					<tr style="padding: 4px 2px;">
+						<td style="border: 1px solid black; font-size: 12px;">Syngenta Vendor Number</td>
+						<td style="border: 1px solid black; font-size: 12px;">{{ "S".str_pad($supplierDetails->id, 4,"0", STR_PAD_LEFT) }}</td>
+					</tr>
+					<tr>
+						<td style="border: 1px solid black; font-size: 12px;">Name</td>
+						<td style="border: 1px solid black; font-size: 12px;" nowrap>{{ $supplierDetails->name }}</td>
+					</tr>
+					<tr>
+						<td style="border: 1px solid black; font-size: 12px;">Postal Address</td>
+						<td style="border: 1px solid black; font-size: 12px;" nowrap>P.O. Box {{ $supplierDetails->address }}</td>
+					</tr>
+					<tr>
+						<td style="border: 1px solid black; font-size: 12px; padding: 4px 2px">Physical Location</td>
+						<td style="border: 1px solid black; font-size: 12px; padding: 4px 2px" nowrap>
+							<?php
+								$plocs = [$supplierDetails->building ?? false, $supplierDetails->building ?? false, $supplierDetails->street ?? false, $supplierDetails->town ?? false];
+								$plocs = array_unique($plocs);
+							?>
+							{{ implode(',', $plocs) }}
+						</td>
+					</tr>
+					<tr>
+						<td style="border: 1px solid black; font-size: 12px;">Telephone</td>
+						<td style="border: 1px solid black; font-size: 12px;">{{ $supplierDetails->phone }}</td>
+					</tr>
+					<tr>
+						<td style="border: 1px solid black; font-size: 12px;">Fax</td>
+						<td style="border: 1px solid black; font-size: 12px;">-</td>
+					</tr>
+					<tr>
+						<td style="border: 1px solid black; font-size: 12px;">Email</td>
+						<td style="border: 1px solid black; font-size: 12px;">{{ implode(', ', explode(';', $supplierDetails->email)) }}</td>
+					</tr>
+				</tbody>
+			</table>
+			<br>
+			<table style="border-collapse: collapse; width: 90%; border: 1px solid black;">
+				<tbody>
+					<tr>
+						<td colspan="2" style="width: 100%; border: 1px solid black; text-align: center; font-size: 12px;">DELIVERY INSTRUCTIONS</td>
+					</tr>
+					<tr>
+						<td colspan="2" style="width: 100%; border: 1px solid black; text-align: center; font-size: 12px;">Delivery Address</td>
+					</tr>
+					<tr>
+						<td colspan="2" style="width: 100%; border: 1px solid black; font-size: 12px;">{!! getConfigByName('site_po_box')->count() > 0 ? getConfigByName('site_po_box')[0]->value : $active->address !!}</td>
+					</tr>
+					<tr>
+						<td colspan="2" style="width: 100%; border: 1px solid black; font-size: 12px;">Physical Address : {{ $active->street.", ".$active->location }}</td>
+					</tr>
+					
+					<tr>
+						<td colspan="2" style="width: 100%; border: 1px solid black; font-size: 11px; text-align: center;">DELIVERY TO:</td>
+					</tr>
+					<tr style="padding: 4px 2px;">
+						<?php
+							$REQUESTER = \App\User::find($entity->request_initiator);
+						?>
+						<td style="border: 1px solid black; font-size: 12px;">Receivers Name</td>
+						<td style="border: 1px solid black; font-size: 12px;">{{ isset($REQUESTER->name) ? $REQUESTER->name :  getConfigByName('po_receivers_name')[0]->value }}</td>					
+					</tr>
+					<tr>
+						<td style="border: 1px solid black; font-size: 12px;">Room Number</td>
+						<td style="border: 1px solid black; font-size: 12px;">-</td>
+					</tr>
+					<tr>
+						<td style="border: 1px solid black; font-size: 12px;">Department</td>
+						<td style="border: 1px solid black; font-size: 12px;">{{ $REQUESTER->department()->name }}</td>
+					</tr>
+					<tr>
+						<td style="border: 1px solid black; font-size: 12px;">Other Delivery Information</td>
+						<td style="border: 1px solid black; font-size: 12px;">0</td>
+					</tr>
+					</tbody>
+			</table>
+		</div>
+		<div style="float: right; overflow: hidden; width: 40%; align-items: right">
+			<table style="width: 100%; border-spacing: 0px;">
+				<tbody>
+					<tr>
+						<td colspan="2" style="border: 1px solid black !important; border-bottom: none !important; text-align: center; font-size: 12px;">PURCHASE ORDER</td>
+					</tr>
+					<tr>
+						<td style="border: 1px solid black !important; border-right: none !important; border-bottom: none !important; font-size: 12px;">PO Number</td>
+						<td style="border: 1px solid black !important; border-bottom: none !important; font-size: 12px;">{{ $entity->request_code }} {{ $entity->ammendment == 1 ? '' : 'v'.$entity->ammendment }}</td>
+					</tr>
+					<tr>
+						<td style="border: 1px solid black !important; border-right: none !important; border-bottom: none !important;  font-size: 12px;">PO Date</td>
+						<?php $time = strtotime($entity->created_at); ?>
+						<td style="border: 1px solid black !important; border-bottom: none !important;  font-size: 12px;">{{ date('d \of F, Y', $time) }}</td>
+					</tr>
+					<tr>
+						<td style="border: 1px solid black !important; border-right: none !important; border-bottom: none !important; font-size: 12px;">Contact</td>
+						<td style="border: 1px solid black !important; border-bottom: none !important;  font-size: 12px;">
+						{{ getConfigByName('po_contact_name')->count() > 0 ? getConfigByName('po_contact_name')[0]->value : '' }}
+						</td>
+					</tr>
+					<tr>
+						<td style="border: 1px solid black !important; border-right: none !important; border-bottom: none !important;  font-size: 12px;">Telephone</td>
+						<td style="border: 1px solid black !important; border-bottom: none !important;  font-size: 12px;">
+						{{ getConfigByName('po_contact_telephone')->count() > 0 ? getConfigByName('po_contact_telephone')[0]->value : '' }}
+						</td>
+					</tr>
+					<tr>
+						<td style="border: 1px solid black !important; border-right: none !important; border-bottom: none !important; font-size: 12px;">Email</td>
+						<td style="border: 1px solid black !important; border-bottom: none !important; font-size: 12px;">
+						{{ getConfigByName('po_contact_email')->count() > 0 ? getConfigByName('po_contact_email')[0]->value : '' }}
+						</td>
+					</tr>
+					<tr>
+						<td style="border: 1px solid black; border-right: none !important; font-size: 12px;">Fax</td>
+						<td style="border: 1px solid black;  font-size: 12px;">-</td>
+					</tr>
+				</tbody>
+			</table>
+			<br>
+			<table style="width: 100%; border-spacing: 0px;">
+				<tbody>
+					<tr>
+						<td style="border: 1px solid black !important; border-right: none !important; border-bottom: none !important; font-size: 12px;">Contact 2</td>
+						<td style="border: 1px solid black !important; border-bottom: none !important; font-size: 12px;">{{ getConfigByName('po_contact2_name')->count() > 0 ? getConfigByName('po_contact2_name')[0]->value : '' }}</td>
+					</tr>
+					<tr>
+						<td style="border: 1px solid black !important; border-right: none !important; border-bottom: none !important; font-size: 12px;">Telephone</td>
+						<td style="border: 1px solid black !important;  border-bottom: none !important; font-size: 12px;">{{ getConfigByName('po_contact2_telephone')->count() > 0 ? getConfigByName('po_contact2_telephone')[0]->value : '' }}</td>
+					</tr>
+					<tr>
+						<td style="border: 1px solid black !important; border-right: none !important; border-bottom: none !important; font-size: 12px;">Email</td>
+						<td style="border: 1px solid black !important; border-bottom: none !important; font-size: 12px;">{{ getConfigByName('po_contact2_email')->count() > 0 ? getConfigByName('po_contact2_email')[0]->value : '' }}</td>
+					</tr>
+					<tr>
+						<td style="border: 1px solid black !important; border-right: none !important; font-size: 12px;">Fax</td>
+						<td style="border: 1px solid black !important; font-size: 12px;">{{ getConfigByName('po_contact_fax')->count() > 0 ? getConfigByName('po_contact_fax')[0]->value : '' }}</td>
+					</tr>
+				</tbody>
+			</table>
+			<br>
+			<table style="width: 100%; border-spacing: 0px;">
+				<tbody>
+					<tr>
+						<td style="border: 1px solid black !important; border-right: none !important; border-bottom: none !important; font-size: 12px;">VAT Number</td>
+						<td style="border: 1px solid black !important; border-bottom: none !important; font-size: 12px;">{{ $supplierDetails->vat_number }}</td>
+					</tr>
+					<tr>
+						<td style="border: 1px solid black !important; border-right: none !important; border-bottom: none !important; font-size: 12px;">PIN Number</td>
+						<td style="border: 1px solid black !important; border-bottom: none !important; font-size: 12px;">{{ $supplierDetails->pin_number }}</td>
+					</tr>
+					<tr>
+						<td style="border: 1px solid black !important; border-right: none !important; border-bottom: none !important; font-size: 12px;">Payment terms</td>
+						<td style="border: 1px solid black !important;  border-bottom: none !important; font-size: 12px;">{{ $supplierDetails->payment_terms }}</td>
+					</tr>
+					<tr>
+						<td style="border: 1px solid black !important; border-right: none !important; border-bottom: none !important; font-size: 12px;">INCO Terms</td>
+						<td style="border: 1px solid black !important; border-bottom: none !important; font-size: 12px;">{{ $supplierDetails->payment_method }}</td>
+					</tr>
+					<tr>
+						<td style="border: 1px solid black !important; border-right: none !important; border-bottom: none !important; font-size: 12px;">Required Delivery Date</td>
+						<td style="border: 1px solid black !important; border-bottom: none !important; font-size: 12px;">{{ \Carbon\Carbon::parse($entity->due_date)->format(isETCU() ? 'd/m/Y' : 'Y-m-d') }}</td>
+					</tr>
+					<tr>
+						<td colspan="2" style="border: 1px solid black !important; border-bottom: none !important; font-size: 12px; text-align: center;">PLEASE SEND THE INVOICE TO:</td>
+					</tr>
+					<tr>
+						<td colspan="2" style="width: 100%; border: 1px solid black !important; border-bottom: none !important; font-size: 11px;">{{ getConfigByName('site_name')->count() > 0 ? getConfigByName('site_name')[0]->value : 'Kenya Pollen' }}</td>
+					</tr>
+					<tr>
+						<td colspan="2" style="width: 100%; border: 1px solid black !important; border-bottom: none !important; font-size: 11px;">{{ !isETCU() ? 'P.O. Box 27774 - 00506' : 'PO BOX 618 Code 1250' }}</td>
+					</tr>
+					<tr>
+						<td colspan="2" style="width: 100%; border: 1px solid black !important; font-size: 11px;">{{ !isETCU() ? 'Thika' : 'Addis Ababa' }}</td>
+					</tr>
+				</tbody>
+			</table>
+		</div>
+	</div>
+	<div style="clear: both; padding: 4px 2px;">
+		<p style="font-size: 12px; text-align: center;"><strong>Syngenta Purchase Order must appear on all packages, invoices, shipping papers and correspondence.</strong></p>
+	</div>
+	<div style="padding: 4px 2px;">
+		<p style="font-size: 11px; text-align: right;">CURRENCY: {{ getCurrencyById($entity->currency)->name ?? '' }}</p>
+	</div>
+	<table border="1" style="border-collapse: collapse; width: 100%; margin-bottom: 10px;">
+		<thead>
+		<tr style="padding: 4px 2px;">
+		<th style="padding: 4px 2px; text-align: center;  font-size: 12px; width: 3.83333%;">Item</th>
+		<th style="padding: 4px 2px; text-align: center;  font-size: 12px; width: 6.66667%;">Quantity</th>
+		<th style="padding: 4px 2px; text-align: center;  font-size: 12px; width: 47%;">Item Code / Description</th>
+		<th style="padding: 4px 2px; text-align: center;  font-size: 12px; width: 15.1667%;">Supplier Ref Number (catalogue ref if any)</th>
+		<th style="padding: 4px 2px; text-align: center;  font-size: 12px; width: 14.5%;">Net Price per item (each) WITHOUT VAT</th>
+		<th style="padding: 4px 2px; text-align: center;  font-size: 12px; width: 12.6666%;">Total Net Cost of items</th>
+		</tr>
+		</thead>
+		<tbody>
+		<?php
+			$allItems = $entity->items($entity->ammendment, true) ?? array();
+
+			$normalItems = empty($allItems) ? array() : ($allItems['normal'] ?? array());
+
+			// echo json_encode($getRFQ);
+			$PO_TOTAL = 0;
+		?>
+		@foreach ($normalItems as $item)
+		<?php $isKitRow = !is_numeric($item->catalog_number); ?>
+		<tr style="padding: 4px 2px; font-size: 12px; font-family:'Courier New', Courier, monospace">
+			<td style="padding-right: 2px; text-align: center; width: 3.83333%;">{{ $loop->iteration }}</td>
+			<td style="padding-right: 2px; width: 6.66667%; text-align: right">{{ $isKitRow ? 1 : number_format($item->quantity, 3).$item->unit_type }}</td>
+			<td style="padding-right: 2px; width: 47%; text-align: center">
+				@if($isKitRow)
+					<span>{{ $item->kit_item_name }}</span>
+				@else
+					<span>{{ $item->item_name }} / {{ $item->code }}</span><br>
+					{{ $item->comments }}
+				@endif
+			</td>
+			<td style="padding-right: 2px; width: 15.1667%; text-align: center">{{ $isKitRow ? $item->catalog_number : '' }}</td>
+			<td style="padding-right: 2px; width: 14.5%; text-align: right">{{ $entity->print_price_on_po == "YES" ? ($isKitRow ? '1' : number_format($item->quantity > 0 ? $item->net_value/$item->quantity : 0,2)) : "" }}</td>
+			<td style="padding-right: 2px; width: 12.6666%;  text-align: right">{{ $entity->print_price_on_po == "YES" ? number_format($item->net_value, 2) : "" }}</td>
+		</tr>
+		<?php $PO_TOTAL+=floatval($item->net_value); ?>
+		@endforeach
+
+		@foreach ($extras as $extra)
+			<?php $entity_currency_total = convert_currency($extra->cost, $extra->currency_id, $entity->currency) ?>
+			<tr style="font-size: 12px;">
+				<td colspan="3" style="padding-right: 2px; text-align:right"><b>{{ $extra->title }}</b></td>
+				<td colspan="2" style="padding-right: 2px; text-align:right">{{ $entity->print_price_on_po == "YES" ? (number_format($extra->cost,2)) : "" }}</td>
+				<td style="padding-right: 2px; text-align:right">{{ $entity->print_price_on_po == "YES" ? (getCurrencyById($entity->currency)->name." ".number_format($entity_currency_total,2)) : "" }}</td>
+			</tr>
+			<?php $PO_TOTAL+=floatval($entity_currency_total); ?>
+		@endforeach
+		<tr>
+			<td colspan="5" style="padding: 7px 15px; text-align: left; font-weight: 600">TOTAL</td>
+			<td style="padding: 7px 2px; text-align: right; font-weight: 600">{{ $entity->print_price_on_po == "YES" ? (number_format($PO_TOTAL,2)) : "" }}</td>
+		</tr>
+		</tbody>
+	</table>
+	@if(!$isHTML)
+		<?php
+			$approvers = \App\Approvals::leftJoin('entity_approvals as ea', function($join) use($entity){
+				$join->on('ea.approval_id', 'approvals.id');
+				// $join->where('ea.model', $entity->request_type);
+				$join->where('ea.model_id', $entity->id);
+			})->leftJoin('users as u', 'u.id', 'ea.user_id')->where('ea.status', 'Approved')
+			->where('approvals.stage', $entity->request_type)->orderBy('approvals.id', 'asc')->get()->toArray();
+
+			// $approvers = \App\User::join('entity_approvals as ea', 'ea.user_id', 'users.id')->where('ea.status', 'Approved')
+			// ->where('model', $entity->request_type)->where('model_id', $entity->id)->get()->toArray();
+			// echo '<pre>'.json_encode($approvers, JSON_PRETTY_PRINT).'</pre>';
+
+			$approvalCounts = $entity->defined_approvals()->count();
+		?>
+		<div class="page-break-inside" style="break-inside: avoid; page-break-inside: avoid;">
+			<table border="0" style="border-collapse: collapse; width: 100%;">
+				<tbody>
+					{{-- <tr>
+					<td colspan="2" style="width: 100%;">
+					<p style=" font-size: 12px;"><strong>{{ getConfigByName('site_name')->count() > 0 ? getConfigByName('site_name')[0]->value : 'Kenya Pollen' }} {!! getConfigByName('site_po_box')->count() > 0 ? getConfigByName('site_po_box')[0]->value : 'P.O. BOX 27774 - 00506 Thika' !!}</strong></p>
+					</td>
+					</tr> --}}
+					<tr>
+					<td colspan="2" style="width: 100%;">
+					<p style="font-size: 10px;  text-align: center; padding:20px 0px">
+						@if(isETCU())
+							<strong>
+								Standard Syngenta Terms and Condition apply, unless specified differently above.
+							</strong>
+						@else
+							<strong>Standard Syngenta Terms and Condition apply. To view please go to https://www.syngenta.com/contracts/default.html</strong>
+						@endif
+					</p>
+					</td>
+					</tr>
+				</tbody>
+			</table>
+			<table border="0" style="border-collapse: collapse; width: 100%;">
+				<tbody>
+					<tr>
+						<?php $startKeySet = 0 ?>
+						@if(!isKECU())
+							<td style="text-align: center">
+								<?php
+									$requestedBy = \App\User::find($entity->request_initiator);
+								?>
+								<p style="padding: 5px 10px; width: 100%"><strong>Requested By:</strong> <br/><span style="padding: 5px 10px; width: 100%">{!! trim($requestedBy->electronic_sig) != "" ?
+									'<small>'.$requestedBy->name.'</small> <br><img src="'.imageTobase64($requestedBy->electronic_sig).'" style="margin-left: 10px; height: 25px" />' : $requestedBy->name !!}</span>
+								</p>
+							</td>
+							<td style="text-align: center">
+								<p style="padding: 5px 10px; width: 100%"><strong>Departemental Head:</strong> <br/>
+								@if(isset($approvers[$startKeySet]) && (isset($approvers[$startKeySet]['approved_at']) && trim($approvers[$startKeySet]['approved_at']) != ""))
+									<span style="padding: 5px 10px; width: 100%">{!! trim($approvers[$startKeySet]['electronic_sig']) != "" ?
+										'<small>'.$approvers[$startKeySet]['name'].'</small><br> <img src="'.imageTobase64($approvers[$startKeySet]['electronic_sig']).'" style="margin-left: 10px; height: 25px" />' : $approvers[$startKeySet]['name'] !!}</span>
+									</p>
+								@endif
+							</td>
+						@endif
+						<?php $startKeySet = $approvalCounts == 2 ? 0 : 1 ?>
+						<td style="text-align: {{ isETCU() ? 'left' : 'right' }}">
+							<p></p>
+							<p style="padding: 5px 0px; width: 100%"><strong>1st Signature:</strong> <br/>
+							@if(isset($approvers[$startKeySet]) && (isset($approvers[$startKeySet]['approved_at']) && trim($approvers[$startKeySet]['approved_at']) != ""))
+								<span style="padding: 5px 0px; width: 100%">{!! trim($approvers[$startKeySet]['electronic_sig']) != "" ?
+									'<small>'.((!isKECU()) ? $approvers[$startKeySet]['name'] : '').'</small><br/> <img src="'.imageTobase64($approvers[$startKeySet]['electronic_sig']).'" style="margin-left: 10px; height: 25px" />' : $approvers[$startKeySet]['name'] !!}
+								</span>
+							@endif
+							</p>
+						</td>
+					</tr>
+					<tr>
+						@if(!isKECU())
+							<td style="text-align: center">
+								<?php $preparedBy = \App\User::find($entity->created_by); ?>
+								<p style="padding: 5px 0px; width: 100%"><strong>Prepared By:</strong> <br/>
+								<span style="padding: 5px 0px; width: 100%">{!! trim($preparedBy->electronic_sig) != "" ?
+									'<small>'.$preparedBy->name.'</small><br/> <img src="'.imageTobase64($preparedBy->electronic_sig).'" style="margin-left: 10px; height: 25px" />' : $preparedBy->name !!}</span>
+								</p>
+							</td>
+							<td></td>
+						@endif
+						<?php $startKeySet = $startKeySet + 1 ?>
+						<td style="text-align: {{ isETCU() ? 'left' : 'right' }}">
+							<p style="padding: 5px 0px; width: 100%"><strong>2nd Signature:</strong> <br/>
+								@if(isset($approvers[$startKeySet]) && (isset($approvers[$startKeySet]['approved_at']) && trim($approvers[$startKeySet]['approved_at']) != ""))
+									<span style="padding: 5px 0px; width: 100%">{!! trim($approvers[$startKeySet]['electronic_sig']) != "" ?
+										'<small>'.((!isKECU()) ? $approvers[$startKeySet]['name'] : '').'</small><br/> <img src="'.imageTobase64($approvers[$startKeySet]['electronic_sig']).'" style="margin-left: 10px; height: 25px" />' : $approvers[$startKeySet]['name'] !!}
+									</span>
+								@endif
+							</p>
+						</td>
+					</tr>
+				</tbody>
+			</table>
+		</div>
+	@endif
+</div>
+@endif
+<div style="text-align:center; padding: 15px; font-size: 12px; font-weight:700">
+	Nature of Purchase : {{ $entity->nature_of_purchase }}
+	@if($entity->nature_of_purchase == "Capex")
+		- <small>{{ $entity->capex_project_number }}</small>
+	@endif
+</div>
+<script>
+	window.onload = function(){
+		var elem = document.getElementById('print-button');
+		elem.style.display = "unset";
+	}
+</script>
