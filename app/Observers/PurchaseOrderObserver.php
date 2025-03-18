@@ -4,6 +4,7 @@ namespace App\Observers;
 
 use App\Http\Controllers\ZohoController;
 use App\RequestEntity;
+use App\RequestType;
 use Exception;
 
 class PurchaseOrderObserver
@@ -16,7 +17,8 @@ class PurchaseOrderObserver
      */
     public function created(RequestEntity $requestEntity)
     {
-        //
+        $rfq = RequestEntity::find($requestEntity->parent_request_id);
+        
     }
 
     /**
@@ -46,6 +48,7 @@ class PurchaseOrderObserver
                     $requestEntity->save();
                 }
                 else{
+                    $zoho->attachQuote($requestEntity);
                     $requestEntity->errors = null;
                     $requestEntity->save();
                 }

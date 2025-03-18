@@ -9,6 +9,7 @@
 	$currency = isset($getRFQ->currency) ? getCurrencyById($getRFQ->currency) : '';
 
 	$PO_TOTAL = 0;
+	$active = getActiveCompany();
 ?>
 <style type="text/css">
 	@media print{
@@ -202,19 +203,19 @@
 	</tbody>
 </table>
 @else
-	<div style="width: 99%; margin: auto">
+	<div style="max-width: 99%; margin: auto; max-width: 1024px">
 		<table border="0" style="border-collapse: collapse; width: 100%; height: 84px; margin-bottom: 10px;">
 			<tbody>
 				<tr style="height: 21px;">
-				<td colspan="3" style="width: 55.0001%; text-align: center;"><img src="{{ url('/storage/companies/9RUZQlhlqNlYp1icQFROCRLgLTtvqRrTtcXyms2g.png') }}" width="100" height="auto" alt="" /></td>
+				<td colspan="3" style="width: 100%; text-align: center; padding-bottom:20px"><img src="{{$active->logo}}" width="100" height="auto" alt="" /></td>
 				</tr>
 				<tr style="height: 35px;">
-				<td colspan="2" style="width: 90.5001%; text-align: center;"><strong>REQUISITION SHEET</strong></td>
+				<td colspan="2" style="width: 90.5001%; text-align: center; padding:20px 0px"><strong>REQUISITION SHEET</strong></td>
 				<td style="width: 42.4999%; height: 21px;" nowrap><span><strong>No.</strong>
 					<span style="border-bottom: 1px solid #000; padding: 5px 10px">{{ $entity->request_code }}</span></span>
 				</td>
 				</tr>
-				<tr style="height: 35px;">
+				<tr style="height: 50px;">
 				<td colspan="2" style="width: 90.5001%; height: 21px;">
 					<span>Description of task for the purpose of materials or services <span style="border-bottom: 1px solid #000; padding: 5px 10px">{{ $entity->description }}</span></span>
 				</td>
@@ -403,5 +404,7 @@
 		}
 
 		document.getElementById('rfq-total').innerHTML = number_format({{ $PO_TOTAL }});
+
+		window.onload = window.print();
 	</script>
 </div>

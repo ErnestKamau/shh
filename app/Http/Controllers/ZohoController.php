@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\EntityAttachment;
 use App\InventorySubCategories;
 use App\ModulePreConfigs;
 use App\RequestEntity;
@@ -15,9 +16,10 @@ use Error;
 use Exception;
 use GuzzleHttp\Client;
 use GuzzleHttp\Exception\ClientException;
-
 use Illuminate\Support\Facades\DB;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\File;
+use Illuminate\Support\Facades\Storage;
 
 class ZohoController extends Controller
 {
@@ -165,6 +167,10 @@ class ZohoController extends Controller
 	{
 		$po = RequestEntity::with('request_entity_items')->where('id', $id)->first();
 		$supplier = $po->supplier();
+	}
+
+	public function uploadPODocument(){
+		
 	}
 
 	function createPurchaseOrder($requestEntity)
@@ -649,6 +655,37 @@ class ZohoController extends Controller
 		return $response;
 	}
 
+	public function upload($endpoint, $configs, $files = [])
+	{
+		$url = 'https://www.zohoapis.com/books/v3/' . $endpoint . $this->query_to_string($configs['query']);
+		$headers = [];
+		$curl = curl_init($url);
+		curl_setopt($curl, CURLOPT_POST, true);
+		curl_setopt($curl, CURLOPT_RETURNTRANSFER, true);
+
+		if (isset($files['file'])) {
+			$headers[] = 'Content-Type: multipart/form-data';
+			
+			if (!empty($files['file']) && is_file($files['file'])) {
+				$params['file'] = new \CURLFile($files['file'], $files['mime'], basename($files['file']));
+				// dd($params);
+			}
+			
+			curl_setopt($curl, CURLOPT_POSTFIELDS, $params);
+		}
+
+		curl_setopt($curl, CURLOPT_HTTPHEADER, $headers);
+		$response = curl_exec($curl);
+		$error = curl_error($curl);
+
+		if ($error) {
+			throw new Exception("cURL Error: $error");
+		}
+
+		curl_close($curl);
+		return json_decode($response, true);
+	}
+
 	public function getItemsTest()
 	{
 		// $items = $this->sync_zoho_items();
@@ -716,5 +753,37 @@ class ZohoController extends Controller
 		");
 
 		return true;
+	}
+
+	public function attachQuote(RequestEntity $request){
+		$supplier = $request->supplier()->name;
+		$attachment = EntityAttachment::where('title', 'like', '%'.$supplier.'%')
+			->where('model_id', $request->parent_request_id)->first();
+
+		$filePath = explode("/storage/supplier-quotes/", $attachment->file);
+
+		$fileNameArray = array_values(array_filter($filePath));
+
+		$filename = $fileNameArray[0];
+
+		$path = storage_path('app/supplier-quotes/'. $filename);
+		// return $path;
+		if (!File::exists($path)) {
+			abort(404);
+		}
+		
+		$file = File::get($path);
+		$type = File::mimeType($path);
+	
+		$response = $this->upload('purchaseorders/'.$request->zoho_id.'/attachment', [
+			'query' => [
+				'organization_id' => $this->orgID,
+			],
+			['file' => $file, 'mime' => $type]
+		]);
+		$zItem = json_decode($response, true);
+		
+	
+		return $response;
 	}
 }
