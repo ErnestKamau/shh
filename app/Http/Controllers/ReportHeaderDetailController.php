@@ -138,7 +138,7 @@ class ReportHeaderDetailController extends Controller
 		$batch->save();
 		$main_lab = implode(' ,', array_unique(SamplesCategory::where('sample_header_id', $batch->id)->pluck('main_lab_name')->toArray()));
 		//AnalysisType::whereNull('brand_id')->update(['brand_id'=>0]);
-		$ammendment = BatchAmmendment::where('batch_id', $batch->id)->where('version_number', $batch->is_amendment)->first();
+		$ammendment = BatchAmmendment::where('batch_id', $batch->id)->orderBy('id','DESC')->first();
 		$report_type = '';
 		$report_type = $batch->prelim_report_status == 1 ? 'PRELIM' : $report_type;
 		$report_type = $batch->prelim_report_status == 2 ? 'DRAFT' : $report_type;
