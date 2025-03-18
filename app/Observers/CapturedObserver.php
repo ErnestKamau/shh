@@ -40,7 +40,7 @@ class CapturedObserver
         $tat_exist = TatCaptured::where('captured_result_id',$captured->id)->where('is_complete',0)->first();
         $tat_complete = TatCaptured::where('captured_result_id',$captured->id)->where('is_complete',1)->first();
         $analysis_date = SampleAnalysisDates::where('sample_detail_id',$captured->sample_detail_id)->where('sample_header_id',$captured->sample_header_id)->first();
-        return response()->json($analysis_date);
+        // return response()->json($analysis_date);
         if(isset($tat_complete->id) && $tat_complete->result == $captured->result){
             return "done";
         }
