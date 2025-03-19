@@ -1518,7 +1518,7 @@ class SampleWorkFlowController extends Controller
         $notifiable_users = getNotifiableUsers();
         $notesReminderType = getNotesReminderTypes();
         $clients = getClients();
-        // return response()->json($analaytesHolder);
+        return response()->json($analaytesHolder);
         return view('layouts.lab.sample-workflow.show', compact('batch', 'labStores', 'batchID', 'defaultClient', 'selectedSampleType', 'client_portal', 'ammendable', 'standards', 'attachments', 'not_captured', 'analysts', 'countries', 'accounts', 'methods', 'atachment_type', 'batch_scope', 'customer_survey', 'interlabs', 'labs', 'users', 'payment_detail', 'labsections', 'contacts', 'batch_sample_codes', 'report_formats', 'approvers', 'reportingUnits', 'conditions', 'products', 'headerDetails', 'analaytesHolder', 'analysisBySample', 'analysisBySampleNames', 'labSamples', 'workflowstages', 'workflows', 'sample_types', 'samplingmethods', 'active_company', 'ammendments', 'allsamples', 'selected_analysis_types', 'userLabSections', 'customer', 'requestTypes', 'notifiable_users', 'notesReminderType', 'clients', 'disposal_date', 'status', 'recieving_users', 'section_approvers_users', 'analaytesHolderPesticide', 'approvers_user_ids','ltmethods'));
     }
 
@@ -2533,6 +2533,9 @@ class SampleWorkFlowController extends Controller
                             $response = 'PASS';
 
                             return $response;
+                        } elseif (strtoupper($result) == 'PRESENT' && strtoupper(trim($standard_value->code)) == 'ABSENT') {
+                            $response = 'FAIL';
+                            return $response;
                         } else {
                             $response = '-';
 
@@ -2765,14 +2768,13 @@ class SampleWorkFlowController extends Controller
             $previous = $batch->status;
             // return response()->json(['start'=>$start,'end'=>$end],200);
             foreach ($contact as $c) {
-                $body = 'Dear Sir / Madam, <br><br>
-				I hope this email finds you well. <br><br>
-				We are pleased to let you know that the <b>' . $samples->count() . '</b> test reports are ready as attached..<br><br>'
-                    . $message . '<br><br>
-				We are grateful for giving us an opportunity to be of service to you. <br><br>
-				We look forward to more engagements in the future. <br><br>
-				Should you have any questions or concerns please do not hesitate to contact us.<br><br>
-				Regards, <br>
+                $body = 'Dear '.$customer->name.',<br><br>
+                We are pleased to inform you that your test report is now ready. Please find the report
+                attached for your review.<br>
+                '.($message == '' ? '' : $message.'<br>').'
+                If you have any questions or clarifications, feel free to contact us.<br><br>
+                Thank you for choosing Quality Plus Laboratory and Consultancy Services.<br><br>
+                Best regards, <br>
 				
 				' . $company->name;
                 $subject = 'TEST REPORTS;' . $customer->name . ' - ' . $start->sample_code . ' - ' . $end->sample_code;
