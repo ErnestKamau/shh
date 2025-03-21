@@ -35,8 +35,9 @@ class SamplesCategory extends Model implements Auditable
 	}
     public function getAcredditedStatus(){
         $allCapturedResultsCount = CapturedResult::where('sample_detail_id',$this->id)->where('sample_header_id',$this->sample_header_id)->get()->count();
-            $isAccreditedCount = CapturedResult::where('sample_detail_id',$this->id)->where('sample_header_id',$this->sample_header_id)->where('analyte_accredited',1)->get()->count();
-            return $isAccreditedCount >= $allCapturedResultsCount/2 ? 1 : 0;
+        $isAccreditedCount = CapturedResult::where('sample_detail_id',$this->id)->where('sample_header_id',$this->sample_header_id)->where('analyte_accredited',1)->get()->count();
+        $perc = ($isAccreditedCount * 100) / $allCapturedResultsCount;
+        return round($perc) >= 60 ? 1 : 0;
     }
     public function getAnalytesName(){
         return implode(', ',CapturedResult::where('sample_detail_id',$this->id)->pluck('analyte_code')->toArray()) ;

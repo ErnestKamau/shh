@@ -127,9 +127,7 @@ class ReportHeaderDetailController extends Controller
 	{
 		// return response()->json('success3');
 		$path = public_path('images/qplus_header_with_sanas.jpg');
-		$sanas_header = public_path('images/kenas_footer.jpg');
-		$sanas_logo = public_path('images/sanas.jpeg');
-		
+		$without_path = public_path('images/qplus_header_without_sanas.jpg');
 		$stamp = public_path('images/stamp.jpeg');
 
 		$batch = \App\SampleHeader::find($batch_id);
@@ -177,86 +175,7 @@ class ReportHeaderDetailController extends Controller
 		$qrcode = base64_encode(\QrCode::format('svg')->size(50)->errorCorrection('H')->generate($qr_url));
 		// return response()->json($batch_result,200);
 		$samples = SamplesCategory::where('sample_header_id', $batch->id)->get();
-		if ($report_format == '1') {
-			foreach ($samples as $sample) {
-				$allCapturedResultsCount = CapturedResult::where('sample_detail_id', $sample->id)->where('sample_header_id', $batch->id)->get()->count();
-				$isAccreditedCount = CapturedResult::where('sample_detail_id', $sample->id)->where('sample_header_id', $batch->id)->where('analyte_accredited', 1)->get()->count();
-				$sample['is_accreddited_status'] = $isAccreditedCount >= $allCapturedResultsCount / 2 ? 1 : 0;
-				$idArrs = array_unique(CapturedResult::where('sample_detail_id', $sample->id)->where('sample_header_id', $batch->id)->pluck('lab_section_id')->toArray());
-				array_push($idArrs, 0);
-				$sample['lab_sect_ids_arr'] = $idArrs;
-				$sample['getBrandOuts'] = [
-					"normal" => SampleAnalysisTypeRelationView::where('brand_id', 0)->where('sample_detail_id', $sample->id)->where('batch_id', $sample->sample_header_id)->orderBy('analysis_level', 'DESC')->get(),
-					"physical" => SampleAnalysisTypeRelationView::where('brand_id', 1)->where('sample_detail_id', $sample->id)->where('batch_id', $sample->sample_header_id)->orderBy('analysis_level', 'DESC')->get(),
-					"pesticide" => $include_pesticide == 1 ? SampleAnalysisTypeRelationView::where('brand_id', 2)->where('sample_detail_id', $sample->id)->where('batch_id', $sample->sample_header_id)->orderBy('analysis_level', 'DESC')->get() : [],
-				];
-			}
-			// return response()->json($samples);
-			ini_set('max_execution_time', 300); //300 seconds = 5 minutes
-			$pdf = app('dompdf.wrapper');
-			$pdf->getDomPDF()->set_option("enable_php", true);
-			$pdf->setPaper('A4', 'portrait');
-			$pdf = PDF::loadView('layouts.lab.reports.coa_formats.ktda_report', compact('samples', 'company', 'qrcode', 'path', 'kenas', 'batch_approvers', 'pdf', 'batch', 'non_accredited', 'disclaimer', 'nema', 'customer', 'analysis_date', 'polucon_disclaimer', 'stamp', 'is_stamp', 'ammendment', 'polucon_disclaimer_not', 'main_lab', 'report_type'));
-
-			if (is_dir(storage_path() . '/app/reports/' . $customer_name)) {
-				$pdf->save(storage_path() . '/app/reports/' . $customer_name . '/' . $filename);
-			} else {
-				$path = storage_path() . '/app/reports/' . $customer_name;
-				// $pdf->save(storage_path() . '/app/reports/' . $customer_name . '/' . $filename);
-				$check = mkdir($path);
-				if ($check) {
-
-					$pdf->save(storage_path() . '/app/reports/' . $customer_name . '/' . $filename);
-				} else {
-					return redirect()->back()->with('error', 'Error while creating customer storage folder');
-				}
-			}
-			$batch->batch_report_url = '/reports/' . $customer_name . '/' . $filename;
-			$batch->save();
-
-			return 'success';
-		}
-		if ($report_format == '2') {
-			foreach ($samples as $sample) {
-				$allCapturedResultsCount = CapturedResult::where('sample_detail_id', $sample->id)->where('sample_header_id', $batch->id)->get()->count();
-				$isAccreditedCount = CapturedResult::where('sample_detail_id', $sample->id)->where('sample_header_id', $batch->id)->where('analyte_accredited', 1)->get()->count();
-				$sample['is_accreddited_status'] = $isAccreditedCount >= $allCapturedResultsCount / 2 ? 1 : 0;
-				$idArrs = array_unique(CapturedResult::where('sample_detail_id', $sample->id)->where('sample_header_id', $batch->id)->pluck('lab_section_id')->toArray());
-				array_push($idArrs, 0);
-				$sample['lab_sect_ids_arr'] = $idArrs;
-
-				$sample['getBrandOuts'] = [
-					"normal" => SampleAnalysisTypeRelationView::where('brand_id', 0)->where('sample_detail_id', $sample->id)->where('batch_id', $sample->sample_header_id)->orderBy('analysis_level', 'DESC')->get(),
-					"physical" => SampleAnalysisTypeRelationView::where('brand_id', 1)->where('sample_detail_id', $sample->id)->where('batch_id', $sample->sample_header_id)->orderBy('analysis_level', 'DESC')->get(),
-					"pesticide" => SampleAnalysisTypeRelationView::where('brand_id', 2)->where('sample_detail_id', $sample->id)->where('batch_id', $sample->sample_header_id)->orderBy('analysis_level', 'DESC')->get(),
-				];
-			}
-			// return response()->json($samples);
-			ini_set('max_execution_time', 300); //300 seconds = 5 minutes 
-
-			$pdf = app('dompdf.wrapper');
-			$pdf->getDomPDF()->set_option("enable_php", true);
-			$pdf = PDF::loadView('layouts.lab.reports.coa_formats.iran_report', compact('samples', 'company', 'qrcode', 'path', 'kenas', 'batch_approvers', 'pdf', 'batch', 'non_accredited', 'disclaimer', 'nema', 'customer', 'analysis_date', 'polucon_disclaimer', 'stamp', 'is_stamp', 'ammendment', 'polucon_disclaimer_not', 'main_lab', 'report_type'));
-
-			if (is_dir(storage_path() . '/app/reports/' . $customer_name)) {
-				$pdf->save(storage_path() . '/app/reports/' . $customer_name . '/' . $filename);
-			} else {
-				$path = storage_path() . '/app/reports/' . $customer_name;
-				// $pdf->save(storage_path() . '/app/reports/' . $customer_name . '/' . $filename);
-				$check = mkdir($path);
-				if ($check) {
-
-					$pdf->save(storage_path() . '/app/reports/' . $customer_name . '/' . $filename);
-				} else {
-					return redirect()->back()->with('error', 'Error while creating customer storage folder');
-				}
-			}
-			$batch->batch_report_url = '/reports/' . $customer_name . '/' . $filename;
-			$batch->save();
-
-			return 'success';
-		}
-
+		
 		foreach ($samples as $sample) {
 			$allCapturedResultsCount = CapturedResult::where('sample_detail_id', $sample->id)->where('sample_header_id', $batch->id)->get()->count();
 			$isAccreditedCount = CapturedResult::where('sample_detail_id', $sample->id)->where('sample_header_id', $batch->id)->where('analyte_accredited', 1)->get()->count();
@@ -268,8 +187,14 @@ class ReportHeaderDetailController extends Controller
 		// $samples = SamplesCategory::where('sample_header_id',$batch->id)->get();
 		ini_set('max_execution_time', 300); //300 seconds = 5 minutes 
 		$pdf = app('dompdf.wrapper');
+// 		$options->set('defaultFont', 'Arial Unicode MS');
+// $options->set('isHtml5ParserEnabled', true);
+// $options->set('isFontSubsettingEnabled', true);
 		$pdf->getDomPDF()->set_option("enable_php", true);
-		$pdf = PDF::loadView('layouts.lab.reports.coa_formats.standard_report', compact('samples', 'company', 'qrcode', 'path', 'batch_approvers', 'pdf', 'batch', 'non_accredited', 'disclaimer', 'customer', 'report_type', 'analysis_date', 'stamp', 'is_stamp', 'ammendment', 'sanas_logo', 'main_lab'));
+		$pdf->getDomPDF()->set_option("isHtml5ParserEnabled", true);
+		$pdf->getDomPDF()->set_option("isFontSubsettingEnabled", true);
+
+		$pdf = PDF::loadView('layouts.lab.reports.coa_formats.standard_report', compact('samples', 'company', 'qrcode', 'path', 'batch_approvers', 'pdf', 'batch', 'non_accredited', 'disclaimer', 'customer', 'report_type', 'analysis_date', 'stamp', 'is_stamp', 'ammendment', 'main_lab','without_path'));
 
 		// return $pdf->stream($filename);
 		if (is_dir(storage_path() . '/app/reports/' . $customer_name)) {

@@ -4,6 +4,8 @@
 
 <head>
     <meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+    <meta charset="UTF-8">
+
     <title>Document</title>
     <!-- <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.11.2/css/all.min.css" integrity="sha256-+N4/V/SbAFiW1MPBCXnfnP9QSN3+Keu+NlB+0ev/YKQ=" crossorigin="anonymous" /> -->
 
@@ -31,7 +33,7 @@
     }
 
     * {
-        font-family: 'Times New Roman', Times, serif;
+        font-family:  "Arial Unicode MS", 'Times New Roman', Times, serif;
         font-stretch: normal;
     }
 
@@ -106,6 +108,10 @@
         padding: 2px 5px !important;
         line-height: 1.3 !important;
     }
+    .result-t{
+        font-family: "Arial Unicode MS", "Times New Roman", sans-serif !important;
+    }
+
 </style>
 
 <body>
@@ -131,15 +137,7 @@
             </table>
         </div>
     </footer>
-    <header class="header">
-        <table style="width: 100%;border:0px;">
-            <tr>
-                <td rowspan="2" style="border:solid 0 transparent !important;">
-                    <img src="{{ $path }}" style="height:130px;width:100%" alt="logo"> <br>
-                </td>
-            </tr>
-        </table>
-    </header>
+   
 
     <?php
 $printed_title = [];
@@ -148,6 +146,15 @@ $printed_pos = [];
     
     ?>
     @foreach ($samples as $sample)
+        <header class="header">
+            <table style="width: 100%;border:0px;">
+                <tr>
+                    <td rowspan="2" style="border:solid 0 transparent !important;">
+                        <img src="{{ $sample->getAcredditedStatus() == 1 ? $path : $without_path }}" style="height:130px;width:100%" alt="logo"> <br>
+                    </td>
+                </tr>
+            </table>
+        </header>
 
         <main style="margin-bottom:100px">
             <table class="table table-sm"
@@ -284,9 +291,9 @@ $printed_pos = [];
                                 <td class="parameter" style="font-size: 9px !important;padding-left:3px !important;">
                                     {{ strtoupper($captured->method()->name ?? '-') }}
                                 </td>
-                                <td class="parameter {{ $captured->remark == 'FAIL' ? 'textBold text-danger' : '' }}"
+                                <td class="parameter result-t {{ $captured->remark == 'FAIL' ? 'textBold text-danger' : '' }}"
                                     style="font-size: 9px !important;padding-left:3px !important;">
-                                    {{ $captured->result_reporting_symbol ?? '' }}{{ $captured->result != '' ? formatReportResults($captured->scienctific_result) : 'TBA' }}
+                                    {{ $captured->result_reporting_symbol ?? '' }}{!! $captured->result != '' ? formatReportResults($captured->scienctific_result) : 'TBA' !!}
                                 </td>
                                 @if ($batch->require_mu == 1)
                                     <td class="parameter" style="font-size: 9px !important;padding-left:3px !important;">
@@ -379,7 +386,7 @@ $printed_pos = [];
                                     @if (in_array($approver->lab_section_ids, $sample['lab_sect_ids_arr']))
                                         <div style="text-align:center">
                                             <b>{{ $approver->title }}</b> <br>
-                                            (<i>{{ $approver->getApproverPositionDetails() }}</i>)
+                                            (<i>Technical Signatory</i>)
                                         </div>
                                     @endif
                                 </td>

@@ -142,7 +142,7 @@
                                                 {{ strtoupper($captured->method()->name ?? '-') }}
                                             </td>
                                             <td class="parameter {{ $captured->remark == 'FAIL' ? 'text-bold text-danger' : '' }}">
-                                                {{ $captured->result_reporting_symbol ?? '' }}{{ $captured->result != '' ? formatReportResults($captured->scienctific_result) : 'TBA' }}
+                                                {{ $captured->result_reporting_symbol ?? '' }}{!! $captured->result != '' ? formatReportResults($captured->scienctific_result) : 'TBA' !!}
                                             </td>
                                             @if ($batch->require_mu == 1)
                                                 <td class="parameter">
