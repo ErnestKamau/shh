@@ -2912,10 +2912,9 @@
 						<input type="text" name="invoice_number" placeholder="Invoice No..." class="form-control"
 							required>
 					</div>
-					<div class="form-group">
+					<div class="form-group hidden">
 						<label for="" class="control-label">Invoice Amount <small class="text-danger">*</small></label>
-						<input type="text" name="invoice_amount" placeholder="Invoice amount..." class="form-control"
-							required>
+						<input type="text" name="invoice_amount" placeholder="Invoice amount..." class="form-control">
 					</div>
 					<input type="hidden" name="batch_id" value="{{$batch->id}}">
 				</div>
