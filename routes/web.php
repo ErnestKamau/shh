@@ -109,7 +109,7 @@ Route::post('/delete-Analysis-Element', 'AnalysisElementsController@deleteAnalys
 
 Route::get('/analysis-methods', 'AnalysisMethodController@index')->name('analysis-methods')->middleware('haspermission:Laboratory.components.Methods.View');
 Route::post('/analysis-methods', 'AnalysisMethodController@add')->name('add-analysis-methods')->middleware('haspermission:Laboratory.components.Methods.Add');
-Route::post('/analysis-method/{id}', 'AnalysisMethodController@edit')->name('edit-analysis-method')->middleware('haspermission:Laboratory.components.Methods.Edit');
+Route::post('/analysis-method/edit', 'AnalysisMethodController@edit')->name('edit-analysis-method')->middleware('haspermission:Laboratory.components.Methods.Edit');
 Route::get('/analysis-method/{id}', 'AnalysisMethodController@show')->name('analysis-method');
 
 Route::post('/check_rft_no', 'SampleWorkFlowController@check_rft_no')->name('check_rft_no');

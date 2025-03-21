@@ -1913,10 +1913,10 @@
 					<div class="form-group">
 						<label for="" class="control-label">Report Template</label>
 						<select name="template_id" id="" class="form-control">
-							<option value="Standard Report">Standard Report</option>
+							<option value="Standard Report" selected>Standard Report</option>
 						</select>
 					</div>
-					<div class="form-group">
+					<div class="form-group hidden">
 						<label for="" class="control-label"><input type="checkbox" name="add_pesticide" id="" class=""> Include Pesticide Results</label>
 					</div>
 					<input type="hidden" name="batch_id" value="{{$batch->id}}">
@@ -2354,7 +2354,7 @@
 									<option value="">Choose Report Level</option>
 									<option value="0">Final Report</option>
 									<option value="1">Prelim Report</option>
-									<option value="2">Draft Report</option>
+									<!-- <option value="2">Draft Report</option> -->
 								</select>
 							</div>
 							<div class="form-group">

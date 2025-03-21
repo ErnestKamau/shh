@@ -30,4 +30,7 @@ class AnalysisMethod extends Model implements Auditable
 
 		return $arr;
 	}
+	public function referencemethod(){
+		return $this->belongsTo(AnalysisMethod::class,'reference_type_id');
+	}
 }

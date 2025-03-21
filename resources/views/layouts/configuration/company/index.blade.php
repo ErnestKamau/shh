@@ -117,6 +117,10 @@ $items = array(
                       <input type="file" class="form-control" name="logo" placeholder="Company Logo..." />
                     </div>
                     <div class="form-group">
+                      <label for="" class="control-label">Report Logo</label>
+                      <input type="file" name="report_logo" id="" class="form-control">
+                    </div>
+                    <div class="form-group">
                       <label class="control-label">Email</label>
                       <input type="text" name="email" placeholder="Example.gmail.com..." id="" value="{{$company->email}}" class="form-control">
                     </div>
@@ -196,6 +200,10 @@ $items = array(
         <div class="form-group">
           <label class="control-label">Company Logo</label>
           <input type="file" class="form-control" name="logo" placeholder="Company Logo..." />
+        </div>
+        <div class="form-group">
+          <label for="" class="control-label">Report Logo</label>
+          <input type="file" name="report_logo" id="" class="form-control">
         </div>
         <div class="form-group">
           <label class="control-label">Email</label>

@@ -56,6 +56,15 @@ class CompanyController extends Controller
 
       $company->logo = (String) $fName;
     }
+    if ($request->hasFile('report_logo')){
+      $path = $request->report_logo->path();
+      $file = Storage::putFile('companies', new File($path));
+      $file = explode('/', $file);
+
+      $frName = '/storage/companies/'.urlencode(end($file));
+
+      $company->report_logo = (String) $frName;
+    }
 
     $company->save();
 
@@ -84,6 +93,15 @@ class CompanyController extends Controller
       $fName = '/storage/companies/'.urlencode(end($file));
 
       $company->logo = (String) $fName;
+    }
+    if ($request->hasFile('report_logo')){
+      $path = $request->report_logo->path();
+      $file = Storage::putFile('companies', new File($path));
+      $file = explode('/', $file);
+
+      $frName = '/storage/companies/'.urlencode(end($file));
+
+      $company->report_logo = (String) $frName;
     }
 
     $company->save();

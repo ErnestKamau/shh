@@ -213,7 +213,7 @@ $printed_pos = [];
                     </td>
                     <td style="border:solid 0 transparent !important;width:9%"></td>
                     
-                    <td style="border:solid 0 transparent !important;"><b>Condition of test item & Enviroment : </b></td>
+                    <td style="border:solid 0 transparent !important;"><b>Condition of test item & Environment : </b></td>
                     <td style="border:solid 0 transparent !important;text-align:left !important;">
                         {{ $sample->sample_condition_name }}
                     </td>

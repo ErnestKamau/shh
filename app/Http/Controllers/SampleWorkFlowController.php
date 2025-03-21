@@ -229,189 +229,23 @@ class SampleWorkFlowController extends Controller
                 // return response()->json(SampleAnalysisTypeRelationView::where('sample_detail_id',$sample->id)->pluck('analysis_type_name')->toArray(),200);
                 $analysis = $sample->analysis();
                 $data = [];
-                !isset($data['Sample Ref']) ? $data['Sample Ref'] = $sample->sample_code : $data;
-                !isset($data['Sample Type']) ? $data['Sample Type'] = getSampleTypeByID($batch->sample_type_id)->name : $data;
+                !isset($data['Lab Ref No']) ? $data['Lab Ref No'] = $sample->sample_code : $data;
                 // !isset($data['Markings']) ? $data['Markings']  = $sample->comments : $data;
-                // !isset($data['Requirements']) ? $data['Requirements'] = implode(', ', SampleAnalysisTypeRelationView::where('sample_detail_id', $sample->id)->pluck('analysis_type_name')->toArray()) : $data;
                 !isset($data['Date Received']) ? $data['Date Received'] = $batch->receipt_date : $data;
+                !isset($data['Test Required']) ? $data['Test Required'] = implode(', ', $sample->analyteNames() ?? []) : $data;
                 !isset($data['Received By']) ? $data['Received By'] = $batch->receiving_officer_name : $data;
-                !isset($data['Date Expected']) ? $data['Date Expected'] = date('Y-m-d', strtotime($batch->get_date('Target Date')['date'])) : $data;
-                !isset($data['Disposal Date']) ? $data['Disposal Date'] = $sample->disposal_date : $data;
+                !isset($data['Sample Type']) ? $data['Sample Type'] = getSampleTypeByID($batch->sample_type_id)->name : $data;
+                // !isset($data['Date Expected']) ? $data['Date Expected'] = date('Y-m-d', strtotime($batch->get_date('Target Date')['date'])) : $data;
+                // !isset($data['Disposal Date']) ? $data['Disposal Date'] = $sample->disposal_date : $data;
 
-                // return response()->json($batch,200);
-                // foreach ($analysis as $a) {
-                // 	if (!isset($data['Date Received'])) {
-                // 		$data['Date Received'] = $batch->receipt_date;
-                // 	}
-                // 	// if(!isset($data[$client->unit_configurable_name]) || !isset($data['unit'])){
-                // 	// 	if($client->unit_configurable_name != "" ){
-                // 	// 		$data[$client->unit_configurable_name] = $batch->crm_unit_name;
-                // 	// 	}else{
-                // 	// 		$data['unit'] = $batch->crm_unit_name;
-                // 	// 	}
-                // 	// 	// return response($data,200);
-                // 	// 	// trim($client->unit_configurable_name) != "" ? $data[$client->unit_configurable_name] : $data['unit'] = $batch->crm_unit_name;
-                // 	// }
-                // 	if (isset($data[$client->sample_point_configurable_name])) {
-                // 		if (isset($sample->sample_point->name)) {
-                // 			if ($data[$client->sample_point_configurable_name] != $sample->sample_point->name) {
-                // 				$value = $data[$client->sample_point_configurable_name];
-                // 				$data[$client->sample_point_configurable_name] = $value . ',' . $sample->sample_point->name;
-                // 			}
-                // 		} else {
-                // 			if ($data[$client->sample_point_configurable_name] != 'n/a') {
-                // 				$value = $data[$client->sample_point_configurable_name];
-                // 				$data[$client->sample_point_configurable_name] = $value . ',n/a';
-                // 			}
-                // 		}
-                // 	}
-                // 	if (isset($data['Sample Point'])) {
-                // 		if (isset($sample->sample_point->name)) {
-                // 			if ($data['Sample Point'] != $sample->sample_point->name) {
-
-                // 				$value = $data['Sample Point'];
-                // 				$data['Sample Point'] = $value . ',' . $sample->sample_point->name;
-                // 			}
-                // 		} else {
-                // 			if ($data['Sample Point'] != 'n/a') {
-                // 				$value = $data['Sample Point'];
-                // 				$data['Sample Point'] = $value . ',n/a';
-                // 			}
-                // 		}
-                // 	}
-                // 	if (!isset($data[$client->sample_point_configurable_name]) || !isset($data['Sample Point'])) {
-                // 		trim($client->sample_point_configurable_name) != "" ? $data[$client->sample_point_configurable_name] = $sample->sample_point->name ?? 'n/a' : $data['Sample Point'] = $sample->sample_point->name ?? 'n/a';
-                // 	}
-                // 	if (isset($data[$client->product_configurable_name])) {
-                // 		if (isset($sample->product->name)) {
-                // 			if ($data[$client->product_configurable_name] != $sample->product->name) {
-                // 				$value = $data[$client->product_configurable_name];
-                // 				$data[$client->product_configurable_name] = $value . ',' . $sample->product->name;
-                // 			}
-                // 		} else {
-                // 			if ($data[$client->product_configurable_name] != 'n/a') {
-                // 				$value = $data[$client->product_configurable_name];
-                // 				$data[$client->product_configurable_name] = $value . ',n/a';
-                // 			}
-                // 		}
-                // 	}
-                // 	if (isset($data['product'])) {
-                // 		if (isset($sample->product->name)) {
-                // 			if ($data['product'] != $sample->product->name) {
-                // 				$value  = $data[$client->product_configurable_name];
-                // 				$data[$client->product_configurable_name] = $value . ',' . $sample->product->name;
-                // 			}
-                // 		} else {
-                // 			if ($data['product'] != 'n/a') {
-                // 				$value = $data[$client->product_configurable_name];
-                // 				$data[$client->product_configurable_name] = $value . ',n/a';
-                // 			}
-                // 		}
-                // 	}
-                // 	// if(!isset($data[$client->product_configurable_name]) && !isset($data['product'])){
-                // 	// 	trim($client->product_configurable_name) != "" ? $data[$client->product_configurable_name] = $sample->product->name ?? 'n/a' : $data["product"] = $sample->product->name ?? 'n/a';
-                // 	// }
-                // 	if (isset($data['Test To Be Done'])) {
-                // 		if ($data['Test To Be Done'] != $a->name) {
-                // 			$value = $data['Test To Be Done'];
-                // 			$data['Test To Be Done'] = $value . ',' . $a->name;
-                // 		}
-                // 	}
-                // 	if (!isset($data['Test To Be Done'])) {
-                // 		$data['Test To Be Done'] = $a->name;
-                // 	}
-                // 	if (isset($data['Lab'])) {
-                // 		if ($data['Lab'] != $a->lab->name . " - " . date('Y-m-d')) {
-                // 			$value = $data['Test To Be Done'];
-                // 			$data['Test To Be Done'] = $value . ',' . $a->lab->name . " - " . date('Y-m-d');
-                // 		}
-                // 	}
-                // 	if (!isset($data['Test To Be Done'])) {
-                // 		$data['Test To Be Done'] = $a->lab->name . " - " . date('Y-m-d');
-                // 	}
-                // 	// $data = array(
-                // 	// 	"Code" => $sample->sample_code,
-                // 	// 	"Client" => $client->name,
-                // 	// 	trim($client->unit_configurable_name) != "" ? $client->unit_configurable_name : 'unit' => $batch->crm_unit_name,
-                // 	// 	trim($client->sample_point_configurable_name) != "" ? $client->sample_point_configurable_name : "sample_point" => $sample->sample_point->name ?? 'n/a',
-                // 	// 	trim($client->product_configurable_name) != "" ? $client->product_configurable_name : "product" => $sample->product->name ?? 'n/a',
-                // 	// 	"Analysis" => $a->name,
-                // 	// 	"Lab" => $a->lab->name . " - " . date('Y-m-d')
-                // 	// );
-                // }
+                
                 $labels[] = $data;
             }
             // return response()->json($labels,200);
             $batch->sample_tracking_stage = $stage->id;
             $batch->save();
 
-            // $hasCapturedResults = false;
-
-            // $analysis_to_be_done = array();
-
-            // $batch_analysis = $batch->samples;
-
-            // foreach ($batch_analysis as $a) {
-            // 	if (!isset($analysis_to_be_done[$a->sample_code])) {
-            // 		$analysis_to_be_done[$a->sample_code] = array(
-            // 			"sample_detail_code" => $a->sample_code,
-            // 			"sample_detail_id" => $a->id,
-            // 			"sample_header_id" => $batch->id,
-            // 			"analysis_to_do" => array()
-            // 		);
-            // 	}
-            // 	$analysis_to_be_done[$a->sample_code]["analysis_to_do"] = array_merge($analysis_to_be_done[$a->sample_code]["analysis_to_do"], $a->analysis());
-            // }
-
-            // $analysis_to_be_done = array_values($analysis_to_be_done);
-
-            // foreach ($analysis_to_be_done as $atbs) {
-            // 	foreach ($atbs["analysis_to_do"] as $a) {
-            // 		$analytes = $a->active_analysis_elements();
-
-            // 		foreach ($analytes as $an) {
-            // 			$analysisType = AnalysisElements::where('analysis_type_id', $a->id)
-            // 				->where('analyte_id', $an->analyte_id)->where('equipment_id', $an->equipment_id)->first();
-
-            // 			$captured = CapturedResult::where('sample_detail_code', $atbs['sample_detail_code'])
-            // 				->where('sample_detail_id', $atbs['sample_detail_id'])
-            // 				->where('analyte_id', $an->analyte_id)
-            // 				->where('analysis_type_id', $a->id)
-            // 				->where('sample_header_id', $atbs['sample_header_id'])->first()  ?? new CapturedResult;
-            // 			$captured->sample_detail_code = $atbs['sample_detail_code'];
-            // 			$captured->sample_detail_id = $atbs['sample_detail_id'];
-            // 			$captured->sample_header_id = $atbs['sample_header_id'];
-            // 			$captured->analyte_id = $an->analyte_id;
-            // 			$captured->analysis_type_id = $a->id;
-            // 			$captured->analyte_code = $an->analyte_code;
-            // 			$captured->equipment_id = $an->equipment_id;
-            // 			$captured->method_id = $analysisType->method;
-            // 			$captured->user_id = \Auth::user()->id;
-            // 			$captured->analyte_accredited = $analysisType->non_accredited;
-            // 			$captured->save();
-
-            // 			$result = Result::where('sample_detail_code', $atbs['sample_detail_code'])
-            // 				->where('sample_detail_id', $atbs['sample_detail_id'])
-            // 				->where('captured_result_id', $captured->id)
-            // 				->where('analyte_id', $an->analyte_id)
-            // 				->where('analysis_type_id', $a->id)
-            // 				->where('sample_header_id', $atbs['sample_header_id'])->first()  ?? new Result;
-            // 			$result->captured_result_id = $captured->id;
-            // 			$result->sample_detail_code = $atbs['sample_detail_code'];
-            // 			$result->sample_detail_id = $atbs['sample_detail_id'];
-            // 			$result->sample_header_id = $atbs['sample_header_id'];
-            // 			$result->analyte_id = $an->analyte_id;
-            // 			$result->analysis_type_id = $a->id;
-            // 			$result->analyte_code = $an->analyte_code;
-            // 			$result->unit_code = $an->reporting_unit;
-            // 			$result->reporting_symbol = $an->reporting_symbol;
-            // 			$result->analyte_accredited = $analysisType->non_accredited;
-            // 			$result->recheck = 0;
-
-            // 			$result->save();
-            // 		}
-            // 	}
-            // }
+            
         }
 
         // return response()->json($labels, 200);
@@ -3839,16 +3673,16 @@ class SampleWorkFlowController extends Controller
         $batch = SampleHeader::find($request->batch_id);
         $batch_approvers = BatchLabSectionApprover::where('batch_id', $batch->id)->where('show_report', 1)->where('status', 1)->get();
         $samples = SamplesCategory::where('sample_header_id', $request->batch_id)->get();
-        $disclaimer = SystemConfiguration::where('key', 'lab_report_disclaimer_config')->first();
-        $non_accredited = SystemConfiguration::where('key', 'lab_report_accreditted_config')->first();
+        
         $status = $batch->status;
+        $result_presentation = SystemConfiguration::where('key','exponential_result_format')->first();
 
         $company = getActiveCompany();
         $exclude_pesticides = isset($request->add_pesticide) ? 0 : 1;
         $standard_report = $request->template_id;
         $analysis_date = SampleAnalysisDates::where('sample_header_id', $batch->id)->orderBy('start_analysis_date', 'ASC')->first();
         // return response()->json('here');
-        return view('layouts.lab.sample-workflow.report-formats.standard_report', compact('batch', 'samples', 'disclaimer', 'non_accredited', 'status', 'company', 'batch_approvers', 'standard_report', 'analysis_date', 'exclude_pesticides'));
+        return view('layouts.lab.sample-workflow.report-formats.standard_report', compact('batch', 'samples', 'status', 'company', 'batch_approvers', 'standard_report', 'analysis_date', 'exclude_pesticides','result_presentation'));
     }
 
     public function getShowBatchCOA($batch_code, $format)
@@ -4981,6 +4815,28 @@ class SampleWorkFlowController extends Controller
         $exponent = floor(log10(abs($number))); // Get the exponent (power of 10)
         $coefficient = $number / pow(10, $exponent); // Get the coefficient
         
-        return sprintf("%.1f * 10^%d", $coefficient, $exponent);
+        // Adjust if coefficient rounds to 10.0
+        if (round($coefficient, 1) == 10.0) {
+            $coefficient = 1.0;
+            $exponent += 1;
+        }
+    
+        
+        return sprintf("%.1f × 10%s", $coefficient, $this->toSuperscript($exponent));
+    }
+    private function toSuperscript($number) {
+        $superscripts = [
+            '0' => '⁰', '1' => '¹', '2' => '²', '3' => '³', '4' => '⁴',
+            '5' => '⁵', '6' => '⁶', '7' => '⁷', '8' => '⁸', '9' => '⁹', '-' => '⁻'
+        ];
+        
+        $strNumber = strval($number);
+        $superscriptNumber = '';
+    
+        foreach (str_split($strNumber) as $digit) {
+            $superscriptNumber .= $superscripts[$digit];
+        }
+    
+        return $superscriptNumber;
     }
 }

@@ -23,9 +23,10 @@ class AnalysisMethodController extends Controller
   {
     $companies = Company::all();
 
-    $methods = AnalysisMethod::all();
+    $methods = AnalysisMethod::with(['referencemethod'])->get();
+    $references = AnalysisMethod::where('is_sampling_method',0)->where('is_ltm',0)->get();
 
-    return view('layouts.lab.methods.index', compact('companies', 'methods'));
+    return view('layouts.lab.methods.index', compact('companies', 'methods','references'));
   }
 
   /**
@@ -42,24 +43,26 @@ class AnalysisMethodController extends Controller
     $analysis_type->description = $request->description;
     $analysis_type->company_id = getUserCompany();
     $analysis_type->active = $request->active ?? 0;
-    $analysis_type->is_sampling_method = $request->is_sampling_method ?? 0;
-    $analysis_type->is_ltm = $request->is_ltm ?? 0;
+    $analysis_type->is_sampling_method = $request->method_type_id == 2 ? 1 : 0;
+    $analysis_type->is_ltm = $request->method_type_id == 1 ? 1 : 0;
+    $analysis_type->reference_type_id = $request->reference_method_id;
     $analysis_type->save();
 
     return redirect()->back()->with('success', 'Analysis Method added.');
   }
 
-  public function edit(Request $request, $id)
+  public function edit(Request $request)
   {
 
-    $analysis_type = AnalysisMethod::find($id);
+    $analysis_type = AnalysisMethod::find($request->method_id);
     $analysis_type->name = $request->name;
     $analysis_type->code = $request->code;
     $analysis_type->description = $request->description;
     $analysis_type->company_id = getUserCompany();
     $analysis_type->active = $request->active ?? 0;
-    $analysis_type->is_sampling_method = $request->is_sampling_method ?? 0;
-    $analysis_type->is_ltm = $request->is_ltm ?? 0;
+    $analysis_type->is_sampling_method = $request->method_type_id == 2 ? 1 : 0;
+    $analysis_type->is_ltm = $request->method_type_id == 1  ?? 0;
+    $analysis_type->reference_type_id = $request->reference_method_id;
     $analysis_type->save();
 
     return redirect()->back()->with('success', 'Analysis Method edited.');

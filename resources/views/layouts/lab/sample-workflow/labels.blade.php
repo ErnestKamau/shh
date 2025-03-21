@@ -7,21 +7,11 @@
 	<style>
 		@media print{
 			@page { 
-				size: landscape;
-			}
+        size: landscape;
+    	}
 			.card {
 				clear: both; 
 				page-break-after: always!important;
-				height: 9cm !important;
-				width: 1cm !important;
-				font-size:40px!important;
-				padding: 0px !important;
-				font-family: "Lucida Console", "Courier New", monospace !important;
-				font-weight:900;
-			
-			}
-			td{
-				padding: 0px !important;
 			}
 			#print {display: none;}
 			body,html {margin: 0px; padding: 0px;}
@@ -29,14 +19,12 @@
 
 		.card {
 			background-color: white;
-			width: 15cm!important;
-			max-height: 9cm!important;
-			font-size: 13px!important;
+			width: 480px!important;
+			height: 200px!important;
+			font-size: 10px!important;
 			border: none!important;
 			clear: both;
 			page-break-after: always!important;
-			font-weight:1000;
-			font-family: "Lucida Console", "Courier New", monospace !important;
 		}
 
 		body {
@@ -48,7 +36,7 @@
 			height: 100%!important;
 		}
 		table,tr,td{border:0.5px solid #131313!important}
-		td{padding: 0px!important;}
+		td{padding: 3px!important;}
 		
 	</style>
 </head>
@@ -57,7 +45,7 @@
 		<span id="print" onclick="window.print()" class="btn btn-success float-right m-2"><i class="mdi mdi-printer"></i> Print</span>
 	<div class="pl-3">
 		@foreach ($labels as $item)
-		<div class="card p-2 mt-1">
+		<div class="card p-2 mt-1 mb-4">
 			<div class="card-header p-0" style="background-color: white;border-bottom:0px">
 				<?php
 				$check = getSystemConfiguration('display_system_logo');
@@ -86,7 +74,7 @@
 						@endforeach
 						<tr>
 							<td colspan="{{sizeof($item)}}" class="text-center">
-								<div class="p-2"><span class="barcode">{!! DNS1D::getBarcodeSVG($item['Sample Ref'], 'C128B') !!}</span> <span class="btn btn-sm btn-transparent print-barcode"><i class="mdi mdi-printer text-info"></i></span></div>
+								<div class="p-2"><span class="barcode">{!! DNS1D::getBarcodeSVG($item['Lab Ref No'], 'C128B') !!}</span> <span class="btn btn-sm btn-transparent print-barcode"><i class="mdi mdi-printer text-info"></i></span></div>
 							</td>
 						</tr>
 					</tbody>
