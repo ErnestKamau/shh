@@ -326,5 +326,8 @@ class SampleHeader extends Model implements Auditable
 	public function customer(){
 		return $this->belongsTo(CRMCustomer::class,'crm_customer_id');
 	}
+	public function receivingofficer(){
+		return $this->belongsTo(User::class,'receiving_officer_name');
+	}
 	
 }

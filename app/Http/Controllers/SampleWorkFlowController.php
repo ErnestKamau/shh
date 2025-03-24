@@ -200,7 +200,7 @@ class SampleWorkFlowController extends Controller
         $labels = [];
 
         foreach ($ids as $batch_code) {
-            $batch = SampleHeader::where('batch_code', $batch_code)->first();
+            $batch = SampleHeader::with(['receivingofficer'])->where('batch_code', $batch_code)->first();
             $strStage = 'Sample Labeling';
             $samWk = 'Samples Reception';
 
@@ -229,12 +229,14 @@ class SampleWorkFlowController extends Controller
                 // return response()->json(SampleAnalysisTypeRelationView::where('sample_detail_id',$sample->id)->pluck('analysis_type_name')->toArray(),200);
                 $analysis = $sample->analysis();
                 $data = [];
-                !isset($data['Lab Ref No']) ? $data['Lab Ref No'] = $sample->sample_code : $data;
+                !isset($data['ref_no']) ? $data['ref_no'] = $sample->sample_code : $data;
                 // !isset($data['Markings']) ? $data['Markings']  = $sample->comments : $data;
-                !isset($data['Date Received']) ? $data['Date Received'] = $batch->receipt_date : $data;
-                !isset($data['Test Required']) ? $data['Test Required'] = implode(', ', $sample->analyteNames() ?? []) : $data;
-                !isset($data['Received By']) ? $data['Received By'] = $batch->receiving_officer_name : $data;
-                !isset($data['Sample Type']) ? $data['Sample Type'] = getSampleTypeByID($batch->sample_type_id)->name : $data;
+                !isset($data['date_received']) ? $data['date_received'] = $batch->receipt_date : $data;
+                !isset($data['test']) ? $data['test'] = implode(', ', $sample->analyteNames() ?? []) : $data;
+                !isset($data['received_by']) ? $data['received_by'] = $batch->receivingofficer->name : $data;
+                !isset($data['sample_type']) ? $data['sample_type'] = getSampleTypeByID($batch->sample_type_id)->name : $data;
+                !isset($data['time']) ? $data['time'] = $batch->radio_active_levels : $data;
+
                 // !isset($data['Date Expected']) ? $data['Date Expected'] = date('Y-m-d', strtotime($batch->get_date('Target Date')['date'])) : $data;
                 // !isset($data['Disposal Date']) ? $data['Disposal Date'] = $sample->disposal_date : $data;
 

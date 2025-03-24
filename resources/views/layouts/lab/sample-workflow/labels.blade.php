@@ -3,85 +3,117 @@
 
 <head>
 	<meta charset="utf-8">
-	<link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.4.1/css/bootstrap.min.css" integrity="sha384-Vkoo8x4CGsO3+Hhxv8T/Q5PaXtkKtu6ug5TOeNV6gBiFeWPGFN9MuhOf23Q9Ifjh" crossorigin="anonymous">
+	<link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.4.1/css/bootstrap.min.css"
+		integrity="sha384-Vkoo8x4CGsO3+Hhxv8T/Q5PaXtkKtu6ug5TOeNV6gBiFeWPGFN9MuhOf23Q9Ifjh" crossorigin="anonymous">
 	<style>
-		@media print{
-			@page { 
-        size: landscape;
-    	}
-			.card {
-				clear: both; 
-				page-break-after: always!important;
+		@media print {
+			@page {
+				size: landscape;
 			}
-			#print {display: none;}
-			body,html {margin: 0px; padding: 0px;}
+
+			.card {
+				clear: both;
+				page-break-after: always !important;
+			}
+
+			#print {
+				display: none;
+			}
+
+			body,
+			html {
+				margin: 0px;
+				padding: 0px;
+			}
+			
+			
 		}
 
 		.card {
 			background-color: white;
-			width: 480px!important;
-			height: 200px!important;
-			font-size: 10px!important;
-			border: none!important;
+			width: 480px !important;
+			max-height: 200px !important;
+			font-size: 10px !important;
+			border: none !important;
 			clear: both;
-			page-break-after: always!important;
+			page-break-after: always !important;
 		}
 
 		body {
 			background-color: white;
 		}
-		table{
+
+		table {
 			border-collapse: collapse;
-			width: 100%!important;
-			height: 100%!important;
+			width: 100% !important;
+			height: 100% !important;
 		}
-		table,tr,td{border:0.5px solid #131313!important}
-		td{padding: 3px!important;}
-		
+
+		table,
+		tr,
+		td {
+			border: 0.5px solid #131313 !important
+		}
+
+		td {
+			padding: 1px !important;
+		}
+		.barcode-container {
+			display: flex;
+			align-items: center;
+			/* gap: 5px; */
+		}
+
+		.barcode {
+			display: inline-block;
+			width: auto;
+			height: 30px;
+		}
+
+		.barcode svg {
+			width: 100%;
+			height: 100%;
+		}
+
+		.print-barcode {
+			cursor: pointer;
+		}
 	</style>
 </head>
 
 <body>
-		<span id="print" onclick="window.print()" class="btn btn-success float-right m-2"><i class="mdi mdi-printer"></i> Print</span>
+	<span id="print" onclick="window.print()" class="btn btn-success float-right m-2"><i class="mdi mdi-printer"></i>
+		Print</span>
 	<div class="pl-3">
+		<?php $check_company = getActiveCompany() ?>
 		@foreach ($labels as $item)
-		<div class="card p-2 mt-1 mb-4">
-			<div class="card-header p-0" style="background-color: white;border-bottom:0px">
-				<?php
-				$check = getSystemConfiguration('display_system_logo');
-				$check_company = getActiveCompany()
-				?>
-				<h6 class="card-title" style="font-size:14px;font-weight:900">
-					{{$check_company->name}}
+				<div class="card p-2 mt-1 mb-4">
+					<div class="card-body p-0">
+						<b style="font-size:14px">{{$check_company->name}}</b>
+						<table>
+							<tbody>
+								
 
-				</h6>
-			</div>
-			<div class="card-body p-0">
-				<table>
-					<tbody>
-						@foreach ($item as $k=>$v)
-							@if($k != 'Sample Ref')
 								<tr>
-									@if ($k == "Code")
-									<td><strong>{{ $k }}</strong></td>
-									<td style="width: 80%;"><strong>{{ $v }}</strong></td>
-									@else
-									<td>{{ $k }}</td>
-									<td style="width: 80%;">{{ $v }}</td>
-									@endif
+									<td>Lab Ref. No</td>
+									<td>
+										<span class="barcode">{!! DNS1D::getBarcodeSVG($item['ref_no'], 'C128B') !!}</span><span class="btn btn-sm btn-transparent print-barcode" ><i class="mdi mdi-printer text-info"></i></span>
+									</td>
 								</tr>
-							@endif
-						@endforeach
-						<tr>
-							<td colspan="{{sizeof($item)}}" class="text-center">
-								<div class="p-2"><span class="barcode">{!! DNS1D::getBarcodeSVG($item['Lab Ref No'], 'C128B') !!}</span> <span class="btn btn-sm btn-transparent print-barcode"><i class="mdi mdi-printer text-info"></i></span></div>
-							</td>
-						</tr>
-					</tbody>
-				</table>
-			</div>
+								<tr>
+									<td>Date Received & Time</td>
+									<td>{{ $item['date_received'].' '.$item['time'].' '.(is_numeric(str_replace(':','',$item['time'])) ? 'hrs' : '').' - '.$item['received_by'] }}</td>
+								</tr>
+								<tr>
+									<td>Tests Required</td>
+									<td>{{ $item['test'] }}</td>
+								</tr>
+								
+							</tbody>
+						</table>
+				</div>
 
-		</div>
+			</div>
 		@endforeach
 	</div>
 </body>
