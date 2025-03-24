@@ -2690,7 +2690,7 @@
 										<th>Reporting Unit</th>
 										<th>Analyst</th>
 										@endif
-										<th>Method</th>
+										<th>Ref. Method</th>
 										<th>LTM</th>
 										@if(Auth::user()->is_client == 0)
 										<th>Equipment</th>				
