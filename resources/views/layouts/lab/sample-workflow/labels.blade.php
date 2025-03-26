@@ -24,6 +24,7 @@
 			html {
 				margin: 0px;
 				padding: 0px;
+				font-weight:800;
 			}
 			
 			
