@@ -153,6 +153,7 @@
                                                 {{ $captured->reporting_unit_id ?? '' }}
                                             </td>
                                             <td class="parameter ">
+                                                {{ getStandardLimitValue($captured->id, $sample->main_standard,1) ?? '' }}
                                                 {{ $captured->main_value == 'NS' ? '--' : ($captured->main_value ?? '') }}
                                                 {{ getStandardLimitValue($captured->id, $sample->main_standard) ?? '' }}
                                             </td>

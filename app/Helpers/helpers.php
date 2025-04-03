@@ -1583,7 +1583,15 @@ function convertDateFormatReports($date,$format){
 		return $format_date;
 	}
 }
-function getStandardLimitValue($captured_id,$standard_id){
+function giveLessThanData($remark){
+	if($remark == 'less_than'){
+		return '<';
+	}elseif($remark == 'greater_than'){
+		return '>';
+	}
+	return '';
+}
+function getStandardLimitValue($captured_id,$standard_id,$counter = 0){
 	$item = CapturedResult::find($captured_id);
 	
 	$analyte_standard = StandardAnalytes::where('standard_id', $standard_id)->where('analyte_id', $item->analyte_id)->first();
@@ -1592,7 +1600,13 @@ function getStandardLimitValue($captured_id,$standard_id){
 			$value_id = StandardValue::find($analyte_standard->standard_value_id);
 			if (isset($value_id->id)) {
 				if ($value_id->code == 'IsValue') {
-					return $analyte_standard->value_type == 'NS' ? '--' : $analyte_standard->value_type;
+					if($counter == 0 && in_array($analyte_standard->value_type,['less_than','greater_than'])){
+						return '';
+					}
+					if($counter == 1 && !in_array($analyte_standard->value_type,['less_than','greater_than'])){
+						return '';
+					}
+					return $analyte_standard->value_type == 'NS' ? '--' : (in_array($analyte_standard->value_type,['less_than','greater_than']) ? giveLessThanData($analyte_standard->value_type) : $analyte_standard->value_type) ;
 				}
 			}else{
 				return '';

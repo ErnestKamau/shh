@@ -4588,7 +4588,7 @@ class SampleWorkFlowController extends Controller
     public function awaitingApprovalSamples($status)
     {
         // return response()->json($status);
-        $headers = BatchLabSectionApprover::join('sample_headers as s', 's.id', '=', 'batch_labsection_approval.batch_id')->join('users as u', 'u.id', '=', 'batch_labsection_approval.user_id')->where('batch_labsection_approval.status', 0)->where('batch_labsection_approval.batch_status', $status)->selectRaw('s.*,u.name as batch_approver')->get();
+        $headers = BatchLabSectionApprover::join('sample_headers as s', 's.id', '=', 'batch_labsection_approval.batch_id')->join('users as u', 'u.id', '=', 'batch_labsection_approval.user_id')->where('batch_labsection_approval.status', 0)->where('batch_labsection_approval.batch_status', $status)->where('s.isactive',1)->selectRaw('s.*,u.name as batch_approver')->get();
         return response()->json($headers);
     }
     public function updateTatCaptured()

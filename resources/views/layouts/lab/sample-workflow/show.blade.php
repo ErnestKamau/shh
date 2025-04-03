@@ -177,7 +177,7 @@
 					@endif
 					@if(!in_array($batch->status,array('Samples In Lab',"Sample Verification","Sample Approval")))
 						<li>
-							<a target="_blank" href="{{route('generateCustomerFocusIndex',['batch_id'=>$batch->id])}}" class="btn btn-sm dropdown-item"><i class="mdi mdi-eye mr-2"></i> View Customer Focus</a>
+							<a target="_blank" href="{{route('generateCustomerFocusIndex',['batch_id'=>$batch->id])}}" class="btn btn-sm dropdown-item"><i class="mdi mdi-eye mr-2"></i> View Sample Submission Form</a>
 						</li>
 						@if($batch->schedule_analysis_sent == '')
 						<li>
