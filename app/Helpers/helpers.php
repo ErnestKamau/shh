@@ -2109,3 +2109,11 @@ function getUserTrainingRolesValues($user_id,$user_role,$skills_matrix_config_id
 	
 	return $response;		 		
 }
+// $captured->supercsript_base,$captured->superscript_negative,$captured->superscript_number,$captured->remark
+function getCustomExp($base,$is_neagtive,$to_power,$remark){
+	$pass_path = ['0'=>'ten_power_zero.JPG','-1'=>'ten_power_neg_one.JPG','-2'=>'ten_power_neg_two.JPG','-3'=>'ten_power_neg_three.JPG','-4'=>'ten_power_neg_four.JPG','-5'=>'ten_power_neg_five.JPG','-6'=>'ten_power_neg_six.JPG','-7'=>'ten_power_neg_seven.JPG','-8'=>'ten_power_neg_eight.JPG','-9'=>'ten_power_neg_nine.JPG','-10'=>'ten_power_neg_ten.JPG','-11'=>'ten_power_neg_eleven.JPG','-12'=>'ten_power_neg_twelve.JPG'];
+	$fail_path = ['0'=>'ten_power_zero_red.JPG','-1'=>'ten_power_neg_one_red.JPG','-2'=>'ten_power_neg_two_red.JPG','-3'=>'ten_power_neg_three_red.JPG','-4'=>'ten_power_neg_four_red.JPG','-5'=>'ten_power_neg_five_red.JPG','-6'=>'ten_power_neg_six_red.JPG','-7'=>'ten_power_neg_seven_red.JPG','-8'=>'ten_power_neg_eight_red.JPG','-9'=>'ten_power_neg_nine_red.JPG','-10'=>'ten_power_neg_ten_red.JPG','-11'=>'ten_power_neg_eleven_red.JPG','-12'=>'ten_power_neg_twelve_red.JPG'];
+	$expo_path = $remark == 'FAIL' ? 'images/failexpo/'.$fail_path[strval($to_power)] : 'images/passexpo/'.$pass_path[$to_power];
+	$image = public_path($expo_path);
+	return '<span>'.$base.' x </span><img src="'.$image.'" alt="expo icon" style="width:12px !important;height:10px !important;margin-top:3px !important">';
+}

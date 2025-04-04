@@ -15,6 +15,7 @@
 </head>
 
 <style>
+    
     @page {
         /* margin-top: 20px; */
         margin-bottom: 10px;
@@ -31,9 +32,8 @@
         }
 
     }
-
     * {
-        font-family:  "Arial Unicode MS", 'Times New Roman', Times, serif;
+        font-family: "Times New Roman", "Arial Unicode MS", Times, serif;
         font-stretch: normal;
     }
 
@@ -111,6 +111,10 @@
     .result-t{
         font-family: "Arial Unicode MS", "Times New Roman", sans-serif !important;
     }
+    sup {
+        font-size: 0.8em;
+        vertical-align: super;
+    }
 
 </style>
 
@@ -129,8 +133,9 @@
                     <td style="width: 97%">
                         <div class="text-center" style="font-size: 7px !important;">
                             <p>This document is only valid in its entirety and your attention is drawn to the Terms and
-                                Conditions.</p>
+                                Conditions. </p>
                             <p>{{ $disclaimer->value }}</p>
+
                         </div>
                     </td>
                 </tr>
@@ -293,7 +298,7 @@ $printed_pos = [];
                                 </td>
                                 <td class="parameter result-t {{ $captured->remark == 'FAIL' ? 'textBold text-danger' : '' }}"
                                     style="font-size: 9px !important;padding-left:3px !important;">
-                                    {{ $captured->result_reporting_symbol ?? '' }}{!! $captured->result != '' ? formatReportResults($captured->scienctific_result) : 'TBA' !!}
+                                    {{ $captured->result_reporting_symbol ?? '' }}{!! $captured->result != '' ? ( $captured->supercsript_base != '' ? getCustomExp( $captured->supercsript_base,$captured->superscript_negative,$captured->superscript_number,$captured->remark) :  formatReportResults( $captured->scienctific_result)) : 'TBA' !!}
                                 </td>
                                 @if ($batch->require_mu == 1)
                                     <td class="parameter" style="font-size: 9px !important;padding-left:3px !important;">

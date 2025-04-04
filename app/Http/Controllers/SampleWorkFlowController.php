@@ -2084,9 +2084,17 @@ class SampleWorkFlowController extends Controller
             
             if ($batch->status == 'Samples In Lab') {
                 $captured->ltm_method_id = $request->ltm_method_id[$cID] ?? '';
-                $captured->scienctific_result = !is_numeric($request->result[$cID]) ? $request->result[$cID] : $this->toScientificNotation($request->result[$cID]);
+                $scientific_arr = is_numeric($request->result[$cID]) ?  $this->toScientificNotation($request->result[$cID]) : [];
+                $captured->scienctific_result = !is_numeric($request->result[$cID]) ? $request->result[$cID] : $scientific_arr['scientific'];
                 $captured->result = $request->result[$cID] ?? '';
                 $captured->remark = $captured->remark_is_manual == 0 ? $request->remark[$cID] : $request->remarkmanual[$cID];
+                if(is_numeric($request->result[$cID])){
+                    if($scientific_arr['to_power'] <= 0){
+                        $captured->supercsript_base = number_format($scientific_arr['value'],1);
+                        $captured->superscript_number = $scientific_arr['to_power'];
+                        $captured->superscript_negative = round(intval($request->result[$cID])) >= 1 ? 0 : 1;
+                    }
+                }
                 $standard_main = Standards::where('code', $request->main_standard[$cID])->first();
                 $sec_standard = Standards::where('code', $request->secondary_standard[$cID])->first();
                 $third_standard = Standards::where('code', $request->third_standard[$cID])->first();
@@ -2203,7 +2211,7 @@ class SampleWorkFlowController extends Controller
             array_push($remarkArr, $third_res);
         }
 
-        // return response()->json($remarkArr);
+        return response()->json($remarkArr,200);
 
         if (in_array('FAIL', array_unique($remarkArr))) {
             return response()->json('FAIL', 200);
@@ -2283,12 +2291,13 @@ class SampleWorkFlowController extends Controller
                                         $response = $result >= floatval($analyte_guide->standard_is_value) ? 'PASS' : 'FAIL';
                                     }
                                     if ($analyte_guide->value_type == 'less_than') {
-                                        $response = $result < floatval($analyte_guide->standard_is_value) ? 'PASS' : 'FAIL';
+                                        $response = $result <= floatval($analyte_guide->standard_is_value) ? 'PASS' : 'FAIL';
                                     }
                                     if ($analyte_guide->value_type == 'greater_than') {
-                                        $response = $result > floatval($analyte_guide->standard_is_value) ? 'PASS' : 'FAIL';
+                                        $response = $result >= floatval($analyte_guide->standard_is_value) ? 'PASS' : 'FAIL';
                                     }
                                 } elseif ($reporting_symbol == '<') {
+                                    
                                     if ($analyte_guide->value_type == 'Max' || $analyte_guide->value_type == '' || $analyte_guide->value_type == null) {
                                         $response = $result <= floatval($analyte_guide->standard_is_value) ? 'PASS' : 'FAIL';
                                     }
@@ -2296,10 +2305,10 @@ class SampleWorkFlowController extends Controller
                                         $response = $result > floatval($analyte_guide->standard_is_value) ? 'PASS' : 'FAIL';
                                     }
                                     if ($analyte_guide->value_type == 'less_than') {
-                                        $response = $result < floatval($analyte_guide->standard_is_value) ? 'PASS' : 'FAIL';
+                                        $response = $result <= floatval($analyte_guide->standard_is_value) ? 'PASS' : 'FAIL';
                                     }
                                     if ($analyte_guide->value_type == 'greater_than') {
-                                        $response = $result > floatval($analyte_guide->standard_is_value) ? 'PASS' : 'FAIL';
+                                        $response = $result >= floatval($analyte_guide->standard_is_value) ? 'PASS' : 'FAIL';
                                     }
                                 } else {
                                     if ($analyte_guide->value_type == 'Max' || $analyte_guide->value_type == '') {
@@ -4824,7 +4833,7 @@ class SampleWorkFlowController extends Controller
         }
     
         
-        return sprintf("%.1f × 10%s", $coefficient, $this->toSuperscript($exponent));
+        return ['value'=>$coefficient,'to_power'=>$exponent,'scientific'=> sprintf("%.1f × 10%s", $coefficient, $this->toSuperscript($exponent))];
     }
     private function toSuperscript($number) {
         $superscripts = [

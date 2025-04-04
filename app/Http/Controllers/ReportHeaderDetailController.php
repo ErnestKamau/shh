@@ -129,6 +129,7 @@ class ReportHeaderDetailController extends Controller
 		$path = public_path('images/qplus_header_with_sanas.jpg');
 		$without_path = public_path('images/qplus_header_without_sanas.jpg');
 		$stamp = public_path('images/stamp.jpeg');
+		
 
 		$batch = \App\SampleHeader::find($batch_id);
 		$batch->processing_date = getTodayDate();
@@ -191,6 +192,9 @@ class ReportHeaderDetailController extends Controller
 // $options->set('isHtml5ParserEnabled', true);
 // $options->set('isFontSubsettingEnabled', true);
 		$pdf->getDomPDF()->set_option("enable_php", true);
+		$pdf->getDomPDF()->set_option("isPhpEnabled", true);
+		$pdf->getDomPDF()->set_option("debugCss", true);
+		$pdf->getDomPDF()->set_option("debugLayout", true);
 		$pdf->getDomPDF()->set_option("isHtml5ParserEnabled", true);
 		$pdf->getDomPDF()->set_option("isFontSubsettingEnabled", true);
 
