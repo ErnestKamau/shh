@@ -99,7 +99,7 @@
             <select name="method_type_id" data-ltmid="{{ json_encode($ltm_id->value) }}" id="" class="form-control method_type_id">
               <option value="">Select Type</option>
               @foreach ($method_types as $m_type)
-                <option value="{{ $$m_type->id }}">{{ $$m_type->value }}</option>
+                <option value="{{ $m_type->id }}">{{ $m_type->value }}</option>
               @endforeach
             </select>
           </div>
@@ -176,10 +176,10 @@
         </div>
         <div class="form-group">
           <label for="" class="control-label">Method Type</label>
-          <select name="method_type_id" id="" data-ltmid="{{ json_encode($ltm_id->value) }} class="form-control method_type_id">
+          <select name="method_type_id" id="" data-ltmid="{{ json_encode($ltm_id->value) }}" class="form-control method_type_id">
             <option value="">Select Type</option>
             @foreach ($method_types as $m_type)
-              <option value="{{ $$m_type->id }}">{{ $$m_type->value }}</option>
+              <option value="{{ $m_type->id }}">{{ $m_type->value }}</option>
             @endforeach
           </select>
         </div>

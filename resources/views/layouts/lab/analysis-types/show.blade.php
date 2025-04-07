@@ -155,6 +155,7 @@
                     <th>Reporting Time</th>
                     <th>L.O.D.</th>
                     <th>Significant Figures</th>
+                    <th>Has Formular</th>
                     <th>Method</th>
                     <th>LTM</th>
                     <th>Equipment</th>
@@ -188,6 +189,7 @@
                     <td>{{$analyte->reporting_time > 0 ? $analyte->reporting_time : $analysis_type->reporting_time }}</td>
                     <td>{{ $analyte->lod == null ? '' : ( $analyte->significant_figures == null ? $analyte->lod : sigFig($analyte->lod, $analyte->significant_figures)) }}</td>
                     <td>{{ $analyte->significant_figures }}</td>
+                    <td class="text-center">{!! $analyte->is_formular_required == 1 ? '<i class="mdi mdi-check-bold text-success"></i>' : '-' !!}</td>
                     <td nowrap>{{ $analyte->mmethod->name ?? '-' }}</td>
                     <td nowrap>{{ $analyte->ltmethod->name ?? '-' }}</td>
                     <td nowrap>{{ $analyte->equipment->name  ?? '-' }}</td>
@@ -503,7 +505,7 @@
           <label class="control-label"><input type="checkbox" name="is_manual" value="1" checked /> Is Manual</label>
         </div>
         <div class="form-group">
-          <label class="control-label"><input type="checkbox" name="is_formular_required" value="1" checked /> Result requires formular ? </label>
+          <label class="control-label"><input type="checkbox" name="is_formular_required" value="1" /> Result requires formular ? </label>
         </div>
       </div>
       <div class="modal-footer">
@@ -679,6 +681,9 @@
         </div>
         <div class="form-group">
           <label class="control-label"><input type="checkbox" name="is_manual" value="1" ${ data.is_manual == 1 ? 'checked' : '' } /> Is Manual</label>
+        </div>
+         <div class="form-group">
+          <label class="control-label"><input type="checkbox" name="is_formular_required" ${ data.is_formular_required == 1 ? 'checked' : '' } value="1" /> Result requires formular ? </label>
         </div>
     `).clone();
     $(body).find('#analyte_id').val(data.analyte_id);

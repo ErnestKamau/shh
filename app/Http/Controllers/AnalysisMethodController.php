@@ -27,7 +27,8 @@ class AnalysisMethodController extends Controller
     $reference_id = SystemConfiguration::where('key','method_reference_id')->first();
     $ltm_id = SystemConfiguration::where('key','method_ltm_id')->first();
     $methods = AnalysisMethod::with(['referencemethod','methodtype'])->get();
-    $method_types = SystemConfiguration::where('key','method_type');
+    $method_types = SystemConfiguration::where('key','method_type')->get();
+
     $references = AnalysisMethod::where('method_type_id',$reference_id)->get();
 
     return view('layouts.lab.methods.index', compact('companies', 'methods','references','reference_id','method_types','ltm_id'));
