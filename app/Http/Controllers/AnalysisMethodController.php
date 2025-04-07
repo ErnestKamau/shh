@@ -5,6 +5,8 @@ namespace App\Http\Controllers;
 use App\Analyte;
 use App\Company;
 use App\AnalysisMethod;
+
+use App\Models\System\SystemConfiguration;
 use Illuminate\Http\Request;
 
 class AnalysisMethodController extends Controller
@@ -22,11 +24,13 @@ class AnalysisMethodController extends Controller
   public function index(Request $request, $sample_type_id = 0)
   {
     $companies = Company::all();
+    $reference_id = SystemConfiguration::where('key','method_reference_id')->first();
+    $ltm_id = SystemConfiguration::where('key','method_ltm_id')->first();
+    $methods = AnalysisMethod::with(['referencemethod','methodtype'])->get();
+    $method_types = SystemConfiguration::where('key','method_type');
+    $references = AnalysisMethod::where('method_type_id',$reference_id)->get();
 
-    $methods = AnalysisMethod::with(['referencemethod'])->get();
-    $references = AnalysisMethod::where('is_sampling_method',0)->where('is_ltm',0)->get();
-
-    return view('layouts.lab.methods.index', compact('companies', 'methods','references'));
+    return view('layouts.lab.methods.index', compact('companies', 'methods','references','reference_id','method_types','ltm_id'));
   }
 
   /**
@@ -43,9 +47,7 @@ class AnalysisMethodController extends Controller
     $analysis_type->description = $request->description;
     $analysis_type->company_id = getUserCompany();
     $analysis_type->active = $request->active ?? 0;
-    $analysis_type->is_sampling_method = $request->method_type_id == 2 ? 1 : 0;
-    $analysis_type->is_ltm = $request->method_type_id == 1 ? 1 : 0;
-    $analysis_type->reference_type_id = $request->reference_method_id;
+    $analysis_type->method_type_id = $request->method_type_id;
     $analysis_type->save();
 
     return redirect()->back()->with('success', 'Analysis Method added.');
@@ -60,9 +62,7 @@ class AnalysisMethodController extends Controller
     $analysis_type->description = $request->description;
     $analysis_type->company_id = getUserCompany();
     $analysis_type->active = $request->active ?? 0;
-    $analysis_type->is_sampling_method = $request->method_type_id == 2 ? 1 : 0;
-    $analysis_type->is_ltm = $request->method_type_id == 1  ?? 0;
-    $analysis_type->reference_type_id = $request->reference_method_id;
+    $analysis_type->method_type_id = $request->method_type_id;
     $analysis_type->save();
 
     return redirect()->back()->with('success', 'Analysis Method edited.');
@@ -70,7 +70,7 @@ class AnalysisMethodController extends Controller
 
   public function show(Request $request, $id){
     $companies = Company::all();
-    $analysis_method = AnalysisMethod::find($id);
+    $analysis_method = AnalysisMethod::with(['referencemethod','methodtype'])->find($id);
     $analytes = Analyte::all();
 
 

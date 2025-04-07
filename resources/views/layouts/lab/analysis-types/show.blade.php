@@ -502,6 +502,9 @@
         <div class="form-group">
           <label class="control-label"><input type="checkbox" name="is_manual" value="1" checked /> Is Manual</label>
         </div>
+        <div class="form-group">
+          <label class="control-label"><input type="checkbox" name="is_formular_required" value="1" checked /> Result requires formular ? </label>
+        </div>
       </div>
       <div class="modal-footer">
         <button type="submit" class="btn btn-primary"><i class="mdi mdi-content-save"></i> Save</button>

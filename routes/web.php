@@ -128,7 +128,8 @@ Route::get('/reporting-unit/addAjax', 'ReportingUnitController@addAjax')->name('
 
 Route::get('/sample-analysis-stages', 'SampleAnalysisStageController@index')->name('sample-analysis-stages')->middleware('haspermission:Laboratory.components.Sample-Tracking-Stages.View');
 Route::post('/sample-analysis-stages', 'SampleAnalysisStageController@add')->name('add-sample-analysis-stage')->middleware('haspermission:Laboratory.components.Sample-Tracking-Stages.Add');
-Route::post('/sample-analysis-stage/{id}', 'SampleAnalysisStageController@update')->name('update-sample_analysis_stage')->middleware('haspermission:Laboratory.components.Sample-Tracking-Stages.Edit');
+Route::post('/sample-analysis-stage/update', 'SampleAnalysisStageController@update')->name('update-sample_analysis_stage')->middleware('haspermission:Laboratory.components.Sample-Tracking-Stages.Edit');
+Route::post('/sample-stages/delete','SampleAnalysisStageController@deleteStage')->name('delete-stage')->middleware('haspermission:Laboratory.components.Sample-Tracking-Stages.Delete');
 
 Route::post('/sample-analysis-stages-to-sample-type/{sample_type_id}', 'SampleToSampleAnalysisStageController@add')->name('add-sample-analysis-stage-to-sample-type');
 Route::post('/sample-analysis-stages-to-sample-type/{id}/inactivate', 'SampleToSampleAnalysisStageController@update')->name('update-sample-analysis-stage-to-sample-type');

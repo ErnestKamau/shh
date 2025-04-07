@@ -2,6 +2,7 @@
 
 namespace App;
 
+use App\Models\System\SystemConfiguration;
 use Illuminate\Database\Eloquent\Model;
 use OwenIt\Auditing\Contracts\Auditable;
 
@@ -32,5 +33,8 @@ class AnalysisMethod extends Model implements Auditable
 	}
 	public function referencemethod(){
 		return $this->belongsTo(AnalysisMethod::class,'reference_type_id');
+	}
+	public function methodtype(){
+		return $this->belongsTo(SystemConfiguration::class,'method_type_id');
 	}
 }

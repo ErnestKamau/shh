@@ -58,6 +58,7 @@ class AnalysisElementsController extends Controller
     $element->lab_section_id = AnalysisType::find($request->analysis_type_id)->lab_section_id;
     $element->remark_is_manual = $request->remark_is_manual ?? 0;
     $element->ltm_method_id = $request->ltm_method_id;
+    $element->is_formular_required = $request->is_formular_required;
     $element->save();
     CapturedResult::where('analysis_type_id',$element->analysis_type_id)->where('analyte_id',$element->analyte_id)->whereNull('result')->update(['remark_is_manual'=>$element->remark_is_manual]);
     Result::where('analysis_type_id',$element->analysis_type_id)->where('analyte_id',$element->analyte_id)->whereNull('result')->update(['remark_is_manual'=>$element->remark_is_manual]);
@@ -95,7 +96,7 @@ class AnalysisElementsController extends Controller
     $element->lab_section_id = $request->lab_section_id;
     $element->remark_is_manual = $request->remark_is_manual ?? 0;
     $element->ltm_method_id = $request->ltm_method_id;
-
+    $element->is_formular_required = $request->is_formular_required;
     $element->save();
     CapturedResult::where('analysis_type_id',$element->analysis_type_id)->where('analyte_id',$element->analyte_id)->update(['remark_is_manual'=>$element->remark_is_manual,'lab_section_id'=>$element->lab_section_id]);
     Result::where('analysis_type_id',$element->analysis_type_id)->where('analyte_id',$element->analyte_id)->update(['remark_is_manual'=>$element->remark_is_manual,'lab_section_id'=>$element->lab_section_id]);

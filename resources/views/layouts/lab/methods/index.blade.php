@@ -21,11 +21,11 @@
     ?>
     <x-bread-crumb :items="$items"></x-bread-crumb>
     <h2 class="p-4">
-      <i class="mdi mdi-cogs"></i> Analysis Methods
+      <i class="mdi mdi-cogs"></i> Methods
       {{-- <span class="btn btn-sm btn-white"><i class="mdi mdi-file-import-outline"></i> Import</span> --}}
       <button class="btn btn-primary btn-sm float-right" data-toggle="modal" data-target="#add-method"><i class="mdi mdi-plus"></i> Add</button>
     </h2>
-    <br>
+    
     <div class="table-responsive bg-light p-4">
       <table class="table table-condensed my-small-text table-striped table-hover table-bordered table-sm">
         <thead class="bg-light p-2">
@@ -52,7 +52,7 @@
                 <td>{{ $method->referencemethod->name ?? '-' }}</td>
                 <td>{{ number_format($method->analytes()->count()) }}</td>
                 
-                <td>{!! $method->is_sampling_method == 0 && $method->is_ltm == 0 ? '<span>Reference Method</span>' : ( $method->is_sampling_method == 1 ? '<span>Sampling Method</span>': '<span>Laboratory Test Method</span>' )  !!}</td>
+                <td>{{ $method->methodtype->value ?? 'Not Set' }}</td>
                 <td class="text-small">{!! $method->active == '1' ? '<i class="mdi mdi-marker-check text-success"></i>' : '<i class="mdi mdi-close-circle text-danger"></i>' !!}</td>
                 <td nowrap>
                   <button class="btn btn-primary btn-sm" data-target="#edit-method" data-toggle="modal" data-record="{{ json_encode($method) }}"><i class="mdi mdi-pencil-outline"></i> <small class="hidden-sm-up">Edit</small> </button>
@@ -96,11 +96,11 @@
           </div>
           <div class="form-group">
             <label for="" class="control-label">Method Type</label>
-            <select name="method_type_id" id="" class="form-control method_type_id">
+            <select name="method_type_id" data-ltmid="{{ json_encode($ltm_id->value) }}" id="" class="form-control method_type_id">
               <option value="">Select Type</option>
-              <option value="0">Reference Method</option>
-              <option value="1">Laboratory Test Method</option>
-              <option value="2">Sampling Method</option>
+              @foreach ($method_types as $m_type)
+                <option value="{{ $$m_type->id }}">{{ $$m_type->value }}</option>
+              @endforeach
             </select>
           </div>
           <div class="form-group reference_method_id hidden">
@@ -142,10 +142,14 @@
   </div>
   <script>
     $(()=>{
+
+      const ltm_id = $('#add-method').find('.method_type_id').data('ltmid');
+
       $('#add-method').on('show.bs.modal',(e)=>{
         $('#add-method').find('.method_type_id').on('change',()=>{
+          
           var method = $('#add-method').find('.method_type_id').val();
-          if(method == 1){
+          if(method == ltm_id){
             $('#add-method').find('.reference_method_id').removeClass('hidden');
           }else{
             $('#add-method').find('.reference_method_id').addClass('hidden');
@@ -172,11 +176,11 @@
         </div>
         <div class="form-group">
           <label for="" class="control-label">Method Type</label>
-          <select name="method_type_id" id="" class="form-control method_type_id">
+          <select name="method_type_id" id="" data-ltmid="{{ json_encode($ltm_id->value) }} class="form-control method_type_id">
             <option value="">Select Type</option>
-            <option value="0" ${data.is_sampling_method == 0 ? (data.is_ltm == 0 ? 'selected' : '' ) : ''}>Reference Method</option>
-            <option value="1" ${data.is_ltm == 1 ? 'selected' : ''}>Laboratory Test Method</option>
-            <option value="2" ${data.is_sampling_method == 1 ? 'selected' : ''}>Sampling Method</option>
+            @foreach ($method_types as $m_type)
+              <option value="{{ $$m_type->id }}">{{ $$m_type->value }}</option>
+            @endforeach
           </select>
         </div>
         <div class="form-group reference_method_id ${data.is_ltm == 1 ? '' : 'hidden'}">
@@ -193,12 +197,13 @@
         </div>
         <input type="hidden" name="method_id" value="${data.id}">
         `).clone();
+        $(body).find('.method_type_id').val(data.method_type_id);
         $(body).find('.reference_method').val(data.reference_type_id);
         $(body).find('.reference_method').select2();
         $(body).find('.method_type_id').select2();
         $(body).find('.method_type_id').on('change',(e)=>{
             var value = $(body).find('.method_type_id').val();
-            if(value ==1){
+            if(value == ltm_id){
               $(body).find('.reference_method_id').removeClass('hidden');
             }else{
               $(body).find('.reference_method_id').addClass('hidden');

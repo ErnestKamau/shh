@@ -111,8 +111,11 @@ class AnalysisTypeController extends Controller
   public function show(Request $request, $id){
     $analytes = Analyte::all();
     $analysis_type = AnalysisType::with(['analysis_elements'])->find($id);
-    $methods = AnalysisMethod::where('is_sampling_method',0)->where('is_ltm',0)->where('active',1)->get();
-    $ltmethods = AnalysisMethod::where('is_sampling_method',0)->where('is_ltm',1)->where('active',1)->get();
+    $ltm_id = SystemConfiguration::where('key','method_ltm_id')->first();
+    $is_sampling_method = SystemConfiguration::where('key','sampling_method_type_id')->first();
+
+    $methods = AnalysisMethod::whereNotIn('method_type_id',[$ltm_id->value,$is_sampling_method->value])->where('active',1)->get();
+    $ltmethods = AnalysisMethod::where('method_type_id',$ltm_id->value)->where('active',1)->get();
     $sample_types = SampleType::all();
     $labs = Lab::all();
     $analyst_role = SystemConfiguration::where('key','analyst_role_id')->first();
@@ -120,11 +123,6 @@ class AnalysisTypeController extends Controller
     $usersAnalysts = User::whereIn('id',$usersIds)->get();
 
     $analysis_type_id = $id;
-    // return response()->json($analysis_type->guides,200);
-    // foreach($analysis_type->guides as $ag){
-    //   $analysis_standard = getStandardByid($ag->standard_id);
-    // }
-
     return view('layouts.lab.analysis-types.show', compact('analysis_type', 'sample_types', 'labs', 'analytes', 'analysis_type_id','usersAnalysts','methods','ltmethods'));
 	}
 
