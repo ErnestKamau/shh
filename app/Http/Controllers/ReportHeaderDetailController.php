@@ -27,6 +27,8 @@ use Illuminate\Database\Eloquent\Builder;
 // use Illuminate\Support\Facades\Storage;
 use PDF;
 use PhpParser\PrettyPrinter\Standard;
+use setasign\Fpdi\Fpdi;
+
 
 class ReportHeaderDetailController extends Controller
 {
@@ -129,7 +131,7 @@ class ReportHeaderDetailController extends Controller
 		$path = public_path('images/qplus_header_with_sanas.jpg');
 		$without_path = public_path('images/qplus_header_without_sanas.jpg');
 		$stamp = public_path('images/stamp.jpeg');
-		
+
 
 		$batch = \App\SampleHeader::find($batch_id);
 		$batch->processing_date = getTodayDate();
@@ -137,7 +139,7 @@ class ReportHeaderDetailController extends Controller
 		$batch->save();
 		$main_lab = implode(' ,', array_unique(SamplesCategory::where('sample_header_id', $batch->id)->pluck('main_lab_name')->toArray()));
 		//AnalysisType::whereNull('brand_id')->update(['brand_id'=>0]);
-		$ammendment = BatchAmmendment::where('batch_id', $batch->id)->orderBy('id','DESC')->first();
+		$ammendment = BatchAmmendment::where('batch_id', $batch->id)->orderBy('id', 'DESC')->first();
 		$report_type = '';
 		$report_type = $batch->prelim_report_status == 1 ? 'PRELIM' : $report_type;
 		$report_type = $batch->prelim_report_status == 2 ? 'DRAFT' : $report_type;
@@ -176,7 +178,8 @@ class ReportHeaderDetailController extends Controller
 		$qrcode = base64_encode(\QrCode::format('svg')->size(50)->errorCorrection('H')->generate($qr_url));
 		// return response()->json($batch_result,200);
 		$samples = SamplesCategory::where('sample_header_id', $batch->id)->get();
-		
+
+		$tempFiles = [];
 		foreach ($samples as $sample) {
 			$allCapturedResultsCount = CapturedResult::where('sample_detail_id', $sample->id)->where('sample_header_id', $batch->id)->get()->count();
 			$isAccreditedCount = CapturedResult::where('sample_detail_id', $sample->id)->where('sample_header_id', $batch->id)->where('analyte_accredited', 1)->get()->count();
@@ -184,43 +187,66 @@ class ReportHeaderDetailController extends Controller
 			$idArrs = array_unique(CapturedResult::where('sample_detail_id', $sample->id)->where('sample_header_id', $batch->id)->pluck('lab_section_id')->toArray());
 			array_push($idArrs, 0);
 			$sample['lab_sect_ids_arr'] = $idArrs;
-		}
-		// $samples = SamplesCategory::where('sample_header_id',$batch->id)->get();
-		ini_set('max_execution_time', 300); //300 seconds = 5 minutes 
-		$pdf = app('dompdf.wrapper');
-// 		$options->set('defaultFont', 'Arial Unicode MS');
-// $options->set('isHtml5ParserEnabled', true);
-// $options->set('isFontSubsettingEnabled', true);
-		$pdf->getDomPDF()->set_option("enable_php", true);
-		$pdf->getDomPDF()->set_option("isPhpEnabled", true);
-		$pdf->getDomPDF()->set_option("debugCss", true);
-		$pdf->getDomPDF()->set_option("debugLayout", true);
-		$pdf->getDomPDF()->set_option("isHtml5ParserEnabled", true);
-		$pdf->getDomPDF()->set_option("isFontSubsettingEnabled", true);
 
-		$pdf = PDF::loadView('layouts.lab.reports.coa_formats.standard_report', compact('samples', 'company', 'qrcode', 'path', 'batch_approvers', 'pdf', 'batch', 'non_accredited', 'disclaimer', 'customer', 'report_type', 'analysis_date', 'stamp', 'is_stamp', 'ammendment', 'main_lab','without_path'));
+			$sample_file_name = $customer_name . $sample->sample_code . '-date("d-M-Y-H-i-s").pdf';
 
-		// return $pdf->stream($filename);
-		if (is_dir(storage_path() . '/app/reports/' . $customer_name)) {
-			$pdf->save(storage_path() . '/app/reports/' . $customer_name . '/' . $filename);
-		} else {
-			$path = storage_path() . '/app/reports/' . $customer_name;
-			// $pdf->save(storage_path() . '/app/reports/' . $customer_name . '/' . $filename);
-			$check = mkdir($path);
-			if ($check) {
+			ini_set('max_execution_time', 300); //300 seconds = 5 minutes 
+			$pdf = app('dompdf.wrapper');
+			$pdf->getDomPDF()->set_option("enable_php", true);
+			$pdf->getDomPDF()->set_option("isHtml5ParserEnabled", true);
+			$pdf->getDomPDF()->set_option("isFontSubsettingEnabled", true);
 
-				$pdf->save(storage_path() . '/app/reports/' . $customer_name . '/' . $filename);
+			$pdf = PDF::loadView('layouts.lab.reports.coa_formats.standard_report', compact('sample', 'company', 'qrcode', 'path', 'batch_approvers', 'pdf', 'batch', 'non_accredited', 'disclaimer', 'customer', 'report_type', 'analysis_date', 'stamp', 'is_stamp', 'ammendment', 'main_lab', 'without_path'));
+			$tempFile = storage_path() . '/app/reports/sample_temp_file/' . $sample_file_name;
+
+			if (is_dir(storage_path() . '/app/reports/sample_temp_file')) {
+				$pdf->save(storage_path() . '/app/reports/sample_temp_file/' . $sample_file_name);
+				$tempFiles[] = $tempFile;
 			} else {
-				return redirect()->back()->with('error', 'Error while creating customer storage folder');
+				$path = storage_path() . '/app/reports/sample_temp_file';
+				// $pdf->save(storage_path() . '/app/reports/' . $customer_name . '/' . $filename);
+				$check = mkdir($path);
+				if ($check) {
+					$pdf->save(storage_path() . '/app/reports/sample_temp_file/' . $sample_file_name);
+					$tempFiles[] = $tempFile;
+				} else {
+					return redirect()->back()->with('error', 'Error while creating customer storage folder');
+				}
 			}
 		}
-		$local_path = storage_path() . '/app/reports/' . $customer_name . '/' . $filename;
+
+		$mergedPdf = new Fpdi();
+		foreach ($tempFiles as $file) {
+			$pageCount = $mergedPdf->setSourceFile($file);
+			for ($i = 1; $i <= $pageCount; $i++) {
+				$tplIdx = $mergedPdf->importPage($i);
+				$size = $mergedPdf->getTemplateSize($tplIdx);
+				$mergedPdf->AddPage($size['orientation'], [$size['width'], $size['height']]);
+				$mergedPdf->useTemplate($tplIdx);
+			}
+		}
+		// $samples = SamplesCategory::where('sample_header_id',$batch->id)->get();
+		$finalPath = storage_path() . '/app/reports/' . $customer_name;
+		if (!is_dir($finalPath)) {
+			mkdir($finalPath, 0775, true);
+		}
+
+		$mergedPdf->Output($finalPath . '/' . $filename, 'F');
+
+		$batch->batch_report_url = '/reports/' . $customer_name . '/' . $filename;
+		$batch->save();
+		foreach ($tempFiles as $file) {
+			unlink($file);
+		}
+		// return $pdf->stream($filename);
+		
+		// $local_path = storage_path() . '/app/reports/' . $customer_name . '/' . $filename;
 
 		// $this->moveFTP($ftppath, $local_path);
 
-		$batch->batch_report_url = '/reports/' . $customer_name . '/' . $filename;
+		// $batch->batch_report_url = '/reports/' . $customer_name . '/' . $filename;
 		// $batch->batch_report_online_url = 'https://polucon.co.ke/imara_reports/' . $ftppath;
-		$batch->save();
+		// $batch->save();
 
 		return 'success';
 	}

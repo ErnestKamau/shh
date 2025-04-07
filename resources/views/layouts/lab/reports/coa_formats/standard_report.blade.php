@@ -150,7 +150,7 @@ $printed_sig = [];
 $printed_pos = [];
     
     ?>
-    @foreach ($samples as $sample)
+   
         <header class="header">
             <table style="width: 100%;border:0px;">
                 <tr>
@@ -161,7 +161,7 @@ $printed_pos = [];
             </table>
         </header>
 
-        <main style="margin-bottom:100px">
+        <main style="margin-bottom:80px">
             <table class="table table-sm"
                 style="font-size: 11px;border:solid 0 transparent !important;border-bottom:solid 2px black !important;width:100%">
                 <tr>
@@ -328,7 +328,7 @@ $printed_pos = [];
                     </tr>
                 </tbody>
             </table>
-
+            @if($sample->header_body != '' || $sample->main_body != '' || $sample->notes_body != '' || isset($ammendment->id))
             <table style="margin:0px !important;width:100%">
                 @if ($sample->header_body != '')
                     <tr style="margin:0px !important">
@@ -366,6 +366,7 @@ $printed_pos = [];
                 @endif
 
             </table>
+            @endif
             <table class="table table-sm" style="width:100%;margin:0px">
                 <tr>
                     <td style="font-size:10px !important;border:solid 0 transparent">
@@ -444,11 +445,7 @@ $printed_pos = [];
             </div>
            
         </main>
-        @if ($loop->iteration < $samples->count())
-            <div style="page-break-after: always;">
-            </div>
-        @endif
-    @endforeach
+      
     <script type="text/php">
     if (isset($pdf)) {
         $text = "Page {PAGE_NUM} of {PAGE_COUNT}";
