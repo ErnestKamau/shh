@@ -117,8 +117,17 @@ class CustomerContactController extends Controller
 		}elseif(isset($request->has_credentials) && $contact->can_login ==1){
 			$contact->can_login = 1;
 			$user = User::where('email',$email)->first();
+			if(!isset($user->id)){
+				$user = new User();
+				$user->name = $request->first_name." ".$request->middle_name." ".$request->last_name;
+				$user->password = bcrypt($request->main_password);
+				$user->email = $request->email;
+				$user->company_id = getUserCompany();
+				$user->is_client = 1;
+				$user->client_id = $cust_id;
+			}
 			$user->name = $request->first_name." ".$request->middle_name." ".$request->last_name;
-			$user->password = $request->main_password;
+			$user->password = bcrypt($request->main_password);
 			$user->email = $request->email;
 			$user->save();
 		}else{

@@ -152,7 +152,9 @@ class DashboardController extends Controller
                 // array_push($gps,$sample_detail);
                 
                 $sample_point = SamplePoint::find($sample_detail->sample_point_id);
-                array_push($gps,$sample_point->gps);
+                if(isset($sample_point->id)){
+                    array_push($gps,$sample_point->gps);
+                }
                 
                 
             }

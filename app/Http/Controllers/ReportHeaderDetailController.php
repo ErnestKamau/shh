@@ -239,7 +239,7 @@ class ReportHeaderDetailController extends Controller
 			unlink($file);
 		}
 		// return $pdf->stream($filename);
-		
+
 		// $local_path = storage_path() . '/app/reports/' . $customer_name . '/' . $filename;
 
 		// $this->moveFTP($ftppath, $local_path);
