@@ -128,8 +128,8 @@ class ReportHeaderDetailController extends Controller
 	public function process_pdf_report($batch_id, $report_format, $include_pesticide = 0)
 	{
 		// return response()->json('success3');
-		$path = public_path('images/qplus_header_with_sanas.jpg');
-		$without_path = public_path('images/qplus_header_without_sanas.jpg');
+		$path = public_path('images/imara_header_with_accreditation.jpg');
+		$without_path = public_path('images/imara_header_without_accreditation.jpg');
 		$stamp = public_path('images/stamp.jpeg');
 
 
