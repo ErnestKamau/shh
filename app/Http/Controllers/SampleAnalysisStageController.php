@@ -42,7 +42,7 @@ class SampleAnalysisStageController extends Controller
 
 		$sampleAnalysisStage->name = $request->name;
     	$sampleAnalysisStage->company_id = getUserCompany();
-		$sampleAnalysisStage->active = $request->active ?? 0;
+		$sampleAnalysisStage->active = isset($request->active) ? 1 : 0 ;
 		if(isset($request->is_sample_stage)){
 			$sampleAnalysisStage->sample_workflow = $request->sample_workflow;
 			$sampleAnalysisStage->level = $request->level;
@@ -73,7 +73,7 @@ class SampleAnalysisStageController extends Controller
 
 		$sampleAnalysisStage->name = $request->name;
     	$sampleAnalysisStage->company_id = getUserCompany();
-		$sampleAnalysisStage->active = $request->active ?? 0;
+		$sampleAnalysisStage->active = isset($request->active) ? 1 : 0 ;
 		if(isset($request->is_sample_stage)){
 			$sampleAnalysisStage->sample_workflow = $request->sample_workflow;
 			$sampleAnalysisStage->level = $request->level;

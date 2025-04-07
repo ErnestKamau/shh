@@ -90,4 +90,8 @@ class CapturedResult extends Model implements Auditable
 		return Analyte::find($this->analyte_id)->is_italic;
 	}
 
+	public function operator(){
+		return $this->belongsTo(User::class,'operator_id');
+	}
+
 }

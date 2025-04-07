@@ -1077,7 +1077,8 @@ class SampleWorkFlowController extends Controller
         $customer_survey = SystemConfiguration::where('key', 'customer_survey')->first();
         $countries = Country::orderBy('name')->get();
         // $methods = AnalysisMethod::where('active', 1)->where('is_sampling_method',0)->where('is_ltm',0)->get();
-        $ltmethods = AnalysisMethod::where('active', 1)->where('is_sampling_method',0)->where('is_ltm',1)->get();
+        $is_ltm_id = SystemConfiguration::where('key','method_ltm_id')->first();
+        $ltmethods = AnalysisMethod::where('active', 1)->where('method_type_id',$is_ltm_id->value)->get();
         // return response()->json(['methods'=>$methods,'ltm'=>$ltmethods])
 
         $account_settings = getConfigTypeByName('Account Settings');
@@ -1092,7 +1093,10 @@ class SampleWorkFlowController extends Controller
         $workflowstages = [];
         $workflows = getSampleWorflowStages();
         $sample_types = getSampleTypes();
-        $samplingmethods = getSamplingMethods();
+        $is_sampling = SystemConfiguration::where('key','sampling_method_type_id')->first();
+        $samplingmethods = AnalysisMethod::where('active',1)->where('method_type_id',$is_sampling->value)->get();
+        $processed_results = [];
+        $raw_results = [];
         $interlabs = [];
         $disposal_date = '';
         if (isset($account_settings->id)) {
@@ -1112,6 +1116,12 @@ class SampleWorkFlowController extends Controller
         $allsamples = isset($batch->id) ? $batch->all_samples() : [];
 
         if (isset($batch->id)) {
+            if(in_array($batch->status,['Samples In Lab','Sample Verification','Sample Approval','Reports In Payment','Reports for Collection'])){
+                $raw_results = CapturedResult::with(['sample','analysis_type','operator'])->where('sample_header_id',$batch->id)->orderBy('sample_detail_id','ASC')->get();
+                $processed_results = Result::with(['captured','captured.sample','captured.analysis_type','captured.operator'])->where('sample_header_id',$batch->id)->orderBy('sample_detail_id','ASC')->get();
+
+                // return response()->json(['raw'=>$raw_results,'processed' => $processed_results]);
+            }
             $workflowstages = getWorkflowStage_Stages($batch->status);
             if (in_array($batch->status, ['Sample Verification', 'Sample Approval'])) {
                 $report_format_config = SystemConfiguration::where('key', 'coa_report_format')->first();
@@ -1203,8 +1213,9 @@ class SampleWorkFlowController extends Controller
         $l = 1;
 
         // return response()->json($batch);
+       
 
-        $methods = getMethods()->pluck('name', 'id');
+        $methods = AnalysisMethod::whereNotIn('method_type_id',[$is_sampling->value])->pluck('name', 'id')->toArray();
 
         // return response()->json($methods);
 
@@ -1355,7 +1366,7 @@ class SampleWorkFlowController extends Controller
         $notesReminderType = getNotesReminderTypes();
         $clients = getClients();
         // return response()->json($analaytesHolder);
-        return view('layouts.lab.sample-workflow.show', compact('batch', 'labStores', 'batchID', 'defaultClient', 'selectedSampleType', 'client_portal', 'ammendable', 'standards', 'attachments', 'not_captured', 'analysts', 'countries', 'accounts', 'methods', 'atachment_type', 'batch_scope', 'customer_survey', 'interlabs', 'labs', 'users', 'payment_detail', 'labsections', 'contacts', 'batch_sample_codes', 'report_formats', 'approvers', 'reportingUnits', 'conditions', 'products', 'headerDetails', 'analaytesHolder', 'analysisBySample', 'analysisBySampleNames', 'labSamples', 'workflowstages', 'workflows', 'sample_types', 'samplingmethods', 'active_company', 'ammendments', 'allsamples', 'selected_analysis_types', 'userLabSections', 'customer', 'requestTypes', 'notifiable_users', 'notesReminderType', 'clients', 'disposal_date', 'status', 'recieving_users', 'section_approvers_users', 'analaytesHolderPesticide', 'approvers_user_ids','ltmethods'));
+        return view('layouts.lab.sample-workflow.show', compact('batch', 'labStores', 'batchID', 'defaultClient', 'selectedSampleType', 'client_portal', 'ammendable', 'standards', 'attachments', 'not_captured', 'analysts', 'countries', 'accounts', 'methods', 'atachment_type', 'batch_scope', 'customer_survey', 'interlabs', 'labs', 'users', 'payment_detail', 'labsections', 'contacts', 'batch_sample_codes', 'report_formats', 'approvers', 'reportingUnits', 'conditions', 'products', 'headerDetails', 'analaytesHolder', 'analysisBySample', 'analysisBySampleNames', 'labSamples', 'workflowstages', 'workflows', 'sample_types', 'samplingmethods', 'active_company', 'ammendments', 'allsamples', 'selected_analysis_types', 'userLabSections', 'customer', 'requestTypes', 'notifiable_users', 'notesReminderType', 'clients', 'disposal_date', 'status', 'recieving_users', 'section_approvers_users', 'analaytesHolderPesticide', 'approvers_user_ids','ltmethods','processed_results','raw_results'));
     }
 
     public function fetch_unit_stuff($name, $client)
@@ -4850,5 +4861,22 @@ class SampleWorkFlowController extends Controller
         }
     
         return $superscriptNumber;
+    }
+    public function processRawResultsLab(Request $request){
+        $captured = CapturedResult::where('sample_header_id',$request->batch_id)->whereNotNull('result')->get();
+       
+        foreach($captured as $c){
+            Result::where('captured_result_id',$c->id)->update([
+                "result"=>$c->result,
+                "remarks"=>$c->remark,
+                "reporting_symbol" => $c->result_reporting_symbol,
+                "seond_guide"=>$c->secondary_value,
+                'guide'=>$c->main_value,
+                'unit_code'=> $c->reporting_unit,
+                'analyte_accredited'=> $c->analyte_accredited,
+                'analyte_status_contracted' => $c->analyte_status_contracted,
+            ]);
+        }
+        return redirect()->back()->with('success','Results processed successfully!');
     }
 }

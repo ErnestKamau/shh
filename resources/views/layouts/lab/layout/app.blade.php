@@ -114,7 +114,7 @@
 			<div id="billing-menu" class="collapse sidebar-submenu">
 
 				<a href="{{route('invoice-home')}}" class="list-group-item list-group-item-action bg-dark text-white">
-					<span class="menu-collapsed"><i class="mdi mdi-circle-medium"></i> Sales Order
+					<span class="menu-collapsed"><i class="mdi mdi-circle-medium"></i> Draft Invoice
 						<small class="float-right badge badge-pill"></small></span>
 				</a>
 				<a href="{{route('tax-home')}}" class="list-group-item list-group-item-action bg-dark text-white">
@@ -127,7 +127,7 @@
 
 				</a>
 
-				<a href="#quotation-menu" data-toggle="collapse" aria-expanded="false" class=" hidden bg-dark list-group-item list-group-item-action flex-column align-items-start">
+				<a href="#quotation-menu" data-toggle="collapse" aria-expanded="false" class="bg-dark list-group-item list-group-item-action flex-column align-items-start">
 					<div class="d-flex w-100 justify-content-start align-items-center">
 						<span class=" mdi mdi-clipboard-text-outline mr-3"></span>
 						<span class="menu-collapsed">Quotation</span>

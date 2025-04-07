@@ -9,4 +9,7 @@ class QuotationDetails extends Model implements Auditable
 {
 	use \OwenIt\Auditing\Auditable;
     protected $table = 'quotation_details';
+    public function sampletype(){
+        return $this->belongsTo(SampleType::class,'sample_type');
+    }
 }

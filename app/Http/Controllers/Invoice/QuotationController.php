@@ -2,9 +2,12 @@
 
 namespace App\Http\Controllers\Invoice;
 
+use App\Models\CRM\CRMCompanyUnit;
 use App\Models\CRM\CRMCustomer;
 use App\QuotationHeader;
 use App\QuotationDetails;
+use App\SampleDetails;
+use App\SampleHeader;
 use App\TaxRegime;
 use App\PricelistCustomer;
 use App\Pricelist;
@@ -960,5 +963,155 @@ class QuotationController extends Controller
         $final['analysis_data'] = $analysis_data;
         $final['detail'] = $detail;
         return $final;
+    }
+    public function convertQuoteToBatch(Request $request){
+        $quote = QuotationHeader::with(['details','contact','customer'])->find($request->quote_id);
+        $sample_type_arr = array_unique(QuotationDetails::where('quotation_header_id',$quote->id)->pluck('sample_type')->toArray());
+        $sampletypes = SampleType::whereIn('id',$sample_type_arr)->get();
+        $batch_config = SystemConfiguration::where('key', 'batch_code_config')->first();
+        if (!isset($batch_config->id)) {
+            return redirect()->back()->with('error', 'Kindly add batch_code_config configuration');
+        }
+        $unit = CRMCompanyUnit::where('crm_customer_id',$quote->crm_customer_id)->where('name',$quote->contact->id)->first();
+       
+        $account = SystemConfiguration::find($quote->customer->account_status);
+        if (isset($account->id)) {
+            $account_status = $account->key;
+            if ($account->key == 'Suspended') {
+                return redirect()->back()->with('error', 'The customer is currently suspended!');
+            }
+        } else {
+            $account_status = 'N/a';
+        }
+        foreach($sampletypes as $sample_type){
+            $cust_code = str_split($quote->customer->code);
+            $code = [];
+            $loop = 0;
+            $cont = [];
+            foreach ($cust_code as $cc) {
+                if ((int) $cc > 0) {
+                    array_push($cont, $loop);
+                } elseif (is_string($cc) && $cc != '0') {
+                    array_push($code, $cc);
+                }
+                ++$loop;
+            }
+            $tt = sizeof($cust_code) - 1;
+    
+            $ranges = range($cont[0], $tt);
+            $values = [];
+            if (sizeof($cont) < 2) {
+                array_push($values, '0');
+                array_push($values, $cust_code[$cont[0]]);
+            } else {
+                foreach ($ranges as $r) {
+                    array_push($values, $cust_code[$r]);
+                }
+            }
+    
+            $cP = 'BA'. $batch_config->value . implode('', $values) . $sample_type->code;
+            $config_batch_no = SystemConfiguration::where('key', 'batch_start_no')->first();
+            if (!isset($config_batch_no->id)) {
+                return redirect()->back()->with('error', 'Kindly set the start batch no');
+            }
+            $last_id = isset(SampleHeader::latest('id')->first()->id) ? SampleHeader::latest('id')->first()->id : 0;
+            $batch_no_s = $config_batch_no->value + $last_id + 1;
+            $final_no = '';
+            if (strlen(strval($batch_no_s)) < 4) {
+                $zerosss = str_repeat('0', 4 - strlen(strval($batch_no_s)));
+                $final_no = $zerosss . '' . strval($batch_no_s);
+            } else {
+                $final_no = strval($batch_no_s);
+            }
+            $batch_code = $cP . '' . $final_no;
+    
+            
+           
+            $insert_batch = [
+                'receipt_date'=>date('Y-m-d'),
+                'date_collected'=>date('Y-m-d'),
+                'crm_customer_id' => $quote->crm_customer_id,
+                'crm_unit_name' => $quote->contact->unit_name,
+                'sample_type_id' => $sample_type->id,
+                'reference_number' => $quote->quote_number,
+                'quote_no' => $quote->quote_number,
+                'batch_code'=> $batch_code,
+                'crm_contact_id' => $quote->contact->id,
+                'status' => 'Samples Reception',
+                'crm_unit_id'=>$unit->id,
+                'lab_capable' => 1,
+                'client_instruction_clear' => 1,
+                'current_account_status' => $account_status,
+                'receiving_officer' => auth()->user()->id,
+                
+            ];
+            $batch = SampleHeader::create($insert_batch);
+            $analysis_max_report_time = 0;
+            $analytes_max_report_time = 0;
+    
+            foreach($quote->details as $detail){
+
+                foreach(range(1,$detail->quantity) as $no_samples){
+                    $lab = Lab::find($request->lab_id);
+                    $code = SampleDetails::orderBy('id','DESC')->first();
+                    $last_sample = isset($code->id) ? $code->sample_no : $lab->start_sample_no;
+                    
+                    // $last_sample = isset(SampleDetails::latest('id')->first()->id) ? substr(SampleDetails::latest('id')->first()->sample_code,9,strlen(SampleDetails::latest('id')->first()->sample_code) -1) : $config_start_no->value;
+    
+                    // return response()->json($request->sample_details['lab_id'][$k]);
+                    $sample_number = intval($last_sample) + 1;
+                    // $sample_number = str_pad($sample_number, 4, '0', STR_PAD_LEFT);
+    
+                    $sample_code = 'S' . date('Y') . $lab->code .$SampleHeader->sample_type->code. sprintf('%0' . '4' . 'd', $sample_number);
+                    $sample_no = sprintf('%0' . '4' . 'd', $sample_number);
+                    $report_number = 'LR/'.$SampleHeader->sample_type->code.'/'.date('Y').'/'.$lab->code.'/'.sprintf('%0' . '4' . 'd', $sample_number);
+                    $insert_sample = [
+                        'sample_code'=>$sample_code,
+                        'sample_no' => $sample_no,
+                        'report_number' => $report_number,
+                        'analysis_type_id' => $detail->analysis_type_id,
+                        'lab_id' => $lab->id,
+                        'sample_header_id' => $batch->id,
+                        'disposal_date' => \Carbon\Carbon::parse($batch->receipt_date)->addDays(14)->format('Y-m-d'),
+                    ];
+                    $sample = SampleDetails::create($insert_sample);
+                    $this->createDetailAnalysisRelation($batch->id, $sample->id, explode(',', $sample->analysis_type_id));
+
+                    $analysis_elements = AnalysisElements::with(['analyte'])->whereIn('id',explode(',',$detail->default_analytes))->get();
+                    foreach($analysis_elements as $element){
+                        $insert_captured = [
+                            
+                        ]
+                    }
+
+                    $analysis_max_report_time = AnalysisType::whereIn('id', explode(',',$detail->analysis_type_id))->max('reporting_time');
+                    $analytes_max_report_time = AnalysisElements::whereIn('analysis_type_id', explode(',',$detail->analysis_type_id))->max('reporting_time');
+                    $maxReportingTime = $analysis_max_report_time > $analytes_max_report_time ? $analysis_max_report_time : $analytes_max_report_time;
+                }
+
+            }
+        }
+        
+        
+
+
+    }
+    public function createDetailAnalysisRelation($batch_id, $sample_id, $analysis_type)
+    {
+        $data = [];
+        sampleAnalysisTypeRelation::where('batch_id', $batch_id)->where('sample_detail_id', $sample_id)->whereNotIn('analysis_type_id', $analysis_type)->delete();
+        $existing = sampleAnalysisTypeRelation::where('batch_id', $batch_id)->where('sample_detail_id', $sample_id)->pluck('analysis_type_id')->toArray();
+        foreach ($analysis_type as $at) {
+            if (!in_array($at, $existing)) {
+                $data[] = [
+                    'analysis_type_id' => $at,
+                    'batch_id' => $batch_id,
+                    'sample_detail_id' => $sample_id,
+                ];
+            }
+        }
+        sizeof($data) > 0 ? sampleAnalysisTypeRelation::insert($data) : '';
+
+        return 'success';
     }
 }

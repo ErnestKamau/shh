@@ -24,6 +24,7 @@
       <i class="mdi mdi-sitemap"></i> Lab Section
      
     </h2>
+    
     <div class="card tab-card">
       <div class="card-header tab-card-header">
         <ul class="nav nav-tabs card-header-tabs" id="asset-tabs" role="tablist">
@@ -43,35 +44,35 @@
       <!-- sample stages -->
        <div class="tab-pane fade show p-3" id="sample-stages-tab" role="tabpanel" aria-labelledby="one-tab">
         <h5 class="card-title">
-          Smaple Stages
+          Sample Stages
           <span class="btn btn-sm btn-outline-primary float-right" data-toggle="modal" data-target="#add-sample-analysis-stage"><i class="mdi mdi-plus"></i> Add</span>
         </h5>
-        <div class="table-responsive bg-light mt-3 p-2">
-          <table class="table table-sm table-condensed table-bordered table-hover">
-            <th>
-              <th>#</th>
-              <th>Name</th>
-              <th>Code</th>
-              <th>Workflow</th>
-              <th>Level</th>
-              <th>Active</th>
-              <th>Is System Stage</th>
+        <div class="table-responsive bg-light p-3">
+          <table class="table table-sm table-condensed table-stripped ">
+            <thead>
+            <th>#</th>
+                  <th>Name</th>
+                  <th>Code</th>
+                  <th>Workflow</th>
+                  <th>Level</th>
+                  <th>Active</th>
+                  <th>Is System Stage</th>
             </thead>
             <tbody>
               @foreach ($sampleAnalysisStage as $stage)
-              <tr>
-                <td>
-                  <span class="btn btn-sm btn-default" data-record="{{ json_encode($stage) }}" data-toggle="modal" data-tagert="#edit-sample-stage"><i class="mdi mdi-pencil" data-toggle="tooltip" title="Edit"></i></span>
-                  <span class="btn btn-sm btn-default" data-record="{{ json_encode($stage) }}" data-toggle="modal" data-tagert="#delete-stages"><i class="mdi mdi-delete-empty" data-toggl="tooltip" title="Delete"></i> </span>
-                </td>
-                <td>{{ $stage->name }}</td>
-                <td>{{$stage->code}}</td>
-                <td>{{ $stage->sample_workflow }}</td>
-                <td>{{ $stage->level }}</td>
-                <td class="text-small">{!! $stage->active == '1' ? '<i class="mdi mdi-marker-check text-success"></i>' : '<i class="mdi mdi-close-circle text-danger"></i>' !!}</td>
-                <td class="text-center">{!! $stage->is_system == 1 ? '<i class="mdi mdi-marker-check text-success"></i>' : '<i class="mdi mdi-close-circle text-danger"></i>' !!}</td>
-              </tr>
-              
+                <tr>
+                  <td>
+                    <span class="btn btn-sm btn-default text-primary" data-record="{{ json_encode($stage) }}" data-toggle="modal" data-target="#edit-sample-stage"><i class="mdi mdi-pencil" data-toggle="tooltip" title="Edit"></i></span>
+                    <span class="btn btn-sm btn-default text-danger" data-record="{{ json_encode($stage) }}" data-toggle="modal" data-target="#delete-stages"><i class="mdi mdi-delete-empty" data-toggl="tooltip" title="Delete"></i> </span>
+                  </td>
+                  <td>{{ $stage->name }}</td>
+                  <td>{{$stage->code}}</td>
+                  <td>{{ $stage->sample_workflow }}</td>
+                  <td>{{ $stage->level }}</td>
+                  <td class="text-small">{!! $stage->active == '1' ? '<i class="mdi mdi-marker-check text-success"></i>' : '<i class="mdi mdi-close-circle text-danger"></i>' !!}</td>
+                  <td class="text-center">{!! $stage->is_system == 1 ? '<i class="mdi mdi-marker-check text-success"></i>' : '<i class="mdi mdi-close-circle text-danger"></i>' !!}</td>
+                </tr>
+                
               @endforeach
             </tbody>
           </table>
@@ -83,8 +84,8 @@
           <h5 class="card-title">Lab Sections
             <button class="btn btn-primary btn-sm float-right" data-toggle="modal" data-target="#add-lab-section"><i class="mdi mdi-plus"></i> Add</button>
           </h5>
-          <div class="table-responsive bg-light mt-3 p-4">
-            <table class="table table-condensed my-small-text table-striped table-hover table-bordered table-sm">
+          <div class="table-responsive p-3 bg-light">
+            <table class="table table-sm table-condensed table-stripped ">
               <thead class="bg-light p-2">
                 <tr>
                   <th></th>
@@ -100,8 +101,8 @@
                   @foreach($labsections as $sections)
                     <tr>
                       <td >
-                        <span class="btn btn-sm btn-default" data-toggle="modal" data-target="#edit-lab-section" data-toggle="modal" data-record="{{ json_encode($sections) }}" ><i class="mdi mdi-pencil" data-togle="tooltip" title="Pencil"></i></span>
-                        <span class="btn btn-sm btn-default" data-toggle="modal" data-target="#delete-stages" data-record="{{ json_encode($sections) }}"><i class="mdi mdi-delete-empty" data-toggle="tooltip" title="Delete"></i></span>
+                        <span class="btn btn-sm btn-default text-primary" data-toggle="modal" data-target="#edit-lab-section" data-toggle="modal" data-record="{{ json_encode($sections) }}" ><i class="mdi mdi-pencil" data-togle="tooltip" title="Pencil"></i></span>
+                        <span class="btn btn-sm btn-default text-danger" data-toggle="modal" data-target="#delete-stages" data-record="{{ json_encode($sections) }}"><i class="mdi mdi-delete-empty" data-toggle="tooltip" title="Delete"></i></span>
                       </td>
                       <td>{{ $sections->name }}</td>
                       <td>{{$sections->code}}</td>
@@ -110,14 +111,9 @@
                       <td class="text-small">{!! $sections->active == '1' ? '<i class="mdi mdi-marker-check text-success"></i>' : '<i class="mdi mdi-close-circle text-danger"></i>' !!}</td>
                     </tr>
                   @endforeach
-                @endif
+                
               </tbody>
             </table>
-            @if(count($sampleAnalysisStage) == 0)
-              <div class="alert alert-info">
-                <i class="mdi mdi-alert"></i> No Lab section added yet.
-              </div>
-            @endif
           </div>
         </div>
         <!-- labsection approvers tab  -->
@@ -125,8 +121,8 @@
           <h5 class="card-title">Verifier Configuration
             <button class="btn btn-outline-primary btn-sm float-right" data-action="add" data-toggle="modal" data-target="#add-approver"><i class="mdi mdi-plus"></i> Add</button>
           </h5>
-          <div class="table-responsive p-2">
-            <table class="table table-sm table-condensed table-bordered table-stripped">
+          <div class="table-responsive p-3 bg-light">
+            <table class="table table-condensed my-small-text table-bordered table-sm">
               <thead>
                 <tr>
                   <th></th>
@@ -207,7 +203,7 @@
         </div>
         <div class="form-group">
           <label class="control-label">Code</label>
-          <input type="text" class="form-control" name="code" value="" placeholder="Lab Section Code..." required />
+          <input type="text" class="form-control" name="code" value="" placeholder="Stage Code..." required />
         </div>
         <div class="row">
           <div class="col-sm-8">
@@ -250,7 +246,7 @@
       <div class="modal-body">
         <div class="form-group">
           <label class="control-label">Name</label>
-          <input type="text" class="form-control" name="name" placeholder="Sample Analysis Stage Name..." required />
+          <input type="text" class="form-control" name="name" placeholder="Lab Section Name..." required />
         </div>
         
         <div class="form-group">
@@ -291,6 +287,9 @@
     <div class="modal-content">
       <form action="{{ route('update-sample_analysis_stage') }}" method="post">
         @csrf
+        <div class="modal-header">
+          <h5 class="modal-title">Edit Sample Stage</h5>
+        </div>
         <div class="modal-body">
           
         </div>

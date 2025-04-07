@@ -164,9 +164,10 @@ Route::get('/awaiting/Approval/Samples/{status}','SampleWorkFlowController@await
 Route::get('/updateTatCaptured','SampleWorkFlowController@updateTatCaptured')->name('updateTatCaptured');
 Route::get('/get/Tat/Batch/ApprovalCounter/Ajax/{status}','SampleWorkFlowController@getTatBatchApprovalCounterAjax')->name('getTatBatchApprovalCounterAjax');
 
+Route::post('/process-raw-results/lab','SampleWorkFlowController@processRawResultsLab')->name('process-raw-results-lab');
   Route::get('/sample-workflow/{status?}', 'SampleWorkFlowController@index')->name('sample-workflow');
 //   Route::get('/sample-workflow/{status?}/stage', 'SampleWorkFlowController@index')->name('sample-workflow')->middleware('haspermission:Laboratory.components.status.View');
-    Route::get('/sample-workflow/{status?}/stage', 'SampleWorkFlowController@index')->name('sample-workflow');
+  Route::get('/sample-workflow/{status?}/stage', 'SampleWorkFlowController@index')->name('sample-workflow');
   Route::get('/sample-workflow/batch/{batch}/details/{client?}/{portal?}/{status?}', 'SampleWorkFlowController@show')->name('view-batch-details');
   Route::post('/add-batch-info/{batch}', 'SampleWorkFlowController@add_batch_info')->name('add-batch-info');
   Route::post('/add-batch-samples/{batch}', 'SampleWorkFlowController@add_batch_samples')->name('add-batch-samples');

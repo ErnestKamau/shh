@@ -723,11 +723,20 @@
 					<li class="nav-item">
 						<a href="#interlab" class="nav-link" data-toggle="tab" id="interlab-tab-initiator" role="tab" aria-controls="Interlab" aria-selected="true"><i class="mdi mdi-swap-horizontal-bold"></i> Inter Lab Logs</a>
 					</li>
+					@if( in_array($batch->status,['Samples In Lab','Sample Verification','Sample Approval','Reports In Payment','Reports for Collection']) || in_array($batch->prelim_batch_status,['Sample Verification','Sample Approval']))
+					<li class="nav-item">
+						<a href="#raw-results-tab" data-toggle="tab" id="raw-results-initiator" role="tab" class="nav-link" aria-controls="raw-results" aria-selected="true"><i class="mdi mdi-sync-alert text-warning"></i> Raw Results</a>
+					</li>
+					<li class="nav-item">
+						<a href="#processed-results-tab" data-toggle="tab" id="raw-results-initiator" role="tab" class="nav-link" aria-controls="raw-results" aria-selected="true"><i class="mdi mdi-sync text-success"></i> Proccesed Results</a>
+					</li>
+					@endif
 					@if( in_array($batch->status,['Sample Verification','Sample Approval','Reports In Payment','Reports for Collection']) || in_array($batch->prelim_batch_status,['Sample Verification','Sample Approval']))
 					<li class="nav-item">
 						<a href="#batch-approval" class="nav-link" data-toggle="tab" id="batch-approval-initiator" role="tab" aria-controls="batch-approval" aria-selected="true"><i class="mdi mdi-account-check-outline"></i> Approvals</a>
 					</li>
 					@endif
+
 					<li class="nav-item">
 						<a href="#paymentDetailTabs" class="nav-link" data-toggle="tab" id="payment-details-tab" role="tab" aria-controls="paymentDetailTabs" aria-selected="true"><i class="mdi mdi-account-cash-outline"></i> Payment Details</a>
 					</li>
@@ -742,6 +751,67 @@
           </div>
           <div class="tab-content" id="analyte-tabs-content">
 			@if(isset($batch->id))
+				@if( in_array($batch->status,['Samples In Lab','Sample Verification','Sample Approval','Reports In Payment','Reports for Collection']) || in_array($batch->prelim_batch_status,['Sample Verification','Sample Approval']))
+					<div class="tab-pane fade p-3" id="raw-results-tab" role="tabpanel" aria-labelledby="one-tab">
+						<h5 class="p-2">
+							<i class="mdi mdi-sync-alert"></i> Raw Results
+							<span class="btn btn-sm bg-light float-right" data-toggle="modal" data-target="#process-raw-results" style="box-shadow: rgba(0, 0, 0, 0.24) 0px 3px 8px;"><i class="mdi mdi-cog"></i> Process Results</span>
+						</h5>
+						<div class="table-responsive">
+							<table class="table table-sm table-condensed table-bordered table-stripped">
+								<thead>
+									<th>Sample Code</th>
+									<th>Analysis Type</th>
+									<th>Analyte</th>
+									<th>Result</th>
+									<th>Analyst</th>
+									<th>Remark</th>
+								</thead>
+								<tbody>
+									@foreach ($raw_results as $raw)
+										<tr>
+
+											<td>{{ $raw->sample->sample_code }}</td>
+											<td>{{ $raw->analysis_type->name }}</td>
+											<td>{{ $raw->analyte_code }}</td>
+											<td>{{ $raw->result }}</td>
+											<td>{{ $raw->operator->name ?? '-' }}</td>
+											<td class="{{ $raw->remark == 'FAIL' ? 'text-danger' : '' }}">{{ $raw->remark }}</td>
+										</tr>
+									@endforeach
+								</tbody>
+							</table>
+						</div>
+					</div>
+					<div class="tab-pane fade p-3" id="processed-results-tab" role="tabpanel" aria-labelledby="one-tab">
+						<h5 class="p-2"><i class="mdi mdi-sync"></i> Processed Results</h5>
+						<div class="table-responsive">
+							<table class="table table-sm table-condensed table-bordered table-stripped">
+								<thead>
+									<th>Sample Code</th>
+									<th>Analysis Type</th>
+									<th>Analyte</th>
+									<th>Result</th>
+									<th>Analyst</th>
+									<th>Remark</th>
+								</thead>
+								<tbody>
+									@foreach ($processed_results as $p_result)
+									<tr>
+
+										<td>{{ $p_result->captured->sample->sample_code }}</td>
+										<td>{{ $p_result->captured->analysis_type->name }}</td>
+										<td>{{ $p_result->captured->analyte_code }}</td>
+										<td>{{ $p_result->result }}</td>
+										<td>{{ $p_result->captured->operator->name ?? '-' }}</td>
+										<td class="{{ $p_result->remarks == 'FAIL' ? 'text-danger' : '' }}">{{ $p_result->remarks }}</td>
+									</tr>
+									@endforeach
+								</tbody>
+							</table>
+						</div>
+					</div>
+				@endif
 				@if( in_array($batch->status,['Sample Verification','Sample Approval','Reports In Payment','Reports for Collection']) || in_array($batch->prelim_batch_status,['Sample Verification','Sample Approval']))
 					<div class="tab-pane fade p-3" id="batch-approval" role="tabpanel" aria-labelledby="one-tab">
 						<h5 class="p-2"><i class="mdi mdi-account-check-outline"></i> Approvers</h5>
@@ -1618,6 +1688,26 @@
 	</div>
 </div>
 @if(isset($batch->status) && $batch->status == 'Samples In Lab')
+<div class="modal fade" id="process-raw-results" role="dialog">
+	<div class="modal-dialog">
+		<div class="modal-content">
+			<form action="{{ route('process-raw-results-lab') }}" method="post">
+				@csrf 
+				<div class="modal-body">
+					<div class="alert alert-primary p-2 d-flex">
+						<i class="mdi mdi-alert-decagram-outline" style="font-size: 25px;"></i>
+						<span class="pl-2">Confirm you want to process all results filled for all samples in batch {{ $batch->batch_code }}</span>
+					</div>
+					<input type="hidden" name="batch_id" value="{{ $batch->id }}">
+				</div>
+				<div class="modal-footer">
+					<button type="submit" class="btn btn-sm btn-outline-primary"><i class="mdi mdi-thumbs-up"></i> Yes, Process</button>
+					<span class="btn btn-sm btn-default" data-dismiss="modal">Close</span>
+				</div>
+			</form>
+		</div>
+	</div>
+</div>
 <div class="modal fade" id="add-reporting-unit" role="dialog" data-backdrop="static" data-keyboard="false"  role="dialog" style="z-index: 3000">
 	<div class="modal-dialog">
 		<div class="modal-content">
