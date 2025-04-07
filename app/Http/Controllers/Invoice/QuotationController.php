@@ -2,10 +2,16 @@
 
 namespace App\Http\Controllers\Invoice;
 
+use App\CapturedResult;
+use App\Lab;
 use App\Models\CRM\CRMCompanyUnit;
 use App\Models\CRM\CRMCustomer;
+use App\Models\System\SystemConfiguration;
 use App\QuotationHeader;
 use App\QuotationDetails;
+use App\Result;
+use App\SampleAnalysisStage;
+use App\sampleAnalysisTypeRelation;
 use App\SampleDetails;
 use App\SampleHeader;
 use App\TaxRegime;
@@ -483,7 +489,7 @@ class QuotationController extends Controller
             ->join('module_pre_configs as tc', 'tc.id', '=', 'users.position')
             ->where('quotation_headers.id', $id)
             ->selectRaw('quotation_headers.service_delivery,quotation_headers.payments,quotation_headers.payment_info,quotation_headers.quotation_type,quotation_headers.additional_info,quotation_headers.quote_specification,quotation_headers.quote_number,quotation_headers.upload_url,quotation_headers.is_print,quotation_headers.id,quotation_headers.quote_date,quotation_headers.expiring_date,quotation_headers.email_to_customer,quotation_headers.is_draft,quotation_headers.is_complete,quotation_headers.approved_by,quotation_headers.email_to_customer,quotation_headers.total_amount,crm_customers.name,crm_customers.postal_address,crm_customers.physical_address,crm_customer_contacts.first_name,crm_customer_contacts.middle_name,crm_customer_contacts.last_name,crm_customer_contacts.email,crm_customer_contacts.mobile,
-                                users.name as prepared_by,tc.name as position,users.email as prepared_by_email,users.phone')
+                                users.name as prepared_by,tc.name as position,users.email as prepared_by_email,users.phone,quotation_headers.is_batch_generate')
             ->get();
 
         // return response()->json($header,200);
@@ -576,12 +582,13 @@ class QuotationController extends Controller
         foreach ($banks as $bank) {
             $bankarr[$bank->key] = $bank->value;
         }
+        $labs = Lab::where('active',1)->get();
         // return response()->json($bankarr,200);
         $company = getActiveCompany();
 
         // return response()->json($header,200);
 
-        return view('layouts.lab.invoice.quotation-doc', compact('header', 'terms_array', 'bankarr', 'company', 'details', 'currency'));
+        return view('layouts.lab.invoice.quotation-doc', compact('header', 'terms_array', 'bankarr', 'company', 'details', 'currency','labs'));
     }
 
     public function edit_quotation_detail(Request $request)
@@ -972,7 +979,7 @@ class QuotationController extends Controller
         if (!isset($batch_config->id)) {
             return redirect()->back()->with('error', 'Kindly add batch_code_config configuration');
         }
-        $unit = CRMCompanyUnit::where('crm_customer_id',$quote->crm_customer_id)->where('name',$quote->contact->id)->first();
+        $unit = CRMCompanyUnit::where('crm_customer_id',$quote->crm_customer_id)->where('name',$quote->contact->unit_name)->first();
        
         $account = SystemConfiguration::find($quote->customer->account_status);
         if (isset($account->id)) {
@@ -1043,6 +1050,7 @@ class QuotationController extends Controller
                 'client_instruction_clear' => 1,
                 'current_account_status' => $account_status,
                 'receiving_officer' => auth()->user()->id,
+                'quote_id' => $quote->id,
                 
             ];
             $batch = SampleHeader::create($insert_batch);
@@ -1050,49 +1058,102 @@ class QuotationController extends Controller
             $analytes_max_report_time = 0;
     
             foreach($quote->details as $detail){
-
-                foreach(range(1,$detail->quantity) as $no_samples){
-                    $lab = Lab::find($request->lab_id);
-                    $code = SampleDetails::orderBy('id','DESC')->first();
-                    $last_sample = isset($code->id) ? $code->sample_no : $lab->start_sample_no;
-                    
-                    // $last_sample = isset(SampleDetails::latest('id')->first()->id) ? substr(SampleDetails::latest('id')->first()->sample_code,9,strlen(SampleDetails::latest('id')->first()->sample_code) -1) : $config_start_no->value;
+                if($detail->sample_type == $sample_type->id){
+                    $analysis_types_arr = QuotationDetailAnalysisSplit::where('quotation_detail_id',$detail->id)->pluck('analysis_type_id')->toArray();
+                    foreach(range(1,$detail->quantity) as $no_samples){
+                        $lab = Lab::find($request->lab_id);
+                        $code = SampleDetails::orderBy('id','DESC')->first();
+                        $last_sample = isset($code->id) ? $code->sample_no : $lab->start_sample_no;
+                        
+                        // $last_sample = isset(SampleDetails::latest('id')->first()->id) ? substr(SampleDetails::latest('id')->first()->sample_code,9,strlen(SampleDetails::latest('id')->first()->sample_code) -1) : $config_start_no->value;
+        
+                        // return response()->json($request->sample_details['lab_id'][$k]);
+                        $sample_number = intval($last_sample) + 1;
+                        // $sample_number = str_pad($sample_number, 4, '0', STR_PAD_LEFT);
+        
+                        $sample_code = 'S' . date('Y') . $lab->code .$sample_type->code. sprintf('%0' . '4' . 'd', $sample_number);
+                        $sample_no = sprintf('%0' . '4' . 'd', $sample_number);
+                        $report_number = 'LR/'.$sample_type->code.'/'.date('Y').'/'.$lab->code.'/'.sprintf('%0' . '4' . 'd', $sample_number);
+                        $insert_sample = [
+                            'sample_code'=>$sample_code,
+                            'sample_no' => $sample_no,
+                            'report_number' => $report_number,
+                            'analysis_type_id' => implode(',',$analysis_types_arr),
+                            'lab_id' => $lab->id,
+                            'sample_header_id' => $batch->id,
+                            'disposal_date' => \Carbon\Carbon::parse($batch->receipt_date)->addDays(14)->format('Y-m-d'),
+                        ];
+                        $sample = SampleDetails::create($insert_sample);
+                        $this->createDetailAnalysisRelation($batch->id, $sample->id, explode(',', $sample->analysis_type_id));
     
-                    // return response()->json($request->sample_details['lab_id'][$k]);
-                    $sample_number = intval($last_sample) + 1;
-                    // $sample_number = str_pad($sample_number, 4, '0', STR_PAD_LEFT);
+                        $analysis_elements = AnalysisElements::with(['analyte'])->whereIn('id',explode(',',$detail->default_analytes))->get();
+                        foreach($analysis_elements as $element){
+                            $insert_captured = [
+                                "sample_detail_code"=>$sample->sample_code,
+                                "sample_detail_id" => $sample->id,
+                                "sample_header_id" => $batch->id,
+                                "analyte_id" => $element->analyte_id,
+                                "analysis_type_id" => $element->analysis_type_id,
+                                "analyte_code" => $element->analyte->code,
+                                "equipment_id" => $element->equipment_id,
+                                "method_id" => $element->method_id,
+                                "reporting_unit_id" => $element->reporting_unit,
+                                "user_id" => Auth()->user()->id,
+                                "operator_id" => $element->operator_id,
+                                "ltm_method_id" => $element->ltm_method_id,
+                                "analyte_accredited"=> $element->non_accredited,
+                                "analyte_status_contracted"=>$lab->is_external ?? 0,
+                                "lab_section_id" => $element->lab_section_id,
+                                "parameters_order" => $element->level,
+                                "remark_is_manual" => $element->remark_is_manual
+                            ];
+                            $captured = CapturedResult::create($insert_captured);
+                            $insert_result = [
+                                'captured_result_id' => $captured->id,
+                                "sample_detail_id" => $sample->id,
+                                'sample_detail_code'=>$sample->sample_code,
+                                "sample_header_id" => $batch->id,
+                                "analyte_id" => $element->analyte_id,
+                                "analysis_type_id" => $element->analysis_type_id,
+                                "analyte_code" => $element->analyte->code,
+                                "unit_code" => $element->reporting_unit,
+                                "reporting_symbol" => $element->reporting_symbol,
+                                "recheck"=>0,
+                                "analyte_status_contracted"=>$lab->is_external ?? 0,
+                                "lab_section_id" => $element->lab_section_id,
+                                "parameters_order" => $element->level,
+                                "remark_is_manual" => $element->remark_is_manual
     
-                    $sample_code = 'S' . date('Y') . $lab->code .$SampleHeader->sample_type->code. sprintf('%0' . '4' . 'd', $sample_number);
-                    $sample_no = sprintf('%0' . '4' . 'd', $sample_number);
-                    $report_number = 'LR/'.$SampleHeader->sample_type->code.'/'.date('Y').'/'.$lab->code.'/'.sprintf('%0' . '4' . 'd', $sample_number);
-                    $insert_sample = [
-                        'sample_code'=>$sample_code,
-                        'sample_no' => $sample_no,
-                        'report_number' => $report_number,
-                        'analysis_type_id' => $detail->analysis_type_id,
-                        'lab_id' => $lab->id,
-                        'sample_header_id' => $batch->id,
-                        'disposal_date' => \Carbon\Carbon::parse($batch->receipt_date)->addDays(14)->format('Y-m-d'),
-                    ];
-                    $sample = SampleDetails::create($insert_sample);
-                    $this->createDetailAnalysisRelation($batch->id, $sample->id, explode(',', $sample->analysis_type_id));
-
-                    $analysis_elements = AnalysisElements::with(['analyte'])->whereIn('id',explode(',',$detail->default_analytes))->get();
-                    foreach($analysis_elements as $element){
-                        $insert_captured = [
-                            
-                        ]
+                            ];
+                            $result = Result::create($insert_result);
+                        }
+    
+                        $analysis_max_report_time = AnalysisType::whereIn('id', $analysis_types_arr)->max('reporting_time');
+                        $analytes_max_report_time = AnalysisElements::whereIn('analysis_type_id', $analysis_types_arr)->max('reporting_time');
+                        $maxReportingTime = $analysis_max_report_time > $analytes_max_report_time ? $analysis_max_report_time : $analytes_max_report_time;
                     }
-
-                    $analysis_max_report_time = AnalysisType::whereIn('id', explode(',',$detail->analysis_type_id))->max('reporting_time');
-                    $analytes_max_report_time = AnalysisElements::whereIn('analysis_type_id', explode(',',$detail->analysis_type_id))->max('reporting_time');
-                    $maxReportingTime = $analysis_max_report_time > $analytes_max_report_time ? $analysis_max_report_time : $analytes_max_report_time;
                 }
-
             }
+            $targetDateStr = 'Target Date';
+            $targetDate = \App\SampleDate::where('sample_header_id', $batch->id)->where('name', $targetDateStr)->first() ?? new \App\SampleDate();
+            $targetDate->name = $targetDateStr;
+            $targetDate->sample_header_id = $batch->id;
+            $targetDate->date = \Carbon\Carbon::parse($batch->receipt_date)->addDays($maxReportingTime);
+            $targetDate->save();
+
+            $strStage = 'Sample Labeling';
+            $samWk = 'Samples Reception';
+
+            $stage = SampleAnalysisStage::where('name', $strStage)->where('sample_workflow', $samWk)->first();
+            $batch->days_of_analysis = $maxReportingTime;
+            $batch->sample_tracking_stage = $stage->id;
+            $batch->save();
+
         }
+
+        QuotationHeader::find($request->quote_id)->update(['is_batch_generate'=>1]);
         
-        
+        return redirect()->back()->with('success','Batch created successfully');
 
 
     }

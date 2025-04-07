@@ -11,6 +11,8 @@ class QuotationHeader extends Model implements Auditable
 {
 	use \OwenIt\Auditing\Auditable;
     protected $table = 'quotation_headers';
+
+    protected $guarded = ['id'];
     protected $appends = ['creator'];
 
     public function getCreatorAttribute(){

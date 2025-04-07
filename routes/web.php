@@ -216,6 +216,7 @@ Route::post('/process-raw-results/lab','SampleWorkFlowController@processRawResul
   Route::get('/billing/print_quotation/{id}', 'Invoice\QuotationController@print_quotation')->name('print_quotation');
   Route::post('/billing/upload_quotation/{id}', 'Invoice\QuotationController@upload_quotation')->name('upload_quotation');
   Route::post('/approve-workflow', 'Invoice\QuotationController@approve_workflow')->name('approve-workflow');
+  Route::post('/convert-quote/batch','Invoice\QuotationController@convertQuoteToBatch')->name('convert-quote-batch');
 
   Route::post('/billing/payment-detail-add', 'InvoicePaymentDetailController@add')->name('payment-detail-add');
   Route::post('/billing/payment-detail-edit', 'InvoicePaymentDetailController@edit')->name('payment-detail-edit');

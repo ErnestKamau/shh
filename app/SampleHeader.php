@@ -12,7 +12,7 @@ use App\Models\CRM\CRMCompanyUnit;
 class SampleHeader extends Model implements Auditable
 {
 	use \OwenIt\Auditing\Auditable;
-	protected $fillable = ['declaration_customer_approval_date','declaration_customer_signature','declaration_customer_contact_name','c_focus_ids_clustered','cluster_amount','cluster_amount_paid','cluster_vat','cluster_balance','created_at','updated_at','batch_code','receipt_date','status','crm_unit_name','invoice_id'];
+	protected $guarded = ['id'];
 	// public $with = ['get_target_date', 'client', 'samples', 'specialist_analyst', 'custody', 'comments'];
 	protected $appends = ['unitname'];
 	
@@ -311,7 +311,7 @@ class SampleHeader extends Model implements Auditable
 		return isset($contact->id) ? $contact->first_name.' '.$contact->middle_name.' '.$contact->last_name : '-';
 	}
 	public function getLabSectionsNames(){
-		$tracking_stages_arr = explode(',',$this->lab_section_ids ?? []);
+		$tracking_stages_arr = explode(',',$this->lab_section_ids ?? '');
 		return implode(',',SampleAnalysisStage::whereIn('id',$tracking_stages_arr)->pluck('name')->toArray()); 
 	}
 	public function getUnitNameAttribute(){
