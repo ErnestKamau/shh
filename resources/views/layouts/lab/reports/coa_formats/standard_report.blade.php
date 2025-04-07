@@ -298,7 +298,7 @@ $printed_pos = [];
                                 </td>
                                 <td class="parameter result-t {{ $captured->remark == 'FAIL' ? 'textBold text-danger' : '' }}"
                                     style="font-size: 9px !important;padding-left:3px !important;">
-                                    {{ $captured->result_reporting_symbol ?? '' }}{!! $captured->result != '' ? ( $captured->supercsript_base != '' ? getCustomExp( $captured->supercsript_base,$captured->superscript_negative,$captured->superscript_number,$captured->remark) :  formatReportResults( $captured->scienctific_result)) : 'TBA' !!}
+                                    {{ $captured->result_reporting_symbol ?? '' }}{!! $captured->result   ?  formatReportResults( $captured->result) : 'TBA' !!}
                                 </td>
                                 @if ($batch->require_mu == 1)
                                     <td class="parameter" style="font-size: 9px !important;padding-left:3px !important;">
