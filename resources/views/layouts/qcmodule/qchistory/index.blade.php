@@ -28,7 +28,7 @@
 			'icon' => null
 		),
 		array(
-			'link' => route('sample-workflow', ['status' => 'All Samples']),
+			'link' => route('qcWorkflowIndex'),
 			'name' => 'QC History',
 			'icon' => null
 		),
@@ -48,13 +48,13 @@
 					<div class="col-md-4">
 						<div class="form-group">
 							<label for="" class="control-label">Start Date</label>
-							<input type="date" name="start_date" id="" value="" class="form-control">
+							<input type="date" name="start_date" id="" value="{{ $filter_data['start_date'] }}" class="form-control">
 						</div>
 					</div>
 					<div class="col-md-4">
 						<div class="form-group">
 							<label for="" class="control-label">End Date</label>
-							<input type="date" name="end_date" id="" value="" class="form-control">
+							<input type="date" name="end_date" id="" value="{{ $filter_data['end_date'] }}" class="form-control">
 						</div>
 					</div>
 					<div class="col-md-4">
@@ -63,7 +63,7 @@
 							<select name="qc_type_id" id="qc_type_id" class="form-control">
 								<option value="">Choose QC Type</option>
 								@foreach($qc_types as $q_type)
-								<option value="{{$q_type->id}}">{{$q_type->name}}</option>
+								<option value="{{$q_type->id}}" {{ $filter_data['qc_type_id'] == $q_type->id ? 'selected' : '' }}>{{$q_type->name}}</option>
 								@endforeach
 							</select>
 						</div>
@@ -74,7 +74,7 @@
 							<select name="qc_scheme_id" id="" class="form-control">
 								<option value="">Choose QC Scheme</option>
 								@foreach($qc_schemes as $scheme)
-								<option value="{{$scheme->id}}">{{$scheme->name}}</option>
+								<option value="{{$scheme->id}}" {{ $filter_data['qc_scheme_id'] == $scheme->id ? 'selected' : '' }}>{{$scheme->name}}</option>
 								@endforeach
 							</select>
 						</div>
@@ -82,7 +82,7 @@
 					<div class="col-md-4">
 						<div class="form-group">
 							<label for="" class="control-label">Standard</label>
-							<select name="standard_id" id="standard_id" class="form-control"></select>
+							<select name="standard_id" id="standard_id" class="form-control" data-selected="{{ $filter_data['standard_id'] }}"></select>
 						</div>
 					</div>
 					<div class="col-md-4">
@@ -91,7 +91,7 @@
 							<select name="sample_type_id" id="sample_type_id" class="form-control">
 								<option value="">Choose Sample Type</option>
 								@foreach($sample_types as $st)
-								<option value="{{$st->id}}">{{$st->name}}</option>
+								<option value="{{$st->id}}" {{ $filter_data['sample_type_id'] == $st->id ? 'selected' : ''}}>{{$st->name}}</option>
 								@endforeach
 							</select>
 						</div>
@@ -99,7 +99,7 @@
 					<div class="col-md-4">
 						<div class="form-group">
 							<label for="" class="control-label">Analysis Type</label>
-							<select name="analysis_type_id" id="analysis_type_id" class="form-control">
+							<select name="analysis_type_id" id="analysis_type_id" data-selected = "{{ $filter_data['analysis_type_id'] }}" class="form-control">
 
 							</select>
 						</div>
@@ -107,7 +107,7 @@
 					<div class="col-md-4">
 						<div class="form-group">
 							<label for="" class="control-label">Analyte</label>
-							<select name="analyte_id" id="analyte_id" class="form-control">
+							<select name="analyte_id" id="analyte_id" data-selected="{{ $filter_data['analyte_id'] }}" class="form-control">
 								
 							</select>
 						</div>
@@ -117,9 +117,19 @@
 							<label for="" class="control-label">Remark</label>
 							<select name="remark" id="" class="form-control">
 								<option value="">Select Remark...</option>
-								<option value="PASS">Pass</option>
-								<option value="FAIL">Fail</option>
-								<option value="All">All</option>
+								<option value="PASS" {{ $filter_data['remark'] == 'PASS' ? 'selected' : '' }}>Pass</option>
+								<option value="FAIL" {{ $filter_data['remark'] == 'FAIL' ? 'selected' : '' }}>Fail</option>
+								<option value="All" {{ $filter_data['remark'] == 'All' ? 'selected' : '' }}>All</option>
+							</select>
+						</div>
+					</div>
+					<div class="col-md-4">
+						<div class="form-group">
+							<label for="" class="control-label">Group By</label>
+							<select name="group_by" id="" class="form-control">
+								<option value="1" {{ $filter_data['group_by'] == '1' ? 'selected' : '' }}>By Parameter</option>
+								<option value="2" {{ $filter_data['group_by'] == '2' ? 'selected' : '' }}>By Sample</option>
+								<option value="3" {{ $filter_data['group_by'] == '3' ? 'selected' : '' }} >By Batch</option>
 							</select>
 						</div>
 					</div>
@@ -135,7 +145,7 @@
 	<div class="card mt-4" style="box-shadow: rgba(0, 0, 0, 0.35) 0px 5px 15px;">
 		<div class="card-header" style="font-size:20px; font-weight:580">
 			Report Data
-			<span class="btn btm-sm btn-default float-right  bg-white" style="box-shadow: rgba(0, 0, 0, 0.35) 0px 5px 15px;" data-target="#release_data" data-toggle="modal"><i class="mdi mdi-cogs"></i> Release Report</span>
+			<!-- <span class="btn btm-sm btn-default float-right  bg-white" style="box-shadow: rgba(0, 0, 0, 0.35) 0px 5px 15px;" data-target="#release_data" data-toggle="modal"><i class="mdi mdi-cogs"></i> Release Report</span> -->
 		</div>
 		<div class="card-body">
 			<div class="table-responsive">
@@ -145,9 +155,20 @@
 						<th nowrap>Receipt Date</th>
 						<th>Batch Code</th>
 						<th>Sample Code</th>
+						@if($filter_data['group_by'] ==1)
+						<th>Analyte</th>
+						@endif
 						<th nowrap>Sample Type</th>
 						<th>Results</th>
+						@if(isset($selected_qc_type->id) && $selected_qc_type->use_existing_sample ==1)
+						@if($filter_data['group_by'] ==1)
+						<th>Previous Result</th>
+						@endif
+						<th>+- %</th>
+						@endif
+						@if($filter_data['group_by'] ==1)
 						<th>Standard Value</th>
+						@endif
 						<th>Remark</th>
 						<th>Analyst</th>
 
@@ -158,9 +179,20 @@
 							<td>{{$r->receipt_date}}</td>
 							<td>{{$r->batch_code}}</td>
 							<td>{{$r->sample_detail_code}}</td>
+							@if($filter_data['group_by'] ==1)
+							<td>{{ $r->analyte_code }}</td>
+							@endif
 							<td>{{$r->sample_type_name}}</td>
 							<td>{{$r->result}}</td>
-							<td>{{$r->guide}}</td>
+							@if(isset($selected_qc_type->id) && $selected_qc_type->use_existing_sample ==1)
+							@if($filter_data['group_by'] ==1)
+							<td>{{ $r->previous_result }}</td>
+							@endif
+							<td>{{ $r->config_percentage }}</td>
+							@endif
+							@if($filter_data['group_by'] ==1)
+							<td>{{$r->main_value}}</td>
+							@endif
 							<td>{{$r->remarks}}</td>
 							<td>{{$r->analyst_name}}</td>
 

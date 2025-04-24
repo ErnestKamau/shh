@@ -132,7 +132,7 @@
                                 <th>Code</th>
                                 <th>Created By</th>
                                 <th>Has Standards</th>
-                                <th>Has Connfigured Samples</th>
+                                <th>Has Configured Samples</th>
                                 <th>Use Existing Samples</th>
                                 <th>Active</th>
 
@@ -200,7 +200,8 @@
 <div class="modal fade" id="edit-approver" data-staff="{{json_encode($staffs)}}" role="dialog">
     <div class="modal-dialog">
         <div class="modal-content">
-            <form action="" method="post">
+            <form action="{{ route('edit-qc-approver') }}" method="post">
+                @csrf
                 <div class="modal-body">
                     
                 </div>
@@ -375,7 +376,7 @@
                 <input type="hidden" name="approver_id" value="${data.id}">
             `).clone();
             $.each(staff,(i,obj)=>{
-                var option = `<option value="${obj.id}" ${obj.id == data.personnel_id ? 'selected' : '' }>${obj.name}<option/>`;
+                var option = `<option value="${obj.id}" ${obj.id == data.personnel_id ? 'selected' : '' }>${obj.name}</option>`;
                 $(body).find('#personnel_id').append(option);
             })
             return body;
@@ -505,11 +506,13 @@
             }else{
                 $(body).find('#is_active').prop('checked',true)
             }
+            $(body).find('.qc_scheme_id').append(`<option value="" >Select QC Scheme...</option>`);
             $.each(qcSchemes,(i,obj)=>{
                 var idQcSch = obj.id + '';
                 var option = `<option value="${obj.id}" ${data && data.qcschemeidsarr.indexOf(idQcSch) >= 0 ? `selected` : ''} >${obj.name}</option>`;
                 $(body).find('.qc_scheme_id').append(option)
-            })
+            });
+            $(body).find('.qc-select').append(`<option value="" >Select QC Type...</option>`);
             $.each(qcTypes,(i,obj)=>{
                 var option = `<option value="${obj.id}" ${data && data.qc_type_id == obj.id ? `selected` : ''} >${obj.name}</option>`;
                 $(body).find('.qc-select').append(option)

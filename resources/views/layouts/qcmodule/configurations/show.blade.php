@@ -64,7 +64,7 @@
                                 <span class="btn btn-sm btn-default text-danger" data-toggle="modal" data-target="#delete-analyte" data-record="{{json_encode($s_analyte)}}"><i class="mdi mdi-delete-empty" data-toggle="tooltip" title="Edit"></i></span>
 
                             </td>
-                            <td>{{$s_analyte->getAnalyte()->code}}</td>
+                            <td>{{$s_analyte->getAnalyte()->code ?? ''}}</td>
                             <td>{{$standard->name}}</td>
                             <td>{{$s_analyte->expected_value}}</td>
                             <td>{{$s_analyte->tolerance_1}}</td>

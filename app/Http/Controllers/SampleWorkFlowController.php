@@ -32,6 +32,9 @@ use App\Models\CRM\SamplePoint;
 use App\Models\Equipments\Equipment;
 use App\Models\Lab\TatCaptured;
 use App\Models\Lab\TatCapturedView;
+use App\Models\QcModule\Configurations\QcSchemes;
+use App\Models\QcModule\Configurations\QcTypes;
+use App\Models\QcModule\QCProcessedResults;
 use App\Models\System\SystemConfiguration;
 use App\ModulePreConfigs;
 use App\Pricelist;
@@ -63,7 +66,7 @@ use Illuminate\Http\File;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
-use Modules\QualityControl\Entities\Data\QcResults;
+use App\Models\QcModule\Data\QcResults;
 use PhpParser\PrettyPrinter\Standard;
 
 class SampleWorkFlowController extends Controller
@@ -258,14 +261,14 @@ class SampleWorkFlowController extends Controller
     public function add_batch_info(Request $request, $batch)
     {
         if (isset($request->is_qc_batch)) {
-            if (isset($request->repeat_sample_id) && $request->repeat_sample_id > 0) {
-                $repeat_samples = SampleDetails::find($request->repeat_sample_id);
-                $last_header = SampleHeader::find($repeat_samples->sample_header_id);
-                $selectedCustomer = CRMCustomer::find($last_header->crm_customer_id);
-            } else {
-                $qc_customer_id = SystemConfiguration::where('key', 'qc_customer_id')->first();
-                $selectedCustomer = CRMCustomer::find($qc_customer_id->value);
+            $qc_customer_id = SystemConfiguration::where('key', 'qc_customer_id')->first();
+            if(!isset($qc_customer_id->id)){
+                return redirect()->back()->with('error','Kindly set company QC Customer first');
             }
+            $selectedCustomer = CRMCustomer::find($qc_customer_id->value);
+            if (isset($request->repeat_samples_id) && $request->repeat_samples_id != '') {
+                $repeat_samples = SampleDetails::whereIn('id',$request->repeat_samples_id)->get();
+            } 
         } else {
             $selectedCustomer = CRMCustomer::find($request->crm_customer_id);
         }
@@ -358,21 +361,15 @@ class SampleWorkFlowController extends Controller
             if ($isInReception) {
                 $header->sample_type_id = $request->sample_type_id;
                 if (isset($request->is_qc_batch)) {
-                    if (isset($request->repeat_sample_id) && $request->repeat_sample_id > 0) {
-                        $repeat_samples = SampleDetails::find($request->repeat_sample_id);
-                        $last_header = SampleHeader::find($repeat_samples->sample_header_id);
+                    $qc_customer_id = SystemConfiguration::where('key', 'qc_customer_id')->first();
+                    $qc_customer_unit = SystemConfiguration::where('key', 'qc_customer_unit')->first();
 
-                        $header->crm_customer_id = $last_header->crm_customer_id;
-                        $header->sample_type_id = $last_header->sample_type_id;
-                        $header->crm_unit_id = $last_header->crm_unit_id;
-                    } else {
-                        $qc_customer_id = SystemConfiguration::where('key', 'qc_customer_id')->first();
-                        $qc_customer_unit = SystemConfiguration::where('key', 'qc_customer_unit')->first();
+                    $header->crm_customer_id = $qc_customer_id->value;
 
-                        $header->crm_customer_id = $qc_customer_id->value;
-
-                        $header->crm_unit_name = $qc_customer_unit->value;
-                    }
+                    $header->crm_unit_name = $qc_customer_unit->value;
+                    $header->qc_type_id = $request->qc_type_id;
+                    $header->qc_scheme_id = $request->qc_scheme_id;
+                    $header->repeat_sample_id = implode(',',$request->repeat_samples_id) ?? '';
                 } else {
                     $header->crm_customer_id = $request->crm_customer_id;
 
@@ -414,6 +411,7 @@ class SampleWorkFlowController extends Controller
         }
 
 
+
         $header->sampling_method_id = $request->sampling_method_id;
         $header->submit_by = $request->submit_by;
         $header->radio_active_levels = $request->radio_active_levels;
@@ -444,42 +442,69 @@ class SampleWorkFlowController extends Controller
         }
 
         $header->save();
-        if (isset($request->repeat_sample_id) && $request->repeat_sample_id > 0) {
-            $samples = SampleDetails::find($request->repeat_sample_id);
-            $new_sample = $samples->replicate();
-            $config_start_no = SystemConfiguration::where('key', 'start_sample_no')->first();
-            if (!isset($config_start_no->id)) {
-                return redirect()->back()->with('error', 'Kindly configure the start sample No');
-            }
-            $last_sample = isset(SampleDetails::latest('id')->first()->id) ? explode('-', SampleDetails::max('sample_code'))[1] : $config_start_no->value;
-            $sample_number = intval($last_sample) + 1;
+        
+        if (isset($request->repeat_samples_id) && $request->repeat_samples_id != '') {
+            $sample_point = SystemConfiguration::where('key','qc_sample_point_id')->first();
+            foreach($repeat_samples as $old_sample){
+                $new_sample = $old_sample->replicate();
+                $lab = Lab::find($old_sample->lab_id);
+                $code = SampleDetails::orderBy('id','DESC')->first();
+                $last_sample = isset($code->id) ? $code->sample_no : $lab->start_sample_no;
+                
+                // $last_sample = isset(SampleDetails::latest('id')->first()->id) ? substr(SampleDetails::latest('id')->first()->sample_code,9,strlen(SampleDetails::latest('id')->first()->sample_code) -1) : $config_start_no->value;
 
-            $new_sample->sample_code = 'S0513-' . $sample_number;
-            $new_sample->sample_header_id = $header->id;
-            $new_sample->save();
-            $captureds = CapturedResult::where('sample_detail_id', $samples->id)->get();
-            foreach ($captureds as $capture) {
-                $new_capture = $capture->replicate();
-                $result = Result::where('captured_result_id', $capture->id)->first();
-                $new_capture->sample_detail_id = $new_sample->id;
-                $new_capture->sample_header_id = $header->id;
-                $new_capture->sample_detail_code = $new_sample->sample_code;
-                $new_capture->result = '';
-                $new_capture->remark = '';
-                $new_capture->repeat_captured_id = $capture->id;
-                $new_capture->save();
-                $new_result = $result->replicate();
-                $new_result->captured_result_id = $new_capture->id;
-                $new_result->sample_detail_id = $new_sample->id;
-                $new_result->sample_header_id = $header->id;
-                $new_result->sample_detail_code = $new_sample->sample_code;
-                $new_result->result = '';
-                $new_result->remarks = '';
-                $new_result->repeat_results_id = $result->id;
-                $new_result->save();
+                // return response()->json($request->sample_details['lab_id'][$k]);
+                $sample_number = intval($last_sample) + 1;
+                // $sample_number = str_pad($sample_number, 4, '0', STR_PAD_LEFT);
+
+                $sample_code = 'S' . date('Y') . $lab->code .$selectedSampleType->code. sprintf('%0' . '4' . 'd', $sample_number);
+                $sample_no = sprintf('%0' . '4' . 'd', $sample_number);
+                $report_number = 'LR/'.$selectedSampleType->code.'/'.date('Y').'/'.$lab->code.'/'.sprintf('%0' . '4' . 'd', $sample_number);
+                $new_sample->fill([
+                    "sample_header_id" => $header->id,
+                    "sample_code" => $sample_code,
+                    "sample_no" => $sample_no,
+                    "report_number" => $report_number,
+                    "sample_point_id" => $sample_point->value,
+                ]);
+                $new_sample->save();
+                $this->createDetailAnalysisRelation($header->id, $new_sample->id, explode(',', $new_sample->analysis_type_id));
+                $captured_results = CapturedResult::where('sample_detail_id',$old_sample->id)->get();
+                foreach($captured_results as $c_result){
+                    $new_captured = $c_result->replicate();
+                    $new_captured->fill([
+                        "sample_detail_id" => $new_sample->id,
+                        "sample_header_id"=>$header->id,
+                        "sample_detail_code"=>$new_sample->sample_code,
+                        "result" => null,
+                        "remark"=>null,
+                        "repeat_captured_id" => $c_result->id,
+                    ]);
+                    $new_captured->save();
+                    $result = Result::where('captured_result_id', $c_result->id)->first();
+                    $new_result = $result->replicate();
+                    $new_result->fill([
+                        "captured_result_id" => $new_captured->id,
+                        "sample_detail_id" => $new_sample->id,
+                        "sample_header_id"=>$header->id,
+                        "sample_detail_code"=>$new_sample->sample_code,
+                        "result" => null,
+                        "remark"=>null,
+                        "repeat_results_id" => $result->id,
+                    ]);
+                    $new_result->save();
+                }
             }
         }
-        $maxReportingTime = 0;
+        if(isset($request->is_qc_batch) && $request->repeat_samples_id != ''){
+            $batch_a_types  = SampleAnalysisTypeRelationView::where('batch_id',$header->id)->pluck('analysis_type_id')->toArray();
+            $analysis_time = AnalysisType::whereIn('id',$batch_a_types)->max('reporting_time');
+            $analytes_ids = CapturedResult::where('sample_header_id',$header->id)->pluck('analyte_id')->toArray();
+            $element_time = AnalysisElements::whereIn('analysis_type_id',$batch_a_types)->whereIn('analyte_id',$analytes_ids)->max('reporting_time');
+            $maxReportingTime = $analysis_time > $element_time ? $analysis_time : $element_time;
+        }else{
+            $maxReportingTime = 0;
+        }
         $targetDateStr = 'Target Date';
         $targetDate = \App\SampleDate::where('sample_header_id', $header->id)->where('name', $targetDateStr)->first() ?? new \App\SampleDate();
         $targetDate->name = $targetDateStr;
@@ -1066,6 +1091,15 @@ class SampleWorkFlowController extends Controller
             // return response()->json($batch);
             $batch->save();
         }
+        
+        $qc_schemes = QcSchemes::where('is_active',1)->get();
+        $qc_types = QcTypes::where('is_active',1)->get();
+        if(isset($batch->id) && $batch->is_qc_batch == 1){
+            $qcconfigperc = SystemConfiguration::where('key','qc_percentage_config')->first();
+            $qc_config_perc = $qcconfigperc->value;
+        }else{
+            $qc_config_perc = '';
+        }
         $section_approvers_users = isset($batch->id) ? LabSectionApproverRelationShip::whereIn('lab_section_id', explode(',', $batch->lab_section_ids))->get() : [];
 
         $receiving_role = SystemConfiguration::where('key', 'receiving_role_id')->first();
@@ -1366,7 +1400,7 @@ class SampleWorkFlowController extends Controller
         $notesReminderType = getNotesReminderTypes();
         $clients = getClients();
         // return response()->json($analaytesHolder);
-        return view('layouts.lab.sample-workflow.show', compact('batch', 'labStores', 'batchID', 'defaultClient', 'selectedSampleType', 'client_portal', 'ammendable', 'standards', 'attachments', 'not_captured', 'analysts', 'countries', 'accounts', 'methods', 'atachment_type', 'batch_scope', 'customer_survey', 'interlabs', 'labs', 'users', 'payment_detail', 'labsections', 'contacts', 'batch_sample_codes', 'report_formats', 'approvers', 'reportingUnits', 'conditions', 'products', 'headerDetails', 'analaytesHolder', 'analysisBySample', 'analysisBySampleNames', 'labSamples', 'workflowstages', 'workflows', 'sample_types', 'samplingmethods', 'active_company', 'ammendments', 'allsamples', 'selected_analysis_types', 'userLabSections', 'customer', 'requestTypes', 'notifiable_users', 'notesReminderType', 'clients', 'disposal_date', 'status', 'recieving_users', 'section_approvers_users', 'analaytesHolderPesticide', 'approvers_user_ids','ltmethods','processed_results','raw_results'));
+        return view('layouts.lab.sample-workflow.show', compact('batch', 'labStores', 'batchID', 'defaultClient', 'selectedSampleType', 'client_portal', 'ammendable', 'standards', 'attachments', 'not_captured', 'analysts', 'countries', 'accounts', 'methods', 'atachment_type', 'batch_scope', 'customer_survey', 'interlabs', 'labs', 'users', 'payment_detail', 'labsections', 'contacts', 'batch_sample_codes', 'report_formats', 'approvers', 'reportingUnits', 'conditions', 'products', 'headerDetails', 'analaytesHolder', 'analysisBySample', 'analysisBySampleNames', 'labSamples', 'workflowstages', 'workflows', 'sample_types', 'samplingmethods', 'active_company', 'ammendments', 'allsamples', 'selected_analysis_types', 'userLabSections', 'customer', 'requestTypes', 'notifiable_users', 'notesReminderType', 'clients', 'disposal_date', 'status', 'recieving_users', 'section_approvers_users', 'analaytesHolderPesticide', 'approvers_user_ids','ltmethods','processed_results','raw_results','qc_schemes','qc_types','qc_config_perc'));
     }
 
     public function fetch_unit_stuff($name, $client)
@@ -4878,5 +4912,57 @@ class SampleWorkFlowController extends Controller
             ]);
         }
         return redirect()->back()->with('success','Results processed successfully!');
+    }
+
+    public function markQCBatchComplete(Request $request){
+        $captured_results = CapturedResult::with('sample')->where('sample_header_id',$request->batch_id)->get();
+        QcResults::where('sample_header_id',$request->batch_id)->delete();
+        $qc_config_percentage = SystemConfiguration::where('key','qc_percentage_config')->first();
+        $batch = SampleHeader::with('qctype')->find($request->batch_id);
+        $qc_results = [];
+        foreach($captured_results as $c_result){
+            // $analyte_processed = QCProcessedResults::where('analyte_id',$c_result->analyte_id)->where('analysis_type_id',$c_result->analysis_type_id)->where('sample_type_id',$batch->sample_type_id)->where('method_id',$c_result->method_id)->where('standard_id',$c_result->sample->main_standard)->first();
+             $analyte_processed = QCProcessedResults::where('analyte_id',$c_result->analyte_id)->where('analysis_type_id',$c_result->analysis_type_id)->where('sample_type_id',$batch->sample_type_id)->where('method_id',$c_result->method_id)->first();
+            if(!isset($analyte_processed->id)){
+                $analyte_processed = QCProcessedResults::create([
+                    'method_id'=>$c_result->method_id,
+                    "analyte_id" => $c_result->analyte_id,
+                    "analysis_type_id" => $c_result->analysis_type_id,
+                    "sample_type_id" => $batch->sample_type_id,
+                    // "standard_value_id" => $c_result->main_standard_id,
+                    // "standard_id" => $c_result->sample->main_standard
+                ]);
+            }
+            $qc_results[] = [
+                "captured_result_id" => $c_result->id,
+                "sample_detail_code" => $c_result->sample_detail_code,
+                "sample_detail_id" => $c_result->sample_detail_id,
+                "sample_header_id" => $c_result->sample_header_id,
+                "analyte_id" => $c_result->analyte_id,
+                "analyte_code" => $c_result->analyte_code,
+                "result" => $c_result->result,
+                "analysis_type_id" =>$c_result->analysis_type_id,
+                "remarks" => $c_result->remark,
+                "analyte_status_contracted"=>$c_result->analyte_status_contracted,
+                "analyte_accredited" => $c_result->analyte_accredited,
+                "qc_scheme_id" => $batch->qc_scheme_id,
+                "qc_type_id" => $batch->qc_type_id,
+                "method_id" => $c_result->method_id,
+                "sample_type_id" => $batch->sample_type_id,
+                "repeat_captured_id" => $c_result->repeat_captured_id,
+                "previous_result" => $c_result->repeatsampleresult,
+                "config_percentage" => $qc_config_percentage->value ?? 0,
+                // "is_qc_processed" => $batch->qctype->use_existing_sample == 1 ? 1 : 0,
+                "is_qc_processed" => 0,
+                "analyte_processed_id" => $analyte_processed->id,
+            ];
+        }
+        // return response()->json($qc_results);
+        QcResults::insert($qc_results);
+        $previousStatus = $batch->status;
+        $batch->status = 'Completed';
+        $batch->save();
+
+        return redirect()->route('sample-workflow', ['status' => $previousStatus])->with('success', 'QC batch marked as complete successfully. Note to processes the qc results on the qc module to incorporate the new results');
     }
 }

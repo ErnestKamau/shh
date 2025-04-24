@@ -343,7 +343,15 @@
 									<span class="btn btn-sm dropdown-item" data-target="#send-to-email-modal" data-toggle="modal" title="Send for Collection"><i class="mdi mdi-email mr-2"></i> Send for Collection</span>
 								</li>
 
+							@else
+								<li>
+									<span class="dropdown-item"><hr/></span>
+								</li>
+								<li>
+									<span class="btn btn-sm dropdown-item" data-target="#mark-complete" data-toggle="modal" title="Send for  Payment"><i class="mdi mdi-subdirectory-arrow-right mr-2"></i> Mark as Complete</span>
+								</li>
 							@endif
+
 							
 						@endif
 						
@@ -454,13 +462,13 @@
 						@endif
 						
 					</div>
-					<div class="form-group col-md-3">
+					<div class="form-group col-md-3 qc-omit-type-field {{ $batch && $batch->is_qc_batch == 1 ? 'hidden' : '' }}">
 						<label for="" class="control-label">Customer Contact <span class="btn-primary p-0 btn-sm" style="margin: 0px !important;" data-target="#add-customer-contact" data-toggle="modal"><i class="mdi mdi-plus" data-toggle="tooltip" title="Add Contact" ></i></span></label>
 						<select name="crm_contact_id" id="crm_contact_id" class="form-control">
 							<option value="">Choose Customer First...</option>
 						</select>
 					</div>
-					<div class="form-group col-md-3">
+					<div class="form-group col-md-3 qc-omit-type-field {{ $batch && $batch->is_qc_batch == 1 ? 'hidden' : '' }}">
 						<label for="" class="control-label">Customer Email</label>
 						<input type="text" name="customer_email"  id="customer_email" class="form-control" value="{{isset($batch->id) ? $batch->schedule_customer_email : '' }}">
 					</div>
@@ -491,7 +499,7 @@
 							@endforeach
 						</select>
 					</div>
-					<div class="form-group qc-omit-type-field col-md-3">
+					<div class="form-group qc-omit-type-field col-md-3 {{ $batch && $batch->is_qc_batch == 1 ? 'hidden' : '' }}">
 						<label class="control-label">Customer Survey <span class="text-danger">*</span></label>
 						<select name="customer_survey" id="" class="form-control" required>
 							@foreach(explode(',',$customer_survey->value) as $survey)
@@ -510,7 +518,7 @@
 							</select>
 						</div>
 					</div>
-					<div class="form-group btn-group-sm col-md-3">
+					<div class="form-group btn-group-sm col-md-3 qc-omit-type-field {{ $batch && $batch->is_qc_batch == 1 ? 'hidden' : '' }}">
 						<label for="" class="control-label">Sampling Plan</label>
 						<select name="sampling_method_id" id="" class="form-control">
 							<option value="">Select Sampling Plan</option>
@@ -519,11 +527,11 @@
 							@endforeach
 						</select>
 					</div>
-					<div class="form-group col-md-3">
+					<div class="form-group col-md-3 qc-omit-type-field {{ $batch && $batch->is_qc_batch == 1 ? 'hidden' : '' }}">
 						<label for="" class="control-label">Payment Made By</label>
 						<input type="text" value="{{isset($batch->id) ? $batch->payment_done_by : ''}}" name="payment_done_by" placeholder="Payment Made By" class="form-control">
 					</div>
-					<div class="form-group btn-group-sm col-md-3">
+					<div class="form-group btn-group-sm col-md-3 qc-omit-type-field {{ $batch && $batch->is_qc_batch == 1 ? 'hidden' : '' }}">
 						<label class="control-label">Quotation Number</label>
 						<input type="text" class="form-control" data-batch="{{isset($batch->id) ? json_encode($batch->id) : 0}}" name="quote_no" value="{{ $batch->quote_no ?? '' }}" placeholder="Quotation Number..." />
 						<small id="rft-message" class="text-danger"></small>
@@ -534,12 +542,12 @@
 						<label class="control-label">Condition and Quality of Sample</label>
 						<input type="text" class="form-control" autocomplete="off" value="{{$batch->condition_quality_sample ?? ''}}" name="condition_quality_sample" value="{{ $batch->submit_by ?? '' }}" placeholder="Condition and Quality of Sample..." />
 					</div>
-					<div class="form-group btn-group-sm col-md-3">
+					<div class="form-group btn-group-sm col-md-3 qc-omit-type-field">
 							<label class="control-label">Sampled By</label>
 							<input type="text" name="sample_by" value="{{$batch->sampling_officer_name ?? '' }}" id="" placeholder="Sampled By..." class="form-control">
 							
 						</div>
-					<div class="form-group btn-group-sm col-md-3">
+					<div class="form-group btn-group-sm col-md-3 ">
 						<label class="control-label">Submitted By</label>
 						<input type="text" class="form-control" autocomplete="off" value="{{$batch->submit_by ?? ''}}" name="submit_by" value="{{ $batch->submit_by ?? '' }}" placeholder="Submitted By..." />
 					</div>
@@ -557,6 +565,9 @@
 				</div>
 				<div class="row p-2 mt-3">
 					<div class="form-group col-md-4 btn-group-sm">
+						<label for="" class="control-label"><input type="checkbox" name="is_qc_batch" class="is_qc_batch" {{ isset($batch->id) && $batch->is_qc_batch == 1 ? 'checked' : '' }} id=""> Is QC Batch ? </label>
+					</div>
+					<div class="form-group col-md-4 btn-group-sm">
 						<label class="control-label">
 							<input type="checkbox" name="require_mu" value="1" {{ isset($batch->require_mu) && $batch->require_mu == 1 ? 'checked' : '' }}> Has client requested Measure of uncertainity  ?
 						</label>
@@ -571,7 +582,7 @@
 							<input type="checkbox" class="lab_capable" name="lab_capable" value="1" {{ isset($batch->lab_capable) ? ($batch->lab_capable == 1 ? 'checked' : '' ) : 'checked' }}>  Is the laboratory capable of performing the requested tests?
 						</label>
 					</div>
-					
+
 					<div class="form-group col-md-4 btn-group-sm {{ isset($batch->lab_capable) ? ($batch->lab_capable == 1 ? 'hidden' : '' ) : 'hidden' }} batch_subcontracted_client_approval">
 						<label class="control-label">
 							<input type="checkbox" class="" name="batch_subcontracted_client_approval" value="1" {{ isset($batch->batch_subcontracted_client_approval) && $batch->batch_subcontracted_client_approval == 1 ? 'checked' : '' }}>  Is the client willing for the sample to be subcontracted to an Approved Laboratory ?
@@ -591,6 +602,32 @@
 						<textarea class="form-control" name="batch_instructions" placeholder="Batch Instructions...">{{ $batch->batch_instructions ?? '' }}</textarea>
 					</div>
 					
+				</div>
+
+				<div class="row p-2 mt-1 qc-params {{ $batch && $batch->is_qc_batch == 1 ? '' : 'hidden' }}">
+					<div class="col-md-12 mb-2"><div class="alert alert-default bg-light p-2"> <h6><i class="mdi mdi-chevron-right"></i> Qc Configurations</h6></div></div>
+					<div class="form-group col-md-4">
+						<label for="" class="control-label">QC Scheme</label>
+						<select name="qc_scheme_id" id="" class="form-control ">
+							<option value="">Select QC Scheme</option>
+							@foreach ($qc_schemes as $qc_scheme)
+								<option value="{{ $qc_scheme->id }}" {{ $batch && $batch->qc_scheme_id == $qc_scheme->id ? 'selected' : '' }}>{{ $qc_scheme->name }}</option>
+							@endforeach
+						</select>
+					</div>
+					<div class="col-md-4 form-group">
+						<label for="" class="control-label">QC Type</label>
+						<select name="qc_type_id" id="" class="form-group qc_type_id">
+							<option value="">Select QC Types</option>
+							@foreach ($qc_types as $qc_type)
+								<option value="{{ $qc_type->id }}" {{ $batch && $batch->qc_type_id == $qc_type->id ? 'selected' : '' }}>{{ $qc_type->name }}</option>
+							@endforeach
+						</select>
+					</div>
+					<div class="col-md-4 form-group hidden repeat-sample-field">
+						<label for="" class="control-label">Repeat Samples</label>
+						<select name="repeat_samples_id[]" id="" class="form-control repeat_sample_id"></select>
+					</div>
 				</div>
 					
 				<div class="btn col-md-12 btn-default btn-sm text-primary btn-block toggle-more-fields hidden mb-1">
@@ -2393,6 +2430,29 @@
 					</form>
 				</div>
 			</div>
+			<div class="modal fade" id="mark-complete" role="dialog">
+				<div class="modal-dialog">
+					<div class="modal-content">
+						<form action="{{ route('mark-batch-complete') }}" method="post">
+							@csrf
+							<div class="modal-header text-center">
+								<h5>Mark As Complete</h5>
+							</div>
+							<div class="modal-body">
+								<div class="alert alert-primary p-2 d-flex">
+									<i class="mdi mdi-alert-decagram-outline" style="font-size:20px"></i>
+									<span class="pl-2 mt-1">Confirm you want to mark {{ $batch->batch_code }} QC Batch as complete.</span>
+								</div>
+								<input type="hidden" name="batch_id" value="{{ $batch->id }}">
+							</div>
+							<div class="modal-footer">
+								<button type="submit" class="btn btn-sm btn-outline-primary"><i class="mdi mdi-thumb-up"></i> Yes, Mark</button>
+								<span class="btn btn-sm btn-default" data-dismiss="modal">Close</span>
+							</div>
+						</form>
+					</div>
+				</div>
+			</div>
 		@endif
 		
 	@endif
@@ -2769,7 +2829,7 @@
 										<th>Uncertainity (+-)</th>
 										@endif
 										@endif
-										@if(isset($batch->id) && $batch->repeat_sample_id > 0)
+										@if(isset($batch->id) && $batch->repeat_sample_id != '')
 										<th>Prev Result (<small>+- {{$qc_config_perc}} %</small>)</th>
 										@endif
 										<th class="first_standard_th" >First Standard</th>
@@ -2883,7 +2943,7 @@
 										<th>Uncertainity (+-)</th>
 										@endif
 										@endif
-										@if(isset($batch->id) && $batch->repeat_sample_id > 0)
+										@if(isset($batch->id) && $batch->repeat_sample_id != '')
 										<th>Prev Result (<small>+- {{$qc_config_perc}} %</small>)</th>
 										@endif
 										<th>Standard</th>
@@ -3640,24 +3700,11 @@
 			$('#inter-lab-add').find('.modal-body').append(body);
 			
 		})
-		$('.qc_type_id').on('change',(e)=>{
-			var value = $('.qc_type_id').val();
-			d= value.toString()
-
-			console.log(d);
-			
-			if($('.qc_type_id').data('repeatsample') ==  value.toString()){
-				$('.qc-repeat-batch').removeClass('hidden');
-				// $('.qc-remove-required').removeAttr('required')
-			}else{
-				$('.qc-repeat-batch').addClass('hidden');
-				// $('.qc-remove-required').addAttr('required')
-			}
-		});
-		let getQcTypeConfig = (dataID,callback)=>{
+		let getQcTypeConfig = (dataID,sample_type_id,callback)=>{
 			$.ajax({
 				url:`/qualitycontrol/get/Qc-Type/Config/${dataID}/Ajax`,
 				method:'GET',
+				data:{sample_type_id:sample_type_id},
 				success:(data)=>{
 					callback(data)
 				},
@@ -3666,26 +3713,45 @@
 				}
 			})
 		}
+		$('.is_qc_batch').on('change',(e)=>{
+			if($(e.currentTarget).is(':checked')){
+				console.log('here..')
+				$('.qc-params').removeClass('hidden')
+				$('.qc-omit-type-field').addClass('hidden');
+			}else{
+				$('.qc-params').addClass('hidden')
+				$('.qc-omit-type-field').removeClass('hidden');
+			}
+			
+		});
 		$('.qc_type_id').on('change',(e)=>{
 			var value = $('.qc_type_id').val()
-			getQcTypeConfig(value,(data)=>{
-				if(data['data'].use_existing_sample == 1){
-					$('.qc-repeat-batch').removeClass('hidden')
-					$.each(data['samples'],(i,obj)=>{
-						var option = `<option value="${obj.id}" ${$batch && $batch.repeat_sample_id == obj.id ? `selected` : ``}>${obj.sample_code}</option>`
-						$('#repeat_sample_id').append(option);
-					})
-					$('#repeat_sample_id').select2();
-				}else{
-					$('.qc-repeat-batch').addClass('hidden')
-				}
-			})
+			var sample_type_id = $('#batch-info-sample-type').val();
+			if(sample_type_id == ''){
+				alert('Kindly select the sample type first!');
+				$('.qc_type_id').val('');
+			}else{
+				getQcTypeConfig(value,sample_type_id,(data)=>{
+					if(data['data'].use_existing_sample == 1){
+						$('.repeat-sample-field').removeClass('hidden');
+						$('.repeat_sample_id').empty();
+						$('.repeat_sample_id').append('<option value="">Select Samples</option>')
+						$.each(data['samples'],(i,obj)=>{
+							var option = `<option value="${obj.id}" ${$batch && $batch.repeatsampleidarr  ? ($batch.repeatsampleidarr.includes(obj.id) ? `selected` : ``) : ''}>${obj.sample_code}</option>`
+							$('.repeat_sample_id').append(option);
+						})
+						$('.repeat_sample_id').select2();
+					}else{
+						$('.repeat-sample-field').addClass('hidden');
+						$('.repeat_sample_id').val('');
+						$('.repeat_sample_id').empty();
+					}
+				})
+			}
 		});
-		if($batch && $batch.repeat_sample_id > 0){
+		if($batch && $batch.repeatsampleidarr.length > 0){
 			$('.qc_type_id').trigger('change');
 		}
-	
-
 		$('#add-company-unit').on('show.bs.modal',function(){
 			var customer = $('select[name="crm_customer_id"]').val();
 			if(customer == ''){
@@ -3864,13 +3930,14 @@
 		var analysisNames = $('#sample-detail-rows').data('analysis_names');
 		var labSectionRow = (section,id,batch_id,sample_id,datevalue,standard_count = 0)=>{
 			var colspan_value = thebatch  && thebatch.reqire_mu ? 13 : 12;
+			var qc_colspan = $batch && $batch.repeat_sample_id != '' ? 1 : 0;
 			var body = $(`
 			<tr>
 				<td colspan="3" style="padding-left:2%">
 					<h5>${section}</h5>
 					
 				</td>
-				<td class="pull-right" colspan="${colspan_value + standard_count}" style="padding-left:1%">
+				<td class="pull-right" colspan="${colspan_value + standard_count + qc_colspan}" style="padding-left:1%">
 					<b>Date of Analysis</b>
 					<input type="date" class="start_analysis_date" value="${datevalue}" min="{{isset($batch->id) ? $batch->receipt_date : date('Y-m-d')}}" style="margin-left:1%;width:20%">
 					<span class="btn btn-sm btn-success save-analysis-start-date" style="font-size:14px !important"><i class="mdi mdi-sync"></i>Click to Save Date</span>
@@ -4830,16 +4897,7 @@
 		$('#batch-info-sample-type').on('change', function(){
 			fetchSampleAnalysis($(this));
 		});
-		$('.is_qc_batch').on('change',(e)=>{
-			if($(e.currentTarget).is(':checked')){
-				$('.qc-type-field').removeClass('hidden')
-				$('.qc-omit-type-field').addClass('hidden');
-			}else{
-				$('.qc-type-field').addClass('hidden')
-				$('.qc-omit-type-field').removeClass('hidden');
-			}
-			
-		});
+		
 		var relatedTargetElement;
 		var is_value_id = 0;
 		var editStandardModal = (data)=>{

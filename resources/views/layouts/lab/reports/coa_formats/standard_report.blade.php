@@ -407,11 +407,11 @@ $printed_pos = [];
                                 <td style="font-size: 8px !important;width:23%; position: relative">
                                     @if($loop->last)
                                         @if (isset($is_stamp->id))
-                                            <div class="stamp-section" style="position: absolute; top:-30px; left:250px; z-index: 10">
-                                                <img src="{{ $stamp }}" style="height:105px; z-index:1000;position: relative;" alt="">
+                                            <div class="stamp-section" style="position: absolute; top:-80px; left:240px; z-index: 10">
+                                                <img src="{{ $stamp }}" style="height:200px; z-index:1000;position: relative;" alt="">
                                             </div>
                                             <div
-                                                style="position:absolute; z-index: 10000;background-color:white !important;font-weight:800;top:3px; left:290px;font-size:16px;width: 95px;color:red">
+                                                style="position:absolute; z-index: 10000;background-color:white !important;font-weight:800;top:3px; left:310px;font-size:13px;width: 90px;color:red">
                                                 {{ date('d M Y') }}</div>
                                         @endif
                                     @endif

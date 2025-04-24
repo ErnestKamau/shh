@@ -814,9 +814,16 @@ Route::prefix('qualitycontrol')->group(function () {
     Route::get('/get/Qc-Type/Config/{id}/Ajax', 'QcModule\QualityControlController@getQcTypeConfigAjax')->name('getQcTypeConfigAjax');
 
     Route::post('/add/Qc-Approvvers', 'QcModule\QualityControlController@addQcApprovvers')->name('addQcApprovvers');
+    Route::post('/edit/qc-approver','QcModule\QualityControlController@editQcApprovers')->name('edit-qc-approver');
     Route::get('/deleteQcApprovvers/{id}', 'QcModule\QualityControlController@deleteQcApprovvers')->name('deleteQcApprovvers');
 
     Route::get('get/Analysis-Elements/By-Type-Id/{id}', 'QcModule\QualityControlController@getAnalysisElementsByTypeId')->name('getAnalysisElementsByTypeId');
+    Route::post('/mark/qc/batch/complete','SampleWorkFlowController@markQCBatchComplete')->name('mark-batch-complete');
+
+    Route::post('/process-qc/results','QcModule\QualityControlController@processResults')->name('process-qc-results');
+    Route::get('/show-processing/results','QcModule\QualityControlController@showUnProcessed')->name('showUnProcessed');
+
+    Route::get('/results-reports','QcModule\QualityControlController@showQcReport')->name('qc-reports');
 });
 //############################################QC Module###########################################
 

@@ -8,7 +8,7 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 class QcResults extends Model
 {
 
-    protected $fillable = [];
+    protected $guarded = ['id'];
     protected $table = "qc_results"; 
     
     

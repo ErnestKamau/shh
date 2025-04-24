@@ -3,6 +3,7 @@
 namespace App;
 
 use App\Models\CRM\CRMCustomer;
+use App\Models\QcModule\Configurations\QcTypes;
 use Illuminate\Database\Eloquent\Model;
 use OwenIt\Auditing\Contracts\Auditable;
 use App\InvoiceDetails;
@@ -14,7 +15,11 @@ class SampleHeader extends Model implements Auditable
 	use \OwenIt\Auditing\Auditable;
 	protected $guarded = ['id'];
 	// public $with = ['get_target_date', 'client', 'samples', 'specialist_analyst', 'custody', 'comments'];
-	protected $appends = ['unitname'];
+	protected $appends = ['unitname','repeatsampleidarr'];
+
+	protected function getRepeatSampleIdArrAttribute(){
+		return $this->repeat_sample_id != '' ? explode(',',$this->repeat_sample_id) : [];
+	}
 	
 	public function samples()
 	{
@@ -328,6 +333,9 @@ class SampleHeader extends Model implements Auditable
 	}
 	public function receivingofficer(){
 		return $this->belongsTo(User::class,'receiving_officer_name');
+	}
+	public function qctype(){
+		return $this->belongsTo(QcTypes::class,'qc_type_id');
 	}
 	
 }
