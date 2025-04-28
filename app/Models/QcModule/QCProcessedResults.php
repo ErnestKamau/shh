@@ -29,5 +29,8 @@ class QCProcessedResults extends Model
     public function results(){
         return $this->hasMany(QcResults::class,'analyte_processed_id');
     }
+    public function getresultsarr(){
+        return QcResults::where('analyte_processed_id',$this->id)->pluck('result','sample_detail_code')->toArray();
+    }
 }
 

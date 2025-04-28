@@ -270,6 +270,19 @@ class QualityControlController extends Controller
         $results = QCProcessedResults::with(['method','analyte','sampletype','analysistype','results'])->get();
         return view('layouts.qcmodule.qchistory.reports', compact('results'));
     }
+    public function showQcReportGraph($result_id){
+        $results = QCProcessedResults::with(['method','analyte','sampletype','analysistype','results'])->find($result_id);
+        $results['results_arr'] = $results->getresultsarr();
+        $labels = [];
+        $data = [];
+
+        foreach ($results['results_arr'] as $sampleId => $result) {
+            $labels[] = $sampleId;
+            $data[] = number_format((float)$result, 4, '.', ''); // Convert to float, format to 4 dp
+        }
+        // return response()->json($results);
+        return view('layouts.qcmodule.qchistory.reportshow', compact('results','labels','data'));
+    }
 
 
     // ---------------------------------------statistical methods -------------------------------

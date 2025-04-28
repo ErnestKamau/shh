@@ -3737,7 +3737,8 @@
 						$('.repeat_sample_id').empty();
 						$('.repeat_sample_id').append('<option value="">Select Samples</option>')
 						$.each(data['samples'],(i,obj)=>{
-							var option = `<option value="${obj.id}" ${$batch && $batch.repeatsampleidarr  ? ($batch.repeatsampleidarr.includes(obj.id) ? `selected` : ``) : ''}>${obj.sample_code}</option>`
+							
+							var option = `<option value="${obj.id}" ${$batch && $batch.repeatsampleidarr  ? ($batch.repeatsampleidarr.includes(obj.id.toString()) ? `selected` : ``) : ''}>${obj.sample_code}</option>`
 							$('.repeat_sample_id').append(option);
 						})
 						$('.repeat_sample_id').select2();

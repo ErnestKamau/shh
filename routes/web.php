@@ -824,6 +824,7 @@ Route::prefix('qualitycontrol')->group(function () {
     Route::get('/show-processing/results','QcModule\QualityControlController@showUnProcessed')->name('showUnProcessed');
 
     Route::get('/results-reports','QcModule\QualityControlController@showQcReport')->name('qc-reports');
+    Route::get('/result-report/show/{result_id}','QcModule\QualityControlController@showQcReportGraph')->name('qc-result-show');
 });
 //############################################QC Module###########################################
 

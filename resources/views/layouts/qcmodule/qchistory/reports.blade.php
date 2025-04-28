@@ -29,7 +29,7 @@
 		),
 		array(
 			'link' => route('qc-reports'),
-			'name' => 'QC Unprocessed',
+			'name' => 'QC Reports',
 			'icon' => null
 		),
 
@@ -66,7 +66,7 @@
 					<tbody>
 						@foreach($results as $r)
 						<tr>
-							<td><i class="mdi mdi-eye"></i></td>
+							<td><a href="{{ route('qc-result-show',['result_id'=>$r->id]) }}" class="btn btn-sm btn-default"><i class="mdi mdi-eye"></i></a></td>
                             <td>{{ $r->sampletype->name }}</td>
                             <td>{{ $r->analysistype->name }}</td>
                             <td>{{ $r->method->name }}</td>
@@ -74,9 +74,9 @@
                             <td>{{ $r->results->count() }}</td>
                             <td>{{ $r->robust_mean }}</td>
                             <td>{{ $r->robust_median }}</td>
-                            <td>{{ $r->robust_standard_deviation }}</td>
-                            <td>{{ $r->robust_cv }}</td>
-                            <td>{{ $r->robust_cv_percentage }}</td>
+                            <td>{{ number_format($r->robust_standard_deviation,4) }}</td>
+                            <td>{{ number_format($r->robust_cv,4) }}</td>
+                            <td>{{ number_format($r->robust_cv_percentage,4) }}</td>
 						</tr>
 						@endforeach
 
