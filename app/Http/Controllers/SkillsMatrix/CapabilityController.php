@@ -101,15 +101,18 @@ class CapabilityController extends Controller
     public function storeDetails(Request $request){
         // return response()->json($request->all());
         $loop = 0;
-        foreach($request->competency_id as $competency){
-            $detail = isset($request->competency_detail[$loop]) && $request->competency_detail[$loop] > 0 ? CapabilityMatrixDetail::find($request->competency_detail[$loop]) : new CapabilityMatrixDetail();
-            $detail->capability_id = $request->capability_id;
-            $detail->competency_id = $competency;
-            $detail->user_id = $request->capability_user_id[$loop];
-            $detail->proficiency_id = $request->proficiency_id[$loop];
-            $detail->skill_matrix_role_id = $request->skill_matrix_role_id[$loop];
-            $detail->save();
-            ++$loop;
+
+        if($request->competency_id && gettype($request->competency_id) == 'array'){
+            foreach($request->competency_id as $competency){
+                $detail = isset($request->competency_detail[$loop]) && $request->competency_detail[$loop] > 0 ? CapabilityMatrixDetail::find($request->competency_detail[$loop]) : new CapabilityMatrixDetail();
+                $detail->capability_id = $request->capability_id;
+                $detail->competency_id = $competency;
+                $detail->user_id = $request->capability_user_id[$loop];
+                $detail->proficiency_id = $request->proficiency_id[$loop];
+                $detail->skill_matrix_role_id = $request->skill_matrix_role_id[$loop];
+                $detail->save();
+                ++$loop;
+            }
         }
         return redirect()->back()->with('success','Capability Matrix stored succesfully!');
     }
