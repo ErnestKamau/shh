@@ -480,7 +480,7 @@
           <div class="form-group">
             <label for="" class="control-label">Sections</label>
             <select name="section_ids[]" multiple id="section_ids" class="form-control">
-              @foreach($sampleAnalysisStage as $stage)
+              @foreach($labsections as $stage)
               <option value="{{$stage->id}}">{{$stage->code}} - {{$stage->name}}</option>
               @endforeach
             </select>

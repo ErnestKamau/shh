@@ -231,4 +231,8 @@ class HomeController extends Controller
 
 		return $file->path();
 	}
+	public function aiIndex(){
+		$company = getActiveCompany();
+		return view('layouts.ImaraAi.index', compact('company'));
+	}
 }

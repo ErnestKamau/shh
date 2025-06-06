@@ -71,7 +71,7 @@ $items = array(
                         <select name="role_id[]" multiple id="" class="form-control">
                             <option value="">Choose staff...</option>
                             @foreach ($capability->roles as $g_role)
-                                <option value="{{$g_role->id}}" {{count($selectedUsers) > 0 ? (in_array($g_role->id,$selectedUsers) ? 'selected' : '') : ($loop->iteration <= 10 ? 'selected' : '') }} >{{$g_role->user->name}}</option>
+                                <option value="{{$g_role->id}}" {{count($selectedUsers) > 0 ? (in_array($g_role->id,$selectedUsers) ? 'selected' : '') : ($loop->iteration <= 10 ? 'selected' : '') }} >{{$g_role->user->name ?? ''}}</option>
                             @endforeach
                         </select>
                     </div>

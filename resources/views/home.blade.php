@@ -74,6 +74,11 @@
 			<div class="icon w3-grey"><i class="mdi mdi-file-find-outline"></i></div>
 			<div class="small w3-padding-small">VGM Module</div>
 		</a>
+		<a class="app"  href="{{route('imara-ai-index')}}">
+			<div class="icon w3-orange"><i class="mdi mdi-chip"></i></div>
+			<div class="small w3-padding-small">Imara Ai</div>
+		</a>
+		
 		@if(auth()->user()->is_support_staff)
 			<a class="app" href="/system-settings">
 				<div class="icon w3-black"><i class="fas fa-cogs"></i></div>

@@ -1002,6 +1002,9 @@ Route::post('/validate/client-batches','SampleWorkFlowController@validateClientB
 Route::post('/ajax/send-schedule','SampleWorkFlowController@sendScheduleAjax')->name('ajax-send-schedule');
 #######################################################################################
 
+#####################################IMARA AI#######################
+Route::get('/imara/ai/index','HomeController@aiIndex')->name('imara-ai-index');
+
 
 
 
