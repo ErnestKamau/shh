@@ -90,7 +90,7 @@ $items = array(
                         <select name="user_ids[]" multiple id="" class="form-control">
                             <option value="">Choose staff...</option>
                             @foreach ($train_header->users as $g_role)
-                                <option value="{{$g_role->id}}" {{count($selectedUsers) > 0 ? (in_array($g_role->id,$selectedUsers) ? 'selected' : '') : ($loop->iteration <= 10 ? 'selected' : '') }} >{{$g_role->user->name}}</option>
+                                <option value="{{$g_role->id}}" {{count($selectedUsers) > 0 ? (in_array($g_role->id,$selectedUsers) ? 'selected' : '') : ($loop->iteration <= 10 ? 'selected' : '') }} >{{$g_role->user->name ?? 'System User'}}</option>
                             @endforeach
                         </select>
                     </div>
@@ -113,11 +113,15 @@ $items = array(
                                 @foreach($train_header->users as $role)
                                     @if(count($selectedUsers) > 0)
                                         @if(in_array($role->id,$selectedUsers))
-                                            <th>{{$role->user->first_name[0].'.'.($role->user->middle_name != '' ? $role->user->middle_name : $role->user->last_name )}}</th>
+                                            <th>{{$role->user->first_name[0] ?? ''.'.'.($role->user && $role->user->middle_name != '' ? $role->user->middle_name : $role->user->last_name )}}</th>
                                         @endif
                                     @else
                                         @if($loop->iteration <= 10)
-                                            <th>{{$role->user->first_name[0].'.'.($role->user->middle_name != '' ? $role->user->middle_name : $role->user->last_name ) }}</th>
+                                            @if($role->user)    
+                                                <th>{{$role->user->first_name[0].'.'.($role->user->middle_name != '' ? $role->user->middle_name : $role->user->last_name ) }}</th>
+                                            @else
+                                                <th>System User</th>
+                                            @endif
                                         @endif 
                                     @endif
                                 @endforeach
