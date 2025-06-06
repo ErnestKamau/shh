@@ -189,7 +189,7 @@ $items = array(
                                                         <input type="hidden" name="proficiency_id[]" class="proficiency_id" value="">
                                                         <input type="hidden" name="skill_matrix_role_id[]" value="{{$c_role->skill_matrix_role_id}}">
                                                         <input type="hidden" name="competency_detail[]" value="{{$existProficientId ? $existProficientId : 0 }}">
-                                                        <span class="btn btn-rounded btn-default p-2 {{$proficiencyClass ? 'sp'.$proficiencyClass : 'bg-light'}} proficiency-indicator" data-toggle="modal" data-target="#add-proficiency" data-competency="{{$competency->competencydescription->name}}" data-user="{{$c_role->user->name}}"></span>
+                                                        <span class="btn btn-rounded btn-default p-2 {{$proficiencyClass ? 'sp'.$proficiencyClass : 'bg-light'}} proficiency-indicator" data-toggle="modal" data-target="#add-proficiency" data-competency="{{$competency->competencydescription->name ?? ''}}" data-user="{{$c_role->user->name ?? ''}}"></span>
                                                     </td>
                                                 @endif 
                                             @endif
