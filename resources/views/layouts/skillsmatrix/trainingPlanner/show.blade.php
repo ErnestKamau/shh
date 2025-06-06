@@ -71,9 +71,9 @@ $items = array(
                             <option value="">Choose Staff</option>
                             @foreach($plan->trainneed->users as $role)
                                 @if(count($selectedUsers) > 0)
-                                    <option value="{{$role->id}}" {{in_array($role->id,$selectedUsers) ? 'selected' : ''}} >{{$role->user->name}}</option>
+                                    <option value="{{$role->id}}" {{in_array($role->id,$selectedUsers) ? 'selected' : ''}} >{{$role->user->name ?? 'System User'}}</option>
                                 @else
-                                    <option value="{{$role->id}}" {{ $loop->iteration <= 10 ? 'selected' : ''}} >{{$role->user->name}}</option>
+                                    <option value="{{$role->id}}" {{ $loop->iteration <= 10 ? 'selected' : ''}} >{{$role->user->name ?? 'System User'}}</option>
                                 @endif
                             @endforeach
                         </select>
@@ -225,7 +225,7 @@ $items = array(
                                         <?php 
                                         $staffnames = [];
                                         foreach($other->otheruser as $user){
-                                            array_push($staffnames,$user->user->name);
+                                            array_push($staffnames,$user->user->name ?? '');
                                         } ?>
                                     {{implode(', ',$staffnames )}}
                                     </td>
@@ -290,7 +290,7 @@ $items = array(
                             <select name="staff_ids[]" multiple id="" class="form-control">
                                 <option value="">Select Staff</option>
                                 @foreach($staffs as $staff)
-                                <option value="{{$staff->id}}">{{$staff->name}}</option>
+                                <option value="{{$staff->id}}">{{$staff->name ?? ''}}</option>
                                 @endforeach
                             </select>
                             <input type="hidden" name="plan_id" value="{{$plan->id}}">
@@ -425,7 +425,7 @@ $items = array(
                         <select name="staff_ids[]" multiple id="" class="form-control staff_id">
                             <option value="">Select Staff</option>
                             @foreach($staffs as $staff)
-                            <option value="{{$staff->id}}">{{$staff->name}}</option>
+                            <option value="{{$staff->id}}">{{$staff ?? ''}}</option>
                             @endforeach
                         </select>
                         <input type="hidden" name="other_id" value="${data.id}">
