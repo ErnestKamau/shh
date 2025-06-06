@@ -57,6 +57,9 @@
         justify-content: center;
         gap: 12px;
     }
+    .f-2{
+        font-size:30px !important
+    }
     
     /* MODIFIED FOR RESPONSIVENESS */
     .chat-header .lims-logo {
@@ -616,10 +619,10 @@
     }
 
     function createLimsLogo() {
-        const img = document.createElement('img');
-        img.src = 'logo.png';
-        img.alt = 'IMARA LIMS Logo';
-        img.className = 'lims-logo';
+        const img = document.createElement('i');
+        // img.src = 'logo.png';
+        // img.alt = 'IMARA LIMS Logo';
+        img.className = 'lims-logo mdi mdi-head-lightbulb text-danger f-2';
         return img;
     }
 
