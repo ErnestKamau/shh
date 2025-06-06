@@ -101,11 +101,15 @@ $items = array(
                                     @foreach($capability->roles as $role)
                                         @if(count($selectedUsers) > 0)
                                             @if(in_array($role->id,$selectedUsers))
-                                                <th>{{$role->user->first_name[0].'.'.($role->user->middle_name != '' ? $role->user->middle_name : $role->user->last_name )}}</th>
+                                                <th>{{$role->user->first_name[0] ?? 'System'.'.'.($role->user && $role->user->middle_name != '' ? $role->user->middle_name : $role->user->last_name )}}</th>
                                             @endif
                                         @else
                                             @if($loop->iteration <= 10)
+                                                @if($role->user)
                                                 <th>{{$role->user->first_name[0].'.'.($role->user->middle_name != '' ? $role->user->middle_name : $role->user->last_name ) }}</th>
+                                                @else
+                                                <th>System User</th>
+                                                @endif
                                             @endif 
                                         @endif
                                     @endforeach
