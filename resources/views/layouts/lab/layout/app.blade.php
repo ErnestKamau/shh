@@ -268,6 +268,10 @@
 			<span class="menu-collapsed"><i class="mdi mdi-circle-medium"></i> Sample Type Category
 				<small class="float-right badge badge-pill"></small></span>
 		</a>
+		<a href="{{route('submission-forms.index')}}" class="list-group-item list-group-item-action bg-dark text-white">
+			<span class="menu-collapsed"><i class="mdi mdi-circle-medium"></i> Submission Form Templates
+				<small class="float-right badge badge-pill"></small></span>
+		</a>
 
 	</div>
 

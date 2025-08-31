@@ -1,0 +1,469 @@
+@extends('layouts.lab.layout.app')
+
+@section('title2')
+  <title>Preview - {{ $submissionForm->name }}</title>
+@endsection
+
+@section('content2')
+  <main>
+    <?php
+      $items = array(
+        array(
+          'link' => route('lab-home'),
+          'name' => 'Lab Management',
+          'icon' => null
+        ),
+        array(
+          'link' => route('submission-forms.index'),
+          'name' => 'Submission Forms',
+          'icon' => null
+        ),
+        array(
+          'link' => route('submission-forms.show', $submissionForm),
+          'name' => $submissionForm->name,
+          'icon' => null
+        ),
+        array(
+          'link' => '#',
+          'name' => 'Preview',
+          'icon' => null
+        )
+      );
+    ?>
+    <x-bread-crumb :items="$items"></x-bread-crumb>
+    
+    <div class="d-flex justify-content-between align-items-center p-4">
+      <div>
+        <h2>
+          <i class="mdi mdi-eye-outline"></i> Form Preview
+          <small class="text-muted">{{ $submissionForm->name }}</small>
+        </h2>
+        <div class="alert alert-info mt-2 mb-0">
+          <i class="mdi mdi-information-outline"></i>
+          <strong>Preview Mode:</strong> This is how the form will appear to users. Test data entered here will not be saved.
+        </div>
+      </div>
+      <div>
+        <a href="{{ route('submission-forms.builder', $submissionForm) }}" class="btn btn-primary">
+          <i class="mdi mdi-cog"></i> Edit Form
+        </a>
+        <a href="{{ route('submission-forms.show', $submissionForm) }}" class="btn btn-outline-secondary">
+          <i class="mdi mdi-arrow-left"></i> Back to Form
+        </a>
+      </div>
+    </div>
+
+    <div class="bg-light p-4">
+      <div class="row justify-content-center">
+        <div class="col-md-10">
+          <div class="card">
+            <div class="card-header">
+              <div class="d-flex justify-content-between align-items-center">
+                <div>
+                  <h4 class="mb-1">{{ $submissionForm->name }}</h4>
+                  @if($submissionForm->description)
+                    <p class="text-muted mb-0">{{ $submissionForm->description }}</p>
+                  @endif
+                </div>
+                <div class="text-right">
+                  <small class="text-muted">Form Number: <strong>{{ $submissionForm->naming_convention_prefix }}/PREVIEW/001</strong></small>
+                </div>
+              </div>
+            </div>
+            <div class="card-body">
+              @if($submissionForm->sections->count() > 0)
+                <form id="preview-form" novalidate>
+                  @csrf
+                  
+                  @foreach($submissionForm->sections as $section)
+                    <div class="form-section mb-4">
+                      <div class="section-header mb-3">
+                        <h5 class="text-primary border-bottom pb-2">
+                          <i class="mdi mdi-folder-outline"></i> {{ $section->title }}
+                        </h5>
+                        @if($section->description)
+                          <p class="text-muted small mb-0">{{ $section->description }}</p>
+                        @endif
+                      </div>
+                      
+                      @foreach($section->elementHolders as $holder)
+                        <div class="element-holder mb-3">
+                          @if($holder->holder_type === 'field')
+                            <div class="row">
+                              @foreach($holder->elements as $element)
+                                <div class="col-md-{{ getColumnWidth($holder->elements->count()) }} mb-3">
+                                  @include('submission-forms.partials.form-element', ['element' => $element])
+                                </div>
+                              @endforeach
+                            </div>
+                          @else
+                            {{-- Text holder - for static content --}}
+                            @foreach($holder->elements as $element)
+                              <div class="text-element mb-3">
+                                <div class="alert alert-light">
+                                  <strong>{{ $element->label }}</strong>
+                                  @if($element->help_text)
+                                    <p class="mb-0 mt-2">{{ $element->help_text }}</p>
+                                  @endif
+                                </div>
+                              </div>
+                            @endforeach
+                          @endif
+                        </div>
+                      @endforeach
+                    </div>
+                  @endforeach
+                  
+                  <div class="form-actions mt-4 pt-3 border-top">
+                    <div class="row">
+                      <div class="col-md-6">
+                        <button type="button" class="btn btn-outline-secondary" id="save-draft-btn">
+                          <i class="mdi mdi-content-save-outline"></i> Save as Draft
+                        </button>
+                      </div>
+                      <div class="col-md-6 text-right">
+                        <button type="button" class="btn btn-outline-danger mr-2" id="clear-form-btn">
+                          <i class="mdi mdi-refresh"></i> Clear Form
+                        </button>
+                        <button type="submit" class="btn btn-primary" id="submit-form-btn">
+                          <i class="mdi mdi-check"></i> Submit Form
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                </form>
+              @else
+                <div class="text-center py-5">
+                  <i class="mdi mdi-file-outline" style="font-size: 4rem; color: #ccc;"></i>
+                  <h5 class="text-muted mt-3">No Form Content</h5>
+                  <p class="text-muted">This form doesn't have any sections or elements yet.</p>
+                  <a href="{{ route('submission-forms.builder', $submissionForm) }}" class="btn btn-primary mt-2">
+                    <i class="mdi mdi-cog"></i> Add Content
+                  </a>
+                </div>
+              @endif
+            </div>
+          </div>
+          
+          @if($submissionForm->sections->count() > 0)
+            <!-- Form Validation Summary -->
+            <div class="card mt-3" id="validation-summary" style="display: none;">
+              <div class="card-header bg-danger text-white">
+                <h6 class="mb-0">
+                  <i class="mdi mdi-alert"></i> Please correct the following errors:
+                </h6>
+              </div>
+              <div class="card-body">
+                <ul id="validation-errors" class="mb-0"></ul>
+              </div>
+            </div>
+            
+            <!-- Form Data Preview -->
+            <div class="card mt-3">
+              <div class="card-header">
+                <h6 class="mb-0">
+                  <i class="mdi mdi-code-json"></i> Form Data Preview
+                  <small class="text-muted">(for testing purposes)</small>
+                </h6>
+              </div>
+              <div class="card-body">
+                <pre id="form-data-preview" class="bg-light p-3 rounded"><code>{}</code></pre>
+              </div>
+            </div>
+          @endif
+        </div>
+      </div>
+    </div>
+  </main>
+@endsection
+
+@section('scripts')
+<script>
+$(document).ready(function() {
+    // Form preview functionality
+    const FormPreview = {
+        init() {
+            this.bindEvents();
+            this.updateFormDataPreview();
+        },
+        
+        bindEvents() {
+            // Update form data preview on input change
+            $('#preview-form').on('input change', 'input, select, textarea', () => {
+                this.updateFormDataPreview();
+            });
+            
+            // Form submission
+            $('#preview-form').on('submit', (e) => {
+                e.preventDefault();
+                this.validateAndSubmit();
+            });
+            
+            // Save draft
+            $('#save-draft-btn').on('click', () => {
+                this.saveDraft();
+            });
+            
+            // Clear form
+            $('#clear-form-btn').on('click', () => {
+                this.clearForm();
+            });
+            
+            // File upload handling
+            $('input[type="file"]').on('change', function() {
+                const file = this.files[0];
+                if (file) {
+                    $(this).next('.file-info').remove();
+                    $(this).after(`<small class="file-info text-muted d-block mt-1">Selected: ${file.name} (${(file.size / 1024).toFixed(1)} KB)</small>`);
+                }
+            });
+        },
+        
+        updateFormDataPreview() {
+            const formData = this.getFormData();
+            $('#form-data-preview code').text(JSON.stringify(formData, null, 2));
+        },
+        
+        getFormData() {
+            const data = {};
+            
+            $('#preview-form').find('input, select, textarea').each(function() {
+                const $element = $(this);
+                const name = $element.attr('name');
+                const type = $element.attr('type');
+                
+                if (!name || name === '_token') return;
+                
+                let value = null;
+                
+                if (type === 'checkbox') {
+                    value = $element.is(':checked');
+                } else if (type === 'radio') {
+                    if ($element.is(':checked')) {
+                        value = $element.val();
+                    } else {
+                        return; // Skip unchecked radio buttons
+                    }
+                } else if (type === 'file') {
+                    const file = $element[0].files[0];
+                    value = file ? {
+                        name: file.name,
+                        size: file.size,
+                        type: file.type
+                    } : null;
+                } else {
+                    value = $element.val();
+                }
+                
+                data[name] = value;
+            });
+            
+            return data;
+        },
+        
+        validateForm() {
+            const errors = [];
+            
+            $('#preview-form').find('input[required], select[required], textarea[required]').each(function() {
+                const $element = $(this);
+                const label = $element.closest('.form-group').find('label').text().replace(' *', '');
+                const value = $element.val();
+                
+                if (!value || value.trim() === '') {
+                    errors.push(`${label} is required`);
+                    $element.addClass('is-invalid');
+                } else {
+                    $element.removeClass('is-invalid');
+                }
+            });
+            
+            // Email validation
+            $('#preview-form').find('input[type="email"]').each(function() {
+                const $element = $(this);
+                const value = $element.val();
+                const label = $element.closest('.form-group').find('label').text().replace(' *', '');
+                
+                if (value && !this.checkValidity()) {
+                    errors.push(`${label} must be a valid email address`);
+                    $element.addClass('is-invalid');
+                }
+            });
+            
+            // Number validation
+            $('#preview-form').find('input[type="number"]').each(function() {
+                const $element = $(this);
+                const value = $element.val();
+                const label = $element.closest('.form-group').find('label').text().replace(' *', '');
+                
+                if (value && !this.checkValidity()) {
+                    errors.push(`${label} must be a valid number`);
+                    $element.addClass('is-invalid');
+                }
+            });
+            
+            return errors;
+        },
+        
+        validateAndSubmit() {
+            const errors = this.validateForm();
+            
+            if (errors.length > 0) {
+                this.showValidationErrors(errors);
+                return;
+            }
+            
+            this.hideValidationErrors();
+            this.showPreviewSubmission();
+        },
+        
+        showValidationErrors(errors) {
+            const $errorsList = $('#validation-errors');
+            $errorsList.empty();
+            
+            errors.forEach(error => {
+                $errorsList.append(`<li>${error}</li>`);
+            });
+            
+            $('#validation-summary').show();
+            $('html, body').animate({
+                scrollTop: $('#validation-summary').offset().top - 100
+            }, 500);
+        },
+        
+        hideValidationErrors() {
+            $('#validation-summary').hide();
+            $('#preview-form').find('.is-invalid').removeClass('is-invalid');
+        },
+        
+        showPreviewSubmission() {
+            const formData = this.getFormData();
+            
+            Swal.fire({
+                title: 'Form Submission Preview',
+                html: `
+                    <div class="text-left">
+                        <p><strong>This is a preview submission.</strong> In the actual form, this data would be saved to the database.</p>
+                        <hr>
+                        <h6>Form Data:</h6>
+                        <pre class="bg-light p-2 rounded text-left" style="max-height: 300px; overflow-y: auto;"><code>${JSON.stringify(formData, null, 2)}</code></pre>
+                    </div>
+                `,
+                icon: 'success',
+                confirmButtonText: 'Close Preview',
+                width: '600px'
+            });
+        },
+        
+        saveDraft() {
+            const formData = this.getFormData();
+            
+            Swal.fire({
+                title: 'Draft Saved',
+                html: `
+                    <div class="text-left">
+                        <p><strong>This is a preview of the draft save functionality.</strong></p>
+                        <p>In the actual form, this data would be saved as a draft and the user could return to complete it later.</p>
+                        <hr>
+                        <h6>Draft Data:</h6>
+                        <pre class="bg-light p-2 rounded text-left" style="max-height: 200px; overflow-y: auto;"><code>${JSON.stringify(formData, null, 2)}</code></pre>
+                    </div>
+                `,
+                icon: 'info',
+                confirmButtonText: 'Close',
+                width: '600px'
+            });
+        },
+        
+        clearForm() {
+            if (confirm('Are you sure you want to clear all form data?')) {
+                $('#preview-form')[0].reset();
+                $('#preview-form').find('.is-invalid').removeClass('is-invalid');
+                $('#preview-form').find('.file-info').remove();
+                this.hideValidationErrors();
+                this.updateFormDataPreview();
+                
+                // Show success message
+                Swal.fire({
+                    title: 'Form Cleared',
+                    text: 'All form data has been cleared.',
+                    icon: 'success',
+                    timer: 2000,
+                    showConfirmButton: false
+                });
+            }
+        }
+    };
+    
+    // Initialize form preview
+    FormPreview.init();
+});
+</script>
+
+<!-- Include SweetAlert2 for better modals -->
+<script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+
+<style>
+.form-section {
+    border-left: 3px solid #007bff;
+    padding-left: 20px;
+}
+
+.section-header h5 {
+    color: #007bff;
+}
+
+.element-holder {
+    background-color: #f8f9fa;
+    border-radius: 8px;
+    padding: 15px;
+    margin-bottom: 15px;
+}
+
+.form-group label.required::after {
+    content: " *";
+    color: red;
+}
+
+.is-invalid {
+    border-color: #dc3545;
+}
+
+.file-info {
+    font-size: 0.875em;
+}
+
+#form-data-preview {
+    font-size: 0.875em;
+    max-height: 300px;
+    overflow-y: auto;
+}
+
+.text-element .alert {
+    border-left: 4px solid #17a2b8;
+}
+
+.form-actions {
+    background-color: #f8f9fa;
+    margin: 0 -1.25rem -1.25rem -1.25rem;
+    padding: 1.25rem;
+    border-radius: 0 0 0.375rem 0.375rem;
+}
+</style>
+@endsection
+
+@php
+function getColumnWidth($elementCount) {
+    switch($elementCount) {
+        case 1:
+            return 12;
+        case 2:
+            return 6;
+        case 3:
+            return 4;
+        case 4:
+            return 3;
+        default:
+            return 12 / min($elementCount, 6);
+    }
+}
+@endphp

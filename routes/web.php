@@ -305,6 +305,58 @@ Route::post('/inventory-store-slots/{id}/delete', 'InventoryStoreSlotController@
 
 Route::get('/inventory-slot-contents/{slot}/{store}', 'InventoryStoreSlotContentController@index')->name('inventory-slot-contents');
 Route::post('/inventory-slot-contents/{slot}/{store}', 'InventoryStoreSlotContentController@add')->name('add-inventory-slot-content');
+
+//############################################SUBMISSION FORMS##########################################################
+Route::prefix('submission-forms')->name('submission-forms.')->middleware('auth')->group(function () {
+    Route::get('/', 'SubmissionFormController@index')->name('index');
+    Route::get('/create', 'SubmissionFormController@create')->name('create');
+    Route::post('/', 'SubmissionFormController@store')->name('store');
+    Route::get('/{submissionForm}', 'SubmissionFormController@show')->name('show');
+    Route::get('/{submissionForm}/edit', 'SubmissionFormController@edit')->name('edit');
+    Route::put('/{submissionForm}', 'SubmissionFormController@update')->name('update');
+    Route::delete('/{submissionForm}', 'SubmissionFormController@destroy')->name('destroy');
+    Route::get('/{submissionForm}/preview', 'SubmissionFormController@preview')->name('preview');
+    Route::post('/{submissionForm}/toggle-published', 'SubmissionFormController@togglePublished')->name('toggle-published');
+    Route::post('/{submissionForm}/clone', 'SubmissionFormController@clone')->name('clone');
+    Route::get('/{submissionForm}/export', 'SubmissionFormController@export')->name('export');
+    
+    // Form Builder Routes
+    Route::get('/{submissionForm}/builder', 'FormBuilderController@index')->name('builder');
+    Route::get('/{submissionForm}/structure', 'FormBuilderController@getFormStructure')->name('structure');
+    Route::get('/{submissionForm}/validate-element-name', 'FormBuilderController@validateElementName')->name('validate-element-name');
+    
+    // Section Management
+    Route::post('/{submissionForm}/sections', 'FormBuilderController@addSection')->name('sections.store');
+    Route::put('/sections/{section}', 'FormBuilderController@updateSection')->name('sections.update');
+    Route::delete('/sections/{section}', 'FormBuilderController@deleteSection')->name('sections.destroy');
+    Route::post('/{submissionForm}/sections/reorder', 'FormBuilderController@reorderSections')->name('sections.reorder');
+    
+    // Element Holder Management
+    Route::post('/sections/{section}/holders', 'FormBuilderController@addElementHolder')->name('holders.store');
+    Route::put('/holders/{holder}', 'FormBuilderController@updateElementHolder')->name('holders.update');
+    Route::delete('/holders/{holder}', 'FormBuilderController@deleteElementHolder')->name('holders.destroy');
+    Route::post('/sections/{section}/holders/reorder', 'FormBuilderController@reorderElementHolders')->name('holders.reorder');
+    
+    // Element Management
+    Route::post('/holders/{holder}/elements', 'FormBuilderController@addElement')->name('elements.store');
+    Route::put('/elements/{element}', 'FormBuilderController@updateElement')->name('elements.update');
+    Route::delete('/elements/{element}', 'FormBuilderController@deleteElement')->name('elements.destroy');
+    Route::post('/holders/{holder}/elements/reorder', 'FormBuilderController@reorderElements')->name('elements.reorder');
+});
+
+// Form Instance Management Routes (Admin)
+Route::prefix('form-instances')->name('form-instances.')->middleware('auth')->group(function () {
+    Route::get('/', 'FormInstanceController@index')->name('index');
+    Route::get('/{instance}', 'FormInstanceController@show')->name('show');
+    Route::patch('/{instance}/status', 'FormInstanceController@updateStatus')->name('update-status');
+    Route::get('/{instance}/export', 'FormInstanceController@export')->name('export');
+    Route::get('/{instance}/success', 'FormInstanceController@success')->name('success');
+});
+
+// Public Form Submission Routes (no auth required)
+Route::get('/forms/{submissionForm:slug}', 'FormInstanceController@create')->name('forms.show');
+Route::post('/forms/{submissionForm:slug}', 'FormInstanceController@store')->name('forms.submit');
+
 Route::post('/inventory-slot-contents/{id}/delete', 'InventoryStoreSlotContentController@delete')->name('delete-inventory-slot-content');
 
 Route::get('/show-inventory-items/{category}/{id}', 'InventorySubCategoriesController@index')->name('show-inventory-items');
