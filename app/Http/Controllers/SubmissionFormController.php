@@ -308,5 +308,100 @@ class SubmissionFormController extends Controller
             ->header('Content-Disposition', "attachment; filename=\"{$filename}\"");
     }
 
+    /**
+     * Get dynamic options for custom elements
+     */
+    public function getDynamicOptions(Request $request)
+    {
+        // Ensure user is authenticated
+        if (!auth()->check()) {
+            return response()->json(['error' => 'Unauthorized'], 401);
+        }
+
+        $elementType = $request->get('element_type');
+        $clientId = $request->get('client_id');
+
+        // Validate element type
+        $validTypes = ['client_select', 'sample_type_select', 'client_unit_select', 'client_contact_select'];
+        if (!in_array($elementType, $validTypes)) {
+            return response()->json(['error' => 'Invalid element type'], 400);
+        }
+
+        $options = [];
+
+        try {
+
+        switch ($elementType) {
+            case 'client_select':
+                $clients = \App\Models\CRM\CRMCustomer::where('active', 1)
+                    ->where('company_id', getUserCompany())
+                    ->orderBy('name')
+                    ->get();
+
+                foreach ($clients as $client) {
+                    $options[] = [
+                        'value' => $client->id,
+                        'label' => $client->name
+                    ];
+                }
+                break;
+
+            case 'sample_type_select':
+                $sampleTypes = \App\SampleType::orderBy('name')->get();
+
+                foreach ($sampleTypes as $sampleType) {
+                    $options[] = [
+                        'value' => $sampleType->id,
+                        'label' => $sampleType->name
+                    ];
+                }
+                break;
+
+            case 'client_unit_select':
+                if ($clientId) {
+                    $units = \App\Models\CRM\CRMCompanyUnit::where('crm_customer_id', $clientId)
+                        ->where('active', 1)
+                        ->orderBy('name')
+                        ->get();
+
+                    foreach ($units as $unit) {
+                        $options[] = [
+                            'value' => $unit->id,
+                            'label' => $unit->name
+                        ];
+                    }
+                }
+                break;
+
+            case 'client_contact_select':
+                if ($clientId) {
+                    $contacts = \App\Models\CRM\CustomerContact::where('crm_customer_id', $clientId)
+                        ->where('active', 1)
+                        ->orderBy('first_name')
+                        ->get();
+
+                    foreach ($contacts as $contact) {
+                        $fullName = trim($contact->first_name . ' ' . $contact->middle_name . ' ' . $contact->last_name);
+                        $options[] = [
+                            'value' => $contact->id,
+                            'label' => $fullName . ' (' . $contact->email . ')'
+                        ];
+                    }
+                }
+                break;
+        }
+
+        return response()->json(['options' => $options]);
+        
+        } catch (\Exception $e) {
+            \Log::error('Error loading dynamic options: ' . $e->getMessage(), [
+                'element_type' => $elementType,
+                'client_id' => $clientId,
+                'user_id' => auth()->id()
+            ]);
+            
+            return response()->json(['error' => 'Failed to load options'], 500);
+        }
+    }
 
 }

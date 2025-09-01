@@ -142,6 +142,14 @@ function getElementIcon($elementType) {
             return 'file-upload-outline';
         case 'signature':
             return 'draw';
+        case 'client_select':
+            return 'account-group';
+        case 'sample_type_select':
+            return 'test-tube';
+        case 'client_unit_select':
+            return 'office-building';
+        case 'client_contact_select':
+            return 'account-multiple';
         case 'calculation':
             return 'calculator';
         default:

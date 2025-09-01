@@ -174,6 +174,64 @@
                 </div>
             </div>
             @break
+
+        @case('client_select')
+            <select class="form-control custom-element" 
+                    id="{{ $element->name }}" 
+                    name="{{ $element->name }}"
+                    data-element-type="client_select"
+                    {{ $element->is_required ? 'required' : '' }}
+                    {{ $element->is_readonly ? 'disabled' : '' }}>
+                @if(!$element->is_required)
+                    <option value="">{{ $element->placeholder ?: 'Select a client...' }}</option>
+                @endif
+                {{-- Options will be loaded dynamically --}}
+            </select>
+            @break
+
+        @case('sample_type_select')
+            <select class="form-control custom-element" 
+                    id="{{ $element->name }}" 
+                    name="{{ $element->name }}"
+                    data-element-type="sample_type_select"
+                    {{ $element->is_required ? 'required' : '' }}
+                    {{ $element->is_readonly ? 'disabled' : '' }}>
+                @if(!$element->is_required)
+                    <option value="">{{ $element->placeholder ?: 'Select a sample type...' }}</option>
+                @endif
+                {{-- Options will be loaded dynamically --}}
+            </select>
+            @break
+
+        @case('client_unit_select')
+            <select class="form-control custom-element" 
+                    id="{{ $element->name }}" 
+                    name="{{ $element->name }}"
+                    data-element-type="client_unit_select"
+                    data-depends-on="client_select"
+                    {{ $element->is_required ? 'required' : '' }}
+                    {{ $element->is_readonly ? 'disabled' : '' }}>
+                @if(!$element->is_required)
+                    <option value="">{{ $element->placeholder ?: 'Select a client unit...' }}</option>
+                @endif
+                {{-- Options will be loaded dynamically based on selected client --}}
+            </select>
+            @break
+
+        @case('client_contact_select')
+            <select class="form-control custom-element" 
+                    id="{{ $element->name }}" 
+                    name="{{ $element->name }}"
+                    data-element-type="client_contact_select"
+                    data-depends-on="client_select"
+                    {{ $element->is_required ? 'required' : '' }}
+                    {{ $element->is_readonly ? 'disabled' : '' }}>
+                @if(!$element->is_required)
+                    <option value="">{{ $element->placeholder ?: 'Select a client contact...' }}</option>
+                @endif
+                {{-- Options will be loaded dynamically based on selected client --}}
+            </select>
+            @break
             
         @default
             <input type="text" 
@@ -260,6 +318,94 @@
             ctx.clearRect(0, 0, canvas.width, canvas.height);
             document.getElementById('{{ $element->name }}').value = '';
         });
+    });
+    </script>
+    @endpush
+@endif
+
+@if(in_array($element->element_type, ['client_select', 'sample_type_select', 'client_unit_select', 'client_contact_select']))
+    @push('scripts')
+    <script>
+    $(document).ready(function() {
+        const elementId = '{{ $element->name }}';
+        const elementType = '{{ $element->element_type }}';
+        
+        // Load initial options for non-dependent elements
+        if (elementType === 'client_select' || elementType === 'sample_type_select') {
+            loadDynamicOptions(elementId, elementType);
+        }
+        
+        // Handle client selection change for dependent elements
+        if (elementType === 'client_unit_select' || elementType === 'client_contact_select') {
+            // Find the client select element in the same form
+            const clientSelect = $('select[data-element-type="client_select"]');
+            
+            if (clientSelect.length > 0) {
+                // Load options when client changes
+                clientSelect.on('change', function() {
+                    const clientId = $(this).val();
+                    if (clientId) {
+                        loadDynamicOptions(elementId, elementType, clientId);
+                    } else {
+                        // Clear dependent options
+                        $('#' + elementId).html('<option value="">{{ $element->placeholder ?: "Select..." }}</option>');
+                    }
+                });
+                
+                // Load options if client is already selected
+                const currentClientId = clientSelect.val();
+                if (currentClientId) {
+                    loadDynamicOptions(elementId, elementType, currentClientId);
+                }
+            }
+        }
+        
+        function loadDynamicOptions(elementId, elementType, clientId = null) {
+            const select = $('#' + elementId);
+            const originalHtml = select.html();
+            
+            // Show loading state
+            select.html('<option value="">Loading...</option>').prop('disabled', true);
+            
+            // Make AJAX request
+            $.ajax({
+                url: '{{ route("submission-forms.dynamic-options") }}',
+                method: 'GET',
+                data: {
+                    element_type: elementType,
+                    client_id: clientId
+                },
+                success: function(response) {
+                    let html = '';
+                    
+                    // Add placeholder option if not required
+                    @if(!$element->is_required)
+                        const placeholder = select.data('placeholder') || '{{ $element->placeholder ?: "Select..." }}';
+                        html += '<option value="">' + placeholder + '</option>';
+                    @endif
+                    
+                    // Add options from response
+                    if (response.options && response.options.length > 0) {
+                        response.options.forEach(function(option) {
+                            html += '<option value="' + option.value + '">' + option.label + '</option>';
+                        });
+                    }
+                    
+                    select.html(html).prop('disabled', false);
+                },
+                error: function(xhr, status, error) {
+                    console.error('Error loading options:', error);
+                    select.html(originalHtml).prop('disabled', false);
+                    
+                    // Show error message
+                    if (xhr.status === 403) {
+                        alert('You do not have permission to access this data.');
+                    } else {
+                        alert('Error loading options. Please try again.');
+                    }
+                }
+            });
+        }
     });
     </script>
     @endpush

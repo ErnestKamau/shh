@@ -69,10 +69,6 @@
               
               <div class="mb-3">
                 <h6 class="text-muted">Element Types</h6>
-                <p class="small text-muted mb-2">
-                  <i class="mdi mdi-information-outline"></i> 
-                  First select an element holder (click on it), then click an element type to add it.
-                </p>
                 <div class="element-types">
                   <div class="element-type" data-type="text">
                     <i class="mdi mdi-form-textbox"></i> Text Input
@@ -106,18 +102,6 @@
                   </div>
                   <div class="element-type" data-type="signature">
                     <i class="mdi mdi-draw"></i> Signature
-                  </div>
-                  <div class="element-type" data-type="client_select">
-                    <i class="mdi mdi-account-group"></i> Client Select
-                  </div>
-                  <div class="element-type" data-type="sample_type_select">
-                    <i class="mdi mdi-test-tube"></i> Sample Type Select
-                  </div>
-                  <div class="element-type" data-type="client_unit_select">
-                    <i class="mdi mdi-office-building"></i> Client Unit Select
-                  </div>
-                  <div class="element-type" data-type="client_contact_select">
-                    <i class="mdi mdi-account-multiple"></i> Client Contact Select
                   </div>
                 </div>
               </div>
@@ -284,10 +268,6 @@
                     <option value="checkbox">Checkbox</option>
                     <option value="file">File Upload</option>
                     <option value="signature">Signature</option>
-                    <option value="client_select">Client Select</option>
-                    <option value="sample_type_select">Sample Type Select</option>
-                    <option value="client_unit_select">Client Unit Select</option>
-                    <option value="client_contact_select">Client Contact Select</option>
                   </select>
                 </div>
               </div>
@@ -422,62 +402,17 @@ const FormBuilder = {
         
         // Element name validation
         $('#element-name').on('blur', () => this.validateElementName());
-        
-        // Holder selection
-        $(document).on('click', '.holder-item', function(e) {
-            // Don't trigger if clicking on buttons
-            if ($(e.target).closest('.btn, .btn-group').length > 0) {
-                return;
-            }
-            
-            // Remove active class from all holders
-            $('.holder-item').removeClass('active');
-            
-            // Add active class to clicked holder
-            $(this).addClass('active');
-            
-            // Visual feedback
-            $('.holder-item').removeClass('border-primary').addClass('border-light');
-            $(this).removeClass('border-light').addClass('border-primary');
-        });
     },
     
     initSortable() {
         // Make sections sortable
         if (document.getElementById('sections-container')) {
             new Sortable(document.getElementById('sections-container'), {
-                handle: '.section-header .mdi-drag-horizontal',
                 animation: 150,
                 ghostClass: 'sortable-ghost',
                 onEnd: (evt) => this.reorderSections()
             });
         }
-        
-        // Make element holders sortable within each section
-        $('.sortable-holders').each(function() {
-            new Sortable(this, {
-                handle: '.holder-header .mdi-drag-horizontal',
-                animation: 150,
-                ghostClass: 'sortable-ghost',
-                onEnd: (evt) => {
-                    const sectionId = $(evt.to).data('section-id');
-                    FormBuilder.reorderHolders(sectionId);
-                }
-            });
-        });
-        
-        // Make elements sortable within each holder
-        $('.sortable-elements').each(function() {
-            new Sortable(this, {
-                handle: '.element-item .mdi-drag-horizontal',
-                animation: 150,
-                ghostClass: 'sortable-ghost',
-                onEnd: (evt) => {
-                    const holderId = $(evt.to).data('holder-id');
-                    FormBuilder.reorderElements(holderId);
-                }
-            });
-        });
     },
     
     showSectionModal(sectionId = null) {
@@ -727,12 +662,8 @@ const FormBuilder = {
     handleElementTypeChange() {
         const elementType = $('#element-type').val();
         const needsOptions = ['select', 'radio', 'checkbox'].includes(elementType);
-        const isCustomElement = ['client_select', 'sample_type_select', 'client_unit_select', 'client_contact_select'].includes(elementType);
         
-        // Hide options for custom elements as they are loaded dynamically
-        if (isCustomElement) {
-            $('#element-options-group').hide();
-        } else if (needsOptions) {
+        if (needsOptions) {
             $('#element-options-group').show();
             if ($('#element-options-container').children().length === 0) {
                 this.addOption();
@@ -775,8 +706,6 @@ const FormBuilder = {
         const holderId = $('#element-holder-id').val();
         const isEdit = elementId !== '';
         
-        console.log('Saving element with data:', formData);
-        
         const url = isEdit 
             ? `/submission-forms/elements/${elementId}`
             : `/submission-forms/holders/${holderId}/elements`;
@@ -791,7 +720,8 @@ const FormBuilder = {
             data: formData,
             headers: {
                 'X-CSRF-TOKEN': this.csrfToken,
-                'X-HTTP-Method-Override': method
+                'X-HTTP-Method-Override': method,
+                'Content-Type': 'application/json'
             },
             success: (response) => {
                 this.hideLoading();
@@ -814,16 +744,13 @@ const FormBuilder = {
             placeholder: $('#element-placeholder').val(),
             default_value: $('#element-default-value').val(),
             help_text: $('#element-help-text').val(),
-            is_required: $('#element-required').is(':checked') ? '1' : '0',
-            is_readonly: $('#element-readonly').is(':checked') ? '1' : '0'
+            is_required: $('#element-required').is(':checked'),
+            is_readonly: $('#element-readonly').is(':checked')
         };
         
         // Collect options if needed
         const needsOptions = ['select', 'radio', 'checkbox'].includes(formData.element_type);
-        const isCustomElement = ['client_select', 'sample_type_select', 'client_unit_select', 'client_contact_select'].includes(formData.element_type);
-        
-        // Only collect options for standard elements, not custom elements
-        if (needsOptions && !isCustomElement) {
+        if (needsOptions) {
             const options = [];
             $('#element-options-container .option-item').each(function() {
                 const value = $(this).find('.option-value').val();
@@ -833,12 +760,9 @@ const FormBuilder = {
                 }
             });
             formData.options = options;
-        } else if (isCustomElement) {
-            // Custom elements don't need manually configured options
-            formData.options = [];
         }
         
-        return formData;
+        return JSON.stringify(formData);
     },
     
     validateElementName() {
@@ -993,102 +917,6 @@ const FormBuilder = {
                 this.handleError(xhr);
             }
         });
-    },
-    
-    reorderHolders(sectionId) {
-        // Get the current order of holders within the section
-        const holderIds = [];
-        $(`.sortable-holders[data-section-id="${sectionId}"] .holder-item`).each(function() {
-            holderIds.push($(this).data('holder-id'));
-        });
-        
-        console.log('Reordering holders for section', sectionId, ':', holderIds);
-        
-        $.ajax({
-            url: `/submission-forms/sections/${sectionId}/holders/reorder`,
-            method: 'POST',
-            data: {
-                holder_ids: holderIds
-            },
-            headers: {
-                'X-CSRF-TOKEN': this.csrfToken
-            },
-            success: (response) => {
-                console.log('Holders reordered successfully');
-            },
-            error: (xhr) => {
-                console.error('Failed to reorder holders:', xhr);
-                this.handleError(xhr);
-            }
-        });
-    },
-    
-    reorderElements(holderId) {
-        // Get the current order of elements within the holder
-        const elementIds = [];
-        $(`.sortable-elements[data-holder-id="${holderId}"] .element-item`).each(function() {
-            elementIds.push($(this).data('element-id'));
-        });
-        
-        console.log('Reordering elements for holder', holderId, ':', elementIds);
-        
-        $.ajax({
-            url: `/submission-forms/holders/${holderId}/elements/reorder`,
-            method: 'POST',
-            data: {
-                element_ids: elementIds
-            },
-            headers: {
-                'X-CSRF-TOKEN': this.csrfToken
-            },
-            success: (response) => {
-                console.log('Elements reordered successfully');
-            },
-            error: (xhr) => {
-                console.error('Failed to reorder elements:', xhr);
-                this.handleError(xhr);
-            }
-        });
-    },
-    
-    reinitializeSortables() {
-        // Reinitialize sortables for dynamically added content
-        
-        // Make element holders sortable within each section
-        $('.sortable-holders').each(function() {
-            // Destroy existing sortable if it exists
-            if (this.sortable) {
-                this.sortable.destroy();
-            }
-            
-            new Sortable(this, {
-                handle: '.holder-header .mdi-drag-horizontal',
-                animation: 150,
-                ghostClass: 'sortable-ghost',
-                onEnd: (evt) => {
-                    const sectionId = $(evt.to).data('section-id');
-                    FormBuilder.reorderHolders(sectionId);
-                }
-            });
-        });
-        
-        // Make elements sortable within each holder
-        $('.sortable-elements').each(function() {
-            // Destroy existing sortable if it exists
-            if (this.sortable) {
-                this.sortable.destroy();
-            }
-            
-            new Sortable(this, {
-                handle: '.element-item .mdi-drag-horizontal',
-                animation: 150,
-                ghostClass: 'sortable-ghost',
-                onEnd: (evt) => {
-                    const holderId = $(evt.to).data('holder-id');
-                    FormBuilder.reorderElements(holderId);
-                }
-            });
-        });
     }
 };
 
@@ -1109,7 +937,7 @@ $(document).on('click', '.element-type', function() {
     if (holderId) {
         FormBuilder.showElementModal(holderId, null, elementType);
     } else {
-        alert('Please select an element holder first by clicking on it. Element holders are the containers within sections where you can add form elements.');
+        alert('Please select an element holder first');
     }
 });
 </script>
@@ -1137,26 +965,6 @@ $(document).on('click', '.element-type', function() {
 .element-type i {
     margin-right: 8px;
     color: #6c757d;
-}
-
-.holder-item {
-    cursor: pointer;
-    transition: all 0.2s;
-    border: 2px solid transparent !important;
-}
-
-.holder-item:hover {
-    background-color: #f8f9fa;
-}
-
-.holder-item.active {
-    border-color: #007bff !important;
-    background-color: #f0f8ff;
-}
-
-.holder-item.active .holder-header {
-    background-color: rgba(0, 123, 255, 0.1);
-}
 }
 
 .sortable-ghost {

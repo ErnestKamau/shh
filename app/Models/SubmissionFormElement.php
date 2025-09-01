@@ -56,7 +56,8 @@ class SubmissionFormElement extends Model
     {
         return in_array($this->element_type, [
             'text', 'number', 'email', 'date', 'datetime', 
-            'textarea', 'select', 'radio', 'checkbox', 'file', 'signature'
+            'textarea', 'select', 'radio', 'checkbox', 'file', 'signature',
+            'client_select', 'sample_type_select', 'client_unit_select', 'client_contact_select'
         ]);
     }
 
@@ -73,7 +74,10 @@ class SubmissionFormElement extends Model
      */
     public function hasOptions()
     {
-        return in_array($this->element_type, ['select', 'radio', 'checkbox']) && !empty($this->options);
+        return in_array($this->element_type, [
+            'select', 'radio', 'checkbox', 
+            'client_select', 'sample_type_select', 'client_unit_select', 'client_contact_select'
+        ]) && !empty($this->options);
     }
 
     /**
@@ -248,5 +252,120 @@ class SubmissionFormElement extends Model
                              ->max('sort_order');
         
         return ($maxSortOrder ?? 0) + 1;
+    }
+
+    /**
+     * Check if this element is a custom dynamic element
+     */
+    public function isCustomDynamicElement()
+    {
+        return in_array($this->element_type, [
+            'client_select', 'sample_type_select', 'client_unit_select', 'client_contact_select'
+        ]);
+    }
+
+    /**
+     * Get dynamic options for custom elements
+     */
+    public function getDynamicOptions($clientId = null)
+    {
+        switch ($this->element_type) {
+            case 'client_select':
+                return $this->getClientOptions();
+            case 'sample_type_select':
+                return $this->getSampleTypeOptions();
+            case 'client_unit_select':
+                return $this->getClientUnitOptions($clientId);
+            case 'client_contact_select':
+                return $this->getClientContactOptions($clientId);
+            default:
+                return [];
+        }
+    }
+
+    /**
+     * Get client options
+     */
+    private function getClientOptions()
+    {
+        $clients = \App\Models\CRM\CRMCustomer::where('active', 1)
+            ->where('company_id', getUserCompany())
+            ->orderBy('name')
+            ->get();
+
+        $options = [];
+        foreach ($clients as $client) {
+            $options[] = [
+                'value' => $client->id,
+                'label' => $client->name
+            ];
+        }
+        return $options;
+    }
+
+    /**
+     * Get sample type options
+     */
+    private function getSampleTypeOptions()
+    {
+        $sampleTypes = \App\SampleType::orderBy('name')->get();
+
+        $options = [];
+        foreach ($sampleTypes as $sampleType) {
+            $options[] = [
+                'value' => $sampleType->id,
+                'label' => $sampleType->name
+            ];
+        }
+        return $options;
+    }
+
+    /**
+     * Get client unit options for a specific client
+     */
+    private function getClientUnitOptions($clientId)
+    {
+        if (!$clientId) {
+            return [];
+        }
+
+        $units = \App\Models\CRM\CRMCompanyUnit::where('crm_customer_id', $clientId)
+            ->where('active', 1)
+            ->orderBy('name')
+            ->get();
+
+        $options = [];
+        foreach ($units as $unit) {
+            $options[] = [
+                'value' => $unit->id,
+                'label' => $unit->name
+            ];
+        }
+        return $options;
+    }
+
+    /**
+     * Get client contact options for a specific client
+     */
+    private function getClientContactOptions($clientId)
+    {
+        if (!$clientId) {
+            return [];
+        }
+
+        $contacts = \App\Models\CRM\CustomerContact::where('crm_customer_id', $clientId)
+            ->where('active', 1)
+            ->orderBy('first_name')
+            ->get();
+
+        $options = [];
+        foreach ($contacts as $contact) {
+            $fullName = trim($contact->first_name . ' ' . $contact->middle_name . ' ' . $contact->last_name);
+            $options[] = [
+                'value' => $contact->id,
+                'label' => $fullName . ' (' . $contact->email . ')'
+            ];
+        }
+        return $options;
     }
 }

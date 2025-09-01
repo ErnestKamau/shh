@@ -342,6 +342,9 @@ Route::prefix('submission-forms')->name('submission-forms.')->middleware('auth')
     Route::put('/elements/{element}', 'FormBuilderController@updateElement')->name('elements.update');
     Route::delete('/elements/{element}', 'FormBuilderController@deleteElement')->name('elements.destroy');
     Route::post('/holders/{holder}/elements/reorder', 'FormBuilderController@reorderElements')->name('elements.reorder');
+    
+    // Dynamic Options for Custom Elements
+    Route::get('/dynamic-options', 'SubmissionFormController@getDynamicOptions')->name('dynamic-options');
 });
 
 // Form Instance Management Routes (Admin)

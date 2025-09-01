@@ -238,7 +238,7 @@ class FormBuilderController extends Controller
     public function addElement(Request $request, SubmissionFormElementHolder $holder)
     {
         $validated = $request->validate([
-            'element_type' => 'required|in:text,number,email,date,datetime,textarea,select,radio,checkbox,file,signature,calculation',
+            'element_type' => 'required|in:text,number,email,date,datetime,textarea,select,radio,checkbox,file,signature,calculation,client_select,sample_type_select,client_unit_select,client_contact_select',
             'label' => 'required|string|max:255',
             'name' => [
                 'required',
@@ -257,8 +257,8 @@ class FormBuilderController extends Controller
             ],
             'placeholder' => 'nullable|string|max:255',
             'help_text' => 'nullable|string|max:1000',
-            'is_required' => 'boolean',
-            'is_readonly' => 'boolean',
+            'is_required' => 'sometimes|in:true,false,1,0',
+            'is_readonly' => 'sometimes|in:true,false,1,0',
             'default_value' => 'nullable|string',
             'validation_rules' => 'nullable|array',
             'options' => 'nullable|array',
@@ -281,8 +281,8 @@ class FormBuilderController extends Controller
                 'name' => $validated['name'],
                 'placeholder' => $validated['placeholder'] ?? null,
                 'help_text' => $validated['help_text'] ?? null,
-                'is_required' => $validated['is_required'] ?? false,
-                'is_readonly' => $validated['is_readonly'] ?? false,
+                'is_required' => filter_var($validated['is_required'] ?? false, FILTER_VALIDATE_BOOLEAN),
+                'is_readonly' => filter_var($validated['is_readonly'] ?? false, FILTER_VALIDATE_BOOLEAN),
                 'default_value' => $validated['default_value'] ?? null,
                 'validation_rules' => $validated['validation_rules'] ?? null,
                 'options' => $validated['options'] ?? null,
@@ -314,7 +314,7 @@ class FormBuilderController extends Controller
     public function updateElement(Request $request, SubmissionFormElement $element)
     {
         $validated = $request->validate([
-            'element_type' => 'required|in:text,number,email,date,datetime,textarea,select,radio,checkbox,file,signature,calculation',
+            'element_type' => 'required|in:text,number,email,date,datetime,textarea,select,radio,checkbox,file,signature,calculation,client_select,sample_type_select,client_unit_select,client_contact_select',
             'label' => 'required|string|max:255',
             'name' => [
                 'required',
@@ -333,8 +333,8 @@ class FormBuilderController extends Controller
             ],
             'placeholder' => 'nullable|string|max:255',
             'help_text' => 'nullable|string|max:1000',
-            'is_required' => 'boolean',
-            'is_readonly' => 'boolean',
+            'is_required' => 'sometimes|in:true,false,1,0',
+            'is_readonly' => 'sometimes|in:true,false,1,0',
             'default_value' => 'nullable|string',
             'validation_rules' => 'nullable|array',
             'options' => 'nullable|array',
@@ -344,6 +344,14 @@ class FormBuilderController extends Controller
         ]);
 
         try {
+            // Convert string boolean values to actual booleans
+            if (isset($validated['is_required'])) {
+                $validated['is_required'] = filter_var($validated['is_required'], FILTER_VALIDATE_BOOLEAN);
+            }
+            if (isset($validated['is_readonly'])) {
+                $validated['is_readonly'] = filter_var($validated['is_readonly'], FILTER_VALIDATE_BOOLEAN);
+            }
+            
             $element->update($validated);
 
             return response()->json([
