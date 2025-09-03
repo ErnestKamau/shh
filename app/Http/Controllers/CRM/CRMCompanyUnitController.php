@@ -40,12 +40,12 @@ class CRMCompanyUnitController extends Controller
 	{
 		$unit = CRMCompanyUnit::find($id);
 		$unit->name = $request->name;
-    $unit->company_id = getUserCompany();
-    $unit->crm_customer_id = $cust_id;
-		$unit->active = $request->active ?? 0;
-		
-		$unit->save();
+		$unit->company_id = getUserCompany();
+		$unit->crm_customer_id = $cust_id;
+			$unit->active = $request->active ?? 0;
+			
+			$unit->save();
 
-    return redirect()->back()->with('success', 'Company unit added.');
+		return redirect()->back()->with('success', 'Company unit added.');
 	}
 }
