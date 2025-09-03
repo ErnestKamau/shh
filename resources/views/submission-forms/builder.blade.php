@@ -531,10 +531,12 @@ const FormBuilder = {
         $.ajax({
             url: url,
             method: 'POST', // Always use POST for Laravel
-            data: data,
+            data: {
+                ...data,
+                _method: method // Laravel method spoofing
+            },
             headers: {
-                'X-CSRF-TOKEN': this.csrfToken,
-                'X-HTTP-Method-Override': method
+                'X-CSRF-TOKEN': this.csrfToken
             },
             success: (response) => {
                 console.log('Success response:', response);
@@ -942,29 +944,81 @@ const FormBuilder = {
     },
     
     findSectionById(sectionId) {
-        // This is a placeholder - in a real implementation, you'd find the section from your data
-        return { title: '', description: '' };
+        // Get section data from the DOM
+        const sectionElement = $(`.section-item[data-section-id="${sectionId}"]`);
+        if (sectionElement.length === 0) {
+            return { title: '', description: '' };
+        }
+        
+        const title = sectionElement.find('.section-header h6').text().trim();
+        const description = sectionElement.find('.section-header small').text().trim();
+        
+        return { 
+            title: title.replace(/^.*?\s/, ''), // Remove icon and get just the title
+            description: description 
+        };
     },
     
     findHolderById(holderId) {
-        // This is a placeholder - in a real implementation, you'd find the holder from your data
-        return { holder_type: 'field', max_elements: 5 };
+        // Get holder data from the DOM
+        const holderElement = $(`.holder-item[data-holder-id="${holderId}"]`);
+        if (holderElement.length === 0) {
+            return { holder_type: 'field', max_elements: 5 };
+        }
+        
+        const holderText = holderElement.find('.holder-header small').text();
+        const holderType = holderText.toLowerCase().includes('field') ? 'field' : 'text';
+        
+        // Extract max elements from badge (format: "current/max")
+        const badge = holderElement.find('.badge-light').text();
+        const maxElements = badge.includes('/') ? parseInt(badge.split('/')[1]) : 5;
+        
+        return { 
+            holder_type: holderType,
+            max_elements: maxElements 
+        };
     },
     
     findElementById(elementId) {
-        // This is a placeholder - in a real implementation, you'd find the element from your data
+        // Get element data from the DOM
+        const elementItem = $(`.element-item[data-element-id="${elementId}"]`);
+        if (elementItem.length === 0) {
+            return { 
+                id: elementId,
+                element_type: 'text',
+                name: '',
+                label: '',
+                placeholder: '',
+                default_value: '',
+                help_text: '',
+                is_required: false,
+                is_readonly: false,
+                options: []
+            };
+        }
+        
+        const label = elementItem.find('.font-weight-medium').text().trim();
+        const isRequired = elementItem.find('.text-danger').length > 0;
+        const isReadonly = elementItem.find('.badge-outline-warning').length > 0;
+        const nameAndType = elementItem.find('small.text-muted').text().trim();
+        
+        // Extract name and type from "name (type)" format
+        const matches = nameAndType.match(/^(.+?)\s*\((.+?)\)$/);
+        const name = matches ? matches[1] : '';
+        const elementType = matches ? matches[2] : 'text';
+        
         return { 
             id: elementId,
-            element_type: 'text',
-            name: '',
-            label: '',
+            element_type: elementType,
+            name: name,
+            label: label.replace(' *', ''), // Remove required asterisk
             placeholder: '',
             default_value: '',
             help_text: '',
-            is_required: false,
-            is_readonly: false,
+            is_required: isRequired,
+            is_readonly: isReadonly,
             options: []
-};
+        };
     },
 
     reorderSections() {

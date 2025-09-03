@@ -12,7 +12,7 @@ use Illuminate\Http\File;
 use Illuminate\Support\Facades\Storage;
 
 
-class QuotationAttachmentControler extends Controller
+class QuotationAttachmentController extends Controller
 {
     public function __construct()
     {

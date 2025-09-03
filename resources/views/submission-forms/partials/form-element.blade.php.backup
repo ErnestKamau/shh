@@ -76,33 +76,37 @@
                 @if(!$element->is_required)
                     <option value="">{{ $element->placeholder ?: 'Select an option...' }}</option>
                 @endif
-                @foreach($element->options as $option)
-                    <option value="{{ $option['value'] ?? $option }}" 
-                            {{ ($element->default_value == ($option['value'] ?? $option)) ? 'selected' : '' }}>
-                        {{ $option['label'] ?? $option }}
-                    </option>
-                @endforeach
+                @if($element->options)
+                    @foreach($element->options as $option)
+                        <option value="{{ $option['value'] ?? $option }}" 
+                                {{ ($element->default_value == ($option['value'] ?? $option)) ? 'selected' : '' }}>
+                            {{ $option['label'] ?? $option }}
+                        </option>
+                    @endforeach
+                @endif
             </select>
             @break
             
         @case('radio')
-            <div class="form-check-container">
-                @foreach($element->options as $index => $option)
-                    <div class="form-check">
-                        <input class="form-check-input" 
-                               type="radio" 
-                               id="{{ $element->name }}_{{ $index }}" 
-                               name="{{ $element->name }}"
-                               value="{{ $option['value'] ?? $option }}"
-                               {{ ($element->default_value == ($option['value'] ?? $option)) ? 'checked' : '' }}
-                               {{ $element->is_required ? 'required' : '' }}
-                               {{ $element->is_readonly ? 'disabled' : '' }}>
-                        <label class="form-check-label" for="{{ $element->name }}_{{ $index }}">
-                            {{ $option['label'] ?? $option }}
-                        </label>
-                    </div>
-                @endforeach
-            </div>
+            @if($element->options)
+                <div class="form-check-container">
+                    @foreach($element->options as $index => $option)
+                        <div class="form-check">
+                            <input class="form-check-input" 
+                                   type="radio" 
+                                   id="{{ $element->name }}_{{ $index }}" 
+                                   name="{{ $element->name }}"
+                                   value="{{ $option['value'] ?? $option }}"
+                                   {{ ($element->default_value == ($option['value'] ?? $option)) ? 'checked' : '' }}
+                                   {{ $element->is_required ? 'required' : '' }}
+                                   {{ $element->is_readonly ? 'disabled' : '' }}>
+                            <label class="form-check-label" for="{{ $element->name }}_{{ $index }}">
+                                {{ $option['label'] ?? $option }}
+                            </label>
+                        </div>
+                    @endforeach
+                </div>
+            @endif
             @break
             
         @case('checkbox')
@@ -142,7 +146,7 @@
             
         @case('file')
             <input type="file" 
-                   class="form-control" 
+                   class="form-control-file" 
                    id="{{ $element->name }}" 
                    name="{{ $element->name }}"
                    {{ $element->is_required ? 'required' : '' }}
@@ -153,23 +157,24 @@
             @break
             
         @case('signature')
-            <div class="signature-container">
+            <div class="signature-pad-container">
                 <canvas id="{{ $element->name }}_canvas" 
+                        class="signature-pad border" 
                         width="400" 
-                        height="200" 
-                        style="border: 1px solid #ccc; cursor: crosshair;"></canvas>
-                <div class="signature-controls mt-2">
-                    <button type="button" class="btn btn-sm btn-secondary" onclick="clearSignature('{{ $element->name }}')">
-                        Clear Signature
-                    </button>
-                </div>
+                        height="150"
+                        style="border: 1px solid #ced4da; border-radius: 0.25rem; background: white;"></canvas>
                 <input type="hidden" 
                        id="{{ $element->name }}" 
                        name="{{ $element->name }}"
                        {{ $element->is_required ? 'required' : '' }}>
+                <div class="mt-2">
+                    <button type="button" class="btn btn-sm btn-outline-secondary clear-signature" data-target="{{ $element->name }}_canvas">
+                        <i class="mdi mdi-refresh"></i> Clear
+                    </button>
+                </div>
             </div>
             @break
-            
+
         @case('client_select')
             <select class="form-control custom-element" 
                     id="{{ $element->name }}" 
@@ -183,7 +188,7 @@
                 {{-- Options will be loaded dynamically --}}
             </select>
             @break
-            
+
         @case('sample_type_select')
             <select class="form-control custom-element" 
                     id="{{ $element->name }}" 
@@ -197,7 +202,7 @@
                 {{-- Options will be loaded dynamically --}}
             </select>
             @break
-            
+
         @case('client_unit_select')
             <select class="form-control custom-element" 
                     id="{{ $element->name }}" 
@@ -212,7 +217,7 @@
                 {{-- Options will be loaded dynamically based on selected client --}}
             </select>
             @break
-            
+
         @case('client_contact_select')
             <select class="form-control custom-element" 
                     id="{{ $element->name }}" 
@@ -228,7 +233,7 @@
             </select>
             @break
             
-        @case('calculation')
+        @default
             <input type="text" 
                    class="form-control" 
                    id="{{ $element->name }}" 
@@ -239,7 +244,7 @@
                    {{ $element->is_readonly ? 'readonly' : '' }}>
     @endswitch
     
-    @if($element->help_text)
+    @if($element->help_text && $element->element_type !== 'file')
         <small class="form-text text-muted">{{ $element->help_text }}</small>
     @endif
     
@@ -247,86 +252,161 @@
     <div class="invalid-feedback"></div>
 </div>
 
-{{-- Store element data for later initialization --}}
-@if(in_array($element->element_type, ['client_select', 'sample_type_select', 'client_unit_select', 'client_contact_select']))
-<script>
-// Store element data for initialization when jQuery is ready
-window.customElementsToInit = window.customElementsToInit || [];
-window.customElementsToInit.push({
-    elementId: '{{ $element->name }}',
-    elementType: '{{ $element->element_type }}',
-    isRequired: {{ $element->is_required ? 'true' : 'false' }},
-    placeholder: '{{ $element->placeholder ?: "Select..." }}'
-});
-</script>
+@if($element->element_type === 'signature')
+    @push('scripts')
+    <script>
+    $(document).ready(function() {
+        // Initialize signature pad for {{ $element->name }}
+        const canvas = document.getElementById('{{ $element->name }}_canvas');
+        const ctx = canvas.getContext('2d');
+        let isDrawing = false;
+        
+        // Set up canvas
+        ctx.strokeStyle = '#000';
+        ctx.lineWidth = 2;
+        ctx.lineCap = 'round';
+        
+        // Mouse events
+        canvas.addEventListener('mousedown', startDrawing);
+        canvas.addEventListener('mousemove', draw);
+        canvas.addEventListener('mouseup', stopDrawing);
+        canvas.addEventListener('mouseout', stopDrawing);
+        
+        // Touch events for mobile
+        canvas.addEventListener('touchstart', handleTouch);
+        canvas.addEventListener('touchmove', handleTouch);
+        canvas.addEventListener('touchend', stopDrawing);
+        
+        function startDrawing(e) {
+            isDrawing = true;
+            const rect = canvas.getBoundingClientRect();
+            ctx.beginPath();
+            ctx.moveTo(e.clientX - rect.left, e.clientY - rect.top);
+        }
+        
+        function draw(e) {
+            if (!isDrawing) return;
+            const rect = canvas.getBoundingClientRect();
+            ctx.lineTo(e.clientX - rect.left, e.clientY - rect.top);
+            ctx.stroke();
+            updateSignatureData();
+        }
+        
+        function stopDrawing() {
+            isDrawing = false;
+            ctx.beginPath();
+        }
+        
+        function handleTouch(e) {
+            e.preventDefault();
+            const touch = e.touches[0];
+            const mouseEvent = new MouseEvent(e.type === 'touchstart' ? 'mousedown' : 
+                                            e.type === 'touchmove' ? 'mousemove' : 'mouseup', {
+                clientX: touch.clientX,
+                clientY: touch.clientY
+            });
+            canvas.dispatchEvent(mouseEvent);
+        }
+        
+        function updateSignatureData() {
+            const dataURL = canvas.toDataURL();
+            document.getElementById('{{ $element->name }}').value = dataURL;
+        }
+        
+        // Clear signature
+        $('.clear-signature[data-target="{{ $element->name }}_canvas"]').on('click', function() {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            document.getElementById('{{ $element->name }}').value = '';
+        });
+    });
+    </script>
+    @endpush
 @endif
 
-{{-- Signature pad JavaScript --}}
-@if($element->element_type === 'signature')
-<script>
-// Wait for DOM to be ready
-document.addEventListener('DOMContentLoaded', function() {
-    // Initialize signature pad for {{ $element->name }}
-    const canvas = document.getElementById('{{ $element->name }}_canvas');
-    if (!canvas) return;
-    
-    const ctx = canvas.getContext('2d');
-    let isDrawing = false;
-    
-    // Mouse events
-    canvas.addEventListener('mousedown', startDrawing);
-    canvas.addEventListener('mousemove', draw);
-    canvas.addEventListener('mouseup', stopDrawing);
-    canvas.addEventListener('mouseout', stopDrawing);
-    
-    // Touch events for mobile
-    canvas.addEventListener('touchstart', handleTouch);
-    canvas.addEventListener('touchmove', handleTouch);
-    canvas.addEventListener('touchend', stopDrawing);
-    
-    function startDrawing(e) {
-        isDrawing = true;
-        const rect = canvas.getBoundingClientRect();
-        ctx.beginPath();
-        ctx.moveTo(e.clientX - rect.left, e.clientY - rect.top);
-    }
-    
-    function draw(e) {
-        if (!isDrawing) return;
-        const rect = canvas.getBoundingClientRect();
-        ctx.lineTo(e.clientX - rect.left, e.clientY - rect.top);
-        ctx.stroke();
-        updateSignatureData();
-    }
-    
-    function stopDrawing() {
-        isDrawing = false;
-        ctx.beginPath();
-    }
-    
-    function handleTouch(e) {
-        e.preventDefault();
-        const touch = e.touches[0];
-        const mouseEvent = new MouseEvent(e.type === 'touchstart' ? 'mousedown' : 
-                                        e.type === 'touchmove' ? 'mousemove' : 'mouseup', {
-            clientX: touch.clientX,
-            clientY: touch.clientY
-        });
-        canvas.dispatchEvent(mouseEvent);
-    }
-    
-    function updateSignatureData() {
-        const dataURL = canvas.toDataURL();
-        document.getElementById('{{ $element->name }}').value = dataURL;
-    }
-    
-    // Clear signature
-    window.clearSignature = function(elementName) {
-        const canvas = document.getElementById(elementName + '_canvas');
-        const ctx = canvas.getContext('2d');
-        ctx.clearRect(0, 0, canvas.width, canvas.height);
-        document.getElementById(elementName).value = '';
-    };
-});
-</script>
+@if(in_array($element->element_type, ['client_select', 'sample_type_select', 'client_unit_select', 'client_contact_select']))
+    @push('scripts')
+    <script>
+    $(document).ready(function() {
+        const elementId = '{{ $element->name }}';
+        const elementType = '{{ $element->element_type }}';
+        
+        // Load initial options for non-dependent elements
+        if (elementType === 'client_select' || elementType === 'sample_type_select') {
+            loadDynamicOptions(elementId, elementType);
+        }
+        
+        // Handle client selection change for dependent elements
+        if (elementType === 'client_unit_select' || elementType === 'client_contact_select') {
+            // Find the client select element in the same form
+            const clientSelect = $('select[data-element-type="client_select"]');
+            
+            if (clientSelect.length > 0) {
+                // Load options when client changes
+                clientSelect.on('change', function() {
+                    const clientId = $(this).val();
+                    if (clientId) {
+                        loadDynamicOptions(elementId, elementType, clientId);
+                    } else {
+                        // Clear dependent options
+                        $('#' + elementId).html('<option value="">{{ $element->placeholder ?: "Select..." }}</option>');
+                    }
+                });
+                
+                // Load options if client is already selected
+                const currentClientId = clientSelect.val();
+                if (currentClientId) {
+                    loadDynamicOptions(elementId, elementType, currentClientId);
+                }
+            }
+        }
+        
+        function loadDynamicOptions(elementId, elementType, clientId = null) {
+            const select = $('#' + elementId);
+            const originalHtml = select.html();
+            
+            // Show loading state
+            select.html('<option value="">Loading...</option>').prop('disabled', true);
+            
+            // Make AJAX request
+            $.ajax({
+                url: '{{ route("submission-forms.dynamic-options") }}',
+                method: 'GET',
+                data: {
+                    element_type: elementType,
+                    client_id: clientId
+                },
+                success: function(response) {
+                    let html = '';
+                    
+                    // Add placeholder option if not required
+                    @if(!$element->is_required)
+                        const placeholder = select.data('placeholder') || '{{ $element->placeholder ?: "Select..." }}';
+                        html += '<option value="">' + placeholder + '</option>';
+                    @endif
+                    
+                    // Add options from response
+                    if (response.options && response.options.length > 0) {
+                        response.options.forEach(function(option) {
+                            html += '<option value="' + option.value + '">' + option.label + '</option>';
+                        });
+                    }
+                    
+                    select.html(html).prop('disabled', false);
+                },
+                error: function(xhr, status, error) {
+                    console.error('Error loading options:', error);
+                    select.html(originalHtml).prop('disabled', false);
+                    
+                    // Show error message
+                    if (xhr.status === 403) {
+                        alert('You do not have permission to access this data.');
+                    } else {
+                        alert('Error loading options. Please try again.');
+                    }
+                }
+            });
+        }
+    });
+    </script>
+    @endpush
 @endif

@@ -37,7 +37,7 @@ class Main extends Controller
 
 		$stores = DB::table('inventory_stores as s')
 			->join('inventory_store_slots as ss', 'ss.inventory_store_id', 's.id')->whereIn('s.id', $store_ids)
-			->;
+			->get();
 
 		$itemsNo = StockTakingSheet::where('stock_taking_id', $id)->get()->count();
 

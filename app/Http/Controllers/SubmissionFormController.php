@@ -315,15 +315,23 @@ class SubmissionFormController extends Controller
     {
         // Ensure user is authenticated
         if (!auth()->check()) {
+            \Log::warning('Unauthenticated request to dynamic options');
             return response()->json(['error' => 'Unauthorized'], 401);
         }
 
         $elementType = $request->get('element_type');
         $clientId = $request->get('client_id');
 
+        \Log::info('Dynamic options request', [
+            'element_type' => $elementType,
+            'client_id' => $clientId,
+            'user_id' => auth()->id()
+        ]);
+
         // Validate element type
         $validTypes = ['client_select', 'sample_type_select', 'client_unit_select', 'client_contact_select'];
         if (!in_array($elementType, $validTypes)) {
+            \Log::warning('Invalid element type requested', ['element_type' => $elementType]);
             return response()->json(['error' => 'Invalid element type'], 400);
         }
 
@@ -344,6 +352,14 @@ class SubmissionFormController extends Controller
                         'label' => $client->name
                     ];
                 }
+                
+                // Add fallback if no clients found
+                if (empty($options)) {
+                    $options[] = [
+                        'value' => '',
+                        'label' => 'No clients available'
+                    ];
+                }
                 break;
 
             case 'sample_type_select':
@@ -353,6 +369,14 @@ class SubmissionFormController extends Controller
                     $options[] = [
                         'value' => $sampleType->id,
                         'label' => $sampleType->name
+                    ];
+                }
+                
+                // Add fallback if no sample types found
+                if (empty($options)) {
+                    $options[] = [
+                        'value' => '',
+                        'label' => 'No sample types available'
                     ];
                 }
                 break;

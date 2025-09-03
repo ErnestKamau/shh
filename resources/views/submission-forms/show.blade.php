@@ -209,7 +209,7 @@
                                   @foreach($holder->elements as $element)
                                     <div class="element-item d-flex justify-content-between align-items-center py-1">
                                       <div class="d-flex align-items-center">
-                                        <i class="mdi mdi-{{ $this->getElementIcon($element->element_type) }} text-secondary mr-2"></i>
+                                        <i class="mdi mdi-{{ getElementIcon($element->element_type) }} text-secondary mr-2"></i>
                                         <span class="small">{{ $element->label }}</span>
                                         @if($element->is_required)
                                           <span class="text-danger ml-1">*</span>
@@ -313,6 +313,195 @@
 @endsection
 
 @section('scripts')
+<!-- Custom Elements Initialization Script -->
+<script>
+// Wait for jQuery and DOM to be ready
+function waitForJQuery(callback) {
+    if (typeof $ !== 'undefined') {
+        $(document).ready(callback);
+    } else {
+        setTimeout(function() { waitForJQuery(callback); }, 100);
+    }
+}
+
+// Initialize all custom elements
+function initializeAllCustomElements() {
+    console.log('Initializing custom elements...');
+    
+    if (!window.customElementsToInit) {
+        console.log('No custom elements to initialize');
+        return;
+    }
+    
+    console.log('Found', window.customElementsToInit.length, 'custom elements to initialize');
+    
+    // Initialize each element
+    window.customElementsToInit.forEach(function(elementData) {
+        initializeCustomElement(elementData);
+    });
+    
+    // Set up client change handlers
+    setupClientChangeHandlers();
+}
+
+function initializeCustomElement(elementData) {
+    const elementId = elementData.elementId;
+    const elementType = elementData.elementType;
+    
+    console.log('Initializing element:', elementId, 'type:', elementType);
+    
+    // Load initial options for non-dependent elements
+    if (elementType === 'client_select' || elementType === 'sample_type_select') {
+        console.log('Loading initial options for:', elementType);
+        loadDynamicOptions(elementId, elementType);
+    }
+    
+    // For dependent elements, ensure they start empty
+    if (elementType === 'client_unit_select' || elementType === 'client_contact_select') {
+        console.log('Setting up dependent element:', elementType);
+        
+        // Ensure element starts empty
+        const placeholder = elementData.placeholder;
+        $('#' + elementId).html('<option value="">' + placeholder + '</option>');
+        
+        // Load options if client is already selected
+        const clientSelect = $('select[data-element-type="client_select"]');
+        const currentClientId = clientSelect.val();
+        console.log('Current client ID:', currentClientId);
+        
+        if (currentClientId) {
+            loadDynamicOptions(elementId, elementType, currentClientId);
+        }
+    }
+}
+
+function setupClientChangeHandlers() {
+    console.log('Setting up client change handlers');
+    
+    // Remove any existing handlers
+    $('select[data-element-type="client_select"]').off('change.custom-elements');
+    
+    // Set up client change handler
+    $('select[data-element-type="client_select"]').on('change.custom-elements', function() {
+        const clientId = $(this).val();
+        console.log('Client changed to:', clientId);
+        
+        // Find all dependent elements
+        const dependentElements = $('select[data-element-type="client_unit_select"], select[data-element-type="client_contact_select"]');
+        console.log('Found', dependentElements.length, 'dependent elements');
+        
+        // Debug: Check what custom elements exist
+        const allCustomElements = $('select[data-element-type]');
+        console.log('All custom elements found:', allCustomElements.length);
+        allCustomElements.each(function() {
+            console.log('- Element:', $(this).attr('id'), 'Type:', $(this).data('element-type'));
+        });
+        
+        if (clientId) {
+            // Load options for each dependent element
+            dependentElements.each(function() {
+                const dependentSelect = $(this);
+                const dependentElementId = dependentSelect.attr('id');
+                const dependentElementType = dependentSelect.data('element-type');
+                
+                console.log('Updating dependent element:', dependentElementType, dependentElementId);
+                
+                // Show loading state
+                dependentSelect.html('<option value="">Loading...</option>').prop('disabled', true);
+                
+                // Load options
+                loadDynamicOptions(dependentElementId, dependentElementType, clientId);
+            });
+        } else {
+            // Clear all dependent elements
+            dependentElements.each(function() {
+                const dependentSelect = $(this);
+                const placeholder = 'Select...';
+                dependentSelect.html('<option value="">' + placeholder + '</option>').prop('disabled', false);
+                console.log('Cleared dependent element:', dependentSelect.attr('id'));
+            });
+        }
+    });
+}
+
+function loadDynamicOptions(elementId, elementType, clientId = null) {
+    const select = $('#' + elementId);
+    const originalHtml = select.html();
+    
+    console.log('Loading options for element:', elementId, 'type:', elementType, 'clientId:', clientId);
+    
+    // Show loading state
+    select.html('<option value="">Loading...</option>').prop('disabled', true);
+    
+    // Make AJAX request
+    const ajaxUrl = '{{ route("submission-forms.dynamic-options") }}';
+    const ajaxData = {
+        element_type: elementType,
+        client_id: clientId
+    };
+    
+    console.log('Making AJAX request to:', ajaxUrl, 'with data:', ajaxData);
+    
+    $.ajax({
+        url: ajaxUrl,
+        method: 'GET',
+        data: ajaxData,
+        success: function(response) {
+            console.log('Received response for', elementType, ':', response);
+            let html = '';
+            
+            // Add placeholder option (always add for dependent elements)
+            if (elementType === 'client_unit_select' || elementType === 'client_contact_select') {
+                html += '<option value="">Select...</option>';
+            } else {
+                // For non-dependent elements, check if required
+                const elementData = window.customElementsToInit.find(e => e.elementId === elementId);
+                if (!elementData || !elementData.isRequired) {
+                    const placeholder = elementData ? elementData.placeholder : 'Select...';
+                    html += '<option value="">' + placeholder + '</option>';
+                }
+            }
+            
+            // Add options from response
+            if (response.options && response.options.length > 0) {
+                response.options.forEach(function(option) {
+                    html += '<option value="' + option.value + '">' + option.label + '</option>';
+                });
+                console.log('Added', response.options.length, 'options to', elementType);
+            } else {
+                console.warn('No options returned for element type:', elementType);
+                if (html === '') {
+                    html += '<option value="">No options available</option>';
+                }
+            }
+            
+            select.html(html).prop('disabled', false);
+        },
+        error: function(xhr, status, error) {
+            console.error('Error loading options for', elementType, ':', error);
+            console.error('Status:', status);
+            console.error('Response:', xhr.responseText);
+            select.html(originalHtml).prop('disabled', false);
+            
+            // Show error message
+            if (xhr.status === 403) {
+                alert('You do not have permission to access this data.');
+            } else if (xhr.status === 500) {
+                console.error('Server error loading dynamic options');
+            } else {
+                console.error('Network error loading dynamic options');
+            }
+        }
+    });
+}
+
+// Initialize when jQuery is ready
+waitForJQuery(function() {
+    console.log('jQuery is ready, initializing custom elements');
+    initializeAllCustomElements();
+});
+</script>
+
 <script>
   // Auto-hide alerts after 5 seconds
   setTimeout(function() {

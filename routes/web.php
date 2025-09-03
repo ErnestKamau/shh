@@ -311,6 +311,10 @@ Route::prefix('submission-forms')->name('submission-forms.')->middleware('auth')
     Route::get('/', 'SubmissionFormController@index')->name('index');
     Route::get('/create', 'SubmissionFormController@create')->name('create');
     Route::post('/', 'SubmissionFormController@store')->name('store');
+    
+    // Dynamic Options for Custom Elements (must be before /{submissionForm} route)
+    Route::get('/dynamic-options', 'SubmissionFormController@getDynamicOptions')->name('dynamic-options');
+    
     Route::get('/{submissionForm}', 'SubmissionFormController@show')->name('show');
     Route::get('/{submissionForm}/edit', 'SubmissionFormController@edit')->name('edit');
     Route::put('/{submissionForm}', 'SubmissionFormController@update')->name('update');
@@ -342,9 +346,6 @@ Route::prefix('submission-forms')->name('submission-forms.')->middleware('auth')
     Route::put('/elements/{element}', 'FormBuilderController@updateElement')->name('elements.update');
     Route::delete('/elements/{element}', 'FormBuilderController@deleteElement')->name('elements.destroy');
     Route::post('/holders/{holder}/elements/reorder', 'FormBuilderController@reorderElements')->name('elements.reorder');
-    
-    // Dynamic Options for Custom Elements
-    Route::get('/dynamic-options', 'SubmissionFormController@getDynamicOptions')->name('dynamic-options');
 });
 
 // Form Instance Management Routes (Admin)
@@ -766,11 +767,11 @@ Route::post('/add/supplier-quote/{id}', 'Suppliers\ChatMessageController@addSupp
 Route::post('/rating-criteria/{id?}', 'RatingCriteriaController@update')->name('rating-criteria');
 Route::post('/update-rating-criteria-score/{id}', 'SuppliersRatingCriteriaController@update')->name('update-rating-criteria-score');
 
-Route::get('rfq-item/quotation/{id}', 'Suppliers\QuotationAttachmentControler@index')->name('get-quotation');
-Route::post('add-quotation/notes', 'Suppliers\QuotationAttachmentControler@addNotes')->name('add-quotation-note');
-Route::post('add-quotation/attachments', 'Suppliers\QuotationAttachmentControler@addAttachment')->name('add-attachments');
-Route::get('delete/quotation-notes/{id}', 'Supplier\QuotationAttachmentControler@delete_notes')->name('delete-notes');
-Route::get('delete/quotation-attachment/{id}', 'Supplier\QuotationAttachmmentControler@delete_attachment')->name('delete-attachment');
+Route::get('rfq-item/quotation/{id}', 'Suppliers\QuotationAttachmentController@index')->name('get-quotation');
+Route::post('add-quotation/notes', 'Suppliers\QuotationAttachmentController@addNotes')->name('add-quotation-note');
+Route::post('add-quotation/attachments', 'Suppliers\QuotationAttachmentController@addAttachment')->name('add-attachments');
+Route::get('delete/quotation-notes/{id}', 'Suppliers\QuotationAttachmentController@delete_notes')->name('delete-notes');
+Route::get('delete/quotation-attachment/{id}', 'Suppliers\QuotationAttachmentController@delete_attachment')->name('delete-attachment');
 //##########################################SUPPLIER DASHBOARD#######################################
 
 //#################################INVOICE#######################################
@@ -1107,4 +1108,44 @@ Route::get('/set-available-stock', function () {
     }
 
     return 'OK';
+});
+
+//############################################CERTIFICATE TEMPLATES##########################################################
+Route::prefix('certificate-templates')->name('certificate-templates.')->middleware('auth')->group(function () {
+    Route::get('/', 'CertificateTemplateController@index')->name('index');
+    Route::get('/create', 'CertificateTemplateController@create')->name('create');
+    Route::post('/', 'CertificateTemplateController@store')->name('store');
+    
+    Route::get('/{certificateTemplate}', 'CertificateTemplateController@show')->name('show');
+    Route::get('/{certificateTemplate}/edit', 'CertificateTemplateController@edit')->name('edit');
+    Route::put('/{certificateTemplate}', 'CertificateTemplateController@update')->name('update');
+    Route::delete('/{certificateTemplate}', 'CertificateTemplateController@destroy')->name('destroy');
+    Route::get('/{certificateTemplate}/preview', 'CertificateTemplateController@preview')->name('preview');
+    Route::post('/{certificateTemplate}/toggle-published', 'CertificateTemplateController@togglePublished')->name('toggle-published');
+    Route::post('/{certificateTemplate}/clone', 'CertificateTemplateController@clone')->name('clone');
+    Route::get('/{certificateTemplate}/export', 'CertificateTemplateController@export')->name('export');
+    
+    // Permissions Management
+    Route::get('/{certificateTemplate}/permissions', 'CertificateTemplateController@permissions')->name('permissions');
+    Route::post('/{certificateTemplate}/permissions', 'CertificateTemplateController@updatePermissions')->name('permissions.update');
+    
+    // Template Builder Routes
+    Route::get('/{certificateTemplate}/builder', 'TemplateBuilderController@index')->name('builder');
+    Route::get('/{certificateTemplate}/structure', 'TemplateBuilderController@getTemplateStructure')->name('structure');
+    Route::get('/builder/available-fields', 'TemplateBuilderController@getAvailableFields')->name('builder.available-fields');
+    Route::post('/builder/upload-image', 'TemplateBuilderController@uploadImage')->name('builder.upload-image');
+    Route::get('/builder/element-config/{elementType}', 'TemplateBuilderController@getElementTypeConfig')->name('builder.element-config');
+    Route::post('/builder/validate-element', 'TemplateBuilderController@validateElement')->name('builder.validate-element');
+    
+    // Section Management
+    Route::post('/{certificateTemplate}/sections', 'TemplateBuilderController@addSection')->name('sections.store');
+    Route::put('/sections/{section}', 'TemplateBuilderController@updateSection')->name('sections.update');
+    Route::delete('/sections/{section}', 'TemplateBuilderController@deleteSection')->name('sections.destroy');
+    Route::post('/{certificateTemplate}/sections/reorder', 'TemplateBuilderController@reorderSections')->name('sections.reorder');
+    
+    // Element Management
+    Route::post('/sections/{section}/elements', 'TemplateBuilderController@addElement')->name('elements.store');
+    Route::put('/elements/{element}', 'TemplateBuilderController@updateElement')->name('elements.update');
+    Route::delete('/elements/{element}', 'TemplateBuilderController@deleteElement')->name('elements.destroy');
+    Route::post('/sections/{section}/elements/reorder', 'TemplateBuilderController@reorderElements')->name('elements.reorder');
 });
