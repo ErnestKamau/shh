@@ -3,6 +3,7 @@
 namespace App\Models;
 
 use App\User;
+use App\CertificateTemplate;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -63,6 +64,16 @@ class SubmissionForm extends Model
     public function permissions()
     {
         return $this->hasMany(SubmissionFormPermission::class);
+    }
+
+    /**
+     * Get the certificate templates for this submission form
+     * 
+     * @return \Illuminate\Database\Eloquent\Relations\HasMany
+     */
+    public function certificateTemplates()
+    {
+        return $this->hasMany(CertificateTemplate::class);
     }
 
     /**

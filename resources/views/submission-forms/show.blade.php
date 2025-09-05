@@ -340,8 +340,10 @@ function initializeAllCustomElements() {
         initializeCustomElement(elementData);
     });
     
-    // Set up client change handlers
+    // Set up change handlers
     setupClientChangeHandlers();
+    setupSampleTypeChangeHandlers();
+    setupStoreChangeHandlers();
 }
 
 function initializeCustomElement(elementData) {
@@ -351,7 +353,7 @@ function initializeCustomElement(elementData) {
     console.log('Initializing element:', elementId, 'type:', elementType);
     
     // Load initial options for non-dependent elements
-    if (elementType === 'client_select' || elementType === 'sample_type_select') {
+    if (elementType === 'client_select' || elementType === 'sample_type_select' || elementType === 'store_select' || elementType === 'standard_select' || elementType === 'sample_condition_select') {
         console.log('Loading initial options for:', elementType);
         loadDynamicOptions(elementId, elementType);
     }
@@ -373,6 +375,42 @@ function initializeCustomElement(elementData) {
             loadDynamicOptions(elementId, elementType, currentClientId);
         }
     }
+    
+    // For sample type dependent elements
+    if (elementType === 'analysis_type_select') {
+        console.log('Setting up sample type dependent element:', elementType);
+        
+        // Ensure element starts empty
+        const placeholder = elementData.placeholder;
+        $('#' + elementId).html('<option value="">' + placeholder + '</option>');
+        
+        // Load options if sample type is already selected
+        const sampleTypeSelect = $('select[data-element-type="sample_type_select"]');
+        const currentSampleTypeId = sampleTypeSelect.val();
+        console.log('Current sample type ID:', currentSampleTypeId);
+        
+        if (currentSampleTypeId) {
+            loadDynamicOptions(elementId, elementType, null, currentSampleTypeId);
+        }
+    }
+    
+    // For store dependent elements
+    if (elementType === 'store_slot_select') {
+        console.log('Setting up store dependent element:', elementType);
+        
+        // Ensure element starts empty
+        const placeholder = elementData.placeholder;
+        $('#' + elementId).html('<option value="">' + placeholder + '</option>');
+        
+        // Load options if store is already selected
+        const storeSelect = $('select[data-element-type="store_select"]');
+        const currentStoreId = storeSelect.val();
+        console.log('Current store ID:', currentStoreId);
+        
+        if (currentStoreId) {
+            loadDynamicOptions(elementId, elementType, null, null, currentStoreId);
+        }
+    }
 }
 
 function setupClientChangeHandlers() {
@@ -388,7 +426,7 @@ function setupClientChangeHandlers() {
         
         // Find all dependent elements
         const dependentElements = $('select[data-element-type="client_unit_select"], select[data-element-type="client_contact_select"]');
-        console.log('Found', dependentElements.length, 'dependent elements');
+        console.log('Found', dependentElements.length, 'client dependent elements');
         
         // Debug: Check what custom elements exist
         const allCustomElements = $('select[data-element-type]');
@@ -424,11 +462,95 @@ function setupClientChangeHandlers() {
     });
 }
 
-function loadDynamicOptions(elementId, elementType, clientId = null) {
+function setupSampleTypeChangeHandlers() {
+    console.log('Setting up sample type change handlers');
+    
+    // Remove any existing handlers
+    $('select[data-element-type="sample_type_select"]').off('change.custom-elements');
+    
+    // Set up sample type change handler
+    $('select[data-element-type="sample_type_select"]').on('change.custom-elements', function() {
+        const sampleTypeId = $(this).val();
+        console.log('Sample type changed to:', sampleTypeId);
+        
+        // Find all dependent elements
+        const dependentElements = $('select[data-element-type="analysis_type_select"]');
+        console.log('Found', dependentElements.length, 'sample type dependent elements');
+        
+        if (sampleTypeId) {
+            // Load options for each dependent element
+            dependentElements.each(function() {
+                const dependentSelect = $(this);
+                const dependentElementId = dependentSelect.attr('id');
+                const dependentElementType = dependentSelect.data('element-type');
+                
+                console.log('Updating dependent element:', dependentElementType, dependentElementId);
+                
+                // Show loading state
+                dependentSelect.html('<option value="">Loading...</option>').prop('disabled', true);
+                
+                // Load options
+                loadDynamicOptions(dependentElementId, dependentElementType, null, sampleTypeId);
+            });
+        } else {
+            // Clear all dependent elements
+            dependentElements.each(function() {
+                const dependentSelect = $(this);
+                const placeholder = 'Select...';
+                dependentSelect.html('<option value="">' + placeholder + '</option>').prop('disabled', false);
+                console.log('Cleared dependent element:', dependentSelect.attr('id'));
+            });
+        }
+    });
+}
+
+function setupStoreChangeHandlers() {
+    console.log('Setting up store change handlers');
+    
+    // Remove any existing handlers
+    $('select[data-element-type="store_select"]').off('change.custom-elements');
+    
+    // Set up store change handler
+    $('select[data-element-type="store_select"]').on('change.custom-elements', function() {
+        const storeId = $(this).val();
+        console.log('Store changed to:', storeId);
+        
+        // Find all dependent elements
+        const dependentElements = $('select[data-element-type="store_slot_select"]');
+        console.log('Found', dependentElements.length, 'store dependent elements');
+        
+        if (storeId) {
+            // Load options for each dependent element
+            dependentElements.each(function() {
+                const dependentSelect = $(this);
+                const dependentElementId = dependentSelect.attr('id');
+                const dependentElementType = dependentSelect.data('element-type');
+                
+                console.log('Updating dependent element:', dependentElementType, dependentElementId);
+                
+                // Show loading state
+                dependentSelect.html('<option value="">Loading...</option>').prop('disabled', true);
+                
+                // Load options
+                loadDynamicOptions(dependentElementId, dependentElementType, null, null, storeId);
+            });
+        } else {
+            // Clear all dependent elements
+            dependentElements.each(function() {
+                const dependentSelect = $(this);
+                const placeholder = 'Select...';
+                dependentSelect.html('<option value="">' + placeholder + '</option>').prop('disabled', false);
+                console.log('Cleared dependent element:', dependentSelect.attr('id'));
+            });
+        }
+    });
+}
+
+function loadDynamicOptions(elementId, elementType, clientId = null, sampleTypeId = null, storeId = null) {
     const select = $('#' + elementId);
     const originalHtml = select.html();
     
-    console.log('Loading options for element:', elementId, 'type:', elementType, 'clientId:', clientId);
+    console.log('Loading options for element:', elementId, 'type:', elementType, 'clientId:', clientId, 'sampleTypeId:', sampleTypeId, 'storeId:', storeId);
     
     // Show loading state
     select.html('<option value="">Loading...</option>').prop('disabled', true);
@@ -437,7 +559,9 @@ function loadDynamicOptions(elementId, elementType, clientId = null) {
     const ajaxUrl = '{{ route("submission-forms.dynamic-options") }}';
     const ajaxData = {
         element_type: elementType,
-        client_id: clientId
+        client_id: clientId,
+        sample_type_id: sampleTypeId,
+        store_id: storeId
     };
     
     console.log('Making AJAX request to:', ajaxUrl, 'with data:', ajaxData);

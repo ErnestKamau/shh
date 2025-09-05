@@ -40,12 +40,14 @@ class FormBuilderController extends Controller
         $validated = $request->validate([
             'title' => 'required|string|max:255',
             'description' => 'nullable|string|max:1000',
+            'section_type' => 'required|in:regular,rows_section',
         ]);
 
         try {
             $section = $submissionForm->sections()->create([
                 'title' => $validated['title'],
                 'description' => $validated['description'],
+                'section_type' => $validated['section_type'],
                 'sort_order' => SubmissionFormSection::getNextSortOrder($submissionForm->id)
             ]);
 
@@ -74,6 +76,7 @@ class FormBuilderController extends Controller
         $validated = $request->validate([
             'title' => 'required|string|max:255',
             'description' => 'nullable|string|max:1000',
+            'section_type' => 'required|in:regular,rows_section',
             'sort_order' => 'nullable|integer|min:0'
         ]);
 
@@ -237,8 +240,11 @@ class FormBuilderController extends Controller
      */
     public function addElement(Request $request, SubmissionFormElementHolder $holder)
     {
+        // Debug: Log the incoming request data
+        \Log::info('AddElement Request Data:', $request->all());
+        
         $validated = $request->validate([
-            'element_type' => 'required|in:text,number,email,date,datetime,textarea,select,radio,checkbox,file,signature,calculation,client_select,sample_type_select,client_unit_select,client_contact_select',
+            'element_type' => 'required|in:text,number,email,date,datetime,textarea,select,radio,checkbox,file,signature,calculation,client_select,sample_type_select,client_unit_select,client_contact_select,analysis_type_select,store_select,store_slot_select,sample_condition_select,standard_select,sample_point_select',
             'label' => 'required|string|max:255',
             'name' => [
                 'required',
@@ -263,7 +269,10 @@ class FormBuilderController extends Controller
             'validation_rules' => 'nullable|array',
             'options' => 'nullable|array',
             'calculation_formula' => 'nullable|string|max:1000',
-            'conditional_logic' => 'nullable|array'
+            'conditional_logic' => 'nullable|array',
+            'mapping_table' => 'nullable|in:sample_headers,sample_details',
+            'mapping_field' => 'nullable|string|max:255',
+            'is_mapped' => 'sometimes|in:true,false,1,0'
         ]);
 
         try {
@@ -288,7 +297,18 @@ class FormBuilderController extends Controller
                 'options' => $validated['options'] ?? null,
                 'calculation_formula' => $validated['calculation_formula'] ?? null,
                 'conditional_logic' => $validated['conditional_logic'] ?? null,
+                'mapping_table' => $validated['mapping_table'] ?? null,
+                'mapping_field' => $validated['mapping_field'] ?? null,
+                'is_mapped' => filter_var($validated['is_mapped'] ?? false, FILTER_VALIDATE_BOOLEAN),
                 'sort_order' => SubmissionFormElement::getNextSortOrder($holder->id)
+            ]);
+            
+            // Debug: Log the created element data
+            \Log::info('Created Element Data:', [
+                'id' => $element->id,
+                'mapping_table' => $element->mapping_table,
+                'mapping_field' => $element->mapping_field,
+                'is_mapped' => $element->is_mapped
             ]);
 
             return response()->json([
@@ -313,8 +333,11 @@ class FormBuilderController extends Controller
      */
     public function updateElement(Request $request, SubmissionFormElement $element)
     {
+        // Debug: Log the incoming request data
+        \Log::info('UpdateElement Request Data:', $request->all());
+        
         $validated = $request->validate([
-            'element_type' => 'required|in:text,number,email,date,datetime,textarea,select,radio,checkbox,file,signature,calculation,client_select,sample_type_select,client_unit_select,client_contact_select',
+            'element_type' => 'required|in:text,number,email,date,datetime,textarea,select,radio,checkbox,file,signature,calculation,client_select,sample_type_select,client_unit_select,client_contact_select,analysis_type_select,store_select,store_slot_select,sample_condition_select,standard_select,sample_point_select',
             'label' => 'required|string|max:255',
             'name' => [
                 'required',
@@ -340,6 +363,9 @@ class FormBuilderController extends Controller
             'options' => 'nullable|array',
             'calculation_formula' => 'nullable|string|max:1000',
             'conditional_logic' => 'nullable|array',
+            'mapping_table' => 'nullable|in:sample_headers,sample_details',
+            'mapping_field' => 'nullable|string|max:255',
+            'is_mapped' => 'sometimes|in:true,false,1,0',
             'sort_order' => 'nullable|integer|min:0'
         ]);
 
@@ -351,8 +377,19 @@ class FormBuilderController extends Controller
             if (isset($validated['is_readonly'])) {
                 $validated['is_readonly'] = filter_var($validated['is_readonly'], FILTER_VALIDATE_BOOLEAN);
             }
+            if (isset($validated['is_mapped'])) {
+                $validated['is_mapped'] = filter_var($validated['is_mapped'], FILTER_VALIDATE_BOOLEAN);
+            }
             
             $element->update($validated);
+            
+            // Debug: Log the updated element data
+            \Log::info('Updated Element Data:', [
+                'id' => $element->id,
+                'mapping_table' => $element->mapping_table,
+                'mapping_field' => $element->mapping_field,
+                'is_mapped' => $element->is_mapped
+            ]);
 
             return response()->json([
                 'success' => true,
@@ -549,6 +586,31 @@ class FormBuilderController extends Controller
         return response()->json([
             'available' => !$exists,
             'message' => $exists ? 'Element name already exists in this form' : 'Element name is available'
+        ]);
+    }
+
+    /**
+     * Get mapping fields for a specific table
+     * 
+     * @param Request $request
+     * @return \Illuminate\Http\JsonResponse
+     */
+    public function getMappingFields(Request $request)
+    {
+        $table = $request->get('table');
+        
+        if (!$table || !in_array($table, ['sample_headers', 'sample_details'])) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Invalid table specified'
+            ], 400);
+        }
+
+        $fields = SubmissionFormElement::getMappingFields($table);
+
+        return response()->json([
+            'success' => true,
+            'fields' => $fields
         ]);
     }
 }

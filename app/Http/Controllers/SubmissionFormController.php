@@ -321,6 +321,8 @@ class SubmissionFormController extends Controller
 
         $elementType = $request->get('element_type');
         $clientId = $request->get('client_id');
+        $sampleTypeId = $request->get('sample_type_id');
+        $storeId = $request->get('store_id');
 
         \Log::info('Dynamic options request', [
             'element_type' => $elementType,
@@ -329,7 +331,7 @@ class SubmissionFormController extends Controller
         ]);
 
         // Validate element type
-        $validTypes = ['client_select', 'sample_type_select', 'client_unit_select', 'client_contact_select'];
+        $validTypes = ['client_select', 'sample_type_select', 'client_unit_select', 'client_contact_select', 'analysis_type_select', 'store_select', 'store_slot_select', 'sample_condition_select', 'standard_select', 'sample_point_select'];
         if (!in_array($elementType, $validTypes)) {
             \Log::warning('Invalid element type requested', ['element_type' => $elementType]);
             return response()->json(['error' => 'Invalid element type'], 400);
@@ -409,6 +411,93 @@ class SubmissionFormController extends Controller
                         $options[] = [
                             'value' => $contact->id,
                             'label' => $fullName . ' (' . $contact->email . ')'
+                        ];
+                    }
+                }
+                break;
+
+            case 'analysis_type_select':
+                if ($sampleTypeId) {
+                    $analysisTypes = \App\AnalysisType::where('sample_type_id', $sampleTypeId)
+                        ->where('active', 1)
+                        ->where('company_id', getUserCompany())
+                        ->orderBy('name')
+                        ->get();
+
+                    foreach ($analysisTypes as $analysisType) {
+                        $options[] = [
+                            'value' => $analysisType->id,
+                            'label' => $analysisType->name . ' (' . $analysisType->code . ')'
+                        ];
+                    }
+                }
+                break;
+
+            case 'store_select':
+                $stores = \App\InventoryStore::where('company_id', getUserCompany())
+                    ->orderBy('name')
+                    ->get();
+
+                foreach ($stores as $store) {
+                    $options[] = [
+                        'value' => $store->id,
+                        'label' => $store->name
+                    ];
+                }
+                break;
+
+            case 'store_slot_select':
+                if ($storeId) {
+                    $slots = \App\InventoryStoreSlot::where('inventory_store_id', $storeId)
+                        ->orderBy('name')
+                        ->get();
+
+                    foreach ($slots as $slot) {
+                        $options[] = [
+                            'value' => $slot->id,
+                            'label' => $slot->name
+                        ];
+                    }
+                }
+                break;
+
+            case 'sample_condition_select':
+                $sampleConditions = \App\SampleCondition::where('active', 1)
+                    ->orderBy('name')
+                    ->get();
+
+                foreach ($sampleConditions as $condition) {
+                    $options[] = [
+                        'value' => $condition->id,
+                        'label' => $condition->name . ($condition->short_name ? ' (' . $condition->short_name . ')' : '')
+                    ];
+                }
+                break;
+
+            case 'standard_select':
+                $standards = \App\Standards::where('status', 1)
+                    ->orderBy('name')
+                    ->get();
+
+                foreach ($standards as $standard) {
+                    $options[] = [
+                        'value' => $standard->id,
+                        'label' => $standard->name . ' (' . $standard->code . ')'
+                    ];
+                }
+                break;
+
+            case 'sample_point_select':
+                if ($clientId) {
+                    $samplePoints = \App\Models\CRM\SamplePoint::where('active', 1)
+                        ->where('crm_company_unit_id', $clientId)
+                        ->orderBy('name')
+                        ->get();
+
+                    foreach ($samplePoints as $samplePoint) {
+                        $options[] = [
+                            'value' => $samplePoint->id,
+                            'label' => $samplePoint->name
                         ];
                     }
                 }

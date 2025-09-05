@@ -1,5 +1,10 @@
+@php
+    $fieldName = isset($isArrayField) && $isArrayField ? $element->name . '[' . $rowIndex . ']' : $element->name;
+    $fieldId = isset($isArrayField) && $isArrayField ? $element->name . '_' . $rowIndex : $element->name;
+@endphp
+
 <div class="form-group">
-    <label for="{{ $element->name }}" class="{{ $element->is_required ? 'required' : '' }}">
+    <label for="{{ $fieldId }}" class="{{ $element->is_required ? 'required' : '' }}">
         {{ $element->label }}
     </label>
     
@@ -7,8 +12,8 @@
         @case('text')
             <input type="text" 
                    class="form-control" 
-                   id="{{ $element->name }}" 
-                   name="{{ $element->name }}"
+                   id="{{ $fieldId }}" 
+                   name="{{ $fieldName }}"
                    placeholder="{{ $element->placeholder }}"
                    value="{{ $element->default_value }}"
                    {{ $element->is_required ? 'required' : '' }}
@@ -18,8 +23,8 @@
         @case('number')
             <input type="number" 
                    class="form-control" 
-                   id="{{ $element->name }}" 
-                   name="{{ $element->name }}"
+                   id="{{ $fieldId }}" 
+                   name="{{ $fieldName }}"
                    placeholder="{{ $element->placeholder }}"
                    value="{{ $element->default_value }}"
                    {{ $element->is_required ? 'required' : '' }}
@@ -29,8 +34,8 @@
         @case('email')
             <input type="email" 
                    class="form-control" 
-                   id="{{ $element->name }}" 
-                   name="{{ $element->name }}"
+                   id="{{ $fieldId }}" 
+                   name="{{ $fieldName }}"
                    placeholder="{{ $element->placeholder }}"
                    value="{{ $element->default_value }}"
                    {{ $element->is_required ? 'required' : '' }}
@@ -40,8 +45,8 @@
         @case('date')
             <input type="date" 
                    class="form-control" 
-                   id="{{ $element->name }}" 
-                   name="{{ $element->name }}"
+                   id="{{ $fieldId }}" 
+                   name="{{ $fieldName }}"
                    value="{{ $element->default_value }}"
                    {{ $element->is_required ? 'required' : '' }}
                    {{ $element->is_readonly ? 'readonly' : '' }}>
@@ -50,8 +55,8 @@
         @case('datetime')
             <input type="datetime-local" 
                    class="form-control" 
-                   id="{{ $element->name }}" 
-                   name="{{ $element->name }}"
+                   id="{{ $fieldId }}" 
+                   name="{{ $fieldName }}"
                    value="{{ $element->default_value }}"
                    {{ $element->is_required ? 'required' : '' }}
                    {{ $element->is_readonly ? 'readonly' : '' }}>
@@ -59,8 +64,8 @@
             
         @case('textarea')
             <textarea class="form-control" 
-                      id="{{ $element->name }}" 
-                      name="{{ $element->name }}"
+                      id="{{ $fieldId }}" 
+                      name="{{ $fieldName }}"
                       rows="3"
                       placeholder="{{ $element->placeholder }}"
                       {{ $element->is_required ? 'required' : '' }}
@@ -69,8 +74,8 @@
             
         @case('select')
             <select class="form-control" 
-                    id="{{ $element->name }}" 
-                    name="{{ $element->name }}"
+                    id="{{ $fieldId }}" 
+                    name="{{ $fieldName }}"
                     {{ $element->is_required ? 'required' : '' }}
                     {{ $element->is_readonly ? 'disabled' : '' }}>
                 @if(!$element->is_required)
@@ -92,7 +97,7 @@
                         <input class="form-check-input" 
                                type="radio" 
                                id="{{ $element->name }}_{{ $index }}" 
-                               name="{{ $element->name }}"
+                               name="{{ $fieldName }}"
                                value="{{ $option['value'] ?? $option }}"
                                {{ ($element->default_value == ($option['value'] ?? $option)) ? 'checked' : '' }}
                                {{ $element->is_required ? 'required' : '' }}
@@ -128,8 +133,8 @@
                 <div class="form-check">
                     <input class="form-check-input" 
                            type="checkbox" 
-                           id="{{ $element->name }}" 
-                           name="{{ $element->name }}"
+                           id="{{ $fieldId }}" 
+                           name="{{ $fieldName }}"
                            value="1"
                            {{ $element->default_value ? 'checked' : '' }}
                            {{ $element->is_readonly ? 'disabled' : '' }}>
@@ -143,8 +148,8 @@
         @case('file')
             <input type="file" 
                    class="form-control" 
-                   id="{{ $element->name }}" 
-                   name="{{ $element->name }}"
+                   id="{{ $fieldId }}" 
+                   name="{{ $fieldName }}"
                    {{ $element->is_required ? 'required' : '' }}
                    {{ $element->is_readonly ? 'disabled' : '' }}>
             @if($element->help_text)
@@ -164,16 +169,16 @@
                     </button>
                 </div>
                 <input type="hidden" 
-                       id="{{ $element->name }}" 
-                       name="{{ $element->name }}"
+                       id="{{ $fieldId }}" 
+                       name="{{ $fieldName }}"
                        {{ $element->is_required ? 'required' : '' }}>
             </div>
             @break
             
         @case('client_select')
             <select class="form-control custom-element" 
-                    id="{{ $element->name }}" 
-                    name="{{ $element->name }}"
+                    id="{{ $fieldId }}" 
+                    name="{{ $fieldName }}"
                     data-element-type="client_select"
                     {{ $element->is_required ? 'required' : '' }}
                     {{ $element->is_readonly ? 'disabled' : '' }}>
@@ -186,8 +191,8 @@
             
         @case('sample_type_select')
             <select class="form-control custom-element" 
-                    id="{{ $element->name }}" 
-                    name="{{ $element->name }}"
+                    id="{{ $fieldId }}" 
+                    name="{{ $fieldName }}"
                     data-element-type="sample_type_select"
                     {{ $element->is_required ? 'required' : '' }}
                     {{ $element->is_readonly ? 'disabled' : '' }}>
@@ -200,8 +205,8 @@
             
         @case('client_unit_select')
             <select class="form-control custom-element" 
-                    id="{{ $element->name }}" 
-                    name="{{ $element->name }}"
+                    id="{{ $fieldId }}" 
+                    name="{{ $fieldName }}"
                     data-element-type="client_unit_select"
                     data-depends-on="client_select"
                     {{ $element->is_required ? 'required' : '' }}
@@ -215,8 +220,8 @@
             
         @case('client_contact_select')
             <select class="form-control custom-element" 
-                    id="{{ $element->name }}" 
-                    name="{{ $element->name }}"
+                    id="{{ $fieldId }}" 
+                    name="{{ $fieldName }}"
                     data-element-type="client_contact_select"
                     data-depends-on="client_select"
                     {{ $element->is_required ? 'required' : '' }}
@@ -228,11 +233,98 @@
             </select>
             @break
             
+        @case('analysis_type_select')
+            <select class="form-control custom-element" 
+                    id="{{ $fieldId }}" 
+                    name="{{ $fieldName }}"
+                    data-element-type="analysis_type_select"
+                    data-depends-on="sample_type_select"
+                    {{ $element->is_required ? 'required' : '' }}
+                    {{ $element->is_readonly ? 'disabled' : '' }}>
+                @if(!$element->is_required)
+                    <option value="">{{ $element->placeholder ?: 'Select an analysis type...' }}</option>
+                @endif
+                {{-- Options will be loaded dynamically based on selected sample type --}}
+            </select>
+            @break
+            
+        @case('store_select')
+            <select class="form-control custom-element" 
+                    id="{{ $fieldId }}" 
+                    name="{{ $fieldName }}"
+                    data-element-type="store_select"
+                    {{ $element->is_required ? 'required' : '' }}
+                    {{ $element->is_readonly ? 'disabled' : '' }}>
+                @if(!$element->is_required)
+                    <option value="">{{ $element->placeholder ?: 'Select a store...' }}</option>
+                @endif
+                {{-- Options will be loaded dynamically --}}
+            </select>
+            @break
+            
+        @case('store_slot_select')
+            <select class="form-control custom-element" 
+                    id="{{ $fieldId }}" 
+                    name="{{ $fieldName }}"
+                    data-element-type="store_slot_select"
+                    data-depends-on="store_select"
+                    {{ $element->is_required ? 'required' : '' }}
+                    {{ $element->is_readonly ? 'disabled' : '' }}>
+                @if(!$element->is_required)
+                    <option value="">{{ $element->placeholder ?: 'Select a store slot...' }}</option>
+                @endif
+                {{-- Options will be loaded dynamically based on selected store --}}
+            </select>
+            @break
+            
+        @case('sample_condition_select')
+            <select class="form-control custom-element" 
+                    id="{{ $fieldId }}" 
+                    name="{{ $fieldName }}"
+                    data-element-type="sample_condition_select"
+                    {{ $element->is_required ? 'required' : '' }}
+                    {{ $element->is_readonly ? 'disabled' : '' }}>
+                @if(!$element->is_required)
+                    <option value="">{{ $element->placeholder ?: 'Select a sample condition...' }}</option>
+                @endif
+                {{-- Options will be loaded dynamically --}}
+            </select>
+            @break
+            
+        @case('standard_select')
+            <select class="form-control custom-element" 
+                    id="{{ $fieldId }}" 
+                    name="{{ $fieldName }}"
+                    data-element-type="standard_select"
+                    {{ $element->is_required ? 'required' : '' }}
+                    {{ $element->is_readonly ? 'disabled' : '' }}>
+                @if(!$element->is_required)
+                    <option value="">{{ $element->placeholder ?: 'Select a standard...' }}</option>
+                @endif
+                {{-- Options will be loaded dynamically --}}
+            </select>
+            @break
+            
+        @case('sample_point_select')
+            <select class="form-control custom-element" 
+                    id="{{ $fieldId }}" 
+                    name="{{ $fieldName }}"
+                    data-element-type="sample_point_select"
+                    data-depends-on="client_unit_select"
+                    {{ $element->is_required ? 'required' : '' }}
+                    {{ $element->is_readonly ? 'disabled' : '' }}>
+                @if(!$element->is_required)
+                    <option value="">{{ $element->placeholder ?: 'Select a sample point...' }}</option>
+                @endif
+                {{-- Options will be loaded dynamically based on selected client unit --}}
+            </select>
+            @break
+            
         @case('calculation')
             <input type="text" 
                    class="form-control" 
-                   id="{{ $element->name }}" 
-                   name="{{ $element->name }}"
+                   id="{{ $fieldId }}" 
+                   name="{{ $fieldName }}"
                    placeholder="{{ $element->placeholder }}"
                    value="{{ $element->default_value }}"
                    {{ $element->is_required ? 'required' : '' }}
@@ -248,7 +340,7 @@
 </div>
 
 {{-- Store element data for later initialization --}}
-@if(in_array($element->element_type, ['client_select', 'sample_type_select', 'client_unit_select', 'client_contact_select']))
+@if(in_array($element->element_type, ['client_select', 'sample_type_select', 'client_unit_select', 'client_contact_select', 'analysis_type_select', 'store_select', 'store_slot_select', 'sample_condition_select', 'standard_select', 'sample_point_select']))
 <script>
 // Store element data for initialization when jQuery is ready
 window.customElementsToInit = window.customElementsToInit || [];

@@ -103,56 +103,54 @@ class FormInstanceController extends Controller
         $messages = [];
         
         foreach ($submissionForm->sections as $section) {
-            foreach ($section->elementHolders as $holder) {
-                foreach ($holder->elements as $element) {
-                    $fieldName = "field_{$element->id}";
-                    $elementRules = [];
-                    
-                    // Add required rule if element is required
-                    if ($element->is_required) {
-                        $elementRules[] = 'required';
-                        $messages["{$fieldName}.required"] = "The {$element->label} field is required.";
+            if ($section->isRowsSection()) {
+                // Handle rows section - array fields
+                $templateHolder = $section->getTemplateElementHolder();
+                if ($templateHolder) {
+                    foreach ($templateHolder->elements as $element) {
+                        $fieldName = "field_{$element->id}";
+                        $elementRules = [];
+                        
+                        // Add required rule if element is required
+                        if ($element->is_required) {
+                            $elementRules[] = 'required';
+                            $elementRules[] = 'array';
+                            $elementRules[] = 'min:1';
+                            $messages["{$fieldName}.required"] = "The {$element->label} field is required.";
+                            $messages["{$fieldName}.array"] = "The {$element->label} field must be an array.";
+                            $messages["{$fieldName}.min"] = "At least one {$element->label} entry is required.";
+                        } else {
+                            $elementRules[] = 'nullable';
+                            $elementRules[] = 'array';
+                        }
+                        
+                        // Add type-specific validation rules for array elements
+                        $this->addElementValidationRules($element, $elementRules, $messages, $fieldName, true);
+                        
+                        if (!empty($elementRules)) {
+                            $rules[$fieldName] = $elementRules;
+                        }
                     }
-                    
-                    // Add type-specific validation rules
-                    switch ($element->element_type) {
-                        case 'email':
-                            $elementRules[] = 'email';
-                            $messages["{$fieldName}.email"] = "The {$element->label} must be a valid email address.";
-                            break;
-                        case 'number':
-                            $elementRules[] = 'numeric';
-                            $messages["{$fieldName}.numeric"] = "The {$element->label} must be a number.";
-                            break;
-                        case 'date':
-                            $elementRules[] = 'date';
-                            $messages["{$fieldName}.date"] = "The {$element->label} must be a valid date.";
-                            break;
-                        case 'file':
-                            $elementRules[] = 'file';
-                            if (!empty($element->validation_rules['max_size'])) {
-                                $maxSize = $element->validation_rules['max_size'];
-                                $elementRules[] = "max:{$maxSize}";
-                                $messages["{$fieldName}.max"] = "The {$element->label} may not be greater than {$maxSize} kilobytes.";
-                            }
-                            if (!empty($element->validation_rules['allowed_types'])) {
-                                $types = implode(',', $element->validation_rules['allowed_types']);
-                                $elementRules[] = "mimes:{$types}";
-                                $messages["{$fieldName}.mimes"] = "The {$element->label} must be a file of type: {$types}.";
-                            }
-                            break;
-                    }
-                    
-                    // Add custom validation rules from element settings
-                    if (!empty($element->validation_rules['min_length'])) {
-                        $elementRules[] = 'min:' . $element->validation_rules['min_length'];
-                    }
-                    if (!empty($element->validation_rules['max_length'])) {
-                        $elementRules[] = 'max:' . $element->validation_rules['max_length'];
-                    }
-                    
-                    if (!empty($elementRules)) {
-                        $rules[$fieldName] = $elementRules;
+                }
+            } else {
+                // Handle regular section - single fields
+                foreach ($section->elementHolders as $holder) {
+                    foreach ($holder->elements as $element) {
+                        $fieldName = "field_{$element->id}";
+                        $elementRules = [];
+                        
+                        // Add required rule if element is required
+                        if ($element->is_required) {
+                            $elementRules[] = 'required';
+                            $messages["{$fieldName}.required"] = "The {$element->label} field is required.";
+                        }
+                        
+                        // Add type-specific validation rules
+                        $this->addElementValidationRules($element, $elementRules, $messages, $fieldName, false);
+                        
+                        if (!empty($elementRules)) {
+                            $rules[$fieldName] = $elementRules;
+                        }
                     }
                 }
             }
@@ -183,32 +181,77 @@ class FormInstanceController extends Controller
 
             // Process and store field values
             foreach ($submissionForm->sections as $section) {
-                foreach ($section->elementHolders as $holder) {
-                    foreach ($holder->elements as $element) {
-                        $fieldName = "field_{$element->id}";
-                        $value = $request->input($fieldName);
-                        
-                        if ($value !== null) {
-                            // Handle file uploads
-                            if ($element->element_type === 'file' && $request->hasFile($fieldName)) {
-                                $file = $request->file($fieldName);
-                                $path = $file->store('form-submissions', 'public');
-                                $value = [
-                                    'original_name' => $file->getClientOriginalName(),
-                                    'path' => $path,
-                                    'size' => $file->getSize(),
-                                    'mime_type' => $file->getMimeType()
-                                ];
+                if ($section->isRowsSection()) {
+                    // Handle rows section - array fields
+                    $templateHolder = $section->getTemplateElementHolder();
+                    if ($templateHolder) {
+                        foreach ($templateHolder->elements as $element) {
+                            $fieldName = "field_{$element->id}";
+                            $values = $request->input($fieldName, []);
+                            
+                            if (!empty($values) && is_array($values)) {
+                                // Process each row value
+                                $processedValues = [];
+                                foreach ($values as $index => $value) {
+                                    if ($value !== null && $value !== '') {
+                                        // Handle file uploads for array fields
+                                        if ($element->element_type === 'file' && $request->hasFile($fieldName . '.' . $index)) {
+                                            $file = $request->file($fieldName . '.' . $index);
+                                            $path = $file->store('form-submissions', 'public');
+                                            $value = [
+                                                'original_name' => $file->getClientOriginalName(),
+                                                'path' => $path,
+                                                'size' => $file->getSize(),
+                                                'mime_type' => $file->getMimeType()
+                                            ];
+                                        }
+                                        
+                                        $processedValues[] = $value;
+                                    }
+                                }
+                                
+                                if (!empty($processedValues)) {
+                                    // Store the array of values
+                                    SubmissionFormInstanceValue::create([
+                                        'submission_form_instance_id' => $instance->id,
+                                        'submission_form_element_id' => $element->id,
+                                        'value' => json_encode($processedValues)
+                                    ]);
+                                    
+                                    $processedData[$element->name] = $processedValues;
+                                }
                             }
+                        }
+                    }
+                } else {
+                    // Handle regular section - single fields
+                    foreach ($section->elementHolders as $holder) {
+                        foreach ($holder->elements as $element) {
+                            $fieldName = "field_{$element->id}";
+                            $value = $request->input($fieldName);
                             
-                            // Store the field value
-                            SubmissionFormInstanceValue::create([
-                                'submission_form_instance_id' => $instance->id,
-                                'submission_form_element_id' => $element->id,
-                                'value' => is_array($value) ? json_encode($value) : $value
-                            ]);
-                            
-                            $processedData[$element->name] = $value;
+                            if ($value !== null) {
+                                // Handle file uploads
+                                if ($element->element_type === 'file' && $request->hasFile($fieldName)) {
+                                    $file = $request->file($fieldName);
+                                    $path = $file->store('form-submissions', 'public');
+                                    $value = [
+                                        'original_name' => $file->getClientOriginalName(),
+                                        'path' => $path,
+                                        'size' => $file->getSize(),
+                                        'mime_type' => $file->getMimeType()
+                                    ];
+                                }
+                                
+                                // Store the field value
+                                SubmissionFormInstanceValue::create([
+                                    'submission_form_instance_id' => $instance->id,
+                                    'submission_form_element_id' => $element->id,
+                                    'value' => is_array($value) ? json_encode($value) : $value
+                                ]);
+                                
+                                $processedData[$element->name] = $value;
+                            }
                         }
                     }
                 }
@@ -228,6 +271,51 @@ class FormInstanceController extends Controller
             return redirect()->back()
                            ->with('error', 'An error occurred while submitting the form. Please try again.')
                            ->withInput();
+        }
+    }
+
+    /**
+     * Add element-specific validation rules
+     */
+    private function addElementValidationRules($element, &$elementRules, &$messages, $fieldName, $isArray = false)
+    {
+        $arrayPrefix = $isArray ? '.*' : '';
+        
+        // Add type-specific validation rules
+        switch ($element->element_type) {
+            case 'email':
+                $elementRules[] = 'email' . $arrayPrefix;
+                $messages["{$fieldName}.email"] = "The {$element->label} must be a valid email address.";
+                break;
+            case 'number':
+                $elementRules[] = 'numeric' . $arrayPrefix;
+                $messages["{$fieldName}.numeric"] = "The {$element->label} must be a number.";
+                break;
+            case 'date':
+                $elementRules[] = 'date' . $arrayPrefix;
+                $messages["{$fieldName}.date"] = "The {$element->label} must be a valid date.";
+                break;
+            case 'file':
+                $elementRules[] = 'file' . $arrayPrefix;
+                if (!empty($element->validation_rules['max_size'])) {
+                    $maxSize = $element->validation_rules['max_size'];
+                    $elementRules[] = "max:{$maxSize}" . $arrayPrefix;
+                    $messages["{$fieldName}.max"] = "The {$element->label} may not be greater than {$maxSize} kilobytes.";
+                }
+                if (!empty($element->validation_rules['allowed_types'])) {
+                    $types = implode(',', $element->validation_rules['allowed_types']);
+                    $elementRules[] = "mimes:{$types}" . $arrayPrefix;
+                    $messages["{$fieldName}.mimes"] = "The {$element->label} must be a file of type: {$types}.";
+                }
+                break;
+        }
+        
+        // Add custom validation rules from element settings
+        if (!empty($element->validation_rules['min_length'])) {
+            $elementRules[] = 'min:' . $element->validation_rules['min_length'] . $arrayPrefix;
+        }
+        if (!empty($element->validation_rules['max_length'])) {
+            $elementRules[] = 'max:' . $element->validation_rules['max_length'] . $arrayPrefix;
         }
     }
 

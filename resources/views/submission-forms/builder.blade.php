@@ -34,10 +34,10 @@
     
     <div class="d-flex justify-content-between align-items-center p-4">
       <div>
-        <h2>
+        <h3>
           <i class="mdi mdi-cog"></i> Form Builder
           <small class="text-muted">{{ $submissionForm->name }}</small>
-        </h2>
+        </h3>
       </div>
       <div>
         <button class="btn btn-success" id="save-form">
@@ -118,6 +118,24 @@
                   </div>
                   <div class="element-type" data-type="client_contact_select">
                     <i class="mdi mdi-account-multiple"></i> Client Contact Select
+                  </div>
+                  <div class="element-type" data-type="analysis_type_select">
+                    <i class="mdi mdi-flask"></i> Analysis Type Select
+                  </div>
+                  <div class="element-type" data-type="store_select">
+                    <i class="mdi mdi-store"></i> Store Select
+                  </div>
+                  <div class="element-type" data-type="store_slot_select">
+                    <i class="mdi mdi-package-variant"></i> Store Slot Select
+                  </div>
+                  <div class="element-type" data-type="sample_condition_select">
+                    <i class="mdi mdi-flask-empty"></i> Sample Condition Select
+                  </div>
+                  <div class="element-type" data-type="standard_select">
+                    <i class="mdi mdi-certificate"></i> Standard Select
+                  </div>
+                  <div class="element-type" data-type="sample_point_select">
+                    <i class="mdi mdi-map-marker"></i> Sample Point Select
                   </div>
                 </div>
               </div>
@@ -204,6 +222,16 @@
               <input type="text" class="form-control" id="section-title" name="title" required maxlength="255">
             </div>
             <div class="form-group">
+              <label for="section-type" class="required">Section Type</label>
+              <select class="form-control" id="section-type" name="section_type" required>
+                <option value="regular">Regular Section</option>
+                <option value="rows_section">Rows Section (Dynamic Table)</option>
+              </select>
+              <small class="form-text text-muted">
+                Rows sections allow users to add multiple rows of data in a table format.
+              </small>
+            </div>
+            <div class="form-group">
               <label for="section-description">Description</label>
               <textarea class="form-control" id="section-description" name="description" rows="3" maxlength="1000"></textarea>
             </div>
@@ -288,6 +316,12 @@
                     <option value="sample_type_select">Sample Type Select</option>
                     <option value="client_unit_select">Client Unit Select</option>
                     <option value="client_contact_select">Client Contact Select</option>
+                    <option value="analysis_type_select">Analysis Type Select</option>
+                    <option value="store_select">Store Select</option>
+                    <option value="store_slot_select">Store Slot Select</option>
+                    <option value="sample_condition_select">Sample Condition Select</option>
+                    <option value="standard_select">Standard Select</option>
+                    <option value="sample_point_select">Sample Point Select</option>
                   </select>
                 </div>
               </div>
@@ -323,6 +357,51 @@
             <div class="form-group">
               <label for="element-help-text">Help Text</label>
               <textarea class="form-control" id="element-help-text" name="help_text" rows="2" maxlength="1000"></textarea>
+            </div>
+            
+            <!-- Field Mapping Configuration -->
+            <div class="card mt-3">
+              <div class="card-header">
+                <h6 class="mb-0">
+                  <i class="mdi mdi-database"></i> Field Mapping Configuration
+                  <small class="text-muted">(Optional)</small>
+                </h6>
+              </div>
+              <div class="card-body">
+                <div class="form-check mb-3">
+                  <input type="checkbox" class="form-check-input" id="element-mapped" name="is_mapped">
+                  <label class="form-check-label" for="element-mapped">
+                    Map this field to a database table
+                  </label>
+                </div>
+                
+                <div id="mapping-config" style="display: none;">
+                  <div class="row">
+                    <div class="col-md-6">
+                      <div class="form-group">
+                        <label for="mapping-table">Target Table</label>
+                        <select class="form-control" id="mapping-table" name="mapping_table">
+                          <option value="">Select a table...</option>
+                          <option value="sample_headers">Sample Headers</option>
+                          <option value="sample_details">Sample Details</option>
+                        </select>
+                      </div>
+                    </div>
+                    <div class="col-md-6">
+                      <div class="form-group">
+                        <label for="mapping-field">Target Field</label>
+                        <select class="form-control" id="mapping-field" name="mapping_field">
+                          <option value="">Select a field...</option>
+                        </select>
+                      </div>
+                    </div>
+                  </div>
+                  <div class="alert alert-info">
+                    <i class="mdi mdi-information"></i>
+                    <strong>Note:</strong> When this form is submitted, the value of this field will be automatically mapped to the selected database field.
+                  </div>
+                </div>
+              </div>
             </div>
             
             <div class="form-group" id="element-options-group" style="display: none;">
@@ -493,11 +572,13 @@ const FormBuilder = {
             $('#section-id').val(sectionId);
             $('#section-title').val(section.title);
             $('#section-description').val(section.description);
+            $('#section-type').val(section.section_type || 'regular');
             $('#section-modal .modal-title').text('Edit Section');
         } else {
             // Add new section
             $('#section-form')[0].reset();
             $('#section-id').val('');
+            $('#section-type').val('regular');
             $('#section-modal .modal-title').text('Add Section');
         }
         
@@ -513,7 +594,8 @@ const FormBuilder = {
         
         const data = {
             title: $('#section-title').val(),
-            description: $('#section-description').val()
+            description: $('#section-description').val(),
+            section_type: $('#section-type').val()
         };
         
         console.log('Form data:', data);
@@ -717,6 +799,29 @@ const FormBuilder = {
         $('#element-required').prop('checked', element.is_required);
         $('#element-readonly').prop('checked', element.is_readonly);
         
+        // Handle mapping configuration
+        const isMapped = element.is_mapped === true || element.is_mapped === 1;
+        const mappingTable = element.mapping_table || '';
+        const mappingField = element.mapping_field || '';
+        
+        console.log('Populating mapping config:', {
+            is_mapped: isMapped,
+            mapping_table: mappingTable,
+            mapping_field: mappingField
+        });
+        
+        $('#element-mapped').prop('checked', isMapped);
+        $('#mapping-table').val(mappingTable);
+        this.toggleMappingConfig();
+        
+        // Load mapping fields if table is selected and preserve the selected field
+        if (mappingTable) {
+            console.log('Loading mapping fields for table:', mappingTable, 'with field:', mappingField);
+            this.loadMappingFields(mappingTable, mappingField);
+        } else {
+            $('#mapping-field').val('').html('<option value="">Select a field...</option>');
+        }
+        
         // Handle options for select/radio/checkbox
         if (element.options && element.options.length > 0) {
             $('#element-options-container').empty();
@@ -729,7 +834,7 @@ const FormBuilder = {
     handleElementTypeChange() {
         const elementType = $('#element-type').val();
         const needsOptions = ['select', 'radio', 'checkbox'].includes(elementType);
-        const isCustomElement = ['client_select', 'sample_type_select', 'client_unit_select', 'client_contact_select'].includes(elementType);
+        const isCustomElement = ['client_select', 'sample_type_select', 'client_unit_select', 'client_contact_select', 'analysis_type_select', 'store_select', 'store_slot_select', 'sample_condition_select', 'standard_select', 'sample_point_select'].includes(elementType);
         
         // Hide options for custom elements as they are loaded dynamically
         if (isCustomElement) {
@@ -817,12 +922,22 @@ const FormBuilder = {
             default_value: $('#element-default-value').val(),
             help_text: $('#element-help-text').val(),
             is_required: $('#element-required').is(':checked') ? '1' : '0',
-            is_readonly: $('#element-readonly').is(':checked') ? '1' : '0'
+            is_readonly: $('#element-readonly').is(':checked') ? '1' : '0',
+            is_mapped: $('#element-mapped').is(':checked') ? '1' : '0',
+            mapping_table: $('#mapping-table').val() || null,
+            mapping_field: $('#mapping-field').val() || null
         };
+        
+        console.log('Form data being sent:', formData);
+        console.log('Mapping fields:', {
+            is_mapped: $('#element-mapped').is(':checked'),
+            mapping_table: $('#mapping-table').val(),
+            mapping_field: $('#mapping-field').val()
+        });
         
         // Collect options if needed
         const needsOptions = ['select', 'radio', 'checkbox'].includes(formData.element_type);
-        const isCustomElement = ['client_select', 'sample_type_select', 'client_unit_select', 'client_contact_select'].includes(formData.element_type);
+        const isCustomElement = ['client_select', 'sample_type_select', 'client_unit_select', 'client_contact_select', 'analysis_type_select', 'store_select', 'store_slot_select', 'sample_condition_select', 'standard_select', 'sample_point_select'].includes(formData.element_type);
         
         // Only collect options for standard elements, not custom elements
         if (needsOptions && !isCustomElement) {
@@ -1007,6 +1122,23 @@ const FormBuilder = {
         const name = matches ? matches[1] : '';
         const elementType = matches ? matches[2] : 'text';
         
+        // Extract mapping information from the DOM
+        const mappingInfo = elementItem.find('small.text-info');
+        let isMapped = false;
+        let mappingTable = '';
+        let mappingField = '';
+        
+        if (mappingInfo.length > 0) {
+            isMapped = true;
+            const mappingText = mappingInfo.text().trim();
+            // Extract from "Mapped to: Sample Headers → Batch Code" format
+            const mappingMatch = mappingText.match(/Mapped to:\s*([^→]+)→\s*(.+)/);
+            if (mappingMatch) {
+                mappingTable = mappingMatch[1].trim().toLowerCase().replace(/\s+/g, '_');
+                mappingField = mappingMatch[2].trim().toLowerCase().replace(/\s+/g, '_');
+            }
+        }
+        
         return { 
             id: elementId,
             element_type: elementType,
@@ -1017,6 +1149,9 @@ const FormBuilder = {
             help_text: '',
             is_required: isRequired,
             is_readonly: isReadonly,
+            is_mapped: isMapped,
+            mapping_table: mappingTable,
+            mapping_field: mappingField,
             options: []
         };
     },
@@ -1143,6 +1278,54 @@ const FormBuilder = {
                 }
             });
         });
+    },
+    
+    toggleMappingConfig() {
+        const isMapped = $('#element-mapped').is(':checked');
+        if (isMapped) {
+            $('#mapping-config').show();
+        } else {
+            $('#mapping-config').hide();
+            $('#mapping-table').val('');
+            $('#mapping-field').val('').html('<option value="">Select a field...</option>');
+        }
+    },
+    
+    loadMappingFields(table, selectedField = null) {
+        console.log('loadMappingFields called with:', { table, selectedField });
+        
+        if (!table) {
+            $('#mapping-field').html('<option value="">Select a field...</option>');
+            return;
+        }
+        
+        $.ajax({
+            url: '/submission-forms/mapping-fields',
+            method: 'GET',
+            data: { table: table },
+            success: (response) => {
+                console.log('Mapping fields response:', response);
+                if (response.success) {
+                    let options = '<option value="">Select a field...</option>';
+                    Object.entries(response.fields).forEach(([value, label]) => {
+                        const selected = (selectedField && value === selectedField) ? ' selected' : '';
+                        options += `<option value="${value}"${selected}>${label}</option>`;
+                    });
+                    $('#mapping-field').html(options);
+                    
+                    // Ensure the field is selected after loading
+                    if (selectedField) {
+                        console.log('Setting selected field to:', selectedField);
+                        $('#mapping-field').val(selectedField);
+                        console.log('Field value after setting:', $('#mapping-field').val());
+                    }
+                }
+            },
+            error: (xhr) => {
+                console.error('Error loading mapping fields:', xhr);
+                this.showMessage('error', 'Failed to load mapping fields');
+            }
+        });
     }
 };
 
@@ -1165,6 +1348,17 @@ $(document).on('click', '.element-type', function() {
     } else {
         alert('Please select an element holder first by clicking on it. Element holders are the containers within sections where you can add form elements.');
     }
+});
+
+// Mapping configuration event handlers
+$(document).on('change', '#element-mapped', function() {
+    FormBuilder.toggleMappingConfig();
+});
+
+$(document).on('change', '#mapping-table', function() {
+    const table = $(this).val();
+    const currentField = $('#mapping-field').val();
+    FormBuilder.loadMappingFields(table, currentField);
 });
 </script>
 

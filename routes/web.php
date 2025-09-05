@@ -17,6 +17,42 @@ Route::get('/', function () {
 
 Auth::routes();
 
+// Certificate Template Routes
+Route::middleware(['auth'])->group(function () {
+    // Certificate Template Management
+    Route::resource('certificate-templates', 'CertificateTemplateController');
+    
+    // Additional template actions
+    Route::post('certificate-templates/{certificateTemplate}/toggle-published', 'CertificateTemplateController@togglePublished')->name('certificate-templates.toggle-published');
+    Route::post('certificate-templates/{certificateTemplate}/toggle-active', 'CertificateTemplateController@toggleActive')->name('certificate-templates.toggle-active');
+    Route::post('certificate-templates/{certificateTemplate}/duplicate', 'CertificateTemplateController@duplicate')->name('certificate-templates.duplicate');
+    Route::get('certificate-templates/{certificateTemplate}/preview', 'CertificateTemplateController@preview')->name('certificate-templates.preview');
+    Route::get('certificate-templates/{certificateTemplate}/pdf-preview', 'CertificateTemplateController@generatePdfPreview')->name('certificate-templates.pdf-preview');
+    Route::get('certificate-templates/{certificateTemplate}/data', 'CertificateTemplateController@getTemplateData')->name('certificate-templates.data');
+    Route::get('certificate-templates/submission-form-instances', 'CertificateTemplateController@getSubmissionFormInstances')->name('certificate-templates.submission-form-instances');
+    Route::post('certificate-templates/{certificateTemplate}/generate-report', 'CertificateTemplateController@generateReport')->name('certificate-templates.generate-report');
+    
+    // Template Builder Routes
+    Route::get('certificate-templates/{certificateTemplate}/builder', 'TemplateBuilderController@builder')->name('certificate-templates.builder');
+    
+    // Section Management
+    Route::post('certificate-templates/{certificateTemplate}/sections', 'TemplateBuilderController@createSection')->name('certificate-templates.sections.store');
+    Route::put('certificate-template-sections/{section}', 'TemplateBuilderController@updateSection')->name('certificate-template-sections.update');
+    Route::delete('certificate-template-sections/{section}', 'TemplateBuilderController@deleteSection')->name('certificate-template-sections.destroy');
+    Route::post('certificate-templates/{certificateTemplate}/sections/reorder', 'TemplateBuilderController@reorderSections')->name('certificate-templates.sections.reorder');
+    
+    // Element Management
+    Route::get('certificate-template-elements/{element}', 'TemplateBuilderController@showElement')->name('certificate-template-elements.show');
+    Route::post('certificate-template-sections/{section}/elements', 'TemplateBuilderController@createElement')->name('certificate-template-sections.elements.store');
+    Route::put('certificate-template-elements/{element}', 'TemplateBuilderController@updateElement')->name('certificate-template-elements.update');
+    Route::delete('certificate-template-elements/{element}', 'TemplateBuilderController@deleteElement')->name('certificate-template-elements.destroy');
+    Route::post('certificate-template-sections/{section}/elements/reorder', 'TemplateBuilderController@reorderElements')->name('certificate-template-sections.elements.reorder');
+    
+    // Utility Routes
+    Route::get('template-builder/data-fields', 'TemplateBuilderController@getDataFields')->name('template-builder.data-fields');
+    Route::post('certificate-templates/upload-image', 'CertificateTemplateController@uploadImage')->name('certificate-templates.upload-image');
+});
+
 Route::get('/mark-Accreditted-Samples', 'SampleWorkFlowController@markAccredittedSamples')->name('markAccredittedSamples');
 
 Route::get('/resolveTest', 'SampleWorkFlowController@resolveTest')->name('resolveTest');
@@ -314,6 +350,9 @@ Route::prefix('submission-forms')->name('submission-forms.')->middleware('auth')
     
     // Dynamic Options for Custom Elements (must be before /{submissionForm} route)
     Route::get('/dynamic-options', 'SubmissionFormController@getDynamicOptions')->name('dynamic-options');
+    
+    // Mapping Fields (must be before /{submissionForm} route)
+    Route::get('/mapping-fields', 'FormBuilderController@getMappingFields')->name('mapping-fields');
     
     Route::get('/{submissionForm}', 'SubmissionFormController@show')->name('show');
     Route::get('/{submissionForm}/edit', 'SubmissionFormController@edit')->name('edit');
@@ -1110,42 +1149,3 @@ Route::get('/set-available-stock', function () {
     return 'OK';
 });
 
-//############################################CERTIFICATE TEMPLATES##########################################################
-Route::prefix('certificate-templates')->name('certificate-templates.')->middleware('auth')->group(function () {
-    Route::get('/', 'CertificateTemplateController@index')->name('index');
-    Route::get('/create', 'CertificateTemplateController@create')->name('create');
-    Route::post('/', 'CertificateTemplateController@store')->name('store');
-    
-    Route::get('/{certificateTemplate}', 'CertificateTemplateController@show')->name('show');
-    Route::get('/{certificateTemplate}/edit', 'CertificateTemplateController@edit')->name('edit');
-    Route::put('/{certificateTemplate}', 'CertificateTemplateController@update')->name('update');
-    Route::delete('/{certificateTemplate}', 'CertificateTemplateController@destroy')->name('destroy');
-    Route::get('/{certificateTemplate}/preview', 'CertificateTemplateController@preview')->name('preview');
-    Route::post('/{certificateTemplate}/toggle-published', 'CertificateTemplateController@togglePublished')->name('toggle-published');
-    Route::post('/{certificateTemplate}/clone', 'CertificateTemplateController@clone')->name('clone');
-    Route::get('/{certificateTemplate}/export', 'CertificateTemplateController@export')->name('export');
-    
-    // Permissions Management
-    Route::get('/{certificateTemplate}/permissions', 'CertificateTemplateController@permissions')->name('permissions');
-    Route::post('/{certificateTemplate}/permissions', 'CertificateTemplateController@updatePermissions')->name('permissions.update');
-    
-    // Template Builder Routes
-    Route::get('/{certificateTemplate}/builder', 'TemplateBuilderController@index')->name('builder');
-    Route::get('/{certificateTemplate}/structure', 'TemplateBuilderController@getTemplateStructure')->name('structure');
-    Route::get('/builder/available-fields', 'TemplateBuilderController@getAvailableFields')->name('builder.available-fields');
-    Route::post('/builder/upload-image', 'TemplateBuilderController@uploadImage')->name('builder.upload-image');
-    Route::get('/builder/element-config/{elementType}', 'TemplateBuilderController@getElementTypeConfig')->name('builder.element-config');
-    Route::post('/builder/validate-element', 'TemplateBuilderController@validateElement')->name('builder.validate-element');
-    
-    // Section Management
-    Route::post('/{certificateTemplate}/sections', 'TemplateBuilderController@addSection')->name('sections.store');
-    Route::put('/sections/{section}', 'TemplateBuilderController@updateSection')->name('sections.update');
-    Route::delete('/sections/{section}', 'TemplateBuilderController@deleteSection')->name('sections.destroy');
-    Route::post('/{certificateTemplate}/sections/reorder', 'TemplateBuilderController@reorderSections')->name('sections.reorder');
-    
-    // Element Management
-    Route::post('/sections/{section}/elements', 'TemplateBuilderController@addElement')->name('elements.store');
-    Route::put('/elements/{element}', 'TemplateBuilderController@updateElement')->name('elements.update');
-    Route::delete('/elements/{element}', 'TemplateBuilderController@deleteElement')->name('elements.destroy');
-    Route::post('/sections/{section}/elements/reorder', 'TemplateBuilderController@reorderElements')->name('elements.reorder');
-});

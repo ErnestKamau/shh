@@ -13,6 +13,7 @@ class SubmissionFormSection extends Model
         'submission_form_id',
         'title',
         'description',
+        'section_type',
         'sort_order'
     ];
 
@@ -81,7 +82,41 @@ class SubmissionFormSection extends Model
      */
     public function hasElements()
     {
-        return $this->getElementCount() > 0;
+        return $this->elementHolders()
+            ->with('elements')
+            ->get()
+            ->sum(function ($holder) {
+                return $holder->elements->count();
+            }) > 0;
+    }
+
+    /**
+     * Check if this section is a rows section
+     */
+    public function isRowsSection()
+    {
+        return $this->section_type === 'rows_section';
+    }
+
+    /**
+     * Check if this section is a regular section
+     */
+    public function isRegularSection()
+    {
+        return $this->section_type === 'regular' || empty($this->section_type);
+    }
+
+    /**
+     * Get the template element holder for rows section
+     * This is the first element holder that serves as a template for new rows
+     */
+    public function getTemplateElementHolder()
+    {
+        if (!$this->isRowsSection()) {
+            return null;
+        }
+        
+        return $this->elementHolders()->first();
     }
 
     /**

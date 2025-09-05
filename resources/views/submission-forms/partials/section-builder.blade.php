@@ -1,10 +1,68 @@
+@php
+if (!function_exists('getElementIcon')) {
+    function getElementIcon($elementType) {
+        switch($elementType) {
+            case 'text':
+                return 'form-textbox';
+            case 'number':
+                return 'numeric';
+            case 'email':
+                return 'email-outline';
+            case 'date':
+                return 'calendar';
+            case 'datetime':
+                return 'calendar-clock';
+            case 'textarea':
+                return 'text-box-outline';
+            case 'select':
+                return 'form-dropdown';
+            case 'radio':
+                return 'radiobox-marked';
+            case 'checkbox':
+                return 'checkbox-marked';
+            case 'file':
+                return 'file-upload-outline';
+            case 'signature':
+                return 'draw';
+            case 'client_select':
+                return 'account-group';
+            case 'sample_type_select':
+                return 'test-tube';
+            case 'client_unit_select':
+                return 'office-building';
+            case 'client_contact_select':
+                return 'account-multiple';
+            case 'analysis_type_select':
+                return 'flask';
+            case 'store_select':
+                return 'store';
+            case 'store_slot_select':
+                return 'view-grid';
+            case 'sample_condition_select':
+                return 'thermometer';
+            case 'standard_select':
+                return 'certificate';
+            case 'sample_point_select':
+                return 'map-marker';
+            case 'calculation':
+                return 'calculator';
+            default:
+                return 'form-textbox';
+        }
+    }
+}
+@endphp
+
 <div class="section-item" data-section-id="{{ $section->id }}">
     <div class="section-header d-flex justify-content-between align-items-center">
         <div class="d-flex align-items-center">
             <i class="mdi mdi-drag-horizontal text-muted mr-2" style="cursor: move;"></i>
             <h6 class="mb-0">
-                <i class="mdi mdi-folder-outline text-primary"></i>
+                <i class="mdi mdi-{{ $section->isRowsSection() ? 'table' : 'folder-outline' }} text-primary"></i>
                 {{ $section->title }}
+                @if($section->isRowsSection())
+                    <span class="badge badge-info badge-sm ml-2">Rows Section</span>
+                @endif
             </h6>
             @if($section->description)
                 <small class="text-muted ml-2">{{ Str::limit($section->description, 50) }}</small>
@@ -74,11 +132,24 @@
                                                     @endif
                                                     <br>
                                                     <small class="text-muted">{{ $element->name }} ({{ $element->element_type }})</small>
+                                                    @if($element->isMapped())
+                                                        <br>
+                                                        <small class="text-info">
+                                                            <i class="mdi mdi-database"></i> 
+                                                            Mapped to: <strong>{{ ucfirst(str_replace('_', ' ', $element->mapping_table)) }}</strong> → <strong>{{ ucfirst(str_replace('_', ' ', $element->mapping_field)) }}</strong>
+                                                        </small>
+                                                    @endif
                                                 </div>
                                             </div>
                                             <div class="d-flex align-items-center">
                                                 @if($element->is_readonly)
                                                     <span class="badge badge-outline-warning badge-sm mr-2">readonly</span>
+                                                @endif
+                                                @if($element->isMapped())
+                                                    <span class="badge badge-outline-info badge-sm mr-2" 
+                                                          title="Mapped to {{ ucfirst(str_replace('_', ' ', $element->mapping_table)) }}.{{ ucfirst(str_replace('_', ' ', $element->mapping_field)) }}">
+                                                        <i class="mdi mdi-database"></i> mapped
+                                                    </span>
                                                 @endif
                                                 <div class="btn-group">
                                                     <button class="btn btn-sm btn-outline-primary" onclick="FormBuilder.showElementModal({{ $holder->id }}, {{ $element->id }})" title="Edit Element">
@@ -116,44 +187,3 @@
         </div>
     </div>
 </div>
-
-@php
-function getElementIcon($elementType) {
-    switch($elementType) {
-        case 'text':
-            return 'form-textbox';
-        case 'number':
-            return 'numeric';
-        case 'email':
-            return 'email-outline';
-        case 'date':
-            return 'calendar';
-        case 'datetime':
-            return 'calendar-clock';
-        case 'textarea':
-            return 'text-box-outline';
-        case 'select':
-            return 'form-dropdown';
-        case 'radio':
-            return 'radiobox-marked';
-        case 'checkbox':
-            return 'checkbox-marked';
-        case 'file':
-            return 'file-upload-outline';
-        case 'signature':
-            return 'draw';
-        case 'client_select':
-            return 'account-group';
-        case 'sample_type_select':
-            return 'test-tube';
-        case 'client_unit_select':
-            return 'office-building';
-        case 'client_contact_select':
-            return 'account-multiple';
-        case 'calculation':
-            return 'calculator';
-        default:
-            return 'form-textbox';
-    }
-}
-@endphp

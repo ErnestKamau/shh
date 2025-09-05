@@ -1,267 +1,370 @@
-@extends('layouts.lab.layout.app', ['dataTable'=>true])
+@extends('layouts.lab.layout.app')
 
 @section('title2')
-  <title>Certificate Templates</title>
+<title>Certificate Templates | Lab Management</title>
 @endsection
 
 @section('content2')
-  <main>
+<main>
     <?php
-      $items = array(
+    $items = array(
         array(
-          'link' => route('lab-home'),
-          'name' => 'Lab Management',
-          'icon' => null
+            'link' => route('lab-home'),
+            'name' => 'Lab Management',
+            'icon' => null
         ),
         array(
-          'link' => route('certificate-templates.index'),
-          'name' => 'Certificate Templates',
-          'icon' => null
+            'link' => '#',
+            'name' => 'Certificate Templates',
+            'icon' => null
         )
-      );
+    );
     ?>
     <x-bread-crumb :items="$items"></x-bread-crumb>
     
-    <div class="d-flex justify-content-between align-items-center p-4">
-      <h2>
-        <i class="mdi mdi-certificate"></i> Certificate Templates
-      </h2>
-      @can('create', App\Models\CertificateTemplate::class)
-        <a href="{{ route('certificate-templates.create') }}" class="btn btn-primary">
-          <i class="mdi mdi-plus"></i> Create Template
-        </a>
-      @endcan
+    <!-- Filter Section -->
+    <div class="bg-light p-3 mb-4">
+        <div class="row align-items-center">
+            <div class="col-md-4">
+                <label for="submission-form-filter" class="form-label">Filter by Submission Form:</label>
+                <select id="submission-form-filter" class="form-control" onchange="filterBySubmissionForm(this.value)">
+                    <option value="">All Submission Forms</option>
+                    @foreach($submissionForms as $form)
+                        <option value="{{ $form->id }}" {{ $submissionFormId == $form->id ? 'selected' : '' }}>
+                            {{ $form->name }}
+                        </option>
+                    @endforeach
+                </select>
+            </div>
+            <div class="col-md-4">
+                <a href="{{ route('submission-forms.index') }}" class="btn btn-outline-primary">
+                    <i class="mdi mdi-file-document-edit"></i> Manage Submission Forms
+                </a>
+            </div>
+        </div>
     </div>
 
-    <!-- Search and Filter Section -->
-    <div class="bg-light p-4 mb-3">
-      <form method="GET" action="{{ route('certificate-templates.index') }}" class="row">
-        <div class="col-md-3">
-          <input type="text" name="search" class="form-control form-control-sm" 
-                 placeholder="Search templates..." value="{{ request('search') }}">
+    <div class="bg-light p-4">
+        <div class="container-fluid">
+    <div class="row">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header">
+                    <div class="row align-items-center">
+                        <div class="col">
+                            <h5 class="card-title mb-0">
+                                <i class="mdi mdi-certificate"></i> Certificate Templates
+                            </h5>
+                        </div>
+                        <div class="col-auto">
+                            <a href="{{ route('certificate-templates.create') }}" class="btn btn-primary">
+                                <i class="mdi mdi-plus"></i> Create Template
+                            </a>
+                        </div>
+                    </div>
+                </div>
+                <div class="card-body">
+                    <div class="table-responsive">
+                        <table id="templates-table" class="table table-striped table-bordered" style="width:100%">
+                            <thead>
+                                <tr>
+                                    <th>ID</th>
+                                    <th>Name</th>
+                                    <th>Submission Form</th>
+                                    <th>Description</th>
+                                    <th>Status</th>
+                                    <th>Sections</th>
+                                    <th>Reports</th>
+                                    <th>Created By</th>
+                                    <th>Created At</th>
+                                    <th>Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                @foreach($templates as $template)
+                                <tr>
+                                    <td>{{ $template->id }}</td>
+                                    <td>
+                                        <div class="d-flex align-items-center">
+                                            <div>
+                                                <h6 class="mb-0">{{ $template->name }}</h6>
+                                                <small class="text-muted">v{{ $template->version }}</small>
+                                            </div>
+                                        </div>
+                                    </td>
+                                    <td>
+                                        <a href="{{ route('submission-forms.show', $template->submissionForm) }}" class="text-decoration-none">
+                                            <i class="mdi mdi-file-document-edit"></i> {{ $template->submissionForm->name }}
+                                        </a>
+                                    </td>
+                                    <td>
+                                        <span class="text-truncate d-inline-block" style="max-width: 200px;" title="{{ $template->description }}">
+                                            {{ $template->description ?: 'No description' }}
+                                        </span>
+                                    </td>
+                                    <td>
+                                        <div class="d-flex flex-column">
+                                            <span class="badge badge-{{ $template->is_published ? 'success' : 'secondary' }} mb-1">
+                                                {{ $template->is_published ? 'Published' : 'Draft' }}
+                                            </span>
+                                            <span class="badge badge-{{ $template->is_active ? 'primary' : 'warning' }}">
+                                                {{ $template->is_active ? 'Active' : 'Inactive' }}
+                                            </span>
+                                        </div>
+                                    </td>
+                                    <td>
+                                        <span class="badge badge-info">{{ $template->sections_count }}</span>
+                                    </td>
+                                    <td>
+                                        <span class="badge badge-secondary">{{ $template->reports_count }}</span>
+                                    </td>
+                                    <td>{{ $template->creator->name ?? 'Unknown' }}</td>
+                                    <td>{{ $template->created_at->format('M d, Y') }}</td>
+                                    <td>
+                                        <div class="btn-group" role="group">
+                                            <a href="{{ route('certificate-templates.show', $template) }}" 
+                                               class="btn btn-sm btn-outline-primary" title="View">
+                                                <i class="mdi mdi-eye"></i>
+                                            </a>
+                                            <a href="{{ route('certificate-templates.builder', $template) }}" 
+                                               class="btn btn-sm btn-outline-success" title="Builder">
+                                                <i class="mdi mdi-pencil"></i>
+                                            </a>
+                                            <a href="{{ route('certificate-templates.edit', $template) }}" 
+                                               class="btn btn-sm btn-outline-warning" title="Edit">
+                                                <i class="mdi mdi-edit"></i>
+                                            </a>
+                                            <div class="btn-group" role="group">
+                                                <button type="button" class="btn btn-sm btn-outline-secondary dropdown-toggle" 
+                                                        data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
+                                                    <i class="mdi mdi-dots-vertical"></i>
+                                                </button>
+                                                <div class="dropdown-menu">
+                                                    <a class="dropdown-item" href="{{ route('certificate-templates.preview', $template) }}">
+                                                        <i class="mdi mdi-eye-outline"></i> Preview
+                                                    </a>
+                                                    <a class="dropdown-item" href="{{ route('certificate-templates.pdf-preview', $template) }}" target="_blank">
+                                                        <i class="mdi mdi-file-pdf"></i> PDF Preview
+                                                    </a>
+                                                    <div class="dropdown-divider"></div>
+                                                    <button class="dropdown-item toggle-published" 
+                                                            data-id="{{ $template->id }}" 
+                                                            data-published="{{ $template->is_published }}">
+                                                        <i class="mdi mdi-{{ $template->is_published ? 'eye-off' : 'eye' }}"></i> 
+                                                        {{ $template->is_published ? 'Unpublish' : 'Publish' }}
+                                                    </button>
+                                                    <button class="dropdown-item toggle-active" 
+                                                            data-id="{{ $template->id }}" 
+                                                            data-active="{{ $template->is_active }}">
+                                                        <i class="mdi mdi-{{ $template->is_active ? 'pause' : 'play' }}"></i> 
+                                                        {{ $template->is_active ? 'Deactivate' : 'Activate' }}
+                                                    </button>
+                                                    <div class="dropdown-divider"></div>
+                                                    <a class="dropdown-item" href="{{ route('certificate-templates.duplicate', $template) }}"
+                                                       onclick="return confirm('Are you sure you want to duplicate this template?')">
+                                                        <i class="mdi mdi-content-copy"></i> Duplicate
+                                                    </a>
+                                                    <div class="dropdown-divider"></div>
+                                                    <button class="dropdown-item text-danger delete-template" 
+                                                            data-id="{{ $template->id }}" 
+                                                            data-name="{{ $template->name }}">
+                                                        <i class="mdi mdi-delete"></i> Delete
+                                                    </button>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </td>
+                                </tr>
+                                @endforeach
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
         </div>
-        <div class="col-md-2">
-          <select name="status" class="form-control form-control-sm">
-            <option value="">All Status</option>
-            <option value="published" {{ request('status') == 'published' ? 'selected' : '' }}>Published</option>
-            <option value="draft" {{ request('status') == 'draft' ? 'selected' : '' }}>Draft</option>
-            <option value="active" {{ request('status') == 'active' ? 'selected' : '' }}>Active</option>
-            <option value="inactive" {{ request('status') == 'inactive' ? 'selected' : '' }}>Inactive</option>
-          </select>
-        </div>
-        <div class="col-md-2">
-          <button type="submit" class="btn btn-sm btn-outline-primary">
-            <i class="mdi mdi-magnify"></i> Search
-          </button>
-          <a href="{{ route('certificate-templates.index') }}" class="btn btn-sm btn-outline-secondary">
-            <i class="mdi mdi-refresh"></i> Clear
-          </a>
-        </div>
-        <div class="col-md-5 text-right">
-          <small class="text-muted">{{ $templates->total() }} template(s) found</small>
-        </div>
-      </form>
     </div>
+</div>
 
-    <!-- Templates Table -->
-    <div class="table-responsive bg-light p-4">
-      @if($templates->count() > 0)
-        <table class="table table-condensed my-small-text table-striped table-hover table-bordered table-sm">
-          <thead class="bg-light p-2">
-            <tr>
-              <th>Name</th>
-              <th>Description</th>
-              <th>Sections</th>
-              <th>Version</th>
-              <th>Status</th>
-              <th>Created By</th>
-              <th>Created</th>
-              <th>Actions</th>
-            </tr>
-          </thead>
-          <tbody>
-            @foreach($templates as $template)
-              <tr>
-                <td>
-                  <strong>{{ $template->name }}</strong>
-                  @if($template->page_settings)
-                    <br>
-                    <small class="text-muted">
-                      {{ $template->page_settings['page_size'] ?? 'A4' }} - 
-                      {{ ucfirst($template->page_settings['orientation'] ?? 'portrait') }}
-                    </small>
-                  @endif
-                </td>
-                <td>
-                  <div style="max-width: 200px;">
-                    {{ Str::limit($template->description, 100) }}
-                  </div>
-                </td>
-                <td class="text-center">
-                  <span class="badge badge-info">{{ $template->sections_count }}</span>
-                </td>
-                <td class="text-center">
-                  <span class="badge badge-secondary">v{{ $template->version }}</span>
-                </td>
-                <td>
-                  <div>
-                    @if($template->is_published)
-                      <span class="badge badge-success">Published</span>
-                    @else
-                      <span class="badge badge-warning">Draft</span>
-                    @endif
-                  </div>
-                  <div class="mt-1">
-                    @if($template->is_active)
-                      <span class="badge badge-outline-success">Active</span>
-                    @else
-                      <span class="badge badge-outline-danger">Inactive</span>
-                    @endif
-                  </div>
-                </td>
-                <td>
-                  {{ $template->creator->name ?? 'Unknown' }}
-                </td>
-                <td>
-                  <small>{{ $template->created_at->format('M d, Y') }}</small>
-                </td>
-                <td nowrap>
-                  <div class="btn-group" role="group">
-                    @can('view', $template)
-                      <a href="{{ route('certificate-templates.show', $template) }}" 
-                         class="btn btn-sm btn-outline-primary" title="View">
-                        <i class="mdi mdi-eye"></i>
-                      </a>
-                    @endcan
-                    
-                    @can('update', $template)
-                      <a href="{{ route('certificate-templates.edit', $template) }}" 
-                         class="btn btn-sm btn-outline-warning" title="Edit">
-                        <i class="mdi mdi-pencil"></i>
-                      </a>
-                    @endcan
-                    
-                    @can('preview', $template)
-                      <a href="{{ route('certificate-templates.preview', $template) }}" 
-                         class="btn btn-sm btn-outline-info" title="Preview">
-                        <i class="mdi mdi-eye-outline"></i>
-                      </a>
-                    @endcan
-                    
-                    @can('clone', $template)
-                      <form method="POST" action="{{ route('certificate-templates.clone', $template) }}" 
-                            style="display: inline;" 
-                            onsubmit="return confirm('Are you sure you want to clone this template?')">
-                        @csrf
-                        <button type="submit" class="btn btn-sm btn-outline-secondary" title="Clone">
-                          <i class="mdi mdi-content-copy"></i>
-                        </button>
-                      </form>
-                    @endcan
-                    
-                    @can('publish', $template)
-                      <form method="POST" action="{{ route('certificate-templates.toggle-published', $template) }}" 
-                            style="display: inline;">
-                        @csrf
-                        <button type="submit" 
-                                class="btn btn-sm {{ $template->is_published ? 'btn-outline-danger' : 'btn-outline-success' }}" 
-                                title="{{ $template->is_published ? 'Unpublish' : 'Publish' }}">
-                          <i class="mdi {{ $template->is_published ? 'mdi-eye-off' : 'mdi-publish' }}"></i>
-                        </button>
-                      </form>
-                    @endcan
-                    
-                    @can('export', $template)
-                      <a href="{{ route('certificate-templates.export', $template) }}" 
-                         class="btn btn-sm btn-outline-info" title="Export">
-                        <i class="mdi mdi-download"></i>
-                      </a>
-                    @endcan
-                    
-                    @can('managePermissions', $template)
-                      <a href="{{ route('certificate-templates.permissions', $template) }}" 
-                         class="btn btn-sm btn-outline-dark" title="Permissions">
-                        <i class="mdi mdi-account-key"></i>
-                      </a>
-                    @endcan
-                    
-                    @can('delete', $template)
-                      <form method="POST" action="{{ route('certificate-templates.destroy', $template) }}" 
-                            style="display: inline;" 
-                            onsubmit="return confirm('Are you sure you want to delete this template? This action cannot be undone.')">
-                        @csrf
-                        @method('DELETE')
-                        <button type="submit" class="btn btn-sm btn-outline-danger" title="Delete">
-                          <i class="mdi mdi-delete"></i>
-                        </button>
-                      </form>
-                    @endcan
-                  </div>
-                </td>
-              </tr>
-            @endforeach
-          </tbody>
-        </table>
-        
-        <!-- Pagination -->
-        <div class="d-flex justify-content-between align-items-center mt-3">
-          <div>
-            <small class="text-muted">
-              Showing {{ $templates->firstItem() }} to {{ $templates->lastItem() }} of {{ $templates->total() }} results
-            </small>
-          </div>
-          <div>
-            {{ $templates->links() }}
-          </div>
+<!-- Delete Confirmation Modal -->
+<div class="modal fade" id="deleteModal" tabindex="-1" role="dialog">
+    <div class="modal-dialog" role="document">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Confirm Delete</h5>
+                <button type="button" class="close" data-dismiss="modal">
+                    <span>&times;</span>
+                </button>
+            </div>
+            <div class="modal-body">
+                <p>Are you sure you want to delete the template "<span id="template-name"></span>"?</p>
+                <p class="text-danger"><small>This action cannot be undone.</small></p>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-dismiss="modal">Cancel</button>
+                <form id="delete-form" method="POST" style="display: inline;">
+                    @csrf
+                    @method('DELETE')
+                    <button type="submit" class="btn btn-danger">Delete</button>
+                </form>
+            </div>
         </div>
-      @else
-        <div class="text-center py-5">
-          <i class="mdi mdi-certificate" style="font-size: 4rem; color: #ccc;"></i>
-          <h4 class="text-muted mt-3">No certificate templates found</h4>
-          <p class="text-muted">
-            @if(request()->hasAny(['search', 'status', 'creator']))
-              Try adjusting your search criteria or 
-              <a href="{{ route('certificate-templates.index') }}">clear filters</a>.
-            @else
-              Get started by creating your first certificate template.
-            @endif
-          </p>
-          
-          @can('create', App\Models\CertificateTemplate::class)
-            <a href="{{ route('certificate-templates.create') }}" class="btn btn-primary mt-3">
-              <i class="mdi mdi-plus"></i> Create Your First Template
-            </a>
-          @endcan
-        </div>
-      @endif
     </div>
-  </main>
-
-  <!-- Success/Error Messages -->
-  @if(session('success'))
-    <div class="alert alert-success alert-dismissible fade show" role="alert">
-      {{ session('success') }}
-      <button type="button" class="close" data-dismiss="alert" aria-label="Close">
-        <span aria-hidden="true">&times;</span>
-      </button>
     </div>
-  @endif
-
-  @if(session('error'))
-    <div class="alert alert-danger alert-dismissible fade show" role="alert">
-      {{ session('error') }}
-      <button type="button" class="close" data-dismiss="alert" aria-label="Close">
-        <span aria-hidden="true">&times;</span>
-      </button>
-    </div>
-  @endif
+</main>
 @endsection
 
-@section('scripts')
+@push('styles')
+<style>
+    .table th {
+        background-color: #f8f9fa;
+        border-top: none;
+    }
+    
+    .badge {
+        font-size: 0.75em;
+    }
+    
+    .btn-group .btn {
+        margin-right: 2px;
+    }
+    
+    .btn-group .btn:last-child {
+        margin-right: 0;
+    }
+    
+    .text-truncate {
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+    }
+</style>
+@endpush
+
+@push('script2')
 <script>
-  // Auto-hide alerts after 5 seconds
-  setTimeout(function() {
-    $('.alert').fadeOut('slow');
-  }, 5000);
+$(document).ready(function() {
+    // Initialize DataTable
+    $('#templates-table').DataTable({
+        "order": [[ 7, "desc" ]], // Sort by created_at desc
+        "pageLength": 25,
+        "responsive": true,
+        "dom": 'Bfrtip',
+        "buttons": [
+            {
+                extend: 'excel',
+                text: '<i class="mdi mdi-file-excel"></i> Export Excel',
+                className: 'btn btn-success btn-sm'
+            },
+            {
+                extend: 'pdf',
+                text: '<i class="mdi mdi-file-pdf"></i> Export PDF',
+                className: 'btn btn-danger btn-sm'
+            },
+            {
+                extend: 'print',
+                text: '<i class="mdi mdi-printer"></i> Print',
+                className: 'btn btn-info btn-sm'
+            }
+        ],
+        "columnDefs": [
+            { "orderable": false, "targets": 8 } // Actions column
+        ]
+    });
+
+    // Toggle Published Status
+    $('.toggle-published').click(function() {
+        const templateId = $(this).data('id');
+        const isPublished = $(this).data('published');
+        const button = $(this);
+        
+        $.ajax({
+            url: `/certificate-templates/${templateId}/toggle-published`,
+            method: 'POST',
+            data: {
+                _token: $('meta[name="csrf-token"]').attr('content')
+            },
+            success: function(response) {
+                if (response.success) {
+                    // Update the badge
+                    const badge = button.closest('tr').find('.badge-success, .badge-secondary');
+                    if (response.is_published) {
+                        badge.removeClass('badge-secondary').addClass('badge-success').text('Published');
+                        button.find('i').removeClass('mdi-eye').addClass('mdi-eye-off');
+                        button.html('<i class="mdi mdi-eye-off"></i> Unpublish');
+                        button.data('published', true);
+                    } else {
+                        badge.removeClass('badge-success').addClass('badge-secondary').text('Draft');
+                        button.find('i').removeClass('mdi-eye-off').addClass('mdi-eye');
+                        button.html('<i class="mdi mdi-eye"></i> Publish');
+                        button.data('published', false);
+                    }
+                    
+                    toastr.success(response.message);
+                }
+            },
+            error: function() {
+                toastr.error('An error occurred while updating the template status.');
+            }
+        });
+    });
+
+    // Toggle Active Status
+    $('.toggle-active').click(function() {
+        const templateId = $(this).data('id');
+        const isActive = $(this).data('active');
+        const button = $(this);
+        
+        $.ajax({
+            url: `/certificate-templates/${templateId}/toggle-active`,
+            method: 'POST',
+            data: {
+                _token: $('meta[name="csrf-token"]').attr('content')
+            },
+            success: function(response) {
+                if (response.success) {
+                    // Update the badge
+                    const badge = button.closest('tr').find('.badge-primary, .badge-warning');
+                    if (response.is_active) {
+                        badge.removeClass('badge-warning').addClass('badge-primary').text('Active');
+                        button.find('i').removeClass('mdi-play').addClass('mdi-pause');
+                        button.html('<i class="mdi mdi-pause"></i> Deactivate');
+                        button.data('active', true);
+                    } else {
+                        badge.removeClass('badge-primary').addClass('badge-warning').text('Inactive');
+                        button.find('i').removeClass('mdi-pause').addClass('mdi-play');
+                        button.html('<i class="mdi mdi-play"></i> Activate');
+                        button.data('active', false);
+                    }
+                    
+                    toastr.success(response.message);
+                }
+            },
+            error: function() {
+                toastr.error('An error occurred while updating the template status.');
+            }
+        });
+    });
+
+    // Delete Template
+    $('.delete-template').click(function() {
+        const templateId = $(this).data('id');
+        const templateName = $(this).data('name');
+        
+        $('#template-name').text(templateName);
+        $('#delete-form').attr('action', `/certificate-templates/${templateId}`);
+        $('#deleteModal').modal('show');
+    });
+});
+
+// Filter by submission form
+function filterBySubmissionForm(submissionFormId) {
+    const url = new URL(window.location);
+    if (submissionFormId) {
+        url.searchParams.set('submission_form_id', submissionFormId);
+    } else {
+        url.searchParams.delete('submission_form_id');
+    }
+    window.location.href = url.toString();
+}
 </script>
-@endsection
+@endpush

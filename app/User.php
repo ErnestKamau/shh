@@ -48,14 +48,6 @@ class User extends Authenticatable
 		return SampleAnalysisStage::whereIn('id',explode(',',$this->lab_section_id))->pluck('id')->toArray() ?? [];
 	}
 
-	/**
-	 * Get the certificate templates created by this user
-	 */
-	public function certificateTemplates()
-	{
-		return $this->hasMany(\App\Models\CertificateTemplate::class, 'created_by');
-	}
-
 	public function audit_logs()
 	{
 		return \OwenIt\Auditing\Models\Audit::where('user_id', $this->id)->orderBy('created_at', 'desc')->get();

@@ -1,12 +1,12 @@
 # Implementation Plan
 
-- [x] 1. Set up database structure and core models
+- [ ] 1. Set up database structure and core models
   - Create database migrations for certificate templates, sections, elements, and permissions
   - Implement Eloquent models with relationships and business logic methods
   - Ensure PHP 7.4 compatibility with proper type hints and return types
   - _Requirements: 1.1, 1.2, 1.3, 1.4, 1.5, 6.1, 6.2, 6.3, 6.4, 6.5_
 
-- [x] 2. Create template management controllers and routes
+- [ ] 2. Create template management controllers and routes
   - Implement CertificateTemplateController with CRUD operations
   - Create TemplateBuilderController for builder interface
   - Set up RESTful routes for template management

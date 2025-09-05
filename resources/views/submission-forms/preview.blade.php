@@ -76,42 +76,46 @@
                   @csrf
                   
                   @foreach($submissionForm->sections as $section)
-                    <div class="form-section mb-4">
-                      <div class="section-header mb-3">
-                        <h5 class="text-primary border-bottom pb-2">
-                          <i class="mdi mdi-folder-outline"></i> {{ $section->title }}
-                        </h5>
-                        @if($section->description)
-                          <p class="text-muted small mb-0">{{ $section->description }}</p>
-                        @endif
-                      </div>
-                      
-                      @foreach($section->elementHolders as $holder)
-                        <div class="element-holder mb-3">
-                          @if($holder->holder_type === 'field')
-                            <div class="row">
-                              @foreach($holder->elements as $element)
-                                <div class="col-md-{{ getColumnWidth($holder->elements->count()) }} mb-3">
-                                  @include('submission-forms.partials.form-element', ['element' => $element])
-                                </div>
-                              @endforeach
-                            </div>
-                          @else
-                            {{-- Text holder - for static content --}}
-                            @foreach($holder->elements as $element)
-                              <div class="text-element mb-3">
-                                <div class="alert alert-light">
-                                  <strong>{{ $element->label }}</strong>
-                                  @if($element->help_text)
-                                    <p class="mb-0 mt-2">{{ $element->help_text }}</p>
-                                  @endif
-                                </div>
-                              </div>
-                            @endforeach
+                    @if($section->isRowsSection())
+                      @include('submission-forms.partials.rows-section', ['section' => $section])
+                    @else
+                      <div class="form-section mb-4">
+                        <div class="section-header mb-3">
+                          <h5 class="text-primary border-bottom pb-2">
+                            <i class="mdi mdi-folder-outline"></i> {{ $section->title }}
+                          </h5>
+                          @if($section->description)
+                            <p class="text-muted small mb-0">{{ $section->description }}</p>
                           @endif
                         </div>
-                      @endforeach
-                    </div>
+                        
+                        @foreach($section->elementHolders as $holder)
+                          <div class="element-holder mb-3">
+                            @if($holder->holder_type === 'field')
+                              <div class="row">
+                                @foreach($holder->elements as $element)
+                                  <div class="col-md-{{ getColumnWidth($holder->elements->count()) }} mb-3">
+                                    @include('submission-forms.partials.form-element', ['element' => $element])
+                                  </div>
+                                @endforeach
+                              </div>
+                            @else
+                              {{-- Text holder - for static content --}}
+                              @foreach($holder->elements as $element)
+                                <div class="text-element mb-3">
+                                  <div class="alert alert-light">
+                                    <strong>{{ $element->label }}</strong>
+                                    @if($element->help_text)
+                                      <p class="mb-0 mt-2">{{ $element->help_text }}</p>
+                                    @endif
+                                  </div>
+                                </div>
+                              @endforeach
+                            @endif
+                          </div>
+                        @endforeach
+                      </div>
+                    @endif
                   @endforeach
                   
                   <div class="form-actions mt-4 pt-3 border-top">
@@ -205,8 +209,10 @@ function initializeAllCustomElements() {
         initializeCustomElement(elementData);
     });
     
-    // Set up client change handlers
+    // Set up change handlers
     setupClientChangeHandlers();
+    setupSampleTypeChangeHandlers();
+    setupStoreChangeHandlers();
 }
 
 function initializeCustomElement(elementData) {
@@ -216,13 +222,13 @@ function initializeCustomElement(elementData) {
     console.log('Initializing element:', elementId, 'type:', elementType);
     
     // Load initial options for non-dependent elements
-    if (elementType === 'client_select' || elementType === 'sample_type_select') {
+    if (elementType === 'client_select' || elementType === 'sample_type_select' || elementType === 'store_select' || elementType === 'standard_select' || elementType === 'sample_condition_select') {
         console.log('Loading initial options for:', elementType);
         loadDynamicOptions(elementId, elementType);
     }
     
     // For dependent elements, ensure they start empty
-    if (elementType === 'client_unit_select' || elementType === 'client_contact_select') {
+    if (elementType === 'client_unit_select' || elementType === 'client_contact_select' || elementType === 'sample_point_select') {
         console.log('Setting up dependent element:', elementType);
         
         // Ensure element starts empty
@@ -236,6 +242,42 @@ function initializeCustomElement(elementData) {
         
         if (currentClientId) {
             loadDynamicOptions(elementId, elementType, currentClientId);
+        }
+    }
+    
+    // For sample type dependent elements
+    if (elementType === 'analysis_type_select') {
+        console.log('Setting up sample type dependent element:', elementType);
+        
+        // Ensure element starts empty
+        const placeholder = elementData.placeholder;
+        $('#' + elementId).html('<option value="">' + placeholder + '</option>');
+        
+        // Load options if sample type is already selected
+        const sampleTypeSelect = $('select[data-element-type="sample_type_select"]');
+        const currentSampleTypeId = sampleTypeSelect.val();
+        console.log('Current sample type ID:', currentSampleTypeId);
+        
+        if (currentSampleTypeId) {
+            loadDynamicOptions(elementId, elementType, null, currentSampleTypeId);
+        }
+    }
+    
+    // For store dependent elements
+    if (elementType === 'store_slot_select') {
+        console.log('Setting up store dependent element:', elementType);
+        
+        // Ensure element starts empty
+        const placeholder = elementData.placeholder;
+        $('#' + elementId).html('<option value="">' + placeholder + '</option>');
+        
+        // Load options if store is already selected
+        const storeSelect = $('select[data-element-type="store_select"]');
+        const currentStoreId = storeSelect.val();
+        console.log('Current store ID:', currentStoreId);
+        
+        if (currentStoreId) {
+            loadDynamicOptions(elementId, elementType, null, null, currentStoreId);
         }
     }
 }
@@ -252,7 +294,7 @@ function setupClientChangeHandlers() {
         console.log('Client changed to:', clientId);
         
         // Find all dependent elements
-        const dependentElements = $('select[data-element-type="client_unit_select"], select[data-element-type="client_contact_select"]');
+        const dependentElements = $('select[data-element-type="client_unit_select"], select[data-element-type="client_contact_select"], select[data-element-type="sample_point_select"]');
         console.log('Found', dependentElements.length, 'dependent elements');
         
         // Debug: Check what custom elements exist
@@ -289,11 +331,95 @@ function setupClientChangeHandlers() {
     });
 }
 
-function loadDynamicOptions(elementId, elementType, clientId = null) {
+function setupSampleTypeChangeHandlers() {
+    console.log('Setting up sample type change handlers');
+    
+    // Remove any existing handlers
+    $('select[data-element-type="sample_type_select"]').off('change.custom-elements');
+    
+    // Set up sample type change handler
+    $('select[data-element-type="sample_type_select"]').on('change.custom-elements', function() {
+        const sampleTypeId = $(this).val();
+        console.log('Sample type changed to:', sampleTypeId);
+        
+        // Find all dependent elements
+        const dependentElements = $('select[data-element-type="analysis_type_select"]');
+        console.log('Found', dependentElements.length, 'sample type dependent elements');
+        
+        if (sampleTypeId) {
+            // Load options for each dependent element
+            dependentElements.each(function() {
+                const dependentSelect = $(this);
+                const dependentElementId = dependentSelect.attr('id');
+                const dependentElementType = dependentSelect.data('element-type');
+                
+                console.log('Updating dependent element:', dependentElementType, dependentElementId);
+                
+                // Show loading state
+                dependentSelect.html('<option value="">Loading...</option>').prop('disabled', true);
+                
+                // Load options
+                loadDynamicOptions(dependentElementId, dependentElementType, null, sampleTypeId);
+            });
+        } else {
+            // Clear all dependent elements
+            dependentElements.each(function() {
+                const dependentSelect = $(this);
+                const placeholder = 'Select...';
+                dependentSelect.html('<option value="">' + placeholder + '</option>').prop('disabled', false);
+                console.log('Cleared dependent element:', dependentSelect.attr('id'));
+            });
+        }
+    });
+}
+
+function setupStoreChangeHandlers() {
+    console.log('Setting up store change handlers');
+    
+    // Remove any existing handlers
+    $('select[data-element-type="store_select"]').off('change.custom-elements');
+    
+    // Set up store change handler
+    $('select[data-element-type="store_select"]').on('change.custom-elements', function() {
+        const storeId = $(this).val();
+        console.log('Store changed to:', storeId);
+        
+        // Find all dependent elements
+        const dependentElements = $('select[data-element-type="store_slot_select"]');
+        console.log('Found', dependentElements.length, 'store dependent elements');
+        
+        if (storeId) {
+            // Load options for each dependent element
+            dependentElements.each(function() {
+                const dependentSelect = $(this);
+                const dependentElementId = dependentSelect.attr('id');
+                const dependentElementType = dependentSelect.data('element-type');
+                
+                console.log('Updating dependent element:', dependentElementType, dependentElementId);
+                
+                // Show loading state
+                dependentSelect.html('<option value="">Loading...</option>').prop('disabled', true);
+                
+                // Load options
+                loadDynamicOptions(dependentElementId, dependentElementType, null, null, storeId);
+            });
+        } else {
+            // Clear all dependent elements
+            dependentElements.each(function() {
+                const dependentSelect = $(this);
+                const placeholder = 'Select...';
+                dependentSelect.html('<option value="">' + placeholder + '</option>').prop('disabled', false);
+                console.log('Cleared dependent element:', dependentSelect.attr('id'));
+            });
+        }
+    });
+}
+
+function loadDynamicOptions(elementId, elementType, clientId = null, sampleTypeId = null, storeId = null) {
     const select = $('#' + elementId);
     const originalHtml = select.html();
     
-    console.log('Loading options for element:', elementId, 'type:', elementType, 'clientId:', clientId);
+    console.log('Loading options for element:', elementId, 'type:', elementType, 'clientId:', clientId, 'sampleTypeId:', sampleTypeId, 'storeId:', storeId);
     
     // Show loading state
     select.html('<option value="">Loading...</option>').prop('disabled', true);
@@ -302,7 +428,9 @@ function loadDynamicOptions(elementId, elementType, clientId = null) {
     const ajaxUrl = '{{ route("submission-forms.dynamic-options") }}';
     const ajaxData = {
         element_type: elementType,
-        client_id: clientId
+        client_id: clientId,
+        sample_type_id: sampleTypeId,
+        store_id: storeId
     };
     
     console.log('Making AJAX request to:', ajaxUrl, 'with data:', ajaxData);
@@ -316,7 +444,7 @@ function loadDynamicOptions(elementId, elementType, clientId = null) {
             let html = '';
             
             // Add placeholder option (always add for dependent elements)
-            if (elementType === 'client_unit_select' || elementType === 'client_contact_select') {
+            if (elementType === 'client_unit_select' || elementType === 'client_contact_select' || elementType === 'sample_point_select') {
                 html += '<option value="">Select...</option>';
             } else {
                 // For non-dependent elements, check if required

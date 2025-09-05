@@ -25,8 +25,21 @@ function initializeCustomElements() {
 function setupDependentElement($element, elementId, elementType, dependsOn) {
     console.log('Setting up dependent element:', elementId, 'depends on:', dependsOn);
     
-    // Find the parent element this depends on
-    const $parentElement = $(`select[data-element-type="${dependsOn}"]`);
+    // First, try to find parent element in the same row
+    const $row = $element.closest('tr');
+    let $parentElement = null;
+    
+    if ($row.length > 0) {
+        // Look for parent element in the same row first
+        $parentElement = $row.find(`select[data-element-type="${dependsOn}"]`);
+        console.log('Looking for parent in same row:', $parentElement.length > 0);
+    }
+    
+    // If not found in same row, look globally
+    if (!$parentElement || $parentElement.length === 0) {
+        $parentElement = $(`select[data-element-type="${dependsOn}"]`);
+        console.log('Looking for parent globally:', $parentElement.length > 0);
+    }
     
     if ($parentElement.length === 0) {
         console.warn('Parent element not found for dependency:', dependsOn);
@@ -80,8 +93,8 @@ function clearChildDependencies(parentElementType) {
     });
 }
 
-function loadDynamicOptions(elementId, elementType, clientId = null) {
-    console.log('Loading dynamic options for:', { elementId, elementType, clientId });
+function loadDynamicOptions(elementId, elementType, clientId = null, sampleTypeId = null, storeId = null) {
+    console.log('Loading dynamic options for:', { elementId, elementType, clientId, sampleTypeId, storeId });
     const select = $('#' + elementId);
     const originalHtml = select.html();
     
@@ -97,7 +110,9 @@ function loadDynamicOptions(elementId, elementType, clientId = null) {
         method: 'GET',
         data: {
             element_type: elementType,
-            client_id: clientId
+            client_id: clientId,
+            sample_type_id: sampleTypeId,
+            store_id: storeId
         },
         success: function(response) {
             console.log('Dynamic options loaded successfully:', response);
@@ -119,6 +134,15 @@ function loadDynamicOptions(elementId, elementType, clientId = null) {
             }
             
             select.html(html).prop('disabled', false);
+            
+            // Reinitialize Select2 after loading new options
+            if (select.hasClass('select2-hidden-accessible')) {
+                select.select2('destroy');
+            }
+            select.select2({
+                placeholder: select.attr('placeholder') || select.data('placeholder') || 'Select...'
+            });
+            select.attr('style', 'width: 100%');
         },
         error: function(xhr, status, error) {
             console.error('Error loading options:', {
@@ -138,6 +162,15 @@ function loadDynamicOptions(elementId, elementType, clientId = null) {
             html += '<option value="">Error loading options</option>';
             
             select.html(html).prop('disabled', false);
+            
+            // Reinitialize Select2 after error
+            if (select.hasClass('select2-hidden-accessible')) {
+                select.select2('destroy');
+            }
+            select.select2({
+                placeholder: select.attr('placeholder') || select.data('placeholder') || 'Select...'
+            });
+            select.attr('style', 'width: 100%');
             
             // Show user-friendly error message
             if (xhr.status === 403) {
