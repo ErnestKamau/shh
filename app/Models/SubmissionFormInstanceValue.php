@@ -12,6 +12,7 @@ class SubmissionFormInstanceValue extends Model
     protected $fillable = [
         'submission_form_instance_id',
         'submission_form_element_id',
+        'array_index',
         'value',
         'file_path'
     ];

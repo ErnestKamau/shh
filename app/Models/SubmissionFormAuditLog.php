@@ -2,13 +2,12 @@
 
 namespace App\Models;
 
-use Illuminate\Database\Eloquent\Factories\HasFactory;
+use App\User;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 class SubmissionFormAuditLog extends Model
 {
-    use HasFactory;
 
     protected $fillable = [
         'submission_form_instance_id',

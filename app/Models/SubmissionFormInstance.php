@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\User;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
@@ -78,23 +79,50 @@ class SubmissionFormInstance extends Model
         $form = $this->submissionForm;
         $prefix = $form->naming_convention_prefix ?? 'SF';
         $format = $form->naming_convention_format ?? '{prefix}/{year}/{sequence}';
-        
-        // Get next sequence number for this form and year
         $year = date('Y');
-        $lastInstance = self::where('submission_form_id', $this->submission_form_id)
-            ->where('form_number', 'LIKE', "{$prefix}%/{$year}/%")
-            ->orderBy('id', 'desc')
+        
+        // Get the highest sequence number globally for this prefix and year
+        $lastInstance = self::where('form_number', 'LIKE', "{$prefix}%/{$year}/%")
+            ->orderBy('form_number', 'desc')
             ->first();
             
         $sequence = 1;
         if ($lastInstance) {
             $parts = explode('/', $lastInstance->form_number);
-            $sequence = intval(end($parts)) + 1;
+            $lastSequence = intval(end($parts));
+            $sequence = $lastSequence + 1;
         }
         
+        $maxAttempts = 100;
+        $attempt = 0;
+        
+        do {
+            $attempt++;
+            
+            // Generate the form number
+            $formNumber = str_replace(
+                ['{prefix}', '{year}', '{sequence}'],
+                [$prefix, $year, str_pad($sequence, 3, '0', STR_PAD_LEFT)],
+                $format
+            );
+            
+            // Check if this form number already exists (globally)
+            $exists = self::where('form_number', $formNumber)->exists();
+            
+            if (!$exists) {
+                return $formNumber;
+            }
+            
+            // If it exists, automatically increment sequence and try again
+            $sequence++;
+            
+        } while ($attempt < $maxAttempts);
+        
+        // If we still can't find a unique number, use timestamp as fallback
+        $timestamp = time();
         return str_replace(
             ['{prefix}', '{year}', '{sequence}'],
-            [$prefix, $year, str_pad($sequence, 3, '0', STR_PAD_LEFT)],
+            [$prefix, $year, str_pad($timestamp, 6, '0', STR_PAD_LEFT)],
             $format
         );
     }

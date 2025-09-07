@@ -5,411 +5,728 @@ namespace App\Http\Controllers;
 use App\Models\SubmissionForm;
 use App\Models\SubmissionFormInstance;
 use App\Models\SubmissionFormInstanceValue;
+use App\Models\SubmissionFormElement;
+use App\SampleHeader;
+use App\SampleDetails;
 use Illuminate\Http\Request;
-use Illuminate\Http\RedirectResponse;
-use Illuminate\View\View;
-use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Str;
 
 class FormInstanceController extends Controller
 {
     /**
-     * Display a listing of form instances
+     * Display a listing of form instances for the current user
      */
-    public function index(Request $request): View
+    public function index(Request $request)
     {
-        $query = SubmissionFormInstance::with(['submissionForm', 'submittedBy']);
-
-        // Filter by form if specified
-        if ($request->filled('form_id')) {
-            $query->where('submission_form_id', $request->get('form_id'));
-        }
+        $query = SubmissionFormInstance::with(['submissionForm', 'submittedBy'])
+            ->submittedBy(auth()->id())
+            ->latest();
 
         // Filter by status
         if ($request->filled('status')) {
-            $query->where('status', $request->get('status'));
+            $query->withStatus($request->status);
         }
 
-        // Search functionality
+        // Filter by priority
+        if ($request->filled('priority')) {
+            $query->withPriority($request->priority);
+        }
+
+        // Search by form number or title
         if ($request->filled('search')) {
-            $search = $request->get('search');
+            $search = $request->search;
             $query->where(function($q) use ($search) {
-                $q->whereHas('submissionForm', function($subQ) use ($search) {
-                    $subQ->where('name', 'like', "%{$search}%");
-                })
-                ->orWhereHas('submittedBy', function($subQ) use ($search) {
-                    $subQ->where('name', 'like', "%{$search}%")
-                         ->orWhere('email', 'like', "%{$search}%");
+                $q->where('form_number', 'like', "%{$search}%")
+                  ->orWhere('title', 'like', "%{$search}%")
+                  ->orWhereHas('submissionForm', function($q) use ($search) {
+                      $q->where('name', 'like', "%{$search}%");
                 });
             });
         }
 
-        $instances = $query->orderBy('created_at', 'desc')
-                          ->paginate(15)
-                          ->withQueryString();
+        $instances = $query->paginate(15);
 
-        $forms = SubmissionForm::where('is_published', true)
-                              ->orderBy('name')
-                              ->get(['id', 'name']);
-
-        return view('form-instances.index', compact('instances', 'forms'));
+        return view('submission-forms.instances.index', compact('instances'));
     }
 
     /**
-     * Show the form for creating a new instance (public form view)
+     * Show the form for creating a new form instance
      */
-    public function create(SubmissionForm $submissionForm): View
+    public function create(SubmissionForm $submissionForm)
     {
-        // Check if form is published
-        if (!$submissionForm->is_published) {
-            abort(404, 'Form not found or not available.');
+        // Check if user can create instances for this form
+        if (!$submissionForm->isPublishedAndActive()) {
+            return redirect()->back()->with('error', 'This form is not available for submission.');
         }
 
-        // Load form structure
+        // Load form with all relationships
         $submissionForm->load([
-            'sections' => function($query) {
-                $query->orderBy('order_index');
-            },
-            'sections.elementHolders' => function($query) {
-                $query->orderBy('order_index');
-            },
             'sections.elementHolders.elements' => function($query) {
-                $query->orderBy('order_index');
+                $query->orderBy('sort_order');
             }
         ]);
 
-        return view('form-instances.create', compact('submissionForm'));
+        return view('submission-forms.instances.create', compact('submissionForm'));
     }
 
     /**
-     * Store a newly created instance
+     * Store a newly created form instance
      */
-    public function store(Request $request, SubmissionForm $submissionForm): RedirectResponse
+    public function store(Request $request, SubmissionForm $submissionForm)
     {
-        // Check if form is published
-        if (!$submissionForm->is_published) {
-            abort(404, 'Form not found or not available.');
+        // Check if user can create instances for this form
+        if (!$submissionForm->isPublishedAndActive()) {
+            return redirect()->back()->with('error', 'This form is not available for submission.');
         }
 
-        // Load form structure for validation
+        // Determine if this is a public submission
+        $isPublicSubmission = !auth()->check();
+        $submittedBy = $isPublicSubmission ? null : auth()->id();
+
+        // Generate form number and create instance in a transaction with retry logic
+        Log::info('Creating form instance', [
+            'form_id' => $submissionForm->id,
+            'form_name' => $submissionForm->name,
+            'is_public' => $isPublicSubmission
+        ]);
+        
+        $instance = $this->createFormInstanceWithRetry($submissionForm, $request, $submittedBy);
+
+        // Log the creation (only if user is authenticated)
+        if (!$isPublicSubmission) {
+            $instance->logAction('created', auth()->user());
+        }
+
+        // Redirect based on submission type
+        if ($isPublicSubmission) {
+            return redirect()->route('forms.show', $submissionForm)
+                ->with('success', 'Form instance created successfully. You can now fill out the form.');
+        } else {
+            return redirect()->route('submission-forms.instances.fill', [
+                'submissionForm' => $submissionForm,
+                'instance' => $instance
+            ])->with('success', 'Form instance created successfully. You can now fill out the form.');
+        }
+    }
+
+    /**
+     * Display the form for filling out
+     */
+    public function fill(SubmissionForm $submissionForm, SubmissionFormInstance $instance)
+    {
+        // Check if user owns this instance
+        if ($instance->submitted_by !== auth()->id()) {
+            abort(403, 'You are not authorized to access this form instance.');
+        }
+
+        // Check if form is still available
+        if (!$submissionForm->isPublishedAndActive()) {
+            return redirect()->back()->with('error', 'This form is no longer available for submission.');
+        }
+
+        // Load form with all relationships
         $submissionForm->load([
-            'sections.elementHolders.elements'
+            'sections.elementHolders.elements' => function($query) {
+                $query->orderBy('sort_order');
+            }
         ]);
 
-        // Build validation rules dynamically
-        $rules = [];
-        $messages = [];
-        
-        foreach ($submissionForm->sections as $section) {
-            if ($section->isRowsSection()) {
-                // Handle rows section - array fields
-                $templateHolder = $section->getTemplateElementHolder();
-                if ($templateHolder) {
-                    foreach ($templateHolder->elements as $element) {
-                        $fieldName = "field_{$element->id}";
-                        $elementRules = [];
-                        
-                        // Add required rule if element is required
-                        if ($element->is_required) {
-                            $elementRules[] = 'required';
-                            $elementRules[] = 'array';
-                            $elementRules[] = 'min:1';
-                            $messages["{$fieldName}.required"] = "The {$element->label} field is required.";
-                            $messages["{$fieldName}.array"] = "The {$element->label} field must be an array.";
-                            $messages["{$fieldName}.min"] = "At least one {$element->label} entry is required.";
-                        } else {
-                            $elementRules[] = 'nullable';
-                            $elementRules[] = 'array';
-                        }
-                        
-                        // Add type-specific validation rules for array elements
-                        $this->addElementValidationRules($element, $elementRules, $messages, $fieldName, true);
-                        
-                        if (!empty($elementRules)) {
-                            $rules[$fieldName] = $elementRules;
-                        }
-                    }
-                }
-            } else {
-                // Handle regular section - single fields
-                foreach ($section->elementHolders as $holder) {
-                    foreach ($holder->elements as $element) {
-                        $fieldName = "field_{$element->id}";
-                        $elementRules = [];
-                        
-                        // Add required rule if element is required
-                        if ($element->is_required) {
-                            $elementRules[] = 'required';
-                            $messages["{$fieldName}.required"] = "The {$element->label} field is required.";
-                        }
-                        
-                        // Add type-specific validation rules
-                        $this->addElementValidationRules($element, $elementRules, $messages, $fieldName, false);
-                        
-                        if (!empty($elementRules)) {
-                            $rules[$fieldName] = $elementRules;
-                        }
-                    }
-                }
-            }
+        // Load existing values
+        $existingValues = $instance->values()->with('element')->get()->keyBy('submission_form_element_id');
+
+        return view('submission-forms.instances.fill', compact('submissionForm', 'instance', 'existingValues'));
+    }
+
+    /**
+     * Update the form instance with submitted data
+     */
+    public function update(Request $request, SubmissionForm $submissionForm, SubmissionFormInstance $instance)
+    {
+        // Check if user owns this instance
+        if ($instance->submitted_by !== auth()->id()) {
+            abort(403, 'You are not authorized to update this form instance.');
         }
+
+        // Check if instance can be updated
+        if (!$instance->isDraft()) {
+            return redirect()->back()->with('error', 'This form instance cannot be updated.');
+        }
+
+        // Load form elements for validation
+        $elements = SubmissionFormElement::whereHas('holder.section', function($query) use ($submissionForm) {
+            $query->where('submission_form_id', $submissionForm->id);
+        })->get();
+
+        // Build validation rules
+        $validationRules = $this->buildValidationRules($elements, $request);
 
         // Validate the request
-        $validator = Validator::make($request->all(), $rules, $messages);
+        $validator = Validator::make($request->all(), $validationRules);
         
         if ($validator->fails()) {
             return redirect()->back()
                            ->withErrors($validator)
-                           ->withInput();
+                ->withInput()
+                ->with('error', 'Please correct the errors below.');
         }
 
+        DB::beginTransaction();
+        
         try {
-            DB::beginTransaction();
-
-            // Create the form instance
-            $instance = SubmissionFormInstance::create([
-                'submission_form_id' => $submissionForm->id,
-                'submitted_by' => Auth::id(),
-                'status' => 'submitted',
-                'submitted_at' => now(),
-                'data' => [] // Will be populated with processed values
-            ]);
-
-            $processedData = [];
-
-            // Process and store field values
-            foreach ($submissionForm->sections as $section) {
-                if ($section->isRowsSection()) {
-                    // Handle rows section - array fields
-                    $templateHolder = $section->getTemplateElementHolder();
-                    if ($templateHolder) {
-                        foreach ($templateHolder->elements as $element) {
-                            $fieldName = "field_{$element->id}";
-                            $values = $request->input($fieldName, []);
-                            
-                            if (!empty($values) && is_array($values)) {
-                                // Process each row value
-                                $processedValues = [];
-                                foreach ($values as $index => $value) {
-                                    if ($value !== null && $value !== '') {
-                                        // Handle file uploads for array fields
-                                        if ($element->element_type === 'file' && $request->hasFile($fieldName . '.' . $index)) {
-                                            $file = $request->file($fieldName . '.' . $index);
-                                            $path = $file->store('form-submissions', 'public');
-                                            $value = [
-                                                'original_name' => $file->getClientOriginalName(),
-                                                'path' => $path,
-                                                'size' => $file->getSize(),
-                                                'mime_type' => $file->getMimeType()
-                                            ];
-                                        }
-                                        
-                                        $processedValues[] = $value;
-                                    }
-                                }
-                                
-                                if (!empty($processedValues)) {
-                                    // Store the array of values
-                                    SubmissionFormInstanceValue::create([
-                                        'submission_form_instance_id' => $instance->id,
-                                        'submission_form_element_id' => $element->id,
-                                        'value' => json_encode($processedValues)
-                                    ]);
-                                    
-                                    $processedData[$element->name] = $processedValues;
-                                }
-                            }
-                        }
-                    }
-                } else {
-                    // Handle regular section - single fields
-                    foreach ($section->elementHolders as $holder) {
-                        foreach ($holder->elements as $element) {
-                            $fieldName = "field_{$element->id}";
-                            $value = $request->input($fieldName);
-                            
-                            if ($value !== null) {
-                                // Handle file uploads
-                                if ($element->element_type === 'file' && $request->hasFile($fieldName)) {
-                                    $file = $request->file($fieldName);
-                                    $path = $file->store('form-submissions', 'public');
-                                    $value = [
-                                        'original_name' => $file->getClientOriginalName(),
-                                        'path' => $path,
-                                        'size' => $file->getSize(),
-                                        'mime_type' => $file->getMimeType()
-                                    ];
-                                }
-                                
-                                // Store the field value
-                                SubmissionFormInstanceValue::create([
-                                    'submission_form_instance_id' => $instance->id,
-                                    'submission_form_element_id' => $element->id,
-                                    'value' => is_array($value) ? json_encode($value) : $value
-                                ]);
-                                
-                                $processedData[$element->name] = $value;
-                            }
-                        }
-                    }
-                }
+            // Process form data
+            $this->processFormData($instance, $request, $elements);
+            
+            // Update instance status if submitting
+            if ($request->input('action') === 'submit') {
+                $instance->submit(auth()->user());
+            } else {
+                // Log as updated for draft saves
+                $instance->logAction('updated', auth()->user());
             }
-
-            // Update instance with processed data
-            $instance->update(['data' => $processedData]);
 
             DB::commit();
 
-            return redirect()->route('form-instances.success', $instance)
-                           ->with('success', 'Form submitted successfully!');
+            if ($request->input('action') === 'submit') {
+                return redirect()->route('submission-forms.instances.show', [
+                    'submissionForm' => $submissionForm,
+                    'instance' => $instance
+                ])->with('success', 'Form submitted successfully!');
+            } else {
+                return redirect()->back()->with('success', 'Form saved as draft.');
+            }
 
         } catch (\Exception $e) {
             DB::rollBack();
+            Log::error('Error updating form instance: ' . $e->getMessage());
             
             return redirect()->back()
-                           ->with('error', 'An error occurred while submitting the form. Please try again.')
-                           ->withInput();
+                ->withInput()
+                ->with('error', 'An error occurred while saving the form. Please try again.');
         }
     }
 
     /**
-     * Add element-specific validation rules
+     * Display the specified form instance
      */
-    private function addElementValidationRules($element, &$elementRules, &$messages, $fieldName, $isArray = false)
+    public function show(SubmissionForm $submissionForm, SubmissionFormInstance $instance)
     {
-        $arrayPrefix = $isArray ? '.*' : '';
+        // Check if user can view this instance
+        if ($instance->submitted_by !== auth()->id() && !auth()->user()->hasRole('admin')) {
+            abort(403, 'You are not authorized to view this form instance.');
+        }
+
+        // Load form with all relationships
+        $submissionForm->load([
+            'sections.elementHolders.elements' => function($query) {
+                $query->orderBy('sort_order');
+            }
+        ]);
+
+        // Load existing values
+        $existingValues = $instance->values()->with('element')->get()->keyBy('submission_form_element_id');
+
+        // Load audit trail
+        $auditLogs = $instance->auditLogs()->with('user')->latest()->get();
+
+        return view('submission-forms.instances.show', compact('submissionForm', 'instance', 'existingValues', 'auditLogs'));
+    }
+
+    /**
+     * Show the form for editing a draft instance
+     */
+    public function edit(SubmissionForm $submissionForm, SubmissionFormInstance $instance)
+    {
+        // Check if user owns this instance
+        if ($instance->submitted_by !== auth()->id()) {
+            abort(403, 'You are not authorized to edit this form instance.');
+        }
+
+        // Check if instance can be edited
+        if (!$instance->isDraft()) {
+            return redirect()->back()->with('error', 'This form instance cannot be edited.');
+        }
+
+        // Load form with all relationships
+        $submissionForm->load([
+            'sections.elementHolders.elements' => function($query) {
+                $query->orderBy('sort_order');
+            }
+        ]);
+
+        // Load existing values
+        $existingValues = $instance->values()->with('element')->get()->keyBy('submission_form_element_id');
+
+        return view('submission-forms.instances.edit', compact('submissionForm', 'instance', 'existingValues'));
+    }
+
+    /**
+     * Delete a draft instance
+     */
+    public function destroy(SubmissionForm $submissionForm, SubmissionFormInstance $instance)
+    {
+        // Check if user owns this instance
+        if ($instance->submitted_by !== auth()->id()) {
+            abort(403, 'You are not authorized to delete this form instance.');
+        }
+
+        // Check if instance can be deleted
+        if (!$instance->isDraft()) {
+            return redirect()->back()->with('error', 'Only draft instances can be deleted.');
+        }
+
+        $instance->delete();
+
+        return redirect()->route('submission-forms.instances.index')
+            ->with('success', 'Form instance deleted successfully.');
+    }
+
+    /**
+     * Generate a unique form number with automatic increment on duplicates
+     */
+    private function generateFormNumber(SubmissionForm $form): string
+    {
+        $prefix = $form->naming_convention_prefix ?? 'SF';
+        $format = $form->naming_convention_format ?? '{prefix}/{year}/{sequence}';
+        $year = date('Y');
         
-        // Add type-specific validation rules
-        switch ($element->element_type) {
-            case 'email':
-                $elementRules[] = 'email' . $arrayPrefix;
-                $messages["{$fieldName}.email"] = "The {$element->label} must be a valid email address.";
-                break;
-            case 'number':
-                $elementRules[] = 'numeric' . $arrayPrefix;
-                $messages["{$fieldName}.numeric"] = "The {$element->label} must be a number.";
-                break;
-            case 'date':
-                $elementRules[] = 'date' . $arrayPrefix;
-                $messages["{$fieldName}.date"] = "The {$element->label} must be a valid date.";
-                break;
-            case 'file':
-                $elementRules[] = 'file' . $arrayPrefix;
-                if (!empty($element->validation_rules['max_size'])) {
-                    $maxSize = $element->validation_rules['max_size'];
-                    $elementRules[] = "max:{$maxSize}" . $arrayPrefix;
-                    $messages["{$fieldName}.max"] = "The {$element->label} may not be greater than {$maxSize} kilobytes.";
-                }
-                if (!empty($element->validation_rules['allowed_types'])) {
-                    $types = implode(',', $element->validation_rules['allowed_types']);
-                    $elementRules[] = "mimes:{$types}" . $arrayPrefix;
-                    $messages["{$fieldName}.mimes"] = "The {$element->label} must be a file of type: {$types}.";
-                }
-                break;
+        // Get the highest sequence number globally for this prefix and year
+        $lastInstance = SubmissionFormInstance::where('form_number', 'LIKE', "{$prefix}%/{$year}/%")
+            ->orderBy('form_number', 'desc')
+            ->first();
+            
+        $sequence = 1;
+        if ($lastInstance) {
+            $parts = explode('/', $lastInstance->form_number);
+            $lastSequence = intval(end($parts));
+            $sequence = $lastSequence + 1;
         }
         
-        // Add custom validation rules from element settings
-        if (!empty($element->validation_rules['min_length'])) {
-            $elementRules[] = 'min:' . $element->validation_rules['min_length'] . $arrayPrefix;
-        }
-        if (!empty($element->validation_rules['max_length'])) {
-            $elementRules[] = 'max:' . $element->validation_rules['max_length'] . $arrayPrefix;
-        }
-    }
-
-    /**
-     * Display the specified instance
-     */
-    public function show(SubmissionFormInstance $instance): View
-    {
-        $instance->load([
-            'submissionForm',
-            'submittedBy',
-            'values.element.holder.section',
-            'reviewedBy',
-            'approvedBy'
+        Log::info('Form number generation start', [
+            'form_id' => $form->id,
+            'prefix' => $prefix,
+            'year' => $year,
+            'last_instance' => $lastInstance ? $lastInstance->form_number : 'None',
+            'starting_sequence' => $sequence
         ]);
-
-        return view('form-instances.show', compact('instance'));
-    }
-
-    /**
-     * Show success page after form submission
-     */
-    public function success(SubmissionFormInstance $instance): View
-    {
-        // Only allow viewing success page for the user who submitted or admins
-        if ($instance->submitted_by !== Auth::id() && !Auth::user()->hasRole('admin')) {
-            abort(403);
-        }
-
-        $instance->load(['submissionForm']);
-
-        return view('form-instances.success', compact('instance'));
-    }
-
-    /**
-     * Update instance status (for review/approval workflow)
-     */
-    public function updateStatus(Request $request, SubmissionFormInstance $instance): RedirectResponse
-    {
-        $validated = $request->validate([
-            'status' => 'required|in:submitted,under_review,approved,rejected',
-            'review_notes' => 'nullable|string|max:1000'
+        
+        $maxAttempts = 100; // Increased to handle more concurrent requests
+        $attempt = 0;
+        
+        do {
+            $attempt++;
+            
+            // Generate the form number
+            $formNumber = str_replace(
+                ['{prefix}', '{year}', '{sequence}'],
+                [$prefix, $year, str_pad($sequence, 3, '0', STR_PAD_LEFT)],
+                $format
+            );
+            
+            // Check if this form number already exists (globally, not just for this form)
+            $exists = SubmissionFormInstance::where('form_number', $formNumber)->exists();
+            
+            if (!$exists) {
+                Log::info('Generated unique form number', [
+                    'form_id' => $form->id,
+                    'form_number' => $formNumber,
+                    'attempt' => $attempt
+                ]);
+                return $formNumber;
+            }
+            
+            // If it exists, automatically increment sequence and try again
+            Log::warning('Form number collision detected, auto-incrementing', [
+                'form_id' => $form->id,
+                'collision_number' => $formNumber,
+                'attempt' => $attempt,
+                'next_sequence' => $sequence + 1
+            ]);
+            
+            $sequence++;
+            
+        } while ($attempt < $maxAttempts);
+        
+        // If we still can't find a unique number after many attempts, use timestamp as fallback
+        $timestamp = time();
+        $fallbackNumber = str_replace(
+            ['{prefix}', '{year}', '{sequence}'],
+            [$prefix, $year, str_pad($timestamp, 6, '0', STR_PAD_LEFT)],
+            $format
+        );
+        
+        Log::error('Failed to generate unique form number after maximum attempts, using timestamp fallback', [
+            'form_id' => $form->id,
+            'fallback_number' => $fallbackNumber,
+            'attempts' => $maxAttempts
         ]);
+        
+        return $fallbackNumber;
+    }
 
-        $updateData = [
-            'status' => $validated['status'],
-            'review_notes' => $validated['review_notes'] ?? null
-        ];
+    /**
+     * Create form instance with retry logic for duplicate form numbers
+     */
+    private function createFormInstanceWithRetry(SubmissionForm $submissionForm, Request $request, $submittedBy): SubmissionFormInstance
+    {
+        $maxRetries = 5;
+        $retryCount = 0;
+        
+        do {
+            $retryCount++;
+            
+            try {
+                return DB::transaction(function () use ($submissionForm, $request, $submittedBy) {
+                    // Generate form number
+                    $formNumber = $this->generateFormNumber($submissionForm);
 
-        // Set appropriate user and timestamp based on status
-        switch ($validated['status']) {
-            case 'under_review':
-                $updateData['reviewed_by'] = Auth::id();
-                $updateData['reviewed_at'] = now();
+                    // Create the instance
+                    return SubmissionFormInstance::create([
+                        'submission_form_id' => $submissionForm->id,
+                        'form_number' => $formNumber,
+                        'title' => $request->input('title'),
+                        'submitted_by' => $submittedBy,
+                        'status' => 'draft',
+                        'priority' => $request->input('priority', 'normal'),
+                        'due_date' => $request->input('due_date')
+                    ]);
+                });
+                
+            } catch (\Illuminate\Database\QueryException $e) {
+                // Check if it's a duplicate key error
+                if ($e->getCode() == 23000 && strpos($e->getMessage(), 'submission_form_instances_form_number_unique') !== false) {
+                    Log::warning('Duplicate form number detected during creation, retrying', [
+                        'form_id' => $submissionForm->id,
+                        'retry_count' => $retryCount,
+                        'error' => $e->getMessage()
+                    ]);
+                    
+                    if ($retryCount >= $maxRetries) {
+                        Log::error('Maximum retries reached for form instance creation', [
+                            'form_id' => $submissionForm->id,
+                            'retries' => $maxRetries
+                        ]);
+                        throw $e;
+                    }
+                    
+                    // Small delay before retry to reduce collision probability
+                    usleep(100000); // 100ms delay
+                    continue;
+                }
+                
+                // If it's not a duplicate key error, re-throw
+                throw $e;
+            }
+            
+        } while ($retryCount < $maxRetries);
+        
+        // This should never be reached, but just in case
+        throw new \Exception('Failed to create form instance after maximum retries');
+    }
+
+    /**
+     * Build validation rules for form elements
+     */
+    private function buildValidationRules($elements, Request $request): array
+    {
+        $rules = [];
+        
+        foreach ($elements as $element) {
+            $fieldName = $element->name;
+            $elementRules = [];
+            
+            // Required validation
+            if ($element->is_required) {
+                $elementRules[] = 'required';
+            } else {
+                $elementRules[] = 'nullable';
+            }
+            
+            // Type-specific validation
+            switch ($element->element_type) {
+                case 'email':
+                    $elementRules[] = 'email';
+                    break;
+                case 'number':
+                    $elementRules[] = 'numeric';
+                    break;
+                case 'date':
+                    $elementRules[] = 'date';
+                    break;
+                case 'datetime':
+                    $elementRules[] = 'date';
                 break;
-            case 'approved':
-            case 'rejected':
-                $updateData['approved_by'] = Auth::id();
-                $updateData['approved_at'] = now();
+                case 'file':
+                    $elementRules[] = 'file';
                 break;
+            }
+            
+            // Custom validation rules
+            if ($element->validation_rules) {
+                $elementRules = array_merge($elementRules, $element->validation_rules);
+            }
+            
+            // Handle array fields (from rows sections)
+            if ($request->has($fieldName) && is_array($request->input($fieldName))) {
+                $rules[$fieldName . '.*'] = $elementRules;
+            } else {
+                $rules[$fieldName] = $elementRules;
+            }
         }
-
-        $instance->update($updateData);
-
-        return redirect()->back()
-                       ->with('success', 'Instance status updated successfully.');
+        
+        return $rules;
     }
 
     /**
-     * Export instance data
+     * Process form data and save values
      */
-    public function export(SubmissionFormInstance $instance)
+    private function processFormData(SubmissionFormInstance $instance, Request $request, $elements): void
     {
-        $instance->load([
-            'submissionForm',
-            'submittedBy',
-            'values.element'
-        ]);
+        foreach ($elements as $element) {
+            $fieldName = $element->name;
+            $value = $request->input($fieldName);
+            
+            // Handle array fields (from rows sections)
+            if (is_array($value)) {
+                $this->processArrayField($instance, $element, $value);
+            } else {
+                $this->processSingleField($instance, $element, $value, $request);
+            }
+        }
+    }
+
+    /**
+     * Process a single field value
+     */
+    private function processSingleField(SubmissionFormInstance $instance, SubmissionFormElement $element, $value, Request $request): void
+    {
+        // Handle file uploads
+        if ($element->element_type === 'file' && $request->hasFile($element->name)) {
+            $file = $request->file($element->name);
+            $filename = time() . '_' . Str::slug($element->name) . '.' . $file->getClientOriginalExtension();
+            $path = $file->storeAs('submission-forms/' . $instance->id, $filename, 'public');
+            
+            $this->saveFieldValue($instance, $element, null, $path);
+        } else {
+            $this->saveFieldValue($instance, $element, $value);
+        }
+    }
+
+    /**
+     * Process array field values (from rows sections)
+     */
+    private function processArrayField(SubmissionFormInstance $instance, SubmissionFormElement $element, array $values): void
+    {
+        // Delete existing values for this element
+        $instance->values()->where('submission_form_element_id', $element->id)->delete();
+        
+        // Save each value with array index
+        foreach ($values as $index => $value) {
+            if ($value !== null && $value !== '') {
+                $this->saveFieldValue($instance, $element, $value, null, $index);
+            }
+        }
+    }
+
+    /**
+     * Save a field value to the database
+     */
+    private function saveFieldValue(SubmissionFormInstance $instance, SubmissionFormElement $element, $value, $filePath = null, $arrayIndex = null): void
+    {
+        // Create or update the value
+        $instanceValue = SubmissionFormInstanceValue::updateOrCreate(
+            [
+                'submission_form_instance_id' => $instance->id,
+                'submission_form_element_id' => $element->id,
+                'array_index' => $arrayIndex
+            ],
+            [
+                'value' => $value,
+                'file_path' => $filePath
+            ]
+        );
+
+        // Process field mapping if configured
+        if ($element->isMapped()) {
+            $this->processFieldMapping($element, $value, $arrayIndex);
+        }
+    }
+
+    /**
+     * Process field mapping to database tables
+     */
+    private function processFieldMapping(SubmissionFormElement $element, $value, $arrayIndex = null): void
+    {
+        $mapping = $element->getMappingConfig();
+        
+        if (!$mapping || !$value) {
+            return;
+        }
 
         $data = [
-            'form_name' => $instance->submissionForm->name,
-            'submitted_by' => $instance->submittedBy->name ?? 'Unknown',
-            'submitted_at' => $instance->submitted_at->format('Y-m-d H:i:s'),
-            'status' => $instance->status,
-            'values' => []
+            $mapping['field'] => $value,
+            'updated_at' => now()
         ];
 
-        foreach ($instance->values as $value) {
-            $data['values'][$value->element->label] = $value->value;
+        if ($mapping['table'] === 'sample_headers') {
+            // Handle sample headers mapping
+            if ($arrayIndex !== null) {
+                // For array fields, create separate records
+                SampleHeader::create($data);
+            } else {
+                // For single fields, update or create
+                SampleHeader::updateOrCreate(
+                    ['submission_form_element_id' => $element->id],
+                    $data
+                );
+            }
+        } elseif ($mapping['table'] === 'sample_details') {
+            // Handle sample details mapping
+            if ($arrayIndex !== null) {
+                // For array fields, create separate records
+                SampleDetails::create($data);
+            } else {
+                // For single fields, update or create
+                SampleDetails::updateOrCreate(
+                    ['submission_form_element_id' => $element->id],
+                    $data
+                );
+            }
         }
+    }
 
-        $filename = "form-submission-{$instance->id}-" . now()->format('Y-m-d-H-i-s') . '.json';
+    /**
+     * Get dynamic options for custom elements
+     */
+    public function getDynamicOptions(Request $request)
+    {
+        $elementType = $request->get('element_type');
+        
+        // Allow public access for certain element types (for public form submissions)
+        $publicElementTypes = ['sample_condition_select', 'standard_select', 'sample_type_select'];
+        
+        if (!auth()->check() && !in_array($elementType, $publicElementTypes)) {
+            Log::warning('Unauthenticated request to dynamic options for restricted element type', ['element_type' => $elementType]);
+            return response()->json(['error' => 'Unauthorized'], 401);
+        }
+        $clientId = $request->get('client_id');
+        $sampleTypeId = $request->get('sample_type_id');
+        $storeId = $request->get('store_id');
 
-        return response()->json($data)
-                       ->header('Content-Disposition', "attachment; filename={$filename}");
+        Log::info('Dynamic options request', [
+            'element_type' => $elementType,
+            'client_id' => $clientId,
+            'sample_type_id' => $sampleTypeId,
+            'store_id' => $storeId
+        ]);
+
+        try {
+            $options = [];
+
+            switch ($elementType) {
+                case 'client_select':
+                    $clients = \App\Models\CRM\CRMCustomer::where('active', 1)
+                        ->where('company_id', getUserCompany())
+                        ->orderBy('name')
+                        ->get();
+
+                    foreach ($clients as $client) {
+                        $options[] = [
+                            'id' => $client->id,
+                            'text' => $client->name
+                        ];
+                    }
+                    break;
+
+                case 'sample_type_select':
+                    $options = \App\SampleType::select('id', 'name as text')
+                        ->get()
+                        ->toArray();
+                    break;
+
+                case 'client_unit_select':
+                    if ($clientId) {
+                        $options = \App\Models\CRM\CRMCompanyUnit::where('crm_customer_id', $clientId)
+                            ->select('id', 'name as text')
+                            ->get()
+                            ->toArray();
+                    }
+                    break;
+
+                case 'client_contact_select':
+                    if ($clientId) {
+                        $options = \App\Models\CRM\CustomerContact::where('crm_customer_id', $clientId)
+                            ->select('id', 'name as text')
+                            ->get()
+                            ->toArray();
+                    }
+                    break;
+
+                case 'store_select':
+                    $options = \App\InventoryStore::select('id', 'name as text')
+                        ->get()
+                        ->toArray();
+                    break;
+
+                case 'store_slot_select':
+                    if ($storeId) {
+                        $options = \App\InventoryStoreSlot::where('store_id', $storeId)
+                            ->select('id', 'name as text')
+                            ->get()
+                            ->toArray();
+                    }
+                    break;
+
+                case 'sample_condition_select':
+                    $options = \App\SampleCondition::select('id', 'name as text')
+                        ->get()
+                        ->toArray();
+                    break;
+
+                case 'analysis_type_select':
+                    if ($sampleTypeId) {
+                        $options = \App\AnalysisType::where('sample_type_id', $sampleTypeId)
+                            ->select('id', 'name as text')
+                            ->get()
+                            ->toArray();
+                    }
+                    break;
+
+                case 'standard_select':
+                    $options = \App\Standards::select('id', 'name as text')
+                        ->get()
+                        ->toArray();
+                    break;
+
+                case 'sample_point_select':
+                    if ($clientId) {
+                        $options = \App\Models\CRM\SamplePoint::where('crm_company_unit_id', $clientId)
+                            ->select('id', 'name as text')
+                            ->get()
+                            ->toArray();
+                    }
+                    break;
+
+                default:
+                    Log::warning('Unknown element type: ' . $elementType);
+                    return response()->json(['success' => false, 'message' => 'Unknown element type']);
+            }
+
+            Log::info('Returning options', ['count' => count($options)]);
+
+            return response()->json([
+                'success' => true,
+                'options' => $options
+            ]);
+
+        } catch (\Exception $e) {
+            Log::error('Error getting dynamic options: ' . $e->getMessage());
+            Log::error('Error file: ' . $e->getFile() . ':' . $e->getLine());
+            Log::error('Error stack trace: ' . $e->getTraceAsString());
+            return response()->json(['success' => false, 'message' => 'Error loading options: ' . $e->getMessage()]);
+        }
     }
 }

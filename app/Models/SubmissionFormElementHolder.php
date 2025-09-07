@@ -133,4 +133,27 @@ class SubmissionFormElementHolder extends Model
             'holder_type' => $this->holder_type,
         ];
     }
+
+    /**
+     * Clone this element holder with all its elements
+     * 
+     * @param int|null $newSectionId Optional section ID for the cloned holder
+     * @return SubmissionFormElementHolder
+     */
+    public function clone($newSectionId = null)
+    {
+        $clonedHolder = $this->replicate();
+        $clonedHolder->submission_form_section_id = $newSectionId ?: $this->submission_form_section_id;
+        $clonedHolder->sort_order = static::getNextSortOrder($clonedHolder->submission_form_section_id);
+        $clonedHolder->save();
+
+        // Clone all elements
+        foreach ($this->elements as $element) {
+            $clonedElement = $element->clone();
+            $clonedElement->submission_form_element_holder_id = $clonedHolder->id;
+            $clonedElement->save();
+        }
+
+        return $clonedHolder->load('elements');
+    }
 }

@@ -137,4 +137,49 @@ class SubmissionFormSection extends Model
         
         return ($maxSortOrder ?? 0) + 1;
     }
+
+    /**
+     * Clone this section with all its element holders and elements
+     * 
+     * @param string|null $newTitle Optional custom title for the cloned section
+     * @return SubmissionFormSection
+     */
+    public function clone($newTitle = null)
+    {
+        $clonedSection = $this->replicate();
+        $clonedSection->title = $newTitle ?: $this->generateCloneTitle($this->title);
+        $clonedSection->sort_order = static::getNextSortOrder($this->submission_form_id);
+        $clonedSection->save();
+
+        // Clone all element holders and their elements
+        foreach ($this->elementHolders as $holder) {
+            $clonedHolder = $holder->clone();
+            $clonedHolder->submission_form_section_id = $clonedSection->id;
+            $clonedHolder->save();
+        }
+
+        return $clonedSection->load('elementHolders.elements');
+    }
+
+    /**
+     * Generate a unique title for cloned section
+     * 
+     * @param string $originalTitle
+     * @return string
+     */
+    private function generateCloneTitle($originalTitle)
+    {
+        $baseTitle = $originalTitle . ' (Copy)';
+        $title = $baseTitle;
+        $counter = 1;
+
+        while (static::where('submission_form_id', $this->submission_form_id)
+                    ->where('title', $title)
+                    ->exists()) {
+            $title = $originalTitle . ' (Copy ' . $counter . ')';
+            $counter++;
+        }
+
+        return $title;
+    }
 }

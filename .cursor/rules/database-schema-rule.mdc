@@ -1,0 +1,4 @@
+---
+description: Tasks that involve the database. The system should check the ddl.sql to get the structure of the database
+alwaysApply: false
+---

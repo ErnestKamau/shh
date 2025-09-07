@@ -722,4 +722,47 @@ class SubmissionFormElement extends Model
         
         return $fields;
     }
+
+    /**
+     * Clone this element
+     * 
+     * @param int|null $newHolderId Optional holder ID for the cloned element
+     * @return SubmissionFormElement
+     */
+    public function clone($newHolderId = null)
+    {
+        $clonedElement = $this->replicate();
+        $clonedElement->submission_form_element_holder_id = $newHolderId ?: $this->submission_form_element_holder_id;
+        $clonedElement->name = $this->generateCloneName($this->name);
+        $clonedElement->label = $this->label . ' (Copy)';
+        $clonedElement->sort_order = static::getNextSortOrder($clonedElement->submission_form_element_holder_id);
+        $clonedElement->save();
+
+        return $clonedElement;
+    }
+
+    /**
+     * Generate a unique name for cloned element
+     * 
+     * @param string $originalName
+     * @return string
+     */
+    private function generateCloneName($originalName)
+    {
+        $baseName = $originalName . '_copy';
+        $name = $baseName;
+        $counter = 1;
+
+        // Get the form ID to check for uniqueness within the same form
+        $formId = $this->holder->section->submission_form_id;
+
+        while (static::whereHas('holder.section', function($query) use ($formId) {
+            $query->where('submission_form_id', $formId);
+        })->where('name', $name)->exists()) {
+            $name = $originalName . '_copy_' . $counter;
+            $counter++;
+        }
+
+        return $name;
+    }
 }

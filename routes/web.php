@@ -209,6 +209,10 @@ Route::post('/process-raw-results/lab','SampleWorkFlowController@processRawResul
   Route::post('/add-batch-samples/{batch}', 'SampleWorkFlowController@add_batch_samples')->name('add-batch-samples');
   Route::post('/add-new-samples', 'SampleWorkFlowController@add_batch_samples')->name('add-new-samples');
   Route::post('/delete-sample/{id}', 'SampleDetailsController@delete')->name('delete-sample');
+  
+  // Submission Form Integration Routes
+  Route::get('/sample-workflow-forms/submission-forms', 'SampleWorkFlowController@getAvailableSubmissionForms')->name('sample-workflow.submission-forms');
+  Route::post('/sample-workflow-forms/submission-forms/create-instance', 'SampleWorkFlowController@createSubmissionFormInstance')->name('sample-workflow.create-form-instance');
   Route::post('/print-labels', 'SampleWorkFlowController@print_labels')->name('print-labels');
   Route::post('/send-out-email-reports', 'SampleWorkFlowController@send_report_email')->name('send-out-email-reports');
   Route::get('/lab/batch/approve/{id}', 'SampleWorkFlowController@approve_batch')->name('approve-batch-analysis');
@@ -373,32 +377,44 @@ Route::prefix('submission-forms')->name('submission-forms.')->middleware('auth')
     Route::put('/sections/{section}', 'FormBuilderController@updateSection')->name('sections.update');
     Route::delete('/sections/{section}', 'FormBuilderController@deleteSection')->name('sections.destroy');
     Route::post('/{submissionForm}/sections/reorder', 'FormBuilderController@reorderSections')->name('sections.reorder');
+    Route::post('/sections/{section}/clone', 'FormBuilderController@cloneSection')->name('sections.clone');
+    Route::post('/sections/{section}/move', 'FormBuilderController@moveSectionToPosition')->name('sections.move');
     
     // Element Holder Management
+    Route::get('/holders/{holder}', 'FormBuilderController@getElementHolder')->name('holders.show');
     Route::post('/sections/{section}/holders', 'FormBuilderController@addElementHolder')->name('holders.store');
     Route::put('/holders/{holder}', 'FormBuilderController@updateElementHolder')->name('holders.update');
     Route::delete('/holders/{holder}', 'FormBuilderController@deleteElementHolder')->name('holders.destroy');
     Route::post('/sections/{section}/holders/reorder', 'FormBuilderController@reorderElementHolders')->name('holders.reorder');
+    Route::post('/holders/{holder}/clone', 'FormBuilderController@cloneElementHolder')->name('holders.clone');
+    Route::post('/holders/{holder}/move', 'FormBuilderController@moveHolderToSection')->name('holders.move');
     
     // Element Management
     Route::post('/holders/{holder}/elements', 'FormBuilderController@addElement')->name('elements.store');
     Route::put('/elements/{element}', 'FormBuilderController@updateElement')->name('elements.update');
     Route::delete('/elements/{element}', 'FormBuilderController@deleteElement')->name('elements.destroy');
     Route::post('/holders/{holder}/elements/reorder', 'FormBuilderController@reorderElements')->name('elements.reorder');
-});
-
-// Form Instance Management Routes (Admin)
-Route::prefix('form-instances')->name('form-instances.')->middleware('auth')->group(function () {
-    Route::get('/', 'FormInstanceController@index')->name('index');
-    Route::get('/{instance}', 'FormInstanceController@show')->name('show');
-    Route::patch('/{instance}/status', 'FormInstanceController@updateStatus')->name('update-status');
-    Route::get('/{instance}/export', 'FormInstanceController@export')->name('export');
-    Route::get('/{instance}/success', 'FormInstanceController@success')->name('success');
+    Route::post('/elements/{element}/clone', 'FormBuilderController@cloneElement')->name('elements.clone');
+    Route::post('/elements/{element}/move', 'FormBuilderController@moveElementToHolder')->name('elements.move');
+    
+    // Form Instance Routes
+    Route::prefix('instances')->name('instances.')->group(function () {
+        Route::get('/', 'FormInstanceController@index')->name('index');
+        Route::get('/{submissionForm}/create', 'FormInstanceController@create')->name('create');
+        Route::post('/{submissionForm}', 'FormInstanceController@store')->name('store');
+        Route::get('/{submissionForm}/{instance}/fill', 'FormInstanceController@fill')->name('fill');
+        Route::put('/{submissionForm}/{instance}', 'FormInstanceController@update')->name('update');
+        Route::get('/{submissionForm}/{instance}', 'FormInstanceController@show')->name('show');
+        Route::get('/{submissionForm}/{instance}/edit', 'FormInstanceController@edit')->name('edit');
+        Route::delete('/{submissionForm}/{instance}', 'FormInstanceController@destroy')->name('destroy');
+        Route::get('/dynamic-options', 'FormInstanceController@getDynamicOptions')->name('dynamic-options');
+    });
 });
 
 // Public Form Submission Routes (no auth required)
 Route::get('/forms/{submissionForm:slug}', 'FormInstanceController@create')->name('forms.show');
 Route::post('/forms/{submissionForm:slug}', 'FormInstanceController@store')->name('forms.submit');
+Route::get('/forms/dynamic-options', 'FormInstanceController@getDynamicOptions')->name('forms.dynamic-options');
 
 Route::post('/inventory-slot-contents/{id}/delete', 'InventoryStoreSlotContentController@delete')->name('delete-inventory-slot-content');
 

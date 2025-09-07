@@ -502,6 +502,12 @@ const FormBuilder = {
         // Element name validation
         $('#element-name').on('blur', () => this.validateElementName());
         
+        // Save form button
+        $('#save-form').on('click', (e) => {
+            e.preventDefault();
+            this.saveFormChanges();
+        });
+        
         // Holder selection
         $(document).on('click', '.holder-item', function(e) {
             // Don't trigger if clicking on buttons
@@ -522,38 +528,75 @@ const FormBuilder = {
     },
     
     initSortable() {
-        // Make sections sortable
+        // Make sections sortable with enhanced configuration
         if (document.getElementById('sections-container')) {
             new Sortable(document.getElementById('sections-container'), {
                 handle: '.section-header .mdi-drag-horizontal',
-                animation: 150,
+                animation: 200,
                 ghostClass: 'sortable-ghost',
-                onEnd: (evt) => this.reorderSections()
+                chosenClass: 'sortable-chosen',
+                dragClass: 'sortable-drag',
+                forceFallback: true,
+                fallbackClass: 'sortable-fallback',
+                onStart: (evt) => this.onDragStart(evt, 'section'),
+                onEnd: (evt) => this.onDragEnd(evt, 'section'),
+                onMove: (evt) => this.onDragMove(evt, 'section'),
+                onUpdate: (evt) => this.reorderSections()
             });
         }
         
-        // Make element holders sortable within each section
+        // Make element holders sortable with cross-container support
         $('.sortable-holders').each(function() {
             new Sortable(this, {
+                group: 'holders', // Allow cross-container dragging
                 handle: '.holder-header .mdi-drag-horizontal',
-                animation: 150,
+                animation: 200,
                 ghostClass: 'sortable-ghost',
-                onEnd: (evt) => {
-                    const sectionId = $(evt.to).data('section-id');
-                    FormBuilder.reorderHolders(sectionId);
-                }
+                chosenClass: 'sortable-chosen',
+                dragClass: 'sortable-drag',
+                forceFallback: true,
+                fallbackClass: 'sortable-fallback',
+                onStart: (evt) => FormBuilder.onDragStart(evt, 'holder'),
+                onEnd: (evt) => FormBuilder.onDragEnd(evt, 'holder'),
+                onMove: (evt) => FormBuilder.onDragMove(evt, 'holder'),
+                onAdd: (evt) => FormBuilder.onHolderMoved(evt),
+                onUpdate: (evt) => FormBuilder.onHolderReordered(evt)
             });
         });
         
-        // Make elements sortable within each holder
+        // Make elements sortable with cross-container support
         $('.sortable-elements').each(function() {
+            console.log('Initializing SortableJS for elements container:', this);
+            console.log('Container has', $(this).find('.element-item').length, 'elements');
+            
             new Sortable(this, {
+                group: 'elements', // Allow cross-container dragging
                 handle: '.element-item .mdi-drag-horizontal',
-                animation: 150,
+                animation: 200,
                 ghostClass: 'sortable-ghost',
+                chosenClass: 'sortable-chosen',
+                dragClass: 'sortable-drag',
+                forceFallback: true,
+                fallbackClass: 'sortable-fallback',
+                onStart: (evt) => {
+                    console.log('Element drag started:', evt);
+                    FormBuilder.onDragStart(evt, 'element');
+                },
                 onEnd: (evt) => {
-                    const holderId = $(evt.to).data('holder-id');
-                    FormBuilder.reorderElements(holderId);
+                    console.log('Element drag ended:', evt);
+                    FormBuilder.onDragEnd(evt, 'element');
+                },
+                onMove: (evt) => {
+                    console.log('Element drag move:', evt);
+                    FormBuilder.onDragMove(evt, 'element');
+                },
+                onAdd: (evt) => {
+                    console.log('Element added to new container:', evt);
+                    FormBuilder.onElementMoved(evt);
+                },
+                onUpdate: (evt) => {
+                    console.log('Element reordered within container:', evt);
+                    FormBuilder.onElementReordered(evt);
                 }
             });
         });
@@ -615,7 +658,7 @@ const FormBuilder = {
             method: 'POST', // Always use POST for Laravel
             data: {
                 ...data,
-                _method: method // Laravel method spoofing
+                _method: isEdit ? 'PUT' : 'POST' // Laravel method spoofing
             },
             headers: {
                 'X-CSRF-TOKEN': this.csrfToken
@@ -625,7 +668,8 @@ const FormBuilder = {
                 this.hideLoading();
                 $('#section-modal').modal('hide');
                 this.showMessage('success', response.message);
-                // Don't load form structure on init - it's already rendered by the server
+                // Reload the page to show updates
+                location.reload();
             },
             error: (xhr) => {
                 console.error('Error response:', xhr);
@@ -714,20 +758,40 @@ const FormBuilder = {
         $('#holder-section-id').val(sectionId);
         
         if (holderId) {
-            // Edit existing holder
-            const holder = this.findHolderById(holderId);
-            $('#holder-id').val(holderId);
-            $('#holder-type').val(holder.holder_type);
-            $('#holder-max-elements').val(holder.max_elements);
-            $('.modal-title').text('Edit Element Holder');
+            // Edit existing holder - fetch data from server
+            this.showLoading();
+            $.ajax({
+                url: `/submission-forms/holders/${holderId}`,
+                method: 'GET',
+                headers: {
+                    'X-CSRF-TOKEN': this.csrfToken
+                },
+                success: (response) => {
+                    this.hideLoading();
+                    if (response.success) {
+                        const holder = response.holder;
+                        $('#holder-id').val(holderId);
+                        $('#holder-type').val(holder.holder_type);
+                        $('#holder-max-elements').val(holder.max_elements);
+                        $('.modal-title').text('Edit Element Holder');
+                        $('#holder-modal').modal('show');
+                    } else {
+                        this.showMessage('error', 'Failed to load holder data');
+                    }
+                },
+                error: (xhr) => {
+                    this.hideLoading();
+                    this.handleError(xhr);
+                }
+            });
         } else {
             // Add new holder
             $('#holder-form')[0].reset();
             $('#holder-id').val('');
             $('#holder-section-id').val(sectionId);
             $('.modal-title').text('Add Element Holder');
+            $('#holder-modal').modal('show');
         }
-        $('#holder-modal').modal('show');
     },
     
     saveHolder() {
@@ -742,23 +806,28 @@ const FormBuilder = {
         
         const method = isEdit ? 'PUT' : 'POST';
         
+        // Add method spoofing for Laravel
+        if (isEdit) {
+            formData.append('_method', 'PUT');
+        }
+        
         this.showLoading();
         
         $.ajax({
             url: url,
-            method: method,
+            method: 'POST', // Always use POST for Laravel
             data: formData,
             processData: false,
             contentType: false,
             headers: {
-                'X-CSRF-TOKEN': this.csrfToken,
-                'X-HTTP-Method-Override': method
+                'X-CSRF-TOKEN': this.csrfToken
             },
             success: (response) => {
                 this.hideLoading();
                 $('#holder-modal').modal('hide');
                 this.showMessage('success', response.message);
-                // Don't load form structure on init - it's already rendered by the server
+                // Reload the page to show updates
+                location.reload();
             },
             error: (xhr) => {
                 this.hideLoading();
@@ -888,23 +957,26 @@ const FormBuilder = {
             ? `/submission-forms/elements/${elementId}`
             : `/submission-forms/holders/${holderId}/elements`;
         
-        const method = isEdit ? 'PUT' : 'POST';
+        // Add method spoofing for Laravel
+        if (isEdit) {
+            formData._method = 'PUT';
+        }
         
         this.showLoading();
         
         $.ajax({
             url: url,
-            method: method,
+            method: 'POST', // Always use POST for Laravel
             data: formData,
             headers: {
-                'X-CSRF-TOKEN': this.csrfToken,
-                'X-HTTP-Method-Override': method
+                'X-CSRF-TOKEN': this.csrfToken
             },
             success: (response) => {
                 this.hideLoading();
                 $('#element-modal').modal('hide');
                 this.showMessage('success', response.message);
-                // Don't load form structure on init - it's already rendered by the server
+                // Reload the page to show updates
+                location.reload();
             },
             error: (xhr) => {
                 this.hideLoading();
@@ -1215,8 +1287,13 @@ const FormBuilder = {
     reorderElements(holderId) {
         // Get the current order of elements within the holder
         const elementIds = [];
-        $(`.sortable-elements[data-holder-id="${holderId}"] .element-item`).each(function() {
-            elementIds.push($(this).data('element-id'));
+        const container = $(`.sortable-elements[data-holder-id="${holderId}"]`);
+        console.log('Found container for holder', holderId, ':', container.length);
+        
+        container.find('.element-item').each(function() {
+            const elementId = $(this).data('element-id');
+            elementIds.push(elementId);
+            console.log('Found element with ID:', elementId);
         });
         
         console.log('Reordering elements for holder', holderId, ':', elementIds);
@@ -1242,42 +1319,9 @@ const FormBuilder = {
     
     reinitializeSortables() {
         // Reinitialize sortables for dynamically added content
-        
-        // Make element holders sortable within each section
-        $('.sortable-holders').each(function() {
-            // Destroy existing sortable if it exists
-            if (this.sortable) {
-                this.sortable.destroy();
-            }
-            
-            new Sortable(this, {
-                handle: '.holder-header .mdi-drag-horizontal',
-                animation: 150,
-                ghostClass: 'sortable-ghost',
-                onEnd: (evt) => {
-                    const sectionId = $(evt.to).data('section-id');
-                    FormBuilder.reorderHolders(sectionId);
-                }
-            });
-        });
-        
-        // Make elements sortable within each holder
-        $('.sortable-elements').each(function() {
-            // Destroy existing sortable if it exists
-            if (this.sortable) {
-                this.sortable.destroy();
-            }
-            
-            new Sortable(this, {
-                handle: '.element-item .mdi-drag-horizontal',
-                animation: 150,
-                ghostClass: 'sortable-ghost',
-                onEnd: (evt) => {
-                    const holderId = $(evt.to).data('holder-id');
-                    FormBuilder.reorderElements(holderId);
-                }
-            });
-        });
+        // Note: The main initSortable() function handles all sortable initialization
+        // This function is kept for compatibility but doesn't override the enhanced configuration
+        console.log('reinitializeSortables called - using enhanced configuration from initSortable()');
     },
     
     toggleMappingConfig() {
@@ -1326,6 +1370,241 @@ const FormBuilder = {
                 this.showMessage('error', 'Failed to load mapping fields');
             }
         });
+    },
+
+    // Clone functionality
+    cloneSection(sectionId) {
+        if (!confirm('Are you sure you want to clone this section? This will create a copy with all its element holders and elements.')) {
+            return;
+        }
+
+        this.showLoading();
+        
+        $.ajax({
+            url: `/submission-forms/sections/${sectionId}/clone`,
+            method: 'POST',
+            headers: {
+                'X-CSRF-TOKEN': this.csrfToken
+            },
+            success: (response) => {
+                this.hideLoading();
+                this.showMessage('success', response.message);
+                // Reload the page to show the cloned section
+                location.reload();
+            },
+            error: (xhr) => {
+                this.hideLoading();
+                this.handleError(xhr);
+            }
+        });
+    },
+
+    cloneElementHolder(holderId) {
+        if (!confirm('Are you sure you want to clone this element holder? This will create a copy with all its elements.')) {
+            return;
+        }
+
+        this.showLoading();
+        
+        $.ajax({
+            url: `/submission-forms/holders/${holderId}/clone`,
+            method: 'POST',
+            headers: {
+                'X-CSRF-TOKEN': this.csrfToken
+            },
+            success: (response) => {
+                this.hideLoading();
+                this.showMessage('success', response.message);
+                // Reload the page to show the cloned holder
+                location.reload();
+            },
+            error: (xhr) => {
+                this.hideLoading();
+                this.handleError(xhr);
+            }
+        });
+    },
+
+    cloneElement(elementId) {
+        if (!confirm('Are you sure you want to clone this form element?')) {
+            return;
+        }
+
+        this.showLoading();
+        
+        $.ajax({
+            url: `/submission-forms/elements/${elementId}/clone`,
+            method: 'POST',
+            headers: {
+                'X-CSRF-TOKEN': this.csrfToken
+            },
+            success: (response) => {
+                this.hideLoading();
+                this.showMessage('success', response.message);
+                // Reload the page to show the cloned element
+                location.reload();
+            },
+            error: (xhr) => {
+                this.hideLoading();
+                this.handleError(xhr);
+            }
+        });
+    },
+
+    // Enhanced drag and drop functionality
+    onDragStart(evt, type) {
+        console.log(`Drag started for ${type}:`, evt.item);
+        $(evt.item).addClass('dragging');
+        
+        // Add visual feedback
+        if (type === 'holder') {
+            this.showDropZones('holders');
+        } else if (type === 'element') {
+            this.showDropZones('elements');
+        }
+    },
+
+    onDragEnd(evt, type) {
+        console.log(`Drag ended for ${type}:`, evt.item);
+        $(evt.item).removeClass('dragging');
+        
+        // Remove visual feedback
+        this.hideDropZones();
+    },
+
+    onDragMove(evt, type) {
+        // Validate if the move is allowed
+        if (type === 'element') {
+            return this.validateElementMove(evt);
+        } else if (type === 'holder') {
+            return this.validateHolderMove(evt);
+        }
+        return true;
+    },
+
+    onHolderMoved(evt) {
+        const holderId = $(evt.item).data('holder-id');
+        const targetSectionId = $(evt.to).data('section-id');
+        const position = evt.newIndex + 1;
+        
+        console.log(`Holder ${holderId} moved to section ${targetSectionId} at position ${position}`);
+        
+        this.showLoading();
+        
+        $.ajax({
+            url: `/submission-forms/holders/${holderId}/move`,
+            method: 'POST',
+            data: {
+                target_section_id: targetSectionId,
+                position: position
+            },
+            headers: {
+                'X-CSRF-TOKEN': this.csrfToken
+            },
+            success: (response) => {
+                this.hideLoading();
+                this.showMessage('success', response.message);
+            },
+            error: (xhr) => {
+                this.hideLoading();
+                this.handleError(xhr);
+                // Revert the move on error
+                this.revertMove(evt);
+            }
+        });
+    },
+
+    onElementMoved(evt) {
+        const elementId = $(evt.item).data('element-id');
+        const targetHolderId = $(evt.to).data('holder-id');
+        const position = evt.newIndex + 1;
+        
+        console.log(`Element ${elementId} moved to holder ${targetHolderId} at position ${position}`);
+        
+        this.showLoading();
+        
+        $.ajax({
+            url: `/submission-forms/elements/${elementId}/move`,
+            method: 'POST',
+            data: {
+                target_holder_id: targetHolderId,
+                position: position
+            },
+            headers: {
+                'X-CSRF-TOKEN': this.csrfToken
+            },
+            success: (response) => {
+                this.hideLoading();
+                this.showMessage('success', response.message);
+            },
+            error: (xhr) => {
+                this.hideLoading();
+                this.handleError(xhr);
+                // Revert the move on error
+                this.revertMove(evt);
+            }
+        });
+    },
+
+    validateElementMove(evt) {
+        const targetHolder = $(evt.to);
+        const targetHolderId = targetHolder.data('holder-id');
+        
+        // Check if target holder has capacity
+        const currentCount = targetHolder.find('.element-item').length;
+        const maxElements = targetHolder.data('max-elements') || 5;
+        
+        if (currentCount >= maxElements) {
+            this.showMessage('error', `Target holder is at maximum capacity (${maxElements} elements)`);
+            return false;
+        }
+        
+        return true;
+    },
+
+    validateHolderMove(evt) {
+        // For now, allow all holder moves
+        // Could add validation here if needed
+        return true;
+    },
+
+    showDropZones(type) {
+        if (type === 'holders') {
+            $('.sortable-holders').addClass('drop-zone-active');
+        } else if (type === 'elements') {
+            $('.sortable-elements').addClass('drop-zone-active');
+        }
+    },
+
+    hideDropZones() {
+        $('.sortable-holders, .sortable-elements').removeClass('drop-zone-active');
+    },
+
+    revertMove(evt) {
+        // Revert the DOM change
+        if (evt.from !== evt.to) {
+            evt.from.appendChild(evt.item);
+        }
+    },
+
+    // Save form changes
+    saveFormChanges() {
+        this.showMessage('info', 'All changes are automatically saved when you make them. No additional save is needed.');
+    },
+
+    // Handle element reordering within the same holder
+    onElementReordered(evt) {
+        const holderId = $(evt.to).data('holder-id');
+        console.log(`Elements reordered within holder ${holderId}`, evt);
+        console.log('Element moved from index', evt.oldIndex, 'to index', evt.newIndex);
+        this.reorderElements(holderId);
+    },
+
+    // Handle holder reordering within the same section
+    onHolderReordered(evt) {
+        const sectionId = $(evt.to).data('section-id');
+        console.log(`Holders reordered within section ${sectionId}`);
+        this.reorderHolders(sectionId);
     }
 };
 
@@ -1411,6 +1690,60 @@ $(document).on('change', '#mapping-table', function() {
     opacity: 0.5;
 }
 
+.sortable-chosen {
+    transform: scale(1.05);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+}
+
+.sortable-drag {
+    opacity: 0.8;
+    transform: rotate(2deg);
+}
+
+.sortable-fallback {
+    display: block !important;
+    background: #fff;
+    border: 2px dashed #007bff;
+    border-radius: 4px;
+    padding: 10px;
+    margin: 5px 0;
+}
+
+.dragging {
+    opacity: 0.7;
+    transform: scale(1.02);
+    z-index: 1000;
+}
+
+.drop-zone-active {
+    border: 2px dashed #28a745 !important;
+    background-color: rgba(40, 167, 69, 0.1) !important;
+    border-radius: 8px;
+    transition: all 0.3s ease;
+}
+
+.drop-zone-active::before {
+    content: "Drop here";
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    background: #28a745;
+    color: white;
+    padding: 8px 16px;
+    border-radius: 4px;
+    font-size: 12px;
+    font-weight: bold;
+    z-index: 1001;
+    pointer-events: none;
+}
+
+.sortable-holders.drop-zone-active,
+.sortable-elements.drop-zone-active {
+    min-height: 60px;
+    position: relative;
+}
+
 .required::after {
     content: " *";
     color: red;
@@ -1471,6 +1804,7 @@ $(document).on('change', '#mapping-table', function() {
 .element-item {
     padding: 6px 12px;
     border-bottom: 1px solid #f0f0f0;
+    min-width: 145px;
 }
 
 .element-item:last-child {
@@ -1479,6 +1813,46 @@ $(document).on('change', '#mapping-table', function() {
 
 .element-item:hover {
     background-color: #f8f9fa;
+}
+
+/* Custom element styling */
+.custom-element {
+    margin-bottom: 1rem;
+    min-width: 145px !important;
+}
+
+.custom-element .form-control {
+    border-radius: 0.375rem;
+    min-width: 145px !important;
+}
+
+/* Select2 styling - ensure minimum width */
+.select2-container {
+    width: 100% !important;
+    min-width: 145px !important;
+}
+
+.select2-container--default .select2-selection--single {
+    height: 38px;
+    border: 1px solid #ced4da;
+    border-radius: 0.375rem;
+    min-width: 145px !important;
+}
+
+.select2-container--default .select2-selection--single .select2-selection__rendered {
+    line-height: 36px;
+    padding-left: 12px;
+    min-width: 145px !important;
+}
+
+/* Ensure custom element selects have minimum width */
+select.custom-element {
+    min-width: 145px !important;
+}
+
+/* Select2 dropdown minimum width */
+.select2-dropdown {
+    min-width: 145px !important;
 }
 </style>
 @endsection

@@ -72,6 +72,9 @@ if (!function_exists('getElementIcon')) {
             <button class="btn btn-sm btn-outline-primary" onclick="FormBuilder.showSectionModal({{ $section->id }})" title="Edit Section">
                 <i class="mdi mdi-pencil"></i>
             </button>
+            <button class="btn btn-sm btn-outline-info" onclick="FormBuilder.cloneSection({{ $section->id }})" title="Clone Section">
+                <i class="mdi mdi-content-copy"></i>
+            </button>
             <button class="btn btn-sm btn-outline-success" onclick="FormBuilder.showHolderModal({{ $section->id }})" title="Add Element Holder">
                 <i class="mdi mdi-plus"></i>
             </button>
@@ -86,7 +89,7 @@ if (!function_exists('getElementIcon')) {
     
     <div class="collapse show" id="section-{{ $section->id }}">
         <div class="section-content p-3">
-            <div class="holders-container sortable-holders" data-section-id="{{ $section->id }}">
+            <div class="holders-container sortable-holders" data-section-id="{{ $section->id }}" data-max-holders="20">
                 @forelse($section->elementHolders as $holder)
                     <div class="holder-item mb-3" data-holder-id="{{ $holder->id }}">
                         <div class="holder-header d-flex justify-content-between align-items-center">
@@ -105,6 +108,9 @@ if (!function_exists('getElementIcon')) {
                                 <button class="btn btn-sm btn-outline-primary" onclick="FormBuilder.showHolderModal({{ $section->id }}, {{ $holder->id }})" title="Edit Holder">
                                     <i class="mdi mdi-pencil"></i>
                                 </button>
+                                <button class="btn btn-sm btn-outline-info" onclick="FormBuilder.cloneElementHolder({{ $holder->id }})" title="Clone Holder">
+                                    <i class="mdi mdi-content-copy"></i>
+                                </button>
                                 <button class="btn btn-sm btn-outline-success" onclick="FormBuilder.showElementModal({{ $holder->id }})" title="Add Element" {{ $holder->isAtCapacity() ? 'disabled' : '' }}>
                                     <i class="mdi mdi-plus"></i>
                                 </button>
@@ -119,7 +125,7 @@ if (!function_exists('getElementIcon')) {
                         
                         <div class="collapse show" id="holder-{{ $holder->id }}">
                             <div class="holder-content">
-                                <div class="elements-container sortable-elements p-2" data-holder-id="{{ $holder->id }}">
+                                <div class="elements-container sortable-elements p-2" data-holder-id="{{ $holder->id }}" data-max-elements="{{ $holder->max_elements }}">
                                     @forelse($holder->elements as $element)
                                         <div class="element-item d-flex justify-content-between align-items-center py-2 px-3 mb-1 border rounded" data-element-id="{{ $element->id }}">
                                             <div class="d-flex align-items-center">
@@ -154,6 +160,9 @@ if (!function_exists('getElementIcon')) {
                                                 <div class="btn-group">
                                                     <button class="btn btn-sm btn-outline-primary" onclick="FormBuilder.showElementModal({{ $holder->id }}, {{ $element->id }})" title="Edit Element">
                                                         <i class="mdi mdi-pencil"></i>
+                                                    </button>
+                                                    <button class="btn btn-sm btn-outline-info" onclick="FormBuilder.cloneElement({{ $element->id }})" title="Clone Element">
+                                                        <i class="mdi mdi-content-copy"></i>
                                                     </button>
                                                     <button class="btn btn-sm btn-outline-danger" onclick="FormBuilder.deleteElement({{ $element->id }})" title="Delete Element">
                                                         <i class="mdi mdi-delete"></i>

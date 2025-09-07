@@ -1,6 +1,22 @@
 @php
     $fieldName = isset($isArrayField) && $isArrayField ? $element->name . '[' . $rowIndex . ']' : $element->name;
     $fieldId = isset($isArrayField) && $isArrayField ? $element->name . '_' . $rowIndex : $element->name;
+    
+    // Get existing value
+    $existingValue = null;
+    if (isset($existingValues) && $existingValues) {
+        if (isset($isArrayField) && $isArrayField && isset($rowIndex)) {
+            // For array fields, find value by element ID and array index
+            $existingValue = $existingValues->where('submission_form_element_id', $element->id)
+                                          ->where('array_index', $rowIndex)
+                                          ->first();
+        } else {
+            // For regular fields, find value by element ID
+            $existingValue = $existingValues->where('submission_form_element_id', $element->id)->first();
+        }
+    }
+    
+    $fieldValue = $existingValue ? $existingValue->value : $element->default_value;
 @endphp
 
 <div class="form-group">
@@ -15,7 +31,7 @@
                    id="{{ $fieldId }}" 
                    name="{{ $fieldName }}"
                    placeholder="{{ $element->placeholder }}"
-                   value="{{ $element->default_value }}"
+                   value="{{ $fieldValue }}"
                    {{ $element->is_required ? 'required' : '' }}
                    {{ $element->is_readonly ? 'readonly' : '' }}>
             @break
@@ -26,7 +42,7 @@
                    id="{{ $fieldId }}" 
                    name="{{ $fieldName }}"
                    placeholder="{{ $element->placeholder }}"
-                   value="{{ $element->default_value }}"
+                   value="{{ $fieldValue }}"
                    {{ $element->is_required ? 'required' : '' }}
                    {{ $element->is_readonly ? 'readonly' : '' }}>
             @break
@@ -37,7 +53,7 @@
                    id="{{ $fieldId }}" 
                    name="{{ $fieldName }}"
                    placeholder="{{ $element->placeholder }}"
-                   value="{{ $element->default_value }}"
+                   value="{{ $fieldValue }}"
                    {{ $element->is_required ? 'required' : '' }}
                    {{ $element->is_readonly ? 'readonly' : '' }}>
             @break
@@ -47,7 +63,7 @@
                    class="form-control" 
                    id="{{ $fieldId }}" 
                    name="{{ $fieldName }}"
-                   value="{{ $element->default_value }}"
+                   value="{{ $fieldValue }}"
                    {{ $element->is_required ? 'required' : '' }}
                    {{ $element->is_readonly ? 'readonly' : '' }}>
             @break
@@ -57,7 +73,7 @@
                    class="form-control" 
                    id="{{ $fieldId }}" 
                    name="{{ $fieldName }}"
-                   value="{{ $element->default_value }}"
+                   value="{{ $fieldValue }}"
                    {{ $element->is_required ? 'required' : '' }}
                    {{ $element->is_readonly ? 'readonly' : '' }}>
             @break
@@ -326,7 +342,7 @@
                    id="{{ $fieldId }}" 
                    name="{{ $fieldName }}"
                    placeholder="{{ $element->placeholder }}"
-                   value="{{ $element->default_value }}"
+                   value="{{ $fieldValue }}"
                    {{ $element->is_required ? 'required' : '' }}
                    {{ $element->is_readonly ? 'readonly' : '' }}>
     @endswitch

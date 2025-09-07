@@ -10,6 +10,7 @@ use Illuminate\Http\Request;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Validation\Rule;
 
 class FormBuilderController extends Controller
@@ -129,6 +130,27 @@ class FormBuilderController extends Controller
     }
 
     /**
+     * Get an element holder
+     * 
+     * @param SubmissionFormElementHolder $holder
+     * @return \Illuminate\Http\JsonResponse
+     */
+    public function getElementHolder(SubmissionFormElementHolder $holder)
+    {
+        try {
+            return response()->json([
+                'success' => true,
+                'holder' => $holder
+            ]);
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to load element holder: ' . $e->getMessage()
+            ], 500);
+        }
+    }
+
+    /**
      * Add an element holder to a section
      * 
      * @param Request $request
@@ -241,7 +263,7 @@ class FormBuilderController extends Controller
     public function addElement(Request $request, SubmissionFormElementHolder $holder)
     {
         // Debug: Log the incoming request data
-        \Log::info('AddElement Request Data:', $request->all());
+        Log::info('AddElement Request Data:', $request->all());
         
         $validated = $request->validate([
             'element_type' => 'required|in:text,number,email,date,datetime,textarea,select,radio,checkbox,file,signature,calculation,client_select,sample_type_select,client_unit_select,client_contact_select,analysis_type_select,store_select,store_slot_select,sample_condition_select,standard_select,sample_point_select',
@@ -304,7 +326,7 @@ class FormBuilderController extends Controller
             ]);
             
             // Debug: Log the created element data
-            \Log::info('Created Element Data:', [
+            Log::info('Created Element Data:', [
                 'id' => $element->id,
                 'mapping_table' => $element->mapping_table,
                 'mapping_field' => $element->mapping_field,
@@ -334,7 +356,7 @@ class FormBuilderController extends Controller
     public function updateElement(Request $request, SubmissionFormElement $element)
     {
         // Debug: Log the incoming request data
-        \Log::info('UpdateElement Request Data:', $request->all());
+        Log::info('UpdateElement Request Data:', $request->all());
         
         $validated = $request->validate([
             'element_type' => 'required|in:text,number,email,date,datetime,textarea,select,radio,checkbox,file,signature,calculation,client_select,sample_type_select,client_unit_select,client_contact_select,analysis_type_select,store_select,store_slot_select,sample_condition_select,standard_select,sample_point_select',
@@ -384,7 +406,7 @@ class FormBuilderController extends Controller
             $element->update($validated);
             
             // Debug: Log the updated element data
-            \Log::info('Updated Element Data:', [
+            Log::info('Updated Element Data:', [
                 'id' => $element->id,
                 'mapping_table' => $element->mapping_table,
                 'mapping_field' => $element->mapping_field,
@@ -612,5 +634,287 @@ class FormBuilderController extends Controller
             'success' => true,
             'fields' => $fields
         ]);
+    }
+
+    /**
+     * Clone a section with all its element holders and elements
+     * 
+     * @param Request $request
+     * @param SubmissionFormSection $section
+     * @return \Illuminate\Http\JsonResponse
+     */
+    public function cloneSection(Request $request, SubmissionFormSection $section)
+    {
+        $validated = $request->validate([
+            'title' => 'nullable|string|max:255'
+        ]);
+
+        try {
+            DB::beginTransaction();
+            
+            $clonedSection = $section->clone($validated['title'] ?? null);
+            
+            DB::commit();
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Section cloned successfully',
+                'section' => $clonedSection
+            ]);
+        } catch (\Exception $e) {
+            DB::rollBack();
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to clone section: ' . $e->getMessage()
+            ], 500);
+        }
+    }
+
+    /**
+     * Clone an element holder with all its elements
+     * 
+     * @param Request $request
+     * @param SubmissionFormElementHolder $holder
+     * @return \Illuminate\Http\JsonResponse
+     */
+    public function cloneElementHolder(Request $request, SubmissionFormElementHolder $holder)
+    {
+        try {
+            DB::beginTransaction();
+            
+            $clonedHolder = $holder->clone();
+            
+            DB::commit();
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Element holder cloned successfully',
+                'holder' => $clonedHolder
+            ]);
+        } catch (\Exception $e) {
+            DB::rollBack();
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to clone element holder: ' . $e->getMessage()
+            ], 500);
+        }
+    }
+
+    /**
+     * Clone a form element
+     * 
+     * @param Request $request
+     * @param SubmissionFormElement $element
+     * @return \Illuminate\Http\JsonResponse
+     */
+    public function cloneElement(Request $request, SubmissionFormElement $element)
+    {
+        try {
+            DB::beginTransaction();
+            
+            $clonedElement = $element->clone();
+            
+            DB::commit();
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Form element cloned successfully',
+                'element' => $clonedElement
+            ]);
+        } catch (\Exception $e) {
+            DB::rollBack();
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to clone form element: ' . $e->getMessage()
+            ], 500);
+        }
+    }
+
+    /**
+     * Move a section to a specific position
+     * 
+     * @param Request $request
+     * @param SubmissionFormSection $section
+     * @return \Illuminate\Http\JsonResponse
+     */
+    public function moveSectionToPosition(Request $request, SubmissionFormSection $section)
+    {
+        $validated = $request->validate([
+            'position' => 'required|integer|min:1'
+        ]);
+
+        try {
+            DB::beginTransaction();
+            
+            $form = $section->submissionForm;
+            $totalSections = $form->sections()->count();
+            $newPosition = min($validated['position'], $totalSections);
+            
+            // Get all sections ordered by sort_order
+            $sections = $form->sections()->orderBy('sort_order')->get();
+            
+            // Remove the section from its current position
+            $sections = $sections->filter(function($s) use ($section) {
+                return $s->id !== $section->id;
+            })->values();
+            
+            // Insert the section at the new position
+            $sections->splice($newPosition - 1, 0, [$section]);
+            
+            // Update sort orders
+            foreach ($sections as $index => $s) {
+                $s->update(['sort_order' => $index + 1]);
+            }
+            
+            DB::commit();
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Section moved successfully',
+                'new_position' => $newPosition
+            ]);
+        } catch (\Exception $e) {
+            DB::rollBack();
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to move section: ' . $e->getMessage()
+            ], 500);
+        }
+    }
+
+    /**
+     * Move an element holder to a different section
+     * 
+     * @param Request $request
+     * @param SubmissionFormElementHolder $holder
+     * @return \Illuminate\Http\JsonResponse
+     */
+    public function moveHolderToSection(Request $request, SubmissionFormElementHolder $holder)
+    {
+        $validated = $request->validate([
+            'target_section_id' => 'required|integer|exists:submission_form_sections,id',
+            'position' => 'nullable|integer|min:1'
+        ]);
+
+        try {
+            DB::beginTransaction();
+            
+            $targetSection = SubmissionFormSection::findOrFail($validated['target_section_id']);
+            
+            // Check if target section is different
+            if ($holder->submission_form_section_id === $targetSection->id) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Element holder is already in this section'
+                ], 400);
+            }
+            
+            // Update the holder's section
+            $holder->update(['submission_form_section_id' => $targetSection->id]);
+            
+            // Reorder holders in the target section
+            $holders = $targetSection->elementHolders()->orderBy('sort_order')->get();
+            $position = $validated['position'] ?? $holders->count();
+            
+            // Remove the moved holder from the list
+            $holders = $holders->filter(function($h) use ($holder) {
+                return $h->id !== $holder->id;
+            })->values();
+            
+            // Insert at the specified position
+            $holders->splice($position - 1, 0, [$holder]);
+            
+            // Update sort orders
+            foreach ($holders as $index => $h) {
+                $h->update(['sort_order' => $index + 1]);
+            }
+            
+            DB::commit();
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Element holder moved successfully',
+                'new_section_id' => $targetSection->id,
+                'new_position' => $position
+            ]);
+        } catch (\Exception $e) {
+            DB::rollBack();
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to move element holder: ' . $e->getMessage()
+            ], 500);
+        }
+    }
+
+    /**
+     * Move a form element to a different holder
+     * 
+     * @param Request $request
+     * @param SubmissionFormElement $element
+     * @return \Illuminate\Http\JsonResponse
+     */
+    public function moveElementToHolder(Request $request, SubmissionFormElement $element)
+    {
+        $validated = $request->validate([
+            'target_holder_id' => 'required|integer|exists:submission_form_element_holders,id',
+            'position' => 'nullable|integer|min:1'
+        ]);
+
+        try {
+            DB::beginTransaction();
+            
+            $targetHolder = SubmissionFormElementHolder::findOrFail($validated['target_holder_id']);
+            
+            // Check if target holder is different
+            if ($element->submission_form_element_holder_id === $targetHolder->id) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Element is already in this holder'
+                ], 400);
+            }
+            
+            // Check if target holder has capacity
+            if ($targetHolder->isAtCapacity()) {
+                return response()->json([
+                    'success' => false,
+                    'message' => "Target holder is at maximum capacity ({$targetHolder->max_elements} elements)"
+                ], 400);
+            }
+            
+            // Update the element's holder
+            $element->update(['submission_form_element_holder_id' => $targetHolder->id]);
+            
+            // Reorder elements in the target holder
+            $elements = $targetHolder->elements()->orderBy('sort_order')->get();
+            $position = $validated['position'] ?? $elements->count();
+            
+            // Remove the moved element from the list
+            $elements = $elements->filter(function($e) use ($element) {
+                return $e->id !== $element->id;
+            })->values();
+            
+            // Insert at the specified position
+            $elements->splice($position - 1, 0, [$element]);
+            
+            // Update sort orders
+            foreach ($elements as $index => $e) {
+                $e->update(['sort_order' => $index + 1]);
+            }
+            
+            DB::commit();
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Form element moved successfully',
+                'new_holder_id' => $targetHolder->id,
+                'new_position' => $position
+            ]);
+        } catch (\Exception $e) {
+            DB::rollBack();
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to move form element: ' . $e->getMessage()
+            ], 500);
+        }
     }
 }

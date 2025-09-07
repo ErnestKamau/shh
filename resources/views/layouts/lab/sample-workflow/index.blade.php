@@ -217,7 +217,9 @@ $items = array(
 		@if ($status == "Samples Reception")
 			<a class="btn btn-sm btn-info float-right mr-2" href="{{ route('view-batch-details', ['batch' => time()]) }}"><i
 					class="mdi mdi-plus mr-2"></i> Add Batch</a>
-
+			<button class="btn btn-sm btn-primary float-right mr-2" data-toggle="modal" data-target="#add-submission-form-modal">
+				<i class="mdi mdi-plus mr-2"></i> Add Submission Form
+			</button>
 		@endif
 		<span class="btn btn-sm btn-danger float-right mr-2" style="border-radius:25px" data-toggle="modal"
 			data-target="#get-batch-tat"><i class="mdi mdi-clock-outline"></i> TAT Today Batches <span
@@ -1172,6 +1174,57 @@ $items = array(
 		</div>
 		</form>
 	</div>
+	<!-- Add Submission Form Modal -->
+	<div class="modal fade" id="add-submission-form-modal" role="dialog">
+		<div class="modal-dialog modal-md">
+			<div class="modal-content">
+				<div class="modal-header">
+					<h4 class="modal-title">
+						<i class="mdi mdi-file-document-plus"></i> Select Submission Form
+					</h4>
+					<button type="button" class="close" data-dismiss="modal">&times;</button>
+				</div>
+				<div class="modal-body">
+					<div id="submission-form-loading" class="text-center py-4">
+						<i class="mdi mdi-loading mdi-spin" style="font-size: 2rem;"></i>
+						<p class="mt-2">Loading available forms...</p>
+					</div>
+					
+					<div id="submission-form-content" style="display: none;">
+						<div class="form-group">
+							<label for="submission-form-select" class="control-label">Choose a Form:</label>
+							<select class="form-control" id="submission-form-select" required>
+								<option value="">Select a submission form...</option>
+							</select>
+						</div>
+						
+						<div id="form-preview" class="mt-3" style="display: none;">
+							<div class="card">
+								<div class="card-body">
+									<h6 class="card-title" id="form-name-preview"></h6>
+									<p class="card-text text-muted" id="form-description-preview"></p>
+									<small class="text-info">
+										<i class="mdi mdi-file-document"></i> <span id="form-sections-count"></span> sections | 
+										<i class="mdi mdi-account"></i> Created by <span id="form-creator"></span> | 
+										<i class="mdi mdi-calendar"></i> <span id="form-created-date"></span>
+									</small>
+								</div>
+							</div>
+						</div>
+						
+						<div id="no-forms-message" class="alert alert-info text-center" style="display: none;">
+							<i class="mdi mdi-information"></i> No published submission forms available.
+						</div>
+					</div>
+				</div>
+				<div class="modal-footer">
+					<button type="button" class="btn btn-secondary" data-dismiss="modal">Cancel</button>
+					<button type="button" class="btn btn-primary" id="create-form-instance-btn" disabled>
+						<i class="mdi mdi-arrow-right"></i> Continue to Form
+					</button>
+				</div>
+			</div>
+		</div>
 	</div>
 @endif
 @if($status == 'Samples In Lab')
@@ -2314,8 +2367,156 @@ $items = array(
 		siblingformrowData.removeClass('hidden');
 	});
 
+	// Submission Form Modal Functionality
+	let availableForms = [];
 
+	// Test button click
+	$(document).on('click', '[data-target="#add-submission-form-modal"]', function() {
+		console.log('Add Submission Form button clicked!');
+	});
 
+	// Load forms when modal is shown
+	$('#add-submission-form-modal').on('show.bs.modal', function() {
+		console.log('Modal is opening, loading forms...');
+		loadAvailableForms();
+	});
+
+	// Reset modal when hidden
+	$('#add-submission-form-modal').on('hidden.bs.modal', function() {
+		resetModal();
+	});
+
+	// Handle form selection change
+	$(document).on('change', '#submission-form-select', function() {
+		const selectedFormId = $(this).val();
+		if (selectedFormId) {
+			const selectedForm = availableForms.find(form => form.id == selectedFormId);
+			if (selectedForm) {
+				showFormPreview(selectedForm);
+				$('#create-form-instance-btn').prop('disabled', false);
+			}
+		} else {
+			hideFormPreview();
+			$('#create-form-instance-btn').prop('disabled', true);
+		}
+	});
+
+	// Handle create form instance button click
+	$(document).on('click', '#create-form-instance-btn', function() {
+		const selectedFormId = $('#submission-form-select').val();
+		if (selectedFormId) {
+			createFormInstance(selectedFormId);
+		}
+	});
+
+	function loadAvailableForms() {
+		console.log('loadAvailableForms called');
+		$('#submission-form-loading').show();
+		$('#submission-form-content').hide();
+		$('#no-forms-message').hide();
+
+		const url = '{{ route("sample-workflow.submission-forms") }}';
+		console.log('Making AJAX request to:', url);
+
+		$.ajax({
+			url: url,
+			method: 'GET',
+			headers: {
+				'X-Requested-With': 'XMLHttpRequest',
+				'Accept': 'application/json'
+			},
+			success: function(response) {
+				console.log('AJAX success:', response);
+				$('#submission-form-loading').hide();
+
+				if (response.success && response.forms.length > 0) {
+					availableForms = response.forms;
+					populateFormSelect(response.forms);
+					$('#submission-form-content').show();
+				} else {
+					$('#no-forms-message').show();
+				}
+			},
+			error: function(xhr, status, error) {
+				console.error('AJAX error:', xhr, status, error);
+				$('#submission-form-loading').hide();
+				alert('Failed to load submission forms. Please try again.');
+			}
+		});
+	}
+
+	function populateFormSelect(forms) {
+		console.log('populateFormSelect called with forms:', forms);
+		const select = $('#submission-form-select');
+		select.empty();
+		select.append('<option value="">Select a submission form...</option>');
+		
+		forms.forEach(function(form) {
+			console.log('Adding form option:', form.name, form.id);
+			select.append(`<option value="${form.id}">${form.name}</option>`);
+		});
+		console.log('Form select populated with', forms.length, 'options');
+	}
+
+	function showFormPreview(form) {
+		$('#form-name-preview').text(form.name);
+		$('#form-description-preview').text(form.description || 'No description available');
+		$('#form-sections-count').text(form.sections_count);
+		$('#form-creator').text(form.creator);
+		$('#form-created-date').text(form.created_at);
+		$('#form-preview').show();
+	}
+
+	function hideFormPreview() {
+		$('#form-preview').hide();
+	}
+
+	function resetModal() {
+		$('#submission-form-select').val('');
+		$('#create-form-instance-btn').prop('disabled', true);
+		hideFormPreview();
+		availableForms = [];
+	}
+
+	function createFormInstance(formId) {
+		const btn = $('#create-form-instance-btn');
+		const originalText = btn.html();
+		
+		// Show loading state
+		btn.prop('disabled', true).html('<i class="mdi mdi-loading mdi-spin"></i> Creating...');
+
+		$.ajax({
+			url: '{{ route("sample-workflow.create-form-instance") }}',
+			method: 'POST',
+			data: {
+				submission_form_id: formId,
+				_token: '{{ csrf_token() }}'
+			},
+			success: function(response) {
+				if (response.success) {
+					// Close modal
+					$('#add-submission-form-modal').modal('hide');
+					
+					// Redirect to form fill page
+					window.location.href = response.redirect_url;
+				} else {
+					alert('Error: ' + (response.message || 'Failed to create form instance'));
+					btn.prop('disabled', false).html(originalText);
+				}
+			},
+			error: function(xhr) {
+				console.error('Error creating form instance:', xhr);
+				let errorMessage = 'Failed to create form instance. Please try again.';
+				
+				if (xhr.responseJSON && xhr.responseJSON.message) {
+					errorMessage = xhr.responseJSON.message;
+				}
+				
+				alert('Error: ' + errorMessage);
+				btn.prop('disabled', false).html(originalText);
+			}
+		});
+	}
 
 </script>
 @endsection

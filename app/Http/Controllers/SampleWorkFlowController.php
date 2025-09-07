@@ -4965,4 +4965,146 @@ class SampleWorkFlowController extends Controller
 
         return redirect()->route('sample-workflow', ['status' => $previousStatus])->with('success', 'QC batch marked as complete successfully. Note to processes the qc results on the qc module to incorporate the new results');
     }
+
+    /**
+     * Get available submission forms for the modal
+     */
+    public function getAvailableSubmissionForms()
+    {
+        try {
+            $forms = \App\Models\SubmissionForm::with(['creator', 'sections'])
+                ->where('is_published', true)
+                ->where('is_active', true)
+                ->withCount(['sections', 'instances'])
+                ->orderBy('name')
+                ->get()
+                ->map(function ($form) {
+                    return [
+                        'id' => $form->id,
+                        'name' => $form->name,
+                        'description' => $form->description,
+                        'sections_count' => $form->sections_count,
+                        'instances_count' => $form->instances_count,
+                        'created_at' => $form->created_at->format('M d, Y'),
+                        'creator' => $form->creator->name ?? 'Unknown'
+                    ];
+                });
+
+            return response()->json([
+                'success' => true,
+                'forms' => $forms
+            ]);
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to load submission forms: ' . $e->getMessage()
+            ], 500);
+        }
+    }
+
+    /**
+     * Create a new form instance and redirect to fill page
+     */
+    public function createSubmissionFormInstance(Request $request)
+    {
+        try {
+            $request->validate([
+                'submission_form_id' => 'required|exists:submission_forms,id'
+            ]);
+
+            $submissionForm = \App\Models\SubmissionForm::findOrFail($request->submission_form_id);
+
+            // Check if form is published and active
+            if (!$submissionForm->is_published || !$submissionForm->is_active) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Selected form is not available for submission'
+                ], 400);
+            }
+
+            // Create form instance
+            $instance = \App\Models\SubmissionFormInstance::create([
+                'submission_form_id' => $submissionForm->id,
+                'submitted_by' => auth()->id(),
+                'status' => 'draft',
+                'title' => 'New ' . $submissionForm->name . ' Submission',
+                'form_number' => $this->generateFormNumber($submissionForm),
+                'due_date' => now()->addDays(7), // Default 7 days from now
+                'priority' => 'medium'
+            ]);
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Form instance created successfully',
+                'redirect_url' => route('submission-forms.instances.fill', [$submissionForm, $instance])
+            ]);
+
+        } catch (\Illuminate\Validation\ValidationException $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Validation failed',
+                'errors' => $e->errors()
+            ], 422);
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to create form instance: ' . $e->getMessage()
+            ], 500);
+        }
+    }
+
+    /**
+     * Generate a unique form number for the submission form instance
+     */
+    private function generateFormNumber($submissionForm)
+    {
+        $prefix = $submissionForm->naming_convention_prefix ?? 'SF';
+        $format = $submissionForm->naming_convention_format ?? '{prefix}/{year}/{sequence}';
+        $year = date('Y');
+        
+        // Get the highest sequence number globally for this prefix and year
+        $lastInstance = \App\Models\SubmissionFormInstance::where('form_number', 'LIKE', "{$prefix}%/{$year}/%")
+            ->orderBy('form_number', 'desc')
+            ->first();
+            
+        $sequence = 1;
+        if ($lastInstance) {
+            $parts = explode('/', $lastInstance->form_number);
+            $lastSequence = intval(end($parts));
+            $sequence = $lastSequence + 1;
+        }
+        
+        $maxAttempts = 100;
+        $attempt = 0;
+        
+        do {
+            $attempt++;
+            
+            // Generate the form number
+            $formNumber = str_replace(
+                ['{prefix}', '{year}', '{sequence}'],
+                [$prefix, $year, str_pad($sequence, 3, '0', STR_PAD_LEFT)],
+                $format
+            );
+            
+            // Check if this form number already exists (globally)
+            $exists = \App\Models\SubmissionFormInstance::where('form_number', $formNumber)->exists();
+            
+            if (!$exists) {
+                return $formNumber;
+            }
+            
+            // If it exists, automatically increment sequence and try again
+            $sequence++;
+            
+        } while ($attempt < $maxAttempts);
+        
+        // If we still can't find a unique number, use timestamp as fallback
+        $timestamp = time();
+        return str_replace(
+            ['{prefix}', '{year}', '{sequence}'],
+            [$prefix, $year, str_pad($timestamp, 6, '0', STR_PAD_LEFT)],
+            $format
+        );
+    }
 }

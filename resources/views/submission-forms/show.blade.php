@@ -556,7 +556,7 @@ function loadDynamicOptions(elementId, elementType, clientId = null, sampleTypeI
     select.html('<option value="">Loading...</option>').prop('disabled', true);
     
     // Make AJAX request
-    const ajaxUrl = '{{ route("submission-forms.dynamic-options") }}';
+    const ajaxUrl = '{{ auth()->check() ? route("submission-forms.dynamic-options") : route("forms.dynamic-options") }}';
     const ajaxData = {
         element_type: elementType,
         client_id: clientId,
@@ -655,6 +655,51 @@ waitForJQuery(function() {
   .element-item:hover {
     background-color: #e9ecef;
     border-radius: 3px;
+  }
+
+  /* Ensure all form controls have minimum width */
+  .form-control {
+    min-width: 145px !important;
+  }
+
+  /* Custom element styling */
+  .custom-element {
+    margin-bottom: 1rem;
+    min-width: 145px !important;
+  }
+
+  .custom-element .form-control {
+    border-radius: 0.375rem;
+    min-width: 145px !important;
+  }
+
+  /* Select2 styling - ensure minimum width */
+  .select2-container {
+    width: 100% !important;
+    min-width: 145px !important;
+  }
+
+  .select2-container--default .select2-selection--single {
+    height: 38px;
+    border: 1px solid #ced4da;
+    border-radius: 0.375rem;
+    min-width: 145px !important;
+  }
+
+  .select2-container--default .select2-selection--single .select2-selection__rendered {
+    line-height: 36px;
+    padding-left: 12px;
+    min-width: 145px !important;
+  }
+
+  /* Ensure custom element selects have minimum width */
+  select.custom-element {
+    min-width: 145px !important;
+  }
+
+  /* Select2 dropdown minimum width */
+  .select2-dropdown {
+    min-width: 145px !important;
   }
   
   .badge-sm {
