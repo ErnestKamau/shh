@@ -606,7 +606,7 @@ class FormInstanceController extends Controller
         $elementType = $request->get('element_type');
         
         // Allow public access for certain element types (for public form submissions)
-        $publicElementTypes = ['sample_condition_select', 'standard_select', 'sample_type_select'];
+        $publicElementTypes = ['sample_condition_select', 'standard_select', 'sample_type_select', 'analysis_elements_select'];
         
         if (!auth()->check() && !in_array($elementType, $publicElementTypes)) {
             Log::warning('Unauthenticated request to dynamic options for restricted element type', ['element_type' => $elementType]);
@@ -692,6 +692,48 @@ class FormInstanceController extends Controller
                             ->select('id', 'name as text')
                             ->get()
                             ->toArray();
+                    }
+                    break;
+
+                case 'analysis_elements_select':
+                    $analysisTypeId = $request->get('analysis_type_id');
+                    Log::info('Analysis elements request', [
+                        'analysis_type_id' => $analysisTypeId,
+                        'request_data' => $request->all()
+                    ]);
+                    
+                    if ($analysisTypeId) {
+                        $elements = \App\AnalysisElements::where('analysis_type_id', $analysisTypeId)
+                            ->with('analyte')
+                            ->get();
+                            
+                        Log::info('Found analysis elements', [
+                            'count' => $elements->count(),
+                            'elements' => $elements->toArray()
+                        ]);
+                        
+                        $options = $elements->map(function($element) {
+                            // Get parameter name from the relationship or fallback
+                            $parametername = 'Unknown Parameter';
+                            if ($element->analyte) {
+                                $parametername = $element->analyte->name ?? 'Unknown Parameter';
+                            } elseif ($element->analyte_id) {
+                                // Fallback: try to get the name directly
+                                $analyte = \App\Analyte::find($element->analyte_id);
+                                $parametername = $analyte ? $analyte->name : 'Unknown Parameter';
+                            }
+                            
+                            $method = $element->method ?? 'No Method';
+                            return [
+                                'id' => $element->id,
+                                'text' => $parametername . ' (' . $method . ')'
+                            ];
+                        })->toArray();
+                        
+                        Log::info('Mapped options', ['options' => $options]);
+                    } else {
+                        $options = [];
+                        Log::info('No analysis_type_id provided');
                     }
                     break;
 

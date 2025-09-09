@@ -213,6 +213,7 @@ Route::post('/process-raw-results/lab','SampleWorkFlowController@processRawResul
   // Submission Form Integration Routes
   Route::get('/sample-workflow-forms/submission-forms', 'SampleWorkFlowController@getAvailableSubmissionForms')->name('sample-workflow.submission-forms');
   Route::post('/sample-workflow-forms/submission-forms/create-instance', 'SampleWorkFlowController@createSubmissionFormInstance')->name('sample-workflow.create-form-instance');
+  Route::get('/sample-submission-forms/forms', 'FormInstanceController@index')->name('sample-workflow.saved-forms');
   Route::post('/print-labels', 'SampleWorkFlowController@print_labels')->name('print-labels');
   Route::post('/send-out-email-reports', 'SampleWorkFlowController@send_report_email')->name('send-out-email-reports');
   Route::get('/lab/batch/approve/{id}', 'SampleWorkFlowController@approve_batch')->name('approve-batch-analysis');
@@ -415,6 +416,36 @@ Route::prefix('submission-forms')->name('submission-forms.')->middleware('auth')
 Route::get('/forms/{submissionForm:slug}', 'FormInstanceController@create')->name('forms.show');
 Route::post('/forms/{submissionForm:slug}', 'FormInstanceController@store')->name('forms.submit');
 Route::get('/forms/dynamic-options', 'FormInstanceController@getDynamicOptions')->name('forms.dynamic-options');
+
+// Debug route for testing analysis elements
+Route::get('/debug/analysis-elements/{analysisTypeId}', function($analysisTypeId) {
+    $elements = \App\AnalysisElements::where('analysis_type_id', $analysisTypeId)
+        ->with('analyte')
+        ->get();
+    
+    $options = $elements->map(function($element) {
+        $parametername = 'Unknown Parameter';
+        if ($element->analyte) {
+            $parametername = $element->analyte->name ?? 'Unknown Parameter';
+        } elseif ($element->analyte_id) {
+            $analyte = \App\Analyte::find($element->analyte_id);
+            $parametername = $analyte ? $analyte->name : 'Unknown Parameter';
+        }
+        
+        $method = $element->method ?? 'No Method';
+        return [
+            'id' => $element->id,
+            'text' => $parametername . ' (' . $method . ')'
+        ];
+    })->toArray();
+    
+    return response()->json([
+        'success' => true,
+        'options' => $options,
+        'count' => count($options),
+        'analysis_type_id' => $analysisTypeId
+    ]);
+});
 
 Route::post('/inventory-slot-contents/{id}/delete', 'InventoryStoreSlotContentController@delete')->name('delete-inventory-slot-content');
 

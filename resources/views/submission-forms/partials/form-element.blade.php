@@ -88,6 +88,17 @@
                       {{ $element->is_readonly ? 'readonly' : '' }}>{{ $element->default_value }}</textarea>
             @break
             
+        @case('plain_text')
+            <div class="plain-text-element" 
+                 id="{{ $fieldId }}" 
+                 style="min-width: 145px !important; padding: 8px 12px; background-color: #f8f9fa; border: 1px solid #dee2e6; border-radius: 4px; white-space: pre-wrap;">
+                {{ $fieldValue ?: $element->default_value ?: $element->placeholder ?: 'Plain text content' }}
+            </div>
+            <input type="hidden" 
+                   name="{{ $fieldName }}" 
+                   value="{{ $fieldValue ?: $element->default_value ?: '' }}">
+            @break
+            
         @case('select')
             <select class="form-control" 
                     id="{{ $fieldId }}" 
@@ -175,14 +186,22 @@
             
         @case('signature')
             <div class="signature-container">
-                <canvas id="{{ $element->name }}_canvas" 
-                        width="400" 
-                        height="200" 
-                        style="border: 1px solid #ccc; cursor: crosshair;"></canvas>
-                <div class="signature-controls mt-2">
-                    <button type="button" class="btn btn-sm btn-secondary" onclick="clearSignature('{{ $element->name }}')">
-                        Clear Signature
+                <div class="signature-pad-wrapper">
+                    <canvas id="{{ $element->name }}_canvas" 
+                            class="signature-canvas"
+                            style="width: 100%; height: 150px;"></canvas>
+                    <div class="signature-placeholder">
+                        <i class="mdi mdi-pen"></i>
+                        <span>Sign here</span>
+                    </div>
+                </div>
+                <div class="signature-controls mt-3">
+                    <button type="button" class="btn btn-sm btn-outline-danger" onclick="clearSignature('{{ $element->name }}')">
+                        <i class="mdi mdi-refresh"></i> Clear Signature
                     </button>
+                    <small class="text-muted ml-2">
+                        <i class="mdi mdi-information-outline"></i> Use mouse or touch to sign
+                    </small>
                 </div>
                 <input type="hidden" 
                        id="{{ $fieldId }}" 
@@ -261,6 +280,21 @@
                     <option value="">{{ $element->placeholder ?: 'Select an analysis type...' }}</option>
                 @endif
                 {{-- Options will be loaded dynamically based on selected sample type --}}
+            </select>
+            @break
+            
+        @case('analysis_elements_select')
+            <select class="form-control custom-element" 
+                    id="{{ $fieldId }}" 
+                    name="{{ $fieldName }}"
+                    data-element-type="analysis_elements_select"
+                    data-depends-on="analysis_type_select"
+                    {{ $element->is_required ? 'required' : '' }}
+                    {{ $element->is_readonly ? 'disabled' : '' }}>
+                @if(!$element->is_required)
+                    <option value="">{{ $element->placeholder ?: 'Select analysis elements...' }}</option>
+                @endif
+                {{-- Options will be loaded dynamically based on selected analysis type --}}
             </select>
             @break
             
@@ -356,7 +390,7 @@
 </div>
 
 {{-- Store element data for later initialization --}}
-@if(in_array($element->element_type, ['client_select', 'sample_type_select', 'client_unit_select', 'client_contact_select', 'analysis_type_select', 'store_select', 'store_slot_select', 'sample_condition_select', 'standard_select', 'sample_point_select']))
+@if(in_array($element->element_type, ['client_select', 'sample_type_select', 'client_unit_select', 'client_contact_select', 'analysis_type_select', 'analysis_elements_select', 'store_select', 'store_slot_select', 'sample_condition_select', 'standard_select', 'sample_point_select']))
 <script>
 // Store element data for initialization when jQuery is ready
 window.customElementsToInit = window.customElementsToInit || [];
@@ -369,6 +403,40 @@ window.customElementsToInit.push({
 </script>
 @endif
 
+<style>
+/* Form group spacing for form elements */
+.form-group {
+    margin-bottom: 1.5rem;
+}
+
+.form-group:last-child {
+    margin-bottom: 0;
+}
+
+.form-group label {
+    margin-bottom: 0.5rem;
+    display: block;
+    font-weight: 500;
+    color: #495057;
+}
+
+.form-control {
+    margin-top: 0.5rem;
+}
+
+.form-check-container {
+    margin-top: 0.5rem;
+}
+
+.form-check {
+    margin-bottom: 0.5rem;
+}
+
+.form-check:last-child {
+    margin-bottom: 0;
+}
+</style>
+
 {{-- Signature pad JavaScript --}}
 @if($element->element_type === 'signature')
 <script>
@@ -379,7 +447,58 @@ document.addEventListener('DOMContentLoaded', function() {
     if (!canvas) return;
     
     const ctx = canvas.getContext('2d');
+    const placeholder = canvas.parentElement.querySelector('.signature-placeholder');
     let isDrawing = false;
+    let hasSignature = false;
+    let resizeTimeout;
+    
+    // Debounced resize function
+    function debouncedResize() {
+        clearTimeout(resizeTimeout);
+        resizeTimeout = setTimeout(resizeCanvas, 100);
+    }
+    
+    // Set up responsive canvas
+    function resizeCanvas() {
+        const container = canvas.parentElement;
+        const wrapper = container.parentElement;
+        
+        // Get available width considering padding and borders
+        const availableWidth = wrapper.clientWidth - 16; // Account for 8px padding on each side
+        const containerWidth = Math.max(200, Math.min(availableWidth, 800)); // Min 200px, max 800px
+        const containerHeight = 150; // Fixed height as requested
+        
+        // Set display size
+        canvas.style.width = containerWidth + 'px';
+        canvas.style.height = containerHeight + 'px';
+        canvas.style.maxWidth = '100%';
+        
+        // Set actual canvas size (for drawing)
+        canvas.width = containerWidth;
+        canvas.height = containerHeight;
+        
+        // Set drawing properties
+        ctx.strokeStyle = '#2c3e50';
+        ctx.lineWidth = 2.5;
+        ctx.lineCap = 'round';
+        ctx.lineJoin = 'round';
+        ctx.shadowColor = 'rgba(0, 0, 0, 0.1)';
+        ctx.shadowBlur = 1;
+        ctx.shadowOffsetX = 0;
+        ctx.shadowOffsetY = 1;
+    }
+    
+    // Initial resize
+    resizeCanvas();
+    
+    // Resize on window resize (debounced)
+    window.addEventListener('resize', debouncedResize);
+    
+    // Use ResizeObserver for better responsiveness
+    if (window.ResizeObserver) {
+        const resizeObserver = new ResizeObserver(debouncedResize);
+        resizeObserver.observe(canvas.parentElement.parentElement);
+    }
     
     // Mouse events
     canvas.addEventListener('mousedown', startDrawing);
@@ -392,17 +511,49 @@ document.addEventListener('DOMContentLoaded', function() {
     canvas.addEventListener('touchmove', handleTouch);
     canvas.addEventListener('touchend', stopDrawing);
     
+    // Hover effects
+    canvas.addEventListener('mouseenter', function() {
+        if (!hasSignature) {
+            canvas.style.borderColor = '#007bff';
+            canvas.style.boxShadow = '0 0 0 2px rgba(0, 123, 255, 0.25)';
+        }
+    });
+    
+    canvas.addEventListener('mouseleave', function() {
+        if (!hasSignature) {
+            canvas.style.borderColor = '#dee2e6';
+            canvas.style.boxShadow = 'none';
+        }
+    });
+    
     function startDrawing(e) {
         isDrawing = true;
+        hasSignature = true;
+        
+        // Hide placeholder
+        if (placeholder) {
+            placeholder.style.opacity = '0';
+        }
+        
+        // Add visual feedback
+        canvas.style.borderColor = '#28a745';
+        canvas.style.boxShadow = '0 0 0 2px rgba(40, 167, 69, 0.25)';
+        
         const rect = canvas.getBoundingClientRect();
+        const scaleX = canvas.width / rect.width;
+        const scaleY = canvas.height / rect.height;
+        
         ctx.beginPath();
-        ctx.moveTo(e.clientX - rect.left, e.clientY - rect.top);
+        ctx.moveTo((e.clientX - rect.left) * scaleX, (e.clientY - rect.top) * scaleY);
     }
     
     function draw(e) {
         if (!isDrawing) return;
         const rect = canvas.getBoundingClientRect();
-        ctx.lineTo(e.clientX - rect.left, e.clientY - rect.top);
+        const scaleX = canvas.width / rect.width;
+        const scaleY = canvas.height / rect.height;
+        
+        ctx.lineTo((e.clientX - rect.left) * scaleX, (e.clientY - rect.top) * scaleY);
         ctx.stroke();
         updateSignatureData();
     }
@@ -432,9 +583,123 @@ document.addEventListener('DOMContentLoaded', function() {
     window.clearSignature = function(elementName) {
         const canvas = document.getElementById(elementName + '_canvas');
         const ctx = canvas.getContext('2d');
+        const placeholder = canvas.parentElement.querySelector('.signature-placeholder');
+        
         ctx.clearRect(0, 0, canvas.width, canvas.height);
         document.getElementById(elementName).value = '';
+        
+        hasSignature = false;
+        
+        // Show placeholder
+        if (placeholder) {
+            placeholder.style.opacity = '1';
+        }
+        
+        // Reset visual state
+        canvas.style.borderColor = '#dee2e6';
+        canvas.style.boxShadow = 'none';
     };
 });
 </script>
+
+<style>
+.signature-container {
+    position: relative;
+    width: 100%;
+    overflow: hidden;
+}
+
+.signature-pad-wrapper {
+    position: relative;
+    background: linear-gradient(135deg, #f8f9fa 0%, #ffffff 100%);
+    border: 2px solid #dee2e6;
+    border-radius: 8px;
+    padding: 8px;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+    transition: all 0.3s ease;
+    width: 100%;
+    box-sizing: border-box;
+    overflow: hidden;
+}
+
+.signature-pad-wrapper:hover {
+    border-color: #007bff;
+    box-shadow: 0 4px 8px rgba(0, 123, 255, 0.15);
+}
+
+.signature-canvas {
+    display: block;
+    border-radius: 6px;
+    cursor: crosshair;
+    transition: all 0.3s ease;
+    background: #ffffff;
+    width: 100%;
+    max-width: 100%;
+    box-sizing: border-box;
+}
+
+.signature-placeholder {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    color: #6c757d;
+    font-size: 14px;
+    font-weight: 500;
+    pointer-events: none;
+    transition: opacity 0.3s ease;
+    z-index: 1;
+}
+
+.signature-placeholder i {
+    font-size: 24px;
+    margin-bottom: 4px;
+    opacity: 0.7;
+}
+
+.signature-controls {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: 8px;
+}
+
+.signature-controls .btn {
+    border-radius: 6px;
+    font-weight: 500;
+    transition: all 0.2s ease;
+}
+
+.signature-controls .btn:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+.signature-controls small {
+    display: flex;
+    align-items: center;
+    font-size: 12px;
+}
+
+.signature-controls small i {
+    margin-right: 4px;
+}
+
+/* Responsive adjustments */
+@media (max-width: 576px) {
+    .signature-controls {
+        flex-direction: column;
+        align-items: flex-start;
+    }
+    
+    .signature-controls small {
+        margin-top: 4px;
+    }
+}
+</style>
 @endif

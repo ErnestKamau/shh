@@ -154,6 +154,8 @@ document.addEventListener('DOMContentLoaded', function() {
         setupDependentElement(elementId, elementType, 'client_unit_select');
       } else if (elementType === 'analysis_type_select') {
         setupDependentElement(elementId, elementType, 'sample_type_select');
+      } else if (elementType === 'analysis_elements_select') {
+        setupDependentElement(elementId, elementType, 'analysis_type_select');
       } else if (elementType === 'store_slot_select') {
         setupDependentElement(elementId, elementType, 'store_select');
       }
@@ -170,7 +172,13 @@ document.addEventListener('DOMContentLoaded', function() {
       dependsOnElement.addEventListener('change', function() {
         const parentId = this.value;
         if (parentId) {
-          loadDynamicOptions(elementId, elementType, parentId);
+          // Handle different parameter types based on element type
+          if (elementType === 'analysis_elements_select') {
+            alert('analysis_elements_select');
+            loadDynamicOptions(elementId, elementType, null, null, null, parentId);
+          } else {
+            loadDynamicOptions(elementId, elementType, parentId);
+          }
         } else {
           // Clear dependent element
           const dependentSelect = document.getElementById(elementId);
@@ -184,7 +192,12 @@ document.addEventListener('DOMContentLoaded', function() {
         globalDependsOnElement.addEventListener('change', function() {
           const parentId = this.value;
           if (parentId) {
-            loadDynamicOptions(elementId, elementType, parentId);
+            // Handle different parameter types based on element type
+            if (elementType === 'analysis_elements_select') {
+              loadDynamicOptions(elementId, elementType, null, null, null, parentId);
+            } else {
+              loadDynamicOptions(elementId, elementType, parentId);
+            }
           } else {
             const dependentSelect = document.getElementById(elementId);
             dependentSelect.innerHTML = '<option value="">Select...</option>';

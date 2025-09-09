@@ -92,6 +92,9 @@
                   <div class="element-type" data-type="textarea">
                     <i class="mdi mdi-text-box-outline"></i> Text Area
                   </div>
+                  <div class="element-type" data-type="plain_text">
+                    <i class="mdi mdi-text"></i> Plain Text
+                  </div>
                   <div class="element-type" data-type="select">
                     <i class="mdi mdi-form-dropdown"></i> Dropdown
                   </div>
@@ -107,6 +110,7 @@
                   <div class="element-type" data-type="signature">
                     <i class="mdi mdi-draw"></i> Signature
                   </div>
+                  <h5 style="font-size:18px; padding: 5px; margin:0px">Custom Fields</h5>
                   <div class="element-type" data-type="client_select">
                     <i class="mdi mdi-account-group"></i> Client Select
                   </div>
@@ -121,6 +125,9 @@
                   </div>
                   <div class="element-type" data-type="analysis_type_select">
                     <i class="mdi mdi-flask"></i> Analysis Type Select
+                  </div>
+                  <div class="element-type" data-type="analysis_elements_select">
+                    <i class="mdi mdi-flask-empty-outline"></i> Analysis Elements Select
                   </div>
                   <div class="element-type" data-type="store_select">
                     <i class="mdi mdi-store"></i> Store Select
@@ -224,7 +231,7 @@
             <div class="form-group">
               <label for="section-type" class="required">Section Type</label>
               <select class="form-control" id="section-type" name="section_type" required>
-                <option value="regular">Regular Section</option>
+                <option value="regular">Static Section</option>
                 <option value="rows_section">Rows Section (Dynamic Table)</option>
               </select>
               <small class="form-text text-muted">
@@ -307,6 +314,7 @@
                     <option value="date">Date</option>
                     <option value="datetime">Date & Time</option>
                     <option value="textarea">Text Area</option>
+                    <option value="plain_text">Plain Text</option>
                     <option value="select">Dropdown</option>
                     <option value="radio">Radio Buttons</option>
                     <option value="checkbox">Checkbox</option>
@@ -317,6 +325,7 @@
                     <option value="client_unit_select">Client Unit Select</option>
                     <option value="client_contact_select">Client Contact Select</option>
                     <option value="analysis_type_select">Analysis Type Select</option>
+                    <option value="analysis_elements_select">Analysis Elements Select</option>
                     <option value="store_select">Store Select</option>
                     <option value="store_slot_select">Store Slot Select</option>
                     <option value="sample_condition_select">Sample Condition Select</option>
@@ -903,7 +912,7 @@ const FormBuilder = {
     handleElementTypeChange() {
         const elementType = $('#element-type').val();
         const needsOptions = ['select', 'radio', 'checkbox'].includes(elementType);
-        const isCustomElement = ['client_select', 'sample_type_select', 'client_unit_select', 'client_contact_select', 'analysis_type_select', 'store_select', 'store_slot_select', 'sample_condition_select', 'standard_select', 'sample_point_select'].includes(elementType);
+        const isCustomElement = ['client_select', 'sample_type_select', 'client_unit_select', 'client_contact_select', 'analysis_type_select', 'analysis_elements_select', 'store_select', 'store_slot_select', 'sample_condition_select', 'standard_select', 'sample_point_select'].includes(elementType);
         
         // Hide options for custom elements as they are loaded dynamically
         if (isCustomElement) {
@@ -1009,7 +1018,7 @@ const FormBuilder = {
         
         // Collect options if needed
         const needsOptions = ['select', 'radio', 'checkbox'].includes(formData.element_type);
-        const isCustomElement = ['client_select', 'sample_type_select', 'client_unit_select', 'client_contact_select', 'analysis_type_select', 'store_select', 'store_slot_select', 'sample_condition_select', 'standard_select', 'sample_point_select'].includes(formData.element_type);
+        const isCustomElement = ['client_select', 'sample_type_select', 'client_unit_select', 'client_contact_select', 'analysis_type_select', 'analysis_elements_select', 'store_select', 'store_slot_select', 'sample_condition_select', 'standard_select', 'sample_point_select'].includes(formData.element_type);
         
         // Only collect options for standard elements, not custom elements
         if (needsOptions && !isCustomElement) {

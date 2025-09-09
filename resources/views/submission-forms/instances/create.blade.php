@@ -89,10 +89,14 @@ if (!function_exists('getElementIcon')) {
     
     <div class="d-flex justify-content-between align-items-center p-4">
       <div>
-        <h3>
+        <h2>
           <i class="mdi mdi-file-document-plus"></i> Create New Form Instance
           <small class="text-muted">{{ $submissionForm->name }}</small>
-        </h3>
+        </h2>
+        <div class="alert alert-info mt-2 mb-0">
+          <i class="mdi mdi-information-outline"></i>
+          <strong>Create Instance:</strong> Fill out the details below to create a new form instance for submission.
+        </div>
       </div>
       <div>
         <a href="{{ route('submission-forms.show', $submissionForm) }}" class="btn btn-outline-secondary">
@@ -102,45 +106,32 @@ if (!function_exists('getElementIcon')) {
     </div>
 
     <div class="bg-light p-4">
-      <div class="row">
-        <div class="col-12">
+      <div class="row justify-content-center">
+        <div class="col-md-10">
           <div class="card">
             <div class="card-header">
-              <h6 class="mb-0">
-                <i class="mdi mdi-file-document-plus"></i> Instance Details
-              </h6>
+              <div class="d-flex justify-content-between align-items-center">
+                <div>
+                  <h4 class="mb-1">{{ $submissionForm->name }}</h4>
+                  @if($submissionForm->description)
+                    <p class="text-muted mb-0">{{ $submissionForm->description }}</p>
+                  @endif
+                </div>
+                <div class="text-right">
+                  <small class="text-muted">Version: <strong>{{ $submissionForm->version }}</strong></small>
+                </div>
+              </div>
             </div>
-
-                <div class="card-body">
-                    <!-- Form Information -->
-                    <div class="row mb-4">
-                        <div class="col-md-8">
-                            <h5>{{ $submissionForm->name }}</h5>
-                            <p class="text-muted">{{ $submissionForm->description }}</p>
-                        </div>
-                        <div class="col-md-4">
-                            <div class="card bg-light">
-                                <div class="card-body">
-                                    <h6 class="card-title">Form Details</h6>
-                                    <ul class="list-unstyled mb-0">
-                                        <li><strong>Version:</strong> {{ $submissionForm->version }}</li>
-                                        <li><strong>Sections:</strong> {{ $submissionForm->getSectionCount() }}</li>
-                                        <li><strong>Elements:</strong> {{ $submissionForm->getElementCount() }}</li>
-                                        <li><strong>Naming Convention:</strong> {{ $submissionForm->naming_convention_format }}</li>
-                                    </ul>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
+            <div class="card-body">
 
                     <!-- Instance Creation Form -->
-                    <form method="POST" action="{{ route('submission-forms.instances.store', $submissionForm) }}">
+                    <form id="create-instance-form" method="POST" action="{{ route('submission-forms.instances.store', $submissionForm) }}" novalidate>
                         @csrf
                         
                         <div class="row">
                             <div class="col-md-6">
                                 <div class="form-group">
-                                    <label for="title" class="form-label">Instance Title <span class="text-danger">*</span></label>
+                                    <label for="title" class="form-label required">Instance Title</label>
                                     <input type="text" 
                                            class="form-control @error('title') is-invalid @enderror" 
                                            id="title" 
@@ -192,108 +183,80 @@ if (!function_exists('getElementIcon')) {
                             </div>
                         </div>
 
-                        <!-- Form Preview -->
+                        <!-- Form Information -->
                         <div class="mt-4">
-                            <h6>Form Structure Preview</h6>
-                            <div class="card">
-                                <div class="card-body">
-                                    @if($submissionForm->sections->count() > 0)
-                                        <div class="accordion" id="formPreviewAccordion">
-                                            @foreach($submissionForm->sections as $index => $section)
-                                                <div class="card">
-                                                    <div class="card-header" id="heading{{ $index }}">
-                                                        <h6 class="mb-0">
-                                                            <button class="btn btn-link" 
-                                                                    type="button" 
-                                                                    data-toggle="collapse" 
-                                                                    data-target="#collapse{{ $index }}" 
-                                                                    aria-expanded="{{ $index === 0 ? 'true' : 'false' }}" 
-                                                                    aria-controls="collapse{{ $index }}">
-                                                                <i class="mdi mdi-{{ $section->isRowsSection() ? 'table' : 'view-list' }}"></i>
-                                                                {{ $section->title }}
-                                                                @if($section->isRowsSection())
-                                                                    <span class="badge badge-info ml-2">Rows Section</span>
-                                                                @endif
-                                                            </button>
-                                                        </h6>
-                                                    </div>
-                                                    <div id="collapse{{ $index }}" 
-                                                         class="collapse {{ $index === 0 ? 'show' : '' }}" 
-                                                         aria-labelledby="heading{{ $index }}" 
-                                                         data-parent="#formPreviewAccordion">
-                                                        <div class="card-body">
-                                                            @if($section->description)
-                                                                <p class="text-muted">{{ $section->description }}</p>
-                                                            @endif
-                                                            
-                                                            @if($section->elementHolders->count() > 0)
-                                                                <div class="row">
-                                                                    @foreach($section->elementHolders as $holder)
-                                                                        <div class="col-md-6 mb-3">
-                                                                            <div class="card border-light">
-                                                                                <div class="card-body">
-                                                                                    <h6 class="card-title">
-                                                                                        {{ $holder->holder_type === 'field' ? 'Field Holder' : 'Text Holder' }}
-                                                                                        @if($holder->max_elements > 1)
-                                                                                            <span class="badge badge-secondary ml-2">{{ $holder->max_elements }} elements max</span>
-                                                                                        @endif
-                                                                                    </h6>
-                                                                                    
-                                                                                    @if($holder->elements->count() > 0)
-                                                                                        <ul class="list-unstyled mb-0">
-                                                                                            @foreach($holder->elements as $element)
-                                                                                                <li>
-                                                                                                    <i class="mdi mdi-{{ getElementIcon($element->element_type) }} text-muted"></i>
-                                                                                                    {{ $element->label }}
-                                                                                                    @if($element->is_required)
-                                                                                                        <span class="text-danger">*</span>
-                                                                                                    @endif
-                                                                                                    @if($element->isMapped())
-                                                                                                        <span class="badge badge-outline-info badge-sm ml-1" 
-                                                                                                              title="Mapped to {{ ucfirst(str_replace('_', ' ', $element->mapping_table)) }}.{{ ucfirst(str_replace('_', ' ', $element->mapping_field)) }}">
-                                                                                                            <i class="mdi mdi-database"></i> mapped
-                                                                                                        </span>
-                                                                                                    @endif
-                                                                                                </li>
-                                                                                            @endforeach
-                                                                                        </ul>
-                                                                                    @else
-                                                                                        <p class="text-muted mb-0">No elements configured yet.</p>
-                                                                                    @endif
-                                                                                </div>
-                                                                            </div>
-                                                                        </div>
-                                                                    @endforeach
-                                                                </div>
-                                                            @else
-                                                                <p class="text-muted">No element holders configured yet.</p>
-                                                            @endif
-                                                        </div>
-                                                    </div>
-                                                </div>
-                                            @endforeach
+                            <div class="row">
+                                <div class="col-md-6">
+                                    <div class="card bg-light">
+                                        <div class="card-body">
+                                            <h6 class="card-title">Form Details</h6>
+                                            <ul class="list-unstyled mb-0">
+                                                <li><strong>Version:</strong> {{ $submissionForm->version }}</li>
+                                                <li><strong>Sections:</strong> {{ $submissionForm->getSectionCount() }}</li>
+                                                <li><strong>Elements:</strong> {{ $submissionForm->getElementCount() }}</li>
+                                                <li><strong>Naming Convention:</strong> {{ $submissionForm->naming_convention_format }}</li>
+                                            </ul>
                                         </div>
-                                    @else
-                                        <div class="alert alert-warning">
-                                            <i class="mdi mdi-alert"></i>
-                                            This form doesn't have any sections configured yet. Please contact the form administrator.
+                                    </div>
+                                </div>
+                                <div class="col-md-6">
+                                    <div class="card bg-light">
+                                        <div class="card-body">
+                                            <h6 class="card-title">What happens next?</h6>
+                                            <ul class="list-unstyled mb-0">
+                                                <li><i class="mdi mdi-check text-success"></i> Instance will be created with draft status</li>
+                                                <li><i class="mdi mdi-check text-success"></i> You'll be redirected to fill out the form</li>
+                                                <li><i class="mdi mdi-check text-success"></i> You can save as draft or submit when ready</li>
+                                                <li><i class="mdi mdi-check text-success"></i> Form will be processed according to workflow</li>
+                                            </ul>
                                         </div>
-                                    @endif
+                                    </div>
                                 </div>
                             </div>
                         </div>
 
                         <!-- Action Buttons -->
-                        <div class="mt-4 d-flex justify-content-between">
-                            <a href="{{ route('submission-forms.show', $submissionForm) }}" class="btn btn-outline-secondary">
-                                <i class="mdi mdi-arrow-left"></i> Cancel
-                            </a>
-                            <button type="submit" class="btn btn-primary">
-                                <i class="mdi mdi-file-document-plus"></i> Create Instance & Start Filling
-                            </button>
+                        <div class="form-actions mt-4 pt-3 border-top">
+                            <div class="row">
+                                <div class="col-md-6">
+                                    <a href="{{ route('submission-forms.show', $submissionForm) }}" class="btn btn-outline-secondary">
+                                        <i class="mdi mdi-arrow-left"></i> Cancel
+                                    </a>
+                                </div>
+                                <div class="col-md-6 text-right">
+                                    <button type="submit" class="btn btn-primary" id="create-instance-btn">
+                                        <i class="mdi mdi-file-document-plus"></i> Create Instance & Start Filling
+                                    </button>
+                                </div>
+                            </div>
                         </div>
                     </form>
                 </div>
+            </div>
+            
+            <!-- Form Validation Summary -->
+            <div class="card mt-3" id="validation-summary" style="display: none;">
+              <div class="card-header bg-danger text-white">
+                <h6 class="mb-0">
+                  <i class="mdi mdi-alert"></i> Please correct the following errors:
+                </h6>
+              </div>
+              <div class="card-body">
+                <ul id="validation-errors" class="mb-0"></ul>
+              </div>
+            </div>
+            
+            <!-- Form Data Preview -->
+            <div class="card mt-3">
+              <div class="card-header">
+                <h6 class="mb-0">
+                  <i class="mdi mdi-code-json"></i> Form Data Preview
+                  <small class="text-muted">(for testing purposes)</small>
+                </h6>
+              </div>
+              <div class="card-body">
+                <pre id="form-data-preview" class="bg-light p-3 rounded"><code>{}</code></pre>
+              </div>
             </div>
           </div>
         </div>
@@ -302,15 +265,173 @@ if (!function_exists('getElementIcon')) {
   </main>
 @endsection
 
-@section('script')
+@section('script2')
 <script>
 $(document).ready(function() {
+    console.log('Create instance page loaded, initializing...');
+    
     // Set default due date to 7 days from now
     if (!$('#due_date').val()) {
         const today = new Date();
         const nextWeek = new Date(today.getTime() + 7 * 24 * 60 * 60 * 1000);
         $('#due_date').val(nextWeek.toISOString().split('T')[0]);
     }
+    
+    // Form creation functionality
+    const FormCreate = {
+        init() {
+            this.bindEvents();
+            this.updateFormDataPreview();
+        },
+        
+        bindEvents() {
+            // Update form data preview on input change
+            $('#create-instance-form').on('input change', 'input, select, textarea', () => {
+                this.updateFormDataPreview();
+            });
+            
+            // Form submission
+            $('#create-instance-form').on('submit', (e) => {
+                e.preventDefault();
+                this.validateAndSubmit();
+            });
+        },
+        
+        updateFormDataPreview() {
+            const formData = this.getFormData();
+            $('#form-data-preview code').text(JSON.stringify(formData, null, 2));
+        },
+        
+        getFormData() {
+            const data = {};
+            
+            $('#create-instance-form').find('input, select, textarea').each(function() {
+                const $element = $(this);
+                const name = $element.attr('name');
+                const type = $element.attr('type');
+                
+                if (!name || name === '_token') return;
+                
+                let value = null;
+                
+                if (type === 'checkbox') {
+                    value = $element.is(':checked');
+                } else if (type === 'radio') {
+                    if ($element.is(':checked')) {
+                        value = $element.val();
+                    } else {
+                        return; // Skip unchecked radio buttons
+                    }
+                } else {
+                    value = $element.val();
+                }
+                
+                data[name] = value;
+            });
+            
+            return data;
+        },
+        
+        validateForm() {
+            const errors = [];
+            
+            $('#create-instance-form').find('input[required], select[required], textarea[required]').each(function() {
+                const $element = $(this);
+                const label = $element.closest('.form-group').find('label').text().replace(' *', '');
+                const value = $element.val();
+                
+                if (!value || value.trim() === '') {
+                    errors.push(`${label} is required`);
+                    $element.addClass('is-invalid');
+                } else {
+                    $element.removeClass('is-invalid');
+                }
+            });
+            
+            return errors;
+        },
+        
+        validateAndSubmit() {
+            const errors = this.validateForm();
+            
+            if (errors.length > 0) {
+                this.showValidationErrors(errors);
+                return;
+            }
+            
+            this.hideValidationErrors();
+            this.submitForm();
+        },
+        
+        showValidationErrors(errors) {
+            const $errorsList = $('#validation-errors');
+            $errorsList.empty();
+            
+            errors.forEach(error => {
+                $errorsList.append(`<li>${error}</li>`);
+            });
+            
+            $('#validation-summary').show();
+            $('html, body').animate({
+                scrollTop: $('#validation-summary').offset().top - 100
+            }, 500);
+        },
+        
+        hideValidationErrors() {
+            $('#validation-summary').hide();
+            $('#create-instance-form').find('.is-invalid').removeClass('is-invalid');
+        },
+        
+        submitForm() {
+            // Disable submit button
+            $('#create-instance-btn').prop('disabled', true);
+            
+            // Show loading state
+            $('#create-instance-btn').html('<i class="mdi mdi-loading mdi-spin"></i> Creating Instance...');
+            
+            // Submit the form
+            $('#create-instance-form')[0].submit();
+        }
+    };
+    
+    // Initialize form creation
+    FormCreate.init();
 });
 </script>
+
+<!-- Include SweetAlert2 for better modals -->
+<script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+
+<style>
+/* Form group spacing */
+.form-group {
+    margin-bottom: 1.5rem;
+}
+
+.form-group:last-child {
+    margin-bottom: 0;
+}
+
+.form-group label.required::after {
+    content: " *";
+    color: red;
+}
+
+.is-invalid {
+    border-color: #dc3545;
+}
+
+#form-data-preview {
+    font-size: 0.875em;
+    max-height: 300px;
+    overflow-y: auto;
+}
+
+.form-actions {
+    background-color: #f8f9fa;
+    margin: 0 -1.25rem -1.25rem -1.25rem;
+    padding: 1.25rem;
+    border-radius: 0 0 0.375rem 0.375rem;
+}
+</style>
 @endsection

@@ -221,6 +221,11 @@ $items = array(
 				<i class="mdi mdi-plus mr-2"></i> Add Submission Form
 			</button>
 		@endif
+		
+		<!-- Saved Form Instances Link - Available for all statuses -->
+		<a class="btn btn-sm btn-outline-secondary float-right mr-2" href="{{ route('sample-workflow.saved-forms') }}">
+			<i class="mdi mdi-file-document-multiple mr-2"></i> Submissions
+		</a>
 		<span class="btn btn-sm btn-danger float-right mr-2" style="border-radius:25px" data-toggle="modal"
 			data-target="#get-batch-tat"><i class="mdi mdi-clock-outline"></i> TAT Today Batches <span
 				class="badge badge-light badge-pill pt-1" id="tat-counter">0</span> </span>

@@ -211,6 +211,7 @@ function initializeAllCustomElements() {
     
     // Set up change handlers
     setupClientChangeHandlers();
+    setupClientUnitChangeHandlers();
     setupSampleTypeChangeHandlers();
     setupStoreChangeHandlers();
 }
@@ -227,9 +228,9 @@ function initializeCustomElement(elementData) {
         loadDynamicOptions(elementId, elementType);
     }
     
-    // For dependent elements, ensure they start empty
-    if (elementType === 'client_unit_select' || elementType === 'client_contact_select' || elementType === 'sample_point_select') {
-        console.log('Setting up dependent element:', elementType);
+    // For client-dependent elements, ensure they start empty
+    if (elementType === 'client_unit_select' || elementType === 'client_contact_select') {
+        console.log('Setting up client dependent element:', elementType);
         
         // Ensure element starts empty
         const placeholder = elementData.placeholder;
@@ -242,6 +243,24 @@ function initializeCustomElement(elementData) {
         
         if (currentClientId) {
             loadDynamicOptions(elementId, elementType, currentClientId);
+        }
+    }
+    
+    // For client unit dependent elements
+    if (elementType === 'sample_point_select') {
+        console.log('Setting up client unit dependent element:', elementType);
+        
+        // Ensure element starts empty
+        const placeholder = elementData.placeholder;
+        $('#' + elementId).html('<option value="">' + placeholder + '</option>');
+        
+        // Load options if client unit is already selected
+        const clientUnitSelect = $('select[data-element-type="client_unit_select"]');
+        const currentClientUnitId = clientUnitSelect.val();
+        console.log('Current client unit ID:', currentClientUnitId);
+        
+        if (currentClientUnitId) {
+            loadDynamicOptions(elementId, elementType, null, null, null, currentClientUnitId);
         }
     }
     
@@ -318,6 +337,48 @@ function setupClientChangeHandlers() {
                 
                 // Load options
                 loadDynamicOptions(dependentElementId, dependentElementType, clientId);
+            });
+        } else {
+            // Clear all dependent elements
+            dependentElements.each(function() {
+                const dependentSelect = $(this);
+                const placeholder = 'Select...';
+                dependentSelect.html('<option value="">' + placeholder + '</option>').prop('disabled', false);
+                console.log('Cleared dependent element:', dependentSelect.attr('id'));
+            });
+        }
+    });
+}
+
+function setupClientUnitChangeHandlers() {
+    console.log('Setting up client unit change handlers');
+    
+    // Remove any existing handlers
+    $('select[data-element-type="client_unit_select"]').off('change.custom-elements');
+    
+    // Set up client unit change handler
+    $('select[data-element-type="client_unit_select"]').on('change.custom-elements', function() {
+        const clientUnitId = $(this).val();
+        console.log('Client unit changed to:', clientUnitId);
+        
+        // Find all dependent elements
+        const dependentElements = $('select[data-element-type="sample_point_select"]');
+        console.log('Found', dependentElements.length, 'client unit dependent elements');
+        
+        if (clientUnitId) {
+            // Load options for each dependent element
+            dependentElements.each(function() {
+                const dependentSelect = $(this);
+                const dependentElementId = dependentSelect.attr('id');
+                const dependentElementType = dependentSelect.data('element-type');
+                
+                console.log('Updating dependent element:', dependentElementType, dependentElementId);
+                
+                // Show loading state
+                dependentSelect.html('<option value="">Loading...</option>').prop('disabled', true);
+                
+                // Load options - sample_point_select depends on client_unit_select
+                loadDynamicOptions(dependentElementId, dependentElementType, null, null, null, clientUnitId);
             });
         } else {
             // Clear all dependent elements
@@ -415,11 +476,11 @@ function setupStoreChangeHandlers() {
     });
 }
 
-function loadDynamicOptions(elementId, elementType, clientId = null, sampleTypeId = null, storeId = null) {
+function loadDynamicOptions(elementId, elementType, clientId = null, sampleTypeId = null, storeId = null, clientUnitId = null) {
     const select = $('#' + elementId);
     const originalHtml = select.html();
     
-    console.log('Loading options for element:', elementId, 'type:', elementType, 'clientId:', clientId, 'sampleTypeId:', sampleTypeId, 'storeId:', storeId);
+    console.log('Loading options for element:', elementId, 'type:', elementType, 'clientId:', clientId, 'sampleTypeId:', sampleTypeId, 'storeId:', storeId, 'clientUnitId:', clientUnitId);
     
     // Show loading state
     select.html('<option value="">Loading...</option>').prop('disabled', true);
@@ -430,7 +491,8 @@ function loadDynamicOptions(elementId, elementType, clientId = null, sampleTypeI
         element_type: elementType,
         client_id: clientId,
         sample_type_id: sampleTypeId,
-        store_id: storeId
+        store_id: storeId,
+        client_unit_id: clientUnitId
     };
     
     console.log('Making AJAX request to:', ajaxUrl, 'with data:', ajaxData);
@@ -743,17 +805,30 @@ $(document).ready(function() {
 .element-holder {
     background-color: #f8f9fa;
     border-radius: 8px;
-    padding: 15px;
+    padding: 20px;
+    margin-bottom: 20px;
+    border: 1px solid #e9ecef;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+}
+
+/* Form group spacing */
+.form-group {
+    margin-bottom: 1.5rem;
+}
+
+.form-group:last-child {
+    margin-bottom: 0;
 }
 
 /* Ensure all form controls have minimum width */
 .form-control {
     min-width: 145px !important;
+    margin-top: 0.5rem;
 }
 
 /* Custom element styling */
 .custom-element {
-    margin-bottom: 1rem;
+    margin-bottom: 1.5rem;
     min-width: 145px !important;
 }
 

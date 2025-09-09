@@ -34,132 +34,154 @@
     
     <div class="d-flex justify-content-between align-items-center p-4">
       <div>
-        <h3>
+        <h2>
           <i class="mdi mdi-file-document"></i> {{ $submissionForm->name }}
           <small class="text-muted">{{ $instance->form_number }}</small>
-        </h3>
+        </h2>
         @if($instance->title)
           <p class="text-muted mb-0">{{ $instance->title }}</p>
         @endif
+        <div class="alert alert-info mt-2 mb-0">
+          <i class="mdi mdi-information-outline"></i>
+          <strong>Form Instance:</strong> View submitted form data and status information.
+          <span class="badge badge-{{ $instance->getStatusBadgeColor() }} ml-2">
+            {{ ucfirst(str_replace('_', ' ', $instance->status)) }}
+          </span>
+        </div>
       </div>
       <div class="d-flex gap-2">
-        <span class="badge badge-{{ $instance->getStatusBadgeColor() }}">
-          {{ ucfirst(str_replace('_', ' ', $instance->status)) }}
-        </span>
         @if($instance->isDraft())
           <a href="{{ route('submission-forms.instances.fill', [$submissionForm, $instance]) }}" 
-             class="btn btn-sm btn-primary">
+             class="btn btn-primary">
             <i class="mdi mdi-pencil"></i> Continue Editing
           </a>
         @endif
-        <a href="{{ route('submission-forms.instances.index') }}" class="btn btn-sm btn-outline-secondary">
+        <a href="{{ route('submission-forms.instances.index') }}" class="btn btn-outline-secondary">
           <i class="mdi mdi-arrow-left"></i> Back to My Submissions
         </a>
       </div>
     </div>
 
     <div class="bg-light p-4">
-      <div class="row">
-        <div class="col-12">
+      <div class="row justify-content-center">
+        <div class="col-md-10">
           <div class="card">
             <div class="card-header">
-              <h6 class="mb-0">
-                <i class="mdi mdi-file-document"></i> Form Instance Details
-              </h6>
+              <div class="d-flex justify-content-between align-items-center">
+                <div>
+                  <h4 class="mb-1">{{ $submissionForm->name }}</h4>
+                  @if($submissionForm->description)
+                    <p class="text-muted mb-0">{{ $submissionForm->description }}</p>
+                  @endif
+                </div>
+                <div class="text-right">
+                  <small class="text-muted">Form Number: <strong>{{ $instance->form_number }}</strong></small>
+                </div>
+              </div>
             </div>
-
-                <div class="card-body">
-                    <!-- Instance Information -->
-                    <div class="row mb-4">
-                        <div class="col-md-8">
-                            <div class="card bg-light">
-                                <div class="card-body">
-                                    <h6 class="card-title">Submission Details</h6>
-                                    <div class="row">
-                                        <div class="col-md-6">
-                                            <p><strong>Form Number:</strong> {{ $instance->form_number }}</p>
-                                            <p><strong>Status:</strong> 
-                                                <span class="badge badge-{{ $instance->getStatusBadgeColor() }}">
-                                                    {{ ucfirst(str_replace('_', ' ', $instance->status)) }}
-                                                </span>
-                                            </p>
-                                            <p><strong>Priority:</strong> 
-                                                <span class="badge badge-{{ $instance->getPriorityBadgeColor() }}">
-                                                    {{ ucfirst($instance->priority) }}
-                                                </span>
-                                            </p>
-                                        </div>
-                                        <div class="col-md-6">
-                                            <p><strong>Submitted By:</strong> {{ $instance->submittedBy->name }}</p>
-                                            <p><strong>Created:</strong> {{ $instance->created_at->format('M d, Y H:i') }}</p>
-                                            @if($instance->submitted_at)
-                                                <p><strong>Submitted:</strong> {{ $instance->submitted_at->format('M d, Y H:i') }}</p>
-                                            @endif
-                                            @if($instance->due_date)
-                                                <p><strong>Due Date:</strong> 
-                                                    {{ $instance->due_date->format('M d, Y') }}
-                                                    @if($instance->isOverdue())
-                                                        <span class="text-danger ml-1">(Overdue)</span>
-                                                    @endif
-                                                </p>
-                                            @endif
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
+            <div class="card-body">
+              <!-- Instance Information -->
+              <div class="row mb-4">
+                <div class="col-md-8">
+                  <div class="card bg-light">
+                    <div class="card-body">
+                      <h6 class="card-title">Submission Details</h6>
+                      <div class="row">
+                        <div class="col-md-6">
+                          <p><strong>Form Number:</strong> {{ $instance->form_number }}</p>
+                          <p><strong>Status:</strong> 
+                            <span class="badge badge-{{ $instance->getStatusBadgeColor() }}">
+                              {{ ucfirst(str_replace('_', ' ', $instance->status)) }}
+                            </span>
+                          </p>
+                          <p><strong>Priority:</strong> 
+                            <span class="badge badge-{{ $instance->getPriorityBadgeColor() }}">
+                              {{ ucfirst($instance->priority) }}
+                            </span>
+                          </p>
                         </div>
-                        <div class="col-md-4">
-                            <div class="card">
-                                <div class="card-body">
-                                    <h6 class="card-title">Form Information</h6>
-                                    <p><strong>Form Name:</strong> {{ $submissionForm->name }}</p>
-                                    <p><strong>Version:</strong> {{ $submissionForm->version }}</p>
-                                    <p><strong>Description:</strong> {{ $submissionForm->description }}</p>
-                                </div>
-                            </div>
+                        <div class="col-md-6">
+                          <p><strong>Submitted By:</strong> {{ $instance->submittedBy->name }}</p>
+                          <p><strong>Created:</strong> {{ $instance->created_at->format('M d, Y H:i') }}</p>
+                          @if($instance->submitted_at)
+                            <p><strong>Submitted:</strong> {{ $instance->submitted_at->format('M d, Y H:i') }}</p>
+                          @endif
+                          @if($instance->due_date)
+                            <p><strong>Due Date:</strong> 
+                              {{ $instance->due_date->format('M d, Y') }}
+                              @if($instance->isOverdue())
+                                <span class="text-danger ml-1">(Overdue)</span>
+                              @endif
+                            </p>
+                          @endif
                         </div>
+                      </div>
                     </div>
+                  </div>
+                </div>
+                <div class="col-md-4">
+                  <div class="card">
+                    <div class="card-body">
+                      <h6 class="card-title">Form Information</h6>
+                      <p><strong>Form Name:</strong> {{ $submissionForm->name }}</p>
+                      <p><strong>Version:</strong> {{ $submissionForm->version }}</p>
+                      <p><strong>Description:</strong> {{ $submissionForm->description }}</p>
+                    </div>
+                  </div>
+                </div>
+              </div>
 
-                    <!-- Form Data Display -->
-                    @if($submissionForm->sections->count() > 0)
-                        @foreach($submissionForm->sections as $sectionIndex => $section)
-                            <div class="form-section mb-4">
-                                <div class="card">
-                                    <div class="card-header">
-                                        <h5 class="mb-0">
-                                            <i class="mdi mdi-{{ $section->isRowsSection() ? 'table' : 'view-list' }}"></i>
-                                            {{ $section->title }}
-                                            @if($section->isRowsSection())
-                                                <span class="badge badge-info ml-2">Rows Section</span>
-                                            @endif
-                                        </h5>
-                                        @if($section->description)
-                                            <p class="text-muted mb-0 mt-2">{{ $section->description }}</p>
-                                        @endif
-                                    </div>
-                                    
-                                    <div class="card-body">
-                                        @if($section->isRowsSection())
-                                            @include('submission-forms.partials.rows-section-display', [
-                                                'section' => $section,
-                                                'existingValues' => $existingValues
-                                            ])
-                                        @else
-                                            @include('submission-forms.partials.regular-section-display', [
-                                                'section' => $section,
-                                                'existingValues' => $existingValues
-                                            ])
-                                        @endif
-                                    </div>
+              <!-- Form Data Display -->
+              @if($submissionForm->sections->count() > 0)
+                @foreach($submissionForm->sections as $section)
+                  @if($section->isRowsSection())
+                    @include('submission-forms.partials.rows-section', ['section' => $section])
+                  @else
+                    <div class="form-section mb-4">
+                      <div class="section-header mb-3">
+                        <h5 class="text-primary border-bottom pb-2">
+                          <i class="mdi mdi-folder-outline"></i> {{ $section->title }}
+                        </h5>
+                        @if($section->description)
+                          <p class="text-muted small mb-0">{{ $section->description }}</p>
+                        @endif
+                      </div>
+                      
+                      @foreach($section->elementHolders as $holder)
+                        <div class="element-holder mb-3">
+                          @if($holder->holder_type === 'field')
+                            <div class="row">
+                              @foreach($holder->elements as $element)
+                                <div class="col-md-{{ getColumnWidth($holder->elements->count()) }} mb-3">
+                                  @include('submission-forms.partials.form-element', ['element' => $element])
                                 </div>
+                              @endforeach
                             </div>
-                        @endforeach
-                    @else
-                        <div class="alert alert-warning">
-                            <i class="mdi mdi-alert"></i>
-                            This form doesn't have any sections configured yet.
+                          @else
+                            {{-- Text holder - for static content --}}
+                            @foreach($holder->elements as $element)
+                              <div class="text-element mb-3">
+                                <div class="alert alert-light">
+                                  <strong>{{ $element->label }}</strong>
+                                  @if($element->help_text)
+                                    <p class="mb-0 mt-2">{{ $element->help_text }}</p>
+                                  @endif
+                                </div>
+                              </div>
+                            @endforeach
+                          @endif
                         </div>
-                    @endif
+                      @endforeach
+                    </div>
+                  @endif
+                @endforeach
+              @else
+                <div class="text-center py-5">
+                  <i class="mdi mdi-file-outline" style="font-size: 4rem; color: #ccc;"></i>
+                  <h5 class="text-muted mt-3">No Form Content</h5>
+                  <p class="text-muted">This form doesn't have any sections or elements yet.</p>
+                </div>
+              @endif
 
                     <!-- Review Information (if applicable) -->
                     @if($instance->reviewed_at)
@@ -249,8 +271,89 @@
   </main>
 @endsection
 
-@section('script')
+@section('script2')
 <style>
+.form-section {
+    border-left: 3px solid #007bff;
+    padding-left: 20px;
+}
+
+.section-header h5 {
+    color: #007bff;
+}
+
+.element-holder {
+    background-color: #f8f9fa;
+    border-radius: 8px;
+    padding: 20px;
+    margin-bottom: 20px;
+    border: 1px solid #e9ecef;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+}
+
+/* Form group spacing */
+.form-group {
+    margin-bottom: 1.5rem;
+}
+
+.form-group:last-child {
+    margin-bottom: 0;
+}
+
+/* Ensure all form controls have minimum width */
+.form-control {
+    min-width: 145px !important;
+}
+
+/* Custom element styling */
+.custom-element {
+    margin-bottom: 1rem;
+    min-width: 145px !important;
+}
+
+.custom-element .form-control {
+    border-radius: 0.375rem;
+    min-width: 145px !important;
+}
+
+/* Select2 styling - ensure minimum width */
+.select2-container {
+    width: 100% !important;
+    min-width: 145px !important;
+}
+
+.select2-container--default .select2-selection--single {
+    height: 38px;
+    border: 1px solid #ced4da;
+    border-radius: 0.375rem;
+    min-width: 145px !important;
+}
+
+.select2-container--default .select2-selection--single .select2-selection__rendered {
+    line-height: 36px;
+    padding-left: 12px;
+    min-width: 145px !important;
+}
+
+/* Ensure custom element selects have minimum width */
+select.custom-element {
+    min-width: 145px !important;
+}
+
+/* Select2 dropdown minimum width */
+.select2-dropdown {
+    min-width: 145px !important;
+}
+
+.form-group label.required::after {
+    content: " *";
+    color: red;
+}
+
+.text-element .alert {
+    border-left: 4px solid #17a2b8;
+}
+
 .timeline {
     position: relative;
     padding-left: 30px;
@@ -300,14 +403,6 @@
     color: #6c757d;
 }
 
-.form-section {
-    scroll-margin-top: 100px;
-}
-
-.required-field {
-    color: #dc3545;
-}
-
 /* Display specific styles */
 .field-display {
     margin-bottom: 1rem;
@@ -353,3 +448,20 @@
 }
 </style>
 @endsection
+
+@php
+function getColumnWidth($elementCount) {
+    switch($elementCount) {
+        case 1:
+            return 12;
+        case 2:
+            return 6;
+        case 3:
+            return 4;
+        case 4:
+            return 3;
+        default:
+            return 12 / min($elementCount, 6);
+    }
+}
+@endphp
