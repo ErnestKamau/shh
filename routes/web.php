@@ -409,6 +409,11 @@ Route::prefix('submission-forms')->name('submission-forms.')->middleware('auth')
         Route::get('/{submissionForm}/{instance}/edit', 'FormInstanceController@edit')->name('edit');
         Route::delete('/{submissionForm}/{instance}', 'FormInstanceController@destroy')->name('destroy');
         Route::get('/dynamic-options', 'FormInstanceController@getDynamicOptions')->name('dynamic-options');
+        
+        // Sample Creation Routes
+        Route::post('/{instance}/create-samples', 'SampleCreationController@createFromForm')->name('create-samples');
+        Route::get('/{instance}/sample-status', 'SampleCreationController@getStatus')->name('sample-status');
+        Route::post('/bulk-create-samples', 'SampleCreationController@bulkCreate')->name('bulk-create-samples');
     });
 });
 

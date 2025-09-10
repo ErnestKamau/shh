@@ -29,7 +29,7 @@ class BatchLabSectionApprover extends Model
     public function getApproverShortNameAttribute(){
         $user = User::find($this->user_id);
         $fname = isset($user->first_name) &&  $user->first_name ? $user->first_name[0]. '. ' : '';
-        $lname =  isset($user->last_name) &&  $user->last_name ? $user->last_name : isset($user->middle_name) &&  $user->middle_name ? $user->middle_name : '';
+        $lname =  isset($user->last_name) &&  $user->last_name ? $user->last_name : (isset($user->middle_name) &&  $user->middle_name ? $user->middle_name : '');
         return $fname . $lname;
     }
     public function getApproverTypeAttribute(){

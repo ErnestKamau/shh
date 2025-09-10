@@ -183,6 +183,9 @@
                 </div>
               @endif
 
+              <!-- Sample Creation Actions -->
+              @include('submission-forms.partials.sample-creation-actions', ['instance' => $instance])
+
                     <!-- Review Information (if applicable) -->
                     @if($instance->reviewed_at)
                         <div class="mt-4">

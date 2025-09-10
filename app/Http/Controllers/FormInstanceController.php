@@ -615,10 +615,12 @@ class FormInstanceController extends Controller
         $clientId = $request->get('client_id');
         $sampleTypeId = $request->get('sample_type_id');
         $storeId = $request->get('store_id');
+        $clientUnitId = $request->get('client_unit_id');
 
         Log::info('Dynamic options request', [
             'element_type' => $elementType,
             'client_id' => $clientId,
+            'client_unit_id' => $clientUnitId,
             'sample_type_id' => $sampleTypeId,
             'store_id' => $storeId
         ]);
@@ -744,8 +746,8 @@ class FormInstanceController extends Controller
                     break;
 
                 case 'sample_point_select':
-                    if ($clientId) {
-                        $options = \App\Models\CRM\SamplePoint::where('crm_company_unit_id', $clientId)
+                    if ($clientUnitId) {
+                        $options = \App\Models\CRM\SamplePoint::where('crm_company_unit_id', $clientUnitId)
                             ->select('id', 'name as text')
                             ->get()
                             ->toArray();

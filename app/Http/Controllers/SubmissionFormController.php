@@ -9,6 +9,7 @@ use Illuminate\Http\RedirectResponse;
 use Illuminate\View\View;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Gate;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Validation\Rule;
 
 class SubmissionFormController extends Controller
@@ -315,7 +316,7 @@ class SubmissionFormController extends Controller
     {
         // Ensure user is authenticated
         if (!auth()->check()) {
-            \Log::warning('Unauthenticated request to dynamic options');
+            Log::warning('Unauthenticated request to dynamic options');
             return response()->json(['error' => 'Unauthorized'], 401);
         }
 
@@ -323,17 +324,19 @@ class SubmissionFormController extends Controller
         $clientId = $request->get('client_id');
         $sampleTypeId = $request->get('sample_type_id');
         $storeId = $request->get('store_id');
+        $clientUnitId = $request->get('client_unit_id');
 
-        \Log::info('Dynamic options request', [
+        Log::info('Dynamic options request', [
             'element_type' => $elementType,
             'client_id' => $clientId,
+            'client_unit_id' => $clientUnitId,
             'user_id' => auth()->id()
         ]);
 
         // Validate element type
         $validTypes = ['client_select', 'sample_type_select', 'client_unit_select', 'client_contact_select', 'analysis_type_select', 'store_select', 'store_slot_select', 'sample_condition_select', 'standard_select', 'sample_point_select'];
         if (!in_array($elementType, $validTypes)) {
-            \Log::warning('Invalid element type requested', ['element_type' => $elementType]);
+            Log::warning('Invalid element type requested', ['element_type' => $elementType]);
             return response()->json(['error' => 'Invalid element type'], 400);
         }
 
@@ -488,9 +491,9 @@ class SubmissionFormController extends Controller
                 break;
 
             case 'sample_point_select':
-                if ($clientId) {
+                if ($clientUnitId) {
                     $samplePoints = \App\Models\CRM\SamplePoint::where('active', 1)
-                        ->where('crm_company_unit_id', $clientId)
+                        ->where('crm_company_unit_id', $clientUnitId)
                         ->orderBy('name')
                         ->get();
 
@@ -507,7 +510,7 @@ class SubmissionFormController extends Controller
         return response()->json(['options' => $options]);
         
         } catch (\Exception $e) {
-            \Log::error('Error loading dynamic options: ' . $e->getMessage(), [
+            Log::error('Error loading dynamic options: ' . $e->getMessage(), [
                 'element_type' => $elementType,
                 'client_id' => $clientId,
                 'user_id' => auth()->id()

@@ -1,0 +1,165 @@
+@php
+    $canCreateSamples = $instance->isSubmitted() && $instance->submissionForm->sections()->whereHas('elements', function($query) {
+        $query->where('is_mapped', true);
+    })->exists();
+    $sampleStatus = app(\App\Services\SampleCreationService::class)->getSampleCreationStatus($instance);
+@endphp
+
+@if($canCreateSamples)
+    <div class="card mt-3">
+        <div class="card-header bg-primary text-white">
+            <h6 class="mb-0">
+                <i class="mdi mdi-flask"></i> Sample Creation
+            </h6>
+        </div>
+        <div class="card-body">
+            @if($sampleStatus['status'] === 'created')
+                <div class="alert alert-success">
+                    <i class="mdi mdi-check-circle"></i>
+                    <strong>Samples Created Successfully!</strong>
+                    <p class="mb-0 mt-2">
+                        This form has been converted to sample records. 
+                        @if(isset($sampleStatus['sample_headers']) && count($sampleStatus['sample_headers']) > 0)
+                            <br>
+                            <strong>Batch Code:</strong> {{ $sampleStatus['sample_headers']->first()->batch_code }}
+                            <br>
+                            <strong>Sample Count:</strong> {{ $sampleStatus['sample_headers']->first()->samples->count() }}
+                        @endif
+                    </p>
+                </div>
+                
+                @if(isset($sampleStatus['sample_headers']) && count($sampleStatus['sample_headers']) > 0)
+                    <div class="mt-3">
+                        <a href="{{ route('view-batch-details', $sampleStatus['sample_headers']->first()->id) }}" 
+                           class="btn btn-success">
+                            <i class="mdi mdi-eye"></i> View Sample Batch
+                        </a>
+                    </div>
+                @endif
+                
+            @elseif($sampleStatus['status'] === 'ready')
+                <div class="alert alert-info">
+                    <i class="mdi mdi-information"></i>
+                    <strong>Ready to Create Samples</strong>
+                    <p class="mb-0 mt-2">
+                        This form has mapped elements and can be converted to sample records.
+                        Click the button below to create sample headers and details.
+                    </p>
+                </div>
+                
+                <div class="mt-3">
+                    <button type="button" 
+                            class="btn btn-primary" 
+                            id="create-samples-btn"
+                            data-instance-id="{{ $instance->id }}">
+                        <i class="mdi mdi-flask"></i> Create Samples
+                    </button>
+                    
+                    <button type="button" 
+                            class="btn btn-outline-secondary ml-2" 
+                            id="check-sample-status-btn"
+                            data-instance-id="{{ $instance->id }}">
+                        <i class="mdi mdi-refresh"></i> Check Status
+                    </button>
+                </div>
+                
+            @else
+                <div class="alert alert-warning">
+                    <i class="mdi mdi-alert"></i>
+                    <strong>Cannot Create Samples</strong>
+                    <p class="mb-0 mt-2">{{ $sampleStatus['message'] }}</p>
+                </div>
+            @endif
+        </div>
+    </div>
+
+    @push('scripts')
+    <script>
+    $(document).ready(function() {
+        // Create samples button
+        $('#create-samples-btn').on('click', function() {
+            const instanceId = $(this).data('instance-id');
+            const $btn = $(this);
+            
+            // Show loading state
+            $btn.prop('disabled', true).html('<i class="mdi mdi-loading mdi-spin"></i> Creating...');
+            
+            $.ajax({
+                url: '{{ route("submission-forms.instances.create-samples", ":instance") }}'.replace(':instance', instanceId),
+                method: 'POST',
+                headers: {
+                    'X-CSRF-TOKEN': $('meta[name="csrf-token"]').attr('content')
+                },
+                success: function(response) {
+                    if (response.success) {
+                        Swal.fire({
+                            title: 'Success!',
+                            text: response.message,
+                            icon: 'success',
+                            confirmButtonText: 'OK'
+                        }).then(() => {
+                            location.reload();
+                        });
+                    } else {
+                        Swal.fire({
+                            title: 'Error!',
+                            text: response.message,
+                            icon: 'error',
+                            confirmButtonText: 'OK'
+                        });
+                    }
+                },
+                error: function(xhr) {
+                    const response = xhr.responseJSON;
+                    Swal.fire({
+                        title: 'Error!',
+                        text: response?.message || 'An error occurred while creating samples.',
+                        icon: 'error',
+                        confirmButtonText: 'OK'
+                    });
+                },
+                complete: function() {
+                    $btn.prop('disabled', false).html('<i class="mdi mdi-flask"></i> Create Samples');
+                }
+            });
+        });
+        
+        // Check status button
+        $('#check-sample-status-btn').on('click', function() {
+            const instanceId = $(this).data('instance-id');
+            const $btn = $(this);
+            
+            // Show loading state
+            $btn.prop('disabled', true).html('<i class="mdi mdi-loading mdi-spin"></i> Checking...');
+            
+            $.ajax({
+                url: '{{ route("submission-forms.instances.sample-status", ":instance") }}'.replace(':instance', instanceId),
+                method: 'GET',
+                success: function(response) {
+                    if (response.success) {
+                        Swal.fire({
+                            title: 'Sample Status',
+                            text: response.data.message,
+                            icon: response.data.status === 'created' ? 'success' : 'info',
+                            confirmButtonText: 'OK'
+                        });
+                    }
+                },
+                error: function(xhr) {
+                    const response = xhr.responseJSON;
+                    Swal.fire({
+                        title: 'Error!',
+                        text: response?.message || 'An error occurred while checking status.',
+                        icon: 'error',
+                        confirmButtonText: 'OK'
+                    });
+                },
+                complete: function() {
+                    $btn.prop('disabled', false).html('<i class="mdi mdi-refresh"></i> Check Status');
+                }
+            });
+        });
+    });
+    </script>
+    @endpush
+@endif

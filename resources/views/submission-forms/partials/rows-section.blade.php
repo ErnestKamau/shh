@@ -148,15 +148,19 @@ document.addEventListener('DOMContentLoaded', function() {
         // Load initial options for independent elements
         loadDynamicOptions(elementId, elementType);
       } else if (['client_unit_select', 'client_contact_select'].includes(elementType)) {
-        // Set up dependent elements
+        // Set up dependent elements - these depend on client_select
         setupDependentElement(elementId, elementType, 'client_select');
       } else if (elementType === 'sample_point_select') {
+        // This depends on client_unit_select
         setupDependentElement(elementId, elementType, 'client_unit_select');
       } else if (elementType === 'analysis_type_select') {
+        // This depends on sample_type_select
         setupDependentElement(elementId, elementType, 'sample_type_select');
       } else if (elementType === 'analysis_elements_select') {
+        // This depends on analysis_type_select
         setupDependentElement(elementId, elementType, 'analysis_type_select');
       } else if (elementType === 'store_slot_select') {
+        // This depends on store_select
         setupDependentElement(elementId, elementType, 'store_select');
       }
     });
@@ -172,17 +176,29 @@ document.addEventListener('DOMContentLoaded', function() {
       dependsOnElement.addEventListener('change', function() {
         const parentId = this.value;
         if (parentId) {
-          // Handle different parameter types based on element type
-          if (elementType === 'analysis_elements_select') {
-            alert('analysis_elements_select');
+          // Handle different parameter types based on element type and dependency
+          if (elementType === 'client_unit_select' || elementType === 'client_contact_select') {
+            // These depend on client_select
+            loadDynamicOptions(elementId, elementType, parentId);
+          } else if (elementType === 'sample_point_select') {
+            // This depends on client_unit_select
             loadDynamicOptions(elementId, elementType, null, null, null, parentId);
+          } else if (elementType === 'analysis_type_select') {
+            // This depends on sample_type_select
+            loadDynamicOptions(elementId, elementType, null, parentId);
+          } else if (elementType === 'analysis_elements_select') {
+            // This depends on analysis_type_select
+            loadDynamicOptions(elementId, elementType, null, null, null, null, parentId);
+          } else if (elementType === 'store_slot_select') {
+            // This depends on store_select
+            loadDynamicOptions(elementId, elementType, null, null, parentId);
           } else {
+            // Default case
             loadDynamicOptions(elementId, elementType, parentId);
           }
         } else {
-          // Clear dependent element
-          const dependentSelect = document.getElementById(elementId);
-          dependentSelect.innerHTML = '<option value="">Select...</option>';
+          // Clear dependent element and all its children
+          clearDependentElementAndChildren(elementId);
         }
       });
     } else {
@@ -192,19 +208,97 @@ document.addEventListener('DOMContentLoaded', function() {
         globalDependsOnElement.addEventListener('change', function() {
           const parentId = this.value;
           if (parentId) {
-            // Handle different parameter types based on element type
-            if (elementType === 'analysis_elements_select') {
+            // Handle different parameter types based on element type and dependency
+            if (elementType === 'client_unit_select' || elementType === 'client_contact_select') {
+              // These depend on client_select
+              loadDynamicOptions(elementId, elementType, parentId);
+            } else if (elementType === 'sample_point_select') {
+              // This depends on client_unit_select
               loadDynamicOptions(elementId, elementType, null, null, null, parentId);
+            } else if (elementType === 'analysis_type_select') {
+              // This depends on sample_type_select
+              loadDynamicOptions(elementId, elementType, null, parentId);
+            } else if (elementType === 'analysis_elements_select') {
+              // This depends on analysis_type_select
+              loadDynamicOptions(elementId, elementType, null, null, null, null, parentId);
+            } else if (elementType === 'store_slot_select') {
+              // This depends on store_select
+              loadDynamicOptions(elementId, elementType, null, null, parentId);
             } else {
+              // Default case
               loadDynamicOptions(elementId, elementType, parentId);
             }
           } else {
-            const dependentSelect = document.getElementById(elementId);
-            dependentSelect.innerHTML = '<option value="">Select...</option>';
+            // Clear dependent element and all its children
+            clearDependentElementAndChildren(elementId);
           }
         });
       }
     }
+  }
+
+  function clearDependentElementsInRow(rowElement) {
+    // Clear dependent elements that should be empty in cloned rows
+    const dependentElements = rowElement.querySelectorAll('[data-element-type="client_unit_select"], [data-element-type="client_contact_select"], [data-element-type="sample_point_select"], [data-element-type="analysis_type_select"], [data-element-type="analysis_elements_select"], [data-element-type="store_slot_select"]');
+    
+    dependentElements.forEach(element => {
+      if (element.tagName === 'SELECT') {
+        element.innerHTML = '<option value="">Select...</option>';
+        element.value = '';
+      } else {
+        element.value = '';
+      }
+    });
+  }
+
+  function clearDependentElementAndChildren(elementId) {
+    const element = document.getElementById(elementId);
+    if (!element) return;
+    
+    // Clear the element itself
+    if (element.tagName === 'SELECT') {
+      element.innerHTML = '<option value="">Select...</option>';
+      element.value = '';
+    } else {
+      element.value = '';
+    }
+    
+    // Find the row containing this element
+    const row = element.closest('tr');
+    if (!row) return;
+    
+    // Clear all dependent elements that depend on this element
+    const elementType = element.getAttribute('data-element-type');
+    let dependentTypes = [];
+    
+    // Define dependency chain
+    if (elementType === 'client_select') {
+      dependentTypes = ['client_unit_select', 'client_contact_select'];
+    } else if (elementType === 'client_unit_select') {
+      dependentTypes = ['sample_point_select'];
+    } else if (elementType === 'sample_type_select') {
+      dependentTypes = ['analysis_type_select'];
+    } else if (elementType === 'analysis_type_select') {
+      dependentTypes = ['analysis_elements_select'];
+    } else if (elementType === 'store_select') {
+      dependentTypes = ['store_slot_select'];
+    }
+    
+    // Clear dependent elements
+    dependentTypes.forEach(depType => {
+      const dependentElements = row.querySelectorAll(`[data-element-type="${depType}"]`);
+      dependentElements.forEach(depElement => {
+        if (depElement.tagName === 'SELECT') {
+          depElement.innerHTML = '<option value="">Select...</option>';
+          depElement.value = '';
+        } else {
+          depElement.value = '';
+        }
+        
+        // Recursively clear children of this dependent element
+        clearDependentElementAndChildren(depElement.id);
+      });
+    });
   }
 
   // Clone row functionality
@@ -256,6 +350,18 @@ document.addEventListener('DOMContentLoaded', function() {
         input.id = input.id.replace(`_${currentIndex}`, `_${rowIndex}`);
       }
       
+      // Clear values for dependent elements to avoid duplication
+      const elementType = input.getAttribute('data-element-type');
+      if (['client_unit_select', 'client_contact_select', 'sample_point_select', 'analysis_type_select', 'analysis_elements_select', 'store_slot_select'].includes(elementType)) {
+        // Clear dependent element values
+        if (input.tagName === 'SELECT') {
+          input.innerHTML = '<option value="">Select...</option>';
+          input.value = '';
+        } else {
+          input.value = '';
+        }
+      }
+      
       // Ensure cloned elements are editable (remove disabled attribute)
       input.removeAttribute('disabled');
       input.removeAttribute('readonly');
@@ -276,6 +382,9 @@ document.addEventListener('DOMContentLoaded', function() {
     
     // Initialize custom elements for the cloned row
     initializeRowCustomElements(newRow);
+    
+    // Clear dependent elements that should be empty in cloned rows
+    clearDependentElementsInRow(newRow);
     
     // Ensure all form elements are properly enabled and editable
     const allFormElements = newRow.querySelectorAll('input, select, textarea, button');

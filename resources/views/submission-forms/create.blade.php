@@ -223,7 +223,7 @@
   @endif
 @endsection
 
-@section('scripts')
+@section('script2')
 <script>
   // Auto-hide alerts after 5 seconds
   setTimeout(function() {

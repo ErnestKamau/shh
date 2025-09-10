@@ -395,6 +395,7 @@ function initializeAllCustomElements() {
     setupClientChangeHandlers();
     setupClientUnitChangeHandlers();
     setupSampleTypeChangeHandlers();
+    setupAnalysisTypeChangeHandlers();
     setupStoreChangeHandlers();
 }
 
@@ -625,6 +626,48 @@ function setupSampleTypeChangeHandlers() {
     });
 }
 
+function setupAnalysisTypeChangeHandlers() {
+    console.log('Setting up analysis type change handlers');
+    
+    // Remove any existing handlers
+    $('select[data-element-type="analysis_type_select"]').off('change.custom-elements');
+    
+    // Set up analysis type change handler
+    $('select[data-element-type="analysis_type_select"]').on('change.custom-elements', function() {
+        const analysisTypeId = $(this).val();
+        console.log('Analysis type changed to:', analysisTypeId);
+        
+        // Find all dependent elements
+        const dependentElements = $('select[data-element-type="analysis_elements_select"]');
+        console.log('Found', dependentElements.length, 'analysis type dependent elements');
+        
+        if (analysisTypeId) {
+            // Load options for each dependent element
+            dependentElements.each(function() {
+                const dependentSelect = $(this);
+                const dependentElementId = dependentSelect.attr('id');
+                const dependentElementType = dependentSelect.data('element-type');
+                
+                console.log('Updating dependent element:', dependentElementType, dependentElementId);
+                
+                // Show loading state
+                dependentSelect.html('<option value="">Loading...</option>').prop('disabled', true);
+                
+                // Load options
+                loadDynamicOptions(dependentElementId, dependentElementType, null, null, null, null, analysisTypeId);
+            });
+        } else {
+            // Clear all dependent elements
+            dependentElements.each(function() {
+                const dependentSelect = $(this);
+                const placeholder = 'Select...';
+                dependentSelect.html('<option value="">' + placeholder + '</option>').prop('disabled', false);
+                console.log('Cleared dependent element:', dependentSelect.attr('id'));
+            });
+        }
+    });
+}
+
 function setupStoreChangeHandlers() {
     console.log('Setting up store change handlers');
     
@@ -667,11 +710,11 @@ function setupStoreChangeHandlers() {
     });
 }
 
-function loadDynamicOptions(elementId, elementType, clientId = null, sampleTypeId = null, storeId = null, clientUnitId = null) {
+function loadDynamicOptions(elementId, elementType, clientId = null, sampleTypeId = null, storeId = null, clientUnitId = null, analysisTypeId = null) {
     const select = $('#' + elementId);
     const originalHtml = select.html();
     
-    console.log('Loading options for element:', elementId, 'type:', elementType, 'clientId:', clientId, 'sampleTypeId:', sampleTypeId, 'storeId:', storeId, 'clientUnitId:', clientUnitId);
+    console.log('Loading options for element:', elementId, 'type:', elementType, 'clientId:', clientId, 'sampleTypeId:', sampleTypeId, 'storeId:', storeId, 'clientUnitId:', clientUnitId, 'analysisTypeId:', analysisTypeId);
     
     // Show loading state
     select.html('<option value="">Loading...</option>').prop('disabled', true);
@@ -683,7 +726,8 @@ function loadDynamicOptions(elementId, elementType, clientId = null, sampleTypeI
         client_id: clientId,
         sample_type_id: sampleTypeId,
         store_id: storeId,
-        client_unit_id: clientUnitId
+        client_unit_id: clientUnitId,
+        analysis_type_id: analysisTypeId
     };
     
     console.log('Making AJAX request to:', ajaxUrl, 'with data:', ajaxData);

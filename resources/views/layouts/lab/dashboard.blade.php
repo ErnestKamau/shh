@@ -367,7 +367,7 @@
 
         var mapsGraph = function(gps) {
             var mapProp = {
-                center: new google.maps.LatLng(-1.247125519439578, 36.742261815816164),
+                center: new google.maps.LatLng(-19.015, 29.156),
                 zoom: 5.5,
             };
             map = new google.maps.Map(document.getElementById('sample-maps'), mapProp);
