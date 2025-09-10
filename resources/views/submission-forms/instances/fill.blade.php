@@ -785,11 +785,11 @@ function loadDynamicOptions(elementId, elementType, clientId = null, sampleTypeI
     });
 }
 
-// Initialize when jQuery is ready
-waitForJQuery(function() {
-    console.log('jQuery is ready, initializing custom elements');
-    initializeAllCustomElements();
-});
+// // Initialize when jQuery is ready
+// waitForJQuery(function() {
+//     console.log('jQuery is ready, initializing custom elements');
+//     initializeAllCustomElements();
+// });
 </script>
 
 <script>

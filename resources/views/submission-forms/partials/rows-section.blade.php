@@ -96,6 +96,7 @@ document.addEventListener('DOMContentLoaded', function() {
     const newRow = template.content.cloneNode(true);
     const rowElement = newRow.querySelector('tr');
     
+    
     // Set row index
     rowElement.setAttribute('data-row-index', rowIndex);
     
@@ -122,7 +123,6 @@ document.addEventListener('DOMContentLoaded', function() {
     rowIndex++;
     
     // Initialize custom elements for the new row
-    initializeRowCustomElements(newRow);
     
     // Initialize Select2 on all select elements in the new row
     $(newRow).find('select').not('.hidden').each(function(i, e) {
@@ -133,6 +133,7 @@ document.addEventListener('DOMContentLoaded', function() {
         $(e).attr('style', 'width: 100%');
       }
     });
+    initializeRowCustomElements(newRow);
   }
 
   function initializeRowCustomElements(rowElement) {
@@ -145,8 +146,8 @@ document.addEventListener('DOMContentLoaded', function() {
       
       // Initialize based on element type
       if (['client_select', 'sample_type_select', 'store_select', 'standard_select', 'sample_condition_select'].includes(elementType)) {
-        // Load initial options for independent elements
-        loadDynamicOptions(elementId, elementType);
+        // Independent elements - data is already loaded statically, just initialize Select2
+        console.log('Independent element with static data:', elementType, elementId);
       } else if (['client_unit_select', 'client_contact_select'].includes(elementType)) {
         // Set up dependent elements - these depend on client_select
         setupDependentElement(elementId, elementType, 'client_select');

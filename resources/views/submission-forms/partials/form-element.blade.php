@@ -220,7 +220,17 @@
                 @if(!$element->is_required)
                     <option value="">{{ $element->placeholder ?: 'Select a client...' }}</option>
                 @endif
-                {{-- Options will be loaded dynamically --}}
+                @if(isset($isArrayField) && $isArrayField)
+                    {{-- Load static data for rows-section --}}
+                    @php
+                        $clientOptions = $element->getDynamicOptions();
+                    @endphp
+                    @foreach($clientOptions as $option)
+                        <option value="{{ $option['value'] }}" {{ ($fieldValue == $option['value']) ? 'selected' : '' }}>
+                            {{ $option['label'] }}
+                        </option>
+                    @endforeach
+                @endif
             </select>
             @break
             
@@ -234,7 +244,17 @@
                 @if(!$element->is_required)
                     <option value="">{{ $element->placeholder ?: 'Select a sample type...' }}</option>
                 @endif
-                {{-- Options will be loaded dynamically --}}
+                @if(isset($isArrayField) && $isArrayField)
+                    {{-- Load static data for rows-section --}}
+                    @php
+                        $sampleTypeOptions = $element->getDynamicOptions();
+                    @endphp
+                    @foreach($sampleTypeOptions as $option)
+                        <option value="{{ $option['value'] }}" {{ ($fieldValue == $option['value']) ? 'selected' : '' }}>
+                            {{ $option['label'] }}
+                        </option>
+                    @endforeach
+                @endif
             </select>
             @break
             
@@ -308,7 +328,17 @@
                 @if(!$element->is_required)
                     <option value="">{{ $element->placeholder ?: 'Select a store...' }}</option>
                 @endif
-                {{-- Options will be loaded dynamically --}}
+                @if(isset($isArrayField) && $isArrayField)
+                    {{-- Load static data for rows-section --}}
+                    @php
+                        $storeOptions = $element->getDynamicOptions();
+                    @endphp
+                    @foreach($storeOptions as $option)
+                        <option value="{{ $option['value'] }}" {{ ($fieldValue == $option['value']) ? 'selected' : '' }}>
+                            {{ $option['label'] }}
+                        </option>
+                    @endforeach
+                @endif
             </select>
             @break
             
@@ -337,7 +367,17 @@
                 @if(!$element->is_required)
                     <option value="">{{ $element->placeholder ?: 'Select a sample condition...' }}</option>
                 @endif
-                {{-- Options will be loaded dynamically --}}
+                @if(isset($isArrayField) && $isArrayField)
+                    {{-- Load static data for rows-section --}}
+                    @php
+                        $sampleConditionOptions = $element->getDynamicOptions();
+                    @endphp
+                    @foreach($sampleConditionOptions as $option)
+                        <option value="{{ $option['value'] }}" {{ ($fieldValue == $option['value']) ? 'selected' : '' }}>
+                            {{ $option['label'] }}
+                        </option>
+                    @endforeach
+                @endif
             </select>
             @break
             
@@ -351,7 +391,17 @@
                 @if(!$element->is_required)
                     <option value="">{{ $element->placeholder ?: 'Select a standard...' }}</option>
                 @endif
-                {{-- Options will be loaded dynamically --}}
+                @if(isset($isArrayField) && $isArrayField)
+                    {{-- Load static data for rows-section --}}
+                    @php
+                        $standardOptions = $element->getDynamicOptions();
+                    @endphp
+                    @foreach($standardOptions as $option)
+                        <option value="{{ $option['value'] }}" {{ ($fieldValue == $option['value']) ? 'selected' : '' }}>
+                            {{ $option['label'] }}
+                        </option>
+                    @endforeach
+                @endif
             </select>
             @break
             
