@@ -240,7 +240,7 @@
 </style>
 @endpush
 
-@push('script2')
+@section('script2')
 <script>
 $(document).ready(function() {
     // Initialize DataTable
@@ -367,4 +367,4 @@ function filterBySubmissionForm(submissionFormId) {
     window.location.href = url.toString();
 }
 </script>
-@endpush
+@endsection

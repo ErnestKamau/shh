@@ -84,7 +84,6 @@ class SampleCreationService
         ->where('is_mapped', true)
         ->whereNotNull('mapping_table')
         ->whereNotNull('mapping_field')
-        ->with('values')
         ->get();
     }
 

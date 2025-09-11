@@ -285,7 +285,7 @@
 </style>
 @endpush
 
-@push('script2')
+@section('script2')
 <script>
 $(document).ready(function() {
     // Form validation
@@ -320,4 +320,4 @@ $(document).ready(function() {
     });
 });
 </script>
-@endpush
+@endsection

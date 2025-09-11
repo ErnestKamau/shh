@@ -369,7 +369,7 @@
 </style>
 @endpush
 
-@push('script2')
+@section('script2')
 <script src="/assets/js/libs/nestable/jquery.nestable.js"></script>
 <script src="/tinymce/tinymce.min.js"></script>
 <script>
@@ -1469,4 +1469,4 @@ $(document).ready(function() {
 <div class="auto-save-indicator">
     <i class="mdi mdi-check-circle"></i> Auto-saved
 </div>
-@endpush
+@endsection

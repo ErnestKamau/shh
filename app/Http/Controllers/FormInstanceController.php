@@ -146,11 +146,11 @@ class FormInstanceController extends Controller
      */
     public function update(Request $request, SubmissionForm $submissionForm, SubmissionFormInstance $instance)
     {
+      
         // Check if user owns this instance
         if ($instance->submitted_by !== auth()->id()) {
             abort(403, 'You are not authorized to update this form instance.');
         }
-
         // Check if instance can be updated
         if (!$instance->isDraft()) {
             return redirect()->back()->with('error', 'This form instance cannot be updated.');
@@ -161,8 +161,10 @@ class FormInstanceController extends Controller
             $query->where('submission_form_id', $submissionForm->id);
         })->get();
 
+
         // Build validation rules
         $validationRules = $this->buildValidationRules($elements, $request);
+       
 
         // Validate the request
         $validator = Validator::make($request->all(), $validationRules);
@@ -175,13 +177,13 @@ class FormInstanceController extends Controller
         }
 
         DB::beginTransaction();
-        
         try {
-            // Process form data
+            // dd("here");
             $this->processFormData($instance, $request, $elements);
-            
+            Log::info('Processing form data');
             // Update instance status if submitting
             if ($request->input('action') === 'submit') {
+                
                 $instance->submit(auth()->user());
             } else {
                 // Log as updated for draft saves
@@ -202,7 +204,7 @@ class FormInstanceController extends Controller
         } catch (\Exception $e) {
             DB::rollBack();
             Log::error('Error updating form instance: ' . $e->getMessage());
-            
+            dd("here error");
             return redirect()->back()
                 ->withInput()
                 ->with('error', 'An error occurred while saving the form. Please try again.');
@@ -549,10 +551,10 @@ class FormInstanceController extends Controller
             ]
         );
 
-        // Process field mapping if configured
-        if ($element->isMapped()) {
-            $this->processFieldMapping($element, $value, $arrayIndex);
-        }
+        // // Process field mapping if configured
+        // if ($element->isMapped()) {
+        //     $this->processFieldMapping($element, $value, $arrayIndex);
+        // }
     }
 
     /**

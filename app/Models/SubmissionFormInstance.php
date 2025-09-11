@@ -344,4 +344,245 @@ class SubmissionFormInstance extends Model
     {
         return $query->where('submitted_by', $userId);
     }
+
+    /**
+     * Get all form fields with their values and mapping information
+     * Returns an array of sample batches grouped by unique sample_type values
+     */
+    public function getAllFieldsWithValues()
+    {
+        // Load the form with all relationships
+        $this->load([
+            'submissionForm.sections.elementHolders.elements' => function($query) {
+                $query->orderBy('sort_order');
+            }
+        ]);
+
+        // Get all form elements
+        $elements = $this->submissionForm->sections
+            ->flatMap(function($section) {
+                return $section->elementHolders->flatMap(function($holder) {
+                    return $holder->elements;
+                });
+            });
+
+        // Separate elements by mapping table
+        $sampleHeaderElements = [];
+        $sampleDetailElements = [];
+        $sampleTypeElement = null;
+
+        foreach ($elements as $element) {
+            if ($element->is_mapped && $element->mapping_table && $element->mapping_field) {
+                if ($element->mapping_table === 'sample_headers') {
+                    $sampleHeaderElements[] = $element;
+                    // Check if this is the sample_type field
+                    if ($element->mapping_field === 'sample_type') {
+                        $sampleTypeElement = $element;
+                    }
+                } elseif ($element->mapping_table === 'sample_details') {
+                    $sampleDetailElements[] = $element;
+                }
+            }
+        }
+
+        // Get all values for sample_type element (from rows-section)
+        $sampleTypeValues = collect();
+        if ($sampleTypeElement) {
+            $sampleTypeValues = $this->values()
+                ->where('submission_form_element_id', $sampleTypeElement->id)
+                ->orderBy('array_index')
+                ->get();
+        }
+
+        // If no sample_type values found, create a single batch
+        if ($sampleTypeValues->isEmpty()) {
+            return [$this->createSampleBatch($sampleHeaderElements, $sampleDetailElements, null)];
+        }
+
+        // Group by unique sample_type values
+        $uniqueSampleTypes = $sampleTypeValues->pluck('value')->unique();
+        $sampleBatches = [];
+
+        foreach ($uniqueSampleTypes as $sampleType) {
+            $sampleBatches[] = $this->createSampleBatch(
+                $sampleHeaderElements, 
+                $sampleDetailElements, 
+                $sampleType,
+                $sampleTypeValues->where('value', $sampleType)->pluck('array_index')->toArray()
+            );
+        }
+
+        return $sampleBatches;
+    }
+
+    /**
+     * Create a sample batch with sample_header and sample_details
+     */
+    private function createSampleBatch($sampleHeaderElements, $sampleDetailElements, $sampleType = null, $arrayIndexes = [])
+    {
+        $sampleHeader = [];
+        $sampleDetails = [];
+
+        // Process sample header elements
+        foreach ($sampleHeaderElements as $element) {
+            $elementValues = $this->values()
+                ->where('submission_form_element_id', $element->id)
+                ->orderBy('array_index')
+                ->get();
+
+            $value = $this->getElementValue($element, $elementValues);
+            
+            if ($value !== null) {
+                $sampleHeader[$element->mapping_field] = $value;
+            }
+        }
+
+        // Override sample_type if provided
+        if ($sampleType !== null) {
+            $sampleHeader['sample_type'] = $sampleType;
+        }
+
+        // Process sample detail elements
+        foreach ($sampleDetailElements as $element) {
+            $elementValues = $this->values()
+                ->where('submission_form_element_id', $element->id)
+                ->orderBy('array_index')
+                ->get();
+
+            // If we have specific array indexes, filter by them
+            if (!empty($arrayIndexes)) {
+                $elementValues = $elementValues->whereIn('array_index', $arrayIndexes);
+            }
+
+            // Group values by array_index to create separate detail records
+            $groupedValues = $elementValues->groupBy('array_index');
+            
+            foreach ($groupedValues as $index => $values) {
+                $value = $this->getElementValue($element, $values);
+                
+                if ($value !== null) {
+                    // Initialize detail record if not exists
+                    if (!isset($sampleDetails[$index])) {
+                        $sampleDetails[$index] = [];
+                    }
+                    $sampleDetails[$index][$element->mapping_field] = $value;
+                }
+            }
+        }
+
+        // Convert indexed array to sequential array
+        $sampleDetails = array_values($sampleDetails);
+
+        return [
+            'sample_header' => $sampleHeader,
+            'sample_details' => $sampleDetails
+        ];
+    }
+
+    /**
+     * Get the appropriate value for an element
+     */
+    private function getElementValue($element, $elementValues)
+    {
+        if ($elementValues->isEmpty()) {
+            return $element->default_value;
+        }
+
+        // For single values, return the first value
+        if ($elementValues->count() === 1) {
+            $value = $elementValues->first()->value;
+            return $value !== null && $value !== '' ? $value : $element->default_value;
+        }
+
+        // For multiple values, return as array
+        $values = $elementValues->pluck('value')->filter(function($value) {
+            return $value !== null && $value !== '';
+        })->values()->toArray();
+
+        return !empty($values) ? $values : $element->default_value;
+    }
+
+    /**
+     * Get all sample batches (alias for getAllFieldsWithValues)
+     */
+    public function getSampleBatches()
+    {
+        return $this->getAllFieldsWithValues();
+    }
+
+    /**
+     * Get the first sample batch (for single sample scenarios)
+     */
+    public function getFirstSampleBatch()
+    {
+        $batches = $this->getAllFieldsWithValues();
+        return $batches[0] ?? null;
+    }
+
+    /**
+     * Get sample batches by sample type
+     */
+    public function getSampleBatchesByType(string $sampleType)
+    {
+        $batches = $this->getAllFieldsWithValues();
+        return array_filter($batches, function($batch) use ($sampleType) {
+            return ($batch['sample_header']['sample_type'] ?? null) === $sampleType;
+        });
+    }
+
+    /**
+     * Get all unique sample types
+     */
+    public function getUniqueSampleTypes()
+    {
+        $batches = $this->getAllFieldsWithValues();
+        $sampleTypes = [];
+        
+        foreach ($batches as $batch) {
+            $sampleType = $batch['sample_header']['sample_type'] ?? null;
+            if ($sampleType && !in_array($sampleType, $sampleTypes)) {
+                $sampleTypes[] = $sampleType;
+            }
+        }
+        
+        return $sampleTypes;
+    }
+
+    /**
+     * Get total number of sample batches
+     */
+    public function getSampleBatchCount()
+    {
+        return count($this->getAllFieldsWithValues());
+    }
+
+    /**
+     * Get all sample details across all batches
+     */
+    public function getAllSampleDetails()
+    {
+        $batches = $this->getAllFieldsWithValues();
+        $allDetails = [];
+        
+        foreach ($batches as $batch) {
+            $allDetails = array_merge($allDetails, $batch['sample_details']);
+        }
+        
+        return $allDetails;
+    }
+
+    /**
+     * Get sample details for a specific sample type
+     */
+    public function getSampleDetailsByType(string $sampleType)
+    {
+        $batches = $this->getSampleBatchesByType($sampleType);
+        $details = [];
+        
+        foreach ($batches as $batch) {
+            $details = array_merge($details, $batch['sample_details']);
+        }
+        
+        return $details;
+    }
 }

@@ -123,9 +123,10 @@ document.addEventListener('DOMContentLoaded', function() {
     rowIndex++;
     
     // Initialize custom elements for the new row
+    initializeRowCustomElements(rowElement);
     
     // Initialize Select2 on all select elements in the new row
-    $(newRow).find('select').not('.hidden').each(function(i, e) {
+    $(rowElement).find('select').not('.hidden').each(function(i, e) {
       if (!$(e).hasClass('no-select2')) {
         $(e).select2({
           placeholder: $(e).attr('placeholder') || $(e).data('placeholder') || 'Select...'
@@ -133,16 +134,17 @@ document.addEventListener('DOMContentLoaded', function() {
         $(e).attr('style', 'width: 100%');
       }
     });
-    initializeRowCustomElements(newRow);
   }
 
   function initializeRowCustomElements(rowElement) {
-    // Find all custom elements in this row
-    const customElements = rowElement.querySelectorAll('.custom-element');
+    // Find all custom elements in this row by data-element-type attribute
+    const customElements = rowElement.querySelectorAll('[data-element-type]');
     
     customElements.forEach(element => {
       const elementType = element.getAttribute('data-element-type');
       const elementId = element.id;
+      
+      console.log('Processing element:', elementType, 'with ID:', elementId);
       
       // Initialize based on element type
       if (['client_select', 'sample_type_select', 'store_select', 'standard_select', 'sample_condition_select'].includes(elementType)) {
@@ -172,10 +174,36 @@ document.addEventListener('DOMContentLoaded', function() {
     const row = document.getElementById(elementId).closest('tr');
     const dependsOnElement = row.querySelector(`[data-element-type="${dependsOn}"]`);
     
+    console.log('Setting up dependency:', elementType, 'depends on:', dependsOn, 'in row:', row);
+    console.log('Found parent element:', dependsOnElement);
+    
     if (dependsOnElement) {
+      console.log('Parent element found, setting up change handler');
+      
+      // Check if parent already has a value and load options immediately
+      const currentParentValue = dependsOnElement.value;
+      if (currentParentValue) {
+        console.log('Parent already has value:', currentParentValue, 'loading options for:', elementType);
+        // Load options based on current parent value
+        if (elementType === 'client_unit_select' || elementType === 'client_contact_select') {
+          loadDynamicOptions(elementId, elementType, currentParentValue);
+        } else if (elementType === 'sample_point_select') {
+          loadDynamicOptions(elementId, elementType, null, null, null, currentParentValue);
+        } else if (elementType === 'analysis_type_select') {
+          loadDynamicOptions(elementId, elementType, null, currentParentValue);
+        } else if (elementType === 'analysis_elements_select') {
+          loadDynamicOptions(elementId, elementType, null, null, null, null, currentParentValue);
+        } else if (elementType === 'store_slot_select') {
+          loadDynamicOptions(elementId, elementType, null, null, currentParentValue);
+        } else {
+          loadDynamicOptions(elementId, elementType, currentParentValue);
+        }
+      }
+      
       // Set up change handler for same-row dependency
       dependsOnElement.addEventListener('change', function() {
         const parentId = this.value;
+        console.log('Parent element changed:', dependsOn, 'new value:', parentId);
         if (parentId) {
           // Handle different parameter types based on element type and dependency
           if (elementType === 'client_unit_select' || elementType === 'client_contact_select') {
@@ -206,6 +234,7 @@ document.addEventListener('DOMContentLoaded', function() {
       // Fall back to global dependency
       const globalDependsOnElement = document.querySelector(`[data-element-type="${dependsOn}"]`);
       if (globalDependsOnElement) {
+        // alert('Sample point select found: ' + parentId);
         globalDependsOnElement.addEventListener('change', function() {
           const parentId = this.value;
           if (parentId) {
@@ -381,11 +410,11 @@ document.addEventListener('DOMContentLoaded', function() {
     sourceRow.parentNode.insertBefore(newRow, sourceRow.nextSibling);
     rowIndex++;
     
-    // Initialize custom elements for the cloned row
-    initializeRowCustomElements(newRow);
-    
-    // Clear dependent elements that should be empty in cloned rows
+    // Clear dependent elements that should be empty in cloned rows first
     clearDependentElementsInRow(newRow);
+    
+    // Initialize custom elements for the cloned row (this will set up dependencies)
+    initializeRowCustomElements(newRow);
     
     // Ensure all form elements are properly enabled and editable
     const allFormElements = newRow.querySelectorAll('input, select, textarea, button');
@@ -415,9 +444,100 @@ document.addEventListener('DOMContentLoaded', function() {
     }
   }
 
+  // Load existing data on page load
+  loadExistingData();
+  
   // Add initial row if none exist
   if (tbody.children.length === 0) {
     addNewRow();
+  }
+  
+  function loadExistingData() {
+    @if(isset($existingValues) && $existingValues)
+      @php
+        // Group existing values by array index for this section
+        $sectionValues = [];
+        $templateHolder = $section->getTemplateElementHolder();
+        if ($templateHolder) {
+          foreach($templateHolder->elements as $element) {
+            $elementValues = $existingValues->where('submission_form_element_id', $element->id);
+            foreach($elementValues as $value) {
+              $arrayIndex = $value->array_index ?? 0;
+              if (!isset($sectionValues[$arrayIndex])) {
+                $sectionValues[$arrayIndex] = [];
+              }
+              $sectionValues[$arrayIndex][$element->id] = $value;
+            }
+          }
+        }
+      @endphp
+      
+      @if(count($sectionValues) > 0)
+        @foreach($sectionValues as $rowIndex => $rowValues)
+          // Create row for existing data
+          const existingRow = template.content.cloneNode(true);
+          const existingRowElement = existingRow.querySelector('tr');
+          
+          // Set row index
+          existingRowElement.setAttribute('data-row-index', {{ $rowIndex }});
+          
+          // Update field names and IDs
+          const inputs = existingRow.querySelectorAll('input, select, textarea');
+          inputs.forEach(input => {
+            if (input.name) {
+              input.name = input.name.replace('ROW_INDEX_PLACEHOLDER', {{ $rowIndex }});
+            }
+            if (input.id) {
+              input.id = input.id.replace('ROW_INDEX_PLACEHOLDER', {{ $rowIndex }});
+            }
+            
+            // Set existing values
+            const elementId = input.getAttribute('data-element-type') ? 
+              input.closest('[data-element-type]').id : input.id;
+            @foreach($rowValues as $elementId => $value)
+              if (elementId === '{{ $elementId }}') {
+                if (input.type === 'checkbox' || input.type === 'radio') {
+                  input.checked = {{ $value->value ? 'true' : 'false' }};
+                } else {
+                  input.value = '{{ addslashes($value->value) }}';
+                }
+              }
+            @endforeach
+          });
+          
+          // Update labels
+          const labels = existingRow.querySelectorAll('label');
+          labels.forEach(label => {
+            if (label.getAttribute('for')) {
+              label.setAttribute('for', label.getAttribute('for').replace('ROW_INDEX_PLACEHOLDER', {{ $rowIndex }}));
+            }
+          });
+          
+          // Append to tbody
+          tbody.appendChild(existingRow);
+          
+          // Initialize custom elements and Select2 for existing row
+          setTimeout(() => {
+            initializeRowCustomElements(existingRowElement);
+            
+            // Initialize Select2 on all select elements in the existing row
+            $(existingRowElement).find('select').not('.hidden').each(function(i, e) {
+              if (!$(e).hasClass('no-select2')) {
+                $(e).select2({
+                  placeholder: $(e).attr('placeholder') || $(e).data('placeholder') || 'Select...'
+                });
+                $(e).attr('style', 'width: 100%');
+              }
+            });
+          }, 10);
+          
+          // Update rowIndex to be higher than the highest existing index
+          if ({{ $rowIndex }} >= rowIndex) {
+            rowIndex = {{ $rowIndex }} + 1;
+          }
+        @endforeach
+      @endif
+    @endif
   }
 });
 </script>

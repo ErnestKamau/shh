@@ -52,7 +52,7 @@
                             class="btn btn-primary" 
                             id="create-samples-btn"
                             data-instance-id="{{ $instance->id }}">
-                        <i class="mdi mdi-flask"></i> Create Samples
+                        <i class="mdi mdi-flask"></i> Create Batch
                     </button>
                     
                     <button type="button" 
@@ -73,7 +73,7 @@
         </div>
     </div>
 
-    @push('scripts')
+    @section('script2')
     <script>
     $(document).ready(function() {
         // Create samples button
@@ -92,31 +92,15 @@
                 },
                 success: function(response) {
                     if (response.success) {
-                        Swal.fire({
-                            title: 'Success!',
-                            text: response.message,
-                            icon: 'success',
-                            confirmButtonText: 'OK'
-                        }).then(() => {
-                            location.reload();
-                        });
+                        //alert('Success! ' + response.message);
+                        location.reload();
                     } else {
-                        Swal.fire({
-                            title: 'Error!',
-                            text: response.message,
-                            icon: 'error',
-                            confirmButtonText: 'OK'
-                        });
+                        //alert('Error! ' + response.message);
                     }
                 },
                 error: function(xhr) {
                     const response = xhr.responseJSON;
-                    Swal.fire({
-                        title: 'Error!',
-                        text: response?.message || 'An error occurred while creating samples.',
-                        icon: 'error',
-                        confirmButtonText: 'OK'
-                    });
+                    //alert('Error! ' + (response?.message || 'An error occurred while creating samples.'));
                 },
                 complete: function() {
                     $btn.prop('disabled', false).html('<i class="mdi mdi-flask"></i> Create Samples');
@@ -137,22 +121,12 @@
                 method: 'GET',
                 success: function(response) {
                     if (response.success) {
-                        Swal.fire({
-                            title: 'Sample Status',
-                            text: response.data.message,
-                            icon: response.data.status === 'created' ? 'success' : 'info',
-                            confirmButtonText: 'OK'
-                        });
+                        //alert('Sample Status: ' + response.data.message);
                     }
                 },
                 error: function(xhr) {
                     const response = xhr.responseJSON;
-                    Swal.fire({
-                        title: 'Error!',
-                        text: response?.message || 'An error occurred while checking status.',
-                        icon: 'error',
-                        confirmButtonText: 'OK'
-                    });
+                    //alert('Error! ' + (response?.message || 'An error occurred while checking status.'));
                 },
                 complete: function() {
                     $btn.prop('disabled', false).html('<i class="mdi mdi-refresh"></i> Check Status');
@@ -161,5 +135,5 @@
         });
     });
     </script>
-    @endpush
+    @endsection
 @endif

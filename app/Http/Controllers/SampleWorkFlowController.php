@@ -67,6 +67,7 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
 use App\Models\QcModule\Data\QcResults;
+use Illuminate\Support\Facades\Log;
 use PhpParser\PrettyPrinter\Standard;
 
 class SampleWorkFlowController extends Controller
@@ -260,6 +261,7 @@ class SampleWorkFlowController extends Controller
 
     public function add_batch_info(Request $request, $batch)
     {
+        Log::info(json_encode($request->all(), JSON_PRETTY_PRINT));
         if (isset($request->is_qc_batch)) {
             $qc_customer_id = SystemConfiguration::where('key', 'qc_customer_id')->first();
             if(!isset($qc_customer_id->id)){
@@ -326,7 +328,6 @@ class SampleWorkFlowController extends Controller
             }
             $header->batch_code = $cP . '' . $final_no;
         }
-        // return response()->json($header->batch_code,200);
 
         if (isset($header->status) && $header->status == 'Samples Reception') {
             $isInReception = true;
@@ -411,7 +412,6 @@ class SampleWorkFlowController extends Controller
         }
 
 
-
         $header->sampling_method_id = $request->sampling_method_id;
         $header->submit_by = $request->submit_by;
         $header->radio_active_levels = $request->radio_active_levels;
@@ -440,8 +440,9 @@ class SampleWorkFlowController extends Controller
             $stage = SampleAnalysisStage::where('sample_workflow', $header->status)->orderBy('level', 'asc')->first();
             $header->sample_tracking_stage = $stage->id ?? 0;
         }
-
         $header->save();
+
+        Log::info("-------------------------------------");
         
         if (isset($request->repeat_samples_id) && $request->repeat_samples_id != '') {
             $sample_point = SystemConfiguration::where('key','qc_sample_point_id')->first();

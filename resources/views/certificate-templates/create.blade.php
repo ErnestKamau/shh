@@ -324,7 +324,7 @@
 </style>
 @endpush
 
-@push('script2')
+@section('script2')
 <script>
 $(document).ready(function() {
     // Initialize Select2 for submission form dropdown
@@ -388,4 +388,4 @@ $(document).ready(function() {
     });
 });
 </script>
-@endpush
+@endsection
