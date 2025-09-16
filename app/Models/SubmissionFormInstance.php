@@ -375,8 +375,8 @@ class SubmissionFormInstance extends Model
             if ($element->is_mapped && $element->mapping_table && $element->mapping_field) {
                 if ($element->mapping_table === 'sample_headers') {
                     $sampleHeaderElements[] = $element;
-                    // Check if this is the sample_type field
-                    if ($element->mapping_field === 'sample_type') {
+                    // Check if this is the sample_type_id field (not sample_type)
+                    if ($element->mapping_field === 'sample_type_id') {
                         $sampleTypeElement = $element;
                     }
                 } elseif ($element->mapping_table === 'sample_details') {
@@ -385,7 +385,7 @@ class SubmissionFormInstance extends Model
             }
         }
 
-        // Get all values for sample_type element (from rows-section)
+        // Get all values for sample_type_id element (from rows-section)
         $sampleTypeValues = collect();
         if ($sampleTypeElement) {
             $sampleTypeValues = $this->values()
@@ -394,21 +394,24 @@ class SubmissionFormInstance extends Model
                 ->get();
         }
 
-        // If no sample_type values found, create a single batch
+        // If no sample_type_id values found, create a single batch
         if ($sampleTypeValues->isEmpty()) {
             return [$this->createSampleBatch($sampleHeaderElements, $sampleDetailElements, null)];
         }
 
-        // Group by unique sample_type values
-        $uniqueSampleTypes = $sampleTypeValues->pluck('value')->unique();
+        // Group by unique sample_type_id values
+        $uniqueSampleTypes = $sampleTypeValues->pluck('value')->unique()->filter();
         $sampleBatches = [];
 
-        foreach ($uniqueSampleTypes as $sampleType) {
+        foreach ($uniqueSampleTypes as $sampleTypeId) {
+            // Get array indexes for this sample type
+            $arrayIndexes = $sampleTypeValues->where('value', $sampleTypeId)->pluck('array_index')->toArray();
+            
             $sampleBatches[] = $this->createSampleBatch(
                 $sampleHeaderElements, 
                 $sampleDetailElements, 
-                $sampleType,
-                $sampleTypeValues->where('value', $sampleType)->pluck('array_index')->toArray()
+                $sampleTypeId,
+                $arrayIndexes
             );
         }
 
@@ -418,7 +421,7 @@ class SubmissionFormInstance extends Model
     /**
      * Create a sample batch with sample_header and sample_details
      */
-    private function createSampleBatch($sampleHeaderElements, $sampleDetailElements, $sampleType = null, $arrayIndexes = [])
+    private function createSampleBatch($sampleHeaderElements, $sampleDetailElements, $sampleTypeId = null, $arrayIndexes = [])
     {
         $sampleHeader = [];
         $sampleDetails = [];
@@ -430,6 +433,13 @@ class SubmissionFormInstance extends Model
                 ->orderBy('array_index')
                 ->get();
 
+            // For sample header elements, we typically want the first value or a single value
+            // unless it's the sample_type_id which should be filtered by array indexes
+            if ($element->mapping_field === 'sample_type_id' && !empty($arrayIndexes)) {
+                // For sample_type_id, get the first value from the filtered indexes
+                $elementValues = $elementValues->whereIn('array_index', $arrayIndexes);
+            }
+
             $value = $this->getElementValue($element, $elementValues);
             
             if ($value !== null) {
@@ -437,9 +447,9 @@ class SubmissionFormInstance extends Model
             }
         }
 
-        // Override sample_type if provided
-        if ($sampleType !== null) {
-            $sampleHeader['sample_type'] = $sampleType;
+        // Override sample_type_id if provided
+        if ($sampleTypeId !== null) {
+            $sampleHeader['sample_type_id'] = $sampleTypeId;
         }
 
         // Process sample detail elements
@@ -470,8 +480,13 @@ class SubmissionFormInstance extends Model
             }
         }
 
-        // Convert indexed array to sequential array
+        // Convert indexed array to sequential array and ensure proper ordering
         $sampleDetails = array_values($sampleDetails);
+
+        // Ensure sample_header has required fields
+        if (empty($sampleHeader)) {
+            $sampleHeader = ['sample_type_id' => $sampleTypeId];
+        }
 
         return [
             'sample_header' => $sampleHeader,
@@ -520,32 +535,32 @@ class SubmissionFormInstance extends Model
     }
 
     /**
-     * Get sample batches by sample type
+     * Get sample batches by sample type ID
      */
-    public function getSampleBatchesByType(string $sampleType)
+    public function getSampleBatchesByType(string $sampleTypeId)
     {
         $batches = $this->getAllFieldsWithValues();
-        return array_filter($batches, function($batch) use ($sampleType) {
-            return ($batch['sample_header']['sample_type'] ?? null) === $sampleType;
+        return array_filter($batches, function($batch) use ($sampleTypeId) {
+            return ($batch['sample_header']['sample_type_id'] ?? null) == $sampleTypeId;
         });
     }
 
     /**
-     * Get all unique sample types
+     * Get all unique sample type IDs
      */
     public function getUniqueSampleTypes()
     {
         $batches = $this->getAllFieldsWithValues();
-        $sampleTypes = [];
+        $sampleTypeIds = [];
         
         foreach ($batches as $batch) {
-            $sampleType = $batch['sample_header']['sample_type'] ?? null;
-            if ($sampleType && !in_array($sampleType, $sampleTypes)) {
-                $sampleTypes[] = $sampleType;
+            $sampleTypeId = $batch['sample_header']['sample_type_id'] ?? null;
+            if ($sampleTypeId && !in_array($sampleTypeId, $sampleTypeIds)) {
+                $sampleTypeIds[] = $sampleTypeId;
             }
         }
         
-        return $sampleTypes;
+        return $sampleTypeIds;
     }
 
     /**
@@ -572,11 +587,11 @@ class SubmissionFormInstance extends Model
     }
 
     /**
-     * Get sample details for a specific sample type
+     * Get sample details for a specific sample type ID
      */
-    public function getSampleDetailsByType(string $sampleType)
+    public function getSampleDetailsByType(string $sampleTypeId)
     {
-        $batches = $this->getSampleBatchesByType($sampleType);
+        $batches = $this->getSampleBatchesByType($sampleTypeId);
         $details = [];
         
         foreach ($batches as $batch) {

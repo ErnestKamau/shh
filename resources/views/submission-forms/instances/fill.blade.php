@@ -531,7 +531,12 @@ function setupClientChangeHandlers() {
             });
             
             // Also clear elements that depend on client_unit_select
-            const clientUnitDependentElements = $('select[data-element-type="sample_point_select"]');
+            const clientUnitDependentElements = $(this).closest('tr').find('select[data-element-type="sample_point_select"]');
+
+            if(clientUnitDependentElements.length == 0){
+                const clientUnitDependentElements = $('select[data-element-type="sample_point_select"]');
+            }
+
             clientUnitDependentElements.each(function() {
                 const dependentSelect = $(this);
                 const placeholder = 'Select...';
@@ -596,7 +601,13 @@ function setupSampleTypeChangeHandlers() {
         console.log('Sample type changed to:', sampleTypeId);
         
         // Find all dependent elements
-        const dependentElements = $('select[data-element-type="analysis_type_select"]');
+        let dependentElements = $(this).closest('tr').find('select[data-element-type="analysis_type_select"]');
+
+        if(dependentElements.length == 0){
+            // alert("Danger");
+            dependentElements = $(document).find('select[data-element-type="analysis_type_select"]');
+        }
+
         console.log('Found', dependentElements.length, 'sample type dependent elements');
         
         if (sampleTypeId) {
@@ -638,7 +649,12 @@ function setupAnalysisTypeChangeHandlers() {
         console.log('Analysis type changed to:', analysisTypeId);
         
         // Find all dependent elements
-        const dependentElements = $('select[data-element-type="analysis_elements_select"]');
+        let dependentElements = $(this).closest('tr').find('select[data-element-type="analysis_elements_select"]');
+
+        if(dependentElements.length == 0){
+            dependentElements = $(document).find('select[data-element-type="analysis_elements_select"]');
+        }
+
         console.log('Found', dependentElements.length, 'analysis type dependent elements');
         
         if (analysisTypeId) {
@@ -669,7 +685,6 @@ function setupAnalysisTypeChangeHandlers() {
 }
 
 function setupStoreChangeHandlers() {
-    console.log('Setting up store change handlers');
     
     // Remove any existing handlers
     $('select[data-element-type="store_select"]').off('change.custom-elements');
@@ -680,7 +695,7 @@ function setupStoreChangeHandlers() {
         console.log('Store changed to:', storeId);
         
         // Find all dependent elements
-        const dependentElements = $('select[data-element-type="store_slot_select"]');
+        let dependentElements = $(this).closest('tr').find('select[data-element-type="store_slot_select"]');
         console.log('Found', dependentElements.length, 'store dependent elements');
         
         if (storeId) {

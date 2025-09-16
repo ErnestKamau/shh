@@ -10,16 +10,17 @@ class SampleDetails extends Model implements Auditable
 	use \OwenIt\Auditing\Auditable;
 	// public $with = ['sample_detail_lab', 'captured_results'];
 	protected $guarded = ['id'];
-	public function getSampleHeader(){
+	public function getSampleHeader()
+	{
 		return SampleHeader::find($this->sample_header_id);
 	}
-  public function analysis()
+	public function analysis()
 	{
 		$analysisIDs = explode(",", $this->analysis_type_id);
 		$analysis = array();
 
-		foreach($analysisIDs as $id){
-			if(trim($id)!=""){
+		foreach ($analysisIDs as $id) {
+			if (trim($id) != "") {
 				$analysis[] = AnalysisType::find($id);
 			}
 		}
@@ -27,15 +28,16 @@ class SampleDetails extends Model implements Auditable
 		return $analysis;
 	}
 
-	public function labs(){
+	public function labs()
+	{
 		$analysisTypes = $this->analysis();
 		$labs = array();
-		if(sizeof($analysisTypes) > 0) {
-			foreach($analysisTypes as $a){
+		if (sizeof($analysisTypes) > 0) {
+			foreach ($analysisTypes as $a) {
 				$labs[] = array($a->lab->code, $a->lab->name);
 			}
 		}
-		
+
 
 		return $labs;
 	}
@@ -56,22 +58,27 @@ class SampleDetails extends Model implements Auditable
 		// return \App\Models\CRM\CompanyProduct::find($this->company_product_id);
 		return $this->belongsTo('App\Models\CRM\CompanyProduct', 'company_product_id');
 	}
-	public function getAnalysisRelation(){
-		return implode(', ',array_unique(SampleAnalysisTypeRelationView::where('sample_detail_id',$this->id)->where('batch_id',$this->sample_header_id)->pluck('analysis_type_name')->toArray()) ?? []);
+	public function getAnalysisRelation()
+	{
+		return implode(', ', array_unique(SampleAnalysisTypeRelationView::where('sample_detail_id', $this->id)->where('batch_id', $this->sample_header_id)->pluck('analysis_type_name')->toArray()) ?? []);
 	}
 
 
-	public function sample_detail_lab(){
+	public function sample_detail_lab()
+	{
 		return $this->hasOne(SampleAnalysisTypeRelationView::class, 'sample_detail_id');
 	}
-	public function getAnalysisTestDone(){
-		return implode(', ',array_unique(CapturedResult::where('sample_detail_id',$this->id)->where('sample_header_id',$this->sample_header_id)->pluck('analyte_code')->toArray()) ?? []);
+	public function getAnalysisTestDone()
+	{
+		return implode(', ', array_unique(CapturedResult::where('sample_detail_id', $this->id)->where('sample_header_id', $this->sample_header_id)->pluck('analyte_code')->toArray()) ?? []);
 	}
-	public function targetDateRelation(){
-		$target = SampleDate::where('sample_header_id',$this->sample_header_id)->where('name','Target Date')->first();
+	public function targetDateRelation()
+	{
+		$target = SampleDate::where('sample_header_id', $this->sample_header_id)->where('name', 'Target Date')->first();
 		return $target->date;
 	}
-	public function analyteNames(){
-		return CapturedResult::where('sample_detail_id',$this->id)->pluck('analyte_code')->toArray();
+	public function analyteNames()
+	{
+		return CapturedResult::where('sample_detail_id', $this->id)->pluck('analyte_code')->toArray();
 	}
 }

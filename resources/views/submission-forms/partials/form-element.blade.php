@@ -450,6 +450,8 @@ window.customElementsToInit.push({
     isRequired: {{ $element->is_required ? 'true' : 'false' }},
     placeholder: '{{ $element->placeholder ?: "Select..." }}'
 });
+
+
 </script>
 @endif
 

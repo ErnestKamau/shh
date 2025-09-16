@@ -5,6 +5,12 @@ namespace App\Http\Controllers;
 use App\Models\SubmissionFormInstance;
 use App\SampleHeader;
 use App\Services\SampleCreationService;
+use App\SampleDate;
+use App\AnalysisType;
+use App\AnalysisElements;
+use App\SampleAnalysisTypeRelationView;
+use App\Lab;
+use App\StandardAnalytes;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
 
@@ -24,8 +30,16 @@ class SampleCreationController extends Controller
     public function createFromForm(Request $request, SubmissionFormInstance $instance)
     {
         try {
+
+            
             // Get sample batches from form instance
             $sampleBatches = $instance->getAllFieldsWithValues();
+
+            // dd([
+            //     'success' => true,
+            //     'message' => 'Samples created successfully',
+            //     'data' => $sampleBatches
+            // ]);
             
             if (empty($sampleBatches)) {
                 return response()->json([
@@ -35,7 +49,6 @@ class SampleCreationController extends Controller
             }
 
             $createdBatches = [];
-            $sampleWorkFlowController = new \App\Http\Controllers\SampleWorkFlowController();
 
             foreach ($sampleBatches as $batchIndex => $batch) {
                 // Log the batch data for debugging
@@ -55,10 +68,13 @@ class SampleCreationController extends Controller
                 // Create sample details using our custom method
                 $sampleDetails = $this->createSampleDetails($batch['sample_details'], $sampleHeader->id);
                 
+                // Create sample dates (Login Date and Target Date)
+                $this->createSampleDates($sampleHeader->id, $sampleDetails);
+                
                 $createdBatches[] = [
                     'batch_id' => $sampleHeader->id,
                     'batch_code' => $sampleHeader->batch_code,
-                    'sample_type' => $batch['sample_header']['sample_type'] ?? 'Unknown',
+                    'sample_type_id' => $batch['sample_header']['sample_type_id'] ?? 'Unknown',
                     'sample_count' => count($sampleDetails)
                 ];
             }
@@ -276,7 +292,7 @@ class SampleCreationController extends Controller
             
             // Create the sample detail
             $sampleDetail = new \App\SampleDetails();
-            $sampleDetail->fill([
+            $sampleData = [
                 'sample_header_id' => $sampleHeaderId,
                 'sample_code' => $sampleCode['sample_code'],
                 'sample_no' => $sampleCode['sample_no'],
@@ -288,7 +304,13 @@ class SampleCreationController extends Controller
                 'barcode' => $getSingleValue($detailData['barcode'] ?? ''),
                 'standard_id' => $getIntegerValue($detailData['standard_id'] ?? null),
                 'lab_id' => $getIntegerValue($detailData['lab_id'] ?? 1), // Default lab
-            ]);
+            ];
+
+            $sampleData = array_merge($sampleData, $detailData);
+
+            dd($sampleData);
+
+            $sampleDetail->fill($sampleData);
             
             $sampleDetail->save();
             
@@ -359,26 +381,62 @@ class SampleCreationController extends Controller
             return;
         }
 
+        // Get lab information for contracted status
+        $sampleHeader = \App\SampleHeader::find($batchId);
+        $lab = null;
+        if ($sampleHeader) {
+            $labs = $sampleHeader->labs(true);
+            if (!empty($labs)) {
+                $labstr = implode(',', $labs);
+                $labarr = explode(' - ', $labstr);
+                if (count($labarr) >= 2) {
+                    $lab = Lab::where('code', $labarr[0])->where('name', $labarr[1])->first();
+                }
+            }
+        }
+
         foreach ($analysisElements as $element) {
-            // Create captured result
+            // Get the analyte code from the related analyte
+            $analyteCode = $element->analyte->code ?? 'UNKNOWN';
+            
+            $standardID = StandardAnalytes::where('analyte_id', $element->analyte_id)
+                ->where('standard_id', $element->standard_id)->first();
+
+            $secondaryStandardID = StandardAnalytes::where('analyte_id', $element->analyte_id)
+                ->where('standard_id', $element->secondary_standard_id)->first();
+
+            // $thirdStandardID = StandardAnalytes::where('analyte_id', $element->analyte_id)
+            //     ->where('standard_id', $element->third_standard_id)->first();
+
+            // Create captured result with all fields from SampleWorkFlowController
             $capturedResult = new \App\CapturedResult();
             $capturedResult->fill([
                 'sample_detail_code' => $sampleCode,
                 'sample_detail_id' => $sampleDetailId,
                 'sample_header_id' => $batchId,
                 'analyte_id' => $element->analyte_id,
-                'analyte_code' => $element->analyte->code ?? 'UNKNOWN',
+                'analyte_code' => $analyteCode,
                 'equipment_id' => $element->equipment_id ?? 0,
                 'result' => null, // Will be filled when results are captured
                 'user_id' => auth()->id() ?? 1,
                 'analysis_type_id' => $analysisTypeId,
                 'operator_id' => $element->operator_id,
                 'method_id' => $element->method,
-                'analyte_status_contracted' => 0,
-                'remark' => null,
+                'reporting_unit_id' => $element->reporting_unit,
+                'ltm_method_id' => $element->ltm_method_id,
                 'analyte_accredited' => $element->non_accredited ? 0 : 1,
-                'main_standard_id' => 0,
-                'secondary_standard_id' => null,
+                'analyte_status_contracted' => $lab->is_external ?? 0,
+                'lab_section_id' => $element->lab_section_id,
+                'parameters_order' => $element->level ?? 0,
+                'remark_is_manual' => $element->remark_is_manual,
+                'remark' => null,
+                'main_standard_id' => $standardID ? $standardID->id : null,
+                'secondary_standard_id' => $secondaryStandardID ? $secondaryStandardID->id : null,
+                // 'third_standard_id' => $thirdStandardID ? $thirdStandardID->id : null,
+                'analysis_type_order' => $element->analysis_type_order ?? 0,
+                'remark_colour' => null,
+                'result_reporting_symbol' => $element->reporting_symbol,
+                'repeat_captured_id' => null,
             ]);
             $capturedResult->save();
 
@@ -390,7 +448,8 @@ class SampleCreationController extends Controller
                 'sample_detail_id' => $sampleDetailId,
                 'sample_header_id' => $batchId,
                 'analyte_id' => $element->analyte_id,
-                'analyte_code' => $element->analyte->code ?? 'UNKNOWN',
+                'analyte_code' => $analyteCode,
+                'analysis_type_id' => $analysisTypeId,
                 'result' => null, // Will be filled when results are processed
                 'guide' => null,
                 'comments' => null,
@@ -404,16 +463,9 @@ class SampleCreationController extends Controller
                 'correct_target' => null,
                 'standard_target' => null,
                 'recommendations' => null,
+                'analyte_status_contracted' => $lab->is_external ?? 0,
             ]);
             $result->save();
-
-            Log::info('Created captured result and result', [
-                'captured_result_id' => $capturedResult->id,
-                'result_id' => $result->id,
-                'analyte_id' => $element->analyte_id,
-                'analyte_code' => $element->analyte->code ?? 'UNKNOWN',
-                'analysis_type_id' => $analysisTypeId
-            ]);
         }
     }
 
@@ -695,5 +747,87 @@ class SampleCreationController extends Controller
 
         // Add other authorization logic as needed
         return false;
+    }
+
+    /**
+     * Create sample dates for a sample header
+     */
+    private function createSampleDates($sampleHeaderId, $sampleDetails)
+    {
+        // Create Login Date (current date)
+        $this->createSampleDate($sampleHeaderId, 'Login Date', now());
+        
+        // Create Target Date (calculated based on analysis types)
+        $targetDate = $this->calculateTargetDate($sampleHeaderId, $sampleDetails);
+        $this->createSampleDate($sampleHeaderId, 'Target Date', $targetDate);
+    }
+
+    /**
+     * Calculate target date based on analysis types and reporting time
+     */
+    private function calculateTargetDate($sampleHeaderId, $sampleDetails)
+    {
+        // Get analysis type IDs from sample details
+        $analysisTypeIds = $this->getAnalysisTypeIdsFromSampleDetails($sampleDetails);
+        
+        if (empty($analysisTypeIds)) {
+            // If no analysis types found, use default reporting time of 0
+            $maxReportingTime = 0;
+        } else {
+            // Get maximum reporting time from analysis types
+            $analysisMaxReportingTime = AnalysisType::whereIn('id', $analysisTypeIds)->max('reporting_time') ?? 0;
+            
+            // Get maximum reporting time from analysis elements
+            $elementsMaxReportingTime = AnalysisElements::whereIn('analysis_type_id', $analysisTypeIds)->max('reporting_time') ?? 0;
+            
+            // Use the maximum of both
+            $maxReportingTime = max($analysisMaxReportingTime, $elementsMaxReportingTime);
+        }
+        
+        // Get sample header to access receipt_date
+        $sampleHeader = SampleHeader::find($sampleHeaderId);
+        
+        if (!$sampleHeader || !$sampleHeader->receipt_date) {
+            // Fallback to current date if no receipt date
+            return now()->addDays($maxReportingTime);
+        }
+        
+        // Calculate target date = receipt_date + max_reporting_time
+        return \Carbon\Carbon::parse($sampleHeader->receipt_date)->addDays($maxReportingTime);
+    }
+
+    /**
+     * Get analysis type IDs from sample details
+     */
+    private function getAnalysisTypeIdsFromSampleDetails($sampleDetails)
+    {
+        $sampleDetailIds = collect($sampleDetails)->pluck('id')->filter()->toArray();
+        
+        if (empty($sampleDetailIds)) {
+            return [];
+        }
+        
+        // Get analysis type IDs from sample analysis type relations
+        return SampleAnalysisTypeRelationView::whereIn('sample_detail_id', $sampleDetailIds)
+            ->pluck('analysis_type_id')
+            ->unique()
+            ->toArray();
+    }
+
+    /**
+     * Create or update a sample date record
+     */
+    private function createSampleDate($sampleHeaderId, $dateName, $dateValue)
+    {
+        $sampleDate = SampleDate::where('sample_header_id', $sampleHeaderId)
+            ->where('name', $dateName)
+            ->first() ?? new SampleDate();
+        
+        $sampleDate->name = $dateName;
+        $sampleDate->sample_header_id = $sampleHeaderId;
+        $sampleDate->date = $dateValue;
+        $sampleDate->save();
+        
+        return $sampleDate;
     }
 }

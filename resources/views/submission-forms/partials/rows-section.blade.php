@@ -78,7 +78,6 @@
     </div>
   @endif
 </div>
-
 <script>
 document.addEventListener('DOMContentLoaded', function() {
   const sectionId = {{ $section->id }};
@@ -93,6 +92,14 @@ document.addEventListener('DOMContentLoaded', function() {
   });
 
   function addNewRow() {
+    const $trRow = $('#row-template-'+sectionId+' tr');
+
+    console.log(">>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>",$trRow.html());
+
+    const $trHtml = $trRow.clone(true);
+
+    
+
     const newRow = template.content.cloneNode(true);
     const rowElement = newRow.querySelector('tr');
     
