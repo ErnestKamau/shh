@@ -11,6 +11,7 @@ use App\AnalysisElements;
 use App\SampleAnalysisTypeRelationView;
 use App\Lab;
 use App\StandardAnalytes;
+use App\SampleAnalysisTypeRelation;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
 
@@ -30,16 +31,8 @@ class SampleCreationController extends Controller
     public function createFromForm(Request $request, SubmissionFormInstance $instance)
     {
         try {
-
-            
             // Get sample batches from form instance
             $sampleBatches = $instance->getAllFieldsWithValues();
-
-            // dd([
-            //     'success' => true,
-            //     'message' => 'Samples created successfully',
-            //     'data' => $sampleBatches
-            // ]);
             
             if (empty($sampleBatches)) {
                 return response()->json([
@@ -304,11 +297,20 @@ class SampleCreationController extends Controller
                 'barcode' => $getSingleValue($detailData['barcode'] ?? ''),
                 'standard_id' => $getIntegerValue($detailData['standard_id'] ?? null),
                 'lab_id' => $getIntegerValue($detailData['lab_id'] ?? 1), // Default lab
+                'disposal_date' => $getSingleValue($detailData['disposal_date'] ?? null),
+                'main_standard' => $getIntegerValue($detailData['main_standard'] ?? null),
+                'secondary_standard' => $getIntegerValue($detailData['secondary_standard'] ?? null),
+                'third_standard_id' => $getIntegerValue($detailData['third_standard_id'] ?? null),
+                'comments' => $getSingleValue($detailData['comments'] ?? ''),
+                'is_duplicate' => $getIntegerValue($detailData['is_duplicate'] ?? 0),
+                'sample_store' => $getSingleValue($detailData['sample_store'] ?? ''),
+                'sample_store_slot' => $getSingleValue($detailData['sample_store_slot'] ?? ''),
+                'sample_quantity' => $getSingleValue($detailData['sample_quantity'] ?? ''),
+                'sample_reporting_unit' => $getSingleValue($detailData['sample_reporting_unit'] ?? ''),
             ];
 
+            // Merge additional detail data
             $sampleData = array_merge($sampleData, $detailData);
-
-            dd($sampleData);
 
             $sampleDetail->fill($sampleData);
             
@@ -355,10 +357,52 @@ class SampleCreationController extends Controller
             return;
         }
         
+        // Create analysis type relations first
+        $this->createDetailAnalysisRelation($batchId, $sampleDetailId, $analysisTypes);
+        
         // Create captured results and results for each analysis type
         foreach ($analysisTypes as $analysisTypeId) {
             $this->createCapturedResultsForAnalysisType($batchId, $sampleDetailId, $analysisTypeId, $sampleCode);
         }
+    }
+
+    /**
+     * Create analysis type relations for a sample detail
+     */
+    private function createDetailAnalysisRelation($batchId, $sampleId, $analysisTypes)
+    {
+        $data = [];
+        
+        // Delete existing relations that are not in the new list
+        SampleAnalysisTypeRelation::where('batch_id', $batchId)
+            ->where('sample_detail_id', $sampleId)
+            ->whereNotIn('analysis_type_id', $analysisTypes)
+            ->delete();
+            
+        // Get existing relations
+        $existing = SampleAnalysisTypeRelation::where('batch_id', $batchId)
+            ->where('sample_detail_id', $sampleId)
+            ->pluck('analysis_type_id')
+            ->toArray();
+            
+        // Create new relations
+        foreach ($analysisTypes as $analysisTypeId) {
+            if (!in_array($analysisTypeId, $existing)) {
+                $data[] = [
+                    'analysis_type_id' => $analysisTypeId,
+                    'batch_id' => $batchId,
+                    'sample_detail_id' => $sampleId,
+                    'created_at' => now(),
+                    'updated_at' => now(),
+                ];
+            }
+        }
+        
+        if (count($data) > 0) {
+            SampleAnalysisTypeRelation::insert($data);
+        }
+        
+        return 'success';
     }
 
     
@@ -395,21 +439,38 @@ class SampleCreationController extends Controller
             }
         }
 
+        // Get sample detail to access its standards
+        $sampleDetail = \App\SampleDetails::find($sampleDetailId);
+        
         foreach ($analysisElements as $element) {
             // Get the analyte code from the related analyte
             $analyteCode = $element->analyte->code ?? 'UNKNOWN';
             
-            $standardID = StandardAnalytes::where('analyte_id', $element->analyte_id)
-                ->where('standard_id', $element->standard_id)->first();
-
-            $secondaryStandardID = StandardAnalytes::where('analyte_id', $element->analyte_id)
-                ->where('standard_id', $element->secondary_standard_id)->first();
-
-            // $thirdStandardID = StandardAnalytes::where('analyte_id', $element->analyte_id)
-            //     ->where('standard_id', $element->third_standard_id)->first();
+            // Get standards from sample detail, not analysis element
+            $standardID = null;
+            $secondaryStandardID = null;
+            $thirdStandardID = null;
+            
+            if ($sampleDetail) {
+                if ($sampleDetail->main_standard) {
+                    $standardID = StandardAnalytes::where('analyte_id', $element->analyte_id)
+                        ->where('standard_id', $sampleDetail->main_standard)->first();
+                }
+                
+                if ($sampleDetail->secondary_standard) {
+                    $secondaryStandardID = StandardAnalytes::where('analyte_id', $element->analyte_id)
+                        ->where('standard_id', $sampleDetail->secondary_standard)->first();
+                }
+                
+                if ($sampleDetail->third_standard_id) {
+                    $thirdStandardID = StandardAnalytes::where('analyte_id', $element->analyte_id)
+                        ->where('standard_id', $sampleDetail->third_standard_id)->first();
+                }
+            }
 
             // Create captured result with all fields from SampleWorkFlowController
             $capturedResult = new \App\CapturedResult();
+
             $capturedResult->fill([
                 'sample_detail_code' => $sampleCode,
                 'sample_detail_id' => $sampleDetailId,
@@ -422,7 +483,7 @@ class SampleCreationController extends Controller
                 'analysis_type_id' => $analysisTypeId,
                 'operator_id' => $element->operator_id,
                 'method_id' => $element->method,
-                'reporting_unit_id' => $element->reporting_unit,
+                'reporting_unit_id' => $element->reporting_symbol,
                 'ltm_method_id' => $element->ltm_method_id,
                 'analyte_accredited' => $element->non_accredited ? 0 : 1,
                 'analyte_status_contracted' => $lab->is_external ?? 0,
@@ -432,7 +493,7 @@ class SampleCreationController extends Controller
                 'remark' => null,
                 'main_standard_id' => $standardID ? $standardID->id : null,
                 'secondary_standard_id' => $secondaryStandardID ? $secondaryStandardID->id : null,
-                // 'third_standard_id' => $thirdStandardID ? $thirdStandardID->id : null,
+                'third_standard_id' => $thirdStandardID ? $thirdStandardID->id : null,
                 'analysis_type_order' => $element->analysis_type_order ?? 0,
                 'remark_colour' => null,
                 'result_reporting_symbol' => $element->reporting_symbol,
@@ -457,6 +518,7 @@ class SampleCreationController extends Controller
                 'guide_low' => null,
                 'guide_high' => null,
                 'unit_code' => $element->reporting_unit,
+                'reporting_unit_id' => $element->reporting_symbol,
                 'status_code' => null,
                 'reporting_symbol' => $element->reporting_symbol,
                 'qc' => 0,
@@ -464,6 +526,9 @@ class SampleCreationController extends Controller
                 'standard_target' => null,
                 'recommendations' => null,
                 'analyte_status_contracted' => $lab->is_external ?? 0,
+                'lab_section_id' => $element->lab_section_id,
+                'parameters_order' => $element->level ?? 0,
+                'remark_is_manual' => $element->remark_is_manual,
             ]);
             $result->save();
         }
