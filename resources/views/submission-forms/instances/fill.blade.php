@@ -377,14 +377,14 @@ function waitForJQuery(callback) {
 
 // Initialize all custom elements
 function initializeAllCustomElements() {
-    console.log('Initializing custom elements...');
+    //console.log('Initializing custom elements...');
     
     if (!window.customElementsToInit) {
-        console.log('No custom elements to initialize');
+        //console.log('No custom elements to initialize');
         return;
     }
     
-    console.log('Found', window.customElementsToInit.length, 'custom elements to initialize');
+    //console.log('Found', window.customElementsToInit.length, 'custom elements to initialize');
     
     // Initialize each element
     window.customElementsToInit.forEach(function(elementData) {
@@ -403,17 +403,18 @@ function initializeCustomElement(elementData) {
     const elementId = elementData.elementId;
     const elementType = elementData.elementType;
     
-    console.log('Initializing element:', elementId, 'type:', elementType);
+    //console.log('Initializing element:', elementId, 'type:', elementType);
     
     // Load initial options for non-dependent elements
     if (elementType === 'client_select' || elementType === 'sample_type_select' || elementType === 'store_select' || elementType === 'standard_select' || elementType === 'sample_condition_select') {
-        console.log('Loading initial options for:', elementType);
-        loadDynamicOptions(elementId, elementType);
+        //console.log('Loading initial options for:', elementType);
+        let $element = $('#' + elementId);
+        loadDynamicOptions($element, elementId, elementType);
     }
     
     // For client-dependent elements, ensure they start empty
     if (elementType === 'client_unit_select' || elementType === 'client_contact_select') {
-        console.log('Setting up client dependent element:', elementType);
+        //console.log('Setting up client dependent element:', elementType);
         
         // Ensure element starts empty
         const placeholder = elementData.placeholder;
@@ -422,16 +423,16 @@ function initializeCustomElement(elementData) {
         // Load options if client is already selected
         const clientSelect = $('select[data-element-type="client_select"]');
         const currentClientId = clientSelect.val();
-        console.log('Current client ID:', currentClientId);
+        //console.log('Current client ID:', currentClientId);
         
         if (currentClientId) {
-            loadDynamicOptions(elementId, elementType, currentClientId);
+            loadDynamicOptions($('#' + elementId), elementId, elementType, currentClientId);
         }
     }
     
     // For client unit dependent elements
     if (elementType === 'sample_point_select') {
-        console.log('Setting up client unit dependent element:', elementType);
+        //console.log('Setting up client unit dependent element:', elementType);
         
         // Ensure element starts empty
         const placeholder = elementData.placeholder;
@@ -440,16 +441,16 @@ function initializeCustomElement(elementData) {
         // Load options if client unit is already selected
         const clientUnitSelect = $('select[data-element-type="client_unit_select"]');
         const currentClientUnitId = clientUnitSelect.val();
-        console.log('Current client unit ID:', currentClientUnitId);
+        //console.log('Current client unit ID:', currentClientUnitId);
         
         if (currentClientUnitId) {
-            loadDynamicOptions(elementId, elementType, null, null, null, currentClientUnitId);
+            loadDynamicOptions($('#' + elementId), elementId, elementType, null, null, null, currentClientUnitId);
         }
     }
     
     // For sample type dependent elements
     if (elementType === 'analysis_type_select') {
-        console.log('Setting up sample type dependent element:', elementType);
+        //console.log('Setting up sample type dependent element:', elementType);
         
         // Ensure element starts empty
         const placeholder = elementData.placeholder;
@@ -458,16 +459,16 @@ function initializeCustomElement(elementData) {
         // Load options if sample type is already selected
         const sampleTypeSelect = $('select[data-element-type="sample_type_select"]');
         const currentSampleTypeId = sampleTypeSelect.val();
-        console.log('Current sample type ID:', currentSampleTypeId);
+        //console.log('Current sample type ID:', currentSampleTypeId);
         
         if (currentSampleTypeId) {
-            loadDynamicOptions(elementId, elementType, null, currentSampleTypeId);
+            loadDynamicOptions($('#' + elementId), elementId, elementType, null, currentSampleTypeId);
         }
     }
     
     // For store dependent elements
     if (elementType === 'store_slot_select') {
-        console.log('Setting up store dependent element:', elementType);
+        //console.log('Setting up store dependent element:', elementType);
         
         // Ensure element starts empty
         const placeholder = elementData.placeholder;
@@ -476,16 +477,16 @@ function initializeCustomElement(elementData) {
         // Load options if store is already selected
         const storeSelect = $('select[data-element-type="store_select"]');
         const currentStoreId = storeSelect.val();
-        console.log('Current store ID:', currentStoreId);
+        //console.log('Current store ID:', currentStoreId);
         
         if (currentStoreId) {
-            loadDynamicOptions(elementId, elementType, null, null, currentStoreId);
+            loadDynamicOptions($('#' + elementId), elementId, elementType, null, null, currentStoreId);
         }
     }
 }
 
 function setupClientChangeHandlers() {
-    console.log('Setting up client change handlers');
+    //console.log('Setting up client change handlers');
     
     // Remove any existing handlers
     $('select[data-element-type="client_select"]').off('change.custom-elements');
@@ -493,17 +494,17 @@ function setupClientChangeHandlers() {
     // Set up client change handler
     $('select[data-element-type="client_select"]').on('change.custom-elements', function() {
         const clientId = $(this).val();
-        console.log('Client changed to:', clientId);
+        //console.log('Client changed to:', clientId);
         
         // Find all dependent elements (only direct dependencies)
         const dependentElements = $('select[data-element-type="client_unit_select"], select[data-element-type="client_contact_select"]');
-        console.log('Found', dependentElements.length, 'client dependent elements');
+        //console.log('Found', dependentElements.length, 'client dependent elements');
         
         // Debug: Check what custom elements exist
         const allCustomElements = $('select[data-element-type]');
-        console.log('All custom elements found:', allCustomElements.length);
+        //console.log('All custom elements found:', allCustomElements.length);
         allCustomElements.each(function() {
-            console.log('- Element:', $(this).attr('id'), 'Type:', $(this).data('element-type'));
+            //console.log('- Element:', $(this).attr('id'), 'Type:', $(this).data('element-type'));
         });
         
         if (clientId) {
@@ -513,13 +514,13 @@ function setupClientChangeHandlers() {
                 const dependentElementId = dependentSelect.attr('id');
                 const dependentElementType = dependentSelect.data('element-type');
                 
-                console.log('Updating dependent element:', dependentElementType, dependentElementId);
+                //console.log('Updating dependent element:', dependentElementType, dependentElementId);
                 
                 // Show loading state
                 dependentSelect.html('<option value="">Loading...</option>').prop('disabled', true);
                 
                 // Load options
-                loadDynamicOptions(dependentElementId, dependentElementType, clientId);
+                loadDynamicOptions(dependentSelect, dependentElementId, dependentElementType, clientId);
             });
         } else {
             // Clear all dependent elements
@@ -527,7 +528,7 @@ function setupClientChangeHandlers() {
                 const dependentSelect = $(this);
                 const placeholder = 'Select...';
                 dependentSelect.html('<option value="">' + placeholder + '</option>').prop('disabled', false);
-                console.log('Cleared dependent element:', dependentSelect.attr('id'));
+                //console.log('Cleared dependent element:', dependentSelect.attr('id'));
             });
             
             // Also clear elements that depend on client_unit_select
@@ -541,14 +542,14 @@ function setupClientChangeHandlers() {
                 const dependentSelect = $(this);
                 const placeholder = 'Select...';
                 dependentSelect.html('<option value="">' + placeholder + '</option>').prop('disabled', false);
-                console.log('Cleared client unit dependent element:', dependentSelect.attr('id'));
+                //console.log('Cleared client unit dependent element:', dependentSelect.attr('id'));
             });
         }
     });
 }
 
 function setupClientUnitChangeHandlers() {
-    console.log('Setting up client unit change handlers');
+    //console.log('Setting up client unit change handlers');
     
     // Remove any existing handlers
     $('select[data-element-type="client_unit_select"]').off('change.custom-elements');
@@ -556,11 +557,11 @@ function setupClientUnitChangeHandlers() {
     // Set up client unit change handler
     $('select[data-element-type="client_unit_select"]').on('change.custom-elements', function() {
         const clientUnitId = $(this).val();
-        console.log('Client unit changed to:', clientUnitId);
+        //console.log('Client unit changed to:', clientUnitId);
         
         // Find all dependent elements
         const dependentElements = $('select[data-element-type="sample_point_select"]');
-        console.log('Found', dependentElements.length, 'client unit dependent elements');
+        //console.log('Found', dependentElements.length, 'client unit dependent elements');
         
         if (clientUnitId) {
             // Load options for each dependent element
@@ -569,13 +570,13 @@ function setupClientUnitChangeHandlers() {
                 const dependentElementId = dependentSelect.attr('id');
                 const dependentElementType = dependentSelect.data('element-type');
                 
-                console.log('Updating dependent element:', dependentElementType, dependentElementId);
+                //console.log('Updating dependent element:', dependentElementType, dependentElementId);
                 
                 // Show loading state
                 dependentSelect.html('<option value="">Loading...</option>').prop('disabled', true);
                 
                 // Load options - sample_point_select depends on client_unit_select
-                loadDynamicOptions(dependentElementId, dependentElementType, null, null, null, clientUnitId);
+                loadDynamicOptions(dependentSelect, dependentElementId, dependentElementType, null, null, null, clientUnitId);
             });
         } else {
             // Clear all dependent elements
@@ -583,14 +584,14 @@ function setupClientUnitChangeHandlers() {
                 const dependentSelect = $(this);
                 const placeholder = 'Select...';
                 dependentSelect.html('<option value="">' + placeholder + '</option>').prop('disabled', false);
-                console.log('Cleared dependent element:', dependentSelect.attr('id'));
+                //console.log('Cleared dependent element:', dependentSelect.attr('id'));
             });
         }
     });
 }
 
 function setupSampleTypeChangeHandlers() {
-    console.log('Setting up sample type change handlers');
+    //console.log('Setting up sample type change handlers');
     
     // Remove any existing handlers
     $('select[data-element-type="sample_type_select"]').off('change.custom-elements');
@@ -598,7 +599,7 @@ function setupSampleTypeChangeHandlers() {
     // Set up sample type change handler
     $('select[data-element-type="sample_type_select"]').on('change.custom-elements', function() {
         const sampleTypeId = $(this).val();
-        console.log('Sample type changed to:', sampleTypeId);
+        //console.log('Sample type changed to:', sampleTypeId);
         
         // Find all dependent elements
         let dependentElements = $(this).closest('tr').find('select[data-element-type="analysis_type_select"]');
@@ -608,7 +609,7 @@ function setupSampleTypeChangeHandlers() {
             dependentElements = $(document).find('select[data-element-type="analysis_type_select"]');
         }
 
-        console.log('Found', dependentElements.length, 'sample type dependent elements');
+        //console.log('Found', dependentElements.length, 'sample type dependent elements');
         
         if (sampleTypeId) {
             // Load options for each dependent element
@@ -617,13 +618,13 @@ function setupSampleTypeChangeHandlers() {
                 const dependentElementId = dependentSelect.attr('id');
                 const dependentElementType = dependentSelect.data('element-type');
                 
-                console.log('Updating dependent element:', dependentElementType, dependentElementId);
+                //console.log('Updating dependent element:', dependentElementType, dependentElementId);
                 
                 // Show loading state
                 dependentSelect.html('<option value="">Loading...</option>').prop('disabled', true);
                 
                 // Load options
-                loadDynamicOptions(dependentElementId, dependentElementType, null, sampleTypeId);
+                loadDynamicOptions(dependentSelect, dependentElementId, dependentElementType, null, sampleTypeId);
             });
         } else {
             // Clear all dependent elements
@@ -631,14 +632,14 @@ function setupSampleTypeChangeHandlers() {
                 const dependentSelect = $(this);
                 const placeholder = 'Select...';
                 dependentSelect.html('<option value="">' + placeholder + '</option>').prop('disabled', false);
-                console.log('Cleared dependent element:', dependentSelect.attr('id'));
+                //console.log('Cleared dependent element:', dependentSelect.attr('id'));
             });
         }
     });
 }
 
 function setupAnalysisTypeChangeHandlers() {
-    console.log('Setting up analysis type change handlers');
+    //console.log('Setting up analysis type change handlers');
     
     // Remove any existing handlers
     $('select[data-element-type="analysis_type_select"]').off('change.custom-elements');
@@ -646,7 +647,7 @@ function setupAnalysisTypeChangeHandlers() {
     // Set up analysis type change handler
     $('select[data-element-type="analysis_type_select"]').on('change.custom-elements', function() {
         const analysisTypeId = $(this).val();
-        console.log('Analysis type changed to:', analysisTypeId);
+        //console.log('Analysis type changed to:', analysisTypeId);
         
         // Find all dependent elements
         let dependentElements = $(this).closest('tr').find('select[data-element-type="analysis_elements_select"]');
@@ -655,7 +656,7 @@ function setupAnalysisTypeChangeHandlers() {
             dependentElements = $(document).find('select[data-element-type="analysis_elements_select"]');
         }
 
-        console.log('Found', dependentElements.length, 'analysis type dependent elements');
+        //console.log('Found', dependentElements.length, 'analysis type dependent elements');
         
         if (analysisTypeId) {
             // Load options for each dependent element
@@ -664,13 +665,13 @@ function setupAnalysisTypeChangeHandlers() {
                 const dependentElementId = dependentSelect.attr('id');
                 const dependentElementType = dependentSelect.data('element-type');
                 
-                console.log('Updating dependent element:', dependentElementType, dependentElementId);
+                //console.log('Updating dependent element:', dependentElementType, dependentElementId);
                 
                 // Show loading state
                 dependentSelect.html('<option value="">Loading...</option>').prop('disabled', true);
                 
                 // Load options
-                loadDynamicOptions(dependentElementId, dependentElementType, null, null, null, null, analysisTypeId);
+                loadDynamicOptions(dependentSelect, dependentElementId, dependentElementType, null, null, null, null, analysisTypeId);
             });
         } else {
             // Clear all dependent elements
@@ -678,7 +679,7 @@ function setupAnalysisTypeChangeHandlers() {
                 const dependentSelect = $(this);
                 const placeholder = 'Select...';
                 dependentSelect.html('<option value="">' + placeholder + '</option>').prop('disabled', false);
-                console.log('Cleared dependent element:', dependentSelect.attr('id'));
+                //console.log('Cleared dependent element:', dependentSelect.attr('id'));
             });
         }
     });
@@ -692,11 +693,11 @@ function setupStoreChangeHandlers() {
     // Set up store change handler
     $('select[data-element-type="store_select"]').on('change.custom-elements', function() {
         const storeId = $(this).val();
-        console.log('Store changed to:', storeId);
+        //console.log('Store changed to:', storeId);
         
         // Find all dependent elements
         let dependentElements = $(this).closest('tr').find('select[data-element-type="store_slot_select"]');
-        console.log('Found', dependentElements.length, 'store dependent elements');
+        //console.log('Found', dependentElements.length, 'store dependent elements');
         
         if (storeId) {
             // Load options for each dependent element
@@ -705,13 +706,13 @@ function setupStoreChangeHandlers() {
                 const dependentElementId = dependentSelect.attr('id');
                 const dependentElementType = dependentSelect.data('element-type');
                 
-                console.log('Updating dependent element:', dependentElementType, dependentElementId);
+                //console.log('Updating dependent element:', dependentElementType, dependentElementId);
                 
                 // Show loading state
                 dependentSelect.html('<option value="">Loading...</option>').prop('disabled', true);
                 
                 // Load options
-                loadDynamicOptions(dependentElementId, dependentElementType, null, null, storeId);
+                loadDynamicOptions(dependentSelect, dependentElementId, dependentElementType, null, null, storeId);
             });
         } else {
             // Clear all dependent elements
@@ -719,17 +720,19 @@ function setupStoreChangeHandlers() {
                 const dependentSelect = $(this);
                 const placeholder = 'Select...';
                 dependentSelect.html('<option value="">' + placeholder + '</option>').prop('disabled', false);
-                console.log('Cleared dependent element:', dependentSelect.attr('id'));
+                //console.log('Cleared dependent element:', dependentSelect.attr('id'));
             });
         }
     });
 }
 
-function loadDynamicOptions(elementId, elementType, clientId = null, sampleTypeId = null, storeId = null, clientUnitId = null, analysisTypeId = null) {
-    const select = $('#' + elementId);
+function loadDynamicOptions($this, elementId, elementType, clientId = null, sampleTypeId = null, storeId = null, clientUnitId = null, analysisTypeId = null) {
+    console.log($this);
+    
+    const select = $this;
     const originalHtml = select.html();
     
-    console.log('Loading options for element:', elementId, 'type:', elementType, 'clientId:', clientId, 'sampleTypeId:', sampleTypeId, 'storeId:', storeId, 'clientUnitId:', clientUnitId, 'analysisTypeId:', analysisTypeId);
+    //console.log('Loading options for element:', elementId, 'type:', elementType, 'clientId:', clientId, 'sampleTypeId:', sampleTypeId, 'storeId:', storeId, 'clientUnitId:', clientUnitId, 'analysisTypeId:', analysisTypeId);
     
     // Show loading state
     select.html('<option value="">Loading...</option>').prop('disabled', true);
@@ -745,14 +748,14 @@ function loadDynamicOptions(elementId, elementType, clientId = null, sampleTypeI
         analysis_type_id: analysisTypeId
     };
     
-    console.log('Making AJAX request to:', ajaxUrl, 'with data:', ajaxData);
+    //console.log('Making AJAX request to:', ajaxUrl, 'with data:', ajaxData);
     
     $.ajax({
         url: ajaxUrl,
         method: 'GET',
         data: ajaxData,
         success: function(response) {
-            console.log('Received response for', elementType, ':', response);
+            //console.log('Received response for', elementType, ':', response);
             let html = '';
             
             // Add placeholder option (always add for dependent elements)
@@ -772,9 +775,9 @@ function loadDynamicOptions(elementId, elementType, clientId = null, sampleTypeI
                 response.options.forEach(function(option) {
                     html += '<option value="' + option.value + '">' + option.label + '</option>';
                 });
-                console.log('Added', response.options.length, 'options to', elementType);
+                //console.log('Added', response.options.length, 'options to', elementType);
             } else {
-                console.warn('No options returned for element type:', elementType);
+                //console.warn('No options returned for element type:', elementType);
                 if (html === '') {
                     html += '<option value="">No options available</option>';
                 }
@@ -783,18 +786,18 @@ function loadDynamicOptions(elementId, elementType, clientId = null, sampleTypeI
             select.html(html).prop('disabled', false);
         },
         error: function(xhr, status, error) {
-            console.error('Error loading options for', elementType, ':', error);
-            console.error('Status:', status);
-            console.error('Response:', xhr.responseText);
+            //console.error('Error loading options for', elementType, ':', error);
+            //console.error('Status:', status);
+            //console.error('Response:', xhr.responseText);
             select.html(originalHtml).prop('disabled', false);
             
             // Show error message
             if (xhr.status === 403) {
                 alert('You do not have permission to access this data.');
             } else if (xhr.status === 500) {
-                console.error('Server error loading dynamic options');
+                //console.error('Server error loading dynamic options');
             } else {
-                console.error('Network error loading dynamic options');
+                //console.error('Network error loading dynamic options');
             }
         }
     });
@@ -802,14 +805,14 @@ function loadDynamicOptions(elementId, elementType, clientId = null, sampleTypeI
 
 // // Initialize when jQuery is ready
 // waitForJQuery(function() {
-//     console.log('jQuery is ready, initializing custom elements');
+//     //console.log('jQuery is ready, initializing custom elements');
 //     initializeAllCustomElements();
 // });
 </script>
 
 <script>
 $(document).ready(function() {
-    console.log('Fill form page loaded, initializing...');
+    //console.log('Fill form page loaded, initializing...');
     
     // Set route URL for dynamic options
     window.dynamicOptionsRoute = "{{ auth()->check() ? route('submission-forms.dynamic-options') : route('forms.dynamic-options') }}";

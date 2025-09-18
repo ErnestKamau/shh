@@ -92,48 +92,46 @@ document.addEventListener('DOMContentLoaded', function() {
   });
 
   function addNewRow() {
-    const $trRow = $('#row-template-'+sectionId+' tr');
-
-    console.log(">>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>",$trRow.html());
-
-    const $trHtml = $trRow.clone(true);
-
-    
-
     const newRow = template.content.cloneNode(true);
     const rowElement = newRow.querySelector('tr');
+
+    const $rowElement = $(rowElement);
     
     
     // Set row index
-    rowElement.setAttribute('data-row-index', rowIndex);
+    $rowElement.attr('data-row-index', rowIndex);
     
     // Update field names to include array index
-    const inputs = newRow.querySelectorAll('input, select, textarea');
-    inputs.forEach(input => {
-      if (input.name) {
-        input.name = input.name.replace('ROW_INDEX_PLACEHOLDER', rowIndex);
+    const $inputs = $rowElement.find('input, select, textarea');
+
+    $inputs.each(function() {
+      const $this = $(this);
+      if ($this.attr('name')) {
+        $this.attr('name', $this.attr('name').replace('ROW_INDEX_PLACEHOLDER', rowIndex));
       }
-      if (input.id) {
-        input.id = input.id.replace('ROW_INDEX_PLACEHOLDER', rowIndex);
+      if ($this.attr('id')) {
+        $this.attr('id', $this.attr('id').replace('ROW_INDEX_PLACEHOLDER', rowIndex));
       }
     });
     
     // Update labels
-    const labels = newRow.querySelectorAll('label');
-    labels.forEach(label => {
-      if (label.getAttribute('for')) {
-        label.setAttribute('for', label.getAttribute('for').replace('ROW_INDEX_PLACEHOLDER', rowIndex));
+    const $labels = $rowElement.find('label');
+    $labels.each(function() {
+      const $this = $(this);
+      if ($this.attr('for')) {
+        $this.attr('for', $this.attr('for').replace('ROW_INDEX_PLACEHOLDER', rowIndex));
       }
     });
+
     
-    tbody.appendChild(newRow);
+    $(document).find('#rows-tbody-'+sectionId).append($rowElement);
     rowIndex++;
     
     // Initialize custom elements for the new row
-    initializeRowCustomElements(rowElement);
+    initializeRowCustomElements($rowElement);
     
     // Initialize Select2 on all select elements in the new row
-    $(rowElement).find('select').not('.hidden').each(function(i, e) {
+    $rowElement.find('select').not('.hidden').each(function(i, e) {
       if (!$(e).hasClass('no-select2')) {
         $(e).select2({
           placeholder: $(e).attr('placeholder') || $(e).data('placeholder') || 'Select...'
@@ -143,169 +141,172 @@ document.addEventListener('DOMContentLoaded', function() {
     });
   }
 
-  function initializeRowCustomElements(rowElement) {
+  function initializeRowCustomElements($rowElement, isCloned = false) {
     // Find all custom elements in this row by data-element-type attribute
-    const customElements = rowElement.querySelectorAll('[data-element-type]');
+    const customElements = $rowElement.find('[data-element-type]');
+
     
-    customElements.forEach(element => {
-      const elementType = element.getAttribute('data-element-type');
-      const elementId = element.id;
+    customElements.each(function() {
+      const $this = $(this);
+      const elementType = $this.attr('data-element-type');
+      const elementId = $this.attr('id');
       
-      console.log('Processing element:', elementType, 'with ID:', elementId);
+      //console.log('Processing element:', elementType, 'with ID:', elementId);
       
       // Initialize based on element type
       if (['client_select', 'sample_type_select', 'store_select', 'standard_select', 'sample_condition_select'].includes(elementType)) {
         // Independent elements - data is already loaded statically, just initialize Select2
-        console.log('Independent element with static data:', elementType, elementId);
+        //console.log('Independent element with static data:', elementType, elementId);
       } else if (['client_unit_select', 'client_contact_select'].includes(elementType)) {
         // Set up dependent elements - these depend on client_select
-        setupDependentElement(elementId, elementType, 'client_select');
+        setupDependentElement($this, elementId, elementType, 'client_select');
       } else if (elementType === 'sample_point_select') {
         // This depends on client_unit_select
-        setupDependentElement(elementId, elementType, 'client_unit_select');
+        setupDependentElement($this, elementId, elementType, 'client_unit_select');
       } else if (elementType === 'analysis_type_select') {
         // This depends on sample_type_select
-        setupDependentElement(elementId, elementType, 'sample_type_select');
+        setupDependentElement($this, elementId, elementType, 'sample_type_select');
       } else if (elementType === 'analysis_elements_select') {
         // This depends on analysis_type_select
-        setupDependentElement(elementId, elementType, 'analysis_type_select');
+        setupDependentElement($this, elementId, elementType, 'analysis_type_select');
       } else if (elementType === 'store_slot_select') {
         // This depends on store_select
-        setupDependentElement(elementId, elementType, 'store_select');
+        setupDependentElement($this, elementId, elementType, 'store_select');
       }
     });
   }
 
-  function setupDependentElement(elementId, elementType, dependsOn) {
+  function setupDependentElement($this, elementId, elementType, dependsOn) {
     // Find the dependency element in the same row first
-    const row = document.getElementById(elementId).closest('tr');
-    const dependsOnElement = row.querySelector(`[data-element-type="${dependsOn}"]`);
+    const $row = $this.parents('tr');
+    const dependsOnElement = $row.find(`[data-element-type="${dependsOn}"]`);
     
-    console.log('Setting up dependency:', elementType, 'depends on:', dependsOn, 'in row:', row);
-    console.log('Found parent element:', dependsOnElement);
+    //console.log('Setting up dependency:', elementType, 'depends on:', dependsOn, 'in row:', row);
+    //console.log('Found parent element:', dependsOnElement);
     
-    if (dependsOnElement) {
-      console.log('Parent element found, setting up change handler');
-      
+    if (dependsOnElement.length > 0) {
+      //console.log('Parent element found, setting up change handler');
       // Check if parent already has a value and load options immediately
-      const currentParentValue = dependsOnElement.value;
+      const currentParentValue = dependsOnElement.val();
       if (currentParentValue) {
-        console.log('Parent already has value:', currentParentValue, 'loading options for:', elementType);
+        //console.log('Parent already has value:', currentParentValue, 'loading options for:', elementType);
         // Load options based on current parent value
         if (elementType === 'client_unit_select' || elementType === 'client_contact_select') {
-          loadDynamicOptions(elementId, elementType, currentParentValue);
+          loadDynamicOptions($this, elementId, currentParentValue);
         } else if (elementType === 'sample_point_select') {
-          loadDynamicOptions(elementId, elementType, null, null, null, currentParentValue);
+          loadDynamicOptions($this, elementId, elementType, null, null, null, currentParentValue);
         } else if (elementType === 'analysis_type_select') {
-          loadDynamicOptions(elementId, elementType, null, currentParentValue);
+          loadDynamicOptions($this, elementId, elementType, null, currentParentValue);
         } else if (elementType === 'analysis_elements_select') {
-          loadDynamicOptions(elementId, elementType, null, null, null, null, currentParentValue);
+          loadDynamicOptions($this, elementId, elementType, null, null, null, null, currentParentValue);
         } else if (elementType === 'store_slot_select') {
-          loadDynamicOptions(elementId, elementType, null, null, currentParentValue);
+          loadDynamicOptions($this, elementId, elementType, null, null, currentParentValue);
         } else {
-          loadDynamicOptions(elementId, elementType, currentParentValue);
+          loadDynamicOptions($this, elementId, elementType, currentParentValue);
         }
       }
       
       // Set up change handler for same-row dependency
-      dependsOnElement.addEventListener('change', function() {
-        const parentId = this.value;
-        console.log('Parent element changed:', dependsOn, 'new value:', parentId);
+      dependsOnElement.on('change', function() {
+        const parentId = $(this).val();
+        //console.log('Parent element changed:', dependsOn, 'new value:', parentId);
         if (parentId) {
           // Handle different parameter types based on element type and dependency
           if (elementType === 'client_unit_select' || elementType === 'client_contact_select') {
             // These depend on client_select
-            loadDynamicOptions(elementId, elementType, parentId);
+            loadDynamicOptions($this, elementId, elementType, parentId);
           } else if (elementType === 'sample_point_select') {
             // This depends on client_unit_select
-            loadDynamicOptions(elementId, elementType, null, null, null, parentId);
+            loadDynamicOptions($this, elementId, elementType, null, null, null, parentId);
           } else if (elementType === 'analysis_type_select') {
             // This depends on sample_type_select
-            loadDynamicOptions(elementId, elementType, null, parentId);
+            loadDynamicOptions($this, elementId, elementType, null, parentId);
           } else if (elementType === 'analysis_elements_select') {
             // This depends on analysis_type_select
-            loadDynamicOptions(elementId, elementType, null, null, null, null, parentId);
+            loadDynamicOptions($this, elementId, elementType, null, null, null, null, parentId);
           } else if (elementType === 'store_slot_select') {
             // This depends on store_select
-            loadDynamicOptions(elementId, elementType, null, null, parentId);
+            loadDynamicOptions($this, elementId, elementType, null, null, parentId);
           } else {
             // Default case
-            loadDynamicOptions(elementId, elementType, parentId);
+            loadDynamicOptions($this, elementId, elementType, parentId);
           }
         } else {
           // Clear dependent element and all its children
-          clearDependentElementAndChildren(elementId);
+          clearDependentElementAndChildren($this);
         }
       });
     } else {
       // Fall back to global dependency
-      const globalDependsOnElement = document.querySelector(`[data-element-type="${dependsOn}"]`);
+      const globalDependsOnElement = $(document).find(`[data-element-type="${dependsOn}"]`);
       if (globalDependsOnElement) {
         // alert('Sample point select found: ' + parentId);
-        globalDependsOnElement.addEventListener('change', function() {
-          const parentId = this.value;
+        globalDependsOnElement.on('change', function() {
+          const parentId = $(this).val();
           if (parentId) {
             // Handle different parameter types based on element type and dependency
             if (elementType === 'client_unit_select' || elementType === 'client_contact_select') {
               // These depend on client_select
-              loadDynamicOptions(elementId, elementType, parentId);
+              loadDynamicOptions($this, elementId, elementType, parentId);
             } else if (elementType === 'sample_point_select') {
               // This depends on client_unit_select
-              loadDynamicOptions(elementId, elementType, null, null, null, parentId);
+              loadDynamicOptions($this, elementId, elementType, null, null, null, parentId);
             } else if (elementType === 'analysis_type_select') {
               // This depends on sample_type_select
-              loadDynamicOptions(elementId, elementType, null, parentId);
+              loadDynamicOptions($this, elementId, elementType, null, parentId);
             } else if (elementType === 'analysis_elements_select') {
               // This depends on analysis_type_select
-              loadDynamicOptions(elementId, elementType, null, null, null, null, parentId);
+              loadDynamicOptions($this, elementId, elementType, null, null, null, null, parentId);
             } else if (elementType === 'store_slot_select') {
               // This depends on store_select
-              loadDynamicOptions(elementId, elementType, null, null, parentId);
+              loadDynamicOptions($this, elementId, elementType, null, null, parentId);
             } else {
               // Default case
-              loadDynamicOptions(elementId, elementType, parentId);
+              loadDynamicOptions($this, elementId, elementType, parentId);
             }
           } else {
             // Clear dependent element and all its children
-            clearDependentElementAndChildren(elementId);
+            clearDependentElementAndChildren($this);
           }
         });
       }
     }
   }
 
-  function clearDependentElementsInRow(rowElement) {
+  function clearDependentElementsInRow($rowElement) {
     // Clear dependent elements that should be empty in cloned rows
-    const dependentElements = rowElement.querySelectorAll('[data-element-type="client_unit_select"], [data-element-type="client_contact_select"], [data-element-type="sample_point_select"], [data-element-type="analysis_type_select"], [data-element-type="analysis_elements_select"], [data-element-type="store_slot_select"]');
+    const dependentElements = $rowElement.find('[data-element-type="client_unit_select"], [data-element-type="client_contact_select"], [data-element-type="sample_point_select"], [data-element-type="analysis_type_select"], [data-element-type="analysis_elements_select"], [data-element-type="store_slot_select"]');
     
-    dependentElements.forEach(element => {
-      if (element.tagName === 'SELECT') {
-        element.innerHTML = '<option value="">Select...</option>';
-        element.value = '';
+    dependentElements.each(function() {
+      const $element = $(this);
+      if ($element.is('select')) {
+
+        $element.html('<option value="">Select...</option>');
+        $element.val('');
       } else {
-        element.value = '';
+        $element.val('');
       }
     });
   }
 
-  function clearDependentElementAndChildren(elementId) {
-    const element = document.getElementById(elementId);
-    if (!element) return;
+  function clearDependentElementAndChildren($this) {
+    const $element = $this;
+    if (!$element) return;
     
     // Clear the element itself
-    if (element.tagName === 'SELECT') {
-      element.innerHTML = '<option value="">Select...</option>';
-      element.value = '';
+    if ($element.is('select')) {
+      $element.html('<option value="">Select...</option>');
+      $element.val('');
     } else {
-      element.value = '';
+      $element.val('');
     }
     
     // Find the row containing this element
-    const row = element.closest('tr');
-    if (!row) return;
+    const $row = $this.parents('tr');
+    if (!($row.length > 0)) return;
     
     // Clear all dependent elements that depend on this element
-    const elementType = element.getAttribute('data-element-type');
+    const elementType = $this.attr('data-element-type');
     let dependentTypes = [];
     
     // Define dependency chain
@@ -323,25 +324,27 @@ document.addEventListener('DOMContentLoaded', function() {
     
     // Clear dependent elements
     dependentTypes.forEach(depType => {
-      const dependentElements = row.querySelectorAll(`[data-element-type="${depType}"]`);
-      dependentElements.forEach(depElement => {
-        if (depElement.tagName === 'SELECT') {
-          depElement.innerHTML = '<option value="">Select...</option>';
-          depElement.value = '';
+      const dependentElements = $row.find(`[data-element-type="${depType}"]`);
+      dependentElements.each(function() {
+        const $depElement = $(this);
+        if ($depElement.is('select')) {
+          $depElement.html('<option value="">Select...</option>');
+          $depElement.val('');
         } else {
-          depElement.value = '';
+          $depElement.val('');
         }
         
         // Recursively clear children of this dependent element
-        clearDependentElementAndChildren(depElement.id);
+        clearDependentElementAndChildren($depElement);
       });
     });
   }
 
   // Clone row functionality
-  tbody.addEventListener('click', function(e) {
-    if (e.target.closest('.clone-row')) {
-      const row = e.target.closest('tr');
+  $('body').on('click', '#rows-tbody-'+sectionId, function(e) {
+    if ($(e.target).closest('.clone-row').length) {
+      const $row = $(e.target).closest('tr');
+      if (!($row.length > 0)) return;
       
       // Prompt user for number of clones
       const numClones = prompt('How many copies would you like to create?', '1');
@@ -359,83 +362,93 @@ document.addEventListener('DOMContentLoaded', function() {
       
       // Create the specified number of clones
       for (let i = 0; i < num; i++) {
-        cloneRow(row);
+        cloneRow($row);
       }
-    } else if (e.target.closest('.delete-row')) {
-      const row = e.target.closest('tr');
-      deleteRow(row);
+    } else if ($(e.target).closest('.delete-row').length) {
+      const $row = $(e.target).closest('tr');
+      deleteRow($row);
     }
   });
 
-  function cloneRow(sourceRow) {
-    const newRow = sourceRow.cloneNode(true);
+  function cloneRow($sourceRow) {
+    //console.log(sourceRow);
+    const newRow = $sourceRow.clone();
     // sourceRow is already a <tr> element, so newRow is also a <tr> element
-    const newRowElement = newRow;
+    const $newRowElement = newRow;
     
     // Set new row index
-    newRowElement.setAttribute('data-row-index', rowIndex);
+    $newRowElement.attr('data-row-index', rowIndex);
     
     // Update field names and IDs
-    const inputs = newRow.querySelectorAll('input, select, textarea');
-    inputs.forEach(input => {
-      if (input.name) {
-        const currentIndex = sourceRow.getAttribute('data-row-index');
-        input.name = input.name.replace(`[${currentIndex}]`, `[${rowIndex}]`);
+    const $inputs = $newRowElement.find('input, select, textarea');
+    $inputs.each(function() {
+      const $this = $(this);
+      if ($this.attr('name')) {
+        const currentIndex = $sourceRow.attr('data-row-index');
+        $this.attr('name', $this.attr('name').replace(`[${currentIndex}]`, `[${rowIndex}]`));
       }
-      if (input.id) {
-        const currentIndex = sourceRow.getAttribute('data-row-index');
-        input.id = input.id.replace(`_${currentIndex}`, `_${rowIndex}`);
+      if ($this.attr('id')) {
+        const currentIndex = $sourceRow.attr('data-row-index');
+        $this.attr('id', $this.attr('id').replace(`_${currentIndex}`, `_${rowIndex}`));
       }
+
+
       
       // Clear values for dependent elements to avoid duplication
-      const elementType = input.getAttribute('data-element-type');
+      const elementType = $this.attr('data-element-type');
       if (['client_unit_select', 'client_contact_select', 'sample_point_select', 'analysis_type_select', 'analysis_elements_select', 'store_slot_select'].includes(elementType)) {
         // Clear dependent element values
-        if (input.tagName === 'SELECT') {
-          input.innerHTML = '<option value="">Select...</option>';
-          input.value = '';
+        if ($this.is('select')) {
+          $this.html('<option value="">Select...</option>');
+          $this.val('');
         } else {
-          input.value = '';
+          $this.val('');
         }
       }
       
       // Ensure cloned elements are editable (remove disabled attribute)
-      input.removeAttribute('disabled');
-      input.removeAttribute('readonly');
+      $this.removeAttr('disabled');
+      $this.removeAttr('readonly');
     });
     
     // Update labels
-    const labels = newRow.querySelectorAll('label');
-    labels.forEach(label => {
-      if (label.getAttribute('for')) {
-        const currentIndex = sourceRow.getAttribute('data-row-index');
-        label.setAttribute('for', label.getAttribute('for').replace(`_${currentIndex}`, `_${rowIndex}`));
+    const $labels = $newRowElement.find('label');
+    $labels.each(function() {
+      const $this = $(this);
+      if ($this.attr('for')) {
+        const currentIndex = $sourceRow.attr('data-row-index');
+        $this.attr('for', $this.attr('for').replace(`_${currentIndex}`, `_${rowIndex}`));
       }
     });
     
     // Insert after source row
-    sourceRow.parentNode.insertBefore(newRow, sourceRow.nextSibling);
+    $sourceRow.after($newRowElement);
     rowIndex++;
     
     // Clear dependent elements that should be empty in cloned rows first
-    clearDependentElementsInRow(newRow);
+    clearDependentElementsInRow($newRowElement);
     
     // Initialize custom elements for the cloned row (this will set up dependencies)
-    initializeRowCustomElements(newRow);
+    initializeRowCustomElements($newRowElement, true);
     
     // Ensure all form elements are properly enabled and editable
-    const allFormElements = newRow.querySelectorAll('input, select, textarea, button');
-    allFormElements.forEach(element => {
-      element.removeAttribute('disabled');
-      element.removeAttribute('readonly');
+    const $allFormElements = $newRowElement.find('input, select, textarea, button');
+    $allFormElements.each(function() {
+      const $element = $(this);
+      $element.removeAttr('disabled');
+      $element.removeAttr('readonly');
       // Ensure the element is not in a disabled state
-      if (element.tagName === 'BUTTON' && element.classList.contains('disabled')) {
-        element.classList.remove('disabled');
+      if ($element.is('button') && $element.hasClass('disabled')) {
+        $element.removeClass('disabled');
       }
     });
     
-    // Initialize Select2 on all select elements in the cloned row
-    $(newRow).find('select').not('.hidden').each(function(i, e) {
+    $newRowElement.find('select').not('.hidden').each(function(i, e) {
+
+      if($(e).hasClass('select2-hidden-accessible')) {
+        $(e).select2('destroy');
+      }
+
       if (!$(e).hasClass('no-select2')) {
         $(e).select2({
           placeholder: $(e).attr('placeholder') || $(e).data('placeholder') || 'Select...'
@@ -445,9 +458,9 @@ document.addEventListener('DOMContentLoaded', function() {
     });
   }
 
-  function deleteRow(row) {
+  function deleteRow($row) {
     if (confirm('Are you sure you want to delete this row?')) {
-      row.remove();
+      $row.remove();
     }
   }
 
@@ -455,7 +468,7 @@ document.addEventListener('DOMContentLoaded', function() {
   loadExistingData();
   
   // Add initial row if none exist
-  if (tbody.children.length === 0) {
+  if ($('body').find('#rows-tbody-'+sectionId).children().length === 0) {
     addNewRow();
   }
   
@@ -484,51 +497,61 @@ document.addEventListener('DOMContentLoaded', function() {
           // Create row for existing data
           const existingRow = template.content.cloneNode(true);
           const existingRowElement = existingRow.querySelector('tr');
+
+          const $existingRowElement = $(existingRowElement);
+
+          console.log('Existing row element:', $existingRowElement);
           
           // Set row index
-          existingRowElement.setAttribute('data-row-index', {{ $rowIndex }});
+          $existingRowElement.attr('data-row-index', {{ $rowIndex }});
           
           // Update field names and IDs
-          const inputs = existingRow.querySelectorAll('input, select, textarea');
-          inputs.forEach(input => {
-            if (input.name) {
-              input.name = input.name.replace('ROW_INDEX_PLACEHOLDER', {{ $rowIndex }});
+          const inputs = $existingRowElement.find('input, select, textarea');
+          inputs.each(function() {
+            const $input = $(this);
+            if ($input.attr('name')) {
+              $input.attr('name', $input.attr('name').replace('ROW_INDEX_PLACEHOLDER', {{ $rowIndex }}));
             }
-            if (input.id) {
-              input.id = input.id.replace('ROW_INDEX_PLACEHOLDER', {{ $rowIndex }});
+            if ($input.attr('id')) {
+              $input.attr('id', $input.attr('id').replace('ROW_INDEX_PLACEHOLDER', {{ $rowIndex }}));
             }
             
             // Set existing values
-            const elementId = input.getAttribute('data-element-type') ? 
-              input.closest('[data-element-type]').id : input.id;
+            const elementId = $input.attr('data-element-type') ? 
+              $input.closest('[data-element-type]').attr('id') : $input.attr('id');
             @foreach($rowValues as $elementId => $value)
               if (elementId === '{{ $elementId }}') {
-                if (input.type === 'checkbox' || input.type === 'radio') {
-                  input.checked = {{ $value->value ? 'true' : 'false' }};
+                if ($input.attr('type') === 'checkbox' || $input.attr('type') === 'radio') {
+                  $input.attr('checked', {{ $value->value ? 'true' : 'false' }});
                 } else {
-                  input.value = '{{ addslashes($value->value) }}';
+                  $input.attr('value', '{{ addslashes($value->value) }}');
                 }
               }
             @endforeach
           });
           
           // Update labels
-          const labels = existingRow.querySelectorAll('label');
-          labels.forEach(label => {
-            if (label.getAttribute('for')) {
-              label.setAttribute('for', label.getAttribute('for').replace('ROW_INDEX_PLACEHOLDER', {{ $rowIndex }}));
+          const labels = $existingRowElement.find('label');
+          labels.each(function() {
+            const $label = $(this);
+            if ($label.attr('for')) {
+              $label.attr('for', $label.attr('for').replace('ROW_INDEX_PLACEHOLDER', {{ $rowIndex }}));
             }
           });
           
           // Append to tbody
-          tbody.appendChild(existingRow);
+          $('body').find('#rows-tbody-'+sectionId).append($existingRowElement);
           
           // Initialize custom elements and Select2 for existing row
           setTimeout(() => {
-            initializeRowCustomElements(existingRowElement);
+            initializeRowCustomElements($existingRowElement);
             
             // Initialize Select2 on all select elements in the existing row
-            $(existingRowElement).find('select').not('.hidden').each(function(i, e) {
+            $existingRowElement.find('select').not('.hidden').each(function(i, e) {
+              if($(e).hasClass('select2-hidden-accessible')) {
+                $(e).select2('destroy');
+              }
+
               if (!$(e).hasClass('no-select2')) {
                 $(e).select2({
                   placeholder: $(e).attr('placeholder') || $(e).data('placeholder') || 'Select...'

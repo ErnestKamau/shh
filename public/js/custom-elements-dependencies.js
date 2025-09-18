@@ -97,6 +97,8 @@ function loadDynamicOptions(elementId, elementType, clientId = null, sampleTypeI
     console.log('Loading dynamic options for:', { elementId, elementType, clientId, sampleTypeId, storeId });
     const select = $('#' + elementId);
     const originalHtml = select.html();
+
+    // alert("Here we are");
     
     // Show loading state
     select.html('<option value="">Loading...</option>').prop('disabled', true);

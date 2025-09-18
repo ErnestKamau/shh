@@ -445,7 +445,7 @@
 // Store element data for initialization when jQuery is ready
 window.customElementsToInit = window.customElementsToInit || [];
 window.customElementsToInit.push({
-    elementId: '{{ $element->name }}',
+    elementId: '{{ $fieldId }}',
     elementType: '{{ $element->element_type }}',
     isRequired: {{ $element->is_required ? 'true' : 'false' }},
     placeholder: '{{ $element->placeholder ?: "Select..." }}'
