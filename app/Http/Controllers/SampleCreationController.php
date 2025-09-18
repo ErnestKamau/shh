@@ -10,6 +10,7 @@ use App\AnalysisType;
 use App\AnalysisElements;
 use App\SampleAnalysisTypeRelationView;
 use App\Lab;
+use App\ReportingUnit;
 use App\StandardAnalytes;
 use App\SampleAnalysisTypeRelation;
 use Illuminate\Http\Request;
@@ -471,6 +472,11 @@ class SampleCreationController extends Controller
             // Create captured result with all fields from SampleWorkFlowController
             $capturedResult = new \App\CapturedResult();
 
+            // dd($element, ">>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>");
+
+            $reportingUnit = ReportingUnit::where('id', $element->reporting_unit)
+                ->orWhere('name', $element->reporting_unit)->first();
+
             $capturedResult->fill([
                 'sample_detail_code' => $sampleCode,
                 'sample_detail_id' => $sampleDetailId,
@@ -483,7 +489,7 @@ class SampleCreationController extends Controller
                 'analysis_type_id' => $analysisTypeId,
                 'operator_id' => $element->operator_id,
                 'method_id' => $element->method,
-                'reporting_unit_id' => $element->reporting_symbol,
+                'reporting_unit_id' => $reportingUnit->name,
                 'ltm_method_id' => $element->ltm_method_id,
                 'analyte_accredited' => $element->non_accredited ? 0 : 1,
                 'analyte_status_contracted' => $lab->is_external ?? 0,
@@ -496,10 +502,12 @@ class SampleCreationController extends Controller
                 'third_standard_id' => $thirdStandardID ? $thirdStandardID->id : null,
                 'analysis_type_order' => $element->analysis_type_order ?? 0,
                 'remark_colour' => null,
-                'result_reporting_symbol' => $element->reporting_symbol,
                 'repeat_captured_id' => null,
             ]);
+            
             $capturedResult->save();
+
+            // dd($capturedResult, ">>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>");
 
             // Create corresponding result record
             $result = new \App\Result();
@@ -518,7 +526,7 @@ class SampleCreationController extends Controller
                 'guide_low' => null,
                 'guide_high' => null,
                 'unit_code' => $element->reporting_unit,
-                'reporting_unit_id' => $element->reporting_symbol,
+                'reporting_unit_id' => $reportingUnit->name,
                 'status_code' => null,
                 'reporting_symbol' => $element->reporting_symbol,
                 'qc' => 0,
@@ -633,7 +641,7 @@ class SampleCreationController extends Controller
         $lastSample = \App\SampleDetails::orderBy('id', 'DESC')->first();
         $lastSampleNo = $lastSample ? $lastSample->sample_no : $lab->start_sample_no;
         
-        $sampleNumber = intval($lastSampleNo) + 1 + $index;
+        $sampleNumber = intval($lastSampleNo) + 1;
         $sampleCode = 'S' . date('Y') . $lab->code . $sampleType->code . sprintf('%04d', $sampleNumber);
         $sampleNo = sprintf('%04d', $sampleNumber);
         $reportNumber = 'LR/' . $sampleType->code . '/' . date('Y') . '/' . $lab->code . '/' . sprintf('%04d', $sampleNumber);

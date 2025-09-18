@@ -408,7 +408,8 @@
         @case('sample_point_select')
             <select class="form-control custom-element" 
                     id="{{ $fieldId }}" 
-                    name="{{ $fieldName }}"
+                    name="{{ $selectName }}"
+                    multiple
                     data-element-type="sample_point_select"
                     data-depends-on="client_unit_select"
                     {{ $element->is_required ? 'required' : '' }}
@@ -417,6 +418,15 @@
                     <option value="">{{ $element->placeholder ?: 'Select a sample point...' }}</option>
                 @endif
                 {{-- Options will be loaded dynamically based on selected client unit --}}
+                {{-- For multiple selects with saved values, store the values to be set after options load --}}
+                @if($isMultiple && $fieldValue)
+                    <script>
+                    // Store saved values for this multiple select
+                    $(document).ready(function() {
+                        $('#{{ $fieldId }}').attr('data-saved-multiple-values', '{{ is_array($fieldValue) ? implode(',', $fieldValue) : $fieldValue }}');
+                    });
+                    </script>
+                @endif
             </select>
             @break
             

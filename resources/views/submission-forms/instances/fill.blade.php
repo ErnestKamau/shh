@@ -360,6 +360,44 @@ select.custom-element {
 .select2-dropdown {
     min-width: 145px !important;
 }
+
+/* Multiple select styling */
+select[multiple] {
+    min-height: 120px !important;
+}
+
+select[multiple]:not(.select2-hidden-accessible) {
+    padding: 8px;
+}
+
+/* Select2 multiple selection styling */
+.select2-container--default .select2-selection--multiple {
+    min-height: 120px !important;
+    border: 1px solid #ced4da;
+    border-radius: 0.375rem;
+}
+
+.select2-container--default .select2-selection--multiple .select2-selection__rendered {
+    padding: 5px 5px 0px 5px;
+}
+
+.select2-container--default .select2-selection--multiple .select2-selection__choice {
+    background-color: #007bff;
+    border: 1px solid #007bff;
+    color: white;
+    padding: 2px 8px;
+    margin: 2px 5px 5px 0;
+    border-radius: 3px;
+}
+
+.select2-container--default .select2-selection--multiple .select2-selection__choice__remove {
+    color: white;
+    margin-right: 5px;
+}
+
+.select2-container--default .select2-selection--multiple .select2-selection__choice__remove:hover {
+    color: #ffc107;
+}
 </style>
 @endpush
 
@@ -727,7 +765,7 @@ function setupStoreChangeHandlers() {
 }
 
 function loadDynamicOptions($this, elementId, elementType, clientId = null, sampleTypeId = null, storeId = null, clientUnitId = null, analysisTypeId = null) {
-    console.log($this);
+    console.log($this, elementType);
     
     const select = $this;
     const originalHtml = select.html();
@@ -784,6 +822,14 @@ function loadDynamicOptions($this, elementId, elementType, clientId = null, samp
             }
             
             select.html(html).prop('disabled', false);
+            
+            // Handle multiple select saved values
+            const savedMultipleValues = select.attr('data-saved-multiple-values');
+            if (savedMultipleValues && select.prop('multiple')) {
+                const values = savedMultipleValues.split(',').map(v => v.trim()).filter(v => v);
+                select.val(values);
+                //console.log('Set multiple values for', elementType, ':', values);
+            }
         },
         error: function(xhr, status, error) {
             //console.error('Error loading options for', elementType, ':', error);
@@ -890,6 +936,8 @@ $(document).ready(function() {
                         size: file.size,
                         type: file.type
                     } : null;
+                } else if ($element.is('select') && $element.prop('multiple')) {
+                    value = $element.val() || [];
                 } else {
                     value = $element.val();
                 }
@@ -903,7 +951,13 @@ $(document).ready(function() {
         updateProgress() {
             const totalFields = $('#fill-form input, #fill-form select, #fill-form textarea').length;
             const filledFields = $('#fill-form input, #fill-form select, #fill-form textarea').filter(function() {
-                const value = $(this).val();
+                const $this = $(this);
+                const value = $this.val();
+                
+                if ($this.is('select') && $this.prop('multiple')) {
+                    return value && value.length > 0;
+                }
+                
                 return value !== null && value !== '' && value !== undefined;
             }).length;
             

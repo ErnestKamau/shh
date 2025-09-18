@@ -372,9 +372,14 @@ document.addEventListener('DOMContentLoaded', function() {
 
   function cloneRow($sourceRow) {
     //console.log(sourceRow);
-    const newRow = $sourceRow.clone();
+    const newRow = $sourceRow.clone(true);
     // sourceRow is already a <tr> element, so newRow is also a <tr> element
     const $newRowElement = newRow;
+
+    $sourceRow.each(function() {
+      const $this = $(this);
+      console.log($(this).val(), " ::::::::::::::::::::::::> ", $(this).attr('data-element-type'));
+    });
     
     // Set new row index
     $newRowElement.attr('data-row-index', rowIndex);
@@ -391,20 +396,8 @@ document.addEventListener('DOMContentLoaded', function() {
         const currentIndex = $sourceRow.attr('data-row-index');
         $this.attr('id', $this.attr('id').replace(`_${currentIndex}`, `_${rowIndex}`));
       }
-
-
-      
       // Clear values for dependent elements to avoid duplication
       const elementType = $this.attr('data-element-type');
-      if (['client_unit_select', 'client_contact_select', 'sample_point_select', 'analysis_type_select', 'analysis_elements_select', 'store_slot_select'].includes(elementType)) {
-        // Clear dependent element values
-        if ($this.is('select')) {
-          $this.html('<option value="">Select...</option>');
-          $this.val('');
-        } else {
-          $this.val('');
-        }
-      }
       
       // Ensure cloned elements are editable (remove disabled attribute)
       $this.removeAttr('disabled');
@@ -425,12 +418,6 @@ document.addEventListener('DOMContentLoaded', function() {
     $sourceRow.after($newRowElement);
     rowIndex++;
     
-    // Clear dependent elements that should be empty in cloned rows first
-    clearDependentElementsInRow($newRowElement);
-    
-    // Initialize custom elements for the cloned row (this will set up dependencies)
-    initializeRowCustomElements($newRowElement, true);
-    
     // Ensure all form elements are properly enabled and editable
     const $allFormElements = $newRowElement.find('input, select, textarea, button');
     $allFormElements.each(function() {
@@ -444,18 +431,25 @@ document.addEventListener('DOMContentLoaded', function() {
     });
     
     $newRowElement.find('select').not('.hidden').each(function(i, e) {
+      let parentTD = $(e).closest('td');
+      let clonedSelect = parentTD.find('select').clone();
+      parentTD.html('');
 
-      if($(e).hasClass('select2-hidden-accessible')) {
-        $(e).select2('destroy');
-      }
+      parentTD.html(clonedSelect[0].outerHTML);
 
-      if (!$(e).hasClass('no-select2')) {
-        $(e).select2({
-          placeholder: $(e).attr('placeholder') || $(e).data('placeholder') || 'Select...'
+      if (!parentTD.find('select').hasClass('no-select2')) {
+        parentTD.find('select').select2({
+          placeholder: parentTD.find('select').attr('placeholder') || parentTD.find('select').data('placeholder') || 'Select...'
         });
-        $(e).attr('style', 'width: 100%');
+        parentTD.find('select').attr('style', 'width: 100%');
       }
     });
+
+    //  // Clear dependent elements that should be empty in cloned rows first
+    // clearDependentElementsInRow($newRowElement);
+    
+    // // Initialize custom elements for the cloned row (this will set up dependencies)
+    initializeRowCustomElements($newRowElement, true);
   }
 
   function deleteRow($row) {
@@ -493,79 +487,151 @@ document.addEventListener('DOMContentLoaded', function() {
       @endphp
       
       @if(count($sectionValues) > 0)
-        @foreach($sectionValues as $rowIndex => $rowValues)
-          // Create row for existing data
-          const existingRow = template.content.cloneNode(true);
-          const existingRowElement = existingRow.querySelector('tr');
-
-          const $existingRowElement = $(existingRowElement);
-
-          console.log('Existing row element:', $existingRowElement);
-          
-          // Set row index
-          $existingRowElement.attr('data-row-index', {{ $rowIndex }});
-          
-          // Update field names and IDs
-          const inputs = $existingRowElement.find('input, select, textarea');
-          inputs.each(function() {
-            const $input = $(this);
-            if ($input.attr('name')) {
-              $input.attr('name', $input.attr('name').replace('ROW_INDEX_PLACEHOLDER', {{ $rowIndex }}));
-            }
-            if ($input.attr('id')) {
-              $input.attr('id', $input.attr('id').replace('ROW_INDEX_PLACEHOLDER', {{ $rowIndex }}));
-            }
+        
+        @foreach($sectionValues as $arrayIdx => $rowValues)
+          (function() {
+            // Create row for existing data
+            const existingRow = template.content.cloneNode(true);
+            const existingRowElement = existingRow.querySelector('tr');
+            const $existingRowElement = $(existingRowElement);
             
-            // Set existing values
-            const elementId = $input.attr('data-element-type') ? 
-              $input.closest('[data-element-type]').attr('id') : $input.attr('id');
-            @foreach($rowValues as $elementId => $value)
-              if (elementId === '{{ $elementId }}') {
-                if ($input.attr('type') === 'checkbox' || $input.attr('type') === 'radio') {
-                  $input.attr('checked', {{ $value->value ? 'true' : 'false' }});
-                } else {
-                  $input.attr('value', '{{ addslashes($value->value) }}');
+            const currentRowIndex = {{ $arrayIdx }};
+            
+            // Set row index
+            $existingRowElement.attr('data-row-index', currentRowIndex);
+            
+            // Update field names and IDs
+            const inputs = $existingRowElement.find('input, select, textarea');
+            inputs.each(function() {
+              const $input = $(this);
+              const elementType = $input.attr('data-element-type');
+              
+              if ($input.attr('name')) {
+                $input.attr('name', $input.attr('name').replace('ROW_INDEX_PLACEHOLDER', currentRowIndex));
+              }
+              if ($input.attr('id')) {
+                $input.attr('id', $input.attr('id').replace('ROW_INDEX_PLACEHOLDER', currentRowIndex));
+              }
+              
+              // Get the element ID for this input
+              const elementName = $input.attr('name') ? $input.attr('name').split('[')[0] : null;
+              
+              // Set existing values for each element
+              @foreach($rowValues as $elementId => $value)
+                @php
+                  $element = $templateHolder->elements->find($elementId);
+                  $elementName = $element ? $element->name : '';
+                  $savedValue = $value->value;
+                @endphp
+                
+                if (elementName === '{{ $elementName }}') {
+                  const savedValue = '{{ addslashes($savedValue) }}';
+                  
+                  if ($input.attr('type') === 'checkbox') {
+                    $input.prop('checked', savedValue === '1' || savedValue === 'true');
+                  } else if ($input.attr('type') === 'radio') {
+                    if ($input.val() === savedValue) {
+                      $input.prop('checked', true);
+                    }
+                  } else if ($input.is('select')) {
+                    // For select elements, store the value to be set after options are loaded
+                    if ($input.prop('multiple')) {
+                      // Handle multiple select
+                      $input.attr('data-saved-multiple-values', savedValue);
+                    } else {
+                      // Handle single select
+                      $input.attr('data-saved-value', savedValue);
+                    }
+                    
+                    // If it's a non-dependent select with static options, set value immediately
+                    if (!elementType || ['client_select', 'sample_type_select', 'store_select', 'standard_select', 'sample_condition_select'].includes(elementType)) {
+                      // Check if option exists and set it
+                      if ($input.prop('multiple')) {
+                        const values = savedValue.split(',').map(v => v.trim()).filter(v => v);
+                        $input.val(values);
+                      } else if ($input.find('option[value="' + savedValue + '"]').length > 0) {
+                        $input.val(savedValue);
+                      }
+                    }
+                  } else {
+                    $input.val(savedValue);
+                  }
                 }
-              }
-            @endforeach
-          });
-          
-          // Update labels
-          const labels = $existingRowElement.find('label');
-          labels.each(function() {
-            const $label = $(this);
-            if ($label.attr('for')) {
-              $label.attr('for', $label.attr('for').replace('ROW_INDEX_PLACEHOLDER', {{ $rowIndex }}));
-            }
-          });
-          
-          // Append to tbody
-          $('body').find('#rows-tbody-'+sectionId).append($existingRowElement);
-          
-          // Initialize custom elements and Select2 for existing row
-          setTimeout(() => {
-            initializeRowCustomElements($existingRowElement);
+              @endforeach
+            });
             
-            // Initialize Select2 on all select elements in the existing row
-            $existingRowElement.find('select').not('.hidden').each(function(i, e) {
-              if($(e).hasClass('select2-hidden-accessible')) {
-                $(e).select2('destroy');
-              }
-
-              if (!$(e).hasClass('no-select2')) {
-                $(e).select2({
-                  placeholder: $(e).attr('placeholder') || $(e).data('placeholder') || 'Select...'
-                });
-                $(e).attr('style', 'width: 100%');
+            // Update labels
+            const labels = $existingRowElement.find('label');
+            labels.each(function() {
+              const $label = $(this);
+              if ($label.attr('for')) {
+                $label.attr('for', $label.attr('for').replace('ROW_INDEX_PLACEHOLDER', currentRowIndex));
               }
             });
-          }, 10);
-          
-          // Update rowIndex to be higher than the highest existing index
-          if ({{ $rowIndex }} >= rowIndex) {
-            rowIndex = {{ $rowIndex }} + 1;
-          }
+            
+            // Append to tbody
+            $('#rows-tbody-' + sectionId).append($existingRowElement);
+            
+            // Initialize custom elements and Select2 for existing row
+            setTimeout(() => {
+              
+              // First initialize custom elements (this will load dependent options)
+              initializeRowCustomElements($existingRowElement);
+              
+              // Then set saved values for dependent selects after options are loaded
+              setTimeout(() => {
+                $existingRowElement.find('select[data-saved-value], select[data-saved-multiple-values]').each(function() {
+                  const $select = $(this);
+                  
+                  if ($select.prop('multiple')) {
+                    const savedValues = $select.attr('data-saved-multiple-values');
+                    if (savedValues) {
+                      const values = savedValues.split(',').map(v => v.trim()).filter(v => v);
+                      $select.val(values);
+                    }
+                  } else {
+                    const savedValue = $select.attr('data-saved-value');
+                    if (savedValue) {
+                      $select.val(savedValue);
+                    }
+                  }
+                });
+                
+                // Initialize Select2 on all select elements
+                $existingRowElement.find('select').not('.hidden').each(function(i, e) {
+                  const $select = $(e);
+                  
+                  // Destroy existing Select2 if present
+                  if ($select.hasClass('select2-hidden-accessible')) {
+                    $select.select2('destroy');
+                  }
+                  
+                  if (!$select.hasClass('no-select2')) {
+                    // Get the saved value before initializing Select2
+                    const currentValue = $select.val();
+                    
+                    $select.select2({
+                      placeholder: $select.attr('placeholder') || $select.data('placeholder') || 'Select...',
+                      width: '100%'
+                    });
+                    
+                    // Restore the value after Select2 initialization
+                    if (currentValue) {
+                      $select.val(currentValue).trigger('change.select2');
+                    }
+                  }
+                });
+              }, 500); // Give time for dependent options to load
+            }, 100);
+            
+            // Update global rowIndex to be higher than the current index
+            if (currentRowIndex >= rowIndex) {
+              rowIndex = currentRowIndex + 1;
+            }
+          })();
         @endforeach
+        
+        console.log('Finished loading existing rows, next rowIndex:', rowIndex);
       @endif
     @endif
   }
