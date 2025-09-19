@@ -146,15 +146,16 @@ class FormInstanceController extends Controller
      */
     public function update(Request $request, SubmissionForm $submissionForm, SubmissionFormInstance $instance)
     {
-      
         // Check if user owns this instance
         if ($instance->submitted_by !== auth()->id()) {
             abort(403, 'You are not authorized to update this form instance.');
         }
+
+
         // Check if instance can be updated
-        if (!$instance->isDraft()) {
-            return redirect()->back()->with('error', 'This form instance cannot be updated.');
-        }
+        // if (!$instance->isDraft()) {
+        //     return redirect()->back()->with('error', 'This form instance cannot be updated.');
+        // }
 
         // Load form elements for validation
         $elements = SubmissionFormElement::whereHas('holder.section', function($query) use ($submissionForm) {
@@ -169,6 +170,8 @@ class FormInstanceController extends Controller
 
         // Validate the request
         $validator = Validator::make($request->all(), $validationRules);
+
+        // dd($validator->validate());
         
         if ($validator->fails()) {
             return redirect()->back()
@@ -182,7 +185,7 @@ class FormInstanceController extends Controller
             // dd("here");
             $this->processFormData($instance, $request, $elements);
             Log::info('Processing form data');
-            // Update instance status if submitting
+
             if ($request->input('action') === 'submit') {
                 
                 $instance->submit(auth()->user());
@@ -513,14 +516,7 @@ class FormInstanceController extends Controller
             // Handle array fields (from rows sections or multiple selects)
             if (is_array($value)) {
                 if ($isMultipleSelect) {
-                    // Handle multiple select fields - store as comma-separated string
-                    if(count($value) >= 1){
-                       if(is_array($value[0])){
-                            $value = $value[0];
-                       }else{
-                            $value = $value;
-                       }
-                    }
+                    // dd($value);
                     $this->processMultipleSelectField($instance, $element, $value);
                 } else {
                     // Handle array fields (from rows sections)
@@ -530,6 +526,8 @@ class FormInstanceController extends Controller
                 $this->processSingleField($instance, $element, $value, $request);
             }
         }
+
+        // dd(">>>>>>>>>>>>>>");
     }
 
     /**
@@ -594,13 +592,14 @@ class FormInstanceController extends Controller
         $filteredValues = array_filter($values, function($value) {
             return $value !== null && $value !== '';
         });
-        
-        $commaSeparatedValue = empty($filteredValues) ? null : implode(',', $filteredValues);
 
-        // throw new \Exception($commaSeparatedValue);
+        $convertTOArray = [];
         
-        // Save as a single value (comma-separated string)
-        $this->saveFieldValue($instance, $element, $commaSeparatedValue);
+        foreach($filteredValues as $value){
+            $convertTOArray[] = implode(',', $value);
+        }
+
+        $this->processArrayField($instance, $element, $convertTOArray);
     }
 
     /**

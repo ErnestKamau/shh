@@ -32,8 +32,13 @@ class SampleCreationController extends Controller
     public function createFromForm(Request $request, SubmissionFormInstance $instance)
     {
         try {
-            // Get sample batches from form instance
+            // Get sample batches from form 
+            
+            // dd($request->all());
+
             $sampleBatches = $instance->getAllFieldsWithValues();
+
+            // dd("sampleBatches",$sampleBatches);
             
             if (empty($sampleBatches)) {
                 return response()->json([
@@ -54,6 +59,8 @@ class SampleCreationController extends Controller
 
 
                 $sampleDetails = [];
+
+                echo ">>>>>>>>>>>>>>>>>>>> BATCH INDEX :: ".$batchIndex."\n";
                 
                 // Create sample header using our custom method
                 $sampleHeader = $this->createSampleHeader($batch['sample_header']);
@@ -62,32 +69,25 @@ class SampleCreationController extends Controller
                 $sampleHeader->submission_form_instance_id = $instance->id;
                 $sampleHeader->save();
                 // Merge all sample details arrays into one flat array
-                $mergedSampleDetails = [];
-                foreach ($batch['sample_details'] as $detailsArray) {
-                    if (is_array($detailsArray)) {
-                        $mergedSampleDetails = array_merge($mergedSampleDetails, $detailsArray);
+
+                foreach($batch['sample_details'] as $i=>$sampleDetail){
+                    echo ">>>>>>>>>>>>>>>>>>>> SAMPLE DETAIL INDEX :: ".$i."\n";
+                    $samplePoints = explode(',', $sampleDetail['sample_point_id']);
+                    $newSampleDetailsInfo = $sampleDetail;
+
+                    foreach($samplePoints as $j=>$samplePoint){
+                        echo ">>>>>>>>>>>>>>>>>>>> SAMPLE POINT INDEX :: ".$j."\n";
+                        $newSampleDetailsInfo['sample_point_id'] = $samplePoint;
+                        $sampleDetails[$i] = $this->createSampleDetails($newSampleDetailsInfo, $sampleHeader->id, $i);
+                        $this->createSampleDates($sampleHeader->id, $sampleDetails[$i]);
                     }
-                }
-
-                $batch['sample_details'] = $mergedSampleDetails;
-                $samplePoints = explode(',', $batch['sample_details']['sample_point_id']);
-                
-                $newSampleDetailsInfo = $batch['sample_details'];
-
-                foreach($samplePoints as $i=>$samplePoint){
-                    $newSampleDetailsInfo['sample_point_id'] = $samplePoint;
-                    $sampleDetails[$i] = $this->createSampleDetails($newSampleDetailsInfo, $sampleHeader->id);
-
-                    // dd($sampleDetails[$i]);
-
-                    $this->createSampleDates($sampleHeader->id, $sampleDetails[$i]);
                 }
                 
                 $createdBatches[] = [
                     'batch_id' => $sampleHeader->id,
                     'batch_code' => $sampleHeader->batch_code,
                     'sample_type_id' => $batch['sample_header']['sample_type_id'] ?? 'Unknown',
-                    'sample_count' => count($sampleDetails)
+                    'sample_count' => count(array_keys($sampleDetails))
                 ];
 
             }
@@ -281,81 +281,76 @@ class SampleCreationController extends Controller
     /**
      * Create sample details for a sample header
      */
-    private function createSampleDetails(array $sampleDetailsData, $sampleHeaderId)
+    private function createSampleDetails(array $sampleDetailsData, $sampleHeaderId, $index)
     {
         $createdDetails = [];
 
-        // dd($sampleDetailsData);
+        $detailData = $sampleDetailsData;
+        // Helper function to get single value from array or return the value itself
+        $getSingleValue = function($value) {
+            if (is_array($value)) {
+                return !empty($value) ? $value[0] : null;
+            }
+            return $value;
+        };
         
-        foreach ($sampleDetailsData as $index => $detailData) {
-            $detailData = $sampleDetailsData;
-            // Helper function to get single value from array or return the value itself
-            $getSingleValue = function($value) {
-                if (is_array($value)) {
-                    return !empty($value) ? $value[0] : null;
-                }
-                return $value;
-            };
-            
-            // Helper function to ensure integer values
-            $getIntegerValue = function($value) use ($getSingleValue) {
-                $singleValue = $getSingleValue($value);
-                return is_numeric($singleValue) ? (int) $singleValue : $singleValue;
-            };
+        // Helper function to ensure integer values
+        $getIntegerValue = function($value) use ($getSingleValue) {
+            $singleValue = $getSingleValue($value);
+            return is_numeric($singleValue) ? (int) $singleValue : $singleValue;
+        };
 
-            // Generate sample code
-            $sampleCode = $this->generateSampleCode($sampleHeaderId, $index);
+        // Generate sample code
+        $sampleCode = $this->generateSampleCode($sampleHeaderId, $index);
 
-            // dd("<><<<><<<<><><><<<<<><></<><<<",$detailData,$getIntegerValue($detailData['sample_point_id'] ?? null));
-            
-            // Create the sample detail
-            $sampleDetail = new \App\SampleDetails();
-            $sampleData = [
-                'sample_header_id' => $sampleHeaderId,
-                'sample_code' => $sampleCode['sample_code'],
-                'sample_no' => $sampleCode['sample_no'],
-                'report_number' => $sampleCode['report_number'],
-                'sample_point_id' => $getIntegerValue($detailData['sample_point_id'] ?? null),
-                'analysis_type_id' => $getSingleValue($detailData['analysis_type_id'] ?? ''),
-                'sample_condition_id' => $getIntegerValue($detailData['sample_condition_id'] ?? null),
-                'company_product_id' => $getIntegerValue($detailData['company_product_id'] ?? null),
-                'barcode' => $getSingleValue($detailData['barcode'] ?? ''),
-                'standard_id' => $getIntegerValue($detailData['standard_id'] ?? null),
-                'lab_id' => $getIntegerValue($detailData['lab_id'] ?? 1), // Default lab
-                'disposal_date' => $getSingleValue($detailData['disposal_date'] ?? null),
-                'main_standard' => $getIntegerValue($detailData['main_standard'] ?? null),
-                'secondary_standard' => $getIntegerValue($detailData['secondary_standard'] ?? null),
-                'third_standard_id' => $getIntegerValue($detailData['third_standard_id'] ?? null),
-                'comments' => $getSingleValue($detailData['comments'] ?? ''),
-                'is_duplicate' => $getIntegerValue($detailData['is_duplicate'] ?? 0),
-                'sample_store' => $getSingleValue($detailData['sample_store'] ?? ''),
-                'sample_store_slot' => $getSingleValue($detailData['sample_store_slot'] ?? ''),
-                'sample_quantity' => $getSingleValue($detailData['sample_quantity'] ?? ''),
-                'sample_reporting_unit' => $getSingleValue($detailData['sample_reporting_unit'] ?? ''),
-            ];
-
-            // Merge additional detail data
-
-            // dd($sampleData, $detailData);
-
-            // $sampleData = array_merge($sampleData, $detailData);
-
-            $sampleDetail->fill($sampleData);
-            
-            $sampleDetail->save();
-            
-            // Create analysis type relations and captured results
-            $this->createAnalysisRelationsAndResults($sampleHeaderId, $sampleDetail->id, $sampleDetail->analysis_type_id, $sampleDetail->sample_code);
-            
-            $createdDetails[] = $sampleDetail;
-            Log::info('Created sample detail', [
-                'detail_id' => $sampleDetail->id,
-                'sample_code' => $sampleDetail->sample_code,
-                'header_id' => $sampleHeaderId,
-                'analysis_type_id' => $sampleDetail->analysis_type_id
-            ]);
-        }
         
+        // Create the sample detail
+        $sampleDetail = new \App\SampleDetails();
+        $sampleData = [
+            'sample_header_id' => $sampleHeaderId,
+            'sample_code' => $sampleCode['sample_code'],
+            'sample_no' => $sampleCode['sample_no'],
+            'report_number' => $sampleCode['report_number'],
+            'sample_point_id' => $getIntegerValue($detailData['sample_point_id'] ?? null),
+            'analysis_type_id' => $getSingleValue($detailData['analysis_type_id'] ?? ''),
+            'sample_condition_id' => $getIntegerValue($detailData['sample_condition_id'] ?? null),
+            'company_product_id' => $getIntegerValue($detailData['company_product_id'] ?? null),
+            'barcode' => $getSingleValue($detailData['barcode'] ?? ''),
+            'standard_id' => $getIntegerValue($detailData['standard_id'] ?? null),
+            'lab_id' => $getIntegerValue($detailData['lab_id'] ?? 1), // Default lab
+            'disposal_date' => $getSingleValue($detailData['disposal_date'] ?? null),
+            'main_standard' => $getIntegerValue($detailData['main_standard'] ?? null),
+            'secondary_standard' => $getIntegerValue($detailData['secondary_standard'] ?? null),
+            'third_standard_id' => $getIntegerValue($detailData['third_standard_id'] ?? null),
+            'comments' => $getSingleValue($detailData['comments'] ?? ''),
+            'is_duplicate' => $getIntegerValue($detailData['is_duplicate'] ?? 0),
+            'sample_store' => $getSingleValue($detailData['sample_store'] ?? ''),
+            'sample_store_slot' => $getSingleValue($detailData['sample_store_slot'] ?? ''),
+            'sample_quantity' => $getSingleValue($detailData['sample_quantity'] ?? ''),
+            'sample_reporting_unit' => $getSingleValue($detailData['sample_reporting_unit'] ?? ''),
+        ];
+
+        // Merge additional detail data
+
+        // dd($sampleData, $detailData);
+
+        // $sampleData = array_merge($sampleData, $detailData);
+
+        $sampleDetail->fill($sampleData);
+        
+        $sampleDetail->save();
+        
+        // Create analysis type relations and captured results
+        $this->createAnalysisRelationsAndResults($sampleHeaderId, $sampleDetail->id, $sampleDetail->analysis_type_id, $sampleDetail->sample_code);
+        
+        $createdDetails[] = $sampleDetail;
+        Log::info('Created sample detail', [
+            'detail_id' => $sampleDetail->id,
+            'sample_code' => $sampleDetail->sample_code,
+            'header_id' => $sampleHeaderId,
+            'analysis_type_id' => $sampleDetail->analysis_type_id
+        ]);
+       
         return $createdDetails;
     }
 
