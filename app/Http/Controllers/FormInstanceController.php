@@ -165,6 +165,7 @@ class FormInstanceController extends Controller
         // Build validation rules
         $validationRules = $this->buildValidationRules($elements, $request);
        
+        // dd($validationRules);
 
         // Validate the request
         $validator = Validator::make($request->all(), $validationRules);
@@ -204,7 +205,7 @@ class FormInstanceController extends Controller
         } catch (\Exception $e) {
             DB::rollBack();
             Log::error('Error updating form instance: ' . $e->getMessage());
-            dd("here error");
+            dd($e->getMessage());
             return redirect()->back()
                 ->withInput()
                 ->with('error', 'An error occurred while saving the form. Please try again.');
@@ -463,17 +464,34 @@ class FormInstanceController extends Controller
                 break;
                 case 'file':
                     $elementRules[] = 'file';
-                break;
+                    break;
+                case 'sample_point_select':
+                case 'analysis_elements_select':
+                    // Multiple select fields should be arrays when submitted
+                    if ($this->isMultipleSelectField($element, $request)) {
+                        $elementRules[] = 'array';
+                    }
+                    break;
             }
             
             // Custom validation rules
             if ($element->validation_rules) {
                 $elementRules = array_merge($elementRules, $element->validation_rules);
             }
-            
-            // Handle array fields (from rows sections)
+                
+            // Handle array fields (from rows sections or multiple selects)
             if ($request->has($fieldName) && is_array($request->input($fieldName))) {
-                $rules[$fieldName . '.*'] = $elementRules;
+                // Check if this is a multiple select field
+                if ($this->isMultipleSelectField($element, $request)) {
+                    // For multiple select fields, validate the array itself
+                    // dd($element,$request->all());
+                    $rules[$fieldName] = $elementRules;
+                    // Also validate each individual value
+                    $rules[$fieldName . '.*'] = ['array']; // Each selected value should be a string
+                } else {
+                    // For rows sections, validate each array element
+                    $rules[$fieldName . '.*'] = $elementRules;
+                }
             } else {
                 $rules[$fieldName] = $elementRules;
             }
@@ -490,10 +508,24 @@ class FormInstanceController extends Controller
         foreach ($elements as $element) {
             $fieldName = $element->name;
             $value = $request->input($fieldName);
-            
-            // Handle array fields (from rows sections)
+            // Check if this is a multiple select field (has [] in form name but not from rows)
+            $isMultipleSelect = $this->isMultipleSelectField($element, $request);
+            // Handle array fields (from rows sections or multiple selects)
             if (is_array($value)) {
-                $this->processArrayField($instance, $element, $value);
+                if ($isMultipleSelect) {
+                    // Handle multiple select fields - store as comma-separated string
+                    if(count($value) >= 1){
+                       if(is_array($value[0])){
+                            $value = $value[0];
+                       }else{
+                            $value = $value;
+                       }
+                    }
+                    $this->processMultipleSelectField($instance, $element, $value);
+                } else {
+                    // Handle array fields (from rows sections)
+                    $this->processArrayField($instance, $element, $value);
+                }
             } else {
                 $this->processSingleField($instance, $element, $value, $request);
             }
@@ -531,6 +563,44 @@ class FormInstanceController extends Controller
                 $this->saveFieldValue($instance, $element, $value, null, $index);
             }
         }
+    }
+
+    /**
+     * Check if this is a multiple select field
+     */
+    private function isMultipleSelectField(SubmissionFormElement $element, Request $request): bool
+    {
+        // Check for specific element types that support multiple selection
+        $multipleSelectTypes = ['sample_point_select', 'analysis_elements_select'];
+        
+        if (in_array($element->element_type, $multipleSelectTypes)) {
+            return true;
+        }
+        
+        // Check if element has multiple property set
+        if (isset($element->properties['multiple']) && $element->properties['multiple'] === true) {
+            return true;
+        }
+        
+        return false;
+    }
+
+    /**
+     * Process multiple select field values
+     */
+    private function processMultipleSelectField(SubmissionFormInstance $instance, SubmissionFormElement $element, array $values): void
+    {
+        // Filter out empty values and convert to comma-separated string
+        $filteredValues = array_filter($values, function($value) {
+            return $value !== null && $value !== '';
+        });
+        
+        $commaSeparatedValue = empty($filteredValues) ? null : implode(',', $filteredValues);
+
+        // throw new \Exception($commaSeparatedValue);
+        
+        // Save as a single value (comma-separated string)
+        $this->saveFieldValue($instance, $element, $commaSeparatedValue);
     }
 
     /**

@@ -51,6 +51,9 @@ class SampleCreationController extends Controller
                     'sample_header' => $batch['sample_header'],
                     'sample_details_count' => count($batch['sample_details'])
                 ]);
+
+
+                $sampleDetails = [];
                 
                 // Create sample header using our custom method
                 $sampleHeader = $this->createSampleHeader($batch['sample_header']);
@@ -58,12 +61,27 @@ class SampleCreationController extends Controller
                 // Update the sample header with the instance ID
                 $sampleHeader->submission_form_instance_id = $instance->id;
                 $sampleHeader->save();
+                // Merge all sample details arrays into one flat array
+                $mergedSampleDetails = [];
+                foreach ($batch['sample_details'] as $detailsArray) {
+                    if (is_array($detailsArray)) {
+                        $mergedSampleDetails = array_merge($mergedSampleDetails, $detailsArray);
+                    }
+                }
+
+                $batch['sample_details'] = $mergedSampleDetails;
+                $samplePoints = explode(',', $batch['sample_details']['sample_point_id']);
                 
-                // Create sample details using our custom method
-                $sampleDetails = $this->createSampleDetails($batch['sample_details'], $sampleHeader->id);
-                
-                // Create sample dates (Login Date and Target Date)
-                $this->createSampleDates($sampleHeader->id, $sampleDetails);
+                $newSampleDetailsInfo = $batch['sample_details'];
+
+                foreach($samplePoints as $i=>$samplePoint){
+                    $newSampleDetailsInfo['sample_point_id'] = $samplePoint;
+                    $sampleDetails[$i] = $this->createSampleDetails($newSampleDetailsInfo, $sampleHeader->id);
+
+                    // dd($sampleDetails[$i]);
+
+                    $this->createSampleDates($sampleHeader->id, $sampleDetails[$i]);
+                }
                 
                 $createdBatches[] = [
                     'batch_id' => $sampleHeader->id,
@@ -71,6 +89,7 @@ class SampleCreationController extends Controller
                     'sample_type_id' => $batch['sample_header']['sample_type_id'] ?? 'Unknown',
                     'sample_count' => count($sampleDetails)
                 ];
+
             }
 
             return response()->json([
@@ -265,8 +284,11 @@ class SampleCreationController extends Controller
     private function createSampleDetails(array $sampleDetailsData, $sampleHeaderId)
     {
         $createdDetails = [];
+
+        // dd($sampleDetailsData);
         
         foreach ($sampleDetailsData as $index => $detailData) {
+            $detailData = $sampleDetailsData;
             // Helper function to get single value from array or return the value itself
             $getSingleValue = function($value) {
                 if (is_array($value)) {
@@ -278,11 +300,13 @@ class SampleCreationController extends Controller
             // Helper function to ensure integer values
             $getIntegerValue = function($value) use ($getSingleValue) {
                 $singleValue = $getSingleValue($value);
-                return is_numeric($singleValue) ? (int) $singleValue : null;
+                return is_numeric($singleValue) ? (int) $singleValue : $singleValue;
             };
 
             // Generate sample code
             $sampleCode = $this->generateSampleCode($sampleHeaderId, $index);
+
+            // dd("<><<<><<<<><><><<<<<><></<><<<",$detailData,$getIntegerValue($detailData['sample_point_id'] ?? null));
             
             // Create the sample detail
             $sampleDetail = new \App\SampleDetails();
@@ -291,9 +315,9 @@ class SampleCreationController extends Controller
                 'sample_code' => $sampleCode['sample_code'],
                 'sample_no' => $sampleCode['sample_no'],
                 'report_number' => $sampleCode['report_number'],
+                'sample_point_id' => $getIntegerValue($detailData['sample_point_id'] ?? null),
                 'analysis_type_id' => $getSingleValue($detailData['analysis_type_id'] ?? ''),
                 'sample_condition_id' => $getIntegerValue($detailData['sample_condition_id'] ?? null),
-                'sample_point_id' => $getIntegerValue($detailData['sample_point_id'] ?? null),
                 'company_product_id' => $getIntegerValue($detailData['company_product_id'] ?? null),
                 'barcode' => $getSingleValue($detailData['barcode'] ?? ''),
                 'standard_id' => $getIntegerValue($detailData['standard_id'] ?? null),
@@ -311,7 +335,10 @@ class SampleCreationController extends Controller
             ];
 
             // Merge additional detail data
-            $sampleData = array_merge($sampleData, $detailData);
+
+            // dd($sampleData, $detailData);
+
+            // $sampleData = array_merge($sampleData, $detailData);
 
             $sampleDetail->fill($sampleData);
             
@@ -321,7 +348,6 @@ class SampleCreationController extends Controller
             $this->createAnalysisRelationsAndResults($sampleHeaderId, $sampleDetail->id, $sampleDetail->analysis_type_id, $sampleDetail->sample_code);
             
             $createdDetails[] = $sampleDetail;
-            
             Log::info('Created sample detail', [
                 'detail_id' => $sampleDetail->id,
                 'sample_code' => $sampleDetail->sample_code,
@@ -345,6 +371,7 @@ class SampleCreationController extends Controller
             ]);
             return;
         }
+
 
         // Parse analysis type IDs (can be comma-separated string or array)
         $analysisTypes = is_string($analysisTypeIds) ? explode(',', $analysisTypeIds) : $analysisTypeIds;
@@ -458,6 +485,7 @@ class SampleCreationController extends Controller
                         ->where('standard_id', $sampleDetail->main_standard)->first();
                 }
                 
+
                 if ($sampleDetail->secondary_standard) {
                     $secondaryStandardID = StandardAnalytes::where('analyte_id', $element->analyte_id)
                         ->where('standard_id', $sampleDetail->secondary_standard)->first();
@@ -469,13 +497,13 @@ class SampleCreationController extends Controller
                 }
             }
 
+
             // Create captured result with all fields from SampleWorkFlowController
             $capturedResult = new \App\CapturedResult();
 
-            // dd($element, ">>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>");
-
             $reportingUnit = ReportingUnit::where('id', $element->reporting_unit)
                 ->orWhere('name', $element->reporting_unit)->first();
+
 
             $capturedResult->fill([
                 'sample_detail_code' => $sampleCode,
@@ -506,6 +534,7 @@ class SampleCreationController extends Controller
             ]);
             
             $capturedResult->save();
+
 
             // dd($capturedResult, ">>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>");
 
@@ -539,6 +568,7 @@ class SampleCreationController extends Controller
                 'remark_is_manual' => $element->remark_is_manual,
             ]);
             $result->save();
+
         }
     }
 

@@ -983,12 +983,24 @@ $(document).ready(function() {
                 const $element = $(this);
                 const label = $element.closest('.form-group').find('label').text().replace(' *', '');
                 const value = $element.val();
-                
-                if (!value || value.trim() === '') {
-                    errors.push(`${label} is required`);
-                    $element.addClass('is-invalid');
-                } else {
-                    $element.removeClass('is-invalid');
+
+                // Special handling for multiple select elements
+                if ($element.is('select') && $element.prop('multiple')) {
+                    if (!value || (Array.isArray(value) && value.length === 0)) {
+                        errors.push(`${label} is required`);
+                        $element.addClass('is-invalid');
+                    } else {
+                        $element.removeClass('is-invalid');
+                    }
+                    return; // Skip the general validation below
+                }
+                else{
+                    if (!value || value.trim() === '') {
+                        errors.push(`${label} is required`);
+                        $element.addClass('is-invalid');
+                    } else {
+                        $element.removeClass('is-invalid');
+                    }
                 }
             });
             
