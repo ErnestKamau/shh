@@ -4166,3 +4166,149 @@ CREATE TABLE `submission_form_audit_logs` (
   KEY `submission_form_audit_logs_action_index` (`action`),
   KEY `submission_form_audit_logs_created_at_index` (`created_at`)
 ) ENGINE=InnoDB AUTO_INCREMENT=2 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- qplus.sample_point_area definition
+
+CREATE TABLE `sample_point_area` (
+  `id` bigint unsigned NOT NULL AUTO_INCREMENT,
+  `created_at` timestamp NULL DEFAULT NULL,
+  `updated_at` timestamp NULL DEFAULT NULL,
+  `name` varchar(255) COLLATE utf8mb4_unicode_ci NOT NULL,
+  `crm_customer_id` bigint NOT NULL,
+  `deleted_at` datetime DEFAULT NULL,
+  PRIMARY KEY (`id`),
+  KEY `sample_point_area_crm_customer_id_foreign` (`crm_customer_id`),
+  CONSTRAINT `sample_point_area_crm_customer_id_foreign` FOREIGN KEY (`crm_customer_id`) REFERENCES `crm_customers` (`id`) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- qplus.samples_by_category source
+
+CREATE OR REPLACE
+ALGORITHM = UNDEFINED VIEW `qplus`.`samples_by_category` AS
+select
+    `sh`.`batch_code` AS `batch_code`,
+    `sh`.`receipt_date` AS `receipt_date`,
+    `sh`.`date_collected` AS `date_collected`,
+    `sh`.`crm_customer_id` AS `crm_customer_id`,
+    `sh`.`sample_type_id` AS `sample_type_id`,
+    `sh`.`reference_number` AS `reference_number`,
+    `sh`.`status` AS `workflow_stage`,
+    `sh`.`is_routine` AS `is_routine`,
+    `sh`.`priority` AS `priority`,
+    `sh`.`batch_scope` AS `batch_scope`,
+    `sh`.`customer_survey` AS `customer_survey`,
+    `sh`.`approval_date` AS `approval_date`,
+    `sh`.`submit_by` AS `submit_by`,
+    `sh`.`sampled_by_company_personnel` AS `sampled_by_company_personnel`,
+    `sh`.`radio_active_levels` AS `batch_no`,
+    `sh`.`description` AS `product_description`,
+    `sh`.`batch_instructions` AS `batch_instructions`,
+    `sh`.`sampling_officer_name` AS `sampling_officer_name`,
+    `sh`.`retention_date` AS `retention_date`,
+    `sh`.`kra_office_ref` AS `kra_office_ref`,
+    `sh`.`radio_active_levels` AS `radio_active_levels`,
+    `cc`.`code` AS `crm_code`,
+    `cc`.`name` AS `crm_name`,
+    `cc`.`postal_address` AS `postal_address`,
+    `cc`.`physical_address` AS `physical_address`,
+    `sh`.`crm_unit_name` AS `crm_unit_name`,
+    `st`.`code` AS `sample_type_code`,
+    `st`.`name` AS `sample_type_name`,
+    `sd`.`id` AS `id`,
+    `sd`.`sample_code` AS `sample_code`,
+    `sd`.`analysis_type_id` AS `analysis_type_id`,
+    `sd`.`sample_condition_id` AS `sample_condition_id`,
+    `sd`.`barcode` AS `barcode`,
+    `sd`.`comments` AS `comments`,
+    `sd`.`gps` AS `gps`,
+    `sd`.`photo_url` AS `photo_url`,
+    `sd`.`created_at` AS `created_at`,
+    `sd`.`updated_at` AS `updated_at`,
+    `sd`.`sample_header_id` AS `sample_header_id`,
+    `sd`.`sample_point_id` AS `sample_point_id`,
+    `sd`.`company_product_id` AS `company_product_id`,
+    `sd`.`main_body` AS `main_body`,
+    `sd`.`header_body` AS `header_body`,
+    `sd`.`is_ammendment` AS `is_ammendment`,
+    `sd`.`ammendment_number` AS `ammendment_number`,
+    `sd`.`main_standard` AS `main_standard`,
+    `sd`.`secondary_standard` AS `secondary_standard`,
+    `sd`.`short_code` AS `short_code`,
+    `sd`.`material_status` AS `material_status`,
+    `sd`.`third_standard_id` AS `third_standard_id`,
+    `sd`.`sample_no` AS `sample_no`,
+    `sd`.`no_of_samples` AS `no_of_samples`,
+    `sd`.`no_of_pots_plants` AS `no_of_pots_plants`,
+    `sd`.`standard_tests` AS `standard_tests`,
+    `sd`.`compartiment_lot` AS `compartiment_lot`,
+    `sd`.`coa_number` AS `coa_number`,
+    `sd`.`results` AS `results`,
+    `sd`.`lab_sub_no` AS `lab_sub_no`,
+    `sd`.`store_id` AS `store_id`,
+    `sd`.`store_slot_id` AS `store_slot_id`,
+    `sd`.`quantity` AS `quantity`,
+    `sd`.`reporting_unit_id` AS `reporting_unit_id`,
+    `sd`.`mfg_date` AS `mfg_date`,
+    `sd`.`expiry_date` AS `expiry_date`,
+    `sd`.`batch_lot_no` AS `batch_lot_no`,
+    `sd`.`coa_number_target` AS `coa_number_target`,
+    `sd`.`disposal_date` AS `disposal_date`,
+    `sd`.`is_disposed` AS `is_disposed`,
+    `sd`.`notes_body` AS `notes_body`,
+    `sd`.`report_number` AS `report_number`,
+    `cp`.`name` AS `product_name`,
+    `sp`.`name` AS `sample_point_name`,
+    `spa`.`name` AS `sample_point_area_name`,
+    `sc`.`name` AS `sample_condition_name`,
+    `smain`.`code` AS `main_standard_code`,
+    `ssec`.`code` AS `sec_standard_code`,
+    `sthird`.`code` AS `third_standard_code`,
+    `iss`.`name` AS `store_slot_name`,
+    `is2`.`name` AS `store_name`,
+    `ru`.`name` AS `reporting_unit_name`,
+    `ci`.`invoice_number` AS `invoice_number`,
+    `am`.`name` AS `sampling_method_name`,
+    `am`.`code` AS `sampling_method_code`,
+    `l`.`code` AS `main_lab_code`,
+    `l`.`name` AS `main_lab_name`,
+    `l`.`id` AS `main_lab_id`,
+    `ccu`.`name` AS `customer_crm_unit`
+from
+    (((((((((((((((((`qplus`.`sample_headers` `sh`
+join `qplus`.`sample_details` `sd` on
+    ((`sh`.`id` = `sd`.`sample_header_id`)))
+join `qplus`.`crm_customers` `cc` on
+    ((`sh`.`crm_customer_id` = `cc`.`id`)))
+join `qplus`.`sample_types` `st` on
+    ((`sh`.`sample_type_id` = `st`.`id`)))
+join `qplus`.`company_products` `cp` on
+    ((`sd`.`company_product_id` = `cp`.`id`)))
+join `qplus`.`sample_conditions` `sc` on
+    ((`sd`.`sample_condition_id` = `sc`.`id`)))
+join `qplus`.`sample_points` `sp` on
+    ((`sd`.`sample_point_id` = `sp`.`id`)))
+left join `qplus`.`sample_point_area` `spa` on
+    ((`sp`.`sample_point_area_id` = `spa`.`id`)))
+left join `qplus`.`crm_company_units` `ccu` on
+    ((`sh`.`crm_unit_id` = `ccu`.`id`)))
+join `qplus`.`standards` `smain` on
+    ((`sd`.`main_standard` = `smain`.`id`)))
+left join `qplus`.`standards` `ssec` on
+    ((`sd`.`secondary_standard` = `ssec`.`id`)))
+left join `qplus`.`standards` `sthird` on
+    ((`sd`.`third_standard_id` = `sthird`.`id`)))
+left join `qplus`.`inventory_stores` `is2` on
+    ((`sd`.`store_id` = `is2`.`id`)))
+left join `qplus`.`inventory_store_slots` `iss` on
+    ((`sd`.`store_slot_id` = `iss`.`id`)))
+left join `qplus`.`reporting_units` `ru` on
+    ((`sd`.`reporting_unit_id` = `ru`.`id`)))
+left join `qplus`.`customer_invoice` `ci` on
+    ((`sh`.`invoice_id` = `ci`.`id`)))
+left join `qplus`.`analysis_methods` `am` on
+    ((`sh`.`sampling_method_id` = `am`.`id`)))
+left join `qplus`.`labs` `l` on
+    ((`sd`.`lab_id` = `l`.`id`)));
+
+
+

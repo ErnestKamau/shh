@@ -11,6 +11,11 @@ class SamplesCategory extends Model implements Auditable
     protected $table = 'samples_by_category';
     protected $appends = ['analysisTypeNames'];
 
+    public function samplePointArea()
+    {
+        return $this->belongsTo('App\Models\SamplePointArea', 'sample_point_area_id');
+    }
+
     public function getSampleByAnalysisType($exclude_pesticides = 0){
         if($exclude_pesticides == 1){
             return SampleAnalysisTypeRelationView::where('sample_detail_id',$this->id)->where('is_pesticide',0)->where('batch_id',$this->sample_header_id)->orderBy('analysis_level','ASC')->get();

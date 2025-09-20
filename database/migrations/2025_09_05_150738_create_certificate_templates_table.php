@@ -32,12 +32,12 @@ class CreateCertificateTemplatesTable extends Migration
             $table->foreign('created_by', 'ct_templates_created_by_fk')->references('id')->on('users')->onDelete('cascade');
             
             // Indexes for performance
-            $table->index('submission_form_id');
-            $table->index('is_published');
-            $table->index('is_active');
-            $table->index('created_by');
-            $table->index(['is_published', 'is_active']);
-            $table->index(['submission_form_id', 'is_published', 'is_active']);
+            $table->index('submission_form_id', 'ct_submission_form_id_idx');
+            $table->index('is_published', 'ct_is_published_idx');
+            $table->index('is_active', 'ct_is_active_idx');
+            $table->index('created_by', 'ct_created_by_idx');
+            $table->index(['is_published', 'is_active'], 'ct_published_active_idx');
+            $table->index(['submission_form_id', 'is_published', 'is_active'], 'ct_form_pub_active_idx');
         });
     }
 

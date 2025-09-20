@@ -32,10 +32,10 @@ class CreateCertificateTemplateElementsTable extends Migration
             $table->foreign('certificate_template_section_id', 'ct_elements_section_fk')->references('id')->on('certificate_template_sections')->onDelete('cascade');
             
             // Indexes for performance
-            $table->index('certificate_template_section_id');
-            $table->index('element_type');
-            $table->index('sort_order');
-            $table->index(['certificate_template_section_id', 'sort_order'], 'ct_elements_section_sort_idx');
+            $table->index('certificate_template_section_id', 'cte_section_id_idx');
+            $table->index('element_type', 'cte_element_type_idx');
+            $table->index('sort_order', 'cte_sort_order_idx');
+            $table->index(['certificate_template_section_id', 'sort_order'], 'cte_section_sort_idx');
         });
     }
 

@@ -1,0 +1,877 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+    <meta charset="UTF-8">
+    <title>Microbiology Laboratory Report - Hygiene Swabs</title>
+    <style>
+        @page {
+            margin-top: 200px;
+            margin-bottom: 90px;
+            margin-left: 20px;
+            margin-right: 20px;
+        }
+
+        * {
+            font-family: "Times New Roman", "Arial Unicode MS", Times, serif;
+            font-size: 10px;
+        }
+
+        body {
+            margin: 0;
+            padding: 0;
+        }
+
+        .header {
+            position: fixed;
+            top: -180px;
+            left: 0;
+            right: 0;
+            height: 160px;
+            z-index: 1000;
+            background-color: white;
+           
+            padding-bottom: 10px;
+        }
+
+        .footer {
+            position: fixed;
+            bottom: -105px;
+            left: 0;
+            right: 0;
+            height: 100px;
+            z-index: 1000;
+            background-color: white;
+            font-size: 8px;
+        }
+
+        .logo-section {
+            text-align: center;
+            margin: 10px 0;
+        }
+
+        .logo-section img {
+            height: 30px;
+            margin: 0 20px;
+        }
+
+        .header-info {
+            display: table;
+            width: 100%;
+            margin: 10px 0;
+            font-size: 9px;
+        }
+
+        .header-left {
+            display: table-cell;
+            width: 30%;
+            vertical-align: top;
+            padding-right: 10px;
+        }
+
+        .header-center {
+            display: table-cell;
+            width: 40%;
+            vertical-align: top;
+            text-align: center;
+            padding: 0 10px;
+        }
+
+        .header-right {
+            display: table-cell;
+            width: 30%;
+            vertical-align: top;
+            text-align: left;
+            padding-left: 10px;
+        }
+
+        .company-logo {
+            height: 120px;
+            max-width: 100%;
+        }
+
+        .form-version {
+            text-align: center;
+            font-weight: bold;
+            margin: 5px 0;
+            font-size: 9px;
+        }
+
+        .report-title {
+            text-align: center;
+            font-size: 14px;
+            font-weight: bold;
+            margin: 15px 0;
+            text-decoration: underline;
+        }
+
+        .info-section {
+            
+            font-size: 10px;
+            border: 2px solid #4682B4;
+            padding: 10px;
+        }
+
+        .info-row {
+            display: table;
+            width: 100%;
+            margin: 5px 0;
+        }
+
+        .info-label {
+            display: table-cell;
+            width: 35%;
+            font-weight: bold;
+            vertical-align: top;
+            padding-right: 10px;
+            white-space: nowrap;
+        }
+
+        .info-value {
+            display: table-cell;
+            width: 65%;
+            border-bottom: 1px dotted #000;
+            padding-bottom: 2px;
+        }
+
+        .three-column {
+            display: table;
+            width: 100%;
+            margin: 10px 0;
+        }
+
+        .column {
+            display: table-cell;
+            width: 33.33%;
+            vertical-align: top;
+            padding-right: 15px;
+        }
+
+        .column:last-child {
+            padding-right: 0;
+        }
+
+        .section-title {
+            font-weight: bold;
+            text-decoration: underline;
+            margin: 15px 0 10px 0;
+            font-size: 11px;
+        }
+
+        .results-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 15px 0;
+            font-size: 9px;
+        }
+
+        .results-section {
+            margin: 15px 0;
+            border: 2px solid #4682B4;
+            padding: 10px;
+        }
+
+        .results-table th,
+        .results-table td {
+            border: 1px solid #000;
+            padding: 6px;
+            text-align: center;
+            vertical-align: middle;
+        }
+
+        .results-table th {
+            background-color: #f0f0f0;
+            font-weight: bold;
+        }
+
+        .results-table .area-cell {
+            text-align: left;
+            font-weight: bold;
+        }
+
+        .area-header {
+            background-color: #e6e6e6;
+            font-weight: bold;
+            text-align: center;
+            font-size: 10px;
+            padding: 8px;
+        }
+
+        .failed-result {
+            color: red !important;
+            font-weight: bold !important;
+        }
+
+        .standards-table {
+            width: 60%;
+            border-collapse: collapse;
+            margin: 15px 0;
+            font-size: 9px;
+        }
+
+        .standards-table th,
+        .standards-table td {
+            border: 1px solid #000;
+            padding: 6px;
+            text-align: center;
+            vertical-align: middle;
+        }
+
+        .standards-table th {
+            background-color: #f0f0f0;
+            font-weight: bold;
+        }
+
+        .hygiene-score {
+            font-weight: bold;
+            color: #2e8b57;
+            font-size: 11px;
+        }
+
+        .interpretation-section {
+            margin: 20px 0;
+            font-size: 10px;
+            border: 2px solid #4682B4;
+            padding: 10px;
+            min-height: 60px;
+        }
+
+        .signatures-section {
+            margin-top: 30px;
+            display: table;
+            width: 100%;
+        }
+
+        .signature-block {
+            display: table-cell;
+            width: 50%;
+            text-align: center;
+            vertical-align: top;
+            padding: 0 10px;
+        }
+
+        .signature-line {
+            border-bottom: 1px solid #000;
+            height: 50px;
+            margin: 20px 0 10px 0;
+            position: relative;
+            display: flex;
+            align-items: flex-end;
+            justify-content: center;
+        }
+
+        .signature-line img {
+            height: 40px;
+            max-width: 100%;
+        }
+
+        .signature-title {
+            font-weight: bold;
+            margin: 5px 0;
+            font-size: 9px;
+        }
+
+        .signature-name {
+            font-size: 9px;
+            margin: 2px 0;
+        }
+
+        .signature-date {
+            font-size: 8px;
+            margin: 2px 0;
+        }
+
+        .disclaimer {
+            font-size: 8px;
+            text-align: justify;
+            margin: 15px 0;
+            line-height: 1.2;
+            border: 2px solid #4682B4;
+            padding: 10px;
+        }
+
+        .qr-section {
+            text-align: left;
+            margin: 0;
+        }
+
+        .qr-section img {
+            height: 60px;
+        }
+
+        .page-number {
+            text-align: center;
+            font-size: 8px;
+            margin: 5px 0;
+        }
+
+        .stamp-area {
+            position: fixed;
+            bottom: 120px;
+            right: 30px;
+            z-index: 1100;
+        }
+
+        .stamp-area img {
+            height: 80px;
+        }
+
+        .stamp-date {
+            color: red;
+            font-weight: bold;
+            text-align: center;
+            margin-top: 5px;
+            font-size: 10px;
+        }
+
+        .method-section {
+            margin: 15px 0;
+            font-size: 10px;
+            border: 2px solid #4682B4;
+            padding: 10px;
+        }
+
+        .standards-section {
+            margin: 20px 0;
+            font-size: 10px;
+            border: 2px solid #4682B4;
+            padding: 10px;
+        }
+
+        .conformity-section {
+            margin: 20px 0;
+            font-size: 10px;
+            border: 2px solid #4682B4;
+            padding: 10px;
+            background-color: #f9f9f9;
+        }
+
+        .page-break {
+            page-break-before: always;
+        }
+
+        .score-excellent {
+            color: green;
+            font-weight: bold;
+        }
+
+        .score-good {
+            color: #ff8c00;
+            font-weight: bold;
+        }
+
+        .score-poor {
+            color: red;
+            font-weight: bold;
+        }
+
+        .main-content {
+            position: relative;
+            z-index: 1;
+        }
+
+        /* Ensure consistent spacing on all pages */
+        .info-section:first-of-type {
+            margin-top: 0;
+        }
+        
+        /* Force consistent page layout */
+        .main-content {
+            position: relative;
+            z-index: 1;
+            margin-top: 0 !important;
+            /* padding-top: 25px !important; */
+        }
+    </style>
+</head>
+
+<body>
+    <!-- Header -->
+    <div class="header">        
+        <div class="header-info">
+            <div class="header-left" style="line-height: 1.5;">
+                <strong>{{ $company->name ?? 'Laboratory Name' }}</strong><br>
+                {{ $company->street ?? 'Laboratory Street' }}<br>
+                P.O BOX {{ $company->address ?? 'Laboratory Address' }}<br>
+                {{ $company->location ?? 'Laboratory Location' }}<br>
+                {{ $company->country ->name?? 'Laboratory Country' }}<br>
+                Tel: {{ $company->telephone ?? 'N/A' }}<br>
+                Fax: {{ $company->fax ?? 'N/A' }}<br>
+                Email: {{ $company->email ?? 'N/A' }}
+            </div>
+            <div class="header-center">
+                <img src="{{ $report_logo }}" alt="Company Logo" class="company-logo">
+            </div>
+            <div class="header-right" style="text-align: right;line-height: 1.2;">
+                <span>FM/QA/051</span><br>
+                <span>Revision 5</span><br>
+                <span>Issue Date: 16/03/2023</span><br><br>
+                <span>Report No: </span> {{ $batch->batch_code }}<br>
+                <span>Customer: </span> {{ $customer->name }}<br>
+                <span>Address: </span> {{ $customer->address ?? 'N/A' }}<br>
+                <span>P.O BOX: </span> {{ $customer->postal_address ?? 'N/A' }}<br>
+                <span>Cell : </span> {{ $customer->telephone1 ?? 'N/A' }}<br>
+                <span>Email: </span> {{ $customer->email ?? 'N/A' }}<br>
+            </div>
+        </div>
+        
+        <div class="report-title">MICROBIOLOGY LABORATORY REPORT - HYGIENE SWABS</div>
+    </div>
+
+    <!-- Footer -->
+    <div class="footer">
+        <div style="display: table; width: 100%; height: 100%;">
+            <!-- QR Code Section - Left aligned at page start -->
+            <div style="display: table-cell; width: 50%; text-align: left; vertical-align: bottom; padding-left: 0;">
+                <div class="qr-section" style="text-align: left; margin: 0;">
+                    <img src="data:image/svg+xml;base64,{{ $qrcode }}" alt="QR Code">
+                    <br>
+                    <small>Scan to Verify Report</small>
+                </div>
+            </div>
+            
+            <!-- Page Number Section - Right aligned -->
+            <div style="display: table-cell; width: 50%; text-align: center; vertical-align: bottom;">
+                {{-- Page numbers handled by script --}}
+            </div>
+        </div>
+    </div>
+
+    <!-- Main Content -->
+    <div class="main-content" style="margin-top: 0;border-top: 1px solid #ddd; min-height: calc(100vh - 320px);">
+        
+        <!-- Sample Information Section -->
+        <div class="info-section">
+            <div class="three-column">
+                <div class="column">
+                    <div class="info-row">
+                        <div class="info-label">Sample Description:</div>
+                        <div class="info-value">
+                            @php
+                                $sampleTypeName = 'Hygiene Swabs';
+                                if (isset($samples[0]['sample'])) {
+                                    $firstSample = $samples[0]['sample'];
+                                    if (isset($firstSample->sample_type_name)) {
+                                        $sampleTypeName = $firstSample->sample_type_name;
+                                    } elseif (method_exists($firstSample, 'sampleType') && $firstSample->sampleType) {
+                                        $sampleTypeName = $firstSample->sampleType->name;
+                                    }
+                                }
+                            @endphp
+                            {{ $sampleTypeName }} x {{ count($samples) }}*
+                        </div>
+                    </div>
+                    <div class="info-row">
+                        <div class="info-label">Sample Receiving Date:</div>
+                        <div class="info-value">{{ date('d/m/y', strtotime($batch->receipt_date)) }}</div>
+                    </div>
+                </div>
+                <div class="column">
+                    <div class="info-row">
+                        <div class="info-label">Lab Number:</div>
+                        <div class="info-value">{{ $batch->batch_code }}</div>
+                    </div>
+                    <div class="info-row">
+                        <div class="info-label">Date Tested:</div>
+                        <div class="info-value">{{ $analysis_date ? date('d', strtotime($analysis_date->start_analysis_date)) . ' – ' . date('d F Y', strtotime($analysis_date->start_analysis_date)) : 'N/A' }}</div>
+                    </div>
+                </div>
+                <div class="column">
+                    <div class="info-row">
+                        <div class="info-label">Customer Reference:</div>
+                        <div class="info-value">{{ $batch->reference_number ?? $customer->name }} – Hygiene Swabs*</div>
+                    </div>
+                    <div class="info-row">
+                        <div class="info-label">Date of Sampling:</div>
+                        <div class="info-value">{{ date('d/m/Y', strtotime($batch->date_collected)) }}</div>
+                    </div>
+                </div>
+            </div>
+            <div class="three-column">
+                <div class="column">
+                    <div class="info-row">
+                        <div class="info-label">Date of Report:</div>
+                        <div class="info-value">{{ $date }}</div>
+                    </div>
+                </div>
+                <div class="column">
+                    <!-- Empty column for spacing -->
+                </div>
+                <div class="column">
+                    <!-- Empty column for spacing -->
+                </div>
+            </div>
+        </div>
+
+        <!-- Testing Section -->
+        <div class="method-section">
+            <div class="section-title">Testing Section:</div>
+            <div class="three-column">
+                <div class="column">
+                    <div class="info-row">
+                        <div class="info-label">Test Required:</div>
+                        <div class="info-value">{{ $batch->description ?? 'Hygiene Monitoring' }}</div>
+                    </div>
+                </div>
+                <div class="column">
+                    <div class="info-row">
+                        <div class="info-label">Method Used:</div>
+                        <div class="info-value">
+                            @php
+                                $methods = [];
+                                foreach($parameters as $parameter) {
+                                    $method = $parameter->method_name ?? $parameter->method_code ?? null;
+                                    if ($method) {
+                                        $methods[] = $method;
+                                    }
+                                }
+                                $uniqueMethods = array_unique($methods);
+                                $methodText = !empty($uniqueMethods) ? implode(', ', $uniqueMethods) : 'SOP MB 05';
+                            @endphp
+                            {{ $methodText }}
+                        </div>
+                    </div>
+                </div>
+                <div class="column">
+                    <div class="info-row">
+                        <div class="info-label">Deviations from method?</div>
+                        <div class="info-value">No</div>
+                    </div>
+                </div>
+            </div>
+            <div class="three-column">
+                <div class="column">
+                    <div class="info-row">
+                        <div class="info-label">Reason for Deviation:</div>
+                        <div class="info-value">N/A</div>
+                    </div>
+                </div>
+                <div class="column">
+                    <!-- Empty column for spacing -->
+                </div>
+                <div class="column">
+                    <!-- Empty column for spacing -->
+                </div>
+            </div>
+        </div>
+
+        <!-- Results Section -->
+        <div class="results-section">
+            <div class="section-title">Results :</div>
+            <table class="results-table">
+                <thead>
+                    <tr>
+                        <th rowspan="2">Sample Point</th>
+                        @foreach($parameters as $parameter)
+                            <th>{{ $parameter->analyte_code }}</th>
+                        @endforeach
+                        <th>Overall Score</th>
+                    </tr>
+                    <tr>
+                        @foreach($parameters as $parameter)
+                            <th>({{ $parameter->reporting_unit_id }})</th>
+                        @endforeach
+                        <th>Rating</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @php
+                        // Group samples by sample_point_area for hygiene analysis
+                        $groupedSamples = [];
+                        $ungroupedSamples = [];
+                        $totalScore = 0;
+                        $totalSamples = 0;
+                        
+                        foreach($samples as $sampleData) {
+                            $sample = $sampleData['sample'];
+                            $areaId = $sample->sample_point_area_id ?? null;
+                            
+                            if ($areaId) {
+                                $areaName = 'Area ' . $areaId;
+                                
+                                if (method_exists($sample, 'samplePointArea') && $sample->samplePointArea) {
+                                    $areaName = $sample->samplePointArea->name;
+                                } elseif (isset($sample->sample_point_area)) {
+                                    $areaName = $sample->sample_point_area;
+                                } elseif (isset($sample->sample_point_name)) {
+                                    $areaName = $sample->sample_point_name;
+                                }
+                                
+                                if (!isset($groupedSamples[$areaName])) {
+                                    $groupedSamples[$areaName] = [];
+                                }
+                                $groupedSamples[$areaName][] = $sampleData;
+                            } else {
+                                $ungroupedSamples[] = $sampleData;
+                            }
+                        }
+
+                        function calculateHygieneScore($count) {
+                            if (is_numeric($count)) {
+                                $numCount = floatval($count);
+                                if ($numCount <= 10) return 3; // Excellent
+                                if ($numCount <= 100) return 2; // Good
+                                return 1; // Poor
+                            }
+                            return 1; // Default to poor if not numeric
+                        }
+
+                        function getScoreText($score) {
+                            switch($score) {
+                                case 3: return 'Excellent';
+                                case 2: return 'Good';
+                                case 1: return 'Poor';
+                                default: return 'Poor';
+                            }
+                        }
+
+                        function getScoreClass($score) {
+                            switch($score) {
+                                case 3: return 'score-excellent';
+                                case 2: return 'score-good';
+                                case 1: return 'score-poor';
+                                default: return 'score-poor';
+                            }
+                        }
+                    @endphp
+
+                    {{-- Display grouped samples by area --}}
+                    @foreach($groupedSamples as $areaName => $areaSamples)
+                        {{-- Area header row --}}
+                        <tr>
+                            <td class="area-header" colspan="{{ 2 + count($parameters) }}">
+                                {{ $areaName }}
+                            </td>
+                        </tr>
+                        
+                        {{-- Samples in this area --}}
+                        @foreach($areaSamples as $sampleData)
+                            <tr>
+                                <td class="area-cell">{{ $sampleData['sample']->sample_point_name ?? 'Swab Sample' }}</td>
+                                @foreach($parameters as $parameter)
+                                    @php
+                                        $resultData = $sampleData['results'][$parameter->analyte_code] ?? null;
+                                        $value = $resultData['value'] ?? 'N/A';
+                                        $remark = strtolower($resultData['remark'] ?? 'pass');
+                                        $isFailed = $remark === 'fail' || $remark === 'failed' || $remark === 'failure';
+                                    @endphp
+                                    <td class="{{ $isFailed ? 'failed-result' : '' }}">
+                                        {{ $value }}
+                                    </td>
+                                @endforeach
+                                <td>
+                                    @php
+                                        // Calculate overall score based on all parameter values
+                                        $sampleScores = [];
+                                        foreach($parameters as $parameter) {
+                                            if(isset($sampleData['results'][$parameter->analyte_code])) {
+                                                $value = $sampleData['results'][$parameter->analyte_code]['value'];
+                                                if(is_numeric($value)) {
+                                                    $sampleScores[] = calculateHygieneScore($value);
+                                                }
+                                            }
+                                        }
+                                        
+                                        if(!empty($sampleScores)) {
+                                            $avgScore = array_sum($sampleScores) / count($sampleScores);
+                                            $overallScore = round($avgScore);
+                                            $scoreText = getScoreText($overallScore);
+                                            $scoreClass = getScoreClass($overallScore);
+                                            
+                                            $totalScore += $overallScore;
+                                            $totalSamples++;
+                                        } else {
+                                            $scoreText = 'N/A';
+                                            $scoreClass = '';
+                                        }
+                                    @endphp
+                                    <span class="{{ $scoreClass }}">{{ $scoreText }}</span>
+                                </td>
+                            </tr>
+                        @endforeach
+                    @endforeach
+
+                    {{-- Display ungrouped samples --}}
+                    @foreach($ungroupedSamples as $sampleData)
+                        <tr>
+                            <td class="area-cell">{{ $sampleData['sample']->sample_point_name ?? 'Swab Sample' }}</td>
+                            @foreach($parameters as $parameter)
+                                @php
+                                    $resultData = $sampleData['results'][$parameter->analyte_code] ?? null;
+                                    $value = $resultData['value'] ?? 'N/A';
+                                    $remark = strtolower($resultData['remark'] ?? 'pass');
+                                    $isFailed = $remark === 'fail' || $remark === 'failed' || $remark === 'failure';
+                                @endphp
+                                <td class="{{ $isFailed ? 'failed-result' : '' }}">
+                                    {{ $value }}
+                                </td>
+                            @endforeach
+                            <td>
+                                @php
+                                    // Calculate overall score based on all parameter values
+                                    $sampleScores = [];
+                                    foreach($parameters as $parameter) {
+                                        if(isset($sampleData['results'][$parameter->analyte_code])) {
+                                            $value = $sampleData['results'][$parameter->analyte_code]['value'];
+                                            if(is_numeric($value)) {
+                                                $sampleScores[] = calculateHygieneScore($value);
+                                            }
+                                        }
+                                    }
+                                    
+                                    if(!empty($sampleScores)) {
+                                        $avgScore = array_sum($sampleScores) / count($sampleScores);
+                                        $overallScore = round($avgScore);
+                                        $scoreText = getScoreText($overallScore);
+                                        $scoreClass = getScoreClass($overallScore);
+                                        
+                                        $totalScore += $overallScore;
+                                        $totalSamples++;
+                                    } else {
+                                        $scoreText = 'N/A';
+                                        $scoreClass = '';
+                                    }
+                                @endphp
+                                <span class="{{ $scoreClass }}">{{ $scoreText }}</span>
+                            </td>
+                        </tr>
+                    @endforeach
+                </tbody>
+            </table>
+        </div>
+
+        <!-- Acceptable Hygiene Standards Section -->
+        <div class="standards-section">
+            <div class="section-title">Acceptable Hygiene Standards :</div>
+            <table class="standards-table">
+                <thead>
+                    <tr>
+                        <th>Count Range (CFU/cm²)</th>
+                        <th>Score</th>
+                        <th>Result</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td>0 - 10</td>
+                        <td>3</td>
+                        <td class="score-excellent">Excellent</td>
+                    </tr>
+                    <tr>
+                        <td>11 - 100</td>
+                        <td>2</td>
+                        <td class="score-good">Good</td>
+                    </tr>
+                    <tr>
+                        <td>>100</td>
+                        <td>1</td>
+                        <td class="score-poor">Poor</td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+
+        <!-- Interpretation and Comments Section -->
+        <div class="section-title">Interpretation and Comments</div>
+        <div class="interpretation-section">
+            @php
+                $overallHygieneScore = $totalSamples > 0 ? round(($totalScore / ($totalSamples * 3)) * 100, 1) : 0;
+                $sanitizerEfficiency = $overallHygieneScore > 80 ? 'Excellent' : ($overallHygieneScore > 60 ? 'Good' : 'Requires Improvement');
+            @endphp
+            
+            <p><strong>Overall Hygiene Score:</strong> <span class="hygiene-score">{{ $overallHygieneScore }}%</span></p>
+            <p><strong>Sanitizer Efficiency:</strong> {{ $sanitizerEfficiency }}</p>
+            
+            @if($report_type)
+                <p><strong>Report Type:</strong> {{ $report_type }}</p>
+            @endif
+            @if($ammendment)
+                <p><strong>Amendment Reason:</strong> {{ $ammendment->reason }}</p>
+            @endif
+            
+            <p>This certificate relates only to the samples tested. Results are valid at the time of testing. Samples were analyzed under controlled laboratory conditions.</p>
+            
+            @if($overallHygieneScore < 70)
+                <p><strong>Recommendation:</strong> Review cleaning and sanitization procedures. Additional training on hygiene protocols may be required.</p>
+            @endif
+        </div>
+
+        <!-- Disclaimers Section -->
+        <div class="section-title">Disclaimers</div>
+        <div class="disclaimer">
+            {{ $disclaimer }}
+        </div>
+        <div class="disclaimer" style="margin-top: 10px;">
+            Information marked * has been provided by the customer.
+        </div>
+
+        <!-- Statement of Conformity -->
+        <div class="conformity-section">
+            <div class="section-title">Statement of Conformity</div>
+            @php
+                $conformityStatus = $overallHygieneScore >= 70 ? 'PASS' : 'FAIL';
+                $conformityClass = $overallHygieneScore >= 70 ? 'score-excellent' : 'score-poor';
+            @endphp
+            <p>Based on the hygiene monitoring results, the overall hygiene status is: 
+                <strong class="{{ $conformityClass }}">{{ $conformityStatus }}</strong>
+            </p>
+            <p><strong>Criteria:</strong> Overall hygiene score ≥70% is considered acceptable for food production environments.</p>
+        </div>
+
+        <!-- Signatures Section -->
+        @if($batch_approvers->count() > 0)
+        <div class="signatures-section">
+            @php
+                $approversCount = $batch_approvers->count();
+                $signatureWidth = $approversCount == 1 ? '100%' : '50%';
+            @endphp
+            @foreach($batch_approvers as $index => $approver)
+                <div class="signature-block" style="width: {{ $signatureWidth }};">
+                    <div class="signature-line">
+                        @if($approver->getApproverDetails() && $approver->getApproverDetails()->electronic_sig)
+                            <center>
+                                <img src="{{ getCoaApproverSignature($approver->getApproverDetails()->electronic_sig) }}" style="height:48px;z-index:-10;position:relative;" alt="signature">
+                            </center>
+                        @endif
+                    </div>
+                    <div class="signature-title">
+                        @if($index == 0)
+                            Authorised By
+                        @else
+                            Veterinarian
+                        @endif
+                    </div>
+                    @if($approver->getApproverDetails() && $approver->getApproverDetails()->electronic_sig)
+                        <div class="signature-name">{{ $approver->approvershortname ?? $approver->approvername }}</div>
+                    @else
+                        <div class="signature-name">{{ $approver->approvershortname ?? $approver->approvername }} – Signature</div>
+                    @endif
+                    <div class="signature-date">{{ date('d/m/Y') }}</div>
+                </div>
+            @endforeach
+        </div>
+        @endif
+
+        <!-- Stamp if required -->
+        @if($is_stamp)
+        <div class="stamp-area">
+            <img src="{{ $stamp }}" alt="Official Stamp">
+            <div class="stamp-date">{{ date('d M Y') }}</div>
+        </div>
+        @endif
+
+    </div>
+
+    <script type="text/php">
+        if (isset($pdf)) {
+            $text = "Page {PAGE_NUM} of {PAGE_COUNT}";
+            $size = 9;
+            $font = $fontMetrics->getFont("Verdana");
+            $width = $fontMetrics->get_text_width($text, $font, $size) / 2;
+            $x = ($pdf->get_width() - $width) / 1;
+            $y = $pdf->get_height() - 20;
+            $pdf->page_text($x, $y, $text, $font, $size);
+        }
+    </script>
+</body>
+</html> 
