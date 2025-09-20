@@ -268,9 +268,49 @@ class SampleCreationService
     }
 
     /**
-     * Generate batch code
+     * Generate batch code using new format: {Submission-Form_instance_prefix}{batch_seq_no}/{YY}
      */
-    private function generateBatchCode($headerData)
+    private function generateBatchCode($headerData, $submissionFormInstanceId = null)
+    {
+        // If no submission form instance ID provided, fall back to old method
+        if (!$submissionFormInstanceId) {
+            return $this->generateLegacyBatchCode($headerData);
+        }
+
+        try {
+            // Get submission form instance and its prefix
+            $instance = \App\Models\SubmissionFormInstance::find($submissionFormInstanceId);
+            if (!$instance) {
+                throw new \Exception('Submission form instance not found');
+            }
+
+            $submissionForm = $instance->submissionForm;
+            if (!$submissionForm) {
+                throw new \Exception('Submission form not found');
+            }
+
+            $prefix = $submissionForm->naming_convention_prefix ?? 'SF';
+            $currentYear = date('Y');
+            
+            // Get next batch sequence for this form instance and year
+            $batchSeqNo = \App\Models\BatchSequence::getNextBatchSequence($submissionFormInstanceId, $currentYear);
+            
+            // Generate batch code: {prefix}{batch_seq_no}/{YY}
+            $batchCode = $prefix . sprintf('%03d', $batchSeqNo) . '/' . date('y');
+            
+            return $batchCode;
+            
+        } catch (\Exception $e) {
+            Log::error('Error generating new batch code: ' . $e->getMessage());
+            // Fall back to legacy method
+            return $this->generateLegacyBatchCode($headerData);
+        }
+    }
+
+    /**
+     * Legacy batch code generation (fallback)
+     */
+    private function generateLegacyBatchCode($headerData)
     {
         // Get customer
         $customer = null;
@@ -349,9 +389,36 @@ class SampleCreationService
     }
 
     /**
-     * Generate sample code
+     * Generate sample code using new format: {Submission-Form_instance_prefix}{batch_seq_no}/{YY}-{sample_no_seq_no}
      */
-    private function generateSampleCode(SampleHeader $sampleHeader, $detailData)
+    private function generateSampleCode(SampleHeader $sampleHeader, $detailData, $batchCode = null)
+    {
+        // If batch code is provided, use new format
+        if ($batchCode) {
+            try {
+                // Get next sample sequence for this batch
+                $sampleSeqNo = \App\Models\SampleSequence::getNextSampleSequence($batchCode);
+                
+                // Generate sample code: {batch_code}-{sample_no_seq_no}
+                $sampleCode = $batchCode . '-' . sprintf('%03d', $sampleSeqNo);
+                
+                return $sampleCode;
+                
+            } catch (\Exception $e) {
+                Log::error('Error generating new sample code: ' . $e->getMessage());
+                // Fall back to legacy method
+                return $this->generateLegacySampleCode($sampleHeader, $detailData);
+            }
+        }
+
+        // Fall back to legacy method if no batch code provided
+        return $this->generateLegacySampleCode($sampleHeader, $detailData);
+    }
+
+    /**
+     * Legacy sample code generation (fallback)
+     */
+    private function generateLegacySampleCode(SampleHeader $sampleHeader, $detailData)
     {
         // Get lab
         $lab = null;

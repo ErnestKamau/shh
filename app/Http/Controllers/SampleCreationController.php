@@ -32,8 +32,13 @@ class SampleCreationController extends Controller
     public function createFromForm(Request $request, SubmissionFormInstance $instance)
     {
         try {
-            // Get sample batches from form instance
+            // Get sample batches from form 
+            
+            // dd($request->all());
+
             $sampleBatches = $instance->getAllFieldsWithValues();
+
+            // dd("sampleBatches",$sampleBatches);
             
             if (empty($sampleBatches)) {
                 return response()->json([
@@ -51,26 +56,40 @@ class SampleCreationController extends Controller
                     'sample_header' => $batch['sample_header'],
                     'sample_details_count' => count($batch['sample_details'])
                 ]);
+
+
+                $sampleDetails = [];
+
+                echo ">>>>>>>>>>>>>>>>>>>> BATCH INDEX :: ".$batchIndex."\n";
                 
                 // Create sample header using our custom method
-                $sampleHeader = $this->createSampleHeader($batch['sample_header']);
+                $sampleHeader = $this->createSampleHeader($batch['sample_header'], $instance->id);
                 
                 // Update the sample header with the instance ID
                 $sampleHeader->submission_form_instance_id = $instance->id;
                 $sampleHeader->save();
-                
-                // Create sample details using our custom method
-                $sampleDetails = $this->createSampleDetails($batch['sample_details'], $sampleHeader->id);
-                
-                // Create sample dates (Login Date and Target Date)
-                $this->createSampleDates($sampleHeader->id, $sampleDetails);
+                // Merge all sample details arrays into one flat array
+
+                foreach($batch['sample_details'] as $i=>$sampleDetail){
+                    echo ">>>>>>>>>>>>>>>>>>>> SAMPLE DETAIL INDEX :: ".$i."\n";
+                    $samplePoints = explode(',', $sampleDetail['sample_point_id']);
+                    $newSampleDetailsInfo = $sampleDetail;
+
+                    foreach($samplePoints as $j=>$samplePoint){
+                        echo ">>>>>>>>>>>>>>>>>>>> SAMPLE POINT INDEX :: ".$j."\n";
+                        $newSampleDetailsInfo['sample_point_id'] = $samplePoint;
+                        $sampleDetails[$i] = $this->createSampleDetails($newSampleDetailsInfo, $sampleHeader->id, $i, $sampleHeader->batch_code);
+                        $this->createSampleDates($sampleHeader->id, $sampleDetails[$i]);
+                    }
+                }
                 
                 $createdBatches[] = [
                     'batch_id' => $sampleHeader->id,
                     'batch_code' => $sampleHeader->batch_code,
                     'sample_type_id' => $batch['sample_header']['sample_type_id'] ?? 'Unknown',
-                    'sample_count' => count($sampleDetails)
+                    'sample_count' => count(array_keys($sampleDetails))
                 ];
+
             }
 
             return response()->json([
@@ -175,7 +194,7 @@ class SampleCreationController extends Controller
     /**
      * Create a sample header directly
      */
-    private function createSampleHeader(array $sampleHeaderData)
+    private function createSampleHeader(array $sampleHeaderData, $submissionFormInstanceId = null)
     {
         // Helper function to get single value from array or return the value itself
         $getSingleValue = function($value) {
@@ -208,7 +227,7 @@ class SampleCreationController extends Controller
         }
 
         // Generate batch code
-        $batchCode = $this->generateBatchCode($sampleHeaderData);
+        $batchCode = $this->generateBatchCode($sampleHeaderData, $submissionFormInstanceId);
         
         // Create the sample header
         $sampleHeader = new SampleHeader();
@@ -262,74 +281,76 @@ class SampleCreationController extends Controller
     /**
      * Create sample details for a sample header
      */
-    private function createSampleDetails(array $sampleDetailsData, $sampleHeaderId)
+    private function createSampleDetails(array $sampleDetailsData, $sampleHeaderId, $index, $batchCode = null)
     {
         $createdDetails = [];
+
+        $detailData = $sampleDetailsData;
+        // Helper function to get single value from array or return the value itself
+        $getSingleValue = function($value) {
+            if (is_array($value)) {
+                return !empty($value) ? $value[0] : null;
+            }
+            return $value;
+        };
         
-        foreach ($sampleDetailsData as $index => $detailData) {
-            // Helper function to get single value from array or return the value itself
-            $getSingleValue = function($value) {
-                if (is_array($value)) {
-                    return !empty($value) ? $value[0] : null;
-                }
-                return $value;
-            };
-            
-            // Helper function to ensure integer values
-            $getIntegerValue = function($value) use ($getSingleValue) {
-                $singleValue = $getSingleValue($value);
-                return is_numeric($singleValue) ? (int) $singleValue : null;
-            };
+        // Helper function to ensure integer values
+        $getIntegerValue = function($value) use ($getSingleValue) {
+            $singleValue = $getSingleValue($value);
+            return is_numeric($singleValue) ? (int) $singleValue : $singleValue;
+        };
 
-            // Generate sample code
-            $sampleCode = $this->generateSampleCode($sampleHeaderId, $index);
-            
-            // Create the sample detail
-            $sampleDetail = new \App\SampleDetails();
-            $sampleData = [
-                'sample_header_id' => $sampleHeaderId,
-                'sample_code' => $sampleCode['sample_code'],
-                'sample_no' => $sampleCode['sample_no'],
-                'report_number' => $sampleCode['report_number'],
-                'analysis_type_id' => $getSingleValue($detailData['analysis_type_id'] ?? ''),
-                'sample_condition_id' => $getIntegerValue($detailData['sample_condition_id'] ?? null),
-                'sample_point_id' => $getIntegerValue($detailData['sample_point_id'] ?? null),
-                'company_product_id' => $getIntegerValue($detailData['company_product_id'] ?? null),
-                'barcode' => $getSingleValue($detailData['barcode'] ?? ''),
-                'standard_id' => $getIntegerValue($detailData['standard_id'] ?? null),
-                'lab_id' => $getIntegerValue($detailData['lab_id'] ?? 1), // Default lab
-                'disposal_date' => $getSingleValue($detailData['disposal_date'] ?? null),
-                'main_standard' => $getIntegerValue($detailData['main_standard'] ?? null),
-                'secondary_standard' => $getIntegerValue($detailData['secondary_standard'] ?? null),
-                'third_standard_id' => $getIntegerValue($detailData['third_standard_id'] ?? null),
-                'comments' => $getSingleValue($detailData['comments'] ?? ''),
-                'is_duplicate' => $getIntegerValue($detailData['is_duplicate'] ?? 0),
-                'sample_store' => $getSingleValue($detailData['sample_store'] ?? ''),
-                'sample_store_slot' => $getSingleValue($detailData['sample_store_slot'] ?? ''),
-                'sample_quantity' => $getSingleValue($detailData['sample_quantity'] ?? ''),
-                'sample_reporting_unit' => $getSingleValue($detailData['sample_reporting_unit'] ?? ''),
-            ];
+        // Generate sample code
+        $sampleCode = $this->generateSampleCode($sampleHeaderId, $index, $batchCode);
 
-            // Merge additional detail data
-            $sampleData = array_merge($sampleData, $detailData);
-
-            $sampleDetail->fill($sampleData);
-            
-            $sampleDetail->save();
-            
-            // Create analysis type relations and captured results
-            $this->createAnalysisRelationsAndResults($sampleHeaderId, $sampleDetail->id, $sampleDetail->analysis_type_id, $sampleDetail->sample_code);
-            
-            $createdDetails[] = $sampleDetail;
-            
-            Log::info('Created sample detail', [
-                'detail_id' => $sampleDetail->id,
-                'sample_code' => $sampleDetail->sample_code,
-                'header_id' => $sampleHeaderId,
-                'analysis_type_id' => $sampleDetail->analysis_type_id
-            ]);
-        }
         
+        // Create the sample detail
+        $sampleDetail = new \App\SampleDetails();
+        $sampleData = [
+            'sample_header_id' => $sampleHeaderId,
+            'sample_code' => $sampleCode['sample_code'],
+            'sample_no' => $sampleCode['sample_no'],
+            'report_number' => $sampleCode['report_number'],
+            'sample_point_id' => $getIntegerValue($detailData['sample_point_id'] ?? null),
+            'analysis_type_id' => $getSingleValue($detailData['analysis_type_id'] ?? ''),
+            'sample_condition_id' => $getIntegerValue($detailData['sample_condition_id'] ?? null),
+            'company_product_id' => $getIntegerValue($detailData['company_product_id'] ?? null),
+            'barcode' => $getSingleValue($detailData['barcode'] ?? ''),
+            'standard_id' => $getIntegerValue($detailData['standard_id'] ?? null),
+            'lab_id' => $getIntegerValue($detailData['lab_id'] ?? 1), // Default lab
+            'disposal_date' => $getSingleValue($detailData['disposal_date'] ?? null),
+            'main_standard' => $getIntegerValue($detailData['main_standard'] ?? null),
+            'secondary_standard' => $getIntegerValue($detailData['secondary_standard'] ?? null),
+            'third_standard_id' => $getIntegerValue($detailData['third_standard_id'] ?? null),
+            'comments' => $getSingleValue($detailData['comments'] ?? ''),
+            'is_duplicate' => $getIntegerValue($detailData['is_duplicate'] ?? 0),
+            'sample_store' => $getSingleValue($detailData['sample_store'] ?? ''),
+            'sample_store_slot' => $getSingleValue($detailData['sample_store_slot'] ?? ''),
+            'sample_quantity' => $getSingleValue($detailData['sample_quantity'] ?? ''),
+            'sample_reporting_unit' => $getSingleValue($detailData['sample_reporting_unit'] ?? ''),
+        ];
+
+        // Merge additional detail data
+
+        // dd($sampleData, $detailData);
+
+        // $sampleData = array_merge($sampleData, $detailData);
+
+        $sampleDetail->fill($sampleData);
+        
+        $sampleDetail->save();
+        
+        // Create analysis type relations and captured results
+        $this->createAnalysisRelationsAndResults($sampleHeaderId, $sampleDetail->id, $sampleDetail->analysis_type_id, $sampleDetail->sample_code);
+        
+        $createdDetails[] = $sampleDetail;
+        Log::info('Created sample detail', [
+            'detail_id' => $sampleDetail->id,
+            'sample_code' => $sampleDetail->sample_code,
+            'header_id' => $sampleHeaderId,
+            'analysis_type_id' => $sampleDetail->analysis_type_id
+        ]);
+       
         return $createdDetails;
     }
 
@@ -345,6 +366,7 @@ class SampleCreationController extends Controller
             ]);
             return;
         }
+
 
         // Parse analysis type IDs (can be comma-separated string or array)
         $analysisTypes = is_string($analysisTypeIds) ? explode(',', $analysisTypeIds) : $analysisTypeIds;
@@ -458,6 +480,7 @@ class SampleCreationController extends Controller
                         ->where('standard_id', $sampleDetail->main_standard)->first();
                 }
                 
+
                 if ($sampleDetail->secondary_standard) {
                     $secondaryStandardID = StandardAnalytes::where('analyte_id', $element->analyte_id)
                         ->where('standard_id', $sampleDetail->secondary_standard)->first();
@@ -469,13 +492,13 @@ class SampleCreationController extends Controller
                 }
             }
 
+
             // Create captured result with all fields from SampleWorkFlowController
             $capturedResult = new \App\CapturedResult();
 
-            // dd($element, ">>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>");
-
             $reportingUnit = ReportingUnit::where('id', $element->reporting_unit)
                 ->orWhere('name', $element->reporting_unit)->first();
+
 
             $capturedResult->fill([
                 'sample_detail_code' => $sampleCode,
@@ -506,6 +529,7 @@ class SampleCreationController extends Controller
             ]);
             
             $capturedResult->save();
+
 
             // dd($capturedResult, ">>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>");
 
@@ -539,13 +563,54 @@ class SampleCreationController extends Controller
                 'remark_is_manual' => $element->remark_is_manual,
             ]);
             $result->save();
+
         }
     }
 
     /**
-     * Generate batch code
+     * Generate batch code using new format: {Submission-Form_instance_prefix}{batch_seq_no}/{YY}
      */
-    private function generateBatchCode(array $sampleHeaderData)
+    private function generateBatchCode(array $sampleHeaderData, $submissionFormInstanceId = null)
+    {
+        // If no submission form instance ID provided, fall back to old method
+        if (!$submissionFormInstanceId) {
+            return $this->generateLegacyBatchCode($sampleHeaderData);
+        }
+
+        try {
+            // Get submission form instance and its prefix
+            $instance = \App\Models\SubmissionFormInstance::find($submissionFormInstanceId);
+            if (!$instance) {
+                throw new \Exception('Submission form instance not found');
+            }
+
+            $submissionForm = $instance->submissionForm;
+            if (!$submissionForm) {
+                throw new \Exception('Submission form not found');
+            }
+
+            $prefix = $submissionForm->naming_convention_prefix ?? 'SF';
+            $currentYear = date('Y');
+            
+            // Get next batch sequence for this form instance and year
+            $batchSeqNo = \App\Models\BatchSequence::getNextBatchSequence($submissionFormInstanceId, $currentYear);
+            
+            // Generate batch code: {prefix}{batch_seq_no}/{YY}
+            $batchCode = $prefix . sprintf('%03d', $batchSeqNo) . '/' . date('y');
+            
+            return $batchCode;
+            
+        } catch (\Exception $e) {
+            Log::error('Error generating new batch code: ' . $e->getMessage());
+            // Fall back to legacy method
+            return $this->generateLegacyBatchCode($sampleHeaderData);
+        }
+    }
+
+    /**
+     * Legacy batch code generation (fallback)
+     */
+    private function generateLegacyBatchCode(array $sampleHeaderData)
     {
         // Get customer and sample type for code generation
         $customerId = is_array($sampleHeaderData['crm_customer_id'] ?? null) 
@@ -616,9 +681,56 @@ class SampleCreationController extends Controller
     }
 
     /**
-     * Generate sample code
+     * Generate sample code using new format: {Submission-Form_instance_prefix}{batch_seq_no}/{YY}-{sample_no_seq_no}
      */
-    private function generateSampleCode($sampleHeaderId, $index)
+    private function generateSampleCode($sampleHeaderId, $index, $batchCode = null)
+    {
+        // Get sample header to get sample type
+        $sampleHeader = SampleHeader::find($sampleHeaderId);
+        if (!$sampleHeader) {
+            throw new \Exception('Sample header not found');
+        }
+
+        $sampleType = \App\SampleType::find($sampleHeader->sample_type_id);
+        if (!$sampleType) {
+            throw new \Exception('Sample type not found');
+        }
+
+        // If batch code is provided, use new format
+        if ($batchCode) {
+            try {
+                // Get next sample sequence for this batch
+                $sampleSeqNo = \App\Models\SampleSequence::getNextSampleSequence($batchCode);
+                
+                // Generate sample code: {batch_code}-{sample_no_seq_no}
+                $sampleCode = $batchCode . '-' . sprintf('%03d', $sampleSeqNo);
+                $sampleNo = sprintf('%03d', $sampleSeqNo);
+                
+                // Generate report number (keeping existing format for now)
+                $lab = \App\Lab::find(1);
+                $reportNumber = 'LR/' . $sampleType->code . '/' . date('Y') . '/' . ($lab ? $lab->code : 'XX') . '/' . sprintf('%03d', $sampleSeqNo);
+
+                return [
+                    'sample_code' => $sampleCode,
+                    'sample_no' => $sampleNo,
+                    'report_number' => $reportNumber
+                ];
+                
+            } catch (\Exception $e) {
+                Log::error('Error generating new sample code: ' . $e->getMessage());
+                // Fall back to legacy method
+                return $this->generateLegacySampleCode($sampleHeaderId, $index);
+            }
+        }
+
+        // Fall back to legacy method if no batch code provided
+        return $this->generateLegacySampleCode($sampleHeaderId, $index);
+    }
+
+    /**
+     * Legacy sample code generation (fallback)
+     */
+    private function generateLegacySampleCode($sampleHeaderId, $index)
     {
         // Get sample header to get sample type
         $sampleHeader = SampleHeader::find($sampleHeaderId);

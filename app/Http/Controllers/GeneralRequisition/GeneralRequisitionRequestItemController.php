@@ -1,6 +1,6 @@
 <?php
 
-namespace App\Http\Controllers\GeneralRequistion;
+namespace App\Http\Controllers\GeneralRequisition;
 
 use App\Models\GeneralRequisition\GeneralRequisitionRequestItem as Item;
 use Illuminate\Http\Request;

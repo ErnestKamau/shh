@@ -1,6 +1,6 @@
 <?php
 
-namespace App\Models\Skillsmatrixconfig;
+namespace App\Models\SkillsMatrix;
 
 use Illuminate\Database\Eloquent\Model;
 use OwenIt\Auditing\Contracts\Auditable;

@@ -10,7 +10,7 @@ use Illuminate\Http\Request;
 use OwenIt\Auditing\Models\Audit;
 use App\Datatables\Datatables;
 
-class AuditCOntroller extends Controller
+class AuditController extends Controller
 {
   /**
    * Display a listing of the resource.

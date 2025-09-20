@@ -6,6 +6,7 @@ use App\User;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Support\Facades\DB;
 use Carbon\Carbon;
 
 class SubmissionFormInstance extends Model
@@ -599,5 +600,347 @@ class SubmissionFormInstance extends Model
         }
         
         return $details;
+    }
+
+    /**
+     * Get structured form data for display with enhanced metadata
+     * Returns data optimized for frontend consumption with dependency information
+     */
+    public function getFormDataForDisplay()
+    {
+        // Load the form with all relationships
+        $this->load([
+            'submissionForm.sections.elementHolders.elements' => function($query) {
+                $query->orderBy('sort_order');
+            }
+        ]);
+
+        $formData = [
+            'sections' => [],
+            'elements_metadata' => [],
+            'dependency_chain' => []
+        ];
+
+        // Process each section
+        foreach ($this->submissionForm->sections as $section) {
+            $sectionData = [
+                'id' => $section->id,
+                'title' => $section->title,
+                'description' => $section->description,
+                'section_type' => $section->section_type,
+                'element_holders' => []
+            ];
+
+            // Process element holders within the section
+            foreach ($section->elementHolders as $holder) {
+                $holderData = [
+                    'id' => $holder->id,
+                    'title' => $holder->title,
+                    'description' => $holder->description,
+                    'holder_type' => $holder->holder_type,
+                    'elements' => [],
+                    'rows_data' => []
+                ];
+
+                // Process elements within the holder
+                foreach ($holder->elements as $element) {
+                    $elementData = [
+                        'id' => $element->id,
+                        'name' => $element->name,
+                        'label' => $element->label,
+                        'element_type' => $element->element_type,
+                        'is_required' => $element->is_required,
+                        'is_mapped' => $element->is_mapped,
+                        'mapping_table' => $element->mapping_table,
+                        'mapping_field' => $element->mapping_field,
+                        'custom_element_type' => $element->element_type,
+                        'options' => $element->options,
+                        'default_value' => $element->default_value,
+                        'validation_rules' => $element->validation_rules,
+                        'dependency_info' => $this->getElementDependencyInfo($element),
+                        'saved_values' => []
+                    ];
+
+                    // Get saved values for this element
+                    $elementValues = $this->values()
+                        ->where('submission_form_element_id', $element->id)
+                        ->orderBy('array_index')
+                        ->get();
+
+                    foreach ($elementValues as $value) {
+                        $elementData['saved_values'][] = [
+                            'value' => $value->value,
+                            'array_index' => $value->array_index ?? 0,
+                            'file_path' => $value->file_path,
+                            'display_value' => $this->resolveDisplayValue($element, $value->value)
+                        ];
+                    }
+
+                    // Store element metadata for quick access
+                    $formData['elements_metadata'][$element->id] = $elementData;
+
+                    // Add to holder elements
+                    $holderData['elements'][] = $elementData;
+                }
+
+                // For rows sections, group data by array index
+                // Check if this is a rows section based on section type or holder type
+                $isRowsSection = $holder->holder_type === 'rows' || 
+                                ($section->section_type === 'rows_section' && $this->hasMultipleArrayIndices($holder->elements));
+                
+                if ($isRowsSection) {
+                    $holderData['holder_type'] = 'rows'; // Override to ensure proper display
+                    $holderData['rows_data'] = $this->groupRowsDataByIndex($holder->elements);
+                }
+
+                $sectionData['element_holders'][] = $holderData;
+            }
+
+            $formData['sections'][] = $sectionData;
+        }
+
+        // Build dependency chain
+        $formData['dependency_chain'] = $this->buildDependencyChain($formData['elements_metadata']);
+
+        return $formData;
+    }
+
+    /**
+     * Get dependency information for an element
+     */
+    private function getElementDependencyInfo($element)
+    {
+        // Use element_type as the custom type since that's where the actual type is stored
+        $customType = $element->element_type;
+        
+        $dependencies = [
+            'depends_on' => null,
+            'dependency_level' => 0,
+            'is_independent' => false
+        ];
+
+        // Define dependency chain
+        switch ($customType) {
+            case 'client_select':
+            case 'sample_type_select':
+            case 'store_select':
+            case 'standard_select':
+            case 'sample_condition_select':
+                $dependencies['is_independent'] = true;
+                $dependencies['dependency_level'] = 1;
+                break;
+                
+            case 'client_unit_select':
+            case 'client_contact_select':
+                $dependencies['depends_on'] = 'client_select';
+                $dependencies['dependency_level'] = 2;
+                break;
+                
+            case 'sample_point_select':
+                $dependencies['depends_on'] = 'client_unit_select';
+                $dependencies['dependency_level'] = 3;
+                break;
+                
+            case 'analysis_type_select':
+                $dependencies['depends_on'] = 'sample_type_select';
+                $dependencies['dependency_level'] = 2;
+                break;
+                
+            case 'analysis_elements_select':
+                $dependencies['depends_on'] = 'analysis_type_select';
+                $dependencies['dependency_level'] = 3;
+                break;
+                
+            case 'store_slot_select':
+                $dependencies['depends_on'] = 'store_select';
+                $dependencies['dependency_level'] = 2;
+                break;
+        }
+
+        return $dependencies;
+    }
+
+    /**
+     * Check if elements have multiple array indices (indicating rows data)
+     */
+    private function hasMultipleArrayIndices($elements)
+    {
+        $arrayIndices = [];
+        
+        foreach ($elements as $element) {
+            $elementValues = $this->values()
+                ->where('submission_form_element_id', $element->id)
+                ->pluck('array_index')
+                ->toArray();
+                
+            $arrayIndices = array_merge($arrayIndices, $elementValues);
+        }
+        
+        // Check if we have more than one unique array index
+        return count(array_unique($arrayIndices)) > 1;
+    }
+
+    /**
+     * Resolve display value for custom field elements
+     * Converts IDs to actual names/labels from the database
+     */
+    private function resolveDisplayValue($element, $value)
+    {
+        if (empty($value)) {
+            return 'N/A';
+        }
+
+        $elementType = $element->element_type;
+        
+        // Handle comma-separated values (for multi-select fields)
+        if (strpos($value, ',') !== false) {
+            $ids = explode(',', $value);
+            $resolvedValues = [];
+            
+            foreach ($ids as $id) {
+                $id = trim($id);
+                if (!empty($id)) {
+                    $resolvedValues[] = $this->resolveSingleValue($elementType, $id);
+                }
+            }
+            
+            return implode(', ', $resolvedValues);
+        }
+        
+        return $this->resolveSingleValue($elementType, $value);
+    }
+
+    /**
+     * Resolve a single ID to its display value
+     */
+    private function resolveSingleValue($elementType, $id)
+    {
+        try {
+            switch ($elementType) {
+                case 'client_select':
+                    $client = DB::table('crm_customers')->where('id', $id)->first();
+                    return $client ? $client->name : $id;
+                    
+                case 'client_unit_select':
+                    $unit = DB::table('crm_company_units')->where('id', $id)->first();
+                    return $unit ? $unit->name : $id;
+                    
+                case 'sample_type_select':
+                    $sampleType = DB::table('sample_types')->where('id', $id)->first();
+                    return $sampleType ? $sampleType->name : $id;
+                    
+                case 'analysis_type_select':
+                    $analysisType = DB::table('analysis_types')->where('id', $id)->first();
+                    return $analysisType ? $analysisType->name : $id;
+                    
+                case 'sample_point_select':
+                    $samplePoint = DB::table('sample_points')->where('id', $id)->first();
+                    return $samplePoint ? $samplePoint->name : $id;
+                    
+                case 'sample_condition_select':
+                    $condition = DB::table('sample_conditions')->where('id', $id)->first();
+                    return $condition ? $condition->name : $id;
+                    
+                case 'standard_select':
+                    $standard = DB::table('standards')->where('id', $id)->first();
+                    return $standard ? $standard->name : $id;
+                    
+                case 'store_select':
+                    $store = DB::table('inventory_stores')->where('id', $id)->first();
+                    return $store ? $store->name : $id;
+                    
+                case 'store_slot_select':
+                    $slot = DB::table('inventory_store_slots')->where('id', $id)->first();
+                    return $slot ? $slot->name : $id;
+                    
+                case 'client_contact_select':
+                    $contact = DB::table('crm_customer_contacts')
+                        ->where('id', $id)
+                        ->first();
+                    if ($contact) {
+                        $name = trim($contact->first_name . ' ' . $contact->middle_name . ' ' . $contact->last_name);
+                        return $name ?: $id;
+                    }
+                    return $id;
+                    
+                case 'analysis_elements_select':
+                    $element = DB::table('analytes')->where('id', $id)->first();
+                    return $element ? $element->name : $id;
+                    
+                // For non-select fields, return the value as-is
+                case 'text':
+                case 'textarea':
+                case 'number':
+                case 'date':
+                case 'datetime':
+                case 'file':
+                default:
+                    return $id;
+            }
+        } catch (\Exception $e) {
+            // If there's any error resolving the value, return the original value
+            return $id;
+        }
+    }
+
+    /**
+     * Group rows data by array index for proper display
+     */
+    private function groupRowsDataByIndex($elements)
+    {
+        $rowsData = [];
+        
+        foreach ($elements as $element) {
+            $elementValues = $this->values()
+                ->where('submission_form_element_id', $element->id)
+                ->orderBy('array_index')
+                ->get();
+
+            foreach ($elementValues as $value) {
+                $arrayIndex = $value->array_index ?? 0;
+                
+                if (!isset($rowsData[$arrayIndex])) {
+                    $rowsData[$arrayIndex] = [];
+                }
+                
+                $rowsData[$arrayIndex][$element->id] = [
+                    'element' => $element,
+                    'value' => $value,
+                    'display_value' => $this->resolveDisplayValue($element, $value->value)
+                ];
+            }
+        }
+
+        return $rowsData;
+    }
+
+    /**
+     * Build dependency chain for proper loading order
+     */
+    private function buildDependencyChain($elementsMetadata)
+    {
+        $chain = [];
+        $levels = [];
+        
+        // Group elements by dependency level
+        foreach ($elementsMetadata as $elementId => $elementData) {
+            $level = $elementData['dependency_info']['dependency_level'];
+            if (!isset($levels[$level])) {
+                $levels[$level] = [];
+            }
+            $levels[$level][] = $elementId;
+        }
+        
+        // Sort by level and build chain
+        ksort($levels);
+        foreach ($levels as $level => $elementIds) {
+            $chain[] = [
+                'level' => $level,
+                'elements' => $elementIds,
+                'is_independent' => $level === 1
+            ];
+        }
+        
+        return $chain;
     }
 }
