@@ -27,11 +27,11 @@ class ReportGeneratorController extends Controller
     $sub_report = '';
     $report_params = array(
       'VAR_BATCH_ID' => '',
-      'LOGO_DIR' => app_path('JasperReports/reports/logos/'),
-      'SUBREPORT_DIR' => app_path('JasperReports/reports/report_headers/')
+      'LOGO_DIR' => base_path('lib/JasperReports/reports/logos/'),
+      'SUBREPORT_DIR' => base_path('lib/JasperReports/reports/report_headers/')
     );
 
-    $report_input_dir = app_path('JasperReports/reports/aqualytic/');
+    $report_input_dir = base_path('lib/JasperReports/reports/aqualytic/');
 
     if (isset($params['report_type']) && $params['report_type'] == 'aqualytic_report_one') {
       $report_params['VAR_BATCH_ID'] = $params['VAR_BATCH_ID'];

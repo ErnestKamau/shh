@@ -63,7 +63,7 @@ class SampleCreationController extends Controller
                 echo ">>>>>>>>>>>>>>>>>>>> BATCH INDEX :: ".$batchIndex."\n";
                 
                 // Create sample header using our custom method
-                $sampleHeader = $this->createSampleHeader($batch['sample_header']);
+                $sampleHeader = $this->createSampleHeader($batch['sample_header'], $instance->id);
                 
                 // Update the sample header with the instance ID
                 $sampleHeader->submission_form_instance_id = $instance->id;
@@ -78,7 +78,7 @@ class SampleCreationController extends Controller
                     foreach($samplePoints as $j=>$samplePoint){
                         echo ">>>>>>>>>>>>>>>>>>>> SAMPLE POINT INDEX :: ".$j."\n";
                         $newSampleDetailsInfo['sample_point_id'] = $samplePoint;
-                        $sampleDetails[$i] = $this->createSampleDetails($newSampleDetailsInfo, $sampleHeader->id, $i);
+                        $sampleDetails[$i] = $this->createSampleDetails($newSampleDetailsInfo, $sampleHeader->id, $i, $sampleHeader->batch_code);
                         $this->createSampleDates($sampleHeader->id, $sampleDetails[$i]);
                     }
                 }
@@ -194,7 +194,7 @@ class SampleCreationController extends Controller
     /**
      * Create a sample header directly
      */
-    private function createSampleHeader(array $sampleHeaderData)
+    private function createSampleHeader(array $sampleHeaderData, $submissionFormInstanceId = null)
     {
         // Helper function to get single value from array or return the value itself
         $getSingleValue = function($value) {
@@ -227,7 +227,7 @@ class SampleCreationController extends Controller
         }
 
         // Generate batch code
-        $batchCode = $this->generateBatchCode($sampleHeaderData);
+        $batchCode = $this->generateBatchCode($sampleHeaderData, $submissionFormInstanceId);
         
         // Create the sample header
         $sampleHeader = new SampleHeader();
@@ -281,7 +281,7 @@ class SampleCreationController extends Controller
     /**
      * Create sample details for a sample header
      */
-    private function createSampleDetails(array $sampleDetailsData, $sampleHeaderId, $index)
+    private function createSampleDetails(array $sampleDetailsData, $sampleHeaderId, $index, $batchCode = null)
     {
         $createdDetails = [];
 
@@ -301,7 +301,7 @@ class SampleCreationController extends Controller
         };
 
         // Generate sample code
-        $sampleCode = $this->generateSampleCode($sampleHeaderId, $index);
+        $sampleCode = $this->generateSampleCode($sampleHeaderId, $index, $batchCode);
 
         
         // Create the sample detail
@@ -568,9 +568,49 @@ class SampleCreationController extends Controller
     }
 
     /**
-     * Generate batch code
+     * Generate batch code using new format: {Submission-Form_instance_prefix}{batch_seq_no}/{YY}
      */
-    private function generateBatchCode(array $sampleHeaderData)
+    private function generateBatchCode(array $sampleHeaderData, $submissionFormInstanceId = null)
+    {
+        // If no submission form instance ID provided, fall back to old method
+        if (!$submissionFormInstanceId) {
+            return $this->generateLegacyBatchCode($sampleHeaderData);
+        }
+
+        try {
+            // Get submission form instance and its prefix
+            $instance = \App\Models\SubmissionFormInstance::find($submissionFormInstanceId);
+            if (!$instance) {
+                throw new \Exception('Submission form instance not found');
+            }
+
+            $submissionForm = $instance->submissionForm;
+            if (!$submissionForm) {
+                throw new \Exception('Submission form not found');
+            }
+
+            $prefix = $submissionForm->naming_convention_prefix ?? 'SF';
+            $currentYear = date('Y');
+            
+            // Get next batch sequence for this form instance and year
+            $batchSeqNo = \App\Models\BatchSequence::getNextBatchSequence($submissionFormInstanceId, $currentYear);
+            
+            // Generate batch code: {prefix}{batch_seq_no}/{YY}
+            $batchCode = $prefix . sprintf('%03d', $batchSeqNo) . '/' . date('y');
+            
+            return $batchCode;
+            
+        } catch (\Exception $e) {
+            Log::error('Error generating new batch code: ' . $e->getMessage());
+            // Fall back to legacy method
+            return $this->generateLegacyBatchCode($sampleHeaderData);
+        }
+    }
+
+    /**
+     * Legacy batch code generation (fallback)
+     */
+    private function generateLegacyBatchCode(array $sampleHeaderData)
     {
         // Get customer and sample type for code generation
         $customerId = is_array($sampleHeaderData['crm_customer_id'] ?? null) 
@@ -641,9 +681,56 @@ class SampleCreationController extends Controller
     }
 
     /**
-     * Generate sample code
+     * Generate sample code using new format: {Submission-Form_instance_prefix}{batch_seq_no}/{YY}-{sample_no_seq_no}
      */
-    private function generateSampleCode($sampleHeaderId, $index)
+    private function generateSampleCode($sampleHeaderId, $index, $batchCode = null)
+    {
+        // Get sample header to get sample type
+        $sampleHeader = SampleHeader::find($sampleHeaderId);
+        if (!$sampleHeader) {
+            throw new \Exception('Sample header not found');
+        }
+
+        $sampleType = \App\SampleType::find($sampleHeader->sample_type_id);
+        if (!$sampleType) {
+            throw new \Exception('Sample type not found');
+        }
+
+        // If batch code is provided, use new format
+        if ($batchCode) {
+            try {
+                // Get next sample sequence for this batch
+                $sampleSeqNo = \App\Models\SampleSequence::getNextSampleSequence($batchCode);
+                
+                // Generate sample code: {batch_code}-{sample_no_seq_no}
+                $sampleCode = $batchCode . '-' . sprintf('%03d', $sampleSeqNo);
+                $sampleNo = sprintf('%03d', $sampleSeqNo);
+                
+                // Generate report number (keeping existing format for now)
+                $lab = \App\Lab::find(1);
+                $reportNumber = 'LR/' . $sampleType->code . '/' . date('Y') . '/' . ($lab ? $lab->code : 'XX') . '/' . sprintf('%03d', $sampleSeqNo);
+
+                return [
+                    'sample_code' => $sampleCode,
+                    'sample_no' => $sampleNo,
+                    'report_number' => $reportNumber
+                ];
+                
+            } catch (\Exception $e) {
+                Log::error('Error generating new sample code: ' . $e->getMessage());
+                // Fall back to legacy method
+                return $this->generateLegacySampleCode($sampleHeaderId, $index);
+            }
+        }
+
+        // Fall back to legacy method if no batch code provided
+        return $this->generateLegacySampleCode($sampleHeaderId, $index);
+    }
+
+    /**
+     * Legacy sample code generation (fallback)
+     */
+    private function generateLegacySampleCode($sampleHeaderId, $index)
     {
         // Get sample header to get sample type
         $sampleHeader = SampleHeader::find($sampleHeaderId);

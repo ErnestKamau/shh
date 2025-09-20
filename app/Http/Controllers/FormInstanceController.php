@@ -232,6 +232,8 @@ class FormInstanceController extends Controller
             }
         ]);
 
+        // return response()->json($instance->getFormDataForDisplay());
+
         // Load existing values
         $existingValues = $instance->values()->with('element')->get()->keyBy('submission_form_element_id');
 

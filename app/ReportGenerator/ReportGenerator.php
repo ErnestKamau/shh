@@ -8,7 +8,7 @@ namespace App\ReportGenerator;
 * ReportGenerator class
 */
 
-use App\JasperReports\phpjasper\geekcom\phpjasper\src\PHPJasper;
+use lib\JasperReports\phpjasper\geekcom\phpjasper\src\PHPJasper;
 use Illuminate\Support\Facades\Log;
 // use PHPJasper\PHPJasper;
 class ReportGenerator {
@@ -143,7 +143,7 @@ class ReportGenerator {
 			// $output = $this->compileReports();
 
 				// $jdbc_dir = app_path('JasperReports/jdbc/sqljdbc_8.2');
-				$jdbc_dir = app_path('JasperReports/phpjasper/geekcom/phpjasper/bin/jasperstarter/jdbc/mysql-connector-java-8.0.18');
+				$jdbc_dir = base_path('lib/JasperReports/phpjasper/geekcom/phpjasper/bin/jasperstarter/jdbc/mysql-connector-java-8.0.18');
 
 				if($this->db_connection) {
 					$options = [

@@ -1201,3 +1201,16 @@ Route::get('/set-available-stock', function () {
     return 'OK';
 });
 
+Route::get('/pinfo', function(){
+    phpinfo();
+    return 'OK';
+});
+
+// Test routes for enhanced form data loading
+Route::middleware(['auth'])->group(function () {
+    Route::get('/test-form-data/{instanceId}', 'TestFormDataController@testFormData')->name('test.form-data');
+    Route::get('/test-enhanced-form/{instanceId}', 'TestFormDataController@showEnhancedForm')->name('test.enhanced-form');
+    Route::get('/debug-enhanced-form/{instanceId}', 'TestFormDataController@debugEnhancedForm')->name('debug.enhanced-form');
+    Route::get('/simple-form/{instanceId}', 'TestFormDataController@showSimpleForm')->name('simple.form');
+});
+
