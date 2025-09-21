@@ -84,29 +84,38 @@
                 @else
                     {{-- Regular Section --}}
                     <div class="regular-section-display">
-                        <div class="row">
-                            @foreach($holder['elements'] as $element)
-                                <div class="col-md-6 mb-3">
-                                    <div class="form-group">
-                                        <label class="form-label">
-                                            {{ $element['label'] }}
-                                            @if($element['is_required'])
-                                                <span class="text-danger">*</span>
-                                            @endif
-                                        </label>
-                                        
-                                        @php
-                                            $savedValue = $element['saved_values'][0] ?? null;
-                                            $displayValue = $savedValue['display_value'] ?? $savedValue['value'] ?? 'N/A';
-                                        @endphp
-                                        
-                                        <div class="field-value-display">
-                                            {{ $displayValue }}
-                                        </div>
-                                    </div>
-                                </div>
-                            @endforeach
-                        </div>
+                        <table class="table table-borderless">
+                            <thead>
+                                <tr>
+                                    @foreach($holder['elements'] as $element)
+                                        <th class="form-label-cell" style="width: {{ 100 / count($holder['elements']) }}%">
+                                            <label class="form-label">
+                                                {{ $element['label'] }}
+                                                @if($element['is_required'])
+                                                    <span class="text-danger">*</span>
+                                                @endif
+                                            </label>
+                                        </th>
+                                    @endforeach
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr>
+                                    @foreach($holder['elements'] as $element)
+                                        <td class="form-value-cell" style="vertical-align: top; width: {{ 100 / count($holder['elements']) }}%">
+                                            @php
+                                                $savedValue = $element['saved_values'][0] ?? null;
+                                                $displayValue = $savedValue['display_value'] ?? $savedValue['value'] ?? 'N/A';
+                                            @endphp
+                                            
+                                            <div class="field-value-display">
+                                                {{ $displayValue }}
+                                            </div>
+                                        </td>
+                                    @endforeach
+                                </tr>
+                            </tbody>
+                        </table>
                     </div>
                 @endif
             @endforeach
