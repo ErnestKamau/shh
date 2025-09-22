@@ -131,57 +131,12 @@
                 </div>
               </div>
 
-              <!-- Form Data Display -->
-              @if($submissionForm->sections->count() > 0)
-                @foreach($submissionForm->sections as $section)
-                  @if($section->isRowsSection())
-                    @include('submission-forms.partials.rows-section', ['section' => $section])
-                  @else
-                    <div class="form-section mb-4">
-                      <div class="section-header mb-3">
-                        <h5 class="text-primary border-bottom pb-2">
-                          <i class="mdi mdi-folder-outline"></i> {{ $section->title }}
-                        </h5>
-                        @if($section->description)
-                          <p class="text-muted small mb-0">{{ $section->description }}</p>
-                        @endif
-                      </div>
-                      
-                      @foreach($section->elementHolders as $holder)
-                        <div class="element-holder mb-3">
-                          @if($holder->holder_type === 'field')
-                            <div class="row">
-                              @foreach($holder->elements as $element)
-                                <div class="col-md-{{ getColumnWidth($holder->elements->count()) }} mb-3">
-                                  @include('submission-forms.partials.form-element', ['element' => $element])
-                                </div>
-                              @endforeach
-                            </div>
-                          @else
-                            {{-- Text holder - for static content --}}
-                            @foreach($holder->elements as $element)
-                              <div class="text-element mb-3">
-                                <div class="alert alert-light">
-                                  <strong>{{ $element->label }}</strong>
-                                  @if($element->help_text)
-                                    <p class="mb-0 mt-2">{{ $element->help_text }}</p>
-                                  @endif
-                                </div>
-                              </div>
-                            @endforeach
-                          @endif
-                        </div>
-                      @endforeach
-                    </div>
-                  @endif
-                @endforeach
-              @else
-                <div class="text-center py-5">
-                  <i class="mdi mdi-file-outline" style="font-size: 4rem; color: #ccc;"></i>
-                  <h5 class="text-muted mt-3">No Form Content</h5>
-                  <p class="text-muted">This form doesn't have any sections or elements yet.</p>
-                </div>
-              @endif
+              <!-- Form Data Display using Simple Form Display -->
+              @php
+                $formData = $instance->getFormDataForDisplay();
+              @endphp
+              
+              @include('submission-forms.partials.simple-form-display', ['instance' => $instance, 'formData' => $formData])
 
               <!-- Sample Creation Actions -->
               @include('submission-forms.partials.sample-creation-actions', ['instance' => $instance])
@@ -276,87 +231,7 @@
 
 @section('script2')
 <style>
-.form-section {
-    border-left: 3px solid #007bff;
-    padding-left: 20px;
-}
-
-.section-header h5 {
-    color: #007bff;
-}
-
-.element-holder {
-    background-color: #f8f9fa;
-    border-radius: 8px;
-    padding: 20px;
-    margin-bottom: 20px;
-    border: 1px solid #e9ecef;
-    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
-}
-
-/* Form group spacing */
-.form-group {
-    margin-bottom: 1.5rem;
-}
-
-.form-group:last-child {
-    margin-bottom: 0;
-}
-
-/* Ensure all form controls have minimum width */
-.form-control {
-    min-width: 145px !important;
-}
-
-/* Custom element styling */
-.custom-element {
-    margin-bottom: 1rem;
-    min-width: 145px !important;
-}
-
-.custom-element .form-control {
-    border-radius: 0.375rem;
-    min-width: 145px !important;
-}
-
-/* Select2 styling - ensure minimum width */
-.select2-container {
-    width: 100% !important;
-    min-width: 145px !important;
-}
-
-.select2-container--default .select2-selection--single {
-    height: 38px;
-    border: 1px solid #ced4da;
-    border-radius: 0.375rem;
-    min-width: 145px !important;
-}
-
-.select2-container--default .select2-selection--single .select2-selection__rendered {
-    line-height: 36px;
-    padding-left: 12px;
-    min-width: 145px !important;
-}
-
-/* Ensure custom element selects have minimum width */
-select.custom-element {
-    min-width: 145px !important;
-}
-
-/* Select2 dropdown minimum width */
-.select2-dropdown {
-    min-width: 145px !important;
-}
-
-.form-group label.required::after {
-    content: " *";
-    color: red;
-}
-
-.text-element .alert {
-    border-left: 4px solid #17a2b8;
-}
-
+/* Timeline styles for audit trail */
 .timeline {
     position: relative;
     padding-left: 30px;
@@ -405,66 +280,6 @@ select.custom-element {
     font-size: 0.9rem;
     color: #6c757d;
 }
-
-/* Display specific styles */
-.field-display {
-    margin-bottom: 1rem;
-}
-
-.field-label {
-    font-weight: 600;
-    color: #495057;
-    margin-bottom: 0.5rem;
-}
-
-.field-value {
-    padding: 0.5rem;
-    background-color: #f8f9fa;
-    border: 1px solid #dee2e6;
-    border-radius: 0.375rem;
-    min-height: 2.5rem;
-}
-
-.field-value.empty {
-    color: #6c757d;
-    font-style: italic;
-}
-
-/* Rows section display */
-.rows-section-table {
-    margin-top: 1rem;
-}
-
-.rows-section-table th {
-    background-color: #f8f9fa;
-    border-top: none;
-    font-weight: 600;
-}
-
-.rows-section-table td {
-    vertical-align: middle;
-}
-
-.row-number {
-    font-weight: 600;
-    color: #495057;
-}
 </style>
 @endsection
 
-@php
-function getColumnWidth($elementCount) {
-    switch($elementCount) {
-        case 1:
-            return 12;
-        case 2:
-            return 6;
-        case 3:
-            return 4;
-        case 4:
-            return 3;
-        default:
-            return 12 / min($elementCount, 6);
-    }
-}
-@endphp

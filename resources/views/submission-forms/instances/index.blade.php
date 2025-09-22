@@ -34,8 +34,11 @@
         </h3>
       </div>
       <div>
-        <a href="{{ route('submission-forms.index') }}" class="btn btn-outline-primary">
-          <i class="mdi mdi-arrow-left"></i> Back to Forms
+        <a href="{{ route('submission-forms.index') }}" class="btn btn-sm btn-outline-primary">
+          <i class="mdi mdi-form-select"></i> View Submission Forms
+        </a>
+        <a href="{{ route('sample-workflow', ['status' => 'Samples Reception']) }}" class="btn btn-sm btn-outline-secondary ml-2">
+          <i class="mdi mdi-file-document-multiple"></i> Sample Reception
         </a>
       </div>
     </div>
@@ -200,8 +203,15 @@
                         </div>
 
                         <!-- Pagination -->
-                        <div class="d-flex justify-content-center">
-                            {{ $instances->appends(request()->query())->links() }}
+                        <div class="d-flex justify-content-between align-items-center mt-4">
+                            <div>
+                                <small class="text-muted">
+                                    Showing {{ $instances->firstItem() }} to {{ $instances->lastItem() }} of {{ $instances->total() }} results
+                                </small>
+                            </div>
+                            <div>
+                                {{ $instances->appends(request()->query())->links() }}
+                            </div>
                         </div>
                     @else
                         <div class="text-center py-5">

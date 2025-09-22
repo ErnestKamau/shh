@@ -214,18 +214,23 @@ $items = array(
 			</div>
 		</div>
 
-		@if ($status == "Samples Reception")
-			<a class="btn btn-sm btn-info float-right mr-2" href="{{ route('view-batch-details', ['batch' => time()]) }}"><i
-					class="mdi mdi-plus mr-2"></i> Add Batch</a>
-			<button class="btn btn-sm btn-primary float-right mr-2" data-toggle="modal" data-target="#add-submission-form-modal">
-				<i class="mdi mdi-plus mr-2"></i> Add Submission Form
+		<!-- Form Submission Actions - Available for all statuses -->
+		<div class="btn-group float-right mr-2" role="group">
+			<button type="button" class="btn btn-sm btn-primary dropdown-toggle" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
+				<i class="mdi mdi-form-select mr-2"></i> Sample Submissions
 			</button>
-		@endif
-		
-		<!-- Saved Form Instances Link - Available for all statuses -->
-		<a class="btn btn-sm btn-outline-secondary float-right mr-2" href="{{ route('sample-workflow.saved-forms') }}">
-			<i class="mdi mdi-file-document-multiple mr-2"></i> Submissions
-		</a>
+			<div class="dropdown-menu dropdown-menu-right">
+				@if ($status == "Samples Reception")
+					<button class="dropdown-item" data-toggle="modal" data-target="#add-submission-form-modal">
+						<i class="mdi mdi-plus mr-2"></i> Capture Samples
+					</button>
+					<div class="dropdown-divider"></div>
+				@endif
+				<a class="dropdown-item" href="{{ route('sample-workflow.saved-forms') }}">
+					<i class="mdi mdi-file-document-multiple mr-2"></i> View Submissions
+				</a>
+			</div>
+		</div>
 		<span class="btn btn-sm btn-danger float-right mr-2" style="border-radius:25px" data-toggle="modal"
 			data-target="#get-batch-tat"><i class="mdi mdi-clock-outline"></i> TAT Today Batches <span
 				class="badge badge-light badge-pill pt-1" id="tat-counter">0</span> </span>
