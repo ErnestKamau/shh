@@ -146,6 +146,23 @@ document.addEventListener('DOMContentLoaded', function() {
     // Initialize custom elements for the new row
     initializeRowCustomElements($rowElement);
     
+    // Re-initialize global change handlers to include new elements
+    if (typeof setupClientChangeHandlers === 'function') {
+      setupClientChangeHandlers();
+    }
+    if (typeof setupClientUnitChangeHandlers === 'function') {
+      setupClientUnitChangeHandlers();
+    }
+    if (typeof setupSampleTypeChangeHandlers === 'function') {
+      setupSampleTypeChangeHandlers();
+    }
+    if (typeof setupAnalysisTypeChangeHandlers === 'function') {
+      setupAnalysisTypeChangeHandlers();
+    }
+    if (typeof setupStoreChangeHandlers === 'function') {
+      setupStoreChangeHandlers();
+    }
+    
     // Initialize Select2 on all select elements in the new row
     $rowElement.find('select').not('.hidden').each(function(i, e) {
       if (!$(e).hasClass('no-select2')) {
@@ -197,8 +214,8 @@ document.addEventListener('DOMContentLoaded', function() {
     const $row = $this.parents('tr');
     const dependsOnElement = $row.find(`[data-element-type="${dependsOn}"]`);
     
-    //console.log('Setting up dependency:', elementType, 'depends on:', dependsOn, 'in row:', row);
-    //console.log('Found parent element:', dependsOnElement);
+    console.log('Setting up dependency:', elementType, 'depends on:', dependsOn, 'in row:', $row);
+    console.log('Found parent element:', dependsOnElement, 'length:', dependsOnElement.length);
     
     if (dependsOnElement.length > 0) {
       //console.log('Parent element found, setting up change handler');
@@ -208,8 +225,9 @@ document.addEventListener('DOMContentLoaded', function() {
         //console.log('Parent already has value:', currentParentValue, 'loading options for:', elementType);
         // Load options based on current parent value
         if (elementType === 'client_unit_select' || elementType === 'client_contact_select') {
-          loadDynamicOptions($this, elementId, currentParentValue);
+          loadDynamicOptions($this, elementId, elementType, currentParentValue);
         } else if (elementType === 'sample_point_select') {
+          console.log('Loading sample_point_select options with clientUnitId:', currentParentValue);
           loadDynamicOptions($this, elementId, elementType, null, null, null, currentParentValue);
         } else if (elementType === 'analysis_type_select') {
           loadDynamicOptions($this, elementId, elementType, null, currentParentValue);
@@ -233,6 +251,7 @@ document.addEventListener('DOMContentLoaded', function() {
             loadDynamicOptions($this, elementId, elementType, parentId);
           } else if (elementType === 'sample_point_select') {
             // This depends on client_unit_select
+            console.log('sample_point_select change handler - loading options with clientUnitId:', parentId);
             loadDynamicOptions($this, elementId, elementType, null, null, null, parentId);
           } else if (elementType === 'analysis_type_select') {
             // This depends on sample_type_select
@@ -466,6 +485,23 @@ document.addEventListener('DOMContentLoaded', function() {
     
     // // Initialize custom elements for the cloned row (this will set up dependencies)
     initializeRowCustomElements($newRowElement, true);
+    
+    // Re-initialize global change handlers to include new elements
+    if (typeof setupClientChangeHandlers === 'function') {
+      setupClientChangeHandlers();
+    }
+    if (typeof setupClientUnitChangeHandlers === 'function') {
+      setupClientUnitChangeHandlers();
+    }
+    if (typeof setupSampleTypeChangeHandlers === 'function') {
+      setupSampleTypeChangeHandlers();
+    }
+    if (typeof setupAnalysisTypeChangeHandlers === 'function') {
+      setupAnalysisTypeChangeHandlers();
+    }
+    if (typeof setupStoreChangeHandlers === 'function') {
+      setupStoreChangeHandlers();
+    }
   }
 
   function deleteRow($row) {

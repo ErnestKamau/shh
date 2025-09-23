@@ -66,8 +66,20 @@
                                                             $elementId = $element['id'];
                                                             $savedValue = $rowData[$elementId] ?? null;
                                                             $displayValue = $savedValue['display_value'] ?? $savedValue['value'] ?? 'N/A';
+                                                            $isSignature = $element['element_type'] === 'signature';
                                                         @endphp
-                                                        <span class="field-value">{{ $displayValue }}</span>
+                                                        @if($isSignature && $displayValue && $displayValue !== 'N/A')
+                                                            @if(str_starts_with($displayValue, 'data:image'))
+                                                                <img src="{{ $displayValue }}" alt="Signature" class="signature-image" style="max-width: 150px; max-height: 75px; border: 1px solid #dee2e6; border-radius: 4px;">
+                                                            @else
+                                                                <div class="signature-placeholder" style="text-align: center; color: #6c757d; font-size: 0.8rem;">
+                                                                    <i class="mdi mdi-pen"></i>
+                                                                    <span>No signature</span>
+                                                                </div>
+                                                            @endif
+                                                        @else
+                                                            <span class="field-value">{{ $displayValue }}</span>
+                                                        @endif
                                                     </td>
                                                 @endforeach
                                             </tr>
@@ -106,10 +118,22 @@
                                             @php
                                                 $savedValue = $element['saved_values'][0] ?? null;
                                                 $displayValue = $savedValue['display_value'] ?? $savedValue['value'] ?? 'N/A';
+                                                $isSignature = $element['element_type'] === 'signature';
                                             @endphp
                                             
                                             <div class="field-value-display">
-                                                {{ $displayValue }}
+                                                @if($isSignature && $displayValue && $displayValue !== 'N/A')
+                                                    @if(str_starts_with($displayValue, 'data:image'))
+                                                        <img src="{{ $displayValue }}" alt="Signature" class="signature-image" style="max-width: 200px; max-height: 100px; border: 1px solid #dee2e6; border-radius: 4px;">
+                                                    @else
+                                                        <div class="signature-placeholder">
+                                                            <i class="mdi mdi-pen"></i>
+                                                            <span>No signature available</span>
+                                                        </div>
+                                                    @endif
+                                                @else
+                                                    {{ $displayValue }}
+                                                @endif
                                             </div>
                                         </td>
                                     @endforeach
@@ -316,5 +340,39 @@
 
 .table-responsive-vertical::-webkit-scrollbar-thumb:hover {
     background: #a8a8a8;
+}
+
+/* Signature image styling */
+.signature-image {
+    display: block;
+    margin: 0 auto;
+    object-fit: contain;
+    background-color: #f8f9fa;
+    padding: 4px;
+}
+
+.signature-placeholder {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 20px;
+    background-color: #f8f9fa;
+    border: 2px dashed #dee2e6;
+    border-radius: 4px;
+    color: #6c757d;
+    font-size: 0.9rem;
+    min-height: 80px;
+}
+
+.signature-placeholder i {
+    font-size: 1.5rem;
+    margin-bottom: 8px;
+    opacity: 0.7;
+}
+
+.signature-placeholder span {
+    font-size: 0.8rem;
+    font-weight: 500;
 }
 </style>
