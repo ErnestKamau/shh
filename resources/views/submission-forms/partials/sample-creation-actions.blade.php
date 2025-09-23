@@ -35,12 +35,6 @@
                             <i class="mdi mdi-eye"></i> View Sample Batch
                         </a>
                     </div>
-                    <button type="button" 
-                            class="btn btn-primary" 
-                            id="create-samples-btn"
-                            data-instance-id="{{ $instance->id }}">
-                        <i class="mdi mdi-flask"></i> Create Batch
-                    </button>
                 @endif
                 
             @elseif($sampleStatus['status'] === 'ready')

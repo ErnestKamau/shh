@@ -15,6 +15,22 @@
 
   @if($templateHolder && $templateHolder->elements->count() > 0)
     <div class="rows-container">
+      @php
+        // Count actual rows from existing data
+        $actualRowCount = 0;
+        if (isset($existingValues) && $existingValues) {
+          $rowIndices = [];
+          foreach($templateHolder->elements as $element) {
+            $elementValues = $existingValues->where('submission_form_element_id', $element->id);
+            foreach($elementValues as $value) {
+              $arrayIndex = $value->array_index ?? 0;
+              $rowIndices[$arrayIndex] = true;
+            }
+          }
+          $actualRowCount = count($rowIndices);
+        }
+      @endphp
+      Template Elements: {{ $templateHolder->elements->count() }} | Actual Rows: {{ $actualRowCount }}
       {{-- Add Row Button --}}
       <div class="mb-3">
         <button type="button" class="btn btn-success btn-sm" id="add-row-{{ $section->id }}">
@@ -461,11 +477,6 @@ document.addEventListener('DOMContentLoaded', function() {
   // Load existing data on page load
   loadExistingData();
   
-  // Add initial row if none exist
-  if ($('body').find('#rows-tbody-'+sectionId).children().length === 0) {
-    addNewRow();
-  }
-  
   function loadExistingData() {
     @if(isset($existingValues) && $existingValues)
       @php
@@ -473,16 +484,25 @@ document.addEventListener('DOMContentLoaded', function() {
         $sectionValues = [];
         $templateHolder = $section->getTemplateElementHolder();
         if ($templateHolder) {
+          echo "<!-- DEBUG: Processing " . $templateHolder->elements->count() . " template elements -->";
           foreach($templateHolder->elements as $element) {
             $elementValues = $existingValues->where('submission_form_element_id', $element->id);
+            echo "<!-- DEBUG: Element " . $element->name . " (ID: " . $element->id . ") has " . $elementValues->count() . " values -->";
             foreach($elementValues as $value) {
               $arrayIndex = $value->array_index ?? 0;
+              echo "<!-- DEBUG: Value for " . $element->name . " has array_index: " . $arrayIndex . " -->";
               if (!isset($sectionValues[$arrayIndex])) {
                 $sectionValues[$arrayIndex] = [];
               }
               $sectionValues[$arrayIndex][$element->id] = $value;
             }
           }
+        }
+        
+        // Debug: Show what sectionValues contains
+        echo "<!-- DEBUG: sectionValues count: " . count($sectionValues) . " -->";
+        foreach($sectionValues as $idx => $rowData) {
+          echo "<!-- DEBUG: Row $idx has " . count($rowData) . " elements -->";
         }
       @endphp
       
@@ -625,15 +645,20 @@ document.addEventListener('DOMContentLoaded', function() {
             }, 100);
             
             // Update global rowIndex to be higher than the current index
-            if (currentRowIndex >= rowIndex) {
-              rowIndex = currentRowIndex + 1;
-            }
+            rowIndex = Math.max(rowIndex, currentRowIndex + 1);
           })();
         @endforeach
         
         console.log('Finished loading existing rows, next rowIndex:', rowIndex);
       @endif
     @endif
+    
+    // Add initial row if none exist after loading existing data
+    setTimeout(() => {
+      if ($('#rows-tbody-'+sectionId).children().length === 0) {
+        addNewRow();
+      }
+    }, 1000); // Give enough time for all existing rows to be loaded
   }
 });
 </script>

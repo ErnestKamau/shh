@@ -86,7 +86,6 @@
                       <div class="progress-bar" id="progressBar" role="progressbar" style="width: 0%" aria-valuenow="0" aria-valuemin="0" aria-valuemax="100"></div>
                     </div>
                   </div>
-                  
                   @foreach($submissionForm->sections as $section)
                     @if($section->isRowsSection())
                       @include('submission-forms.partials.rows-section', ['section' => $section])
@@ -823,12 +822,26 @@ function loadDynamicOptions($this, elementId, elementType, clientId = null, samp
             
             select.html(html).prop('disabled', false);
             
-            // Handle multiple select saved values
-            const savedMultipleValues = select.attr('data-saved-multiple-values');
-            if (savedMultipleValues && select.prop('multiple')) {
-                const values = savedMultipleValues.split(',').map(v => v.trim()).filter(v => v);
-                select.val(values);
-                //console.log('Set multiple values for', elementType, ':', values);
+            // Handle saved values for both single and multiple selects
+            const savedValue = select.attr('data-saved-value');
+            if (savedValue) {
+                if (select.prop('multiple')) {
+                    // Handle multiple select saved values
+                    const savedMultipleValues = select.attr('data-saved-multiple-values');
+                    if (savedMultipleValues) {
+                        const values = savedMultipleValues.split(',').map(v => v.trim()).filter(v => v);
+                        select.val(values);
+                        //console.log('Set multiple values for', elementType, ':', values);
+                    }
+                } else {
+                    // Handle single select saved values
+                    select.val(savedValue);
+                    //console.log('Set single value for', elementType, ':', savedValue);
+                }
+                
+                // Trigger change event to update dependent elements
+                select.trigger('change.custom-elements');
+                //console.log('Triggered change event for', elementType, 'after setting saved value');
             }
         },
         error: function(xhr, status, error) {

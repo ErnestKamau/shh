@@ -85,7 +85,7 @@
                       rows="3"
                       placeholder="{{ $element->placeholder }}"
                       {{ $element->is_required ? 'required' : '' }}
-                      {{ $element->is_readonly ? 'readonly' : '' }}>{{ $element->default_value }}</textarea>
+                      {{ $element->is_readonly ? 'readonly' : '' }}>{{ $fieldValue }}</textarea>
             @break
             
         @case('plain_text')
@@ -215,6 +215,7 @@
                     id="{{ $fieldId }}" 
                     name="{{ $fieldName }}"
                     data-element-type="client_select"
+                    data-saved-value="{{ $fieldValue }}"
                     {{ $element->is_required ? 'required' : '' }}
                     {{ $element->is_readonly ? 'disabled' : '' }}>
                 @if(!$element->is_required)
@@ -239,6 +240,7 @@
                     id="{{ $fieldId }}" 
                     name="{{ $fieldName }}"
                     data-element-type="sample_type_select"
+                    data-saved-value="{{ $fieldValue }}"
                     {{ $element->is_required ? 'required' : '' }}
                     {{ $element->is_readonly ? 'disabled' : '' }}>
                 @if(!$element->is_required)
@@ -264,6 +266,7 @@
                     name="{{ $fieldName }}"
                     data-element-type="client_unit_select"
                     data-depends-on="client_select"
+                    data-saved-value="{{ $fieldValue }}"
                     {{ $element->is_required ? 'required' : '' }}
                     {{ $element->is_readonly ? 'disabled' : '' }}>
                 @if(!$element->is_required)
@@ -279,6 +282,7 @@
                     name="{{ $fieldName }}"
                     data-element-type="client_contact_select"
                     data-depends-on="client_select"
+                    data-saved-value="{{ $fieldValue }}"
                     {{ $element->is_required ? 'required' : '' }}
                     {{ $element->is_readonly ? 'disabled' : '' }}>
                 @if(!$element->is_required)
@@ -294,6 +298,7 @@
                     name="{{ $fieldName }}"
                     data-element-type="analysis_type_select"
                     data-depends-on="sample_type_select"
+                    data-saved-value="{{ $fieldValue }}"
                     {{ $element->is_required ? 'required' : '' }}
                     {{ $element->is_readonly ? 'disabled' : '' }}>
                 @if(!$element->is_required)
@@ -309,6 +314,7 @@
                     name="{{ $fieldName }}"
                     data-element-type="analysis_elements_select"
                     data-depends-on="analysis_type_select"
+                    data-saved-value="{{ $fieldValue }}"
                     {{ $element->is_required ? 'required' : '' }}
                     {{ $element->is_readonly ? 'disabled' : '' }}>
                 @if(!$element->is_required)
@@ -323,6 +329,7 @@
                     id="{{ $fieldId }}" 
                     name="{{ $fieldName }}"
                     data-element-type="store_select"
+                    data-saved-value="{{ $fieldValue }}"
                     {{ $element->is_required ? 'required' : '' }}
                     {{ $element->is_readonly ? 'disabled' : '' }}>
                 @if(!$element->is_required)
@@ -348,6 +355,7 @@
                     name="{{ $fieldName }}"
                     data-element-type="store_slot_select"
                     data-depends-on="store_select"
+                    data-saved-value="{{ $fieldValue }}"
                     {{ $element->is_required ? 'required' : '' }}
                     {{ $element->is_readonly ? 'disabled' : '' }}>
                 @if(!$element->is_required)
@@ -362,6 +370,7 @@
                     id="{{ $fieldId }}" 
                     name="{{ $fieldName }}"
                     data-element-type="sample_condition_select"
+                    data-saved-value="{{ $fieldValue }}"
                     {{ $element->is_required ? 'required' : '' }}
                     {{ $element->is_readonly ? 'disabled' : '' }}>
                 @if(!$element->is_required)
@@ -386,6 +395,7 @@
                     id="{{ $fieldId }}" 
                     name="{{ $fieldName }}"
                     data-element-type="standard_select"
+                    data-saved-value="{{ $fieldValue }}"
                     {{ $element->is_required ? 'required' : '' }}
                     {{ $element->is_readonly ? 'disabled' : '' }}>
                 @if(!$element->is_required)
@@ -416,6 +426,7 @@
                     multiple
                     data-element-type="sample_point_select"
                     data-depends-on="client_unit_select"
+                    data-saved-value="{{ $fieldValue }}"
                     data-saved-multiple-values="{{ implode(',', $savedValues) }}"
                     {{ $element->is_required ? 'required' : '' }}
                     {{ $element->is_readonly ? 'disabled' : '' }}>
