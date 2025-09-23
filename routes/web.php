@@ -11,6 +11,10 @@
 |
 */
 
+use App\Http\Controllers\LivewireControllers\LabAppController;
+use App\Http\Controllers\LivewireControllers\StandardsController;
+use App\Http\Controllers\LivewireControllers\CRMAppController;
+
 Route::get('/', function () {
     return redirect()->route('home');
 });
@@ -126,6 +130,63 @@ Route::post('/sample-type/{id}', 'SampleTypeController@edit')->name('edit-sample
 Route::post('/add/sample-type-qualification/{id}', 'Lab\Samples\SampleQualificationsController@add')->name('add-sample-type-qualification');
 Route::post('/edit/sample-type-qualification/{id}', 'Lab\Samples\SampleQualificationsController@edit')->name('edit-sample-type-qualification');
 Route::post('/delete/sample-type-qualification/{id}', 'Lab\Samples\SampleQualificationsController@delete')->name('delete-sample-type-qualification');
+
+// Livewire Sample Types Management
+Route::get('/livewire/sample-types', [LabAppController::class, 'sampleTypes'])
+    ->name('livewire.sample-types')
+    ->middleware('haspermission:Laboratory.components.Sample-Types.View');
+
+// Remedies Management Routes
+Route::get('/remedies', [LabAppController::class, 'remedies'])
+    ->name('remedies.index')
+    ->middleware('haspermission:Laboratory.components.Sample-Types.View');
+
+Route::get('/remedies/{remedyHeaderId}/details', [LabAppController::class, 'remedyDetails'])
+    ->name('remedies.details')
+    ->middleware('haspermission:Laboratory.components.Sample-Types.View');
+
+// Rating Hub Management Routes
+Route::get('/rating-hub', [LabAppController::class, 'ratingHub'])
+    ->name('ratings.index')
+    ->middleware('haspermission:Laboratory.components.Sample-Types.View');
+
+Route::get('/rating-hub/{ratingHeaderId}/details', [LabAppController::class, 'ratingDetails'])
+    ->name('ratings.details')
+    ->middleware('haspermission:Laboratory.components.Sample-Types.View');
+
+// Livewire Analysis Types Management
+Route::get('/livewire/analysis-types/{sampleTypeId}', [LabAppController::class, 'analysisTypes'])
+    ->name('livewire.analysis-types')
+    ->middleware('haspermission:Laboratory.components.Sample-Types.View');
+
+// Livewire Elements Management
+Route::get('/livewire/elements/{analysisTypeId}', [LabAppController::class, 'elements'])
+    ->name('livewire.elements')
+    ->middleware('haspermission:Laboratory.components.Sample-Types.View');
+
+// Livewire Standards Management
+Route::get('/livewire/standards', [StandardsController::class, 'index'])
+    ->name('livewire.standards')
+    ->middleware('haspermission:Laboratory.components.Standards.View');
+
+// Livewire Report Formats Management
+Route::get('/livewire/report-formats', [LabAppController::class, 'reportFormats'])
+    ->name('livewire.report-formats')
+    ->middleware('haspermission:Laboratory.components.Sample-Types.View');
+
+// Livewire Test Page
+Route::get('/livewire-test', function () {
+    return view('livewire-test');
+})->name('livewire-test');
+
+// Livewire CRM Management Routes
+Route::get('/livewire/customers', [CRMAppController::class, 'customers'])
+    ->name('livewire.customers')
+    ->middleware('haspermission:CRM.components.Customers.View');
+
+Route::get('/livewire/customers/{customerId}/profile', [CRMAppController::class, 'customerProfile'])
+    ->name('livewire.customer-profile')
+    ->middleware('haspermission:CRM.components.Customers.View');
 
 Route::get('/analysis-types', 'AnalysisTypeController@index')->name('analysis-types')->middleware('haspermission:Laboratory.components.Analysis Types.View');
 Route::post('/analysis-types', 'AnalysisTypeController@add')->name('add-analysis-types')->middleware('haspermission:Laboratory.components.Analysis Types.Add');
@@ -282,6 +343,13 @@ Route::post('/process-raw-results/lab','SampleWorkFlowController@processRawResul
     Route::post('/move-to-workflow/{status}/{batch_id}', 'SampleWorkFlowController@move_to_workflow')->name('move-to-workflow');
     Route::post('/add-analytes-to-sample-analysis', 'SampleWorkFlowController@add_analyte_to_sample_analysis')->name('add-analytes-to-sample-analysis');
     Route::post('/capture-raw-results', 'SampleWorkFlowController@capture_raw_results')->name('capture-raw-results');
+    
+    // Captured Results Modal AJAX Routes
+    Route::post('/captured-results/update-parameter-settings', 'SampleWorkFlowController@updateParameterSettings')->name('update-parameter-settings');
+    Route::post('/captured-results/update-standard-limit', 'SampleWorkFlowController@updateStandardLimit')->name('update-standard-limit');
+    Route::post('/captured-results/update-result', 'SampleWorkFlowController@updateResult')->name('update-result');
+    Route::get('/captured-results/get-parameter-settings/{resultId}', 'SampleWorkFlowController@getParameterSettings')->name('get-parameter-settings');
+    Route::get('/captured-results/get-standard-settings/{resultId}', 'SampleWorkFlowController@getStandardSettings')->name('get-standard-settings');
 
     Route::get('/process-raw-results/{batch_id}', 'SampleWorkFlowController@process_results')->name('process-raw-results');
     Route::post('/report-interpretations/{batch_id}', 'ReportHeaderDetailController@report_interpretations')->name('report-interpretations');
@@ -675,6 +743,8 @@ Route::get('/analysis-types/{id}', 'AnalysisTypeController@by_sample_id')->name(
 Route::get('/missing_analysis_parameters_by_sample_code', 'SampleWorkFlowController@missing_analysis_parameters_by_sample_code')->name('missing_analysis_parameters_by_sample_code');
 Route::post('/remove-analyte-from-captured-result', 'SampleWorkFlowController@remove_analyte_from_captured_result')->name('remove-analyte-from-captured-result');
 Route::post('/fetch/results-remark', 'SampleWorkFlowController@fetch_results_remark')->name('fetch_results_remark');
+Route::get('/get-available-methods', 'SampleWorkFlowController@getAvailableMethods')->name('get-available-methods');
+Route::post('/capture-results-save', 'SampleWorkFlowController@saveCaptureResults')->name('capture-results-save');
 Route::get('/get-customer-contacts/{type}/{customer_id}', 'CRM\CustomerContactController@get_contacts')->name('get-customer-contacts');
 Route::get('/stock-transfer-json', 'StockTransferController@getJson')->name('stock-transfer-json');
 Route::get('/get-material-type-states', 'StockTransferController@getMaterialTypeStates')->name('get-material-type-states');

@@ -11,7 +11,7 @@ class AnalysisElements extends Model implements Auditable
 	use \OwenIt\Auditing\Auditable;
 
   protected $appends = ['parametername'];
-  protected $fillable = ['lab_section_id', 'analysis_type_id', 'analyte_id', 'method', 'reporting_unit', 'non_accredited','is_pesticide','ltm_method_id','reporting_time'];
+  protected $fillable = ['lab_section_id', 'analysis_type_id', 'analyte_id', 'method', 'reporting_unit', 'non_accredited','is_pesticide','ltm_method_id','reporting_time', 'recommend_remedies', 'remedy_header_id'];
 
   public function getParameterNameAttribute(){
     return Analyte::find($this->analyte_id)->name ?? '';
@@ -41,5 +41,9 @@ class AnalysisElements extends Model implements Auditable
 
   public function operator(){
     return $this->belongsTo('App\User', 'operator_id');
+  }
+
+  public function remedyHeader(){
+    return $this->belongsTo('App\Models\RemedyHeader');
   }
 }

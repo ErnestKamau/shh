@@ -29,4 +29,8 @@ class Standards extends Model implements Auditable
         $qcIds = explode(',',$this->qc_scheme_ids);
         return implode(', ',QcSchemes::whereIn('id',$qcIds)->pluck('code')->toArray());
     }
+
+    public function standardAnalytes(){
+        return $this->hasMany('App\StandardAnalytes');
+    }
 }

@@ -1,0 +1,45 @@
+@extends('layouts.crm.layout.app', ['dataTable'=>true, 'select2'=>true])
+
+@section('title2')
+<title>{{ $pageTitle ?? 'CRM Management' }}</title>
+@endsection
+
+@section('content2')
+<main>
+    <?php
+    $breadcrumbItems = [];
+    
+    // Always start with CRM Home
+    $breadcrumbItems[] = [
+        'link' => route('livewire.customers'),
+        'name' => 'CRM',
+        'icon' => null
+    ];
+    
+    // Add Customer List
+    $breadcrumbItems[] = [
+        'link' => route('livewire.customers'),
+        'name' => 'Customer List',
+        'icon' => null
+    ];
+    
+    // Add Customer Profile if we have a customer
+    if (isset($customer) && $customer) {
+        $breadcrumbItems[] = [
+            'link' => '#',
+            'name' => $customer->name,
+            'icon' => null
+        ];
+    }
+    ?>
+    <x-bread-crumb :items="$breadcrumbItems"></x-bread-crumb>
+    
+    <!-- Dynamic Livewire Component -->
+    @if($componentType === 'customers')
+        @livewire('customer-manager')
+    @elseif($componentType === 'customer-profile')
+        @livewire('customer-profile', ['customerId' => $customerId])
+    @endif
+</main>
+@endsection
+
