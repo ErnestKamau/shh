@@ -432,7 +432,25 @@
             margin-right: 0;
         }
 
+        /* Adjust main content for fixed sidebar */
+        #main-container-body {
+            margin-left: 275px; /* Sidebar width when expanded */
+            transition: margin-left 0.3s ease;
+        }
+
+        /* Responsive adjustments */
+        @media (max-width: 767.98px) {
+            #main-container-body {
+                margin-left: 0;
+            }
+        }
+
         #sidebar-container {
+            position: fixed;
+            top: 56px;
+			min-width: 265px;
+			max-width: 265px;
+            left: 0;
             height: calc(100vh - 56px);
             /* 56px is the navbar height */
             max-height: calc(100vh - 56px);
@@ -445,6 +463,7 @@
             /* Firefox */
             -ms-overflow-style: none;
             /* Internet Explorer 10+ */
+            z-index: 1000;
         }
 
         #sidebar-container::-webkit-scrollbar {
@@ -1077,9 +1096,6 @@
         }
 
         /* Custom scrollbar for better cross-browser support */
-        #sidebar-container {
-            position: relative;
-        }
 
         #sidebar-container::after {
             content: '';
@@ -1320,7 +1336,7 @@
         }
 
         .navbar-toggler-icon {
-            background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 30 30'%3e%3cpath stroke='rgba%280, 123, 255, 0.8%29' stroke-linecap='round' stroke-miterlimit='10' stroke-width='2' d='M4 7h22M4 15h22M4 23h22'/%3e%3c/svg%3e") !important;
+            background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 30 30'%3e%3cpath stroke='rgba%285, 123, 255, 0.8%29' stroke-linecap='round' stroke-miterlimit='10' stroke-width='2' d='M4 7h22M4 15h22M4 23h22'/%3e%3c/svg%3e") !important;
         }
 
         /* Right Side Navigation Enhancement */
@@ -2139,6 +2155,14 @@
 
         if ($(window).width() < 760) {
             $('#sidebar-container').addClass('hidden');
+            $('#main-container-body').css('margin-left', '0');
+        } else {
+            // Set initial margin based on sidebar state
+            if ($('#sidebar-container').hasClass('sidebar-collapsed')) {
+                $('#main-container-body').css('margin-left', '0');
+            } else {
+                $('#main-container-body').css('margin-left', '285px');
+            }
         }
 
         $('#toggle-main-sidebar').on('click', function() {
@@ -2147,19 +2171,39 @@
                 $('#sidebar-container').removeClass('col-8 col-sm-4 col-md-3 col-lg-2').removeClass(
                     'floating-sidebar');
                 $('#main-container-body').removeClass('col-4 col-sm-8 col-md-9 col-lg-10').addClass(
-                    'col-12')
+                    'col-12');
+                // Remove margin when sidebar is hidden
+                $('#main-container-body').css('margin-left', '0');
             } else {
                 if ($(window).width() < 760) {
                     // $('#main-container-body').addClass('col-4');
                     // $('#sidebar-container').addClass('col-8').removeClass('d-none');
                     $('#sidebar-container').addClass('floating-sidebar').removeClass('d-none');
+                    // Remove margin for mobile floating sidebar
+                    $('#main-container-body').css('margin-left', '0');
                 } else {
                     $('#sidebar-container').addClass('col-sm-4 col-md-3 col-lg-2');
                     $('#main-container-body').addClass('col-sm-8 col-md-9 col-lg-10').removeClass(
                         'col-12');
+                    // Add margin when sidebar is visible on desktop
+                    $('#main-container-body').css('margin-left', '285px');
                 }
             }
         })
+
+        // Handle window resize to adjust margin
+        $(window).on('resize', function() {
+            if ($(window).width() < 760) {
+                $('#main-container-body').css('margin-left', '0');
+            } else {
+                // Set margin based on sidebar state
+                if ($('#sidebar-container').hasClass('sidebar-collapsed')) {
+                    $('#main-container-body').css('margin-left', '0');
+                } else {
+                    $('#main-container-body').css('margin-left', '285px');
+                }
+            }
+        });
 
         $('.download-the-document').on('click', function() {
             var href = $(this).data('href');
@@ -2189,6 +2233,15 @@
             $('.sidebar-submenu').toggleClass('d-none');
             $('.submenu-icon').toggleClass('d-none');
             $('#sidebar-container').toggleClass('sidebar-expanded sidebar-collapsed');
+
+            // Adjust main content margin based on sidebar state
+            if ($('#sidebar-container').hasClass('sidebar-collapsed')) {
+                // Sidebar is collapsed - remove margin
+                $('#main-container-body').css('margin-left', '0');
+            } else {
+                // Sidebar is expanded - add margin
+                $('#main-container-body').css('margin-left', '285px');
+            }
 
             // Treating d-flex/d-none on separators with title
             var SeparatorTitle = $('.sidebar-separator-title');

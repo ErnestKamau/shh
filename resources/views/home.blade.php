@@ -92,9 +92,9 @@
     }
 
     .company-logo {
-        width: 200px;
-        height: 200px;
-        margin: 0 auto 2rem;
+        width: 120px;
+        height: 120px;
+        margin: 0 auto 1.5rem;
         border-radius: 50%;
         background: rgba(255, 255, 255, 0.1);
         backdrop-filter: blur(10px);
@@ -137,7 +137,6 @@
         color: rgba(255, 255, 255, 0.8);
         font-size: 1.2rem;
         font-weight: 300;
-        margin-bottom: 3rem;
         animation: slideInFromRight 1s ease-out 0.7s both;
     }
 
@@ -165,8 +164,8 @@
 
     .apps-grid {
         display: grid;
-        grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-        gap: 2rem;
+        grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+        gap: 1.5rem;
         max-width: 1200px;
         margin: 0 auto;
         padding: 0 2rem 2rem 2rem;
@@ -180,7 +179,7 @@
         backdrop-filter: blur(15px);
         border: 1px solid rgba(255, 255, 255, 0.3);
         border-radius: 20px;
-        padding: 2rem;
+        padding: 1.5rem;
         text-align: center;
         text-decoration: none;
         color: white;
@@ -219,14 +218,14 @@
     }
 
     .app-icon {
-        width: 80px;
-        height: 80px;
-        margin: 0 auto 1rem;
-        border-radius: 20px;
+        width: 60px;
+        height: 60px;
+        margin: 0 auto 0.8rem;
+        border-radius: 15px;
         display: flex;
         align-items: center;
         justify-content: center;
-        font-size: 2.5rem;
+        font-size: 2rem;
         color: white;
         text-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
         transition: all 0.3s ease;
@@ -255,7 +254,7 @@
     }
 
     .app-title {
-        font-size: 1.1rem;
+        font-size: 1rem;
         font-weight: 500;
         margin: 0;
         text-shadow: 0 1px 2px rgba(0, 0, 0, 0.3);
@@ -320,15 +319,22 @@
     .loading-overlay .text-center {
         position: relative;
         z-index: 2;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        text-align: center;
     }
 
     .loading-spinner {
-        width: 60px;
-        height: 60px;
-        border: 4px solid rgba(255, 255, 255, 0.3);
-        border-top: 4px solid white;
+        width: 80px;
+        height: 80px;
+        border: 6px solid rgba(255, 255, 255, 0.3);
+        border-top: 6px solid white;
         border-radius: 50%;
         animation: spin 1s linear infinite;
+        margin: 0 auto 1.5rem auto;
+        display: block;
     }
 
     @keyframes spin {
@@ -338,8 +344,10 @@
 
     .loading-text {
         color: white;
-        margin-top: 1rem;
-        font-size: 1.1rem;
+        margin: 0;
+        font-size: 1.2rem;
+        font-weight: 500;
+        text-align: center;
         animation: pulse 2s ease-in-out infinite;
     }
 
@@ -349,24 +357,69 @@
     }
 
     /* Responsive Design */
+    @media (max-width: 991px) and (min-width: 769px) {
+        .apps-grid {
+            grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+            gap: 1.2rem;
+            padding: 0 1.5rem 1.5rem 1.5rem;
+        }
+        
+        .app-card {
+            padding: 1.2rem;
+        }
+        
+        .app-icon {
+            width: 50px;
+            height: 50px;
+            font-size: 1.8rem;
+        }
+        
+        .app-title {
+            font-size: 0.9rem;
+        }
+        
+        .company-logo {
+            width: 100px;
+            height: 100px;
+        }
+        
+        .welcome-text {
+            font-size: 2.2rem;
+        }
+        
+        .welcome-subtitle {
+            font-size: 1.1rem;
+        }
+    }
+
     @media (max-width: 768px) {
         .apps-grid {
-            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+            grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
             gap: 1rem;
             padding: 0 1rem;
         }
         
         .app-card {
-            padding: 1.5rem;
+            padding: 1.2rem;
+        }
+        
+        .app-icon {
+            width: 45px;
+            height: 45px;
+            font-size: 1.6rem;
+        }
+        
+        .app-title {
+            font-size: 0.85rem;
         }
         
         .welcome-text {
-            font-size: 2rem;
+            font-size: 1.8rem;
         }
         
         .company-logo {
-            width: 150px;
-            height: 150px;
+            width: 80px;
+            height: 80px;
         }
     }
 
