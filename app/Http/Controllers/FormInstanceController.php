@@ -136,7 +136,7 @@ class FormInstanceController extends Controller
         ]);
 
         // Load existing values
-        $existingValues = $instance->values()->with('element')->get()->keyBy('submission_form_element_id');
+        $existingValues = $instance->values()->with('element')->get();
 
         return view('submission-forms.instances.fill', compact('submissionForm', 'instance', 'existingValues'));
     }
@@ -235,7 +235,7 @@ class FormInstanceController extends Controller
         // return response()->json($instance->getFormDataForDisplay());
 
         // Load existing values
-        $existingValues = $instance->values()->with('element')->get()->keyBy('submission_form_element_id');
+        $existingValues = $instance->values()->with('element')->get();
 
         // Load audit trail
         $auditLogs = $instance->auditLogs()->with('user')->latest()->get();
@@ -266,7 +266,7 @@ class FormInstanceController extends Controller
         ]);
 
         // Load existing values
-        $existingValues = $instance->values()->with('element')->get()->keyBy('submission_form_element_id');
+        $existingValues = $instance->values()->with('element')->get();
 
         return view('submission-forms.instances.edit', compact('submissionForm', 'instance', 'existingValues'));
     }

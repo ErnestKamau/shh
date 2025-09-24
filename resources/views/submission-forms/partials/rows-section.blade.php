@@ -15,6 +15,22 @@
 
   @if($templateHolder && $templateHolder->elements->count() > 0)
     <div class="rows-container">
+      @php
+        // Count actual rows from existing data
+        $actualRowCount = 0;
+        if (isset($existingValues) && $existingValues) {
+          $rowIndices = [];
+          foreach($templateHolder->elements as $element) {
+            $elementValues = $existingValues->where('submission_form_element_id', $element->id);
+            foreach($elementValues as $value) {
+              $arrayIndex = $value->array_index ?? 0;
+              $rowIndices[$arrayIndex] = true;
+            }
+          }
+          $actualRowCount = count($rowIndices);
+        }
+      @endphp
+      Template Elements: {{ $templateHolder->elements->count() }} | Actual Rows: {{ $actualRowCount }}
       {{-- Add Row Button --}}
       <div class="mb-3">
         <button type="button" class="btn btn-success btn-sm" id="add-row-{{ $section->id }}">
@@ -130,6 +146,23 @@ document.addEventListener('DOMContentLoaded', function() {
     // Initialize custom elements for the new row
     initializeRowCustomElements($rowElement);
     
+    // Re-initialize global change handlers to include new elements
+    if (typeof setupClientChangeHandlers === 'function') {
+      setupClientChangeHandlers();
+    }
+    if (typeof setupClientUnitChangeHandlers === 'function') {
+      setupClientUnitChangeHandlers();
+    }
+    if (typeof setupSampleTypeChangeHandlers === 'function') {
+      setupSampleTypeChangeHandlers();
+    }
+    if (typeof setupAnalysisTypeChangeHandlers === 'function') {
+      setupAnalysisTypeChangeHandlers();
+    }
+    if (typeof setupStoreChangeHandlers === 'function') {
+      setupStoreChangeHandlers();
+    }
+    
     // Initialize Select2 on all select elements in the new row
     $rowElement.find('select').not('.hidden').each(function(i, e) {
       if (!$(e).hasClass('no-select2')) {
@@ -181,8 +214,8 @@ document.addEventListener('DOMContentLoaded', function() {
     const $row = $this.parents('tr');
     const dependsOnElement = $row.find(`[data-element-type="${dependsOn}"]`);
     
-    //console.log('Setting up dependency:', elementType, 'depends on:', dependsOn, 'in row:', row);
-    //console.log('Found parent element:', dependsOnElement);
+    console.log('Setting up dependency:', elementType, 'depends on:', dependsOn, 'in row:', $row);
+    console.log('Found parent element:', dependsOnElement, 'length:', dependsOnElement.length);
     
     if (dependsOnElement.length > 0) {
       //console.log('Parent element found, setting up change handler');
@@ -192,8 +225,9 @@ document.addEventListener('DOMContentLoaded', function() {
         //console.log('Parent already has value:', currentParentValue, 'loading options for:', elementType);
         // Load options based on current parent value
         if (elementType === 'client_unit_select' || elementType === 'client_contact_select') {
-          loadDynamicOptions($this, elementId, currentParentValue);
+          loadDynamicOptions($this, elementId, elementType, currentParentValue);
         } else if (elementType === 'sample_point_select') {
+          console.log('Loading sample_point_select options with clientUnitId:', currentParentValue);
           loadDynamicOptions($this, elementId, elementType, null, null, null, currentParentValue);
         } else if (elementType === 'analysis_type_select') {
           loadDynamicOptions($this, elementId, elementType, null, currentParentValue);
@@ -217,6 +251,7 @@ document.addEventListener('DOMContentLoaded', function() {
             loadDynamicOptions($this, elementId, elementType, parentId);
           } else if (elementType === 'sample_point_select') {
             // This depends on client_unit_select
+            console.log('sample_point_select change handler - loading options with clientUnitId:', parentId);
             loadDynamicOptions($this, elementId, elementType, null, null, null, parentId);
           } else if (elementType === 'analysis_type_select') {
             // This depends on sample_type_select
@@ -450,6 +485,23 @@ document.addEventListener('DOMContentLoaded', function() {
     
     // // Initialize custom elements for the cloned row (this will set up dependencies)
     initializeRowCustomElements($newRowElement, true);
+    
+    // Re-initialize global change handlers to include new elements
+    if (typeof setupClientChangeHandlers === 'function') {
+      setupClientChangeHandlers();
+    }
+    if (typeof setupClientUnitChangeHandlers === 'function') {
+      setupClientUnitChangeHandlers();
+    }
+    if (typeof setupSampleTypeChangeHandlers === 'function') {
+      setupSampleTypeChangeHandlers();
+    }
+    if (typeof setupAnalysisTypeChangeHandlers === 'function') {
+      setupAnalysisTypeChangeHandlers();
+    }
+    if (typeof setupStoreChangeHandlers === 'function') {
+      setupStoreChangeHandlers();
+    }
   }
 
   function deleteRow($row) {
@@ -461,11 +513,6 @@ document.addEventListener('DOMContentLoaded', function() {
   // Load existing data on page load
   loadExistingData();
   
-  // Add initial row if none exist
-  if ($('body').find('#rows-tbody-'+sectionId).children().length === 0) {
-    addNewRow();
-  }
-  
   function loadExistingData() {
     @if(isset($existingValues) && $existingValues)
       @php
@@ -473,16 +520,25 @@ document.addEventListener('DOMContentLoaded', function() {
         $sectionValues = [];
         $templateHolder = $section->getTemplateElementHolder();
         if ($templateHolder) {
+          echo "<!-- DEBUG: Processing " . $templateHolder->elements->count() . " template elements -->";
           foreach($templateHolder->elements as $element) {
             $elementValues = $existingValues->where('submission_form_element_id', $element->id);
+            echo "<!-- DEBUG: Element " . $element->name . " (ID: " . $element->id . ") has " . $elementValues->count() . " values -->";
             foreach($elementValues as $value) {
               $arrayIndex = $value->array_index ?? 0;
+              echo "<!-- DEBUG: Value for " . $element->name . " has array_index: " . $arrayIndex . " -->";
               if (!isset($sectionValues[$arrayIndex])) {
                 $sectionValues[$arrayIndex] = [];
               }
               $sectionValues[$arrayIndex][$element->id] = $value;
             }
           }
+        }
+        
+        // Debug: Show what sectionValues contains
+        echo "<!-- DEBUG: sectionValues count: " . count($sectionValues) . " -->";
+        foreach($sectionValues as $idx => $rowData) {
+          echo "<!-- DEBUG: Row $idx has " . count($rowData) . " elements -->";
         }
       @endphp
       
@@ -625,15 +681,20 @@ document.addEventListener('DOMContentLoaded', function() {
             }, 100);
             
             // Update global rowIndex to be higher than the current index
-            if (currentRowIndex >= rowIndex) {
-              rowIndex = currentRowIndex + 1;
-            }
+            rowIndex = Math.max(rowIndex, currentRowIndex + 1);
           })();
         @endforeach
         
         console.log('Finished loading existing rows, next rowIndex:', rowIndex);
       @endif
     @endif
+    
+    // Add initial row if none exist after loading existing data
+    setTimeout(() => {
+      if ($('#rows-tbody-'+sectionId).children().length === 0) {
+        addNewRow();
+      }
+    }, 1000); // Give enough time for all existing rows to be loaded
   }
 });
 </script>

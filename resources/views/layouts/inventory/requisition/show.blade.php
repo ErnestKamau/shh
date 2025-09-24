@@ -202,7 +202,6 @@
 	$procurement_officer_role_id = count($procurement_officer_roles) > 0 ? $procurement_officer_roles[0]->value : 0;
 
 	$departmental_head_roles = getConfigByName('departmental_head_role_id');
-	// echo ">>>>>>>>>>>>>>>>".json_encode($departmental_head_roles);
 	$departmental_head_role_id = count($departmental_head_roles) > 0 ? $departmental_head_roles[0]->value : 0;
 
 

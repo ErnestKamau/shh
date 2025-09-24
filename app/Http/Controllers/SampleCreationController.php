@@ -59,8 +59,6 @@ class SampleCreationController extends Controller
 
 
                 $sampleDetails = [];
-
-                echo ">>>>>>>>>>>>>>>>>>>> BATCH INDEX :: ".$batchIndex."\n";
                 
                 // Create sample header using our custom method
                 $sampleHeader = $this->createSampleHeader($batch['sample_header'], $instance->id);
@@ -71,12 +69,10 @@ class SampleCreationController extends Controller
                 // Merge all sample details arrays into one flat array
 
                 foreach($batch['sample_details'] as $i=>$sampleDetail){
-                    echo ">>>>>>>>>>>>>>>>>>>> SAMPLE DETAIL INDEX :: ".$i."\n";
                     $samplePoints = explode(',', $sampleDetail['sample_point_id']);
                     $newSampleDetailsInfo = $sampleDetail;
 
                     foreach($samplePoints as $j=>$samplePoint){
-                        echo ">>>>>>>>>>>>>>>>>>>> SAMPLE POINT INDEX :: ".$j."\n";
                         $newSampleDetailsInfo['sample_point_id'] = $samplePoint;
                         $sampleDetails[$i] = $this->createSampleDetails($newSampleDetailsInfo, $sampleHeader->id, $i, $sampleHeader->batch_code);
                         $this->createSampleDates($sampleHeader->id, $sampleDetails[$i]);

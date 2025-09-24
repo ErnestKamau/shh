@@ -85,7 +85,7 @@
                       rows="3"
                       placeholder="{{ $element->placeholder }}"
                       {{ $element->is_required ? 'required' : '' }}
-                      {{ $element->is_readonly ? 'readonly' : '' }}>{{ $element->default_value }}</textarea>
+                      {{ $element->is_readonly ? 'readonly' : '' }}>{{ $fieldValue }}</textarea>
             @break
             
         @case('plain_text')
@@ -206,6 +206,7 @@
                 <input type="hidden" 
                        id="{{ $fieldId }}" 
                        name="{{ $fieldName }}"
+                       value="{{ $fieldValue ?: $element->default_value ?: '' }}"
                        {{ $element->is_required ? 'required' : '' }}>
             </div>
             @break
@@ -215,6 +216,7 @@
                     id="{{ $fieldId }}" 
                     name="{{ $fieldName }}"
                     data-element-type="client_select"
+                    data-saved-value="{{ $fieldValue }}"
                     {{ $element->is_required ? 'required' : '' }}
                     {{ $element->is_readonly ? 'disabled' : '' }}>
                 @if(!$element->is_required)
@@ -239,6 +241,7 @@
                     id="{{ $fieldId }}" 
                     name="{{ $fieldName }}"
                     data-element-type="sample_type_select"
+                    data-saved-value="{{ $fieldValue }}"
                     {{ $element->is_required ? 'required' : '' }}
                     {{ $element->is_readonly ? 'disabled' : '' }}>
                 @if(!$element->is_required)
@@ -264,6 +267,7 @@
                     name="{{ $fieldName }}"
                     data-element-type="client_unit_select"
                     data-depends-on="client_select"
+                    data-saved-value="{{ $fieldValue }}"
                     {{ $element->is_required ? 'required' : '' }}
                     {{ $element->is_readonly ? 'disabled' : '' }}>
                 @if(!$element->is_required)
@@ -279,6 +283,7 @@
                     name="{{ $fieldName }}"
                     data-element-type="client_contact_select"
                     data-depends-on="client_select"
+                    data-saved-value="{{ $fieldValue }}"
                     {{ $element->is_required ? 'required' : '' }}
                     {{ $element->is_readonly ? 'disabled' : '' }}>
                 @if(!$element->is_required)
@@ -294,6 +299,7 @@
                     name="{{ $fieldName }}"
                     data-element-type="analysis_type_select"
                     data-depends-on="sample_type_select"
+                    data-saved-value="{{ $fieldValue }}"
                     {{ $element->is_required ? 'required' : '' }}
                     {{ $element->is_readonly ? 'disabled' : '' }}>
                 @if(!$element->is_required)
@@ -309,6 +315,7 @@
                     name="{{ $fieldName }}"
                     data-element-type="analysis_elements_select"
                     data-depends-on="analysis_type_select"
+                    data-saved-value="{{ $fieldValue }}"
                     {{ $element->is_required ? 'required' : '' }}
                     {{ $element->is_readonly ? 'disabled' : '' }}>
                 @if(!$element->is_required)
@@ -323,6 +330,7 @@
                     id="{{ $fieldId }}" 
                     name="{{ $fieldName }}"
                     data-element-type="store_select"
+                    data-saved-value="{{ $fieldValue }}"
                     {{ $element->is_required ? 'required' : '' }}
                     {{ $element->is_readonly ? 'disabled' : '' }}>
                 @if(!$element->is_required)
@@ -348,6 +356,7 @@
                     name="{{ $fieldName }}"
                     data-element-type="store_slot_select"
                     data-depends-on="store_select"
+                    data-saved-value="{{ $fieldValue }}"
                     {{ $element->is_required ? 'required' : '' }}
                     {{ $element->is_readonly ? 'disabled' : '' }}>
                 @if(!$element->is_required)
@@ -362,6 +371,7 @@
                     id="{{ $fieldId }}" 
                     name="{{ $fieldName }}"
                     data-element-type="sample_condition_select"
+                    data-saved-value="{{ $fieldValue }}"
                     {{ $element->is_required ? 'required' : '' }}
                     {{ $element->is_readonly ? 'disabled' : '' }}>
                 @if(!$element->is_required)
@@ -386,6 +396,7 @@
                     id="{{ $fieldId }}" 
                     name="{{ $fieldName }}"
                     data-element-type="standard_select"
+                    data-saved-value="{{ $fieldValue }}"
                     {{ $element->is_required ? 'required' : '' }}
                     {{ $element->is_readonly ? 'disabled' : '' }}>
                 @if(!$element->is_required)
@@ -416,6 +427,7 @@
                     multiple
                     data-element-type="sample_point_select"
                     data-depends-on="client_unit_select"
+                    data-saved-value="{{ $fieldValue }}"
                     data-saved-multiple-values="{{ implode(',', $savedValues) }}"
                     {{ $element->is_required ? 'required' : '' }}
                     {{ $element->is_readonly ? 'disabled' : '' }}>
@@ -510,6 +522,7 @@ document.addEventListener('DOMContentLoaded', function() {
     let isDrawing = false;
     let hasSignature = false;
     let resizeTimeout;
+    let savedSignatureData = null; // Store signature data for redrawing after resize
     
     // Debounced resize function
     function debouncedResize() {
@@ -545,10 +558,68 @@ document.addEventListener('DOMContentLoaded', function() {
         ctx.shadowBlur = 1;
         ctx.shadowOffsetX = 0;
         ctx.shadowOffsetY = 1;
+        
+        // Redraw signature if it exists
+        if (savedSignatureData) {
+            redrawSignature();
+        }
     }
     
     // Initial resize
     resizeCanvas();
+    
+    // Load existing signature if available
+    loadExistingSignature();
+    
+    // Function to redraw saved signature
+    function redrawSignature() {
+        if (savedSignatureData) {
+            const img = new Image();
+            img.onload = function() {
+                ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+            };
+            img.src = savedSignatureData;
+        }
+    }
+    
+    // Function to load existing signature data
+    function loadExistingSignature() {
+        const hiddenInput = document.getElementById('{{ $element->name }}');
+        const existingValue = hiddenInput ? hiddenInput.value : null;
+        
+        if (existingValue && existingValue.trim() !== '') {
+            // Check if it's a data URL (base64 image)
+            if (existingValue.startsWith('data:image/')) {
+                // Store the signature data for redrawing after resize
+                savedSignatureData = existingValue;
+                
+                const img = new Image();
+                img.onload = function() {
+                    // Clear canvas first
+                    ctx.clearRect(0, 0, canvas.width, canvas.height);
+                    
+                    // Draw the existing signature
+                    ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+                    
+                    // Update state
+                    hasSignature = true;
+                    
+                    // Hide placeholder
+                    if (placeholder) {
+                        placeholder.style.opacity = '0';
+                    }
+                    
+                    // Update visual state
+                    canvas.style.borderColor = '#28a745';
+                    canvas.style.boxShadow = '0 0 0 2px rgba(40, 167, 69, 0.25)';
+                };
+                img.onerror = function() {
+                    console.warn('Failed to load existing signature image');
+                };
+                img.src = existingValue;
+            }
+        }
+    }
     
     // Resize on window resize (debounced)
     window.addEventListener('resize', debouncedResize);
@@ -636,6 +707,8 @@ document.addEventListener('DOMContentLoaded', function() {
     function updateSignatureData() {
         const dataURL = canvas.toDataURL();
         document.getElementById('{{ $element->name }}').value = dataURL;
+        // Store signature data for redrawing after resize
+        savedSignatureData = dataURL;
     }
     
     // Clear signature
@@ -647,6 +720,8 @@ document.addEventListener('DOMContentLoaded', function() {
         ctx.clearRect(0, 0, canvas.width, canvas.height);
         document.getElementById(elementName).value = '';
         
+        // Clear saved signature data
+        savedSignatureData = null;
         hasSignature = false;
         
         // Show placeholder
