@@ -104,7 +104,7 @@
 	<div id="sidebar-container" class="sidebar-expanded d-none d-md-block col-sm-4 col-md-3 col-lg-2">
 		<!-- d-* hiddens the Sidebar in smaller devices. Its itens can be kept on the Navbar 'Menu' -->
 		<!-- Bootstrap List Group -->
-		<ul class="list-group sticky-top sticky-offset">
+		<ul class="list-group">
 			<div class="list-group-item p-4 text-center text-white text-ultra-bold sidebar-module-div">
 				<i class="mdi mdi-package-variant fa-3x"></i><br>
 				<span class="text-lg text-bold">INVENTORY MANAGEMENT</span>
