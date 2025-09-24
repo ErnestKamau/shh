@@ -1112,8 +1112,8 @@ Route::post('/sample-type-clone/{id}', 'SampleTypeController@clone')->name('samp
 Route::get('/testSmsAlert', 'SampleWorkFlowController@testSmsAlert')->name('testSmsAlert');
 Route::post('/save-Sample/AnalysisDate', 'SampleWorkFlowController@saveSampleAnalysisDate')->name('saveSampleAnalysisDate');
 
-Route::get('/get/Sample-IntelabLogs-Approval/Status/{sample_id}', 'SampleWorkFlowController@getSampleIntelabLogsApprovalStatus')->name('getSampleIntelabLogsApprovalStatus');
-Route::get('/getSampleResultCapturedNot/{sample_id}', 'SampleWorkFlowController@getSampleResultCapturedNot')->name('getSampleResultCapturedNot');
+Route::get('/get/Sample-IntelabLogs-Approval/Status', 'SampleWorkFlowController@getSampleIntelabLogsApprovalStatus')->name('getSampleIntelabLogsApprovalStatus');
+Route::get('/getSampleResultCapturedNot', 'SampleWorkFlowController@getSampleResultCapturedNot')->name('getSampleResultCapturedNot');
 
 Route::post('/mark/finished-sample','SampleWorkFlowController@markBatchesFinished')->name('mark-finished');
 Route::post('/return/finished-sample','SampleWorkFlowController@returnFromFinished')->name('return-finished');

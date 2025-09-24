@@ -4429,16 +4429,18 @@ class SampleWorkFlowController extends Controller
         return response()->json('success');
     }
 
-    public function getSampleIntelabLogsApprovalStatus($sample_id)
+    public function getSampleIntelabLogsApprovalStatus(Request $request)
     {
+        $sample_id = $request->sample_id;
         $sample = SampleDetails::where('sample_code', $sample_id)->first();
         $approval = InterLabLog::where('sample_id', $sample->id)->where('status', 0)->first();
 
         return response()->json(['approval_status' => isset($approval->id) ? 1 : 0, 'sample' => $sample]);
     }
 
-    public function getSampleResultCapturedNot($sample_id)
+    public function getSampleResultCapturedNot(Request $request)
     {
+        $sample_id = $request->sample_id;
         $sample = SampleDetails::where('sample_code', $sample_id)->first();
         $captured = CapturedResult::where('sample_detail_id', $sample->id)->WhereNotNull('result')->join('analysis_elements as ae', function ($join) {
             $join->on('ae.analysis_type_id', '=', 'captured_results.analysis_type_id');
