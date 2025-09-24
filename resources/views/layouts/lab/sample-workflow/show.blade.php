@@ -4639,7 +4639,8 @@
 		}
 		var getSampleInterlabTransferApproval = (sample_id,callback)=>{
 			$.ajax({
-				url:`/get/Sample-IntelabLogs-Approval/Status/${sample_id}`,
+				url:`/get/Sample-IntelabLogs-Approval/Status`,
+				data: {'sample_id': sample_id},
 				method:'GET',
 				success:(data)=>{
 					console.log(data);
@@ -4653,7 +4654,7 @@
 		var getSampleCapturedNotData = (sample_id,callback)=>{
 			$.ajax({
 				url:`/getSampleResultCapturedNot`,
-				data:{sample_id:sample_id},
+				data: {'sample_id': sample_id},
 				method:'GET',
 				success:(data)=>{
 					console.log(data);
@@ -7896,14 +7897,6 @@ function showNotification(message, type) {
 							<label for="settings-method" class="form-label">
 								<i class="mdi mdi-flask"></i> Method
 							</label>
-							<select class="form-control" id="settings-method" name="method_id">
-								<option value="">Select Method</option>
-								@if(isset($methods))
-									@foreach($methods as $method)
-										<option value="{{ $method->id }}">{{ $method->name }} ({{ $method->code }})</option>
-									@endforeach
-								@endif
-							</select>
 						</div>
 						
 						<!-- Reporting Symbol -->
