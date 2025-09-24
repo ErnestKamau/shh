@@ -137,7 +137,6 @@
         color: rgba(255, 255, 255, 0.8);
         font-size: 1.2rem;
         font-weight: 300;
-        margin-bottom: 3rem;
         animation: slideInFromRight 1s ease-out 0.7s both;
     }
 
@@ -320,15 +319,22 @@
     .loading-overlay .text-center {
         position: relative;
         z-index: 2;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        text-align: center;
     }
 
     .loading-spinner {
-        width: 60px;
-        height: 60px;
-        border: 4px solid rgba(255, 255, 255, 0.3);
-        border-top: 4px solid white;
+        width: 80px;
+        height: 80px;
+        border: 6px solid rgba(255, 255, 255, 0.3);
+        border-top: 6px solid white;
         border-radius: 50%;
         animation: spin 1s linear infinite;
+        margin: 0 auto 1.5rem auto;
+        display: block;
     }
 
     @keyframes spin {
@@ -338,8 +344,10 @@
 
     .loading-text {
         color: white;
-        margin-top: 1rem;
-        font-size: 1.1rem;
+        margin: 0;
+        font-size: 1.2rem;
+        font-weight: 500;
+        text-align: center;
         animation: pulse 2s ease-in-out infinite;
     }
 
