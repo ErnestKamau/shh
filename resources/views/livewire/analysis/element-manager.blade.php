@@ -95,7 +95,7 @@
                         
                         <div class="table-responsive">
                             <table class="table table-striped table-hover" id="elements-table">
-                                <thead class="thead-dark">
+                                <thead style="background-color: rgba(0, 0, 0, .03);">
                                     <tr>
                                         <th style="width: 60px;">
                                             <i class="mdi mdi-drag text-muted"></i>

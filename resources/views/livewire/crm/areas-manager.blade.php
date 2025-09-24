@@ -95,7 +95,7 @@
                         
                         <div class="table-responsive">
                             <table class="table table-striped table-hover">
-                                <thead class="thead-dark">
+                                <thead style="background-color: rgba(0, 0, 0, .03);">
                                     <tr>
                                         <th>Name</th>
                                         <th>Code</th>
@@ -112,19 +112,19 @@
                                                 <strong>{{ $area->name }}</strong>
                                             </td>
                                             <td>
-                                                <span class="badge bg-info p-2">{{ $area->code }}</span>
+                                                <span class="badge bg-info p-2" style="color: white;">{{ $area->code }}</span>
                                             </td>
                                             <td>
                                                 {{ Str::limit($area->description, 50) ?: 'N/A' }}
                                             </td>
                                             <td>
-                                                <span class="badge bg-secondary">{{ $area->samplePoints()->count() }}</span>
+                                                <span class="badge bg-secondary" style="color: white;">{{ $area->samplePoints()->count() }}</span>
                                             </td>
                                             <td>
                                                 @if($area->active)
-                                                    <span class="badge bg-success p-2">Active</span>
+                                                    <span class="badge bg-success p-2" style="color: white;">Active</span>
                                                 @else
-                                                    <span class="badge bg-danger p-2">Inactive</span>
+                                                    <span class="badge bg-danger p-2" style="color: white;">Inactive</span>
                                                 @endif
                                             </td>
                                             <td>

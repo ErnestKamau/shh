@@ -89,7 +89,7 @@
                     @if($this->reportFormats->count() > 0)
                         <div class="table-responsive">
                             <table class="table table-hover">
-                                <thead class="table-light">
+                                <thead style="background-color: rgba(0, 0, 0, .03);">
                                     <tr>
                                         <th>Code</th>
                                         <th>Name</th>

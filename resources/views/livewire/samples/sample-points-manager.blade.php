@@ -2,9 +2,9 @@
     <!-- Header -->
     <div class="row mb-4">
         <div class="col-12">
-            <div class="card shadow-sm border-0" style="border-radius: 15px;">
+<div class="card shadow-sm border-0" style="border-radius: 15px;">
                 <div class="card-body p-4">
-                    <div class="d-flex justify-content-between align-items-center">
+        <div class="d-flex justify-content-between align-items-center">
                         <div>
                             <h2 class="mb-0">
                                 <i class="mdi mdi-map-marker text-primary"></i>
@@ -13,21 +13,21 @@
                             <p class="text-muted mb-0">Manage sample points for: <strong>{{ $customer->name }}</strong></p>
                         </div>
                         <button wire:click="showCreateSamplePointModal" class="btn btn-primary">
-                            <i class="mdi mdi-plus"></i> Add Sample Point
-                        </button>
+                <i class="mdi mdi-plus"></i> Add Sample Point
+            </button>
                     </div>
                 </div>
             </div>
         </div>
     </div>
 
-    <!-- Message Alert -->
-    @if($message)
+        <!-- Message Alert -->
+        @if($message)
         <div class="alert alert-{{ $messageType === 'success' ? 'success' : 'danger' }} alert-dismissible fade show" role="alert">
-            {{ $message }}
-            <button type="button" class="btn-close" wire:click="dismissMessage"></button>
-        </div>
-    @endif
+                {{ $message }}
+                <button type="button" class="btn-close" wire:click="dismissMessage"></button>
+            </div>
+        @endif
 
     <!-- Filters -->
     <div class="row mb-4">
@@ -92,23 +92,23 @@
                                 </select>
                             </div>
                         </div>
-                        
-                        <div class="table-responsive">
+
+        <div class="table-responsive">
                             <table class="table table-striped table-hover">
-                                <thead class="thead-dark">
-                                    <tr>
-                                        <th>Name</th>
+                                <thead style="background-color: rgba(0, 0, 0, .03);">
+                    <tr>
+                        <th>Name</th>
                                         <th>Description</th>
                                         <th>Company Unit</th>
                                         <th>Area</th>
-                                        <th>Status</th>
+                        <th>Status</th>
                                         <th>Actions</th>
-                                    </tr>
-                                </thead>
-                                <tbody>
+                    </tr>
+                </thead>
+                <tbody>
                                     @foreach($this->samplePoints as $samplePoint)
-                                        <tr>
-                                            <td>
+                        <tr>
+                            <td>
                                                 <strong>{{ $samplePoint->name }}</strong>
                                             </td>
                                             <td>
@@ -119,33 +119,33 @@
                                             </td>
                                             <td>
                                                 {{ $samplePoint->area_name ?? 'N/A' }}
-                                            </td>
-                                            <td>
+                            </td>
+                            <td>
                                                 @if($samplePoint->active)
-                                                    <span class="badge bg-success p-2">Active</span>
-                                                @else
-                                                    <span class="badge bg-danger p-2">Inactive</span>
-                                                @endif
-                                            </td>
-                                            <td>
-                                                <div class="btn-group" role="group">
+                                                    <span class="badge bg-success p-2" style="color: white;">Active</span>
+                                @else
+                                                    <span class="badge bg-danger p-2" style="color: white;">Inactive</span>
+                                @endif
+                            </td>
+                            <td>
+                                <div class="btn-group" role="group">
                                                     <button wire:click="showEditSamplePointModal({{ $samplePoint->id }})" 
                                                             class="btn btn-sm btn-outline-warning mr-1" 
-                                                            title="Edit">
-                                                        <i class="mdi mdi-pencil"></i>
-                                                    </button>
+                                            title="Edit">
+                                        <i class="mdi mdi-pencil"></i>
+                                    </button>
                                                     <button wire:click="deleteSamplePoint({{ $samplePoint->id }})" 
                                                             class="btn btn-sm btn-outline-danger mr-1" 
-                                                            title="Delete"
-                                                            onclick="return confirm('Are you sure you want to delete this sample point?')">
-                                                        <i class="mdi mdi-delete"></i>
-                                                    </button>
-                                                </div>
-                                            </td>
-                                        </tr>
+                                            title="Delete"
+                                            onclick="return confirm('Are you sure you want to delete this sample point?')">
+                                        <i class="mdi mdi-delete"></i>
+                                    </button>
+                                </div>
+                            </td>
+                        </tr>
                                     @endforeach
-                                </tbody>
-                            </table>
+                </tbody>
+            </table>
                         </div>
                         <!-- Pagination -->
                         <div class="d-flex justify-content-center mt-3">
@@ -160,19 +160,19 @@
                     @endif
                 </div>
             </div>
-        </div>
     </div>
+</div>
 
-    <!-- Sample Point Modal -->
+<!-- Sample Point Modal -->
     @if($showSamplePointModal)
         <div class="modal fade show d-block" tabindex="-1" style="background-color: rgba(0,0,0,0.5); overflow-y: auto;">
             <div class="modal-dialog modal-lg modal-dialog-scrollable">
-                <div class="modal-content">
-                    <div class="modal-header">
-                        <h5 class="modal-title">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">
                             <i class="mdi mdi-{{ $editingSamplePoint ? 'pencil' : 'plus' }}"></i>
                             {{ $editingSamplePoint ? 'Edit' : 'Create' }} Sample Point
-                        </h5>
+                    </h5>
                         <button type="button" class="btn-close" wire:click="closeSamplePointModal"></button>
                     </div>
                     <div class="modal-body" style="max-height: 70vh; overflow-y: auto;">
@@ -185,11 +185,11 @@
                                         @error('samplePointForm.name') <div class="invalid-feedback">{{ $message }}</div> @enderror
                                     </div>
                                 </div>
-                            </div>
+                </div>
                             
-                            <div class="row">
+                        <div class="row">
                                 <div class="col-md-12">
-                                    <div class="form-group mb-3">
+                                <div class="form-group mb-3">
                                         <label class="form-label">Description</label>
                                         <textarea wire:model="samplePointForm.description" class="form-control" rows="3" placeholder="Enter sample point description"></textarea>
                                     </div>
@@ -197,15 +197,15 @@
                             </div>
 
                             <div class="row">
-                                <div class="col-md-6">
-                                    <div class="form-group mb-3">
+                            <div class="col-md-6">
+                                <div class="form-group mb-3">
                                         <label class="form-label">Company Unit <span class="text-danger">*</span></label>
                                         <select wire:model="samplePointForm.unit_id" class="form-select modern-select @error('samplePointForm.unit_id') is-invalid @enderror">
                                             <option value="">Select Company Unit</option>
-                                            @foreach($units as $unit)
-                                                <option value="{{ $unit->id }}">{{ $unit->name }}</option>
-                                            @endforeach
-                                        </select>
+                                        @foreach($units as $unit)
+                                            <option value="{{ $unit->id }}">{{ $unit->name }}</option>
+                                        @endforeach
+                                    </select>
                                         @error('samplePointForm.unit_id') <div class="invalid-feedback">{{ $message }}</div> @enderror
                                     </div>
                                 </div>
@@ -220,31 +220,31 @@
                                         </select>
                                         @error('samplePointForm.area_id') <div class="invalid-feedback">{{ $message }}</div> @enderror
                                     </div>
-                                </div>
                             </div>
-
+                        </div>
+                        
                             <div class="row">
                                 <div class="col-md-12">
-                                    <div class="form-group mb-3">
+                        <div class="form-group mb-3">
                                         <div class="form-check form-check-inline">
                                             <input type="checkbox" wire:model="samplePointForm.active" class="form-check-input" id="sample_point_active">
                                             <label class="form-check-label" for="sample_point_active">Active</label>
                                         </div>
                                     </div>
-                                </div>
-                            </div>
-                        </form>
-                    </div>
-                    <div class="modal-footer">
+                        </div>
+                        </div>
+                    </form>
+                </div>
+                <div class="modal-footer">
                         <button type="button" class="btn btn-secondary" wire:click="closeSamplePointModal">Cancel</button>
                         <button type="button" class="btn btn-primary" wire:click="saveSamplePoint">
                             <i class="mdi mdi-content-save"></i> Save
-                        </button>
+                    </button>
                     </div>
-                </div>
             </div>
         </div>
-    @endif
+    </div>
+@endif
 
     <style>
     .modal.show {

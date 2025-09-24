@@ -61,7 +61,7 @@
                     @if($standards->count() > 0)
                         <div class="table-responsive">
                             <table class="table table-hover">
-                                <thead class="table-light">
+                                <thead style="background-color: rgba(0, 0, 0, .03);">
                                     <tr>
                                         <th>Code</th>
                                         <th>Name</th>
@@ -75,26 +75,26 @@
                                     @foreach($standards as $standard)
                                         <tr>
                                             <td>
-                                                <span class="badge bg-secondary">{{ $standard->code }}</span>
+                                                <span class="badge bg-secondary" style="color: white;">{{ $standard->code }}</span>
                                             </td>
                                             <td>
                                                 <strong>{{ $standard->name }}</strong>
                                                 @if($standard->main_standard)
-                                                    <span class="badge bg-warning ms-2">Main</span>
+                                                    <span class="badge bg-warning ms-2" style="color: white;">Main</span>
                                                 @endif
                                             </td>
                                             <td>
                                                 @if($standard->is_qc_standard)
-                                                    <span class="badge bg-info">QC Standard</span>
+                                                    <span class="badge bg-info" style="color: white;">QC Standard</span>
                                                 @else
-                                                    <span class="badge bg-primary">Regular</span>
+                                                    <span class="badge bg-primary" style="color: white;">Regular</span>
                                                 @endif
                                             </td>
                                             <td>
-                                                <span class="badge bg-info">{{ $standard->standardAnalytes->count() }}</span>
+                                                <span class="badge bg-info" style="color: white;">{{ $standard->standardAnalytes->count() }}</span>
                                             </td>
                                             <td>
-                                                <span class="badge bg-{{ $standard->status ? 'success' : 'danger' }}">
+                                                <span class="badge bg-{{ $standard->status ? 'success' : 'danger' }}" style="color: white;">
                                                     {{ $standard->status ? 'Active' : 'Inactive' }}
                                                 </span>
                                             </td>
@@ -150,7 +150,7 @@
                         @if($standardAnalytes->count() > 0)
                             <div class="table-responsive">
                                 <table class="table table-hover">
-                                    <thead class="table-light">
+                                    <thead style="background-color: rgba(0, 0, 0, .03);">
                                         <tr>
                                             <th>Analyte</th>
                                             <th>Standard Value</th>
@@ -173,9 +173,9 @@
                                                 </td>
                                                 <td>
                                                     @if($standardAnalyte->standard_value_type === 'is_range')
-                                                        <span class="badge bg-info">Range</span>
+                                                        <span class="badge bg-info" style="color: white;">Range</span>
                                                     @else
-                                                        <span class="badge bg-primary">Value</span>
+                                                        <span class="badge bg-primary" style="color: white;">Value</span>
                                                     @endif
                                                 </td>
                                                 <td>
@@ -189,7 +189,7 @@
                                                     {{ Str::limit($standardAnalyte->comments, 50) }}
                                                 </td>
                                                 <td>
-                                                    <span class="badge bg-{{ $standardAnalyte->is_active ? 'success' : 'danger' }}">
+                                                    <span class="badge bg-{{ $standardAnalyte->is_active ? 'success' : 'danger' }}" style="color: white;">
                                                         {{ $standardAnalyte->is_active ? 'Active' : 'Inactive' }}
                                                     </span>
                                                 </td>

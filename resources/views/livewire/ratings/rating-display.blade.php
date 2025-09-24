@@ -39,7 +39,7 @@
                     <h6>All Available Ratings</h6>
                     <div class="table-responsive">
                         <table class="table table-sm table-striped">
-                            <thead>
+                            <thead style="background-color: rgba(0, 0, 0, .03);">
                                 <tr>
                                     <th>Key</th>
                                     <th>Label</th>

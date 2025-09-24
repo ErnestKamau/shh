@@ -100,7 +100,7 @@
                     @if($this->sampleTypes->count() > 0)
                         <div class="table-responsive">
                             <table class="table table-hover">
-                                <thead class="table-light">
+                                <thead style="background-color: rgba(0, 0, 0, .03);">
                                     <tr>
                                         <th>Code</th>
                                         <th>Name</th>
@@ -134,16 +134,16 @@
                                             </td>
                                             <td>
                                                 @if($sampleType->reportFormat)
-                                                    <span class="badge bg-primary p-2">{{ $sampleType->reportFormat->report_name }}</span>
+                                                    <span class="badge bg-primary p-2" style="color: white;">{{ $sampleType->reportFormat->report_name }}</span>
                                                 @else
                                                     <span class="text-muted">No Format</span>
                                                 @endif
                                             </td>
                                             <td>
-                                                <span class="badge bg-info">{{ $sampleType->analysis_types->count() }}</span>
+                                                <span class="badge bg-info" style="color: white;">{{ $sampleType->analysis_types->count() }}</span>
                                             </td>
                                             <td>
-                                                <span class="badge p-2 bg-{{ $sampleType->active ? 'success' : 'danger' }}">
+                                                <span class="badge p-2 bg-{{ $sampleType->active ? 'success' : 'danger' }}" style="color: white;">
                                                     {{ $sampleType->active ? 'Active' : 'Inactive' }}
                                                 </span>
                                             </td>
@@ -216,7 +216,7 @@
                         @if($analysisTypes->count() > 0)
                             <div class="table-responsive">
                                 <table class="table table-hover">
-                                    <thead class="table-light">
+                                    <thead style="background-color: rgba(0, 0, 0, .03);">
                                         <tr>
                                             <th>Code</th>
                                             <th>Name</th>
@@ -231,7 +231,7 @@
                                         @foreach($analysisTypes as $analysisType)
                                             <tr>
                                                 <td>
-                                                    <span class="badge bg-secondary">{{ $analysisType->code }}</span>
+                                                    <span class="badge bg-secondary" style="color: white;">{{ $analysisType->code }}</span>
                                                 </td>
                                                 <td>
                                                     <strong>{{ $analysisType->name }}</strong>
@@ -246,13 +246,13 @@
                                                     {{ $lab ? $lab->name : 'N/A' }}
                                                 </td>
                                                 <td>
-                                                    <span class="badge bg-info">{{ $analysisType->analysis_elements->count() }}</span>
+                                                    <span class="badge bg-info" style="color: white;">{{ $analysisType->analysis_elements->count() }}</span>
                                                 </td>
                                                 <td>
-                                                    <span class="badge bg-primary">{{ $analysisType->level }}</span>
+                                                    <span class="badge bg-primary" style="color: white;">{{ $analysisType->level }}</span>
                                                 </td>
                                                 <td>
-                                                    <span class="badge bg-{{ $analysisType->active ? 'success' : 'danger' }}">
+                                                    <span class="badge bg-{{ $analysisType->active ? 'success' : 'danger' }}" style="color: white;">
                                                         {{ $analysisType->active ? 'Active' : 'Inactive' }}
                                                     </span>
                                                 </td>
@@ -309,7 +309,7 @@
                         @if($elements->count() > 0)
                             <div class="table-responsive">
                                 <table class="table table-hover">
-                                    <thead class="table-light">
+                                    <thead style="background-color: rgba(0, 0, 0, .03);">
                                         <tr>
                                             <th>Analyte</th>
                                             <th>Method</th>
@@ -341,10 +341,10 @@
                                                     {{ $element->reporting_unit }}
                                                 </td>
                                                 <td>
-                                                    <span class="badge bg-primary">{{ $element->level }}</span>
+                                                    <span class="badge bg-primary" style="color: white;">{{ $element->level }}</span>
                                                 </td>
                                                 <td>
-                                                    <span class="badge bg-{{ $element->active ? 'success' : 'danger' }}">
+                                                    <span class="badge bg-{{ $element->active ? 'success' : 'danger' }}" style="color: white;">
                                                         {{ $element->active ? 'Active' : 'Inactive' }}
                                                     </span>
                                                 </td>

@@ -105,7 +105,7 @@
                         
                         <div class="table-responsive">
                             <table class="table table-striped table-hover">
-                                <thead class="thead-dark">
+                                <thead style="background-color: rgba(0, 0, 0, .03);">
                                     <tr>
                                         <th>Batch Code</th>
                                         <th>Reason</th>
@@ -125,11 +125,11 @@
                                             </td>
                                             <td>
                                                 @if($amendment->status === 'approved')
-                                                    <span class="badge bg-success p-2">Approved</span>
+                                                    <span class="badge bg-success p-2" style="color: white;">Approved</span>
                                                 @elseif($amendment->status === 'rejected')
-                                                    <span class="badge bg-danger p-2">Rejected</span>
+                                                    <span class="badge bg-danger p-2" style="color: white;">Rejected</span>
                                                 @else
-                                                    <span class="badge bg-warning p-2">Pending</span>
+                                                    <span class="badge bg-warning p-2" style="color: white;">Pending</span>
                                                 @endif
                                             </td>
                                             <td>

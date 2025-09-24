@@ -92,7 +92,7 @@
                     @if($this->analysisTypes->count() > 0)
                         <div class="table-responsive">
                             <table class="table table-hover">
-                                <thead class="table-light">
+                                <thead style="background-color: rgba(0, 0, 0, .03);">
                                     <tr>
                                         <th>Code</th>
                                         <th>Name</th>
@@ -120,14 +120,14 @@
                                                 {{ $analysisType->lab->name ?? 'N/A' }}
                                             </td>
                                             <td>
-                                                <span class="badge bg-info p-2">{{ $analysisType->analysis_elements->count() }}</span>
+                                                <span class="badge bg-info p-2" style="color: white;">{{ $analysisType->analysis_elements->count() }}</span>
                                             </td>
                                             <td>
-                                                <span class="badge bg-primary p-2">{{ $analysisType->level }}</span>
+                                                <span class="badge bg-primary p-2" style="color: white;">{{ $analysisType->level }}</span>
                                             </td>
                                             <td>
                                                 @if($analysisType->reporting_time)
-                                                    <span class="badge bg-info p-2">{{ $analysisType->reporting_time }}d</span>
+                                                    <span class="badge bg-info p-2" style="color: white;">{{ $analysisType->reporting_time }}d</span>
                                                 @else
                                                     <span class="text-muted">Not set</span>
                                                 @endif
@@ -208,7 +208,7 @@
                         @if($elements->count() > 0)
                             <div class="table-responsive">
                                 <table class="table table-hover">
-                                    <thead class="table-light">
+                                    <thead style="background-color: rgba(0, 0, 0, .03);">
                                         <tr>
                                             <th>Analyte</th>
                                             <th>Method</th>
@@ -251,10 +251,10 @@
                                                     {{ $element->hod }}
                                                 </td>
                                                 <td>
-                                                    <span class="badge bg-primary">{{ $element->level }}</span>
+                                                    <span class="badge bg-primary" style="color: white;">{{ $element->level }}</span>
                                                 </td>
                                                 <td>
-                                                    <span class="badge bg-{{ $element->active ? 'success' : 'danger' }}">
+                                                    <span class="badge bg-{{ $element->active ? 'success' : 'danger' }}" style="color: white;">
                                                         {{ $element->active ? 'Active' : 'Inactive' }}
                                                     </span>
                                                 </td>

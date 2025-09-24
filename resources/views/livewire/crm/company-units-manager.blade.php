@@ -37,7 +37,7 @@
                     @if($this->units->count() > 0)
                         <div class="table-responsive">
                             <table class="table table-striped table-hover">
-                                <thead class="thead-dark">
+                                        <thead style="background-color: rgba(0, 0, 0, .03);">
                                     <tr>
                                         <th>Name</th>
                                         <th>Status</th>
@@ -52,9 +52,9 @@
                                             </td>
                                             <td>
                                                 @if($unit->active == 1)
-                                                    <span class="badge bg-success p-2">Active</span>
+                                                            <span class="badge bg-success p-2" style="color: white;">Active</span>
                                                 @else
-                                                    <span class="badge bg-danger p-2">Inactive</span>
+                                                    <span class="badge bg-danger p-2" style="color: white;">Inactive</span>
                                                 @endif
                                             </td>
                                             <td>

@@ -141,7 +141,7 @@
                             
                             <div class="table-responsive">
                                 <table class="table table-striped table-hover">
-                                    <thead class="thead-dark">
+                                    <thead style="background-color: rgba(0, 0, 0, .03);">
                                         <tr>
                                             <th>Code</th>
                                             <th>Name</th>
@@ -155,29 +155,29 @@
                                         @foreach($this->standards as $standard)
                                             <tr>
                                                 <td>
-                                                    <span class="badge bg-secondary p-2">{{ $standard->code }}</span>
+                                                    <span class="badge bg-secondary p-2" style="color: white;">{{ $standard->code }}</span>
                                                 </td>
                                                 <td>
                                                     <strong>{{ $standard->name }}</strong>
                                                     @if($standard->main_standard)
-                                                        <br><span class="badge bg-warning p-1 mt-1">Main</span>
+                                                        <br><span class="badge bg-warning p-1 mt-1" style="color: white;">Main</span>
                                                     @endif
                                                 </td>
                                                 <td>
                                                     @if($standard->is_qc_standard)
-                                                        <span class="badge bg-info p-2">QC Standard</span>
+                                                        <span class="badge bg-info p-2" style="color: white;">QC Standard</span>
                                                     @else
-                                                        <span class="badge bg-primary p-2">Regular</span>
+                                                        <span class="badge bg-primary p-2" style="color: white;">Regular</span>
                                                     @endif
                                                 </td>
                                                 <td>
-                                                    <span class="badge bg-info p-2">{{ $standard->standardAnalytes->count() }}</span>
+                                                    <span class="badge bg-info p-2" style="color: white;">{{ $standard->standardAnalytes->count() }}</span>
                                                 </td>
                                                 <td>
                                                     @if($standard->status)
-                                                        <span class="badge bg-success p-2">Active</span>
+                                                        <span class="badge bg-success p-2" style="color: white;">Active</span>
                                                     @else
-                                                        <span class="badge bg-danger p-2">Inactive</span>
+                                                        <span class="badge bg-danger p-2" style="color: white;">Inactive</span>
                                                     @endif
                                                 </td>
                                                 <td>
@@ -246,7 +246,7 @@
                             
                             <div class="table-responsive">
                                 <table class="table table-striped table-hover">
-                                    <thead class="thead-dark">
+                                    <thead style="background-color: rgba(0, 0, 0, .03);">
                                         <tr>
                                             <th>Code</th>
                                             <th>Name</th>
@@ -258,16 +258,16 @@
                                         @foreach($this->standardValues as $standardValue)
                                             <tr>
                                                 <td>
-                                                    <span class="badge bg-secondary p-2">{{ $standardValue->code }}</span>
+                                                    <span class="badge bg-secondary p-2" style="color: white;">{{ $standardValue->code }}</span>
                                                 </td>
                                                 <td>
                                                     <strong>{{ $standardValue->name }}</strong>
                                                 </td>
                                                 <td>
                                                     @if($standardValue->status)
-                                                        <span class="badge bg-success p-2">Active</span>
+                                                        <span class="badge bg-success p-2" style="color: white;">Active</span>
                                                     @else
-                                                        <span class="badge bg-danger p-2">Inactive</span>
+                                                        <span class="badge bg-danger p-2" style="color: white;">Inactive</span>
                                                     @endif
                                                 </td>
                                                 <td>

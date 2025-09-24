@@ -73,7 +73,7 @@
                     @if($remedyHeaders->count() > 0)
                         <div class="table-responsive">
                             <table class="table table-hover">
-                                <thead class="table-light">
+                                <thead style="background-color: rgba(0, 0, 0, .03);">
                                     <tr>
                                         <th>Name</th>
                                         <th>Description</th>
@@ -92,7 +92,7 @@
                                                 {{ $remedyHeader->description ? \Illuminate\Support\Str::limit($remedyHeader->description, 50) : '-' }}
                                             </td>
                                             <td>
-                                                <span class="badge bg-info">{{ $remedyHeader->remedy_details_count }}</span>
+                                                <span class="badge bg-info" style="color: white;">{{ $remedyHeader->remedy_details_count }}</span>
                                             </td>
                                             <td>
                                                 {{ $remedyHeader->created_at->format('M d, Y') }}

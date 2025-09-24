@@ -105,7 +105,7 @@
                         
                         <div class="table-responsive">
                             <table class="table table-striped table-hover">
-                                <thead class="thead-dark">
+                                <thead style="background-color: rgba(0, 0, 0, .03);">
                                     <tr>
                                         <th>Batch Code</th>
                                         <th>Sample Type</th>
@@ -126,11 +126,11 @@
                                             </td>
                                             <td>
                                                 @if($report->status === 'Completed')
-                                                    <span class="badge bg-success p-2">Completed</span>
+                                                    <span class="badge bg-success p-2" style="color: white;">Completed</span>
                                                 @elseif($report->status === 'In Progress')
-                                                    <span class="badge bg-warning p-2">In Progress</span>
+                                                    <span class="badge bg-warning p-2" style="color: white;">In Progress</span>
                                                 @else
-                                                    <span class="badge bg-secondary p-2">{{ $report->status }}</span>
+                                                    <span class="badge bg-secondary p-2" style="color: white;">{{ $report->status }}</span>
                                                 @endif
                                             </td>
                                             <td>
@@ -138,11 +138,11 @@
                                             </td>
                                             <td>
                                                 @if($report->batch_report_url)
-                                                    <span class="badge bg-info p-2">
+                                                    <span class="badge bg-info p-2" style="color: white;">
                                                         <i class="mdi mdi-file-pdf"></i> Available
                                                     </span>
                                                 @else
-                                                    <span class="badge bg-secondary p-2">Not Available</span>
+                                                    <span class="badge bg-secondary p-2" style="color: white;">Not Available</span>
                                                 @endif
                                             </td>
                                             <td>

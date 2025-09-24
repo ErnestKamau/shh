@@ -98,7 +98,7 @@
                         
                         <div class="table-responsive">
                             <table class="table table-striped table-hover">
-                                <thead class="thead-dark">
+                                <thead style="background-color: rgba(0, 0, 0, .03);">
                                     <tr>
                                         <th>Analyte</th>
                                         <th>Standard Value</th>
@@ -123,9 +123,9 @@
                                             </td>
                                             <td>
                                                 @if($standardAnalyte->standard_value_type === 'is_range')
-                                                    <span class="badge bg-info p-2">Range</span>
+                                                    <span class="badge bg-info p-2" style="color: white;">Range</span>
                                                 @else
-                                                    <span class="badge bg-primary p-2">Value</span>
+                                                    <span class="badge bg-primary p-2" style="color: white;">Value</span>
                                                 @endif
                                             </td>
                                             <td>
@@ -149,9 +149,9 @@
                                             </td>
                                             <td>
                                                 @if($standardAnalyte->is_active)
-                                                    <span class="badge bg-success p-2">Active</span>
+                                                    <span class="badge bg-success p-2" style="color: white;">Active</span>
                                                 @else
-                                                    <span class="badge bg-danger p-2">Inactive</span>
+                                                    <span class="badge bg-danger p-2" style="color: white;">Inactive</span>
                                                 @endif
                                             </td>
                                             <td>

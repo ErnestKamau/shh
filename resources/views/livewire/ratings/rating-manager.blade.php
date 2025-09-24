@@ -83,7 +83,7 @@
                     @if($ratingHeaders->count() > 0)
                         <div class="table-responsive">
                             <table class="table table-striped table-hover">
-                                <thead class="thead-dark">
+                                <thead style="background-color: rgba(0, 0, 0, .03);">
                                     <tr>
                                         <th>Name</th>
                                         <th>Description</th>

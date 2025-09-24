@@ -150,7 +150,7 @@
                         
                     <div class="table-responsive">
                             <table class="table table-striped table-hover">
-                                <thead class="thead-dark">
+                                <thead style="background-color: rgba(0, 0, 0, .03);">
                                 <tr>
                                         <th style="width: 50px;">
                                             <input type="checkbox" wire:model="selectAll" class="form-check-input">
@@ -187,9 +187,9 @@
                                         <td>{{ $customer->country->name ?? 'N/A' }}</td>
                                         <td>
                                             @if($customer->active == 1)
-                                                    <span class="badge bg-success p-2">Active</span>
+                                                    <span class="badge bg-success p-2" style="color: white;">Active</span>
                                             @else
-                                                    <span class="badge bg-danger p-2">Inactive</span>
+                                                    <span class="badge bg-danger p-2" style="color: white;">Inactive</span>
                                             @endif
                                         </td>
                                             <td>
