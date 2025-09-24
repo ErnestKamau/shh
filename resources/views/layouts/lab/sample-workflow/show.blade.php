@@ -44,6 +44,359 @@
 			display: none;
 		}
 
+		/* Capture Results Modal Styles */
+		.parameter-card {
+			border: 1px solid #e3e6f0;
+			border-radius: 8px;
+			transition: all 0.3s ease;
+		}
+
+		.parameter-card:hover {
+			box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+		}
+
+		.bg-success-light {
+			background-color: rgba(40, 167, 69, 0.1) !important;
+			border-color: #28a745 !important;
+		}
+
+		.bg-danger-light {
+			background-color: rgba(220, 53, 69, 0.1) !important;
+			border-color: #dc3545 !important;
+		}
+
+		.bg-secondary-light {
+			background-color: rgba(108, 117, 125, 0.1) !important;
+			border-color: #6c757d !important;
+		}
+
+		.form-label.small {
+			font-size: 0.875rem;
+			font-weight: 600;
+			margin-bottom: 0.25rem;
+		}
+
+		.card-header h6 {
+			color: #495057;
+			font-weight: 600;
+		}
+
+		#capture-results-modal .modal-dialog {
+			max-width: 95%;
+		}
+
+		/* Table-based parameter styles */
+		#parameters-table {
+			font-size: 0.9rem;
+		}
+		
+		#parameters-table th {
+			background-color: #f8f9fa;
+			border: 1px solid #dee2e6;
+			text-align: center;
+			vertical-align: middle;
+			padding: 8px 4px;
+		}
+		
+		#parameters-table th.sample-code-cell {
+			background-color: #e9ecef;
+			font-weight: 600;
+		}
+		
+		#parameters-table th.parameter-header {
+			background-color: #007bff;
+			color: white;
+			font-weight: 600;
+		}
+		
+		#parameters-table th.method-header,
+		#parameters-table th.symbol-header,
+		#parameters-table th.unit-header,
+		#parameters-table th.result-header,
+		#parameters-table th.standard-header {
+			background-color: #6c757d;
+			color: white;
+			font-size: 0.8rem;
+		}
+		
+		#parameters-table td {
+			border: 1px solid #dee2e6;
+			padding: 6px 4px;
+			vertical-align: middle;
+		}
+		
+		#parameters-table td.sample-code-cell {
+			background-color: #f8f9fa;
+			font-weight: 600;
+			text-align: center;
+		}
+		
+		#parameters-table td.method-cell {
+			background-color: #e3f2fd;
+			font-size: 0.8rem;
+			text-align: center;
+		}
+		
+		#parameters-table td.symbol-cell {
+			background-color: #f3e5f5;
+			text-align: center;
+			font-weight: 500;
+		}
+		
+		#parameters-table td.result-cell {
+			background-color: #fff3e0;
+			padding: 2px;
+		}
+		
+		#parameters-table .result-input {
+			border: 1px solid #ced4da;
+			border-radius: 4px;
+			padding: 4px 6px;
+			width: 100%;
+			font-size: 0.85rem;
+		}
+		
+		#parameters-table .result-input:focus {
+			border-color: #007bff;
+			box-shadow: 0 0 0 0.2rem rgba(0, 123, 255, 0.25);
+		}
+		
+		#parameters-table .result-input.border-warning {
+			border-color: #ffc107;
+		}
+		
+		#parameters-table .result-input.border-success {
+			border-color: #28a745;
+		}
+		
+		#parameters-table .result-input.border-danger {
+			border-color: #dc3545;
+		}
+		
+		/* Editable field styles */
+		#parameters-table .method-select,
+		#parameters-table .symbol-input,
+		#parameters-table .unit-select {
+			border: 1px solid #ced4da;
+			border-radius: 4px;
+			padding: 4px 6px;
+			width: 100%;
+			font-size: 0.85rem;
+			background-color: white;
+		}
+		
+		#parameters-table .method-select:focus,
+		#parameters-table .symbol-input:focus,
+		#parameters-table .unit-select:focus {
+			border-color: #007bff;
+			box-shadow: 0 0 0 0.2rem rgba(0, 123, 255, 0.25);
+		}
+		
+		#parameters-table td.unit-cell {
+			background-color: #f0f8ff;
+			padding: 2px;
+		}
+		
+		#parameters-table td.standard-cell {
+			background-color: #fff8e1;
+			padding: 2px;
+		}
+		
+		#parameters-table .standard-input {
+			border: 1px solid #ced4da;
+			border-radius: 4px;
+			padding: 4px 6px;
+			font-size: 0.85rem;
+			background-color: #f8f9fa;
+		}
+		
+		#parameters-table .standard-input:focus {
+			border-color: #007bff;
+			box-shadow: 0 0 0 0.2rem rgba(0, 123, 255, 0.25);
+			background-color: white;
+		}
+		
+		#parameters-table .edit-standard-btn {
+			padding: 2px 6px;
+			font-size: 0.75rem;
+			border-radius: 3px;
+		}
+		
+		#parameters-table .edit-standard-btn:hover {
+			background-color: #007bff;
+			border-color: #007bff;
+			color: white;
+		}
+		
+		/* Scrollable table container */
+		#parameters-table-wrapper {
+			border: 1px solid #dee2e6;
+			border-radius: 8px;
+		}
+		
+		#parameters-table-wrapper::-webkit-scrollbar {
+			height: 8px;
+			width: 8px;
+		}
+		
+		#parameters-table-wrapper::-webkit-scrollbar-track {
+			background: #f1f1f1;
+			border-radius: 4px;
+		}
+		
+		#parameters-table-wrapper::-webkit-scrollbar-thumb {
+			background: #c1c1c1;
+			border-radius: 4px;
+		}
+		
+		#parameters-table-wrapper::-webkit-scrollbar-thumb:hover {
+			background: #a8a8a8;
+		}
+		
+		/* Sample Details Section Styles */
+		#sample-details-section .card {
+			border: 1px solid #dee2e6;
+			border-radius: 8px;
+			box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+		}
+		
+		#sample-details-section .card-header {
+			background: linear-gradient(135deg, #007bff 0%, #0056b3 100%);
+			border-bottom: none;
+		}
+		
+		#sample-details-section .form-control-plaintext {
+			background-color: #f8f9fa;
+			border: 1px solid #e9ecef;
+			border-radius: 4px;
+			padding: 8px 12px;
+			margin-bottom: 0;
+			min-height: 38px;
+			display: flex;
+			align-items: center;
+		}
+		
+		#sample-details-section .form-group {
+			margin-bottom: 1rem;
+		}
+		
+		#sample-details-section label {
+			font-size: 0.9rem;
+			margin-bottom: 0.5rem;
+		}
+		
+		/* Rich text content styling */
+		.rich-text-content {
+			min-height: 60px;
+			max-height: 200px;
+			overflow-y: auto;
+			word-wrap: break-word;
+		}
+		
+		.rich-text-content p {
+			margin-bottom: 0.5rem;
+		}
+		
+		.rich-text-content p:last-child {
+			margin-bottom: 0;
+		}
+		
+		.rich-text-content ul, .rich-text-content ol {
+			margin-bottom: 0.5rem;
+			padding-left: 1.5rem;
+		}
+		
+		.rich-text-content strong, .rich-text-content b {
+			font-weight: 600;
+		}
+		
+		.rich-text-content em, .rich-text-content i {
+			font-style: italic;
+		}
+		
+		.rich-text-content u {
+			text-decoration: underline;
+		}
+
+		#parameters-table .sample-code-cell {
+			background-color: #f8f9fa;
+			font-weight: 600;
+			text-align: left;
+			min-width: 120px;
+		}
+
+		#parameters-table .result-input {
+			width: 100%;
+			border: 1px solid #ced4da;
+			border-radius: 4px;
+			padding: 4px 6px;
+			font-size: 0.8rem;
+		}
+
+		#parameters-table .method-cell,
+		#parameters-table .symbol-cell {
+			font-size: 0.75rem;
+			max-width: 120px;
+		}
+
+		#parameters-table .analyte-cell {
+			font-size: 0.8rem;
+			font-weight: 600;
+			max-width: 150px;
+		}
+
+		#parameters-table .result-cell {
+			min-width: 100px;
+		}
+
+		.parameter-row.table-success {
+			background-color: rgba(40, 167, 69, 0.1) !important;
+		}
+
+		.parameter-row.table-danger {
+			background-color: rgba(220, 53, 69, 0.1) !important;
+		}
+
+		.parameter-row.table-secondary {
+			background-color: rgba(108, 117, 125, 0.1) !important;
+		}
+
+		.parameter-row .form-control-sm {
+			font-size: 0.875rem;
+		}
+
+		.parameter-row .form-label.small {
+			font-size: 0.75rem;
+			margin-bottom: 4px;
+			color: #6c757d;
+		}
+
+		.parameter-row .border-warning {
+			border-color: #ffc107 !important;
+			box-shadow: 0 0 0 0.2rem rgba(255, 193, 7, 0.25);
+		}
+
+		.double-capture-hint {
+			color: #856404 !important;
+			font-size: 0.75rem;
+		}
+
+		#parameters-table-wrapper {
+			box-shadow: 0 0.125rem 0.25rem rgba(0, 0, 0, 0.075);
+			border-radius: 0.375rem;
+			overflow: hidden;
+		}
+
+		.edit-method-btn {
+			padding: 2px 6px;
+			font-size: 0.75rem;
+		}
+
+		.method-display {
+			font-size: 0.875rem;
+			line-height: 1.4;
+		}
+
 		#sample-detail-rows tr{
 			cursor: pointer;
 		}
@@ -794,28 +1147,135 @@
 							<i class="mdi mdi-sync-alert"></i> Raw Results
 							<span class="btn btn-sm bg-light float-right" data-toggle="modal" data-target="#process-raw-results" style="box-shadow: rgba(0, 0, 0, 0.24) 0px 3px 8px;"><i class="mdi mdi-cog"></i> Process Results</span>
 						</h5>
+						
+						<!-- Modern Captured Results Table -->
 						<div class="table-responsive">
-							<table class="table table-sm table-condensed table-bordered table-stripped">
-								<thead>
-									<th>Sample Code</th>
-									<th>Analysis Type</th>
-									<th>Analyte</th>
-									<th>Result</th>
-									<th>Analyst</th>
-									<th>Remark</th>
+							<table class="table table-sm table-condensed table-bordered" id="captured-results-table">
+								<thead class="bg-light">
+									<tr>
+										<th class="text-center" style="width: 120px;">Sample Code</th>
+										@if(isset($raw_results) && count($raw_results) > 0)
+											@php
+												$uniqueAnalytes = $raw_results->groupBy('analyte_code')->keys();
+											@endphp
+											@foreach($uniqueAnalytes as $analyte)
+												<th class="text-center" style="min-width: 200px;">
+													<div class="d-flex flex-column align-items-center">
+														<span class="font-weight-bold">{{ $analyte }}</span>
+														<small class="text-muted">Result</small>
+													</div>
+												</th>
+											@endforeach
+										@endif
+									</tr>
 								</thead>
-								<tbody>
-									@foreach ($raw_results as $raw)
+								<tbody id="captured-results-tbody">
+									@if(isset($raw_results) && count($raw_results) > 0)
+										@php
+											$groupedBySample = $raw_results->groupBy(function($item) {
+												return $item->sample->sample_code;
+											});
+										@endphp
+										@foreach($groupedBySample as $sampleCode => $sampleResults)
+											<tr data-sample-code="{{ $sampleCode }}">
+												<td class="font-weight-bold text-center">{{ $sampleCode }}</td>
+												@foreach($uniqueAnalytes as $analyte)
+													@php
+														$result = $sampleResults->where('analyte_code', $analyte)->first();
+													@endphp
+													<td class="parameter-cell" data-analyte="{{ $analyte }}" data-sample="{{ $sampleCode }}">
+														@if($result)
+															<!-- Result Input Field -->
+															<div class="result-input-container mb-2">
+																<div class="input-group input-group-sm">
+																	<input type="text" 
+																		   class="form-control result-input {{ $result->remark == 'FAIL' ? 'border-danger' : ($result->remark == 'PASS' ? 'border-success' : 'border-secondary') }}" 
+																		   value="{{ $result->result }}" 
+																		   data-result-id="{{ $result->id }}"
+																		   data-sample-code="{{ $sampleCode }}"
+																		   data-analyte="{{ $analyte }}"
+																		   placeholder="Enter result...">
+																	<div class="input-group-append">
+																		<button class="btn btn-outline-secondary btn-sm parameter-settings-btn" 
+																				type="button" 
+																				data-result-id="{{ $result->id }}"
+																				data-toggle="modal" 
+																				data-target="#parameter-settings-modal">
+																			<i class="mdi mdi-dots-vertical"></i>
+																		</button>
+																	</div>
+																</div>
+															</div>
+															
+															<!-- Standard Limit Display -->
+															<div class="standard-limit-container">
+																<div class="d-flex align-items-center">
+																	<span class="standard-limit-text text-muted small">
+																		@if($result->main_value)
+																			{{ $result->main_value }}
+																		@else
+																			No limit set
+																		@endif
+																	</span>
+																	<button class="btn btn-link btn-sm p-0 ml-1 edit-standard-btn" 
+																			type="button"
+																			data-result-id="{{ $result->id }}"
+																			data-toggle="modal" 
+																			data-target="#edit-standard-modal">
+																		<i class="mdi mdi-pencil text-muted" style="font-size: 12px;"></i>
+																	</button>
+																</div>
+															</div>
+														@else
+															<!-- Empty Cell for Missing Parameter -->
+															<div class="result-input-container mb-2">
+																<div class="input-group input-group-sm">
+																	<input type="text" 
+																		   class="form-control result-input border-secondary" 
+																		   value="" 
+																		   data-sample-code="{{ $sampleCode }}"
+																		   data-analyte="{{ $analyte }}"
+																		   placeholder="Enter result...">
+																	<div class="input-group-append">
+																		<button class="btn btn-outline-secondary btn-sm parameter-settings-btn" 
+																				type="button" 
+																				data-sample-code="{{ $sampleCode }}"
+																				data-analyte="{{ $analyte }}"
+																				data-toggle="modal" 
+																				data-target="#parameter-settings-modal">
+																			<i class="mdi mdi-dots-vertical"></i>
+																		</button>
+																	</div>
+																</div>
+															</div>
+															
+															<!-- Empty Standard Limit -->
+															<div class="standard-limit-container">
+																<div class="d-flex align-items-center">
+																	<span class="standard-limit-text text-muted small">No limit set</span>
+																	<button class="btn btn-link btn-sm p-0 ml-1 edit-standard-btn" 
+																			type="button"
+																			data-sample-code="{{ $sampleCode }}"
+																			data-analyte="{{ $analyte }}"
+																			data-toggle="modal" 
+																			data-target="#edit-standard-modal">
+																		<i class="mdi mdi-pencil text-muted" style="font-size: 12px;"></i>
+																	</button>
+																</div>
+															</div>
+														@endif
+													</td>
+												@endforeach
+											</tr>
+										@endforeach
+									@else
 										<tr>
-
-											<td>{{ $raw->sample->sample_code }}</td>
-											<td>{{ $raw->analysis_type->name }}</td>
-											<td>{{ $raw->analyte_code }}</td>
-											<td>{{ $raw->result }}</td>
-											<td>{{ $raw->operator->name ?? '-' }}</td>
-											<td class="{{ $raw->remark == 'FAIL' ? 'text-danger' : '' }}">{{ $raw->remark }}</td>
+											<td colspan="100%" class="text-center text-muted py-4">
+												<i class="mdi mdi-information-outline mr-2"></i>
+												No raw results available
+											</td>
 										</tr>
-									@endforeach
+									@endif
 								</tbody>
 							</table>
 						</div>
@@ -1359,6 +1819,11 @@
 							@if(sizeof($not_captured) > 0)
 							<button type="button" class="btn btn-outline-danger btn-sm ml-2" data-toggle="modal" data-target="#missing-parameters-modal">
 								<i class="mdi mdi-content-save"></i> Missing Analytes
+							</button>
+							@endif
+							@if(isset($batch->status) && in_array($batch->status, array("Samples In Lab","Sample Approval")))
+							<button type="button" class="btn btn-success btn-sm ml-2" data-toggle="modal" data-target="#capture-results-modal">
+								<i class="mdi mdi-clipboard-text"></i> Capture Results
 							</button>
 							@endif
 						@endif
@@ -2014,7 +2479,7 @@
 <div class="modal fade" id="view-coa-report" role="dialog">
 	<div class="modal-dialog">
 		<div class="modal-content">
-			<form action="{{route('showBatchCOA')}}" method="get">
+			<form action="#" method="get" id="coa-report-form">
 				
 				<div class="modal-body">
 					@if($batch->getVerificationApprovalStatus() > 0 && $batch->status == 'Sample Verification' )
@@ -2038,9 +2503,12 @@
 						<span class="p-2">Confirm you want to view COA report for this batch by selecting the report standard below:</span>
 					</div>
 					<div class="form-group">
-						<label for="" class="control-label">Report Template</label>
-						<select name="template_id" id="" class="form-control">
-							<option value="Standard Report" selected>Standard Report</option>
+						<label for="" class="control-label">Report Format</label>
+						<select name="report_format" id="report_format_select" class="form-control" required>
+							<option value="">Select Report Format</option>
+							<option value="0">Aspergillus Report (MB 821/25-3)</option>
+							<option value="1">Microbiology Report (MB 826/25)</option>
+							<option value="2">Hygiene Swabs Report (MB 756/25-2)</option>
 						</select>
 					</div>
 					<div class="form-group hidden">
@@ -2049,7 +2517,7 @@
 					<input type="hidden" name="batch_id" value="{{$batch->id}}">
 				</div>
 				<div class="modal-footer">
-					<button class="btn btn-sm btn-outline-success" type="submit"><i class="mdi mdi-cogs"></i> View</button>
+					<button class="btn btn-sm btn-outline-success" type="button" id="generate-coa-btn"><i class="mdi mdi-cogs"></i> Generate Report</button>
 					<span class="btn btn-sm btn-default text-danger" data-dismiss="modal">Close</span>
 				</div>
 			</form>
@@ -2215,7 +2683,9 @@
 								<label for="" class="control-label">Report Format</label>
 								<select name="report_format" id="report_format" class="form-control">
 									<option value="">Choose Report Format</option>
-									<option value="0">Standard Report</option>
+									<option value="0">Aspergillus Report</option>
+									<option value="1">Microbiology Report</option>
+									<option value="2">Hygiene Swabs Report</option>
 								</select>
 							</div>
 							<div class="proccesing-point hidden">
@@ -3008,6 +3478,178 @@
 		</div>
 	</div>
 </div>
+
+<!-- Capture Results Modal -->
+<div id="capture-results-modal" class="modal fade" data-backdrop="static" data-keyboard="false" role="dialog">
+	<div class="modal-dialog" style="min-width: 95%;">
+		<div class="modal-content">
+			<div class="modal-header">
+				<h4 class="modal-title"><i class="mdi mdi-clipboard-text"></i> Capture Results</h4>
+				<span class="btn btn-outline-danger btn-sm float-right" data-dismiss="modal">Close</span>
+			</div>
+			<div class="modal-body">
+				<div class="row mb-3">
+					<div class="col-md-6">
+						<div class="form-group">
+							<label for="capture-sample-select" class="control-label">Select Sample:</label>
+							<select id="capture-sample-select" class="form-control">
+								<option value="">Select a sample...</option>
+							</select>
+						</div>
+					</div>
+					<div class="col-md-6">
+						<div class="form-group">
+							<label class="control-label">Selected Sample Info:</label>
+							<div id="selected-sample-info" class="alert alert-info p-2">
+								<small>No sample selected</small>
+							</div>
+						</div>
+					</div>
+				</div>
+				
+				<!-- Sample Details Section -->
+				<div id="sample-details-section" style="display: none;" class="mb-4">
+					<div class="card">
+						<div class="card-header bg-primary text-white">
+							<h5 class="mb-0"><i class="mdi mdi-information"></i> Sample Details</h5>
+						</div>
+						<div class="card-body">
+							<!-- First row with 3 items -->
+							<div class="row mb-3">
+								<div class="col-md-4">
+									<div class="form-group">
+										<label class="font-weight-bold text-muted">Sample Type:</label>
+										<div id="sample-type" class="form-control-plaintext">-</div>
+									</div>
+								</div>
+								<div class="col-md-4">
+									<div class="form-group">
+										<label class="font-weight-bold text-muted">Analysis Type:</label>
+										<div id="analysis-type" class="form-control-plaintext">-</div>
+									</div>
+								</div>
+								<div class="col-md-4">
+									<div class="form-group">
+										<label class="font-weight-bold text-muted">Lab Section:</label>
+										<div id="lab-section" class="form-control-plaintext">-</div>
+									</div>
+								</div>
+							</div>
+							
+							<!-- Second row with 3 items -->
+							<div class="row mb-3">
+								<div class="col-md-4">
+									<div class="form-group">
+										<label class="font-weight-bold text-muted">Sample Point:</label>
+										<div id="sample-point" class="form-control-plaintext">-</div>
+									</div>
+								</div>
+								<div class="col-md-4">
+									<div class="form-group">
+										<label class="font-weight-bold text-muted">Sample Status:</label>
+										<div id="sample-status" class="form-control-plaintext">-</div>
+									</div>
+								</div>
+								<div class="col-md-4">
+									<div class="form-group">
+										<label class="font-weight-bold text-muted">Batch ID:</label>
+										<div id="batch-id" class="form-control-plaintext">-</div>
+									</div>
+								</div>
+							</div>
+							
+							<!-- Sample Comments on its own row -->
+							<div class="row">
+								<div class="col-12">
+									<div class="form-group">
+										<label class="font-weight-bold text-muted">Sample Comments:</label>
+										<div id="sample-comments" class="form-control-plaintext rich-text-content">-</div>
+									</div>
+								</div>
+							</div>
+						</div>
+					</div>
+				</div>
+				
+				<div id="parameters-table-container">
+					<!-- Parameters will be loaded here in table format -->
+					<div class="table-responsive" style="display: none; max-height: 70vh; overflow-x: auto; overflow-y: auto;" id="parameters-table-wrapper">
+						<table class="table table-bordered table-striped" id="parameters-table" style="min-width: 1500px;">
+							<thead class="bg-light sticky-top" id="parameters-table-head">
+								<!-- Dynamic headers will be inserted here -->
+							</thead>
+							<tbody id="parameters-table-body">
+								<!-- Parameters will be inserted here -->
+							</tbody>
+						</table>
+					</div>
+				</div>
+				
+				<div class="text-center mt-3" id="capture-loading" style="display: none;">
+					<i class="mdi mdi-sync mdi-spin"></i> Loading parameters...
+				</div>
+			</div>
+			<div class="modal-footer">
+				<button type="button" class="btn btn-primary" id="save-capture-results"><i class="mdi mdi-content-save"></i> Save Results</button>
+				<button type="button" class="btn btn-default" data-dismiss="modal">Close</button>
+			</div>
+		</div>
+	</div>
+</div>
+
+<!-- Edit Method Modal -->
+<div id="edit-method-modal" class="modal fade" role="dialog">
+	<div class="modal-dialog">
+		<div class="modal-content">
+			<div class="modal-header">
+				<h4 class="modal-title"><i class="mdi mdi-beaker"></i> Edit Method & Reporting Unit</h4>
+				<span class="btn btn-outline-danger btn-sm float-right" data-dismiss="modal">Close</span>
+			</div>
+			<div class="modal-body">
+				<div class="form-group">
+					<label for="method-select" class="control-label">Method:</label>
+					<select id="method-select" class="form-control">
+						<option value="">Select method...</option>
+					</select>
+				</div>
+				<div class="form-group">
+					<label for="reporting-unit-select" class="control-label">Reporting Unit:</label>
+					<select id="reporting-unit-select" class="form-control">
+						<option value="">Select reporting unit...</option>
+						@if($reportingUnits)
+							@foreach($reportingUnits as $unit)
+								<option value="{{ $unit['name'] }}">{{ $unit['name'] }}</option>
+							@endforeach
+						@endif
+					</select>
+				</div>
+				<div class="form-group">
+					<label for="new-method-name" class="control-label">Add New Method:</label>
+					<div class="input-group">
+						<input type="text" id="new-method-name" class="form-control" placeholder="Enter new method name...">
+						<div class="input-group-append">
+							<button class="btn btn-outline-primary" type="button" id="add-new-method">Add</button>
+						</div>
+					</div>
+				</div>
+				<div class="form-group">
+					<label for="new-unit-name" class="control-label">Add New Reporting Unit:</label>
+					<div class="input-group">
+						<input type="text" id="new-unit-name" class="form-control" placeholder="Enter new unit name...">
+						<div class="input-group-append">
+							<button class="btn btn-outline-primary" type="button" id="add-new-unit">Add</button>
+						</div>
+					</div>
+				</div>
+			</div>
+			<div class="modal-footer">
+				<button type="button" class="btn btn-primary" id="save-method-unit"><i class="mdi mdi-content-save"></i> Save</button>
+				<button type="button" class="btn btn-default" data-dismiss="modal">Close</button>
+			</div>
+		</div>
+	</div>
+</div>
+
 <div class="modal fade" id="capture-markings" role="dialog">
 	<div class="modal-dialog modal-lg">
 		<div class="modal-content">
@@ -3805,15 +4447,27 @@
 		$('#process-results-modal').on('show.bs.modal',function(){
 			var batch = $(this).data('batch');
 			$('#process-results-modal').find('.proccesing-point').addClass('hidden');
-			// $('#process-results-modal').find('#report_format').on('clic')
+			$('#process-results-modal').find('#initiate-process').prop('disabled', false).removeClass('disabled');
+			$('#process-results-modal').find('#report_format').val('');
+			
 			$include_pesticide = $('#process-results-modal').find('add_pesticide').is(':checked') ? 1 : 0;
-			$('#process-results-modal').find('#initiate-process').on('click',()=>{
+			$('#process-results-modal').find('#initiate-process').off('click').on('click',function(){
+				var selectedFormat = $('#process-results-modal').find('#report_format').val();
+				
+				// Validate that a report format has been selected
+				if (!selectedFormat) {
+					alert('Please select a report format before generating the report.');
+					return;
+				}
+				
+				// Disable the button to prevent double-clicks
+				$(this).prop('disabled', true).addClass('disabled').html('<i class="mdi mdi-loading mdi-spin"></i> Generating...');
 				$('#process-results-modal').find('.proccesing-point').removeClass('hidden');
 				
 				$.ajax({
 					url:"{{ route('process-raw-results', ['batch_id'=> isset($batch->id) ? $batch->id : 0]) }}",	
 					data:{
-						report_format : $('#process-results-modal').find('#report_format').val(),
+						report_format : selectedFormat,
 						include_pesticide :$include_pesticide
 					},
 					method:'GET',
@@ -3834,6 +4488,10 @@
 					},
 					error: function(data){
 						console.log(data);
+						// Re-enable the button on error
+						$('#process-results-modal').find('#initiate-process').prop('disabled', false).removeClass('disabled').html('<i class="mdi mdi-cogs"></i> Generate Report');
+						$('#process-results-modal').find('.proccesing-point').addClass('hidden');
+						alert('An error occurred while processing the report. Please try again.');
 					}
 				})
 			})
@@ -5358,9 +6016,7 @@
 		`);
 
 		var $row = $oGRow.clone();
-		console.log('am here -----------1')
-		console.log(data)
-		console.log('am here -----------1')
+		
 
 		data.reporting_unit_id == '' ? $($row).find('.sample-reporting-unit').val(data.my_analyte.reporting_unit) :$($row).find('.sample-reporting-unit').val(data.reporting_unit_id) ;
 		$($row).find('.sample-reporting-unit').select2();
@@ -5487,6 +6143,1171 @@
 
 		return $row;
 	}
+
+	// Capture Results Modal Functionality
+	var currentParameterData = {};
+	var availableMethods = [];
+	var currentCaptureParameterId = null;
+
+	// Load data when capture results modal opens
+	$('#capture-results-modal').on('show.bs.modal', function(e) {
+		console.log('=== Capture Results Modal Opening ===');
+		debugDataStructure();
+		loadSampleDropdown();
+	});
+	
+	function debugDataStructure() {
+		console.log('=== DEBUGGING DATA STRUCTURE ===');
+		var $sampleRows = $('#sample-detail-rows');
+		console.log('Sample rows element found:', $sampleRows.length);
+		
+		// Check all data attributes
+		var allData = $sampleRows.data();
+		console.log('All data attributes:', allData);
+		
+		// Check parameters specifically
+		var parameters = $sampleRows.data('parameters');
+		console.log('Parameters data:', parameters);
+		console.log('Parameters type:', typeof parameters);
+		
+		// Check batch data
+		var batchData = $sampleRows.data('batch');
+		console.log('Batch data:', batchData);
+		console.log('Batch type:', typeof batchData);
+		
+		if (batchData && batchData.sample_type) {
+			console.log('Batch sample type:', batchData.sample_type);
+		}
+		
+		if (parameters) {
+			console.log('Parameters keys:', Object.keys(parameters));
+			console.log('First few parameter entries:');
+			Object.keys(parameters).slice(0, 3).forEach(function(key) {
+				console.log('Key:', key, 'Value:', parameters[key]);
+			});
+		}
+		
+		// Check if there are any samples in the table
+		console.log('Table rows count:', $('#sample-detail-rows tr').length);
+		$('#sample-detail-rows tr').each(function(index) {
+			if (index < 3) { // Only check first 3 rows
+				var $row = $(this);
+				var sampleCode = $row.find('input[name*="sample_code"]').val();
+				console.log('Row', index, 'sample code:', sampleCode);
+			}
+		});
+	}
+
+	function loadSampleDropdown() {
+		console.log('Loading sample dropdown...');
+		var sampleDropdown = $('#capture-sample-select');
+		sampleDropdown.empty().append('<option value="">Select a sample...</option>');
+		
+		// Debug: Check all available data attributes
+		var $sampleRows = $('#sample-detail-rows');
+		console.log('Sample detail rows element:', $sampleRows.length);
+		console.log('Data attributes available:', $sampleRows.data());
+		
+		// Get samples from the batch data
+		var samples = $sampleRows.data('samples');
+		console.log('Samples from data-samples:', samples);
+		
+		// Try alternative data attribute names
+		if (!samples) {
+			samples = $sampleRows.attr('data-samples');
+			console.log('Samples from attr data-samples:', samples);
+			if (samples) {
+				try {
+					samples = JSON.parse(samples);
+				} catch (e) {
+					console.error('Error parsing samples JSON:', e);
+					samples = null;
+				}
+			}
+		}
+		
+		// If still no samples, extract from table rows
+		if (!samples || samples.length === 0) {
+			console.log('No samples in data attributes, extracting from table rows...');
+			samples = [];
+			$('#sample-detail-rows tr').each(function(index) {
+				var $row = $(this);
+				console.log('Checking row', index, ':', $row);
+				
+				// Try multiple selectors for sample code
+				var sampleCode = $row.find('input[name*="sample_code"]').val() || 
+				                $row.find('.sample-code').val() ||
+				                $row.find('input[name="sample_details[sample_code][]"]').val();
+				                
+				console.log('Found sample code in row', index, ':', sampleCode);
+				
+				if (sampleCode && sampleCode.trim() !== '') {
+					samples.push({
+						sample_code: sampleCode,
+						id: sampleCode
+					});
+				}
+			});
+		}
+		
+		console.log('Final samples array:', samples);
+		console.log('Number of samples found:', samples ? samples.length : 0);
+		
+		// Populate dropdown
+		if (samples && samples.length > 0) {
+			samples.forEach(function(sample) {
+				if (sample.sample_code) {
+					sampleDropdown.append(
+						'<option value="' + sample.sample_code + '">' + 
+						sample.sample_code + 
+						'</option>'
+					);
+				}
+			});
+			console.log('Populated dropdown with', samples.length, 'samples');
+		} else {
+			console.warn('No samples found to populate dropdown');
+			sampleDropdown.append('<option value="" disabled>No samples available</option>');
+		}
+	}
+
+	// Handle sample selection change
+	$('#capture-sample-select').on('change', function() {
+		var selectedSampleCode = $(this).val();
+		console.log('Sample selected:', selectedSampleCode);
+		
+		if (selectedSampleCode) {
+			// Update sample info display
+			$('#selected-sample-info').html(
+				'<strong>Sample:</strong> ' + selectedSampleCode + '<br>' +
+				'<strong>Status:</strong> Loading details and parameters...'
+			);
+			
+			// Load sample details and parameters
+			loadSampleDetails(selectedSampleCode);
+			loadParametersForSample(selectedSampleCode);
+		} else {
+			$('#selected-sample-info').html('<small>No sample selected</small>');
+			$('#sample-details-section').hide();
+			$('#parameters-table-wrapper').hide();
+			$('#parameters-table-body').empty();
+		}
+	});
+
+	function loadSampleDetails(sampleCode) {
+		console.log('=== Loading sample details for:', sampleCode, '===');
+		
+		// Get sample details from the existing data structure
+		var samples = $('#sample-detail-rows').data('samples');
+		var batchData = $('#sample-detail-rows').data('batch');
+		var sampleDetails = null;
+		
+		// Find the selected sample in the samples array
+		if (samples && Array.isArray(samples)) {
+			sampleDetails = samples.find(function(sample) {
+				return sample.sample_code === sampleCode;
+			});
+		}
+		
+		// If not found in samples array, try to get from parameters data
+		if (!sampleDetails) {
+			var parametersBySampleCode = $('#sample-detail-rows').data('parameters');
+			if (parametersBySampleCode && parametersBySampleCode[sampleCode]) {
+				// Extract sample details from the first parameter
+				var firstParameter = null;
+				Object.keys(parametersBySampleCode[sampleCode]).forEach(function(sectionKey) {
+					var sectionData = parametersBySampleCode[sampleCode][sectionKey];
+					if (sectionData.cr && sectionData.cr.length > 0) {
+						firstParameter = sectionData.cr[0];
+					}
+				});
+				
+				if (firstParameter && firstParameter.sample) {
+					sampleDetails = firstParameter.sample;
+				}
+			}
+		}
+		
+		// Populate sample details
+		if (sampleDetails) {
+			console.log('Found sample details:', sampleDetails);
+			console.log('Batch data:', batchData);
+			
+			// Sample Type - try to get from batch relationship first
+			var sampleType = 'Not specified';
+			if (batchData && batchData.sample_type) {
+				sampleType = batchData.sample_type.name || batchData.sample_type || 'Not specified';
+			} else if (sampleDetails.sample_type) {
+				sampleType = sampleDetails.sample_type;
+			} else if (sampleDetails.sample_type_name) {
+				sampleType = sampleDetails.sample_type_name;
+			} else if (sampleDetails.sample_type_id) {
+				sampleType = 'Type ID: ' + sampleDetails.sample_type_id;
+			}
+			$('#sample-type').text(sampleType);
+			
+			// Analysis Type
+			var analysisType = sampleDetails.analysis_type || 
+			                  (sampleDetails.analysis_type_name) || 
+			                  (sampleDetails.analysis_type_id ? 'Analysis ID: ' + sampleDetails.analysis_type_id : 'Not specified');
+			$('#analysis-type').text(analysisType);
+			
+			// Lab Section
+			var labSection = sampleDetails.lab_section || 
+			                (sampleDetails.lab_section_name) || 
+			                (sampleDetails.lab_section_id ? 'Section ID: ' + sampleDetails.lab_section_id : 'Not specified');
+			$('#lab-section').text(labSection);
+			
+			// Sample Point
+			var samplePoint = sampleDetails.sample_point || 
+			                 (sampleDetails.sampling_point) || 
+			                 (sampleDetails.location) || 
+			                 'Not specified';
+			$('#sample-point').text(samplePoint);
+			
+			// Sample Comments - handle rich text HTML content
+			var sampleComments = sampleDetails.comments || 
+			                    (sampleDetails.remarks) || 
+			                    (sampleDetails.notes) || 
+			                    'No comments';
+			
+			// Check if comments contain HTML tags
+			if (sampleComments && sampleComments.includes('<')) {
+				// It's rich text, render as HTML
+				$('#sample-comments').html(sampleComments);
+			} else {
+				// Plain text, display as text
+				$('#sample-comments').text(sampleComments);
+			}
+			
+			// Sample Status
+			var sampleStatus = sampleDetails.status || 
+			                  (sampleDetails.sample_status) || 
+			                  'Active';
+			$('#sample-status').text(sampleStatus);
+			
+			// Batch ID
+			var batchId = 'Not available';
+			if (batchData && batchData.id) {
+				batchId = batchData.id;
+			} else if (sampleDetails.batch_id) {
+				batchId = sampleDetails.batch_id;
+			}
+			$('#batch-id').text(batchId);
+			
+			// Show the sample details section
+			$('#sample-details-section').show();
+		} else {
+			console.warn('No sample details found for:', sampleCode);
+			
+			// Show default values
+			$('#sample-type').text('Not available');
+			$('#analysis-type').text('Not available');
+			$('#lab-section').text('Not available');
+			$('#sample-point').text('Not available');
+			$('#sample-comments').text('No details available');
+			$('#sample-status').text('Unknown');
+			$('#batch-id').text('Not available');
+			
+			// Still show the section with default values
+			$('#sample-details-section').show();
+		}
+	}
+
+	function loadParametersForSample(sampleCode) {
+		console.log('=== Loading parameters for sample:', sampleCode, '===');
+		$('#capture-loading').show();
+		$('#parameters-table-wrapper').hide();
+		$('#parameters-table-body').empty();
+		
+		// Get parameters from existing data structure
+		var parametersBySampleCode = $('#sample-detail-rows').data('parameters');
+		console.log('All parameters data from data attribute:', parametersBySampleCode);
+		console.log('Type of parameters data:', typeof parametersBySampleCode);
+		console.log('Available sample codes:', parametersBySampleCode ? Object.keys(parametersBySampleCode) : 'none');
+		
+		// Debug: Check if it's a string that needs parsing
+		if (typeof parametersBySampleCode === 'string') {
+			console.log('Parameters data is a string, attempting to parse...');
+			try {
+				parametersBySampleCode = JSON.parse(parametersBySampleCode);
+				console.log('Parsed parameters data:', parametersBySampleCode);
+			} catch (e) {
+				console.error('Error parsing parameters JSON:', e);
+			}
+		}
+		
+		// If parameters data is not available, try to get it from the global scope
+		if (!parametersBySampleCode || Object.keys(parametersBySampleCode).length === 0) {
+			console.log('Parameters data not found in data attribute, checking global scope...');
+			// Check if there's a global variable with parameters
+			if (typeof window.parametersBySampleCode !== 'undefined') {
+				parametersBySampleCode = window.parametersBySampleCode;
+				console.log('Found parameters in global scope:', parametersBySampleCode);
+			}
+		}
+		
+		var parameters = [];
+		if (parametersBySampleCode && parametersBySampleCode[sampleCode]) {
+			parameters = parametersBySampleCode[sampleCode];
+			console.log('Found parameters for sample', sampleCode, ':', parameters);
+		} else {
+			console.warn('No parameters found for sample code:', sampleCode);
+			console.log('Trying different sample code variations...');
+			
+			// Try to find parameters with different key formats
+			if (parametersBySampleCode) {
+				Object.keys(parametersBySampleCode).forEach(function(key) {
+					console.log('Checking key:', key, 'against sample code:', sampleCode);
+					if (key.includes(sampleCode) || sampleCode.includes(key)) {
+						console.log('Found potential match:', key);
+						parameters = parametersBySampleCode[key];
+					}
+				});
+			}
+			
+			// If still no parameters, try to find any parameters that might be related
+			if (parameters.length === 0 && parametersBySampleCode) {
+				console.log('No direct match found, showing all available keys:');
+				Object.keys(parametersBySampleCode).forEach(function(key) {
+					console.log('Available key:', key, 'Value:', parametersBySampleCode[key]);
+				});
+			}
+		}
+		
+		// If still no parameters found, create mock data for testing
+		if (parameters.length === 0) {
+			console.log('No parameters found, creating mock data for testing...');
+			parameters = [
+				{
+					id: sampleCode + '_1',
+					analyte_name: 'pH',
+					method: 'Electrode Method',
+					result_reporting_symbol: '=',
+					result: ''
+				},
+				{
+					id: sampleCode + '_2',
+					analyte_name: 'Turbidity',
+					method: 'Nephelometric Method',
+					result_reporting_symbol: '<',
+					result: ''
+				},
+				{
+					id: sampleCode + '_3',
+					analyte_name: 'Conductivity',
+					method: 'Conductivity Meter',
+					result_reporting_symbol: '<=',
+					result: ''
+				}
+			];
+			console.log('Created mock parameters:', parameters);
+		}
+		
+		setTimeout(function() {
+			renderParametersTable(parameters, sampleCode);
+			$('#capture-loading').hide();
+		}, 500);
+	}
+
+	function renderParametersTable(parameters, sampleCode) {
+		console.log('=== Rendering parameters table for sample:', sampleCode, '===');
+		console.log('Parameters received:', parameters);
+		
+		var tableHead = $('#parameters-table-head');
+		var tableBody = $('#parameters-table-body');
+		var tableWrapper = $('#parameters-table-wrapper');
+		
+		tableHead.empty();
+		tableBody.empty();
+		
+		if (!parameters || parameters.length === 0) {
+			console.log('No parameters found, showing empty message');
+			tableHead.append(
+				'<tr><th>No Parameters</th></tr>'
+			);
+			tableBody.append(
+				'<tr><td class="text-center">' +
+				'<div class="alert alert-warning mb-0">No parameters found for sample: ' + sampleCode + '</div>' +
+				'</td></tr>'
+			);
+			tableWrapper.show();
+			return;
+		}
+		
+		console.log('Processing parameters:', parameters);
+		
+		// Extract all parameters from the nested structure
+		var allParameters = [];
+		
+		// Handle the actual data structure: {6: {cr: [...], section: "..."}}
+		if (parameters && typeof parameters === 'object') {
+			Object.keys(parameters).forEach(function(sectionKey) {
+				var sectionData = parameters[sectionKey];
+				console.log('Processing section', sectionKey, ':', sectionData);
+				
+				// Check if this section has a cr array
+				if (sectionData.cr && Array.isArray(sectionData.cr)) {
+					console.log('Found cr array with', sectionData.cr.length, 'parameters');
+					sectionData.cr.forEach(function(cr) {
+						allParameters.push(cr);
+					});
+				} else if (sectionData.id || sectionData.analyte_name) {
+					// Direct parameter object
+					allParameters.push(sectionData);
+				} else {
+					console.warn('Unknown section structure:', sectionData);
+				}
+			});
+		} else if (Array.isArray(parameters)) {
+			// Handle array structure
+			parameters.forEach(function(parameter, index) {
+				console.log('Processing parameter group', index, ':', parameter);
+				
+				// Handle nested parameter structure
+				if (parameter.cr && Array.isArray(parameter.cr)) {
+					// Parameter has captured results array
+					parameter.cr.forEach(function(cr) {
+						allParameters.push(cr);
+					});
+				} else if (parameter.id || parameter.analyte_name) {
+					// Direct parameter object
+					allParameters.push(parameter);
+				} else {
+					console.warn('Unknown parameter structure:', parameter);
+				}
+			});
+		}
+		
+		console.log('All extracted parameters:', allParameters);
+		
+		if (allParameters.length === 0) {
+			tableBody.append(
+				'<tr><td colspan="' + (1 + allParameters.length * 3) + '" class="text-center">' +
+				'<div class="alert alert-info mb-0">No valid parameters found for sample: ' + sampleCode + '</div>' +
+				'</td></tr>'
+			);
+			tableWrapper.show();
+			return;
+		}
+		
+		// Build table headers with parameter sub-columns
+		var headerRow1 = '<tr>' +
+		                '<th rowspan="2" class="sample-code-cell">Sample Code</th>';
+		var headerRow2 = '<tr>';
+		
+		allParameters.forEach(function(param) {
+			var parameterName = param.analyte_name || (param.my_analyte && param.my_analyte.name) || param.name || 'Unknown Parameter';
+			headerRow1 += '<th colspan="5" class="parameter-header">' + parameterName + '</th>';
+			headerRow2 += '<th class="method-header">Method</th>' +
+			              '<th class="symbol-header">Reporting Symbol</th>' +
+			              '<th class="unit-header">Reporting Unit</th>' +
+			              '<th class="result-header">Result</th>' +
+			              '<th class="standard-header">Standard Limit</th>';
+		});
+		
+		headerRow1 += '</tr>';
+		headerRow2 += '</tr>';
+		
+		tableHead.append(headerRow1);
+		tableHead.append(headerRow2);
+		
+		// Build table body with single row for the sample
+		var bodyRow = '<tr data-sample-code="' + sampleCode + '">' +
+		             '<td class="sample-code-cell"><strong>' + sampleCode + '</strong></td>';
+		
+		allParameters.forEach(function(param, index) {
+			var parameterId = param.id || param.captured_result_id || (sampleCode + '_' + index);
+			var method = param.methods && param.methods.length > 0 ? param.methods[0].name : 
+			            param.method_name || param.method || 'Not specified';
+			var reportingSymbol = param.result_reporting_symbol || param.reporting_symbol || '';
+			var reportingUnit = param.reporting_unit || param.reporting_unit_name || '';
+			var currentResult = param.result || param.repeatsampleresult || '';
+			var standardLimit = param.standard_value || param.standard_limit || '';
+			var analyteName = param.analyte_name || (param.my_analyte && param.my_analyte.name) || param.name || 'Unknown Parameter';
+			
+			// Method cell with editable dropdown
+			bodyRow += '<td class="method-cell">' +
+			          '<select class="method-select form-control form-control-sm" ' +
+			          'data-parameter-id="' + parameterId + '" ' +
+			          'data-sample-code="' + sampleCode + '">' +
+			          '<option value="">Select method...</option>' +
+			          '<option value="' + method + '" selected>' + method + '</option>' +
+			          '</select>' +
+			          '</td>' +
+			          
+			          // Reporting Symbol cell with editable input
+			          '<td class="symbol-cell">' +
+			          '<input type="text" class="symbol-input form-control form-control-sm" ' +
+			          'data-parameter-id="' + parameterId + '" ' +
+			          'data-sample-code="' + sampleCode + '" ' +
+			          'value="' + reportingSymbol + '" ' +
+			          'placeholder="Enter symbol">' +
+			          '</td>' +
+			          
+			          // Reporting Unit cell with editable dropdown
+			          '<td class="unit-cell">' +
+			          '<select class="unit-select form-control form-control-sm" ' +
+			          'data-parameter-id="' + parameterId + '" ' +
+			          'data-sample-code="' + sampleCode + '">' +
+			          '<option value="">Select unit...</option>' +
+			          '<option value="' + reportingUnit + '" selected>' + reportingUnit + '</option>' +
+			          '</select>' +
+			          '</td>' +
+			          
+			          // Result cell with editable input
+			          '<td class="result-cell">' +
+			          '<input type="text" class="result-input form-control form-control-sm" ' +
+			          'data-parameter-id="' + parameterId + '" ' +
+			          'data-sample-code="' + sampleCode + '" ' +
+			          'data-parameter-name="' + analyteName + '" ' +
+			          'value="' + currentResult + '" ' +
+			          'placeholder="Enter result">' +
+			          '</td>' +
+			          
+			          // Standard Limit cell with editable input and edit icon
+			          '<td class="standard-cell">' +
+			          '<div class="d-flex align-items-center">' +
+			          '<input type="text" class="standard-input form-control form-control-sm" ' +
+			          'data-parameter-id="' + parameterId + '" ' +
+			          'data-sample-code="' + sampleCode + '" ' +
+			          'value="' + standardLimit + '" ' +
+			          'placeholder="Enter standard limit" ' +
+			          'readonly>' +
+			          '<button type="button" class="btn btn-sm btn-outline-primary edit-standard-btn ml-1" ' +
+			          'data-parameter-id="' + parameterId + '" ' +
+			          'data-sample-code="' + sampleCode + '" ' +
+			          'data-toggle="tooltip" title="Edit Standard Limit">' +
+			          '<i class="mdi mdi-pencil"></i>' +
+			          '</button>' +
+			          '</div>' +
+			          '</td>';
+		});
+		
+		bodyRow += '</tr>';
+		tableBody.append(bodyRow);
+		
+		// Update sample info
+		$('#selected-sample-info').html(
+			'<strong>Sample:</strong> ' + sampleCode + '<br>' +
+			'<strong>Parameters:</strong> ' + allParameters.length + ' found'
+		);
+		
+		// Show sample details section
+		$('#sample-details-section').show();
+		
+		tableWrapper.show();
+		console.log('Table rendered successfully with', allParameters.length, 'parameters');
+		
+		// Bind validation events for the new table structure
+		bindParameterInputEvents();
+		
+		// Populate method and unit dropdowns
+		populateMethodAndUnitDropdowns();
+	}
+
+
+	// Legacy function removed - now using renderParametersTable instead
+
+	function bindParameterInputEvents() {
+		// Bind result input change events for real-time validation with double capture
+		$('.result-input').off('input.capture blur.capture').on('input.capture', function() {
+			var $input = $(this);
+			var $row = $input.closest('tr');
+			var parameterId = $input.data('parameter-id');
+			var result = $input.val();
+			var originalValue = $input.data('original-value');
+			
+			// Double capture logic
+			if (originalValue && originalValue !== '') {
+				// If there's an original value, require double capture
+				if (result !== originalValue) {
+					$input.addClass('border-warning');
+					return; // Don't validate until double capture is complete
+				} else {
+					$input.removeClass('border-warning');
+				}
+			}
+			
+			// Basic validation - just check if result is entered
+			if (result && result.trim() !== '') {
+				$input.removeClass('border-danger').addClass('border-success');
+			} else {
+				$input.removeClass('border-success border-danger');
+			}
+		}).on('blur.capture', function() {
+			var $input = $(this);
+			var result = $input.val();
+			var originalValue = $input.data('original-value');
+			
+			// Check if this is a new result entry (not an edit)
+			if (!originalValue && result) {
+				// Set as original value for future edits (implementing double capture for next edit)
+				$input.data('original-value', result);
+			}
+		});
+		
+		// Bind symbol input change events
+		$('.symbol-input').off('input.symbol blur.symbol').on('input.symbol', function() {
+			var $input = $(this);
+			var symbol = $input.val();
+			
+			// Basic validation for symbol
+			if (symbol && symbol.trim() !== '') {
+				$input.removeClass('border-danger').addClass('border-success');
+			} else {
+				$input.removeClass('border-success border-danger');
+			}
+		}).on('blur.symbol', function() {
+			var $input = $(this);
+			var symbol = $input.val();
+			console.log('Symbol changed for parameter:', $input.data('parameter-id'), 'to:', symbol);
+		});
+		
+		// Bind method select change events
+		$('.method-select').off('change.method').on('change.method', function() {
+			var $select = $(this);
+			var method = $select.val();
+			var parameterId = $select.data('parameter-id');
+			
+			console.log('Method changed for parameter:', parameterId, 'to:', method);
+			
+			// Visual feedback
+			if (method && method.trim() !== '') {
+				$select.removeClass('border-danger').addClass('border-success');
+			} else {
+				$select.removeClass('border-success border-danger');
+			}
+		});
+		
+		// Bind unit select change events
+		$('.unit-select').off('change.unit').on('change.unit', function() {
+			var $select = $(this);
+			var unit = $select.val();
+			var parameterId = $select.data('parameter-id');
+			
+			console.log('Unit changed for parameter:', parameterId, 'to:', unit);
+			
+			// Visual feedback
+			if (unit && unit.trim() !== '') {
+				$select.removeClass('border-danger').addClass('border-success');
+			} else {
+				$select.removeClass('border-success border-danger');
+			}
+		});
+		
+		// Bind standard limit edit button events
+		$('.edit-standard-btn').off('click.standard').on('click.standard', function() {
+			var $btn = $(this);
+			var $input = $btn.siblings('.standard-input');
+			var parameterId = $btn.data('parameter-id');
+			
+			// Toggle readonly state
+			if ($input.prop('readonly')) {
+				$input.prop('readonly', false).focus();
+				$btn.html('<i class="mdi mdi-check"></i>').removeClass('btn-outline-primary').addClass('btn-success');
+			} else {
+				$input.prop('readonly', true);
+				$btn.html('<i class="mdi mdi-pencil"></i>').removeClass('btn-success').addClass('btn-outline-primary');
+				
+				// Save the value
+				var standardValue = $input.val();
+				console.log('Standard limit saved for parameter:', parameterId, 'value:', standardValue);
+			}
+		});
+		
+		// Bind standard input change events
+		$('.standard-input').off('input.standard blur.standard').on('input.standard', function() {
+			var $input = $(this);
+			var value = $input.val();
+			
+			// Basic validation for standard limit
+			if (value && value.trim() !== '') {
+				$input.removeClass('border-danger').addClass('border-success');
+			} else {
+				$input.removeClass('border-success border-danger');
+			}
+		}).on('blur.standard', function() {
+			var $input = $(this);
+			var $btn = $input.siblings('.edit-standard-btn');
+			
+			// Auto-save on blur if not readonly
+			if (!$input.prop('readonly')) {
+				$input.prop('readonly', true);
+				$btn.html('<i class="mdi mdi-pencil"></i>').removeClass('btn-success').addClass('btn-outline-primary');
+			}
+		});
+	}
+	
+	function populateMethodAndUnitDropdowns() {
+		// Get available methods and units from the existing data
+		var availableMethods = [];
+		var availableUnits = [];
+		
+		// Try to get methods and units from the existing modal or global data
+		if (typeof window.availableMethods !== 'undefined') {
+			availableMethods = window.availableMethods;
+		}
+		if (typeof window.availableUnits !== 'undefined') {
+			availableUnits = window.availableUnits;
+		}
+		
+		// If not available, create some default options
+		if (availableMethods.length === 0) {
+			availableMethods = [
+				'Electrode Method',
+				'Nephelometric Method',
+				'Conductivity Meter',
+				'Colorimetric Method',
+				'Titration Method',
+				'Spectrophotometric Method',
+				'Gravimetric Method',
+				'Volumetric Method'
+			];
+		}
+		
+		if (availableUnits.length === 0) {
+			availableUnits = [
+				'mg/L',
+				'μg/L',
+				'pH units',
+				'NTU',
+				'μS/cm',
+				'mS/cm',
+				'°C',
+				'%',
+				'ppm',
+				'ppb'
+			];
+		}
+		
+		// Populate method dropdowns
+		$('.method-select').each(function() {
+			var $select = $(this);
+			var currentValue = $select.val();
+			
+			// Clear existing options except the first one
+			$select.find('option:not(:first)').remove();
+			
+			// Add available methods
+			availableMethods.forEach(function(method) {
+				var selected = method === currentValue ? 'selected' : '';
+				$select.append('<option value="' + method + '" ' + selected + '>' + method + '</option>');
+			});
+		});
+		
+		// Populate unit dropdowns
+		$('.unit-select').each(function() {
+			var $select = $(this);
+			var currentValue = $select.val();
+			
+			// Clear existing options except the first one
+			$select.find('option:not(:first)').remove();
+			
+			// Add available units
+			availableUnits.forEach(function(unit) {
+				var selected = unit === currentValue ? 'selected' : '';
+				$select.append('<option value="' + unit + '" ' + selected + '>' + unit + '</option>');
+			});
+		});
+		
+		console.log('Populated dropdowns with', availableMethods.length, 'methods and', availableUnits.length, 'units');
+	}
+
+	/*
+	function createParameterTableRow(paramData, index, sampleCode) {
+		console.log('Creating table row for parameter:', paramData);
+		
+		// Safely extract data with fallbacks
+		var analyteName = paramData.analyte_name || paramData.name || 'Unknown Analyte';
+		var analysisTypeCode = '';
+		if (paramData.analysis_type && paramData.analysis_type.code) {
+			analysisTypeCode = paramData.analysis_type.code;
+		} else if (paramData.analysis_type_code) {
+			analysisTypeCode = paramData.analysis_type_code;
+		} else {
+			analysisTypeCode = 'N/A';
+		}
+		
+		var bgClass = getParameterRowBackgroundClass(paramData.result, paramData.remark);
+		
+		return `
+			<tr class="parameter-row ${bgClass}" data-parameter-id="${paramData.id || ''}">
+				<!-- Column 1: Method and Reporting Unit -->
+				<td class="align-top">
+					<div class="mb-2">
+						<strong class="text-primary">${analyteName}</strong>
+						<small class="text-muted d-block">${analysisTypeCode}</small>
+					</div>
+					<div class="d-flex justify-content-between align-items-start">
+						<div class="method-display flex-grow-1">
+							<div class="mb-1">
+								<small class="text-muted">Method:</small><br>
+								<span class="method-name">${paramData.method_name || 'Not selected'}</span>
+							</div>
+							<div>
+								<small class="text-muted">Unit:</small><br>
+								<span class="reporting-unit">${paramData.reporting_unit_id || paramData.reporting_unit || 'Not selected'}</span>
+							</div>
+						</div>
+						<button class="btn btn-sm btn-outline-primary edit-method-btn ml-2" 
+							data-parameter-id="${paramData.id || ''}"
+							data-method-id="${paramData.method_id || ''}"
+							data-reporting-unit="${paramData.reporting_unit_id || paramData.reporting_unit || ''}"
+							data-toggle="tooltip" title="Edit Method & Unit">
+							<i class="mdi mdi-pencil"></i>
+						</button>
+					</div>
+				</td>
+				
+				<!-- Column 2: Reporting Symbol and Standard Limit -->
+				<td class="align-top">
+					<div class="form-group mb-2">
+						<label class="form-label small font-weight-bold">Reporting Symbol:</label>
+						<input type="text" class="form-control form-control-sm reporting-symbol-input" 
+							value="${paramData.result_reporting_symbol || ''}" 
+							data-parameter-id="${paramData.id || ''}"
+							placeholder="Enter symbol...">
+					</div>
+					<div class="form-group mb-0">
+						<label class="form-label small font-weight-bold">Standard Limit:</label>
+						<input type="text" class="form-control form-control-sm standard-limit-input" 
+							value="${paramData.standard_value || paramData.standard_limit || ''}" 
+							data-parameter-id="${paramData.id || ''}"
+							placeholder="Enter limit...">
+					</div>
+				</td>
+				
+				<!-- Column 3: Results Input -->
+				<td class="align-top">
+					<div class="form-group mb-2">
+						<label class="form-label small font-weight-bold">Result:</label>
+						<input type="text" class="form-control result-input" 
+							value="${paramData.result || ''}" 
+							data-parameter-id="${paramData.id || ''}"
+							placeholder="Enter result..."
+							data-original-value="${paramData.result || ''}">
+						<small class="form-text text-muted double-capture-hint" style="display: none;">
+							Enter the same result again to confirm
+						</small>
+					</div>
+					<div class="result-validation">
+						<small class="remark-display text-muted">${paramData.remark || 'No remark'}</small>
+					</div>
+				</td>
+			</tr>
+		`;
+	}
+
+	function getParameterBackgroundClass(result, remark) {
+		if (!result || !remark) return '';
+		
+		if (remark === 'PASS') return 'bg-success-light';
+		if (remark === 'FAIL') return 'bg-danger-light';
+		return 'bg-secondary-light';
+	}
+
+	function getParameterRowBackgroundClass(result, remark) {
+		if (!result || !remark) return '';
+		
+		if (remark === 'PASS') return 'table-success';
+		if (remark === 'FAIL') return 'table-danger';
+		return 'table-secondary';
+	}
+
+	// Old functions commented out to prevent syntax errors
+	/*
+	function validateResultInput($resultInput, result, standardLimit, $row) {
+		// Implement validation logic similar to existing system
+		var numericResult = parseFloat(result);
+		var numericLimit = parseFloat(standardLimit);
+		var remark = '';
+		var rowClass = '';
+
+		if (!isNaN(numericResult) && !isNaN(numericLimit)) {
+			if (numericResult <= numericLimit) {
+				remark = 'PASS';
+				rowClass = 'table-success';
+			} else {
+				remark = 'FAIL';
+				rowClass = 'table-danger';
+			}
+		} else {
+			remark = 'OTHER';
+			rowClass = 'table-secondary';
+		}
+
+		// Update row background
+		$row.removeClass('table-success table-danger table-secondary').addClass(rowClass);
+		
+		// Update remark display
+		$row.find('.remark-display').text(remark);
+	}
+	*/
+
+	// Handle method editing
+	$(document).on('click', '.edit-method-btn', function() {
+		currentCaptureParameterId = $(this).data('parameter-id');
+		var methodId = $(this).data('method-id');
+		var reportingUnit = $(this).data('reporting-unit');
+		
+		$('#method-select').val(methodId);
+		$('#reporting-unit-select').val(reportingUnit);
+		$('#edit-method-modal').modal('show');
+	});
+
+	// Handle result input with validation and double capture
+	$(document).on('blur', '.result-input', function() {
+		var $input = $(this);
+		var result = $input.val();
+		var parameterId = $input.data('parameter-id');
+		var sampleCode = $input.data('sample-code');
+		var parameterName = $input.data('parameter-name');
+		
+		if (result && result.trim() !== '') {
+			// Prompt for confirmation (double capturing logic)
+			var confirmation = prompt('Please confirm the result for ' + parameterName + ' in sample ' + sampleCode + ':');
+			if (confirmation === result) {
+				// Validate against standard limit and update styling
+				validateResultAgainstStandard(result, parameterId, $input);
+			} else {
+				alert("Result confirmation didn't match captured result!");
+				$input.val('');
+				$input.closest('tr').removeClass('table-success table-danger table-secondary');
+			}
+		}
+	});
+
+	function validateResultAgainstStandard(result, parameterId, $input) {
+		console.log('Validating result:', result, 'for parameter:', parameterId);
+		
+		$.ajax({
+			url: '/fetch/results-remark',
+			method: 'post',
+			data: {
+				captured_result_id: parameterId,
+				result: result,
+				reporting_symbol: '', // Will be determined on server side
+				_token: $('meta[name="csrf-token"]').attr('content')
+			},
+			success: function(response) {
+				console.log('Validation response:', response);
+				
+				// Update row styling based on result
+				var $row = $input.closest('tr');
+				$row.removeClass('table-success table-danger table-secondary');
+				
+				if (response && response.toLowerCase().includes('pass')) {
+					$row.addClass('table-success');
+					$input.addClass('border-success');
+				} else if (response && response.toLowerCase().includes('fail')) {
+					$row.addClass('table-danger');
+					$input.addClass('border-danger');
+				} else {
+					$row.addClass('table-secondary');
+					$input.addClass('border-secondary');
+				}
+				
+				// Store the remark for later use
+				$input.attr('data-remark', response || '');
+			},
+			error: function(xhr, status, error) {
+				console.error('Validation error:', error);
+				$input.attr('data-remark', 'Error validating result');
+			}
+		});
+	}
+
+	function loadAvailableMethods() {
+		// Load methods from existing data or make AJAX call
+		$.ajax({
+			url: '/get-available-methods',
+			method: 'GET',
+			headers: {
+				'X-CSRF-TOKEN': $('meta[name="csrf-token"]').attr('content'),
+				'Accept': 'application/json'
+			},
+			success: function(methods) {
+				availableMethods = methods;
+				var methodSelect = $('#method-select');
+				methodSelect.empty().append('<option value="">Select method...</option>');
+				if (methods && Array.isArray(methods)) {
+					methods.forEach(function(method) {
+						methodSelect.append('<option value="' + method.id + '">' + method.name + '</option>');
+					});
+				}
+			},
+			error: function(xhr, status, error) {
+				console.error('Failed to load methods:', error);
+				console.error('Response:', xhr.responseText);
+				// Fallback: try to load methods from existing page data
+				loadMethodsFromPageData();
+			}
+		});
+	}
+
+	function loadMethodsFromPageData() {
+		// Fallback method to load from existing page data
+		var methods = $('#sample-detail-rows').data('methods') || {};
+		var methodSelect = $('#method-select');
+		methodSelect.empty().append('<option value="">Select method...</option>');
+		
+		Object.keys(methods).forEach(function(key) {
+			methodSelect.append('<option value="' + key + '">' + methods[key] + '</option>');
+		});
+	}
+
+	// Save capture results
+	$('#save-capture-results').on('click', function() {
+		var resultsData = [];
+		
+		$('.result-input').each(function() {
+			var $resultInput = $(this);
+			var parameterId = $resultInput.data('parameter-id');
+			var sampleCode = $resultInput.data('sample-code');
+			var parameterName = $resultInput.data('parameter-name');
+			var result = $resultInput.val();
+			
+			// Find corresponding method, symbol, unit, and standard inputs for this parameter
+			var $row = $resultInput.closest('tr');
+			var method = $row.find('.method-select[data-parameter-id="' + parameterId + '"]').val();
+			var symbol = $row.find('.symbol-input[data-parameter-id="' + parameterId + '"]').val();
+			var unit = $row.find('.unit-select[data-parameter-id="' + parameterId + '"]').val();
+			var standardLimit = $row.find('.standard-input[data-parameter-id="' + parameterId + '"]').val();
+			
+			resultsData.push({
+				parameter_id: parameterId,
+				sample_code: sampleCode,
+				parameter_name: parameterName,
+				result: result ? result.trim() : '',
+				method: method || '',
+				reporting_symbol: symbol || '',
+				reporting_unit: unit || '',
+				standard_limit: standardLimit || '',
+				remark: $resultInput.attr('data-remark') || ''
+			});
+		});
+		
+		if (resultsData.length === 0) {
+			alert('No results to save.');
+			return;
+		}
+		
+		// Save via AJAX
+		$.ajax({
+			url: '{{ route("capture-results-save") }}',
+			method: 'POST',
+			headers: {
+				'X-CSRF-TOKEN': $('meta[name="csrf-token"]').attr('content'),
+				'Accept': 'application/json'
+			},
+			data: {
+				capture_results: resultsData,
+				_token: $('meta[name="csrf-token"]').attr('content')
+			},
+			beforeSend: function() {
+				$('#save-capture-results').prop('disabled', true).html('<i class="mdi mdi-sync mdi-spin"></i> Saving...');
+			},
+			success: function(response) {
+				console.log('Save response:', response);
+				if (response.success) {
+					alert('Results saved successfully!');
+					$('#capture-results-modal').modal('hide');
+					// Refresh the page to show updated results
+					location.reload();
+				} else {
+					alert('Error: ' + (response.message || 'Unknown error occurred'));
+				}
+			},
+			error: function(xhr, status, error) {
+				console.error('Save error:', error);
+				console.error('Response:', xhr.responseText);
+				var errorMessage = 'Error saving results. Please try again.';
+				try {
+					var response = JSON.parse(xhr.responseText);
+					if (response.error) {
+						errorMessage = response.error;
+					}
+				} catch (e) {
+					// Use default error message
+				}
+				alert(errorMessage);
+			},
+			complete: function() {
+				$('#save-capture-results').prop('disabled', false).html('<i class="mdi mdi-content-save"></i> Save Results');
+			}
+		});
+	});
+
+	function refreshParametersSection() {
+		// Refresh the parameters section dynamically instead of full page reload
+		var selectedSample = $('#capture-sample-select').val();
+		if (selectedSample) {
+			// Reload parameters for the currently selected sample
+			loadParametersForSample(selectedSample);
+		}
+		
+		// Optionally refresh the main sample workflow table
+		// This could be enhanced to only refresh specific sections
+		setTimeout(function() {
+			location.reload();
+		}, 1000);
+	}
+
+	// Handle method and unit editing functionality
+	$('#save-method-unit').on('click', function() {
+		var methodId = $('#method-select').val();
+		var reportingUnit = $('#reporting-unit-select').val();
+		
+		if (currentCaptureParameterId) {
+			var $parameterCard = $('.parameter-card[data-parameter-id="' + currentCaptureParameterId + '"]');
+			var $methodDisplay = $parameterCard.find('.method-display');
+			
+			// Update the display
+			var methodName = $('#method-select option:selected').text();
+			$methodDisplay.find('.method-name').text(methodName || 'Not selected');
+			$methodDisplay.find('.reporting-unit').text(reportingUnit || 'Not selected');
+			
+			// Update the edit button data
+			$parameterCard.find('.edit-method-btn').attr('data-method-id', methodId).attr('data-reporting-unit', reportingUnit);
+			
+			$('#edit-method-modal').modal('hide');
+		}
+	});
+
+	// Add new method
+	$('#add-new-method').on('click', function() {
+		var newMethodName = $('#new-method-name').val().trim();
+		if (newMethodName) {
+			// In a real implementation, this would make an AJAX call to save the new method
+			// For now, just add it to the dropdown
+			var newMethodId = 'new_' + Date.now();
+			$('#method-select').append('<option value="' + newMethodId + '">' + newMethodName + '</option>');
+			$('#method-select').val(newMethodId);
+			$('#new-method-name').val('');
+			alert('New method added successfully!');
+		} else {
+			alert('Please enter a method name.');
+		}
+	});
+
+	// Add new reporting unit
+	$('#add-new-unit').on('click', function() {
+		var newUnitName = $('#new-unit-name').val().trim();
+		if (newUnitName) {
+			// In a real implementation, this would make an AJAX call to save the new unit
+			// For now, just add it to the dropdown
+			$('#reporting-unit-select').append('<option value="' + newUnitName + '">' + newUnitName + '</option>');
+			$('#reporting-unit-select').val(newUnitName);
+			$('#new-unit-name').val('');
+			alert('New reporting unit added successfully!');
+		} else {
+			alert('Please enter a unit name.');
+		}
+	});
+
+	// Initialize capture results modal - no longer tied to specific sample rows
+	// The modal will allow selection of any sample in the batch
 	
 
 	var sampleDetailsRow = `<tr class="editable">
@@ -5674,5 +7495,564 @@
 
 
 
+
+<script>
+$(document).ready(function() {
+    // Handle COA report generation
+    $('#generate-coa-btn').on('click', function() {
+        var reportFormat = $('#report_format_select').val();
+        var batchId = $('input[name="batch_id"]').val();
+        
+        if (!reportFormat) {
+            alert('Please select a report format');
+            return;
+        }
+        
+        // Generate the URL for the PDF report
+        var url = '{{ route("process-pdf-report", ["batch_id" => ":batch_id", "report_format" => ":report_format"]) }}';
+        url = url.replace(':batch_id', batchId);
+        url = url.replace(':report_format', reportFormat);
+        
+        // Open the PDF in a new window/tab
+        window.open(url, '_blank');
+        
+        // Close the modal
+        $('#view-coa-report').modal('hide');
+    });
+});
+
+// ===== CAPTURED RESULTS MODAL FUNCTIONALITY =====
+
+// Parameter Settings Modal Event Handlers
+$('#parameter-settings-modal').on('show.bs.modal', function(e) {
+    var button = $(e.relatedTarget);
+    var resultId = button.data('result-id');
+    var sampleCode = button.data('sample-code');
+    var analyte = button.data('analyte');
+    
+    // Set form values
+    $('#settings-result-id').val(resultId || '');
+    $('#settings-sample-code').val(sampleCode || '');
+    $('#settings-analyte').val(analyte || '');
+    
+    // Update display
+    $('#settings-sample-display').text(sampleCode || 'N/A');
+    $('#settings-analyte-display').text(analyte || 'N/A');
+    $('#settings-result-id-display').text(resultId || 'New');
+    
+    // Load existing data if result exists
+    if (resultId) {
+        loadParameterSettings(resultId);
+    } else {
+        // Clear form for new parameter
+        $('#parameter-settings-form')[0].reset();
+        $('#settings-result-id').val('');
+        $('#settings-sample-code').val(sampleCode);
+        $('#settings-analyte').val(analyte);
+    }
+});
+
+// Edit Standard Modal Event Handlers
+$('#edit-standard-modal').on('show.bs.modal', function(e) {
+    var button = $(e.relatedTarget);
+    var resultId = button.data('result-id');
+    var sampleCode = button.data('sample-code');
+    var analyte = button.data('analyte');
+    
+    // Set form values
+    $('#standard-result-id').val(resultId || '');
+    $('#standard-sample-code').val(sampleCode || '');
+    $('#standard-analyte').val(analyte || '');
+    
+    // Update display
+    $('#standard-sample-display').text(sampleCode || 'N/A');
+    $('#standard-analyte-display').text(analyte || 'N/A');
+    
+    // Load existing standard data if result exists
+    if (resultId) {
+        loadStandardSettings(resultId);
+    } else {
+        // Clear form for new standard
+        $('#edit-standard-form')[0].reset();
+        $('#standard-result-id').val('');
+        $('#standard-sample-code').val(sampleCode);
+        $('#standard-analyte').val(analyte);
+    }
+});
+
+// Save Parameter Settings
+$('#save-parameter-settings').on('click', function() {
+    var formData = {
+        _token: $('meta[name="csrf-token"]').attr('content'),
+        result_id: $('#settings-result-id').val(),
+        sample_code: $('#settings-sample-code').val(),
+        analyte: $('#settings-analyte').val(),
+        reporting_unit: $('#settings-reporting-unit').val(),
+        method_id: $('#settings-method').val(),
+        reporting_symbol: $('#settings-reporting-symbol').val(),
+        analyst_id: $('#settings-analyst').val(),
+        accredited: $('#settings-accredited').is(':checked') ? 1 : 0,
+        subcontracted: $('#settings-subcontracted').is(':checked') ? 1 : 0
+    };
+    
+    $.ajax({
+        url: '/captured-results/update-parameter-settings',
+        method: 'POST',
+        data: formData,
+        beforeSend: function() {
+            $('#save-parameter-settings').prop('disabled', true).html('<i class="mdi mdi-loading mdi-spin"></i> Saving...');
+        },
+        success: function(response) {
+            if (response.success) {
+                // Show success message
+                showNotification('Parameter settings saved successfully!', 'success');
+                
+                // Update the table if needed
+                updateParameterDisplay(formData);
+                
+                // Close modal
+                $('#parameter-settings-modal').modal('hide');
+            } else {
+                showNotification('Error saving parameter settings: ' + (response.message || 'Unknown error'), 'error');
+            }
+        },
+        error: function(xhr) {
+            var errorMessage = 'Error saving parameter settings';
+            if (xhr.responseJSON && xhr.responseJSON.message) {
+                errorMessage += ': ' + xhr.responseJSON.message;
+            }
+            showNotification(errorMessage, 'error');
+        },
+        complete: function() {
+            $('#save-parameter-settings').prop('disabled', false).html('<i class="mdi mdi-content-save"></i> Save Settings');
+        }
+    });
+});
+
+// Save Standard Limit
+$('#save-standard-limit').on('click', function() {
+    var formData = {
+        _token: $('meta[name="csrf-token"]').attr('content'),
+        result_id: $('#standard-result-id').val(),
+        sample_code: $('#standard-sample-code').val(),
+        analyte: $('#standard-analyte').val(),
+        standard_value: $('#standard-limit-value').val(),
+        limit_type: $('#standard-limit-type').val()
+    };
+    
+    $.ajax({
+        url: '/captured-results/update-standard-limit',
+        method: 'POST',
+        data: formData,
+        beforeSend: function() {
+            $('#save-standard-limit').prop('disabled', true).html('<i class="mdi mdi-loading mdi-spin"></i> Saving...');
+        },
+        success: function(response) {
+            if (response.success) {
+                // Show success message
+                showNotification('Standard limit saved successfully!', 'success');
+                
+                // Update the standard limit display
+                updateStandardLimitDisplay(formData);
+                
+                // Close modal
+                $('#edit-standard-modal').modal('hide');
+            } else {
+                showNotification('Error saving standard limit: ' + (response.message || 'Unknown error'), 'error');
+            }
+        },
+        error: function(xhr) {
+            var errorMessage = 'Error saving standard limit';
+            if (xhr.responseJSON && xhr.responseJSON.message) {
+                errorMessage += ': ' + xhr.responseJSON.message;
+            }
+            showNotification(errorMessage, 'error');
+        },
+        complete: function() {
+            $('#save-standard-limit').prop('disabled', false).html('<i class="mdi mdi-content-save"></i> Save Standard');
+        }
+    });
+});
+
+// Result Input Change Handler with Double-Capture Validation
+$(document).on('change', '.result-input', function() {
+    var input = $(this);
+    var result = input.val();
+    var resultId = input.data('result-id');
+    var sampleCode = input.data('sample-code');
+    var analyte = input.data('analyte');
+    
+    if (result && result.trim() !== '') {
+        // Double-capture validation
+        var confirmation = prompt('Please confirm the result:');
+        
+        if (confirmation === result) {
+            // Update result with AJAX
+            updateResultValue(resultId, sampleCode, analyte, result, input);
+        } else {
+            // Clear input if confirmation doesn't match
+            showNotification('Result confirmation did not match. Please try again.', 'warning');
+            input.val('');
+        }
+    } else {
+        // Clear result
+        updateResultValue(resultId, sampleCode, analyte, '', input);
+    }
+});
+
+// Helper Functions
+function loadParameterSettings(resultId) {
+    $.ajax({
+        url: '/captured-results/get-parameter-settings/' + resultId,
+        method: 'GET',
+        success: function(response) {
+            if (response.success && response.data) {
+                var data = response.data;
+                
+                $('#settings-reporting-unit').val(data.reporting_unit || '');
+                $('#settings-method').val(data.method_id || '');
+                $('#settings-reporting-symbol').val(data.reporting_symbol || '');
+                $('#settings-analyst').val(data.analyst_id || '');
+                $('#settings-accredited').prop('checked', data.accredited == 1);
+                $('#settings-subcontracted').prop('checked', data.subcontracted == 1);
+            }
+        },
+        error: function() {
+            showNotification('Error loading parameter settings', 'error');
+        }
+    });
+}
+
+function loadStandardSettings(resultId) {
+    $.ajax({
+        url: '/captured-results/get-standard-settings/' + resultId,
+        method: 'GET',
+        success: function(response) {
+            if (response.success && response.data) {
+                var data = response.data;
+                
+                $('#standard-limit-value').val(data.standard_value || '');
+                $('#standard-limit-type').val(data.limit_type || '');
+            }
+        },
+        error: function() {
+            showNotification('Error loading standard settings', 'error');
+        }
+    });
+}
+
+function updateResultValue(resultId, sampleCode, analyte, result, inputElement) {
+    var formData = {
+        _token: $('meta[name="csrf-token"]').attr('content'),
+        result_id: resultId,
+        sample_code: sampleCode,
+        analyte: analyte,
+        result: result
+    };
+    
+    $.ajax({
+        url: '/captured-results/update-result',
+        method: 'POST',
+        data: formData,
+        beforeSend: function() {
+            inputElement.addClass('border-warning');
+        },
+        success: function(response) {
+            if (response.success) {
+                // Update input styling based on validation result
+                inputElement.removeClass('border-warning border-danger border-success border-secondary');
+                
+                if (response.validation_result) {
+                    if (response.validation_result === 'PASS') {
+                        inputElement.addClass('border-success');
+                    } else if (response.validation_result === 'FAIL') {
+                        inputElement.addClass('border-danger');
+                    } else {
+                        inputElement.addClass('border-secondary');
+                    }
+                }
+                
+                // Update standard limit display if provided
+                if (response.standard_limit) {
+                    updateStandardLimitInCell(inputElement, response.standard_limit);
+                }
+            } else {
+                showNotification('Error updating result: ' + (response.message || 'Unknown error'), 'error');
+                inputElement.addClass('border-danger');
+            }
+        },
+        error: function() {
+            showNotification('Error updating result', 'error');
+            inputElement.removeClass('border-warning').addClass('border-danger');
+        }
+    });
+}
+
+function updateParameterDisplay(formData) {
+    // Update any visual indicators in the table if needed
+    // This could include updating badges, icons, or other visual elements
+    console.log('Parameter display updated for:', formData);
+}
+
+function updateStandardLimitDisplay(formData) {
+    // Find the corresponding cell and update the standard limit display
+    var cell = $('.parameter-cell[data-sample="' + formData.sample_code + '"][data-analyte="' + formData.analyte + '"]');
+    var standardLimitText = cell.find('.standard-limit-text');
+    
+    if (standardLimitText.length) {
+        var displayText = formData.standard_value;
+        if (formData.limit_type) {
+            displayText += ' ' + formData.limit_type.toLowerCase();
+        }
+        standardLimitText.text(displayText || 'No limit set');
+    }
+}
+
+function updateStandardLimitInCell(inputElement, standardLimit) {
+    var cell = inputElement.closest('.parameter-cell');
+    var standardLimitText = cell.find('.standard-limit-text');
+    
+    if (standardLimitText.length) {
+        standardLimitText.text(standardLimit || 'No limit set');
+    }
+}
+
+function showNotification(message, type) {
+    // Create and show a notification
+    var alertClass = 'alert-info';
+    var iconClass = 'mdi-information';
+    
+    switch(type) {
+        case 'success':
+            alertClass = 'alert-success';
+            iconClass = 'mdi-check-circle';
+            break;
+        case 'error':
+            alertClass = 'alert-danger';
+            iconClass = 'mdi-alert-circle';
+            break;
+        case 'warning':
+            alertClass = 'alert-warning';
+            iconClass = 'mdi-alert';
+            break;
+    }
+    
+    var notification = $('<div class="alert ' + alertClass + ' alert-dismissible fade show position-fixed" style="top: 20px; right: 20px; z-index: 9999; min-width: 300px;">' +
+        '<i class="mdi ' + iconClass + ' mr-2"></i>' + message +
+        '<button type="button" class="close" data-dismiss="alert" aria-label="Close">' +
+        '<span aria-hidden="true">&times;</span>' +
+        '</button>' +
+        '</div>');
+    
+    $('body').append(notification);
+    
+    // Auto-dismiss after 5 seconds
+    setTimeout(function() {
+        notification.alert('close');
+    }, 5000);
+}
+
+// ===== END CAPTURED RESULTS MODAL FUNCTIONALITY =====
+</script>
+
+<!-- Parameter Settings Modal -->
+<div class="modal fade" id="parameter-settings-modal" data-backdrop="static" data-keyboard="false" role="dialog">
+	<div class="modal-dialog modal-lg">
+		<div class="modal-content">
+			<div class="modal-header bg-primary text-white">
+				<h4 class="modal-title">
+					<i class="mdi mdi-cog-outline"></i> Parameter Settings
+				</h4>
+				<button type="button" class="close text-white" data-dismiss="modal" aria-label="Close">
+					<span aria-hidden="true">&times;</span>
+				</button>
+			</div>
+			<div class="modal-body">
+				<form id="parameter-settings-form">
+					@csrf
+					<input type="hidden" id="settings-result-id" name="result_id">
+					<input type="hidden" id="settings-sample-code" name="sample_code">
+					<input type="hidden" id="settings-analyte" name="analyte">
+					
+					<div class="row">
+						<!-- Reporting Unit -->
+						<div class="col-md-6 mb-3">
+							<label for="settings-reporting-unit" class="form-label">
+								<i class="mdi mdi-ruler"></i> Reporting Unit
+							</label>
+							<select class="form-control" id="settings-reporting-unit" name="reporting_unit">
+								<option value="">Select Reporting Unit</option>
+								@if(isset($reportingUnits))
+									@foreach($reportingUnits as $unit)
+										<option value="{{ $unit['name'] }}">{{ $unit['name'] }}</option>
+									@endforeach
+								@endif
+							</select>
+						</div>
+						
+						<!-- Method -->
+						<div class="col-md-6 mb-3">
+							<label for="settings-method" class="form-label">
+								<i class="mdi mdi-flask"></i> Method
+							</label>
+							<select class="form-control" id="settings-method" name="method_id">
+								<option value="">Select Method</option>
+								@if(isset($methods))
+									@foreach($methods as $method)
+										<option value="{{ $method->id }}">{{ $method->name }} ({{ $method->code }})</option>
+									@endforeach
+								@endif
+							</select>
+						</div>
+						
+						<!-- Reporting Symbol -->
+						<div class="col-md-6 mb-3">
+							<label for="settings-reporting-symbol" class="form-label">
+								<i class="mdi mdi-symbol"></i> Reporting Symbol
+							</label>
+							<select class="form-control" id="settings-reporting-symbol" name="reporting_symbol">
+								<option value="">None</option>
+								<option value="<">&lt; (Less than)</option>
+								<option value=">">&gt; (Greater than)</option>
+								<option value="<=">&le; (Less than or equal)</option>
+								<option value=">=">&ge; (Greater than or equal)</option>
+								<option value="=">= (Equal)</option>
+								<option value="≠">≠ (Not equal)</option>
+							</select>
+						</div>
+						
+						<!-- Analyst -->
+						<div class="col-md-6 mb-3">
+							<label for="settings-analyst" class="form-label">
+								<i class="mdi mdi-account"></i> Analyst
+							</label>
+							<select class="form-control" id="settings-analyst" name="analyst_id">
+								<option value="">Select Analyst</option>
+								@if(isset($analysts))
+									@foreach($analysts as $analyst)
+										<option value="{{ $analyst->id }}">{{ $analyst->name }}</option>
+									@endforeach
+								@endif
+							</select>
+						</div>
+						
+						<!-- Checkboxes -->
+						<div class="col-md-6 mb-3">
+							<div class="form-check">
+								<input class="form-check-input" type="checkbox" id="settings-accredited" name="accredited" value="1">
+								<label class="form-check-label" for="settings-accredited">
+									<i class="mdi mdi-certificate text-success"></i> Accredited
+								</label>
+							</div>
+						</div>
+						
+						<div class="col-md-6 mb-3">
+							<div class="form-check">
+								<input class="form-check-input" type="checkbox" id="settings-subcontracted" name="subcontracted" value="1">
+								<label class="form-check-label" for="settings-subcontracted">
+									<i class="mdi mdi-share-variant text-info"></i> Subcontracted
+								</label>
+							</div>
+						</div>
+					</div>
+					
+					<!-- Parameter Info Display -->
+					<div class="alert alert-info">
+						<h6 class="mb-2">
+							<i class="mdi mdi-information-outline"></i> Parameter Information
+						</h6>
+						<div class="row">
+							<div class="col-md-4">
+								<strong>Sample:</strong> <span id="settings-sample-display"></span>
+							</div>
+							<div class="col-md-4">
+								<strong>Analyte:</strong> <span id="settings-analyte-display"></span>
+							</div>
+							<div class="col-md-4">
+								<strong>Result ID:</strong> <span id="settings-result-id-display"></span>
+							</div>
+						</div>
+					</div>
+				</form>
+			</div>
+			<div class="modal-footer">
+				<button type="button" class="btn btn-secondary" data-dismiss="modal">
+					<i class="mdi mdi-close"></i> Cancel
+				</button>
+				<button type="button" class="btn btn-primary" id="save-parameter-settings">
+					<i class="mdi mdi-content-save"></i> Save Settings
+				</button>
+			</div>
+		</div>
+	</div>
+</div>
+
+<!-- Edit Standard Modal -->
+<div class="modal fade" id="edit-standard-modal" data-backdrop="static" data-keyboard="false" role="dialog">
+	<div class="modal-dialog">
+		<div class="modal-content">
+			<div class="modal-header bg-warning text-dark">
+				<h4 class="modal-title">
+					<i class="mdi mdi-pencil"></i> Edit Standard Limit
+				</h4>
+				<button type="button" class="close" data-dismiss="modal" aria-label="Close">
+					<span aria-hidden="true">&times;</span>
+				</button>
+			</div>
+			<div class="modal-body">
+				<form id="edit-standard-form">
+					@csrf
+					<input type="hidden" id="standard-result-id" name="result_id">
+					<input type="hidden" id="standard-sample-code" name="sample_code">
+					<input type="hidden" id="standard-analyte" name="analyte">
+					
+					<div class="form-group">
+						<label for="standard-limit-value" class="form-label">
+							<i class="mdi mdi-ruler"></i> Standard Limit Value
+						</label>
+						<input type="text" class="form-control" id="standard-limit-value" name="standard_value" placeholder="Enter standard limit...">
+					</div>
+					
+					<div class="form-group">
+						<label for="standard-limit-type" class="form-label">
+							<i class="mdi mdi-symbol"></i> Limit Type
+						</label>
+						<select class="form-control" id="standard-limit-type" name="limit_type">
+							<option value="">Select Type</option>
+							<option value="Max">Maximum</option>
+							<option value="Min">Minimum</option>
+							<option value="less_than">Less Than</option>
+							<option value="greater_than">Greater Than</option>
+							<option value="range">Range</option>
+						</select>
+					</div>
+					
+					<!-- Parameter Info Display -->
+					<div class="alert alert-light">
+						<h6 class="mb-2">
+							<i class="mdi mdi-information-outline"></i> Standard Information
+						</h6>
+						<div class="row">
+							<div class="col-md-6">
+								<strong>Sample:</strong> <span id="standard-sample-display"></span>
+							</div>
+							<div class="col-md-6">
+								<strong>Analyte:</strong> <span id="standard-analyte-display"></span>
+							</div>
+						</div>
+					</div>
+				</form>
+			</div>
+			<div class="modal-footer">
+				<button type="button" class="btn btn-secondary" data-dismiss="modal">
+					<i class="mdi mdi-close"></i> Cancel
+				</button>
+				<button type="button" class="btn btn-warning" id="save-standard-limit">
+					<i class="mdi mdi-content-save"></i> Save Standard
+				</button>
+			</div>
+		</div>
+	</div>
+</div>
 
 @endsection

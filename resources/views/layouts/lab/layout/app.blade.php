@@ -197,12 +197,37 @@
 					<span class="menu-collapsed">Labs</span>
 				</div>
 			</a>
-			<a href="/sample-types" class="bg-dark list-group-item list-group-item-action">
+			<a href="{{ route('livewire.sample-types') }}" class="bg-dark list-group-item list-group-item-action">
 				<div class="d-flex w-100 justify-content-start align-items-center">
 					<span class="mdi mdi-test-tube fa-fw mr-3"></span>
 					<span class="menu-collapsed">Sample Types</span>
 				</div>
 			</a>
+			<a href="{{ route('livewire.standards') }}" class="bg-dark list-group-item list-group-item-action">
+				<div class="d-flex w-100 justify-content-start align-items-center">
+					<span class="mdi mdi-scale-balance fa-fw mr-3"></span>
+					<span class="menu-collapsed">Standards</span>
+				</div>
+			</a>
+			<a href="{{ route('livewire.report-formats') }}" class="bg-dark list-group-item list-group-item-action">
+				<div class="d-flex w-100 justify-content-start align-items-center">
+					<span class="mdi mdi-file-document-outline fa-fw mr-3"></span>
+					<span class="menu-collapsed">Report Formats</span>
+				</div>
+			</a>
+			<a href="{{ route('remedies.index') }}" class="bg-dark list-group-item list-group-item-action">
+				<div class="d-flex w-100 justify-content-start align-items-center">
+					<span class="mdi mdi-medical-bag fa-fw mr-3"></span>
+					<span class="menu-collapsed">Remedies</span>
+				</div>
+			</a>
+			<a href="{{ route('ratings.index') }}" class="bg-dark list-group-item list-group-item-action">
+				<div class="d-flex w-100 justify-content-start align-items-center">
+					<span class="mdi mdi-chart-box-outline fa-fw mr-3"></span>
+					<span class="menu-collapsed">Key Configurations</span>
+				</div>
+			</a>
+
 			<a href="/reporting-units" class="bg-dark list-group-item list-group-item-action">
 				<div class="d-flex w-100 justify-content-start align-items-center">
 					<span class="mdi mdi-file-document-edit fa-fw mr-3"></span>

@@ -11,7 +11,41 @@ class AnalysisElements extends Model implements Auditable
 	use \OwenIt\Auditing\Auditable;
 
   protected $appends = ['parametername'];
-  protected $fillable = ['lab_section_id', 'analysis_type_id', 'analyte_id', 'method', 'reporting_unit', 'non_accredited','is_pesticide','ltm_method_id','reporting_time'];
+  protected $fillable = [
+    'lab_section_id', 
+    'analysis_type_id', 
+    'analyte_id', 
+    'method', 
+    'equipment_id',
+    'operator_id',
+    'reporting_unit', 
+    'decimal_places',
+    'significant_figures',
+    'lod',
+    'hod',
+    'level',
+    'active',
+    'non_detectable',
+    'non_accredited',
+    'show_on_report',
+    'is_pesticide',
+    'ltm_method_id',
+    'reporting_time', 
+    'recommend_remedies', 
+    'remedy_header_id', 
+    'remark_is_manual', 
+    'result_is_calculated', 
+    'formular_id'
+  ];
+  
+  protected $casts = [
+    'operator_id' => 'integer',
+    'lod' => 'float',
+    'hod' => 'float',
+    'level' => 'integer',
+    'recommend_remedies' => 'boolean',
+    'result_is_calculated' => 'boolean',
+  ];
 
   public function getParameterNameAttribute(){
     return Analyte::find($this->analyte_id)->name ?? '';
@@ -40,6 +74,14 @@ class AnalysisElements extends Model implements Auditable
 	}
 
   public function operator(){
-    return $this->belongsTo('App\User', 'operator_id');
+    return $this->belongsTo('App\User', 'operator_id')->withDefault();
+  }
+
+  public function remedyHeader(){
+    return $this->belongsTo('App\Models\RemedyHeader');
+  }
+
+  public function reportingUnit(){
+    return $this->belongsTo('App\ReportingUnit', 'reporting_unit', 'name');
   }
 }

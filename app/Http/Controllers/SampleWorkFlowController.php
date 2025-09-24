@@ -5109,4 +5109,311 @@ class SampleWorkFlowController extends Controller
         );
     }
 
+    public function getAvailableMethods()
+    {
+        try {
+            $methods = AnalysisMethod::where('active', 1)->select('id', 'name', 'code')->get();
+            return response()->json($methods);
+        } catch (\Exception $e) {
+            \Log::error('Error loading methods: ' . $e->getMessage());
+            return response()->json(['error' => 'Failed to load methods: ' . $e->getMessage()], 500);
+        }
+    }
+
+    public function saveCaptureResults(Request $request)
+    {
+        try {
+            $captureResults = $request->input('capture_results', []);
+            
+            if (empty($captureResults)) {
+                return response()->json(['error' => 'No results to save'], 400);
+            }
+
+            foreach ($captureResults as $resultData) {
+                $capturedResult = CapturedResult::find($resultData['parameter_id']);
+                
+                if ($capturedResult) {
+                    $capturedResult->result = $resultData['result'];
+                    $capturedResult->result_reporting_symbol = $resultData['reporting_symbol'] ?? '';
+                    
+                    // Validate result against standard and set remark
+                    $remark = $this->validateResultAgainstStandard(
+                        $resultData['result'], 
+                        $resultData['standard_limit'] ?? '',
+                        $capturedResult->analyte_id
+                    );
+                    
+                    $capturedResult->remark = $remark;
+                    $capturedResult->save();
+                }
+            }
+
+            return response()->json(['success' => true, 'message' => 'Results saved successfully']);
+        } catch (\Exception $e) {
+            return response()->json(['error' => 'Failed to save results: ' . $e->getMessage()], 500);
+        }
+    }
+
+    private function validateResultAgainstStandard($result, $standardLimit, $analyteId)
+    {
+        // Implement the same validation logic as in the existing system
+        // This is a simplified version - you may need to adjust based on your specific validation rules
+        
+        if (!is_numeric($result) || !is_numeric($standardLimit)) {
+            return 'N/A';
+        }
+
+        $resultValue = floatval($result);
+        $limitValue = floatval($standardLimit);
+
+        // Simple validation - adjust based on your requirements
+        if ($resultValue <= $limitValue) {
+            return 'PASS';
+        } else {
+            return 'FAIL';
+        }
+    }
+
+    /**
+     * Update parameter settings via AJAX
+     */
+    public function updateParameterSettings(Request $request)
+    {
+        try {
+            $resultId = $request->input('result_id');
+            $sampleCode = $request->input('sample_code');
+            $analyte = $request->input('analyte');
+            
+            // Find or create the captured result
+            $capturedResult = null;
+            
+            if ($resultId) {
+                $capturedResult = CapturedResult::find($resultId);
+            } else {
+                // Create new captured result if it doesn't exist
+                $sample = SampleDetails::where('sample_code', $sampleCode)->first();
+                if (!$sample) {
+                    return response()->json(['success' => false, 'message' => 'Sample not found'], 404);
+                }
+                
+                // Find analyte
+                $analyteRecord = Analyte::where('code', $analyte)->first();
+                if (!$analyteRecord) {
+                    return response()->json(['success' => false, 'message' => 'Analyte not found'], 404);
+                }
+                
+                $capturedResult = new CapturedResult();
+                $capturedResult->sample_detail_id = $sample->id;
+                $capturedResult->sample_header_id = $sample->sample_header_id;
+                $capturedResult->analyte_id = $analyteRecord->id;
+                $capturedResult->analysis_type_id = 1; // Default - adjust as needed
+                $capturedResult->analyte_code = $analyte;
+            }
+            
+            // Update the captured result with new settings
+            $capturedResult->reporting_unit_id = $request->input('reporting_unit', $capturedResult->reporting_unit_id);
+            $capturedResult->method_id = $request->input('method_id', $capturedResult->method_id);
+            $capturedResult->result_reporting_symbol = $request->input('reporting_symbol', $capturedResult->result_reporting_symbol);
+            $capturedResult->operator_id = $request->input('analyst_id', $capturedResult->operator_id);
+            $capturedResult->analyte_accredited = $request->input('accredited', 0);
+            $capturedResult->analyte_status_contracted = $request->input('subcontracted', 0);
+            
+            $capturedResult->save();
+            
+            return response()->json([
+                'success' => true,
+                'message' => 'Parameter settings updated successfully',
+                'result_id' => $capturedResult->id
+            ]);
+            
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Error updating parameter settings: ' . $e->getMessage()
+            ], 500);
+        }
+    }
+    
+    /**
+     * Update standard limit via AJAX
+     */
+    public function updateStandardLimit(Request $request)
+    {
+        try {
+            $resultId = $request->input('result_id');
+            $sampleCode = $request->input('sample_code');
+            $analyte = $request->input('analyte');
+            $standardValue = $request->input('standard_value');
+            $limitType = $request->input('limit_type');
+            
+            // Find or create the captured result
+            $capturedResult = null;
+            
+            if ($resultId) {
+                $capturedResult = CapturedResult::find($resultId);
+            } else {
+                // Create new captured result if it doesn't exist
+                $sample = SampleDetails::where('sample_code', $sampleCode)->first();
+                if (!$sample) {
+                    return response()->json(['success' => false, 'message' => 'Sample not found'], 404);
+                }
+                
+                $analyteRecord = Analyte::where('code', $analyte)->first();
+                if (!$analyteRecord) {
+                    return response()->json(['success' => false, 'message' => 'Analyte not found'], 404);
+                }
+                
+                $capturedResult = new CapturedResult();
+                $capturedResult->sample_detail_id = $sample->id;
+                $capturedResult->sample_header_id = $sample->sample_header_id;
+                $capturedResult->analyte_id = $analyteRecord->id;
+                $capturedResult->analysis_type_id = 1; // Default - adjust as needed
+                $capturedResult->analyte_code = $analyte;
+            }
+            
+            // Update standard values
+            $capturedResult->main_value = $standardValue;
+            $capturedResult->standard_limit_value = $limitType;
+            
+            $capturedResult->save();
+            
+            return response()->json([
+                'success' => true,
+                'message' => 'Standard limit updated successfully',
+                'result_id' => $capturedResult->id,
+                'standard_limit' => $standardValue . ' ' . strtolower($limitType)
+            ]);
+            
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Error updating standard limit: ' . $e->getMessage()
+            ], 500);
+        }
+    }
+    
+    /**
+     * Update result value via AJAX
+     */
+    public function updateResult(Request $request)
+    {
+        try {
+            $resultId = $request->input('result_id');
+            $sampleCode = $request->input('sample_code');
+            $analyte = $request->input('analyte');
+            $result = $request->input('result');
+            
+            // Find or create the captured result
+            $capturedResult = null;
+            
+            if ($resultId) {
+                $capturedResult = CapturedResult::find($resultId);
+            } else {
+                // Create new captured result if it doesn't exist
+                $sample = SampleDetails::where('sample_code', $sampleCode)->first();
+                if (!$sample) {
+                    return response()->json(['success' => false, 'message' => 'Sample not found'], 404);
+                }
+                
+                $analyteRecord = Analyte::where('code', $analyte)->first();
+                if (!$analyteRecord) {
+                    return response()->json(['success' => false, 'message' => 'Analyte not found'], 404);
+                }
+                
+                $capturedResult = new CapturedResult();
+                $capturedResult->sample_detail_id = $sample->id;
+                $capturedResult->sample_header_id = $sample->sample_header_id;
+                $capturedResult->analyte_id = $analyteRecord->id;
+                $capturedResult->analysis_type_id = 1; // Default - adjust as needed
+                $capturedResult->analyte_code = $analyte;
+            }
+            
+            // Update result
+            $capturedResult->result = $result;
+            
+            // Perform validation against standards if result exists
+            $validationResult = null;
+            if ($result && $capturedResult->main_value) {
+                $validationResult = $this->validateResultAgainstStandard($result, $capturedResult->main_value, $capturedResult->analyte_id);
+                $capturedResult->remark = $validationResult;
+            }
+            
+            $capturedResult->save();
+            
+            return response()->json([
+                'success' => true,
+                'message' => 'Result updated successfully',
+                'result_id' => $capturedResult->id,
+                'validation_result' => $validationResult,
+                'standard_limit' => $capturedResult->main_value ? $capturedResult->main_value . ' ' . strtolower($capturedResult->standard_limit_value) : null
+            ]);
+            
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Error updating result: ' . $e->getMessage()
+            ], 500);
+        }
+    }
+    
+    /**
+     * Get parameter settings for a result
+     */
+    public function getParameterSettings($resultId)
+    {
+        try {
+            $capturedResult = CapturedResult::find($resultId);
+            
+            if (!$capturedResult) {
+                return response()->json(['success' => false, 'message' => 'Result not found'], 404);
+            }
+            
+            return response()->json([
+                'success' => true,
+                'data' => [
+                    'reporting_unit' => $capturedResult->reporting_unit_id,
+                    'method_id' => $capturedResult->method_id,
+                    'reporting_symbol' => $capturedResult->result_reporting_symbol,
+                    'analyst_id' => $capturedResult->operator_id,
+                    'accredited' => $capturedResult->analyte_accredited,
+                    'subcontracted' => $capturedResult->analyte_status_contracted
+                ]
+            ]);
+            
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Error loading parameter settings: ' . $e->getMessage()
+            ], 500);
+        }
+    }
+    
+    /**
+     * Get standard settings for a result
+     */
+    public function getStandardSettings($resultId)
+    {
+        try {
+            $capturedResult = CapturedResult::find($resultId);
+            
+            if (!$capturedResult) {
+                return response()->json(['success' => false, 'message' => 'Result not found'], 404);
+            }
+            
+            return response()->json([
+                'success' => true,
+                'data' => [
+                    'standard_value' => $capturedResult->main_value,
+                    'limit_type' => $capturedResult->standard_limit_value
+                ]
+            ]);
+            
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Error loading standard settings: ' . $e->getMessage()
+            ], 500);
+        }
+    }
+
 }

@@ -1658,7 +1658,7 @@
 <div class="modal fade" id="view-coa-report" role="dialog">
 	<div class="modal-dialog">
 		<div class="modal-content">
-			<form action="{{route('showBatchCOA')}}" method="get">
+			<form action="#" method="get" id="coa-report-form-again">
 				
 				<div class="modal-body">
 					@if($batch->getVerificationApprovalStatus() > 0 && $batch->status == 'Sample Verification' )
@@ -1682,17 +1682,18 @@
 						<span class="p-2">Confirm you want to view COA report for this batch by selecting the report standard below:</span>
 					</div>
 					<div class="form-group">
-						<label for="" class="control-label">Report Template</label>
-						<select name="template_id" id="" class="form-control">
-							@foreach($report_formats as $r_format)
-							<option value="{{$r_format->value}}">{{$r_format->key}}</option>
-							@endforeach
+						<label for="" class="control-label">Report Format</label>
+						<select name="report_format" id="report_format_select_again" class="form-control" required>
+							<option value="">Select Report Format</option>
+							<option value="0">Aspergillus Report (MB 821/25-3)</option>
+							<option value="1">Microbiology Report (MB 826/25)</option>
+							<option value="2">Hygiene Swabs Report (MB 756/25-2)</option>
 						</select>
 					</div>
 					<input type="hidden" name="batch_id" value="{{$batch->id}}">
 				</div>
 				<div class="modal-footer">
-					<button class="btn btn-sm btn-outline-success" type="submit"><i class="mdi mdi-cogs"></i> View</button>
+					<button class="btn btn-sm btn-outline-success" type="button" id="generate-coa-btn-again"><i class="mdi mdi-cogs"></i> Generate Report</button>
 					<span class="btn btn-sm btn-default text-danger" data-dismiss="modal">Close</span>
 				</div>
 			</form>
@@ -1856,9 +1857,9 @@
 								<label for="" class="control-label">Report Format</label>
 								<select name="report_format" id="report_format" class="form-control">
 									<option value="">Choose Report Format</option>
-									<option value="0">Standard Report</option>
-									{{-- <option value="1">KTDA Report</option> --}}
-									<option value="2">Iran Report</option>
+									<option value="0">Aspergillus Report</option>
+									<option value="1">Microbiology Report</option>
+									<option value="2">Hygiene Swabs Report</option>
 								</select>
 							</div>
 							<div class="proccesing-point hidden">
@@ -3117,13 +3118,26 @@
 		$('#process-results-modal').on('show.bs.modal',function(){
 			var batch = $(this).data('batch');
 			$('#process-results-modal').find('.proccesing-point').addClass('hidden');
-			$('#process-results-modal').find('#initiate-process').on('click',()=>{
+			$('#process-results-modal').find('#initiate-process').prop('disabled', false).removeClass('disabled');
+			$('#process-results-modal').find('#report_format').val('');
+			
+			$('#process-results-modal').find('#initiate-process').off('click').on('click',function(){
+				var selectedFormat = $('#process-results-modal').find('#report_format').val();
+				
+				// Validate that a report format has been selected
+				if (!selectedFormat) {
+					alert('Please select a report format before generating the report.');
+					return;
+				}
+				
+				// Disable the button to prevent double-clicks
+				$(this).prop('disabled', true).addClass('disabled').html('<i class="mdi mdi-loading mdi-spin"></i> Generating...');
 				$('#process-results-modal').find('.proccesing-point').removeClass('hidden');
 				
 				$.ajax({
 					url:"{{ route('process-raw-results', ['batch_id'=> isset($batch->id) ? $batch->id : 0]) }}",	
 					data:{
-						report_format : $('#process-results-modal').find('#report_format').val(),
+						report_format : selectedFormat,
 					},
 					method:'GET',
 					success: function(data){
@@ -3143,6 +3157,10 @@
 					},
 					error: function(data){
 						console.log(data);
+						// Re-enable the button on error
+						$('#process-results-modal').find('#initiate-process').prop('disabled', false).removeClass('disabled').html('<i class="mdi mdi-cogs"></i> Generate Report');
+						$('#process-results-modal').find('.proccesing-point').addClass('hidden');
+						alert('An error occurred while processing the report. Please try again.');
 					}
 				})
 			})
@@ -3601,4 +3619,31 @@
 
 	
 </script>
+
+<script>
+$(document).ready(function() {
+    // Handle COA report generation for show-again template
+    $('#generate-coa-btn-again').on('click', function() {
+        var reportFormat = $('#report_format_select_again').val();
+        var batchId = $('input[name="batch_id"]').val();
+        
+        if (!reportFormat) {
+            alert('Please select a report format');
+            return;
+        }
+        
+        // Generate the URL for the PDF report
+        var url = '{{ route("process-pdf-report", ["batch_id" => ":batch_id", "report_format" => ":report_format"]) }}';
+        url = url.replace(':batch_id', batchId);
+        url = url.replace(':report_format', reportFormat);
+        
+        // Open the PDF in a new window/tab
+        window.open(url, '_blank');
+        
+        // Close the modal
+        $('#view-coa-report').modal('hide');
+    });
+});
+</script>
+
 @endsection

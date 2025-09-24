@@ -9,4 +9,7 @@ class StandardValue extends Model implements Auditable
 {
 	use \OwenIt\Auditing\Auditable;
     protected $table = 'standard_values';
+    protected $fillable = [
+        'name', 'code', 'status', 'edited_by'
+    ];
 }
