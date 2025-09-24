@@ -36,7 +36,7 @@
                                 <h6>Component Details:</h6>
                                 <ul class="list-unstyled">
                                     <li><strong>Component Class:</strong> <code>App\Livewire\SampleTypeManager</code></li>
-                                    <li><strong>Blade Template:</strong> <code>livewire.sample-type-manager</code></li>
+                                    <li><strong>Blade Template:</strong> <code>livewire.samples.sample-type-manager</code></li>
                                     <li><strong>Route:</strong> <code>/livewire/sample-types</code></li>
                                     <li><strong>Route Name:</strong> <code>livewire.sample-types</code></li>
                                 </ul>

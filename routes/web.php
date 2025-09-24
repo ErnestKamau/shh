@@ -167,11 +167,21 @@ Route::get('/livewire/elements/{analysisTypeId}', [LabAppController::class, 'ele
 // Livewire Standards Management
 Route::get('/livewire/standards', [StandardsController::class, 'index'])
     ->name('livewire.standards')
-    ->middleware('haspermission:Laboratory.components.Standards.View');
+    ->middleware('haspermission:Laboratory.components.Sample-Types.View');
+
+// Livewire Standard Analytes Management
+Route::get('/livewire/standard-analytes/{standardId}', [StandardsController::class, 'standardAnalytes'])
+    ->name('livewire.standard-analytes')
+    ->middleware('haspermission:Laboratory.components.Sample-Types.View');
 
 // Livewire Report Formats Management
 Route::get('/livewire/report-formats', [LabAppController::class, 'reportFormats'])
     ->name('livewire.report-formats')
+    ->middleware('haspermission:Laboratory.components.Sample-Types.View');
+
+// Livewire Standard Manager
+Route::get('/livewire/standard-manager', [LabAppController::class, 'standardManager'])
+    ->name('livewire.standard-manager')
     ->middleware('haspermission:Laboratory.components.Sample-Types.View');
 
 // Livewire Test Page
@@ -179,14 +189,15 @@ Route::get('/livewire-test', function () {
     return view('livewire-test');
 })->name('livewire-test');
 
+
 // Livewire CRM Management Routes
 Route::get('/livewire/customers', [CRMAppController::class, 'customers'])
     ->name('livewire.customers')
-    ->middleware('haspermission:CRM.components.Customers.View');
+    ->middleware('haspermission:CRM.components.Customer-List.View');
 
 Route::get('/livewire/customers/{customerId}/profile', [CRMAppController::class, 'customerProfile'])
     ->name('livewire.customer-profile')
-    ->middleware('haspermission:CRM.components.Customers.View');
+    ->middleware('haspermission:CRM.components.Customer-List.View');
 
 Route::get('/analysis-types', 'AnalysisTypeController@index')->name('analysis-types')->middleware('haspermission:Laboratory.components.Analysis Types.View');
 Route::post('/analysis-types', 'AnalysisTypeController@add')->name('add-analysis-types')->middleware('haspermission:Laboratory.components.Analysis Types.Add');

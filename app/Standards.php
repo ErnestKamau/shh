@@ -12,7 +12,10 @@ class Standards extends Model implements Auditable
 {
 	use \OwenIt\Auditing\Auditable;
     protected $table = 'standards';
-    protected $fillables = ['is_active'];
+    protected $fillable = [
+        'name', 'code', 'main_standard', 'is_qc_standard', 
+        'qc_type_id', 'qc_scheme_ids', 'status', 'edited_by'
+    ];
     protected $appends = ['qcschemeidsarr','qcschemenames'];
 
     public function getQcType(){
@@ -31,6 +34,6 @@ class Standards extends Model implements Auditable
     }
 
     public function standardAnalytes(){
-        return $this->hasMany('App\StandardAnalytes');
+        return $this->hasMany('App\StandardAnalytes', 'standard_id');
     }
 }

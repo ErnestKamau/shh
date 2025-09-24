@@ -10,6 +10,13 @@ class StandardAnalytes extends Model implements Auditable
 {
 	use \OwenIt\Auditing\Auditable;
     protected $table = 'standards_analytes';
+    protected $fillable = [
+        'standard_id', 'analyte_id', 'standard_value_id', 'standard_value_type',
+        'low', 'high', 'standard_is_value', 'comments', 'recommendations',
+        'expected_value', 'absolute_tolerance', 'is_active', 'mean_value',
+        'rel_std_dev', 'tolerance_1', 'tolerance_2', 'value_type',
+        'matrix_operator', 'matrix_value'
+    ];
     protected $appends = ['analytename'];
 
     public function getAnalyte(){

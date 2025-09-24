@@ -144,6 +144,19 @@ class RatingManager extends Component
         $this->resetPage();
     }
 
+    public function clearFilters()
+    {
+        $this->search = '';
+        $this->resetPage();
+    }
+
+    public function closeRatingHeaderModal()
+    {
+        $this->showRatingHeaderModal = false;
+        $this->resetForm();
+        $this->dispatch('rating-header-modal-closed');
+    }
+
     public function dismissMessage()
     {
         $this->message = '';

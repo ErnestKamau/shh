@@ -95,16 +95,41 @@
             ];
         }
     }
+    
+    // Add Standards if we're in standards section
+    if (isset($componentType) && $componentType === 'standards') {
+        $breadcrumbItems[] = [
+            'link' => route('livewire.standards'),
+            'name' => 'Standards',
+            'icon' => null
+        ];
+    }
+    
+    // Add Standard Analytes if we're in standard analytes section
+    if (isset($componentType) && $componentType === 'standard-analytes') {
+        $breadcrumbItems[] = [
+            'link' => route('livewire.standards'),
+            'name' => 'Standards',
+            'icon' => null
+        ];
+        if (isset($standard) && $standard) {
+            $breadcrumbItems[] = [
+                'link' => '#',
+                'name' => $standard->name,
+                'icon' => null
+            ];
+        }
+    }
     ?>
     <x-bread-crumb :items="$breadcrumbItems"></x-bread-crumb>
     
     <!-- Dynamic Livewire Component -->
     @if($componentType === 'sample-types')
-        @livewire('sample-type-manager')
+        @livewire('samples.sample-type-manager')
     @elseif($componentType === 'analysis-types')
-        @livewire('analysis-type-manager', ['sampleTypeId' => $sampleType->id ?? null])
+        @livewire('analysis.analysis-type-manager', ['sampleTypeId' => $sampleType->id ?? null])
     @elseif($componentType === 'elements')
-        @livewire('element-manager', ['analysisTypeId' => $analysisType->id ?? null])
+        @livewire('analysis.element-manager', ['analysisTypeId' => $analysisType->id ?? null])
     @elseif($componentType === 'remedies')
         @livewire('remedies.remedy-manager')
     @elseif($componentType === 'remedy-details')
@@ -114,7 +139,13 @@
     @elseif($componentType === 'rating-details')
         @livewire('ratings.rating-details-manager', ['ratingHeaderId' => $ratingHeaderId ?? null])
     @elseif($componentType === 'report-formats')
-        @livewire('report-format-manager')
+        @livewire('reports.report-format-manager')
+    @elseif($componentType === 'standards')
+        @livewire('standards.standards-page')
+    @elseif($componentType === 'standard-analytes')
+        @livewire('standards.standard-analytes-manager', ['standardId' => $standard->id])
+    @elseif($componentType === 'standard-manager')
+        @livewire('standards.standard-manager')
     @endif
 </main>
 @endsection

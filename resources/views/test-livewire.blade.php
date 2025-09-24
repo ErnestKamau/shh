@@ -13,7 +13,7 @@
         <h1>Test Livewire Component</h1>
         <p>Testing the SampleTypeManager Livewire component...</p>
         
-        @livewire('sample-type-manager')
+        @livewire('samples.sample-type-manager')
     </div>
 
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>

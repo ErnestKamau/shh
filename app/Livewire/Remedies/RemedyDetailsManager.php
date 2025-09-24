@@ -149,6 +149,13 @@ class RemedyDetailsManager extends Component
         $this->editingRemedyDetail = null;
     }
 
+    public function clearFilters()
+    {
+        $this->search = '';
+        $this->sensitivityFilter = '';
+        $this->resetPage();
+    }
+
     public function dismissMessage()
     {
         $this->message = '';

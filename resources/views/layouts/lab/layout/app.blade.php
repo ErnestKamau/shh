@@ -203,6 +203,12 @@
 					<span class="menu-collapsed">Sample Types</span>
 				</div>
 			</a>
+			<a href="{{ route('livewire.standards') }}" class="bg-dark list-group-item list-group-item-action">
+				<div class="d-flex w-100 justify-content-start align-items-center">
+					<span class="mdi mdi-scale-balance fa-fw mr-3"></span>
+					<span class="menu-collapsed">Standards</span>
+				</div>
+			</a>
 			<a href="{{ route('livewire.report-formats') }}" class="bg-dark list-group-item list-group-item-action">
 				<div class="d-flex w-100 justify-content-start align-items-center">
 					<span class="mdi mdi-file-document-outline fa-fw mr-3"></span>
@@ -218,7 +224,7 @@
 			<a href="{{ route('ratings.index') }}" class="bg-dark list-group-item list-group-item-action">
 				<div class="d-flex w-100 justify-content-start align-items-center">
 					<span class="mdi mdi-chart-box-outline fa-fw mr-3"></span>
-					<span class="menu-collapsed">Rating Hub</span>
+					<span class="menu-collapsed">Key Configurations</span>
 				</div>
 			</a>
 

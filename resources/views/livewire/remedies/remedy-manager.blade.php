@@ -100,17 +100,17 @@
                                             <td>
                                                 <div class="btn-group" role="group">
                                                     <a href="{{ route('remedies.details', $remedyHeader->id) }}" 
-                                                       class="btn btn-sm btn-outline-primary" 
+                                                       class="btn btn-sm mr-1 btn-outline-primary" 
                                                        title="View Details">
                                                         <i class="mdi mdi-eye"></i>
                                                     </a>
                                                     <button wire:click="showEditRemedyHeaderModal({{ $remedyHeader->id }})" 
-                                                            class="btn btn-sm btn-outline-warning" 
+                                                            class="btn btn-sm mr-1 btn-outline-warning" 
                                                             title="Edit">
                                                         <i class="mdi mdi-pencil"></i>
                                                     </button>
                                                     <button wire:click="cloneRemedyHeader({{ $remedyHeader->id }})" 
-                                                            class="btn btn-sm btn-outline-info" 
+                                                            class="btn btn-sm mr-1 btn-outline-info" 
                                                             title="Clone"
                                                             onclick="return confirm('Are you sure you want to clone this remedy?')">
                                                         <i class="mdi mdi-content-copy"></i>

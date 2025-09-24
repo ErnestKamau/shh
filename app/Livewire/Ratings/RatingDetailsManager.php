@@ -158,6 +158,19 @@ class RatingDetailsManager extends Component
         $this->resetPage();
     }
 
+    public function clearFilters()
+    {
+        $this->search = '';
+        $this->resetPage();
+    }
+
+    public function closeRatingDetailModal()
+    {
+        $this->showRatingDetailModal = false;
+        $this->resetForm();
+        $this->dispatch('rating-detail-modal-closed');
+    }
+
     public function dismissMessage()
     {
         $this->message = '';

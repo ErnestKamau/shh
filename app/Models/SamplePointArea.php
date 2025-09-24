@@ -3,14 +3,25 @@
 namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\SoftDeletes;
 
 class SamplePointArea extends Model
 {
+    use SoftDeletes;
+    
     protected $table = 'sample_point_area';
     
     protected $fillable = [
         'name',
-        'crm_customer_id'
+        'code',
+        'description',
+        'crm_customer_id',
+        'active'
+    ];
+
+    protected $casts = [
+        'active' => 'boolean',
+        'deleted_at' => 'datetime',
     ];
 
     public function crmCustomer()
@@ -20,6 +31,6 @@ class SamplePointArea extends Model
 
     public function samplePoints()
     {
-        return $this->hasMany('App\SamplePoint', 'sample_point_area_id');
+        return $this->hasMany('App\Models\CRM\SamplePoint', 'sample_point_area_id');
     }
 } 

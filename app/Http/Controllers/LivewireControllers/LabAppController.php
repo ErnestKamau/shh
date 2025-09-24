@@ -120,4 +120,15 @@ class LabAppController extends Controller
             'pageTitle' => 'Report Formats Management'
         ]);
     }
+
+    /**
+     * Display the standard manager page.
+     */
+    public function standardManager()
+    {
+        return view('livewire.layout.lab-app', [
+            'componentType' => 'standard-manager',
+            'pageTitle' => 'Standard Manager'
+        ]);
+    }
 }

@@ -36,9 +36,9 @@
     
     <!-- Dynamic Livewire Component -->
     @if($componentType === 'customers')
-        @livewire('customer-manager')
+        @livewire(\App\Livewire\CRM\CustomerManager::class)
     @elseif($componentType === 'customer-profile')
-        @livewire('customer-profile', ['customerId' => $customerId])
+        @livewire(\App\Livewire\CRM\CustomerProfile::class, ['customerId' => $customerId])
     @endif
 </main>
 @endsection

@@ -8,6 +8,6 @@ class LivewireController extends Controller
 {
     public function sampleTypes()
     {
-        return view('livewire.sample-type-manager-layout');
+        return view('livewire.samples.sample-type-manager');
     }
 }
