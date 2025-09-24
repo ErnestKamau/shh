@@ -4652,7 +4652,8 @@
 		}
 		var getSampleCapturedNotData = (sample_id,callback)=>{
 			$.ajax({
-				url:`/getSampleResultCapturedNot/${sample_id}`,
+				url:`/getSampleResultCapturedNot`,
+				data:{sample_id:sample_id},
 				method:'GET',
 				success:(data)=>{
 					console.log(data);

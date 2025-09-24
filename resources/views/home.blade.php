@@ -499,7 +499,7 @@
             <h3 class="app-title">Equipment</h3>
         </a>
 
-        <a class="app-card crm" href="/crm-home" data-app="crm">
+        <a class="app-card crm" href="{{ route('livewire.customers') }}" data-app="crm">
             <div class="app-icon" style="background: linear-gradient(135deg, #00BCD4, #0097A7);">
                 <i class="mdi mdi-account-multiple-outline"></i>
             </div>
