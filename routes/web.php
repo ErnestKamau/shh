@@ -1295,3 +1295,14 @@ Route::middleware(['auth'])->group(function () {
     Route::get('/simple-form/{instanceId}', 'TestFormDataController@showSimpleForm')->name('simple.form');
 });
 
+// Formula Workflow Engine Routes
+Route::middleware(['auth'])->prefix('formulars')->name('formulars.')->group(function () {
+    Route::get('/', 'Formulars\FormulaController@index')->name('index');
+    Route::get('/manage', 'Formulars\FormulaController@manage')->name('manage');
+    Route::get('/steps/{formulaVersion}', 'Formulars\FormulaController@steps')->name('steps');
+    Route::get('/execute/{formulaVersion}', 'Formulars\FormulaController@execute')->name('execute');
+    Route::get('/history', 'Formulars\FormulaController@history')->name('history');
+    Route::get('/global-variables', 'Formulars\FormulaController@globalVariables')->name('global-variables');
+    Route::get('/lookup-tables', 'Formulars\FormulaController@lookupTables')->name('lookup-tables');
+});
+

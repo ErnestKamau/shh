@@ -10,6 +10,8 @@
     <meta name="csrf-token" content="{{ csrf_token() }}">
 
     @yield('title')
+    
+    @livewireStyles
 
     <!-- Scripts -->
     <link rel="stylesheet" href="/assets/css/font-awesome/all.min.css">
@@ -2359,6 +2361,7 @@
     });
 </script>
 @yield('script')
+@livewireScripts
 @if (isset(Auth::user()->company_id) && Auth::user()->company_id == 0)
     <div id="select-default-company" class="modal fade" role="dialog">
         <div class="modal-dialog">

@@ -203,6 +203,12 @@
 					<span class="menu-collapsed">Sample Types</span>
 				</div>
 			</a>
+			<a href="{{ route('formulars.index') }}" class="bg-dark list-group-item list-group-item-action">
+				<div class="d-flex w-100 justify-content-start align-items-center">
+					<span class="mdi mdi-calculator fa-fw mr-3"></span>
+					<span class="menu-collapsed">Formulas</span>
+				</div>
+			</a>
 			<a href="{{ route('livewire.standards') }}" class="bg-dark list-group-item list-group-item-action">
 				<div class="d-flex w-100 justify-content-start align-items-center">
 					<span class="mdi mdi-scale-balance fa-fw mr-3"></span>
@@ -377,5 +383,6 @@
 @endsection
 
 @section('script')
+@livewireScripts
 @yield('script2')
 @endsection
