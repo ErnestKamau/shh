@@ -286,6 +286,12 @@ Route::post('/process-raw-results/lab','SampleWorkFlowController@processRawResul
   Route::get('/sample-workflow-forms/submission-forms', 'SampleWorkFlowController@getAvailableSubmissionForms')->name('sample-workflow.submission-forms');
   Route::post('/sample-workflow-forms/submission-forms/create-instance', 'SampleWorkFlowController@createSubmissionFormInstance')->name('sample-workflow.create-form-instance');
   Route::get('/sample-submission-forms/forms', 'FormInstanceController@index')->name('sample-workflow.saved-forms');
+  
+  // Sample Submissions Management Page (Livewire)
+  Route::get('/sample-submissions', function() {
+      return view('layouts.lab.sample-workflow.sign-customer-focus-index');
+  })->name('sample-submissions')->middleware('auth');
+  
   Route::post('/print-labels', 'SampleWorkFlowController@print_labels')->name('print-labels');
   Route::post('/send-out-email-reports', 'SampleWorkFlowController@send_report_email')->name('send-out-email-reports');
   Route::get('/lab/batch/approve/{id}', 'SampleWorkFlowController@approve_batch')->name('approve-batch-analysis');
