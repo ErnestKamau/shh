@@ -1,4 +1,22 @@
 <div class="container-fluid">
+    <style>
+        .submissions-table tbody tr {
+            background-color: white !important;
+        }
+        .submissions-table tbody tr:hover {
+            background-color: #f8f9fa !important;
+        }
+        .submissions-table th {
+            font-weight: 600;
+            font-size: 0.8rem;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+        .submissions-table td {
+            vertical-align: middle;
+            padding: 0.75rem 0.5rem;
+        }
+    </style>
     <!-- Header Section -->
     <div class="row mb-4">
         <div class="col-12">
@@ -30,33 +48,48 @@
         </div>
     @endif
 
-    <!-- Filters Section -->
-    <div class="row mb-4">
+    <!-- Submissions Table with Integrated Filters -->
+    <div class="row">
         <div class="col-12">
             <div class="card shadow-sm border-0" style="border-radius: 15px;">
                 <div class="card-header bg-light border-0" style="border-radius: 15px 15px 0 0;">
-                    <h6 class="mb-0 text-muted">
-                        <i class="mdi mdi-filter-variant"></i> Filter Options
-                    </h6>
+                    <div class="d-flex justify-content-between align-items-center">
+                        <h5 class="card-title mb-0">
+                            <i class="mdi mdi-format-list-bulleted"></i> All Submissions
+                        </h5>
+                        <div class="d-flex align-items-center">
+                            <label for="perPage" class="form-label mb-0 me-2 text-muted">Show:</label>
+                            <select wire:model.live="perPage" id="perPage" class="form-select form-select-sm" style="width: auto;">
+                                @foreach($perPageOptions as $option)
+                                    <option value="{{ $option }}">{{ $option }}</option>
+                                @endforeach
+                            </select>
+                        </div>
+                    </div>
+                    
+                    <!-- Integrated Filter Row -->
+                   
                 </div>
-                <div class="card-body p-4">
-                    <div class="row">
+                <div class="card-body">
+                    <div class="row mt-3">
                         <div class="col-md-3">
-                            <div class="form-group mb-3">
-                                <label class="form-label fw-bold">Search</label>
-                                <input type="text" 
-                                       wire:model.live.debounce.300ms="searchTerm" 
-                                       class="form-control" 
-                                       placeholder="Search by form number, title...">
-                                <div wire:loading wire:target="searchTerm" class="text-muted small mt-1">
-                                    <i class="mdi mdi-loading mdi-spin"></i> Searching...
+                            <div class="form-group mb-2">
+                                <label class="form-label fw-bold small">Search</label>
+                                <div class="position-relative">
+                                    <input type="text" 
+                                           wire:model.live.debounce.300ms="searchTerm" 
+                                           class="form-control form-control-sm" 
+                                           placeholder="Search by form number, title...">
+                                    <div wire:loading wire:target="searchTerm" class="position-absolute top-50 end-0 translate-middle-y me-2">
+                                        <i class="mdi mdi-loading mdi-spin text-primary"></i>
+                                    </div>
                                 </div>
                             </div>
                         </div>
                         <div class="col-md-2">
-                            <div class="form-group mb-3">
-                                <label class="form-label fw-bold">Status</label>
-                                <select wire:model.live="statusFilter" class="form-select">
+                            <div class="form-group mb-2">
+                                <label class="form-label fw-bold small">Status</label>
+                                <select wire:model.live="statusFilter" class="form-select form-select-sm">
                                     <option value="">All Statuses</option>
                                     <option value="draft">Draft</option>
                                     <option value="submitted">Submitted</option>
@@ -68,9 +101,9 @@
                             </div>
                         </div>
                         <div class="col-md-2">
-                            <div class="form-group mb-3">
-                                <label class="form-label fw-bold">Priority</label>
-                                <select wire:model.live="priorityFilter" class="form-select">
+                            <div class="form-group mb-2">
+                                <label class="form-label fw-bold small">Priority</label>
+                                <select wire:model.live="priorityFilter" class="form-select form-select-sm">
                                     <option value="">All Priorities</option>
                                     <option value="low">Low</option>
                                     <option value="normal">Normal</option>
@@ -80,9 +113,9 @@
                             </div>
                         </div>
                         <div class="col-md-3">
-                            <div class="form-group mb-3">
-                                <label class="form-label fw-bold">Form Type</label>
-                                <select wire:model.live="formTypeFilter" class="form-select">
+                            <div class="form-group mb-2">
+                                <label class="form-label fw-bold small">Form Type</label>
+                                <select wire:model.live="formTypeFilter" class="form-select form-select-sm">
                                     <option value="">All Forms</option>
                                     @foreach($availableForms as $form)
                                         <option value="{{ $form->id }}">{{ $form->name }}</option>
@@ -91,52 +124,18 @@
                             </div>
                         </div>
                         <div class="col-md-2">
-                            <div class="form-group mb-3">
-                                <label class="form-label fw-bold">&nbsp;</label>
-                                <button wire:click="clearFilters" class="btn btn-outline-secondary w-100">
+                            <div class="form-group mb-2">
+                                <label class="form-label fw-bold small">&nbsp;</label>
+                                <button wire:click="clearFilters" class="btn btn-outline-secondary btn-sm w-100">
                                     <i class="mdi mdi-refresh"></i> Clear
                                 </button>
                             </div>
                         </div>
                     </div>
-                </div>
-            </div>
-        </div>
-    </div>
-
-    <!-- Submissions Table -->
-    <div class="row">
-        <div class="col-12">
-            <div class="card shadow-sm border-0" style="border-radius: 15px;">
-                <div class="card-header d-flex justify-content-between align-items-center bg-light" 
-                     style="border-radius: 15px 15px 0 0;">
-                    <h5 class="card-title mb-0">
-                        <i class="mdi mdi-format-list-bulleted"></i> All Submissions
-                    </h5>
-                    <div class="d-flex align-items-center">
-                        <label for="perPage" class="form-label mb-0 me-2 text-muted">Show:</label>
-                        <select wire:model.live="perPage" id="perPage" class="form-select form-select-sm" style="width: auto;">
-                            @foreach($perPageOptions as $option)
-                                <option value="{{ $option }}">{{ $option }}</option>
-                            @endforeach
-                        </select>
-                    </div>
-                </div>
-                <div class="card-body p-0 position-relative">
-                    <!-- Loading Overlay -->
-                    <div wire:loading.delay wire:target="searchTerm, statusFilter, priorityFilter, formTypeFilter, perPage" 
-                         class="position-absolute w-100 h-100 d-flex align-items-center justify-content-center"
-                         style="background: rgba(255,255,255,0.8); z-index: 10; min-height: 200px;">
-                        <div class="text-center">
-                            <i class="mdi mdi-loading mdi-spin" style="font-size: 3rem; color: #0d6efd;"></i>
-                            <p class="mt-2 text-muted">Loading...</p>
-                        </div>
-                    </div>
-
                     @if($instances->count() > 0)
-                        <div class="table-responsive">
-                            <table class="table table-hover table-striped mb-0">
-                                <thead class="table-light">
+                        <div class="table-responsive mt-5">
+                            <table class="table table-hover mb-0 submissions-table" style="font-size: 0.875rem;">
+                                <thead class="table-dark">
                                     <tr>
                                         <th>Form Number</th>
                                         <th>Form Name</th>

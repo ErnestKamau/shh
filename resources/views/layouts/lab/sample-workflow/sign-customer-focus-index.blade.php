@@ -1,4 +1,4 @@
-@extends('layouts.app', ['select2' => true])
+@extends('layouts.sample-submissions', ['select2' => true])
 
 @section('module-name')
     <li class="nav-item">
@@ -79,7 +79,7 @@
             </div>
 
             <!-- Livewire Component -->
-            @livewire('submission-forms-manager')
+            @livewire('submissions.submission-forms-manager')
         </div>
     </div>
 @endsection

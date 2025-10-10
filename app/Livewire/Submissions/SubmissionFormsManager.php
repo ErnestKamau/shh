@@ -1,6 +1,6 @@
 <?php
 
-namespace App\Livewire;
+namespace App\Livewire\Submissions;
 
 use Livewire\Component;
 use Livewire\WithPagination;
@@ -49,7 +49,7 @@ class SubmissionFormsManager extends Component
     {
         $instances = $this->getInstancesQuery();
 
-        return view('livewire.submission-forms-manager', [
+        return view('livewire.submissions.submission-forms-manager', [
             'instances' => $instances
         ]);
     }
@@ -57,7 +57,7 @@ class SubmissionFormsManager extends Component
     /**
      * Get instances query with filters applied
      */
-    private function getInstancesQuery()
+    public function getInstancesQuery()
     {
         $query = SubmissionFormInstance::query()
             ->with(['submissionForm', 'submittedBy'])
@@ -148,7 +148,7 @@ class SubmissionFormsManager extends Component
     }
 
     /**
-     * Create form instance
+     * Create form instance and redirect to fill it
      */
     public function createFormInstance()
     {
@@ -180,19 +180,14 @@ class SubmissionFormsManager extends Component
                 'priority' => 'normal'
             ]);
 
-            // Success feedback
-            $this->message = "Form instance {$instance->form_number} created successfully! You can now fill it out by clicking the edit button.";
-            $this->messageType = 'success';
-
-            // Close modal and refresh
-            $this->closeCaptureModal();
-            $this->resetPage(); // Reset pagination
-
             Log::info('Form instance created', [
                 'instance_id' => $instance->id,
                 'form_number' => $instance->form_number,
                 'user_id' => auth()->id()
             ]);
+
+            // Redirect to fill form page (like index.blade.php does)
+            return redirect()->route('submission-forms.instances.fill', [$submissionForm, $instance]);
 
         } catch (\Exception $e) {
             $this->message = 'Error creating form instance: ' . $e->getMessage();
