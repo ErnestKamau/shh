@@ -352,7 +352,7 @@
 <!-- sidebar-container END -->
 
 <!-- MAIN -->
-<div class="col-sm-8 col-md-9 col-lg-10 py-3" id="main-container-body">
+<div class="col-sm-8 col-md-9 col-lg-10 py-3" id="main-container-body" style="overflow-x:hidden !important">
 	<div id="message-section" style="padding: 10px 10px 0px 10px !important">
 		@if ($errors->any())
 		<div class="alert alert-danger">

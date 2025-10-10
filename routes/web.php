@@ -489,6 +489,7 @@ Route::prefix('submission-forms')->name('submission-forms.')->middleware('auth')
         Route::get('/{submissionForm}/create', 'FormInstanceController@create')->name('create');
         Route::post('/{submissionForm}', 'FormInstanceController@store')->name('store');
         Route::get('/{submissionForm}/{instance}/fill', 'FormInstanceController@fill')->name('fill');
+        Route::get('/{submissionForm}/{instance}/fill-sample', 'FormInstanceController@fillSample')->name('fill-sample');
         Route::put('/{submissionForm}/{instance}', 'FormInstanceController@update')->name('update');
         Route::get('/{submissionForm}/{instance}', 'FormInstanceController@show')->name('show');
         Route::get('/{submissionForm}/{instance}/edit', 'FormInstanceController@edit')->name('edit');

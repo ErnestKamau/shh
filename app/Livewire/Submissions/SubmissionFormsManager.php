@@ -186,8 +186,11 @@ class SubmissionFormsManager extends Component
                 'user_id' => auth()->id()
             ]);
 
-            // Redirect to fill form page (like index.blade.php does)
-            return redirect()->route('submission-forms.instances.fill', [$submissionForm, $instance]);
+            // Redirect to fill form page using sample-submissions layout
+            return redirect()->route('submission-forms.instances.fill-sample', [
+                $submissionForm, 
+                $instance
+            ]);
 
         } catch (\Exception $e) {
             $this->message = 'Error creating form instance: ' . $e->getMessage();
