@@ -68,4 +68,12 @@ class FormulaController extends Controller
     {
         return view('formulars.lookup-tables');
     }
+
+    /**
+     * Display lookup table entries management.
+     */
+    public function lookupTableEntries(\App\Models\Formulars\LookupTable $lookupTable)
+    {
+        return view('formulars.lookup-table-entries', compact('lookupTable'));
+    }
 }

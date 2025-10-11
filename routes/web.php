@@ -1311,5 +1311,6 @@ Route::middleware(['auth'])->prefix('formulars')->name('formulars.')->group(func
     Route::get('/history', 'Formulars\FormulaController@history')->name('history');
     Route::get('/global-variables', 'Formulars\FormulaController@globalVariables')->name('global-variables');
     Route::get('/lookup-tables', 'Formulars\FormulaController@lookupTables')->name('lookup-tables');
+    Route::get('/lookup-tables/{lookupTable}/entries', 'Formulars\FormulaController@lookupTableEntries')->name('lookup-table-entries');
 });
 

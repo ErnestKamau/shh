@@ -85,7 +85,19 @@ class WorksheetExecutor extends Component
                 false // Don't save yet
             );
 
-            $this->executionResult = $result;
+            // Transform result structure to match view expectations
+            $this->executionResult = [
+                'inputs' => $result['execution_data']['inputs'] ?? [],
+                'derived_values' => $result['execution_data']['derived'] ?? [],
+                'lookup_results' => $result['execution_data']['lookups'] ?? [],
+                'final_result' => $result['execution_data']['final_result'] ?? null,
+                'execution_details' => [
+                    'steps_executed' => count($this->formulaVersion->formulaSteps),
+                    'execution_time' => 'N/A',
+                ],
+                'raw_result' => $result, // Keep raw result for saving
+            ];
+            
             $this->setMessage('Worksheet executed successfully!', 'success');
             
             // Show save modal if in workflow mode
@@ -101,7 +113,7 @@ class WorksheetExecutor extends Component
 
     public function saveExecution()
     {
-        if (!$this->executionResult) {
+        if (!$this->executionResult || !isset($this->executionResult['raw_result'])) {
             $this->setMessage('No execution result to save', 'error');
             return;
         }
@@ -109,6 +121,7 @@ class WorksheetExecutor extends Component
         try {
             $worksheetService = app(WorksheetService::class);
             
+            // Use the raw result from the previous execution to save
             $result = $worksheetService->executeWorksheet(
                 $this->formulaVersion,
                 $this->inputs,
@@ -120,7 +133,7 @@ class WorksheetExecutor extends Component
             );
 
             $this->showSaveModal = false;
-            $this->setMessage('Worksheet execution saved successfully!', 'success');
+            $this->setMessage('Worksheet execution saved successfully! Execution ID: ' . ($result['execution_id'] ?? 'N/A'), 'success');
         } catch (\Exception $e) {
             $this->setMessage('Error saving execution: ' . $e->getMessage(), 'error');
         }

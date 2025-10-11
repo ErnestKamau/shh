@@ -106,7 +106,7 @@
                                         <th>Entries</th>
                                         <th>Status</th>
                                         <th>Created</th>
-                                        <th style="width: 250px;">Actions</th>
+                                        <th style="width: 300px;">Actions</th>
                                     </tr>
                                 </thead>
                                 <tbody>
@@ -154,6 +154,10 @@
                                             </td>
                                             <td>
                                                 <div class="btn-group" role="group">
+                                                    <a href="{{ route('formulars.lookup-table-entries', $table->id) }}" 
+                                                       class="btn btn-sm btn-outline-secondary" title="Manage Entries">
+                                                        <i class="mdi mdi-table-edit"></i>
+                                                    </a>
                                                     <button wire:click="showEditTableModal({{ $table->id }})" 
                                                             class="btn btn-sm btn-outline-primary" title="Edit">
                                                         <i class="mdi mdi-pencil"></i>

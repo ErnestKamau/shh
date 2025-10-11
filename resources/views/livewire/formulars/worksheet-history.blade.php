@@ -270,20 +270,113 @@
                     @if($selectedExecution->execution_data)
                         <div class="mt-4">
                             <h6>Execution Data</h6>
-                            <div class="card">
-                                <div class="card-body">
-                                    <pre class="mb-0" style="max-height: 300px; overflow-y: auto;">{{ json_encode(json_decode($selectedExecution->execution_data), JSON_PRETTY_PRINT) }}</pre>
+                            
+                            <!-- Input Values -->
+                            @if(isset($selectedExecution->execution_data['inputs']) && count($selectedExecution->execution_data['inputs']) > 0)
+                                <div class="card mb-3">
+                                    <div class="card-header bg-primary text-white">
+                                        <h6 class="mb-0"><i class="mdi mdi-input"></i> Input Values</h6>
+                                    </div>
+                                    <div class="card-body">
+                                        <table class="table table-sm table-striped mb-0">
+                                            <thead>
+                                                <tr>
+                                                    <th>Variable</th>
+                                                    <th>Value</th>
+                                                </tr>
+                                            </thead>
+                                            <tbody>
+                                                @foreach($selectedExecution->execution_data['inputs'] as $variable => $value)
+                                                    <tr>
+                                                        <td><code>{{ $variable }}</code></td>
+                                                        <td><strong>{{ $value }}</strong></td>
+                                                    </tr>
+                                                @endforeach
+                                            </tbody>
+                                        </table>
+                                    </div>
                                 </div>
-                            </div>
-                        </div>
-                    @endif
+                            @endif
 
-                    @if($selectedExecution->results)
-                        <div class="mt-4">
-                            <h6>Results</h6>
+                            <!-- Derived Values -->
+                            @if(isset($selectedExecution->execution_data['derived']) && count($selectedExecution->execution_data['derived']) > 0)
+                                <div class="card mb-3">
+                                    <div class="card-header bg-success text-white">
+                                        <h6 class="mb-0"><i class="mdi mdi-calculator"></i> Derived Values</h6>
+                                    </div>
+                                    <div class="card-body">
+                                        <table class="table table-sm table-striped mb-0">
+                                            <thead>
+                                                <tr>
+                                                    <th>Variable</th>
+                                                    <th>Value</th>
+                                                </tr>
+                                            </thead>
+                                            <tbody>
+                                                @foreach($selectedExecution->execution_data['derived'] as $variable => $value)
+                                                    <tr>
+                                                        <td><code>{{ $variable }}</code></td>
+                                                        <td><strong>{{ $value }}</strong></td>
+                                                    </tr>
+                                                @endforeach
+                                            </tbody>
+                                        </table>
+                                    </div>
+                                </div>
+                            @endif
+
+                            <!-- Lookup Values -->
+                            @if(isset($selectedExecution->execution_data['lookups']) && count($selectedExecution->execution_data['lookups']) > 0)
+                                <div class="card mb-3">
+                                    <div class="card-header bg-warning text-white">
+                                        <h6 class="mb-0"><i class="mdi mdi-table"></i> Lookup Values</h6>
+                                    </div>
+                                    <div class="card-body">
+                                        <table class="table table-sm table-striped mb-0">
+                                            <thead>
+                                                <tr>
+                                                    <th>Variable</th>
+                                                    <th>Value</th>
+                                                </tr>
+                                            </thead>
+                                            <tbody>
+                                                @foreach($selectedExecution->execution_data['lookups'] as $variable => $value)
+                                                    <tr>
+                                                        <td><code>{{ $variable }}</code></td>
+                                                        <td><strong>{{ $value }}</strong></td>
+                                                    </tr>
+                                                @endforeach
+                                            </tbody>
+                                        </table>
+                                    </div>
+                                </div>
+                            @endif
+
+                            <!-- Final Result -->
+                            @if(isset($selectedExecution->execution_data['final_result']))
+                                <div class="card mb-3">
+                                    <div class="card-header bg-info text-white">
+                                        <h6 class="mb-0"><i class="mdi mdi-check-circle"></i> Final Result</h6>
+                                    </div>
+                                    <div class="card-body">
+                                        <div class="alert alert-info mb-0">
+                                            <h4 class="mb-0">{{ $selectedExecution->execution_data['final_result'] }}</h4>
+                                        </div>
+                                    </div>
+                                </div>
+                            @endif
+
+                            <!-- Raw Data (Collapsible) -->
                             <div class="card">
-                                <div class="card-body">
-                                    <pre class="mb-0" style="max-height: 300px; overflow-y: auto;">{{ json_encode(json_decode($selectedExecution->results), JSON_PRETTY_PRINT) }}</pre>
+                                <div class="card-header">
+                                    <a class="text-decoration-none" data-bs-toggle="collapse" href="#rawDataCollapse" role="button" aria-expanded="false">
+                                        <i class="mdi mdi-code-json"></i> View Raw Execution Data (JSON)
+                                    </a>
+                                </div>
+                                <div class="collapse" id="rawDataCollapse">
+                                    <div class="card-body">
+                                        <pre class="mb-0" style="max-height: 300px; overflow-y: auto;">{{ json_encode($selectedExecution->execution_data, JSON_PRETTY_PRINT) }}</pre>
+                                    </div>
                                 </div>
                             </div>
                         </div>
