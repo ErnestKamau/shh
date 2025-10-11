@@ -436,14 +436,17 @@
 
         /* Adjust main content for fixed sidebar */
         #main-container-body {
-            margin-left: 275px; /* Sidebar width when expanded */
-            transition: margin-left 0.3s ease;
+            margin-left: 265px; /* Sidebar width when expanded */
+            width: calc(100% - 265px); /* Calculate remaining width */
+            transition: margin-left 0.3s ease, width 0.3s ease;
+            overflow-x: hidden;
         }
 
         /* Responsive adjustments */
         @media (max-width: 767.98px) {
             #main-container-body {
                 margin-left: 0;
+                width: 100%;
             }
         }
 
@@ -2157,38 +2160,36 @@
 
         if ($(window).width() < 760) {
             $('#sidebar-container').addClass('hidden');
-            $('#main-container-body').css('margin-left', '0');
+            $('#main-container-body').css({'margin-left': '0', 'width': '100%'});
         } else {
             // Set initial margin based on sidebar state
             if ($('#sidebar-container').hasClass('sidebar-collapsed')) {
-                $('#main-container-body').css('margin-left', '0');
+                $('#main-container-body').css({'margin-left': '0', 'width': '100%'});
             } else {
-                $('#main-container-body').css('margin-left', '285px');
+                $('#main-container-body').css({'margin-left': '265px', 'width': 'calc(100% - 265px)'});
             }
         }
 
         $('#toggle-main-sidebar').on('click', function() {
             $('#sidebar-container').toggleClass('hidden');
             if ($('#sidebar-container').hasClass('hidden')) {
-                $('#sidebar-container').removeClass('col-8 col-sm-4 col-md-3 col-lg-2').removeClass(
-                    'floating-sidebar');
-                $('#main-container-body').removeClass('col-4 col-sm-8 col-md-9 col-lg-10').addClass(
-                    'col-12');
-                // Remove margin when sidebar is hidden
-                $('#main-container-body').css('margin-left', '0');
+                $('#sidebar-container').removeClass('floating-sidebar');
+                // Remove margin when sidebar is hidden - full width
+                $('#main-container-body').css({'margin-left': '0', 'width': '100%'});
             } else {
                 if ($(window).width() < 760) {
-                    // $('#main-container-body').addClass('col-4');
-                    // $('#sidebar-container').addClass('col-8').removeClass('d-none');
                     $('#sidebar-container').addClass('floating-sidebar').removeClass('d-none');
-                    // Remove margin for mobile floating sidebar
-                    $('#main-container-body').css('margin-left', '0');
+                    // Remove margin for mobile floating sidebar - sidebar overlays content
+                    $('#main-container-body').css({'margin-left': '0', 'width': '100%'});
                 } else {
-                    $('#sidebar-container').addClass('col-sm-4 col-md-3 col-lg-2');
-                    $('#main-container-body').addClass('col-sm-8 col-md-9 col-lg-10').removeClass(
-                        'col-12');
+                    $('#sidebar-container').removeClass('floating-sidebar');
                     // Add margin when sidebar is visible on desktop
-                    $('#main-container-body').css('margin-left', '285px');
+                    // Check if sidebar is collapsed or expanded
+                    if ($('#sidebar-container').hasClass('sidebar-collapsed')) {
+                        $('#main-container-body').css({'margin-left': '60px', 'width': 'calc(100% - 60px)'});
+                    } else {
+                        $('#main-container-body').css({'margin-left': '265px', 'width': 'calc(100% - 265px)'});
+                    }
                 }
             }
         })
@@ -2196,13 +2197,15 @@
         // Handle window resize to adjust margin
         $(window).on('resize', function() {
             if ($(window).width() < 760) {
-                $('#main-container-body').css('margin-left', '0');
+                $('#main-container-body').css({'margin-left': '0', 'width': '100%'});
             } else {
                 // Set margin based on sidebar state
-                if ($('#sidebar-container').hasClass('sidebar-collapsed')) {
-                    $('#main-container-body').css('margin-left', '0');
+                if ($('#sidebar-container').hasClass('hidden')) {
+                    $('#main-container-body').css({'margin-left': '0', 'width': '100%'});
+                } else if ($('#sidebar-container').hasClass('sidebar-collapsed')) {
+                    $('#main-container-body').css({'margin-left': '60px', 'width': 'calc(100% - 60px)'});
                 } else {
-                    $('#main-container-body').css('margin-left', '285px');
+                    $('#main-container-body').css({'margin-left': '265px', 'width': 'calc(100% - 265px)'});
                 }
             }
         });
@@ -2238,11 +2241,11 @@
 
             // Adjust main content margin based on sidebar state
             if ($('#sidebar-container').hasClass('sidebar-collapsed')) {
-                // Sidebar is collapsed - remove margin
-                $('#main-container-body').css('margin-left', '0');
+                // Sidebar is collapsed (60px) - adjust margin and width
+                $('#main-container-body').css({'margin-left': '60px', 'width': 'calc(100% - 60px)'});
             } else {
-                // Sidebar is expanded - add margin
-                $('#main-container-body').css('margin-left', '285px');
+                // Sidebar is expanded (265px) - add margin and adjust width
+                $('#main-container-body').css({'margin-left': '265px', 'width': 'calc(100% - 265px)'});
             }
 
             // Treating d-flex/d-none on separators with title

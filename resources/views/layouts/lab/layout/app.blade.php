@@ -59,7 +59,7 @@
 @section('content')
 <div class="row" id="body-row">
 	<!-- Sidebar -->
-	<div id="sidebar-container" class="sidebar-expanded d-none d-md-block col-sm-4 col-md-3 col-lg-2">
+	<div id="sidebar-container" class="sidebar-expanded d-none d-md-block">
 		<!-- d-* hiddens the Sidebar in smaller devices. Its itens can be kept on the Navbar 'Menu' -->
 		<!-- Bootstrap List Group -->
 		<ul class="list-group">
@@ -93,13 +93,21 @@
 				@foreach (getSampleWorflowStages() as $item)
 				@if($item == 'Samples In Lab')
 				<a href="{{route('interLabTransferIndex')}}" class="list-group-item list-group-item-action bg-dark text-white">
-					<span class="menu-collapsed"><i class="mdi mdi-circle-medium"></i> Inter Lab Transfer
-						<small class="float-right badge badge-pill badge-success">{{getInterLabTotals()}}</small></span>
+					<div class="d-flex w-100 justify-content-between align-items-center">
+						<span class="menu-collapsed">
+							<i class="mdi mdi-circle-medium"></i> Inter Lab Transfer
+						</span>
+						<small class="badge badge-pill badge-success">{{getInterLabTotals()}}</small>
+					</div>
 				</a>
 				@endif
 				<a href="{{ route('sample-workflow', ['status'=>$item]) }}" class="list-group-item list-group-item-action bg-dark text-white">
-					<span class="menu-collapsed"><i class="mdi mdi-circle-medium"></i>{{ $item }}
-						<small class="float-right badge badge-pill {{ $item == "Samples Request Review" ? 'badge-danger' : 'badge-dark' }}">{{ $menuTotals[$item] ?? 0 }}</small></span>
+					<div class="d-flex w-100 justify-content-between align-items-center">
+						<span class="menu-collapsed">
+							<i class="mdi mdi-circle-medium"></i>{{ $item }}
+						</span>
+						<small class="badge badge-pill {{ $item == "Samples Request Review" ? 'badge-danger' : 'badge-dark' }}">{{ $menuTotals[$item] ?? 0 }}</small>
+					</div>
 				</a>
 				@endforeach
 
@@ -352,7 +360,7 @@
 <!-- sidebar-container END -->
 
 <!-- MAIN -->
-<div class="col-sm-8 col-md-9 col-lg-10 py-3" id="main-container-body" style="overflow-x:hidden !important">
+<div class="py-3" id="main-container-body">
 	<div id="message-section" style="padding: 10px 10px 0px 10px !important">
 		@if ($errors->any())
 		<div class="alert alert-danger">

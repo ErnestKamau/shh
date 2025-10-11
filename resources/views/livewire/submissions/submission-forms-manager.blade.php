@@ -193,7 +193,7 @@
                                             <td>
                                                 <div class="btn-group" role="group">
                                                     @if($instance->status === 'draft')
-                                                        <a href="{{ route('submission-forms.instances.fill', [$instance->submissionForm, $instance]) }}" 
+                                                        <a href="{{ route('submission-forms.instances.fill-sample', [$instance->submissionForm, $instance]) }}" 
                                                            class="btn btn-sm btn-primary" 
                                                            title="Edit Draft">
                                                             <i class="mdi mdi-pencil"></i>
