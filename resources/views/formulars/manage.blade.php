@@ -64,7 +64,7 @@
         ],
         [
             'link' => route('formulars.index'),
-            'name' => 'Formula Workflow Engine',
+            'name' => 'Worksheet Engine',
             'icon' => null,
         ],
         [

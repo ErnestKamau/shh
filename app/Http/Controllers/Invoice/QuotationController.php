@@ -11,7 +11,7 @@ use App\QuotationHeader;
 use App\QuotationDetails;
 use App\Result;
 use App\SampleAnalysisStage;
-use App\sampleAnalysisTypeRelation;
+use App\SampleAnalysisTypeRelation;
 use App\SampleDetails;
 use App\SampleHeader;
 use App\TaxRegime;
@@ -1160,8 +1160,8 @@ class QuotationController extends Controller
     public function createDetailAnalysisRelation($batch_id, $sample_id, $analysis_type)
     {
         $data = [];
-        sampleAnalysisTypeRelation::where('batch_id', $batch_id)->where('sample_detail_id', $sample_id)->whereNotIn('analysis_type_id', $analysis_type)->delete();
-        $existing = sampleAnalysisTypeRelation::where('batch_id', $batch_id)->where('sample_detail_id', $sample_id)->pluck('analysis_type_id')->toArray();
+        SampleAnalysisTypeRelation::where('batch_id', $batch_id)->where('sample_detail_id', $sample_id)->whereNotIn('analysis_type_id', $analysis_type)->delete();
+        $existing = SampleAnalysisTypeRelation::where('batch_id', $batch_id)->where('sample_detail_id', $sample_id)->pluck('analysis_type_id')->toArray();
         foreach ($analysis_type as $at) {
             if (!in_array($at, $existing)) {
                 $data[] = [
@@ -1171,7 +1171,7 @@ class QuotationController extends Controller
                 ];
             }
         }
-        sizeof($data) > 0 ? sampleAnalysisTypeRelation::insert($data) : '';
+        sizeof($data) > 0 ? SampleAnalysisTypeRelation::insert($data) : '';
 
         return 'success';
     }

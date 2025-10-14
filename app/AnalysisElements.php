@@ -35,7 +35,9 @@ class AnalysisElements extends Model implements Auditable
     'remedy_header_id', 
     'remark_is_manual', 
     'result_is_calculated', 
-    'formular_id'
+    'formular_id',
+    'has_method_sequence',
+    'method_sequence_id'
   ];
   
   protected $casts = [
@@ -45,6 +47,7 @@ class AnalysisElements extends Model implements Auditable
     'level' => 'integer',
     'recommend_remedies' => 'boolean',
     'result_is_calculated' => 'boolean',
+    'has_method_sequence' => 'boolean',
   ];
 
   public function getParameterNameAttribute(){
@@ -83,5 +86,9 @@ class AnalysisElements extends Model implements Auditable
 
   public function reportingUnit(){
     return $this->belongsTo('App\ReportingUnit', 'reporting_unit', 'name');
+  }
+
+  public function methodSequence(){
+    return $this->belongsTo('App\Models\MethodSequences\MethodSequence', 'method_sequence_id');
   }
 }

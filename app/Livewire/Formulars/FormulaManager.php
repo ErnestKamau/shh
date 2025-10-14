@@ -64,7 +64,7 @@ class FormulaManager extends Component
             $query->where('is_active', $this->statusFilter === 'active');
         }
 
-        $formulas = $query->orderBy('name')->paginate($this->perPage);
+        $formulas = $query->orderBy('created_at', 'desc')->paginate($this->perPage);
 
         return view('livewire.formulars.formula-manager', [
             'formulas' => $formulas,

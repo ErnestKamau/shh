@@ -2,6 +2,7 @@
 
 namespace App\Observers;
 
+use App\AnalysisElements;
 use App\CapturedResult;
 use App\Models\Lab\TatCaptured;
 use App\SampleAnalysisDates;
@@ -16,9 +17,30 @@ class CapturedObserver
      * @param  \App\CapturedResult  $captured
      * @return void
      */
-    public function created(CapturedResult $captured)
+    public function created(CapturedResult $captured): void
     {
-        //
+        // Query for the matching analysis element using analysis_type_id and analyte_id
+        $analysisElement = AnalysisElements::where('analysis_type_id', $captured->analysis_type_id)
+            ->where('analyte_id', $captured->analyte_id)
+            ->first();
+
+        if ($analysisElement) {
+            // Always set the analysis_element_id
+            $captured->analysis_element_id = $analysisElement->id;
+
+            // Set formular_id if result_is_calculated is true and formular_id exists
+            if ($analysisElement->result_is_calculated && $analysisElement->formular_id) {
+                $captured->formular_id = $analysisElement->formular_id;
+            }
+
+            // Set method_sequence_id if has_method_sequence is true and method_sequence_id exists
+            if ($analysisElement->has_method_sequence && $analysisElement->method_sequence_id) {
+                $captured->method_sequence_id = $analysisElement->method_sequence_id;
+            }
+
+            // Save the updated captured result (without triggering observers again)
+            $captured->saveQuietly();
+        }
     }
 
     /**

@@ -485,7 +485,7 @@
             <h3 class="app-title">Laboratory</h3>
         </a>
 
-        <a class="app-card inventory" href="/inventory-home" data-app="inventory">
+        <a class="app-card inventory hidden" href="/inventory-home" data-app="inventory">
             <div class="app-icon" style="background: linear-gradient(135deg, #2196F3, #1976D2);">
                 <i class="mdi mdi-package-variant"></i>
             </div>
@@ -515,21 +515,21 @@
         </a>
         @endif
 
-        <a class="app-card calendar" href="/full-calendar/view" data-app="calendar">
+        <a class="app-card calendar hidden" href="/full-calendar/view" data-app="calendar">
             <div class="app-icon" style="background: linear-gradient(135deg, #FFC107, #FF8F00);">
                 <i class="mdi mdi-calendar"></i>
             </div>
             <h3 class="app-title">System Planner</h3>
         </a>
 
-        <a class="app-card matrix" href="{{route('matrix')}}" data-app="matrix">
+        <a class="app-card matrix hidden" href="{{route('matrix')}}" data-app="matrix">
             <div class="app-icon" style="background: linear-gradient(135deg, #9E9E9E, #616161);">
                 <i class="mdi mdi-account-star-outline"></i>
             </div>
             <h3 class="app-title">Skills Matrix</h3>
         </a>
 
-        <a class="app-card ai" href="{{route('imara-ai-index')}}" data-app="ai">
+        <a class="app-card ai hidden" href="{{route('imara-ai-index')}}" data-app="ai">
             <div class="app-icon" style="background: linear-gradient(135deg, #FF9800, #F57C00);">
                 <i class="mdi mdi-chip"></i>
             </div>

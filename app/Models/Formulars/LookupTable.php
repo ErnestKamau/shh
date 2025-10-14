@@ -47,8 +47,15 @@ class LookupTable extends Model
      */
     public function getValue(array $keys): ?string
     {
+        // Sort keys for consistent comparison
+        ksort($keys);
+        
+        // Use JSON comparison - MySQL will handle the JSON column properly
         $entry = $this->entries()
-            ->where('keys', json_encode($keys, \JSON_SORT_KEYS))
+            ->whereRaw('JSON_CONTAINS(`keys`, ?) AND JSON_CONTAINS(?, `keys`)', [
+                json_encode($keys),
+                json_encode($keys)
+            ])
             ->first();
 
         return $entry ? $entry->value : null;

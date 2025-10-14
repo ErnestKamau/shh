@@ -14,7 +14,14 @@ class FormulaController extends Controller
      */
     public function index()
     {
-        return view('formulars.index');
+        $stats = [
+            'activeFormulas' => \App\Models\Formulars\Formula::where('is_active', true)->count(),
+            'activeMethodSequences' => \App\Models\MethodSequences\MethodSequence::where('is_active', true)->count(),
+            'executions' => \App\Models\Formulars\WorksheetExecution::where('is_saved', true)->count(),
+            'lookupTables' => \App\Models\Formulars\LookupTable::count(),
+        ];
+
+        return view('formulars.index', compact('stats'));
     }
 
     /**

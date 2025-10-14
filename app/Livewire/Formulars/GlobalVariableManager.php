@@ -5,6 +5,7 @@ namespace App\Livewire\Formulars;
 use App\Models\Formulars\GlobalVariable;
 use Livewire\Component;
 use Livewire\WithPagination;
+use Livewire\Attributes\Url;
 
 class GlobalVariableManager extends Component
 {
@@ -19,6 +20,7 @@ class GlobalVariableManager extends Component
     public $showCreateModal = false;
     public $showEditModal = false;
     public $editingVariable = null;
+    public $closingModal = false;
 
     // Form fields
     public $variableName = '';
@@ -56,8 +58,12 @@ class GlobalVariableManager extends Component
             });
         }
 
-        if ($this->statusFilter) {
-            $query->where('is_active', $this->statusFilter === 'active');
+        if ($this->statusFilter !== '') {
+            if ($this->statusFilter === 'active') {
+                $query->where('is_active', true);
+            } elseif ($this->statusFilter === 'inactive') {
+                $query->where('is_active', false);
+            }
         }
 
         $variables = $query->orderBy('name')->paginate($this->perPage);
@@ -148,11 +154,37 @@ class GlobalVariableManager extends Component
         }
     }
 
+    public function updatedSearch()
+    {
+        $this->resetPage();
+    }
+
+    public function updatedStatusFilter()
+    {
+        $this->resetPage();
+    }
+
     public function clearFilters()
     {
         $this->search = '';
         $this->statusFilter = '';
         $this->resetPage();
+    }
+
+    public function closeCreateModal()
+    {
+        $this->closingModal = true;
+        $this->showCreateModal = false;
+        $this->resetForm();
+        $this->closingModal = false;
+    }
+
+    public function closeEditModal()
+    {
+        $this->closingModal = true;
+        $this->showEditModal = false;
+        $this->resetForm();
+        $this->closingModal = false;
     }
 
     public function dismissMessage()

@@ -66,4 +66,12 @@ class FormulaVersion extends Model
     {
         return $this->hasMany(WorksheetExecution::class);
     }
+
+    /**
+     * Get the mandatory fields for this version.
+     */
+    public function mandatoryFields(): HasMany
+    {
+        return $this->hasMany(FormulaMandatoryField::class)->orderBy('order');
+    }
 }

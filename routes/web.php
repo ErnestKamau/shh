@@ -245,13 +245,13 @@ Route::post('/sample-analysis-stages-to-sample-type/{id}/inactivate', 'SampleToS
 Route::get('/move-sample-type/{direction}/{analysis}/{element}', 'SampleTypeController@move_sample_types')->name('move-sample-type');
 
 //#############################################Buffer###################################################
-Route::get('/stock-monitoring/categories', 'Lab\BufferManagementController@index')->name('stock-monitoring-categories');
-Route::get('/stock-management/sub-categories', 'Lab\BufferManagementController@stock_management_index')->name('stock_management_index');
+Route::get('/stock-monitoring/categories', 'Lab\BufferManagementController@categories_index')->name('stock-monitoring-categories');
+Route::get('/stock-management/sub-categories', 'Lab\BufferManagementController@stock_management_livewire_index')->name('stock_management_index');
 Route::get('/stock-monitoring/sub-categories-delete/{id}', 'Lab\BufferManagementController@delete_category')->name('delete_category');
 Route::post('/stock-monitoring/categories-add', 'Lab\BufferManagementController@add_lab_inventory_categories')->name('add_lab_inventory_categories');
 Route::post('/stock-monitoring/filter', 'Lab\BufferManagementController@filter_data')->name('filter_data_category');
 Route::post('/stock-monitoring/sub-categories-add', 'Lab\BufferManagementController@add_lab_sub_category')->name('add_lab_sub_inventory_categories');
-Route::get('/stock-monitoring/sub-categories/show/{id}', 'Lab\BufferManagementController@show_lab_sub_category')->name('show_lab_sub_category');
+Route::get('/stock-monitoring/sub-categories/show/{id}', 'Lab\BufferManagementController@stock_management_livewire_show')->name('show_lab_sub_category');
 Route::post('/stock-monitoring/lab-category-item', 'Lab\BufferManagementController@add_lab_category_item')->name('add_lab_category_item');
 Route::post('/stock-monitoring/lab-category-item/delete', 'Lab\BufferManagementController@delete_show_lab_category_item')->name('delete_show_lab_category_item');
 Route::post('/stock-monitoring/lab-category-item/edit', 'Lab\BufferManagementController@edit_lab_category_item')->name('edit_lab_category_item');
@@ -259,8 +259,8 @@ Route::post('/stock-monitoring/lab-sub-category/edit', 'Lab\BufferManagementCont
 Route::post('/stock-monitoring/lab-sub-category/delete', 'Lab\BufferManagementController@delete_sub_category')->name('delete_sub_category');
 Route::post('/stock-monitoring/lab-sub-category/clone', 'Lab\BufferManagementController@clone_sub_category')->name('clone_sub_category');
 
-Route::get('/solutions-movement', 'Lab\BufferStockMovementController@index')->name('solution-movement-index');
-Route::get('/solutions-movement/show/{id}', 'Lab\BufferStockMovementController@show')->name('solution-movement-show');
+Route::get('/solutions-movement', 'Lab\BufferStockMovementController@livewire_index')->name('solution-movement-index');
+Route::get('/solutions-movement/show/{id}', 'Lab\BufferStockMovementController@livewire_show')->name('solution-movement-show');
 Route::post('/solutions-movement/add', 'Lab\BufferStockMovementController@add')->name('solution-movement-add');
 
 Route::post('/stock-taking-counter/{id}/add', 'StockTakingCounterController@add')->name('add-stock-taking-counter');
@@ -277,10 +277,12 @@ Route::post('/process-raw-results/lab','SampleWorkFlowController@processRawResul
 //   Route::get('/sample-workflow/{status?}/stage', 'SampleWorkFlowController@index')->name('sample-workflow')->middleware('haspermission:Laboratory.components.status.View');
   Route::get('/sample-workflow/{status?}/stage', 'SampleWorkFlowController@index')->name('sample-workflow');
   Route::get('/sample-workflow/batch/{batch}/details/{client?}/{portal?}/{status?}', 'SampleWorkFlowController@show')->name('view-batch-details');
+  Route::get('/sample-workflow/batch/{batch}/worksheets', 'WorksheetsController@index')->name('batch-worksheets');
   Route::post('/add-batch-info/{batch}', 'SampleWorkFlowController@add_batch_info')->name('add-batch-info');
   Route::post('/add-batch-samples/{batch}', 'SampleWorkFlowController@add_batch_samples')->name('add-batch-samples');
   Route::post('/add-new-samples', 'SampleWorkFlowController@add_batch_samples')->name('add-new-samples');
   Route::post('/delete-sample/{id}', 'SampleDetailsController@delete')->name('delete-sample');
+  Route::post('/bulk-update-sample-data', 'SampleWorkFlowController@bulkUpdateSampleData')->name('bulk-update-sample-data');
   
   // Submission Form Integration Routes
   Route::get('/sample-workflow-forms/submission-forms', 'SampleWorkFlowController@getAvailableSubmissionForms')->name('sample-workflow.submission-forms');
@@ -1302,7 +1304,7 @@ Route::middleware(['auth'])->group(function () {
     Route::get('/simple-form/{instanceId}', 'TestFormDataController@showSimpleForm')->name('simple.form');
 });
 
-// Formula Workflow Engine Routes
+// Worksheet Engine Routes
 Route::middleware(['auth'])->prefix('formulars')->name('formulars.')->group(function () {
     Route::get('/', 'Formulars\FormulaController@index')->name('index');
     Route::get('/manage', 'Formulars\FormulaController@manage')->name('manage');
@@ -1312,5 +1314,11 @@ Route::middleware(['auth'])->prefix('formulars')->name('formulars.')->group(func
     Route::get('/global-variables', 'Formulars\FormulaController@globalVariables')->name('global-variables');
     Route::get('/lookup-tables', 'Formulars\FormulaController@lookupTables')->name('lookup-tables');
     Route::get('/lookup-tables/{lookupTable}/entries', 'Formulars\FormulaController@lookupTableEntries')->name('lookup-table-entries');
+});
+
+Route::middleware(['auth'])->prefix('method-sequences')->name('method-sequences.')->group(function () {
+    Route::get('/manage', 'MethodSequences\MethodSequenceController@manage')->name('manage');
+    Route::get('/stages/{methodSequenceVersion}', 'MethodSequences\MethodSequenceController@stages')->name('stages');
+    Route::post('/clone/{methodSequence}', 'MethodSequences\MethodSequenceController@clone')->name('clone');
 });
 

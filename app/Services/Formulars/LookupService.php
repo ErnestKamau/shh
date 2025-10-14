@@ -23,11 +23,11 @@ class LookupService
             throw new Exception("Lookup table is not active: {$lookupTable->name}");
         }
 
-        // Normalize keys for consistent JSON encoding
+        // Sort keys for consistent comparison
         ksort($keys);
         
         $entry = LookupTableEntry::where('lookup_table_id', $lookupTableId)
-            ->where('keys', json_encode($keys, JSON_SORT_KEYS))
+            ->whereKeys($keys)
             ->first();
 
         return $entry ? $entry->value : null;
@@ -66,18 +66,22 @@ class LookupService
             throw new Exception("Lookup table not found: {$lookupTableId}");
         }
 
-        // Normalize keys for consistent JSON encoding
+        // Sort keys for consistent comparison
         ksort($keys);
         
-        $entry = LookupTableEntry::updateOrCreate(
-            [
+        $entry = LookupTableEntry::where('lookup_table_id', $lookupTableId)
+            ->whereKeys($keys)
+            ->first();
+            
+        if ($entry) {
+            $entry->update(['value' => $value]);
+        } else {
+            $entry = LookupTableEntry::create([
                 'lookup_table_id' => $lookupTableId,
-                'keys' => json_encode($keys, JSON_SORT_KEYS),
-            ],
-            [
+                'keys' => $keys,
                 'value' => $value,
-            ]
-        );
+            ]);
+        }
 
         return $entry;
     }
@@ -93,11 +97,11 @@ class LookupService
             throw new Exception("Lookup table not found: {$lookupTableId}");
         }
 
-        // Normalize keys for consistent JSON encoding
+        // Sort keys for consistent comparison
         ksort($keys);
         
         return LookupTableEntry::where('lookup_table_id', $lookupTableId)
-            ->where('keys', json_encode($keys, JSON_SORT_KEYS))
+            ->whereKeys($keys)
             ->delete() > 0;
     }
 

@@ -3,7 +3,7 @@
 ## Date: October 11, 2025
 
 ## Overview
-The Formulars (Formula Workflow Engine) module has been fully implemented and enhanced with critical fixes and improvements.
+The Formulars (Worksheet Engine) module has been fully implemented and enhanced with critical fixes and improvements.
 
 ---
 
@@ -305,7 +305,7 @@ GET  /formulars/lookup-tables/{id}/entries   → Entry Management (NEW)
 
 ## 🎉 Summary
 
-The Formula Workflow Engine is **fully implemented** with all critical fixes applied:
+The Worksheet Engine is **fully implemented** with all critical fixes applied:
 
 ✅ **67 files** in the formulars module  
 ✅ **7 database tables** with proper relationships  

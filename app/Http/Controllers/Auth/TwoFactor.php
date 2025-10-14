@@ -21,7 +21,7 @@ class TwoFactor extends Controller
 	public function resendVerifyCode(Request $request){
 		$user = auth()->user();
 		$user->generateTwoFactorCode();
-		$app_name = env('APP_NAME', 'QPLUS LIMS');
+		$app_name = env('APP_NAME', 'FIVET LIMS');
 		$body = 'Hi '.$user->first_name.',<br><br>
 			Your verification code has been successfully generated. Your verification code is:
 			<br><br>'.$user->verify_code ;

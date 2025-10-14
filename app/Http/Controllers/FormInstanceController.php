@@ -268,6 +268,11 @@ class FormInstanceController extends Controller
         // Load audit trail
         $auditLogs = $instance->auditLogs()->with('user')->latest()->get();
 
+        // Check if user is on tablet
+        if (auth()->user()->is_tablet == 1) {
+            return view('submission-forms.instances.show-tablet', compact('submissionForm', 'instance', 'existingValues', 'auditLogs'));
+        }
+
         return view('submission-forms.instances.show', compact('submissionForm', 'instance', 'existingValues', 'auditLogs'));
     }
 

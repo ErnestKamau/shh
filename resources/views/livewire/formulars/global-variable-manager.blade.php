@@ -49,7 +49,7 @@
                         <div class="col-md-3">
                             <div class="form-group mb-3">
                                 <label class="form-label fw-bold">Status</label>
-                                <select wire:model.live="statusFilter" class="form-select">
+                                <select wire:model.live="statusFilter" wire:change="$refresh" class="form-select">
                                     <option value="">All Status</option>
                                     <option value="active">Active</option>
                                     <option value="inactive">Inactive</option>
@@ -136,11 +136,11 @@
                                             <td>
                                                 <div class="btn-group" role="group">
                                                     <button wire:click="showEditVariableModal({{ $variable->id }})" 
-                                                            class="btn btn-sm btn-outline-primary" title="Edit">
+                                                            class="btn btn-sm mr-2 btn-outline-primary" title="Edit">
                                                         <i class="mdi mdi-pencil"></i>
                                                     </button>
                                                     <button wire:click="toggleVariableStatus({{ $variable->id }})" 
-                                                            class="btn btn-sm btn-outline-{{ $variable->is_active ? 'warning' : 'success' }}" 
+                                                            class="btn btn-sm mr-2 btn-outline-{{ $variable->is_active ? 'warning' : 'success' }}" 
                                                             title="{{ $variable->is_active ? 'Deactivate' : 'Activate' }}">
                                                         <i class="mdi mdi-{{ $variable->is_active ? 'pause' : 'play' }}"></i>
                                                     </button>
@@ -176,10 +176,9 @@
             </div>
         </div>
     </div>
-</div>
 
-<!-- Create Variable Modal -->
-@if($showCreateModal)
+    <!-- Create Variable Modal -->
+    @if($showCreateModal)
     <div class="modal fade show d-block" tabindex="-1" style="background-color: rgba(0,0,0,0.5);">
         <div class="modal-dialog">
             <div class="modal-content">
@@ -188,7 +187,10 @@
                         <i class="mdi mdi-plus"></i>
                         Create New Global Variable
                     </h5>
-                    <button type="button" class="btn-close" wire:click="$set('showCreateModal', false)"></button>
+                    <button type="button" class="btn-close" wire:click="closeCreateModal" wire:loading.attr="disabled">
+                        <span wire:loading.remove wire:target="closeCreateModal"></span>
+                        <span wire:loading wire:target="closeCreateModal" class="spinner-border spinner-border-sm" role="status"></span>
+                    </button>
                 </div>
                 <div class="modal-body">
                     <form wire:submit="createVariable">
@@ -227,16 +229,28 @@
                     </form>
                 </div>
                 <div class="modal-footer">
-                    <button type="button" class="btn btn-secondary" wire:click="$set('showCreateModal', false)">Cancel</button>
-                    <button type="button" class="btn btn-success" wire:click="createVariable">Create Variable</button>
+                    <button type="button" class="btn btn-secondary" wire:click="closeCreateModal" wire:loading.attr="disabled">
+                        <span wire:loading.remove wire:target="closeCreateModal">Cancel</span>
+                        <span wire:loading wire:target="closeCreateModal">
+                            <span class="spinner-border spinner-border-sm me-1" role="status"></span>
+                            Closing...
+                        </span>
+                    </button>
+                    <button type="button" class="btn btn-success" wire:click="createVariable" wire:loading.attr="disabled">
+                        <span wire:loading.remove wire:target="createVariable">Create Variable</span>
+                        <span wire:loading wire:target="createVariable">
+                            <span class="spinner-border spinner-border-sm me-1" role="status"></span>
+                            Creating...
+                        </span>
+                    </button>
                 </div>
             </div>
         </div>
     </div>
-@endif
+    @endif
 
-<!-- Edit Variable Modal -->
-@if($showEditModal)
+    <!-- Edit Variable Modal -->
+    @if($showEditModal)
     <div class="modal fade show d-block" tabindex="-1" style="background-color: rgba(0,0,0,0.5);">
         <div class="modal-dialog">
             <div class="modal-content">
@@ -245,7 +259,10 @@
                         <i class="mdi mdi-pencil"></i>
                         Edit Global Variable
                     </h5>
-                    <button type="button" class="btn-close" wire:click="$set('showEditModal', false)"></button>
+                    <button type="button" class="btn-close" wire:click="closeEditModal" wire:loading.attr="disabled">
+                        <span wire:loading.remove wire:target="closeEditModal"></span>
+                        <span wire:loading wire:target="closeEditModal" class="spinner-border spinner-border-sm" role="status"></span>
+                    </button>
                 </div>
                 <div class="modal-body">
                     <form wire:submit="updateVariable">
@@ -284,17 +301,193 @@
                     </form>
                 </div>
                 <div class="modal-footer">
-                    <button type="button" class="btn btn-secondary" wire:click="$set('showEditModal', false)">Cancel</button>
-                    <button type="button" class="btn btn-success" wire:click="updateVariable">Update Variable</button>
+                    <button type="button" class="btn btn-secondary" wire:click="closeEditModal" wire:loading.attr="disabled">
+                        <span wire:loading.remove wire:target="closeEditModal">Cancel</span>
+                        <span wire:loading wire:target="closeEditModal">
+                            <span class="spinner-border spinner-border-sm me-1" role="status"></span>
+                            Closing...
+                        </span>
+                    </button>
+                    <button type="button" class="btn btn-success" wire:click="updateVariable" wire:loading.attr="disabled">
+                        <span wire:loading.remove wire:target="updateVariable">Update Variable</span>
+                        <span wire:loading wire:target="updateVariable">
+                            <span class="spinner-border spinner-border-sm me-1" role="status"></span>
+                            Updating...
+                        </span>
+                    </button>
                 </div>
             </div>
         </div>
     </div>
-@endif
+    @endif
 
     <style>
     .modal.show {
         display: block !important;
+    }
+    
+    /* Modern Select Styling */
+    .form-select {
+        border: 2px solid #e3e6f0;
+        border-radius: 10px;
+        padding: 0.6rem 2.5rem 0.6rem 1rem;
+        font-size: 0.95rem;
+        background-color: #fff;
+        background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3e%3cpath fill='none' stroke='%23343a40' stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='M2 5l6 6 6-6'/%3e%3c/svg%3e");
+        background-repeat: no-repeat;
+        background-position: right 0.75rem center;
+        background-size: 16px 12px;
+        transition: all 0.3s ease;
+        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.02);
+        -webkit-appearance: none;
+        -moz-appearance: none;
+        appearance: none;
+    }
+    
+    .form-select:hover {
+        border-color: #4e73df;
+        box-shadow: 0 4px 8px rgba(78, 115, 223, 0.1);
+    }
+    
+    .form-select:focus {
+        border-color: #4e73df;
+        box-shadow: 0 0 0 0.2rem rgba(78, 115, 223, 0.25);
+        outline: 0;
+    }
+    
+    .form-select-sm {
+        padding: 0.4rem 2rem 0.4rem 0.75rem;
+        font-size: 0.875rem;
+        border-radius: 8px;
+    }
+    
+    /* Modern Input Styling */
+    .form-control {
+        border: 2px solid #e3e6f0;
+        border-radius: 10px;
+        padding: 0.6rem 1rem;
+        font-size: 0.95rem;
+        transition: all 0.3s ease;
+        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.02);
+    }
+    
+    .form-control:hover {
+        border-color: #4e73df;
+        box-shadow: 0 4px 8px rgba(78, 115, 223, 0.1);
+    }
+    
+    .form-control:focus {
+        border-color: #4e73df;
+        box-shadow: 0 0 0 0.2rem rgba(78, 115, 223, 0.25);
+        outline: 0;
+    }
+    
+    /* Textarea specific */
+    textarea.form-control {
+        resize: vertical;
+        min-height: 100px;
+    }
+    
+    /* Button enhancements */
+    .btn {
+        border-radius: 8px;
+        padding: 0.5rem 1.25rem;
+        font-weight: 500;
+        transition: all 0.3s ease;
+        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+    }
+    
+    .btn:hover {
+        transform: translateY(-1px);
+        box-shadow: 0 4px 8px rgba(0, 0, 0, 0.15);
+    }
+    
+    .btn-sm {
+        padding: 0.35rem 0.75rem;
+        font-size: 0.875rem;
+        border-radius: 6px;
+    }
+    
+    /* Badge styling */
+    .badge {
+        padding: 0.35rem 0.75rem;
+        border-radius: 6px;
+        font-weight: 500;
+        font-size: 0.85rem;
+    }
+    
+    /* Form labels */
+    .form-label {
+        font-weight: 500;
+        color: #5a5c69;
+        margin-bottom: 0.5rem;
+    }
+    
+    /* Checkbox styling */
+    .form-check-input {
+        width: 1.25rem;
+        height: 1.25rem;
+        border: 2px solid #e3e6f0;
+        border-radius: 6px;
+        cursor: pointer;
+        transition: all 0.2s ease;
+    }
+    
+    .form-check-input:checked {
+        background-color: #4e73df;
+        border-color: #4e73df;
+    }
+    
+    .form-check-input:focus {
+        box-shadow: 0 0 0 0.2rem rgba(78, 115, 223, 0.25);
+        outline: 0;
+    }
+    
+    .form-check-label {
+        cursor: pointer;
+        margin-left: 0.5rem;
+    }
+    
+    /* Make modal body scrollable */
+    .modal-body {
+        max-height: 70vh;
+        overflow-y: auto;
+        overflow-x: hidden;
+    }
+    
+    .modal-dialog {
+        max-height: 90vh;
+        margin: 1.75rem auto;
+    }
+    
+    .modal-content {
+        max-height: 90vh;
+        display: flex;
+        flex-direction: column;
+    }
+    
+    .modal-header,
+    .modal-footer {
+        flex-shrink: 0;
+    }
+    
+    /* Custom scrollbar */
+    .modal-body::-webkit-scrollbar {
+        width: 8px;
+    }
+    
+    .modal-body::-webkit-scrollbar-track {
+        background: #f1f1f1;
+        border-radius: 4px;
+    }
+    
+    .modal-body::-webkit-scrollbar-thumb {
+        background: #888;
+        border-radius: 4px;
+    }
+    
+    .modal-body::-webkit-scrollbar-thumb:hover {
+        background: #555;
     }
     </style>
 </div>

@@ -6,6 +6,7 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Relations\HasOne;
 
 class Formula extends Model
 {
@@ -32,16 +33,16 @@ class Formula extends Model
     /**
      * Get the active formula version.
      */
-    public function activeVersion(): HasMany
+    public function activeVersion(): HasOne
     {
-        return $this->hasMany(FormulaVersion::class)->where('is_active', true);
+        return $this->hasOne(FormulaVersion::class)->where('is_active', true);
     }
 
     /**
      * Get the latest formula version.
      */
-    public function latestVersion(): HasMany
+    public function latestVersion(): HasOne
     {
-        return $this->hasMany(FormulaVersion::class)->latest('version_number');
+        return $this->hasOne(FormulaVersion::class)->latest('version_number');
     }
 }

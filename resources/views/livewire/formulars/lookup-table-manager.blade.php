@@ -155,23 +155,23 @@
                                             <td>
                                                 <div class="btn-group" role="group">
                                                     <a href="{{ route('formulars.lookup-table-entries', $table->id) }}" 
-                                                       class="btn btn-sm btn-outline-secondary" title="Manage Entries">
+                                                       class="btn btn-sm btn-outline-secondary mr-2" title="Manage Entries">
                                                         <i class="mdi mdi-table-edit"></i>
                                                     </a>
                                                     <button wire:click="showEditTableModal({{ $table->id }})" 
-                                                            class="btn btn-sm btn-outline-primary" title="Edit">
+                                                            class="btn btn-sm btn-outline-primary mr-2" title="Edit">
                                                         <i class="mdi mdi-pencil"></i>
                                                     </button>
-                                                    <button wire:click="showImportModal({{ $table->id }})" 
-                                                            class="btn btn-sm btn-outline-success" title="Import Data">
+                                                    <button wire:click="openImportModal({{ $table->id }})" 
+                                                            class="btn btn-sm btn-outline-success mr-2" title="Import Data">
                                                         <i class="mdi mdi-upload"></i>
                                                     </button>
                                                     <button wire:click="exportTable({{ $table->id }})" 
-                                                            class="btn btn-sm btn-outline-info" title="Export Data">
+                                                            class="btn btn-sm btn-outline-info mr-2" title="Export Data">
                                                         <i class="mdi mdi-download"></i>
                                                     </button>
                                                     <button wire:click="toggleTableStatus({{ $table->id }})" 
-                                                            class="btn btn-sm btn-outline-{{ $table->is_active ? 'warning' : 'success' }}" 
+                                                            class="btn btn-sm btn-outline-{{ $table->is_active ? 'warning' : 'success' }} mr-2" 
                                                             title="{{ $table->is_active ? 'Deactivate' : 'Activate' }}">
                                                         <i class="mdi mdi-{{ $table->is_active ? 'pause' : 'play' }}"></i>
                                                     </button>
@@ -207,10 +207,9 @@
             </div>
         </div>
     </div>
-</div>
 
-<!-- Create Table Modal -->
-@if($showCreateModal)
+    <!-- Create Table Modal -->
+    @if($showCreateModal)
     <div class="modal fade show d-block" tabindex="-1" style="background-color: rgba(0,0,0,0.5);">
         <div class="modal-dialog modal-lg">
             <div class="modal-content">
@@ -302,10 +301,10 @@
             </div>
         </div>
     </div>
-@endif
+    @endif
 
-<!-- Edit Table Modal -->
-@if($showEditModal)
+    <!-- Edit Table Modal -->
+    @if($showEditModal)
     <div class="modal fade show d-block" tabindex="-1" style="background-color: rgba(0,0,0,0.5);">
         <div class="modal-dialog modal-lg">
             <div class="modal-content">
@@ -397,10 +396,10 @@
             </div>
         </div>
     </div>
-@endif
+    @endif
 
-<!-- Import Data Modal -->
-@if($showImportModal)
+    <!-- Import Data Modal -->
+    @if($showImportModal)
     <div class="modal fade show d-block" tabindex="-1" style="background-color: rgba(0,0,0,0.5);">
         <div class="modal-dialog modal-lg">
             <div class="modal-content">
@@ -412,6 +411,39 @@
                     <button type="button" class="btn-close" wire:click="$set('showImportModal', false)"></button>
                 </div>
                 <div class="modal-body">
+                    <!-- Template Download Helper -->
+                    <div class="alert alert-info mb-4" style="border-left: 4px solid #6f42c1;">
+                        <div class="d-flex align-items-center mb-3">
+                            <i class="mdi mdi-file-excel-outline me-3" style="font-size: 2.5rem; color: #6f42c1;"></i>
+                            <div class="flex-grow-1">
+                                <h6 class="mb-1"><strong>📥 Need a template to get started?</strong></h6>
+                                <p class="mb-0 small text-muted">Download the Excel template with pre-configured columns for this table.</p>
+                            </div>
+                        </div>
+                        <div class="d-grid gap-2">
+                            <button type="button" wire:click="downloadTemplate({{ $editingTable->id ?? 0 }})" class="btn btn-purple" wire:loading.attr="disabled">
+                                <span wire:loading.remove wire:target="downloadTemplate">
+                                    <i class="mdi mdi-download"></i> Download Excel Template
+                                </span>
+                                <span wire:loading wire:target="downloadTemplate">
+                                    <span class="spinner-border spinner-border-sm me-1"></span>
+                                    Generating Template...
+                                </span>
+                            </button>
+                        </div>
+                        <div class="mt-2">
+                            <small class="text-muted">
+                                <i class="mdi mdi-information"></i>
+                                The template includes: <strong>{{ implode(', ', $editingTable->key_columns ?? []) }}</strong> 
+                                @if($editingTable) and <strong>{{ $editingTable->value_column }}</strong> @endif
+                            </small>
+                        </div>
+                    </div>
+
+                    <hr class="my-4">
+                    
+                    <h6 class="mb-3">Or upload your existing file</h6>
+
                     <div class="mb-3">
                         <label for="importFile" class="form-label">Select File *</label>
                         <input type="file" wire:model="importFile" class="form-control" id="importFile" accept=".xlsx,.xls,.csv">
@@ -475,11 +507,77 @@
             </div>
         </div>
     </div>
-@endif
+    @endif
 
     <style>
     .modal.show {
         display: block !important;
+    }
+    
+    /* Purple button styling for template download */
+    .btn-purple {
+        color: #fff;
+        background-color: #6f42c1;
+        border-color: #6f42c1;
+    }
+    
+    .btn-purple:hover {
+        color: #fff;
+        background-color: #5a32a3;
+        border-color: #5a32a3;
+    }
+    
+    .btn-purple:focus,
+    .btn-purple.focus {
+        box-shadow: 0 0 0 0.2rem rgba(111, 66, 193, 0.5);
+    }
+    
+    /* Make modal body scrollable */
+    .modal-body {
+        max-height: 70vh;
+        overflow-y: auto;
+        overflow-x: hidden;
+    }
+    
+    /* Ensure modal dialog is properly sized */
+    .modal-dialog {
+        max-height: 90vh;
+        margin: 1.75rem auto;
+    }
+    
+    /* Modal content styling */
+    .modal-content {
+        max-height: 90vh;
+        display: flex;
+        flex-direction: column;
+    }
+    
+    /* Keep header and footer fixed, body scrollable */
+    .modal-header {
+        flex-shrink: 0;
+    }
+    
+    .modal-footer {
+        flex-shrink: 0;
+    }
+    
+    /* Custom scrollbar for better UX */
+    .modal-body::-webkit-scrollbar {
+        width: 8px;
+    }
+    
+    .modal-body::-webkit-scrollbar-track {
+        background: #f1f1f1;
+        border-radius: 4px;
+    }
+    
+    .modal-body::-webkit-scrollbar-thumb {
+        background: #888;
+        border-radius: 4px;
+    }
+    
+    .modal-body::-webkit-scrollbar-thumb:hover {
+        background: #555;
     }
     </style>
 </div>

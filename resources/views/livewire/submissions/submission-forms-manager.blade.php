@@ -16,7 +16,33 @@
             vertical-align: middle;
             padding: 0.75rem 0.5rem;
         }
+        #formSelect:focus {
+            border-color: #667eea !important;
+            box-shadow: 0 0 0 4px rgba(102, 126, 234, 0.1) !important;
+            outline: none;
+        }
+        #formSelect:hover {
+            border-color: #667eea;
+        }
+        #formSelect option {
+            padding: 0.75rem;
+            font-size: 0.95rem;
+        }
+        #formSelect option:hover {
+            background-color: #f7fafc;
+        }
+        @keyframes fadeIn {
+                        from {
+                            opacity: 0;
+                            transform: translateY(-10px);
+                        }
+                        to {
+                            opacity: 1;
+                            transform: translateY(0);
+                        }
+                    }
     </style>
+
     <!-- Header Section -->
     <div class="row mb-4">
         <div class="col-12">
@@ -255,72 +281,114 @@
 
     <!-- Capture Samples Modal -->
     @if($showCaptureModal)
-        <div class="modal fade show d-block" tabindex="-1" style="background-color: rgba(0,0,0,0.5);">
-            <div class="modal-dialog modal-lg">
-                <div class="modal-content">
-                    <div class="modal-header">
-                        <h5 class="modal-title">
-                            <i class="mdi mdi-file-document-plus"></i> Select Submission Form
+        <div class="modal fade show d-block" tabindex="-1" style="background-color: rgba(0,0,0,0.6); backdrop-filter: blur(2px);">
+            <div class="modal-dialog modal-dialog-centered">
+                <div class="modal-content" style="border-radius: 20px; border: none; box-shadow: 0 10px 40px rgba(0,0,0,0.2);">
+                    <div class="modal-header border-0" style="padding: 2rem 2rem 1rem 2rem; background: linear-gradient(135deg, rgba(255, 255, 255, 0.9) 0%, rgba(248, 249, 250, 0.8) 100%); border-radius: 20px 20px 0 0;">
+                        <h5 class="modal-title fw-bold" style="font-size: 1.5rem; color: #495057;">
+                            <i class="mdi mdi-file-document-plus me-2"></i> Select Submission Form
                         </h5>
                         <button type="button" class="btn-close" wire:click="closeCaptureModal"></button>
                     </div>
-                    <div class="modal-body">
+                    <div class="modal-body" style="padding: 2rem;">
                         @if($availableForms->count() > 0)
-                            <div class="form-group mb-3">
-                                <label for="formSelect" class="control-label">Choose a Form:</label>
-                                <select class="form-select" 
-                                        id="formSelect" 
-                                        wire:model.live="selectedFormId"
-                                        required>
-                                    <option value="">Select a submission form...</option>
-                                    @foreach($availableForms as $form)
-                                        <option value="{{ $form->id }}">{{ $form->name }}</option>
-                                    @endforeach
-                                </select>
+                            <div class="form-group mb-4">
+                                <label for="formSelect" class="form-label fw-bold mb-3" style="color: #2d3748; font-size: 1rem;">
+                                    <i class="mdi mdi-format-list-bulleted text-primary"></i> Choose a Form
+                                </label>
+                                <div class="position-relative">
+                                    <select class="form-select form-select-lg" 
+                                            id="formSelect" 
+                                            wire:model.live="selectedFormId"
+                                            required
+                                            style="border: 2px solid #e2e8f0; border-radius: 12px; padding: 0.875rem 1rem; font-size: 1rem; transition: all 0.3s ease;">
+                                        <option value="" style="color: #a0aec0;">Select a submission form...</option>
+                                        @foreach($availableForms as $form)
+                                            <option value="{{ $form->id }}" style="padding: 0.5rem;">{{ $form->name }}</option>
+                                        @endforeach
+                                    </select>
+                                    <div class="position-absolute top-50 end-0 translate-middle-y me-3" wire:loading wire:target="selectedFormId">
+                                        <i class="mdi mdi-loading mdi-spin text-primary" style="font-size: 1.25rem;"></i>
+                                    </div>
+                                </div>
+                               
                             </div>
 
                             <!-- Form Preview -->
                             @if($selectedFormPreview)
-                                <div class="card mt-3 bg-light">
-                                    <div class="card-body">
-                                        <h6 class="card-title">{{ $selectedFormPreview->name }}</h6>
-                                        <p class="card-text text-muted">
-                                            {{ $selectedFormPreview->description ?: 'No description available' }}
-                                        </p>
-                                        <small class="text-info d-block">
-                                            <i class="mdi mdi-file-document"></i> 
-                                            <span>{{ $selectedFormPreview->sections_count }} sections</span> | 
-                                            <i class="mdi mdi-account"></i> 
-                                            <span>Created by {{ $selectedFormPreview->creator->name ?? 'Unknown' }}</span> | 
-                                            <i class="mdi mdi-calendar"></i> 
-                                            <span>{{ $selectedFormPreview->created_at->format('M d, Y') }}</span>
-                                        </small>
+                                <div class="card border-0 shadow-sm" style="border-radius: 15px; background: linear-gradient(135deg, #f6f8fb 0%, #ffffff 100%); animation: fadeIn 0.3s ease-in;">
+                                    <div class="card-body p-4">
+                                        <div class="d-flex align-items-start mb-3">
+                                            <div class="flex-shrink-0 mr-3">
+                                                <div class="rounded-circle bg-primary bg-opacity-10 d-flex align-items-center justify-content-center" style="width: 60px; height: 60px;">
+                                                    <i class="mdi mdi-file-document" style="font-size: 1.75rem;"></i>
+                                                </div>
+                                            </div>
+                                            <div class="flex-grow-1 ms-3">
+                                                <h6 class="card-title mb-2 fw-bold" style="color: #2d3748; font-size: 1.25rem;">
+                                                    {{ $selectedFormPreview->name }}
+                                                </h6>
+                                                <p class="card-text text-muted mb-3" style="font-size: 0.95rem; line-height: 1.6;">
+                                                    {{ $selectedFormPreview->description ?: 'No description available' }}
+                                                </p>
+                                                <div class="d-flex flex-wrap gap-3">
+                                                    <small class="d-flex align-items-center" style="color: #667eea; font-weight: 500;">
+                                                        <i class="mdi mdi-file-document me-1" style="font-size: 1.1rem;"></i>
+                                                        <span>{{ $selectedFormPreview->sections_count }} sections</span>
+                                                    </small>
+                                                    <small class="d-flex align-items-center" style="color: #667eea; font-weight: 500;">
+                                                        <i class="mdi mdi-account me-1" style="font-size: 1.1rem;"></i>
+                                                        <span>{{ $selectedFormPreview->creator->name ?? 'Unknown' }}</span>
+                                                    </small>
+                                                    <small class="d-flex align-items-center" style="color: #667eea; font-weight: 500;">
+                                                        <i class="mdi mdi-calendar me-1" style="font-size: 1.1rem;"></i>
+                                                        <span>{{ $selectedFormPreview->created_at->format('M d, Y') }}</span>
+                                                    </small>
+                                                </div>
+                                            </div>
+                                        </div>
                                     </div>
                                 </div>
                             @endif
                         @else
-                            <div class="alert alert-info text-center">
-                                <i class="mdi mdi-information"></i> No published submission forms available.
+                            <div class="alert border-0 text-center py-5" style="background: linear-gradient(135deg, #e0f2fe 0%, #f0f9ff 100%); border-radius: 15px;">
+                                <i class="mdi mdi-information-outline text-info" style="font-size: 3rem;"></i>
+                                <p class="mt-3 mb-0 fw-semibold" style="color: #0369a1; font-size: 1.1rem;">No published submission forms available.</p>
                             </div>
                         @endif
                     </div>
-                    <div class="modal-footer">
-                        <button type="button" class="btn btn-secondary" wire:click="closeCaptureModal">
-                            Cancel
+                    <div class="modal-footer border-0" style="padding: 1rem 2rem 2rem 2rem; background-color: #f8fafc; border-radius: 0 0 20px 20px;">
+                        <button type="button" class="btn btn-sm px-4" wire:click="closeCaptureModal" style="border-radius: 10px; border: 2px solid #e2e8f0; background: white; color: #4a5568; font-weight: 500; transition: all 0.3s ease;">
+                            <i class="mdi mdi-close me-1"></i> Cancel
                         </button>
                         <button type="button" 
-                                class="btn btn-primary" 
+                                class="btn btn-primary btn-sm px-4" 
                                 wire:click="createFormInstance"
                                 @if(!$selectedFormId) disabled @endif
                                 wire:loading.attr="disabled"
-                                wire:target="createFormInstance">
+                                wire:target="createFormInstance"
+                                style="border-radius: 10px; border: none; color: white; font-weight: 600; box-shadow: 0 4px 15px rgba(102, 126, 234, 0.4); transition: all 0.3s ease;">
                             <span wire:loading.remove wire:target="createFormInstance">
-                                <i class="mdi mdi-arrow-right"></i> Create & Continue
+                                <i class="mdi mdi-arrow-right me-1"></i> Create & Continue
                             </span>
                             <span wire:loading wire:target="createFormInstance">
-                                <i class="mdi mdi-loading mdi-spin"></i> Creating...
+                                <i class="mdi mdi-loading mdi-spin me-1"></i> Creating...
                             </span>
                         </button>
+                        <style>
+                            .modal-footer .btn:hover:not(:disabled) {
+                                transform: translateY(-2px);
+                                box-shadow: 0 6px 20px rgba(102, 126, 234, 0.5);
+                            }
+                            .modal-footer .btn:disabled {
+                                opacity: 0.6;
+                                cursor: not-allowed;
+                            }
+                            .modal-footer .btn-lg:first-child:hover {
+                                background-color: #f7fafc;
+                                border-color: #cbd5e0;
+                            }
+                        </style>
                     </div>
                 </div>
             </div>

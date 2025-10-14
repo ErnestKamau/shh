@@ -93,21 +93,31 @@
 						<b style="font-size:14px">{{$check_company->name}}</b>
 						<table>
 							<tbody>
-								
-
+								<tr>
+									<td>Client Name</td>
+									<td>{{ $item['client_name'] ?? 'N/A' }}</td>
+								</tr>
+								<tr>
+									<td>Sample Point</td>
+									<td>{{ isset($item['sample_point']) && $item['sample_point'] != 'N/A' ? 'Sample Point: ' . $item['sample_point'] : 'N/A' }}</td>
+								</tr>
 								<tr>
 									<td>Lab Ref. No</td>
+									<td>{{ $item['ref_no'] ?? 'N/A' }}</td>
+								</tr>
+								<tr>
+									<td>Analysis Types</td>
+									<td>{{ $item['analysis_types'] ?? 'N/A' }}</td>
+								</tr>
+								<tr>
+									<td>Target Date</td>
+									<td>{{ $item['target_date'] ?? 'N/A' }}</td>
+								</tr>
+								<tr>
+									<td>Sample Code</td>
 									<td>
-										<span class="barcode">{!! DNS1D::getBarcodeSVG($item['ref_no'], 'C128B') !!}</span><span class="btn btn-sm btn-transparent print-barcode" ><i class="mdi mdi-printer text-info"></i></span>
+										<span class="barcode">{!! DNS1D::getBarcodeSVG($item['sample_code'], 'C128B') !!}</span>
 									</td>
-								</tr>
-								<tr>
-									<td>Date Received & Time</td>
-									<td>{{ $item['date_received'].' '.$item['time'].' '.(is_numeric(str_replace(':','',$item['time'])) ? 'hrs' : '').' - '.$item['received_by'] }}</td>
-								</tr>
-								<tr>
-									<td>Tests Required</td>
-									<td>{{ $item['test'] }}</td>
 								</tr>
 								
 							</tbody>

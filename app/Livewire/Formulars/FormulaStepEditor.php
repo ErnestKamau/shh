@@ -6,6 +6,11 @@ use App\Models\Formulars\FormulaVersion;
 use App\Models\Formulars\FormulaStep;
 use App\Models\Formulars\LookupTable;
 use App\Models\Formulars\GlobalVariable;
+use App\Models\Formulars\FormulaMandatoryField;
+use App\Analyte;
+use App\Models\Equipments\Equipment;
+use App\User;
+use App\AnalysisMethod;
 use App\Services\Formulars\FormulaEvaluator;
 use Livewire\Component;
 use Livewire\WithPagination;
@@ -34,6 +39,27 @@ class FormulaStepEditor extends Component
     public $description = '';
     public $lookupTableId = '';
     public $lookupConfig = [];
+    public $analyteId = null;
+    public $isEndStage = false;
+    public $isEndStageIfPass = false;
+
+    // Mandatory Fields
+    public $mandatoryFields = [];
+    public $showCreateFieldModal = false;
+    public $showEditFieldModal = false;
+    public $showDeleteFieldModal = false;
+    public $editingField = null;
+    public $deletingField = null;
+    
+    // Mandatory Field form fields
+    public $fieldLabel = '';
+    public $fieldType = 'input';
+    public $fieldOrder = 1;
+    public $fieldHelpText = '';
+    public $fieldModelTiedTo = '';
+    public $fieldIsRequired = true;
+    public $fieldValueName = '';
+    public $fieldSearch = '';
 
     // Search and Filter
     public $search = '';
@@ -53,30 +79,57 @@ class FormulaStepEditor extends Component
     protected $rules = [
         'stepNumber' => 'required|integer|min:1',
         'variableName' => 'required|string|max:255',
-        'stepType' => 'required|in:input,derived,lookup',
+        'stepType' => 'required|in:input,derived,lookup,parameter_result',
         'expression' => 'nullable|string',
         'label' => 'required|string|max:255',
         'description' => 'nullable|string',
         'lookupTableId' => 'nullable|exists:lookup_tables,id',
+        'analyteId' => 'nullable|exists:analytes,id',
+        'isEndStage' => 'boolean',
+        'isEndStageIfPass' => 'boolean',
     ];
+
+    protected function mandatoryFieldRules(): array
+    {
+        return [
+            'fieldLabel' => 'required|string|max:255',
+            'fieldType' => 'required|in:input,datetime,date,dataset_related',
+            'fieldValueName' => 'required|string|max:255',
+            'fieldHelpText' => 'nullable|string',
+            'fieldModelTiedTo' => 'nullable|required_if:fieldType,dataset_related|in:equipments,users,methods',
+            'fieldIsRequired' => 'boolean',
+        ];
+    }
 
     public function mount(FormulaVersion $formulaVersion)
     {
         $this->formulaVersion = $formulaVersion;
         $this->loadSteps();
+        $this->loadMandatoryFields();
     }
 
     public function render()
     {
         $this->loadSteps();
+        $this->loadMandatoryFields();
         $lookupTables = LookupTable::where('is_active', true)->get();
         $globalVariables = GlobalVariable::active()->get();
         $availableVariables = $this->getAvailableVariables();
+        $analytes = Analyte::orderBy('name')->get();
+        
+        // Get dataset options
+        $equipments = Equipment::orderBy('name')->get();
+        $users = User::orderBy('name')->get();
+        $methods = AnalysisMethod::orderBy('name')->get();
         
         return view('livewire.formulars.formula-step-editor', [
             'lookupTables' => $lookupTables,
             'globalVariables' => $globalVariables,
             'availableVariables' => $availableVariables,
+            'analytes' => $analytes,
+            'equipments' => $equipments,
+            'users' => $users,
+            'methods' => $methods,
         ]);
     }
 
@@ -122,6 +175,9 @@ class FormulaStepEditor extends Component
         $this->description = $step->description ?? '';
         $this->lookupConfig = $step->lookup_config ?? [];
         $this->lookupTableId = $step->lookup_config['lookup_table_id'] ?? '';
+        $this->analyteId = $step->analyte_id;
+        $this->isEndStage = $step->is_end_stage ?? false;
+        $this->isEndStageIfPass = $step->is_end_stage_if_pass ?? false;
         $this->showEditStepModal = true;
     }
 
@@ -159,6 +215,9 @@ class FormulaStepEditor extends Component
                 'label' => $this->label,
                 'description' => $this->description,
                 'lookup_config' => $lookupConfig,
+                'analyte_id' => $this->stepType === 'parameter_result' ? $this->analyteId : null,
+                'is_end_stage' => $this->isEndStage,
+                'is_end_stage_if_pass' => $this->isEndStageIfPass,
             ]);
 
             $this->showCreateStepModal = false;
@@ -204,6 +263,9 @@ class FormulaStepEditor extends Component
                 'label' => $this->label,
                 'description' => $this->description,
                 'lookup_config' => $lookupConfig,
+                'analyte_id' => $this->stepType === 'parameter_result' ? $this->analyteId : null,
+                'is_end_stage' => $this->isEndStage,
+                'is_end_stage_if_pass' => $this->isEndStageIfPass,
             ]);
 
             $this->showEditStepModal = false;
@@ -262,18 +324,54 @@ class FormulaStepEditor extends Component
     public function testFormula()
     {
         try {
+            // Convert string inputs to appropriate data types for lookup matching
+            $convertedInputs = $this->convertInputTypes($this->testInputs);
+            
             $evaluator = app(FormulaEvaluator::class);
-            $result = $evaluator->execute($this->formulaVersion, $this->testInputs);
+            $result = $evaluator->execute($this->formulaVersion, $convertedInputs);
             
             $this->testResults = $result['variables'];
             $this->testExecutionData = $result['execution_data'];
             
-            $this->setMessage('Formula executed successfully!', 'success');
+            // Check for null lookup results and add warnings
+            $warnings = [];
+            foreach ($this->formulaVersion->formulaSteps as $step) {
+                if ($step->step_type === 'lookup' && isset($this->testResults[$step->variable_name])) {
+                    if ($this->testResults[$step->variable_name] === null) {
+                        $warnings[] = "Lookup '{$step->label}' ({$step->variable_name}) returned no match. Check lookup table entries.";
+                    }
+                }
+            }
+            
+            if (!empty($warnings)) {
+                $this->testExecutionData['warnings'] = $warnings;
+                $this->setMessage('Formula executed with warnings. Check lookup results.', 'warning');
+            } else {
+                $this->setMessage('Formula executed successfully!', 'success');
+            }
         } catch (\Exception $e) {
             $this->setMessage('Error executing formula: ' . $e->getMessage(), 'error');
             $this->testResults = [];
             $this->testExecutionData = [];
         }
+    }
+
+    protected function convertInputTypes(array $inputs): array
+    {
+        $converted = [];
+        
+        foreach ($inputs as $key => $value) {
+            // Try to convert to integer first (for numeric values)
+            if (is_numeric($value)) {
+                // Convert to integer if it's a whole number, otherwise keep as float
+                $converted[$key] = (float)$value == (int)$value ? (int)$value : (float)$value;
+            } else {
+                // Keep as string for non-numeric values
+                $converted[$key] = $value;
+            }
+        }
+        
+        return $converted;
     }
 
     protected function prepareTestInputs()
@@ -382,6 +480,7 @@ class FormulaStepEditor extends Component
         $this->expression = '';
         $this->lookupTableId = '';
         $this->lookupConfig = [];
+        $this->analyteId = null;
     }
 
     public function updatedLookupTableId()
@@ -413,6 +512,9 @@ class FormulaStepEditor extends Component
         $this->description = '';
         $this->lookupTableId = '';
         $this->lookupConfig = [];
+        $this->analyteId = null;
+        $this->isEndStage = false;
+        $this->isEndStageIfPass = false;
         $this->editingStep = null;
     }
 
@@ -451,5 +553,161 @@ class FormulaStepEditor extends Component
         }
         
         return $variables;
+    }
+
+    // ==================== Mandatory Fields Methods ====================
+
+    public function loadMandatoryFields()
+    {
+        $query = $this->formulaVersion->mandatoryFields()
+            ->orderBy('order');
+
+        // Apply search filter
+        if ($this->fieldSearch) {
+            $query->where(function ($q) {
+                $q->where('label', 'like', '%' . $this->fieldSearch . '%')
+                  ->orWhere('field_value_name', 'like', '%' . $this->fieldSearch . '%')
+                  ->orWhere('help_text', 'like', '%' . $this->fieldSearch . '%');
+            });
+        }
+
+        $this->mandatoryFields = $query->get()->toArray();
+    }
+
+    public function showCreateFieldModalInit()
+    {
+        $this->resetFieldForm();
+        $this->fieldOrder = count($this->mandatoryFields) + 1;
+        $this->showCreateFieldModal = true;
+    }
+
+    public function showEditFieldModalInit($fieldId)
+    {
+        $field = FormulaMandatoryField::findOrFail($fieldId);
+        $this->editingField = $field;
+        $this->fieldLabel = $field->label;
+        $this->fieldType = $field->field_type;
+        $this->fieldOrder = $field->order;
+        $this->fieldHelpText = $field->help_text ?? '';
+        $this->fieldModelTiedTo = $field->model_tied_to ?? '';
+        $this->fieldIsRequired = $field->is_required;
+        $this->fieldValueName = $field->field_value_name;
+        $this->showEditFieldModal = true;
+    }
+
+    public function createMandatoryField()
+    {
+        $this->validate($this->mandatoryFieldRules());
+
+        try {
+            FormulaMandatoryField::create([
+                'formula_version_id' => $this->formulaVersion->id,
+                'label' => $this->fieldLabel,
+                'field_type' => $this->fieldType,
+                'order' => $this->fieldOrder,
+                'help_text' => $this->fieldHelpText,
+                'model_tied_to' => $this->fieldType === 'dataset_related' ? $this->fieldModelTiedTo : null,
+                'is_required' => $this->fieldIsRequired,
+                'field_value_name' => $this->fieldValueName,
+            ]);
+
+            $this->showCreateFieldModal = false;
+            $this->resetFieldForm();
+            $this->loadMandatoryFields();
+            $this->setMessage('Mandatory field created successfully!', 'success');
+        } catch (\Exception $e) {
+            $this->setMessage('Error creating mandatory field: ' . $e->getMessage(), 'error');
+        }
+    }
+
+    public function updateMandatoryField()
+    {
+        $this->validate($this->mandatoryFieldRules());
+
+        try {
+            $this->editingField->update([
+                'label' => $this->fieldLabel,
+                'field_type' => $this->fieldType,
+                'order' => $this->fieldOrder,
+                'help_text' => $this->fieldHelpText,
+                'model_tied_to' => $this->fieldType === 'dataset_related' ? $this->fieldModelTiedTo : null,
+                'is_required' => $this->fieldIsRequired,
+                'field_value_name' => $this->fieldValueName,
+            ]);
+
+            $this->showEditFieldModal = false;
+            $this->resetFieldForm();
+            $this->loadMandatoryFields();
+            $this->setMessage('Mandatory field updated successfully!', 'success');
+        } catch (\Exception $e) {
+            $this->setMessage('Error updating mandatory field: ' . $e->getMessage(), 'error');
+        }
+    }
+
+    public function showDeleteFieldModal($fieldId)
+    {
+        $this->deletingField = FormulaMandatoryField::findOrFail($fieldId);
+        $this->showDeleteFieldModal = true;
+    }
+
+    public function deleteMandatoryField()
+    {
+        try {
+            if ($this->deletingField) {
+                $this->deletingField->delete();
+                $this->showDeleteFieldModal = false;
+                $this->deletingField = null;
+                $this->loadMandatoryFields();
+                $this->setMessage('Mandatory field deleted successfully!', 'success');
+            }
+        } catch (\Exception $e) {
+            $this->setMessage('Error deleting mandatory field: ' . $e->getMessage(), 'error');
+        }
+    }
+
+    public function updateFieldOrder($fieldIds)
+    {
+        try {
+            // First, reset all field orders to avoid conflicts
+            $this->formulaVersion->mandatoryFields()
+                ->update(['order' => 9999]);
+            
+            // Then set the new order
+            foreach ($fieldIds as $index => $fieldId) {
+                FormulaMandatoryField::where('id', $fieldId)
+                    ->update(['order' => $index + 1]);
+            }
+            
+            $this->loadMandatoryFields();
+            $this->setMessage('Fields reordered successfully!', 'success');
+        } catch (\Exception $e) {
+            $this->setMessage('Error reordering fields: ' . $e->getMessage(), 'error');
+        }
+    }
+
+    public function clearFieldSearch()
+    {
+        $this->fieldSearch = '';
+        $this->loadMandatoryFields();
+    }
+
+    public function updatedFieldType()
+    {
+        // Reset model_tied_to when field type changes
+        if ($this->fieldType !== 'dataset_related') {
+            $this->fieldModelTiedTo = '';
+        }
+    }
+
+    protected function resetFieldForm()
+    {
+        $this->fieldLabel = '';
+        $this->fieldType = 'input';
+        $this->fieldOrder = 1;
+        $this->fieldHelpText = '';
+        $this->fieldModelTiedTo = '';
+        $this->fieldIsRequired = true;
+        $this->fieldValueName = '';
+        $this->editingField = null;
     }
 }

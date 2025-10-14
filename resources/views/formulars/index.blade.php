@@ -1,7 +1,7 @@
 @extends('layouts.lab.layout.app', ['dataTable'=>true, 'select2'=>true])
 
 @section('title2')
-<title>Formula Workflow Engine | Lab Management</title>
+<title>Worksheet Engine | Lab Management</title>
 <style type="text/css">
     .tab-card {
         border: 1px solid #eee;
@@ -115,7 +115,7 @@
         ],
         [
             'link' => null,
-            'name' => 'Formula Workflow Engine',
+            'name' => 'Worksheet Engine',
             'icon' => null,
         ],
     ];
@@ -132,7 +132,7 @@
                             <div>
                                 <h2 class="mb-0">
                                     <i class="mdi mdi-calculator text-primary"></i>
-                                    Formula Workflow Engine
+                                    Worksheet Engine
                                 </h2>
                                 <p class="text-muted mb-0">Create and manage formula workflows for laboratory calculations</p>
                             </div>
@@ -145,26 +145,11 @@
         <!-- Quick Stats -->
         <div class="row mb-4">
             <div class="col-md-3">
-                <div class="card bg-primary text-white">
-                    <div class="card-body">
-                        <div class="d-flex justify-content-between">
-                            <div>
-                                <h4 class="mb-0">{{ \App\Models\Formulars\Formula::count() }}</h4>
-                                <p class="mb-0">Total Formulas</p>
-                            </div>
-                            <div class="align-self-center">
-                                <i class="mdi mdi-calculator fa-2x"></i>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            </div>
-            <div class="col-md-3">
                 <div class="card bg-success text-white">
                     <div class="card-body">
                         <div class="d-flex justify-content-between">
                             <div>
-                                <h4 class="mb-0">{{ \App\Models\Formulars\Formula::where('is_active', true)->count() }}</h4>
+                                <h4 class="mb-0">{{ $stats['activeFormulas'] }}</h4>
                                 <p class="mb-0">Active Formulas</p>
                             </div>
                             <div class="align-self-center">
@@ -175,11 +160,26 @@
                 </div>
             </div>
             <div class="col-md-3">
+                <div class="card bg-purple text-white" style="background-color: #6f42c1 !important;">
+                    <div class="card-body">
+                        <div class="d-flex justify-content-between">
+                            <div>
+                                <h4 class="mb-0">{{ $stats['activeMethodSequences'] }}</h4>
+                                <p class="mb-0">Active Sequences</p>
+                            </div>
+                            <div class="align-self-center">
+                                <i class="mdi mdi-chart-timeline fa-2x"></i>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-3">
                 <div class="card bg-info text-white">
                     <div class="card-body">
                         <div class="d-flex justify-content-between">
                             <div>
-                                <h4 class="mb-0">{{ \App\Models\Formulars\WorksheetExecution::where('is_saved', true)->count() }}</h4>
+                                <h4 class="mb-0">{{ $stats['executions'] }}</h4>
                                 <p class="mb-0">Executions</p>
                             </div>
                             <div class="align-self-center">
@@ -194,7 +194,7 @@
                     <div class="card-body">
                         <div class="d-flex justify-content-between">
                             <div>
-                                <h4 class="mb-0">{{ \App\Models\Formulars\LookupTable::count() }}</h4>
+                                <h4 class="mb-0">{{ $stats['lookupTables'] }}</h4>
                                 <p class="mb-0">Lookup Tables</p>
                             </div>
                             <div class="align-self-center">
@@ -245,6 +245,20 @@
                                     </div>
                                 </a>
                             </div>
+                            
+                            <div class="col-md-3 mb-3">
+                                <a href="{{ route('method-sequences.manage') }}" class="formula-card card text-decoration-none">
+                                    <div class="card-body">
+                                        <div class="text-center">
+                                            <i class="mdi mdi-chart-timeline fa-3x text-purple mb-3" style="color: #6f42c1 !important;"></i>
+                                            <h5 class="card-title">Method Sequences</h5>
+                                            <p class="card-text">Manage method sequence workflows and stages</p>
+                                        </div>
+                                    </div>
+                                </a>
+                            </div>
+                        </div>
+                        <div class="row mt-3">
                             <div class="col-md-3 mb-3">
                                 <a href="{{ route('formulars.history') }}" class="formula-card card text-decoration-none">
                                     <div class="card-body">

@@ -109,7 +109,7 @@
                                 <tbody>
                                     @foreach($formulas as $formula)
                                         <tr>
-                                            <td>{{ $formula->id }}</td>
+                                            <td>{{ $loop->iteration }}</td>
                                             <td>
                                                 <strong>{{ $formula->name }}</strong>
                                             </td>
@@ -132,21 +132,21 @@
                                             <td>
                                                 <div class="btn-group" role="group">
                                                     <button wire:click="showEditFormulaModal({{ $formula->id }})" 
-                                                            class="btn btn-sm btn-outline-primary" title="Edit">
+                                                            class="btn btn-sm btn-outline-primary mr-2" title="Edit">
                                                         <i class="mdi mdi-pencil"></i>
                                                     </button>
                                                     @if($formula->formulaVersions->where('is_active', true)->first())
                                                         <a href="{{ route('formulars.steps', $formula->formulaVersions->where('is_active', true)->first()->id) }}" 
-                                                           class="btn btn-sm btn-outline-success" title="Edit Steps">
+                                                           class="btn btn-sm btn-outline-success mr-2" title="Edit Steps">
                                                             <i class="mdi mdi-cogs"></i>
                                                         </a>
                                                     @endif
                                                     <button wire:click="showVersionModal({{ $formula->id }})" 
-                                                            class="btn btn-sm btn-outline-info" title="New Version">
+                                                            class="btn btn-sm btn-outline-info mr-2" title="New Version">
                                                         <i class="mdi mdi-plus-circle"></i>
                                                     </button>
                                                     <button wire:click="toggleFormulaStatus({{ $formula->id }})" 
-                                                            class="btn btn-sm btn-outline-{{ $formula->is_active ? 'warning' : 'success' }}" 
+                                                            class="btn btn-sm btn-outline-{{ $formula->is_active ? 'warning' : 'success' }} mr-2" 
                                                             title="{{ $formula->is_active ? 'Deactivate' : 'Activate' }}">
                                                         <i class="mdi mdi-{{ $formula->is_active ? 'pause' : 'play' }}"></i>
                                                     </button>

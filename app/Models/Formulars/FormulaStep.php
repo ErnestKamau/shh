@@ -20,10 +20,15 @@ class FormulaStep extends Model
         'label',
         'description',
         'lookup_config',
+        'analyte_id',
+        'is_end_stage',
+        'is_end_stage_if_pass',
     ];
 
     protected $casts = [
         'lookup_config' => 'array',
+        'is_end_stage' => 'boolean',
+        'is_end_stage_if_pass' => 'boolean',
     ];
 
     /**
@@ -35,6 +40,14 @@ class FormulaStep extends Model
     }
 
     /**
+     * Get the analyte that owns this step.
+     */
+    public function analyte(): BelongsTo
+    {
+        return $this->belongsTo(\App\Analyte::class);
+    }
+
+    /**
      * Get the step type options.
      */
     public static function getStepTypes(): array
@@ -43,6 +56,7 @@ class FormulaStep extends Model
             'input' => 'User Input',
             'derived' => 'Calculated',
             'lookup' => 'Lookup Value',
+            'parameter_result' => 'Parameter Result',
         ];
     }
 
@@ -68,5 +82,13 @@ class FormulaStep extends Model
     public function isLookup(): bool
     {
         return $this->step_type === 'lookup';
+    }
+
+    /**
+     * Check if this step is a parameter result step.
+     */
+    public function isParameterResult(): bool
+    {
+        return $this->step_type === 'parameter_result';
     }
 }

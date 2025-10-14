@@ -20,6 +20,9 @@
                             <a href="{{ route('formulars.lookup-tables') }}" class="btn btn-outline-secondary me-2">
                                 <i class="mdi mdi-arrow-left"></i> Back
                             </a>
+                            <button wire:click="openImportModal" class="btn btn-info me-2">
+                                <i class="mdi mdi-upload"></i> Bulk Import
+                            </button>
                             <button wire:click="showCreateEntryModal" class="btn btn-success">
                                 <i class="mdi mdi-plus"></i> Add Entry
                             </button>
@@ -109,7 +112,7 @@
                                             <td>
                                                 <div class="btn-group" role="group">
                                                     <button wire:click="showEditEntryModal({{ $entry->id }})" 
-                                                            class="btn btn-sm btn-outline-primary" title="Edit">
+                                                            class="btn btn-sm btn-outline-primary mr-2" title="Edit">
                                                         <i class="mdi mdi-pencil"></i>
                                                     </button>
                                                     <button wire:click="deleteEntry({{ $entry->id }})" 
@@ -144,10 +147,9 @@
             </div>
         </div>
     </div>
-</div>
 
-<!-- Create Entry Modal -->
-@if($showCreateModal)
+    <!-- Create Entry Modal -->
+    @if($showCreateModal)
     <div class="modal fade show d-block" tabindex="-1" style="background-color: rgba(0,0,0,0.5);">
         <div class="modal-dialog">
             <div class="modal-content">
@@ -185,10 +187,10 @@
             </div>
         </div>
     </div>
-@endif
+    @endif
 
-<!-- Edit Entry Modal -->
-@if($showEditModal)
+    <!-- Edit Entry Modal -->
+    @if($showEditModal)
     <div class="modal fade show d-block" tabindex="-1" style="background-color: rgba(0,0,0,0.5);">
         <div class="modal-dialog">
             <div class="modal-content">
@@ -226,11 +228,188 @@
             </div>
         </div>
     </div>
-@endif
+    @endif
 
-<style>
-.modal.show {
-    display: block !important;
-}
-</style>
+    <!-- Import Data Modal -->
+    @if($showImportModal)
+    <div class="modal fade show d-block" tabindex="-1" style="background-color: rgba(0,0,0,0.5);">
+        <div class="modal-dialog modal-lg">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">
+                        <i class="mdi mdi-upload"></i>
+                        Bulk Import Entries to {{ $lookupTable->name }}
+                    </h5>
+                    <button type="button" class="btn-close" wire:click="$set('showImportModal', false)"></button>
+                </div>
+                <div class="modal-body">
+                    <!-- Template Download Helper -->
+                    <div class="alert alert-info mb-4" style="border-left: 4px solid #6f42c1;">
+                        <div class="d-flex align-items-center mb-3">
+                            <i class="mdi mdi-file-excel-outline me-3" style="font-size: 2.5rem; color: #6f42c1;"></i>
+                            <div class="flex-grow-1">
+                                <h6 class="mb-1"><strong>📥 Need a template to get started?</strong></h6>
+                                <p class="mb-0 small text-muted">Download the Excel template with pre-configured columns for this table.</p>
+                            </div>
+                        </div>
+                        <div class="d-grid gap-2">
+                            <button type="button" wire:click="downloadTemplate" class="btn btn-purple" wire:loading.attr="disabled">
+                                <span wire:loading.remove wire:target="downloadTemplate">
+                                    <i class="mdi mdi-download"></i> Download Excel Template
+                                </span>
+                                <span wire:loading wire:target="downloadTemplate">
+                                    <span class="spinner-border spinner-border-sm me-1"></span>
+                                    Generating Template...
+                                </span>
+                            </button>
+                        </div>
+                        <div class="mt-2">
+                            <small class="text-muted">
+                                <i class="mdi mdi-information"></i>
+                                The template includes: <strong>{{ implode(', ', $lookupTable->key_columns) }}</strong> and <strong>{{ $lookupTable->value_column }}</strong>
+                            </small>
+                        </div>
+                    </div>
+
+                    <hr class="my-4">
+                    
+                    <h6 class="mb-3">Or upload your existing file</h6>
+
+                    <div class="mb-3">
+                        <label for="importFile" class="form-label">Select File *</label>
+                        <input type="file" wire:model="importFile" class="form-control" id="importFile" accept=".xlsx,.xls,.csv">
+                        @error('importFile') <span class="text-danger">{{ $message }}</span> @enderror
+                        <div class="form-text">Supported formats: Excel (.xlsx, .xls) and CSV files</div>
+                    </div>
+
+                    @if($importFile)
+                        <div class="mb-3">
+                            <button type="button" wire:click="previewImport" class="btn btn-outline-primary">
+                                <i class="mdi mdi-eye"></i> Preview Import
+                            </button>
+                        </div>
+                    @endif
+
+                    @if(!empty($importPreview))
+                        <div class="mb-3">
+                            <h6>Preview (First 10 rows):</h6>
+                            <div class="table-responsive">
+                                <table class="table table-sm table-striped">
+                                    <thead>
+                                        <tr>
+                                            @foreach(array_keys($importPreview[0] ?? []) as $header)
+                                                <th>{{ $header }}</th>
+                                            @endforeach
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        @foreach($importPreview as $row)
+                                            <tr>
+                                                @foreach($row as $cell)
+                                                    <td>{{ $cell }}</td>
+                                                @endforeach
+                                            </tr>
+                                        @endforeach
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+
+                        @if(!empty($importErrors))
+                            <div class="alert alert-danger">
+                                <h6>Validation Errors:</h6>
+                                <ul class="mb-0">
+                                    @foreach($importErrors as $error)
+                                        <li>{{ $error }}</li>
+                                    @endforeach
+                                </ul>
+                            </div>
+                        @endif
+                    @endif
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" wire:click="$set('showImportModal', false)">Cancel</button>
+                    @if($importFile && empty($importErrors))
+                        <button type="button" wire:click="importData" class="btn btn-success" wire:loading.attr="disabled">
+                            <span wire:loading.remove wire:target="importData">
+                                <i class="mdi mdi-upload"></i> Import Data
+                            </span>
+                            <span wire:loading wire:target="importData">
+                                <span class="spinner-border spinner-border-sm me-1"></span>
+                                Importing...
+                            </span>
+                        </button>
+                    @endif
+                </div>
+            </div>
+        </div>
+    </div>
+    @endif
+
+    <style>
+    .modal.show {
+        display: block !important;
+    }
+    
+    /* Purple button styling for template download */
+    .btn-purple {
+        color: #fff;
+        background-color: #6f42c1;
+        border-color: #6f42c1;
+    }
+    
+    .btn-purple:hover {
+        color: #fff;
+        background-color: #5a32a3;
+        border-color: #5a32a3;
+    }
+    
+    .btn-purple:focus,
+    .btn-purple.focus {
+        box-shadow: 0 0 0 0.2rem rgba(111, 66, 193, 0.5);
+    }
+    
+    /* Make modal body scrollable */
+    .modal-body {
+        max-height: 70vh;
+        overflow-y: auto;
+        overflow-x: hidden;
+    }
+    
+    .modal-dialog {
+        max-height: 90vh;
+        margin: 1.75rem auto;
+    }
+    
+    .modal-content {
+        max-height: 90vh;
+        display: flex;
+        flex-direction: column;
+    }
+    
+    .modal-header,
+    .modal-footer {
+        flex-shrink: 0;
+    }
+    
+    /* Custom scrollbar */
+    .modal-body::-webkit-scrollbar {
+        width: 8px;
+    }
+    
+    .modal-body::-webkit-scrollbar-track {
+        background: #f1f1f1;
+        border-radius: 4px;
+    }
+    
+    .modal-body::-webkit-scrollbar-thumb {
+        background: #888;
+        border-radius: 4px;
+    }
+    
+    .modal-body::-webkit-scrollbar-thumb:hover {
+        background: #555;
+    }
+    </style>
+</div>
 

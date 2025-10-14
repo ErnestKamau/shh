@@ -101,7 +101,7 @@ class LookupTableManager extends Component
         $this->showEditModal = true;
     }
 
-    public function showImportModal(LookupTable $table)
+    public function openImportModal(LookupTable $table)
     {
         $this->editingTable = $table;
         $this->importFile = null;
@@ -252,25 +252,76 @@ class LookupTableManager extends Component
         }
     }
 
+    public function downloadTemplate(LookupTable $table)
+    {
+        try {
+            // Create header row with column names
+            $headers = array_merge($table->key_columns, [$table->value_column]);
+            
+            // Create sample data row (optional)
+            $sampleData = [];
+            foreach ($headers as $header) {
+                $sampleData[$header] = 'Sample ' . $header;
+            }
+            
+            $data = [$sampleData]; // Include one sample row
+            
+            $filename = 'template_' . str_replace(' ', '_', $table->name) . '_' . now()->format('Y-m-d') . '.xlsx';
+
+            return Excel::download(new class($data, $headers) implements \Maatwebsite\Excel\Concerns\FromArray, \Maatwebsite\Excel\Concerns\WithHeadings {
+                protected $data;
+                protected $headers;
+
+                public function __construct($data, $headers)
+                {
+                    $this->data = $data;
+                    $this->headers = $headers;
+                }
+
+                public function array(): array
+                {
+                    return $this->data;
+                }
+                
+                public function headings(): array
+                {
+                    return $this->headers;
+                }
+            }, $filename);
+        } catch (\Exception $e) {
+            $this->setMessage('Error generating template: ' . $e->getMessage(), 'error');
+        }
+    }
+
     public function exportTable(LookupTable $table)
     {
         try {
             $lookupService = app(LookupService::class);
             $data = $lookupService->exportData($table->id);
 
-            $filename = 'lookup_table_' . $table->name . '_' . now()->format('Y-m-d_H-i-s') . '.xlsx';
+            $filename = 'lookup_table_' . str_replace(' ', '_', $table->name) . '_' . now()->format('Y-m-d_H-i-s') . '.xlsx';
 
-            return Excel::download(new class($data) implements \Maatwebsite\Excel\Concerns\FromArray {
+            // Get headers from table structure
+            $headers = array_merge($table->key_columns, [$table->value_column]);
+
+            return Excel::download(new class($data, $headers) implements \Maatwebsite\Excel\Concerns\FromArray, \Maatwebsite\Excel\Concerns\WithHeadings {
                 protected $data;
+                protected $headers;
 
-                public function __construct($data)
+                public function __construct($data, $headers)
                 {
                     $this->data = $data;
+                    $this->headers = $headers;
                 }
 
                 public function array(): array
                 {
                     return $this->data;
+                }
+                
+                public function headings(): array
+                {
+                    return $this->headers;
                 }
             }, $filename);
         } catch (\Exception $e) {

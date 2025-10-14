@@ -331,7 +331,7 @@
                                     <div class="card-header bg-warning text-white">
                                         <h6 class="mb-0"><i class="mdi mdi-table"></i> Lookup Values</h6>
                                     </div>
-                                    <div class="card-body">
+                                <div class="card-body">
                                         <table class="table table-sm table-striped mb-0">
                                             <thead>
                                                 <tr>
@@ -361,10 +361,10 @@
                                     <div class="card-body">
                                         <div class="alert alert-info mb-0">
                                             <h4 class="mb-0">{{ $selectedExecution->execution_data['final_result'] }}</h4>
-                                        </div>
-                                    </div>
                                 </div>
-                            @endif
+                            </div>
+                        </div>
+                    @endif
 
                             <!-- Raw Data (Collapsible) -->
                             <div class="card">
@@ -374,7 +374,7 @@
                                     </a>
                                 </div>
                                 <div class="collapse" id="rawDataCollapse">
-                                    <div class="card-body">
+                                <div class="card-body">
                                         <pre class="mb-0" style="max-height: 300px; overflow-y: auto;">{{ json_encode($selectedExecution->execution_data, JSON_PRETTY_PRINT) }}</pre>
                                     </div>
                                 </div>

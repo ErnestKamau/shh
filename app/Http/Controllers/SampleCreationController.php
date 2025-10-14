@@ -257,7 +257,7 @@ class SampleCreationController extends Controller
             'routine_frequency' => $getIntegerValue($sampleHeaderData['routine_frequency'] ?? 0),
             'is_client_order' => $getIntegerValue($sampleHeaderData['is_client_order'] ?? 0),
             'crm_unit_name' => $crmUnitName,
-            'status' => 'Samples Reception',
+            'status' => 'Samples In Lab',
             'submission_form_instance_id' => null, // Will be set by the calling method
         ]);
         

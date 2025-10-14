@@ -110,6 +110,7 @@
                                         <th>HOD</th>
                                         <th>Remedy</th>
                                         <th>Calculated</th>
+                                        <th>Method Sequence</th>
                                         <th>Status</th>
                                         <th>Actions</th>
                                     </tr>
@@ -147,6 +148,29 @@
                                                     <span class="badge badge-info p-2" title="Result is Calculated">
                                                         <i class="mdi mdi-calculator"></i> Yes
                                                     </span>
+                                                @else
+                                                    <span class="badge badge-secondary p-2">No</span>
+                                                @endif
+                                            </td>
+                                            <td>
+                                                @if($element->has_method_sequence)
+                                                    <span class="badge badge-info p-2" title="Has Method Sequence">
+                                                        <i class="mdi mdi-timeline-check"></i> Yes
+                                                    </span>
+                                                    @if($element->methodSequence)
+                                                        <br><small class="text-muted">
+                                                            {{ $element->methodSequence->name }}
+                                                            @php
+                                                                $activeVersion = $element->methodSequence->activeVersion->first();
+                                                                $latestVersion = $element->methodSequence->latestVersion->first();
+                                                            @endphp
+                                                            @if($activeVersion)
+                                                                <br><span class="badge badge-success badge-sm">v{{ $activeVersion->version_number }} - Active</span>
+                                                            @elseif($latestVersion)
+                                                                <br><span class="badge badge-warning badge-sm">v{{ $latestVersion->version_number }} - Latest</span>
+                                                            @endif
+                                                        </small>
+                                                    @endif
                                                 @else
                                                     <span class="badge badge-secondary p-2">No</span>
                                                 @endif
@@ -211,49 +235,160 @@
                             <div class="row">
                                 <div class="col-md-6">
                                     <div class="form-group mb-3">
-                                        <label class="form-label">Analyte <span class="text-danger">*</span></label>
-                                        <select wire:model="elementForm.analyte_id" class="form-select modern-select @error('elementForm.analyte_id') is-invalid @enderror">
-                                            <option value="">Select Analyte</option>
-                                            @foreach($analytes as $analyte)
-                                                <option value="{{ $analyte->id }}">{{ $analyte->name }} ({{ $analyte->code }})</option>
+                                        <label class="form-label fw-bold">
+                                            <i class="mdi mdi-flask-outline text-primary"></i> Analyte <span class="text-danger">*</span>
+                                        </label>
+                                        <div class="searchable-select-container">
+                                            <input type="text" 
+                                                   wire:model.live="analyteSearch" 
+                                                   wire:keyup="searchAnalytes"
+                                                   class="form-control @error('elementForm.analyte_id') is-invalid @enderror" 
+                                                   placeholder="Type to search analytes..."
+                                                   autocomplete="off"
+                                                   style="border-radius: 8px; border: 2px solid #e3e6f0;">
+                                            <input type="hidden" wire:model="elementForm.analyte_id">
+                                            
+                                            @if($showAnalyteDropdown && count($filteredAnalytes) > 0)
+                                                <div class="searchable-dropdown">
+                                                    @foreach($filteredAnalytes as $analyte)
+                                                        <div class="dropdown-item" 
+                                                             wire:click="selectAnalyte({{ $analyte->id }}, '{{ $analyte->name }}')"
+                                                             style="cursor: pointer; padding: 8px 12px; border-bottom: 1px solid #eee;">
+                                                            {{ $analyte->name }} ({{ $analyte->code }})
+                                                        </div>
                                             @endforeach
-                                        </select>
-                                        @error('elementForm.analyte_id') <div class="invalid-feedback">{{ $message }}</div> @enderror
+                                                </div>
+                                            @endif
+                                            
+                                            @if($selectedAnalyteName)
+                                                <div class="selected-item mt-2">
+                                                    <span class="badge">
+                                                        {{ $selectedAnalyteName }}
+                                                        <i class="mdi mdi-close-circle ms-1" wire:click="clearAnalyte" style="cursor: pointer;"></i>
+                                                    </span>
+                                                </div>
+                                            @endif
+                                        </div>
+                                        @error('elementForm.analyte_id') <div class="invalid-feedback d-block">{{ $message }}</div> @enderror
                                     </div>
                                 </div>
                                 <div class="col-md-6">
                                     <div class="form-group mb-3">
-                                        <label class="form-label">Method</label>
-                                        <select wire:model="elementForm.method" class="form-select modern-select">
-                                            <option value="">Select Method</option>
-                                            @foreach($methods as $method)
-                                                <option value="{{ $method->id }}">{{ $method->name }}</option>
+                                        <label class="form-label fw-bold">
+                                            <i class="mdi mdi-test-tube text-success"></i> Method
+                                        </label>
+                                        <div class="searchable-select-container">
+                                            <input type="text" 
+                                                   wire:model.live="methodSearch" 
+                                                   wire:keyup="searchMethods"
+                                                   class="form-control @error('elementForm.method') is-invalid @enderror" 
+                                                   placeholder="Type to search methods..."
+                                                   autocomplete="off"
+                                                   style="border-radius: 8px; border: 2px solid #e3e6f0;">
+                                            <input type="hidden" wire:model="elementForm.method">
+                                            
+                                            @if($showMethodDropdown && count($filteredMethods) > 0)
+                                                <div class="searchable-dropdown">
+                                                    @foreach($filteredMethods as $method)
+                                                        <div class="dropdown-item" 
+                                                             wire:click="selectMethod({{ $method->id }}, '{{ $method->name }}')"
+                                                             style="cursor: pointer; padding: 8px 12px; border-bottom: 1px solid #eee;">
+                                                            {{ $method->name }}
+                                                        </div>
                                             @endforeach
-                                        </select>
+                                                </div>
+                                            @endif
+                                            
+                                            @if($selectedMethodName)
+                                                <div class="selected-item mt-2">
+                                                    <span class="badge">
+                                                        {{ $selectedMethodName }}
+                                                        <i class="mdi mdi-close-circle ms-1" wire:click="clearMethod" style="cursor: pointer;"></i>
+                                                    </span>
+                                                </div>
+                                            @endif
+                                        </div>
+                                        @error('elementForm.method') <div class="invalid-feedback d-block">{{ $message }}</div> @enderror
                                     </div>
                                 </div>
                             </div>
                             <div class="row">
                                 <div class="col-md-6">
                                     <div class="form-group mb-3">
-                                        <label class="form-label">Equipment</label>
-                                        <select wire:model="elementForm.equipment_id" class="form-select modern-select">
-                                            <option value="">Select Equipment</option>
-                                            @foreach($equipment as $eq)
-                                                <option value="{{ $eq->id }}">{{ $eq->name }}</option>
+                                        <label class="form-label fw-bold">
+                                            <i class="mdi mdi-cog text-warning"></i> Equipment
+                                        </label>
+                                        <div class="searchable-select-container">
+                                            <input type="text" 
+                                                   wire:model.live="equipmentSearch" 
+                                                   wire:keyup="searchEquipment"
+                                                   class="form-control @error('elementForm.equipment_id') is-invalid @enderror" 
+                                                   placeholder="Type to search equipment..."
+                                                   autocomplete="off"
+                                                   style="border-radius: 8px; border: 2px solid #e3e6f0;">
+                                            <input type="hidden" wire:model="elementForm.equipment_id">
+                                            
+                                            @if($showEquipmentDropdown && count($filteredEquipment) > 0)
+                                                <div class="searchable-dropdown">
+                                                    @foreach($filteredEquipment as $equipment)
+                                                        <div class="dropdown-item" 
+                                                             wire:click="selectEquipment({{ $equipment->id }}, '{{ $equipment->name }}')"
+                                                             style="cursor: pointer; padding: 8px 12px; border-bottom: 1px solid #eee;">
+                                                            {{ $equipment->name }}
+                                                        </div>
                                             @endforeach
-                                        </select>
+                                                </div>
+                                            @endif
+                                            
+                                            @if($selectedEquipmentName)
+                                                <div class="selected-item mt-2">
+                                                    <span class="badge">
+                                                        {{ $selectedEquipmentName }}
+                                                        <i class="mdi mdi-close-circle ms-1" wire:click="clearEquipment" style="cursor: pointer;"></i>
+                                                    </span>
+                                                </div>
+                                            @endif
+                                        </div>
+                                        @error('elementForm.equipment_id') <div class="invalid-feedback d-block">{{ $message }}</div> @enderror
                                     </div>
                                 </div>
                                 <div class="col-md-6">
                                     <div class="form-group mb-3">
-                                        <label class="form-label">Operator</label>
-                                        <select wire:model="elementForm.operator_id" class="form-select modern-select">
-                                            <option value="">Select Operator</option>
-                                            @foreach($operators as $operator)
-                                                <option value="{{ $operator->id }}">{{ $operator->name }}</option>
+                                        <label class="form-label fw-bold">
+                                            <i class="mdi mdi-account text-info"></i> Operator
+                                        </label>
+                                        <div class="searchable-select-container">
+                                            <input type="text" 
+                                                   wire:model.live="operatorSearch" 
+                                                   wire:keyup="searchOperators"
+                                                   class="form-control @error('elementForm.operator_id') is-invalid @enderror" 
+                                                   placeholder="Type to search operators..."
+                                                   autocomplete="off"
+                                                   style="border-radius: 8px; border: 2px solid #e3e6f0;">
+                                            <input type="hidden" wire:model="elementForm.operator_id">
+                                            
+                                            @if($showOperatorDropdown && count($filteredOperators) > 0)
+                                                <div class="searchable-dropdown">
+                                                    @foreach($filteredOperators as $operator)
+                                                        <div class="dropdown-item" 
+                                                             wire:click="selectOperator({{ $operator->id }}, '{{ $operator->name }}')"
+                                                             style="cursor: pointer; padding: 8px 12px; border-bottom: 1px solid #eee;">
+                                                            {{ $operator->name }}
+                                                        </div>
                                             @endforeach
-                                        </select>
+                                                </div>
+                                            @endif
+                                            
+                                            @if($selectedOperatorName)
+                                                <div class="selected-item mt-2">
+                                                    <span class="badge">
+                                                        {{ $selectedOperatorName }}
+                                                        <i class="mdi mdi-close-circle ms-1" wire:click="clearOperator" style="cursor: pointer;"></i>
+                                                    </span>
+                                                </div>
+                                            @endif
+                                        </div>
+                                        @error('elementForm.operator_id') <div class="invalid-feedback d-block">{{ $message }}</div> @enderror
                                     </div>
                                 </div>
                             </div>
@@ -261,7 +396,7 @@
                                 <div class="col-md-4">
                                     <div class="form-group mb-3">
                                         <label class="form-label">Reporting Unit <span class="text-danger">*</span></label>
-                                        <select wire:model="elementForm.reporting_unit" class="form-select modern-select @error('elementForm.reporting_unit') is-invalid @enderror">
+                                        <select wire:model.live="elementForm.reporting_unit" class="form-select modern-select @error('elementForm.reporting_unit') is-invalid @enderror" wire:key="reporting-unit-select-{{ $editingElement?->id ?? 'new' }}">
                                             <option value="">Select Reporting Unit</option>
                                             @foreach($reportingUnits as $unit)
                                                 <option value="{{ $unit->name }}">{{ $unit->name }}</option>
@@ -352,16 +487,42 @@
                                             
                                             @if($elementForm['recommend_remedies'] ?? false)
                                                 <div class="form-group mb-3">
-                                                    <label class="form-label">Remedy System</label>
-                                                    <select wire:model="elementForm.remedy_header_id" 
-                                                            class="form-select modern-select @error('elementForm.remedy_header_id') is-invalid @enderror">
-                                                        <option value="">Select Remedy System</option>
-                                                        @foreach($remedyHeaders as $remedyHeader)
-                                                            <option value="{{ $remedyHeader->id }}">{{ $remedyHeader->name }}</option>
+                                                    <label class="form-label fw-bold">
+                                                        <i class="mdi mdi-medical-bag text-danger"></i> Remedy System
+                                                    </label>
+                                                    <div class="searchable-select-container">
+                                                        <input type="text" 
+                                                               wire:model.live="remedyHeaderSearch" 
+                                                               wire:keyup="searchRemedyHeaders"
+                                                               class="form-control @error('elementForm.remedy_header_id') is-invalid @enderror" 
+                                                               placeholder="Type to search remedy systems..."
+                                                               autocomplete="off"
+                                                               style="border-radius: 8px; border: 2px solid #e3e6f0;">
+                                                        <input type="hidden" wire:model="elementForm.remedy_header_id">
+                                                        
+                                                        @if($showRemedyHeaderDropdown && count($filteredRemedyHeaders) > 0)
+                                                            <div class="searchable-dropdown">
+                                                                @foreach($filteredRemedyHeaders as $remedyHeader)
+                                                                    <div class="dropdown-item" 
+                                                                         wire:click="selectRemedyHeader({{ $remedyHeader->id }}, '{{ $remedyHeader->name }}')"
+                                                                         style="cursor: pointer; padding: 8px 12px; border-bottom: 1px solid #eee;">
+                                                                        {{ $remedyHeader->name }}
+                                                                    </div>
                                                         @endforeach
-                                                    </select>
+                                                            </div>
+                                                        @endif
+                                                        
+                                                        @if($selectedRemedyHeaderName)
+                                                            <div class="selected-item mt-2">
+                                                                <span class="badge">
+                                                                    {{ $selectedRemedyHeaderName }}
+                                                                    <i class="mdi mdi-close-circle ms-1" wire:click="clearRemedyHeader" style="cursor: pointer;"></i>
+                                                                </span>
+                                                            </div>
+                                                        @endif
+                                                    </div>
                                                     @error('elementForm.remedy_header_id') 
-                                                        <div class="invalid-feedback">{{ $message }}</div> 
+                                                        <div class="invalid-feedback d-block">{{ $message }}</div> 
                                                     @enderror
                                                     <small class="form-text text-muted">
                                                         Select the remedy system to recommend when this test fails
@@ -395,19 +556,128 @@
                                             
                                             @if($elementForm['result_is_calculated'] ?? false)
                                                 <div class="form-group mb-3">
-                                                    <label class="form-label">Formulars</label>
-                                                    <select wire:model="elementForm.formular_id" 
-                                                            class="form-select modern-select @error('elementForm.formular_id') is-invalid @enderror">
-                                                        <option value="">Select Formular</option>
-                                                        @foreach($formulars as $formular)
-                                                            <option value="{{ $formular->id }}">{{ $formular->name }}</option>
+                                                    <label class="form-label fw-bold">
+                                                        <i class="mdi mdi-calculator text-primary"></i> Formulars
+                                                    </label>
+                                                    <div class="searchable-select-container">
+                                                        <input type="text" 
+                                                               wire:model.live="formularSearch" 
+                                                               wire:keyup="searchFormulars"
+                                                               class="form-control @error('elementForm.formular_id') is-invalid @enderror" 
+                                                               placeholder="Type to search formulars..."
+                                                               autocomplete="off"
+                                                               style="border-radius: 8px; border: 2px solid #e3e6f0;">
+                                                        <input type="hidden" wire:model="elementForm.formular_id">
+                                                        
+                                                        @if($showFormularDropdown && count($filteredFormulars) > 0)
+                                                            <div class="searchable-dropdown">
+                                                                @foreach($filteredFormulars as $formular)
+                                                                    <div class="dropdown-item" 
+                                                                         wire:click="selectFormular({{ $formular->id }}, '{{ $formular->name }}')"
+                                                                         style="cursor: pointer; padding: 8px 12px; border-bottom: 1px solid #eee;">
+                                                                        {{ $formular->name }}
+                                                                    </div>
                                                         @endforeach
-                                                    </select>
+                                                            </div>
+                                                        @endif
+                                                        
+                                                        @if($selectedFormularName)
+                                                            <div class="selected-item mt-2">
+                                                                <span class="badge">
+                                                                    {{ $selectedFormularName }}
+                                                                    <i class="mdi mdi-close-circle ms-1" wire:click="clearFormular" style="cursor: pointer;"></i>
+                                                                </span>
+                                                            </div>
+                                                        @endif
+                                                    </div>
                                                     @error('elementForm.formular_id') 
-                                                        <div class="invalid-feedback">{{ $message }}</div> 
+                                                        <div class="invalid-feedback d-block">{{ $message }}</div> 
                                                     @enderror
                                                     <small class="form-text text-muted">
                                                         Select the formular to use for calculating this result
+                                                    </small>
+                                                </div>
+                                            @endif
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <!-- Method Sequence Stages Section -->
+                            <div class="row">
+                                <div class="col-md-12">
+                                    <div class="card bg-light">
+                                        <div class="card-body">
+                                            <h6 class="card-title text-primary">
+                                                <i class="mdi mdi-timeline-check"></i> Method Sequence Stages
+                                            </h6>
+                                            <div class="form-group mb-3">
+                                                <div class="form-check">
+                                                    <input type="checkbox" 
+                                                           wire:model.live="elementForm.has_method_sequence" 
+                                                           class="form-check-input" 
+                                                           id="has_method_sequence">
+                                                    <label class="form-check-label" for="has_method_sequence">
+                                                        Has Method Sequence
+                                                    </label>
+                                                </div>
+                                            </div>
+                                            
+                                            @if($elementForm['has_method_sequence'] ?? false)
+                                                <div class="form-group mb-3">
+                                                    <label class="form-label fw-bold">
+                                                        <i class="mdi mdi-timeline-check text-success"></i> Method Sequence
+                                                    </label>
+                                                    <div class="searchable-select-container">
+                                                        <input type="text" 
+                                                               wire:model.live="methodSequenceSearch" 
+                                                               wire:keyup="searchMethodSequences"
+                                                               class="form-control @error('elementForm.method_sequence_id') is-invalid @enderror" 
+                                                               placeholder="Type to search method sequences..."
+                                                               autocomplete="off"
+                                                               style="border-radius: 8px; border: 2px solid #e3e6f0;">
+                                                        <input type="hidden" wire:model="elementForm.method_sequence_id">
+                                                        
+                                                        @if($showMethodSequenceDropdown && count($filteredMethodSequences) > 0)
+                                                            <div class="searchable-dropdown">
+                                                                @foreach($filteredMethodSequences as $methodSequence)
+                                                            @php
+                                                                $activeVer = $methodSequence->activeVersion->first();
+                                                                $latestVer = $methodSequence->latestVersion->first();
+                                                                $versionInfo = '';
+                                                                if ($activeVer) {
+                                                                    $versionInfo = ' (v' . $activeVer->version_number . ' - Active)';
+                                                                } elseif ($latestVer) {
+                                                                    $versionInfo = ' (v' . $latestVer->version_number . ' - Latest)';
+                                                                }
+                                                            @endphp
+                                                                    <div class="dropdown-item" 
+                                                                         wire:click="selectMethodSequence({{ $methodSequence->id }}, '{{ $methodSequence->name }}')"
+                                                                         style="cursor: pointer; padding: 8px 12px; border-bottom: 1px solid #eee;">
+                                                                        {{ $methodSequence->name }}{{ $versionInfo }}
+                                                                    </div>
+                                                        @endforeach
+                                                            </div>
+                                                        @endif
+                                                        
+                                                        @if($selectedMethodSequenceName)
+                                                            <div class="selected-item mt-2">
+                                                                <span class="badge">
+                                                                    {{ $selectedMethodSequenceName }}
+                                                                    <i class="mdi mdi-close-circle ms-1" wire:click="clearMethodSequence" style="cursor: pointer;"></i>
+                                                                </span>
+                                                            </div>
+                                                        @endif
+                                                    </div>
+                                                    @error('elementForm.method_sequence_id') 
+                                                        <div class="invalid-feedback d-block">{{ $message }}</div> 
+                                                    @enderror
+                                                    <small class="form-text text-muted">
+                                                        @if($elementForm['analyte_id'])
+                                                            Select the method sequence for this element. Only active sequences for the selected analyte are shown. The active/latest version will be automatically used.
+                                                        @else
+                                                            Please select an analyte first to see available method sequences.
+                                                        @endif
                                                     </small>
                                                 </div>
                                             @endif
@@ -527,6 +797,19 @@ function initializeSortable() {
         });
     }
 }
+
+// Close dropdowns when clicking outside
+document.addEventListener('click', function(e) {
+    if (!e.target.closest('.searchable-select-container')) {
+        @this.set('showAnalyteDropdown', false);
+        @this.set('showMethodDropdown', false);
+        @this.set('showEquipmentDropdown', false);
+        @this.set('showOperatorDropdown', false);
+        @this.set('showRemedyHeaderDropdown', false);
+        @this.set('showFormularDropdown', false);
+        @this.set('showMethodSequenceDropdown', false);
+    }
+});
 </script>
 
 <style>
@@ -626,6 +909,40 @@ function initializeSortable() {
     border: 2px solid #ff9800 !important;
     transform: rotate(2deg);
     box-shadow: 0 8px 16px rgba(0, 0, 0, 0.2);
+}
+
+/* Searchable Select Styles */
+.searchable-select-container {
+    position: relative;
+}
+
+.searchable-dropdown {
+    position: absolute;
+    top: 100%;
+    left: 0;
+    right: 0;
+    background: white;
+    border: 2px solid #007bff;
+    border-top: none;
+    border-radius: 0 0 8px 8px;
+    max-height: 200px;
+    overflow-y: auto;
+    z-index: 1000;
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+}
+
+.searchable-dropdown .dropdown-item:hover {
+    background-color: #f8f9fa;
+}
+
+.selected-item .badge {
+    font-size: 0.9rem;
+    padding: 8px 12px;
+    background-color: #f8f9fa !important;
+    color: #495057 !important;
+    border: 1px solid #dee2e6 !important;
+    border-radius: 8px !important;
+    font-weight: 500;
 }
 </style>
 </div>
