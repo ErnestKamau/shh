@@ -582,31 +582,6 @@
                                     <textarea wire:model="description" class="form-control @error('description') is-invalid @enderror" id="description" rows="2"></textarea>
                                     @error('description') <div class="invalid-feedback">{{ $message }}</div> @enderror
                                 </div>
-
-                                <!-- End Stage Configuration -->
-                                <div class="card bg-light mb-3">
-                                    <div class="card-header">
-                                        <h6 class="mb-0 text-muted">
-                                            <i class="mdi mdi-flag-checkered"></i> End Stage Configuration
-                                        </h6>
-                                    </div>
-                                    <div class="card-body">
-                                        <div class="form-check mb-2">
-                                            <input type="checkbox" wire:model="isEndStage" class="form-check-input" id="isEndStage">
-                                            <label class="form-check-label" for="isEndStage">
-                                                This is an end stage
-                                            </label>
-                                            <div class="form-text">Check this if completing this stage should mark the run as complete</div>
-                                        </div>
-                                        <div class="form-check">
-                                            <input type="checkbox" wire:model="isEndStageIfPass" class="form-check-input" id="isEndStageIfPass">
-                                            <label class="form-check-label" for="isEndStageIfPass">
-                                                End stage only if result is Pass
-                                            </label>
-                                            <div class="form-text">Check this if the stage should only complete the run when the result is Pass (otherwise escalate to next stage)</div>
-                                        </div>
-                                    </div>
-                                </div>
                             </form>
                         </div>
                         <div class="modal-footer">
@@ -897,31 +872,6 @@
                             <label for="editDescription" class="form-label">Description</label>
                             <textarea wire:model="description" class="form-control @error('description') is-invalid @enderror" id="editDescription" rows="2"></textarea>
                             @error('description') <div class="invalid-feedback">{{ $message }}</div> @enderror
-                        </div>
-
-                        <!-- End Stage Configuration -->
-                        <div class="card bg-light mb-3">
-                            <div class="card-header">
-                                <h6 class="mb-0 text-muted">
-                                    <i class="mdi mdi-flag-checkered"></i> End Stage Configuration
-                                </h6>
-                            </div>
-                            <div class="card-body">
-                                <div class="form-check mb-2">
-                                    <input type="checkbox" wire:model="isEndStage" class="form-check-input" id="editIsEndStage">
-                                    <label class="form-check-label" for="editIsEndStage">
-                                        This is an end stage
-                                    </label>
-                                    <div class="form-text">Check this if completing this stage should mark the run as complete</div>
-                                </div>
-                                <div class="form-check">
-                                    <input type="checkbox" wire:model="isEndStageIfPass" class="form-check-input" id="editIsEndStageIfPass">
-                                    <label class="form-check-label" for="editIsEndStageIfPass">
-                                        End stage only if result is Pass
-                                    </label>
-                                    <div class="form-text">Check this if the stage should only complete the run when the result is Pass (otherwise escalate to next stage)</div>
-                                </div>
-                            </div>
                         </div>
                     </form>
                 </div>

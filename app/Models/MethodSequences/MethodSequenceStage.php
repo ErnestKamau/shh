@@ -27,6 +27,8 @@ class MethodSequenceStage extends Model
         'fail_move_next_stage',
         'duration',
         'move_to_next_stage_safe_duration',
+        'is_end_stage',
+        'is_end_stage_if_pass',
     ];
 
     protected $casts = [
@@ -37,6 +39,8 @@ class MethodSequenceStage extends Model
         'fail_move_next_stage' => 'boolean',
         'duration' => 'decimal:2',
         'move_to_next_stage_safe_duration' => 'decimal:2',
+        'is_end_stage' => 'boolean',
+        'is_end_stage_if_pass' => 'boolean',
     ];
 
     /**

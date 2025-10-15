@@ -29,6 +29,8 @@ class MethodSequenceStageEditor extends Component
     public $failMoveNextStage = false;
     public $duration = '';
     public $safeDuration = '';
+    public $isEndStage = false;
+    public $isEndStageIfPass = false;
 
     // Searchable select fields
     public $equipmentSearch = '';
@@ -58,6 +60,8 @@ class MethodSequenceStageEditor extends Component
             'failMoveNextStage' => 'boolean',
             'duration' => 'nullable|numeric|min:0',
             'safeDuration' => 'nullable|numeric|min:0|lte:duration',
+            'isEndStage' => 'boolean',
+            'isEndStageIfPass' => 'boolean',
         ];
     }
 
@@ -147,6 +151,8 @@ class MethodSequenceStageEditor extends Component
         $this->failMoveNextStage = $stage->fail_move_next_stage;
         $this->duration = $stage->duration;
         $this->safeDuration = $stage->move_to_next_stage_safe_duration;
+        $this->isEndStage = $stage->is_end_stage ?? false;
+        $this->isEndStageIfPass = $stage->is_end_stage_if_pass ?? false;
         $this->showStageModal = true;
         $this->dispatch('modal-opened');
     }
@@ -175,6 +181,8 @@ class MethodSequenceStageEditor extends Component
                 'fail_move_next_stage' => $this->failMoveNextStage,
                 'duration' => $this->duration ?: null,
                 'move_to_next_stage_safe_duration' => $this->safeDuration ?: null,
+                'is_end_stage' => $this->isEndStage,
+                'is_end_stage_if_pass' => $this->isEndStageIfPass,
             ];
 
             if ($this->editingStage) {
@@ -431,6 +439,8 @@ class MethodSequenceStageEditor extends Component
         $this->failMoveNextStage = false;
         $this->duration = '';
         $this->safeDuration = '';
+        $this->isEndStage = false;
+        $this->isEndStageIfPass = false;
         $this->editingStage = null;
         
         // Reset searchable select fields

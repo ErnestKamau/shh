@@ -21,14 +21,10 @@ class FormulaStep extends Model
         'description',
         'lookup_config',
         'analyte_id',
-        'is_end_stage',
-        'is_end_stage_if_pass',
     ];
 
     protected $casts = [
         'lookup_config' => 'array',
-        'is_end_stage' => 'boolean',
-        'is_end_stage_if_pass' => 'boolean',
     ];
 
     /**

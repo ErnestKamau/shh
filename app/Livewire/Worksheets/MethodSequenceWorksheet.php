@@ -466,12 +466,22 @@ class MethodSequenceWorksheet extends Component
                 // Check if this is an end stage
                 $stage = $stageData->stage;
                 if ($stage && $stage->is_end_stage) {
-                    // Complete the run
-                    $run = $stageData->run;
-                    $run->update([
-                        'status' => 'completed',
-                        'completed_at' => now()
-                    ]);
+                    // Check if we should complete based on result
+                    $shouldComplete = true;
+                    
+                    if ($stage->is_end_stage_if_pass) {
+                        // Only complete if result is Pass
+                        $shouldComplete = ($result === 'Pass');
+                    }
+                    
+                    if ($shouldComplete) {
+                        // Complete the run
+                        $run = $stageData->run;
+                        $run->update([
+                            'status' => 'completed',
+                            'completed_at' => now()
+                        ]);
+                    }
                 }
 
                 $this->setMessage('Result updated successfully!', 'success');

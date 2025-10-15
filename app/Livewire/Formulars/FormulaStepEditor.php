@@ -40,8 +40,6 @@ class FormulaStepEditor extends Component
     public $lookupTableId = '';
     public $lookupConfig = [];
     public $analyteId = null;
-    public $isEndStage = false;
-    public $isEndStageIfPass = false;
 
     // Mandatory Fields
     public $mandatoryFields = [];
@@ -85,8 +83,6 @@ class FormulaStepEditor extends Component
         'description' => 'nullable|string',
         'lookupTableId' => 'nullable|exists:lookup_tables,id',
         'analyteId' => 'nullable|exists:analytes,id',
-        'isEndStage' => 'boolean',
-        'isEndStageIfPass' => 'boolean',
     ];
 
     protected function mandatoryFieldRules(): array
@@ -176,8 +172,6 @@ class FormulaStepEditor extends Component
         $this->lookupConfig = $step->lookup_config ?? [];
         $this->lookupTableId = $step->lookup_config['lookup_table_id'] ?? '';
         $this->analyteId = $step->analyte_id;
-        $this->isEndStage = $step->is_end_stage ?? false;
-        $this->isEndStageIfPass = $step->is_end_stage_if_pass ?? false;
         $this->showEditStepModal = true;
     }
 
@@ -216,8 +210,6 @@ class FormulaStepEditor extends Component
                 'description' => $this->description,
                 'lookup_config' => $lookupConfig,
                 'analyte_id' => $this->stepType === 'parameter_result' ? $this->analyteId : null,
-                'is_end_stage' => $this->isEndStage,
-                'is_end_stage_if_pass' => $this->isEndStageIfPass,
             ]);
 
             $this->showCreateStepModal = false;
@@ -264,8 +256,6 @@ class FormulaStepEditor extends Component
                 'description' => $this->description,
                 'lookup_config' => $lookupConfig,
                 'analyte_id' => $this->stepType === 'parameter_result' ? $this->analyteId : null,
-                'is_end_stage' => $this->isEndStage,
-                'is_end_stage_if_pass' => $this->isEndStageIfPass,
             ]);
 
             $this->showEditStepModal = false;
@@ -513,8 +503,6 @@ class FormulaStepEditor extends Component
         $this->lookupTableId = '';
         $this->lookupConfig = [];
         $this->analyteId = null;
-        $this->isEndStage = false;
-        $this->isEndStageIfPass = false;
         $this->editingStep = null;
     }
 
