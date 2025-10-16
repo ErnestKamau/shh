@@ -13,6 +13,7 @@ use App\Lab;
 use App\ReportingUnit;
 use App\StandardAnalytes;
 use App\SampleAnalysisTypeRelation;
+use App\SampleDetails;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
 
@@ -580,21 +581,12 @@ class SampleCreationController extends Controller
                 throw new \Exception('Submission form instance not found');
             }
 
-            $submissionForm = $instance->submissionForm;
-            if (!$submissionForm) {
-                throw new \Exception('Submission form not found');
-            }
-
-            $prefix = $submissionForm->naming_convention_prefix ?? 'SF';
-            $currentYear = date('Y');
+            $batch_count = SampleHeader::where('submission_form_instance_id', $submissionFormInstanceId)->count();
+            $batch_count = $batch_count ? $batch_count + 1 : 1;                
             
-            // Get next batch sequence for this form instance and year
-            $batchSeqNo = \App\Models\BatchSequence::getNextBatchSequence($submissionFormInstanceId, $currentYear);
+            $batch_code = $instance->form_number.'-'.$batch_count;
             
-            // Generate batch code: {prefix}{batch_seq_no}/{YY}
-            $batchCode = $prefix . sprintf('%03d', $batchSeqNo) . '/' . date('y');
-            
-            return $batchCode;
+            return $batch_code;
             
         } catch (\Exception $e) {
             Log::error('Error generating new batch code: ' . $e->getMessage());
@@ -687,24 +679,21 @@ class SampleCreationController extends Controller
             throw new \Exception('Sample header not found');
         }
 
-        $sampleType = \App\SampleType::find($sampleHeader->sample_type_id);
-        if (!$sampleType) {
-            throw new \Exception('Sample type not found');
-        }
+       
 
         // If batch code is provided, use new format
         if ($batchCode) {
             try {
                 // Get next sample sequence for this batch
-                $sampleSeqNo = \App\Models\SampleSequence::getNextSampleSequence($batchCode);
-                
+                $sampleSeqNo = SampleDetails::where('sample_header_id', $sampleHeaderId)->count();
+
+                $sampleSeqNo = $sampleSeqNo ? $sampleSeqNo + 1 : 1;
                 // Generate sample code: {batch_code}-{sample_no_seq_no}
-                $sampleCode = $batchCode . '-' . sprintf('%03d', $sampleSeqNo);
-                $sampleNo = sprintf('%03d', $sampleSeqNo);
+                $sampleCode = $batchCode . '-' . sprintf('%02d', $sampleSeqNo);
+                $sampleNo = sprintf('%02d', $sampleSeqNo);
                 
                 // Generate report number (keeping existing format for now)
-                $lab = \App\Lab::find(1);
-                $reportNumber = 'LR/' . $sampleType->code . '/' . date('Y') . '/' . ($lab ? $lab->code : 'XX') . '/' . sprintf('%03d', $sampleSeqNo);
+                $reportNumber = $batchCode;
 
                 return [
                     'sample_code' => $sampleCode,

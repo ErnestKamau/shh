@@ -170,12 +170,14 @@ class SubmissionFormsManager extends Component
 
         try {
             // Create instance
+            $formNumber = $this->generateFormNumber($submissionForm);
             $instance = SubmissionFormInstance::create([
                 'submission_form_id' => $submissionForm->id,
                 'submitted_by' => auth()->id(),
                 'status' => 'draft',
                 'title' => 'New ' . $submissionForm->name . ' Submission',
-                'form_number' => $this->generateFormNumber($submissionForm),
+                'form_number' => $formNumber['format'],
+                'sequence_number' => $formNumber['sequence_no'],
                 'due_date' => now()->addDays(7),
                 'priority' => 'normal'
             ]);
@@ -208,15 +210,7 @@ class SubmissionFormsManager extends Component
      */
     private function generateFormNumber($submissionForm)
     {
-        $prefix = strtoupper(substr($submissionForm->name, 0, 3));
-        $year = date('Y');
-        
-        // Get last number for this form in current year
-        $lastNumber = SubmissionFormInstance::where('submission_form_id', $submissionForm->id)
-            ->whereYear('created_at', $year)
-            ->count() + 1;
-
-        return $prefix . '-' . $year . '-' . str_pad($lastNumber, 4, '0', STR_PAD_LEFT);
+        return \App\Services\FormNumberGenerator::generate($submissionForm);
     }
 
     /**

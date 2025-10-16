@@ -171,6 +171,23 @@
                   @endif
                 </div>
 
+                <div class="form-group">
+                  <label for="start_submission_number">Start submission from number</label>
+                  <input type="number" 
+                         class="form-control @error('start_submission_number') is-invalid @enderror" 
+                         id="start_submission_number" 
+                         name="start_submission_number" 
+                         value="{{ old('start_submission_number', $submissionForm->start_submission_number ?? 1) }}" 
+                         min="1"
+                         placeholder="1">
+                  @error('start_submission_number')
+                    <div class="invalid-feedback">{{ $message }}</div>
+                  @enderror
+                  <small class="form-text text-muted">
+                    Provide the start submission no for this submission form.
+                  </small>
+                </div>
+
                 <div class="form-group mb-0">
                   <button type="submit" class="btn btn-primary">
                     <i class="mdi mdi-check"></i> Update Form

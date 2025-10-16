@@ -488,15 +488,27 @@ Route::prefix('submission-forms')->name('submission-forms.')->middleware('auth')
     // Form Instance Routes
     Route::prefix('instances')->name('instances.')->group(function () {
         Route::get('/', 'FormInstanceController@index')->name('index');
+        
+        // Batch View - Display form instance with all linked batches and samples (safe route pattern)
+        Route::get('/batch/{instance}/view', 'FormInstanceController@batchView')->name('batch-view')->where('instance', '[0-9]+');
+        
+        // Batch View Print - Print version of batch view
+        Route::get('/batch/{instance}/print', 'FormInstanceController@batchViewPrint')->name('batch-view-print')->where('instance', '[0-9]+');
+        
+        // Dynamic options route
+        Route::get('/dynamic-options', 'FormInstanceController@getDynamicOptions')->name('dynamic-options');
+        
+        // Form creation routes
         Route::get('/{submissionForm}/create', 'FormInstanceController@create')->name('create');
         Route::post('/{submissionForm}', 'FormInstanceController@store')->name('store');
+        
+        // Instance-specific routes
         Route::get('/{submissionForm}/{instance}/fill', 'FormInstanceController@fill')->name('fill');
         Route::get('/{submissionForm}/{instance}/fill-sample', 'FormInstanceController@fillSample')->name('fill-sample');
         Route::put('/{submissionForm}/{instance}', 'FormInstanceController@update')->name('update');
         Route::get('/{submissionForm}/{instance}', 'FormInstanceController@show')->name('show');
         Route::get('/{submissionForm}/{instance}/edit', 'FormInstanceController@edit')->name('edit');
         Route::delete('/{submissionForm}/{instance}', 'FormInstanceController@destroy')->name('destroy');
-        Route::get('/dynamic-options', 'FormInstanceController@getDynamicOptions')->name('dynamic-options');
         
         // Sample Creation Routes
         Route::post('/{instance}/create-samples', 'SampleCreationController@createFromForm')->name('create-samples');

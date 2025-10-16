@@ -69,6 +69,7 @@
             <tr>
               <th>Name</th>
               <th>Description</th>
+              <th>Submission Start No.</th>
               <th>Sections</th>
               <th>Instances</th>
               <th>Status</th>
@@ -91,8 +92,12 @@
                   </div>
                 </td>
                 <td class="text-center">
+                  {{ $form->start_submission_number }}
+                 </td> 
+                <td class="text-center">
                   <span class="badge badge-info">{{ $form->sections_count }}</span>
                 </td>
+               
                 <td class="text-center">
                   <span class="badge badge-secondary">{{ $form->instances_count }}</span>
                 </td>

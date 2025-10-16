@@ -83,7 +83,8 @@ class SubmissionFormController extends Controller
             'description' => ['nullable', 'string', 'max:1000'],
             'naming_convention_prefix' => ['required', 'string', 'max:50'],
             'naming_convention_format' => ['required', 'string', 'max:100'],
-            'is_active' => ['boolean']
+            'is_active' => ['boolean'],
+            'start_submission_number' => ['nullable', 'integer', 'min:1']
         ]);
 
         $validated['created_by'] = Auth::id();
@@ -145,7 +146,8 @@ class SubmissionFormController extends Controller
             'description' => ['nullable', 'string', 'max:1000'],
             'naming_convention_prefix' => ['required', 'string', 'max:50'],
             'naming_convention_format' => ['required', 'string', 'max:100'],
-            'is_active' => ['boolean']
+            'is_active' => ['boolean'],
+            'start_submission_number' => ['nullable', 'integer', 'min:1']
         ]);
 
         $submissionForm->update($validated);

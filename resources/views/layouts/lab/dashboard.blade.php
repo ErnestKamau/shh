@@ -28,237 +28,241 @@
     );
     ?>
     <x-bread-crumb :items="$items"></x-bread-crumb>
-    <h2 class="p-1">
-        <i class="mdi mdi-desktop-mac-dashboard"></i> Dashboard | Laboratory
-        <div class="dropleft float-right">
+    <div class="p-3">
 
-            <span style="font-size:15px;border-radius: 3em;border-color: white;background-color:white;position: 0 0;size: 100%;" class="float-right mr-5 mt-3  p-2 btn dropdown-toggle" data-toggle="dropdown" aria-haspopup="true" aria-expanded="true">Notifications
-                <small class="float-right badge badge-pill badge-primary mt-1 ml-1">{{$notifications->count()}}</small></span>
-
-            <div class="dropdown-menu p-2" style="max-height: 70vh; overflow:auto" aria-labelledby="dropdownMenuButton">
-                @foreach($notifications as $note)
-                <a class="dropdown-item card mb-2" style="box-shadow: 2px 2px 2px 2px;" href="{{route('view-batch-details',['batch'=>$note->batch_id])}}">
-                    <div class="card-bodys">
-                        {{$note->notification}}
-                        <br>
-                        <span class="float-right mb-0 mt-3">{{$note->created_at}}</span>
+        <h2 class="p-1">
+            <i class="mdi mdi-desktop-mac-dashboard"></i> Dashboard | Laboratory
+            <div class="dropleft float-right">
+    
+                <span style="font-size:15px;border-radius: 3em;border-color: white;background-color:white;position: 0 0;size: 100%;" class="float-right mr-5 mt-3  p-2 btn dropdown-toggle" data-toggle="dropdown" aria-haspopup="true" aria-expanded="true">Notifications
+                    <small class="float-right badge badge-pill badge-primary mt-1 ml-1">{{$notifications->count()}}</small></span>
+    
+                <div class="dropdown-menu p-2" style="max-height: 70vh; overflow:auto" aria-labelledby="dropdownMenuButton">
+                    @foreach($notifications as $note)
+                    <a class="dropdown-item card mb-2" style="box-shadow: 2px 2px 2px 2px;" href="{{route('view-batch-details',['batch'=>$note->batch_id])}}">
+                        <div class="card-bodys">
+                            {{$note->notification}}
+                            <br>
+                            <span class="float-right mb-0 mt-3">{{$note->created_at}}</span>
+                        </div>
+                    </a>
+    
+                    @endforeach
+    
+                </div>
+            </div>
+        </h2><br>
+    
+        <div class="row mb-3">
+            <div class="col-xl-3 col-sm-6 ">
+                <a href="/sample-workflow/Samples Reception/stage" class="card  bg-success text-white text-center  no-overflow" style="height:100%">
+                    <div class="card-body bg-success">
+                        <div class="rotate">
+                            <i class="mdi mdi-test-tube fa-4x"></i>
+                        </div>
+                        <h6 class="text-uppercase">Samples In Reception</h6>
+                        <br><br>
+                        <h1 class="display-4">{{ $samples_reception }}</h1>
                     </div>
                 </a>
-
-                @endforeach
-
             </div>
-        </div>
-    </h2><br>
-    <div class="row mb-3">
-        <div class="col-xl-3 col-sm-6 ">
-            <a href="/sample-workflow/Samples Reception/stage" class="card  bg-success text-white text-center  no-overflow" style="height:100%">
-                <div class="card-body bg-success">
-                    <div class="rotate">
-                        <i class="mdi mdi-test-tube fa-4x"></i>
-                    </div>
-                    <h6 class="text-uppercase">Samples In Reception</h6>
-                    <br><br>
-                    <h1 class="display-4">{{ $samples_reception }}</h1>
-                </div>
-            </a>
-        </div>
-
-
-        <div class="col-xl-3 col-sm-6">
-            <a href="/sample-workflow/Sample Verification/stage" class="card bg-danger text-white text-center h-100 no-overflow">
-                <div class="card-body bg-danger">
-                    <div class="rotate">
-                        <i class="fas fa-list fa-4x"></i>
-                    </div>
-                    <h6 class="text-uppercase">Samples In Verification</h6>
-                    <br><br>
-                    <h1 class="display-4">{{ $samples_verification }}</h1>
-                </div>
-            </a>
-        </div>
-
-
-        <div class="col-xl-3 col-sm-6">
-            <a href="/sample-workflow/Samples In Lab/stage" class="card bg-info text-white text-center h-100 no-overflow">
-                <div class="card-body bg-info">
-                    <div class="rotate">
-                        <i class="mdi mdi-test-tube fa-4x"></i>
-                    </div>
-                    <h6 class="text-uppercase">Samples In Lab</h6>
-                    <br><br>
-                    <h1 class="display-4">{{$samples_lab }}</h1>
-                </div>
-            </a>
-        </div>
-
-
-        <div class="col-xl-3 col-sm-6 ">
-            <a href="/sample-workflow/Sample Approval" class="card bg-dark text-white h-100  text-center no-overflow">
-                <div class="card-body bg-dark">
-                    <div class="rotate">
-                        <i class="fas fa-list fa-4x"></i>
-                    </div>
-                    <h6 class="text-uppercase">Samples In Approval</h6>
-                    <br><br>
-                    <h1 class="display-4">{{$samples_approval }}</h1>
-                </div>
-            </a>
-        </div>
-    </div>
-    <div class="row mb-3">
-        <div class="col-xl-6 col-sm-12">
-            <div class="card bg-default no-overflow">
-                <div class="card-head-sm p-3 border-bottom">
-                    <h5>
-                        <i class="mdi mdi-map-marker"></i> Location Map
-                        <small class="float-right text-info"><i class="fas fa-calendar"></i></small>
-                    </h5>
-                </div>
-                <div class="card-body">
-                    <div id="sample-maps" style="width: 100%;height:300px"></div>
-                </div>
-            </div>
-        </div>
-        <div class="col-xl-6 col-sm-12 " ">
-            <div class=" card bg-default no-overflow">
-            <div class="card-head-sm p-3 border-bottom">
-                <h5>
-                    <i class="fas fa-line-chart"></i> Samples By Client
-                    <form class="float-right text-info">
-                        <div class="input-group">
-                            <input type="number" max="2100" name="unit" value="" min="2000" style="border:0px solid;border-bottom:1px solid" id="yearSubmitFormClient" data-url="getSamplesByCustomer" data-chart="mychart3" data-graphfunction="Crmgraph" class=" form-control" data-divid="sample-crm-graph" placeholder="Search by Year">
-
+    
+    
+            <div class="col-xl-3 col-sm-6">
+                <a href="/sample-workflow/Sample Verification/stage" class="card bg-danger text-white text-center h-100 no-overflow">
+                    <div class="card-body bg-danger">
+                        <div class="rotate">
+                            <i class="fas fa-list fa-4x"></i>
                         </div>
-                    </form>
-                </h5>
+                        <h6 class="text-uppercase">Samples In Verification</h6>
+                        <br><br>
+                        <h1 class="display-4">{{ $samples_verification }}</h1>
+                    </div>
+                </a>
             </div>
-            <div class="card-body">
-                <canvas id="sample-crm-graph" style="width: 100%;height:300px"> </canvas>
+    
+    
+            <div class="col-xl-3 col-sm-6">
+                <a href="/sample-workflow/Samples In Lab/stage" class="card bg-info text-white text-center h-100 no-overflow">
+                    <div class="card-body bg-info">
+                        <div class="rotate">
+                            <i class="mdi mdi-test-tube fa-4x"></i>
+                        </div>
+                        <h6 class="text-uppercase">Samples In Lab</h6>
+                        <br><br>
+                        <h1 class="display-4">{{$samples_lab }}</h1>
+                    </div>
+                </a>
+            </div>
+    
+    
+            <div class="col-xl-3 col-sm-6 ">
+                <a href="/sample-workflow/Sample Approval" class="card bg-dark text-white h-100  text-center no-overflow">
+                    <div class="card-body bg-dark">
+                        <div class="rotate">
+                            <i class="fas fa-list fa-4x"></i>
+                        </div>
+                        <h6 class="text-uppercase">Samples In Approval</h6>
+                        <br><br>
+                        <h1 class="display-4">{{$samples_approval }}</h1>
+                    </div>
+                </a>
             </div>
         </div>
-    </div>
-
-
-    </div>
-    <div class="row mb-3">
-        <div class="col-xl-6 col-sm-12 ">
-            <div class="card bg-default no-overflow">
+        <div class="row mb-3">
+            <div class="col-xl-6 col-sm-12">
+                <div class="card bg-default no-overflow">
+                    <div class="card-head-sm p-3 border-bottom">
+                        <h5>
+                            <i class="mdi mdi-map-marker"></i> Location Map
+                            <small class="float-right text-info"><i class="fas fa-calendar"></i></small>
+                        </h5>
+                    </div>
+                    <div class="card-body">
+                        <div id="sample-maps" style="width: 100%;height:300px"></div>
+                    </div>
+                </div>
+            </div>
+            <div class="col-xl-6 col-sm-12 " ">
+                <div class=" card bg-default no-overflow">
                 <div class="card-head-sm p-3 border-bottom">
                     <h5>
-                        <i class="fas fa-line-chart"></i> Samples By Month.
+                        <i class="fas fa-line-chart"></i> Samples By Client
                         <form class="float-right text-info">
                             <div class="input-group">
-                                <input type="number" name="month" value="" max="2100" min="2000" style="border:0px solid;border-bottom:1px solid" class="form-control" id="yearSubmitFormMonth" data-url="getSamplesByMonth" data-chart="mychart2" data-graphfunction="SamplesGraph" data-divid="sample-graph" placeholder="Search by Year">
-
+                                <input type="number" max="2100" name="unit" value="" min="2000" style="border:0px solid;border-bottom:1px solid" id="yearSubmitFormClient" data-url="getSamplesByCustomer" data-chart="mychart3" data-graphfunction="Crmgraph" class=" form-control" data-divid="sample-crm-graph" placeholder="Search by Year">
+    
                             </div>
                         </form>
                     </h5>
                 </div>
                 <div class="card-body">
-                    <canvas id="sample-graph" style="width: 100%;height:300px"></canvas>
+                    <canvas id="sample-crm-graph" style="width: 100%;height:300px"> </canvas>
                 </div>
             </div>
         </div>
-        <!-- </div> -->
-        <!-- <div class="row mb-5"> -->
-        <div class="col-xl-6 col-sm-12">
-            <div class="card bg-default no-overflow">
-                <div class="card-head-sm p-3 border-bottom">
-                    <h5>
-                        <i class="fas fa-line-chart"></i> Sample Types
-                        <form class="float-right text-info">
-                            <div class="input-group">
-                                <input type="number" name="sample_type" value="" max="2100" min="2000" style="border:0px solid;border-bottom:1px solid" class="form-control" id="yearSubmitForm" data-url="getsamplesBySampletype" data-chart="'mychart" data-divid="myChart" data data-graphfunction="SampletypeGraph" placeholder="Search by Year">
-
-                            </div>
-                        </form>
-                    </h5>
+    
+    
+        </div>
+        <div class="row mb-3">
+            <div class="col-xl-6 col-sm-12 ">
+                <div class="card bg-default no-overflow">
+                    <div class="card-head-sm p-3 border-bottom">
+                        <h5>
+                            <i class="fas fa-line-chart"></i> Samples By Month.
+                            <form class="float-right text-info">
+                                <div class="input-group">
+                                    <input type="number" name="month" value="" max="2100" min="2000" style="border:0px solid;border-bottom:1px solid" class="form-control" id="yearSubmitFormMonth" data-url="getSamplesByMonth" data-chart="mychart2" data-graphfunction="SamplesGraph" data-divid="sample-graph" placeholder="Search by Year">
+    
+                                </div>
+                            </form>
+                        </h5>
+                    </div>
+                    <div class="card-body">
+                        <canvas id="sample-graph" style="width: 100%;height:300px"></canvas>
+                    </div>
                 </div>
-                <div class="card-body">
-                    <canvas id="myChart" style="width: 100%;height:300px"></canvas>
+            </div>
+            <!-- </div> -->
+            <!-- <div class="row mb-5"> -->
+            <div class="col-xl-6 col-sm-12">
+                <div class="card bg-default no-overflow">
+                    <div class="card-head-sm p-3 border-bottom">
+                        <h5>
+                            <i class="fas fa-line-chart"></i> Sample Types
+                            <form class="float-right text-info">
+                                <div class="input-group">
+                                    <input type="number" name="sample_type" value="" max="2100" min="2000" style="border:0px solid;border-bottom:1px solid" class="form-control" id="yearSubmitForm" data-url="getsamplesBySampletype" data-chart="'mychart" data-divid="myChart" data data-graphfunction="SampletypeGraph" placeholder="Search by Year">
+    
+                                </div>
+                            </form>
+                        </h5>
+                    </div>
+                    <div class="card-body">
+                        <canvas id="myChart" style="width: 100%;height:300px"></canvas>
+                    </div>
                 </div>
             </div>
         </div>
-    </div>
-
-    <div class="card tab-card">
-        <div class="card-header tab-card-header">
-            <ul class="nav nav-tabs card-header-tabs" id="equipment-tab" role="tablist">
-                <li class="nav-item">
-                    <a class="nav-link active" id="samples" data-toggle="tab" href="#samples-tab" role="tab" aria-controls="samples" aria-selected="true"><i class="mdi mdi-test-tube"></i> Batch (es) </a>
-
-            </ul>
-        </div>
-        <div class="table-responsive bg-light p-4">
-            <u>
-                <small class="text-danger" style="font-weight:900">*First 100 batches*</small>
-
-            </u>
-
-            <table class="table table-condensed my-small-text table-bordered table-sm">
-                <thead>
-                    <th></th>
-                    <th>Priority</th>
-                    <th>Batch Code</th>
-                    <th nowrap>Receipt Date</th>
-                    <th nowrap>Date Collected</th>
-                    <th nowrap>Target Date</th>
-                    <th nowrap>Status Days</th>
-                    <th>Samples</th>
-                    <th>Client</th>
-                    <th>Client Unit</th>
-                    <th>Lab</th>
-                    <th nowrap>Sample Type</th>
-                    <th>Ref No</th>
-                    <th nowrap>Tracking Stage</th>
-                    <th>Routine</th>
-                    <th>Routine Frequency</th>
-
-                </thead>
-                <tbody>
-                    @foreach ($samples as $item)
-                    <?php
-
-                    $a = $item->get_date('Target Date');
-                    if (isset($a->id)) {
-
-                        $target_date = $item ? date('Y-m-d', strtotime($a['date'])) : '';
-
-                        $target_date = Carbon\Carbon::parse($target_date);
-
-                        $now = Carbon\Carbon::now();
-                        $diff = $now->diffInDays($target_date);
-
-                        if ($target_date->greaterThan($now)) {
-                            $diff = 0 - $diff;
+    
+        <div class="card tab-card">
+            <div class="card-header tab-card-header">
+                <ul class="nav nav-tabs card-header-tabs" id="equipment-tab" role="tablist">
+                    <li class="nav-item">
+                        <a class="nav-link active" id="samples" data-toggle="tab" href="#samples-tab" role="tab" aria-controls="samples" aria-selected="true"><i class="mdi mdi-test-tube"></i> Batch (es) </a>
+    
+                </ul>
+            </div>
+            <div class="table-responsive bg-light p-4">
+                <u>
+                    <small class="text-danger" style="font-weight:900">*First 100 batches*</small>
+    
+                </u>
+    
+                <table class="table table-condensed my-small-text table-bordered table-sm">
+                    <thead>
+                        <th></th>
+                        <th>Priority</th>
+                        <th>Batch Code</th>
+                        <th nowrap>Receipt Date</th>
+                        <th nowrap>Date Collected</th>
+                        <th nowrap>Target Date</th>
+                        <th nowrap>Status Days</th>
+                        <th>Samples</th>
+                        <th>Client</th>
+                        <th>Client Unit</th>
+                        <th>Lab</th>
+                        <th nowrap>Sample Type</th>
+                        <th>Ref No</th>
+                        <th nowrap>Tracking Stage</th>
+                        <th>Routine</th>
+                        <th>Routine Frequency</th>
+    
+                    </thead>
+                    <tbody>
+                        @foreach ($samples as $item)
+                        <?php
+    
+                        $a = $item->get_date('Target Date');
+                        if (isset($a->id)) {
+    
+                            $target_date = $item ? date('Y-m-d', strtotime($a['date'])) : '';
+    
+                            $target_date = Carbon\Carbon::parse($target_date);
+    
+                            $now = Carbon\Carbon::now();
+                            $diff = $now->diffInDays($target_date);
+    
+                            if ($target_date->greaterThan($now)) {
+                                $diff = 0 - $diff;
+                            }
                         }
-                    }
-
-                    ?>
-                    <tr class="batch-row ">
-                        <td>{{$loop->iteration}}</td>
-                        <td nowrap>{!! $item->priority != "Normal" ? '<i class="mdi mdi-star text-danger"></i>' : '' !!} {{ $item->priority }}</td>
-                        <td><a href="{{ route('view-batch-details', ['batch'=>$item->id]) }}">{{ $item->batch_code }}</a></td>
-                        <td nowrap>{{ date('Y-m-d', strtotime($item->receipt_date)) }}</td>
-                        <td nowrap>{{ date('Y-m-d', strtotime($item->date_collected)) }}</td>
-                        <td nowrap>{{ date('Y-m-d', strtotime($target_date ?? '')) }}</td>
-                        <td nowrap>{{ number_format($diff ?? 0, 0) }} Day(s)</td>
-                        <td>{{ $item->samples->count() }}</td>
-                        <td nowrap>{{ $item->client->name }}</td>
-                        <td nowrap>{{ $item->unit_name }}</td>
-                        <td nowrap>{{ implode(", ", $item->labs(true)) }}</td>
-                        <td nowrap>{{ $item->sample_type->name ?? '' }}</td>
-                        <td nowrap>{{ $item->reference_number ?? 'n/a' }}</td>
-                        <td nowrap>{{ $item->tracking_stage()->name ?? 'n/a' }}</td>
-                        <td>{{ $item->is_routine == 1 ? 'Yes' : 'No' }}</td>
-                        <td>{{ $item->is_routine == 1 ? number_format($item->routine_frequency,0).' days' : 'n/a' }}</td>
+    
+                        ?>
+                        <tr class="batch-row ">
+                            <td>{{$loop->iteration}}</td>
+                            <td nowrap>{!! $item->priority != "Normal" ? '<i class="mdi mdi-star text-danger"></i>' : '' !!} {{ $item->priority }}</td>
+                            <td><a href="{{ route('view-batch-details', ['batch'=>$item->id]) }}">{{ $item->batch_code }}</a></td>
+                            <td nowrap>{{ date('Y-m-d', strtotime($item->receipt_date)) }}</td>
+                            <td nowrap>{{ date('Y-m-d', strtotime($item->date_collected)) }}</td>
+                            <td nowrap>{{ date('Y-m-d', strtotime($target_date ?? '')) }}</td>
+                            <td nowrap>{{ number_format($diff ?? 0, 0) }} Day(s)</td>
+                            <td>{{ $item->samples->count() }}</td>
+                            <td nowrap>{{ $item->client->name }}</td>
+                            <td nowrap>{{ $item->unit_name }}</td>
+                            <td nowrap>{{ implode(", ", $item->labs(true)) }}</td>
+                            <td nowrap>{{ $item->sample_type->name ?? '' }}</td>
+                            <td nowrap>{{ $item->reference_number ?? 'n/a' }}</td>
+                            <td nowrap>{{ $item->tracking_stage()->name ?? 'n/a' }}</td>
+                            <td>{{ $item->is_routine == 1 ? 'Yes' : 'No' }}</td>
+                            <td>{{ $item->is_routine == 1 ? number_format($item->routine_frequency,0).' days' : 'n/a' }}</td>
+                            
+                        </tr>
                         
-                    </tr>
-                    
-                    @endforeach
-                </tbody>
-            </table>
+                        @endforeach
+                    </tbody>
+                </table>
+            </div>
         </div>
     </div>
 

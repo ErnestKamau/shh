@@ -328,84 +328,9 @@ class FormInstanceController extends Controller
     /**
      * Generate a unique form number with automatic increment on duplicates
      */
-    private function generateFormNumber(SubmissionForm $form): string
+    private function generateFormNumber(SubmissionForm $form): array
     {
-        $prefix = $form->naming_convention_prefix ?? 'SF';
-        $format = $form->naming_convention_format ?? '{prefix}/{year}/{sequence}';
-        $year = date('Y');
-        
-        // Get the highest sequence number globally for this prefix and year
-        $lastInstance = SubmissionFormInstance::where('form_number', 'LIKE', "{$prefix}%/{$year}/%")
-            ->orderBy('form_number', 'desc')
-            ->first();
-            
-        $sequence = 1;
-        if ($lastInstance) {
-            $parts = explode('/', $lastInstance->form_number);
-            $lastSequence = intval(end($parts));
-            $sequence = $lastSequence + 1;
-        }
-        
-        Log::info('Form number generation start', [
-            'form_id' => $form->id,
-            'prefix' => $prefix,
-            'year' => $year,
-            'last_instance' => $lastInstance ? $lastInstance->form_number : 'None',
-            'starting_sequence' => $sequence
-        ]);
-        
-        $maxAttempts = 100; // Increased to handle more concurrent requests
-        $attempt = 0;
-        
-        do {
-            $attempt++;
-            
-            // Generate the form number
-            $formNumber = str_replace(
-                ['{prefix}', '{year}', '{sequence}'],
-                [$prefix, $year, str_pad($sequence, 3, '0', STR_PAD_LEFT)],
-                $format
-            );
-            
-            // Check if this form number already exists (globally, not just for this form)
-            $exists = SubmissionFormInstance::where('form_number', $formNumber)->exists();
-            
-            if (!$exists) {
-                Log::info('Generated unique form number', [
-                    'form_id' => $form->id,
-                    'form_number' => $formNumber,
-                    'attempt' => $attempt
-                ]);
-                return $formNumber;
-            }
-            
-            // If it exists, automatically increment sequence and try again
-            Log::warning('Form number collision detected, auto-incrementing', [
-                'form_id' => $form->id,
-                'collision_number' => $formNumber,
-                'attempt' => $attempt,
-                'next_sequence' => $sequence + 1
-            ]);
-            
-            $sequence++;
-            
-        } while ($attempt < $maxAttempts);
-        
-        // If we still can't find a unique number after many attempts, use timestamp as fallback
-        $timestamp = time();
-        $fallbackNumber = str_replace(
-            ['{prefix}', '{year}', '{sequence}'],
-            [$prefix, $year, str_pad($timestamp, 6, '0', STR_PAD_LEFT)],
-            $format
-        );
-        
-        Log::error('Failed to generate unique form number after maximum attempts, using timestamp fallback', [
-            'form_id' => $form->id,
-            'fallback_number' => $fallbackNumber,
-            'attempts' => $maxAttempts
-        ]);
-        
-        return $fallbackNumber;
+        return \App\Services\FormNumberGenerator::generate($form);
     }
 
     /**
@@ -427,7 +352,8 @@ class FormInstanceController extends Controller
                     // Create the instance
                     return SubmissionFormInstance::create([
                         'submission_form_id' => $submissionForm->id,
-                        'form_number' => $formNumber,
+                        'form_number' => $formNumber['format'],
+                        'sequence_number' => $formNumber['sequence_no'],
                         'title' => $request->input('title'),
                         'submitted_by' => $submittedBy,
                         'status' => 'draft',
@@ -878,5 +804,204 @@ class FormInstanceController extends Controller
             Log::error('Error stack trace: ' . $e->getTraceAsString());
             return response()->json(['success' => false, 'message' => 'Error loading options: ' . $e->getMessage()]);
         }
+    }
+
+    /**
+     * Display submission form instance with all linked batches and samples
+     */
+    public function batchView(SubmissionFormInstance $instance)
+    {
+        // Load form instance with all relationships
+        $instance->load([
+            'submissionForm.sections.elementHolders.elements' => function($query) {
+                $query->orderBy('sort_order');
+            },
+            'values.element',
+            'batches.samples',
+            'batches.sample_type'
+        ]);
+
+        // Get company information
+        $company = getActiveCompany();
+
+        // Get all batches linked to this form instance
+        $batches = $instance->batches()->with([
+            'sample_type',
+            'samples' => function($query) {
+                $query->orderBy('sample_code', 'asc');
+            }
+        ])->get();
+
+        // Group samples by sample_type_id and then by analysis_type_id
+        $groupedSamples = [];
+        
+        foreach ($batches as $batch) {
+            $sampleTypeId = $batch->sample_type_id;
+            $sampleTypeName = $batch->sample_type ? $batch->sample_type->name : 'Unknown Type';
+            
+            if (!isset($groupedSamples[$sampleTypeId])) {
+                $groupedSamples[$sampleTypeId] = [
+                    'name' => $sampleTypeName,
+                    'analyses' => []
+                ];
+            }
+            
+            foreach ($batch->samples as $sample) {
+                // Get analysis types for this sample
+                $analysisRelations = \App\SampleAnalysisTypeRelation::where('sample_detail_id', $sample->id)->get();
+                
+                foreach ($analysisRelations as $relation) {
+                    $analysisTypeId = $relation->analysis_type_id;
+                    
+                    // Get analysis type details
+                    $analysisType = \App\AnalysisType::find($analysisTypeId);
+                    
+                    if ($analysisType) {
+                        $analysisTypeName = $analysisType->name;
+                        
+                        if (!isset($groupedSamples[$sampleTypeId]['analyses'][$analysisTypeId])) {
+                            $groupedSamples[$sampleTypeId]['analyses'][$analysisTypeId] = [
+                                'name' => $analysisTypeName,
+                                'samples' => []
+                            ];
+                        }
+                        
+                        $groupedSamples[$sampleTypeId]['analyses'][$analysisTypeId]['samples'][] = $sample;
+                    }
+                }
+            }
+        }
+
+        // Process grouped samples to calculate counts and ranges
+        $processedSampleData = [];
+        foreach ($groupedSamples as $sampleTypeId => $sampleTypeData) {
+            $processedAnalyses = [];
+            
+            foreach ($sampleTypeData['analyses'] as $analysisTypeId => $analysisData) {
+                $samples = collect($analysisData['samples'])->unique('id');
+                $sampleCodes = $samples->pluck('sample_code')->sort()->values();
+                
+                // Get min and max sample codes
+                $minCode = $sampleCodes->first();
+                $maxCode = $sampleCodes->last();
+                $codeRange = $minCode === $maxCode ? $minCode : "{$minCode} - {$maxCode}";
+                
+                $processedAnalyses[] = [
+                    'analysis_type_name' => $analysisData['name'],
+                    'sample_count' => $samples->count(),
+                    'code_range' => $codeRange
+                ];
+            }
+            
+            $processedSampleData[] = [
+                'sample_type_name' => $sampleTypeData['name'],
+                'analyses' => $processedAnalyses
+            ];
+        }
+
+        return view('submission-forms.instances.batch-view', compact(
+            'instance',
+            'company',
+            'batches',
+            'processedSampleData'
+        ));
+    }
+
+    public function batchViewPrint(SubmissionFormInstance $instance)
+    {
+        // Load form instance with all relationships
+        $instance->load([
+            'submissionForm.sections.elementHolders.elements' => function($query) {
+                $query->orderBy('sort_order');
+            },
+            'values.element',
+            'batches.samples',
+            'batches.sample_type'
+        ]);
+
+        // Get company information
+        $company = getActiveCompany();
+
+        // Get all batches linked to this form instance
+        $batches = $instance->batches()->with([
+            'sample_type',
+            'samples' => function($query) {
+                $query->orderBy('sample_code', 'asc');
+            }
+        ])->get();
+
+        // Group samples by sample_type_id and then by analysis_type_id
+        $groupedSamples = [];
+        
+        foreach ($batches as $batch) {
+            $sampleTypeId = $batch->sample_type_id;
+            $sampleTypeName = $batch->sample_type ? $batch->sample_type->name : 'Unknown Type';
+            
+            if (!isset($groupedSamples[$sampleTypeId])) {
+                $groupedSamples[$sampleTypeId] = [
+                    'name' => $sampleTypeName,
+                    'analyses' => []
+                ];
+            }
+            
+            foreach ($batch->samples as $sample) {
+                // Get analysis types for this sample
+                $analysisRelations = \App\SampleAnalysisTypeRelation::where('sample_detail_id', $sample->id)->get();
+                
+                foreach ($analysisRelations as $relation) {
+                    $analysisTypeId = $relation->analysis_type_id;
+                    
+                    // Get analysis type details
+                    $analysisType = \App\AnalysisType::find($analysisTypeId);
+                    
+                    if ($analysisType) {
+                        $analysisTypeName = $analysisType->name;
+                        
+                        if (!isset($groupedSamples[$sampleTypeId]['analyses'][$analysisTypeId])) {
+                            $groupedSamples[$sampleTypeId]['analyses'][$analysisTypeId] = [
+                                'name' => $analysisTypeName,
+                                'samples' => []
+                            ];
+                        }
+                        
+                        $groupedSamples[$sampleTypeId]['analyses'][$analysisTypeId]['samples'][] = $sample;
+                    }
+                }
+            }
+        }
+
+        // Process grouped samples to calculate counts and ranges
+        $processedSampleData = [];
+        foreach ($groupedSamples as $sampleTypeId => $sampleTypeData) {
+            $processedAnalyses = [];
+            
+            foreach ($sampleTypeData['analyses'] as $analysisTypeId => $analysisData) {
+                $samples = collect($analysisData['samples'])->unique('id');
+                $sampleCodes = $samples->pluck('sample_code')->sort()->values();
+                
+                // Get min and max sample codes
+                $minCode = $sampleCodes->first();
+                $maxCode = $sampleCodes->last();
+                $codeRange = $minCode === $maxCode ? $minCode : "{$minCode} - {$maxCode}";
+                
+                $processedAnalyses[] = [
+                    'analysis_type_name' => $analysisData['name'],
+                    'sample_count' => $samples->count(),
+                    'code_range' => $codeRange
+                ];
+            }
+            
+            $processedSampleData[] = [
+                'sample_type_name' => $sampleTypeData['name'],
+                'analyses' => $processedAnalyses
+            ];
+        }
+
+        return view('submission-forms.instances.batch-view-print', compact(
+            'instance',
+            'company',
+            'batches',
+            'processedSampleData'
+        ));
     }
 }

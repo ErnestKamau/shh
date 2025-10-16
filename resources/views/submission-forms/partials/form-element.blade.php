@@ -63,7 +63,7 @@
                    class="form-control" 
                    id="{{ $fieldId }}" 
                    name="{{ $fieldName }}"
-                   value="{{ $fieldValue }}"
+                   value="{{ $fieldValue ?: date('Y-m-d') }}"
                    {{ $element->is_required ? 'required' : '' }}
                    {{ $element->is_readonly ? 'readonly' : '' }}>
             @break
@@ -73,7 +73,7 @@
                    class="form-control" 
                    id="{{ $fieldId }}" 
                    name="{{ $fieldName }}"
-                   value="{{ $fieldValue }}"
+                   value="{{ $fieldValue ?: date('Y-m-d\TH:i') }}"
                    {{ $element->is_required ? 'required' : '' }}
                    {{ $element->is_readonly ? 'readonly' : '' }}>
             @break

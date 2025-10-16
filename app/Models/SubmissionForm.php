@@ -17,6 +17,7 @@ class SubmissionForm extends Model
         'naming_convention_format',
         'is_published',
         'is_active',
+        'start_submission_number',
         'version',
         'created_by'
     ];

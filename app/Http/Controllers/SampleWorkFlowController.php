@@ -3589,7 +3589,23 @@ class SampleWorkFlowController extends Controller
 
     public function generateCustomerFocusIndex(Request $request, $batch_id)
     {
-        $batch = SampleHeader::find($batch_id);
+        $batch = SampleHeader::with('submissionFormInstance')->find($batch_id);
+        
+        // Check if batch exists
+        if (!$batch) {
+            return redirect()->back()->with('error', 'Batch not found.');
+        }
+        
+        // Check if batch has a submission form instance linked
+        if ($batch->hasSubmissionForm()) {
+            return redirect()->route('submission-forms.instances.batch-view', $batch->submissionFormInstance);
+        }
+        
+        // No submission form instance - redirect back with error message
+        return redirect()->route('view-batch-details', $batch_id)
+            ->with('error', 'This batch does not have a submission form instance linked. Please create or link a submission form first.');
+        
+        // Old customer_focus logic below (kept for reference but unreachable)
         if ($batch_id == 0 || $batch->c_focus_ids_clustered != '') {
             $batches = $batch_id == 0 ? SampleHeader::whereIn('batch_code', $request->batch_code) : SampleHeader::whereIn('id', explode(',', $batch->c_focus_ids_clustered));
             $getCustomers = clone $batches;
@@ -5049,12 +5065,14 @@ class SampleWorkFlowController extends Controller
             }
 
             // Create form instance
+            $formNumber = \App\Services\FormNumberGenerator::generate($submissionForm);
             $instance = \App\Models\SubmissionFormInstance::create([
                 'submission_form_id' => $submissionForm->id,
                 'submitted_by' => auth()->id(),
                 'status' => 'draft',
                 'title' => 'New ' . $submissionForm->name . ' Submission',
-                'form_number' => $this->generateFormNumber($submissionForm),
+                'form_number' => $formNumber['format'],
+                'sequence_number' => $formNumber['sequence_no'],
                 'due_date' => now()->addDays(7), // Default 7 days from now
                 'priority' => 'medium'
             ]);
@@ -5079,60 +5097,6 @@ class SampleWorkFlowController extends Controller
         }
     }
 
-    /**
-     * Generate a unique form number for the submission form instance
-     */
-    private function generateFormNumber($submissionForm)
-    {
-        $prefix = $submissionForm->naming_convention_prefix ?? 'SF';
-        $format = $submissionForm->naming_convention_format ?? '{prefix}/{year}/{sequence}';
-        $year = date('Y');
-        
-        // Get the highest sequence number globally for this prefix and year
-        $lastInstance = \App\Models\SubmissionFormInstance::where('form_number', 'LIKE', "{$prefix}%/{$year}/%")
-            ->orderBy('form_number', 'desc')
-            ->first();
-            
-        $sequence = 1;
-        if ($lastInstance) {
-            $parts = explode('/', $lastInstance->form_number);
-            $lastSequence = intval(end($parts));
-            $sequence = $lastSequence + 1;
-        }
-        
-        $maxAttempts = 100;
-        $attempt = 0;
-        
-        do {
-            $attempt++;
-            
-            // Generate the form number
-            $formNumber = str_replace(
-                ['{prefix}', '{year}', '{sequence}'],
-                [$prefix, $year, str_pad($sequence, 3, '0', STR_PAD_LEFT)],
-                $format
-            );
-            
-            // Check if this form number already exists (globally)
-            $exists = \App\Models\SubmissionFormInstance::where('form_number', $formNumber)->exists();
-            
-            if (!$exists) {
-                return $formNumber;
-            }
-            
-            // If it exists, automatically increment sequence and try again
-            $sequence++;
-            
-        } while ($attempt < $maxAttempts);
-        
-        // If we still can't find a unique number, use timestamp as fallback
-        $timestamp = time();
-        return str_replace(
-            ['{prefix}', '{year}', '{sequence}'],
-            [$prefix, $year, str_pad($timestamp, 6, '0', STR_PAD_LEFT)],
-            $format
-        );
-    }
 
     public function getAvailableMethods()
     {
