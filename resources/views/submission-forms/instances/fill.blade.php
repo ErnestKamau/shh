@@ -871,7 +871,9 @@ function loadDynamicOptions($this, elementId, elementType, clientId = null, samp
 
 <script>
 $(document).ready(function() {
-    //console.log('Fill form page loaded, initializing...');
+    //======================================= ==========================================//
+    
+    //======================================= ==========================================//
     
     // Set route URL for dynamic options
     window.dynamicOptionsRoute = "{{ auth()->check() ? route('submission-forms.dynamic-options') : route('forms.dynamic-options') }}";

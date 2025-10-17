@@ -943,4 +943,196 @@ class SubmissionFormInstance extends Model
         
         return $chain;
     }
+
+    /**
+     * Get all submitted form data organized by sample_header and sample_details
+     * Returns field names as keys and submitted values as values
+     */
+    public function getSubmittedFormData()
+    {
+        // Load the form with all relationships
+        $this->load([
+            'submissionForm.sections.elementHolders.elements' => function($query) {
+                $query->orderBy('sort_order');
+            }
+        ]);
+
+        $submittedData = [
+            'sample_header' => [],
+            'sample_details' => []
+        ];
+
+        // Process each section
+        foreach ($this->submissionForm->sections as $section) {
+            foreach ($section->elementHolders as $holder) {
+                foreach ($holder->elements as $element) {
+                    // Get all values for this element
+                    $elementValues = $this->values()
+                        ->where('submission_form_element_id', $element->id)
+                        ->orderBy('array_index')
+                        ->get();
+
+                    if ($elementValues->isEmpty()) {
+                        continue;
+                    }
+
+                    // Determine if this is a sample_header or sample_details field
+                    $isSampleHeader = false;
+                    $isSampleDetails = false;
+
+                    if ($element->is_mapped && $element->mapping_table && $element->mapping_field) {
+                        if ($element->mapping_table === 'sample_headers') {
+                            $isSampleHeader = true;
+                        } elseif ($element->mapping_table === 'sample_details') {
+                            $isSampleDetails = true;
+                        }
+                    }
+
+                    // Get the field name (use mapping_field if available, otherwise use element name)
+                    $fieldName = $element->mapping_field ?: $element->name;
+
+                    // Process values based on element type and mapping
+                    if ($isSampleHeader) {
+                        // For sample_header fields, get the first value or all values as array
+                        if ($elementValues->count() === 1) {
+                            $submittedData['sample_header'][$fieldName] = $elementValues->first()->value;
+                        } else {
+                            $submittedData['sample_header'][$fieldName] = $elementValues->pluck('value')->toArray();
+                        }
+                    } elseif ($isSampleDetails) {
+                        // For sample_details fields, organize by array_index
+                        foreach ($elementValues as $value) {
+                            $arrayIndex = $value->array_index ?? 0;
+                            if (!isset($submittedData['sample_details'][$arrayIndex])) {
+                                $submittedData['sample_details'][$arrayIndex] = [];
+                            }
+                            $submittedData['sample_details'][$arrayIndex][$fieldName] = $value->value;
+                        }
+                    } else {
+                        // For non-mapped fields, add to sample_header by default
+                        if ($elementValues->count() === 1) {
+                            $submittedData['sample_header'][$fieldName] = $elementValues->first()->value;
+                        } else {
+                            $submittedData['sample_header'][$fieldName] = $elementValues->pluck('value')->toArray();
+                        }
+                    }
+                }
+            }
+        }
+
+        // Convert sample_details to indexed array
+        $submittedData['sample_details'] = array_values($submittedData['sample_details']);
+
+        return $submittedData;
+    }
+
+    /**
+     * Get submitted form data with resolved values (IDs converted to names)
+     */
+    public function getSubmittedFormDataResolved()
+    {
+        $rawData = $this->getSubmittedFormData();
+        $resolvedData = [
+            'sample_header' => [],
+            'sample_details' => []
+        ];
+
+        // Resolve sample_header values
+        foreach ($rawData['sample_header'] as $fieldName => $value) {
+            $resolvedData['sample_header'][$fieldName] = $this->resolveFieldValue($fieldName, $value);
+        }
+
+        // Resolve sample_details values
+        foreach ($rawData['sample_details'] as $index => $row) {
+            $resolvedData['sample_details'][$index] = [];
+            foreach ($row as $fieldName => $value) {
+                $resolvedData['sample_details'][$index][$fieldName] = $this->resolveFieldValue($fieldName, $value);
+            }
+        }
+
+        return $resolvedData;
+    }
+
+    /**
+     * Resolve field value by converting IDs to names where applicable
+     */
+    private function resolveFieldValue($fieldName, $value)
+    {
+        if (empty($value)) {
+            return $value;
+        }
+
+        // Handle array values
+        if (is_array($value)) {
+            return array_map(function($v) use ($fieldName) {
+                return $this->resolveSingleValueByFieldName($fieldName, $v);
+            }, $value);
+        }
+
+        return $this->resolveSingleValueByFieldName($fieldName, $value);
+    }
+
+    /**
+     * Resolve a single value by field name
+     */
+    private function resolveSingleValueByFieldName($fieldName, $value)
+    {
+        if (empty($value)) {
+            return $value;
+        }
+
+        try {
+            switch ($fieldName) {
+                case 'crm_customer_id':
+                    $customer = DB::table('crm_customers')->where('id', $value)->first();
+                    return $customer ? $customer->name : $value;
+                    
+                case 'crm_unit_id':
+                    $unit = DB::table('crm_company_units')->where('id', $value)->first();
+                    return $unit ? $unit->name : $value;
+                    
+                case 'sample_type_id':
+                    $sampleType = DB::table('sample_types')->where('id', $value)->first();
+                    return $sampleType ? $sampleType->name : $value;
+                    
+                case 'analysis_type_id':
+                    $analysisType = DB::table('analysis_types')->where('id', $value)->first();
+                    return $analysisType ? $analysisType->name : $value;
+                    
+                case 'sample_point_id':
+                    $samplePoint = DB::table('sample_points')->where('id', $value)->first();
+                    return $samplePoint ? $samplePoint->name : $value;
+                    
+                case 'sample_condition_id':
+                    $condition = DB::table('sample_conditions')->where('id', $value)->first();
+                    return $condition ? $condition->name : $value;
+                    
+                case 'main_standard':
+                case 'secondary_standard':
+                    $standard = DB::table('standards')->where('id', $value)->first();
+                    return $standard ? $standard->name : $value;
+                    
+                case 'store_id':
+                    $store = DB::table('inventory_stores')->where('id', $value)->first();
+                    return $store ? $store->name : $value;
+                    
+                case 'store_slot_id':
+                    $slot = DB::table('inventory_store_slots')->where('id', $value)->first();
+                    return $slot ? $slot->name : $value;
+                    
+                case 'crm_contact_id':
+                    $contact = DB::table('crm_customer_contacts')->where('id', $value)->first();
+                    if ($contact) {
+                        $name = trim($contact->first_name . ' ' . $contact->middle_name . ' ' . $contact->last_name);
+                        return $name ?: $value;
+                    }
+                    return $value;
+                    
+                default:
+                    return $value;
+            }
+        } catch (\Exception $e) {
+            return $value;
+        }
+    }
 }

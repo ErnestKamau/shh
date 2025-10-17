@@ -244,6 +244,46 @@ class FormInstanceController extends Controller
     }
 
     /**
+     * Print the specified form instance
+     */
+    public function print(SubmissionForm $submissionForm, SubmissionFormInstance $instance)
+    {
+        // Check if user can view this instance
+        if ($instance->submitted_by !== auth()->id() && !auth()->user()->hasRole('admin')) {
+            abort(403, 'You are not authorized to print this form instance.');
+        }
+
+        // Load form with all relationships
+        $submissionForm->load([
+            'sections.elementHolders.elements' => function($query) {
+                $query->orderBy('sort_order');
+            }
+        ]);
+
+
+        $existingValues = $instance->values()->with('element')->get();
+
+        // Load existing values
+        $existingValues = $instance->getSubmittedFormData();
+
+        // return json_encode($existingValues);
+
+        // return json_encode($existingValues);
+
+        // Get the print template name from the form
+        $templateName = $submissionForm->getPrintTemplateName();
+
+        // Check if the template exists, fallback to default if not
+        if (!view()->exists($templateName)) {
+            $templateName = 'submission-forms.print.default';
+        }
+
+        // return json_encode($existingValues);
+
+        return view($templateName, compact('submissionForm', 'instance', 'existingValues'));
+    }
+
+    /**
      * Show the form for editing a draft instance
      */
     public function edit(SubmissionForm $submissionForm, SubmissionFormInstance $instance)

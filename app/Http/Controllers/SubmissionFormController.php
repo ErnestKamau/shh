@@ -83,6 +83,7 @@ class SubmissionFormController extends Controller
             'description' => ['nullable', 'string', 'max:1000'],
             'naming_convention_prefix' => ['required', 'string', 'max:50'],
             'naming_convention_format' => ['required', 'string', 'max:100'],
+            'print_template_name' => ['nullable', 'string', 'max:255'],
             'is_active' => ['boolean']
         ]);
 
@@ -145,6 +146,7 @@ class SubmissionFormController extends Controller
             'description' => ['nullable', 'string', 'max:1000'],
             'naming_convention_prefix' => ['required', 'string', 'max:50'],
             'naming_convention_format' => ['required', 'string', 'max:100'],
+            'print_template_name' => ['nullable', 'string', 'max:255'],
             'is_active' => ['boolean']
         ]);
 
