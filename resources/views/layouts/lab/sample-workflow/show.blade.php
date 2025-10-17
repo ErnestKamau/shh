@@ -501,6 +501,24 @@
     ?>
     <x-bread-crumb :items="$items"></x-bread-crumb>
 	
+	@if(session('success'))
+		<div class="alert alert-success alert-dismissible fade show m-3" role="alert">
+			<i class="mdi mdi-check-circle"></i> {{ session('success') }}
+			<button type="button" class="close" data-dismiss="alert">
+				<span>&times;</span>
+			</button>
+		</div>
+	@endif
+
+	@if(session('error'))
+		<div class="alert alert-danger alert-dismissible fade show m-3" role="alert">
+			<i class="mdi mdi-alert-circle"></i> {{ session('error') }}
+			<button type="button" class="close" data-dismiss="alert">
+				<span>&times;</span>
+			</button>
+		</div>
+	@endif
+
     <h4 class="pt-4 pr-4 pl-4 pb-3">
 		<i class="mdi mdi-layers-triple"></i>
 		@if(isset($batch->id) && $batch->prelim_report_status == 1)
@@ -512,7 +530,11 @@
 		 @endif
 		{{ isset($batch->batch_code) ? $batch->batch_code.' Batch Info' : 'New Batch' }} <small class="text-muted"> {!! isset($batch->batch_code) ? '<i class="mdi mdi-sitemap"></i> '.$batch->tracking_stage()->name : '' !!}</small>
 		
-		
+		@if(isset($batch->id))
+		<a href="{{ route('batch-worksheets', ['batch' => $batch->id]) }}" class="btn btn-sm ml-2 btn-info float-right mr-2" style="box-shadow: rgba(0, 0, 0, 0.15) 1.95px 1.95px 2.6px;">
+			<i class="mdi mdi-clipboard-text"></i> Worksheets
+		</a>
+		@endif
 		<div class="btn-group float-right">
 			<button type="button" class="btn btn-sm bg-white dropdown-toggle" style="box-shadow: rgba(0, 0, 0, 0.15) 1.95px 1.95px 2.6px;" type="button" id="dropdownMenuButton" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
 				Actions
@@ -528,7 +550,7 @@
 					</li>
 					
 					@endif
-					@if(!in_array($batch->status,array('Samples In Lab',"Sample Verification","Sample Approval")))
+					@if(!in_array($batch->status,array("Completed")))
 						<li>
 							<a target="_blank" href="{{route('generateCustomerFocusIndex',['batch_id'=>$batch->id])}}" class="btn btn-sm dropdown-item"><i class="mdi mdi-eye mr-2"></i> View Sample Submission Form</a>
 						</li>
@@ -543,12 +565,17 @@
 						@endif
 					@endif
 				
-				@if(isset($batch->status) && $batch->status=="Samples In Lab" && Auth::user()->is_client == 0 && $status == 'Samples In Lab')
-				<li>
-					<span class="btn btn-sm dropdown-item" data-toggle="modal" data-target="#send-to-verification-modal">
-					<i class="mdi mdi-subdirectory-arrow-right mr-2"></i> Send for Verification
-					</span>
-				</li>
+			@if(isset($batch->status) && $batch->status=="Samples In Lab" && Auth::user()->is_client == 0 && $status == 'Samples In Lab')
+			<li>
+				<span class="btn btn-sm dropdown-item" data-toggle="modal" data-target="#bulk-update-samples-modal">
+					<i class="mdi mdi-database-edit mr-2"></i> Update Sample Data
+				</span>
+			</li>
+			<li>
+				<span class="btn btn-sm dropdown-item" data-toggle="modal" data-target="#send-to-verification-modal">
+				<i class="mdi mdi-subdirectory-arrow-right mr-2"></i> Send for Verification
+				</span>
+			</li>
 				<li class="">
 				<span class="btn btn-sm dropdown-item"  data-target="#view-coa-report" data-toggle="modal" title="View Sample(s) COA"><i class="mdi mdi-subdirectory-arrow-right mr-2"></i> View Report</span>
 				
@@ -3159,6 +3186,108 @@
 		</div>
 	</div>
 @endif
+
+{{-- Bulk Update Samples Modal --}}
+@if(isset($batch->id) && $batch->status == 'Samples In Lab')
+<div class="modal fade" id="bulk-update-samples-modal" role="dialog">
+	<div class="modal-dialog modal-lg">
+		<div class="modal-content">
+			<form action="{{ route('bulk-update-sample-data') }}" method="POST">
+				@csrf
+				<div class="modal-header bg-primary text-white">
+					<h4 class="modal-title">
+						<i class="mdi mdi-database-edit"></i> Bulk Update Sample Data
+					</h4>
+					<button type="button" class="close text-white" data-dismiss="modal">
+						<span>&times;</span>
+					</button>
+				</div>
+				<div class="modal-body">
+					<!-- Info Alert -->
+					<div class="alert alert-info">
+						<i class="mdi mdi-information"></i>
+						This form allows you to update multiple samples at once. Select the samples you want to update and fill in the fields you wish to change. Empty fields will be skipped.
+					</div>
+					
+					<!-- Samples Selection -->
+					<div class="form-group">
+						<label>Select Samples <span class="text-danger">*</span></label>
+						<select name="sample_ids[]" id="bulk-sample-select" class="form-control" multiple required>
+							@foreach($allsamples as $sample)
+								<option value="{{ $sample->id }}" selected>{{ $sample->sample_code }}</option>
+							@endforeach
+						</select>
+						<small class="text-muted">All samples are selected by default. Deselect any you don't want to update.</small>
+					</div>
+					
+					<!-- Main Standard -->
+					<div class="form-group">
+						<label>Main Standard</label>
+						<select name="main_standard" id="bulk-main-standard" class="form-control">
+							<option value="">-- No Change --</option>
+							@foreach($standards as $standard)
+								<option value="{{ $standard->id }}">{{ $standard->name }} ({{ $standard->code }})</option>
+							@endforeach
+						</select>
+						<small class="text-muted">Leave empty to skip updating this field.</small>
+					</div>
+					
+					<!-- Secondary Standard -->
+					<div class="form-group">
+						<label>Secondary Standard</label>
+						<select name="secondary_standard" id="bulk-secondary-standard" class="form-control">
+							<option value="">-- No Change --</option>
+							@foreach($standards as $standard)
+								<option value="{{ $standard->id }}">{{ $standard->name }} ({{ $standard->code }})</option>
+							@endforeach
+						</select>
+						<small class="text-muted">Leave empty to skip updating this field.</small>
+					</div>
+					
+					<!-- Storage -->
+					<div class="form-group">
+						<label>Storage</label>
+						<select name="store_id" id="bulk-store-select" class="form-control">
+							<option value="">-- No Change --</option>
+							@foreach($labStores as $store)
+								<option value="{{ $store['id'] }}" data-slots="{{ json_encode($store['items']) }}">{{ $store['name'] }}</option>
+							@endforeach
+						</select>
+						<small class="text-muted">Leave empty to skip updating this field.</small>
+					</div>
+					
+					<!-- Storage Slot -->
+					<div class="form-group">
+						<label>Storage Slot</label>
+						<select name="store_slot_id" id="bulk-slot-select" class="form-control">
+							<option value="">-- Select Store First --</option>
+						</select>
+						<small class="text-muted">Select a storage first. Leave empty to skip updating this field.</small>
+					</div>
+					
+					<!-- Disposal Date -->
+					<div class="form-group">
+						<label>Disposal Date</label>
+						<input type="date" name="disposal_date" id="bulk-disposal-date" class="form-control">
+						<small class="text-muted">Leave empty to skip updating this field.</small>
+					</div>
+					
+					<input type="hidden" name="batch_id" value="{{ $batch->id }}">
+				</div>
+				<div class="modal-footer">
+					<button type="button" class="btn btn-secondary" data-dismiss="modal">
+						<i class="mdi mdi-close"></i> Cancel
+					</button>
+					<button type="submit" class="btn btn-primary">
+						<i class="mdi mdi-content-save"></i> Update Samples
+					</button>
+				</div>
+			</form>
+		</div>
+	</div>
+</div>
+@endif
+
 @if(isset($batch->id))
 <div class="modal fade" id="refresh-page-modal" data-backdrop="static" data-keyboard="false" role="dialog">
 	<div class="modal-dialog">
@@ -8048,5 +8177,70 @@ function showNotification(message, type) {
 		</div>
 	</div>
 </div>
+
+{{-- Bulk Update Samples JavaScript --}}
+<script>
+$(document).ready(function() {
+	// Handle store selection to populate slots
+	$('#bulk-store-select').on('change', function() {
+		var selectedStore = $(this).find('option:selected');
+		var slots = selectedStore.data('slots');
+		var slotSelect = $('#bulk-slot-select');
+		
+		slotSelect.html('<option value="">-- No Change --</option>');
+		
+		if (slots) {
+			$.each(slots, function(slotId, slotName) {
+				slotSelect.append('<option value="' + slotId + '">' + slotName + '</option>');
+			});
+		}
+	});
+	
+	// Initialize select2 when modal is shown
+	$('#bulk-update-samples-modal').on('show.bs.modal', function() {
+		// Initialize select2 for multi-select samples
+		$('#bulk-sample-select').select2({
+			placeholder: 'Select samples to update',
+			allowClear: true,
+			width: '100%'
+		});
+		
+		// Initialize select2 for standards
+		$('#bulk-main-standard').select2({
+			placeholder: '-- No Change --',
+			allowClear: true,
+			width: '100%'
+		});
+		
+		$('#bulk-secondary-standard').select2({
+			placeholder: '-- No Change --',
+			allowClear: true,
+			width: '100%'
+		});
+		
+		// Initialize select2 for storage
+		$('#bulk-store-select').select2({
+			placeholder: '-- No Change --',
+			allowClear: true,
+			width: '100%'
+		});
+		
+		$('#bulk-slot-select').select2({
+			placeholder: '-- No Change --',
+			allowClear: true,
+			width: '100%'
+		});
+	});
+	
+	// Destroy select2 instances when modal is hidden to prevent memory leaks
+	$('#bulk-update-samples-modal').on('hidden.bs.modal', function() {
+		$('#bulk-sample-select').select2('destroy');
+		$('#bulk-main-standard').select2('destroy');
+		$('#bulk-secondary-standard').select2('destroy');
+		$('#bulk-store-select').select2('destroy');
+		$('#bulk-slot-select').select2('destroy');
+	});
+});
+</script>
 
 @endsection

@@ -1556,7 +1556,7 @@ function getPaymentReminderBody($customer_name){
 		Should you have any questions or need further assistance, please feel free to contact us. <br>
 		Thank you for your prompt attention to this matter.<br><br>
 		Best regards,<br>
-		Quality Plus Laboratory and Consultancy Services
+		FIVET COMPANY LIMITED
 	</p>
 	';
 	return $body;

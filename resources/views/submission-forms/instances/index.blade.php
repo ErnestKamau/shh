@@ -179,7 +179,7 @@
                                                             <i class="mdi mdi-pencil"></i>
                                                         </a>
                                                         <form method="POST" 
-                                                              action="{{ route('submission-forms.instances.destroy', [$instance->submissionForm, $instance]) }}" 
+                                                              action="{{ route('submission-forms.instances.destroy', [$instance->submission_form_id, $instance->id]) }}" 
                                                               class="d-inline"
                                                               onsubmit="return confirm('Are you sure you want to delete this draft?')">
                                                             @csrf

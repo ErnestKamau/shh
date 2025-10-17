@@ -88,6 +88,11 @@ class BufferManagementController extends Controller
         return view('layouts.lab.buffer.index', compact('categories'));
     }
 
+    public function categories_index()
+    {
+        return view('layouts.lab.buffer.livewire-index');
+    }
+
     public function stock_management_index(Request $request)
     {
         $suppliers = getSuppliers();
@@ -97,6 +102,16 @@ class BufferManagementController extends Controller
         $selected = [];
 
         return view('layouts.lab.buffer.stock_management.index', compact('suppliers', 'subcategory', 'categories', 'selected'));
+    }
+
+    public function stock_management_livewire_index()
+    {
+        return view('layouts.lab.buffer.stock_management.livewire-index');
+    }
+
+    public function stock_management_livewire_show($id)
+    {
+        return view('layouts.lab.buffer.stock_management.livewire-show', compact('id'));
     }
 
     public function add_lab_category_item(Request $request)

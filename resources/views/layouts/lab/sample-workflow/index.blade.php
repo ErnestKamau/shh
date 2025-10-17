@@ -130,7 +130,7 @@ $items = array(
 					</li>
 					<li>
 						<span class="btn btn-sm dropdown-item" disabled data-target="#dispatch-to-labs-modal-approve"
-							data-toggle="modal"><i class="mdi mdi-check-decagram mr-2"></i> Generate Draft Invoice</span>
+							data-toggle="modal"><i class="mdi mdi-check-decagram mr-2"></i> Generate Sales Order</span>
 					</li>
 					<li>
 						<span class="btn btn-sm dropdown-item" disabled data-target="#approve-begin-process"
@@ -186,15 +186,18 @@ $items = array(
 					</li>
 					<li>
 
-						<span class="btn btn-sm dropdown-item" data-target="#print-labels-modal" data-toggle="modal"><i
-								class="mdi mdi-printer mr-2"></i>Print Labels</span>
+						<span class="btn btn-sm dropdown-item" data-target="#print-labels-modal" data-toggle="modal"><i class="mdi mdi-printer mr-2"></i>Print Labels</span>
 					</li>
 				@endif
 				@if($status == "Samples In Lab")
 					<li>
 
 						<span class="btn btn-sm dropdown-item" data-target="#print-labels-modal" data-toggle="modal"><i
-								class="mdi mdi-printe mr-2r"></i>Print Labels</span>
+								class="mdi mdi-printer mr-2"></i>Print Labels</span>
+					</li>
+					<li>
+						<span class="btn btn-sm dropdown-item" disabled data-target="#dispatch-to-labs-modal-approve"
+							data-toggle="modal"><i class="mdi mdi-check-decagram mr-2"></i> Generate Sales Order</span>
 					</li>
 				@endif
 				@if($status == 'Sample Approval')
@@ -635,6 +638,37 @@ $items = array(
 			</div>
 		</div>
 	</div>
+	<div id="dispatch-to-labs-modal-approve" data-backdrop="static" data-keyboard="false" class="modal fade" role="dialog">
+		<div class="modal-dialog modal-xl">
+			<!-- Modal content-->
+			<form class="modal-content" id="generate-invoice-form" method="POST"
+				action="{{ route('generate_batch_invoice') }}" enctype="multipart/form-data">
+				@csrf
+				<div class="modal-header">
+					<h4 class="modal-title"><i class="mdi mdi-clipboard-arrow-right"></i> Generate Draft Invoice</h4>
+				</div>
+				<div class="modal-body">
+					<div class="to-be-updated">
+
+					</div>
+
+					<div class="form-group">
+						<label class="control-label">Batches</label>
+						<div class="selected-batches-request-approve"></div>
+					</div>
+					<div class="invoice-part"></div>
+
+				</div>
+				<div class="modal-footer">
+					<button type="submit" class="btn btn-info btn-sm submit-btn"><i class="mdi mdi-thumb-up"></i>
+						Generate</button>
+					<a href="/sample-workflow/Samples Reception/stage" class="btn btn-sm btn-default">Close</a>
+					<!-- < type="button" class="btn btn-default btn-sm" data-dismiss="modal">Close</> -->
+				</div>
+			</form>
+		</div>
+	</div>
+
 @endif
 @if ($status == "Reports for Collection")
 	<div id="send-email-reports-modal" class="modal fade" role="dialog">
@@ -965,36 +999,7 @@ $items = array(
 		</div>
 	</div>
 
-	<div id="dispatch-to-labs-modal-approve" data-backdrop="static" data-keyboard="false" class="modal fade" role="dialog">
-		<div class="modal-dialog modal-xl">
-			<!-- Modal content-->
-			<form class="modal-content" id="generate-invoice-form" method="POST"
-				action="{{ route('generate_batch_invoice') }}" enctype="multipart/form-data">
-				@csrf
-				<div class="modal-header">
-					<h4 class="modal-title"><i class="mdi mdi-clipboard-arrow-right"></i> Generate Draft Invoice</h4>
-				</div>
-				<div class="modal-body">
-					<div class="to-be-updated">
-
-					</div>
-
-					<div class="form-group">
-						<label class="control-label">Batches</label>
-						<div class="selected-batches-request-approve"></div>
-					</div>
-					<div class="invoice-part"></div>
-
-				</div>
-				<div class="modal-footer">
-					<button type="submit" class="btn btn-info btn-sm submit-btn"><i class="mdi mdi-thumb-up"></i>
-						Generate</button>
-					<a href="/sample-workflow/Samples Reception/stage" class="btn btn-sm btn-default">Close</a>
-					<!-- < type="button" class="btn btn-default btn-sm" data-dismiss="modal">Close</> -->
-				</div>
-			</form>
-		</div>
-	</div>
+	
 
 	<div id="approve-begin-process" class="modal fade" role="dialog">
 		<div class="modal-dialog">

@@ -24,7 +24,8 @@ class Kernel extends ConsoleKernel
      */
     protected function schedule(Schedule $schedule)
     {
-        // $schedule->command('inspire')->hourly();
+        // Check stage timers every minute
+        $schedule->command('check:stage-timers')->everyMinute();
     }
 
     /**

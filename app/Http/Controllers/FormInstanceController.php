@@ -142,6 +142,34 @@ class FormInstanceController extends Controller
     }
 
     /**
+     * Display the form for filling out (sample-submissions layout)
+     */
+    public function fillSample(SubmissionForm $submissionForm, SubmissionFormInstance $instance)
+    {
+        // Check if user owns this instance
+        if ($instance->submitted_by !== auth()->id()) {
+            abort(403, 'You are not authorized to access this form instance.');
+        }
+
+        // Check if form is still available
+        if (!$submissionForm->isPublishedAndActive()) {
+            return redirect()->back()->with('error', 'This form is no longer available for submission.');
+        }
+
+        // Load form with all relationships
+        $submissionForm->load([
+            'sections.elementHolders.elements' => function($query) {
+                $query->orderBy('sort_order');
+            }
+        ]);
+
+        // Load existing values
+        $existingValues = $instance->values()->with('element')->get();
+
+        return view('submission-forms.instances.fill-sample', compact('submissionForm', 'instance', 'existingValues'));
+    }
+
+    /**
      * Update the form instance with submitted data
      */
     public function update(Request $request, SubmissionForm $submissionForm, SubmissionFormInstance $instance)
@@ -239,6 +267,11 @@ class FormInstanceController extends Controller
 
         // Load audit trail
         $auditLogs = $instance->auditLogs()->with('user')->latest()->get();
+
+        // Check if user is on tablet
+        if (auth()->user()->is_tablet == 1) {
+            return view('submission-forms.instances.show-tablet', compact('submissionForm', 'instance', 'existingValues', 'auditLogs'));
+        }
 
         return view('submission-forms.instances.show', compact('submissionForm', 'instance', 'existingValues', 'auditLogs'));
     }

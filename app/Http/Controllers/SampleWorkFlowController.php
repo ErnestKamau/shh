@@ -44,7 +44,7 @@ use App\QuotationDetails;
 use App\Result;
 use App\SampleAnalysisDates;
 use App\SampleAnalysisStage;
-use App\sampleAnalysisTypeRelation;
+use App\SampleAnalysisTypeRelation;
 use App\SampleAnalysisTypeRelationView;
 use App\SampleCondition;
 use App\SampleDate;
@@ -229,17 +229,40 @@ class SampleWorkFlowController extends Controller
             // echo json_encode($batch);
             // return;
             $client = $batch->client;
+            
+            // Get target date for the batch
+            $targetDate = $batch->get_date('Target Date');
+            $targetDateFormatted = $targetDate ? date('Y-m-d', strtotime($targetDate->date)) : 'N/A';
+            
             foreach ($samples as $sample) {
                 // return response()->json(SampleAnalysisTypeRelationView::where('sample_detail_id',$sample->id)->pluck('analysis_type_name')->toArray(),200);
                 $analysis = $sample->analysis();
                 $data = [];
                 !isset($data['ref_no']) ? $data['ref_no'] = $sample->sample_code : $data;
+                
+                // Add client name from batch
+                !isset($data['client_name']) ? $data['client_name'] = $client->name ?? 'N/A' : $data;
+                
+                // Add sample point name from sample detail
+                $samplePoint = $sample->sample_point;
+                !isset($data['sample_point']) ? $data['sample_point'] = (isset($samplePoint->name) ? $samplePoint->name : 'N/A') : $data;
+                
+                // Add sample code (separate from ref_no which is already there)
+                !isset($data['sample_code']) ? $data['sample_code'] = $sample->sample_code : $data;
+                
+                // Add analysis types (using getAnalysisRelation method)
+                !isset($data['analysis_types']) ? $data['analysis_types'] = $sample->getAnalysisRelation() ?: 'N/A' : $data;
+                
+                // Add target date
+                !isset($data['target_date']) ? $data['target_date'] = $targetDateFormatted : $data;
+                
+                // Keep legacy fields for reference (commented out)
                 // !isset($data['Markings']) ? $data['Markings']  = $sample->comments : $data;
-                !isset($data['date_received']) ? $data['date_received'] = $batch->receipt_date : $data;
-                !isset($data['test']) ? $data['test'] = implode(', ', $sample->analyteNames() ?? []) : $data;
-                !isset($data['received_by']) ? $data['received_by'] = $batch->receivingofficer->name : $data;
-                !isset($data['sample_type']) ? $data['sample_type'] = getSampleTypeByID($batch->sample_type_id)->name : $data;
-                !isset($data['time']) ? $data['time'] = $batch->radio_active_levels : $data;
+                // !isset($data['date_received']) ? $data['date_received'] = $batch->receipt_date : $data;
+                // !isset($data['test']) ? $data['test'] = implode(', ', $sample->analyteNames() ?? []) : $data;
+                // !isset($data['received_by']) ? $data['received_by'] = $batch->receivingofficer->name : $data;
+                // !isset($data['sample_type']) ? $data['sample_type'] = getSampleTypeByID($batch->sample_type_id)->name : $data;
+                // !isset($data['time']) ? $data['time'] = $batch->radio_active_levels : $data;
 
                 // !isset($data['Date Expected']) ? $data['Date Expected'] = date('Y-m-d', strtotime($batch->get_date('Target Date')['date'])) : $data;
                 // !isset($data['Disposal Date']) ? $data['Disposal Date'] = $sample->disposal_date : $data;
@@ -919,8 +942,8 @@ class SampleWorkFlowController extends Controller
     public function createDetailAnalysisRelation($batch_id, $sample_id, $analysis_type)
     {
         $data = [];
-        sampleAnalysisTypeRelation::where('batch_id', $batch_id)->where('sample_detail_id', $sample_id)->whereNotIn('analysis_type_id', $analysis_type)->delete();
-        $existing = sampleAnalysisTypeRelation::where('batch_id', $batch_id)->where('sample_detail_id', $sample_id)->pluck('analysis_type_id')->toArray();
+        SampleAnalysisTypeRelation::where('batch_id', $batch_id)->where('sample_detail_id', $sample_id)->whereNotIn('analysis_type_id', $analysis_type)->delete();
+        $existing = SampleAnalysisTypeRelation::where('batch_id', $batch_id)->where('sample_detail_id', $sample_id)->pluck('analysis_type_id')->toArray();
         foreach ($analysis_type as $at) {
             if (!in_array($at, $existing)) {
                 $data[] = [
@@ -930,7 +953,7 @@ class SampleWorkFlowController extends Controller
                 ];
             }
         }
-        sizeof($data) > 0 ? sampleAnalysisTypeRelation::insert($data) : '';
+        sizeof($data) > 0 ? SampleAnalysisTypeRelation::insert($data) : '';
 
         return 'success';
     }
@@ -2664,7 +2687,7 @@ class SampleWorkFlowController extends Controller
                 attached for your review.<br>
                 '.($message == '' ? '' : $message.'<br>').'
                 If you have any questions or clarifications, feel free to contact us.<br><br>
-                Thank you for choosing Quality Plus Laboratory and Consultancy Services.<br><br>
+                Thank you for choosing FIVET COMPANY LIMITED.<br><br>
                 Best regards, <br>
 				
 				' . $company->name;
@@ -2927,7 +2950,7 @@ class SampleWorkFlowController extends Controller
             if (sizeof($batch_ids) < 1) {
                 return response()->json(['error' => 'The selected batch(es) have sales order attached to already sent to zoho']);
             }
-            $analysis_with_no_zoho = sampleAnalysisTypeRelation::whereIn('batch_id', $batch_ids)->join('analysis_types', 'analysis_types.id', '=', 'sample_analysis_type_relation.analysis_type_id')->whereNull('analysis_types.zoho_id')->pluck('analysis_types.name')->toArray();
+            $analysis_with_no_zoho = SampleAnalysisTypeRelation::whereIn('batch_id', $batch_ids)->join('analysis_types', 'analysis_types.id', '=', 'sample_analysis_type_relation.analysis_type_id')->whereNull('analysis_types.zoho_id')->pluck('analysis_types.name')->toArray();
             if (sizeof($analysis_with_no_zoho) > 0) {
                 return response()->json(['error' => 'The following analysis types (' . implode(',', $analysis_with_no_zoho) . ') have not been tied to a zoho item']);
             }
@@ -2976,7 +2999,7 @@ class SampleWorkFlowController extends Controller
             }
             $invoice->invoice_number = $number;
             $invoice->save();
-            $analyis_types = sampleAnalysisTypeRelation::whereIn('batch_id', $batch_ids)->join('analysis_types', 'analysis_types.id', '=', 'sample_analysis_type_relation.analysis_type_id')->join('inventory_sub_categories', 'inventory_sub_categories.id', '=', 'analysis_types.zoho_id')->leftjoin('zoho_items_pricelist', function ($join) use ($customer) {
+            $analyis_types = SampleAnalysisTypeRelation::whereIn('batch_id', $batch_ids)->join('analysis_types', 'analysis_types.id', '=', 'sample_analysis_type_relation.analysis_type_id')->join('inventory_sub_categories', 'inventory_sub_categories.id', '=', 'analysis_types.zoho_id')->leftjoin('zoho_items_pricelist', function ($join) use ($customer) {
                 $join->on('inventory_sub_categories.id', '=', 'zoho_items_pricelist.item_id');
                 $join->on('zoho_items_pricelist.customer_id', '=', DB::raw($customer->id));
             })->selectRaw('sample_analysis_type_relation.*,analysis_types.name,inventory_sub_categories.name as zoho_name,inventory_sub_categories.unit_price,inventory_sub_categories.zoho_item_code,inventory_sub_categories.id as zoho_analysis_type,zoho_items_pricelist.unit_price as unit_price_rate')->get();
@@ -3515,7 +3538,7 @@ class SampleWorkFlowController extends Controller
             $to_email = getUserById($request->notify_user);
 
             if (isset($to_email->id)) {
-                notify_user($body, $to_email->email, '[QPLUS LIMS] Inter Laboratory Transfer Approval Notification', false, false, $bcc_emails);
+                notify_user($body, $to_email->email, '[FIVET LIMS] Inter Laboratory Transfer Approval Notification', false, false, $bcc_emails);
                 // sendTextMessage($to_email->phone, 'Hi ' . $to_email->name . ', The following sample(s) require  your attention for approval of inter laboratory transfer raised by ' . auth()->user()->name);
                 // foreach (User::whereIn('id', $request->also_notify ?? [])->get() as $user) {
                 // 	$user->phone != '' ? sendTextMessage($user->phone, 'Hi ' . $user->name . ', The following sample(s) require  your attention for approval of inter laboratory transfer raised by ' . auth()->user()->name) . ':  ' . $sample_codes : '';
@@ -3590,7 +3613,7 @@ class SampleWorkFlowController extends Controller
             ];
             $batch_ids = $batches->pluck('id')->toArray();
             $samples = SamplesCategory::whereIn('sample_header_id', $batch_ids)->get();
-            sampleAnalysisTypeRelation::whereIn('batch_id', $batch_ids)->whereNotIn('sample_detail_id', $samples->pluck('id')->toArray())->delete();
+            SampleAnalysisTypeRelation::whereIn('batch_id', $batch_ids)->whereNotIn('sample_detail_id', $samples->pluck('id')->toArray())->delete();
             $review_staff = getUserById($batch->receiving_officer);
             $is_clustered = 1;
             // return response()->json($batch_ids);
@@ -3607,7 +3630,7 @@ class SampleWorkFlowController extends Controller
         $docs_settings = SystemConfiguration::where('configuration_type_id', $config_docs_setting->value)->pluck('value', 'key')->toArray();
         $review_staff = getUserById($batch->receiving_officer);
         $samples = SamplesCategory::where('sample_header_id', $batch_id)->get();
-        sampleAnalysisTypeRelation::where('batch_id', $batch->id)->whereNotIn('sample_detail_id', $samples->pluck('id')->toArray())->delete();
+        SampleAnalysisTypeRelation::where('batch_id', $batch->id)->whereNotIn('sample_detail_id', $samples->pluck('id')->toArray())->delete();
         $payment_detail = InvoicePaymentDetail::where('batch_id', $batch->id)->orderBy('id', 'DESC')->first();
 
         return view('layouts.lab.sample-workflow.customer_focus', compact('batch', 'customer', 'company', 'docs_settings', 'review_staff', 'samples', 'payment_detail', 'is_clustered'));
@@ -3654,14 +3677,14 @@ class SampleWorkFlowController extends Controller
                 <p style="font-size: 12px; margin-top: 15px;">
                     <br>
                     Once analysis is completed, you will receive an update regarding your test results.<br>
-                    For any inquiries, please contact us on <b>lab@qplus.co.ke, /+254202673415 </b>. <br>
+                    For any inquiries, please contact us on <b>fivet.co.ke, /+12345678 </b>. <br>
                     Thank you for the opportunity to serve you. <br><br>
                     Kind regards, <br>
-                    Quality Plus Laboratory and Consultancy Services
+                    FIVET COMPANY LIMITED
                 </p>
             </div>
 			';
-            notify_user($body, $contact->email, '[QPLUS] Confirmation of Sample Receipt and Schedule of Analysis ' . $batch->batch_code, false, true, ['dannyagah13@gmail.com']);
+            notify_user($body, $contact->email, '[FIVET] Confirmation of Sample Receipt and Schedule of Analysis ' . $batch->batch_code, false, true, ['dannyagah13@gmail.com']);
 
             $batch->schedule_sent = 1;
             $batch->schedule_analysis_sent = date('Y-m-d');
@@ -3684,7 +3707,7 @@ class SampleWorkFlowController extends Controller
     {
         $contact = CustomerContact::find($request->contact_id);
         $batch = SampleHeader::find($request->batch_id);
-        notify_user($request->body, $contact->email, '[QPLUS LIMS] Payment Reminder ' . $batch->batch_code);
+        notify_user($request->body, $contact->email, '[FIVET LIMS] Payment Reminder ' . $batch->batch_code);
 
         return redirect()->back()->with('success', 'Payment reminder sent out successfully');
     }
@@ -3853,7 +3876,7 @@ class SampleWorkFlowController extends Controller
         if (isset($request->notification)) {
             $user = User::find($request->user_id);
             $message = 'Hi ' . $user->name . ', <br>' . $batch->batch_code . ' COA needs your approval at ' . $batch->status . '. <br> Comments : ' . $request->comments;
-            notify_user($message, $user->email, '[QPLUS LIMS] ' . $batch->batch_code . ' Batch Approval Notification');
+            notify_user($message, $user->email, '[FIVET LIMS] ' . $batch->batch_code . ' Batch Approval Notification');
         }
         if (isset($request->send_message)) {
             $user = User::find($request->user_id);
@@ -3906,7 +3929,7 @@ class SampleWorkFlowController extends Controller
 				<ul>' . $li_str . '</ul>
 				Please proceed with creating an invoice for this job at your earliest convenience. If additional information is required, kindly reach out to the relevant department.
 				Thank you for your attention.';
-                $emails = ['laboratory@qplus.com'];
+                $emails = ['laboratory@FIVET.com'];
 
                 $invoice = Invoice::find($batch->invoice_id);
                 if (isset($invoice->id)) {
@@ -3921,7 +3944,7 @@ class SampleWorkFlowController extends Controller
                 // $emails = ['danmuv12@gmail.com'];
                 // notify_user($message, 'dannyagah13@gmail.com', $subject, false, true, $emails);
                 try {
-                    notify_user($message, 'Accounts@qplus.com', $subject, false, true, $emails);
+                    notify_user($message, 'Accounts@FIVET.com', $subject, false, true, $emails);
                 } catch (\Exception $e) {
                     return redirect()->back()->with('success', 'Batch Approval updated successfully but notifications to accounts and lab were not set');
                 }
@@ -4328,7 +4351,7 @@ class SampleWorkFlowController extends Controller
                     $new_result->save();
                 }
             }
-            sampleAnalysisTypeRelation::insert($relation_analysis);
+            SampleAnalysisTypeRelation::insert($relation_analysis);
             $analysis_types_id = SampleAnalysisTypeRelation::where('batch_id', $new_batch->id)->pluck('analysis_type_id')->toArray();
             $analysis_max_report_time = AnalysisType::whereIn('id', $analysis_types_id)->max('reporting_time');
             $analytes_max_report_time = AnalysisElements::whereIn('analysis_type_id', $analysis_types_id)->max('reporting_time');
@@ -4533,13 +4556,13 @@ class SampleWorkFlowController extends Controller
                 <p style="font-size: 12px; margin-top: 15px;">
                     <br>
                     Once analysis is completed, you will receive an update regarding your test results.<br>
-                    For any inquiries, please contact us on <b>lab@qplus.co.ke, /+254202673415 </b>. <br>
+                    For any inquiries, please contact us on <b>Fivet@co.ke, /+12345678 </b>. <br>
                     Thank you for the opportunity to serve you. <br><br>
                     Kind regards, <br>
-                    Quality Plus Laboratory and Consultancy Services
+                    FIVET COMPANY LIMITED
                 </p>
             </div>';
-            notify_user($body, $customer->email, '[QPLUS LIMS] Confirmation of Sample Receipt and Schedule of Analysis', false, true, ['dannyagah13@gmanil.com.com']);
+            notify_user($body, $customer->email, '[FIVET LIMS] Confirmation of Sample Receipt and Schedule of Analysis', false, true, ['dannyagah13@gmanil.com.com']);
 
             return redirect()->back()->with('success', 'Schedule of analysis sent successfully!');
         } else {
@@ -4809,7 +4832,7 @@ class SampleWorkFlowController extends Controller
             ';
         // return response()->json(['email'=>$customer_email,'body'=>$body,'error'=>'My testing']);
         if($sampleTrs != "" && $customer_email != ''){
-            notify_user($body, $customer_email, '[QPLUS LIMS] Schedule Of Analysis ' . implode(',', $request->batch_code), false, true, ['donotreply@qplus.com']);
+            notify_user($body, $customer_email, '[FIVET LIMS] Schedule Of Analysis ' . implode(',', $request->batch_code), false, true, ['donotreply@FIVET.com']);
             SampleHeader::whereIn('batch_code', $request->batch_code)->update(["schedule_analysis_sent" => date('Y-m-d'), "schedule_analysis_sender" => auth()->user()->id]);
         }
         return response()->json(["customer_email" => $customer_email]);
@@ -5415,6 +5438,74 @@ class SampleWorkFlowController extends Controller
                 'success' => false,
                 'message' => 'Error loading standard settings: ' . $e->getMessage()
             ], 500);
+        }
+    }
+
+    /**
+     * Bulk update sample data for multiple samples
+     */
+    public function bulkUpdateSampleData(Request $request)
+    {
+        $request->validate([
+            'sample_ids' => 'required|array|min:1',
+            'sample_ids.*' => 'exists:sample_details,id',
+            'batch_id' => 'required|exists:sample_headers,id',
+            'main_standard' => 'nullable|exists:standards,id',
+            'secondary_standard' => 'nullable|exists:standards,id',
+            'store_id' => 'nullable|exists:inventory_stores,id',
+            'store_slot_id' => 'nullable|exists:inventory_store_slots,id',
+            'disposal_date' => 'nullable|date',
+        ]);
+
+        try {
+            $sampleIds = $request->input('sample_ids');
+            $batchId = $request->input('batch_id');
+            
+            // Build update data array - only include non-empty values
+            $updateData = [];
+            
+            if ($request->filled('main_standard')) {
+                $updateData['main_standard'] = $request->input('main_standard');
+            }
+            
+            if ($request->filled('secondary_standard')) {
+                $updateData['secondary_standard'] = $request->input('secondary_standard');
+            }
+            
+            if ($request->filled('store_id')) {
+                $updateData['store_id'] = $request->input('store_id');
+            }
+            
+            if ($request->filled('store_slot_id')) {
+                $updateData['store_slot_id'] = $request->input('store_slot_id');
+            }
+            
+            if ($request->filled('disposal_date')) {
+                $updateData['disposal_date'] = $request->input('disposal_date');
+            }
+            
+            // Only proceed if there's data to update
+            if (empty($updateData)) {
+                return redirect()->back()->with('error', 'No fields were provided for update.');
+            }
+            
+            // Update selected samples
+            \App\SampleDetails::whereIn('id', $sampleIds)
+                ->where('sample_header_id', $batchId)
+                ->update($updateData);
+            
+            $updatedCount = count($sampleIds);
+            $updatedFields = implode(', ', array_keys($updateData));
+            
+            return redirect()->back()->with('success', "Successfully updated {$updatedCount} sample(s). Updated fields: {$updatedFields}");
+            
+        } catch (\Exception $e) {
+            \Log::error('Bulk update sample data error', [
+                'error' => $e->getMessage(),
+                'request' => $request->all()
+            ]);
+            
+            return redirect()->back()->with('error', 'Error updating samples: ' . $e->getMessage());
         }
     }
 

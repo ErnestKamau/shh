@@ -27,6 +27,16 @@ class BufferStockMovementController extends Controller
         return view('layouts.lab.buffer.stock_movement.index', compact('sub_category'));
     }
 
+    public function livewire_index()
+    {
+        return view('layouts.lab.buffer.stock_movement.livewire-index');
+    }
+
+    public function livewire_show($id)
+    {
+        return view('layouts.lab.buffer.stock_movement.livewire-show', compact('id'));
+    }
+
     public function show($id)
     {
         $categories = InventoryCategories::where('is_lab', 1)->get();

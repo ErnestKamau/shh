@@ -52,7 +52,7 @@ class HomeController extends Controller
 	}elseif($user->is_tablet == 1){
 		$user->is_online = 1;
 		$user->save();
-		return view('layouts.lab.sample-workflow.sign-customer-focus-index');
+		return redirect()->route('sample-submissions');
 	}
 	else{
 		$user->is_online = 1;

@@ -94,4 +94,16 @@ class CapturedResult extends Model implements Auditable
 		return $this->belongsTo(User::class,'operator_id');
 	}
 
+	public function analysisElement(){
+		return $this->belongsTo(AnalysisElements::class, 'analysis_element_id');
+	}
+
+	public function formular(){
+		return $this->belongsTo(\App\Models\Formulars\Formula::class, 'formular_id');
+	}
+
+	public function methodSequence(){
+		return $this->belongsTo(\App\Models\MethodSequences\MethodSequence::class, 'method_sequence_id');
+	}
+
 }
