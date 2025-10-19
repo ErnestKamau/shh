@@ -20,9 +20,11 @@
 @endphp
 
 <div class="form-group">
-    <label for="{{ $fieldId }}" class="{{ $element->is_required ? 'required' : '' }}">
-        {{ $element->label }}
-    </label>
+    @if(!isset($hideLabel) || !$hideLabel)
+        <label for="{{ $fieldId }}" class="{{ $element->is_required ? 'required' : '' }}">
+            {{ $element->label }}
+        </label>
+    @endif
     
     @switch($element->element_type)
         @case('text')

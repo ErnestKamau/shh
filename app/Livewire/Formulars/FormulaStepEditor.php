@@ -193,11 +193,23 @@ class FormulaStepEditor extends Component
             // Prepare lookup config for lookup steps
             $lookupConfig = [];
             if ($this->stepType === 'lookup' && $this->lookupTableId) {
-                $lookupConfig = [
-                    'lookup_table_id' => $this->lookupTableId,
-                    'key_expressions' => $this->lookupConfig['key_expressions'] ?? [],
-                    'key_values' => $this->lookupConfig['key_values'] ?? [],
-                ];
+                $lookupTable = LookupTable::find($this->lookupTableId);
+                
+                if ($lookupTable && $lookupTable->isRangeBased()) {
+                    // Range-based lookup configuration
+                    $lookupConfig = [
+                        'lookup_table_id' => $this->lookupTableId,
+                        'range_variable' => $this->lookupConfig['range_variable'] ?? '',
+                        'return_interpretation' => $this->lookupConfig['return_interpretation'] ?? false,
+                    ];
+                } else {
+                    // Key-value lookup configuration
+                    $lookupConfig = [
+                        'lookup_table_id' => $this->lookupTableId,
+                        'key_expressions' => $this->lookupConfig['key_expressions'] ?? [],
+                        'key_values' => $this->lookupConfig['key_values'] ?? [],
+                    ];
+                }
             }
 
             FormulaStep::create([
@@ -240,11 +252,23 @@ class FormulaStepEditor extends Component
             // Prepare lookup config for lookup steps
             $lookupConfig = [];
             if ($this->stepType === 'lookup' && $this->lookupTableId) {
-                $lookupConfig = [
-                    'lookup_table_id' => $this->lookupTableId,
-                    'key_expressions' => $this->lookupConfig['key_expressions'] ?? [],
-                    'key_values' => $this->lookupConfig['key_values'] ?? [],
-                ];
+                $lookupTable = LookupTable::find($this->lookupTableId);
+                
+                if ($lookupTable && $lookupTable->isRangeBased()) {
+                    // Range-based lookup configuration
+                    $lookupConfig = [
+                        'lookup_table_id' => $this->lookupTableId,
+                        'range_variable' => $this->lookupConfig['range_variable'] ?? '',
+                        'return_interpretation' => $this->lookupConfig['return_interpretation'] ?? false,
+                    ];
+                } else {
+                    // Key-value lookup configuration
+                    $lookupConfig = [
+                        'lookup_table_id' => $this->lookupTableId,
+                        'key_expressions' => $this->lookupConfig['key_expressions'] ?? [],
+                        'key_values' => $this->lookupConfig['key_values'] ?? [],
+                    ];
+                }
             }
 
             $this->editingStep->update([
@@ -478,10 +502,21 @@ class FormulaStepEditor extends Component
         if ($this->lookupTableId) {
             $lookupTable = LookupTable::find($this->lookupTableId);
             if ($lookupTable) {
-                $this->lookupConfig = [
-                    'key_expressions' => array_fill_keys($lookupTable->key_columns, ''),
-                    'key_values' => array_fill_keys($lookupTable->key_columns, ''),
-                ];
+                if ($lookupTable->isRangeBased()) {
+                    // Range-based: single variable selector
+                    $this->lookupConfig = [
+                        'lookup_table_id' => $lookupTable->id,
+                        'range_variable' => '',
+                        'return_interpretation' => false,
+                    ];
+                } else {
+                    // Key-value: existing multi-key configuration
+                    $this->lookupConfig = [
+                        'lookup_table_id' => $lookupTable->id,
+                        'key_expressions' => array_fill_keys($lookupTable->key_columns, ''),
+                        'key_values' => array_fill_keys($lookupTable->key_columns, ''),
+                    ];
+                }
             }
         }
     }

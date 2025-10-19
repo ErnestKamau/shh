@@ -347,5 +347,15 @@ class SampleHeader extends Model implements Auditable
 	public function qctype(){
 		return $this->belongsTo(QcTypes::class,'qc_type_id');
 	}
+
+	/**
+	 * Check if sample codes need regeneration (smart code scenario)
+	 * Returns true if any sample has code equal to batch_code (1:1 scenario)
+	 */
+	public function needsSampleCodeRegeneration()
+	{
+		// Check if any sample has code equal to batch_code (no suffix)
+		return $this->samples()->where('sample_code', $this->batch_code)->exists();
+	}
 	
 }

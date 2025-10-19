@@ -12,6 +12,7 @@ class SampleWorksheetFormularStepData extends Model
         'worksheet_formular_id',
         'formula_step_id',
         'step_value',
+        'overridden_lookup_table_id',
     ];
 
     public function worksheetFormula(): BelongsTo
@@ -22,5 +23,10 @@ class SampleWorksheetFormularStepData extends Model
     public function formulaStep(): BelongsTo
     {
         return $this->belongsTo(FormulaStep::class);
+    }
+
+    public function overriddenLookupTable(): BelongsTo
+    {
+        return $this->belongsTo(\App\Models\Formulars\LookupTable::class, 'overridden_lookup_table_id');
     }
 }

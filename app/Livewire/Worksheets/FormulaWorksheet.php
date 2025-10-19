@@ -28,6 +28,13 @@ class FormulaWorksheet extends Component
     public $users = [];
     public $methods = [];
     
+    // Lookup table override management
+    public $showLookupTableModal = false;
+    public $selectedLookupStepId = null;
+    public $currentCapturedResultId = null;
+    public $compatibleLookupTables = [];
+    public $selectedReplacementLookupTableId = null;
+    
     // Messages
     public $message = '';
     public $messageType = '';
@@ -89,6 +96,16 @@ class FormulaWorksheet extends Component
                 ->first();
 
             if ($existing) {
+                // Load lookup overrides from step data
+                $lookupOverrides = [];
+                if ($existing->stepData) {
+                    foreach ($existing->stepData as $stepData) {
+                        if ($stepData->overridden_lookup_table_id) {
+                            $lookupOverrides[$stepData->formula_step_id] = $stepData->overridden_lookup_table_id;
+                        }
+                    }
+                }
+                
                 $this->worksheetData[$captured->id] = [
                     'id' => $existing->id,
                     'date' => $existing->date?->format('Y-m-d') ?? now()->format('Y-m-d'),
@@ -100,6 +117,7 @@ class FormulaWorksheet extends Component
                     'final_result' => $existing->final_result ?? '',
                     'steps' => $existing->stepData ? $existing->stepData->pluck('step_value', 'formula_step_id')->toArray() : [],
                     'mandatory' => $existing->mandatoryData ? $existing->mandatoryData->pluck('field_value', 'formula_mandatory_field_id')->toArray() : [],
+                    'lookup_overrides' => $lookupOverrides,
                 ];
             } else {
                 $this->worksheetData[$captured->id] = [
@@ -113,6 +131,7 @@ class FormulaWorksheet extends Component
                     'final_result' => '',
                     'steps' => [],
                     'mandatory' => [],
+                    'lookup_overrides' => [],
                 ];
             }
         }
@@ -165,10 +184,22 @@ class FormulaWorksheet extends Component
             // Save step data
             if (isset($data['steps'])) {
                 foreach ($data['steps'] as $stepId => $value) {
-                    $worksheet->stepData()->updateOrCreate(
+                    $stepDataRecord = $worksheet->stepData()->updateOrCreate(
                         ['formula_step_id' => $stepId],
                         ['step_value' => $value]
                     );
+                    
+                    // Save lookup override if exists for this step
+                    if (isset($data['lookup_overrides'][$stepId])) {
+                        $stepDataRecord->overridden_lookup_table_id = $data['lookup_overrides'][$stepId];
+                        $stepDataRecord->save();
+                    } else {
+                        // Clear override if it was removed
+                        if ($stepDataRecord->overridden_lookup_table_id) {
+                            $stepDataRecord->overridden_lookup_table_id = null;
+                            $stepDataRecord->save();
+                        }
+                    }
                 }
             }
 
@@ -187,6 +218,18 @@ class FormulaWorksheet extends Component
                 // Set operator_id (becomes analyst_id in tat_captured via observer)
                 // Priority: done_by_user_id, then current user
                 $captured->operator_id = $data['done_by_user_id'] ?? Auth::id();
+                
+                // Populate from analysis element configuration if not already set
+                if ($captured->analysisElement) {
+                    if (!$captured->reporting_unit_id) {
+                        $captured->reporting_unit_id = $captured->analysisElement->reporting_unit;
+                    }
+                    if (!$captured->method_id) {
+                        $captured->method_id = $captured->analysisElement->method;
+                    }
+                }
+                
+                // remark left null - will be updated later by user
                 
                 // Ensure start_date_analysis exists before save triggers observer
                 SampleAnalysisDates::firstOrCreate(
@@ -235,6 +278,16 @@ class FormulaWorksheet extends Component
                 $this->calculateFormulaResult($capturedResultId);
             }
         }
+        
+        // Check if lookup table override changed
+        if (strpos($propertyName, 'worksheetData.') === 0 && strpos($propertyName, '.lookup_overrides.') !== false) {
+            preg_match('/worksheetData\\.(\\d+)\\.lookup_overrides/', $propertyName, $matches);
+            if (isset($matches[1])) {
+                $capturedResultId = (int)$matches[1];
+                Log::info("Lookup override changed for captured result ID: {$capturedResultId}");
+                $this->calculateFormulaResult($capturedResultId);
+            }
+        }
     }
 
     // Enhanced method for real-time calculation
@@ -272,9 +325,12 @@ class FormulaWorksheet extends Component
                 return;
             }
             
+            // Get lookup overrides for this worksheet row
+            $lookupOverrides = $data['lookup_overrides'] ?? [];
+            
             // Use FormulaEvaluator to calculate
             $evaluator = app(\App\Services\Formulars\FormulaEvaluator::class);
-            $result = $evaluator->execute($this->formula->activeVersion, $filledInputs, null, $this->batch->id);
+            $result = $evaluator->execute($this->formula->activeVersion, $filledInputs, null, $this->batch->id, $lookupOverrides);
             
             Log::info("Formula calculation result for captured result {$capturedResultId}: " . json_encode($result));
             
@@ -308,6 +364,211 @@ class FormulaWorksheet extends Component
         } catch (\Exception $e) {
             Log::error('Auto-save error: ' . $e->getMessage());
         }
+    }
+
+    /**
+     * Open modal to change lookup table for a specific step.
+     */
+    public function openChangeLookupModal(int $capturedResultId, int $stepId): void
+    {
+        try {
+            $this->currentCapturedResultId = $capturedResultId;
+            $this->selectedLookupStepId = $stepId;
+            
+            // Get the formula step to find current lookup table
+            $step = FormulaStep::find($stepId);
+            if (!$step || !$step->isLookup()) {
+                $this->setMessage('Invalid lookup step', 'error');
+                return;
+            }
+            
+            $lookupConfig = $step->lookup_config;
+            if (!$lookupConfig || !isset($lookupConfig['lookup_table_id'])) {
+                $this->setMessage('Lookup configuration not found', 'error');
+                return;
+            }
+            
+            // Get current lookup table
+            $currentLookupTable = \App\Models\Formulars\LookupTable::find($lookupConfig['lookup_table_id']);
+            if (!$currentLookupTable) {
+                $this->setMessage('Current lookup table not found', 'error');
+                return;
+            }
+            
+            // Get compatible lookup tables
+            $this->compatibleLookupTables = $currentLookupTable->getCompatibleTables()->toArray();
+            
+            if (empty($this->compatibleLookupTables)) {
+                $this->setMessage('No compatible lookup tables found for this step', 'warning');
+                return;
+            }
+            
+            // Set current override if exists
+            $currentOverride = $this->worksheetData[$capturedResultId]['lookup_overrides'][$stepId] ?? null;
+            $this->selectedReplacementLookupTableId = $currentOverride ?? $lookupConfig['lookup_table_id'];
+            
+            $this->showLookupTableModal = true;
+        } catch (\Exception $e) {
+            Log::error('Error opening lookup modal: ' . $e->getMessage());
+            $this->setMessage('Error loading compatible lookup tables', 'error');
+        }
+    }
+
+    /**
+     * Change the lookup table for a specific step.
+     */
+    public function changeLookupTable(): void
+    {
+        try {
+            if (!$this->currentCapturedResultId || !$this->selectedLookupStepId || !$this->selectedReplacementLookupTableId) {
+                $this->setMessage('Missing required information', 'error');
+                return;
+            }
+            
+            // Get the formula step
+            $step = FormulaStep::find($this->selectedLookupStepId);
+            if (!$step || !$step->isLookup()) {
+                $this->setMessage('Invalid lookup step', 'error');
+                return;
+            }
+            
+            // Get the new lookup table
+            $newLookupTable = \App\Models\Formulars\LookupTable::find($this->selectedReplacementLookupTableId);
+            if (!$newLookupTable) {
+                $this->setMessage('Selected lookup table not found', 'error');
+                return;
+            }
+            
+            // Verify it's active
+            if (!$newLookupTable->is_active) {
+                $this->setMessage('Lookup table must be active to use', 'error');
+                return;
+            }
+            
+            // Get original lookup table and verify compatibility
+            $lookupConfig = $step->lookup_config;
+            $originalLookupTable = \App\Models\Formulars\LookupTable::find($lookupConfig['lookup_table_id']);
+            
+            // If selecting the original, remove the override
+            if ($this->selectedReplacementLookupTableId == $lookupConfig['lookup_table_id']) {
+                $this->resetLookupTable($this->currentCapturedResultId, $this->selectedLookupStepId);
+                return;
+            }
+            
+            if ($originalLookupTable && !$originalLookupTable->isCompatibleWith($newLookupTable)) {
+                $this->setMessage('Selected lookup table is not compatible with this formula step', 'error');
+                return;
+            }
+            
+            // Set the override
+            if (!isset($this->worksheetData[$this->currentCapturedResultId]['lookup_overrides'])) {
+                $this->worksheetData[$this->currentCapturedResultId]['lookup_overrides'] = [];
+            }
+            $this->worksheetData[$this->currentCapturedResultId]['lookup_overrides'][$this->selectedLookupStepId] = $this->selectedReplacementLookupTableId;
+            
+            // Log the change
+            Log::info("Lookup table override applied", [
+                'captured_result_id' => $this->currentCapturedResultId,
+                'step_id' => $this->selectedLookupStepId,
+                'original_lookup_table_id' => $lookupConfig['lookup_table_id'],
+                'new_lookup_table_id' => $this->selectedReplacementLookupTableId,
+            ]);
+            
+            // Recalculate the formula
+            $this->calculateFormulaResult($this->currentCapturedResultId);
+            
+            // Auto-save the change
+            $this->autoSaveRow($this->currentCapturedResultId);
+            
+            $this->setMessage('Lookup table changed successfully. This change only affects this worksheet.', 'success');
+            $this->closeLookupModal();
+        } catch (\Exception $e) {
+            Log::error('Error changing lookup table: ' . $e->getMessage());
+            $this->setMessage('Error changing lookup table: ' . $e->getMessage(), 'error');
+        }
+    }
+
+    /**
+     * Reset lookup table to formula default.
+     */
+    public function resetLookupTable(?int $capturedResultId = null, ?int $stepId = null): void
+    {
+        try {
+            $capturedId = $capturedResultId ?? $this->currentCapturedResultId;
+            $stepIdToReset = $stepId ?? $this->selectedLookupStepId;
+            
+            if (!$capturedId || !$stepIdToReset) {
+                $this->setMessage('Missing required information', 'error');
+                return;
+            }
+            
+            // Remove the override
+            if (isset($this->worksheetData[$capturedId]['lookup_overrides'][$stepIdToReset])) {
+                unset($this->worksheetData[$capturedId]['lookup_overrides'][$stepIdToReset]);
+            }
+            
+            // Log the reset
+            Log::info("Lookup table override removed", [
+                'captured_result_id' => $capturedId,
+                'step_id' => $stepIdToReset,
+            ]);
+            
+            // Recalculate the formula
+            $this->calculateFormulaResult($capturedId);
+            
+            // Auto-save the change
+            $this->autoSaveRow($capturedId);
+            
+            $this->setMessage('Lookup table reset to formula default', 'success');
+            $this->closeLookupModal();
+        } catch (\Exception $e) {
+            Log::error('Error resetting lookup table: ' . $e->getMessage());
+            $this->setMessage('Error resetting lookup table: ' . $e->getMessage(), 'error');
+        }
+    }
+
+    /**
+     * Close the lookup table modal.
+     */
+    public function closeLookupModal(): void
+    {
+        $this->showLookupTableModal = false;
+        $this->selectedLookupStepId = null;
+        $this->currentCapturedResultId = null;
+        $this->compatibleLookupTables = [];
+        $this->selectedReplacementLookupTableId = null;
+    }
+
+    /**
+     * Get the original lookup table for a step.
+     */
+    public function getOriginalLookupTable(int $stepId): ?\App\Models\Formulars\LookupTable
+    {
+        $step = FormulaStep::find($stepId);
+        if (!$step || !$step->isLookup()) {
+            return null;
+        }
+        
+        $lookupConfig = $step->lookup_config;
+        if (!$lookupConfig || !isset($lookupConfig['lookup_table_id'])) {
+            return null;
+        }
+        
+        return \App\Models\Formulars\LookupTable::find($lookupConfig['lookup_table_id']);
+    }
+
+    /**
+     * Get the current (possibly overridden) lookup table for a step in a specific worksheet row.
+     */
+    public function getCurrentLookupTable(int $capturedResultId, int $stepId): ?\App\Models\Formulars\LookupTable
+    {
+        $override = $this->worksheetData[$capturedResultId]['lookup_overrides'][$stepId] ?? null;
+        
+        if ($override) {
+            return \App\Models\Formulars\LookupTable::find($override);
+        }
+        
+        return $this->getOriginalLookupTable($stepId);
     }
 
     public function render()

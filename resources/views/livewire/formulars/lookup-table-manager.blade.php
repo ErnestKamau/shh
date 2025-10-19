@@ -97,61 +97,20 @@
                             <table class="table table-striped table-hover" id="tables-table">
                                 <thead style="background-color: rgba(0, 0, 0, .03);">
                                     <tr>
-                                        <th style="width: 60px;">#</th>
+                                        <th style="width: 250px;">Actions</th>
                                         <th>Name</th>
-                                        <th>Description</th>
+                                        <th>Type</th>
                                         <th>Key Columns</th>
                                         <th>Value Column</th>
                                         <th>Labels</th>
                                         <th>Entries</th>
                                         <th>Status</th>
                                         <th>Created</th>
-                                        <th style="width: 300px;">Actions</th>
                                     </tr>
                                 </thead>
                                 <tbody>
                                     @foreach($tables as $table)
                                         <tr>
-                                            <td>{{ $table->id }}</td>
-                                            <td>
-                                                <strong>{{ $table->name }}</strong>
-                                            </td>
-                                            <td>
-                                                <span class="text-muted">{{ Str::limit($table->description, 50) }}</span>
-                                            </td>
-                                            <td>
-                                                @foreach($table->key_columns as $column)
-                                                    <span class="badge badge-secondary me-1">{{ $column }}</span>
-                                                @endforeach
-                                            </td>
-                                            <td>
-                                                <span class="badge badge-primary">{{ $table->value_column }}</span>
-                                            </td>
-                                            <td>
-                                                @if($table->key_label || $table->value_label)
-                                                    <div class="small">
-                                                        @if($table->key_label)
-                                                            <div><strong>Key:</strong> {{ $table->key_label }}</div>
-                                                        @endif
-                                                        @if($table->value_label)
-                                                            <div><strong>Value:</strong> {{ $table->value_label }}</div>
-                                                        @endif
-                                                    </div>
-                                                @else
-                                                    <span class="text-muted">No labels defined</span>
-                                                @endif
-                                            </td>
-                                            <td>
-                                                <span class="badge badge-info">{{ $table->entries_count }} entries</span>
-                                            </td>
-                                            <td>
-                                                <span class="badge badge-{{ $table->is_active ? 'success' : 'secondary' }}">
-                                                    {{ $table->is_active ? 'Active' : 'Inactive' }}
-                                                </span>
-                                            </td>
-                                            <td>
-                                                <small class="text-muted">{{ $table->created_at->format('M d, Y') }}</small>
-                                            </td>
                                             <td>
                                                 <div class="btn-group" role="group">
                                                     <a href="{{ route('formulars.lookup-table-entries', $table->id) }}" 
@@ -183,6 +142,60 @@
                                                     </button>
                                                 </div>
                                             </td>
+                                            <td>
+                                                {{ $table->name }}
+                                                <div class="d-flex align-items-center">
+                                                    <span class="badge p-2 badge-pill mr-2 {{ $table->is_standard ? 'badge-success' : 'badge-secondary' }}">{!! $table->is_standard ? '<i class="mdi mdi-star text-warning"></i>' : '<i class="mdi mdi-close-circle text-danger"></i>' !!} Is Standard</span>
+                                                    <span class="badge p-2 badge-pill {{ $table->show_on_report ? 'badge-success' : 'badge-secondary' }}">{!! $table->show_on_report ? '<i class="mdi mdi-file-document text-info"></i>' : '<i class="mdi mdi-close-circle text-danger"></i>' !!} Show on Report</span>
+                                                </div>
+                                            </td>
+                                            <td>
+                                                @if($table->lookup_type === 'range_based')
+                                                    <span class="">
+                                                        <i class="mdi mdi-chart-line"></i> Range
+                                                    </span>
+                                                    @if($table->range_variable_name)
+                                                        <br><small class="text-muted">{{ $table->range_variable_name }}</small>
+                                                    @endif
+                                                @else
+                                                    <span class="">Key-Value</span>
+                                                @endif
+                                            </td>
+                                            <td>
+                                                @foreach($table->key_columns as $column)
+                                                    <span class="badgeme-1">{{ $column }}</span>
+                                                @endforeach
+                                            </td>
+                                            <td>
+                                                <span class="">{{ $table->value_column }}</span>
+                                            </td>
+                                            <td>
+                                                @if($table->key_label || $table->value_label)
+                                                    <div class="small">
+                                                        @if($table->key_label)
+                                                            <div><strong>Key:</strong> {{ $table->key_label }}</div>
+                                                        @endif
+                                                        @if($table->value_label)
+                                                            <div><strong>Value:</strong> {{ $table->value_label }}</div>
+                                                        @endif
+                                                    </div>
+                                                @else
+                                                    <span class="text-muted">No labels defined</span>
+                                                @endif
+                                            </td>
+                                            <td>
+                                                <span class="badge badge-info badge-pill p-2">{{ $table->entries_count }} entries</span>
+                                            </td>
+                                            <td>
+                                                <span class="badge p-2 badge-pill badge-{{ $table->is_active ? 'success' : 'secondary' }}">
+                                                    {{ $table->is_active ? 'Active' : 'Inactive' }}
+                                                </span>
+                                            </td>
+                                           
+                                            <td>
+                                                <small class="text-muted">{{ $table->created_at->format('M d, Y') }}</small>
+                                            </td>
+
                                         </tr>
                                     @endforeach
                                 </tbody>
@@ -232,6 +245,221 @@
                             <textarea wire:model="tableDescription" class="form-control" id="tableDescription" rows="3"></textarea>
                             @error('tableDescription') <span class="text-danger">{{ $message }}</span> @enderror
                         </div>
+                        
+                        <div class="mb-3">
+                            <label class="form-label fw-bold">
+                                <i class="mdi mdi-format-list-bulleted-type"></i> Lookup Type *
+                            </label>
+                            <select wire:model.live="lookupType" class="form-select lookup-type-select shadow-sm">
+                                <option value="key_value_comparison">🔑 Key-Value Comparison</option>
+                                <option value="range_based">📊 Range-Based</option>
+                            </select>
+                            <div class="mt-2 p-3" style="background-color: #f8f9fa; border-radius: 8px; border-left: 4px solid #17a2b8;">
+                                <small class="text-muted">
+                                    <i class="mdi mdi-information-outline"></i>
+                                    <strong>Key-Value:</strong> Exact match lookups | 
+                                    <strong>Range-Based:</strong> Numeric range lookups
+                                </small>
+                            </div>
+                        </div>
+
+                        @if($lookupType === 'range_based')
+                            <div class="alert alert-info mb-3">
+                                <i class="mdi mdi-information"></i>
+                                <strong>Range-Based Lookups:</strong> Check if an input value falls within defined ranges.
+                                Entries will have 'low' and 'high' values. Set 'high' to null for open-ended ranges (e.g., 100+).
+                            </div>
+                            
+                            <div class="mb-3">
+                                <label class="form-label fw-bold">
+                                    <i class="mdi mdi-variable"></i> Range Variable Name *
+                                </label>
+                                <div x-data="{
+                                    open: false,
+                                    search: '',
+                                    selected: @entangle('rangeVariableName').live,
+                                    variables: [
+                                        { value: 'score', label: 'score' },
+                                        { value: 'temperature', label: 'temperature' },
+                                        { value: 'pressure', label: 'pressure' },
+                                        { value: 'ph_value', label: 'ph_value' },
+                                        { value: 'concentration', label: 'concentration' },
+                                        { value: 'count', label: 'count' },
+                                        { value: 'percentage', label: 'percentage' },
+                                        { value: 'measurement', label: 'measurement' },
+                                        { value: 'weight', label: 'weight' },
+                                        { value: 'volume', label: 'volume' },
+                                        { value: 'density', label: 'density' },
+                                        { value: 'bacterial_count', label: 'bacterial_count' },
+                                        { value: 'humidity', label: 'humidity' },
+                                        { value: 'time', label: 'time' },
+                                        { value: 'custom', label: '✏️ Enter Custom Name' }
+                                    ],
+                                    get filteredVariables() {
+                                        if (!this.search) return this.variables;
+                                        return this.variables.filter(v => 
+                                            v.label.toLowerCase().includes(this.search.toLowerCase())
+                                        );
+                                    },
+                                    selectVariable(value) {
+                                        this.selected = value;
+                                        this.open = false;
+                                        this.search = '';
+                                    },
+                                    getSelectedName() {
+                                        const variable = this.variables.find(v => v.value == this.selected);
+                                        return variable ? variable.label : '';
+                                    }
+                                }" class="searchable-dropdown-wrapper">
+                                    <div class="single-select-container" @click="open = !open">
+                                        <input 
+                                            type="text" 
+                                            x-model="search"
+                                            :placeholder="selected ? getSelectedName() : 'Search variables...'"
+                                            @focus="open = true"
+                                            class="form-control searchable-input-single"
+                                            autocomplete="off"
+                                        >
+                                        <i class="mdi mdi-chevron-down dropdown-arrow" :class="{ 'rotated': open }"></i>
+                                    </div>
+
+                                    <div x-show="open" 
+                                         @click.away="open = false"
+                                         x-transition
+                                         class="dropdown-list">
+                                        <template x-if="filteredVariables.length > 0">
+                                            <div class="options-list">
+                                                <template x-for="variable in filteredVariables" :key="variable.value">
+                                                    <div @click="selectVariable(variable.value)" 
+                                                         class="option-item"
+                                                         :class="{ 'selected': selected == variable.value }">
+                                                        <i class="mdi mdi-check-circle text-primary" x-show="selected == variable.value"></i>
+                                                        <span x-text="variable.label"></span>
+                                                    </div>
+                                                </template>
+                                            </div>
+                                        </template>
+                                        <template x-if="filteredVariables.length === 0">
+                                            <div class="no-results">
+                                                <i class="mdi mdi-alert-circle-outline"></i>
+                                                <span>No variables found</span>
+                                            </div>
+                                        </template>
+                                    </div>
+                                </div>
+                                <small class="text-muted">Variable to check against ranges (prevents typos)</small>
+                                @error('rangeVariableName') <span class="text-danger">{{ $message }}</span> @enderror
+                            </div>
+                            
+                            @if($rangeVariableName === 'custom')
+                                <div class="mb-3">
+                                    <label class="form-label fw-bold">Custom Variable Name *</label>
+                                    <input type="text" wire:model="customRangeVariableName" class="form-control" 
+                                           placeholder="e.g., bacterial_colony_count, dissolved_oxygen">
+                                    <small class="text-muted">Enter a custom variable name (lowercase, use underscores)</small>
+                                    @error('customRangeVariableName') <span class="text-danger">{{ $message }}</span> @enderror
+                                </div>
+                            @endif
+                            
+                            <div class="mb-3">
+                                <label class="form-label fw-bold">
+                                    <i class="mdi mdi-text-box"></i> Value Interpretation Column
+                                </label>
+                                <div x-data="{
+                                    open: false,
+                                    search: '',
+                                    selected: @entangle('valueInterpretationColumn').live,
+                                    interpretations: [
+                                        { value: '', label: 'None (Numeric value only)' },
+                                        { value: 'interpretation', label: 'interpretation' },
+                                        { value: 'description', label: 'description' },
+                                        { value: 'grade', label: 'grade' },
+                                        { value: 'level', label: 'level' },
+                                        { value: 'category', label: 'category' },
+                                        { value: 'status', label: 'status' },
+                                        { value: 'rating', label: 'rating' },
+                                        { value: 'classification', label: 'classification' },
+                                        { value: 'risk_level', label: 'risk_level' },
+                                        { value: 'quality', label: 'quality' }
+                                    ],
+                                    get filteredInterpretations() {
+                                        if (!this.search) return this.interpretations;
+                                        return this.interpretations.filter(i => 
+                                            i.label.toLowerCase().includes(this.search.toLowerCase())
+                                        );
+                                    },
+                                    selectInterpretation(value) {
+                                        this.selected = value;
+                                        this.open = false;
+                                        this.search = '';
+                                    },
+                                    getSelectedName() {
+                                        const interpretation = this.interpretations.find(i => i.value == this.selected);
+                                        return interpretation ? interpretation.label : '';
+                                    }
+                                }" class="searchable-dropdown-wrapper">
+                                    <div class="single-select-container" @click="open = !open">
+                                        <input 
+                                            type="text" 
+                                            x-model="search"
+                                            :placeholder="selected ? getSelectedName() : 'Search interpretations...'"
+                                            @focus="open = true"
+                                            class="form-control searchable-input-single"
+                                            autocomplete="off"
+                                        >
+                                        <i class="mdi mdi-chevron-down dropdown-arrow" :class="{ 'rotated': open }"></i>
+                                    </div>
+
+                                    <div x-show="open" 
+                                         @click.away="open = false"
+                                         x-transition
+                                         class="dropdown-list">
+                                        <template x-if="filteredInterpretations.length > 0">
+                                            <div class="options-list">
+                                                <template x-for="interpretation in filteredInterpretations" :key="interpretation.value">
+                                                    <div @click="selectInterpretation(interpretation.value)" 
+                                                         class="option-item"
+                                                         :class="{ 'selected': selected == interpretation.value }">
+                                                        <i class="mdi mdi-check-circle text-primary" x-show="selected == interpretation.value"></i>
+                                                        <span x-text="interpretation.label"></span>
+                                                    </div>
+                                                </template>
+                                            </div>
+                                        </template>
+                                        <template x-if="filteredInterpretations.length === 0">
+                                            <div class="no-results">
+                                                <i class="mdi mdi-alert-circle-outline"></i>
+                                                <span>No interpretations found</span>
+                                            </div>
+                                        </template>
+                                    </div>
+                                </div>
+                                <small class="text-muted">Optional: Text interpretation column (e.g., "Excellent", "High Risk")</small>
+                                @error('valueInterpretationColumn') <span class="text-danger">{{ $message }}</span> @enderror
+                            </div>
+                            
+                            <!-- Preview Section -->
+                            <div class="card bg-light">
+                                <div class="card-body">
+                                    <h6 class="card-title text-muted">📋 Preview</h6>
+                                    <p class="mb-1">
+                                        <strong>Input:</strong> <code>{{ $rangeVariableName === 'custom' ? ($customRangeVariableName ?: 'your_variable') : ($rangeVariableName ?: 'variable') }}</code>
+                                    </p>
+                                    <p class="mb-1">
+                                        <strong>Output:</strong> 
+                                        <code>value</code>
+                                        @if($valueInterpretationColumn)
+                                            + <code>{{ $valueInterpretationColumn }}</code>
+                                        @endif
+                                    </p>
+                                    <small class="text-muted">
+                                        Example: Input 85 → Returns value from matching range
+                                    </small>
+                                </div>
+                            </div>
+                        @endif
+
+                        @if($lookupType === 'key_value_comparison')
                         <div class="mb-3">
                             <label class="form-label">Key Columns *</label>
                             @foreach($keyColumns as $index => $column)
@@ -249,12 +477,15 @@
                             </button>
                             @error('keyColumns') <span class="text-danger">{{ $message }}</span> @enderror
                         </div>
+                        @endif
+
                         <div class="mb-3">
                             <label for="valueColumn" class="form-label">Value Column *</label>
                             <input type="text" wire:model="valueColumn" class="form-control" id="valueColumn" required>
                             @error('valueColumn') <span class="text-danger">{{ $message }}</span> @enderror
                         </div>
                         
+                        @if($lookupType === 'key_value_comparison')
                         <!-- Label Definitions Section -->
                         <div class="card bg-light mb-3">
                             <div class="card-header">
@@ -284,12 +515,43 @@
                                 </div>
                             </div>
                         </div>
-                        <div class="mb-3">
-                            <div class="form-check">
-                                <input type="checkbox" wire:model="isActive" class="form-check-input" id="isActive">
-                                <label class="form-check-label" for="isActive">
-                                    Active
-                                </label>
+                        @endif
+                        
+                        <!-- Table Settings Section -->
+                        <div class="card bg-light mb-3">
+                            <div class="card-header">
+                                <h6 class="mb-0 text-muted">
+                                    <i class="mdi mdi-cog"></i> Table Settings
+                                </h6>
+                                <small class="text-muted">Configure table status and display options</small>
+                            </div>
+                            <div class="card-body">
+                                <div class="row">
+                                    <div class="col-md-4">
+                                        <div class="form-check form-switch mb-2">
+                                            <input type="checkbox" wire:model="isActive" class="form-check-input" id="isActive" role="switch">
+                                            <label class="form-check-label" for="isActive">
+                                                Active <i class="mdi mdi-check-circle text-success"></i>
+                                            </label>
+                                        </div>
+                                    </div>
+                                    <div class="col-md-4">
+                                        <div class="form-check form-switch mb-2">
+                                            <input type="checkbox" wire:model="isStandard" class="form-check-input" id="isStandard" role="switch">
+                                            <label class="form-check-label" for="isStandard">
+                                                Is Standard Table <i class="mdi mdi-star text-warning"></i> 
+                                            </label>
+                                        </div>
+                                    </div>
+                                    <div class="col-md-4">
+                                        <div class="form-check form-switch">
+                                            <input type="checkbox" wire:model="showOnReport" class="form-check-input" id="showOnReport" role="switch">
+                                            <label class="form-check-label" for="showOnReport">
+                                                Show on Report <i class="mdi mdi-file-document text-info"></i>
+                                            </label>
+                                        </div>
+                                    </div>
+                                </div>
                             </div>
                         </div>
                     </form>
@@ -327,6 +589,201 @@
                             <textarea wire:model="tableDescription" class="form-control" id="editTableDescription" rows="3"></textarea>
                             @error('tableDescription') <span class="text-danger">{{ $message }}</span> @enderror
                         </div>
+                        
+                        <div class="mb-3">
+                            <label class="form-label fw-bold">
+                                <i class="mdi mdi-format-list-bulleted-type"></i> Lookup Type *
+                            </label>
+                            <select wire:model.live="lookupType" class="form-select lookup-type-select shadow-sm">
+                                <option value="key_value_comparison">🔑 Key-Value Comparison</option>
+                                <option value="range_based">📊 Range-Based</option>
+                            </select>
+                            <div class="mt-2 p-3" style="background-color: #f8f9fa; border-radius: 8px; border-left: 4px solid #17a2b8;">
+                                <small class="text-muted">
+                                    <i class="mdi mdi-information-outline"></i>
+                                    <strong>Key-Value:</strong> Exact match lookups | 
+                                    <strong>Range-Based:</strong> Numeric range lookups
+                                </small>
+                            </div>
+                        </div>
+
+                        @if($lookupType === 'range_based')
+                            <div class="alert alert-info mb-3">
+                                <i class="mdi mdi-information"></i>
+                                <strong>Range-Based Lookups:</strong> Check if an input value falls within defined ranges.
+                                Entries will have 'low' and 'high' values. Set 'high' to null for open-ended ranges (e.g., 100+).
+                            </div>
+                            
+                            <div class="mb-3">
+                                <label class="form-label fw-bold">
+                                    <i class="mdi mdi-variable"></i> Range Variable Name *
+                                </label>
+                                <div x-data="{
+                                    open: false,
+                                    search: '',
+                                    selected: @entangle('rangeVariableName').live,
+                                    variables: [
+                                        { value: 'score', label: 'score' },
+                                        { value: 'temperature', label: 'temperature' },
+                                        { value: 'pressure', label: 'pressure' },
+                                        { value: 'ph_value', label: 'ph_value' },
+                                        { value: 'concentration', label: 'concentration' },
+                                        { value: 'count', label: 'count' },
+                                        { value: 'percentage', label: 'percentage' },
+                                        { value: 'measurement', label: 'measurement' },
+                                        { value: 'weight', label: 'weight' },
+                                        { value: 'volume', label: 'volume' },
+                                        { value: 'density', label: 'density' },
+                                        { value: 'bacterial_count', label: 'bacterial_count' },
+                                        { value: 'humidity', label: 'humidity' },
+                                        { value: 'time', label: 'time' },
+                                        { value: 'custom', label: '✏️ Enter Custom Name' }
+                                    ],
+                                    get filteredVariables() {
+                                        if (!this.search) return this.variables;
+                                        return this.variables.filter(v => 
+                                            v.label.toLowerCase().includes(this.search.toLowerCase())
+                                        );
+                                    },
+                                    selectVariable(value) {
+                                        this.selected = value;
+                                        this.open = false;
+                                        this.search = '';
+                                    },
+                                    getSelectedName() {
+                                        const variable = this.variables.find(v => v.value == this.selected);
+                                        return variable ? variable.label : '';
+                                    }
+                                }" class="searchable-dropdown-wrapper">
+                                    <div class="single-select-container" @click="open = !open">
+                                        <input 
+                                            type="text" 
+                                            x-model="search"
+                                            :placeholder="selected ? getSelectedName() : 'Search variables...'"
+                                            @focus="open = true"
+                                            class="form-control searchable-input-single"
+                                            autocomplete="off"
+                                        >
+                                        <i class="mdi mdi-chevron-down dropdown-arrow" :class="{ 'rotated': open }"></i>
+                                    </div>
+
+                                    <div x-show="open" 
+                                         @click.away="open = false"
+                                         x-transition
+                                         class="dropdown-list">
+                                        <template x-if="filteredVariables.length > 0">
+                                            <div class="options-list">
+                                                <template x-for="variable in filteredVariables" :key="variable.value">
+                                                    <div @click="selectVariable(variable.value)" 
+                                                         class="option-item"
+                                                         :class="{ 'selected': selected == variable.value }">
+                                                        <i class="mdi mdi-check-circle text-primary" x-show="selected == variable.value"></i>
+                                                        <span x-text="variable.label"></span>
+                                                    </div>
+                                                </template>
+                                            </div>
+                                        </template>
+                                        <template x-if="filteredVariables.length === 0">
+                                            <div class="no-results">
+                                                <i class="mdi mdi-alert-circle-outline"></i>
+                                                <span>No variables found</span>
+                                            </div>
+                                        </template>
+                                    </div>
+                                </div>
+                                <small class="text-muted">Variable to check against ranges (prevents typos)</small>
+                                @error('rangeVariableName') <span class="text-danger">{{ $message }}</span> @enderror
+                            </div>
+                            
+                            @if($rangeVariableName === 'custom')
+                                <div class="mb-3">
+                                    <label class="form-label fw-bold">Custom Variable Name *</label>
+                                    <input type="text" wire:model="customRangeVariableName" class="form-control" 
+                                           placeholder="e.g., bacterial_colony_count, dissolved_oxygen">
+                                    <small class="text-muted">Enter a custom variable name (lowercase, use underscores)</small>
+                                    @error('customRangeVariableName') <span class="text-danger">{{ $message }}</span> @enderror
+                                </div>
+                            @endif
+                            
+                            <div class="mb-3">
+                                <label class="form-label fw-bold">
+                                    <i class="mdi mdi-text-box"></i> Value Interpretation Column
+                                </label>
+                                <div x-data="{
+                                    open: false,
+                                    search: '',
+                                    selected: @entangle('valueInterpretationColumn').live,
+                                    interpretations: [
+                                        { value: '', label: 'None (Numeric value only)' },
+                                        { value: 'interpretation', label: 'interpretation' },
+                                        { value: 'description', label: 'description' },
+                                        { value: 'grade', label: 'grade' },
+                                        { value: 'level', label: 'level' },
+                                        { value: 'category', label: 'category' },
+                                        { value: 'status', label: 'status' },
+                                        { value: 'rating', label: 'rating' },
+                                        { value: 'classification', label: 'classification' },
+                                        { value: 'risk_level', label: 'risk_level' },
+                                        { value: 'quality', label: 'quality' }
+                                    ],
+                                    get filteredInterpretations() {
+                                        if (!this.search) return this.interpretations;
+                                        return this.interpretations.filter(i => 
+                                            i.label.toLowerCase().includes(this.search.toLowerCase())
+                                        );
+                                    },
+                                    selectInterpretation(value) {
+                                        this.selected = value;
+                                        this.open = false;
+                                        this.search = '';
+                                    },
+                                    getSelectedName() {
+                                        const interpretation = this.interpretations.find(i => i.value == this.selected);
+                                        return interpretation ? interpretation.label : '';
+                                    }
+                                }" class="searchable-dropdown-wrapper">
+                                    <div class="single-select-container" @click="open = !open">
+                                        <input 
+                                            type="text" 
+                                            x-model="search"
+                                            :placeholder="selected ? getSelectedName() : 'Search interpretations...'"
+                                            @focus="open = true"
+                                            class="form-control searchable-input-single"
+                                            autocomplete="off"
+                                        >
+                                        <i class="mdi mdi-chevron-down dropdown-arrow" :class="{ 'rotated': open }"></i>
+                                    </div>
+
+                                    <div x-show="open" 
+                                         @click.away="open = false"
+                                         x-transition
+                                         class="dropdown-list">
+                                        <template x-if="filteredInterpretations.length > 0">
+                                            <div class="options-list">
+                                                <template x-for="interpretation in filteredInterpretations" :key="interpretation.value">
+                                                    <div @click="selectInterpretation(interpretation.value)" 
+                                                         class="option-item"
+                                                         :class="{ 'selected': selected == interpretation.value }">
+                                                        <i class="mdi mdi-check-circle text-primary" x-show="selected == interpretation.value"></i>
+                                                        <span x-text="interpretation.label"></span>
+                                                    </div>
+                                                </template>
+                                            </div>
+                                        </template>
+                                        <template x-if="filteredInterpretations.length === 0">
+                                            <div class="no-results">
+                                                <i class="mdi mdi-alert-circle-outline"></i>
+                                                <span>No interpretations found</span>
+                                            </div>
+                                        </template>
+                                    </div>
+                                </div>
+                                <small class="text-muted">Optional: Text interpretation column (e.g., "Excellent", "High Risk")</small>
+                                @error('valueInterpretationColumn') <span class="text-danger">{{ $message }}</span> @enderror
+                            </div>
+                        @endif
+
+                        @if($lookupType === 'key_value_comparison')
                         <div class="mb-3">
                             <label class="form-label">Key Columns *</label>
                             @foreach($keyColumns as $index => $column)
@@ -344,12 +801,15 @@
                             </button>
                             @error('keyColumns') <span class="text-danger">{{ $message }}</span> @enderror
                         </div>
+                        @endif
+
                         <div class="mb-3">
                             <label for="editValueColumn" class="form-label">Value Column *</label>
                             <input type="text" wire:model="valueColumn" class="form-control" id="editValueColumn" required>
                             @error('valueColumn') <span class="text-danger">{{ $message }}</span> @enderror
                         </div>
                         
+                        @if($lookupType === 'key_value_comparison')
                         <!-- Label Definitions Section -->
                         <div class="card bg-light mb-3">
                             <div class="card-header">
@@ -379,12 +839,43 @@
                                 </div>
                             </div>
                         </div>
-                        <div class="mb-3">
-                            <div class="form-check">
-                                <input type="checkbox" wire:model="isActive" class="form-check-input" id="editIsActive">
-                                <label class="form-check-label" for="editIsActive">
-                                    Active
-                                </label>
+                        @endif
+                        
+                        <!-- Table Settings Section -->
+                        <div class="card bg-light mb-3">
+                            <div class="card-header">
+                                <h6 class="mb-0 text-muted">
+                                    <i class="mdi mdi-cog"></i> Table Settings
+                                </h6>
+                                <small class="text-muted">Configure table status and display options</small>
+                            </div>
+                            <div class="card-body">
+                                <div class="row">
+                                    <div class="col-md-4">
+                                        <div class="form-check form-switch mb-2">
+                                            <input type="checkbox" wire:model="isActive" class="form-check-input" id="editIsActive" role="switch">
+                                            <label class="form-check-label" for="editIsActive">
+                                                <i class="mdi mdi-check-circle text-success"></i> Active
+                                            </label>
+                                        </div>
+                                    </div>
+                                    <div class="col-md-4">
+                                        <div class="form-check form-switch mb-2">
+                                            <input type="checkbox" wire:model="isStandard" class="form-check-input" id="editIsStandard" role="switch">
+                                            <label class="form-check-label" for="editIsStandard">
+                                                <i class="mdi mdi-star text-warning"></i> Standard Table
+                                            </label>
+                                        </div>
+                                    </div>
+                                    <div class="col-md-4">
+                                        <div class="form-check form-switch">
+                                            <input type="checkbox" wire:model="showOnReport" class="form-check-input" id="editShowOnReport" role="switch">
+                                            <label class="form-check-label" for="editShowOnReport">
+                                                <i class="mdi mdi-file-document text-info"></i> Show on Report
+                                            </label>
+                                        </div>
+                                    </div>
+                                </div>
                             </div>
                         </div>
                     </form>
@@ -514,6 +1005,48 @@
         display: block !important;
     }
     
+    /* Lookup Type Select Styling */
+    .lookup-type-select {
+        padding: 0.75rem 1rem;
+        height: 3rem;
+        font-size: 0.9rem;
+        border-radius: 10px;
+        border: 2px solid #e0e0e0;
+        transition: all 0.3s ease;
+    }
+    .lookup-type-select:focus {
+        outline: none;
+        box-shadow: 0 0 0 0.2rem rgba(23, 162, 184, 0.25);
+        border-color: #17a2b8;
+    }
+    
+    .lookup-type-select:hover {
+        border-color: #17a2b8;
+    }
+    
+    /* Variable Select Styling */
+    .variable-select {
+        padding: 0.75rem 1rem !important;
+        height: 3rem !important;
+        font-size: 0.9rem !important;
+        border-radius: 10px !important;
+        border: 2px solid #e0e0e0 !important;
+        transition: all 0.3s ease !important;
+        box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1) !important;
+        background-color: #fff !important;
+    }
+    
+    .variable-select:focus {
+        outline: none !important;
+        box-shadow: 0 0 0 0.2rem rgba(111, 66, 193, 0.25) !important;
+        /* border-color: #6f42c1 !important; */
+    }
+    
+    .variable-select:hover {
+        border-color: #a598f0 !important;
+        box-shadow: 0 2px 5px rgba(0, 0, 0, 0.15) !important;
+    }
+    
     /* Purple button styling for template download */
     .btn-purple {
         color: #fff;
@@ -578,6 +1111,85 @@
     
     .modal-body::-webkit-scrollbar-thumb:hover {
         background: #555;
+    }
+    .form-text{
+        font-size: 0.6rem;
+        color: #6c757d;
+        margin-top: 0.25rem;
+        margin-bottom: 0;
+        font-weight: 400;
+        line-height: 1.5;
+        text-align: left;
+        word-wrap: break-word;
+        overflow-wrap: break-word;
+        white-space: normal;
+    }
+    
+    /* Single-Select Searchable Dropdown Styling */
+    .searchable-input-single {
+        border: none;
+        outline: none;
+        box-shadow: none !important;
+        padding: 4px 0;
+        width: 100%;
+    }
+    
+    .searchable-input-single:focus {
+        border: none !important;
+        box-shadow: none !important;
+    }
+    
+    .single-select-container {
+        position: relative;
+        min-height: 45px;
+        border: 1px solid #ced4da;
+        border-radius: 12px;
+        padding: 8px 40px 8px 12px;
+        background: white;
+        cursor: pointer;
+        transition: all 0.3s ease;
+        display: flex;
+        align-items: center;
+    }
+    
+    .single-select-container:hover {
+        border-color: #007bff;
+        box-shadow: 0 2px 8px rgba(0, 123, 255, 0.1);
+    }
+    
+    .single-select-container:has(.searchable-input-single:focus) {
+        border-color: #007bff;
+        box-shadow: 0 0 0 0.2rem rgba(0, 123, 255, 0.25);
+    }
+    
+    .options-list {
+        padding: 8px;
+        max-height: 300px;
+        overflow-y: auto;
+    }
+    
+    .option-item {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        padding: 10px 12px;
+        border-radius: 8px;
+        cursor: pointer;
+        transition: all 0.2s ease;
+        font-size: 14px;
+    }
+    
+    .option-item:hover {
+        background: #f8f9fa;
+    }
+    
+    .option-item.selected {
+        background: rgba(0, 123, 255, 0.08);
+        font-weight: 500;
+    }
+    
+    .option-item i {
+        font-size: 18px;
     }
     </style>
 </div>

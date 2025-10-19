@@ -151,10 +151,7 @@
                     <div class="table-responsive">
                             <table class="table table-striped table-hover">
                                 <thead style="background-color: rgba(0, 0, 0, .03);">
-                                <tr>
-                                        <th style="width: 50px;">
-                                            <input type="checkbox" wire:model="selectAll" class="form-check-input">
-                                        </th>
+                                <tr>  
                                     <th>Code</th>
                                     <th>Name</th>
                                     <th>Email</th>
@@ -167,14 +164,9 @@
                             <tbody>
                                     @foreach($this->customers as $customer)
                                         <tr>
-                                            <td>
-                                                <input type="checkbox" 
-                                                       wire:model="selectedCustomers" 
-                                                       value="{{ $customer->id }}" 
-                                                       class="form-check-input">
-                                            </td>
+                                           
                                         <td>
-                                            <span class="fw-bold text-primary">{{ $customer->code }}</span>
+                                            <a wire:click="viewCustomer({{ $customer->id }})" class="btn btn-sm fw-bold text-primary">{{ $customer->code }}</a>
                                         </td>
                                         <td>
                                             <div>
@@ -283,25 +275,127 @@
                             <div class="row">
                                 <div class="col-md-6">
                                     <div class="form-group mb-3">
-                                        <label class="form-label fw-bold">Country <span class="text-danger">*</span></label>
-                                        <select wire:model="customerForm.country_id" class="form-select">
-                                            <option value="">Select Country</option>
-                                            @foreach($countries as $country)
-                                                <option value="{{ $country->id }}">{{ $country->name }}</option>
-                                            @endforeach
-                                        </select>
+                                        <label class="form-label fw-bold"><i class="mdi mdi-earth text-primary"></i> Country <span class="text-danger">*</span></label>
+                                        <div x-data="{
+                                            open: false,
+                                            search: '',
+                                            selected: @entangle('customerForm.country_id').live,
+                                            countries: {{ json_encode($countries->map(fn($c) => ['id' => $c->id, 'name' => $c->name])->values()) }},
+                                            get filteredCountries() {
+                                                if (!this.search) return this.countries.slice(0, 50);
+                                                return this.countries.filter(country => 
+                                                    country.name.toLowerCase().includes(this.search.toLowerCase())
+                                                );
+                                            },
+                                            selectCountry(countryId) {
+                                                this.selected = countryId;
+                                                this.open = false;
+                                                this.search = '';
+                                            },
+                                            getSelectedName() {
+                                                const country = this.countries.find(c => c.id == this.selected);
+                                                return country ? country.name : '';
+                                            }
+                                        }" class="searchable-dropdown-wrapper">
+                                            <div class="single-select-container" @click="open = !open">
+                                                <input 
+                                                    type="text" 
+                                                    x-model="search"
+                                                    :placeholder="selected ? getSelectedName() : 'Search countries...'"
+                                                    @focus="open = true"
+                                                    class="form-control searchable-input-single"
+                                                    autocomplete="off"
+                                                >
+                                                <i class="mdi mdi-chevron-down dropdown-arrow" :class="{ 'rotated': open }"></i>
+                                            </div>
+
+                                            <div x-show="open" 
+                                                 @click.away="open = false"
+                                                 x-transition
+                                                 class="dropdown-list">
+                                                <template x-if="filteredCountries.length > 0">
+                                                    <div class="options-list">
+                                                        <template x-for="country in filteredCountries" :key="country.id">
+                                                            <div @click="selectCountry(country.id)" 
+                                                                 class="option-item"
+                                                                 :class="{ 'selected': selected == country.id }">
+                                                                <i class="mdi mdi-check-circle text-primary" x-show="selected == country.id"></i>
+                                                                <span x-text="country.name"></span>
+                                                            </div>
+                                                        </template>
+                                                    </div>
+                                                </template>
+                                                <template x-if="filteredCountries.length === 0">
+                                                    <div class="no-results">
+                                                        <i class="mdi mdi-alert-circle-outline"></i>
+                                                        <span>No countries found</span>
+                                                    </div>
+                                                </template>
+                                            </div>
+                                        </div>
                                         @error('customerForm.country_id') <span class="text-danger">{{ $message }}</span> @enderror
                                     </div>
                                 </div>
                                 <div class="col-md-6">
                                     <div class="form-group mb-3">
-                                        <label class="form-label fw-bold">Account Settings <span class="text-danger">*</span></label>
-                                        <select wire:model="customerForm.account_status" class="form-select">
-                                            <option value="">Select Account Settings</option>
-                                            @foreach($accounts as $account)
-                                                <option value="{{ $account->id }}">{{ $account->key }}</option>
-                                            @endforeach
-                                        </select>
+                                        <label class="form-label fw-bold"><i class="mdi mdi-cog text-info"></i> Account Settings <span class="text-danger">*</span></label>
+                                        <div x-data="{
+                                            open: false,
+                                            search: '',
+                                            selected: @entangle('customerForm.account_status').live,
+                                            accounts: {{ json_encode($accounts->map(fn($a) => ['id' => $a->id, 'key' => $a->key])->values()) }},
+                                            get filteredAccounts() {
+                                                if (!this.search) return this.accounts;
+                                                return this.accounts.filter(account => 
+                                                    account.key.toLowerCase().includes(this.search.toLowerCase())
+                                                );
+                                            },
+                                            selectAccount(accountId) {
+                                                this.selected = accountId;
+                                                this.open = false;
+                                                this.search = '';
+                                            },
+                                            getSelectedName() {
+                                                const account = this.accounts.find(a => a.id == this.selected);
+                                                return account ? account.key : '';
+                                            }
+                                        }" class="searchable-dropdown-wrapper">
+                                            <div class="single-select-container" @click="open = !open">
+                                                <input 
+                                                    type="text" 
+                                                    x-model="search"
+                                                    :placeholder="selected ? getSelectedName() : 'Search account settings...'"
+                                                    @focus="open = true"
+                                                    class="form-control searchable-input-single"
+                                                    autocomplete="off"
+                                                >
+                                                <i class="mdi mdi-chevron-down dropdown-arrow" :class="{ 'rotated': open }"></i>
+                                            </div>
+
+                                            <div x-show="open" 
+                                                 @click.away="open = false"
+                                                 x-transition
+                                                 class="dropdown-list">
+                                                <template x-if="filteredAccounts.length > 0">
+                                                    <div class="options-list">
+                                                        <template x-for="account in filteredAccounts" :key="account.id">
+                                                            <div @click="selectAccount(account.id)" 
+                                                                 class="option-item"
+                                                                 :class="{ 'selected': selected == account.id }">
+                                                                <i class="mdi mdi-check-circle text-primary" x-show="selected == account.id"></i>
+                                                                <span x-text="account.key"></span>
+                                                            </div>
+                                                        </template>
+                                                    </div>
+                                                </template>
+                                                <template x-if="filteredAccounts.length === 0">
+                                                    <div class="no-results">
+                                                        <i class="mdi mdi-alert-circle-outline"></i>
+                                                        <span>No account settings found</span>
+                                                    </div>
+                                                </template>
+                                            </div>
+                                        </div>
                                         @error('customerForm.account_status') <span class="text-danger">{{ $message }}</span> @enderror
                                     </div>
                                 </div>
@@ -438,6 +532,103 @@
     .modern-select.is-invalid:focus {
         border-color: #dc3545;
         box-shadow: 0 0 0 0.2rem rgba(220, 53, 69, 0.25);
+    }
+    
+    /* Make modal body scrollable */
+    .modal-body {
+        max-height: 70vh;
+        overflow-y: auto;
+        overflow-x: hidden;
+    }
+    
+    /* Custom scrollbar for better UX */
+    .modal-body::-webkit-scrollbar {
+        width: 8px;
+    }
+    
+    .modal-body::-webkit-scrollbar-track {
+        background: #f1f1f1;
+        border-radius: 4px;
+    }
+    
+    .modal-body::-webkit-scrollbar-thumb {
+        background: #888;
+        border-radius: 4px;
+    }
+    
+    .modal-body::-webkit-scrollbar-thumb:hover {
+        background: #555;
+    }
+    
+    .modal.show {
+        display: block !important;
+    }
+    
+    /* Single-Select Searchable Dropdown Styling */
+    .searchable-input-single {
+        border: none;
+        outline: none;
+        box-shadow: none !important;
+        padding: 4px 0;
+        width: 100%;
+    }
+    
+    .searchable-input-single:focus {
+        border: none !important;
+        box-shadow: none !important;
+    }
+    
+    .single-select-container {
+        position: relative;
+        min-height: 45px;
+        border: 1px solid #ced4da;
+        border-radius: 12px;
+        padding: 8px 40px 8px 12px;
+        background: white;
+        cursor: pointer;
+        transition: all 0.3s ease;
+        display: flex;
+        align-items: center;
+    }
+    
+    .single-select-container:hover {
+        border-color: #007bff;
+        box-shadow: 0 2px 8px rgba(0, 123, 255, 0.1);
+    }
+    
+    .single-select-container:has(.searchable-input-single:focus) {
+        border-color: #007bff;
+        box-shadow: 0 0 0 0.2rem rgba(0, 123, 255, 0.25);
+    }
+    
+    .options-list {
+        padding: 8px;
+        max-height: 300px;
+        overflow-y: auto;
+    }
+    
+    .option-item {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        padding: 10px 12px;
+        border-radius: 8px;
+        cursor: pointer;
+        transition: all 0.2s ease;
+        font-size: 14px;
+    }
+    
+    .option-item:hover {
+        background: #f8f9fa;
+    }
+    
+    .option-item.selected {
+        background: rgba(0, 123, 255, 0.08);
+        font-weight: 500;
+    }
+    
+    .option-item i {
+        font-size: 18px;
     }
     </style>
 </div>

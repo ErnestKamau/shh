@@ -99,6 +99,7 @@
                                         <th>Lab</th>
                                         <th>Elements</th>
                                         <th>Level</th>
+                                        <th>Calculations</th>
                                         <th>Reporting Time</th>
                                         <th>Status</th>
                                         <th>Actions</th>
@@ -109,6 +110,7 @@
                                         <tr>
                                             <td>
                                                 <span class="">{{ $analysisType->code }}</span>
+                                                
                                             </td>
                                             <td>
                                                 <strong>{{ $analysisType->name }}</strong>
@@ -124,6 +126,17 @@
                                             </td>
                                             <td>
                                                 <span class="badge bg-primary p-2" style="color: white;">{{ $analysisType->level }}</span>
+                                            </td>
+                                            <td>
+                                                @if($analysisType->include_hygiene_score)
+                                                    <span class="badge bg-info p-2" style="color: white;">Hygiene Score</span>
+                                                @endif
+                                                @if($analysisType->include_sanitizer_efficiency)
+                                                    <span class="badge bg-info p-2" style="color: white;">Sanitizer Efficiency</span>
+                                                @endif
+                                                @if(!$analysisType->include_hygiene_score && !$analysisType->include_sanitizer_efficiency)
+                                                    <span class="text-muted">Not set</span>
+                                                @endif
                                             </td>
                                             <td>
                                                 @if($analysisType->reporting_time)
@@ -193,103 +206,7 @@
         </div>
     </div>
 
-    <!-- Elements Section -->
-    @if($showElements && $selectedAnalysisType)
-        <div class="row mt-4">
-            <div class="col-12">
-                <div class="card">
-                    <div class="card-header d-flex justify-content-between align-items-center">
-                        <h5 class="card-title mb-0">Analysis Elements</h5>
-                        <button wire:click="showCreateElementModal" class="btn btn-sm btn-primary">
-                            <i class="mdi mdi-plus"></i> Add Element
-                        </button>
-                    </div>
-                    <div class="card-body">
-                        @if($elements->count() > 0)
-                            <div class="table-responsive">
-                                <table class="table table-hover">
-                                    <thead style="background-color: rgba(0, 0, 0, .03);">
-                                        <tr>
-                                            <th>Analyte</th>
-                                            <th>Method</th>
-                                            <th>Equipment</th>
-                                            <th>Operator</th>
-                                            <th>Reporting Unit</th>
-                                            <th>LOD</th>
-                                            <th>HOD</th>
-                                            <th>Level</th>
-                                            <th>Status</th>
-                                            <th>Actions</th>
-                                        </tr>
-                                    </thead>
-                                    <tbody>
-                                        @foreach($elements as $element)
-                                            <tr>
-                                                <td>
-                                                    <strong>{{ $element->analyte->name ?? 'N/A' }}</strong>
-                                                    <br><small class="text-muted">{{ $element->analyte->code ?? '' }}</small>
-                                                    @if($element->recommend_remedies && $element->remedyHeader)
-                                                        <br><small class="text-success"><i class="mdi mdi-medical-bag"></i> {{ $element->remedyHeader->name }}</small>
-                                                    @endif
-                                                </td>
-                                                <td>
-                                                    {{ $element->mmethod->name ?? 'N/A' }}
-                                                </td>
-                                                <td>
-                                                    {{ $element->equipment->name ?? 'N/A' }}
-                                                </td>
-                                                <td>
-                                                    {{ $element->operator->name ?? 'N/A' }}
-                                                </td>
-                                                <td>
-                                                    {{ $element->reporting_unit }}
-                                                </td>
-                                                <td>
-                                                    {{ $element->lod }}
-                                                </td>
-                                                <td>
-                                                    {{ $element->hod }}
-                                                </td>
-                                                <td>
-                                                    <span class="badge bg-primary" style="color: white;">{{ $element->level }}</span>
-                                                </td>
-                                                <td>
-                                                    <span class="badge bg-{{ $element->active ? 'success' : 'danger' }}" style="color: white;">
-                                                        {{ $element->active ? 'Active' : 'Inactive' }}
-                                                    </span>
-                                                </td>
-                                                <td>
-                                                    <div class="btn-group" role="group">
-                                                        <button wire:click="showEditElementModal({{ $element->id }})" 
-                                                                class="btn btn-sm btn-outline-warning" 
-                                                                title="Edit">
-                                                            <i class="mdi mdi-pencil"></i>
-                                                        </button>
-                                                        <button wire:click="deleteElement({{ $element->id }})" 
-                                                                class="btn btn-sm btn-outline-danger" 
-                                                                title="Delete"
-                                                                onclick="return confirm('Are you sure you want to delete this element?')">
-                                                            <i class="mdi mdi-delete"></i>
-                                                        </button>
-                                                    </div>
-                                                </td>
-                                            </tr>
-                                        @endforeach
-                                    </tbody>
-                                </table>
-                            </div>
-                        @else
-                            <div class="text-center py-4">
-                                <i class="mdi mdi-atom text-muted" style="font-size: 2rem;"></i>
-                                <h6 class="text-muted mt-2">No elements found</h6>
-                                <p class="text-muted">Add analysis elements to this analysis type.</p>
-                            </div>
-                        @endif
-                    </div>
-                </div>
-            </div>
-        </div>
-    @endif
+
 
     <!-- Analysis Type Modal -->
     @if($showAnalysisTypeModal)
@@ -328,14 +245,65 @@
                             <div class="row">
                                 <div class="col-md-4">
                                     <div class="form-group mb-3">
-                                        <label class="form-label">Lab <span class="text-danger">*</span></label>
-                                        <select wire:model="analysisTypeForm.lab_id" class="form-select modern-select @error('analysisTypeForm.lab_id') is-invalid @enderror">
-                                            <option value="">Select Lab</option>
-                                            @foreach($labs as $lab)
-                                                <option value="{{ $lab->id }}">{{ $lab->name }}</option>
-                                            @endforeach
-                                        </select>
-                                        @error('analysisTypeForm.lab_id') <div class="invalid-feedback">{{ $message }}</div> @enderror
+                                        <label class="form-label"><i class="mdi mdi-flask text-primary"></i> Lab <span class="text-danger">*</span></label>
+                                        <div x-data="{
+                                            open: false,
+                                            search: '',
+                                            selected: @entangle('analysisTypeForm.lab_id').live,
+                                            labs: {{ json_encode($labs->map(fn($l) => ['id' => $l->id, 'name' => $l->name])->values()) }},
+                                            get filteredLabs() {
+                                                if (!this.search) return this.labs;
+                                                return this.labs.filter(lab => 
+                                                    lab.name.toLowerCase().includes(this.search.toLowerCase())
+                                                );
+                                            },
+                                            selectLab(labId) {
+                                                this.selected = labId;
+                                                this.open = false;
+                                                this.search = '';
+                                            },
+                                            getSelectedName() {
+                                                const lab = this.labs.find(l => l.id == this.selected);
+                                                return lab ? lab.name : '';
+                                            }
+                                        }" class="searchable-dropdown-wrapper">
+                                            <div class="single-select-container" @click="open = !open">
+                                                <input 
+                                                    type="text" 
+                                                    x-model="search"
+                                                    :placeholder="selected ? getSelectedName() : 'Search labs...'"
+                                                    @focus="open = true"
+                                                    class="form-control searchable-input-single"
+                                                    autocomplete="off"
+                                                >
+                                                <i class="mdi mdi-chevron-down dropdown-arrow" :class="{ 'rotated': open }"></i>
+                                            </div>
+
+                                            <div x-show="open" 
+                                                 @click.away="open = false"
+                                                 x-transition
+                                                 class="dropdown-list">
+                                                <template x-if="filteredLabs.length > 0">
+                                                    <div class="options-list">
+                                                        <template x-for="lab in filteredLabs" :key="lab.id">
+                                                            <div @click="selectLab(lab.id)" 
+                                                                 class="option-item"
+                                                                 :class="{ 'selected': selected == lab.id }">
+                                                                <i class="mdi mdi-check-circle text-primary" x-show="selected == lab.id"></i>
+                                                                <span x-text="lab.name"></span>
+                                                            </div>
+                                                        </template>
+                                                    </div>
+                                                </template>
+                                                <template x-if="filteredLabs.length === 0">
+                                                    <div class="no-results">
+                                                        <i class="mdi mdi-alert-circle-outline"></i>
+                                                        <span>No labs found</span>
+                                                    </div>
+                                                </template>
+                                            </div>
+                                        </div>
+                                        @error('analysisTypeForm.lab_id') <span class="text-danger">{{ $message }}</span> @enderror
                                     </div>
                                 </div>
                                 <div class="col-md-4">
@@ -352,10 +320,42 @@
                                     </div>
                                 </div>
                             </div>
-                            <div class="form-group mb-3">
-                                <div class="form-check">
-                                    <input type="checkbox" wire:model="analysisTypeForm.active" class="form-check-input" id="analysis_active">
-                                    <label class="form-check-label" for="analysis_active">Active</label>
+                            
+                            <!-- Analysis Options Section -->
+                            <div class="card bg-light mb-3">
+                                <div class="card-header">
+                                    <h6 class="mb-0 text-muted">
+                                        <i class="mdi mdi-cog"></i> Analysis Options
+                                    </h6>
+                                    <small class="text-muted">Configure analysis type settings and features</small>
+                                </div>
+                                <div class="card-body">
+                                    <div class="row">
+                                        <div class="col-md-4">
+                                            <div class="form-check form-switch">
+                                                <input type="checkbox" wire:model="analysisTypeForm.active" class="form-check-input" id="analysis_active" role="switch">
+                                                <label class="form-check-label" for="analysis_active">
+                                                    <i class="mdi mdi-check-circle text-success"></i> Active
+                                                </label>
+                                            </div>
+                                        </div>
+                                        <div class="col-md-4">
+                                            <div class="form-check form-switch">
+                                                <input type="checkbox" wire:model="analysisTypeForm.include_hygiene_score" class="form-check-input" id="include_hygiene_score" role="switch">
+                                                <label class="form-check-label" for="include_hygiene_score">
+                                                    <i class="mdi mdi-bacteria text-info"></i> Include Hygiene Score
+                                                </label>
+                                            </div>
+                                        </div>
+                                        <div class="col-md-4">
+                                            <div class="form-check form-switch">
+                                                <input type="checkbox" wire:model="analysisTypeForm.include_sanitizer_efficiency" class="form-check-input" id="include_sanitizer_efficiency" role="switch">
+                                                <label class="form-check-label" for="include_sanitizer_efficiency">
+                                                    <i class="mdi mdi-spray text-info"></i> Include Sanitizer Efficiency
+                                                </label>
+                                            </div>
+                                        </div>
+                                    </div>
                                 </div>
                             </div>
                         </form>
@@ -371,187 +371,6 @@
         </div>
     @endif
 
-    <!-- Element Modal -->
-    @if($showElementModal)
-        <div class="modal fade show d-block" tabindex="-1" style="background-color: rgba(0,0,0,0.5);">
-            <div class="modal-dialog modal-xl">
-                <div class="modal-content">
-                    <div class="modal-header">
-                        <h5 class="modal-title">
-                            <i class="mdi mdi-{{ $editingElement ? 'pencil' : 'plus' }}"></i>
-                            {{ $editingElement ? 'Edit' : 'Create' }} Analysis Element
-                        </h5>
-                        <button type="button" class="btn-close" wire:click="closeElementModal"></button>
-                    </div>
-                    <div class="modal-body">
-                        <form wire:submit.prevent="saveElement">
-                            <div class="row">
-                                <div class="col-md-6">
-                                    <div class="form-group mb-3">
-                                        <label class="form-label">Analyte <span class="text-danger">*</span></label>
-                                        <select wire:model="elementForm.analyte_id" class="form-select modern-select @error('elementForm.analyte_id') is-invalid @enderror">
-                                            <option value="">Select Analyte</option>
-                                            @foreach($analytes as $analyte)
-                                                <option value="{{ $analyte->id }}">{{ $analyte->name }} ({{ $analyte->code }})</option>
-                                            @endforeach
-                                        </select>
-                                        @error('elementForm.analyte_id') <div class="invalid-feedback">{{ $message }}</div> @enderror
-                                    </div>
-                                </div>
-                                <div class="col-md-6">
-                                    <div class="form-group mb-3">
-                                        <label class="form-label">Method</label>
-                                        <select wire:model="elementForm.method" class="form-select modern-select">
-                                            <option value="">Select Method</option>
-                                            @foreach($methods as $method)
-                                                <option value="{{ $method->id }}">{{ $method->name }}</option>
-                                            @endforeach
-                                        </select>
-                                    </div>
-                                </div>
-                            </div>
-                            <div class="row">
-                                <div class="col-md-6">
-                                    <div class="form-group mb-3">
-                                        <label class="form-label">Equipment</label>
-                                        <select wire:model="elementForm.equipment_id" class="form-select modern-select">
-                                            <option value="">Select Equipment</option>
-                                            @foreach($equipment as $eq)
-                                                <option value="{{ $eq->id }}">{{ $eq->name }}</option>
-                                            @endforeach
-                                        </select>
-                                    </div>
-                                </div>
-                                <div class="col-md-6">
-                                    <div class="form-group mb-3">
-                                        <label class="form-label">Operator</label>
-                                        <select wire:model="elementForm.operator_id" class="form-select modern-select">
-                                            <option value="">Select Operator</option>
-                                            @foreach($operators as $operator)
-                                                <option value="{{ $operator->id }}">{{ $operator->name }}</option>
-                                            @endforeach
-                                        </select>
-                                    </div>
-                                </div>
-                            </div>
-                            <div class="row">
-                                <div class="col-md-4">
-                                    <div class="form-group mb-3">
-                                        <label class="form-label">Reporting Unit</label>
-                                        <input type="text" wire:model="elementForm.reporting_unit" class="form-control">
-                                    </div>
-                                </div>
-                                <div class="col-md-4">
-                                    <div class="form-group mb-3">
-                                        <label class="form-label">Decimal Places</label>
-                                        <input type="number" wire:model="elementForm.decimal_places" class="form-control" min="0" max="10">
-                                    </div>
-                                </div>
-                                <div class="col-md-4">
-                                    <div class="form-group mb-3">
-                                        <label class="form-label">Level</label>
-                                        <input type="number" wire:model="elementForm.level" class="form-control" min="1">
-                                    </div>
-                                </div>
-                            </div>
-                            <div class="row">
-                                <div class="col-md-4">
-                                    <div class="form-group mb-3">
-                                        <label class="form-label">LOD (Limit of Detection)</label>
-                                        <input type="number" wire:model="elementForm.lod" class="form-control" step="0.0001">
-                                    </div>
-                                </div>
-                                <div class="col-md-4">
-                                    <div class="form-group mb-3">
-                                        <label class="form-label">HOD (Limit of Quantification)</label>
-                                        <input type="number" wire:model="elementForm.hod" class="form-control" step="0.0001">
-                                    </div>
-                                </div>
-                                <div class="col-md-4">
-                                    <div class="form-group mb-3">
-                                        <label class="form-label">Significant Figures</label>
-                                        <input type="number" wire:model="elementForm.significant_figures" class="form-control" min="1" max="10">
-                                    </div>
-                                </div>
-                            </div>
-                            <div class="row">
-                                <div class="col-md-12">
-                                    <div class="form-group mb-3">
-                                        <div class="form-check form-check-inline">
-                                            <input type="checkbox" wire:model="elementForm.active" class="form-check-input" id="element_active">
-                                            <label class="form-check-label" for="element_active">Active</label>
-                                        </div>
-                                        <div class="form-check form-check-inline">
-                                            <input type="checkbox" wire:model="elementForm.non_detectable" class="form-check-input" id="non_detectable">
-                                            <label class="form-check-label" for="non_detectable">Non-detectable</label>
-                                        </div>
-                                        <div class="form-check form-check-inline">
-                                            <input type="checkbox" wire:model="elementForm.non_accredited" class="form-check-input" id="non_accredited">
-                                            <label class="form-check-label" for="non_accredited">Non-accredited</label>
-                                        </div>
-                                        <div class="form-check form-check-inline">
-                                            <input type="checkbox" wire:model="elementForm.show_on_report" class="form-check-input" id="show_on_report">
-                                            <label class="form-check-label" for="show_on_report">Show on Report</label>
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
-                            
-                            <!-- Remedy Recommendation Section -->
-                            <div class="row">
-                                <div class="col-md-12">
-                                    <div class="card bg-light">
-                                        <div class="card-body">
-                                            <h6 class="card-title text-primary">
-                                                <i class="mdi mdi-medical-bag"></i> Remedy Recommendations
-                                            </h6>
-                                            <div class="form-group mb-3">
-                                                <div class="form-check">
-                                                    <input type="checkbox" 
-                                                           wire:model="elementForm.recommend_remedies" 
-                                                           class="form-check-input" 
-                                                           id="recommend_remedies"
-                                                           wire:change="updatedElementFormRecommendRemedies">
-                                                    <label class="form-check-label" for="recommend_remedies">
-                                                        Recommend Remedies if Test Fails
-                                                    </label>
-                                                </div>
-                                            </div>
-                                            
-                                            @if($elementForm['recommend_remedies'])
-                                                <div class="form-group mb-3">
-                                                    <label class="form-label">Remedy System</label>
-                                                    <select wire:model="elementForm.remedy_header_id" 
-                                                            class="form-select modern-select @error('elementForm.remedy_header_id') is-invalid @enderror">
-                                                        <option value="">Select Remedy System</option>
-                                                        @foreach($remedyHeaders as $remedyHeader)
-                                                            <option value="{{ $remedyHeader->id }}">{{ $remedyHeader->name }}</option>
-                                                        @endforeach
-                                                    </select>
-                                                    @error('elementForm.remedy_header_id') 
-                                                        <div class="invalid-feedback">{{ $message }}</div> 
-                                                    @enderror
-                                                    <small class="form-text text-muted">
-                                                        Select the remedy system to recommend when this test fails
-                                                    </small>
-                                                </div>
-                                            @endif
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
-                        </form>
-                    </div>
-                    <div class="modal-footer">
-                        <button type="button" class="btn btn-secondary" wire:click="closeElementModal">Cancel</button>
-                        <button type="button" class="btn btn-primary" wire:click="saveElement">
-                            <i class="mdi mdi-content-save"></i> Save
-                        </button>
-                    </div>
-                </div>
-            </div>
-        </div>
-    @endif
 
     <style>
     .modal.show {
@@ -615,6 +434,73 @@
     .modern-select.is-invalid:focus {
         border-color: #dc3545;
         box-shadow: 0 0 0 0.2rem rgba(220, 53, 69, 0.25);
+    }
+    
+    /* Single-Select Searchable Dropdown Styling */
+    .searchable-input-single {
+        border: none;
+        outline: none;
+        box-shadow: none !important;
+        padding: 4px 0;
+        width: 100%;
+    }
+    
+    .searchable-input-single:focus {
+        border: none !important;
+        box-shadow: none !important;
+    }
+    
+    .single-select-container {
+        position: relative;
+        min-height: 45px;
+        border: 1px solid #ced4da;
+        border-radius: 12px;
+        padding: 8px 40px 8px 12px;
+        background: white;
+        cursor: pointer;
+        transition: all 0.3s ease;
+        display: flex;
+        align-items: center;
+    }
+    
+    .single-select-container:hover {
+        border-color: #007bff;
+        box-shadow: 0 2px 8px rgba(0, 123, 255, 0.1);
+    }
+    
+    .single-select-container:has(.searchable-input-single:focus) {
+        border-color: #007bff;
+        box-shadow: 0 0 0 0.2rem rgba(0, 123, 255, 0.25);
+    }
+    
+    .options-list {
+        padding: 8px;
+        max-height: 300px;
+        overflow-y: auto;
+    }
+    
+    .option-item {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        padding: 10px 12px;
+        border-radius: 8px;
+        cursor: pointer;
+        transition: all 0.2s ease;
+        font-size: 14px;
+    }
+    
+    .option-item:hover {
+        background: #f8f9fa;
+    }
+    
+    .option-item.selected {
+        background: rgba(0, 123, 255, 0.08);
+        font-weight: 500;
+    }
+    
+    .option-item i {
+        font-size: 18px;
     }
     </style>
 </div>

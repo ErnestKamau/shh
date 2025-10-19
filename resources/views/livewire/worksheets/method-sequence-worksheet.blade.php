@@ -619,13 +619,64 @@
                         </div>
 
                         <div class="form-group">
-                            <label class="form-label">Analyst <span class="text-danger">*</span></label>
-                            <select class="form-control" wire:model="selectedAnalystId">
-                                <option value="">Select Analyst...</option>
-                                @foreach($analysts as $analyst)
-                                    <option value="{{ $analyst->id }}">{{ $analyst->name }}</option>
-                                @endforeach
-                            </select>
+                            <label class="form-label"><i class="mdi mdi-account-circle text-primary"></i> Analyst <span class="text-danger">*</span></label>
+                            <div x-data="{
+                                open: false,
+                                search: '',
+                                selected: @entangle('selectedAnalystId').live,
+                                analysts: {{ json_encode($analysts->map(fn($a) => ['id' => $a->id, 'name' => $a->name])->values()) }},
+                                get filteredAnalysts() {
+                                    if (!this.search) return this.analysts.slice(0, 50);
+                                    return this.analysts.filter(analyst => 
+                                        analyst.name.toLowerCase().includes(this.search.toLowerCase())
+                                    );
+                                },
+                                selectAnalyst(analystId) {
+                                    this.selected = analystId;
+                                    this.open = false;
+                                    this.search = '';
+                                },
+                                getSelectedName() {
+                                    const analyst = this.analysts.find(a => a.id == this.selected);
+                                    return analyst ? analyst.name : '';
+                                }
+                            }" class="searchable-dropdown-wrapper">
+                                <div class="single-select-container" @click="open = !open">
+                                    <input 
+                                        type="text" 
+                                        x-model="search"
+                                        :placeholder="selected ? getSelectedName() : 'Search analysts...'"
+                                        @focus="open = true"
+                                        class="form-control searchable-input-single"
+                                        autocomplete="off"
+                                    >
+                                    <i class="mdi mdi-chevron-down dropdown-arrow" :class="{ 'rotated': open }"></i>
+                                </div>
+
+                                <div x-show="open" 
+                                     @click.away="open = false"
+                                     x-transition
+                                     class="dropdown-list">
+                                    <template x-if="filteredAnalysts.length > 0">
+                                        <div class="options-list">
+                                            <template x-for="analyst in filteredAnalysts" :key="analyst.id">
+                                                <div @click="selectAnalyst(analyst.id)" 
+                                                     class="option-item"
+                                                     :class="{ 'selected': selected == analyst.id }">
+                                                    <i class="mdi mdi-check-circle text-primary" x-show="selected == analyst.id"></i>
+                                                    <span x-text="analyst.name"></span>
+                                                </div>
+                                            </template>
+                                        </div>
+                                    </template>
+                                    <template x-if="filteredAnalysts.length === 0">
+                                        <div class="no-results">
+                                            <i class="mdi mdi-alert-circle-outline"></i>
+                                            <span>No analysts found</span>
+                                        </div>
+                                    </template>
+                                </div>
+                            </div>
                         </div>
 
                         <div class="form-group">
@@ -696,13 +747,64 @@
                         </div>
 
                         <div class="form-group">
-                            <label class="form-label">Analyst <span class="text-danger">*</span></label>
-                            <select class="form-control" wire:model="editRunAnalystId">
-                                <option value="">Select Analyst...</option>
-                                @foreach($analysts as $analyst)
-                                    <option value="{{ $analyst->id }}">{{ $analyst->name }}</option>
-                                    @endforeach
-                                </select>
+                            <label class="form-label"><i class="mdi mdi-account-circle text-primary"></i> Analyst <span class="text-danger">*</span></label>
+                            <div x-data="{
+                                open: false,
+                                search: '',
+                                selected: @entangle('editRunAnalystId').live,
+                                analysts: {{ json_encode($analysts->map(fn($a) => ['id' => $a->id, 'name' => $a->name])->values()) }},
+                                get filteredAnalysts() {
+                                    if (!this.search) return this.analysts.slice(0, 50);
+                                    return this.analysts.filter(analyst => 
+                                        analyst.name.toLowerCase().includes(this.search.toLowerCase())
+                                    );
+                                },
+                                selectAnalyst(analystId) {
+                                    this.selected = analystId;
+                                    this.open = false;
+                                    this.search = '';
+                                },
+                                getSelectedName() {
+                                    const analyst = this.analysts.find(a => a.id == this.selected);
+                                    return analyst ? analyst.name : '';
+                                }
+                            }" class="searchable-dropdown-wrapper">
+                                <div class="single-select-container" @click="open = !open">
+                                    <input 
+                                        type="text" 
+                                        x-model="search"
+                                        :placeholder="selected ? getSelectedName() : 'Search analysts...'"
+                                        @focus="open = true"
+                                        class="form-control searchable-input-single"
+                                        autocomplete="off"
+                                    >
+                                    <i class="mdi mdi-chevron-down dropdown-arrow" :class="{ 'rotated': open }"></i>
+                                </div>
+
+                                <div x-show="open" 
+                                     @click.away="open = false"
+                                     x-transition
+                                     class="dropdown-list">
+                                    <template x-if="filteredAnalysts.length > 0">
+                                        <div class="options-list">
+                                            <template x-for="analyst in filteredAnalysts" :key="analyst.id">
+                                                <div @click="selectAnalyst(analyst.id)" 
+                                                     class="option-item"
+                                                     :class="{ 'selected': selected == analyst.id }">
+                                                    <i class="mdi mdi-check-circle text-primary" x-show="selected == analyst.id"></i>
+                                                    <span x-text="analyst.name"></span>
+                                                </div>
+                                            </template>
+                                        </div>
+                                    </template>
+                                    <template x-if="filteredAnalysts.length === 0">
+                                        <div class="no-results">
+                                            <i class="mdi mdi-alert-circle-outline"></i>
+                                            <span>No analysts found</span>
+                                        </div>
+                                    </template>
+                                </div>
+                            </div>
                         </div>
 
                         <div class="form-group">
@@ -740,4 +842,73 @@
             }
         });
     </script>
+    
+    <style>
+    /* Single-Select Searchable Dropdown Styling */
+    .searchable-input-single {
+        border: none;
+        outline: none;
+        box-shadow: none !important;
+        padding: 4px 0;
+        width: 100%;
+    }
+    
+    .searchable-input-single:focus {
+        border: none !important;
+        box-shadow: none !important;
+    }
+    
+    .single-select-container {
+        position: relative;
+        min-height: 45px;
+        border: 1px solid #ced4da;
+        border-radius: 12px;
+        padding: 8px 40px 8px 12px;
+        background: white;
+        cursor: pointer;
+        transition: all 0.3s ease;
+        display: flex;
+        align-items: center;
+    }
+    
+    .single-select-container:hover {
+        border-color: #007bff;
+        box-shadow: 0 2px 8px rgba(0, 123, 255, 0.1);
+    }
+    
+    .single-select-container:has(.searchable-input-single:focus) {
+        border-color: #007bff;
+        box-shadow: 0 0 0 0.2rem rgba(0, 123, 255, 0.25);
+    }
+    
+    .options-list {
+        padding: 8px;
+        max-height: 300px;
+        overflow-y: auto;
+    }
+    
+    .option-item {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        padding: 10px 12px;
+        border-radius: 8px;
+        cursor: pointer;
+        transition: all 0.2s ease;
+        font-size: 14px;
+    }
+    
+    .option-item:hover {
+        background: #f8f9fa;
+    }
+    
+    .option-item.selected {
+        background: rgba(0, 123, 255, 0.08);
+        font-weight: 500;
+    }
+    
+    .option-item i {
+        font-size: 18px;
+    }
+    </style>
 </div>

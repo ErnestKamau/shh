@@ -24,7 +24,7 @@ class FormulaEvaluator
     /**
      * Execute a formula version with given inputs.
      */
-    public function execute(FormulaVersion $formulaVersion, array $inputs = [], ?int $sampleId = null, ?int $batchId = null): array
+    public function execute(FormulaVersion $formulaVersion, array $inputs = [], ?int $sampleId = null, ?int $batchId = null, ?array $lookupOverrides = null): array
     {
         $steps = $formulaVersion->formulaSteps;
         $variables = [];
@@ -36,7 +36,7 @@ class FormulaEvaluator
         ];
 
         foreach ($steps as $step) {
-            $value = $this->executeStep($step, $variables, $inputs, $sampleId, $batchId);
+            $value = $this->executeStep($step, $variables, $inputs, $sampleId, $batchId, $lookupOverrides);
             $variables[$step->variable_name] = $value;
 
             // Store in appropriate execution data category
@@ -68,7 +68,7 @@ class FormulaEvaluator
     /**
      * Execute a single formula step.
      */
-    protected function executeStep(FormulaStep $step, array $variables, array $inputs, ?int $sampleId, ?int $batchId): mixed
+    protected function executeStep(FormulaStep $step, array $variables, array $inputs, ?int $sampleId, ?int $batchId, ?array $lookupOverrides = null): mixed
     {
         switch ($step->step_type) {
             case 'input':
@@ -78,7 +78,7 @@ class FormulaEvaluator
                 return $this->evaluateExpression($step->expression, $variables, $inputs);
 
             case 'lookup':
-                return $this->executeLookup($step, $variables, $inputs, $sampleId, $batchId);
+                return $this->executeLookup($step, $variables, $inputs, $sampleId, $batchId, $lookupOverrides);
 
             default:
                 throw new Exception("Unknown step type: {$step->step_type}");
@@ -105,7 +105,7 @@ class FormulaEvaluator
     /**
      * Execute a lookup step.
      */
-    protected function executeLookup(FormulaStep $step, array $variables, array $inputs, ?int $sampleId, ?int $batchId): mixed
+    protected function executeLookup(FormulaStep $step, array $variables, array $inputs, ?int $sampleId, ?int $batchId, ?array $lookupOverrides = null): mixed
     {
         $config = $step->lookup_config;
         
@@ -113,10 +113,43 @@ class FormulaEvaluator
             throw new Exception("Lookup configuration missing for step: {$step->variable_name}");
         }
 
-        // Build lookup keys from expression or direct values
-        $keys = $this->buildLookupKeys($config, $variables, $inputs, $sampleId, $batchId);
+        // Check for overridden lookup table ID
+        $lookupTableId = $config['lookup_table_id'];
+        if ($lookupOverrides && isset($lookupOverrides[$step->id])) {
+            $lookupTableId = $lookupOverrides[$step->id];
+        }
+
+        $lookupTable = \App\Models\Formulars\LookupTable::find($lookupTableId);
         
-        return $this->lookupService->getValue($config['lookup_table_id'], $keys);
+        if (!$lookupTable) {
+            throw new Exception("Lookup table not found: {$lookupTableId}");
+        }
+
+        if ($lookupTable->isRangeBased()) {
+            // Range-based: evaluate single variable
+            $variableName = $config['range_variable'] ?? null;
+            if (!$variableName) {
+                throw new Exception("Range variable not configured for step: {$step->variable_name}");
+            }
+            
+            $inputValue = $this->evaluateExpression($variableName, $variables, $inputs);
+            $result = $this->lookupService->getRangeValue($lookupTableId, (float)$inputValue);
+            
+            if (!$result) {
+                throw new Exception("No matching range found for value: {$inputValue}");
+            }
+            
+            // Return based on configuration (value or interpretation)
+            if ($config['return_interpretation'] ?? false) {
+                return $result['interpretation'] ?? $result['value'];
+            }
+            return $result['value'];
+            
+        } else {
+            // Key-value comparison (existing logic)
+            $keys = $this->buildLookupKeys($config, $variables, $inputs, $sampleId, $batchId);
+            return $this->lookupService->getValue($lookupTableId, $keys);
+        }
     }
 
     /**

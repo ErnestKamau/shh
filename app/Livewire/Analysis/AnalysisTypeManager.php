@@ -35,7 +35,9 @@ class AnalysisTypeManager extends Component
         'lab_id' => null,
         'level' => 1,
         'active' => true,
-        'reporting_time' => null
+        'reporting_time' => null,
+        'include_hygiene_score' => false,
+        'include_sanitizer_efficiency' => false
     ];
 
     // Elements Management
@@ -191,7 +193,9 @@ class AnalysisTypeManager extends Component
             'lab_id' => $analysisType->lab_id,
             'level' => $analysisType->level,
             'active' => $analysisType->active,
-            'reporting_time' => $analysisType->reporting_time
+            'reporting_time' => $analysisType->reporting_time,
+            'include_hygiene_score' => (bool) $analysisType->include_hygiene_score,
+            'include_sanitizer_efficiency' => (bool) $analysisType->include_sanitizer_efficiency
         ];
         $this->editingAnalysisType = $id;
         $this->showAnalysisTypeModal = true;
@@ -218,6 +222,8 @@ class AnalysisTypeManager extends Component
                     'level' => $this->analysisTypeForm['level'],
                     'active' => $this->analysisTypeForm['active'],
                     'reporting_time' => $this->analysisTypeForm['reporting_time'],
+                    'include_hygiene_score' => $this->analysisTypeForm['include_hygiene_score'],
+                    'include_sanitizer_efficiency' => $this->analysisTypeForm['include_sanitizer_efficiency'],
                 ]);
                 $this->message = 'Analysis type updated successfully!';
             } else {
@@ -230,6 +236,8 @@ class AnalysisTypeManager extends Component
                     'level' => $this->analysisTypeForm['level'],
                     'active' => $this->analysisTypeForm['active'],
                     'reporting_time' => $this->analysisTypeForm['reporting_time'],
+                    'include_hygiene_score' => $this->analysisTypeForm['include_hygiene_score'],
+                    'include_sanitizer_efficiency' => $this->analysisTypeForm['include_sanitizer_efficiency'],
                     'company_id' => getUserCompany(),
                 ]);
                 $this->message = 'Analysis type created successfully!';

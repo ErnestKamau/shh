@@ -343,15 +343,70 @@
                                     </div>
                                     <div class="col-md-6">
                                         <div class="mb-3">
-                                            <label for="stepType" class="form-label">Step Type *</label>
-                                            <select wire:model.live="stepType" class="form-select modern-select @error('stepType') is-invalid @enderror" id="stepType" required>
-                                                <option value="">Select Step Type</option>
-                                                <option value="input">Input</option>
-                                                <option value="derived">Derived</option>
-                                                <option value="lookup">Lookup</option>
-                                                <option value="parameter_result">Parameter Result</option>
-                                            </select>
-                                            @error('stepType') <div class="invalid-feedback">{{ $message }}</div> @enderror
+                                            <label for="stepType" class="form-label"><i class="mdi mdi-format-list-bulleted-type text-primary"></i> Step Type *</label>
+                                            <div x-data="{
+                                                open: false,
+                                                search: '',
+                                                selected: @entangle('stepType').live,
+                                                types: [
+                                                    {value: 'input', label: 'Input'},
+                                                    {value: 'derived', label: 'Derived'},
+                                                    {value: 'lookup', label: 'Lookup'},
+                                                    {value: 'parameter_result', label: 'Parameter Result'}
+                                                ],
+                                                get filteredTypes() {
+                                                    if (!this.search) return this.types;
+                                                    return this.types.filter(type => 
+                                                        type.label.toLowerCase().includes(this.search.toLowerCase())
+                                                    );
+                                                },
+                                                selectType(value) {
+                                                    this.selected = value;
+                                                    this.open = false;
+                                                    this.search = '';
+                                                },
+                                                getSelectedLabel() {
+                                                    const type = this.types.find(t => t.value == this.selected);
+                                                    return type ? type.label : '';
+                                                }
+                                            }" class="searchable-dropdown-wrapper">
+                                                <div class="single-select-container" @click="open = !open">
+                                                    <input 
+                                                        type="text" 
+                                                        x-model="search"
+                                                        :placeholder="selected ? getSelectedLabel() : 'Search step types...'"
+                                                        @focus="open = true"
+                                                        class="form-control searchable-input-single"
+                                                        autocomplete="off"
+                                                    >
+                                                    <i class="mdi mdi-chevron-down dropdown-arrow" :class="{ 'rotated': open }"></i>
+                                                </div>
+
+                                                <div x-show="open" 
+                                                     @click.away="open = false"
+                                                     x-transition
+                                                     class="dropdown-list">
+                                                    <template x-if="filteredTypes.length > 0">
+                                                        <div class="options-list">
+                                                            <template x-for="type in filteredTypes" :key="type.value">
+                                                                <div @click="selectType(type.value)" 
+                                                                     class="option-item"
+                                                                     :class="{ 'selected': selected == type.value }">
+                                                                    <i class="mdi mdi-check-circle text-primary" x-show="selected == type.value"></i>
+                                                                    <span x-text="type.label"></span>
+                                                                </div>
+                                                            </template>
+                                                        </div>
+                                                    </template>
+                                                    <template x-if="filteredTypes.length === 0">
+                                                        <div class="no-results">
+                                                            <i class="mdi mdi-alert-circle-outline"></i>
+                                                            <span>No types found</span>
+                                                        </div>
+                                                    </template>
+                                                </div>
+                                            </div>
+                                            @error('stepType') <span class="text-danger">{{ $message }}</span> @enderror
                                         </div>
                                     </div>
                                 </div>
@@ -455,14 +510,65 @@
                                         </div>
                                         <div class="card-body">
                                             <div class="mb-3">
-                                                <label for="lookupTableId" class="form-label">Lookup Table *</label>
-                                                <select wire:model.live="lookupTableId" class="form-select modern-select @error('lookupTableId') is-invalid @enderror" id="lookupTableId" required>
-                                                    <option value="">Select a lookup table</option>
-                                                    @foreach($lookupTables as $table)
-                                                        <option value="{{ $table->id }}">{{ $table->name }}</option>
-                                                    @endforeach
-                                                </select>
-                                                @error('lookupTableId') <div class="invalid-feedback">{{ $message }}</div> @enderror
+                                                <label for="lookupTableId" class="form-label"><i class="mdi mdi-table-search text-primary"></i> Lookup Table *</label>
+                                                <div x-data="{
+                                                    open: false,
+                                                    search: '',
+                                                    selected: @entangle('lookupTableId').live,
+                                                    tables: {{ json_encode($lookupTables->map(fn($t) => ['id' => $t->id, 'name' => $t->name])->values()) }},
+                                                    get filteredTables() {
+                                                        if (!this.search) return this.tables.slice(0, 50);
+                                                        return this.tables.filter(table => 
+                                                            table.name.toLowerCase().includes(this.search.toLowerCase())
+                                                        );
+                                                    },
+                                                    selectTable(tableId) {
+                                                        this.selected = tableId;
+                                                        this.open = false;
+                                                        this.search = '';
+                                                    },
+                                                    getSelectedName() {
+                                                        const table = this.tables.find(t => t.id == this.selected);
+                                                        return table ? table.name : '';
+                                                    }
+                                                }" class="searchable-dropdown-wrapper">
+                                                    <div class="single-select-container" @click="open = !open">
+                                                        <input 
+                                                            type="text" 
+                                                            x-model="search"
+                                                            :placeholder="selected ? getSelectedName() : 'Search lookup tables...'"
+                                                            @focus="open = true"
+                                                            class="form-control searchable-input-single"
+                                                            autocomplete="off"
+                                                        >
+                                                        <i class="mdi mdi-chevron-down dropdown-arrow" :class="{ 'rotated': open }"></i>
+                                                    </div>
+
+                                                    <div x-show="open" 
+                                                         @click.away="open = false"
+                                                         x-transition
+                                                         class="dropdown-list">
+                                                        <template x-if="filteredTables.length > 0">
+                                                            <div class="options-list">
+                                                                <template x-for="table in filteredTables" :key="table.id">
+                                                                    <div @click="selectTable(table.id)" 
+                                                                         class="option-item"
+                                                                         :class="{ 'selected': selected == table.id }">
+                                                                        <i class="mdi mdi-check-circle text-primary" x-show="selected == table.id"></i>
+                                                                        <span x-text="table.name"></span>
+                                                                    </div>
+                                                                </template>
+                                                            </div>
+                                                        </template>
+                                                        <template x-if="filteredTables.length === 0">
+                                                            <div class="no-results">
+                                                                <i class="mdi mdi-alert-circle-outline"></i>
+                                                                <span>No tables found</span>
+                                                            </div>
+                                                        </template>
+                                                    </div>
+                                                </div>
+                                                @error('lookupTableId') <span class="text-danger">{{ $message }}</span> @enderror
                                             </div>
                                             
                                             @if($lookupTableId)
@@ -470,13 +576,26 @@
                                                     $selectedTable = $lookupTables->firstWhere('id', $lookupTableId);
                                                 @endphp
                                                 @if($selectedTable)
-                                                    <div class="alert alert-info">
+                                                    <div class="alert alert-{{ $selectedTable->lookup_type === 'range_based' ? 'warning' : 'info' }}">
                                                         <h6 class="alert-heading">
                                                             <i class="mdi mdi-information"></i> Table Information
                                                         </h6>
+                                                        <div class="mb-2">
+                                                            <strong>Type:</strong>
+                                                            @if($selectedTable->lookup_type === 'range_based')
+                                                                <span class="badge badge-warning">
+                                                                    <i class="mdi mdi-chart-line"></i> Range-Based
+                                                                </span>
+                                                                <br><small class="text-muted">Variable: {{ $selectedTable->range_variable_name }}</small>
+                                                            @else
+                                                                <span class="badge badge-primary">
+                                                                    <i class="mdi mdi-key"></i> Key-Value Comparison
+                                                                </span>
+                                                            @endif
+                                                        </div>
                                                         <div class="row">
                                                             <div class="col-md-6">
-                                                                <strong>Key Columns:</strong>
+                                                                <strong>{{ $selectedTable->lookup_type === 'range_based' ? 'Range Keys:' : 'Key Columns:' }}</strong>
                                                                 @foreach($selectedTable->key_columns as $column)
                                                                     <span class="badge badge-secondary me-1">{{ $column }}</span>
                                                                 @endforeach
@@ -484,26 +603,64 @@
                                                             <div class="col-md-6">
                                                                 <strong>Value Column:</strong>
                                                                 <span class="badge badge-primary">{{ $selectedTable->value_column }}</span>
+                                                                @if($selectedTable->value_interpretation_column)
+                                                                    <br><small>+ {{ $selectedTable->value_interpretation_column }}</small>
+                                                                @endif
                                                             </div>
                                                         </div>
-                                                        @if($selectedTable->key_label || $selectedTable->value_label)
-                                                            <div class="row mt-2">
-                                                                <div class="col-md-6">
-                                                                    @if($selectedTable->key_label)
-                                                                        <strong>Key Label:</strong> {{ $selectedTable->key_label }}
-                                                                    @endif
-                                                                </div>
-                                                                <div class="col-md-6">
-                                                                    @if($selectedTable->value_label)
-                                                                        <strong>Value Label:</strong> {{ $selectedTable->value_label }}
-                                                                    @endif
-                                                                </div>
-                                                            </div>
-                                                        @endif
                                                     </div>
                                                 @endif
                                                 
-                                                @if(!empty($lookupConfig))
+                                                @if($selectedTable && $selectedTable->lookup_type === 'range_based')
+                                                    <!-- Range-Based Configuration -->
+                                                    <div class="alert alert-warning mb-3">
+                                                        <i class="mdi mdi-information"></i>
+                                                        <strong>Range-Based Lookup:</strong> Select which variable to check against the ranges.
+                                                    </div>
+                                                    
+                                                    <div class="mb-3">
+                                                        <label class="form-label fw-bold">Variable to Check *</label>
+                                                        <select wire:model="lookupConfig.range_variable" class="form-select modern-select">
+                                                            <option value="">Select Variable...</option>
+                                                            @foreach($availableVariables as $varName => $varData)
+                                                                <option value="{{ $varName }}">{{ $varData['label'] }} ({{ $varName }})</option>
+                                                            @endforeach
+                                                        </select>
+                                                        <small class="text-muted">
+                                                            Select which formula variable to check against ranges in "{{ $selectedTable->name }}"
+                                                            <br>(Expected range variable: <code>{{ $selectedTable->range_variable_name }}</code>)
+                                                        </small>
+                                                    </div>
+                                                    
+                                                    @if($selectedTable->value_interpretation_column)
+                                                        <div class="mb-3">
+                                                            <div class="form-check">
+                                                                <input type="checkbox" 
+                                                                       wire:model="lookupConfig.return_interpretation" 
+                                                                       class="form-check-input" 
+                                                                       id="returnInterpretation">
+                                                                <label class="form-check-label" for="returnInterpretation">
+                                                                    Return Interpretation Text
+                                                                    <span class="badge badge-info">{{ $selectedTable->value_interpretation_column }}</span>
+                                                                </label>
+                                                            </div>
+                                                            <small class="text-muted">
+                                                                If checked, returns the text interpretation instead of the numeric value
+                                                            </small>
+                                                        </div>
+                                                    @endif
+                                                    
+                                                    <!-- Preview -->
+                                                    <div class="card bg-light">
+                                                        <div class="card-body">
+                                                            <h6 class="text-muted">Preview</h6>
+                                                            <code>
+                                                                IF {{ $lookupConfig['range_variable'] ?? 'variable' }} is in range → 
+                                                                Return {{ ($lookupConfig['return_interpretation'] ?? false) ? 'interpretation' : 'value' }}
+                                                            </code>
+                                                        </div>
+                                                    </div>
+                                                @elseif(!empty($lookupConfig))
                                                     <div class="mb-3">
                                                         <label class="form-label">Key Configuration</label>
                                                         <div class="card bg-white">
@@ -564,14 +721,66 @@
                                         </div>
                                         <div class="card-body">
                                             <div class="mb-3">
-                                                <label for="analyteId" class="form-label">Select Analyte *</label>
-                                                <select wire:model="analyteId" class="form-select modern-select @error('analyteId') is-invalid @enderror" id="analyteId" required>
-                                                    <option value="">Select an analyte</option>
-                                                    @foreach($analytes as $analyte)
-                                                        <option value="{{ $analyte->id }}">{{ $analyte->name }} ({{ $analyte->code }})</option>
-                                                    @endforeach
-                                                </select>
-                                                @error('analyteId') <div class="invalid-feedback">{{ $message }}</div> @enderror
+                                                <label for="analyteId" class="form-label"><i class="mdi mdi-flask text-primary"></i> Select Analyte *</label>
+                                                <div x-data="{
+                                                    open: false,
+                                                    search: '',
+                                                    selected: @entangle('analyteId').live,
+                                                    analytes: {{ json_encode($analytes->map(fn($a) => ['id' => $a->id, 'name' => $a->name, 'code' => $a->code])->values()) }},
+                                                    get filteredAnalytes() {
+                                                        if (!this.search) return this.analytes.slice(0, 50);
+                                                        return this.analytes.filter(analyte => 
+                                                            analyte.name.toLowerCase().includes(this.search.toLowerCase()) ||
+                                                            analyte.code.toLowerCase().includes(this.search.toLowerCase())
+                                                        );
+                                                    },
+                                                    selectAnalyte(analyteId) {
+                                                        this.selected = analyteId;
+                                                        this.open = false;
+                                                        this.search = '';
+                                                    },
+                                                    getSelectedLabel() {
+                                                        const analyte = this.analytes.find(a => a.id == this.selected);
+                                                        return analyte ? `${analyte.name} (${analyte.code})` : '';
+                                                    }
+                                                }" class="searchable-dropdown-wrapper">
+                                                    <div class="single-select-container" @click="open = !open">
+                                                        <input 
+                                                            type="text" 
+                                                            x-model="search"
+                                                            :placeholder="selected ? getSelectedLabel() : 'Search analytes...'"
+                                                            @focus="open = true"
+                                                            class="form-control searchable-input-single"
+                                                            autocomplete="off"
+                                                        >
+                                                        <i class="mdi mdi-chevron-down dropdown-arrow" :class="{ 'rotated': open }"></i>
+                                                    </div>
+
+                                                    <div x-show="open" 
+                                                         @click.away="open = false"
+                                                         x-transition
+                                                         class="dropdown-list">
+                                                        <template x-if="filteredAnalytes.length > 0">
+                                                            <div class="options-list">
+                                                                <template x-for="analyte in filteredAnalytes" :key="analyte.id">
+                                                                    <div @click="selectAnalyte(analyte.id)" 
+                                                                         class="option-item"
+                                                                         :class="{ 'selected': selected == analyte.id }">
+                                                                        <i class="mdi mdi-check-circle text-primary" x-show="selected == analyte.id"></i>
+                                                                        <span x-text="`${analyte.name} (${analyte.code})`"></span>
+                                                                    </div>
+                                                                </template>
+                                                            </div>
+                                                        </template>
+                                                        <template x-if="filteredAnalytes.length === 0">
+                                                            <div class="no-results">
+                                                                <i class="mdi mdi-alert-circle-outline"></i>
+                                                                <span>No analytes found</span>
+                                                            </div>
+                                                        </template>
+                                                    </div>
+                                                </div>
+                                                @error('analyteId') <span class="text-danger">{{ $message }}</span> @enderror
                                             </div>
                                         </div>
                                     </div>
@@ -634,15 +843,70 @@
                             </div>
                             <div class="col-md-6">
                                 <div class="mb-3">
-                                    <label for="editStepType" class="form-label">Step Type *</label>
-                                    <select wire:model.live="stepType" class="form-select modern-select @error('stepType') is-invalid @enderror" id="editStepType" required>
-                                        <option value="">Select Step Type</option>
-                                        <option value="input">Input</option>
-                                        <option value="derived">Derived</option>
-                                        <option value="lookup">Lookup</option>
-                                        <option value="parameter_result">Parameter Result</option>
-                                    </select>
-                                    @error('stepType') <div class="invalid-feedback">{{ $message }}</div> @enderror
+                                    <label for="editStepType" class="form-label"><i class="mdi mdi-format-list-bulleted-type text-primary"></i> Step Type *</label>
+                                    <div x-data="{
+                                        open: false,
+                                        search: '',
+                                        selected: @entangle('stepType').live,
+                                        types: [
+                                            {value: 'input', label: 'Input'},
+                                            {value: 'derived', label: 'Derived'},
+                                            {value: 'lookup', label: 'Lookup'},
+                                            {value: 'parameter_result', label: 'Parameter Result'}
+                                        ],
+                                        get filteredTypes() {
+                                            if (!this.search) return this.types;
+                                            return this.types.filter(type => 
+                                                type.label.toLowerCase().includes(this.search.toLowerCase())
+                                            );
+                                        },
+                                        selectType(value) {
+                                            this.selected = value;
+                                            this.open = false;
+                                            this.search = '';
+                                        },
+                                        getSelectedLabel() {
+                                            const type = this.types.find(t => t.value == this.selected);
+                                            return type ? type.label : '';
+                                        }
+                                    }" class="searchable-dropdown-wrapper">
+                                        <div class="single-select-container" @click="open = !open">
+                                            <input 
+                                                type="text" 
+                                                x-model="search"
+                                                :placeholder="selected ? getSelectedLabel() : 'Search step types...'"
+                                                @focus="open = true"
+                                                class="form-control searchable-input-single"
+                                                autocomplete="off"
+                                            >
+                                            <i class="mdi mdi-chevron-down dropdown-arrow" :class="{ 'rotated': open }"></i>
+                                        </div>
+
+                                        <div x-show="open" 
+                                             @click.away="open = false"
+                                             x-transition
+                                             class="dropdown-list">
+                                            <template x-if="filteredTypes.length > 0">
+                                                <div class="options-list">
+                                                    <template x-for="type in filteredTypes" :key="type.value">
+                                                        <div @click="selectType(type.value)" 
+                                                             class="option-item"
+                                                             :class="{ 'selected': selected == type.value }">
+                                                            <i class="mdi mdi-check-circle text-primary" x-show="selected == type.value"></i>
+                                                            <span x-text="type.label"></span>
+                                                        </div>
+                                                    </template>
+                                                </div>
+                                            </template>
+                                            <template x-if="filteredTypes.length === 0">
+                                                <div class="no-results">
+                                                    <i class="mdi mdi-alert-circle-outline"></i>
+                                                    <span>No types found</span>
+                                                </div>
+                                            </template>
+                                        </div>
+                                    </div>
+                                    @error('stepType') <span class="text-danger">{{ $message }}</span> @enderror
                                 </div>
                             </div>
                         </div>
@@ -761,13 +1025,26 @@
                                             $selectedTable = $lookupTables->firstWhere('id', $lookupTableId);
                                         @endphp
                                         @if($selectedTable)
-                                            <div class="alert alert-info">
+                                            <div class="alert alert-{{ $selectedTable->lookup_type === 'range_based' ? 'warning' : 'info' }}">
                                                 <h6 class="alert-heading">
                                                     <i class="mdi mdi-information"></i> Table Information
                                                 </h6>
+                                                <div class="mb-2">
+                                                    <strong>Type:</strong>
+                                                    @if($selectedTable->lookup_type === 'range_based')
+                                                        <span class="badge badge-warning">
+                                                            <i class="mdi mdi-chart-line"></i> Range-Based
+                                                        </span>
+                                                        <br><small class="text-muted">Variable: {{ $selectedTable->range_variable_name }}</small>
+                                                    @else
+                                                        <span class="badge badge-primary">
+                                                            <i class="mdi mdi-key"></i> Key-Value Comparison
+                                                        </span>
+                                                    @endif
+                                                </div>
                                                 <div class="row">
                                                     <div class="col-md-6">
-                                                        <strong>Key Columns:</strong>
+                                                        <strong>{{ $selectedTable->lookup_type === 'range_based' ? 'Range Keys:' : 'Key Columns:' }}</strong>
                                                         @foreach($selectedTable->key_columns as $column)
                                                             <span class="badge badge-secondary me-1">{{ $column }}</span>
                                                         @endforeach
@@ -775,26 +1052,64 @@
                                                     <div class="col-md-6">
                                                         <strong>Value Column:</strong>
                                                         <span class="badge badge-primary">{{ $selectedTable->value_column }}</span>
+                                                        @if($selectedTable->value_interpretation_column)
+                                                            <br><small>+ {{ $selectedTable->value_interpretation_column }}</small>
+                                                        @endif
                                                     </div>
                                                 </div>
-                                                @if($selectedTable->key_label || $selectedTable->value_label)
-                                                    <div class="row mt-2">
-                                                        <div class="col-md-6">
-                                                            @if($selectedTable->key_label)
-                                                                <strong>Key Label:</strong> {{ $selectedTable->key_label }}
-                                                            @endif
-                                                        </div>
-                                                        <div class="col-md-6">
-                                                            @if($selectedTable->value_label)
-                                                                <strong>Value Label:</strong> {{ $selectedTable->value_label }}
-                                                            @endif
-                                                        </div>
-                                                    </div>
-                                                @endif
                                             </div>
                                         @endif
                                         
-                                        @if(!empty($lookupConfig))
+                                        @if($selectedTable && $selectedTable->lookup_type === 'range_based')
+                                            <!-- Range-Based Configuration -->
+                                            <div class="alert alert-warning mb-3">
+                                                <i class="mdi mdi-information"></i>
+                                                <strong>Range-Based Lookup:</strong> Select which variable to check against the ranges.
+                                            </div>
+                                            
+                                            <div class="mb-3">
+                                                <label class="form-label fw-bold">Variable to Check *</label>
+                                                <select wire:model="lookupConfig.range_variable" class="form-select modern-select">
+                                                    <option value="">Select Variable...</option>
+                                                    @foreach($availableVariables as $varName => $varData)
+                                                        <option value="{{ $varName }}">{{ $varData['label'] }} ({{ $varName }})</option>
+                                                    @endforeach
+                                                </select>
+                                                <small class="text-muted">
+                                                    Select which formula variable to check against ranges in "{{ $selectedTable->name }}"
+                                                    <br>(Expected range variable: <code>{{ $selectedTable->range_variable_name }}</code>)
+                                                </small>
+                                            </div>
+                                            
+                                            @if($selectedTable->value_interpretation_column)
+                                                <div class="mb-3">
+                                                    <div class="form-check">
+                                                        <input type="checkbox" 
+                                                               wire:model="lookupConfig.return_interpretation" 
+                                                               class="form-check-input" 
+                                                               id="editReturnInterpretation">
+                                                        <label class="form-check-label" for="editReturnInterpretation">
+                                                            Return Interpretation Text
+                                                            <span class="badge badge-info">{{ $selectedTable->value_interpretation_column }}</span>
+                                                        </label>
+                                                    </div>
+                                                    <small class="text-muted">
+                                                        If checked, returns the text interpretation instead of the numeric value
+                                                    </small>
+                                                </div>
+                                            @endif
+                                            
+                                            <!-- Preview -->
+                                            <div class="card bg-light">
+                                                <div class="card-body">
+                                                    <h6 class="text-muted">Preview</h6>
+                                                    <code>
+                                                        IF {{ $lookupConfig['range_variable'] ?? 'variable' }} is in range → 
+                                                        Return {{ ($lookupConfig['return_interpretation'] ?? false) ? 'interpretation' : 'value' }}
+                                                    </code>
+                                                </div>
+                                            </div>
+                                        @elseif(!empty($lookupConfig))
                                             <div class="mb-3">
                                                 <label class="form-label">Key Configuration</label>
                                                 <div class="card bg-white">
@@ -2366,4 +2681,73 @@
         }
     });
     </script>
+    
+    <style>
+    /* Single-Select Searchable Dropdown Styling */
+    .searchable-input-single {
+        border: none;
+        outline: none;
+        box-shadow: none !important;
+        padding: 4px 0;
+        width: 100%;
+    }
+    
+    .searchable-input-single:focus {
+        border: none !important;
+        box-shadow: none !important;
+    }
+    
+    .single-select-container {
+        position: relative;
+        min-height: 45px;
+        border: 1px solid #ced4da;
+        border-radius: 12px;
+        padding: 8px 40px 8px 12px;
+        background: white;
+        cursor: pointer;
+        transition: all 0.3s ease;
+        display: flex;
+        align-items: center;
+    }
+    
+    .single-select-container:hover {
+        border-color: #007bff;
+        box-shadow: 0 2px 8px rgba(0, 123, 255, 0.1);
+    }
+    
+    .single-select-container:has(.searchable-input-single:focus) {
+        border-color: #007bff;
+        box-shadow: 0 0 0 0.2rem rgba(0, 123, 255, 0.25);
+    }
+    
+    .options-list {
+        padding: 8px;
+        max-height: 300px;
+        overflow-y: auto;
+    }
+    
+    .option-item {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        padding: 10px 12px;
+        border-radius: 8px;
+        cursor: pointer;
+        transition: all 0.2s ease;
+        font-size: 14px;
+    }
+    
+    .option-item:hover {
+        background: #f8f9fa;
+    }
+    
+    .option-item.selected {
+        background: rgba(0, 123, 255, 0.08);
+        font-weight: 500;
+    }
+    
+    .option-item i {
+        font-size: 18px;
+    }
+    </style>
 </div>

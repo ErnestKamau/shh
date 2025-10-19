@@ -116,9 +116,7 @@ Route::get('/lab/{labid?}/analysis-types', 'AnalysisTypeController@index')->name
 Route::post('/labs', 'LabController@add')->name('add-labs')->middleware('haspermission:Laboratory.components.Labs.Add');
 Route::post('/lab/{id}', 'LabController@edit')->name('edit-lab')->middleware('haspermission:Laboratory.components.Labs.Edit');
 
-Route::get('/analytes', 'AnalyteController@index')->name('analytes')->middleware('haspermission:Laboratory.components.Analytes.View');
-Route::post('/analytes', 'AnalyteController@add')->name('add-analytes')->middleware('haspermission:Laboratory.components.Analytes.Add');
-Route::post('/analyte/{id}', 'AnalyteController@edit')->name('edit-analyte')->middleware('haspermission:Laboratory.components.Analytes.Edit');
+Route::get('/analytes', [\App\Http\Controllers\LivewireControllers\LabAppController::class, 'analytes'])->name('analytes')->middleware('haspermission:Laboratory.components.Analytes.View');
 
 Route::get('/sample-types', 'SampleTypeController@index')->name('sample-types')->middleware('haspermission:Laboratory.components.Sample-Types.View');
 Route::get('/sample-type/{id}', 'SampleTypeController@show')->name('sample-type');
@@ -215,10 +213,14 @@ Route::post('/analysis-element/{id}', 'AnalysisElementsController@edit')->name('
 Route::get('/move-analysis-analyte/{direction}/{analysis}/{element}', 'AnalysisElementsController@move_analysis_analyte')->name('move-analysis-analyte');
 Route::post('/delete-Analysis-Element', 'AnalysisElementsController@deleteAnalysisElement')->name('deleteAnalysisElement');
 
-Route::get('/analysis-methods', 'AnalysisMethodController@index')->name('analysis-methods')->middleware('haspermission:Laboratory.components.Methods.View');
+Route::get('/analysis-methods', function() {
+    return view('livewire.lab.method-manager-page');
+})->name('analysis-methods')->middleware('haspermission:Laboratory.components.Methods.View');
 Route::post('/analysis-methods', 'AnalysisMethodController@add')->name('add-analysis-methods')->middleware('haspermission:Laboratory.components.Methods.Add');
 Route::post('/analysis-method/edit', 'AnalysisMethodController@edit')->name('edit-analysis-method')->middleware('haspermission:Laboratory.components.Methods.Edit');
-Route::get('/analysis-method/{id}', 'AnalysisMethodController@show')->name('analysis-method');
+Route::get('/analysis-method/{id}', function($id) {
+    return view('livewire.lab.method-detail-page', ['methodId' => (int)$id]);
+})->name('analysis-method');
 
 Route::post('/check_rft_no', 'SampleWorkFlowController@check_rft_no')->name('check_rft_no');
 Route::post('/reject-approval-request', 'SampleWorkFlowController@return_batch_reception')->name('return_batch_reception');

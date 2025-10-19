@@ -11,7 +11,8 @@ class AnalysisType extends Model implements Auditable
   protected $fillable  = [
     'name', 'code', 'description', 'sample_type_id', 'lab_id', 'company_id', 
     'active', 'level', 'reporting_time', 'short_name', 'lab_section_id', 
-    'brand_id', 'is_pesticide', 'zoho_id', 'product_type', 'result_expo'
+    'brand_id', 'is_pesticide', 'zoho_id', 'product_type', 'result_expo',
+    'include_hygiene_score', 'include_sanitizer_efficiency'
   ];
   protected $appends = ['labsectionname'];
   public function lab(){

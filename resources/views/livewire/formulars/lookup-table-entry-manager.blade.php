@@ -4,26 +4,39 @@
         <div class="col-12">
             <div class="card shadow-sm border-0" style="border-radius: 15px;">
                 <div class="card-body p-4">
-                    <div class="d-flex justify-content-between align-items-center">
+                    <div class="d-flex justify-content-between align-items-center-">
                         <div>
-                            <h2 class="mb-0">
+                            <h4 class="mb-0">
                                 <i class="mdi mdi-table-edit text-info"></i>
                                 Manage Entries: {{ $lookupTable->name }}
-                            </h2>
+                            </h4>
                             <p class="text-muted mb-0">{{ $lookupTable->description }}</p>
                             <div class="mt-2">
+                                @if($lookupTable->lookup_type === 'range_based')
+                                    <span class="badge badge-warning me-1">
+                                        <i class="mdi mdi-chart-line"></i> Range-Based
+                                    </span>
+                                    <span class="badge badge-secondary me-1">Variable: {{ $lookupTable->range_variable_name }}</span>
+                                @else
+                                    <span class="badge badge-primary me-1">
+                                        <i class="mdi mdi-key"></i> Key-Value
+                                    </span>
                                 <span class="badge badge-secondary me-1">Keys: {{ implode(', ', $lookupTable->key_columns) }}</span>
+                                @endif
                                 <span class="badge badge-primary">Value: {{ $lookupTable->value_column }}</span>
+                                @if($lookupTable->value_interpretation_column)
+                                    <span class="badge badge-info">Interpretation: {{ $lookupTable->value_interpretation_column }}</span>
+                                @endif
                             </div>
                         </div>
                         <div>
-                            <a href="{{ route('formulars.lookup-tables') }}" class="btn btn-outline-secondary me-2">
+                            <a href="{{ route('formulars.lookup-tables') }}" class="btn btn-sm btn-outline-secondary me-2">
                                 <i class="mdi mdi-arrow-left"></i> Back
                             </a>
-                            <button wire:click="openImportModal" class="btn btn-info me-2">
+                            <button wire:click="openImportModal" class="btn btn-sm btn-info me-2">
                                 <i class="mdi mdi-upload"></i> Bulk Import
                             </button>
-                            <button wire:click="showCreateEntryModal" class="btn btn-success">
+                            <button wire:click="showCreateEntryModal" class="btn btn-sm btn-success">
                                 <i class="mdi mdi-plus"></i> Add Entry
                             </button>
                         </div>
@@ -89,10 +102,18 @@
                                 <thead style="background-color: rgba(0, 0, 0, .03);">
                                     <tr>
                                         <th style="width: 60px;">#</th>
+                                        @if($lookupTable->lookup_type === 'range_based')
+                                            <th>Range (Low - High)</th>
+                                            <th>{{ ucfirst($lookupTable->value_column) }}</th>
+                                            @if($lookupTable->value_interpretation_column)
+                                                <th>{{ ucfirst($lookupTable->value_interpretation_column) }}</th>
+                                            @endif
+                                        @else
                                         @foreach($lookupTable->key_columns as $keyColumn)
                                             <th>{{ ucfirst($keyColumn) }}</th>
                                         @endforeach
                                         <th>{{ ucfirst($lookupTable->value_column) }}</th>
+                                        @endif
                                         <th>Created</th>
                                         <th style="width: 150px;">Actions</th>
                                     </tr>
@@ -103,11 +124,25 @@
                                             $keys = is_array($entry->keys) ? $entry->keys : json_decode($entry->keys, true);
                                         @endphp
                                         <tr>
-                                            <td>{{ $entry->id }}</td>
+                                            <td>{{ $loop->iteration }}</td>
+                                            @if($lookupTable->lookup_type === 'range_based')
+                                                <td>
+                                                    <span class="">
+                                                        {{ $keys['low'] ?? 'N/A' }} - {{ $keys['high'] ?? '∞' }}
+                                                    </span>
+                                                </td>
+                                                <td><strong>{{ $entry->value }}</strong></td>
+                                                @if($lookupTable->value_interpretation_column)
+                                                    <td>
+                                                        <span class="badge p-2 badge-pill badge-info">{{ $keys['value_interpretation'] ?? '-' }}</span>
+                                                    </td>
+                                                @endif
+                                            @else
                                             @foreach($lookupTable->key_columns as $keyColumn)
                                                 <td><code>{{ $keys[$keyColumn] ?? 'N/A' }}</code></td>
                                             @endforeach
                                             <td><strong>{{ $entry->value }}</strong></td>
+                                            @endif
                                             <td><small class="text-muted">{{ $entry->created_at->format('M d, Y') }}</small></td>
                                             <td>
                                                 <div class="btn-group" role="group">
@@ -162,7 +197,89 @@
                 </div>
                 <div class="modal-body">
                     <form wire:submit="createEntry">
-                        @foreach($lookupTable->key_columns as $keyColumn)
+                        @if($lookupTable->lookup_type === 'range_based')
+                            <!-- Range-based entry form -->
+                            <div class="row">
+                                <div class="col-md-6">
+                                    <div class="mb-3">
+                                        <label for="rangeLow" class="form-label">Low (Minimum) *</label>
+                                        <input type="number" 
+                                               step="any"
+                                               wire:model="rangeLow" 
+                                               class="form-control" 
+                                               id="rangeLow" 
+                                               required>
+                                        @error('rangeLow') <span class="text-danger">{{ $message }}</span> @enderror
+                                    </div>
+                                </div>
+                                <div class="col-md-6">
+                                    <div class="mb-3">
+                                        <label for="rangeHigh" class="form-label">
+                                            High (Maximum) 
+                                            @if($isOpenEnded)
+                                                <span class="badge badge-warning">Open-ended</span>
+                                            @else
+                                                *
+                                            @endif
+                                        </label>
+                                        <input type="number" 
+                                               step="any"
+                                               wire:model="rangeHigh" 
+                                               class="form-control" 
+                                               id="rangeHigh" 
+                                               :disabled="$isOpenEnded"
+                                               :required="!$isOpenEnded">
+                                        @error('rangeHigh') <span class="text-danger">{{ $message }}</span> @enderror
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <div class="mb-3">
+                                <div class="form-check">
+                                    <input type="checkbox" 
+                                           wire:model.live="isOpenEnded" 
+                                           class="form-check-input" 
+                                           id="isOpenEnded">
+                                    <label class="form-check-label" for="isOpenEnded">
+                                        Open-ended range (all values from Low and above)
+                                    </label>
+                                </div>
+                            </div>
+                            
+                            <div class="mb-3">
+                                <label for="entryValue" class="form-label">{{ ucfirst($lookupTable->value_column) }} *</label>
+                                <input type="text" wire:model="entryValue" class="form-control" id="entryValue" required>
+                                @error('entryValue') <span class="text-danger">{{ $message }}</span> @enderror
+                            </div>
+                            
+                            @if($lookupTable->value_interpretation_column)
+                                <div class="mb-3">
+                                    <label for="valueInterpretation" class="form-label">{{ ucfirst($lookupTable->value_interpretation_column) }}</label>
+                                    <input type="text" 
+                                           wire:model="valueInterpretation" 
+                                           class="form-control" 
+                                           id="valueInterpretation"
+                                           placeholder="e.g., Excellent, High Risk, Pass">
+                                    @error('valueInterpretation') <span class="text-danger">{{ $message }}</span> @enderror
+                                    <small class="text-muted">Optional text interpretation of the value</small>
+                                </div>
+                            @endif
+                            
+                            <!-- Preview -->
+                            <div class="alert alert-info">
+                                <strong>Preview:</strong> 
+                                @if($isOpenEnded)
+                                    Values {{ $rangeLow }}+ → Returns <code>{{ $entryValue ?: 'value' }}</code>
+                                @else
+                                    Values {{ $rangeLow }} to {{ $rangeHigh }} → Returns <code>{{ $entryValue ?: 'value' }}</code>
+                                @endif
+                                @if($valueInterpretation)
+                                    ({{ $valueInterpretation }})
+                                @endif
+                            </div>
+                        @else
+                            <!-- Key-value entry form -->
+                            @foreach($lookupTable->key_columns as $keyColumn)
                             <div class="mb-3">
                                 <label for="key_{{ $keyColumn }}" class="form-label">{{ ucfirst($keyColumn) }} *</label>
                                 <input type="text" 
@@ -178,6 +295,7 @@
                             <input type="text" wire:model="entryValue" class="form-control" id="entryValue" required>
                             @error('entryValue') <span class="text-danger">{{ $message }}</span> @enderror
                         </div>
+                        @endif
                     </form>
                 </div>
                 <div class="modal-footer">
@@ -203,7 +321,89 @@
                 </div>
                 <div class="modal-body">
                     <form wire:submit="updateEntry">
-                        @foreach($lookupTable->key_columns as $keyColumn)
+                        @if($lookupTable->lookup_type === 'range_based')
+                            <!-- Range-based entry form -->
+                            <div class="row">
+                                <div class="col-md-6">
+                                    <div class="mb-3">
+                                        <label for="editRangeLow" class="form-label">Low (Minimum) *</label>
+                                        <input type="number" 
+                                               step="any"
+                                               wire:model="rangeLow" 
+                                               class="form-control" 
+                                               id="editRangeLow" 
+                                               required>
+                                        @error('rangeLow') <span class="text-danger">{{ $message }}</span> @enderror
+                                    </div>
+                                </div>
+                                <div class="col-md-6">
+                                    <div class="mb-3">
+                                        <label for="editRangeHigh" class="form-label">
+                                            High (Maximum) 
+                                            @if($isOpenEnded)
+                                                <span class="badge badge-warning">Open-ended</span>
+                                            @else
+                                                *
+                                            @endif
+                                        </label>
+                                        <input type="number" 
+                                               step="any"
+                                               wire:model="rangeHigh" 
+                                               class="form-control" 
+                                               id="editRangeHigh" 
+                                               :disabled="$isOpenEnded"
+                                               :required="!$isOpenEnded">
+                                        @error('rangeHigh') <span class="text-danger">{{ $message }}</span> @enderror
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <div class="mb-3">
+                                <div class="form-check">
+                                    <input type="checkbox" 
+                                           wire:model.live="isOpenEnded" 
+                                           class="form-check-input" 
+                                           id="editIsOpenEnded">
+                                    <label class="form-check-label" for="editIsOpenEnded">
+                                        Open-ended range (all values from Low and above)
+                                    </label>
+                                </div>
+                            </div>
+                            
+                            <div class="mb-3">
+                                <label for="editEntryValue" class="form-label">{{ ucfirst($lookupTable->value_column) }} *</label>
+                                <input type="text" wire:model="entryValue" class="form-control" id="editEntryValue" required>
+                                @error('entryValue') <span class="text-danger">{{ $message }}</span> @enderror
+                            </div>
+                            
+                            @if($lookupTable->value_interpretation_column)
+                                <div class="mb-3">
+                                    <label for="editValueInterpretation" class="form-label">{{ ucfirst($lookupTable->value_interpretation_column) }}</label>
+                                    <input type="text" 
+                                           wire:model="valueInterpretation" 
+                                           class="form-control" 
+                                           id="editValueInterpretation"
+                                           placeholder="e.g., Excellent, High Risk, Pass">
+                                    @error('valueInterpretation') <span class="text-danger">{{ $message }}</span> @enderror
+                                    <small class="text-muted">Optional text interpretation of the value</small>
+                                </div>
+                            @endif
+                            
+                            <!-- Preview -->
+                            <div class="alert alert-info">
+                                <strong>Preview:</strong> 
+                                @if($isOpenEnded)
+                                    Values {{ $rangeLow }}+ → Returns <code>{{ $entryValue ?: 'value' }}</code>
+                                @else
+                                    Values {{ $rangeLow }} to {{ $rangeHigh }} → Returns <code>{{ $entryValue ?: 'value' }}</code>
+                                @endif
+                                @if($valueInterpretation)
+                                    ({{ $valueInterpretation }})
+                                @endif
+                            </div>
+                        @else
+                            <!-- Key-value entry form -->
+                            @foreach($lookupTable->key_columns as $keyColumn)
                             <div class="mb-3">
                                 <label for="edit_key_{{ $keyColumn }}" class="form-label">{{ ucfirst($keyColumn) }} *</label>
                                 <input type="text" 
@@ -219,6 +419,7 @@
                             <input type="text" wire:model="entryValue" class="form-control" id="editEntryValue" required>
                             @error('entryValue') <span class="text-danger">{{ $message }}</span> @enderror
                         </div>
+                        @endif
                     </form>
                 </div>
                 <div class="modal-footer">

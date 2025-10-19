@@ -13,6 +13,7 @@ use App\Models\RatingHeader;
  * 
  * Handles all Livewire-based lab management views including:
  * - Sample Types Management
+ * - Analytes Management
  * - Remedies Management
  * - Analysis Types Management
  * - Analysis Elements Management
@@ -27,6 +28,17 @@ class LabAppController extends Controller
         return view('livewire.layout.lab-app', [
             'componentType' => 'sample-types',
             'pageTitle' => 'Sample Types Management'
+        ]);
+    }
+
+    /**
+     * Display the analytes management page.
+     */
+    public function analytes()
+    {
+        return view('livewire.layout.lab-app', [
+            'componentType' => 'analytes',
+            'pageTitle' => 'Analytes Management'
         ]);
     }
 

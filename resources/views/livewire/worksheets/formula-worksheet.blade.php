@@ -142,11 +142,33 @@
                             <!-- Lookup Steps -->
                             @foreach($formulaSteps->where('step_type', 'lookup') as $step)
                                 <td>
-                                    <input type="text" 
-                                           class="form-control form-control-sm bg-light" 
-                                           value="{{ $wsData['steps'][$step->id] ?? '' }}"
-                                           readonly
-                                           placeholder="Lookup">
+                                    <div class="d-flex align-items-center">
+                                        <input type="text" 
+                                               class="form-control form-control-sm bg-light flex-grow-1" 
+                                               value="{{ $wsData['steps'][$step->id] ?? '' }}"
+                                               readonly
+                                               placeholder="Lookup">
+                                        <button type="button" 
+                                                class="btn btn-sm btn-outline-secondary ml-1" 
+                                                wire:click="openChangeLookupModal({{ $captured->id }}, {{ $step->id }})"
+                                                title="Change Lookup Table">
+                                            @if(isset($wsData['lookup_overrides'][$step->id]))
+                                                <i class="mdi mdi-swap-horizontal text-warning"></i>
+                                            @else
+                                                <i class="mdi mdi-swap-horizontal"></i>
+                                            @endif
+                                        </button>
+                                    </div>
+                                    @if(isset($wsData['lookup_overrides'][$step->id]))
+                                        @php
+                                            $currentLookup = $this->getCurrentLookupTable($captured->id, $step->id);
+                                        @endphp
+                                        @if($currentLookup)
+                                            <small class="text-warning">
+                                                <i class="mdi mdi-alert-circle"></i> Using: {{ $currentLookup->name }}
+                                            </small>
+                                        @endif
+                                    @endif
                                 </td>
                             @endforeach
 
@@ -248,6 +270,105 @@
         <div class="alert alert-info">
             <i class="mdi mdi-information"></i> 
             No captured results found for formula "{{ $formula->name }}" in this batch.
+        </div>
+    @endif
+
+    <!-- Lookup Table Change Modal -->
+    @if($showLookupTableModal)
+        <div class="modal fade show d-block" tabindex="-1" role="dialog" style="background-color: rgba(0,0,0,0.5);">
+            <div class="modal-dialog modal-dialog-centered" role="document">
+                <div class="modal-content">
+                    <div class="modal-header bg-secondary text-white">
+                        <h5 class="modal-title">
+                            <i class="mdi mdi-swap-horizontal"></i> Change Lookup Table
+                            @if($selectedLookupStepId)
+                                @php
+                                    $selectedStep = $formulaSteps->firstWhere('id', $selectedLookupStepId);
+                                @endphp
+                                @if($selectedStep)
+                                    - {{ $selectedStep->label }}
+                                @endif
+                            @endif
+                        </h5>
+                        <button type="button" class="close text-white" wire:click="closeLookupModal">
+                            <span aria-hidden="true">&times;</span>
+                        </button>
+                    </div>
+                    <div class="modal-body">
+                        <!-- Warning -->
+                        <div class="alert alert-warning">
+                            <i class="mdi mdi-alert"></i>
+                            <strong>Note:</strong> This change only affects this worksheet. The formula configuration will not be changed.
+                        </div>
+
+                        <!-- Original Lookup Table -->
+                        @if($selectedLookupStepId)
+                            @php
+                                $originalLookup = $this->getOriginalLookupTable($selectedLookupStepId);
+                            @endphp
+                            @if($originalLookup)
+                                <div class="mb-3">
+                                    <label class="font-weight-bold">Formula Default:</label>
+                                    <div class="alert alert-light border">
+                                        {{ $originalLookup->name }}
+                                        <small class="d-block text-muted">{{ $originalLookup->description }}</small>
+                                    </div>
+                                </div>
+                            @endif
+                        @endif
+
+                        <!-- Compatible Lookup Tables Selection -->
+                        <div class="mb-3">
+                            <label class="font-weight-bold">Select Replacement Lookup Table:</label>
+                            @if(count($compatibleLookupTables) > 0)
+                                <div class="list-group">
+                                    @foreach($compatibleLookupTables as $lookupTable)
+                                        <label class="list-group-item list-group-item-action cursor-pointer">
+                                            <div class="d-flex align-items-center">
+                                                <input type="radio" 
+                                                       name="replacement_lookup_table" 
+                                                       wire:model="selectedReplacementLookupTableId" 
+                                                       value="{{ $lookupTable['id'] }}"
+                                                       class="mr-2">
+                                                <div class="flex-grow-1">
+                                                    <strong>{{ $lookupTable['name'] }}</strong>
+                                                    @if($lookupTable['description'])
+                                                        <small class="d-block text-muted">{{ $lookupTable['description'] }}</small>
+                                                    @endif
+                                                    <small class="badge badge-info">
+                                                        {{ $lookupTable['lookup_type'] === 'range_based' ? 'Range-Based' : 'Key-Value' }}
+                                                    </small>
+                                                </div>
+                                            </div>
+                                        </label>
+                                    @endforeach
+                                </div>
+                            @else
+                                <div class="alert alert-info">
+                                    <i class="mdi mdi-information"></i>
+                                    No compatible lookup tables found.
+                                </div>
+                            @endif
+                        </div>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" wire:click="closeLookupModal">
+                            <i class="mdi mdi-close"></i> Cancel
+                        </button>
+                        @if($currentCapturedResultId && $selectedLookupStepId && isset($worksheetData[$currentCapturedResultId]['lookup_overrides'][$selectedLookupStepId]))
+                            <button type="button" class="btn btn-warning" wire:click="resetLookupTable">
+                                <i class="mdi mdi-refresh"></i> Reset to Default
+                            </button>
+                        @endif
+                        <button type="button" 
+                                class="btn btn-primary" 
+                                wire:click="changeLookupTable"
+                                @if(count($compatibleLookupTables) == 0) disabled @endif>
+                            <i class="mdi mdi-check"></i> Apply
+                        </button>
+                    </div>
+                </div>
+            </div>
         </div>
     @endif
 </div>

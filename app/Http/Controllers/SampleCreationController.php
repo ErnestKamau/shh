@@ -49,25 +49,32 @@ class SampleCreationController extends Controller
             }
 
             $createdBatches = [];
+            
+            // Count total batches for smart code generation
+            $totalBatchCount = count($sampleBatches);
 
             foreach ($sampleBatches as $batchIndex => $batch) {
                 // Log the batch data for debugging
                 Log::info('Processing sample batch', [
                     'batch_index' => $batchIndex,
                     'sample_header' => $batch['sample_header'],
-                    'sample_details_count' => count($batch['sample_details'])
+                    'sample_details_count' => count($batch['sample_details']),
+                    'total_batch_count' => $totalBatchCount
                 ]);
 
 
                 $sampleDetails = [];
                 
-                // Create sample header using our custom method
-                $sampleHeader = $this->createSampleHeader($batch['sample_header'], $instance->id);
+                // Create sample header using our custom method with batch count
+                $sampleHeader = $this->createSampleHeader($batch['sample_header'], $instance->id, $totalBatchCount);
                 
                 // Update the sample header with the instance ID
                 $sampleHeader->submission_form_instance_id = $instance->id;
                 $sampleHeader->save();
                 // Merge all sample details arrays into one flat array
+                
+                // Count total samples for smart code generation
+                $totalSampleCount = count($batch['sample_details']);
 
                 foreach($batch['sample_details'] as $i=>$sampleDetail){
                     $samplePoints = explode(',', $sampleDetail['sample_point_id']);
@@ -75,7 +82,7 @@ class SampleCreationController extends Controller
 
                     foreach($samplePoints as $j=>$samplePoint){
                         $newSampleDetailsInfo['sample_point_id'] = $samplePoint;
-                        $sampleDetails[$i] = $this->createSampleDetails($newSampleDetailsInfo, $sampleHeader->id, $i, $sampleHeader->batch_code);
+                        $sampleDetails[$i] = $this->createSampleDetails($newSampleDetailsInfo, $sampleHeader->id, $i, $sampleHeader->batch_code, $totalSampleCount);
                         $this->createSampleDates($sampleHeader->id, $sampleDetails[$i]);
                     }
                 }
@@ -191,7 +198,7 @@ class SampleCreationController extends Controller
     /**
      * Create a sample header directly
      */
-    private function createSampleHeader(array $sampleHeaderData, $submissionFormInstanceId = null)
+    private function createSampleHeader(array $sampleHeaderData, $submissionFormInstanceId = null, $batchCount = 1)
     {
         // Helper function to get single value from array or return the value itself
         $getSingleValue = function($value) {
@@ -223,8 +230,8 @@ class SampleCreationController extends Controller
             }
         }
 
-        // Generate batch code
-        $batchCode = $this->generateBatchCode($sampleHeaderData, $submissionFormInstanceId);
+        // Generate batch code with smart logic
+        $batchCode = $this->generateBatchCode($sampleHeaderData, $submissionFormInstanceId, $batchCount);
         
         // Create the sample header
         $sampleHeader = new SampleHeader();
@@ -269,7 +276,8 @@ class SampleCreationController extends Controller
             'batch_code' => $sampleHeader->batch_code,
             'sample_type_id' => $sampleHeader->sample_type_id,
             'crm_customer_id' => $sampleHeader->crm_customer_id,
-            'crm_unit_name' => $sampleHeader->crm_unit_name
+            'crm_unit_name' => $sampleHeader->crm_unit_name,
+            'batch_count' => $batchCount
         ]);
         
         return $sampleHeader;
@@ -278,7 +286,7 @@ class SampleCreationController extends Controller
     /**
      * Create sample details for a sample header
      */
-    private function createSampleDetails(array $sampleDetailsData, $sampleHeaderId, $index, $batchCode = null)
+    private function createSampleDetails(array $sampleDetailsData, $sampleHeaderId, $index, $batchCode = null, $sampleCount = 1)
     {
         $createdDetails = [];
 
@@ -297,8 +305,8 @@ class SampleCreationController extends Controller
             return is_numeric($singleValue) ? (int) $singleValue : $singleValue;
         };
 
-        // Generate sample code
-        $sampleCode = $this->generateSampleCode($sampleHeaderId, $index, $batchCode);
+        // Generate sample code with smart logic
+        $sampleCode = $this->generateSampleCode($sampleHeaderId, $index, $batchCode, $sampleCount);
 
         
         // Create the sample detail
@@ -345,7 +353,8 @@ class SampleCreationController extends Controller
             'detail_id' => $sampleDetail->id,
             'sample_code' => $sampleDetail->sample_code,
             'header_id' => $sampleHeaderId,
-            'analysis_type_id' => $sampleDetail->analysis_type_id
+            'analysis_type_id' => $sampleDetail->analysis_type_id,
+            'sample_count' => $sampleCount
         ]);
        
         return $createdDetails;
@@ -565,9 +574,11 @@ class SampleCreationController extends Controller
     }
 
     /**
-     * Generate batch code using new format: {Submission-Form_instance_prefix}{batch_seq_no}/{YY}
+     * Generate batch code using smart format
+     * If only 1 batch: reuse form_number
+     * If multiple batches: {form_number}-{batch_seq_no}
      */
-    private function generateBatchCode(array $sampleHeaderData, $submissionFormInstanceId = null)
+    private function generateBatchCode(array $sampleHeaderData, $submissionFormInstanceId = null, $totalBatchCount = 1)
     {
         // If no submission form instance ID provided, fall back to old method
         if (!$submissionFormInstanceId) {
@@ -581,10 +592,28 @@ class SampleCreationController extends Controller
                 throw new \Exception('Submission form instance not found');
             }
 
+            // SMART LOGIC: If only 1 batch, reuse the form_number
+            if ($totalBatchCount === 1) {
+                $batch_code = $instance->form_number;
+                
+                Log::info('Smart batch code generation: Reusing form_number for single batch', [
+                    'form_number' => $batch_code,
+                    'total_batch_count' => $totalBatchCount
+                ]);
+                
+                return $batch_code;
+            }
+
+            // Multiple batches: Use sequential batch codes
             $batch_count = SampleHeader::where('submission_form_instance_id', $submissionFormInstanceId)->count();
             $batch_count = $batch_count ? $batch_count + 1 : 1;                
             
             $batch_code = $instance->form_number.'-'.$batch_count;
+            
+            Log::info('Standard batch code generation for multiple batches', [
+                'batch_code' => $batch_code,
+                'total_batch_count' => $totalBatchCount
+            ]);
             
             return $batch_code;
             
@@ -669,9 +698,11 @@ class SampleCreationController extends Controller
     }
 
     /**
-     * Generate sample code using new format: {Submission-Form_instance_prefix}{batch_seq_no}/{YY}-{sample_no_seq_no}
+     * Generate sample code using smart format
+     * If only 1 sample: reuse batch_code
+     * If multiple samples: {batch_code}-{sample_no_seq_no}
      */
-    private function generateSampleCode($sampleHeaderId, $index, $batchCode = null)
+    private function generateSampleCode($sampleHeaderId, $index, $batchCode = null, $totalSampleCount = 1)
     {
         // Get sample header to get sample type
         $sampleHeader = SampleHeader::find($sampleHeaderId);
@@ -679,11 +710,28 @@ class SampleCreationController extends Controller
             throw new \Exception('Sample header not found');
         }
 
-       
-
         // If batch code is provided, use new format
         if ($batchCode) {
             try {
+                // SMART LOGIC: If only 1 sample, reuse the batch_code
+                if ($totalSampleCount === 1) {
+                    $sampleCode = $batchCode;
+                    $sampleNo = '01';
+                    $reportNumber = $batchCode;
+                    
+                    Log::info('Smart sample code generation: Reusing batch_code for single sample', [
+                        'batch_code' => $batchCode,
+                        'total_sample_count' => $totalSampleCount
+                    ]);
+                    
+                    return [
+                        'sample_code' => $sampleCode,
+                        'sample_no' => $sampleNo,
+                        'report_number' => $reportNumber
+                    ];
+                }
+
+                // Multiple samples: Use sequential sample codes with suffix
                 // Get next sample sequence for this batch
                 $sampleSeqNo = SampleDetails::where('sample_header_id', $sampleHeaderId)->count();
 
@@ -694,6 +742,11 @@ class SampleCreationController extends Controller
                 
                 // Generate report number (keeping existing format for now)
                 $reportNumber = $batchCode;
+
+                Log::info('Standard sample code generation for multiple samples', [
+                    'sample_code' => $sampleCode,
+                    'total_sample_count' => $totalSampleCount
+                ]);
 
                 return [
                     'sample_code' => $sampleCode,

@@ -66,11 +66,12 @@
           @foreach($templateHolder->elements as $element)
             <td>
               <div class="form-group mb-0">
-                @include('submission-forms.partials.form-element', [
-                  'element' => $element,
-                  'isArrayField' => true,
-                  'rowIndex' => 'ROW_INDEX_PLACEHOLDER'
-                ])
+                        @include('submission-forms.partials.form-element', [
+                            'element' => $element,
+                            'isArrayField' => true,
+                            'rowIndex' => 'ROW_INDEX_PLACEHOLDER',
+                            'hideLabel' => true
+                        ])
               </div>
             </td>
           @endforeach

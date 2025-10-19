@@ -8,7 +8,7 @@ use App\Models\SubmissionFormInstanceValue;
 use App\SampleHeader;
 use App\SampleDetails;
 use App\Models\CRM\CRMCustomer;
-use App\Models\CRM\CRMCustomerUnit;
+use App\Models\CRM\CRMCompanyUnit;
 use App\SampleType;
 use App\Lab;
 use App\Models\System\SystemConfiguration;
@@ -43,8 +43,11 @@ class SampleCreationService
             // Extract form data
             $formData = $this->extractFormData($instance, $mappedElements);
             
+            // Count distinct sample_type_id values to determine batch count
+            $batchCount = $this->countDistinctSampleTypes($instance);
+            
             // Create sample header
-            $sampleHeader = $this->createSampleHeader($formData, $instance);
+            $sampleHeader = $this->createSampleHeader($formData, $instance, $batchCount);
             
             // Create sample details
             $sampleDetails = $this->createSampleDetails($sampleHeader, $formData, $instance);
@@ -54,7 +57,8 @@ class SampleCreationService
             Log::info('Successfully created samples from form instance', [
                 'instance_id' => $instance->id,
                 'sample_header_id' => $sampleHeader->id,
-                'sample_details_count' => count($sampleDetails)
+                'sample_details_count' => count($sampleDetails),
+                'batch_count' => $batchCount
             ]);
             
             return [
@@ -169,13 +173,13 @@ class SampleCreationService
     /**
      * Create sample header
      */
-    private function createSampleHeader($formData, SubmissionFormInstance $instance)
+    private function createSampleHeader($formData, SubmissionFormInstance $instance, $batchCount = 1)
     {
         $headerData = $formData['sample_headers'] ?? [];
         
         // Generate batch code if not provided
         if (empty($headerData['batch_code'])) {
-            $headerData['batch_code'] = $this->generateBatchCode($headerData);
+            $headerData['batch_code'] = $this->generateBatchCode($headerData, $instance->id, $batchCount, $instance);
         }
         
         // Set default values
@@ -201,7 +205,7 @@ class SampleCreationService
         
         // Get CRM unit name from client unit ID
         if (!empty($headerData['crm_unit_id']) && empty($headerData['crm_unit_name'])) {
-            $crmUnit = CRMCustomerUnit::find($headerData['crm_unit_id']);
+            $crmUnit = CRMCompanyUnit::find($headerData['crm_unit_id']);
             if ($crmUnit) {
                 $headerData['crm_unit_name'] = $crmUnit->name;
             }
@@ -211,7 +215,8 @@ class SampleCreationService
         
         Log::info('Created sample header', [
             'sample_header_id' => $sampleHeader->id,
-            'batch_code' => $sampleHeader->batch_code
+            'batch_code' => $sampleHeader->batch_code,
+            'batch_count' => $batchCount
         ]);
         
         return $sampleHeader;
@@ -230,10 +235,13 @@ class SampleCreationService
             $detailsData = [0 => []]; // Create one default sample
         }
         
+        // Determine total sample count for smart code generation
+        $sampleCount = $this->determineSampleCount($detailsData, $formData);
+        
         foreach ($detailsData as $index => $detailData) {
             // Generate sample code if not provided
             if (empty($detailData['sample_code'])) {
-                $detailData['sample_code'] = $this->generateSampleCode($sampleHeader, $detailData);
+                $detailData['sample_code'] = $this->generateSampleCode($sampleHeader, $detailData, $sampleHeader->batch_code, $sampleCount);
             }
             
             // Set required fields
@@ -260,7 +268,8 @@ class SampleCreationService
             
             Log::info('Created sample detail', [
                 'sample_detail_id' => $sampleDetail->id,
-                'sample_code' => $sampleDetail->sample_code
+                'sample_code' => $sampleDetail->sample_code,
+                'sample_count' => $sampleCount
             ]);
         }
         
@@ -269,8 +278,9 @@ class SampleCreationService
 
     /**
      * Generate batch code using new format: {Submission-Form_instance_prefix}{batch_seq_no}/{YY}
+     * Smart logic: If only 1 batch, reuse form_number; if multiple batches, use sequential codes
      */
-    private function generateBatchCode($headerData, $submissionFormInstanceId = null)
+    private function generateBatchCode($headerData, $submissionFormInstanceId = null, $batchCount = 1, $instance = null)
     {
         // If no submission form instance ID provided, fall back to old method
         if (!$submissionFormInstanceId) {
@@ -279,7 +289,10 @@ class SampleCreationService
 
         try {
             // Get submission form instance and its prefix
-            $instance = \App\Models\SubmissionFormInstance::find($submissionFormInstanceId);
+            if (!$instance) {
+                $instance = \App\Models\SubmissionFormInstance::find($submissionFormInstanceId);
+            }
+            
             if (!$instance) {
                 throw new \Exception('Submission form instance not found');
             }
@@ -289,6 +302,19 @@ class SampleCreationService
                 throw new \Exception('Submission form not found');
             }
 
+            // SMART LOGIC: If only 1 batch, reuse the form_number
+            if ($batchCount === 1) {
+                $batchCode = $instance->form_number;
+                
+                Log::info('Smart batch code generation: Reusing form_number for single batch', [
+                    'form_number' => $batchCode,
+                    'batch_count' => $batchCount
+                ]);
+                
+                return $batchCode;
+            }
+
+            // Multiple batches: Use sequential batch codes
             $prefix = $submissionForm->naming_convention_prefix ?? 'SF';
             $currentYear = date('Y');
             
@@ -297,6 +323,11 @@ class SampleCreationService
             
             // Generate batch code: {prefix}{batch_seq_no}/{YY}
             $batchCode = $prefix . sprintf('%03d', $batchSeqNo) . '/' . date('y');
+            
+            Log::info('Standard batch code generation for multiple batches', [
+                'batch_code' => $batchCode,
+                'batch_count' => $batchCount
+            ]);
             
             return $batchCode;
             
@@ -390,17 +421,36 @@ class SampleCreationService
 
     /**
      * Generate sample code using new format: {Submission-Form_instance_prefix}{batch_seq_no}/{YY}-{sample_no_seq_no}
+     * Smart logic: If only 1 sample, reuse batch_code; if multiple samples, use sequential codes
      */
-    private function generateSampleCode(SampleHeader $sampleHeader, $detailData, $batchCode = null)
+    private function generateSampleCode(SampleHeader $sampleHeader, $detailData, $batchCode = null, $sampleCount = 1)
     {
         // If batch code is provided, use new format
         if ($batchCode) {
             try {
+                // SMART LOGIC: If only 1 sample, reuse the batch_code
+                if ($sampleCount === 1) {
+                    $sampleCode = $batchCode;
+                    
+                    Log::info('Smart sample code generation: Reusing batch_code for single sample', [
+                        'batch_code' => $batchCode,
+                        'sample_count' => $sampleCount
+                    ]);
+                    
+                    return $sampleCode;
+                }
+                
+                // Multiple samples: Use sequential sample codes
                 // Get next sample sequence for this batch
                 $sampleSeqNo = \App\Models\SampleSequence::getNextSampleSequence($batchCode);
                 
                 // Generate sample code: {batch_code}-{sample_no_seq_no}
                 $sampleCode = $batchCode . '-' . sprintf('%03d', $sampleSeqNo);
+                
+                Log::info('Standard sample code generation for multiple samples', [
+                    'sample_code' => $sampleCode,
+                    'sample_count' => $sampleCount
+                ]);
                 
                 return $sampleCode;
                 
@@ -516,5 +566,160 @@ class SampleCreationService
             'status' => 'ready',
             'message' => 'Ready to create samples'
         ];
+    }
+
+    /**
+     * Count distinct sample_type_id values to determine batch count
+     */
+    private function countDistinctSampleTypes(SubmissionFormInstance $instance)
+    {
+        // Find sample_type_id element
+        $sampleTypeElement = SubmissionFormElement::whereHas('holder.section', function($query) use ($instance) {
+            $query->where('submission_form_id', $instance->submission_form_id);
+        })
+        ->where('is_mapped', true)
+        ->where('mapping_table', 'sample_headers')
+        ->where('mapping_field', 'sample_type_id')
+        ->first();
+
+        if (!$sampleTypeElement) {
+            // No sample type element found, default to 1 batch
+            return 1;
+        }
+
+        // Get all distinct sample_type_id values from the form instance
+        $distinctSampleTypes = $instance->values()
+            ->where('submission_form_element_id', $sampleTypeElement->id)
+            ->whereNotNull('value')
+            ->where('value', '!=', '')
+            ->pluck('value')
+            ->unique()
+            ->count();
+
+        return $distinctSampleTypes > 0 ? $distinctSampleTypes : 1;
+    }
+
+    /**
+     * Determine total sample count for a batch
+     * Checks if data is split by sample_points, otherwise counts array rows
+     */
+    private function determineSampleCount($detailsData, $formData)
+    {
+        // If details data is empty, there's 1 default sample
+        if (empty($detailsData)) {
+            return 1;
+        }
+
+        // Check if sample_point_id exists in the details data
+        $hasSamplePoints = false;
+        $samplePointIds = [];
+
+        foreach ($detailsData as $detailRow) {
+            if (isset($detailRow['sample_point_id']) && !empty($detailRow['sample_point_id'])) {
+                $hasSamplePoints = true;
+                $samplePointIds[] = $detailRow['sample_point_id'];
+            }
+        }
+
+        // If sample points exist, count unique sample points
+        if ($hasSamplePoints) {
+            $uniqueSamplePoints = array_unique($samplePointIds);
+            return count($uniqueSamplePoints);
+        }
+
+        // Otherwise, count the number of detail rows
+        return count($detailsData);
+    }
+
+    /**
+     * Check if sample codes need regeneration when adding new samples to a batch
+     */
+    public function shouldRegenerateCodes(SampleHeader $sampleHeader)
+    {
+        // Check if batch has samples without sequential suffix
+        // (i.e., sample_code equals batch_code, indicating 1:1 scenario)
+        $samplesWithoutSuffix = $sampleHeader->samples()
+            ->where('sample_code', $sampleHeader->batch_code)
+            ->exists();
+
+        return $samplesWithoutSuffix;
+    }
+
+    /**
+     * Regenerate sample codes when adding samples to a batch that originally had 1 sample
+     */
+    public function regenerateSampleCodes(SampleHeader $sampleHeader)
+    {
+        DB::beginTransaction();
+
+        try {
+            $samples = $sampleHeader->samples()->orderBy('id', 'asc')->get();
+            $batchCode = $sampleHeader->batch_code;
+
+            Log::info('Regenerating sample codes for batch', [
+                'batch_id' => $sampleHeader->id,
+                'batch_code' => $batchCode,
+                'sample_count' => $samples->count()
+            ]);
+
+            // Reset the sample sequence for this batch
+            $sampleSequence = \App\Models\SampleSequence::where('batch_code', $batchCode)->first();
+            if ($sampleSequence) {
+                $sampleSequence->update(['sample_sequence' => 0]);
+            } else {
+                \App\Models\SampleSequence::create([
+                    'batch_code' => $batchCode,
+                    'sample_sequence' => 0
+                ]);
+            }
+
+            $updatedCodes = [];
+
+            // Regenerate codes for all samples with sequential suffixes
+            foreach ($samples as $index => $sample) {
+                $sequenceNo = $index + 1;
+                $newSampleCode = $batchCode . '-' . sprintf('%03d', $sequenceNo);
+
+                $oldCode = $sample->sample_code;
+                $sample->update(['sample_code' => $newSampleCode]);
+
+                $updatedCodes[] = [
+                    'sample_id' => $sample->id,
+                    'old_code' => $oldCode,
+                    'new_code' => $newSampleCode
+                ];
+
+                Log::info('Regenerated sample code', [
+                    'sample_id' => $sample->id,
+                    'old_code' => $oldCode,
+                    'new_code' => $newSampleCode
+                ]);
+            }
+
+            // Update the sequence counter
+            if ($sampleSequence) {
+                $sampleSequence->update(['sample_sequence' => $samples->count()]);
+            }
+
+            DB::commit();
+
+            return [
+                'success' => true,
+                'updated_codes' => $updatedCodes,
+                'message' => 'Sample codes regenerated successfully'
+            ];
+
+        } catch (\Exception $e) {
+            DB::rollBack();
+            Log::error('Failed to regenerate sample codes', [
+                'batch_id' => $sampleHeader->id,
+                'error' => $e->getMessage()
+            ]);
+
+            return [
+                'success' => false,
+                'message' => 'Failed to regenerate sample codes: ' . $e->getMessage()
+            ];
+        }
     }
 }

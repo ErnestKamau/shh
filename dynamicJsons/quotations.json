@@ -1,0 +1,4 @@
+http://lsapp.fivet.local:8148/Dev-Svc/ODataV4/Company('FV-LIVE')/Items
+http://lsapp.fivet.local:8148/Dev-Svc/ODataV4/Company('FV-LIVE')/SalesOrder
+http://lsapp.fivet.local:8148/Dev-Svc/ODataV4/Company('FV-LIVE')/Customers?&top=10
+http://lsapp.fivet.local:8148/Dev-Svc/ODataV4/Company('FV-LIVE')/ImaraPostedInvoiceApi?$orderby=No%20desc&$top=20 

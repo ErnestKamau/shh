@@ -9,9 +9,9 @@ use Exception;
 class LookupService
 {
     /**
-     * Get a value from a lookup table by keys.
+     * Get a value from a lookup table by keys (supports both types).
      */
-    public function getValue(int $lookupTableId, array $keys): ?string
+    public function getValue(int $lookupTableId, $input): mixed
     {
         $lookupTable = LookupTable::find($lookupTableId);
         
@@ -23,6 +23,20 @@ class LookupService
             throw new Exception("Lookup table is not active: {$lookupTable->name}");
         }
 
+        // Route based on lookup type
+        if ($lookupTable->isRangeBased()) {
+            $result = $this->getRangeValue($lookupTableId, (float)$input);
+            return $result ? $result['value'] : null;
+        } else {
+            return $this->getKeyValue($lookupTableId, $input);
+        }
+    }
+
+    /**
+     * Get a value from a key-value comparison lookup table.
+     */
+    protected function getKeyValue(int $lookupTableId, array $keys): ?string
+    {
         // Sort keys for consistent comparison
         ksort($keys);
         
@@ -31,6 +45,58 @@ class LookupService
             ->first();
 
         return $entry ? $entry->value : null;
+    }
+
+    /**
+     * Get a value from a range-based lookup table.
+     */
+    public function getRangeValue(int $lookupTableId, float $inputValue): ?array
+    {
+        $lookupTable = LookupTable::find($lookupTableId);
+        
+        if (!$lookupTable || !$lookupTable->isRangeBased()) {
+            throw new Exception("Invalid range-based lookup table");
+        }
+
+        // Find entry where low <= inputValue < high (or high is null)
+        // Sort entries by low value to ensure we check in order
+        $entries = LookupTableEntry::where('lookup_table_id', $lookupTableId)
+            ->get()
+            ->sortBy(function($entry) {
+                return $entry->keys['low'] ?? PHP_INT_MAX;
+            });
+        
+        foreach ($entries as $entry) {
+            $low = isset($entry->keys['low']) ? (float)$entry->keys['low'] : null;
+            $high = isset($entry->keys['high']) ? (float)$entry->keys['high'] : null;
+            
+            if ($low === null) {
+                continue;
+            }
+            
+            // Check if value falls in range
+            if ($high === null) {
+                // Open-ended range (low and above)
+                if ($inputValue >= $low) {
+                    return [
+                        'value' => $entry->value,
+                        'interpretation' => $entry->keys['value_interpretation'] ?? null,
+                        'matched_range' => ['low' => $low, 'high' => 'infinite']
+                    ];
+                }
+            } else {
+                // Bounded range: low <= input < high
+                if ($inputValue >= $low && $inputValue < $high) {
+                    return [
+                        'value' => $entry->value,
+                        'interpretation' => $entry->keys['value_interpretation'] ?? null,
+                        'matched_range' => ['low' => $low, 'high' => $high]
+                    ];
+                }
+            }
+        }
+        
+        return null; // No matching range found
     }
 
     /**
@@ -166,13 +232,28 @@ class LookupService
 
         foreach ($data as $index => $row) {
             try {
-                // Extract keys and value
-                $keys = [];
-                foreach ($lookupTable->key_columns as $keyColumn) {
-                    $keys[$keyColumn] = $row[$keyColumn] ?? '';
+                if ($lookupTable->isRangeBased()) {
+                    // Range-based import
+                    $keys = [
+                        'low' => isset($row['low']) ? (float)$row['low'] : null,
+                        'high' => isset($row['high']) && $row['high'] !== null && $row['high'] !== '' ? (float)$row['high'] : null,
+                    ];
+                    
+                    // Add interpretation if configured and present
+                    if ($lookupTable->value_interpretation_column && isset($row['value_interpretation'])) {
+                        $keys['value_interpretation'] = $row['value_interpretation'];
+                    }
+                    
+                    $value = $row[$lookupTable->value_column] ?? '';
+                } else {
+                    // Key-value import
+                    $keys = [];
+                    foreach ($lookupTable->key_columns as $keyColumn) {
+                        $keys[$keyColumn] = $row[$keyColumn] ?? '';
+                    }
+                    
+                    $value = $row[$lookupTable->value_column] ?? '';
                 }
-                
-                $value = $row[$lookupTable->value_column] ?? '';
                 
                 // Create or update entry
                 $this->setValue($lookupTableId, $keys, $value);
@@ -204,11 +285,27 @@ class LookupService
         $data = [];
         
         foreach ($lookupTable->entries as $entry) {
-            $row = $entry->keys;
-            $row[$lookupTable->value_column] = $entry->value;
+            if ($lookupTable->isRangeBased()) {
+                // Range-based export
+                $row = [
+                    'low' => $entry->keys['low'] ?? '',
+                    'high' => $entry->keys['high'] ?? null,
+                    $lookupTable->value_column => $entry->value,
+                ];
+                
+                if ($lookupTable->value_interpretation_column && isset($entry->keys['value_interpretation'])) {
+                    $row['value_interpretation'] = $entry->keys['value_interpretation'];
+                }
+            } else {
+                // Key-value export
+                $row = $entry->keys;
+                $row[$lookupTable->value_column] = $entry->value;
+            }
+            
             $data[] = $row;
         }
 
         return $data;
     }
 }
+

@@ -31,6 +31,12 @@ class LookupTableEntryManager extends Component
     public $entryKeys = [];
     public $entryValue = '';
     
+    // Range-based fields
+    public $rangeLow = '';
+    public $rangeHigh = '';
+    public $isOpenEnded = false;
+    public $valueInterpretation = '';
+    
     // Import/Export
     public $importFile;
     public $importPreview = [];
@@ -74,31 +80,71 @@ class LookupTableEntryManager extends Component
     public function showEditEntryModal(LookupTableEntry $entry)
     {
         $this->editingEntry = $entry;
-        $this->entryKeys = is_array($entry->keys) ? $entry->keys : json_decode($entry->keys, true);
+        $keys = is_array($entry->keys) ? $entry->keys : json_decode($entry->keys, true);
+        
+        if ($this->lookupTable->isRangeBased()) {
+            $this->rangeLow = $keys['low'] ?? '';
+            $this->rangeHigh = $keys['high'] ?? '';
+            $this->isOpenEnded = $keys['high'] === null;
+            $this->valueInterpretation = $keys['value_interpretation'] ?? '';
+        } else {
+            $this->entryKeys = $keys;
+        }
+        
         $this->entryValue = $entry->value;
         $this->showEditModal = true;
     }
 
     public function createEntry()
     {
-        $this->validate([
-            'entryKeys' => 'required|array',
-            'entryKeys.*' => 'required',
-            'entryValue' => 'required|string',
-        ]);
-
         try {
             $lookupService = app(LookupService::class);
             
-            // Validate all keys are provided
-            foreach ($this->lookupTable->key_columns as $keyColumn) {
-                if (!isset($this->entryKeys[$keyColumn]) || $this->entryKeys[$keyColumn] === '') {
-                    $this->setMessage("Please provide value for key: {$keyColumn}", 'error');
+            if ($this->lookupTable->isRangeBased()) {
+                // Range-based validation
+                $this->validate([
+                    'rangeLow' => 'required|numeric',
+                    'rangeHigh' => $this->isOpenEnded ? 'nullable' : 'required|numeric|gt:rangeLow',
+                    'entryValue' => 'required|string',
+                ]);
+                
+                // Build keys for range
+                $keys = [
+                    'low' => (float)$this->rangeLow,
+                    'high' => $this->isOpenEnded ? null : (float)$this->rangeHigh,
+                ];
+                
+                // Add interpretation if table has it configured
+                if ($this->lookupTable->value_interpretation_column && $this->valueInterpretation) {
+                    $keys['value_interpretation'] = $this->valueInterpretation;
+                }
+                
+                // Check for overlapping ranges
+                if ($this->hasOverlappingRange($keys)) {
+                    $this->setMessage('This range overlaps with an existing entry. Please adjust the range.', 'error');
                     return;
+                }
+                
+            } else {
+                // Key-value validation
+                $this->validate([
+                    'entryKeys' => 'required|array',
+                    'entryKeys.*' => 'required',
+                    'entryValue' => 'required|string',
+                ]);
+                
+                $keys = $this->entryKeys;
+                
+                // Validate all keys are provided
+                foreach ($this->lookupTable->key_columns as $keyColumn) {
+                    if (!isset($keys[$keyColumn]) || $keys[$keyColumn] === '') {
+                        $this->setMessage("Please provide value for key: {$keyColumn}", 'error');
+                        return;
+                    }
                 }
             }
 
-            $lookupService->setValue($this->lookupTable->id, $this->entryKeys, $this->entryValue);
+            $lookupService->setValue($this->lookupTable->id, $keys, $this->entryValue);
 
             $this->showCreateModal = false;
             $this->resetForm();
@@ -110,14 +156,44 @@ class LookupTableEntryManager extends Component
 
     public function updateEntry()
     {
-        $this->validate([
-            'entryKeys' => 'required|array',
-            'entryKeys.*' => 'required',
-            'entryValue' => 'required|string',
-        ]);
-
         try {
             $lookupService = app(LookupService::class);
+            
+            if ($this->lookupTable->isRangeBased()) {
+                // Range-based validation
+                $this->validate([
+                    'rangeLow' => 'required|numeric',
+                    'rangeHigh' => $this->isOpenEnded ? 'nullable' : 'required|numeric|gt:rangeLow',
+                    'entryValue' => 'required|string',
+                ]);
+                
+                // Build keys for range
+                $keys = [
+                    'low' => (float)$this->rangeLow,
+                    'high' => $this->isOpenEnded ? null : (float)$this->rangeHigh,
+                ];
+                
+                // Add interpretation if table has it configured
+                if ($this->lookupTable->value_interpretation_column && $this->valueInterpretation) {
+                    $keys['value_interpretation'] = $this->valueInterpretation;
+                }
+                
+                // Check for overlapping ranges (excluding current entry)
+                if ($this->hasOverlappingRange($keys, $this->editingEntry->id)) {
+                    $this->setMessage('This range overlaps with an existing entry. Please adjust the range.', 'error');
+                    return;
+                }
+                
+            } else {
+                // Key-value validation
+                $this->validate([
+                    'entryKeys' => 'required|array',
+                    'entryKeys.*' => 'required',
+                    'entryValue' => 'required|string',
+                ]);
+                
+                $keys = $this->entryKeys;
+            }
             
             // Delete old entry
             if ($this->editingEntry) {
@@ -126,7 +202,7 @@ class LookupTableEntryManager extends Component
             }
 
             // Create new entry with updated keys
-            $lookupService->setValue($this->lookupTable->id, $this->entryKeys, $this->entryValue);
+            $lookupService->setValue($this->lookupTable->id, $keys, $this->entryValue);
 
             $this->showEditModal = false;
             $this->resetForm();
@@ -160,16 +236,34 @@ class LookupTableEntryManager extends Component
     public function downloadTemplate()
     {
         try {
-            // Create header row with column names
-            $headers = array_merge($this->lookupTable->key_columns, [$this->lookupTable->value_column]);
-            
-            // Create sample data row
+            $headers = [];
             $sampleData = [];
-            foreach ($headers as $header) {
-                $sampleData[$header] = 'Sample ' . $header;
-            }
             
-            $data = [$sampleData];
+            if ($this->lookupTable->isRangeBased()) {
+                // Range-based template
+                $headers = ['low', 'high', $this->lookupTable->value_column];
+                if ($this->lookupTable->value_interpretation_column) {
+                    $headers[] = 'value_interpretation';
+                }
+                
+                // Sample data rows with examples
+                $data = [
+                    ['low' => 0, 'high' => 50, $this->lookupTable->value_column => 'Low', 'value_interpretation' => 'Below Average'],
+                    ['low' => 50, 'high' => 75, $this->lookupTable->value_column => 'Medium', 'value_interpretation' => 'Average'],
+                    ['low' => 75, 'high' => 90, $this->lookupTable->value_column => 'High', 'value_interpretation' => 'Above Average'],
+                    ['low' => 90, 'high' => null, $this->lookupTable->value_column => 'Excellent', 'value_interpretation' => 'Outstanding'],
+                ];
+            } else {
+                // Key-value template
+                $headers = array_merge($this->lookupTable->key_columns, [$this->lookupTable->value_column]);
+                
+                // Sample data row
+                $sampleData = [];
+                foreach ($headers as $header) {
+                    $sampleData[$header] = 'Sample ' . $header;
+                }
+                $data = [$sampleData];
+            }
             
             $filename = 'template_' . str_replace(' ', '_', $this->lookupTable->name) . '_' . now()->format('Y-m-d') . '.xlsx';
 
@@ -285,7 +379,67 @@ class LookupTableEntryManager extends Component
     {
         $this->initializeEntryKeys();
         $this->entryValue = '';
+        $this->rangeLow = '';
+        $this->rangeHigh = '';
+        $this->isOpenEnded = false;
+        $this->valueInterpretation = '';
         $this->editingEntry = null;
+    }
+
+    /**
+     * Check if a range overlaps with existing ranges.
+     */
+    protected function hasOverlappingRange(array $keys, ?int $excludeEntryId = null): bool
+    {
+        $low = $keys['low'];
+        $high = $keys['high'];
+        
+        $query = LookupTableEntry::where('lookup_table_id', $this->lookupTable->id);
+        
+        if ($excludeEntryId) {
+            $query->where('id', '!=', $excludeEntryId);
+        }
+        
+        $entries = $query->get();
+        
+        foreach ($entries as $entry) {
+            $existingLow = isset($entry->keys['low']) ? (float)$entry->keys['low'] : null;
+            $existingHigh = isset($entry->keys['high']) ? (float)$entry->keys['high'] : null;
+            
+            if ($existingLow === null) {
+                continue;
+            }
+            
+            // Check for overlap
+            if ($high === null) {
+                // New range is open-ended (low to infinity)
+                // Overlaps if existing range starts within or after our low
+                if ($existingHigh === null) {
+                    // Both are open-ended - always overlap
+                    return true;
+                } elseif ($existingHigh > $low) {
+                    // Existing range ends after our low
+                    return true;
+                }
+            } else {
+                // New range is bounded
+                if ($existingHigh === null) {
+                    // Existing range is open-ended
+                    // Overlaps if our high is greater than existing low
+                    if ($high > $existingLow) {
+                        return true;
+                    }
+                } else {
+                    // Both ranges are bounded
+                    // Overlaps if ranges intersect
+                    if ($low < $existingHigh && $high > $existingLow) {
+                        return true;
+                    }
+                }
+            }
+        }
+        
+        return false;
     }
 
     protected function setMessage(string $message, string $type)

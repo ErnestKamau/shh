@@ -32,9 +32,15 @@ class LookupTableManager extends Component
     public $tableDescription = '';
     public $keyColumns = [];
     public $valueColumn = '';
+    public $lookupType = 'key_value_comparison';
+    public $rangeVariableName = '';
+    public $customRangeVariableName = '';
+    public $valueInterpretationColumn = '';
     public $keyLabel = '';
     public $valueLabel = '';
     public $isActive = true;
+    public $isStandard = false;
+    public $showOnReport = false;
 
     // Import/Export
     public $importFile;
@@ -48,11 +54,17 @@ class LookupTableManager extends Component
     protected $rules = [
         'tableName' => 'required|string|max:255',
         'tableDescription' => 'nullable|string',
-        'keyColumns' => 'required|array|min:1',
+        'keyColumns' => 'required_if:lookupType,key_value_comparison|array|min:1',
         'valueColumn' => 'required|string|max:255',
+        'lookupType' => 'required|in:key_value_comparison,range_based',
+        'rangeVariableName' => 'required_if:lookupType,range_based|string|max:255',
+        'customRangeVariableName' => 'required_if:rangeVariableName,custom|string|max:255',
+        'valueInterpretationColumn' => 'nullable|string|max:255',
         'keyLabel' => 'nullable|string|max:255',
         'valueLabel' => 'nullable|string|max:255',
         'isActive' => 'boolean',
+        'isStandard' => 'boolean',
+        'showOnReport' => 'boolean',
     ];
 
     public function mount()
@@ -95,9 +107,14 @@ class LookupTableManager extends Component
         $this->tableDescription = $table->description;
         $this->keyColumns = $table->key_columns;
         $this->valueColumn = $table->value_column;
+        $this->lookupType = $table->lookup_type ?? 'key_value_comparison';
+        $this->rangeVariableName = $table->range_variable_name ?? '';
+        $this->valueInterpretationColumn = $table->value_interpretation_column ?? '';
         $this->keyLabel = $table->key_label ?? '';
         $this->valueLabel = $table->value_label ?? '';
         $this->isActive = $table->is_active;
+        $this->isStandard = $table->is_standard ?? false;
+        $this->showOnReport = $table->show_on_report ?? false;
         $this->showEditModal = true;
     }
 
@@ -115,14 +132,23 @@ class LookupTableManager extends Component
         $this->validate();
 
         try {
+            $rangeVariableName = $this->rangeVariableName === 'custom' 
+                ? $this->customRangeVariableName 
+                : $this->rangeVariableName;
+
             LookupTable::create([
                 'name' => $this->tableName,
                 'description' => $this->tableDescription,
-                'key_columns' => $this->keyColumns,
+                'key_columns' => $this->lookupType === 'range_based' ? ['low', 'high'] : $this->keyColumns,
                 'value_column' => $this->valueColumn,
+                'lookup_type' => $this->lookupType,
+                'range_variable_name' => $this->lookupType === 'range_based' ? $rangeVariableName : null,
+                'value_interpretation_column' => $this->valueInterpretationColumn ?: null,
                 'key_label' => $this->keyLabel,
                 'value_label' => $this->valueLabel,
                 'is_active' => $this->isActive,
+                'is_standard' => $this->isStandard,
+                'show_on_report' => $this->showOnReport,
             ]);
 
             $this->showCreateModal = false;
@@ -139,14 +165,23 @@ class LookupTableManager extends Component
         $this->validate();
 
         try {
+            $rangeVariableName = $this->rangeVariableName === 'custom' 
+                ? $this->customRangeVariableName 
+                : $this->rangeVariableName;
+
             $this->editingTable->update([
                 'name' => $this->tableName,
                 'description' => $this->tableDescription,
-                'key_columns' => $this->keyColumns,
+                'key_columns' => $this->lookupType === 'range_based' ? ['low', 'high'] : $this->keyColumns,
                 'value_column' => $this->valueColumn,
+                'lookup_type' => $this->lookupType,
+                'range_variable_name' => $this->lookupType === 'range_based' ? $rangeVariableName : null,
+                'value_interpretation_column' => $this->valueInterpretationColumn ?: null,
                 'key_label' => $this->keyLabel,
                 'value_label' => $this->valueLabel,
                 'is_active' => $this->isActive,
+                'is_standard' => $this->isStandard,
+                'show_on_report' => $this->showOnReport,
             ]);
 
             $this->showEditModal = false;
@@ -348,9 +383,15 @@ class LookupTableManager extends Component
         $this->tableDescription = '';
         $this->keyColumns = [''];
         $this->valueColumn = '';
+        $this->lookupType = 'key_value_comparison';
+        $this->rangeVariableName = '';
+        $this->customRangeVariableName = '';
+        $this->valueInterpretationColumn = '';
         $this->keyLabel = '';
         $this->valueLabel = '';
         $this->isActive = true;
+        $this->isStandard = false;
+        $this->showOnReport = false;
         $this->editingTable = null;
     }
 

@@ -454,24 +454,51 @@ class MethodSequenceWorksheet extends Component
     public function updateResult($stageDataId, $result, $remark): void
     {
         try {
+            DB::beginTransaction();
+            
             $stageData = MethodSequenceRunStageData::find($stageDataId);
             if ($stageData) {
-                // Update captured results
+                // Update stage data
                 $stageData->update([
                     'result' => $result,
                     'remark' => $remark,
                     'status' => 'completed'
                 ]);
 
-                // Check if this is an end stage
+                // If this is a result stage, also update captured_results for all samples in the run
                 $stage = $stageData->stage;
+                if ($stage && $stage->is_result_stage) {
+                    $run = $stageData->run;
+                    foreach ($run->samples as $runSample) {
+                        $captured = $runSample->capturedResult;
+                        if ($captured) {
+                            $captured->result = $result;
+                            $captured->remark = $remark;
+                            $captured->operator_id = $stageData->completed_by_user_id ?? Auth::id();
+                            
+                            // Populate from analysis element configuration if not already set
+                            if ($captured->analysisElement) {
+                                if (!$captured->reporting_unit_id) {
+                                    $captured->reporting_unit_id = $captured->analysisElement->reporting_unit;
+                                }
+                                if (!$captured->method_id) {
+                                    $captured->method_id = $captured->analysisElement->method;
+                                }
+                            }
+                            
+                            $captured->save();
+                        }
+                    }
+                }
+
+                // Check if this is an end stage
                 if ($stage && $stage->is_end_stage) {
                     // Check if we should complete based on result
                     $shouldComplete = true;
                     
                     if ($stage->is_end_stage_if_pass) {
                         // Only complete if result is Pass
-                        $shouldComplete = ($result === 'Pass');
+                        $shouldComplete = ($remark === 'Pass');
                     }
                     
                     if ($shouldComplete) {
@@ -484,10 +511,12 @@ class MethodSequenceWorksheet extends Component
                     }
                 }
 
+                DB::commit();
                 $this->setMessage('Result updated successfully!', 'success');
                 $this->loadData();
             }
         } catch (\Exception $e) {
+            DB::rollBack();
             $this->setMessage('Error updating result: ' . $e->getMessage(), 'error');
         }
     }

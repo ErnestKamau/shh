@@ -433,14 +433,65 @@
                             <div class="row">
                                 <div class="col-md-6">
                                     <div class="form-group mb-3">
-                                        <label class="form-label">Category <span class="text-danger">*</span></label>
-                                        <select wire:model="sampleTypeForm.category_id" class="form-select modern-select @error('sampleTypeForm.category_id') is-invalid @enderror">
-                                            <option value="">Select Category</option>
-                                            @foreach($categories as $category)
-                                                <option value="{{ $category->id }}">{{ $category->sample_type_category }}</option>
-                                            @endforeach
-                                        </select>
-                                        @error('sampleTypeForm.category_id') <div class="invalid-feedback">{{ $message }}</div> @enderror
+                                        <label class="form-label"><i class="mdi mdi-shape text-primary"></i> Category <span class="text-danger">*</span></label>
+                                        <div x-data="{
+                                            open: false,
+                                            search: '',
+                                            selected: @entangle('sampleTypeForm.category_id').live,
+                                            categories: {{ json_encode($categories->map(fn($c) => ['id' => $c->id, 'name' => $c->sample_type_category])->values()) }},
+                                            get filteredCategories() {
+                                                if (!this.search) return this.categories;
+                                                return this.categories.filter(cat => 
+                                                    cat.name.toLowerCase().includes(this.search.toLowerCase())
+                                                );
+                                            },
+                                            selectCategory(catId) {
+                                                this.selected = catId;
+                                                this.open = false;
+                                                this.search = '';
+                                            },
+                                            getSelectedName() {
+                                                const cat = this.categories.find(c => c.id == this.selected);
+                                                return cat ? cat.name : '';
+                                            }
+                                        }" class="searchable-dropdown-wrapper">
+                                            <div class="single-select-container" @click="open = !open">
+                                                <input 
+                                                    type="text" 
+                                                    x-model="search"
+                                                    :placeholder="selected ? getSelectedName() : 'Search categories...'"
+                                                    @focus="open = true"
+                                                    class="form-control searchable-input-single"
+                                                    autocomplete="off"
+                                                >
+                                                <i class="mdi mdi-chevron-down dropdown-arrow" :class="{ 'rotated': open }"></i>
+                                            </div>
+
+                                            <div x-show="open" 
+                                                 @click.away="open = false"
+                                                 x-transition
+                                                 class="dropdown-list">
+                                                <template x-if="filteredCategories.length > 0">
+                                                    <div class="options-list">
+                                                        <template x-for="cat in filteredCategories" :key="cat.id">
+                                                            <div @click="selectCategory(cat.id)" 
+                                                                 class="option-item"
+                                                                 :class="{ 'selected': selected == cat.id }">
+                                                                <i class="mdi mdi-check-circle text-primary" x-show="selected == cat.id"></i>
+                                                                <span x-text="cat.name"></span>
+                                                            </div>
+                                                        </template>
+                                                    </div>
+                                                </template>
+                                                <template x-if="filteredCategories.length === 0">
+                                                    <div class="no-results">
+                                                        <i class="mdi mdi-alert-circle-outline"></i>
+                                                        <span>No categories found</span>
+                                                    </div>
+                                                </template>
+                                            </div>
+                                        </div>
+                                        @error('sampleTypeForm.category_id') <span class="text-danger">{{ $message }}</span> @enderror
                                     </div>
                                 </div>
                                 <div class="col-md-6">
@@ -765,6 +816,73 @@
     .modern-select.is-invalid:focus {
         border-color: #dc3545;
         box-shadow: 0 0 0 0.2rem rgba(220, 53, 69, 0.25);
+    }
+    
+    /* Single-Select Searchable Dropdown Styling */
+    .searchable-input-single {
+        border: none;
+        outline: none;
+        box-shadow: none !important;
+        padding: 4px 0;
+        width: 100%;
+    }
+    
+    .searchable-input-single:focus {
+        border: none !important;
+        box-shadow: none !important;
+    }
+    
+    .single-select-container {
+        position: relative;
+        min-height: 45px;
+        border: 1px solid #ced4da;
+        border-radius: 12px;
+        padding: 8px 40px 8px 12px;
+        background: white;
+        cursor: pointer;
+        transition: all 0.3s ease;
+        display: flex;
+        align-items: center;
+    }
+    
+    .single-select-container:hover {
+        border-color: #007bff;
+        box-shadow: 0 2px 8px rgba(0, 123, 255, 0.1);
+    }
+    
+    .single-select-container:has(.searchable-input-single:focus) {
+        border-color: #007bff;
+        box-shadow: 0 0 0 0.2rem rgba(0, 123, 255, 0.25);
+    }
+    
+    .options-list {
+        padding: 8px;
+        max-height: 300px;
+        overflow-y: auto;
+    }
+    
+    .option-item {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        padding: 10px 12px;
+        border-radius: 8px;
+        cursor: pointer;
+        transition: all 0.2s ease;
+        font-size: 14px;
+    }
+    
+    .option-item:hover {
+        background: #f8f9fa;
+    }
+    
+    .option-item.selected {
+        background: rgba(0, 123, 255, 0.08);
+        font-weight: 500;
+    }
+    
+    .option-item i {
+        font-size: 18px;
     }
     </style>
 

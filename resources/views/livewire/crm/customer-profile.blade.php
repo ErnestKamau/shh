@@ -246,93 +246,166 @@
                                 </div>
                             </form>
                         @else
-                            <div class="row">
-                                <div class="col-md-6">
-                                    <div class="mb-3">
-                                        <label class="form-label fw-bold text-muted">Name</label>
-                                        <p class="mb-0">{{ $customer->name }}</p>
+                            <div class="c">
+                                <!-- Contact Information Section -->
+                                <div class="info-section mb-4">
+                                    <h6 class="section-title">
+                                        <i class="mdi mdi-information-outline text-primary"></i>
+                                        Basic Information
+                                    </h6>
+                                    <div class="row g-3">
+                                        <div class="col-md-6">
+                                            <div class="info-card">
+                                                <div class="info-label">
+                                                    <i class="mdi mdi-account text-primary"></i> Name
+                                                </div>
+                                                <div class="info-value">{{ $customer->name }}</div>
+                                            </div>
+                                        </div>
+                                        <div class="col-md-6">
+                                            <div class="info-card">
+                                                <div class="info-label">
+                                                    <i class="mdi mdi-email text-info"></i> Email
+                                                </div>
+                                                <div class="info-value">{{ $customer->email }}</div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    
+                                    <div class="row g-3 mt-2">
+                                        <div class="col-md-6">
+                                            <div class="info-card">
+                                                <div class="info-label">
+                                                    <i class="mdi mdi-phone text-success"></i> Primary Phone
+                                                </div>
+                                                <div class="info-value">{{ $customer->telephone1 }}</div>
+                                            </div>
+                                        </div>
+                                        <div class="col-md-6">
+                                            <div class="info-card">
+                                                <div class="info-label">
+                                                    <i class="mdi mdi-phone-outline text-success"></i> Secondary Phone
+                                                </div>
+                                                <div class="info-value text-muted">{{ $customer->telephone2 ?? 'N/A' }}</div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    
+                                    <div class="row g-3 mt-2">
+                                        <div class="col-md-6">
+                                            <div class="info-card">
+                                                <div class="info-label">
+                                                    <i class="mdi mdi-earth text-warning"></i> Country
+                                                </div>
+                                                <div class="info-value">{{ $customer->country->name ?? 'N/A' }}</div>
+                                            </div>
+                                        </div>
+                                        <div class="col-md-6">
+                                            <div class="info-card">
+                                                <div class="info-label">
+                                                    <i class="mdi mdi-check-circle text-success"></i> Status
+                                                </div>
+                                                <div class="info-value">
+                                                    @if($customer->active == 1)
+                                                        <span class="badge badge-success-modern">
+                                                            <i class="mdi mdi-check-circle"></i> Active
+                                                        </span>
+                                                    @else
+                                                        <span class="badge badge-secondary-modern">
+                                                            <i class="mdi mdi-pause-circle"></i> Inactive
+                                                        </span>
+                                                    @endif
+                                                </div>
+                                            </div>
+                                        </div>
                                     </div>
                                 </div>
-                                <div class="col-md-6">
-                                    <div class="mb-3">
-                                        <label class="form-label fw-bold text-muted">Email</label>
-                                        <p class="mb-0">{{ $customer->email }}</p>
-                                    </div>
-                                </div>
-                            </div>
-                            
-                            <div class="row">
-                                <div class="col-md-6">
-                                    <div class="mb-3">
-                                        <label class="form-label fw-bold text-muted">Phone 1</label>
-                                        <p class="mb-0">{{ $customer->telephone1 }}</p>
-                                    </div>
-                                </div>
-                                <div class="col-md-6">
-                                    <div class="mb-3">
-                                        <label class="form-label fw-bold text-muted">Phone 2</label>
-                                        <p class="mb-0">{{ $customer->telephone2 ?? 'N/A' }}</p>
-                                    </div>
-                                </div>
-                            </div>
 
-                            <div class="row">
-                                <div class="col-md-6">
-                                    <div class="mb-3">
-                                        <label class="form-label fw-bold text-muted">Country</label>
-                                        <p class="mb-0">{{ $customer->country->name ?? 'N/A' }}</p>
+                                <!-- Address Information Section -->
+                                <div class="info-section mb-4">
+                                    <h6 class="section-title">
+                                        <i class="mdi mdi-map-marker text-danger"></i>
+                                        Address Information
+                                    </h6>
+                                    <div class="row g-3">
+                                        <div class="col-md-12">
+                                            <div class="info-card">
+                                                <div class="info-label">
+                                                    <i class="mdi mdi-mailbox text-primary"></i> Postal Address
+                                                </div>
+                                                <div class="info-value">{{ $customer->postal_address }}</div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    
+                                    <div class="row g-3 mt-2">
+                                        <div class="col-md-12">
+                                            <div class="info-card">
+                                                <div class="info-label">
+                                                    <i class="mdi mdi-home-map-marker text-danger"></i> Physical Address
+                                                </div>
+                                                <div class="info-value">{{ $customer->physical_address }}</div>
+                                            </div>
+                                        </div>
                                     </div>
                                 </div>
-                                <div class="col-md-6">
-                                    <div class="mb-3">
-                                        <label class="form-label fw-bold text-muted">Status</label>
-                                        <p class="mb-0">
-                                            @if($customer->active == 1)
-                                                <span class="badge bg-success">Active</span>
-                                            @else
-                                                <span class="badge bg-secondary">Inactive</span>
-                                            @endif
-                                        </p>
-                                    </div>
-                                </div>
-                            </div>
 
-                            <div class="mb-3">
-                                <label class="form-label fw-bold text-muted">Postal Address</label>
-                                <p class="mb-0">{{ $customer->postal_address }}</p>
-                            </div>
-
-                            <div class="mb-3">
-                                <label class="form-label fw-bold text-muted">Physical Address</label>
-                                <p class="mb-0">{{ $customer->physical_address }}</p>
-                            </div>
-
-                            <div class="row">
-                                <div class="col-md-6">
-                                    <div class="mb-3">
-                                        <label class="form-label fw-bold text-muted">Website</label>
-                                        <p class="mb-0">{{ $customer->website ?? 'N/A' }}</p>
+                                <!-- Additional Information Section -->
+                                <div class="info-section">
+                                    <h6 class="section-title">
+                                        <i class="mdi mdi-cog text-info"></i>
+                                        Additional Information
+                                    </h6>
+                                    <div class="row g-3">
+                                        <div class="col-md-6">
+                                            <div class="info-card">
+                                                <div class="info-label">
+                                                    <i class="mdi mdi-web text-info"></i> Website
+                                                </div>
+                                                <div class="info-value">
+                                                    @if($customer->website)
+                                                        <a href="{{ $customer->website }}" target="_blank" class="text-primary">
+                                                            {{ $customer->website }} <i class="mdi mdi-open-in-new"></i>
+                                                        </a>
+                                                    @else
+                                                        <span class="text-muted">N/A</span>
+                                                    @endif
+                                                </div>
+                                            </div>
+                                        </div>
+                                        <div class="col-md-6">
+                                            <div class="info-card">
+                                                <div class="info-label">
+                                                    <i class="mdi mdi-fax text-secondary"></i> Fax
+                                                </div>
+                                                <div class="info-value text-muted">{{ $customer->fax ?? 'N/A' }}</div>
+                                            </div>
+                                        </div>
                                     </div>
-                                </div>
-                                <div class="col-md-6">
-                                    <div class="mb-3">
-                                        <label class="form-label fw-bold text-muted">Fax</label>
-                                        <p class="mb-0">{{ $customer->fax ?? 'N/A' }}</p>
-                                    </div>
-                                </div>
-                            </div>
-
-                            <div class="row">
-                                <div class="col-md-6">
-                                    <div class="mb-3">
-                                        <label class="form-label fw-bold text-muted">VAT Number</label>
-                                        <p class="mb-0">{{ $customer->vat_no ?? 'N/A' }}</p>
-                                    </div>
-                                </div>
-                                <div class="col-md-6">
-                                    <div class="mb-3">
-                                        <label class="form-label fw-bold text-muted">Credit Days</label>
-                                        <p class="mb-0">{{ $customer->credit_days ?? 'N/A' }}</p>
+                                    
+                                    <div class="row g-3 mt-2">
+                                        <div class="col-md-6">
+                                            <div class="info-card">
+                                                <div class="info-label">
+                                                    <i class="mdi mdi-receipt text-warning"></i> VAT Number
+                                                </div>
+                                                <div class="info-value text-muted">{{ $customer->vat_no ?? 'N/A' }}</div>
+                                            </div>
+                                        </div>
+                                        <div class="col-md-6">
+                                            <div class="info-card">
+                                                <div class="info-label">
+                                                    <i class="mdi mdi-calendar-clock text-success"></i> Credit Days
+                                                </div>
+                                                <div class="info-value">
+                                                    @if($customer->credit_days)
+                                                        <span class="badge badge-info-modern">{{ $customer->credit_days }} days</span>
+                                                    @else
+                                                        <span class="text-muted">N/A</span>
+                                                    @endif
+                                                </div>
+                                            </div>
+                                        </div>
                                     </div>
                                 </div>
                             </div>
@@ -487,6 +560,131 @@
     .card:hover {
         transform: translateY(-2px);
         box-shadow: 0 8px 25px rgba(0, 0, 0, 0.1) !important;
+    }
+    
+    /* Modern Customer Details Styling */
+    .info-section {
+        padding: 0;
+        margin-bottom: 24px;
+    }
+
+    .section-title {
+        font-size: 14px;
+        font-weight: 600;
+        color: #495057;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+        margin-bottom: 16px;
+        padding-bottom: 8px;
+        border-bottom: 2px solid #e9ecef;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+    }
+
+    .section-title i {
+        font-size: 18px;
+    }
+
+    .info-card {
+        background: linear-gradient(135deg, #f8f9fa 0%, #ffffff 100%);
+        border: 1px solid #e9ecef;
+        border-radius: 12px;
+        padding: 16px 20px;
+        transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        height: 100%;
+        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.02);
+    }
+
+    .info-card:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+        border-color: #dee2e6;
+    }
+
+    .info-label {
+        font-size: 12px;
+        font-weight: 600;
+        color: #6c757d;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+        margin-bottom: 8px;
+        display: flex;
+        align-items: center;
+        gap: 6px;
+    }
+
+    .info-label i {
+        font-size: 16px;
+    }
+
+    .info-value {
+        font-size: 15px;
+        font-weight: 500;
+        color: #212529;
+        word-break: break-word;
+    }
+
+    .info-value a {
+        text-decoration: none;
+        transition: all 0.2s ease;
+    }
+
+    .info-value a:hover {
+        text-decoration: underline;
+        opacity: 0.8;
+    }
+
+    /* Modern Badge Styling */
+    .badge-success-modern {
+        background: linear-gradient(135deg, #28a745 0%, #20c997 100%);
+        color: white;
+        padding: 6px 12px;
+        border-radius: 20px;
+        font-size: 13px;
+        font-weight: 600;
+        display: inline-flex;
+        align-items: center;
+        gap: 4px;
+        box-shadow: 0 2px 8px rgba(40, 167, 69, 0.3);
+    }
+
+    .badge-secondary-modern {
+        background: linear-gradient(135deg, #6c757d 0%, #5a6268 100%);
+        color: white;
+        padding: 6px 12px;
+        border-radius: 20px;
+        font-size: 13px;
+        font-weight: 600;
+        display: inline-flex;
+        align-items: center;
+        gap: 4px;
+        box-shadow: 0 2px 8px rgba(108, 117, 125, 0.3);
+    }
+
+    .badge-info-modern {
+        background: linear-gradient(135deg, #17a2b8 0%, #138496 100%);
+        color: white;
+        padding: 6px 12px;
+        border-radius: 20px;
+        font-size: 13px;
+        font-weight: 600;
+        box-shadow: 0 2px 8px rgba(23, 162, 184, 0.3);
+    }
+
+    /* Responsive adjustments for info cards */
+    @media (max-width: 768px) {
+        .info-card {
+            padding: 12px 16px;
+        }
+        
+        .section-title {
+            font-size: 13px;
+        }
+        
+        .info-value {
+            font-size: 14px;
+        }
     }
     </style>
 </div>

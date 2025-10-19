@@ -59,7 +59,7 @@
 @section('content')
 <div class="row" id="body-row">
 	<!-- Sidebar -->
-	<div id="sidebar-container" class="sidebar-expanded d-none d-md-block col-sm-3 col-lg-2">
+	<div id="sidebar-container" class="sidebar-expanded d-none d-md-block">
 		<!-- d-* hiddens the Sidebar in smaller devices. Its itens can be kept on the Navbar 'Menu' -->
 		<!-- Bootstrap List Group -->
 		<ul class="list-group">
@@ -128,10 +128,10 @@
 
 		<!-- List Group END-->
 	</div>
-	<!-- sidebar-container END -->
+<!-- sidebar-container END -->
 
-	<!-- MAIN -->
-	<div class="col-sm-8 col-lg-10 py-3" id="main-container-body">
+<!-- MAIN -->
+<div class="py-3" id="main-container-body">
 		<div id="message-section" style="padding: 10px 10px 0px 10px !important">
 
 

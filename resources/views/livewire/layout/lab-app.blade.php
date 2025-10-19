@@ -23,6 +23,15 @@
         'icon' => null
     ];
     
+    // Add Analytes if we're in analytes section
+    if (isset($componentType) && $componentType === 'analytes') {
+        $breadcrumbItems[] = [
+            'link' => route('analytes'),
+            'name' => 'Analytes',
+            'icon' => null
+        ];
+    }
+    
     // Add Remedies if we're in remedies section
     if (isset($componentType) && $componentType === 'remedies') {
         $breadcrumbItems[] = [
@@ -126,6 +135,8 @@
     <!-- Dynamic Livewire Component -->
     @if($componentType === 'sample-types')
         @livewire('samples.sample-type-manager')
+    @elseif($componentType === 'analytes')
+        @livewire('lab.analyte-manager')
     @elseif($componentType === 'analysis-types')
         @livewire('analysis.analysis-type-manager', ['sampleTypeId' => $sampleType->id ?? null])
     @elseif($componentType === 'elements')

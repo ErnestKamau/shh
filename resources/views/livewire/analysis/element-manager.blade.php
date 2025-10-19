@@ -395,14 +395,61 @@
                             <div class="row">
                                 <div class="col-md-4">
                                     <div class="form-group mb-3">
-                                        <label class="form-label">Reporting Unit <span class="text-danger">*</span></label>
-                                        <select wire:model.live="elementForm.reporting_unit" class="form-select modern-select @error('elementForm.reporting_unit') is-invalid @enderror" wire:key="reporting-unit-select-{{ $editingElement?->id ?? 'new' }}">
-                                            <option value="">Select Reporting Unit</option>
-                                            @foreach($reportingUnits as $unit)
-                                                <option value="{{ $unit->name }}">{{ $unit->name }}</option>
-                                            @endforeach
-                                        </select>
-                                        @error('elementForm.reporting_unit') <div class="invalid-feedback">{{ $message }}</div> @enderror
+                                        <label class="form-label"><i class="mdi mdi-scale-balance text-primary"></i> Reporting Unit <span class="text-danger">*</span></label>
+                                        <div x-data="{
+                                            open: false,
+                                            search: '',
+                                            selected: @entangle('elementForm.reporting_unit').live,
+                                            units: {{ json_encode($reportingUnits->pluck('name')->values()) }},
+                                            get filteredUnits() {
+                                                if (!this.search) return this.units.slice(0, 50);
+                                                return this.units.filter(unit => 
+                                                    unit.toLowerCase().includes(this.search.toLowerCase())
+                                                );
+                                            },
+                                            selectUnit(unit) {
+                                                this.selected = unit;
+                                                this.open = false;
+                                                this.search = '';
+                                            }
+                                        }" class="searchable-dropdown-wrapper" wire:key="reporting-unit-dropdown-{{ $editingElement?->id ?? 'new' }}">
+                                            <div class="single-select-container" @click="open = !open">
+                                                <input 
+                                                    type="text" 
+                                                    x-model="search"
+                                                    :placeholder="selected ? selected : 'Search reporting units...'"
+                                                    @focus="open = true"
+                                                    class="form-control searchable-input-single"
+                                                    autocomplete="off"
+                                                >
+                                                <i class="mdi mdi-chevron-down dropdown-arrow" :class="{ 'rotated': open }"></i>
+                                            </div>
+
+                                            <div x-show="open" 
+                                                 @click.away="open = false"
+                                                 x-transition
+                                                 class="dropdown-list">
+                                                <template x-if="filteredUnits.length > 0">
+                                                    <div class="options-list">
+                                                        <template x-for="unit in filteredUnits" :key="unit">
+                                                            <div @click="selectUnit(unit)" 
+                                                                 class="option-item"
+                                                                 :class="{ 'selected': selected == unit }">
+                                                                <i class="mdi mdi-check-circle text-primary" x-show="selected == unit"></i>
+                                                                <span x-text="unit"></span>
+                                                            </div>
+                                                        </template>
+                                                    </div>
+                                                </template>
+                                                <template x-if="filteredUnits.length === 0">
+                                                    <div class="no-results">
+                                                        <i class="mdi mdi-alert-circle-outline"></i>
+                                                        <span>No units found</span>
+                                                    </div>
+                                                </template>
+                                            </div>
+                                        </div>
+                                        @error('elementForm.reporting_unit') <span class="text-danger">{{ $message }}</span> @enderror
                                     </div>
                                 </div>
                                 <div class="col-md-4">
@@ -943,6 +990,73 @@ document.addEventListener('click', function(e) {
     border: 1px solid #dee2e6 !important;
     border-radius: 8px !important;
     font-weight: 500;
+}
+
+/* Single-Select Searchable Dropdown Styling */
+.searchable-input-single {
+    border: none;
+    outline: none;
+    box-shadow: none !important;
+    padding: 4px 0;
+    width: 100%;
+}
+
+.searchable-input-single:focus {
+    border: none !important;
+    box-shadow: none !important;
+}
+
+.single-select-container {
+    position: relative;
+    min-height: 45px;
+    border: 1px solid #ced4da;
+    border-radius: 12px;
+    padding: 8px 40px 8px 12px;
+    background: white;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    display: flex;
+    align-items: center;
+}
+
+.single-select-container:hover {
+    border-color: #007bff;
+    box-shadow: 0 2px 8px rgba(0, 123, 255, 0.1);
+}
+
+.single-select-container:has(.searchable-input-single:focus) {
+    border-color: #007bff;
+    box-shadow: 0 0 0 0.2rem rgba(0, 123, 255, 0.25);
+}
+
+.options-list {
+    padding: 8px;
+    max-height: 300px;
+    overflow-y: auto;
+}
+
+.option-item {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 10px 12px;
+    border-radius: 8px;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    font-size: 14px;
+}
+
+.option-item:hover {
+    background: #f8f9fa;
+}
+
+.option-item.selected {
+    background: rgba(0, 123, 255, 0.08);
+    font-weight: 500;
+}
+
+.option-item i {
+    font-size: 18px;
 }
 </style>
 </div>
