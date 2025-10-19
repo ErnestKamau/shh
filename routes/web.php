@@ -510,6 +510,7 @@ Route::prefix('submission-forms')->name('submission-forms.')->middleware('auth')
         Route::put('/{submissionForm}/{instance}', 'FormInstanceController@update')->name('update');
         Route::get('/{submissionForm}/{instance}', 'FormInstanceController@show')->name('show');
         Route::get('/{submissionForm}/{instance}/edit', 'FormInstanceController@edit')->name('edit');
+        Route::get('/{submissionForm}/{instance}/print', 'FormInstanceController@print')->name('print');
         Route::delete('/{submissionForm}/{instance}', 'FormInstanceController@destroy')->name('destroy');
         
         // Sample Creation Routes

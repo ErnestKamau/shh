@@ -149,6 +149,34 @@
                 </div>
 
                 <div class="form-group">
+                  <label for="print_template_name">Print Template</label>
+                  <select class="form-control @error('print_template_name') is-invalid @enderror" 
+                          id="print_template_name" 
+                          name="print_template_name">
+                    <option value="">Use Default Template</option>
+                    <option value="submission-forms.print.default" {{ old('print_template_name', $submissionForm->print_template_name) == 'submission-forms.print.default' ? 'selected' : '' }}>
+                      Default Template
+                    </option>
+                    <option value="submission-forms.print.microbiology" {{ old('print_template_name', $submissionForm->print_template_name) == 'submission-forms.print.microbiology' ? 'selected' : '' }}>
+                      Microbiology Template
+                    </option>
+                    <option value="submission-forms.print.serology" {{ old('print_template_name', $submissionForm->print_template_name) == 'submission-forms.print.serology' ? 'selected' : '' }}>
+                      Serology Template
+                    </option>
+                    <!-- Add your new template here -->
+                    <option value="submission-forms.print.your-template-name" {{ old('print_template_name', $submissionForm->print_template_name) == 'submission-forms.print.your-template-name' ? 'selected' : '' }}>
+                      Your Template Name
+                    </option>
+                  </select>
+                  @error('print_template_name')
+                    <div class="invalid-feedback">{{ $message }}</div>
+                  @enderror
+                  <small class="form-text text-muted">
+                    Select a custom print template for this form. If not specified, the default template will be used.
+                  </small>
+                </div>
+
+                <div class="form-group">
                   <div class="form-check">
                     <input type="checkbox" 
                            class="form-check-input" 

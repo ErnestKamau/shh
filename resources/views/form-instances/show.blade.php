@@ -9,6 +9,11 @@
           <i class="mdi mdi-file-document"></i> Submission Details
         </h1>
         <div>
+          <a href="{{ route('submission-forms.instances.print', [$instance->submissionForm, $instance]) }}" 
+             class="btn btn-outline-info" 
+             target="_blank">
+            <i class="mdi mdi-printer"></i> Print Form
+          </a>
           <a href="{{ route('form-instances.export', $instance) }}" class="btn btn-outline-info">
             <i class="mdi mdi-download"></i> Export
           </a>

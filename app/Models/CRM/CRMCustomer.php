@@ -11,6 +11,32 @@ class CRMCustomer extends Model implements Auditable
 {
 	use \OwenIt\Auditing\Auditable;
 	protected $table = "crm_customers";
+	
+	protected $fillable = [
+		'name',
+		'code',
+		'email',
+		'telephone1',
+		'telephone2',
+		'postal_address',
+		'physical_address',
+		'fax',
+		'website',
+		'country_id',
+		'company_id',
+		'active',
+		'unit_configurable_name',
+		'sample_point_configurable_name',
+		'product_configurable_name',
+		'credit_days',
+		'account_status',
+		'lpos_required',
+		'vat_no',
+		'is_hidden',
+		'zoho_id',
+		'currency_id',
+		'lab_id'
+	];
 
 	public function country(){
     return $this->belongsTo('App\Country');

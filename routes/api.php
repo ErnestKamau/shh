@@ -16,3 +16,21 @@ use Illuminate\Support\Facades\Route;
 
 Route::post('/kcb/receive','KCBIntegrationController@receivepayment')->name('receive-payment');
 
+// API routes for custom element modals
+Route::get('/clients', 'Api\ClientController@index');
+Route::post('/clients', 'Api\ClientController@store');
+
+Route::get('/client-units', 'Api\ClientUnitController@index');
+Route::post('/client-units', 'Api\ClientUnitController@store');
+
+Route::get('/client-contacts', 'Api\ClientContactController@index');
+Route::post('/client-contacts', 'Api\ClientContactController@store');
+
+Route::get('/sample-points', 'Api\SamplePointController@index');
+Route::post('/sample-points', 'Api\SamplePointController@store');
+
+Route::get('/sample-conditions', 'Api\SampleConditionController@index');
+Route::post('/sample-conditions', 'Api\SampleConditionController@store');
+
+Route::get('/sample-types', 'Api\SampleTypeController@index');
+

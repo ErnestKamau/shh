@@ -19,6 +19,7 @@ class SubmissionForm extends Model
         'is_active',
         'start_submission_number',
         'version',
+        'print_template_name',
         'created_by'
     ];
 
@@ -153,5 +154,15 @@ class SubmissionForm extends Model
             'submitted_instances' => $this->instances()->where('status', 'submitted')->count(),
             'approved_instances' => $this->instances()->where('status', 'approved')->count(),
         ];
+    }
+
+    /**
+     * Get the print template name for this form
+     * 
+     * @return string
+     */
+    public function getPrintTemplateName(): string
+    {
+        return $this->print_template_name ?? 'submission-forms.print.default';
     }
 }

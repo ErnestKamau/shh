@@ -9,6 +9,13 @@ class CRMCompanyUnit extends Model implements Auditable
 {
 	use \OwenIt\Auditing\Auditable;
 	protected $table = "crm_company_units";
+	
+	protected $fillable = [
+		'name',
+		'company_id',
+		'crm_customer_id',
+		'active'
+	];
 
   public function products(){
     return $this->hasMany('App\Models\CRM\CompanyProduct', 'crm_company_unit_id');

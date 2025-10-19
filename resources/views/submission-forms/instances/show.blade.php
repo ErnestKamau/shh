@@ -50,6 +50,11 @@
         </div>
       </div>
       <div class="d-flex gap-2">
+        <a href="{{ route('submission-forms.instances.print', [$submissionForm, $instance]) }}" 
+           class="btn btn-outline-info" 
+           target="_blank">
+          <i class="mdi mdi-printer"></i> Print Form
+        </a>
         @if($instance->isDraft())
           <a href="{{ route('submission-forms.instances.fill', [$submissionForm, $instance]) }}" 
              class="btn btn-primary">
