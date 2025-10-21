@@ -30,6 +30,8 @@ class SampleCapturedWorksheetFormula extends Model
         'read_by_user_id',
         'read_date',
         'final_result',
+        'posted_at',
+        'posted_by_user_id',
     ];
 
     protected $casts = [
@@ -37,6 +39,7 @@ class SampleCapturedWorksheetFormula extends Model
         'read_date' => 'date',
         'time_in' => 'datetime:H:i',
         'time_out' => 'datetime:H:i',
+        'posted_at' => 'datetime',
     ];
 
     public function sampleHeader(): BelongsTo
@@ -67,6 +70,11 @@ class SampleCapturedWorksheetFormula extends Model
     public function readByUser(): BelongsTo
     {
         return $this->belongsTo(User::class, 'read_by_user_id');
+    }
+
+    public function postedBy(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'posted_by_user_id');
     }
 
     public function stepData(): HasMany

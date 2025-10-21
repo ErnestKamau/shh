@@ -352,7 +352,6 @@ class SubmissionFormController extends Controller
         switch ($elementType) {
             case 'client_select':
                 $clients = \App\Models\CRM\CRMCustomer::where('active', 1)
-                    ->where('company_id', getUserCompany())
                     ->orderBy('name')
                     ->get();
 
@@ -499,13 +498,19 @@ class SubmissionFormController extends Controller
                 if ($clientUnitId) {
                     $samplePoints = \App\Models\CRM\SamplePoint::where('active', 1)
                         ->where('crm_company_unit_id', $clientUnitId)
+                        ->with('area')
                         ->orderBy('name')
                         ->get();
 
                     foreach ($samplePoints as $samplePoint) {
+                        // Format: "area - sample point" if area exists, otherwise just "sample point"
+                        $label = $samplePoint->area && $samplePoint->area->name 
+                            ? $samplePoint->area->name . ' - ' . $samplePoint->name 
+                            : $samplePoint->name;
+                            
                         $options[] = [
                             'value' => $samplePoint->id,
-                            'label' => $samplePoint->name
+                            'label' => $label
                         ];
                     }
                 }
@@ -522,6 +527,207 @@ class SubmissionFormController extends Controller
             ]);
             
             return response()->json(['error' => 'Failed to load options'], 500);
+        }
+    }
+
+    /**
+     * Quick store for creating client from modal
+     *
+     * @param Request $request
+     * @return \Illuminate\Http\JsonResponse
+     */
+    public function quickStoreClient(Request $request): \Illuminate\Http\JsonResponse
+    {
+        try {
+            $validated = $request->validate([
+                'name' => 'required|string|max:255',
+                'email' => 'nullable|email|max:255',
+                'phone' => 'nullable|string|max:50',
+            ]);
+
+            $client = \App\Models\CRM\CRMCustomer::create([
+                'name' => $validated['name'],
+                'email' => $validated['email'] ?? null,
+                'phone' => $validated['phone'] ?? null,
+                'company_id' => getUserCompany(),
+                'active' => 1,
+            ]);
+
+            return response()->json([
+                'success' => true,
+                'client' => [
+                    'id' => $client->id,
+                    'name' => $client->name,
+                ]
+            ]);
+        } catch (\Exception $e) {
+            Log::error('Error creating client: ' . $e->getMessage());
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to create client: ' . $e->getMessage()
+            ], 500);
+        }
+    }
+
+    /**
+     * Quick store for creating client unit from modal
+     *
+     * @param Request $request
+     * @return \Illuminate\Http\JsonResponse
+     */
+    public function quickStoreClientUnit(Request $request): \Illuminate\Http\JsonResponse
+    {
+        try {
+            $validated = $request->validate([
+                'client_id' => 'required|exists:crm_customers,id',
+                'name' => 'required|string|max:255',
+                'address' => 'nullable|string',
+            ]);
+
+            $unit = \App\Models\CRM\CRMCompanyUnit::create([
+                'crm_customer_id' => $validated['client_id'],
+                'name' => $validated['name'],
+                'address' => $validated['address'] ?? null,
+                'active' => 1,
+            ]);
+
+            return response()->json([
+                'success' => true,
+                'unit' => [
+                    'id' => $unit->id,
+                    'name' => $unit->name,
+                ]
+            ]);
+        } catch (\Exception $e) {
+            Log::error('Error creating client unit: ' . $e->getMessage());
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to create client unit: ' . $e->getMessage()
+            ], 500);
+        }
+    }
+
+    /**
+     * Quick store for creating client contact from modal
+     *
+     * @param Request $request
+     * @return \Illuminate\Http\JsonResponse
+     */
+    public function quickStoreClientContact(Request $request): \Illuminate\Http\JsonResponse
+    {
+        try {
+            $validated = $request->validate([
+                'client_id' => 'required|exists:crm_customers,id',
+                'name' => 'required|string|max:255',
+                'email' => 'nullable|email|max:255',
+                'phone' => 'nullable|string|max:50',
+                'position' => 'nullable|string|max:255',
+            ]);
+
+            // Split name into first, middle, last
+            $nameParts = explode(' ', $validated['name']);
+            $firstName = $nameParts[0] ?? '';
+            $lastName = count($nameParts) > 2 ? array_pop($nameParts) : (count($nameParts) > 1 ? $nameParts[1] : '');
+            $middleName = count($nameParts) > 2 ? implode(' ', array_slice($nameParts, 1, -1)) : '';
+
+            $contact = \App\Models\CRM\CustomerContact::create([
+                'crm_customer_id' => $validated['client_id'],
+                'first_name' => $firstName,
+                'middle_name' => $middleName,
+                'last_name' => $lastName,
+                'email' => $validated['email'] ?? null,
+                'phone' => $validated['phone'] ?? null,
+                'position' => $validated['position'] ?? null,
+                'active' => 1,
+            ]);
+
+            return response()->json([
+                'success' => true,
+                'contact' => [
+                    'id' => $contact->id,
+                    'name' => $contact->name,
+                ]
+            ]);
+        } catch (\Exception $e) {
+            Log::error('Error creating client contact: ' . $e->getMessage());
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to create client contact: ' . $e->getMessage()
+            ], 500);
+        }
+    }
+
+    /**
+     * Quick store for creating sample condition from modal
+     *
+     * @param Request $request
+     * @return \Illuminate\Http\JsonResponse
+     */
+    public function quickStoreSampleCondition(Request $request): \Illuminate\Http\JsonResponse
+    {
+        try {
+            $validated = $request->validate([
+                'name' => 'required|string|max:255',
+                'description' => 'nullable|string',
+            ]);
+
+            $condition = \App\SampleCondition::create([
+                'name' => $validated['name'],
+                'description' => $validated['description'] ?? null,
+                'active' => 1,
+            ]);
+
+            return response()->json([
+                'success' => true,
+                'condition' => [
+                    'id' => $condition->id,
+                    'name' => $condition->name,
+                ]
+            ]);
+        } catch (\Exception $e) {
+            Log::error('Error creating sample condition: ' . $e->getMessage());
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to create sample condition: ' . $e->getMessage()
+            ], 500);
+        }
+    }
+
+    /**
+     * Quick store for creating sample point from modal
+     *
+     * @param Request $request
+     * @return \Illuminate\Http\JsonResponse
+     */
+    public function quickStoreSamplePoint(Request $request): \Illuminate\Http\JsonResponse
+    {
+        try {
+            $validated = $request->validate([
+                'client_unit_id' => 'required|exists:crm_company_units,id',
+                'name' => 'required|string|max:255',
+                'description' => 'nullable|string',
+            ]);
+
+            $point = \App\Models\CRM\SamplePoint::create([
+                'crm_company_unit_id' => $validated['client_unit_id'],
+                'name' => $validated['name'],
+                'description' => $validated['description'] ?? null,
+                'active' => 1,
+            ]);
+
+            return response()->json([
+                'success' => true,
+                'point' => [
+                    'id' => $point->id,
+                    'name' => $point->name,
+                ]
+            ]);
+        } catch (\Exception $e) {
+            Log::error('Error creating sample point: ' . $e->getMessage());
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to create sample point: ' . $e->getMessage()
+            ], 500);
         }
     }
 

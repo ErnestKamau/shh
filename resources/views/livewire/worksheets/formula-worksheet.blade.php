@@ -18,7 +18,66 @@
         </div>
     </div>
 
+    <!-- Posted Results Status Badge -->
+    @php
+        $worksheet = \App\Models\Worksheets\SampleCapturedWorksheetFormula::where('sample_header_id', $batch->id)
+            ->where('formular_id', $formula->id)
+            ->with('postedBy')
+            ->first();
+    @endphp
+    @if($worksheet && $worksheet->posted_at)
+        <div class="alert alert-success border mb-4">
+            <div class="d-flex align-items-center">
+                <i class="mdi mdi-check-circle mdi-24px text-success mr-2"></i>
+                <div>
+                    <strong>Results Posted</strong><br>
+                    <small class="text-muted">
+                        Posted on {{ $worksheet->posted_at->format('M d, Y H:i') }} 
+                        by {{ $worksheet->postedBy->name ?? 'Unknown' }}
+                    </small>
+                </div>
+            </div>
+        </div>
+    @endif
+
+    <!-- Lookup Tables Used -->
+    @if($this->getUsedLookupTables()->count() > 0)
+        <div class="alert alert-info border mb-4">
+            <div class="d-flex align-items-start">
+                <i class="mdi mdi-table-search mdi-24px text-info mr-2"></i>
+                <div class="flex-grow-1">
+                    <strong>Lookup Tables Used:</strong>
+                    <div class="mt-2">
+                        @foreach($this->getUsedLookupTables() as $lookupTable)
+                            <div class="d-inline-flex align-items-center mr-3 mb-2">
+                                <span class="badge badge-light border p-2">
+                                    {{ $lookupTable->name }}
+                                </span>
+                                <a href="{{ route('formulars.lookup-table-entries', $lookupTable) }}" 
+                                   target="_blank"
+                                   class="btn btn-sm btn-link text-primary ml-1"
+                                   title="View lookup table entries">
+                                    <i class="mdi mdi-arrow-expand"></i>
+                                </a>
+                            </div>
+                        @endforeach
+                    </div>
+                </div>
+            </div>
+        </div>
+    @endif
+
     @if($capturedResults->count() > 0)
+        <!-- Post Results Action Button -->
+        <div class="mb-3 d-flex justify-content-end">
+            <button type="button" 
+                    class="btn btn-success" 
+                    wire:click="openPostResultsModal"
+                    wire:loading.attr="disabled">
+                <i class="mdi mdi-upload"></i> Post Results to Captured Results
+            </button>
+        </div>
+
         <!-- Worksheet Table -->
         <div class="table-responsive mb-4">
             <table class="table table-bordered table-sm" style="font-size: 0.9rem;">
@@ -367,6 +426,160 @@
                             <i class="mdi mdi-check"></i> Apply
                         </button>
                     </div>
+                </div>
+            </div>
+        </div>
+    @endif
+
+    <!-- Post Results Confirmation Modal -->
+    @if($showPostResultsModal)
+        <div class="modal fade show d-block" tabindex="-1" role="dialog" style="background-color: rgba(0,0,0,0.5);">
+            <div class="modal-dialog modal-lg modal-dialog-centered" role="document">
+                <div class="modal-content">
+                    <div class="modal-header bg-primary text-white">
+                        <h5 class="modal-title">
+                            <i class="mdi mdi-upload"></i> Confirm Standards & Post Results
+                        </h5>
+                        @if(!$postingInProgress)
+                            <button type="button" class="close text-white" wire:click="closePostResultsModal">
+                                <span aria-hidden="true">&times;</span>
+                            </button>
+                        @endif
+                    </div>
+                    <div class="modal-body">
+                        @if(!$postingInProgress)
+                            <!-- Standards Confirmation View -->
+                            <div class="alert alert-info">
+                                <i class="mdi mdi-information"></i>
+                                <strong>Please confirm the standards</strong> for each sample before posting results. 
+                                The system will update captured results with final values and recalculate remarks.
+                            </div>
+
+                            <div class="table-responsive">
+                                <table class="table table-bordered table-sm">
+                                    <thead class="thead-light">
+                                        <tr>
+                                            <th>Sample Code</th>
+                                            <th>Main Standard</th>
+                                            <th>Secondary Standard</th>
+                                            <th>Third Standard</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        @foreach($samplesWithStandards as $sample)
+                                            <tr>
+                                                <td><strong>{{ $sample['sample_code'] }}</strong></td>
+                                                <td>
+                                                    <span class="badge {{ $sample['main_standard'] ? 'badge-success' : 'badge-warning' }}">
+                                                        {{ $sample['main_standard_name'] }}
+                                                    </span>
+                                                </td>
+                                                <td>
+                                                    <span class="badge {{ $sample['secondary_standard'] ? 'badge-success' : 'badge-secondary' }}">
+                                                        {{ $sample['secondary_standard_name'] }}
+                                                    </span>
+                                                </td>
+                                                <td>
+                                                    <span class="badge {{ $sample['third_standard_id'] ? 'badge-success' : 'badge-secondary' }}">
+                                                        {{ $sample['third_standard_name'] }}
+                                                    </span>
+                                                </td>
+                                            </tr>
+                                        @endforeach
+                                    </tbody>
+                                </table>
+                            </div>
+
+                            <div class="alert alert-warning mt-3">
+                                <i class="mdi mdi-alert"></i>
+                                <strong>Note:</strong> Standards should be set in the batch details before posting. 
+                                Posting will proceed with the current standards shown above.
+                            </div>
+                        @else
+                            <!-- Progress Tracking View -->
+                            <div class="text-center py-4">
+                                <h5 class="mb-4">
+                                    <i class="mdi mdi-loading mdi-spin text-primary"></i> 
+                                    Posting Results...
+                                </h5>
+                                
+                                <!-- Progress Bar -->
+                                <div class="mb-4">
+                                    <div class="progress" style="height: 25px;">
+                                        <div class="progress-bar progress-bar-striped progress-bar-animated bg-success" 
+                                             role="progressbar" 
+                                             style="width: {{ ($currentStep / $totalSteps) * 100 }}%"
+                                             aria-valuenow="{{ $currentStep }}" 
+                                             aria-valuemin="0" 
+                                             aria-valuemax="{{ $totalSteps }}">
+                                            Step {{ $currentStep }} of {{ $totalSteps }}
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <!-- Current Step Message -->
+                                <div class="alert alert-light border">
+                                    <div class="d-flex align-items-center justify-content-center">
+                                        <i class="mdi mdi-progress-clock mdi-24px text-primary mr-2"></i>
+                                        <div>
+                                            <strong>{{ $currentStepMessage }}</strong><br>
+                                            @if($currentStep > 1)
+                                                <small class="text-muted">
+                                                    Processing {{ $processedCount }} of {{ $totalCount }} results...
+                                                </small>
+                                            @endif
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <!-- Step Indicators -->
+                                <div class="row mt-4">
+                                    <div class="col-md-4">
+                                        <div class="card {{ $currentStep >= 1 ? 'border-success' : 'border-secondary' }}">
+                                            <div class="card-body text-center py-3">
+                                                <i class="mdi mdi-{{ $currentStep > 1 ? 'check-circle text-success' : ($currentStep == 1 ? 'loading mdi-spin text-primary' : 'circle-outline text-secondary') }} mdi-36px"></i>
+                                                <p class="mb-0 mt-2"><small>Step 1: Confirm Standards</small></p>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <div class="col-md-4">
+                                        <div class="card {{ $currentStep >= 2 ? 'border-success' : 'border-secondary' }}">
+                                            <div class="card-body text-center py-3">
+                                                <i class="mdi mdi-{{ $currentStep > 2 ? 'check-circle text-success' : ($currentStep == 2 ? 'loading mdi-spin text-primary' : 'circle-outline text-secondary') }} mdi-36px"></i>
+                                                <p class="mb-0 mt-2"><small>Step 2: Post Results</small></p>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <div class="col-md-4">
+                                        <div class="card {{ $currentStep >= 3 ? 'border-success' : 'border-secondary' }}">
+                                            <div class="card-body text-center py-3">
+                                                <i class="mdi mdi-{{ $currentStep > 3 ? 'check-circle text-success' : ($currentStep == 3 ? 'loading mdi-spin text-primary' : 'circle-outline text-secondary') }} mdi-36px"></i>
+                                                <p class="mb-0 mt-2"><small>Step 3: Calculate Remarks</small></p>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        @endif
+                    </div>
+                    @if(!$postingInProgress)
+                        <div class="modal-footer">
+                            <button type="button" class="btn btn-secondary" wire:click="closePostResultsModal">
+                                <i class="mdi mdi-close"></i> Cancel
+                            </button>
+                            <button type="button" 
+                                    class="btn btn-success" 
+                                    wire:click="postResults"
+                                    wire:loading.attr="disabled">
+                                <span wire:loading.remove wire:target="postResults">
+                                    <i class="mdi mdi-check"></i> Yes, Post Results
+                                </span>
+                                <span wire:loading wire:target="postResults">
+                                    <i class="mdi mdi-loading mdi-spin"></i> Posting...
+                                </span>
+                            </button>
+                        </div>
+                    @endif
                 </div>
             </div>
         </div>

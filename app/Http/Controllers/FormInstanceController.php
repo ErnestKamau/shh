@@ -703,7 +703,6 @@ class FormInstanceController extends Controller
             switch ($elementType) {
                 case 'client_select':
                     $clients = \App\Models\CRM\CRMCustomer::where('active', 1)
-                        ->where('company_id', getUserCompany())
                         ->orderBy('name')
                         ->get();
 
@@ -819,10 +818,22 @@ class FormInstanceController extends Controller
 
                 case 'sample_point_select':
                     if ($clientUnitId) {
-                        $options = \App\Models\CRM\SamplePoint::where('crm_company_unit_id', $clientUnitId)
-                            ->select('id', 'name as text')
-                            ->get()
-                            ->toArray();
+                        $samplePoints = \App\Models\CRM\SamplePoint::where('crm_company_unit_id', $clientUnitId)
+                            ->with('area')
+                            ->get();
+                            
+                        $options = [];
+                        foreach ($samplePoints as $samplePoint) {
+                            // Format: "area - sample point" if area exists, otherwise just "sample point"
+                            $text = $samplePoint->area && $samplePoint->area->name 
+                                ? $samplePoint->area->name . ' - ' . $samplePoint->name 
+                                : $samplePoint->name;
+                                
+                            $options[] = [
+                                'id' => $samplePoint->id,
+                                'text' => $text
+                            ];
+                        }
                     }
                     break;
 

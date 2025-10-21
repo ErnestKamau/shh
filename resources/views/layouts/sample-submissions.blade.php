@@ -312,6 +312,7 @@
     @endif
 
     @yield('css')
+    @stack('styles')
 </head>
 
 <body>
@@ -319,8 +320,9 @@
         <!-- Header -->
         <nav class="navbar navbar-expand-lg navbar-light bg-white shadow-sm fixed-top">
             <div class="container-fluid">
+                <?php $active_company = getActiveCompany(); ?>
                 <a class="navbar-brand" href="{{ route('home') }}">
-                    <img src="/images/imara-sys.png" alt="Logo" height="40">
+                    <img src="{{ $active_company->logo }}" alt="Logo" height="40">
                 </a>
                 
                 <div class="navbar-nav ms-auto">
@@ -351,7 +353,7 @@
 
     <!-- Scripts -->
     <script src="/assets/js/libs/jquery/jquery-3.5.1.min.js"></script>
-    <script src="/assets/js/libs/bootstrap/bootstrap.bundle.min.js"></script>
+    <script src="/assets/js/libs/bootstrap/bootstrap-4.4.1.min.js"></script>
     
     @if (isset($select2))
         <script src="/select2/select2.min.js"></script>
@@ -364,9 +366,20 @@
             $(document).ready(function() {
                 $('select').not('.hidden').each(function(i, e) {
                     if (!$(e).hasClass('no-select2')) {
-                        $(e).select2({
-                            placeHolder: $(e).attr('placeholder') || $(e).data('placeholder')
-                        });
+                        var $select = $(e);
+                        var isMultiple = $select.prop('multiple');
+                        
+                        var options = {
+                            placeholder: $select.attr('placeholder') || $select.data('placeholder') || 'Select...'
+                        };
+                        
+                        // Special configuration for multiple selects
+                        if (isMultiple) {
+                            options.allowClear = true;
+                            options.closeOnSelect = false;
+                        }
+                        
+                        $select.select2(options);
                     }
                 });
             });
@@ -374,6 +387,7 @@
     @endif
     
     @livewireScripts
+    @stack('scripts')
 </body>
 
 </html>

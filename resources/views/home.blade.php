@@ -433,6 +433,7 @@
     .app-card.matrix { background: linear-gradient(135deg, rgba(158, 158, 158, 0.2), rgba(158, 158, 158, 0.1)); }
     .app-card.ai { background: linear-gradient(135deg, rgba(255, 152, 0, 0.2), rgba(255, 152, 0, 0.1)); }
     .app-card.settings { background: linear-gradient(135deg, rgba(0, 0, 0, 0.2), rgba(0, 0, 0, 0.1)); }
+    .app-card.dms { background: linear-gradient(135deg, rgba(103, 58, 183, 0.2), rgba(103, 58, 183, 0.1)); }
 </style>
 @endsection
 
@@ -514,6 +515,13 @@
             <h3 class="app-title">Personnel</h3>
         </a>
         @endif
+
+        <a class="app-card dms" href="{{ route('dms.dashboard') }}" data-app="dms">
+            <div class="app-icon" style="background: linear-gradient(135deg, #673AB7, #512DA8);">
+                <i class="mdi mdi-file-document-multiple"></i>
+            </div>
+            <h3 class="app-title">Document Management</h3>
+        </a>
 
         <a class="app-card calendar hidden" href="/full-calendar/view" data-app="calendar">
             <div class="app-icon" style="background: linear-gradient(135deg, #FFC107, #FF8F00);">

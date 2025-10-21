@@ -219,6 +219,8 @@
       </div>
     </div>
   </main>
+
+@include('submission-forms.partials.add-entity-modals')
 @endsection
 
 @push('styles')
@@ -295,6 +297,10 @@
 .rows-section-table th {
     background-color: #f8f9fa;
     border-top: none;
+}
+
+.rows-section .table td {
+    vertical-align: middle;
 }
 
 .clone-row, .delete-row {
@@ -862,14 +868,21 @@ function loadDynamicOptions($this, elementId, elementType, clientId = null, samp
     });
 }
 
-// // Initialize when jQuery is ready
-// waitForJQuery(function() {
-//     //console.log('jQuery is ready, initializing custom elements');
-//     initializeAllCustomElements();
-// });
+// Initialize when jQuery is ready
+waitForJQuery(function() {
+    //console.log('jQuery is ready, initializing custom elements');
+    initializeAllCustomElements();
+});
 </script>
 
 <script>
+// Wait for jQuery before initializing form
+(function initFormFill() {
+    if (typeof $ === 'undefined') {
+        setTimeout(initFormFill, 50);
+        return;
+    }
+    
 $(document).ready(function() {
     //======================================= ==========================================//
     
@@ -927,7 +940,8 @@ $(document).ready(function() {
         getFormData() {
             const data = {};
             
-            $('#fill-form').find('input, select, textarea').each(function() {
+            // Exclude fields inside modals - they're not part of the actual form
+            $('#fill-form').find('input, select, textarea').not('.modal input, .modal select, .modal textarea').each(function() {
                 const $element = $(this);
                 const name = $element.attr('name');
                 const type = $element.attr('type');
@@ -964,8 +978,10 @@ $(document).ready(function() {
         },
         
         updateProgress() {
-            const totalFields = $('#fill-form input, #fill-form select, #fill-form textarea').length;
-            const filledFields = $('#fill-form input, #fill-form select, #fill-form textarea').filter(function() {
+            // Exclude fields inside modals - they're not part of the actual form
+            const allFields = $('#fill-form input, #fill-form select, #fill-form textarea').not('.modal input, .modal select, .modal textarea');
+            const totalFields = allFields.length;
+            const filledFields = allFields.filter(function() {
                 const $this = $(this);
                 const value = $this.val();
                 
@@ -994,7 +1010,8 @@ $(document).ready(function() {
         validateForm() {
             const errors = [];
             
-            $('#fill-form').find('input[required], select[required], textarea[required]').each(function() {
+            // Exclude fields inside modals - they're not part of the actual form
+            $('#fill-form').find('input[required], select[required], textarea[required]').not('.modal input, .modal select, .modal textarea').each(function() {
                 const $element = $(this);
                 const label = $element.closest('.form-group').find('label').text().replace(' *', '');
                 const value = $element.val();
@@ -1019,8 +1036,8 @@ $(document).ready(function() {
                 }
             });
             
-            // Email validation
-            $('#fill-form').find('input[type="email"]').each(function() {
+            // Email validation (exclude modal fields)
+            $('#fill-form').find('input[type="email"]').not('.modal input').each(function() {
                 const $element = $(this);
                 const value = $element.val();
                 const label = $element.closest('.form-group').find('label').text().replace(' *', '');
@@ -1031,8 +1048,8 @@ $(document).ready(function() {
                 }
             });
             
-            // Number validation
-            $('#fill-form').find('input[type="number"]').each(function() {
+            // Number validation (exclude modal fields)
+            $('#fill-form').find('input[type="number"]').not('.modal input').each(function() {
                 const $element = $(this);
                 const value = $element.val();
                 const label = $element.closest('.form-group').find('label').text().replace(' *', '');
@@ -1141,6 +1158,7 @@ $(document).ready(function() {
     // Initialize custom elements with dependency management
     initializeAllCustomElements();
 });
+})(); // End initFormFill
 </script>
 
 <!-- Include SweetAlert2 for better modals -->

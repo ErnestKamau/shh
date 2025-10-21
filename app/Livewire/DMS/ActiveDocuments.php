@@ -1,0 +1,594 @@
+<?php
+
+namespace App\Livewire\DMS;
+
+use Livewire\Component;
+use Livewire\WithPagination;
+use Livewire\WithFileUploads;
+use App\Models\DMS\Document;
+use App\Models\DMS\DocumentType;
+use App\Models\DMS\DocumentAuditLog;
+use App\Services\DMS\DocumentNumberGenerator;
+use App\Services\DMS\PermissionResolver;
+use App\Services\DMS\PermissionManager;
+use App\User;
+use App\Role;
+use Illuminate\Support\Facades\Storage;
+use Illuminate\Validation\Rule;
+
+class ActiveDocuments extends Component
+{
+    use WithPagination, WithFileUploads;
+
+    public $showModal = false;
+    public $editingDocument = null;
+    public $file;
+    
+    public $documentForm = [
+        'document_type_id' => null,
+        'title' => '',
+        'description' => '',
+        'owner_id' => null,
+        'expiry_date' => null,
+        'tags' => [],
+        'status' => 'draft',
+        'permissions' => [
+            'roles' => [],
+            'users' => [],
+        ],
+    ];
+
+    public $search = '';
+    public $typeFilter = null;
+    public $ownerFilter = null;
+    public $statusFilter = '';
+    public $expiringFilter = false;
+    public $perPage = 10;
+    
+    public $message = '';
+    public $messageType = 'success';
+
+    public $documentTypes = [];
+    public $users = [];
+    public $roles = [];
+    public $availableUsers = [];
+    public $selectedRole = null;
+    public $selectedRoles = [];
+    public $userPermissions = [];
+    public $inheritedPermissions = [];
+
+    public $perPageOptions = [10, 25, 50, 100];
+    
+    // Enriched documents with computed properties
+    public $enrichedDocuments = [];
+
+    protected $numberGenerator;
+    protected $permissionResolver;
+    protected $permissionManager;
+
+    public function boot(DocumentNumberGenerator $numberGenerator, PermissionResolver $permissionResolver, PermissionManager $permissionManager)
+    {
+        $this->numberGenerator = $numberGenerator;
+        $this->permissionResolver = $permissionResolver;
+        $this->permissionManager = $permissionManager;
+    }
+
+    public function mount(): void
+    {
+        $this->loadDocumentTypes();
+        $this->loadUsers();
+        $this->loadRoles();
+        $this->loadAvailableUsers();
+        $this->documentForm['owner_id'] = auth()->id();
+    }
+
+    public function loadDocumentTypes(): void
+    {
+        $this->documentTypes = DocumentType::active()->orderBy('name')->get();
+    }
+
+    public function loadUsers(): void
+    {
+        $this->users = User::where('active', true)->orderBy('name')->get();
+    }
+
+    public function loadRoles(): void
+    {
+        $this->roles = Role::where('active', true)->orderBy('name')->get();
+    }
+
+    public function loadAvailableUsers(): void
+    {
+        $this->availableUsers = User::where('active', true)->orderBy('name')->get();
+    }
+
+    public function getDocumentsProperty()
+    {
+        // Optimize with selective field loading and better relationships
+        $query = Document::with([
+                'documentType:id,name,code',
+                'owner:id,name',
+                'creator:id,name',
+                'approver:id,name'
+            ])
+            ->select([
+                'id', 'document_type_id', 'title', 'document_number', 
+                'description', 'owner_id', 'creator_id', 'approver_id',
+                'status', 'expiry_date', 'created_at', 'updated_at'
+            ])
+            ->active();
+
+        if ($this->search) {
+            $query->where(function($q) {
+                $q->where('title', 'like', '%' . $this->search . '%')
+                  ->orWhere('document_number', 'like', '%' . $this->search . '%')
+                  ->orWhere('description', 'like', '%' . $this->search . '%');
+            });
+        }
+
+        if ($this->typeFilter) {
+            $query->where('document_type_id', $this->typeFilter);
+        }
+
+        if ($this->ownerFilter) {
+            $query->where('owner_id', $this->ownerFilter);
+        }
+
+        if ($this->statusFilter !== '') {
+            $query->where('status', $this->statusFilter);
+        }
+
+        if ($this->expiringFilter) {
+            $query->where('expiry_date', '<=', now()->addDays(30))
+                  ->whereNotNull('expiry_date');
+        }
+
+        return $query->orderBy('created_at', 'desc')->paginate($this->perPage);
+    }
+
+    public function showCreateModal(): void
+    {
+        $this->resetForm();
+        $this->editingDocument = null;
+        $this->inheritedPermissions = [];
+        $this->userPermissions = [];
+        $this->showModal = true;
+    }
+
+    public function applyRole(): void
+    {
+        if (!$this->selectedRole) {
+            return;
+        }
+
+        // Check if role is already added
+        if (isset($this->selectedRoles[$this->selectedRole])) {
+            $this->message = 'Role already added';
+            $this->messageType = 'error';
+            return;
+        }
+
+        // Add the role with default permissions
+        $this->selectedRoles[$this->selectedRole] = [
+            'role_id' => $this->selectedRole,
+            'role_name' => $this->roles->firstWhere('id', $this->selectedRole)->name,
+            'permissions' => [
+                'view' => false,
+                'add' => false,
+                'edit' => false,
+                'delete' => false,
+                'amend' => false,
+                'authorize_amendment' => false,
+                'approve_amendment' => false,
+            ]
+        ];
+
+        $this->selectedRole = null;
+    }
+
+    public function removeRole($roleId): void
+    {
+        unset($this->selectedRoles[$roleId]);
+    }
+
+    public function addUserPermission(): void
+    {
+        $this->userPermissions[] = [
+            'user_id' => null,
+            'permissions' => [
+                'view' => false,
+                'add' => false,
+                'edit' => false,
+                'delete' => false,
+                'amend' => false,
+                'authorize_amendment' => false,
+                'approve_amendment' => false,
+            ]
+        ];
+    }
+
+    public function removeUserPermission($index): void
+    {
+        unset($this->userPermissions[$index]);
+        $this->userPermissions = array_values($this->userPermissions);
+    }
+
+    public function showEditModal($documentId): void
+    {
+        $document = Document::findOrFail($documentId);
+
+        // Check permission
+        if (!$this->permissionResolver->checkPermission(auth()->user(), $document, 'edit')) {
+            $this->message = 'You do not have permission to edit this document';
+            $this->messageType = 'error';
+            return;
+        }
+        
+        $this->editingDocument = $document->id;
+        
+        // Get existing permissions
+        $existingPermissions = $this->permissionManager->getPermissionsForDisplay($document);
+        
+        $this->documentForm = [
+            'document_type_id' => $document->document_type_id,
+            'title' => $document->title,
+            'description' => $document->description,
+            'owner_id' => $document->owner_id,
+            'expiry_date' => $document->expiry_date?->format('Y-m-d'),
+            'tags' => $document->tags ?? [],
+            'status' => $document->status,
+            'permissions' => $existingPermissions,
+        ];
+        
+        // Load inherited permissions from document type
+        if ($document->documentType) {
+            $this->inheritedPermissions = $this->permissionManager->getInheritedPermissions($document->documentType);
+        }
+        
+        // Convert role permissions to selectedRoles format
+        $this->selectedRoles = [];
+        if (isset($existingPermissions['roles'])) {
+            foreach ($existingPermissions['roles'] as $roleId => $perms) {
+                $role = $this->roles->firstWhere('id', $roleId);
+                if ($role) {
+                    $this->selectedRoles[$roleId] = [
+                        'role_id' => $roleId,
+                        'role_name' => $role->name,
+                        'permissions' => $perms,
+                    ];
+                }
+            }
+        }
+        
+        // Convert user permissions to array format for display
+        $this->userPermissions = [];
+        if (isset($existingPermissions['users'])) {
+            foreach ($existingPermissions['users'] as $userId => $perms) {
+                $this->userPermissions[] = [
+                    'user_id' => $userId,
+                    'permissions' => $perms,
+                ];
+            }
+        }
+        
+        $this->showModal = true;
+    }
+
+    public function saveDocument(): void
+    {
+        $rules = [
+            'documentForm.document_type_id' => 'required|exists:document_types,id',
+            'documentForm.title' => 'required|string|max:255',
+            'documentForm.description' => 'nullable|string',
+            'documentForm.owner_id' => 'required|exists:users,id',
+            'documentForm.expiry_date' => 'nullable|date|after:today',
+            'documentForm.status' => 'required|in:draft,pending_approval,approved',
+        ];
+
+        if (!$this->editingDocument) {
+            $rules['file'] = 'required|file|max:51200'; // 50MB max
+        } else {
+            $rules['file'] = 'nullable|file|max:51200';
+        }
+
+        $this->validate($rules);
+
+        try {
+            if ($this->editingDocument) {
+                $document = Document::findOrFail($this->editingDocument);
+                $oldValues = $document->toArray();
+
+                // Update document metadata
+                $document->update([
+                    'title' => $this->documentForm['title'],
+                    'description' => $this->documentForm['description'],
+                    'owner_id' => $this->documentForm['owner_id'],
+                    'expiry_date' => $this->documentForm['expiry_date'],
+                    'status' => $this->documentForm['status'],
+                    'tags' => $this->documentForm['tags'],
+                ]);
+
+                // Handle file upload if provided
+                if ($this->file) {
+                    $this->uploadFile($document);
+                }
+
+                DocumentAuditLog::log(
+                    $document,
+                    'updated',
+                    $oldValues,
+                    $document->fresh()->toArray(),
+                    'Document updated'
+                );
+
+                $this->message = 'Document updated successfully';
+            } else {
+                // Create new document
+                $documentType = DocumentType::findOrFail($this->documentForm['document_type_id']);
+                $documentNumber = $this->numberGenerator->generate($documentType);
+
+                $document = Document::create([
+                    'document_type_id' => $this->documentForm['document_type_id'],
+                    'document_number' => $documentNumber,
+                    'title' => $this->documentForm['title'],
+                    'description' => $this->documentForm['description'],
+                    'owner_id' => $this->documentForm['owner_id'],
+                    'created_by' => auth()->id(),
+                    'expiry_date' => $this->documentForm['expiry_date'],
+                    'status' => $this->documentForm['status'],
+                    'tags' => $this->documentForm['tags'],
+                    'file_path' => '',
+                    'file_name' => '',
+                ]);
+
+                $this->uploadFile($document);
+
+                DocumentAuditLog::log(
+                    $document,
+                    'created',
+                    null,
+                    $document->toArray(),
+                    'Document created'
+                );
+
+                $this->message = 'Document created successfully';
+            }
+
+            // Prepare and sync permissions
+            $permissionsData = $this->preparePermissionsData();
+            $this->permissionManager->syncPermissions(
+                $document,
+                $permissionsData,
+                auth()->id()
+            );
+
+            $this->messageType = 'success';
+            $this->closeModal();
+
+        } catch (\Exception $e) {
+            $this->message = 'Error saving document: ' . $e->getMessage();
+            $this->messageType = 'error';
+        }
+    }
+
+    protected function uploadFile($document): void
+    {
+        $path = Storage::disk('dms')->putFile(
+            "documents/{$document->document_type_id}/{$document->id}",
+            $this->file
+        );
+
+        $document->update([
+            'file_path' => $path,
+            'file_name' => $this->file->getClientOriginalName(),
+            'file_size' => $this->file->getSize(),
+            'mime_type' => $this->file->getMimeType(),
+        ]);
+    }
+
+    public function deleteDocument($documentId): void
+    {
+        try {
+            $document = Document::findOrFail($documentId);
+
+            // Check permission
+            if (!$this->permissionResolver->checkPermission(auth()->user(), $document, 'delete')) {
+                $this->message = 'You do not have permission to delete this document';
+                $this->messageType = 'error';
+                return;
+            }
+
+            DocumentAuditLog::log(
+                $document,
+                'deleted',
+                $document->toArray(),
+                null,
+                'Document deleted'
+            );
+
+            // Delete file from storage
+            if ($document->file_path) {
+                Storage::disk('dms')->delete($document->file_path);
+            }
+
+            $document->delete();
+
+            $this->message = 'Document deleted successfully';
+            $this->messageType = 'success';
+
+        } catch (\Exception $e) {
+            $this->message = 'Error deleting document: ' . $e->getMessage();
+            $this->messageType = 'error';
+        }
+    }
+
+    public function archiveDocument($documentId, $reason = 'Archived by user'): void
+    {
+        try {
+            $document = Document::findOrFail($documentId);
+
+            // Check permission
+            if (!$this->permissionResolver->checkPermission(auth()->user(), $document, 'edit')) {
+                $this->message = 'You do not have permission to archive this document';
+                $this->messageType = 'error';
+                return;
+            }
+
+            $document->archive($reason);
+
+            DocumentAuditLog::log(
+                $document,
+                'archived',
+                null,
+                ['archive_reason' => $reason],
+                'Document archived'
+            );
+
+            $this->message = 'Document archived successfully';
+            $this->messageType = 'success';
+
+        } catch (\Exception $e) {
+            $this->message = 'Error archiving document: ' . $e->getMessage();
+            $this->messageType = 'error';
+        }
+    }
+
+    public function approveDocument($documentId): void
+    {
+        try {
+            $document = Document::findOrFail($documentId);
+
+            // Check permission
+            if (!$this->permissionResolver->checkPermission(auth()->user(), $document, 'approve_amendment')) {
+                $this->message = 'You do not have permission to approve this document';
+                $this->messageType = 'error';
+                return;
+            }
+
+            $document->approve();
+
+            DocumentAuditLog::log(
+                $document,
+                'approved',
+                null,
+                null,
+                'Document approved'
+            );
+
+            $this->message = 'Document approved successfully';
+            $this->messageType = 'success';
+
+        } catch (\Exception $e) {
+            $this->message = 'Error approving document: ' . $e->getMessage();
+            $this->messageType = 'error';
+        }
+    }
+
+    public function closeModal(): void
+    {
+        $this->showModal = false;
+        $this->resetForm();
+    }
+
+    protected function preparePermissionsData(): array
+    {
+        $permissions = [
+            'roles' => [],
+            'users' => [],
+        ];
+
+        // Convert selectedRoles to the format expected by PermissionManager
+        foreach ($this->selectedRoles as $roleData) {
+            if (isset($roleData['role_id'])) {
+                $permissions['roles'][$roleData['role_id']] = $roleData['permissions'] ?? [];
+            }
+        }
+
+        // Convert userPermissions array to the format expected by PermissionManager
+        foreach ($this->userPermissions as $userPerm) {
+            if (isset($userPerm['user_id']) && $userPerm['user_id']) {
+                $permissions['users'][$userPerm['user_id']] = $userPerm['permissions'] ?? [];
+            }
+        }
+
+        return $permissions;
+    }
+
+    public function resetForm(): void
+    {
+        $this->documentForm = [
+            'document_type_id' => null,
+            'title' => '',
+            'description' => '',
+            'owner_id' => auth()->id(),
+            'expiry_date' => null,
+            'tags' => [],
+            'status' => 'draft',
+            'permissions' => [
+                'roles' => [],
+                'users' => [],
+            ],
+        ];
+        $this->file = null;
+        $this->selectedRole = null;
+        $this->selectedRoles = [];
+        $this->userPermissions = [];
+        $this->inheritedPermissions = [];
+        $this->resetValidation();
+    }
+
+    public function clearFilters(): void
+    {
+        $this->search = '';
+        $this->typeFilter = null;
+        $this->ownerFilter = null;
+        $this->statusFilter = '';
+        $this->expiringFilter = false;
+    }
+
+    public function dismissMessage(): void
+    {
+        $this->message = '';
+    }
+
+    public function render()
+    {
+        // Enrich documents with computed properties to avoid PHP logic in Blade
+        $documents = $this->documents;
+        $enrichedDocuments = $documents->map(function($document) {
+            $statusClass = match($document->status) {
+                'approved' => 'success',
+                'pending_approval' => 'warning',
+                'rejected' => 'danger',
+                'draft' => 'secondary',
+                default => 'secondary'
+            };
+            
+            $expiryData = [
+                'has_expiry' => !is_null($document->expiry_date),
+                'days_remaining' => null,
+                'expiry_class' => null,
+                'show_warning' => false
+            ];
+            
+            if ($document->expiry_date) {
+                $daysRemaining = $document->expiry_date->diffInDays(now());
+                $expiryData['days_remaining'] = $daysRemaining;
+                $expiryData['expiry_class'] = $daysRemaining <= 7 ? 'danger' : ($daysRemaining <= 30 ? 'warning' : 'success');
+                $expiryData['show_warning'] = $daysRemaining <= 30;
+            }
+            
+            return [
+                'document' => $document,
+                'status_class' => $statusClass,
+                'expiry' => $expiryData
+            ];
+        });
+        
+        return view('livewire.dms.active-documents-component', [
+            'documents' => $documents,
+            'enrichedDocuments' => $enrichedDocuments,
+        ])->layout('layouts.app');
+    }
+}
+

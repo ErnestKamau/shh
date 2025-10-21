@@ -64,41 +64,8 @@ class WorksheetManager extends Component
 
     public function postAllResults(): void
     {
-        try {
-            DB::beginTransaction();
-            
-            // Get all worksheets for this batch and formula
-            $formulas = $this->formulas;
-            if ($formulas instanceof \Illuminate\Database\Eloquent\Collection) {
-                $formulaIds = $formulas->pluck('id')->toArray();
-            } else {
-                $formulaIds = collect($formulas)->pluck('id')->toArray();
-            }
-            $worksheets = SampleCapturedWorksheetFormula::where('sample_header_id', $this->batch->id)
-                ->whereIn('formular_id', $formulaIds)
-                ->get();
-            
-            $updatedCount = 0;
-            foreach ($worksheets as $worksheet) {
-                if ($worksheet->final_result && $worksheet->captured_result_id) {
-                    $capturedResult = CapturedResult::find($worksheet->captured_result_id);
-                    if ($capturedResult) {
-                        $capturedResult->result = $worksheet->final_result;
-                        $capturedResult->save();
-                        $updatedCount++;
-                    }
-                }
-            }
-            
-            DB::commit();
-            session()->flash('message', "Successfully posted {$updatedCount} results to captured results!");
-            session()->flash('messageType', 'success');
-            
-        } catch (\Exception $e) {
-            DB::rollBack();
-            session()->flash('message', 'Error posting results: ' . $e->getMessage());
-            session()->flash('messageType', 'error');
-        }
+        // Dispatch event to trigger post results modal on the active formula worksheet
+        $this->dispatch('triggerPostResults');
     }
 
     public function render()

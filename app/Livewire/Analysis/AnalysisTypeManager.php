@@ -78,6 +78,10 @@ class AnalysisTypeManager extends Component
     public $labFilter = '';
     public $statusFilter = '';
 
+    // Lab searchable dropdown
+    public $labSearch = '';
+    public $showLabDropdown = false;
+
     // UI State
     public $loading = false;
     public $message = '';
@@ -222,8 +226,8 @@ class AnalysisTypeManager extends Component
                     'level' => $this->analysisTypeForm['level'],
                     'active' => $this->analysisTypeForm['active'],
                     'reporting_time' => $this->analysisTypeForm['reporting_time'],
-                    'include_hygiene_score' => $this->analysisTypeForm['include_hygiene_score'],
-                    'include_sanitizer_efficiency' => $this->analysisTypeForm['include_sanitizer_efficiency'],
+                    'include_hygiene_score' => $this->analysisTypeForm['include_hygiene_score'] ?? false,
+                    'include_sanitizer_efficiency' => $this->analysisTypeForm['include_sanitizer_efficiency'] ?? false,
                 ]);
                 $this->message = 'Analysis type updated successfully!';
             } else {
@@ -236,8 +240,8 @@ class AnalysisTypeManager extends Component
                     'level' => $this->analysisTypeForm['level'],
                     'active' => $this->analysisTypeForm['active'],
                     'reporting_time' => $this->analysisTypeForm['reporting_time'],
-                    'include_hygiene_score' => $this->analysisTypeForm['include_hygiene_score'],
-                    'include_sanitizer_efficiency' => $this->analysisTypeForm['include_sanitizer_efficiency'],
+                    'include_hygiene_score' => $this->analysisTypeForm['include_hygiene_score'] ?? false,
+                    'include_sanitizer_efficiency' => $this->analysisTypeForm['include_sanitizer_efficiency'] ?? false,
                     'company_id' => getUserCompany(),
                 ]);
                 $this->message = 'Analysis type created successfully!';
@@ -298,9 +302,13 @@ class AnalysisTypeManager extends Component
             'lab_id' => null,
             'level' => 1,
             'active' => true,
-            'reporting_time' => null
+            'reporting_time' => null,
+            'include_hygiene_score' => false,
+            'include_sanitizer_efficiency' => false
         ];
         $this->editingAnalysisType = null;
+        $this->labSearch = '';
+        $this->showLabDropdown = false;
     }
 
     public function loadAnalysisTypes()
@@ -471,6 +479,40 @@ class AnalysisTypeManager extends Component
     {
         $this->message = '';
         $this->messageType = '';
+    }
+
+    // Lab searchable dropdown methods
+    public function selectLab($labId): void
+    {
+        $this->analysisTypeForm['lab_id'] = $labId;
+        $this->labSearch = '';
+        $this->showLabDropdown = false;
+    }
+
+    public function updatedLabSearch(): void
+    {
+        $this->showLabDropdown = !empty($this->labSearch);
+    }
+
+    public function getFilteredLabsProperty()
+    {
+        if (empty($this->labSearch)) {
+            return [];
+        }
+        
+        return Lab::where('name', 'like', '%' . $this->labSearch . '%')
+            ->where('active', 1)
+            ->limit(10)
+            ->get();
+    }
+
+    public function getSelectedLabProperty()
+    {
+        if (empty($this->analysisTypeForm['lab_id'])) {
+            return null;
+        }
+        
+        return Lab::find($this->analysisTypeForm['lab_id']);
     }
 
     public function render()

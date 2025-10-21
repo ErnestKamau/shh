@@ -26,6 +26,9 @@ class Kernel extends ConsoleKernel
     {
         // Check stage timers every minute
         $schedule->command('check:stage-timers')->everyMinute();
+        
+        // Check for expiring documents daily at 9 AM
+        $schedule->command('dms:check-expiry')->dailyAt('09:00');
     }
 
     /**

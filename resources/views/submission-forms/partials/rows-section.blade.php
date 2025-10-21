@@ -77,7 +77,7 @@
           @endforeach
           <td>
             <div class="btn-group btn-group-sm">
-              <button type="button" class="btn btn-outline-primary btn-sm clone-row" title="Clone Row">
+              <button type="button" class="btn btn-outline-primary btn-sm clone-row mr-2" title="Clone Row">
                 <i class="mdi mdi-content-copy"></i>
               </button>
               <button type="button" class="btn btn-outline-danger btn-sm delete-row" title="Delete Row">
@@ -96,7 +96,14 @@
   @endif
 </div>
 <script>
-document.addEventListener('DOMContentLoaded', function() {
+// Wait for jQuery before initializing rows section
+(function initRowsSection_{{ $section->id }}() {
+    if (typeof $ === 'undefined') {
+        setTimeout(initRowsSection_{{ $section->id }}, 50);
+        return;
+    }
+    
+$(document).ready(function() {
   const sectionId = {{ $section->id }};
   const addRowBtn = document.getElementById('add-row-' + sectionId);
   const tbody = document.getElementById('rows-tbody-' + sectionId);
@@ -140,6 +147,29 @@ document.addEventListener('DOMContentLoaded', function() {
       }
     });
 
+    // Get the client_unit value - check both in rows and in the main form
+    let previousClientUnitId = null;
+    
+    // First, try to get from the previous row (if client_unit is in the rows)
+    const $previousRow = $('#rows-tbody-'+sectionId).find('tr:last');
+    if ($previousRow.length > 0) {
+      const $previousClientUnit = $previousRow.find('[data-element-type="client_unit_select"]');
+      if ($previousClientUnit.length > 0) {
+        previousClientUnitId = $previousClientUnit.val();
+        console.log('Found client_unit_id from previous row:', previousClientUnitId);
+      }
+    }
+    
+    // If not found in row, check the main form (client_unit might be in a regular section)
+    if (!previousClientUnitId) {
+      const $formClientUnit = $('select[data-element-type="client_unit_select"]');
+      if ($formClientUnit.length > 0) {
+        previousClientUnitId = $formClientUnit.first().val();
+        console.log('Found client_unit_id from main form:', previousClientUnitId);
+      } else {
+        console.log('No client_unit_select found in form or rows');
+      }
+    }
     
     $(document).find('#rows-tbody-'+sectionId).append($rowElement);
     rowIndex++;
@@ -171,6 +201,61 @@ document.addEventListener('DOMContentLoaded', function() {
           placeholder: $(e).attr('placeholder') || $(e).data('placeholder') || 'Select...'
         });
         $(e).attr('style', 'width: 100%');
+        
+        // Ensure Select2 change events trigger regular change events for form tracking
+        $(e).on('select2:select select2:unselect', function() {
+          $(this).trigger('change');
+        });
+      }
+    });
+    
+    // Update form progress after adding new row
+    if (typeof FormFill !== 'undefined' && FormFill.updateProgress) {
+      FormFill.updateProgress();
+    }
+    
+    // Trigger change event on the form to update submit button state
+    $('#fill-form').trigger('change');
+    
+    // If we have a client_unit from previous row, automatically load sample points for new row
+    if (previousClientUnitId) {
+      const $newRowSamplePoints = $rowElement.find('[data-element-type="sample_point_select"]');
+      if ($newRowSamplePoints.length > 0) {
+        const samplePointElementId = $newRowSamplePoints.attr('id');
+        
+        console.log('=== ADD NEW ROW: AUTO-LOADING SAMPLE POINTS ===');
+        console.log('Previous Row Client Unit ID:', previousClientUnitId);
+        console.log('New Row Sample Points Element ID:', samplePointElementId);
+        console.log('Calling loadDynamicOptions...');
+        
+        // Load sample points immediately using the previous row's client_unit
+        loadDynamicOptions($newRowSamplePoints, samplePointElementId, 'sample_point_select', null, null, null, previousClientUnitId);
+      } else {
+        console.warn('=== ADD NEW ROW: NO SAMPLE POINTS ELEMENT FOUND ===');
+      }
+    } else {
+      console.warn('=== ADD NEW ROW: NO PREVIOUS CLIENT UNIT ID FOUND ===');
+    }
+    
+    // After initializing Select2, check for pre-selected parents and load dependent options
+    $rowElement.find('[data-element-type="client_select"]').each(function() {
+      const $parentSelect = $(this);
+      if ($parentSelect.val()) {
+        $parentSelect.trigger('change.custom-elements');
+      }
+    });
+    
+    $rowElement.find('[data-element-type="client_unit_select"]').each(function() {
+      const $parentSelect = $(this);
+      if ($parentSelect.val()) {
+        $parentSelect.trigger('change.custom-elements');
+      }
+    });
+    
+    $rowElement.find('[data-element-type="sample_type_select"]').each(function() {
+      const $parentSelect = $(this);
+      if ($parentSelect.val()) {
+        $parentSelect.trigger('change.custom-elements');
       }
     });
   }
@@ -215,20 +300,14 @@ document.addEventListener('DOMContentLoaded', function() {
     const $row = $this.parents('tr');
     const dependsOnElement = $row.find(`[data-element-type="${dependsOn}"]`);
     
-    console.log('Setting up dependency:', elementType, 'depends on:', dependsOn, 'in row:', $row);
-    console.log('Found parent element:', dependsOnElement, 'length:', dependsOnElement.length);
-    
     if (dependsOnElement.length > 0) {
-      //console.log('Parent element found, setting up change handler');
       // Check if parent already has a value and load options immediately
       const currentParentValue = dependsOnElement.val();
       if (currentParentValue) {
-        //console.log('Parent already has value:', currentParentValue, 'loading options for:', elementType);
         // Load options based on current parent value
         if (elementType === 'client_unit_select' || elementType === 'client_contact_select') {
           loadDynamicOptions($this, elementId, elementType, currentParentValue);
         } else if (elementType === 'sample_point_select') {
-          console.log('Loading sample_point_select options with clientUnitId:', currentParentValue);
           loadDynamicOptions($this, elementId, elementType, null, null, null, currentParentValue);
         } else if (elementType === 'analysis_type_select') {
           loadDynamicOptions($this, elementId, elementType, null, currentParentValue);
@@ -242,29 +321,22 @@ document.addEventListener('DOMContentLoaded', function() {
       }
       
       // Set up change handler for same-row dependency
-      dependsOnElement.on('change', function() {
+      // Remove any existing handlers first to avoid duplicates
+      dependsOnElement.off('change.row-dependency').on('change.row-dependency', function() {
         const parentId = $(this).val();
-        //console.log('Parent element changed:', dependsOn, 'new value:', parentId);
         if (parentId) {
           // Handle different parameter types based on element type and dependency
           if (elementType === 'client_unit_select' || elementType === 'client_contact_select') {
-            // These depend on client_select
             loadDynamicOptions($this, elementId, elementType, parentId);
           } else if (elementType === 'sample_point_select') {
-            // This depends on client_unit_select
-            console.log('sample_point_select change handler - loading options with clientUnitId:', parentId);
             loadDynamicOptions($this, elementId, elementType, null, null, null, parentId);
           } else if (elementType === 'analysis_type_select') {
-            // This depends on sample_type_select
             loadDynamicOptions($this, elementId, elementType, null, parentId);
           } else if (elementType === 'analysis_elements_select') {
-            // This depends on analysis_type_select
             loadDynamicOptions($this, elementId, elementType, null, null, null, null, parentId);
           } else if (elementType === 'store_slot_select') {
-            // This depends on store_select
             loadDynamicOptions($this, elementId, elementType, null, null, parentId);
           } else {
-            // Default case
             loadDynamicOptions($this, elementId, elementType, parentId);
           }
         } else {
@@ -275,29 +347,23 @@ document.addEventListener('DOMContentLoaded', function() {
     } else {
       // Fall back to global dependency
       const globalDependsOnElement = $(document).find(`[data-element-type="${dependsOn}"]`);
-      if (globalDependsOnElement) {
-        // alert('Sample point select found: ' + parentId);
-        globalDependsOnElement.on('change', function() {
+      if (globalDependsOnElement.length > 0) {
+        // Remove any existing handlers first to avoid duplicates
+        globalDependsOnElement.off('change.global-dependency-' + elementId).on('change.global-dependency-' + elementId, function() {
           const parentId = $(this).val();
           if (parentId) {
             // Handle different parameter types based on element type and dependency
             if (elementType === 'client_unit_select' || elementType === 'client_contact_select') {
-              // These depend on client_select
               loadDynamicOptions($this, elementId, elementType, parentId);
             } else if (elementType === 'sample_point_select') {
-              // This depends on client_unit_select
               loadDynamicOptions($this, elementId, elementType, null, null, null, parentId);
             } else if (elementType === 'analysis_type_select') {
-              // This depends on sample_type_select
               loadDynamicOptions($this, elementId, elementType, null, parentId);
             } else if (elementType === 'analysis_elements_select') {
-              // This depends on analysis_type_select
               loadDynamicOptions($this, elementId, elementType, null, null, null, null, parentId);
             } else if (elementType === 'store_slot_select') {
-              // This depends on store_select
               loadDynamicOptions($this, elementId, elementType, null, null, parentId);
             } else {
-              // Default case
               loadDynamicOptions($this, elementId, elementType, parentId);
             }
           } else {
@@ -407,15 +473,9 @@ document.addEventListener('DOMContentLoaded', function() {
   });
 
   function cloneRow($sourceRow) {
-    //console.log(sourceRow);
     const newRow = $sourceRow.clone(true);
     // sourceRow is already a <tr> element, so newRow is also a <tr> element
     const $newRowElement = newRow;
-
-    $sourceRow.each(function() {
-      const $this = $(this);
-      console.log($(this).val(), " ::::::::::::::::::::::::> ", $(this).attr('data-element-type'));
-    });
     
     // Set new row index
     $newRowElement.attr('data-row-index', rowIndex);
@@ -478,6 +538,11 @@ document.addEventListener('DOMContentLoaded', function() {
           placeholder: parentTD.find('select').attr('placeholder') || parentTD.find('select').data('placeholder') || 'Select...'
         });
         parentTD.find('select').attr('style', 'width: 100%');
+        
+        // Ensure Select2 change events trigger regular change events for form tracking
+        parentTD.find('select').on('select2:select select2:unselect', function() {
+          $(this).trigger('change');
+        });
       }
     });
 
@@ -486,6 +551,51 @@ document.addEventListener('DOMContentLoaded', function() {
     
     // // Initialize custom elements for the cloned row (this will set up dependencies)
     initializeRowCustomElements($newRowElement, true);
+    
+    // Get the client_unit value from the cloned (source) row
+    const $sourceClientUnit = $sourceRow.find('[data-element-type="client_unit_select"]');
+    let sourceClientUnitId = null;
+    
+    if ($sourceClientUnit.length > 0) {
+      sourceClientUnitId = $sourceClientUnit.val();
+    }
+    
+    // If we have a client_unit from source row, automatically load sample points for cloned row
+    if (sourceClientUnitId) {
+      const $clonedSamplePoints = $newRowElement.find('[data-element-type="sample_point_select"]');
+      if ($clonedSamplePoints.length > 0) {
+        const samplePointElementId = $clonedSamplePoints.attr('id');
+        
+        console.log('=== CLONE ROW: AUTO-LOADING SAMPLE POINTS ===');
+        console.log('Source Row Client Unit ID:', sourceClientUnitId);
+        console.log('Cloned Row Sample Points Element ID:', samplePointElementId);
+        
+        // Load sample points immediately using the source row's client_unit
+        loadDynamicOptions($clonedSamplePoints, samplePointElementId, 'sample_point_select', null, null, null, sourceClientUnitId);
+      }
+    }
+    
+    // After cloning, trigger change events on parent elements to load dependent dropdowns
+    $newRowElement.find('[data-element-type="client_select"]').each(function() {
+      const $parentSelect = $(this);
+      if ($parentSelect.val()) {
+        $parentSelect.trigger('change.custom-elements');
+      }
+    });
+    
+    $newRowElement.find('[data-element-type="client_unit_select"]').each(function() {
+      const $parentSelect = $(this);
+      if ($parentSelect.val()) {
+        $parentSelect.trigger('change.custom-elements');
+      }
+    });
+    
+    $newRowElement.find('[data-element-type="sample_type_select"]').each(function() {
+      const $parentSelect = $(this);
+      if ($parentSelect.val()) {
+        $parentSelect.trigger('change.custom-elements');
+      }
+    });
     
     // Re-initialize global change handlers to include new elements
     if (typeof setupClientChangeHandlers === 'function') {
@@ -503,11 +613,27 @@ document.addEventListener('DOMContentLoaded', function() {
     if (typeof setupStoreChangeHandlers === 'function') {
       setupStoreChangeHandlers();
     }
+    
+    // Update form progress after cloning row
+    if (typeof FormFill !== 'undefined' && FormFill.updateProgress) {
+      FormFill.updateProgress();
+    }
+    
+    // Trigger change event on the form to update submit button state
+    $('#fill-form').trigger('change');
   }
 
   function deleteRow($row) {
     if (confirm('Are you sure you want to delete this row?')) {
       $row.remove();
+      
+      // Update form progress after deleting row
+      if (typeof FormFill !== 'undefined' && FormFill.updateProgress) {
+        FormFill.updateProgress();
+      }
+      
+      // Trigger change event on the form to update submit button state
+      $('#fill-form').trigger('change');
     }
   }
 
@@ -698,4 +824,5 @@ document.addEventListener('DOMContentLoaded', function() {
     }, 1000); // Give enough time for all existing rows to be loaded
   }
 });
+})(); // End initRowsSection wrapper
 </script>

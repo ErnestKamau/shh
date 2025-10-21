@@ -27,6 +27,7 @@ TRUNCATE TABLE `worksheet_executions`;
 TRUNCATE TABLE `batch_sequences`;
 TRUNCATE TABLE `certificate_template_reports`;
 TRUNCATE TABLE `submission_form_audit_log`;
+TRUNCATE TABLE `submission_form_audit_logs`;
 TRUNCATE TABLE `submission_form_instance_values`;
 
 -- Main submission form instances table
@@ -126,6 +127,8 @@ UNION ALL
 SELECT 'submission_form_instances', COUNT(*) FROM submission_form_instances
 UNION ALL
 SELECT 'submission_form_instance_values', COUNT(*) FROM submission_form_instance_values
+UNION ALL
+SELECT 'submission_form_audit_logs', COUNT(*) FROM submission_form_audit_logs
 UNION ALL
 SELECT 'results', COUNT(*) FROM results
 UNION ALL

@@ -63,7 +63,7 @@ Route::get('/resolveTest', 'SampleWorkFlowController@resolveTest')->name('resolv
 Route::get('/fillCapturedresultOperator', 'SampleWorkFlowController@fillCapturedresultOperator')->name('fillCapturedresultOperator');
 Route::get('add/suppliers-user', 'SupplierController@make_suppliers_users')->name('add-crm-to-users');
 
-Route::get('/send/event-notifications-cron', 'API\APIController@send_event_notifications')->name('send_event_notifications');
+// Route::get('/send/event-notifications-cron', 'API\APIController@send_event_notifications')->name('send_event_notifications');
 
 Route::post('/logout/app/', 'Auth\TwoFactor@mylogout')->name('mylogout');
 Route::get('/verify/user', 'Auth\TwoFactor@index')->name('verify-user');
@@ -444,6 +444,13 @@ Route::prefix('submission-forms')->name('submission-forms.')->middleware('auth')
     
     // Dynamic Options for Custom Elements (must be before /{submissionForm} route)
     Route::get('/dynamic-options', 'SubmissionFormController@getDynamicOptions')->name('dynamic-options');
+    
+    // Quick Store Routes for Modal Forms (must be before /{submissionForm} route)
+    Route::post('/quick-store/client', 'SubmissionFormController@quickStoreClient')->name('quick-store.client');
+    Route::post('/quick-store/client-unit', 'SubmissionFormController@quickStoreClientUnit')->name('quick-store.client-unit');
+    Route::post('/quick-store/client-contact', 'SubmissionFormController@quickStoreClientContact')->name('quick-store.client-contact');
+    Route::post('/quick-store/sample-condition', 'SubmissionFormController@quickStoreSampleCondition')->name('quick-store.sample-condition');
+    Route::post('/quick-store/sample-point', 'SubmissionFormController@quickStoreSamplePoint')->name('quick-store.sample-point');
     
     // Mapping Fields (must be before /{submissionForm} route)
     Route::get('/mapping-fields', 'FormBuilderController@getMappingFields')->name('mapping-fields');
@@ -1017,7 +1024,7 @@ Route::get('/lab/standard/show/{id}', 'Lab\StandardsController@show')->name('vie
 //###################################Standards#######################################
 
 //###################################API ROUTES#######################################
-Route::get('/api-get-available-items/{item_id}/{brand_id}/{request_id?}', 'API\APIController@items_available')->name('api-get-available-items');
+// Route::get('/api-get-available-items/{item_id}/{brand_id}/{request_id?}', 'API\APIController@items_available')->name('api-get-available-items');
 //###################################API ROUTES#######################################
 
 //###################################REMINDERS ROUTES#######################################
@@ -1335,5 +1342,20 @@ Route::middleware(['auth'])->prefix('method-sequences')->name('method-sequences.
     Route::get('/manage', 'MethodSequences\MethodSequenceController@manage')->name('manage');
     Route::get('/stages/{methodSequenceVersion}', 'MethodSequences\MethodSequenceController@stages')->name('stages');
     Route::post('/clone/{methodSequence}', 'MethodSequences\MethodSequenceController@clone')->name('clone');
+});
+
+// Document Management System (DMS) Routes
+Route::middleware(['auth'])->prefix('dms')->name('dms.')->group(function () {
+    Route::get('/', 'LivewireControllers\DMSController@dashboard')->name('dashboard');
+    Route::get('/document-types', 'LivewireControllers\DMSController@documentTypes')->name('types');
+    Route::get('/active-documents', 'LivewireControllers\DMSController@activeDocuments')->name('active');
+    Route::get('/archived-documents', 'LivewireControllers\DMSController@archivedDocuments')->name('archived');
+    Route::get('/amendments', 'LivewireControllers\DMSController@amendments')->name('amendments');
+    Route::get('/reports', 'LivewireControllers\DMSController@reports')->name('reports');
+    
+    // File operations
+    Route::get('/documents/{id}/download', 'DMSController@download')->name('download');
+    Route::get('/documents/{id}/preview', 'DMSController@preview')->name('preview');
+    Route::get('/documents/{documentId}/versions/{versionId}/download', 'DMSController@downloadVersion')->name('download-version');
 });
 

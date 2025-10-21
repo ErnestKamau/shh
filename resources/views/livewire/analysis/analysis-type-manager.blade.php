@@ -206,8 +206,6 @@
         </div>
     </div>
 
-
-
     <!-- Analysis Type Modal -->
     @if($showAnalysisTypeModal)
         <div class="modal fade show d-block" tabindex="-1" style="background-color: rgba(0,0,0,0.5);">
@@ -246,62 +244,34 @@
                                 <div class="col-md-4">
                                     <div class="form-group mb-3">
                                         <label class="form-label"><i class="mdi mdi-flask text-primary"></i> Lab <span class="text-danger">*</span></label>
-                                        <div x-data="{
-                                            open: false,
-                                            search: '',
-                                            selected: @entangle('analysisTypeForm.lab_id').live,
-                                            labs: {{ json_encode($labs->map(fn($l) => ['id' => $l->id, 'name' => $l->name])->values()) }},
-                                            get filteredLabs() {
-                                                if (!this.search) return this.labs;
-                                                return this.labs.filter(lab => 
-                                                    lab.name.toLowerCase().includes(this.search.toLowerCase())
-                                                );
-                                            },
-                                            selectLab(labId) {
-                                                this.selected = labId;
-                                                this.open = false;
-                                                this.search = '';
-                                            },
-                                            getSelectedName() {
-                                                const lab = this.labs.find(l => l.id == this.selected);
-                                                return lab ? lab.name : '';
-                                            }
-                                        }" class="searchable-dropdown-wrapper">
-                                            <div class="single-select-container" @click="open = !open">
-                                                <input 
-                                                    type="text" 
-                                                    x-model="search"
-                                                    :placeholder="selected ? getSelectedName() : 'Search labs...'"
-                                                    @focus="open = true"
-                                                    class="form-control searchable-input-single"
-                                                    autocomplete="off"
-                                                >
-                                                <i class="mdi mdi-chevron-down dropdown-arrow" :class="{ 'rotated': open }"></i>
+                                        <div class="tag-select-container" wire:click="$set('showLabDropdown', true)">
+                                            <div class="tag-select-input">
+                                                <!-- Display selected lab or allow searching -->
+                                                @if($this->selectedLab)
+                                                    <span class="tag-badge">
+                                                        {{ $this->selectedLab->name }}
+                                                        <i class="mdi mdi-close-circle" wire:click.stop="$set('analysisTypeForm.lab_id', null)"></i>
+                                                    </span>
+                                                @endif
+                                                
+                                                <!-- Search Input -->
+                                                <input type="text" 
+                                                       wire:model.live="labSearch" 
+                                                       class="tag-input" 
+                                                       placeholder="{{ $this->selectedLab ? '' : 'Search labs...' }}"
+                                                       autocomplete="off">
                                             </div>
-
-                                            <div x-show="open" 
-                                                 @click.away="open = false"
-                                                 x-transition
-                                                 class="dropdown-list">
-                                                <template x-if="filteredLabs.length > 0">
-                                                    <div class="options-list">
-                                                        <template x-for="lab in filteredLabs" :key="lab.id">
-                                                            <div @click="selectLab(lab.id)" 
-                                                                 class="option-item"
-                                                                 :class="{ 'selected': selected == lab.id }">
-                                                                <i class="mdi mdi-check-circle text-primary" x-show="selected == lab.id"></i>
-                                                                <span x-text="lab.name"></span>
-                                                            </div>
-                                                        </template>
-                                                    </div>
-                                                </template>
-                                                <template x-if="filteredLabs.length === 0">
-                                                    <div class="no-results">
-                                                        <i class="mdi mdi-alert-circle-outline"></i>
-                                                        <span>No labs found</span>
-                                                    </div>
-                                                </template>
-                                            </div>
+                                            
+                                            <!-- Dropdown -->
+                                            @if($showLabDropdown && count($this->filteredLabs) > 0)
+                                                <div class="tag-dropdown">
+                                                    @foreach($this->filteredLabs as $lab)
+                                                        <div class="tag-dropdown-item" wire:click.stop="selectLab({{ $lab->id }})">
+                                                            {{ $lab->name }}
+                                                        </div>
+                                                    @endforeach
+                                                </div>
+                                            @endif
                                         </div>
                                         @error('analysisTypeForm.lab_id') <span class="text-danger">{{ $message }}</span> @enderror
                                     </div>
@@ -371,7 +341,6 @@
         </div>
     @endif
 
-
     <style>
     .modal.show {
         display: block !important;
@@ -379,7 +348,6 @@
     
     /* Modern Select Styling */
     .modern-select {
-        background: linear-gradient(135deg, #f8f9fa 0%, #ffffff 100%);
         border: 2px solid #e9ecef;
         border-radius: 12px;
         padding: 12px 16px;
@@ -389,12 +357,15 @@
         transition: all 0.3s ease;
         box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
         position: relative;
+        -webkit-appearance: none;
+        -moz-appearance: none;
+        appearance: none;
     }
     
     .modern-select:focus {
         border-color: #007bff;
         box-shadow: 0 0 0 0.2rem rgba(0, 123, 255, 0.25);
-        background: #ffffff;
+        background-color: #ffffff;
         outline: none;
     }
     
@@ -415,14 +386,11 @@
     
     /* Custom dropdown arrow */
     .modern-select {
-        background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 20 20'%3e%3cpath stroke='%236b7280' stroke-linecap='round' stroke-linejoin='round' stroke-width='1.5' d='m6 8 4 4 4-4'/%3e%3c/svg%3e");
-        background-position: right 12px center;
-        background-repeat: no-repeat;
-        background-size: 16px;
+        background-image: linear-gradient(135deg, #f8f9fa 0%, #ffffff 100%), url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 20 20'%3e%3cpath stroke='%236b7280' stroke-linecap='round' stroke-linejoin='round' stroke-width='1.5' d='m6 8 4 4 4-4'/%3e%3c/svg%3e");
+        background-position: left center, right 12px center;
+        background-repeat: no-repeat, no-repeat;
+        background-size: 100% 100%, 16px 16px;
         padding-right: 40px;
-        -webkit-appearance: none;
-        -moz-appearance: none;
-        appearance: none;
     }
     
     /* Invalid state styling */
@@ -502,5 +470,109 @@
     .option-item i {
         font-size: 18px;
     }
+    
+    /* Tag-based Select Styling */
+    .tag-select-container {
+        position: relative;
+        cursor: text;
+    }
+    
+    .tag-select-input {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        gap: 6px;
+        min-height: 42px;
+        padding: 6px 12px;
+        background: #fff;
+        border: 2px solid #e0e0e0;
+        border-radius: 8px;
+        transition: all 0.3s ease;
+    }
+    
+    .tag-select-input:hover {
+        border-color: #007bff;
+    }
+    
+    .tag-select-input:focus-within {
+        border-color: #007bff;
+        box-shadow: 0 0 0 0.2rem rgba(0, 123, 255, 0.25);
+        outline: none;
+    }
+    
+    .tag-badge {
+        display: inline-flex;
+        align-items: center;
+        gap: 4px;
+        padding: 4px 10px;
+        background-color: #007bff;
+        color: white;
+        border-radius: 16px;
+        font-size: 0.875rem;
+        font-weight: 500;
+        white-space: nowrap;
+    }
+    
+    .tag-badge i {
+        cursor: pointer;
+        font-size: 1rem;
+        opacity: 0.8;
+        transition: opacity 0.2s;
+    }
+    
+    .tag-badge i:hover {
+        opacity: 1;
+    }
+    
+    .tag-input {
+        flex: 1;
+        min-width: 120px;
+        border: none;
+        outline: none;
+        padding: 4px;
+        font-size: 0.9rem;
+    }
+    
+    .tag-dropdown {
+        position: absolute;
+        top: 100%;
+        left: 0;
+        right: 0;
+        background: white;
+        border: 2px solid #007bff;
+        border-top: none;
+        border-radius: 0 0 8px 8px;
+        max-height: 250px;
+        overflow-y: auto;
+        z-index: 1050;
+        box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        margin-top: -2px;
+    }
+    
+    .tag-dropdown-item {
+        padding: 10px 16px;
+        cursor: pointer;
+        transition: background-color 0.2s;
+        border-bottom: 1px solid #f0f0f0;
+    }
+    
+    .tag-dropdown-item:hover {
+        background-color: #f8f9fa;
+    }
+    
+    .tag-dropdown-item:last-child {
+        border-bottom: none;
+    }
     </style>
+    
+    @script
+    <script>
+    // Close dropdowns when clicking outside
+    document.addEventListener('click', function(e) {
+        if (!e.target.closest('.tag-select-container')) {
+            $wire.set('showLabDropdown', false);
+        }
+    });
+    </script>
+    @endscript
 </div>

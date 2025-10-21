@@ -201,186 +201,6 @@
         </div>
     </div>
 
-    <!-- Analysis Types Section -->
-    @if($showAnalysisTypes && $selectedSampleType)
-        <div class="row mt-4">
-            <div class="col-12">
-                <div class="card">
-                    <div class="card-header d-flex justify-content-between align-items-center">
-                        <h5 class="card-title mb-0">Analysis Types</h5>
-                        <button wire:click="showCreateAnalysisTypeModal" class="btn btn-sm btn-primary">
-                            <i class="mdi mdi-plus"></i> Add Analysis Type
-                        </button>
-                    </div>
-                    <div class="card-body">
-                        @if($analysisTypes->count() > 0)
-                            <div class="table-responsive">
-                                <table class="table table-hover">
-                                    <thead style="background-color: rgba(0, 0, 0, .03);">
-                                        <tr>
-                                            <th>Code</th>
-                                            <th>Name</th>
-                                            <th>Lab</th>
-                                            <th>Elements</th>
-                                            <th>Level</th>
-                                            <th>Status</th>
-                                            <th>Actions</th>
-                                        </tr>
-                                    </thead>
-                                    <tbody>
-                                        @foreach($analysisTypes as $analysisType)
-                                            <tr>
-                                                <td>
-                                                    <span class="badge bg-secondary" style="color: white;">{{ $analysisType->code }}</span>
-                                                </td>
-                                                <td>
-                                                    <strong>{{ $analysisType->name }}</strong>
-                                                    @if($analysisType->description)
-                                                        <br><small class="text-muted">{{ $analysisType->description }}</small>
-                                                    @endif
-                                                </td>
-                                                <td>
-                                                    @php
-                                                        $lab = $labs->firstWhere('id', $analysisType->lab_id);
-                                                    @endphp
-                                                    {{ $lab ? $lab->name : 'N/A' }}
-                                                </td>
-                                                <td>
-                                                    <span class="badge bg-info" style="color: white;">{{ $analysisType->analysis_elements->count() }}</span>
-                                                </td>
-                                                <td>
-                                                    <span class="badge bg-primary" style="color: white;">{{ $analysisType->level }}</span>
-                                                </td>
-                                                <td>
-                                                    <span class="badge bg-{{ $analysisType->active ? 'success' : 'danger' }}" style="color: white;">
-                                                        {{ $analysisType->active ? 'Active' : 'Inactive' }}
-                                                    </span>
-                                                </td>
-                                                <td>
-                                                    <div class="btn-group" role="group">
-                                                        <button wire:click="selectAnalysisType({{ $analysisType->id }})" 
-                                                                class="btn btn-sm btn-outline-primary" 
-                                                                title="View Elements">
-                                                            <i class="mdi mdi-eye"></i>
-                                                        </button>
-                                                        <button wire:click="showEditAnalysisTypeModal({{ $analysisType->id }})" 
-                                                                class="btn btn-sm btn-outline-warning" 
-                                                                title="Edit">
-                                                            <i class="mdi mdi-pencil"></i>
-                                                        </button>
-                                                        <button wire:click="deleteAnalysisType({{ $analysisType->id }})" 
-                                                                class="btn btn-sm btn-outline-danger" 
-                                                                title="Delete"
-                                                                onclick="return confirm('Are you sure you want to delete this analysis type? This will also delete all associated elements.')">
-                                                            <i class="mdi mdi-delete"></i>
-                                                        </button>
-                                                    </div>
-                                                </td>
-                                            </tr>
-                                        @endforeach
-                                    </tbody>
-                                </table>
-                            </div>
-                        @else
-                            <div class="text-center py-4">
-                                <i class="mdi mdi-test-tube text-muted" style="font-size: 2rem;"></i>
-                                <h6 class="text-muted mt-2">No analysis types found</h6>
-                                <p class="text-muted">Add analysis types to this sample type.</p>
-                            </div>
-                        @endif
-                    </div>
-                </div>
-            </div>
-        </div>
-    @endif
-
-    <!-- Elements Section -->
-    @if($showElements && $selectedAnalysisType)
-        <div class="row mt-4">
-            <div class="col-12">
-                <div class="card">
-                    <div class="card-header d-flex justify-content-between align-items-center">
-                        <h5 class="card-title mb-0">Analysis Elements</h5>
-                        <button wire:click="showCreateElementModal" class="btn btn-sm btn-primary">
-                            <i class="mdi mdi-plus"></i> Add Element
-                        </button>
-                    </div>
-                    <div class="card-body">
-                        @if($elements->count() > 0)
-                            <div class="table-responsive">
-                                <table class="table table-hover">
-                                    <thead style="background-color: rgba(0, 0, 0, .03);">
-                                        <tr>
-                                            <th>Analyte</th>
-                                            <th>Method</th>
-                                            <th>Equipment</th>
-                                            <th>Operator</th>
-                                            <th>Reporting Unit</th>
-                                            <th>Level</th>
-                                            <th>Status</th>
-                                            <th>Actions</th>
-                                        </tr>
-                                    </thead>
-                                    <tbody>
-                                        @foreach($elements as $element)
-                                            <tr>
-                                                <td>
-                                                    <strong>{{ $element->analyte->name ?? 'N/A' }}</strong>
-                                                    <br><small class="text-muted">{{ $element->analyte->code ?? '' }}</small>
-                                                </td>
-                                                <td>
-                                                    {{ $element->mmethod->name ?? 'N/A' }}
-                                                </td>
-                                                <td>
-                                                    {{ $element->equipment->name ?? 'N/A' }}
-                                                </td>
-                                                <td>
-                                                    {{ $element->operator->name ?? 'N/A' }}
-                                                </td>
-                                                <td>
-                                                    {{ $element->reporting_unit }}
-                                                </td>
-                                                <td>
-                                                    <span class="badge bg-primary" style="color: white;">{{ $element->level }}</span>
-                                                </td>
-                                                <td>
-                                                    <span class="badge bg-{{ $element->active ? 'success' : 'danger' }}" style="color: white;">
-                                                        {{ $element->active ? 'Active' : 'Inactive' }}
-                                                    </span>
-                                                </td>
-                                                <td>
-                                                    <div class="btn-group" role="group">
-                                                        <button wire:click="showEditElementModal({{ $element->id }})" 
-                                                                class="btn btn-sm btn-outline-warning" 
-                                                                title="Edit">
-                                                            <i class="mdi mdi-pencil"></i>
-                                                        </button>
-                                                        <button wire:click="deleteElement({{ $element->id }})" 
-                                                                class="btn btn-sm btn-outline-danger" 
-                                                                title="Delete"
-                                                                onclick="return confirm('Are you sure you want to delete this element?')">
-                                                            <i class="mdi mdi-delete"></i>
-                                                        </button>
-                                                    </div>
-                                                </td>
-                                            </tr>
-                                        @endforeach
-                                    </tbody>
-                                </table>
-                            </div>
-                        @else
-                            <div class="text-center py-4">
-                                <i class="mdi mdi-atom text-muted" style="font-size: 2rem;"></i>
-                                <h6 class="text-muted mt-2">No elements found</h6>
-                                <p class="text-muted">Add analysis elements to this analysis type.</p>
-                            </div>
-                        @endif
-                    </div>
-                </div>
-            </div>
-        </div>
-    @endif
-
     <!-- Sample Type Modal -->
     @if($showSampleTypeModal)
         <div class="modal fade show d-block" tabindex="-1" style="background-color: rgba(0,0,0,0.5);">
@@ -433,77 +253,76 @@
                             <div class="row">
                                 <div class="col-md-6">
                                     <div class="form-group mb-3">
-                                        <label class="form-label"><i class="mdi mdi-shape text-primary"></i> Category <span class="text-danger">*</span></label>
-                                        <div x-data="{
-                                            open: false,
-                                            search: '',
-                                            selected: @entangle('sampleTypeForm.category_id').live,
-                                            categories: {{ json_encode($categories->map(fn($c) => ['id' => $c->id, 'name' => $c->sample_type_category])->values()) }},
-                                            get filteredCategories() {
-                                                if (!this.search) return this.categories;
-                                                return this.categories.filter(cat => 
-                                                    cat.name.toLowerCase().includes(this.search.toLowerCase())
-                                                );
-                                            },
-                                            selectCategory(catId) {
-                                                this.selected = catId;
-                                                this.open = false;
-                                                this.search = '';
-                                            },
-                                            getSelectedName() {
-                                                const cat = this.categories.find(c => c.id == this.selected);
-                                                return cat ? cat.name : '';
-                                            }
-                                        }" class="searchable-dropdown-wrapper">
-                                            <div class="single-select-container" @click="open = !open">
-                                                <input 
-                                                    type="text" 
-                                                    x-model="search"
-                                                    :placeholder="selected ? getSelectedName() : 'Search categories...'"
-                                                    @focus="open = true"
-                                                    class="form-control searchable-input-single"
-                                                    autocomplete="off"
-                                                >
-                                                <i class="mdi mdi-chevron-down dropdown-arrow" :class="{ 'rotated': open }"></i>
+                                        <label class="form-label">
+                                            <i class="mdi mdi-shape text-primary"></i> Category <span class="text-danger">*</span>
+                                        </label>
+                                        <div class="tag-select-container" wire:click="$set('showCategoryDropdown', true)">
+                                            <div class="tag-select-input">
+                                                <!-- Display selected category -->
+                                                @if($this->selectedCategory)
+                                                    <span class="tag-badge">
+                                                        {{ $this->selectedCategory->sample_type_category }}
+                                                        <i class="mdi mdi-close-circle" wire:click.stop="$set('sampleTypeForm.category_id', null)"></i>
+                                                    </span>
+                                                @endif
+                                                
+                                                <!-- Search Input -->
+                                                <input type="text" 
+                                                       wire:model.live="categorySearch" 
+                                                       class="tag-input" 
+                                                       placeholder="{{ $this->selectedCategory ? '' : 'Search categories...' }}"
+                                                       autocomplete="off">
                                             </div>
-
-                                            <div x-show="open" 
-                                                 @click.away="open = false"
-                                                 x-transition
-                                                 class="dropdown-list">
-                                                <template x-if="filteredCategories.length > 0">
-                                                    <div class="options-list">
-                                                        <template x-for="cat in filteredCategories" :key="cat.id">
-                                                            <div @click="selectCategory(cat.id)" 
-                                                                 class="option-item"
-                                                                 :class="{ 'selected': selected == cat.id }">
-                                                                <i class="mdi mdi-check-circle text-primary" x-show="selected == cat.id"></i>
-                                                                <span x-text="cat.name"></span>
-                                                            </div>
-                                                        </template>
-                                                    </div>
-                                                </template>
-                                                <template x-if="filteredCategories.length === 0">
-                                                    <div class="no-results">
-                                                        <i class="mdi mdi-alert-circle-outline"></i>
-                                                        <span>No categories found</span>
-                                                    </div>
-                                                </template>
-                                            </div>
+                                            
+                                            <!-- Dropdown -->
+                                            @if($showCategoryDropdown && count($this->filteredCategories) > 0)
+                                                <div class="tag-dropdown">
+                                                    @foreach($this->filteredCategories as $category)
+                                                        <div class="tag-dropdown-item" wire:click.stop="selectCategory({{ $category->id }})">
+                                                            {{ $category->sample_type_category }}
+                                                        </div>
+                                                    @endforeach
+                                                </div>
+                                            @endif
                                         </div>
                                         @error('sampleTypeForm.category_id') <span class="text-danger">{{ $message }}</span> @enderror
                                     </div>
                                 </div>
                                 <div class="col-md-6">
                                     <div class="form-group mb-3">
-                                        <label class="form-label">Rating System</label>
-                                        <select wire:model="sampleTypeForm.rating_header_id" class="form-select modern-select @error('sampleTypeForm.rating_header_id') is-invalid @enderror">
-                                            <option value="">No Rating System</option>
-                                            @foreach($ratingHeaders as $ratingHeader)
-                                                <option value="{{ $ratingHeader->id }}">{{ $ratingHeader->name }}</option>
-                                            @endforeach
-                                        </select>
-                                        @error('sampleTypeForm.rating_header_id') <div class="invalid-feedback">{{ $message }}</div> @enderror
+                                        <label class="form-label">
+                                            <i class="mdi mdi-star text-warning"></i> Rating System
+                                        </label>
+                                        <div class="tag-select-container" wire:click="$set('showRatingHeaderDropdown', true)">
+                                            <div class="tag-select-input">
+                                                <!-- Display selected rating header -->
+                                                @if($this->selectedRatingHeader)
+                                                    <span class="tag-badge">
+                                                        {{ $this->selectedRatingHeader->name }}
+                                                        <i class="mdi mdi-close-circle" wire:click.stop="$set('sampleTypeForm.rating_header_id', null)"></i>
+                                                    </span>
+                                                @endif
+                                                
+                                                <!-- Search Input -->
+                                                <input type="text" 
+                                                       wire:model.live="ratingHeaderSearch" 
+                                                       class="tag-input" 
+                                                       placeholder="{{ $this->selectedRatingHeader ? '' : 'Search rating systems...' }}"
+                                                       autocomplete="off">
+                                            </div>
+                                            
+                                            <!-- Dropdown -->
+                                            @if($showRatingHeaderDropdown && count($this->filteredRatingHeaders) > 0)
+                                                <div class="tag-dropdown">
+                                                    @foreach($this->filteredRatingHeaders as $ratingHeader)
+                                                        <div class="tag-dropdown-item" wire:click.stop="selectRatingHeader({{ $ratingHeader->id }})">
+                                                            {{ $ratingHeader->name }}
+                                                        </div>
+                                                    @endforeach
+                                                </div>
+                                            @endif
+                                        </div>
+                                        @error('sampleTypeForm.rating_header_id') <span class="text-danger">{{ $message }}</span> @enderror
                                         <small class="form-text text-muted">Optional: Select a rating system for this sample type</small>
                                     </div>
                                 </div>
@@ -511,14 +330,39 @@
                             <div class="row">
                                 <div class="col-md-6">
                                     <div class="form-group mb-3">
-                                        <label class="form-label">Report Format</label>
-                                        <select wire:model="sampleTypeForm.report_format_id" class="form-select modern-select @error('sampleTypeForm.report_format_id') is-invalid @enderror">
-                                            <option value="">No Report Format</option>
-                                            @foreach($reportFormats as $reportFormat)
-                                                <option value="{{ $reportFormat->id }}">{{ $reportFormat->report_name }} ({{ $reportFormat->report_code }})</option>
-                                            @endforeach
-                                        </select>
-                                        @error('sampleTypeForm.report_format_id') <div class="invalid-feedback">{{ $message }}</div> @enderror
+                                        <label class="form-label">
+                                            <i class="mdi mdi-file-document text-info"></i> Report Format
+                                        </label>
+                                        <div class="tag-select-container" wire:click="$set('showReportFormatDropdown', true)">
+                                            <div class="tag-select-input">
+                                                <!-- Display selected report format -->
+                                                @if($this->selectedReportFormat)
+                                                    <span class="tag-badge">
+                                                        {{ $this->selectedReportFormat->report_name }} ({{ $this->selectedReportFormat->report_code }})
+                                                        <i class="mdi mdi-close-circle" wire:click.stop="$set('sampleTypeForm.report_format_id', null)"></i>
+                                                    </span>
+                                                @endif
+                                                
+                                                <!-- Search Input -->
+                                                <input type="text" 
+                                                       wire:model.live="reportFormatSearch" 
+                                                       class="tag-input" 
+                                                       placeholder="{{ $this->selectedReportFormat ? '' : 'Search report formats...' }}"
+                                                       autocomplete="off">
+                                            </div>
+                                            
+                                            <!-- Dropdown -->
+                                            @if($showReportFormatDropdown && count($this->filteredReportFormats) > 0)
+                                                <div class="tag-dropdown">
+                                                    @foreach($this->filteredReportFormats as $reportFormat)
+                                                        <div class="tag-dropdown-item" wire:click.stop="selectReportFormat({{ $reportFormat->id }})">
+                                                            {{ $reportFormat->report_name }} ({{ $reportFormat->report_code }})
+                                                        </div>
+                                                    @endforeach
+                                                </div>
+                                            @endif
+                                        </div>
+                                        @error('sampleTypeForm.report_format_id') <span class="text-danger">{{ $message }}</span> @enderror
                                         <small class="form-text text-muted">Optional: Select a report format for this sample type</small>
                                     </div>
                                 </div>
@@ -583,14 +427,39 @@
                             <div class="row">
                                 <div class="col-md-6">
                                     <div class="form-group mb-3">
-                                        <label class="form-label">Lab <span class="text-danger">*</span></label>
-                                        <select wire:model="analysisTypeForm.lab_id" class="form-select @error('analysisTypeForm.lab_id') is-invalid @enderror">
-                                            <option value="">Select Lab</option>
-                                            @foreach($labs as $lab)
-                                                <option value="{{ $lab->id }}">{{ $lab->name }}</option>
-                                            @endforeach
-                                        </select>
-                                        @error('analysisTypeForm.lab_id') <div class="invalid-feedback">{{ $message }}</div> @enderror
+                                        <label class="form-label">
+                                            <i class="mdi mdi-flask text-primary"></i> Lab <span class="text-danger">*</span>
+                                        </label>
+                                        <div class="tag-select-container" wire:click="$set('showLabDropdown', true)">
+                                            <div class="tag-select-input">
+                                                <!-- Display selected lab -->
+                                                @if($this->selectedLab)
+                                                    <span class="tag-badge">
+                                                        {{ $this->selectedLab->name }}
+                                                        <i class="mdi mdi-close-circle" wire:click.stop="$set('analysisTypeForm.lab_id', null)"></i>
+                                                    </span>
+                                                @endif
+                                                
+                                                <!-- Search Input -->
+                                                <input type="text" 
+                                                       wire:model.live="labSearch" 
+                                                       class="tag-input" 
+                                                       placeholder="{{ $this->selectedLab ? '' : 'Search labs...' }}"
+                                                       autocomplete="off">
+                                            </div>
+                                            
+                                            <!-- Dropdown -->
+                                            @if($showLabDropdown && count($this->filteredLabs) > 0)
+                                                <div class="tag-dropdown">
+                                                    @foreach($this->filteredLabs as $lab)
+                                                        <div class="tag-dropdown-item" wire:click.stop="selectLab({{ $lab->id }})">
+                                                            {{ $lab->name }}
+                                                        </div>
+                                                    @endforeach
+                                                </div>
+                                            @endif
+                                        </div>
+                                        @error('analysisTypeForm.lab_id') <span class="text-danger">{{ $message }}</span> @enderror
                                     </div>
                                 </div>
                                 <div class="col-md-6">
@@ -619,144 +488,6 @@
         </div>
     @endif
 
-    <!-- Element Modal -->
-    @if($showElementModal)
-        <div class="modal fade show d-block" tabindex="-1" style="background-color: rgba(0,0,0,0.5);">
-            <div class="modal-dialog modal-xl">
-                <div class="modal-content">
-                    <div class="modal-header">
-                        <h5 class="modal-title">
-                            <i class="mdi mdi-{{ $editingElement ? 'pencil' : 'plus' }}"></i>
-                            {{ $editingElement ? 'Edit' : 'Create' }} Analysis Element
-                        </h5>
-                        <button type="button" class="btn-close" wire:click="closeElementModal"></button>
-                    </div>
-                    <div class="modal-body">
-                        <form wire:submit.prevent="saveElement">
-                            <div class="row">
-                                <div class="col-md-6">
-                                    <div class="form-group mb-3">
-                                        <label class="form-label">Analyte <span class="text-danger">*</span></label>
-                                        <select wire:model="elementForm.analyte_id" class="form-select @error('elementForm.analyte_id') is-invalid @enderror">
-                                            <option value="">Select Analyte</option>
-                                            @foreach($analytes as $analyte)
-                                                <option value="{{ $analyte->id }}">{{ $analyte->name }} ({{ $analyte->code }})</option>
-                                            @endforeach
-                                        </select>
-                                        @error('elementForm.analyte_id') <div class="invalid-feedback">{{ $message }}</div> @enderror
-                                    </div>
-                                </div>
-                                <div class="col-md-6">
-                                    <div class="form-group mb-3">
-                                        <label class="form-label">Method</label>
-                                        <select wire:model="elementForm.method" class="form-select">
-                                            <option value="">Select Method</option>
-                                            @foreach($methods as $method)
-                                                <option value="{{ $method->id }}">{{ $method->name }}</option>
-                                            @endforeach
-                                        </select>
-                                    </div>
-                                </div>
-                            </div>
-                            <div class="row">
-                                <div class="col-md-6">
-                                    <div class="form-group mb-3">
-                                        <label class="form-label">Equipment</label>
-                                        <select wire:model="elementForm.equipment_id" class="form-select">
-                                            <option value="">Select Equipment</option>
-                                            @foreach($equipment as $eq)
-                                                <option value="{{ $eq->id }}">{{ $eq->name }}</option>
-                                            @endforeach
-                                        </select>
-                                    </div>
-                                </div>
-                                <div class="col-md-6">
-                                    <div class="form-group mb-3">
-                                        <label class="form-label">Operator</label>
-                                        <select wire:model="elementForm.operator_id" class="form-select">
-                                            <option value="">Select Operator</option>
-                                            @foreach($operators as $operator)
-                                                <option value="{{ $operator->id }}">{{ $operator->name }}</option>
-                                            @endforeach
-                                        </select>
-                                    </div>
-                                </div>
-                            </div>
-                            <div class="row">
-                                <div class="col-md-4">
-                                    <div class="form-group mb-3">
-                                        <label class="form-label">Reporting Unit</label>
-                                        <input type="text" wire:model="elementForm.reporting_unit" class="form-control">
-                                    </div>
-                                </div>
-                                <div class="col-md-4">
-                                    <div class="form-group mb-3">
-                                        <label class="form-label">Decimal Places</label>
-                                        <input type="number" wire:model="elementForm.decimal_places" class="form-control" min="0" max="10">
-                                    </div>
-                                </div>
-                                <div class="col-md-4">
-                                    <div class="form-group mb-3">
-                                        <label class="form-label">Level</label>
-                                        <input type="number" wire:model="elementForm.level" class="form-control" min="1">
-                                    </div>
-                                </div>
-                            </div>
-                            <div class="row">
-                                <div class="col-md-4">
-                                    <div class="form-group mb-3">
-                                        <label class="form-label">LOD (Limit of Detection)</label>
-                                        <input type="number" wire:model="elementForm.lod" class="form-control" step="0.0001">
-                                    </div>
-                                </div>
-                                <div class="col-md-4">
-                                    <div class="form-group mb-3">
-                                        <label class="form-label">HOD (Limit of Quantification)</label>
-                                        <input type="number" wire:model="elementForm.hod" class="form-control" step="0.0001">
-                                    </div>
-                                </div>
-                                <div class="col-md-4">
-                                    <div class="form-group mb-3">
-                                        <label class="form-label">Significant Figures</label>
-                                        <input type="number" wire:model="elementForm.significant_figures" class="form-control" min="1" max="10">
-                                    </div>
-                                </div>
-                            </div>
-                            <div class="row">
-                                <div class="col-md-12">
-                                    <div class="form-group mb-3">
-                                        <div class="form-check form-check-inline">
-                                            <input type="checkbox" wire:model="elementForm.active" class="form-check-input" id="element_active">
-                                            <label class="form-check-label" for="element_active">Active</label>
-                                        </div>
-                                        <div class="form-check form-check-inline">
-                                            <input type="checkbox" wire:model="elementForm.non_detectable" class="form-check-input" id="non_detectable">
-                                            <label class="form-check-label" for="non_detectable">Non-detectable</label>
-                                        </div>
-                                        <div class="form-check form-check-inline">
-                                            <input type="checkbox" wire:model="elementForm.non_accredited" class="form-check-input" id="non_accredited">
-                                            <label class="form-check-label" for="non_accredited">Non-accredited</label>
-                                        </div>
-                                        <div class="form-check form-check-inline">
-                                            <input type="checkbox" wire:model="elementForm.show_on_report" class="form-check-input" id="show_on_report">
-                                            <label class="form-check-label" for="show_on_report">Show on Report</label>
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
-                        </form>
-                    </div>
-                    <div class="modal-footer">
-                        <button type="button" class="btn btn-secondary" wire:click="closeElementModal">Cancel</button>
-                        <button type="button" class="btn btn-primary" wire:click="saveElement">
-                            <i class="mdi mdi-content-save"></i> Save
-                        </button>
-                    </div>
-                </div>
-            </div>
-        </div>
-    @endif
-
     <style>
     .modal.show {
         display: block !important;
@@ -764,7 +495,6 @@
     
     /* Modern Select Styling */
     .modern-select {
-        background: linear-gradient(135deg, #f8f9fa 0%, #ffffff 100%);
         border: 2px solid #e9ecef;
         border-radius: 12px;
         padding: 12px 16px;
@@ -774,12 +504,15 @@
         transition: all 0.3s ease;
         box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
         position: relative;
+        -webkit-appearance: none;
+        -moz-appearance: none;
+        appearance: none;
     }
     
     .modern-select:focus {
         border-color: #007bff;
         box-shadow: 0 0 0 0.2rem rgba(0, 123, 255, 0.25);
-        background: #ffffff;
+        background-color: #ffffff;
         outline: none;
     }
     
@@ -800,10 +533,10 @@
     
     /* Custom dropdown arrow */
     .modern-select {
-        background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 20 20'%3e%3cpath stroke='%236b7280' stroke-linecap='round' stroke-linejoin='round' stroke-width='1.5' d='m6 8 4 4 4-4'/%3e%3c/svg%3e");
-        background-position: right 12px center;
-        background-repeat: no-repeat;
-        background-size: 16px;
+        background-image: linear-gradient(135deg, #f8f9fa 0%, #ffffff 100%), url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 20 20'%3e%3cpath stroke='%236b7280' stroke-linecap='round' stroke-linejoin='round' stroke-width='1.5' d='m6 8 4 4 4-4'/%3e%3c/svg%3e");
+        background-position: left center, right 12px center;
+        background-repeat: no-repeat, no-repeat;
+        background-size: 100% 100%, 16px 16px;
         padding-right: 40px;
     }
     
@@ -818,72 +551,111 @@
         box-shadow: 0 0 0 0.2rem rgba(220, 53, 69, 0.25);
     }
     
-    /* Single-Select Searchable Dropdown Styling */
-    .searchable-input-single {
-        border: none;
-        outline: none;
-        box-shadow: none !important;
-        padding: 4px 0;
-        width: 100%;
-    }
-    
-    .searchable-input-single:focus {
-        border: none !important;
-        box-shadow: none !important;
-    }
-    
-    .single-select-container {
+    /* Tag-based Dropdown Styling */
+    .tag-select-container {
         position: relative;
-        min-height: 45px;
-        border: 1px solid #ced4da;
-        border-radius: 12px;
-        padding: 8px 40px 8px 12px;
-        background: white;
-        cursor: pointer;
-        transition: all 0.3s ease;
+        cursor: text;
+    }
+    
+    .tag-select-input {
         display: flex;
+        flex-wrap: wrap;
         align-items: center;
+        gap: 6px;
+        min-height: 42px;
+        padding: 6px 12px;
+        background: #fff;
+        border: 2px solid #e0e0e0;
+        border-radius: 8px;
+        transition: all 0.3s ease;
     }
     
-    .single-select-container:hover {
+    .tag-select-input:hover {
         border-color: #007bff;
-        box-shadow: 0 2px 8px rgba(0, 123, 255, 0.1);
     }
     
-    .single-select-container:has(.searchable-input-single:focus) {
+    .tag-select-input:focus-within {
         border-color: #007bff;
         box-shadow: 0 0 0 0.2rem rgba(0, 123, 255, 0.25);
+        outline: none;
     }
     
-    .options-list {
-        padding: 8px;
-        max-height: 300px;
-        overflow-y: auto;
-    }
-    
-    .option-item {
-        display: flex;
+    .tag-badge {
+        display: inline-flex;
         align-items: center;
-        gap: 10px;
-        padding: 10px 12px;
-        border-radius: 8px;
-        cursor: pointer;
-        transition: all 0.2s ease;
-        font-size: 14px;
-    }
-    
-    .option-item:hover {
-        background: #f8f9fa;
-    }
-    
-    .option-item.selected {
-        background: rgba(0, 123, 255, 0.08);
+        gap: 4px;
+        padding: 4px 10px;
+        background-color: #007bff;
+        color: white;
+        border-radius: 16px;
+        font-size: 0.875rem;
         font-weight: 500;
+        white-space: nowrap;
     }
     
-    .option-item i {
-        font-size: 18px;
+    .tag-badge i {
+        cursor: pointer;
+        font-size: 1rem;
+        opacity: 0.8;
+        transition: opacity 0.2s;
+    }
+    
+    .tag-badge i:hover {
+        opacity: 1;
+    }
+    
+    .tag-input {
+        flex: 1;
+        min-width: 120px;
+        border: none;
+        outline: none;
+        padding: 4px;
+        font-size: 0.9rem;
+    }
+    
+    .tag-dropdown {
+        position: absolute;
+        top: 100%;
+        left: 0;
+        right: 0;
+        background: white;
+        border: 2px solid #007bff;
+        border-top: none;
+        border-radius: 0 0 8px 8px;
+        max-height: 250px;
+        overflow-y: auto;
+        z-index: 1050;
+        box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        margin-top: -2px;
+    }
+    
+    .tag-dropdown-item {
+        padding: 10px 16px;
+        cursor: pointer;
+        transition: background-color 0.2s;
+        border-bottom: 1px solid #f0f0f0;
+    }
+    
+    .tag-dropdown-item:hover {
+        background-color: #f8f9fa;
+    }
+    
+    .tag-dropdown-item:last-child {
+        border-bottom: none;
     }
     </style>
-
+    
+    @script
+    <script>
+    // Close dropdowns when clicking outside
+    document.addEventListener('click', function(e) {
+        if (!e.target.closest('.tag-select-container')) {
+            $wire.set('showCategoryDropdown', false);
+            $wire.set('showRatingHeaderDropdown', false);
+            $wire.set('showReportFormatDropdown', false);
+            $wire.set('showLabDropdown', false);
+        }
+    });
+    </script>
+    @endscript
 </div>

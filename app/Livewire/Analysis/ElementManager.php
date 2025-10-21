@@ -70,6 +70,7 @@ class ElementManager extends Component
     public $remedyHeaderSearch = '';
     public $formularSearch = '';
     public $methodSequenceSearch = '';
+    public $reportingUnitSearch = '';
 
     public $showAnalyteDropdown = false;
     public $showMethodDropdown = false;
@@ -78,6 +79,7 @@ class ElementManager extends Component
     public $showRemedyHeaderDropdown = false;
     public $showFormularDropdown = false;
     public $showMethodSequenceDropdown = false;
+    public $showReportingUnitDropdown = false;
 
     public $selectedAnalyteName = '';
     public $selectedMethodName = '';
@@ -94,6 +96,7 @@ class ElementManager extends Component
     public $filteredRemedyHeaders = [];
     public $filteredFormulars = [];
     public $filteredMethodSequences = [];
+    public $filteredReportingUnits = [];
 
     // Search and Filter
     public $search = '';
@@ -666,6 +669,24 @@ class ElementManager extends Component
         $this->elementForm['method_sequence_id'] = null;
         $this->selectedMethodSequenceName = '';
         $this->methodSequenceSearch = '';
+    }
+
+    public function searchReportingUnits(): void
+    {
+        $this->showReportingUnitDropdown = true;
+        $search = $this->reportingUnitSearch;
+        
+        $this->filteredReportingUnits = ReportingUnit::where('active', 1)
+            ->where('name', 'like', '%' . $search . '%')
+            ->limit(50)
+            ->get();
+    }
+
+    public function selectReportingUnit($unit): void
+    {
+        $this->elementForm['reporting_unit'] = $unit;
+        $this->reportingUnitSearch = '';
+        $this->showReportingUnitDropdown = false;
     }
 
     public function clearFilters()

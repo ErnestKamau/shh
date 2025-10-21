@@ -50,7 +50,7 @@ class SampleCreationService
             $sampleHeader = $this->createSampleHeader($formData, $instance, $batchCount);
             
             // Create sample details
-            $sampleDetails = $this->createSampleDetails($sampleHeader, $formData, $instance);
+            $sampleDetails = $this->createSampleDetails($sampleHeader, $formData, $instance, $batchCount);
             
             DB::commit();
             
@@ -225,7 +225,7 @@ class SampleCreationService
     /**
      * Create sample details
      */
-    private function createSampleDetails(SampleHeader $sampleHeader, $formData, SubmissionFormInstance $instance)
+    private function createSampleDetails(SampleHeader $sampleHeader, $formData, SubmissionFormInstance $instance, $batchCount = 1)
     {
         $sampleDetails = [];
         $detailsData = $formData['sample_details'] ?? [];
@@ -241,7 +241,7 @@ class SampleCreationService
         foreach ($detailsData as $index => $detailData) {
             // Generate sample code if not provided
             if (empty($detailData['sample_code'])) {
-                $detailData['sample_code'] = $this->generateSampleCode($sampleHeader, $detailData, $sampleHeader->batch_code, $sampleCount);
+                $detailData['sample_code'] = $this->generateSampleCode($sampleHeader, $detailData, $sampleHeader->batch_code, $sampleCount, $batchCount);
             }
             
             // Set required fields
@@ -423,18 +423,19 @@ class SampleCreationService
      * Generate sample code using new format: {Submission-Form_instance_prefix}{batch_seq_no}/{YY}-{sample_no_seq_no}
      * Smart logic: If only 1 sample, reuse batch_code; if multiple samples, use sequential codes
      */
-    private function generateSampleCode(SampleHeader $sampleHeader, $detailData, $batchCode = null, $sampleCount = 1)
+    private function generateSampleCode(SampleHeader $sampleHeader, $detailData, $batchCode = null, $sampleCount = 1, $batchCount = 1)
     {
         // If batch code is provided, use new format
         if ($batchCode) {
             try {
-                // SMART LOGIC: If only 1 sample, reuse the batch_code
-                if ($sampleCount === 1) {
+                // SMART LOGIC: Only reuse batch_code if this is truly a single sample in a single batch
+                if ($sampleCount === 1 && $batchCount === 1) {
                     $sampleCode = $batchCode;
                     
-                    Log::info('Smart sample code generation: Reusing batch_code for single sample', [
+                    Log::info('Smart sample code generation: Reusing batch_code for single sample in single batch', [
                         'batch_code' => $batchCode,
-                        'sample_count' => $sampleCount
+                        'sample_count' => $sampleCount,
+                        'batch_count' => $batchCount
                     ]);
                     
                     return $sampleCode;
@@ -449,7 +450,8 @@ class SampleCreationService
                 
                 Log::info('Standard sample code generation for multiple samples', [
                     'sample_code' => $sampleCode,
-                    'sample_count' => $sampleCount
+                    'sample_count' => $sampleCount,
+                    'batch_count' => $batchCount
                 ]);
                 
                 return $sampleCode;

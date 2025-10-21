@@ -8,10 +8,37 @@ use OwenIt\Auditing\Contracts\Auditable;
 class Analyte extends Model implements Auditable
 {
 	use \OwenIt\Auditing\Auditable;
-  protected $fillable = ['code', 'name', 'decimal_places', 'method', 'reporting_unit', 'non_accredited'];
-  public function analysis_elements(){
-    return $this->hasMany('App\AnalysisElements');
-	}
+    
+    protected $fillable = [
+        'code',
+        'name',
+        'common_name',
+        'decimal_places',
+        'equivalent_weight',
+        'reporting_symbol',
+        'reporting_unit',
+        'method',
+        'equipment_id',
+        'is_italic',
+        'non_detectable',
+        'non_accredited',
+        'show_on_report',
+        'active',
+        'company_id',
+        'deleted_at'
+    ];
+
+    protected static function booted(): void
+    {
+        static::addGlobalScope('notDeleted', function ($query) {
+            $query->whereNull('deleted_at');
+        });
+    }
+
+    public function analysis_elements()
+    {
+        return $this->hasMany('App\AnalysisElements');
+    }
 
 	public function equipment(){
     return $this->belongsTo('App\Models\Equipments\Equipment');

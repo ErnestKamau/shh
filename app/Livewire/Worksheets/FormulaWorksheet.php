@@ -17,6 +17,8 @@ use Livewire\Component;
 
 class FormulaWorksheet extends Component
 {
+    protected $listeners = ['triggerPostResults' => 'openPostResultsModal'];
+    
     public SampleHeader $batch;
     public Formula $formula;
     public $capturedResults = [];
@@ -38,6 +40,21 @@ class FormulaWorksheet extends Component
     // Messages
     public $message = '';
     public $messageType = '';
+    
+    // Post Results Modal & Status
+    public $showPostResultsModal = false;
+    public $samplesWithStandards = [];
+    public $postingInProgress = false;
+    public $currentStep = 0;
+    public $totalSteps = 3;
+    public $stepMessages = [
+        1 => 'Confirming standards and preparing data...',
+        2 => 'Posting results with reporting symbols...',
+        3 => 'Recalculating remarks based on standards...'
+    ];
+    public $currentStepMessage = '';
+    public $processedCount = 0;
+    public $totalCount = 0;
 
     public function mount(SampleHeader $batch, Formula $formula): void
     {
@@ -86,6 +103,26 @@ class FormulaWorksheet extends Component
             'methods' => $this->methods,
             default => collect([])
         };
+    }
+
+    public function getUsedLookupTables()
+    {
+        $lookupTables = [];
+        $lookupSteps = $this->formulaSteps->where('step_type', 'lookup');
+        
+        foreach ($lookupSteps as $step) {
+            if ($step->lookup_config && isset($step->lookup_config['lookup_table_id'])) {
+                $lookupTableId = $step->lookup_config['lookup_table_id'];
+                if (!isset($lookupTables[$lookupTableId])) {
+                    $lookupTable = \App\Models\Formulars\LookupTable::find($lookupTableId);
+                    if ($lookupTable) {
+                        $lookupTables[$lookupTableId] = $lookupTable;
+                    }
+                }
+            }
+        }
+        
+        return collect($lookupTables);
     }
 
     public function loadWorksheetData(): void
@@ -364,6 +401,329 @@ class FormulaWorksheet extends Component
         } catch (\Exception $e) {
             Log::error('Auto-save error: ' . $e->getMessage());
         }
+    }
+
+    /**
+     * Open Post Results Modal with standards confirmation
+     */
+    public function openPostResultsModal(): void
+    {
+        try {
+            // Get all unique samples from captured results
+            $samples = [];
+            
+            foreach ($this->capturedResults as $captured) {
+                $sample = $captured->sample;
+                if (!isset($samples[$sample->id])) {
+                    $samples[$sample->id] = [
+                        'id' => $sample->id,
+                        'sample_code' => $sample->sample_code,
+                        'main_standard' => $sample->main_standard,
+                        'secondary_standard' => $sample->secondary_standard,
+                        'third_standard_id' => $sample->third_standard_id,
+                        'main_standard_name' => $sample->main_standard ? \App\Standards::find($sample->main_standard)->name ?? 'N/A' : 'Not Set',
+                        'secondary_standard_name' => $sample->secondary_standard ? \App\Standards::find($sample->secondary_standard)->name ?? 'N/A' : 'Not Set',
+                        'third_standard_name' => $sample->third_standard_id ? \App\Standards::find($sample->third_standard_id)->name ?? 'N/A' : 'Not Set',
+                    ];
+                }
+            }
+            
+            $this->samplesWithStandards = array_values($samples);
+            $this->showPostResultsModal = true;
+            $this->currentStep = 0;
+            $this->postingInProgress = false;
+        } catch (\Exception $e) {
+            Log::error('Error opening post results modal: ' . $e->getMessage());
+            $this->setMessage('Error loading standards information', 'error');
+        }
+    }
+
+    /**
+     * Post Results with Progress Tracking
+     */
+    public function postResults(): void
+    {
+        try {
+            $this->postingInProgress = true;
+            $this->totalCount = $this->capturedResults->count();
+            $this->processedCount = 0;
+            
+            // Step 1: Prepare and confirm standards
+            $this->currentStep = 1;
+            $this->currentStepMessage = $this->stepMessages[1];
+            $this->dispatch('stepUpdated');
+            sleep(1); // Brief pause for user to see progress
+            
+            DB::beginTransaction();
+            
+            // Step 2: Post results with reporting symbols
+            $this->currentStep = 2;
+            $this->currentStepMessage = $this->stepMessages[2];
+            $this->dispatch('stepUpdated');
+            
+            $updatedCount = 0;
+            
+            foreach ($this->capturedResults as $captured) {
+                $wsData = $this->worksheetData[$captured->id] ?? null;
+                
+                if (!$wsData || !isset($wsData['final_result']) || $wsData['final_result'] === '') {
+                    continue;
+                }
+                
+                $sample = $captured->sample;
+                
+                // Extract reporting symbol and numeric value
+                $finalResult = $wsData['final_result'];
+                $reportingSymbol = '';
+                $numericResult = $finalResult;
+                
+                // Check for reporting symbols (<=, >=, <, >)
+                if (preg_match('/^(<=|>=|<|>)\s*(.+)$/', trim($finalResult), $matches)) {
+                    $reportingSymbol = $matches[1];
+                    $numericResult = trim($matches[2]);
+                }
+                
+                // Update captured result with final result and symbol
+                $captured->result = $numericResult;
+                $captured->result_reporting_symbol = $reportingSymbol;
+                $captured->operator_id = $wsData['done_by_user_id'] ?? Auth::id();
+                
+                // Populate other fields if not set
+                if ($captured->analysisElement) {
+                    if (!$captured->reporting_unit_id) {
+                        $captured->reporting_unit_id = $captured->analysisElement->reporting_unit;
+                    }
+                    if (!$captured->method_id) {
+                        $captured->method_id = $captured->analysisElement->method;
+                    }
+                }
+                
+                // Ensure analysis dates exist
+                SampleAnalysisDates::firstOrCreate(
+                    [
+                        'sample_detail_id' => $captured->sample_detail_id,
+                        'sample_header_id' => $captured->sample_header_id,
+                    ],
+                    [
+                        'start_analysis_date' => $wsData['date'] ?? now()->format('Y-m-d'),
+                    ]
+                );
+                
+                $captured->save();
+                $this->processedCount++;
+            }
+            
+            // Step 3: Recalculate remarks
+            $this->currentStep = 3;
+            $this->currentStepMessage = $this->stepMessages[3];
+            $this->dispatch('stepUpdated');
+            $this->processedCount = 0;
+            
+            foreach ($this->capturedResults as $captured) {
+                $wsData = $this->worksheetData[$captured->id] ?? null;
+                
+                if (!$wsData || !isset($wsData['final_result']) || $wsData['final_result'] === '') {
+                    continue;
+                }
+                
+                $sample = $captured->sample;
+                $finalResult = $wsData['final_result'];
+                $reportingSymbol = '';
+                $numericResult = $finalResult;
+                
+                if (preg_match('/^(<=|>=|<|>)\s*(.+)$/', trim($finalResult), $matches)) {
+                    $reportingSymbol = $matches[1];
+                    $numericResult = trim($matches[2]);
+                }
+                
+                // Recalculate remark using the same logic as fetch_results_remark
+                $remark = $this->calculateRemark($captured, $sample, $numericResult, $reportingSymbol);
+                $captured->remark = $remark;
+                $captured->save();
+                
+                $this->processedCount++;
+                $updatedCount++;
+            }
+            
+            // Update worksheet posting metadata
+            $worksheet = SampleCapturedWorksheetFormula::where('sample_header_id', $this->batch->id)
+                ->where('formular_id', $this->formula->id)
+                ->first();
+                
+            if ($worksheet) {
+                $worksheet->posted_at = now();
+                $worksheet->posted_by_user_id = Auth::id();
+                $worksheet->save();
+            }
+            
+            DB::commit();
+            
+            $this->showPostResultsModal = false;
+            $this->postingInProgress = false;
+            $this->setMessage("Successfully posted {$updatedCount} results to captured results!", 'success');
+            
+        } catch (\Exception $e) {
+            DB::rollBack();
+            $this->postingInProgress = false;
+            Log::error('Error posting results: ' . $e->getMessage());
+            $this->setMessage('Error posting results: ' . $e->getMessage(), 'error');
+        }
+    }
+
+    /**
+     * Calculate remark based on standards
+     */
+    private function calculateRemark($captured, $sample, $result, $reportingSymbol): string
+    {
+        $remarkArr = [];
+        
+        // Get standards for the sample
+        $mainStandard = $sample->main_standard ? \App\Standards::find($sample->main_standard) : null;
+        $secStandard = $sample->secondary_standard ? \App\Standards::find($sample->secondary_standard) : null;
+        $thirdStandard = $sample->third_standard_id ? \App\Standards::find($sample->third_standard_id) : null;
+        
+        $analyte = \App\Analyte::find($captured->analyte_id);
+        
+        // Calculate remark for each standard
+        if ($mainStandard && $analyte) {
+            $mainRemark = $this->getResultRemark($mainStandard, $analyte, $result, $reportingSymbol);
+            if ($mainRemark !== '') {
+                $remarkArr[] = $mainRemark;
+            }
+        }
+        
+        if ($secStandard && $analyte) {
+            $secRemark = $this->getResultRemark($secStandard, $analyte, $result, $reportingSymbol);
+            if ($secRemark !== '') {
+                $remarkArr[] = $secRemark;
+            }
+        }
+        
+        if ($thirdStandard && $analyte) {
+            $thirdRemark = $this->getResultRemark($thirdStandard, $analyte, $result, $reportingSymbol);
+            if ($thirdRemark !== '') {
+                $remarkArr[] = $thirdRemark;
+            }
+        }
+        
+        // Return final remark based on logic - same as SampleWorkFlowController
+        if (in_array('FAIL', $remarkArr)) {
+            return 'FAIL';
+        } elseif (in_array('PASS', $remarkArr)) {
+            return 'PASS';
+        } else {
+            return '-';
+        }
+    }
+
+    /**
+     * Get result remark for a specific standard - mirrors SampleWorkFlowController logic
+     */
+    private function getResultRemark($standard, $analyte, $result, $reportingSymbol): string
+    {
+        if (!isset($standard->id) || !isset($analyte->id)) {
+            return '-';
+        }
+        
+        $analyteGuide = \App\StandardAnalytes::where('analyte_id', $analyte->id)
+            ->where('standard_id', $standard->id)
+            ->first();
+        
+        if (!isset($analyteGuide->standard_value_type)) {
+            return '-';
+        }
+        
+        // Range-based standard
+        if ($analyteGuide->standard_value_type == 'is_range') {
+            if (is_numeric($result) && $analyteGuide->low <= $result && $result <= $analyteGuide->high) {
+                return 'PASS';
+            } else {
+                return 'FAIL';
+            }
+        }
+        
+        // Value-based standard
+        $standardValue = \App\StandardValue::find($analyteGuide->standard_value_id);
+        
+        if (!is_numeric($result)) {
+            // Non-numeric result handling
+            if (strtoupper($result) == 'ND' && isset($standardValue->code)) {
+                if (in_array(strtoupper($standardValue->code), ['NS'])) return '-';
+                if (in_array(strtoupper($standardValue->code), ['NIL', 'ND'])) return 'PASS';
+            }
+            if (strtoupper($result) == 'ABSENT' && isset($standardValue->code) && strtoupper($standardValue->code) == 'ABSENT') {
+                return 'PASS';
+            }
+            if (strtoupper($result) == 'PRESENT' && isset($standardValue->code) && strtoupper($standardValue->code) == 'ABSENT') {
+                return 'FAIL';
+            }
+            return '-';
+        }
+        
+        // Numeric result with standard value
+        $resultValue = floatval($result);
+        $standardIsValue = floatval($analyteGuide->standard_is_value);
+        
+        if ($analyteGuide->standard_is_value == '' || $analyteGuide->standard_is_value == null) {
+            if (isset($standardValue->code) && strtoupper($standardValue->code) == 'NS') {
+                return '-';
+            }
+            return '-';
+        }
+        
+        // Apply reporting symbol logic
+        $valueType = $analyteGuide->value_type; // Max, Min, less_than, greater_than
+        
+        if (trim($reportingSymbol) == '>') {
+            if ($valueType == 'Max' || !$valueType) {
+                return $resultValue < $standardIsValue ? 'PASS' : 'FAIL';
+            }
+            if ($valueType == 'Min') {
+                return $resultValue >= $standardIsValue ? 'PASS' : 'FAIL';
+            }
+            if ($valueType == 'less_than') {
+                return $resultValue < $standardIsValue ? 'PASS' : 'FAIL';
+            }
+            if ($valueType == 'greater_than') {
+                return $resultValue > $standardIsValue ? 'PASS' : 'FAIL';
+            }
+        } elseif (trim($reportingSymbol) == '<') {
+            if ($valueType == 'Max' || !$valueType) {
+                return $resultValue <= $standardIsValue ? 'PASS' : 'FAIL';
+            }
+            if ($valueType == 'Min') {
+                return $resultValue > $standardIsValue ? 'PASS' : 'FAIL';
+            }
+            if ($valueType == 'less_than') {
+                return $resultValue < $standardIsValue ? 'PASS' : 'FAIL';
+            }
+            if ($valueType == 'greater_than') {
+                return $resultValue > $standardIsValue ? 'PASS' : 'FAIL';
+            }
+        } else {
+            // No reporting symbol
+            if ($valueType == 'Max' || !$valueType) {
+                return $resultValue <= $standardIsValue ? 'PASS' : 'FAIL';
+            }
+            if ($valueType == 'Min') {
+                return $resultValue >= $standardIsValue ? 'PASS' : 'FAIL';
+            }
+            if ($valueType == 'less_than') {
+                return $resultValue < $standardIsValue ? 'PASS' : 'FAIL';
+            }
+            if ($valueType == 'greater_than') {
+                return $resultValue > $standardIsValue ? 'PASS' : 'FAIL';
+            }
+        }
+        
+        return '-';
+    }
+
+    public function closePostResultsModal(): void
+    {
+        $this->showPostResultsModal = false;
+        $this->postingInProgress = false;
+        $this->currentStep = 0;
     }
 
     /**

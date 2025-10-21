@@ -135,19 +135,19 @@
                                             <td><small>{{ implode(", ", array_keys($methods)) ?: '-' }}</small></td>
                                             <td><small>{{ implode(", ", array_keys($equipments)) ?: '-' }}</small></td>
                                             <td class="text-center">
-                                                {!! $analyte->is_italic == '1' ? '<i class="mdi mdi-check-circle text-success"></i>' : '<i class="mdi mdi-close-circle text-danger"></i>' !!}
+                                                {!! $analyte->is_italic ? '<i class="mdi mdi-check-circle text-success"></i>' : '<i class="mdi mdi-close-circle text-danger"></i>' !!}
                                             </td>
                                             <td class="text-center">
-                                                {!! $analyte->non_detectable == '1' ? '<i class="mdi mdi-check-circle text-success"></i>' : '<i class="mdi mdi-close-circle text-danger"></i>' !!}
+                                                {!! $analyte->non_detectable ? '<i class="mdi mdi-check-circle text-success"></i>' : '<i class="mdi mdi-close-circle text-danger"></i>' !!}
                                             </td>
                                             <td class="text-center">
-                                                {!! $analyte->non_accredited == '1' ? '<i class="mdi mdi-check-circle text-success"></i>' : '<i class="mdi mdi-close-circle text-danger"></i>' !!}
+                                                {!! $analyte->non_accredited ? '<i class="mdi mdi-check-circle text-success"></i>' : '<i class="mdi mdi-close-circle text-danger"></i>' !!}
                                             </td>
                                             <td class="text-center">
-                                                {!! $analyte->show_on_report == '1' ? '<i class="mdi mdi-check-circle text-success"></i>' : '<i class="mdi mdi-close-circle text-danger"></i>' !!}
+                                                {!! $analyte->show_on_report ? '<i class="mdi mdi-check-circle text-success"></i>' : '<i class="mdi mdi-close-circle text-danger"></i>' !!}
                                             </td>
                                             <td class="text-center">
-                                                {!! $analyte->active == '1' ? '<i class="mdi mdi-check-circle text-success"></i>' : '<i class="mdi mdi-close-circle text-danger"></i>' !!}
+                                                {!! $analyte->active ? '<i class="mdi mdi-check-circle text-success"></i>' : '<i class="mdi mdi-close-circle text-danger"></i>' !!}
                                             </td>
                                             <td>
                                                 <div class="btn-group" role="group">
@@ -156,10 +156,9 @@
                                                             title="Edit">
                                                         <i class="mdi mdi-pencil"></i>
                                                     </button>
-                                                    <button wire:click="deleteAnalyte({{ $analyte->id }})" 
+                                                    <button wire:click="showDeleteModal({{ $analyte->id }})" 
                                                             class="btn btn-sm btn-outline-danger" 
-                                                            title="Delete"
-                                                            onclick="return confirm('Are you sure you want to delete this analyte?')">
+                                                            title="Delete">
                                                         <i class="mdi mdi-delete"></i>
                                                     </button>
                                                 </div>
@@ -239,59 +238,37 @@
                                 </div>
                                 
                                 <div class="mb-3">
-                                    <label for="reporting_unit" class="form-label fw-bold"><i class="mdi mdi-scale-balance text-primary"></i> Reporting Unit</label>
-                                    <div x-data="{
-                                        open: false,
-                                        search: '',
-                                        selected: @entangle('analyteForm.reporting_unit').live,
-                                        units: {{ json_encode($reportingUnits->pluck('name')->values()) }},
-                                        get filteredUnits() {
-                                            if (!this.search) return this.units.slice(0, 50);
-                                            return this.units.filter(unit => 
-                                                unit.toLowerCase().includes(this.search.toLowerCase())
-                                            );
-                                        },
-                                        selectUnit(unit) {
-                                            this.selected = unit;
-                                            this.open = false;
-                                            this.search = '';
-                                        }
-                                    }" class="searchable-dropdown-wrapper">
-                                        <div class="single-select-container" @click="open = !open">
-                                            <input 
-                                                type="text" 
-                                                x-model="search"
-                                                :placeholder="selected ? selected : 'Search reporting units...'"
-                                                @focus="open = true"
-                                                class="form-control searchable-input-single"
-                                                autocomplete="off"
-                                            >
-                                            <i class="mdi mdi-chevron-down dropdown-arrow" :class="{ 'rotated': open }"></i>
+                                    <label class="form-label fw-bold">
+                                        <i class="mdi mdi-scale-balance text-primary"></i> Reporting Unit
+                                    </label>
+                                    <div class="tag-select-container" wire:click="$set('showReportingUnitDropdown', true)">
+                                        <div class="tag-select-input">
+                                            <!-- Display selected unit or allow searching -->
+                                            @if($analyteForm['reporting_unit'])
+                                                <span class="tag-badge">
+                                                    {{ $analyteForm['reporting_unit'] }}
+                                                    <i class="mdi mdi-close-circle" wire:click.stop="$set('analyteForm.reporting_unit', '')"></i>
+                                                </span>
+                                            @endif
+                                            
+                                            <!-- Search Input -->
+                                            <input type="text" 
+                                                   wire:model.live="reportingUnitSearch" 
+                                                   class="tag-input" 
+                                                   placeholder="{{ $analyteForm['reporting_unit'] ? '' : 'Search reporting units...' }}"
+                                                   autocomplete="off">
                                         </div>
-
-                                        <div x-show="open" 
-                                             @click.away="open = false"
-                                             x-transition
-                                             class="dropdown-list">
-                                            <template x-if="filteredUnits.length > 0">
-                                                <div class="options-list">
-                                                    <template x-for="unit in filteredUnits" :key="unit">
-                                                        <div @click="selectUnit(unit)" 
-                                                             class="option-item"
-                                                             :class="{ 'selected': selected == unit }">
-                                                            <i class="mdi mdi-check-circle text-primary" x-show="selected == unit"></i>
-                                                            <span x-text="unit"></span>
-                                                        </div>
-                                                    </template>
-                                                </div>
-                                            </template>
-                                            <template x-if="filteredUnits.length === 0">
-                                                <div class="no-results">
-                                                    <i class="mdi mdi-alert-circle-outline"></i>
-                                                    <span>No units found</span>
-                                                </div>
-                                            </template>
-                                        </div>
+                                        
+                                        <!-- Dropdown -->
+                                        @if($showReportingUnitDropdown && count($this->filteredReportingUnits) > 0)
+                                            <div class="tag-dropdown">
+                                                @foreach($this->filteredReportingUnits as $unit)
+                                                    <div class="tag-dropdown-item" wire:click.stop="selectReportingUnit('{{ $unit->name }}')">
+                                                        {{ $unit->name }}
+                                                    </div>
+                                                @endforeach
+                                            </div>
+                                        @endif
                                     </div>
                                 </div>
                             </div>
@@ -384,33 +361,33 @@
                                         <div class="row">
                                             <div class="col-md-6">
                                                 <div class="form-check mb-2">
-                                                    <input type="checkbox" wire:model="analyteForm.is_italic" class="form-check-input" id="is_italic">
+                                                    <input type="checkbox" wire:model.defer="analyteForm.is_italic" class="form-check-input" id="is_italic">
                                                     <label class="form-check-label" for="is_italic">
                                                         <i class="mdi mdi-format-italic text-primary"></i> Report Font Italic
                                                     </label>
                                                 </div>
                                                 <div class="form-check mb-2">
-                                                    <input type="checkbox" wire:model="analyteForm.non_detectable" class="form-check-input" id="non_detectable">
+                                                    <input type="checkbox" wire:model.defer="analyteForm.non_detectable" class="form-check-input" id="non_detectable">
                                                     <label class="form-check-label" for="non_detectable">
-                                                        <i class="mdi mdi-eye-off text-warning"></i> Not Detectable
+                                                        <i class="mdi mdi-eye-off text-warning"></i> Non-Detectable
                                                     </label>
                                                 </div>
                                                 <div class="form-check">
-                                                    <input type="checkbox" wire:model="analyteForm.non_accredited" class="form-check-input" id="non_accredited">
+                                                    <input type="checkbox" wire:model.defer="analyteForm.non_accredited" class="form-check-input" id="non_accredited">
                                                     <label class="form-check-label" for="non_accredited">
-                                                        <i class="mdi mdi-certificate text-info"></i> Accredited
+                                                        <i class="mdi mdi-certificate-outline text-warning"></i> Non-Accredited
                                                     </label>
                                                 </div>
                                             </div>
                                             <div class="col-md-6">
                                                 <div class="form-check mb-2">
-                                                    <input type="checkbox" wire:model="analyteForm.show_on_report" class="form-check-input" id="show_on_report">
+                                                    <input type="checkbox" wire:model.defer="analyteForm.show_on_report" class="form-check-input" id="show_on_report">
                                                     <label class="form-check-label" for="show_on_report">
                                                         <i class="mdi mdi-file-document text-primary"></i> Show on Report
                                                     </label>
                                                 </div>
                                                 <div class="form-check">
-                                                    <input type="checkbox" wire:model="analyteForm.active" class="form-check-input" id="active">
+                                                    <input type="checkbox" wire:model.defer="analyteForm.active" class="form-check-input" id="active">
                                                     <label class="form-check-label" for="active">
                                                         <i class="mdi mdi-check-circle text-success"></i> Active
                                                     </label>
@@ -427,6 +404,44 @@
                     <button type="button" class="btn btn-secondary" wire:click="closeModal">Cancel</button>
                     <button type="button" class="btn btn-primary" wire:click="saveAnalyte">
                         <i class="mdi mdi-content-save"></i> Save
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+    @endif
+
+    <!-- Delete Confirmation Modal -->
+    @if($deleteModalVisible && $analyteToDelete)
+    <div class="modal fade show d-block" tabindex="-1" style="background-color: rgba(0,0,0,0.5);">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content">
+                <div class="modal-header bg-light">
+                    <h5 class="modal-title">
+                        <i class="mdi mdi-alert-circle"></i> Confirm Deletion
+                    </h5>
+                    <button type="button" class="btn-close btn-close-white" wire:click="closeDeleteModal"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="text-center mb-3">
+                        <i class="mdi mdi-delete-alert text-danger" style="font-size: 64px;"></i>
+                    </div>
+                    <h5 class="text-center mb-3">Delete Analyte: <strong>{{ $analyteToDelete->name }}</strong>?</h5>
+                    <div class="alert alert-warning">
+                        <i class="mdi mdi-information"></i> <strong>Note:</strong>
+                        <ul class="mb-0 mt-2">
+                            <li>If this analyte <strong>has samples or results</strong> tied to it, it will be <strong>soft deleted</strong> (marked as inactive and hidden).</li>
+                            <li>If this analyte <strong>has no samples or results</strong>, it will be <strong>permanently deleted</strong> along with its analysis elements.</li>
+                        </ul>
+                    </div>
+                    <p class="text-muted text-center mb-0">This action cannot be undone for permanent deletions.</p>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" wire:click="closeDeleteModal">
+                        <i class="mdi mdi-close"></i> Cancel
+                    </button>
+                    <button type="button" class="btn btn-danger" wire:click="confirmDelete">
+                        <i class="mdi mdi-delete"></i> Confirm Delete
                     </button>
                 </div>
             </div>
@@ -558,82 +573,16 @@
     }
     </style>
     
+    @script
     <script>
     // Close dropdowns when clicking outside
     document.addEventListener('click', function(e) {
         if (!e.target.closest('.tag-select-container')) {
-            @this.set('showMethodDropdown', false);
-            @this.set('showEquipmentDropdown', false);
+            $wire.set('showMethodDropdown', false);
+            $wire.set('showEquipmentDropdown', false);
+            $wire.set('showReportingUnitDropdown', false);
         }
     });
     </script>
-    
-    <style>
-    /* Single-Select Searchable Dropdown Styling */
-    .searchable-input-single {
-        border: none;
-        outline: none;
-        box-shadow: none !important;
-        padding: 4px 0;
-        width: 100%;
-    }
-    
-    .searchable-input-single:focus {
-        border: none !important;
-        box-shadow: none !important;
-    }
-    
-    .single-select-container {
-        position: relative;
-        min-height: 45px;
-        border: 1px solid #ced4da;
-        border-radius: 12px;
-        padding: 8px 40px 8px 12px;
-        background: white;
-        cursor: pointer;
-        transition: all 0.3s ease;
-        display: flex;
-        align-items: center;
-    }
-    
-    .single-select-container:hover {
-        border-color: #007bff;
-        box-shadow: 0 2px 8px rgba(0, 123, 255, 0.1);
-    }
-    
-    .single-select-container:has(.searchable-input-single:focus) {
-        border-color: #007bff;
-        box-shadow: 0 0 0 0.2rem rgba(0, 123, 255, 0.25);
-    }
-    
-    .options-list {
-        padding: 8px;
-        max-height: 300px;
-        overflow-y: auto;
-    }
-    
-    .option-item {
-        display: flex;
-        align-items: center;
-        gap: 10px;
-        padding: 10px 12px;
-        border-radius: 8px;
-        cursor: pointer;
-        transition: all 0.2s ease;
-        font-size: 14px;
-    }
-    
-    .option-item:hover {
-        background: #f8f9fa;
-    }
-    
-    .option-item.selected {
-        background: rgba(0, 123, 255, 0.08);
-        font-weight: 500;
-    }
-    
-    .option-item i {
-        font-size: 18px;
-    }
-    </style>
+    @endscript
 </div>

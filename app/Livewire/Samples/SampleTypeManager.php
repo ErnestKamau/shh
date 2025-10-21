@@ -95,6 +95,16 @@ class SampleTypeManager extends Component
     public $categoryFilter = '';
     public $statusFilter = '1'; // Default to active only
 
+    // Searchable dropdown properties
+    public $categorySearch = '';
+    public $showCategoryDropdown = false;
+    public $ratingHeaderSearch = '';
+    public $showRatingHeaderDropdown = false;
+    public $reportFormatSearch = '';
+    public $showReportFormatDropdown = false;
+    public $labSearch = '';
+    public $showLabDropdown = false;
+
     // UI State
     public $loading = false;
     public $message = '';
@@ -359,6 +369,12 @@ class SampleTypeManager extends Component
             'active' => true
         ];
         $this->editingSampleType = null;
+        $this->categorySearch = '';
+        $this->showCategoryDropdown = false;
+        $this->ratingHeaderSearch = '';
+        $this->showRatingHeaderDropdown = false;
+        $this->reportFormatSearch = '';
+        $this->showReportFormatDropdown = false;
     }
 
     // Analysis Type Methods
@@ -489,6 +505,8 @@ class SampleTypeManager extends Component
             'active' => true
         ];
         $this->editingAnalysisType = null;
+        $this->labSearch = '';
+        $this->showLabDropdown = false;
     }
 
     // Element Methods
@@ -641,6 +659,140 @@ class SampleTypeManager extends Component
     {
         $this->message = '';
         $this->messageType = '';
+    }
+
+    // Category searchable dropdown methods
+    public function selectCategory($categoryId): void
+    {
+        $this->sampleTypeForm['category_id'] = $categoryId;
+        $this->categorySearch = '';
+        $this->showCategoryDropdown = false;
+    }
+
+    public function updatedCategorySearch(): void
+    {
+        $this->showCategoryDropdown = !empty($this->categorySearch);
+    }
+
+    public function getFilteredCategoriesProperty()
+    {
+        if (empty($this->categorySearch)) {
+            return [];
+        }
+        
+        return SampleTypeCategory::where('sample_type_category', 'like', '%' . $this->categorySearch . '%')
+            ->limit(10)
+            ->get();
+    }
+
+    public function getSelectedCategoryProperty()
+    {
+        if (empty($this->sampleTypeForm['category_id'])) {
+            return null;
+        }
+        
+        return SampleTypeCategory::find($this->sampleTypeForm['category_id']);
+    }
+
+    // Rating Header searchable dropdown methods
+    public function selectRatingHeader($ratingHeaderId): void
+    {
+        $this->sampleTypeForm['rating_header_id'] = $ratingHeaderId;
+        $this->ratingHeaderSearch = '';
+        $this->showRatingHeaderDropdown = false;
+    }
+
+    public function updatedRatingHeaderSearch(): void
+    {
+        $this->showRatingHeaderDropdown = !empty($this->ratingHeaderSearch);
+    }
+
+    public function getFilteredRatingHeadersProperty()
+    {
+        if (empty($this->ratingHeaderSearch)) {
+            return [];
+        }
+        
+        return \App\Models\RatingHeader::where('name', 'like', '%' . $this->ratingHeaderSearch . '%')
+            ->limit(10)
+            ->get();
+    }
+
+    public function getSelectedRatingHeaderProperty()
+    {
+        if (empty($this->sampleTypeForm['rating_header_id'])) {
+            return null;
+        }
+        
+        return \App\Models\RatingHeader::find($this->sampleTypeForm['rating_header_id']);
+    }
+
+    // Report Format searchable dropdown methods
+    public function selectReportFormat($reportFormatId): void
+    {
+        $this->sampleTypeForm['report_format_id'] = $reportFormatId;
+        $this->reportFormatSearch = '';
+        $this->showReportFormatDropdown = false;
+    }
+
+    public function updatedReportFormatSearch(): void
+    {
+        $this->showReportFormatDropdown = !empty($this->reportFormatSearch);
+    }
+
+    public function getFilteredReportFormatsProperty()
+    {
+        if (empty($this->reportFormatSearch)) {
+            return [];
+        }
+        
+        return \App\ReportFormat::where('report_name', 'like', '%' . $this->reportFormatSearch . '%')
+            ->orWhere('report_code', 'like', '%' . $this->reportFormatSearch . '%')
+            ->limit(10)
+            ->get();
+    }
+
+    public function getSelectedReportFormatProperty()
+    {
+        if (empty($this->sampleTypeForm['report_format_id'])) {
+            return null;
+        }
+        
+        return \App\ReportFormat::find($this->sampleTypeForm['report_format_id']);
+    }
+
+    // Lab searchable dropdown methods (for Analysis Type modal)
+    public function selectLab($labId): void
+    {
+        $this->analysisTypeForm['lab_id'] = $labId;
+        $this->labSearch = '';
+        $this->showLabDropdown = false;
+    }
+
+    public function updatedLabSearch(): void
+    {
+        $this->showLabDropdown = !empty($this->labSearch);
+    }
+
+    public function getFilteredLabsProperty()
+    {
+        if (empty($this->labSearch)) {
+            return [];
+        }
+        
+        return Lab::where('name', 'like', '%' . $this->labSearch . '%')
+            ->where('active', 1)
+            ->limit(10)
+            ->get();
+    }
+
+    public function getSelectedLabProperty()
+    {
+        if (empty($this->analysisTypeForm['lab_id'])) {
+            return null;
+        }
+        
+        return Lab::find($this->analysisTypeForm['lab_id']);
     }
 
     public function render()

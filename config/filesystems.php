@@ -73,6 +73,12 @@ return [
             'timeout' => 60,
         ],
 
+        'dms' => [
+            'driver' => 'local',
+            'root' => storage_path('app/dms'),
+            'throw' => false,
+        ],
+
     ],
 
     /*
