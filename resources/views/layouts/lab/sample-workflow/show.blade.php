@@ -817,15 +817,15 @@
 						<label for="" class="control-label">Time Of Receipt</label>
 						<input type="time" name="radio_active_levels" id="" value="{{$batch->radio_active_levels ?? ''}}" class="form-control">
 					</div>
-					<div class="form-group col-md-3">
+					{{-- <div class="form-group col-md-3">
 						<label for="" class="control-label">Temp Of Receipt</label>
 						<input type="text" name="kra_office_ref" id="" value="{{ $batch->kra_office_ref ?? '' }}" class="form-control">
-					</div>
+					</div> --}}
 	
-					<div class="form-group col-md-3 qc-omit-type-field {{isset($batch->id) ? ( $batch->status == 'Samples In Lab' || $batch->is_qc_batch == 1 || $batch->status == 'Sample Verification' ? 'hidden' : '') : ''}}">
+					<div class="form-group col-md-3 qc-omit-type-field">
 												
 						<label  class="control-label">Client <span class="text-danger">*</span> <span class="btn-primary p-0 btn-sm" style="margin: 0px !important;" data-target="#add-customer" data-toggle="modal" data-toggle="tooltip" title="Add Client" ><i class="mdi mdi-plus"></i></span></label>
-						<select class="form-control qc-remove-required {{ $defaultClient === false ? '' :'no-select2' }} {{ isset($batch->status) && !in_array($batch->status, array("Samples Reception", "Samples En-Route")) ? 'no-select2' : '' }}" {{ isset($batch->status) && !in_array($batch->status, array("Samples Reception", "Samples En-Route")) ? 'readonly' : '' }} name="crm_customer_id" id="client-select" onchange="detectChange(this)" {{ $defaultClient === false ? '' :'readonly' }}>
+						<select class="form-control qc-remove-required {{ $defaultClient === false ? '' :'no-select2' }}" name="crm_customer_id" id="client-select" onchange="detectChange(this)" {{ $defaultClient === false ? '' :'readonly' }}>
 							<option value="">Select Client...</option>
 							@foreach ($clients as $client)
 									@if($defaultClient === false) 
@@ -852,9 +852,9 @@
 						<label for="" class="control-label">Customer Email</label>
 						<input type="text" name="customer_email"  id="customer_email" class="form-control" value="{{isset($batch->id) ? $batch->schedule_customer_email : '' }}">
 					</div>
-					<div class="form-group col-md-3 qc-omit-type-field {{isset($batch->id) ? ( $batch->status == 'Samples In Lab' || $batch->is_qc_batch == 1 ? 'hidden' : '') : ''}} ">
+					<div class="form-group col-md-3 qc-omit-type-field">
 						<label class="control-label"><span class='client-prefered-unit-name'>Site Location</span> <span class="text-danger">*</span> <span class="btn-primary p-0 btn-sm"  data-target="#add-company-unit" data-toggle="modal" data-toggle="tooltip" title="Add Site Location" ><i class="mdi mdi-plus"></i></span></label>
-						<select class="form-control  {{ isset($batch->status) && !in_array($batch->status, array("Samples Reception", "Samples En-Route")) ? 'no-select2' : '' }}" {{ isset($batch->status) && !in_array($batch->status, array("Samples Reception", "Samples En-Route")) ? 'readonly' : '' }} name="crm_unit_name" data-selected='{{ $batch->crm_unit_id ?? '' }}' id="client-unit-select">Select Client Unit...</option>
+						<select class="form-control" name="crm_unit_name" data-selected='{{ $batch->crm_unit_id ?? '' }}' id="client-unit-select">Select Client Unit...</option>
 						</select>
 					</div>
 					<div class="form-group col-md-3">
@@ -918,10 +918,10 @@
 					</div>
 					
 					
-					<div class="form-group btn-group-sm col-md-3">
+					{{-- <div class="form-group btn-group-sm col-md-3">
 						<label class="control-label">Condition and Quality of Sample</label>
 						<input type="text" class="form-control" autocomplete="off" value="{{$batch->condition_quality_sample ?? ''}}" name="condition_quality_sample" value="{{ $batch->submit_by ?? '' }}" placeholder="Condition and Quality of Sample..." />
-					</div>
+					</div> --}}
 					<div class="form-group btn-group-sm col-md-3 qc-omit-type-field">
 							<label class="control-label">Sampled By</label>
 							<input type="text" name="sample_by" value="{{$batch->sampling_officer_name ?? '' }}" id="" placeholder="Sampled By..." class="form-control">
@@ -963,11 +963,11 @@
 						</label>
 					</div>
 
-					<div class="form-group col-md-4 btn-group-sm {{ isset($batch->lab_capable) ? ($batch->lab_capable == 1 ? 'hidden' : '' ) : 'hidden' }} batch_subcontracted_client_approval">
+					{{-- <div class="form-group col-md-4 btn-group-sm {{ isset($batch->lab_capable) ? ($batch->lab_capable == 1 ? 'hidden' : '' ) : 'hidden' }} batch_subcontracted_client_approval">
 						<label class="control-label">
 							<input type="checkbox" class="" name="batch_subcontracted_client_approval" value="1" {{ isset($batch->batch_subcontracted_client_approval) && $batch->batch_subcontracted_client_approval == 1 ? 'checked' : '' }}>  Is the client willing for the sample to be subcontracted to an Approved Laboratory ?
 						</label>
-					</div>
+					</div> --}}
 					<div class="form-group col-md-4 btn-group-sm hidden">
 						<label class="control-label">
 							<input type="checkbox" name="sampled_by_company_personnel" value="1" {{ isset($batch->sampled_by_company_personnel) && $batch->sampled_by_company_personnel == 1 ? 'checked' : '' }}> Sampled by {{$active_company->name}} personnel?
@@ -1848,11 +1848,6 @@
 								<i class="mdi mdi-content-save"></i> Missing Analytes
 							</button>
 							@endif
-							@if(isset($batch->status) && in_array($batch->status, array("Samples In Lab","Sample Approval")))
-							<button type="button" class="btn btn-success btn-sm ml-2" data-toggle="modal" data-target="#capture-results-modal">
-								<i class="mdi mdi-clipboard-text"></i> Capture Results
-							</button>
-							@endif
 						@endif
 						@if(isset($batch->status) && ($batch->status == "Sample Verification" || $batch->status == "Sample Approval") && Auth::user()->is_client == 0)
 							
@@ -1894,7 +1889,7 @@
 							<th>Time Sampled</th>
 							<th>Main Standard <sup class="text-danger">*</sup></th>
 							<th>Secondary Standard</th>
-							<th>Third Standard</th>
+							
 							<th>Disposal Date</th>
 							<th>Storage</th> 
 							<th>Slot</th>
@@ -3433,7 +3428,6 @@
 										@endif
 										<th class="first_standard_th" >First Standard</th>
 										<th class="sec_standard_th" >Secondary Standard</th>
-										<th class="third_standard_th" >Third Standard</th>
 										@if(Auth::user()->is_client == 0)
 										<th>Remarks</th>
 										<th>Reporting Unit</th>
@@ -4796,11 +4790,12 @@
 		}
 		$('#show-sample-analysis-analytes').on('show.bs.modal', function(e){
 
-			// console.log('---------------');
-			// console.log($(e.relatedTarget).data('standards'));
-			// console.log('-----end----------')
+			console.log('---------------');
+			console.log('here');
+			
 
 			var sampleCode = $(e.relatedTarget).data('sample_code');
+			// console.log('here',$(e.relatedTarget).data('analysisdate'));
 			var analysis_dates = JSON.parse($(e.relatedTarget).data('analysisdate'));
 			var InterlabStatus=0;
 			var capturedIds=[];
@@ -4825,6 +4820,7 @@
 			var analysisIDs = analysisIDsBySampleCode[sampleCode];
 			
 			var loop = 1;
+			console.log('-----end----------')
 			// console.log('----------------4376374--------------')
 
 			// console.log(parameters['section']);
@@ -4844,11 +4840,6 @@
 					standard_count = 1
 				}else{
 					$('#show-sample-analysis-analytes').find('.sec_standard_th').addClass('hidden');
-				}
-				if(selected_sample.third_standard_id > 0){
-					standard_count = 2
-				}else{
-					$('#show-sample-analysis-analytes').find('.third_standard_th').addClass('hidden');
 				}
 				
 				if(data['approval_status'] == 0){
@@ -5429,20 +5420,12 @@
 					<option value="${s.id}" ${ s.id === data['secondary_standard'] ? 'selected' : '' }>${s.name}</option>
 				`);
 			});
-
-			$row.find('[name="sample_details[third_standard][]"]').html('<option></option>');
-			$.each(standards,function(j,s){
-				$row.find('[name="sample_details[third_standard][]"]').append(`
-					<option value="${s.id}" ${ s.id === data['third_standard'] ? 'selected' : '' }>${s.name}</option>
-				`);
-			});
 			console.log('-------------bqegwgeuwugeuw---------------------')
 			console.log(data.main_standard)
 			console.log('---------------------end eke-------------')
 
 			$row.find('.show-parameter-initiator').data('standards',data.main_standard);
 			// $row.find('.show-parameter-initiator').data('standard2',data['secondary_standard']);
-			// $row.find('.show-parameter-initiator').data('standard3',data['third_standard']);
 			
 			// $row.find('[name="sample_details[product][]"]').html('<option></option>');
 
@@ -6063,7 +6046,7 @@
 				<input type="hidden" class="standard-value-field" name="main_value[${data.id}]" value="${data.standard_value}"/>
 				<input type="hidden" name="main_standard[${data.id}]" value="${data.main_standard}"/>
 				<input type="hidden" name="secondary_standard[${data.id}]" value="${data.secondary_standard}"/>
-				<input type="hidden" name="third_standard[${data.id}]" value="${data.third_standard}"/>
+				
 				</td>
 				<td nowrap class="${data.secondary_standard && data.secondary_standard != '' ? '' : 'hidden'}" data-toggle="tooltip" title="${data.analyte_name}">
 					<div class="d-flex">
@@ -6075,21 +6058,10 @@
 				<input type="hidden" class="standard-value-field" name="sec_value[${data.id}]" value="${data.sec_standard_value}"/>
 				<input type="hidden" name="main_standard[${data.id}]" value="${data.main_standard}"/>
 				<input type="hidden" name="secondary_standard[${data.id}]" value="${data.secondary_standard}"/>
-				<input type="hidden" name="third_standard[${data.id}]" value="${data.third_standard}"/>
+				
 				
 				</td>
-				<td nowrap class="${data.third_standard && data.third_standard != '' ? '' : 'hidden'}" data-toggle="tooltip" title="${data.analyte_name}">
-					<div class="d-flex">
-						<input type="text" class="form-control sec-value-field" style="width:100px;border:0" name="third_s_value[${data.id}]" value="${data.third_standard_limit_value &&  data.third_standard_limit_value != '' && data.third_standard_limit_value != null && (data.third_standard_limit_value == 'less_than' || data.third_standard_limit_value == 'greater_than')  ? getStandardLimitSymbol(data.third_standard_limit_value) : ''} ${data.third_standard_value && data.third_standard_value == null ? '-': data.third_standard_value} ${data.third_standard_limit_value &&  data.third_standard_limit_value != '' && data.third_standard_limit_value != null && data.third_standard_limit_value != 'less_than' && data.third_standard_limit_value != 'greater_than'  ? data.third_standard_limit_value : ''}" disabled />
-						<span class="btn btn-sm btn-default text-primary float-right" data-toggle="modal" data-target="#edit-standard" data-standard="${data.third_standard}" data-standardlevel="3" data-analyte="${data.analyte_id}" data-analytename="${data.analyte_code}" data-valueid="${data.id}" data-standardvalue="${data.third_standard_value}"><i class="mdi mdi-pencil" data-toggle="tooltip" title="Edit Standard"></i></span>	
-					</div>
-					
-							
-				<input type="hidden" class="standard-value-field" name="third_value[${data.id}]" value="${data.third_standard_value}"/>
-				<input type="hidden" name="main_standard[${data.id}]" value="${data.main_standard}"/>
-				<input type="hidden" name="secondary_standard[${data.id}]" value="${data.secondary_standard}"/>
-				<input type="hidden" name="third_standard[${data.id}]" value="${data.third_standard}"/>
-				</td>
+				
 				@if(Auth::user()->is_client == 0)
 				<td nowrap data-toggle="tooltip" title="${data.analyte_name}">
 					<input id="${data.sample_detail_code}-${data.id}" style="min-width: 150px" type="text" 
@@ -7553,19 +7525,7 @@
 			</div>
 			<span class="text"></span>
 		</td>
-		<td class ="third-standard-field">
-			<div class="form-group form-group-sm">
-				<select class="form-control form-control-sm third-standard" {!! isset($batch->id) && in_array($batch->status,["Sample Approval","Samples In Lab","Sample Verification","Samples In Lab"]) ? 'disabled' : '' !!} name="sample_details[third_standard][]" style"width:200px" placeholder="Select Third Standard...">
-				@if($standards)
-					<option value=""></option>
-					@foreach($standards as $standard)
-					<option value="{{$standard->id}}">{{$standard->name}}</option>
-					@endforeach
-				@endif
-				</select>
-			</div>
-			<span class="text"></span>
-		</td>
+		
 		
 		<td class="sample-code-field" nowrap>
 			<div class="form-group form-group-sm">
@@ -7619,628 +7579,90 @@
 
 	</tr>`;
 
-	
-</script>
-
-
-
-
-
-
-<script>
-$(document).ready(function() {
+	$(document).ready(function() {
     // Handle COA report generation
-    $('#generate-coa-btn').on('click', function() {
-        var reportFormat = $('#report_format_select').val();
-        var batchId = $('input[name="batch_id"]').val();
-        
-        if (!reportFormat) {
-            alert('Please select a report format');
-            return;
-        }
-        
-        // Generate the URL for the PDF report
-        var url = '{{ route("process-pdf-report", ["batch_id" => ":batch_id", "report_format" => ":report_format"]) }}';
-        url = url.replace(':batch_id', batchId);
-        url = url.replace(':report_format', reportFormat);
-        
-        // Open the PDF in a new window/tab
-        window.open(url, '_blank');
-        
-        // Close the modal
-        $('#view-coa-report').modal('hide');
-    });
-});
-
-// ===== CAPTURED RESULTS MODAL FUNCTIONALITY =====
-
-// Parameter Settings Modal Event Handlers
-$('#parameter-settings-modal').on('show.bs.modal', function(e) {
-    var button = $(e.relatedTarget);
-    var resultId = button.data('result-id');
-    var sampleCode = button.data('sample-code');
-    var analyte = button.data('analyte');
-    
-    // Set form values
-    $('#settings-result-id').val(resultId || '');
-    $('#settings-sample-code').val(sampleCode || '');
-    $('#settings-analyte').val(analyte || '');
-    
-    // Update display
-    $('#settings-sample-display').text(sampleCode || 'N/A');
-    $('#settings-analyte-display').text(analyte || 'N/A');
-    $('#settings-result-id-display').text(resultId || 'New');
-    
-    // Load existing data if result exists
-    if (resultId) {
-        loadParameterSettings(resultId);
-    } else {
-        // Clear form for new parameter
-        $('#parameter-settings-form')[0].reset();
-        $('#settings-result-id').val('');
-        $('#settings-sample-code').val(sampleCode);
-        $('#settings-analyte').val(analyte);
-    }
-});
-
-// Edit Standard Modal Event Handlers
-$('#edit-standard-modal').on('show.bs.modal', function(e) {
-    var button = $(e.relatedTarget);
-    var resultId = button.data('result-id');
-    var sampleCode = button.data('sample-code');
-    var analyte = button.data('analyte');
-    
-    // Set form values
-    $('#standard-result-id').val(resultId || '');
-    $('#standard-sample-code').val(sampleCode || '');
-    $('#standard-analyte').val(analyte || '');
-    
-    // Update display
-    $('#standard-sample-display').text(sampleCode || 'N/A');
-    $('#standard-analyte-display').text(analyte || 'N/A');
-    
-    // Load existing standard data if result exists
-    if (resultId) {
-        loadStandardSettings(resultId);
-    } else {
-        // Clear form for new standard
-        $('#edit-standard-form')[0].reset();
-        $('#standard-result-id').val('');
-        $('#standard-sample-code').val(sampleCode);
-        $('#standard-analyte').val(analyte);
-    }
-});
-
-// Save Parameter Settings
-$('#save-parameter-settings').on('click', function() {
-    var formData = {
-        _token: $('meta[name="csrf-token"]').attr('content'),
-        result_id: $('#settings-result-id').val(),
-        sample_code: $('#settings-sample-code').val(),
-        analyte: $('#settings-analyte').val(),
-        reporting_unit: $('#settings-reporting-unit').val(),
-        method_id: $('#settings-method').val(),
-        reporting_symbol: $('#settings-reporting-symbol').val(),
-        analyst_id: $('#settings-analyst').val(),
-        accredited: $('#settings-accredited').is(':checked') ? 1 : 0,
-        subcontracted: $('#settings-subcontracted').is(':checked') ? 1 : 0
-    };
-    
-    $.ajax({
-        url: '/captured-results/update-parameter-settings',
-        method: 'POST',
-        data: formData,
-        beforeSend: function() {
-            $('#save-parameter-settings').prop('disabled', true).html('<i class="mdi mdi-loading mdi-spin"></i> Saving...');
-        },
-        success: function(response) {
-            if (response.success) {
-                // Show success message
-                showNotification('Parameter settings saved successfully!', 'success');
-                
-                // Update the table if needed
-                updateParameterDisplay(formData);
-                
-                // Close modal
-                $('#parameter-settings-modal').modal('hide');
-            } else {
-                showNotification('Error saving parameter settings: ' + (response.message || 'Unknown error'), 'error');
-            }
-        },
-        error: function(xhr) {
-            var errorMessage = 'Error saving parameter settings';
-            if (xhr.responseJSON && xhr.responseJSON.message) {
-                errorMessage += ': ' + xhr.responseJSON.message;
-            }
-            showNotification(errorMessage, 'error');
-        },
-        complete: function() {
-            $('#save-parameter-settings').prop('disabled', false).html('<i class="mdi mdi-content-save"></i> Save Settings');
-        }
-    });
-});
-
-// Save Standard Limit
-$('#save-standard-limit').on('click', function() {
-    var formData = {
-        _token: $('meta[name="csrf-token"]').attr('content'),
-        result_id: $('#standard-result-id').val(),
-        sample_code: $('#standard-sample-code').val(),
-        analyte: $('#standard-analyte').val(),
-        standard_value: $('#standard-limit-value').val(),
-        limit_type: $('#standard-limit-type').val()
-    };
-    
-    $.ajax({
-        url: '/captured-results/update-standard-limit',
-        method: 'POST',
-        data: formData,
-        beforeSend: function() {
-            $('#save-standard-limit').prop('disabled', true).html('<i class="mdi mdi-loading mdi-spin"></i> Saving...');
-        },
-        success: function(response) {
-            if (response.success) {
-                // Show success message
-                showNotification('Standard limit saved successfully!', 'success');
-                
-                // Update the standard limit display
-                updateStandardLimitDisplay(formData);
-                
-                // Close modal
-                $('#edit-standard-modal').modal('hide');
-            } else {
-                showNotification('Error saving standard limit: ' + (response.message || 'Unknown error'), 'error');
-            }
-        },
-        error: function(xhr) {
-            var errorMessage = 'Error saving standard limit';
-            if (xhr.responseJSON && xhr.responseJSON.message) {
-                errorMessage += ': ' + xhr.responseJSON.message;
-            }
-            showNotification(errorMessage, 'error');
-        },
-        complete: function() {
-            $('#save-standard-limit').prop('disabled', false).html('<i class="mdi mdi-content-save"></i> Save Standard');
-        }
-    });
-});
-
-// Result Input Change Handler with Double-Capture Validation
-$(document).on('change', '.result-input', function() {
-    var input = $(this);
-    var result = input.val();
-    var resultId = input.data('result-id');
-    var sampleCode = input.data('sample-code');
-    var analyte = input.data('analyte');
-    
-    if (result && result.trim() !== '') {
-        // Double-capture validation
-        var confirmation = prompt('Please confirm the result:');
-        
-        if (confirmation === result) {
-            // Update result with AJAX
-            updateResultValue(resultId, sampleCode, analyte, result, input);
-        } else {
-            // Clear input if confirmation doesn't match
-            showNotification('Result confirmation did not match. Please try again.', 'warning');
-            input.val('');
-        }
-    } else {
-        // Clear result
-        updateResultValue(resultId, sampleCode, analyte, '', input);
-    }
-});
-
-// Helper Functions
-function loadParameterSettings(resultId) {
-    $.ajax({
-        url: '/captured-results/get-parameter-settings/' + resultId,
-        method: 'GET',
-        success: function(response) {
-            if (response.success && response.data) {
-                var data = response.data;
-                
-                $('#settings-reporting-unit').val(data.reporting_unit || '');
-                $('#settings-method').val(data.method_id || '');
-                $('#settings-reporting-symbol').val(data.reporting_symbol || '');
-                $('#settings-analyst').val(data.analyst_id || '');
-                $('#settings-accredited').prop('checked', data.accredited == 1);
-                $('#settings-subcontracted').prop('checked', data.subcontracted == 1);
-            }
-        },
-        error: function() {
-            showNotification('Error loading parameter settings', 'error');
-        }
-    });
-}
-
-function loadStandardSettings(resultId) {
-    $.ajax({
-        url: '/captured-results/get-standard-settings/' + resultId,
-        method: 'GET',
-        success: function(response) {
-            if (response.success && response.data) {
-                var data = response.data;
-                
-                $('#standard-limit-value').val(data.standard_value || '');
-                $('#standard-limit-type').val(data.limit_type || '');
-            }
-        },
-        error: function() {
-            showNotification('Error loading standard settings', 'error');
-        }
-    });
-}
-
-function updateResultValue(resultId, sampleCode, analyte, result, inputElement) {
-    var formData = {
-        _token: $('meta[name="csrf-token"]').attr('content'),
-        result_id: resultId,
-        sample_code: sampleCode,
-        analyte: analyte,
-        result: result
-    };
-    
-    $.ajax({
-        url: '/captured-results/update-result',
-        method: 'POST',
-        data: formData,
-        beforeSend: function() {
-            inputElement.addClass('border-warning');
-        },
-        success: function(response) {
-            if (response.success) {
-                // Update input styling based on validation result
-                inputElement.removeClass('border-warning border-danger border-success border-secondary');
-                
-                if (response.validation_result) {
-                    if (response.validation_result === 'PASS') {
-                        inputElement.addClass('border-success');
-                    } else if (response.validation_result === 'FAIL') {
-                        inputElement.addClass('border-danger');
-                    } else {
-                        inputElement.addClass('border-secondary');
-                    }
-                }
-                
-                // Update standard limit display if provided
-                if (response.standard_limit) {
-                    updateStandardLimitInCell(inputElement, response.standard_limit);
-                }
-            } else {
-                showNotification('Error updating result: ' + (response.message || 'Unknown error'), 'error');
-                inputElement.addClass('border-danger');
-            }
-        },
-        error: function() {
-            showNotification('Error updating result', 'error');
-            inputElement.removeClass('border-warning').addClass('border-danger');
-        }
-    });
-}
-
-function updateParameterDisplay(formData) {
-    // Update any visual indicators in the table if needed
-    // This could include updating badges, icons, or other visual elements
-    console.log('Parameter display updated for:', formData);
-}
-
-function updateStandardLimitDisplay(formData) {
-    // Find the corresponding cell and update the standard limit display
-    var cell = $('.parameter-cell[data-sample="' + formData.sample_code + '"][data-analyte="' + formData.analyte + '"]');
-    var standardLimitText = cell.find('.standard-limit-text');
-    
-    if (standardLimitText.length) {
-        var displayText = formData.standard_value;
-        if (formData.limit_type) {
-            displayText += ' ' + formData.limit_type.toLowerCase();
-        }
-        standardLimitText.text(displayText || 'No limit set');
-    }
-}
-
-function updateStandardLimitInCell(inputElement, standardLimit) {
-    var cell = inputElement.closest('.parameter-cell');
-    var standardLimitText = cell.find('.standard-limit-text');
-    
-    if (standardLimitText.length) {
-        standardLimitText.text(standardLimit || 'No limit set');
-    }
-}
-
-function showNotification(message, type) {
-    // Create and show a notification
-    var alertClass = 'alert-info';
-    var iconClass = 'mdi-information';
-    
-    switch(type) {
-        case 'success':
-            alertClass = 'alert-success';
-            iconClass = 'mdi-check-circle';
-            break;
-        case 'error':
-            alertClass = 'alert-danger';
-            iconClass = 'mdi-alert-circle';
-            break;
-        case 'warning':
-            alertClass = 'alert-warning';
-            iconClass = 'mdi-alert';
-            break;
-    }
-    
-    var notification = $('<div class="alert ' + alertClass + ' alert-dismissible fade show position-fixed" style="top: 20px; right: 20px; z-index: 9999; min-width: 300px;">' +
-        '<i class="mdi ' + iconClass + ' mr-2"></i>' + message +
-        '<button type="button" class="close" data-dismiss="alert" aria-label="Close">' +
-        '<span aria-hidden="true">&times;</span>' +
-        '</button>' +
-        '</div>');
-    
-    $('body').append(notification);
-    
-    // Auto-dismiss after 5 seconds
-    setTimeout(function() {
-        notification.alert('close');
-    }, 5000);
-}
-
-// ===== END CAPTURED RESULTS MODAL FUNCTIONALITY =====
-</script>
-
-<!-- Parameter Settings Modal -->
-<div class="modal fade" id="parameter-settings-modal" data-backdrop="static" data-keyboard="false" role="dialog">
-	<div class="modal-dialog modal-lg">
-		<div class="modal-content">
-			<div class="modal-header bg-primary text-white">
-				<h4 class="modal-title">
-					<i class="mdi mdi-cog-outline"></i> Parameter Settings
-				</h4>
-				<button type="button" class="close text-white" data-dismiss="modal" aria-label="Close">
-					<span aria-hidden="true">&times;</span>
-				</button>
-			</div>
-			<div class="modal-body">
-				<form id="parameter-settings-form">
-					@csrf
-					<input type="hidden" id="settings-result-id" name="result_id">
-					<input type="hidden" id="settings-sample-code" name="sample_code">
-					<input type="hidden" id="settings-analyte" name="analyte">
-					
-					<div class="row">
-						<!-- Reporting Unit -->
-						<div class="col-md-6 mb-3">
-							<label for="settings-reporting-unit" class="form-label">
-								<i class="mdi mdi-ruler"></i> Reporting Unit
-							</label>
-							<select class="form-control" id="settings-reporting-unit" name="reporting_unit">
-								<option value="">Select Reporting Unit</option>
-								@if(isset($reportingUnits))
-									@foreach($reportingUnits as $unit)
-										<option value="{{ $unit['name'] }}">{{ $unit['name'] }}</option>
-									@endforeach
-								@endif
-							</select>
-						</div>
-						
-						<!-- Method -->
-						<div class="col-md-6 mb-3">
-							<label for="settings-method" class="form-label">
-								<i class="mdi mdi-flask"></i> Method
-							</label>
-						</div>
-						
-						<!-- Reporting Symbol -->
-						<div class="col-md-6 mb-3">
-							<label for="settings-reporting-symbol" class="form-label">
-								<i class="mdi mdi-symbol"></i> Reporting Symbol
-							</label>
-							<select class="form-control" id="settings-reporting-symbol" name="reporting_symbol">
-								<option value="">None</option>
-								<option value="<">&lt; (Less than)</option>
-								<option value=">">&gt; (Greater than)</option>
-								<option value="<=">&le; (Less than or equal)</option>
-								<option value=">=">&ge; (Greater than or equal)</option>
-								<option value="=">= (Equal)</option>
-								<option value="≠">≠ (Not equal)</option>
-							</select>
-						</div>
-						
-						<!-- Analyst -->
-						<div class="col-md-6 mb-3">
-							<label for="settings-analyst" class="form-label">
-								<i class="mdi mdi-account"></i> Analyst
-							</label>
-							<select class="form-control" id="settings-analyst" name="analyst_id">
-								<option value="">Select Analyst</option>
-								@if(isset($analysts))
-									@foreach($analysts as $analyst)
-										<option value="{{ $analyst->id }}">{{ $analyst->name }}</option>
-									@endforeach
-								@endif
-							</select>
-						</div>
-						
-						<!-- Checkboxes -->
-						<div class="col-md-6 mb-3">
-							<div class="form-check">
-								<input class="form-check-input" type="checkbox" id="settings-accredited" name="accredited" value="1">
-								<label class="form-check-label" for="settings-accredited">
-									<i class="mdi mdi-certificate text-success"></i> Accredited
-								</label>
-							</div>
-						</div>
-						
-						<div class="col-md-6 mb-3">
-							<div class="form-check">
-								<input class="form-check-input" type="checkbox" id="settings-subcontracted" name="subcontracted" value="1">
-								<label class="form-check-label" for="settings-subcontracted">
-									<i class="mdi mdi-share-variant text-info"></i> Subcontracted
-								</label>
-							</div>
-						</div>
-					</div>
-					
-					<!-- Parameter Info Display -->
-					<div class="alert alert-info">
-						<h6 class="mb-2">
-							<i class="mdi mdi-information-outline"></i> Parameter Information
-						</h6>
-						<div class="row">
-							<div class="col-md-4">
-								<strong>Sample:</strong> <span id="settings-sample-display"></span>
-							</div>
-							<div class="col-md-4">
-								<strong>Analyte:</strong> <span id="settings-analyte-display"></span>
-							</div>
-							<div class="col-md-4">
-								<strong>Result ID:</strong> <span id="settings-result-id-display"></span>
-							</div>
-						</div>
-					</div>
-				</form>
-			</div>
-			<div class="modal-footer">
-				<button type="button" class="btn btn-secondary" data-dismiss="modal">
-					<i class="mdi mdi-close"></i> Cancel
-				</button>
-				<button type="button" class="btn btn-primary" id="save-parameter-settings">
-					<i class="mdi mdi-content-save"></i> Save Settings
-				</button>
-			</div>
-		</div>
-	</div>
-</div>
-
-<!-- Edit Standard Modal -->
-<div class="modal fade" id="edit-standard-modal" data-backdrop="static" data-keyboard="false" role="dialog">
-	<div class="modal-dialog">
-		<div class="modal-content">
-			<div class="modal-header bg-warning text-dark">
-				<h4 class="modal-title">
-					<i class="mdi mdi-pencil"></i> Edit Standard Limit
-				</h4>
-				<button type="button" class="close" data-dismiss="modal" aria-label="Close">
-					<span aria-hidden="true">&times;</span>
-				</button>
-			</div>
-			<div class="modal-body">
-				<form id="edit-standard-form">
-					@csrf
-					<input type="hidden" id="standard-result-id" name="result_id">
-					<input type="hidden" id="standard-sample-code" name="sample_code">
-					<input type="hidden" id="standard-analyte" name="analyte">
-					
-					<div class="form-group">
-						<label for="standard-limit-value" class="form-label">
-							<i class="mdi mdi-ruler"></i> Standard Limit Value
-						</label>
-						<input type="text" class="form-control" id="standard-limit-value" name="standard_value" placeholder="Enter standard limit...">
-					</div>
-					
-					<div class="form-group">
-						<label for="standard-limit-type" class="form-label">
-							<i class="mdi mdi-symbol"></i> Limit Type
-						</label>
-						<select class="form-control" id="standard-limit-type" name="limit_type">
-							<option value="">Select Type</option>
-							<option value="Max">Maximum</option>
-							<option value="Min">Minimum</option>
-							<option value="less_than">Less Than</option>
-							<option value="greater_than">Greater Than</option>
-							<option value="range">Range</option>
-						</select>
-					</div>
-					
-					<!-- Parameter Info Display -->
-					<div class="alert alert-light">
-						<h6 class="mb-2">
-							<i class="mdi mdi-information-outline"></i> Standard Information
-						</h6>
-						<div class="row">
-							<div class="col-md-6">
-								<strong>Sample:</strong> <span id="standard-sample-display"></span>
-							</div>
-							<div class="col-md-6">
-								<strong>Analyte:</strong> <span id="standard-analyte-display"></span>
-							</div>
-						</div>
-					</div>
-				</form>
-			</div>
-			<div class="modal-footer">
-				<button type="button" class="btn btn-secondary" data-dismiss="modal">
-					<i class="mdi mdi-close"></i> Cancel
-				</button>
-				<button type="button" class="btn btn-warning" id="save-standard-limit">
-					<i class="mdi mdi-content-save"></i> Save Standard
-				</button>
-			</div>
-		</div>
-	</div>
-</div>
-
-{{-- Bulk Update Samples JavaScript --}}
-<script>
-$(document).ready(function() {
-	// Handle store selection to populate slots
-	$('#bulk-store-select').on('change', function() {
-		var selectedStore = $(this).find('option:selected');
-		var slots = selectedStore.data('slots');
-		var slotSelect = $('#bulk-slot-select');
+		$('#generate-coa-btn').on('click', function() {
+			var reportFormat = $('#report_format_select').val();
+			var batchId = $('input[name="batch_id"]').val();
+			
+			if (!reportFormat) {
+				alert('Please select a report format');
+				return;
+			}
+			
+			// Generate the URL for the PDF report
+			var url = '{{ route("process-pdf-report", ["batch_id" => ":batch_id", "report_format" => ":report_format"]) }}';
+			url = url.replace(':batch_id', batchId);
+			url = url.replace(':report_format', reportFormat);
+			
+			// Open the PDF in a new window/tab
+			window.open(url, '_blank');
+			
+			// Close the modal
+			$('#view-coa-report').modal('hide');
+		});
+		// Handle store selection to populate slots
+		$('#bulk-store-select').on('change', function() {
+			var selectedStore = $(this).find('option:selected');
+			var slots = selectedStore.data('slots');
+			var slotSelect = $('#bulk-slot-select');
+			
+			slotSelect.html('<option value="">-- No Change --</option>');
+			
+			if (slots) {
+				$.each(slots, function(slotId, slotName) {
+					slotSelect.append('<option value="' + slotId + '">' + slotName + '</option>');
+				});
+			}
+		});
 		
-		slotSelect.html('<option value="">-- No Change --</option>');
-		
-		if (slots) {
-			$.each(slots, function(slotId, slotName) {
-				slotSelect.append('<option value="' + slotId + '">' + slotName + '</option>');
+		// Initialize select2 when modal is shown
+		$('#bulk-update-samples-modal').on('show.bs.modal', function() {
+			// Initialize select2 for multi-select samples
+			$('#bulk-sample-select').select2({
+				placeholder: 'Select samples to update',
+				allowClear: true,
+				width: '100%'
 			});
-		}
+			
+			// Initialize select2 for standards
+			$('#bulk-main-standard').select2({
+				placeholder: '-- No Change --',
+				allowClear: true,
+				width: '100%'
+			});
+			
+			$('#bulk-secondary-standard').select2({
+				placeholder: '-- No Change --',
+				allowClear: true,
+				width: '100%'
+			});
+			
+			// Initialize select2 for storage
+			$('#bulk-store-select').select2({
+				placeholder: '-- No Change --',
+				allowClear: true,
+				width: '100%'
+			});
+			
+			$('#bulk-slot-select').select2({
+				placeholder: '-- No Change --',
+				allowClear: true,
+				width: '100%'
+			});
+		});
+		
+		// Destroy select2 instances when modal is hidden to prevent memory leaks
+		$('#bulk-update-samples-modal').on('hidden.bs.modal', function() {
+			$('#bulk-sample-select').select2('destroy');
+			$('#bulk-main-standard').select2('destroy');
+			$('#bulk-secondary-standard').select2('destroy');
+			$('#bulk-store-select').select2('destroy');
+			$('#bulk-slot-select').select2('destroy');
+		});
 	});
+
 	
-	// Initialize select2 when modal is shown
-	$('#bulk-update-samples-modal').on('show.bs.modal', function() {
-		// Initialize select2 for multi-select samples
-		$('#bulk-sample-select').select2({
-			placeholder: 'Select samples to update',
-			allowClear: true,
-			width: '100%'
-		});
-		
-		// Initialize select2 for standards
-		$('#bulk-main-standard').select2({
-			placeholder: '-- No Change --',
-			allowClear: true,
-			width: '100%'
-		});
-		
-		$('#bulk-secondary-standard').select2({
-			placeholder: '-- No Change --',
-			allowClear: true,
-			width: '100%'
-		});
-		
-		// Initialize select2 for storage
-		$('#bulk-store-select').select2({
-			placeholder: '-- No Change --',
-			allowClear: true,
-			width: '100%'
-		});
-		
-		$('#bulk-slot-select').select2({
-			placeholder: '-- No Change --',
-			allowClear: true,
-			width: '100%'
-		});
-	});
-	
-	// Destroy select2 instances when modal is hidden to prevent memory leaks
-	$('#bulk-update-samples-modal').on('hidden.bs.modal', function() {
-		$('#bulk-sample-select').select2('destroy');
-		$('#bulk-main-standard').select2('destroy');
-		$('#bulk-secondary-standard').select2('destroy');
-		$('#bulk-store-select').select2('destroy');
-		$('#bulk-slot-select').select2('destroy');
-	});
-});
 </script>
 
 @endsection

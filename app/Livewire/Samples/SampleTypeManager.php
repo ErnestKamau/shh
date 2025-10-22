@@ -36,6 +36,8 @@ class SampleTypeManager extends Component
         'category_id' => null,
         'rating_header_id' => null,
         'report_format_id' => null,
+        'default_product_id' => null,
+        'disposal_count' => 0,
         'active' => true
     ];
 
@@ -84,6 +86,7 @@ class SampleTypeManager extends Component
     public $categories = [];
     public $ratingHeaders = [];
     public $reportFormats = [];
+    public $companyProducts = [];
     public $labs = [];
     public $analytes = [];
     public $methods = [];
@@ -102,6 +105,8 @@ class SampleTypeManager extends Component
     public $showRatingHeaderDropdown = false;
     public $reportFormatSearch = '';
     public $showReportFormatDropdown = false;
+    public $companyProductSearch = '';
+    public $showCompanyProductDropdown = false;
     public $labSearch = '';
     public $showLabDropdown = false;
 
@@ -117,6 +122,7 @@ class SampleTypeManager extends Component
         'sampleTypeForm.code' => 'required|string|max:255|unique:sample_types,code',
         'sampleTypeForm.description' => 'nullable|string|max:255',
         'sampleTypeForm.category_id' => 'required|exists:sample_type_categories,id',
+        'sampleTypeForm.disposal_count' => 'nullable|integer|min:0',
         'analysisTypeForm.name' => 'required|string|max:255',
         'analysisTypeForm.code' => 'required|string|max:255',
         'analysisTypeForm.lab_id' => 'required|exists:labs,id',
@@ -146,6 +152,7 @@ class SampleTypeManager extends Component
         $this->categories = SampleTypeCategory::all();
         $this->ratingHeaders = \App\Models\RatingHeader::all();
         $this->reportFormats = \App\ReportFormat::where('is_active', 1)->get();
+        $this->companyProducts = \App\Models\CRM\CompanyProduct::where('active', 1)->get();
         $this->labs = Lab::all();
         $this->analytes = Analyte::where('active', 1)->get();
         $this->methods = AnalysisMethod::where('active', 1)->get();
@@ -222,6 +229,8 @@ class SampleTypeManager extends Component
             'category_id' => $sampleType->sample_type_category,
             'rating_header_id' => $sampleType->rating_header_id,
             'report_format_id' => $sampleType->report_format_id,
+            'default_product_id' => $sampleType->default_product_id,
+            'disposal_count' => $sampleType->disposal_count ?? 0,
             'active' => $sampleType->active
         ];
         $this->editingSampleType = $id;
@@ -254,6 +263,8 @@ class SampleTypeManager extends Component
                     'sample_type_category' => $this->sampleTypeForm['category_id'],
                     'rating_header_id' => $this->sampleTypeForm['rating_header_id'],
                     'report_format_id' => $this->sampleTypeForm['report_format_id'],
+                    'default_product_id' => $this->sampleTypeForm['default_product_id'],
+                    'disposal_count' => $this->sampleTypeForm['disposal_count'] ?? 0,
                     'active' => $this->sampleTypeForm['active'],
                     'company_id' => getUserCompany(),
                 ]);
@@ -266,6 +277,8 @@ class SampleTypeManager extends Component
                     'sample_type_category' => $this->sampleTypeForm['category_id'],
                     'rating_header_id' => $this->sampleTypeForm['rating_header_id'],
                     'report_format_id' => $this->sampleTypeForm['report_format_id'],
+                    'default_product_id' => $this->sampleTypeForm['default_product_id'],
+                    'disposal_count' => $this->sampleTypeForm['disposal_count'] ?? 0,
                     'active' => $this->sampleTypeForm['active'],
                     'company_id' => getUserCompany(),
                 ]);
@@ -366,6 +379,8 @@ class SampleTypeManager extends Component
             'category_id' => null,
             'rating_header_id' => null,
             'report_format_id' => null,
+            'default_product_id' => null,
+            'disposal_count' => 0,
             'active' => true
         ];
         $this->editingSampleType = null;
@@ -375,6 +390,8 @@ class SampleTypeManager extends Component
         $this->showRatingHeaderDropdown = false;
         $this->reportFormatSearch = '';
         $this->showReportFormatDropdown = false;
+        $this->companyProductSearch = '';
+        $this->showCompanyProductDropdown = false;
     }
 
     // Analysis Type Methods
@@ -793,6 +810,40 @@ class SampleTypeManager extends Component
         }
         
         return Lab::find($this->analysisTypeForm['lab_id']);
+    }
+
+    // Company Product searchable dropdown methods
+    public function selectCompanyProduct($companyProductId): void
+    {
+        $this->sampleTypeForm['default_product_id'] = $companyProductId;
+        $this->companyProductSearch = '';
+        $this->showCompanyProductDropdown = false;
+    }
+
+    public function updatedCompanyProductSearch(): void
+    {
+        $this->showCompanyProductDropdown = !empty($this->companyProductSearch);
+    }
+
+    public function getFilteredCompanyProductsProperty()
+    {
+        if (empty($this->companyProductSearch)) {
+            return [];
+        }
+        
+        return \App\Models\CRM\CompanyProduct::where('name', 'like', '%' . $this->companyProductSearch . '%')
+            ->where('active', 1)
+            ->limit(10)
+            ->get();
+    }
+
+    public function getSelectedCompanyProductProperty()
+    {
+        if (empty($this->sampleTypeForm['default_product_id'])) {
+            return null;
+        }
+        
+        return \App\Models\CRM\CompanyProduct::find($this->sampleTypeForm['default_product_id']);
     }
 
     public function render()

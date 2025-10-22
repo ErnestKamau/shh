@@ -73,19 +73,29 @@ class SampleCreationController extends Controller
                 $sampleHeader->save();
                 // Merge all sample details arrays into one flat array
                 
-                // Count total samples for smart code generation
-                $totalSampleCount = count($batch['sample_details']);
+                // Count ACTUAL total samples for smart code generation (accounting for sample points expansion)
+                $totalSampleCount = 0;
+                foreach($batch['sample_details'] as $sampleDetail){
+                    $samplePoints = explode(',', $sampleDetail['sample_point_id']);
+                    $totalSampleCount += count($samplePoints);
+                }
 
+                // Create samples with proper sequential indexing
+                $sampleIndex = 0;
                 foreach($batch['sample_details'] as $i=>$sampleDetail){
                     $samplePoints = explode(',', $sampleDetail['sample_point_id']);
                     $newSampleDetailsInfo = $sampleDetail;
 
                     foreach($samplePoints as $j=>$samplePoint){
                         $newSampleDetailsInfo['sample_point_id'] = $samplePoint;
-                        $sampleDetails[$i] = $this->createSampleDetails($newSampleDetailsInfo, $sampleHeader->id, $i, $sampleHeader->batch_code, $totalSampleCount, $totalBatchCount);
-                        $this->createSampleDates($sampleHeader->id, $sampleDetails[$i]);
+                        $sampleDetails[$sampleIndex] = $this->createSampleDetails($newSampleDetailsInfo, $sampleHeader->id, $sampleIndex, $sampleHeader->batch_code, $totalSampleCount, $totalBatchCount);
+                        $this->createSampleDates($sampleHeader->id, $sampleDetails[$sampleIndex]);
+                        $sampleIndex++;
                     }
                 }
+                
+                // Update sample header with unique lab_section_ids from all analysis types in the batch
+                $this->updateSampleHeaderLabSections($sampleHeader->id);
                 
                 $createdBatches[] = [
                     'batch_id' => $sampleHeader->id,
@@ -216,18 +226,30 @@ class SampleCreationController extends Controller
 
         // Handle missing CRM unit - get first unit for the customer
         $crmCustomerId = $getIntegerValue($sampleHeaderData['crm_customer_id'] ?? null);
-        $crmUnitName = $getSingleValue($sampleHeaderData['crm_unit_name'] ?? null);
+        $crmUnit = $getSingleValue($sampleHeaderData['crm_unit_name'] ?? null);
+        $crmUnitId = '';
+        $crmUnitName = '';
         
-        if ($crmCustomerId && !$crmUnitName) {
+        if ($crmCustomerId && !$crmUnit) {
             $firstUnit = \App\Models\CRM\CRMCompanyUnit::where('crm_customer_id', $crmCustomerId)->first();
             if ($firstUnit) {
                 $crmUnitName = $firstUnit->name;
+                $crmUnitId = $firstUnit->id;
                 Log::info('Auto-selected first CRM unit for customer', [
                     'customer_id' => $crmCustomerId,
                     'unit_name' => $crmUnitName,
                     'unit_id' => $firstUnit->id
                 ]);
             }
+        }else{
+            $unit = \App\Models\CRM\CRMCompanyUnit::find(intval($crmUnit));
+            $crmUnitId = isset($unit) ? $unit->id : '';
+            $crmUnitName = isset($unit) ? $unit->name : '';
+            Log::info('Auto-selected CRM unit for customer', [
+                'customer_id' => $crmCustomerId,
+                'unit_name' => $crmUnitName,
+                'unit_id' => $crmUnitId
+            ]);
         }
 
         // Generate batch code with smart logic
@@ -258,14 +280,20 @@ class SampleCreationController extends Controller
             'quote_id' => $getIntegerValue($sampleHeaderData['quote_id'] ?? null),
             'radio_active_levels' => $getSingleValue($sampleHeaderData['radio_active_levels'] ?? ''),
             'receiving_officer_name' => $getSingleValue($sampleHeaderData['receive_by'] ?? auth()->user()->name ?? 'System'),
-            'receiving_officer' => $getSingleValue($sampleHeaderData['receive_by'] ?? auth()->user()->name ?? 'System'),
+            // 'receiving_officer' => $getSingleValue($sampleHeaderData['receive_by'] ?? auth()->user()->name ?? 'System'),
             'sampling_officer_name' => $getSingleValue($sampleHeaderData['sample_by'] ?? auth()->user()->name ?? 'System'),
             'reference_number' => $getSingleValue($sampleHeaderData['reference_number'] ?? 'n/a'),
             'is_routine' => $getIntegerValue($sampleHeaderData['is_routine'] ?? 0),
             'routine_frequency' => $getIntegerValue($sampleHeaderData['routine_frequency'] ?? 0),
             'is_client_order' => $getIntegerValue($sampleHeaderData['is_client_order'] ?? 0),
+            'submit_by' => $getSingleValue($sampleHeaderData['submit_by'] ?? auth()->user()->name ?? 'System'),
             'crm_unit_name' => $crmUnitName,
+            'crm_unit_id' => $crmUnitId,
+            'lab_capable' => 1,
+            'client_instruction_clear' => 1,
+            'receiving_officer' => auth()->user()->id,
             'status' => 'Samples In Lab',
+            'radio_active_levels' => date('H:i:s', strtotime($getSingleValue($sampleHeaderData['radio_active_levels'] ?? now()->format('Y-m-d H:i:s')) ?? '')),
             'submission_form_instance_id' => null, // Will be set by the calling method
         ]);
         
@@ -309,6 +337,44 @@ class SampleCreationController extends Controller
         $sampleCode = $this->generateSampleCode($sampleHeaderId, $index, $batchCode, $sampleCount, $totalBatchCount);
 
         
+        // Get sample header to access sample_type_id
+        $sampleHeader = SampleHeader::with('sample_type')->find($sampleHeaderId);
+
+        $disposal_count = $sampleHeader->sample_type->disposal_count;
+        if ($disposal_count) {
+            $disposal_date = \Carbon\Carbon::parse($sampleHeader->receipt_date)->addDays($disposal_count)->format('Y-m-d');
+        }else{
+            $disposal_date = null;
+            Log::info('Disposal count not found for sample type', [
+                'sample_type_id' => $sampleHeader->sample_type_id
+            ]);
+        }
+        // If company_product_id is not provided, get it from sample type's default product
+        $companyProductId = $getIntegerValue($detailData['company_product_id'] ?? null);
+        if (!$companyProductId && $sampleHeader && $sampleHeader->sample_type_id) {
+            $sampleType = \App\SampleType::find($sampleHeader->sample_type_id);
+            if ($sampleType && $sampleType->default_product_id) {
+                $companyProductId = $sampleType->default_product_id;
+                Log::info('Auto-filled company_product_id from sample type default', [
+                    'sample_type_id' => $sampleType->id,
+                    'default_product_id' => $companyProductId
+                ]);
+            }
+        }
+        
+        // If sample_condition_id is not provided, get it from system configuration
+        $sampleConditionId = $getIntegerValue($detailData['sample_condition_id'] ?? null);
+        if (!$sampleConditionId) {
+            $sampleConditionConfig = \App\Models\System\SystemConfiguration::where('key', 'sample_condition_ok')->first();
+            if ($sampleConditionConfig && $sampleConditionConfig->value) {
+                $sampleConditionId = (int) $sampleConditionConfig->value;
+                Log::info('Auto-filled sample_condition_id from system configuration', [
+                    'sample_condition_id' => $sampleConditionId,
+                    'config_key' => 'sample_condition_ok'
+                ]);
+            }
+        }
+        
         // Create the sample detail
         $sampleDetail = new \App\SampleDetails();
         $sampleData = [
@@ -318,12 +384,12 @@ class SampleCreationController extends Controller
             'report_number' => $sampleCode['report_number'],
             'sample_point_id' => $getIntegerValue($detailData['sample_point_id'] ?? null),
             'analysis_type_id' => $getSingleValue($detailData['analysis_type_id'] ?? ''),
-            'sample_condition_id' => $getIntegerValue($detailData['sample_condition_id'] ?? null),
-            'company_product_id' => $getIntegerValue($detailData['company_product_id'] ?? null),
-            'barcode' => $getSingleValue($detailData['barcode'] ?? ''),
+            'sample_condition_id' => $sampleConditionId,
+            'company_product_id' => $companyProductId,
+            'barcode' => $sampleHeader->date_collected ? date('H:i:s', strtotime($sampleHeader->date_collected)) : null,
             'standard_id' => $getIntegerValue($detailData['standard_id'] ?? null),
             'lab_id' => $getIntegerValue($detailData['lab_id'] ?? 1), // Default lab
-            'disposal_date' => $getSingleValue($detailData['disposal_date'] ?? null),
+            'disposal_date' => $disposal_date,
             'main_standard' => $getIntegerValue($detailData['main_standard'] ?? null),
             'secondary_standard' => $getIntegerValue($detailData['secondary_standard'] ?? null),
             'third_standard_id' => $getIntegerValue($detailData['third_standard_id'] ?? null),
@@ -471,6 +537,10 @@ class SampleCreationController extends Controller
         // Get sample detail to access its standards
         $sampleDetail = \App\SampleDetails::find($sampleDetailId);
         
+        // Get analysis type to access lab_section_id
+        $analysisType = \App\AnalysisType::find($analysisTypeId);
+        $labSectionIdFromAnalysisType = $analysisType ? $analysisType->lab_section_id : null;
+        
         foreach ($analysisElements as $element) {
             // Get the analyte code from the related analyte
             $analyteCode = $element->analyte->code ?? 'UNKNOWN';
@@ -504,7 +574,9 @@ class SampleCreationController extends Controller
 
             $reportingUnit = ReportingUnit::where('id', $element->reporting_unit)
                 ->orWhere('name', $element->reporting_unit)->first();
-
+            
+            // Use lab_section_id from analysis type, fallback to element's lab_section_id
+            $labSectionId = $labSectionIdFromAnalysisType ?? $element->lab_section_id;
 
             $capturedResult->fill([
                 'sample_detail_code' => $sampleCode,
@@ -522,7 +594,7 @@ class SampleCreationController extends Controller
                 'ltm_method_id' => $element->ltm_method_id,
                 'analyte_accredited' => $element->non_accredited ? 0 : 1,
                 'analyte_status_contracted' => $lab->is_external ?? 0,
-                'lab_section_id' => $element->lab_section_id,
+                'lab_section_id' => $labSectionId,
                 'parameters_order' => $element->level ?? 0,
                 'remark_is_manual' => $element->remark_is_manual,
                 'remark' => null,
@@ -535,6 +607,13 @@ class SampleCreationController extends Controller
             ]);
             
             $capturedResult->save();
+            
+            Log::info('Created captured result with lab_section_id from analysis type', [
+                'captured_result_id' => $capturedResult->id,
+                'analysis_type_id' => $analysisTypeId,
+                'lab_section_id' => $labSectionId,
+                'source' => $labSectionIdFromAnalysisType ? 'analysis_type' : 'element'
+            ]);
 
 
             // dd($capturedResult, ">>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>");
@@ -564,7 +643,7 @@ class SampleCreationController extends Controller
                 'standard_target' => null,
                 'recommendations' => null,
                 'analyte_status_contracted' => $lab->is_external ?? 0,
-                'lab_section_id' => $element->lab_section_id,
+                'lab_section_id' => $labSectionId,
                 'parameters_order' => $element->level ?? 0,
                 'remark_is_manual' => $element->remark_is_manual,
             ]);
@@ -1054,5 +1133,65 @@ class SampleCreationController extends Controller
         $sampleDate->save();
         
         return $sampleDate;
+    }
+
+    /**
+     * Update sample header with unique lab_section_ids from all analysis types in the batch
+     */
+    private function updateSampleHeaderLabSections($sampleHeaderId)
+    {
+        try {
+            // Get all analysis type IDs from sample analysis type relations for this batch
+            $analysisTypeIds = SampleAnalysisTypeRelation::where('batch_id', $sampleHeaderId)
+                ->pluck('analysis_type_id')
+                ->unique()
+                ->filter()
+                ->toArray();
+
+            if (empty($analysisTypeIds)) {
+                Log::info('No analysis types found for batch', ['sample_header_id' => $sampleHeaderId]);
+                return;
+            }
+
+            // Get unique lab_section_ids from these analysis types
+            $labSectionIds = \App\AnalysisType::whereIn('id', $analysisTypeIds)
+                ->whereNotNull('lab_section_id')
+                ->pluck('lab_section_id')
+                ->unique()
+                ->filter()
+                ->sort()
+                ->values()
+                ->toArray();
+
+            if (empty($labSectionIds)) {
+                Log::info('No lab_section_ids found in analysis types', [
+                    'sample_header_id' => $sampleHeaderId,
+                    'analysis_type_ids' => $analysisTypeIds
+                ]);
+                return;
+            }
+
+            // Convert to comma-separated string
+            $labSectionIdsString = implode(',', $labSectionIds);
+
+            // Update sample header
+            $sampleHeader = SampleHeader::find($sampleHeaderId);
+            if ($sampleHeader) {
+                $sampleHeader->lab_section_ids = $labSectionIdsString;
+                $sampleHeader->save();
+
+                Log::info('Updated sample header with lab_section_ids', [
+                    'sample_header_id' => $sampleHeaderId,
+                    'lab_section_ids' => $labSectionIdsString,
+                    'unique_count' => count($labSectionIds)
+                ]);
+            }
+
+        } catch (\Exception $e) {
+            Log::error('Error updating sample header lab_section_ids', [
+                'sample_header_id' => $sampleHeaderId,
+                'error' => $e->getMessage()
+            ]);
+        }
     }
 }

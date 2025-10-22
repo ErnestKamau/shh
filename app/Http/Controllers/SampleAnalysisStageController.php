@@ -22,13 +22,16 @@ class SampleAnalysisStageController extends Controller
 	 */
 	public function index()
 	{
-		$labsections = SampleAnalysisStage::where('is_sample_stage',0)->orderBy('name')->get();
-		$sampleAnalysisStage = SampleAnalysisStage::where('is_sample_stage',1)->orderBy('name')->get();
-		$users = User::where('is_client',0)->where('supplier_id',0)->where('active',1)->get();
-		$labs = Lab::where('active',1)->get();
-		$approvers = LabSectionApprover::orderBy('created_at','asc')->get();
-
-		return view('layouts.lab.sample-analysis-stages.index', compact('sampleAnalysisStage','users','labs','approvers','labsections'));
+		// Use new Livewire component
+		return view('layouts.lab.sample-analysis-stages.livewire-index');
+		
+		// Old implementation kept for reference (can be removed later)
+		// $labsections = SampleAnalysisStage::where('is_sample_stage',0)->orderBy('name')->get();
+		// $sampleAnalysisStage = SampleAnalysisStage::where('is_sample_stage',1)->orderBy('name')->get();
+		// $users = User::where('is_client',0)->where('supplier_id',0)->where('active',1)->get();
+		// $labs = Lab::where('active',1)->get();
+		// $approvers = LabSectionApprover::orderBy('created_at','asc')->get();
+		// return view('layouts.lab.sample-analysis-stages.index', compact('sampleAnalysisStage','users','labs','approvers','labsections'));
 	}
 
 	/**

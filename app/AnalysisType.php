@@ -44,4 +44,25 @@ class AnalysisType extends Model implements Auditable
     return $this->belongsTo(InventorySubCategories::class,'zoho_id');
   }
 
+  /**
+   * Get the invoicable items mapped to this analysis type.
+   */
+  public function invoicableItems()
+  {
+    return $this->belongsToMany(
+      InvoicableItem::class,
+      'analysis_type_invoicable_item',
+      'analysis_type_id',
+      'invoicable_item_id'
+    )->withTimestamps();
+  }
+
+  /**
+   * Get the default (first) invoicable item for this analysis type.
+   */
+  public function defaultInvoicableItem()
+  {
+    return $this->belongsTo(InvoicableItem::class, 'invoicable_item_id');
+  }
+
 }

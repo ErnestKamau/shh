@@ -113,6 +113,19 @@ class MethodSequenceManager extends Component
         $this->analyteId = $sequence->analyte_id;
         $this->methodId = $sequence->method_id;
         $this->sequenceIsActive = $sequence->is_active;
+        
+        // Populate analyte display fields for tag-style dropdown
+        if ($sequence->analyte) {
+            $this->selectedAnalyteName = $sequence->analyte->name;
+            $this->analyteSearch = $sequence->analyte->name;
+        }
+        
+        // Populate method display fields for tag-style dropdown
+        if ($sequence->method) {
+            $this->selectedMethodName = $sequence->method->name;
+            $this->methodSearch = $sequence->method->name;
+        }
+        
         $this->showEditModal = true;
         $this->dispatch('modal-opened');
     }

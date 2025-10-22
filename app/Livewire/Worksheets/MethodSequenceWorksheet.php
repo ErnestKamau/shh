@@ -616,6 +616,28 @@ class MethodSequenceWorksheet extends Component
             ->get();
     }
 
+    /**
+     * Check if run has timer warnings or expired stages
+     */
+    public function getRunTimerStatus($run): array
+    {
+        $hasWarnings = false;
+        $hasExpired = false;
+        
+        foreach($run->stageData as $sd) {
+            if($sd->status === 'in_progress') {
+                $timerStatus = $sd->getTimerStatus();
+                if($timerStatus === 'warning') $hasWarnings = true;
+                if($timerStatus === 'expired') $hasExpired = true;
+            }
+        }
+        
+        return [
+            'hasWarnings' => $hasWarnings,
+            'hasExpired' => $hasExpired,
+        ];
+    }
+
     public function render()
     {
         $selectedRun = $this->selectedRunId ? MethodSequenceRun::with([

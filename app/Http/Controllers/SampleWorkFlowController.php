@@ -2806,13 +2806,28 @@ class SampleWorkFlowController extends Controller
 
     public function generate_batch_invoice(Request $request)
     {
+        // DEPRECATED: Redirecting to new Sales Order Wizard
+        // This method has been replaced with the modern Livewire-based wizard
+        
+        $batchCodes = $request->batch_code ?? [];
+        $batchesParam = http_build_query(['batches' => $batchCodes]);
+        
+        return redirect()->route('billing.sales-order.create', $batchesParam)
+            ->with('info', 'Using new Sales Order Wizard interface');
+    }
+
+    /**
+     * DEPRECATED: Old pricelist-based invoice generation
+     * Kept for reference only
+     */
+    private function generate_batch_invoice_OLD(Request $request)
+    {
         $config = getConfigByName('generate_sample_invoice');
         if (!isset($config[0]->id)) {
             return redirect()->back()->with('error', 'generate_sample_invoice configuration is not set');
         }
         if ($config[0]->value == 'true') {
             $customer_ids = [];
-            // return response()->json($request->batch_code,200);
             foreach ($request->batch_code as $code) {
                 $batch = SampleHeader::where('batch_code', $code)->first();
                 if ($batch->invoice_id != 0) {
@@ -2828,15 +2843,8 @@ class SampleWorkFlowController extends Controller
             if (!isset($customer->id)) {
                 return redirect()->back()->with('error', 'There is no customer with the specified Batches!');
             }
-            $customer_pricelist = PricelistCustomer::where('customer_id', $customer->id)->get();
-            if (!isset($customer_pricelist[0]->id)) {
-                return redirect()->back()->with('error', 'The specified customer has no pricelist assigned');
-            }
-
-            $pricelist = Pricelist::find($customer_pricelist[0]->pricelist_id);
-            if (!isset($pricelist->id)) {
-                return redirect()->back()->with('error', 'There is no pricelist with the specified customer pricelist ID!');
-            }
+            
+            // OLD PRICELIST CODE REMOVED
             $invoice = new Invoice();
             $invoice->pricelist_id = $customer_pricelist[0]->pricelist_id;
             $invoice->currency_id = $pricelist->currency_id;
@@ -2937,15 +2945,30 @@ class SampleWorkFlowController extends Controller
 
     public function generate_batch_invoice_ajax(Request $request)
     {
+        // DEPRECATED: Redirecting to new Sales Order Wizard
+        // Return URL for frontend to redirect
+        $batchCodes = $request->batch_code ?? [];
+        $url = route('billing.sales-order.create') . '?' . http_build_query(['batches' => $batchCodes]);
+        
+        return response()->json([
+            'redirect' => $url,
+            'message' => 'Redirecting to Sales Order Wizard...'
+        ]);
+    }
+
+    /**
+     * DEPRECATED: Old Zoho-based AJAX invoice generation
+     * Kept for reference only
+     */
+    private function generate_batch_invoice_ajax_OLD(Request $request)
+    {
         $config = getConfigByName('generate_sample_invoice');
         if (!isset($config[0]->id)) {
             return response()->json(['error' => 'generate_sample_invoice configuration is not set']);
         }
         if ($config[0]->value == 'true') {
-            // return response()->json($request->batch_code,200);
             $batch_ids = SampleHeader::whereIn('batch_code', $request->batch_code)->leftJoin('customer_invoice', 'customer_invoice.id', '=', 'sample_headers.invoice_id')->whereNull('customer_invoice.sales_order_id')->pluck('sample_headers.id')->toArray();
             $customer_ids = SampleHeader::whereIn('id', $batch_ids)->pluck('crm_customer_id')->toArray();
-
 
             if (sizeof($batch_ids) < 1) {
                 return response()->json(['error' => 'The selected batch(es) have sales order attached to already sent to zoho']);

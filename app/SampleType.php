@@ -19,7 +19,9 @@ class SampleType extends Model implements Auditable
 		'sample_type_category',
 		'rating_header_id',
 		'report_template_id',
-		'report_format_id'
+		'report_format_id',
+		'default_product_id',
+		'disposal_count'
 	];
 	
   public $with =['analysis_types', 'sample_condition'];
@@ -42,5 +44,9 @@ class SampleType extends Model implements Auditable
 
   public function reportFormat(){
     return $this->belongsTo('App\ReportFormat');
+  }
+
+  public function defaultProduct(){
+    return $this->belongsTo('App\Models\CRM\CompanyProduct', 'default_product_id');
   }
 }

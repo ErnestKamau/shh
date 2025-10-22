@@ -639,33 +639,40 @@ $items = array(
 		</div>
 	</div>
 	<div id="dispatch-to-labs-modal-approve" data-backdrop="static" data-keyboard="false" class="modal fade" role="dialog">
-		<div class="modal-dialog modal-xl">
+		<div class="modal-dialog modal-lg">
 			<!-- Modal content-->
-			<form class="modal-content" id="generate-invoice-form" method="POST"
-				action="{{ route('generate_batch_invoice') }}" enctype="multipart/form-data">
-				@csrf
-				<div class="modal-header">
-					<h4 class="modal-title"><i class="mdi mdi-clipboard-arrow-right"></i> Generate Draft Invoice</h4>
+			<div class="modal-content">
+				<div class="modal-header bg-primary text-white">
+					<h4 class="modal-title"><i class="mdi mdi-clipboard-arrow-right"></i> Generate Sales Order</h4>
+					<button type="button" class="close text-white" data-dismiss="modal">&times;</button>
 				</div>
 				<div class="modal-body">
-					<div class="to-be-updated">
-
+					<div class="alert alert-info">
+						<i class="mdi mdi-information"></i> You will be redirected to the Sales Order Wizard to complete the process.
 					</div>
 
 					<div class="form-group">
-						<label class="control-label">Batches</label>
-						<div class="selected-batches-request-approve"></div>
+						<label class="control-label"><strong>Selected Batches:</strong></label>
+						<div class="selected-batches-request-approve p-3 bg-light rounded"></div>
 					</div>
-					<div class="invoice-part"></div>
 
+					<p class="text-muted mt-3">
+						The wizard will guide you through:
+						<ul>
+							<li>Customer Zoho mapping</li>
+							<li>Analysis type to invoicable item mapping</li>
+							<li>Adding additional fees and charges</li>
+							<li>Reviewing and generating the sales order</li>
+						</ul>
+					</p>
 				</div>
 				<div class="modal-footer">
-					<button type="submit" class="btn btn-info btn-sm submit-btn"><i class="mdi mdi-thumb-up"></i>
-						Generate</button>
-					<a href="/sample-workflow/Samples Reception/stage" class="btn btn-sm btn-default">Close</a>
-					<!-- < type="button" class="btn btn-default btn-sm" data-dismiss="modal">Close</> -->
+					<button type="button" class="btn btn-success btn-lg proceed-to-wizard-btn">
+						<i class="mdi mdi-arrow-right"></i> Proceed to Wizard
+					</button>
+					<button type="button" class="btn btn-secondary" data-dismiss="modal">Cancel</button>
 				</div>
-			</form>
+			</div>
 		</div>
 	</div>
 
@@ -2532,6 +2539,31 @@ $items = array(
 			}
 		});
 	}
+
+	// New Sales Order Wizard Integration
+	$('.proceed-to-wizard-btn').on('click', function() {
+		// Collect selected batch codes
+		var selectedBatches = [];
+		$('.selected-batches-request-approve input[name="batch_code[]"]').each(function() {
+			selectedBatches.push($(this).val());
+		});
+
+		if (selectedBatches.length === 0) {
+			alert('No batches selected');
+			return;
+		}
+
+		// Build URL with batch codes as query parameters
+		var params = new URLSearchParams();
+		selectedBatches.forEach(function(code) {
+			params.append('batches[]', code);
+		});
+
+		var wizardUrl = '{{ route("billing.sales-order.create") }}?' + params.toString();
+		
+		// Redirect to wizard
+		window.location.href = wizardUrl;
+	});
 
 </script>
 @endsection

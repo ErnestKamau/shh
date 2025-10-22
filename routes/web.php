@@ -197,6 +197,32 @@ Route::get('/livewire/customers/{customerId}/profile', [CRMAppController::class,
     ->name('livewire.customer-profile')
     ->middleware('haspermission:CRM.components.Customer-List.View');
 
+// Livewire Billing Management Routes
+Route::get('/billing/invoicable-items', function() {
+    return view('layouts.billing.invoicable-items-index');
+})->name('billing.invoicable-items')->middleware('auth');
+
+Route::get('/billing/dynamics-customers', function() {
+    return view('layouts.billing.dynamics-customers-index');
+})->name('billing.dynamics-customers')->middleware('auth');
+
+Route::get('/billing/currencies', function() {
+    return view('layouts.billing.currencies-index');
+})->name('billing.currencies')->middleware('auth');
+
+Route::get('/billing/invoices', function() {
+    return view('layouts.billing.invoices-index');
+})->name('billing.invoices')->middleware('auth');
+
+Route::get('/billing/quotations', function() {
+    return view('layouts.billing.quotations-index');
+})->name('billing.quotations')->middleware('auth');
+
+Route::get('/billing/sales-order/create', function() {
+    $batchCodes = request()->get('batches', []);
+    return view('layouts.billing.sales-order-create', ['batchCodes' => $batchCodes]);
+})->name('billing.sales-order.create')->middleware('auth');
+
 Route::get('/analysis-types', 'AnalysisTypeController@index')->name('analysis-types')->middleware('haspermission:Laboratory.components.Analysis Types.View');
 Route::post('/analysis-types', 'AnalysisTypeController@add')->name('add-analysis-types')->middleware('haspermission:Laboratory.components.Analysis Types.Add');
 Route::post('/analysis-type/{id}', 'AnalysisTypeController@edit')->name('edit-analysis-type')->middleware('haspermission:Laboratory.components.Analysis Types.Edit');
@@ -327,6 +353,7 @@ Route::post('/process-raw-results/lab','SampleWorkFlowController@processRawResul
   Route::get('/billing/change-quotation-workflow/{id}/{stage}', 'Invoice\QuotationController@change_quotation_workflow')->name('change_quotation_workflow');
   Route::get('/billing-add-quote-detail-index/{id}/{stage?}', 'Invoice\QuotationController@view_quote_header_detail')->name('add-qoute-details-view');
   Route::post('/billing-add-quote-header', 'Invoice\QuotationController@add_quotation_header')->name('add-quotation-header');
+  Route::post('/api/get-currency-by-code', 'Invoice\QuotationController@getCurrencyByCode');
   Route::post('/billing/add-quotation-detail/{id}', 'Invoice\QuotationController@add_quotation_detail')->name('add_quotation_detail');
   Route::get('/billing-quotation-view-final/{id}/{stage?}', 'Invoice\QuotationController@view_quotation_final')->name('view_quotation_final');
   Route::post('/billing/edit_quotation_detail', 'Invoice\QuotationController@edit_quotation_detail')->name('edit_quotation_detail');
@@ -921,21 +948,18 @@ Route::get('/show-material-type/{id}', 'ModulePreConfigsController@show_material
 //###################################MODULE PRE_CONFIGS LINKS#######################################
 
 //###################################PRICELISTS#######################################
-Route::get('/pricelists', 'PricelistItemController@index')->name('view-pricelists')->middleware('haspermission:Laboratory.components.Pricelists.View');
-Route::post('/pricelist/{id?}', 'PricelistItemController@update')->name('update-pricelist');
-
-Route::post('/pricelist/{id}/upload', 'PricelistItemController@upload')->name('upload-pricelist-pdf');
-Route::post('/pricelist/{id}/email', 'PricelistItemController@email')->name('email-pricelist-pdf');
-
-Route::get('/pricelist/{id}/{print?}', 'PricelistItemController@show')->name('show-pricelist');
-Route::post('/pricelist/{id}/item', 'PricelistItemController@update_item')->name('update-pricelist-item');
-Route::post('/save-price-changes/{id}', 'PricelistItemController@save_price_changes')->name('save-price-changes');
-Route::post('/clone-items-to-new-pricelist/{id}', 'PricelistItemController@clone_items_to_new_pricelist')->name('clone-items-to-new-pricelist');
-
-Route::get('/move-pricelist-item/{direction}/{pricelist}/{element}', 'PricelistItemController@move_pricelist_item')->name('move-pricelist-item');
-
-Route::post('/add-customer-to-pricelist/{id}', 'PricelistItemController@add_customer')->name('add-customer-to-pricelist');
-Route::post('/remove-customer-to-pricelist/{id}', 'PricelistItemController@remove_customer')->name('remove-customer-to-pricelist');
+// DEPRECATED: Pricelist routes - replaced by invoicable items system
+// Route::get('/pricelists', 'PricelistItemController@index')->name('view-pricelists')->middleware('haspermission:Laboratory.components.Pricelists.View');
+// Route::post('/pricelist/{id?}', 'PricelistItemController@update')->name('update-pricelist');
+// Route::post('/pricelist/{id}/upload', 'PricelistItemController@upload')->name('upload-pricelist-pdf');
+// Route::post('/pricelist/{id}/email', 'PricelistItemController@email')->name('email-pricelist-pdf');
+// Route::get('/pricelist/{id}/{print?}', 'PricelistItemController@show')->name('show-pricelist');
+// Route::post('/pricelist/{id}/item', 'PricelistItemController@update_item')->name('update-pricelist-item');
+// Route::post('/save-price-changes/{id}', 'PricelistItemController@save_price_changes')->name('save-price-changes');
+// Route::post('/clone-items-to-new-pricelist/{id}', 'PricelistItemController@clone_items_to_new_pricelist')->name('clone-items-to-new-pricelist');
+// Route::get('/move-pricelist-item/{direction}/{pricelist}/{element}', 'PricelistItemController@move_pricelist_item')->name('move-pricelist-item');
+// Route::post('/add-customer-to-pricelist/{id}', 'PricelistItemController@add_customer')->name('add-customer-to-pricelist');
+// Route::post('/remove-customer-to-pricelist/{id}', 'PricelistItemController@remove_customer')->name('remove-customer-to-pricelist');
 
 //###################################PRICELISTS#######################################
 
@@ -990,9 +1014,15 @@ Route::post('/add_tax_invoice', 'Invoice\InvoiceController@add_tax_invoice')->na
 //#################################INVOICE#######################################
 
 //#################################TAX REGIME#######################################
-Route::get('/tax-home', 'Invoice\InvoiceController@tax_index')->name('tax-home')->middleware('haspermission:Laboratory.components.Tax Regime.View');
-Route::post('/edit-tax/regime/{id}', 'Invoice\InvoiceController@edit_tax')->name('edit-tax')->middleware('haspermission:Laboratory.components.Tax Regime.Edit');
-Route::post('/add-tax/regime', 'Invoice\InvoiceController@add_tax')->name('add-tax')->middleware('haspermission:Laboratory.components.Tax Regime.Add');
+// New Livewire-based route
+Route::get('/billing/tax-regime', function() {
+    return view('layouts.billing.tax-regime-index');
+})->name('billing.tax-regime')->middleware('auth');
+
+// Keep old routes for backward compatibility (commented out)
+// Route::get('/tax-home', 'Invoice\InvoiceController@tax_index')->name('tax-home')->middleware('haspermission:Laboratory.components.Tax Regime.View');
+// Route::post('/edit-tax/regime/{id}', 'Invoice\InvoiceController@edit_tax')->name('edit-tax')->middleware('haspermission:Laboratory.components.Tax Regime.Edit');
+// Route::post('/add-tax/regime', 'Invoice\InvoiceController@add_tax')->name('add-tax')->middleware('haspermission:Laboratory.components.Tax Regime.Add');
 //#################################TAX REGIME#######################################
 
 //#################################LAB REPORTS#######################################

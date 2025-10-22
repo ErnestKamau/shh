@@ -6,6 +6,7 @@ use App\CapturedResult;
 use App\Lab;
 use App\Models\CRM\CRMCompanyUnit;
 use App\Models\CRM\CRMCustomer;
+use App\Models\Currency;
 use App\Models\System\SystemConfiguration;
 use App\QuotationHeader;
 use App\QuotationDetails;
@@ -15,12 +16,11 @@ use App\SampleAnalysisTypeRelation;
 use App\SampleDetails;
 use App\SampleHeader;
 use App\TaxRegime;
-use App\PricelistCustomer;
-use App\Pricelist;
-use App\PricelistItem;
 use App\AnalysisType;
 use App\AnalysisElements;
 use App\Analyte;
+use App\InvoicableItem;
+use App\ZohoCustomers;
 use Illuminate\Http\File;
 use App\Http\Controllers\Controller;
 use App\QuotationDetailAnalysisSplit;
@@ -128,8 +128,20 @@ class QuotationController extends Controller
         $header->quote_date = $request->quotation_date;
         $header->expiring_date = $request->expire_date;
         $header->prepared_by_id = auth()->user()->id;
+        
+        // Handle Dynamics customer linking
+        if ($request->filled('zoho_customer_id')) {
+            // Update CRM customer with zoho_customer_id
+            $customer->zoho_customer_id = $request->zoho_customer_id;
+            $customer->save();
+        }
+        
+        // Handle currency
+        if ($request->filled('currency_id')) {
+            $header->currency_id = $request->currency_id;
+        }
+        
         if (!isset($request->quote_id)) {
-
             $header->status = 'Quote In Reception';
         }
         $header->quotation_type = $request->quotation_type;
@@ -155,6 +167,27 @@ class QuotationController extends Controller
 
         return redirect()->route('add-qoute-details-view', ['id' => $header->id, 'stage' => $header->status]);
     }
+    
+    public function getCurrencyByCode(Request $request)
+    {
+        $currencyCode = $request->input('currency_code');
+        
+        if (!$currencyCode) {
+            return response()->json(['error' => 'Currency code is required'], 400);
+        }
+        
+        $currency = Currency::where('code', $currencyCode)->first();
+        
+        if (!$currency) {
+            return response()->json(['error' => 'Currency not found'], 404);
+        }
+        
+        return response()->json([
+            'id' => $currency->id,
+            'code' => $currency->code,
+            'description' => $currency->description
+        ]);
+    }
     public function view_quote_header_detail($id, $stage = false)
     {
         // return response()->json('test');
@@ -179,9 +212,8 @@ class QuotationController extends Controller
 
         $header['prepared_by_name'] = $user->name;
 
-        $pricelist = Pricelist::find($header->pricelist_id);
-        // return response()->json($header->pricelist_id,200);
-
+        // Pricelist no longer used - using invoicable items instead
+        $pricelist = null;
         $pricelist_items = [];
         $details = QuotationDetails::where('quotation_header_id', $id)->get();
         $count = 1;
@@ -462,12 +494,9 @@ class QuotationController extends Controller
         $header->quote_date = $request->quotation_date;
         $header->quotation_type = $request->quotation_type;
         $header->expiring_date = $request->expire_date;
-        $pricelist = PricelistCustomer::where('customer_id', $customer->id)->get();
-        // return response()->json($pricelist,200);
-        if (!isset($pricelist[0]->id)) {
-            return redirect()->back()->with('error', 'Kindly add ' . $customer->name . ' to a pricelist');
-        }
-        $header->pricelist_id = $pricelist[0]->id;
+        
+        // Pricelist no longer used - using invoicable items instead
+        $header->pricelist_id = null;
         $header->save();
 
         return redirect()->back()->with('success', 'Quotation updated successfully');
@@ -708,7 +737,7 @@ class QuotationController extends Controller
         $header_clone->expiring_date = $header->expiring_date;
         $header_clone->prepared_by_id = auth()->user()->id;
 
-        $header_clone->pricelist_id = $header->pricelist_id;
+        $header_clone->pricelist_id = null; // No longer using pricelists
         $header_clone->save();
 
         $idstr = strval($header_clone->id);

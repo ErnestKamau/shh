@@ -3,6 +3,7 @@
 namespace App\Models\CRM;
 
 use App\ModulePreConfigs;
+use App\Models\Currency;
 use App\ZohoCustomers;
 use Illuminate\Database\Eloquent\Model;
 use OwenIt\Auditing\Contracts\Auditable;
@@ -35,6 +36,7 @@ class CRMCustomer extends Model implements Auditable
 		'is_hidden',
 		'zoho_id',
 		'currency_id',
+		'zoho_customer_id',
 		'lab_id'
 	];
 
@@ -55,7 +57,12 @@ class CRMCustomer extends Model implements Auditable
   public function currencyinfo(){
     return $this->belongsTo(ModulePreConfigs::class,'currency_id');
   }
+  
+  public function currency(){
+    return $this->belongsTo(Currency::class,'currency_id');
+  }
+  
   public function zohocustomer(){
-    return $this->belongsTo(ZohoCustomers::class,'zoho_id');
+    return $this->belongsTo(ZohoCustomers::class,'zoho_customer_id');
   }
 }

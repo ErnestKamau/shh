@@ -382,34 +382,98 @@
                             <div class="row">
                                 <div class="col-md-6">
                                     <div class="mb-3">
-                                        <label for="editAnalyteId" class="form-label fw-bold">
+                                        <label for="editAnalyteSearch" class="form-label fw-bold">
                                             <i class="mdi mdi-flask-outline text-primary"></i> Analyte <span class="text-danger">*</span>
                                         </label>
-                                        <div wire:ignore>
-                                            <select class="form-select form-select-lg modern-select @error('analyteId') is-invalid @enderror" id="editAnalyteId" required style="border-radius: 8px; border: 2px solid #e3e6f0;">
-                                                <option value="">-- Select Analyte --</option>
-                                                @foreach($analytes as $analyte)
-                                                    <option value="{{ $analyte->id }}">{{ $analyte->name }}</option>
-                                                @endforeach
-                                            </select>
+                                        <div class="searchable-select-container">
+                                            <!-- Selected Analyte Badge -->
+                                            @if($selectedAnalyteName)
+                                                <div class="selected-badge mb-2">
+                                                    <span class="badge bg-primary p-2" style="font-size: 14px;">
+                                                        <i class="mdi mdi-flask-outline"></i> {{ $selectedAnalyteName }}
+                                                        <i class="mdi mdi-close-circle ms-1" wire:click="clearAnalyte" style="cursor: pointer;"></i>
+                                                    </span>
+                                                </div>
+                                            @endif
+                                            
+                                            <input type="text" 
+                                                   wire:model.live="analyteSearch" 
+                                                   wire:keyup="searchAnalytes"
+                                                   class="form-control @error('analyteId') is-invalid @enderror" 
+                                                   id="editAnalyteSearch"
+                                                   placeholder="Type to search analytes..."
+                                                   autocomplete="off"
+                                                   style="border-radius: 8px; border: 2px solid #e3e6f0;">
+                                            <input type="hidden" wire:model="analyteId" id="editAnalyteId">
+                                            
+                                            @if($showAnalyteDropdown && $filteredAnalytes->count() > 0)
+                                                <div class="searchable-dropdown">
+                                                    @foreach($filteredAnalytes as $analyte)
+                                                        <div class="dropdown-item" 
+                                                             wire:click="selectAnalyte({{ $analyte->id }}, '{{ $analyte->name }}')"
+                                                             style="cursor: pointer; padding: 8px 12px; border-bottom: 1px solid #eee;">
+                                                            {{ $analyte->name }}
+                                                        </div>
+                                                    @endforeach
+                                                </div>
+                                            @endif
+                                            
+                                            @if($selectedAnalyteName)
+                                                <small class="text-muted">
+                                                    <i class="mdi mdi-check-circle text-success"></i> Selected
+                                                </small>
+                                            @endif
+                                            
+                                            @error('analyteId') <div class="invalid-feedback d-block">{{ $message }}</div> @enderror
                                         </div>
-                                        @error('analyteId') <div class="invalid-feedback d-block">{{ $message }}</div> @enderror
                                     </div>
                                 </div>
                                 <div class="col-md-6">
                                     <div class="mb-3">
-                                        <label for="editMethodId" class="form-label fw-bold">
+                                        <label for="editMethodSearch" class="form-label fw-bold">
                                             <i class="mdi mdi-test-tube text-success"></i> Method <span class="text-danger">*</span>
                                         </label>
-                                        <div wire:ignore>
-                                            <select class="form-select form-select-lg modern-select @error('methodId') is-invalid @enderror" id="editMethodId" required style="border-radius: 8px; border: 2px solid #e3e6f0;">
-                                                <option value="">-- Select Method --</option>
-                                                @foreach($methods as $method)
-                                                    <option value="{{ $method->id }}">{{ $method->name }}</option>
-                                                @endforeach
-                                            </select>
+                                        <div class="searchable-select-container">
+                                            <!-- Selected Method Badge -->
+                                            @if($selectedMethodName)
+                                                <div class="selected-badge mb-2">
+                                                    <span class="badge bg-success p-2" style="font-size: 14px;">
+                                                        <i class="mdi mdi-test-tube"></i> {{ $selectedMethodName }}
+                                                        <i class="mdi mdi-close-circle ms-1" wire:click="clearMethod" style="cursor: pointer;"></i>
+                                                    </span>
+                                                </div>
+                                            @endif
+                                            
+                                            <input type="text" 
+                                                   wire:model.live="methodSearch" 
+                                                   wire:keyup="searchMethods"
+                                                   class="form-control @error('methodId') is-invalid @enderror" 
+                                                   id="editMethodSearch"
+                                                   placeholder="Type to search methods..."
+                                                   autocomplete="off"
+                                                   style="border-radius: 8px; border: 2px solid #e3e6f0;">
+                                            <input type="hidden" wire:model="methodId" id="editMethodId">
+                                            
+                                            @if($showMethodDropdown && $filteredMethods->count() > 0)
+                                                <div class="searchable-dropdown">
+                                                    @foreach($filteredMethods as $method)
+                                                        <div class="dropdown-item" 
+                                                             wire:click="selectMethod({{ $method->id }}, '{{ $method->name }}')"
+                                                             style="cursor: pointer; padding: 8px 12px; border-bottom: 1px solid #eee;">
+                                                            {{ $method->name }}
+                                                        </div>
+                                                    @endforeach
+                                                </div>
+                                            @endif
+                                            
+                                            @if($selectedMethodName)
+                                                <small class="text-muted">
+                                                    <i class="mdi mdi-check-circle text-success"></i> Selected
+                                                </small>
+                                            @endif
+                                            
+                                            @error('methodId') <div class="invalid-feedback d-block">{{ $message }}</div> @enderror
                                         </div>
-                                        @error('methodId') <div class="invalid-feedback d-block">{{ $message }}</div> @enderror
                                     </div>
                                 </div>
                             </div>

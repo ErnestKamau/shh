@@ -7,8 +7,6 @@ use App\SampleHeader;
 use App\SampleDetails;
 use App\Invoice;
 use App\InvoiceDetails;
-use App\PricelistCustomer;
-use App\Pricelist;
 use App\InvoicePaymentDetail;
 use App\Models\CRM\CustomerContact;
 use Illuminate\Http\File;
@@ -16,7 +14,6 @@ use Illuminate\Support\Facades\Storage;
 
 
 use App\Http\Controllers\Controller;
-use App\PricelistItem;
 use Illuminate\Http\Request;
 use SebastianBergmann\CodeCoverage\Report\Xml\Totals;
 
@@ -88,13 +85,15 @@ class InvoiceController extends Controller
         $header = SampleHeader::find($id);
         $customer = getCrmCustomerByID($header->crm_customer_id);
         $details = SampleDetails::where('sample_header_id',$id)->get();
-        $customer_pricelist = PricelistCustomer::where('customer_id',$header->crm_customer_id)->get();
-        $pricelist = Pricelist::find($customer_pricelist[0]->pricelist_id);     
+        
+        // Get customer's preferred currency (or use default)
+        $customerCurrency = $customer->currency_id ?? \App\ModulePreConfigs::where('type', 'Currency')->first()->id;
+        
         $invoice = new Invoice();
         $invoice->sample_header_id = $header->id;       
-        $invoice->pricelist_id = $customer_pricelist[0]->pricelist_id;
+        $invoice->pricelist_id = null; // No longer using pricelists
         $invoice->reference_number = $header->reference_number;
-        $invoice->currency_id = $pricelist->currency_id;
+        $invoice->currency_id = $customerCurrency;
         $invoice->customer_id = $header->crm_customer_id;
         
         $invoice->save();
@@ -124,9 +123,15 @@ class InvoiceController extends Controller
                 $analysis_ids = explode(',',$detail->analysis_type_id);
                 foreach($analysis_ids as $ids){
 
-                    $price = PricelistItem::where('pricelist_id',$pricelist->id)->where('analysis_id',(int)$ids)->where('sample_type_id',$header->sample_type_id)->get();
+                    // Get price from invoicable item mapping
+                    $priceData = getPriceForAnalysisType((int)$ids, $customerCurrency);
+                    
+                    if (!$priceData) {
+                        continue; // Skip if no invoicable item mapped
+                    }
+
                     $check_invoice_detail = InvoiceDetails::where('sample_header_id',$header->id)->where('analysis_type',(int)$ids)->get();
-                    // return response()->json($price,200);
+                    
                     if(!isset($check_invoice_detail[0]->id)){
                         $invoice_detail = new InvoiceDetails();
                         $invoice_detail->crm_customer_id = $header->crm_customer_id;
@@ -146,20 +151,28 @@ class InvoiceController extends Controller
                         $invoice_detail->sample_header_id = $header->id;
                         $invoice_detail->sample_detail_id = $detail->id;
                         $invoice_detail->invoice_id = $invoice->id;
-                        $invoice_detail->cost_price = $price[0]->cost_price;
-                        $invoice_detail->selling_price = $price[0]->selling_price;
-                        if($price[0]->vat == 1){
-                            $rate = TaxRegime::where('active',1)->get();
-                            $tax = $rate[0]->value/100 * $price[0]->selling_price;
-                            $total_price = $tax + $price[0]->selling_price;
-            
-                            $invoice_detail->selling_amount = $total_price;
-                            $invoice_detail->tax_rate = strval($rate[0]->value);
-                            $invoice_detail->tax_amount = $tax;
-                            $invoice_detail->total = $total_price;
+                        $invoice_detail->invoicable_item_id = $priceData['invoicable_item_id'];
+                        $invoice_detail->cost_price = $priceData['unit_cost'];
+                        $invoice_detail->selling_price = $priceData['unit_price'];
+                        
+                        // Apply tax if not included in price
+                        if(!$priceData['price_includes_tax']){
+                            $rate = TaxRegime::where('active',1)->first();
+                            if ($rate) {
+                                $tax = $rate->value/100 * $priceData['unit_price'];
+                                $total_price = $tax + $priceData['unit_price'];
+                
+                                $invoice_detail->selling_amount = $total_price;
+                                $invoice_detail->tax_rate = strval($rate->value);
+                                $invoice_detail->tax_amount = $tax;
+                                $invoice_detail->total = $total_price;
+                            } else {
+                                $invoice_detail->selling_amount = $priceData['unit_price'];
+                                $invoice_detail->total = $priceData['unit_price'];
+                            }
                         }else{
-                            $invoice_detail->selling_amount = $price[0]->selling_price;
-                            $invoice_detail->total = $price[0]->selling_price;
+                            $invoice_detail->selling_amount = $priceData['unit_price'];
+                            $invoice_detail->total = $priceData['unit_price'];
                         }
                         $invoice_detail->save();
         
@@ -168,7 +181,6 @@ class InvoiceController extends Controller
                         $current_tax = $check_invoice_detail[0]->tax_amount;
                         $unit_price = $check_invoice_detail[0]->selling_amount;
                         $current_total = $check_invoice_detail[0]->total;
-                        // return response()->json($current_total,200);
                         $check_invoice_detail[0]->total = $unit_price + $current_total;
                         $check_invoice_detail[0]->quantity = $current + 1; 
                         if($check_invoice_detail[0]->tax_rate != '0'){
@@ -180,10 +192,15 @@ class InvoiceController extends Controller
                 }
             }else{
                 
+                    // Get price from invoicable item mapping
+                    $priceData = getPriceForAnalysisType($detail->analysis_type_id, $customerCurrency);
+                    
+                    if (!$priceData) {
+                        continue; // Skip if no invoicable item mapped
+                    }
 
-                    $price = PricelistItem::where('pricelist_id',$pricelist->id)->where('analysis_id',$detail->analysis_type_id)->where('sample_type_id',$header->sample_type_id)->get();
                     $check_invoice_detail = InvoiceDetails::where('sample_header_id',$header->id)->where('analysis_type',$detail->analysis_type_id)->get();
-                    // return response()->json($header->id,200);
+                    
                     if(!isset($check_invoice_detail[0]->id)){
                         $invoice_detail = new InvoiceDetails();
                         $invoice_detail->crm_customer_id = $header->crm_customer_id;
@@ -203,21 +220,28 @@ class InvoiceController extends Controller
                         $invoice_detail->sample_header_id = $header->id;
                         $invoice_detail->sample_detail_id = $detail->id;
                         $invoice_detail->invoice_id = $invoice->id;
-                        $invoice_detail->cost_price = $price[0]->cost_price;
-                        $invoice_detail->selling_price = $price[0]->selling_price;
-                        if($price[0]->vat == 1){
-                            $rate = TaxRegime::where('active',1)->get();
-                            // return response()->json($rate,200);
-                            $tax = $rate[0]->value/100 * $price[0]->selling_price;
-                            $total_price = $tax + $price[0]->selling_price;
-                            
-                            $invoice_detail->selling_amount = $total_price;
-                            $invoice_detail->tax_rate = strval($rate[0]->value);
-                            $invoice_detail->tax_amount = $tax;
-                            $invoice_detail->total = $total_price;
+                        $invoice_detail->invoicable_item_id = $priceData['invoicable_item_id'];
+                        $invoice_detail->cost_price = $priceData['unit_cost'];
+                        $invoice_detail->selling_price = $priceData['unit_price'];
+                        
+                        // Apply tax if not included in price
+                        if(!$priceData['price_includes_tax']){
+                            $rate = TaxRegime::where('active',1)->first();
+                            if ($rate) {
+                                $tax = $rate->value/100 * $priceData['unit_price'];
+                                $total_price = $tax + $priceData['unit_price'];
+                                
+                                $invoice_detail->selling_amount = $total_price;
+                                $invoice_detail->tax_rate = strval($rate->value);
+                                $invoice_detail->tax_amount = $tax;
+                                $invoice_detail->total = $total_price;
+                            } else {
+                                $invoice_detail->selling_amount = $priceData['unit_price'];
+                                $invoice_detail->total = $priceData['unit_price'];
+                            }
                         }else{
-                            $invoice_detail->selling_amount = $price[0]->selling_price;
-                            $invoice_detail->total = $price[0]->selling_price;
+                            $invoice_detail->selling_amount = $priceData['unit_price'];
+                            $invoice_detail->total = $priceData['unit_price'];
                         }
                         $invoice_detail->save();
         
@@ -226,7 +250,6 @@ class InvoiceController extends Controller
                         $unit_price = $check_invoice_detail[0]->selling_amount;
                         $current_total = $check_invoice_detail[0]->total;
                         $current_tax = $check_invoice_detail[0]->tax_amount;
-                        // return response()->json($current_tax,200);
                         $check_invoice_detail[0]->total = $unit_price + $current_total;
                         if($check_invoice_detail[0]->tax_rate != '0'){
                             $exist_tax = strval($check_invoice_detail[0]->tax_rate/100 * $check_invoice_detail[0]->selling_price);

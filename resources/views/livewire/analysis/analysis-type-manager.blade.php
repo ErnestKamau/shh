@@ -96,7 +96,7 @@
                                     <tr>
                                         <th>Code</th>
                                         <th>Name</th>
-                                        <th>Lab</th>
+                                        <th>Lab Section</th>
                                         <th>Elements</th>
                                         <th>Level</th>
                                         <th>Calculations</th>
@@ -119,7 +119,7 @@
                                                 @endif
                                             </td>
                                             <td>
-                                                {{ $analysisType->lab->name ?? 'N/A' }}
+                                                {{ $analysisType->labsectionname ?? 'N/A' }}
                                             </td>
                                             <td>
                                                 <span class="badge bg-info p-2" style="color: white;">{{ $analysisType->analysis_elements->count() }}</span>
@@ -243,36 +243,48 @@
                             <div class="row">
                                 <div class="col-md-4">
                                     <div class="form-group mb-3">
-                                        <label class="form-label"><i class="mdi mdi-flask text-primary"></i> Lab <span class="text-danger">*</span></label>
-                                        <div class="tag-select-container" wire:click="$set('showLabDropdown', true)">
+                                        <label class="form-label"><i class="mdi mdi-layers text-primary"></i> Lab Section <span class="text-danger">*</span></label>
+                                        <div class="tag-select-container" wire:click="$set('showLabSectionDropdown', true)">
                                             <div class="tag-select-input">
-                                                <!-- Display selected lab or allow searching -->
-                                                @if($this->selectedLab)
+                                                <!-- Display selected lab section or allow searching -->
+                                                @if($this->selectedLabSection)
                                                     <span class="tag-badge">
-                                                        {{ $this->selectedLab->name }}
-                                                        <i class="mdi mdi-close-circle" wire:click.stop="$set('analysisTypeForm.lab_id', null)"></i>
+                                                        {{ $this->selectedLabSection->name }}
+                                                        <i class="mdi mdi-close-circle" wire:click.stop="$set('analysisTypeForm.lab_section_id', null)"></i>
                                                     </span>
                                                 @endif
                                                 
                                                 <!-- Search Input -->
                                                 <input type="text" 
-                                                       wire:model.live="labSearch" 
+                                                       wire:model.live="labSectionSearch" 
                                                        class="tag-input" 
-                                                       placeholder="{{ $this->selectedLab ? '' : 'Search labs...' }}"
+                                                       placeholder="{{ $this->selectedLabSection ? '' : 'Search lab sections...' }}"
                                                        autocomplete="off">
                                             </div>
                                             
                                             <!-- Dropdown -->
-                                            @if($showLabDropdown && count($this->filteredLabs) > 0)
+                                            @if($showLabSectionDropdown && count($this->filteredLabSections) > 0)
                                                 <div class="tag-dropdown">
-                                                    @foreach($this->filteredLabs as $lab)
-                                                        <div class="tag-dropdown-item" wire:click.stop="selectLab({{ $lab->id }})">
-                                                            {{ $lab->name }}
+                                                    @foreach($this->filteredLabSections as $labSection)
+                                                        <div class="tag-dropdown-item" wire:click.stop="selectLabSection({{ $labSection->id }})">
+                                                            {{ $labSection->code }} - {{ $labSection->name }}
                                                         </div>
                                                     @endforeach
                                                 </div>
                                             @endif
                                         </div>
+                                        @error('analysisTypeForm.lab_section_id') <span class="text-danger">{{ $message }}</span> @enderror
+                                    </div>
+                                </div>
+                                <div class="col-md-4">
+                                    <div class="form-group mb-3">
+                                        <label class="form-label"><i class="mdi mdi-flask text-primary"></i> Lab (Auto-populated)</label>
+                                        <input type="text" 
+                                               class="form-control" 
+                                               value="{{ $this->selectedLab ? $this->selectedLab->name : '' }}" 
+                                               readonly 
+                                               style="background-color: #f8f9fa; cursor: not-allowed;"
+                                               placeholder="Select lab section first">
                                         @error('analysisTypeForm.lab_id') <span class="text-danger">{{ $message }}</span> @enderror
                                     </div>
                                 </div>
@@ -287,6 +299,45 @@
                                         <label class="form-label">Reporting Time (days)</label>
                                         <input type="number" wire:model="analysisTypeForm.reporting_time" class="form-control" min="0" placeholder="e.g., 7">
                                         <small class="form-text text-muted">Expected time to complete analysis in days</small>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Invoicable Item Selection -->
+                            <div class="row">
+                                <div class="col-md-12">
+                                    <div class="form-group mb-3">
+                                        <label class="form-label">
+                                            <i class="mdi mdi-currency-usd text-success"></i> Invoicable Item
+                                        </label>
+                                        <div class="tag-select-container" wire:click="$set('showInvoicableItemDropdown', true)">
+                                            <div class="tag-select-input">
+                                                @if($this->selectedInvoicableItem)
+                                                    <span class="tag-badge">
+                                                        {{ $this->selectedInvoicableItem->item_code }} - {{ $this->selectedInvoicableItem->item_name }} ({{ number_format($this->selectedInvoicableItem->unit_price, 2) }})
+                                                        <i class="mdi mdi-close-circle" wire:click.stop="$set('analysisTypeForm.invoicable_item_id', null)"></i>
+                                                    </span>
+                                                @endif
+                                                
+                                                <input type="text" 
+                                                       wire:model.live="invoicableItemSearch" 
+                                                       class="tag-input" 
+                                                       placeholder="{{ $this->selectedInvoicableItem ? '' : 'Search invoicable items...' }}"
+                                                       autocomplete="off">
+                                            </div>
+                                            
+                                            @if($showInvoicableItemDropdown && count($this->filteredInvoicableItems) > 0)
+                                                <div class="tag-dropdown">
+                                                    @foreach($this->filteredInvoicableItems as $item)
+                                                        <div class="tag-dropdown-item" wire:click.stop="selectInvoicableItem({{ $item->id }})">
+                                                            <strong>{{ $item->item_code }}</strong> - {{ $item->item_name }}
+                                                            <span class="badge bg-success float-end">{{ number_format($item->unit_price, 2) }}</span>
+                                                        </div>
+                                                    @endforeach
+                                                </div>
+                                            @endif
+                                        </div>
+                                        <small class="form-text text-muted">Select the invoicable item for billing this analysis type</small>
                                     </div>
                                 </div>
                             </div>
@@ -571,6 +622,8 @@
     document.addEventListener('click', function(e) {
         if (!e.target.closest('.tag-select-container')) {
             $wire.set('showLabDropdown', false);
+            $wire.set('showLabSectionDropdown', false);
+            $wire.set('showInvoicableItemDropdown', false);
         }
     });
     </script>

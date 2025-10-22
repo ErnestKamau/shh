@@ -1,9 +1,16 @@
 -- ============================================================================
--- TRUNCATE SCRIPT FOR SAMPLE HEADERS AND SUBMISSION FORM INSTANCES
+-- TRUNCATE SCRIPT FOR SAMPLES, QUOTATIONS, INVOICES, AND SUBMISSION FORMS
 -- ============================================================================
 -- WARNING: This will delete ALL data from these tables and related tables!
 -- Make sure you have a backup before running this script.
 -- ============================================================================
+--
+-- THIS SCRIPT TRUNCATES:
+-- 1. Submission Form Instances and related data
+-- 2. Sample Headers, Sample Details, and all related data
+-- 3. Quotation Headers, Quotation Details, and analysis type links
+-- 4. Customer Invoices, Invoice Details, and payment records
+-- 5. Method Sequence Runs and stage execution data
 --
 -- RECENTLY ADDED TABLES (October 2025):
 -- - equipment_usage (tracks equipment used for sample analysis)
@@ -14,6 +21,9 @@
 -- - method_sequence_stage_control_usage (control usage tracking)
 -- - method_sequence_stage_equipment_usage (equipment usage per stage)
 -- - method_sequence_stage_media_usage (media/reagent usage per stage)
+-- - quotation_details_analysis_type (links quotations to analysis types)
+-- - invoice_details (invoicable items per invoice)
+-- - invoice_payment_details (payment records per invoice)
 -- ============================================================================
 
 SET FOREIGN_KEY_CHECKS = 0;
@@ -73,10 +83,6 @@ TRUNCATE TABLE `qc_results`;
 TRUNCATE TABLE `equipment_usage`;
 TRUNCATE TABLE `batch_approval_checklist`;
 
--- Invoice tables that may reference sample_headers/batches
-TRUNCATE TABLE `invoice_details`;
-TRUNCATE TABLE `invoice_payment_details`;
-
 -- Import and temp tables
 TRUNCATE TABLE `import_lab_results`;
 TRUNCATE TABLE `lab_results_excel`;
@@ -93,7 +99,41 @@ TRUNCATE TABLE `sample_sequences`;
 TRUNCATE TABLE `sample_header_staging`;
 
 -- ============================================================================
--- 3. METHOD SEQUENCE RELATED TABLES
+-- 3. QUOTATION HEADERS AND RELATED TABLES (in dependency order)
+-- ============================================================================
+
+-- Tables that depend on quotation_details (must be truncated before quotation_details)
+TRUNCATE TABLE `quotation_details_analysis_type`;
+
+-- Quotation details (depends on quotation_headers)
+TRUNCATE TABLE `quotation_details`;
+
+-- Backup/archive tables
+TRUNCATE TABLE `quotation_details_bkp`;
+
+-- Main quotation headers table
+TRUNCATE TABLE `quotation_headers`;
+
+
+-- ============================================================================
+-- 4. INVOICE HEADERS AND RELATED TABLES (in dependency order)
+-- ============================================================================
+
+-- Tables that depend on invoice_details or customer_invoice
+TRUNCATE TABLE `invoice_payment_details`;
+
+-- Invoice details (depends on customer_invoice)
+TRUNCATE TABLE `invoice_details`;
+
+-- Main customer invoice table
+TRUNCATE TABLE `customer_invoice`;
+
+-- Legacy/backup invoice tables (if they exist and contain data)
+-- TRUNCATE TABLE `customer_invoice_items`;
+
+
+-- ============================================================================
+-- 5. METHOD SEQUENCE RELATED TABLES
 -- ============================================================================
 
 -- Tables that depend on method_sequence_run_stage_data
@@ -118,17 +158,20 @@ SET FOREIGN_KEY_CHECKS = 1;
 -- VERIFICATION QUERIES (Optional - run these to verify truncation)
 -- ============================================================================
 /*
-SELECT 'sample_headers' AS table_name, COUNT(*) AS row_count FROM sample_headers
-UNION ALL
-SELECT 'sample_details', COUNT(*) FROM sample_details
-UNION ALL
-SELECT 'sample_sequences', COUNT(*) FROM sample_sequences
-UNION ALL
-SELECT 'submission_form_instances', COUNT(*) FROM submission_form_instances
+-- Submission Forms
+SELECT 'submission_form_instances' AS table_name, COUNT(*) AS row_count FROM submission_form_instances
 UNION ALL
 SELECT 'submission_form_instance_values', COUNT(*) FROM submission_form_instance_values
 UNION ALL
 SELECT 'submission_form_audit_logs', COUNT(*) FROM submission_form_audit_logs
+UNION ALL
+
+-- Sample Headers and Details
+SELECT 'sample_headers', COUNT(*) FROM sample_headers
+UNION ALL
+SELECT 'sample_details', COUNT(*) FROM sample_details
+UNION ALL
+SELECT 'sample_sequences', COUNT(*) FROM sample_sequences
 UNION ALL
 SELECT 'results', COUNT(*) FROM results
 UNION ALL
@@ -138,6 +181,24 @@ SELECT 'equipment_usage', COUNT(*) FROM equipment_usage
 UNION ALL
 SELECT 'batch_approval_checklist', COUNT(*) FROM batch_approval_checklist
 UNION ALL
+
+-- Quotations
+SELECT 'quotation_headers', COUNT(*) FROM quotation_headers
+UNION ALL
+SELECT 'quotation_details', COUNT(*) FROM quotation_details
+UNION ALL
+SELECT 'quotation_details_analysis_type', COUNT(*) FROM quotation_details_analysis_type
+UNION ALL
+
+-- Invoices
+SELECT 'customer_invoice', COUNT(*) FROM customer_invoice
+UNION ALL
+SELECT 'invoice_details', COUNT(*) FROM invoice_details
+UNION ALL
+SELECT 'invoice_payment_details', COUNT(*) FROM invoice_payment_details
+UNION ALL
+
+-- Method Sequences
 SELECT 'method_sequence_runs', COUNT(*) FROM method_sequence_runs
 UNION ALL
 SELECT 'method_sequence_run_stage_data', COUNT(*) FROM method_sequence_run_stage_data;

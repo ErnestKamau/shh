@@ -9,8 +9,20 @@ class LabSectionApprover extends Model
 {
     protected $table = "lab_section_approver_configuration";
     protected $appends = ['approvername','sectionarr','sectionname'];
+    
+    protected $fillable = [
+        'user_id',
+        'lab_section_ids',
+        'title',
+    ];
+    
+    public function user()
+    {
+        return $this->belongsTo(User::class, 'user_id');
+    }
+    
     public function getApproverNameAttribute(){
-        return User::find($this->user_id)->name;
+        return User::find($this->user_id)->name ?? 'N/A';
     }
 
     public function getSectionArrAttribute(){

@@ -22,10 +22,13 @@ class LabController extends Controller
    */
   public function index()
   {
-    $companies = Company::all();
-    $labs = Lab::join('companies as c', 'c.id', '=', 'labs.company_id')->selectRaw('labs.*, c.name as company')->get();
-
-    return view('layouts.lab.index', compact('companies', 'labs'));
+    // Use new Livewire component
+    return view('layouts.lab.livewire-index');
+    
+    // Old implementation kept for reference (can be removed later)
+    // $companies = Company::all();
+    // $labs = Lab::join('companies as c', 'c.id', '=', 'labs.company_id')->selectRaw('labs.*, c.name as company')->get();
+    // return view('layouts.lab.index', compact('companies', 'labs'));
   }
 
   /**

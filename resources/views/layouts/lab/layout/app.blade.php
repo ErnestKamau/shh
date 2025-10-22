@@ -119,50 +119,61 @@
 					<span class="submenu-icon ml-auto"></span>
 				</div>
 			</a>
-			<div id="billing-menu" class="collapse sidebar-submenu">
+		<div id="billing-menu" class="collapse sidebar-submenu">
 
-				<a href="{{route('invoice-home')}}" class="list-group-item list-group-item-action bg-dark text-white">
-					<span class="menu-collapsed"><i class="mdi mdi-circle-medium"></i> Draft Invoice
-						<small class="float-right badge badge-pill"></small></span>
-				</a>
-				<a href="{{route('tax-home')}}" class="list-group-item list-group-item-action bg-dark text-white">
-					<span class="menu-collapsed"><i class="mdi mdi-circle-medium"></i> Tax Regime
-						<small class="float-right badge badge-pill"></small></span>
-				</a>
-				<a href="/pricelists" class="bg-dark list-group-item list-group-item-action">
-					<span class="menu-collapsed"><i class="mdi mdi-circle-medium"></i> Pricelists
-						<small class="float-right badge badge-pill"></small></span>
+			<a href="{{route('billing.invoices')}}" class="list-group-item list-group-item-action bg-dark text-white">
+				<span class="menu-collapsed"><i class="mdi mdi-circle-medium"></i> Sales Orders
+					<small class="float-right badge badge-pill"></small></span>
+			</a>
 
-				</a>
+			<a href="{{route('billing.invoicable-items')}}" class="list-group-item list-group-item-action bg-dark text-white">
+				<span class="menu-collapsed"><i class="mdi mdi-circle-medium"></i> Invoicable Items
+					<small class="float-right badge badge-pill"></small></span>
+			</a>
 
-				<a href="#quotation-menu" data-toggle="collapse" aria-expanded="false" class="bg-dark list-group-item list-group-item-action flex-column align-items-start">
-					<div class="d-flex w-100 justify-content-start align-items-center">
-						<span class=" mdi mdi-clipboard-text-outline mr-3"></span>
-						<span class="menu-collapsed">Quotation</span>
-						<span class="submenu-icon ml-auto"></span>
-					</div>
-				</a>
-				<div id="quotation-menu" class="collapse sidebar-submenu">
-					<a href="{{route('quotation-index')}}" class="list-group-item list-group-item-action bg-dark text-white">
-						<span class="menu-collapsed"><i class="mdi mdi-circle-medium"></i> All Quotes
-							<small class="float-right badge badge-pill"></small></span>
-					</a>
-					<a href="{{route('quotation-index',['stage'=>'Quote In Preparation'])}}" class="list-group-item list-group-item-action bg-dark text-white">
-						<span class="menu-collapsed"><i class="mdi mdi-circle-medium"></i> Quotes In Preparation
-							<small class="float-right badge badge-pill"></small></span>
-					</a>
-					
-					<a href="{{route('quotation-index',['stage'=>'Quote In Approval'])}}" class="list-group-item list-group-item-action bg-dark text-white">
-						<span class="menu-collapsed"><i class="mdi mdi-circle-medium"></i> Quotes In Approval
-							<small class="float-right badge badge-pill"></small></span>
-					</a>
-					<a href="{{route('quotation-index',['stage'=>'Quote Complete'])}}" class="list-group-item list-group-item-action bg-dark text-white">
-						<span class="menu-collapsed"><i class="mdi mdi-circle-medium"></i> Finalised Quotes
-							<small class="float-right badge badge-pill"></small></span>
-					</a>
+		<a href="{{route('billing.dynamics-customers')}}" class="list-group-item list-group-item-action bg-dark text-white">
+			<span class="menu-collapsed"><i class="mdi mdi-circle-medium"></i> Dynamics Customers
+				<small class="float-right badge badge-pill"></small></span>
+		</a>
+
+		<a href="{{route('billing.currencies')}}" class="list-group-item list-group-item-action bg-dark text-white">
+			<span class="menu-collapsed"><i class="mdi mdi-circle-medium"></i> Currencies
+				<small class="float-right badge badge-pill"></small></span>
+		</a>
+
+		<a href="{{route('billing.tax-regime')}}" class="list-group-item list-group-item-action bg-dark text-white">
+			<span class="menu-collapsed"><i class="mdi mdi-circle-medium"></i> Tax Regime
+					<small class="float-right badge badge-pill"></small></span>
+			</a>
+
+			<a href="#quotation-menu" data-toggle="collapse" aria-expanded="false" class="bg-dark list-group-item list-group-item-action flex-column align-items-start">
+				<div class="d-flex w-100 justify-content-start align-items-center">
+					<span class=" mdi mdi-clipboard-text-outline mr-3"></span>
+					<span class="menu-collapsed">Quotations</span>
+					<span class="submenu-icon ml-auto"></span>
 				</div>
-
+			</a>
+			<div id="quotation-menu" class="collapse sidebar-submenu">
+				<a href="{{route('quotation-index')}}" class="list-group-item list-group-item-action bg-dark text-white">
+					<span class="menu-collapsed"><i class="mdi mdi-circle-medium"></i> All Quotes
+						<small class="float-right badge badge-pill"></small></span>
+				</a>
+				<a href="{{route('quotation-index',['stage'=>'Quote In Preparation'])}}" class="list-group-item list-group-item-action bg-dark text-white">
+					<span class="menu-collapsed"><i class="mdi mdi-circle-medium"></i> Quotes In Preparation
+						<small class="float-right badge badge-pill"></small></span>
+				</a>
+				
+				<a href="{{route('quotation-index',['stage'=>'Quote In Approval'])}}" class="list-group-item list-group-item-action bg-dark text-white">
+					<span class="menu-collapsed"><i class="mdi mdi-circle-medium"></i> Quotes In Approval
+						<small class="float-right badge badge-pill"></small></span>
+				</a>
+				<a href="{{route('quotation-index',['stage'=>'Quote Complete'])}}" class="list-group-item list-group-item-action bg-dark text-white">
+					<span class="menu-collapsed"><i class="mdi mdi-circle-medium"></i> Finalised Quotes
+						<small class="float-right badge badge-pill"></small></span>
+				</a>
 			</div>
+
+		</div>
 			<a href="#qc-workflow-menu" data-toggle="collapse" aria-expanded="false" class="bg-dark list-group-item list-group-item-action flex-column align-items-start">
 				<div class="d-flex w-100 justify-content-start align-items-center">
 					<span class="mdi mdi-file-certificate-outline mr-3"></span>

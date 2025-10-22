@@ -154,6 +154,7 @@
                                 <tr>  
                                     <th>Code</th>
                                     <th>Name</th>
+                                    <th>Dynamics Mapping</th>
                                     <th>Email</th>
                                     <th>Phone</th>
                                     <th>Country</th>
@@ -173,6 +174,16 @@
                                                 <div class="fw-bold">{{ $customer->name }}</div>
                                                     <small class="text-muted">{{ Str::limit($customer->physical_address, 30) }}</small>
                                             </div>
+                                        </td>
+                                        <td>
+                                            @if($customer->zohocustomer)
+                                                <div>
+                                                    <div class="fw-bold">{{ $customer->zohocustomer->name }}</div>
+                                                    <small class="text-muted">{{ $customer->zohocustomer->customer_no }}</small>
+                                                </div>
+                                            @else
+                                                <span class="text-muted">-</span>
+                                            @endif
                                         </td>
                                         <td>{{ $customer->email }}</td>
                                         <td>{{ $customer->telephone1 }}</td>
@@ -276,62 +287,41 @@
                                 <div class="col-md-6">
                                     <div class="form-group mb-3">
                                         <label class="form-label fw-bold"><i class="mdi mdi-earth text-primary"></i> Country <span class="text-danger">*</span></label>
-                                        <div x-data="{
-                                            open: false,
-                                            search: '',
-                                            selected: @entangle('customerForm.country_id').live,
-                                            countries: {{ json_encode($countries->map(fn($c) => ['id' => $c->id, 'name' => $c->name])->values()) }},
-                                            get filteredCountries() {
-                                                if (!this.search) return this.countries.slice(0, 50);
-                                                return this.countries.filter(country => 
-                                                    country.name.toLowerCase().includes(this.search.toLowerCase())
-                                                );
-                                            },
-                                            selectCountry(countryId) {
-                                                this.selected = countryId;
-                                                this.open = false;
-                                                this.search = '';
-                                            },
-                                            getSelectedName() {
-                                                const country = this.countries.find(c => c.id == this.selected);
-                                                return country ? country.name : '';
-                                            }
-                                        }" class="searchable-dropdown-wrapper">
-                                            <div class="single-select-container" @click="open = !open">
+                                        <div class="searchable-dropdown-wrapper">
+                                            <div class="single-select-container" wire:click="toggleCountryDropdown">
                                                 <input 
                                                     type="text" 
-                                                    x-model="search"
-                                                    :placeholder="selected ? getSelectedName() : 'Search countries...'"
-                                                    @focus="open = true"
+                                                    wire:model.live="countrySearch"
+                                                    placeholder="{{ $this->selectedCountryName ?: 'Search countries...' }}"
+                                                    wire:click="toggleCountryDropdown"
                                                     class="form-control searchable-input-single"
                                                     autocomplete="off"
                                                 >
-                                                <i class="mdi mdi-chevron-down dropdown-arrow" :class="{ 'rotated': open }"></i>
+                                                <i class="mdi mdi-chevron-down dropdown-arrow {{ $showCountryDropdown ? 'rotated' : '' }}"></i>
                                             </div>
 
-                                            <div x-show="open" 
-                                                 @click.away="open = false"
-                                                 x-transition
-                                                 class="dropdown-list">
-                                                <template x-if="filteredCountries.length > 0">
-                                                    <div class="options-list">
-                                                        <template x-for="country in filteredCountries" :key="country.id">
-                                                            <div @click="selectCountry(country.id)" 
-                                                                 class="option-item"
-                                                                 :class="{ 'selected': selected == country.id }">
-                                                                <i class="mdi mdi-check-circle text-primary" x-show="selected == country.id"></i>
-                                                                <span x-text="country.name"></span>
-                                                            </div>
-                                                        </template>
-                                                    </div>
-                                                </template>
-                                                <template x-if="filteredCountries.length === 0">
-                                                    <div class="no-results">
-                                                        <i class="mdi mdi-alert-circle-outline"></i>
-                                                        <span>No countries found</span>
-                                                    </div>
-                                                </template>
-                                            </div>
+                                            @if($showCountryDropdown)
+                                                <div class="dropdown-list">
+                                                    @if($this->filteredCountries->count() > 0)
+                                                        <div class="options-list">
+                                                            @foreach($this->filteredCountries as $country)
+                                                                <div wire:click="selectCountry({{ $country->id }})" 
+                                                                     class="option-item {{ $customerForm['country_id'] == $country->id ? 'selected' : '' }}">
+                                                                    @if($customerForm['country_id'] == $country->id)
+                                                                        <i class="mdi mdi-check-circle text-primary"></i>
+                                                                    @endif
+                                                                    <span>{{ $country->name }}</span>
+                                                                </div>
+                                                            @endforeach
+                                                        </div>
+                                                    @else
+                                                        <div class="no-results">
+                                                            <i class="mdi mdi-alert-circle-outline"></i>
+                                                            <span>No countries found</span>
+                                                        </div>
+                                                    @endif
+                                                </div>
+                                            @endif
                                         </div>
                                         @error('customerForm.country_id') <span class="text-danger">{{ $message }}</span> @enderror
                                     </div>
@@ -339,64 +329,109 @@
                                 <div class="col-md-6">
                                     <div class="form-group mb-3">
                                         <label class="form-label fw-bold"><i class="mdi mdi-cog text-info"></i> Account Settings <span class="text-danger">*</span></label>
-                                        <div x-data="{
-                                            open: false,
-                                            search: '',
-                                            selected: @entangle('customerForm.account_status').live,
-                                            accounts: {{ json_encode($accounts->map(fn($a) => ['id' => $a->id, 'key' => $a->key])->values()) }},
-                                            get filteredAccounts() {
-                                                if (!this.search) return this.accounts;
-                                                return this.accounts.filter(account => 
-                                                    account.key.toLowerCase().includes(this.search.toLowerCase())
-                                                );
-                                            },
-                                            selectAccount(accountId) {
-                                                this.selected = accountId;
-                                                this.open = false;
-                                                this.search = '';
-                                            },
-                                            getSelectedName() {
-                                                const account = this.accounts.find(a => a.id == this.selected);
-                                                return account ? account.key : '';
-                                            }
-                                        }" class="searchable-dropdown-wrapper">
-                                            <div class="single-select-container" @click="open = !open">
+                                        <div class="searchable-dropdown-wrapper">
+                                            <div class="single-select-container" wire:click="toggleAccountDropdown">
                                                 <input 
                                                     type="text" 
-                                                    x-model="search"
-                                                    :placeholder="selected ? getSelectedName() : 'Search account settings...'"
-                                                    @focus="open = true"
+                                                    wire:model.live="accountSearch"
+                                                    placeholder="{{ $this->selectedAccountName ?: 'Search account settings...' }}"
+                                                    wire:click="toggleAccountDropdown"
                                                     class="form-control searchable-input-single"
                                                     autocomplete="off"
                                                 >
-                                                <i class="mdi mdi-chevron-down dropdown-arrow" :class="{ 'rotated': open }"></i>
+                                                <i class="mdi mdi-chevron-down dropdown-arrow {{ $showAccountDropdown ? 'rotated' : '' }}"></i>
                                             </div>
 
-                                            <div x-show="open" 
-                                                 @click.away="open = false"
-                                                 x-transition
-                                                 class="dropdown-list">
-                                                <template x-if="filteredAccounts.length > 0">
-                                                    <div class="options-list">
-                                                        <template x-for="account in filteredAccounts" :key="account.id">
-                                                            <div @click="selectAccount(account.id)" 
-                                                                 class="option-item"
-                                                                 :class="{ 'selected': selected == account.id }">
-                                                                <i class="mdi mdi-check-circle text-primary" x-show="selected == account.id"></i>
-                                                                <span x-text="account.key"></span>
-                                                            </div>
-                                                        </template>
-                                                    </div>
-                                                </template>
-                                                <template x-if="filteredAccounts.length === 0">
-                                                    <div class="no-results">
-                                                        <i class="mdi mdi-alert-circle-outline"></i>
-                                                        <span>No account settings found</span>
-                                                    </div>
-                                                </template>
-                                            </div>
+                                            @if($showAccountDropdown)
+                                                <div class="dropdown-list">
+                                                    @if($this->filteredAccounts->count() > 0)
+                                                        <div class="options-list">
+                                                            @foreach($this->filteredAccounts as $account)
+                                                                <div wire:click="selectAccount({{ $account->id }})" 
+                                                                     class="option-item {{ $customerForm['account_status'] == $account->id ? 'selected' : '' }}">
+                                                                    @if($customerForm['account_status'] == $account->id)
+                                                                        <i class="mdi mdi-check-circle text-primary"></i>
+                                                                    @endif
+                                                                    <span>{{ $account->key }}</span>
+                                                                </div>
+                                                            @endforeach
+                                                        </div>
+                                                    @else
+                                                        <div class="no-results">
+                                                            <i class="mdi mdi-alert-circle-outline"></i>
+                                                            <span>No account settings found</span>
+                                                        </div>
+                                                    @endif
+                                                </div>
+                                            @endif
                                         </div>
                                         @error('customerForm.account_status') <span class="text-danger">{{ $message }}</span> @enderror
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="row">
+                                <div class="col-md-12">
+                                    <div class="form-group mb-3">
+                                        <label class="form-label fw-bold"><i class="mdi mdi-link-variant text-success"></i> Dynamics Customer Mapping <small class="text-muted">(Optional)</small></label>
+                                        <div class="searchable-dropdown-wrapper">
+                                            <div class="single-select-container position-relative" wire:click="toggleZohoCustomerDropdown">
+                                                <input 
+                                                    type="text" 
+                                                    wire:model.live="zohoCustomerSearch"
+                                                    placeholder="{{ $this->selectedZohoCustomerName ?: 'Search Dynamics customers...' }}"
+                                                    wire:click="toggleZohoCustomerDropdown"
+                                                    class="form-control searchable-input-single"
+                                                    autocomplete="off"
+                                                >
+                                                <i class="mdi mdi-chevron-down dropdown-arrow {{ $showZohoCustomerDropdown ? 'rotated' : '' }}"></i>
+                                                @if($customerForm['zoho_customer_id'])
+                                                    <button 
+                                                        type="button"
+                                                        wire:click.stop="clearZohoCustomer"
+                                                        class="btn btn-sm btn-link position-absolute"
+                                                        style="right: 35px; top: 50%; transform: translateY(-50%); padding: 0; color: #dc3545;"
+                                                        title="Clear selection">
+                                                        <i class="mdi mdi-close-circle"></i>
+                                                    </button>
+                                                @endif
+                                            </div>
+
+                                            @if($showZohoCustomerDropdown)
+                                                <div class="dropdown-list">
+                                                    @if($this->filteredZohoCustomers->count() > 0)
+                                                        <div class="options-list">
+                                                            @foreach($this->filteredZohoCustomers as $zc)
+                                                                <div wire:click="selectZohoCustomer({{ $zc->id }})" 
+                                                                     class="option-item {{ $customerForm['zoho_customer_id'] == $zc->id ? 'selected' : '' }}">
+                                                                    @if($customerForm['zoho_customer_id'] == $zc->id)
+                                                                        <i class="mdi mdi-check-circle text-primary"></i>
+                                                                    @endif
+                                                                    <div class="d-flex flex-column">
+                                                                        <span class="fw-bold">{{ $zc->name }}</span>
+                                                                        <small class="text-muted">
+                                                                            <span>{{ $zc->customer_no }}</span>
+                                                                            @if($zc->currency_code)
+                                                                                <span class="ms-2 badge bg-info">{{ $zc->currency_code }}</span>
+                                                                            @endif
+                                                                        </small>
+                                                                    </div>
+                                                                </div>
+                                                            @endforeach
+                                                        </div>
+                                                    @else
+                                                        <div class="no-results">
+                                                            <i class="mdi mdi-alert-circle-outline"></i>
+                                                            <span>No Dynamics customers found</span>
+                                                        </div>
+                                                    @endif
+                                                </div>
+                                            @endif
+                                        </div>
+                                        <small class="form-text text-muted">
+                                            <i class="mdi mdi-information-outline"></i> Link this customer to a Dynamics 365 customer for billing integration.
+                                        </small>
+                                        @error('customerForm.zoho_customer_id') <span class="text-danger">{{ $message }}</span> @enderror
                                     </div>
                                 </div>
                             </div>
@@ -629,6 +664,52 @@
     
     .option-item i {
         font-size: 18px;
+    }
+    
+    .dropdown-list {
+        position: absolute;
+        top: 100%;
+        left: 0;
+        right: 0;
+        background: white;
+        border: 1px solid #ced4da;
+        border-radius: 12px;
+        margin-top: 4px;
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+        z-index: 1000;
+        max-height: 350px;
+        overflow-y: auto;
+    }
+    
+    .searchable-dropdown-wrapper {
+        position: relative;
+    }
+    
+    .no-results {
+        padding: 20px;
+        text-align: center;
+        color: #6c757d;
+    }
+    
+    .no-results i {
+        font-size: 24px;
+        display: block;
+        margin-bottom: 8px;
+    }
+    
+    .dropdown-arrow {
+        position: absolute;
+        right: 12px;
+        top: 50%;
+        transform: translateY(-50%);
+        transition: transform 0.3s ease;
+        pointer-events: none;
+        font-size: 20px;
+        color: #6c757d;
+    }
+    
+    .dropdown-arrow.rotated {
+        transform: translateY(-50%) rotate(180deg);
     }
     </style>
 </div>

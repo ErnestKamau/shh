@@ -284,18 +284,36 @@
                         <select name="client" class="form-control" id="select-client" aria-readonly="true" aria-placeholder="Choose Client..." required>
                             <option value="" disabled selected>Choose Client...</option>
                             @foreach($customers as $customer)
-                            <option value="{{$customer->id}}">{{$customer->name}}</option>
+                            <option value="{{$customer->id}}" data-zoho-customer-id="{{$customer->zoho_customer_id}}">{{$customer->name}}</option>
                             @endforeach
                         </select>
                     </div>
 
                     <div class="form-group contacts">
-
                         <label class="control-label">Client Contact</label>
                         <select name="client_contact" id="select-client-contact" class="form-control" aria-placeholder="Select Client Contact..." required>
                             <option value="" disabled selected>Select Client Contact</option>
-
                         </select>
+                    </div>
+
+                    <div class="form-group">
+                        <label class="control-label">Dynamics Customer <small class="text-muted">(Optional)</small></label>
+                        <select name="zoho_customer_id" id="select-zoho-customer" class="form-control">
+                            <option value="">Select Dynamics Customer...</option>
+                            @foreach(\App\ZohoCustomers::where('status', 'Active')->orderBy('name')->get() as $zc)
+                            <option value="{{$zc->id}}" data-currency-code="{{$zc->currency_code}}">{{$zc->name}} ({{$zc->customer_no}})</option>
+                            @endforeach
+                        </select>
+                        <small class="form-text text-info" id="zoho-customer-info" style="display: none;">
+                            <i class="mdi mdi-information"></i> This will link the Dynamics customer to the CRM customer and auto-populate the currency.
+                        </small>
+                    </div>
+
+                    <div class="form-group">
+                        <label class="control-label">Currency</label>
+                        <input type="text" id="display-currency" class="form-control" readonly placeholder="Auto-populated from Dynamics customer..." style="background-color: #f5f5f5;">
+                        <input type="hidden" name="currency_id" id="currency-id" required>
+                        <small class="form-text text-muted">Currency is automatically set based on the selected Dynamics customer.</small>
                     </div>
 
                     <div class="form-group">
@@ -353,6 +371,8 @@
         })
         $('#select-client').on('change', function() {
             var client = $(this).val();
+            var $selectedOption = $(this).find('option:selected');
+            var zohoCustomerId = $selectedOption.data('zoho-customer-id');
 
             console.log();
             $.ajax({
@@ -374,6 +394,55 @@
                     console.log(data);
                 }
             })
+
+            // Pre-select Dynamics customer if linked
+            if(zohoCustomerId) {
+                $('#select-zoho-customer').val(zohoCustomerId).trigger('change');
+                $('#zoho-customer-info').show();
+            } else {
+                $('#select-zoho-customer').val('');
+                $('#display-currency').val('');
+                $('#currency-id').val('');
+                $('#zoho-customer-info').hide();
+            }
+        })
+
+        // Handle Dynamics customer selection and auto-populate currency
+        $('#select-zoho-customer').on('change', function() {
+            var zohoCustomerId = $(this).val();
+            var $selectedOption = $(this).find('option:selected');
+            var currencyCode = $selectedOption.data('currency-code');
+
+            if(zohoCustomerId && currencyCode) {
+                // Fetch currency details from server
+                $.ajax({
+                    url: '/api/get-currency-by-code',
+                    method: 'POST',
+                    data: {
+                        currency_code: currencyCode,
+                        _token: '{{ csrf_token() }}'
+                    },
+                    success: function(currency) {
+                        if(currency) {
+                            $('#display-currency').val(currency.code + ' - ' + currency.description);
+                            $('#currency-id').val(currency.id);
+                            $('#zoho-customer-info').show();
+                        } else {
+                            $('#display-currency').val('Currency not found');
+                            $('#currency-id').val('');
+                        }
+                    },
+                    error: function(err) {
+                        console.log(err);
+                        $('#display-currency').val('Error loading currency');
+                        $('#currency-id').val('');
+                    }
+                });
+            } else {
+                $('#display-currency').val('');
+                $('#currency-id').val('');
+                $('#zoho-customer-info').hide();
+            }
         })
     });
 </script>

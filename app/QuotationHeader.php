@@ -4,6 +4,7 @@ namespace App;
 
 use App\Models\CRM\CRMCustomer;
 use App\Models\CRM\CustomerContact;
+use App\Models\Currency;
 use Illuminate\Database\Eloquent\Model;
 use OwenIt\Auditing\Contracts\Auditable;
 
@@ -26,6 +27,10 @@ class QuotationHeader extends Model implements Auditable
     }
     public function customer(){
         return $this->belongsTo(CRMCustomer::class,'crm_customer_id');
+    }
+    
+    public function currency(){
+        return $this->belongsTo(Currency::class,'currency_id');
     }
    
 }

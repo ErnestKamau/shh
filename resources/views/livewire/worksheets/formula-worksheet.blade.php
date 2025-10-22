@@ -9,21 +9,41 @@
 
     <!-- Formula Info -->
     <div class="alert alert-light border mb-4">
-        <div class="d-flex align-items-center">
+        <div class="d-flex align-items-start">
             <i class="mdi mdi-information mdi-24px text-primary mr-2"></i>
-            <div>
+            <div class="flex-grow-1">
                 <strong>Formula:</strong> {{ $formula->name }}<br>
                 <small class="text-muted">{{ $formula->description }}</small>
+                
+                @if($this->getUsedLookupTables()->count() > 0)
+                    <div class="mt-3 pt-3 border-top">
+                        <strong class="text-info">
+                            <i class="mdi mdi-table-search"></i> Lookup Tables Used:
+                        </strong>
+                        <div class="mt-2">
+                            @foreach($this->getUsedLookupTables() as $lookupTable)
+                                <div class="d-inline-flex align-items-center mr-3 mb-2">
+                                    <span class="badge badge-light border p-2">
+                                        {{ $lookupTable->name }}
+                                    </span>
+                                    <a href="{{ route('formulars.lookup-table-entries', $lookupTable) }}" 
+                                       target="_blank"
+                                       class="btn btn-sm btn-link text-primary ml-1"
+                                       title="View lookup table entries">
+                                        <i class="mdi mdi-arrow-expand"></i>
+                                    </a>
+                                </div>
+                            @endforeach
+                        </div>
+                    </div>
+                @endif
             </div>
         </div>
     </div>
 
     <!-- Posted Results Status Badge -->
     @php
-        $worksheet = \App\Models\Worksheets\SampleCapturedWorksheetFormula::where('sample_header_id', $batch->id)
-            ->where('formular_id', $formula->id)
-            ->with('postedBy')
-            ->first();
+        $worksheet = $this->getWorksheetWithPostingInfo();
     @endphp
     @if($worksheet && $worksheet->posted_at)
         <div class="alert alert-success border mb-4">
@@ -40,44 +60,7 @@
         </div>
     @endif
 
-    <!-- Lookup Tables Used -->
-    @if($this->getUsedLookupTables()->count() > 0)
-        <div class="alert alert-info border mb-4">
-            <div class="d-flex align-items-start">
-                <i class="mdi mdi-table-search mdi-24px text-info mr-2"></i>
-                <div class="flex-grow-1">
-                    <strong>Lookup Tables Used:</strong>
-                    <div class="mt-2">
-                        @foreach($this->getUsedLookupTables() as $lookupTable)
-                            <div class="d-inline-flex align-items-center mr-3 mb-2">
-                                <span class="badge badge-light border p-2">
-                                    {{ $lookupTable->name }}
-                                </span>
-                                <a href="{{ route('formulars.lookup-table-entries', $lookupTable) }}" 
-                                   target="_blank"
-                                   class="btn btn-sm btn-link text-primary ml-1"
-                                   title="View lookup table entries">
-                                    <i class="mdi mdi-arrow-expand"></i>
-                                </a>
-                            </div>
-                        @endforeach
-                    </div>
-                </div>
-            </div>
-        </div>
-    @endif
-
     @if($capturedResults->count() > 0)
-        <!-- Post Results Action Button -->
-        <div class="mb-3 d-flex justify-content-end">
-            <button type="button" 
-                    class="btn btn-success" 
-                    wire:click="openPostResultsModal"
-                    wire:loading.attr="disabled">
-                <i class="mdi mdi-upload"></i> Post Results to Captured Results
-            </button>
-        </div>
-
         <!-- Worksheet Table -->
         <div class="table-responsive mb-4">
             <table class="table table-bordered table-sm" style="font-size: 0.9rem;">
@@ -299,15 +282,18 @@
                                     <input type="datetime-local" 
                                            class="form-control" 
                                            wire:model="sharedMandatoryData.{{ $field->id }}"
+                                           wire:blur="autoSaveMandatoryField({{ $field->id }})"
                                            placeholder="{{ $field->label }}">
                                 @elseif($field->field_type === 'date')
                                     <input type="date" 
                                            class="form-control" 
                                            wire:model="sharedMandatoryData.{{ $field->id }}"
+                                           wire:blur="autoSaveMandatoryField({{ $field->id }})"
                                            placeholder="{{ $field->label }}">
                                 @elseif($field->field_type === 'dataset_related')
                                     <select class="form-control" 
-                                            wire:model="sharedMandatoryData.{{ $field->id }}">
+                                            wire:model="sharedMandatoryData.{{ $field->id }}"
+                                            wire:blur="autoSaveMandatoryField({{ $field->id }})">
                                         <option value="">Select...</option>
                                         @foreach($this->getDatasetOptions($field->model_tied_to) as $option)
                                             <option value="{{ $option->id }}">{{ $option->name }}</option>
@@ -317,6 +303,7 @@
                                     <input type="text" 
                                            class="form-control" 
                                            wire:model="sharedMandatoryData.{{ $field->id }}"
+                                           wire:blur="autoSaveMandatoryField({{ $field->id }})"
                                            placeholder="{{ $field->label }}">
                                 @endif
                             </div>
@@ -434,7 +421,7 @@
     <!-- Post Results Confirmation Modal -->
     @if($showPostResultsModal)
         <div class="modal fade show d-block" tabindex="-1" role="dialog" style="background-color: rgba(0,0,0,0.5);">
-            <div class="modal-dialog modal-lg modal-dialog-centered" role="document">
+            <div class="modal-dialog modal-xl modal-dialog-centered" role="document">
                 <div class="modal-content">
                     <div class="modal-header bg-primary text-white">
                         <h5 class="modal-title">
@@ -446,44 +433,120 @@
                             </button>
                         @endif
                     </div>
-                    <div class="modal-body">
+                    <div class="modal-body" style="max-height: 70vh; overflow-y: auto;">
                         @if(!$postingInProgress)
                             <!-- Standards Confirmation View -->
                             <div class="alert alert-info">
                                 <i class="mdi mdi-information"></i>
-                                <strong>Please confirm the standards</strong> for each sample before posting results. 
-                                The system will update captured results with final values and recalculate remarks.
+                                <strong>Confirm or update standards</strong> for each sample before posting results. 
+                                Changes will update the sample and affect all future results.
                             </div>
 
                             <div class="table-responsive">
                                 <table class="table table-bordered table-sm">
                                     <thead class="thead-light">
                                         <tr>
-                                            <th>Sample Code</th>
-                                            <th>Main Standard</th>
-                                            <th>Secondary Standard</th>
-                                            <th>Third Standard</th>
+                                            <th>Sample</th>
+                                            <th>Analysis Type</th>
+                                            <th style="min-width: 200px;">Main Standard</th>
+                                            <th style="min-width: 200px;">Secondary Standard</th>
+                                            @if($lookupStandardInfo)
+                                                <th>Use Lookup</th>
+                                            @endif
                                         </tr>
                                     </thead>
                                     <tbody>
-                                        @foreach($samplesWithStandards as $sample)
+                                        @foreach($samplesWithStandards as $index => $sample)
                                             <tr>
                                                 <td><strong>{{ $sample['sample_code'] }}</strong></td>
+                                                <td><small>{{ $sample['analysis_types'] }}</small></td>
+                                                
+                                                <!-- Main Standard Searchable Dropdown -->
                                                 <td>
-                                                    <span class="badge {{ $sample['main_standard'] ? 'badge-success' : 'badge-warning' }}">
-                                                        {{ $sample['main_standard_name'] }}
-                                                    </span>
+                                                    <div class="tag-select-container" wire:click="toggleMainStandardDropdown({{ $sample['id'] }})">
+                                                        <div class="tag-select-input">
+                                                            @if($sample['main_standard'])
+                                                                <span class="tag-badge">
+                                                                    {{ $this->getSelectedStandardName($sample['main_standard']) }}
+                                                                    <i class="mdi mdi-close-circle" wire:click.stop="updateSampleStandard({{ $sample['id'] }}, 'main', null)"></i>
+                                                                </span>
+                                                            @endif
+                                                            
+                                                            <input type="text" 
+                                                                   wire:model.live="mainStandardSearch.{{ $sample['id'] }}" 
+                                                                   wire:keyup="searchMainStandards({{ $sample['id'] }})"
+                                                                   class="tag-input" 
+                                                                   placeholder="{{ $sample['main_standard'] ? '' : 'Not Set' }}"
+                                                                   autocomplete="off">
+                                                        </div>
+                                                        
+                                                        @if(isset($showMainStandardDropdown[$sample['id']]) && $showMainStandardDropdown[$sample['id']])
+                                                            <div class="tag-dropdown" style="position: absolute; top: 100%; left: 0; right: 0; z-index: 9999; background: white; border: 1px solid #ddd; border-radius: 4px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); min-width: 300px; max-width: 400px;">
+                                                                <div style="max-height: 200px; overflow-y: auto;">
+                                                                    <div class="tag-dropdown-item" wire:click.stop="updateSampleStandard({{ $sample['id'] }}, 'main', null)">
+                                                                        <span class="text-muted">Not Set</span>
+                                                                    </div>
+                                                                    @foreach($filteredMainStandards[$sample['id']] ?? $availableStandards as $standard)
+                                                                        <div class="tag-dropdown-item" wire:click.stop="updateSampleStandard({{ $sample['id'] }}, 'main', {{ $standard->id }})">
+                                                                            {{ $standard->name }} ({{ $standard->code }})
+                                                                        </div>
+                                                                    @endforeach
+                                                                </div>
+                                                            </div>
+                                                        @endif
+                                                    </div>
                                                 </td>
+                                                
+                                                <!-- Secondary Standard Searchable Dropdown -->
                                                 <td>
-                                                    <span class="badge {{ $sample['secondary_standard'] ? 'badge-success' : 'badge-secondary' }}">
-                                                        {{ $sample['secondary_standard_name'] }}
-                                                    </span>
+                                                    <div class="tag-select-container" wire:click="toggleSecondaryStandardDropdown({{ $sample['id'] }})">
+                                                        <div class="tag-select-input">
+                                                            @if($sample['secondary_standard'])
+                                                                <span class="tag-badge">
+                                                                    {{ $this->getSelectedStandardName($sample['secondary_standard']) }}
+                                                                    <i class="mdi mdi-close-circle" wire:click.stop="updateSampleStandard({{ $sample['id'] }}, 'secondary', null)"></i>
+                                                                </span>
+                                                            @endif
+                                                            
+                                                            <input type="text" 
+                                                                   wire:model.live="secondaryStandardSearch.{{ $sample['id'] }}" 
+                                                                   wire:keyup="searchSecondaryStandards({{ $sample['id'] }})"
+                                                                   class="tag-input" 
+                                                                   placeholder="{{ $sample['secondary_standard'] ? '' : 'Not Set' }}"
+                                                                   autocomplete="off">
+                                                        </div>
+                                                        
+                                                        @if(isset($showSecondaryStandardDropdown[$sample['id']]) && $showSecondaryStandardDropdown[$sample['id']])
+                                                            <div class="tag-dropdown" style="position: absolute; top: 100%; left: 0; right: 0; z-index: 9999; background: white; border: 1px solid #ddd; border-radius: 4px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); min-width: 300px; max-width: 400px;">
+                                                                <div style="max-height: 200px; overflow-y: auto;">
+                                                                    <div class="tag-dropdown-item" wire:click.stop="updateSampleStandard({{ $sample['id'] }}, 'secondary', null)">
+                                                                        <span class="text-muted">Not Set</span>
+                                                                    </div>
+                                                                    @foreach($filteredSecondaryStandards[$sample['id']] ?? $availableStandards as $standard)
+                                                                        <div class="tag-dropdown-item" wire:click.stop="updateSampleStandard({{ $sample['id'] }}, 'secondary', {{ $standard->id }})">
+                                                                            {{ $standard->name }} ({{ $standard->code }})
+                                                                        </div>
+                                                                    @endforeach
+                                                                </div>
+                                                            </div>
+                                                        @endif
+                                                    </div>
                                                 </td>
-                                                <td>
-                                                    <span class="badge {{ $sample['third_standard_id'] ? 'badge-success' : 'badge-secondary' }}">
-                                                        {{ $sample['third_standard_name'] }}
-                                                    </span>
-                                                </td>
+                                                
+                                                <!-- Use Lookup Table Checkbox -->
+                                                @if($lookupStandardInfo)
+                                                    <td class="text-center">
+                                                        <div class="form-check d-inline-block">
+                                                            <input type="checkbox" 
+                                                                   class="form-check-input" 
+                                                                   wire:model="useLookupAsStandard.{{ $sample['id'] }}"
+                                                                   id="use-lookup-{{ $sample['id'] }}">
+                                                            <label class="form-check-label" for="use-lookup-{{ $sample['id'] }}">
+                                                                <small class="text-muted d-block">{{ $lookupStandardInfo['name'] }}</small>
+                                                            </label>
+                                                        </div>
+                                                    </td>
+                                                @endif
                                             </tr>
                                         @endforeach
                                     </tbody>
@@ -492,8 +555,14 @@
 
                             <div class="alert alert-warning mt-3">
                                 <i class="mdi mdi-alert"></i>
-                                <strong>Note:</strong> Standards should be set in the batch details before posting. 
-                                Posting will proceed with the current standards shown above.
+                                <strong>Note:</strong> 
+                                <ul class="mb-0 mt-2">
+                                    <li>Standard changes will update the sample and affect all future results</li>
+                                    @if($lookupStandardInfo)
+                                        <li>When "Use Lookup" is checked, the remark will come from the lookup table interpretation ({{ $lookupStandardInfo['name'] }}) instead of standard-based calculation</li>
+                                    @endif
+                                    <li>Posting will proceed with the standards shown above</li>
+                                </ul>
                             </div>
                         @else
                             <!-- Progress Tracking View -->
@@ -584,4 +653,121 @@
             </div>
         </div>
     @endif
+
+    <style>
+    /* Tag-based Dropdown Styling */
+    .tag-select-container {
+        position: relative;
+        cursor: text;
+    }
+    
+    .tag-select-input {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        gap: 6px;
+        min-height: 38px;
+        padding: 6px 12px;
+        background: #fff;
+        border: 2px solid #e0e0e0;
+        border-radius: 8px;
+        transition: all 0.3s ease;
+    }
+    
+    .tag-select-input:hover {
+        border-color: #007bff;
+    }
+    
+    .tag-select-input:focus-within {
+        border-color: #007bff;
+        box-shadow: 0 0 0 0.2rem rgba(0, 123, 255, 0.25);
+        outline: none;
+    }
+    
+    .tag-badge {
+        display: inline-flex;
+        align-items: center;
+        gap: 4px;
+        padding: 4px 10px;
+        background-color: #007bff;
+        color: white;
+        border-radius: 16px;
+        font-size: 0.875rem;
+        font-weight: 500;
+        white-space: nowrap;
+    }
+    
+    .tag-badge i {
+        cursor: pointer;
+        font-size: 1rem;
+        opacity: 0.8;
+        transition: opacity 0.2s;
+    }
+    
+    .tag-badge i:hover {
+        opacity: 1;
+    }
+    
+    .tag-input {
+        flex: 1;
+        min-width: 80px;
+        border: none;
+        outline: none;
+        padding: 4px;
+        font-size: 0.875rem;
+    }
+    
+    .tag-dropdown {
+        position: absolute;
+        top: 100%;
+        left: 0;
+        right: 0;
+        background: white;
+        border: 2px solid #007bff;
+        border-top: none;
+        border-radius: 0 0 8px 8px;
+        max-height: 200px;
+        overflow-y: auto;
+        z-index: 1050;
+        box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        margin-top: -2px;
+    }
+    
+    .tag-dropdown-item {
+        padding: 8px 12px;
+        cursor: pointer;
+        transition: background-color 0.2s;
+        border-bottom: 1px solid #f0f0f0;
+    }
+    
+    .tag-dropdown-item:hover {
+        background-color: #f8f9fa;
+    }
+    
+    .tag-dropdown-item:last-child {
+        border-bottom: none;
+    }
+    </style>
+    
+    <script>
+    // Close dropdowns when clicking outside
+    document.addEventListener('click', function(e) {
+        if (!e.target.closest('.tag-select-container')) {
+            Livewire.dispatch('closeAllDropdowns');
+        }
+    });
+
+    // Simple dropdown positioning
+    document.addEventListener('livewire:init', () => {
+        Livewire.on('dropdownOpened', function(data) {
+            // Just ensure dropdowns are visible
+            setTimeout(() => {
+                const dropdowns = document.querySelectorAll('.tag-dropdown');
+                dropdowns.forEach(dropdown => {
+                    dropdown.style.display = 'block';
+                });
+            }, 10);
+        });
+    });
+    </script>
 </div>

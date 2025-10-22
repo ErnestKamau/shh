@@ -235,23 +235,15 @@
 
                             <!-- Alert Banners for Timer Warnings -->
                             @php
-                                $hasWarnings = false;
-                                $hasExpired = false;
-                                foreach($run->stageData as $sd) {
-                                    if($sd->status === 'in_progress') {
-                                        $timerStatus = $sd->getTimerStatus();
-                                        if($timerStatus === 'warning') $hasWarnings = true;
-                                        if($timerStatus === 'expired') $hasExpired = true;
-                                    }
-                                }
+                                $timerStatus = $this->getRunTimerStatus($run);
                             @endphp
                             
-                            @if($hasExpired)
+                            @if($timerStatus['hasExpired'])
                                 <div class="alert alert-danger">
                                     <i class="mdi mdi-alert"></i> 
                                     <strong>Alert:</strong> One or more stages have exceeded their duration limit!
                                 </div>
-                            @elseif($hasWarnings)
+                            @elseif($timerStatus['hasWarnings'])
                                 <div class="alert alert-warning">
                                     <i class="mdi mdi-clock-alert"></i> 
                                     <strong>Warning:</strong> One or more stages are approaching their duration limit.

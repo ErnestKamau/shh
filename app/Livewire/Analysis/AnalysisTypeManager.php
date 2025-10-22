@@ -11,6 +11,7 @@ use App\Analyte;
 use App\AnalysisMethod;
 use App\Models\Equipments\Equipment;
 use App\User;
+use App\InvoicableItem;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\Rule;
 
@@ -32,12 +33,14 @@ class AnalysisTypeManager extends Component
         'name' => '',
         'code' => '',
         'description' => '',
+        'lab_section_id' => null,
         'lab_id' => null,
         'level' => 1,
         'active' => true,
         'reporting_time' => null,
         'include_hygiene_score' => false,
-        'include_sanitizer_efficiency' => false
+        'include_sanitizer_efficiency' => false,
+        'invoicable_item_id' => null
     ];
 
     // Elements Management
@@ -67,6 +70,7 @@ class AnalysisTypeManager extends Component
 
     // Supporting Data
     public $labs = [];
+    public $labSections = [];
     public $analytes = [];
     public $methods = [];
     public $equipment = [];
@@ -81,6 +85,14 @@ class AnalysisTypeManager extends Component
     // Lab searchable dropdown
     public $labSearch = '';
     public $showLabDropdown = false;
+    
+    // Lab section searchable dropdown
+    public $labSectionSearch = '';
+    public $showLabSectionDropdown = false;
+
+    // Invoicable item searchable dropdown
+    public $invoicableItemSearch = '';
+    public $showInvoicableItemDropdown = false;
 
     // UI State
     public $loading = false;
@@ -115,6 +127,7 @@ class AnalysisTypeManager extends Component
     public function loadInitialData()
     {
         $this->labs = Lab::all();
+        $this->labSections = \App\SampleAnalysisStage::where('active', 1)->get();
         $this->analytes = Analyte::where('active', 1)->get();
         $this->methods = AnalysisMethod::where('active', 1)->get();
         $this->equipment = Equipment::where('active', 1)->get();
@@ -190,16 +203,22 @@ class AnalysisTypeManager extends Component
     public function showEditAnalysisTypeModal($id)
     {
         $analysisType = AnalysisType::findOrFail($id);
+        
+        // Get the mapped invoicable item if exists
+        $invoicableItemId = $analysisType->invoicableItems()->first()?->id;
+        
         $this->analysisTypeForm = [
             'name' => $analysisType->name,
             'code' => $analysisType->code,
             'description' => $analysisType->description,
+            'lab_section_id' => $analysisType->lab_section_id,
             'lab_id' => $analysisType->lab_id,
             'level' => $analysisType->level,
             'active' => $analysisType->active,
             'reporting_time' => $analysisType->reporting_time,
             'include_hygiene_score' => (bool) $analysisType->include_hygiene_score,
-            'include_sanitizer_efficiency' => (bool) $analysisType->include_sanitizer_efficiency
+            'include_sanitizer_efficiency' => (bool) $analysisType->include_sanitizer_efficiency,
+            'invoicable_item_id' => $invoicableItemId
         ];
         $this->editingAnalysisType = $id;
         $this->showAnalysisTypeModal = true;
@@ -222,6 +241,7 @@ class AnalysisTypeManager extends Component
                     'name' => $this->analysisTypeForm['name'],
                     'code' => $this->analysisTypeForm['code'],
                     'description' => $this->analysisTypeForm['description'],
+                    'lab_section_id' => $this->analysisTypeForm['lab_section_id'],
                     'lab_id' => $this->analysisTypeForm['lab_id'],
                     'level' => $this->analysisTypeForm['level'],
                     'active' => $this->analysisTypeForm['active'],
@@ -229,13 +249,18 @@ class AnalysisTypeManager extends Component
                     'include_hygiene_score' => $this->analysisTypeForm['include_hygiene_score'] ?? false,
                     'include_sanitizer_efficiency' => $this->analysisTypeForm['include_sanitizer_efficiency'] ?? false,
                 ]);
+                
+                // Update invoicable item mapping
+                $this->updateInvoicableItemMapping($analysisType);
+                
                 $this->message = 'Analysis type updated successfully!';
             } else {
-                AnalysisType::create([
+                $analysisType = AnalysisType::create([
                     'name' => $this->analysisTypeForm['name'],
                     'code' => $this->analysisTypeForm['code'],
                     'description' => $this->analysisTypeForm['description'],
                     'sample_type_id' => $this->sampleTypeId,
+                    'lab_section_id' => $this->analysisTypeForm['lab_section_id'],
                     'lab_id' => $this->analysisTypeForm['lab_id'],
                     'level' => $this->analysisTypeForm['level'],
                     'active' => $this->analysisTypeForm['active'],
@@ -244,6 +269,10 @@ class AnalysisTypeManager extends Component
                     'include_sanitizer_efficiency' => $this->analysisTypeForm['include_sanitizer_efficiency'] ?? false,
                     'company_id' => getUserCompany(),
                 ]);
+                
+                // Create invoicable item mapping
+                $this->updateInvoicableItemMapping($analysisType);
+                
                 $this->message = 'Analysis type created successfully!';
             }
 
@@ -299,16 +328,74 @@ class AnalysisTypeManager extends Component
             'name' => '',
             'code' => '',
             'description' => '',
+            'lab_section_id' => null,
             'lab_id' => null,
             'level' => 1,
             'active' => true,
             'reporting_time' => null,
             'include_hygiene_score' => false,
-            'include_sanitizer_efficiency' => false
+            'include_sanitizer_efficiency' => false,
+            'invoicable_item_id' => null
         ];
         $this->editingAnalysisType = null;
         $this->labSearch = '';
         $this->showLabDropdown = false;
+        $this->labSectionSearch = '';
+        $this->showLabSectionDropdown = false;
+        $this->invoicableItemSearch = '';
+        $this->showInvoicableItemDropdown = false;
+    }
+
+    /**
+     * Update the analysis type to invoicable item mapping
+     */
+    protected function updateInvoicableItemMapping($analysisType)
+    {
+        // Sync the invoicable item - this will remove old mappings and add the new one
+        if ($this->analysisTypeForm['invoicable_item_id']) {
+            $analysisType->invoicableItems()->sync([$this->analysisTypeForm['invoicable_item_id']]);
+        } else {
+            // Clear the mapping if no item is selected
+            $analysisType->invoicableItems()->detach();
+        }
+    }
+
+    /**
+     * Select an invoicable item
+     */
+    public function selectInvoicableItem($itemId)
+    {
+        $this->analysisTypeForm['invoicable_item_id'] = $itemId;
+        $this->showInvoicableItemDropdown = false;
+        $this->invoicableItemSearch = '';
+    }
+
+    /**
+     * Get filtered invoicable items for dropdown
+     */
+    public function getFilteredInvoicableItemsProperty()
+    {
+        $query = InvoicableItem::where('active', 1);
+
+        if ($this->invoicableItemSearch) {
+            $query->where(function($q) {
+                $q->where('item_code', 'like', "%{$this->invoicableItemSearch}%")
+                  ->orWhere('item_name', 'like', "%{$this->invoicableItemSearch}%");
+            });
+        }
+
+        return $query->orderBy('item_name')->limit(20)->get();
+    }
+
+    /**
+     * Get selected invoicable item
+     */
+    public function getSelectedInvoicableItemProperty()
+    {
+        if (isset($this->analysisTypeForm['invoicable_item_id'])) {
+            return InvoicableItem::find($this->analysisTypeForm['invoicable_item_id']);
+        }
+        return null;
     }
 
     public function loadAnalysisTypes()
@@ -513,6 +600,47 @@ class AnalysisTypeManager extends Component
         }
         
         return Lab::find($this->analysisTypeForm['lab_id']);
+    }
+
+    // Lab section searchable dropdown methods
+    public function selectLabSection($labSectionId): void
+    {
+        $labSection = \App\SampleAnalysisStage::find($labSectionId);
+        if ($labSection) {
+            $this->analysisTypeForm['lab_section_id'] = $labSectionId;
+            $this->analysisTypeForm['lab_id'] = $labSection->lab_id;
+            $this->labSectionSearch = '';
+            $this->showLabSectionDropdown = false;
+        }
+    }
+
+    public function updatedLabSectionSearch(): void
+    {
+        $this->showLabSectionDropdown = !empty($this->labSectionSearch);
+    }
+
+    public function getFilteredLabSectionsProperty()
+    {
+        if (empty($this->labSectionSearch)) {
+            return [];
+        }
+        
+        return \App\SampleAnalysisStage::where('active', 1)
+            ->where(function($q) {
+                $q->where('name', 'like', '%' . $this->labSectionSearch . '%')
+                  ->orWhere('code', 'like', '%' . $this->labSectionSearch . '%');
+            })
+            ->limit(10)
+            ->get();
+    }
+
+    public function getSelectedLabSectionProperty()
+    {
+        if (empty($this->analysisTypeForm['lab_section_id'])) {
+            return null;
+        }
+        
+        return \App\SampleAnalysisStage::find($this->analysisTypeForm['lab_section_id']);
     }
 
     public function render()

@@ -170,10 +170,10 @@
 
                             <div class="form-group">
                                 <label class="control-label">Client *</label>
-                                <select name="client" class="form-control" id="select-client" data-contact="{{json_encode($header->crm_customer_contact_id)}}" aria-readonly="true" aria-placeholder="Choose Client..." required>
+                                <select name="client" class="form-control" id="select-client" data-contact="{{json_encode($header->crm_customer_contact_id)}}" data-zoho-customer-id="{{$header->customer->zoho_customer_id ?? ''}}" aria-readonly="true" aria-placeholder="Choose Client..." required>
                                     <option value="" disabled selected>Choose Client...</option>
                                     @foreach($customers as $customer)
-                                    <option value="{{$customer->id}}" {{$customer->id == $header->crm_customer_id ? 'selected':''}}>{{$customer->name}}</option>
+                                    <option value="{{$customer->id}}" data-zoho-customer-id="{{$customer->zoho_customer_id}}" {{$customer->id == $header->crm_customer_id ? 'selected':''}}>{{$customer->name}}</option>
                                     @endforeach
                                 </select>
                             </div>
@@ -190,8 +190,22 @@
                                     @endforeach
                                     @endif
                                 </select>
+                            </div>
 
+                            <div class="form-group">
+                                <label class="control-label">Dynamics Customer <small class="text-muted">(Optional)</small></label>
+                                <select name="zoho_customer_id" id="select-zoho-customer-edit" class="form-control">
+                                    <option value="">Select Dynamics Customer...</option>
+                                    @foreach(\App\ZohoCustomers::where('status', 'Active')->orderBy('name')->get() as $zc)
+                                    <option value="{{$zc->id}}" data-currency-code="{{$zc->currency_code}}" {{($header->customer->zoho_customer_id ?? '') == $zc->id ? 'selected' : ''}}>{{$zc->name}} ({{$zc->customer_no}})</option>
+                                    @endforeach
+                                </select>
+                            </div>
 
+                            <div class="form-group">
+                                <label class="control-label">Currency</label>
+                                <input type="text" id="display-currency-edit" class="form-control" readonly placeholder="Auto-populated from Dynamics customer..." value="{{$header->currency ? $header->currency->code . ' - ' . $header->currency->description : ''}}" style="background-color: #f5f5f5;">
+                                <input type="hidden" name="currency_id" id="currency-id-edit" value="{{$header->currency_id ?? ''}}" required>
                             </div>
 
                             <div class="form-group">
@@ -209,10 +223,6 @@
                             <div class="form-group">
                                 <label class="control-label">Expiry Date *</label>
                                 <input type="date" name="expire_date" class="form-control" placeholder="Expiration Date..." value="{{$header->expiring_date}}" required>
-                            </div>
-                            <div class="form-group">
-                                <label class="control-label">Pricelist Code</label>
-                                <input type="text" name="pricelist_code" readonly value="{{$pricelist->code ?? '-'}}" class="form-control">
                             </div>
                             <div class="form-group">
                                 <label class="control-label">Prepared By</label>
@@ -822,6 +832,9 @@
         $('#select-client').on('change', function() {
             var client = $(this).val();
             var contact = $(this).data('contact');
+            var $selectedOption = $(this).find('option:selected');
+            var zohoCustomerId = $selectedOption.data('zoho-customer-id');
+            
             console.log();
             $.ajax({
                 url: '/fetch-customer-contacts/' + client,
@@ -842,6 +855,51 @@
                     console.log(data);
                 }
             })
+            
+            // Pre-select Dynamics customer if linked
+            if(zohoCustomerId) {
+                $('#select-zoho-customer-edit').val(zohoCustomerId).trigger('change');
+            } else {
+                $('#select-zoho-customer-edit').val('');
+                $('#display-currency-edit').val('');
+                $('#currency-id-edit').val('');
+            }
+        });
+
+        // Handle Dynamics customer selection and auto-populate currency for edit form
+        $('#select-zoho-customer-edit').on('change', function() {
+            var zohoCustomerId = $(this).val();
+            var $selectedOption = $(this).find('option:selected');
+            var currencyCode = $selectedOption.data('currency-code');
+
+            if(zohoCustomerId && currencyCode) {
+                // Fetch currency details from server
+                $.ajax({
+                    url: '/api/get-currency-by-code',
+                    method: 'POST',
+                    data: {
+                        currency_code: currencyCode,
+                        _token: '{{ csrf_token() }}'
+                    },
+                    success: function(currency) {
+                        if(currency) {
+                            $('#display-currency-edit').val(currency.code + ' - ' + currency.description);
+                            $('#currency-id-edit').val(currency.id);
+                        } else {
+                            $('#display-currency-edit').val('Currency not found');
+                            $('#currency-id-edit').val('');
+                        }
+                    },
+                    error: function(err) {
+                        console.log(err);
+                        $('#display-currency-edit').val('Error loading currency');
+                        $('#currency-id-edit').val('');
+                    }
+                });
+            } else {
+                $('#display-currency-edit').val('');
+                $('#currency-id-edit').val('');
+            }
         });
 
         $('#add-row').on('click', function() {

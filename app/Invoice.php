@@ -19,7 +19,11 @@ class Invoice extends Model implements Auditable
         return $this->belongsTo(CRMCustomer::class,'customer_id');
     }
     public function currencyinfo(){
-        return $this->belongsTo(ModulePreConfigs::class,'currency_id');
+        return $this->belongsTo(\App\Models\Currency::class,'currency_id');
+    }
+    
+    public function currency(){
+        return $this->belongsTo(\App\Models\Currency::class,'currency_id');
     }
     public function getbatchcodesAttribute(){
         return SampleHeader::where('invoice_id',$this->id)->pluck('batch_code')->toArray();

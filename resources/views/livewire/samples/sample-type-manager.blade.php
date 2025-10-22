@@ -366,8 +366,60 @@
                                         <small class="form-text text-muted">Optional: Select a report format for this sample type</small>
                                     </div>
                                 </div>
+                                <div class="col-md-6">
+                                    <div class="form-group mb-3">
+                                        <label class="form-label">
+                                            <i class="mdi mdi-package-variant text-success"></i> Default Product
+                                        </label>
+                                        <div class="tag-select-container" wire:click="$set('showCompanyProductDropdown', true)">
+                                            <div class="tag-select-input">
+                                                <!-- Display selected company product -->
+                                                @if($this->selectedCompanyProduct)
+                                                    <span class="tag-badge">
+                                                        {{ $this->selectedCompanyProduct->name }}
+                                                        <i class="mdi mdi-close-circle" wire:click.stop="$set('sampleTypeForm.default_product_id', null)"></i>
+                                                    </span>
+                                                @endif
+                                                
+                                                <!-- Search Input -->
+                                                <input type="text" 
+                                                       wire:model.live="companyProductSearch" 
+                                                       class="tag-input" 
+                                                       placeholder="{{ $this->selectedCompanyProduct ? '' : 'Search products...' }}"
+                                                       autocomplete="off">
+                                            </div>
+                                            
+                                            <!-- Dropdown -->
+                                            @if($showCompanyProductDropdown && count($this->filteredCompanyProducts) > 0)
+                                                <div class="tag-dropdown">
+                                                    @foreach($this->filteredCompanyProducts as $companyProduct)
+                                                        <div class="tag-dropdown-item" wire:click.stop="selectCompanyProduct({{ $companyProduct->id }})">
+                                                            {{ $companyProduct->name }}
+                                                        </div>
+                                                    @endforeach
+                                                </div>
+                                            @endif
+                                        </div>
+                                        @error('sampleTypeForm.default_product_id') <span class="text-danger">{{ $message }}</span> @enderror
+                                        <small class="form-text text-muted">Optional: Select a default product for this sample type</small>
+                                    </div>
+                                </div>
                             </div>
                             <div class="row">
+                                <div class="col-md-6">
+                                    <div class="form-group mb-3">
+                                        <label class="form-label">
+                                            <i class="mdi mdi-delete-clock text-warning"></i> Disposal Count (Days)
+                                        </label>
+                                        <input type="number" 
+                                               wire:model="sampleTypeForm.disposal_count" 
+                                               class="form-control" 
+                                               placeholder="Enter number of days"
+                                               min="0">
+                                        <small class="form-text text-muted">Number of days before sample disposal</small>
+                                        @error('sampleTypeForm.disposal_count') <span class="text-danger">{{ $message }}</span> @enderror
+                                    </div>
+                                </div>
                                 <div class="col-md-6">
                                     <div class="form-group mb-3">
                                         <div class="form-check mt-4">
@@ -653,6 +705,7 @@
             $wire.set('showCategoryDropdown', false);
             $wire.set('showRatingHeaderDropdown', false);
             $wire.set('showReportFormatDropdown', false);
+            $wire.set('showCompanyProductDropdown', false);
             $wire.set('showLabDropdown', false);
         }
     });

@@ -7,6 +7,7 @@ use Livewire\WithPagination;
 use App\Models\CRM\CRMCustomer;
 use App\Country;
 use App\ModulePreConfigs;
+use App\ZohoCustomers;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Validation\Rule;
@@ -35,12 +36,22 @@ class CustomerManager extends Component
         'active' => true,
         'account_status' => null,
         'vat_no' => '',
-        'lpos_required' => false
+        'lpos_required' => false,
+        'zoho_customer_id' => null
     ];
 
     // Supporting Data
     public $countries = [];
     public $accounts = [];
+    public $zohoCustomers = [];
+
+    // Dropdown State
+    public $countrySearch = '';
+    public $accountSearch = '';
+    public $zohoCustomerSearch = '';
+    public $showCountryDropdown = false;
+    public $showAccountDropdown = false;
+    public $showZohoCustomerDropdown = false;
 
     // Search and Filter
     public $search = '';
@@ -72,6 +83,7 @@ class CustomerManager extends Component
         'customerForm.telephone1' => 'required|string|max:50',
         'customerForm.country_id' => 'required|exists:countries,id',
         'customerForm.account_status' => 'required|exists:module_pre_configs,id',
+        'customerForm.zoho_customer_id' => 'nullable|exists:zoho_customers,id',
     ];
 
     protected $messages = [
@@ -103,11 +115,15 @@ class CustomerManager extends Component
             }
             return [];
         });
+        
+        $this->zohoCustomers = ZohoCustomers::where('status', 'Active')
+            ->orderBy('name')
+            ->get(['id', 'customer_no', 'name', 'currency_code']);
     }
 
     public function getCustomersProperty()
     {
-        $query = CRMCustomer::with(['country', 'currencyinfo'])
+        $query = CRMCustomer::with(['country', 'currencyinfo','zohocustomer'])
             ->orderBy('name');
 
         if ($this->search) {
@@ -333,6 +349,7 @@ class CustomerManager extends Component
     public function showCreateCustomerModal()
     {
         $this->resetCustomerForm();
+        $this->resetDropdownStates();
         $this->showCustomerModal = true;
     }
 
@@ -354,9 +371,11 @@ class CustomerManager extends Component
             'active' => $customer->active == 1,
             'account_status' => $customer->account_status,
             'vat_no' => $customer->vat_no ?? '',
-            'lpos_required' => $customer->lpos_required == 1
+            'lpos_required' => $customer->lpos_required == 1,
+            'zoho_customer_id' => $customer->zoho_customer_id
         ];
         
+        $this->resetDropdownStates();
         $this->editingCustomer = $customer;
         $this->showCustomerModal = true;
     }
@@ -399,6 +418,7 @@ class CustomerManager extends Component
             $customer->account_status = $this->customerForm['account_status'];
             $customer->vat_no = $this->customerForm['vat_no'];
             $customer->lpos_required = $this->customerForm['lpos_required'] ? 1 : 0;
+            $customer->zoho_customer_id = $this->customerForm['zoho_customer_id'];
 
             $customer->save();
 
@@ -454,6 +474,7 @@ class CustomerManager extends Component
     {
         $this->showCustomerModal = false;
         $this->resetCustomerForm();
+        $this->resetDropdownStates();
     }
 
     public function resetCustomerForm()
@@ -472,7 +493,8 @@ class CustomerManager extends Component
             'active' => true,
             'account_status' => null,
             'vat_no' => '',
-            'lpos_required' => false
+            'lpos_required' => false,
+            'zoho_customer_id' => null
         ];
         $this->editingCustomer = null;
     }
@@ -481,6 +503,135 @@ class CustomerManager extends Component
     {
         $this->message = '';
         $this->messageType = '';
+    }
+
+    // Dropdown Methods
+    public function toggleCountryDropdown()
+    {
+        $this->showCountryDropdown = !$this->showCountryDropdown;
+        if ($this->showCountryDropdown) {
+            $this->showAccountDropdown = false;
+            $this->showZohoCustomerDropdown = false;
+        }
+    }
+
+    public function toggleAccountDropdown()
+    {
+        $this->showAccountDropdown = !$this->showAccountDropdown;
+        if ($this->showAccountDropdown) {
+            $this->showCountryDropdown = false;
+            $this->showZohoCustomerDropdown = false;
+        }
+    }
+
+    public function toggleZohoCustomerDropdown()
+    {
+        $this->showZohoCustomerDropdown = !$this->showZohoCustomerDropdown;
+        if ($this->showZohoCustomerDropdown) {
+            $this->showCountryDropdown = false;
+            $this->showAccountDropdown = false;
+        }
+    }
+
+    public function selectCountry($countryId)
+    {
+        $this->customerForm['country_id'] = $countryId;
+        $this->showCountryDropdown = false;
+        $this->countrySearch = '';
+    }
+
+    public function selectAccount($accountId)
+    {
+        $this->customerForm['account_status'] = $accountId;
+        $this->showAccountDropdown = false;
+        $this->accountSearch = '';
+    }
+
+    public function selectZohoCustomer($zohoCustomerId)
+    {
+        $this->customerForm['zoho_customer_id'] = $zohoCustomerId;
+        $this->showZohoCustomerDropdown = false;
+        $this->zohoCustomerSearch = '';
+    }
+
+    public function clearZohoCustomer()
+    {
+        $this->customerForm['zoho_customer_id'] = null;
+        $this->zohoCustomerSearch = '';
+    }
+
+    public function getFilteredCountriesProperty()
+    {
+        if (empty($this->countrySearch)) {
+            return collect($this->countries)->take(50);
+        }
+        
+        return collect($this->countries)->filter(function($country) {
+            return stripos($country->name ?? '', $this->countrySearch) !== false;
+        })->take(50);
+    }
+
+    public function getFilteredAccountsProperty()
+    {
+        if (empty($this->accountSearch)) {
+            return collect($this->accounts);
+        }
+        
+        return collect($this->accounts)->filter(function($account) {
+            $key = is_object($account) ? $account->key : ($account['key'] ?? '');
+            return stripos($key, $this->accountSearch) !== false;
+        });
+    }
+
+    public function getFilteredZohoCustomersProperty()
+    {
+        if (empty($this->zohoCustomerSearch)) {
+            return collect($this->zohoCustomers)->take(50);
+        }
+        
+        return collect($this->zohoCustomers)->filter(function($zc) {
+            return stripos($zc->name ?? '', $this->zohoCustomerSearch) !== false ||
+                   stripos($zc->customer_no ?? '', $this->zohoCustomerSearch) !== false;
+        })->take(50);
+    }
+
+    public function getSelectedCountryNameProperty()
+    {
+        if ($this->customerForm['country_id']) {
+            $country = collect($this->countries)->firstWhere('id', $this->customerForm['country_id']);
+            return $country ? ($country->name ?? '') : '';
+        }
+        return '';
+    }
+
+    public function getSelectedAccountNameProperty()
+    {
+        if ($this->customerForm['account_status']) {
+            $account = collect($this->accounts)->firstWhere('id', $this->customerForm['account_status']);
+            if ($account) {
+                return is_object($account) ? $account->key : ($account['key'] ?? '');
+            }
+        }
+        return '';
+    }
+
+    public function getSelectedZohoCustomerNameProperty()
+    {
+        if ($this->customerForm['zoho_customer_id']) {
+            $zc = collect($this->zohoCustomers)->firstWhere('id', $this->customerForm['zoho_customer_id']);
+            return $zc ? "{$zc->name} ({$zc->customer_no})" : '';
+        }
+        return '';
+    }
+
+    public function resetDropdownStates()
+    {
+        $this->countrySearch = '';
+        $this->accountSearch = '';
+        $this->zohoCustomerSearch = '';
+        $this->showCountryDropdown = false;
+        $this->showAccountDropdown = false;
+        $this->showZohoCustomerDropdown = false;
     }
 
     public function render()

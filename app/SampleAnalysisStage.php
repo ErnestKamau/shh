@@ -12,6 +12,20 @@ class SampleAnalysisStage extends Model implements Auditable
 	protected $table = 'sample_analysis_stages';
   protected $appends = ['namecode'];
 
+  protected $fillable = [
+    'name',
+    'code',
+    'active',
+    'company_id',
+    'sample_workflow',
+    'level',
+    'section_head_id',
+    'lab_id',
+    'is_system',
+    'is_sample_stage',
+    'title',
+  ];
+
   public function sample_analysis_stage(){
     return $this->hasMany('App\SampleToSampleAnalysisStage');
   }
