@@ -275,13 +275,21 @@
                                             </div>
                                             
                                             <!-- Dropdown -->
-                                            @if($showCategoryDropdown && count($this->filteredCategories) > 0)
+                                            @if($showCategoryDropdown)
                                                 <div class="tag-dropdown">
-                                                    @foreach($this->filteredCategories as $category)
-                                                        <div class="tag-dropdown-item" wire:click.stop="selectCategory({{ $category->id }})">
-                                                            {{ $category->sample_type_category }}
-                                                        </div>
-                                                    @endforeach
+                                                    <!-- Create New Category Option -->
+                                                    <div class="tag-dropdown-item tag-dropdown-create" wire:click.stop="showCreateCategoryModal">
+                                                        <i class="mdi mdi-plus-circle text-success"></i>
+                                                        <strong class="text-success">Create New Category</strong>
+                                                    </div>
+                                                    @if(count($this->filteredCategories) > 0)
+                                                        <div class="tag-dropdown-divider"></div>
+                                                        @foreach($this->filteredCategories as $category)
+                                                            <div class="tag-dropdown-item" wire:click.stop="selectCategory({{ $category->id }})">
+                                                                {{ $category->sample_type_category }}
+                                                            </div>
+                                                        @endforeach
+                                                    @endif
                                                 </div>
                                             @endif
                                         </div>
@@ -390,13 +398,21 @@
                                             </div>
                                             
                                             <!-- Dropdown -->
-                                            @if($showCompanyProductDropdown && count($this->filteredCompanyProducts) > 0)
+                                            @if($showCompanyProductDropdown)
                                                 <div class="tag-dropdown">
-                                                    @foreach($this->filteredCompanyProducts as $companyProduct)
-                                                        <div class="tag-dropdown-item" wire:click.stop="selectCompanyProduct({{ $companyProduct->id }})">
-                                                            {{ $companyProduct->name }}
-                                                        </div>
-                                                    @endforeach
+                                                    <!-- Create New Product Option -->
+                                                    <div class="tag-dropdown-item tag-dropdown-create" wire:click.stop="showCreateProductModal">
+                                                        <i class="mdi mdi-plus-circle text-success"></i>
+                                                        <strong class="text-success">Create New Product</strong>
+                                                    </div>
+                                                    @if(count($this->filteredCompanyProducts) > 0)
+                                                        <div class="tag-dropdown-divider"></div>
+                                                        @foreach($this->filteredCompanyProducts as $companyProduct)
+                                                            <div class="tag-dropdown-item" wire:click.stop="selectCompanyProduct({{ $companyProduct->id }})">
+                                                                {{ $companyProduct->name }}
+                                                            </div>
+                                                        @endforeach
+                                                    @endif
                                                 </div>
                                             @endif
                                         </div>
@@ -533,6 +549,90 @@
                         <button type="button" class="btn btn-secondary" wire:click="closeAnalysisTypeModal">Cancel</button>
                         <button type="button" class="btn btn-primary" wire:click="saveAnalysisType">
                             <i class="mdi mdi-content-save"></i> Save
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    @endif
+
+    <!-- Create Category Modal -->
+    @if($showCategoryModal ?? false)
+        <div class="modal fade show d-block" tabindex="-1" style="background-color: rgba(0,0,0,0.5); z-index: 1060;">
+            <div class="modal-dialog modal-dialog-scrollable">
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <h5 class="modal-title">
+                            <i class="mdi mdi-plus-circle text-success"></i>
+                            Create New Category
+                        </h5>
+                        <button type="button" class="btn-close" wire:click="closeCategoryModal"></button>
+                    </div>
+                    <div class="modal-body">
+                        <form wire:submit.prevent="saveCategory">
+                            <div class="form-group mb-3">
+                                <label class="form-label">Category Name <span class="text-danger">*</span></label>
+                                <input type="text" 
+                                       wire:model="categoryForm.sample_type_category" 
+                                       class="form-control @error('categoryForm.sample_type_category') is-invalid @enderror"
+                                       placeholder="Enter category name"
+                                       autofocus>
+                                @error('categoryForm.sample_type_category') <div class="invalid-feedback">{{ $message }}</div> @enderror
+                            </div>
+                            <div class="form-group mb-3">
+                                <div class="form-check form-switch">
+                                    <input type="checkbox" wire:model="categoryForm.active" class="form-check-input" id="category_active" checked>
+                                    <label class="form-check-label" for="category_active">Active</label>
+                                </div>
+                            </div>
+                        </form>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" wire:click="closeCategoryModal">Cancel</button>
+                        <button type="button" class="btn btn-success" wire:click="saveCategory">
+                            <i class="mdi mdi-content-save"></i> Create Category
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    @endif
+
+    <!-- Create Product Modal -->
+    @if($showProductModal ?? false)
+        <div class="modal fade show d-block" tabindex="-1" style="background-color: rgba(0,0,0,0.5); z-index: 1060;">
+            <div class="modal-dialog modal-dialog-scrollable">
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <h5 class="modal-title">
+                            <i class="mdi mdi-plus-circle text-success"></i>
+                            Create New Product
+                        </h5>
+                        <button type="button" class="btn-close" wire:click="closeProductModal"></button>
+                    </div>
+                    <div class="modal-body">
+                        <form wire:submit.prevent="saveProduct">
+                            <div class="form-group mb-3">
+                                <label class="form-label">Product Name <span class="text-danger">*</span></label>
+                                <input type="text" 
+                                       wire:model="productForm.name" 
+                                       class="form-control @error('productForm.name') is-invalid @enderror"
+                                       placeholder="Enter product name"
+                                       autofocus>
+                                @error('productForm.name') <div class="invalid-feedback">{{ $message }}</div> @enderror
+                            </div>
+                            <div class="form-group mb-3">
+                                <div class="form-check form-switch">
+                                    <input type="checkbox" wire:model="productForm.active" class="form-check-input" id="product_active" checked>
+                                    <label class="form-check-label" for="product_active">Active</label>
+                                </div>
+                            </div>
+                        </form>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" wire:click="closeProductModal">Cancel</button>
+                        <button type="button" class="btn btn-success" wire:click="saveProduct">
+                            <i class="mdi mdi-content-save"></i> Create Product
                         </button>
                     </div>
                 </div>
@@ -695,13 +795,31 @@
     .tag-dropdown-item:last-child {
         border-bottom: none;
     }
+    
+    .tag-dropdown-create {
+        background-color: #f8f9fa;
+        font-weight: 600;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+    }
+    
+    .tag-dropdown-create:hover {
+        background-color: #e9ecef;
+    }
+    
+    .tag-dropdown-divider {
+        height: 1px;
+        background-color: #dee2e6;
+        margin: 4px 0;
+    }
     </style>
     
     @script
     <script>
     // Close dropdowns when clicking outside
     document.addEventListener('click', function(e) {
-        if (!e.target.closest('.tag-select-container')) {
+        if (!e.target.closest('.tag-select-container') && !e.target.closest('.modal')) {
             $wire.set('showCategoryDropdown', false);
             $wire.set('showRatingHeaderDropdown', false);
             $wire.set('showReportFormatDropdown', false);

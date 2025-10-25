@@ -642,9 +642,9 @@ $items = array(
 		<div class="modal-dialog modal-lg">
 			<!-- Modal content-->
 			<div class="modal-content">
-				<div class="modal-header bg-primary text-white">
+				<div class="modal-header" style="background: linear-gradient(135deg, rgba(255, 255, 255, 0.9) 0%, rgba(248, 249, 250, 0.8) 100%); backdrop-filter: blur(5px); -webkit-backdrop-filter: blur(5px); box-shadow: 0 2px 15px rgba(0, 0, 0, 0.05), inset 0 1px 2px rgba(255, 255, 255, 0.8); border-bottom: 1px solid rgba(0, 0, 0, 0.08);">
 					<h4 class="modal-title"><i class="mdi mdi-clipboard-arrow-right"></i> Generate Sales Order</h4>
-					<button type="button" class="close text-white" data-dismiss="modal">&times;</button>
+					<button type="button" class="close" data-dismiss="modal">&times;</button>
 				</div>
 				<div class="modal-body">
 					<div class="alert alert-info">
@@ -659,7 +659,7 @@ $items = array(
 					<p class="text-muted mt-3">
 						The wizard will guide you through:
 						<ul>
-							<li>Customer Zoho mapping</li>
+							<li>Customer Dynamics mapping</li>
 							<li>Analysis type to invoicable item mapping</li>
 							<li>Adding additional fees and charges</li>
 							<li>Reviewing and generating the sales order</li>
@@ -667,10 +667,10 @@ $items = array(
 					</p>
 				</div>
 				<div class="modal-footer">
-					<button type="button" class="btn btn-success btn-lg proceed-to-wizard-btn">
-						<i class="mdi mdi-arrow-right"></i> Proceed to Wizard
+					<button type="button" class="btn btn-success btn-sm proceed-to-wizard-btn">
+						<i class="mdi mdi-arrow-right"></i> Proceed
 					</button>
-					<button type="button" class="btn btn-secondary" data-dismiss="modal">Cancel</button>
+					<button type="button" class="btn btn-secondary btn-sm" data-dismiss="modal">Cancel</button>
 				</div>
 			</div>
 		</div>

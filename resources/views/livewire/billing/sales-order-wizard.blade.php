@@ -2,12 +2,12 @@
     <div class="card shadow-sm border-0" style="border-radius: 15px;">
         <div class="card-body p-4">
             <!-- Header -->
-            <div class="d-flex justify-content-between align-items-center mb-4">
+            <div class="d-flex justify-content-between pb-2 border-bottom align-items-center mb-4">
                 <h3 class="mb-0">
                     <i class="mdi mdi-file-document-plus text-primary"></i>
                     Generate Sales Order
                 </h3>
-                <button wire:click="$dispatch('closeSalesOrderWizard')" class="btn btn-outline-secondary">
+                <button wire:click="$dispatch('closeSalesOrderWizard')" class="btn btn-sm btn-outline-secondary">
                     <i class="mdi mdi-close"></i> Cancel
                 </button>
             </div>
@@ -75,7 +75,7 @@
                 <!-- Step 1: Batch Review -->
                 @if($currentStep === 1)
                     <div class="wizard-step">
-                        <h4 class="mb-4">
+                        <h4 class="mb-4 border-bottom">
                             <i class="mdi mdi-folder-multiple"></i> Review Selected Batches
                         </h4>
                         
@@ -144,7 +144,7 @@
                 <!-- Step 2: Customer Zoho Mapping -->
                 @if($currentStep === 2)
                     <div class="wizard-step">
-                        <h4 class="mb-4">
+                        <h4 class="mb-4 border-bottom">
                             <i class="mdi mdi-account-cog"></i> Customer Integration Details
                         </h4>
                         
@@ -163,11 +163,11 @@
                         
                         @if(!$customer->zoho_id || !$customer->currency_id)
                             <div class="alert alert-warning">
-                                <i class="mdi mdi-alert"></i> This customer needs Zoho integration details. Please provide them below.
+                                <i class="mdi mdi-alert"></i> This customer needs Dynamics integration details. Please provide them below.
                             </div>
                         @else
                             <div class="alert alert-info">
-                                <i class="mdi mdi-check-circle"></i> Customer already has Zoho integration. You can update if needed.
+                                <i class="mdi mdi-check-circle"></i> Customer already has Dynamics integration. You can update if needed.
                             </div>
                         @endif
                         
@@ -175,39 +175,50 @@
                             <div class="col-md-6">
                                 <div class="form-group mb-3">
                                     <label class="form-label">
-                                        <i class="mdi mdi-cloud text-primary"></i> Zoho Customer ID <span class="text-danger">*</span>
+                                        <i class="mdi mdi-cloud text-primary"></i> Dynamics Customer ID <span class="text-danger">*</span>
                                     </label>
                                     <div class="tag-select-container" wire:click="$set('showZohoCustomerDropdown', true)">
                                         <div class="tag-select-input">
                                             @if($this->selectedZohoCustomer)
                                                 <span class="tag-badge">
                                                     {{ $this->selectedZohoCustomer->name }}
-                                                    <i class="mdi mdi-close-circle" wire:click.stop="$set('zohoCustomerId', null)"></i>
-                                                </span>
-                                            @elseif($zohoCustomerId)
-                                                <span class="tag-badge">
-                                                    {{ $zohoCustomerId }}
-                                                    <i class="mdi mdi-close-circle" wire:click.stop="$set('zohoCustomerId', null)"></i>
+                                                    <i class="mdi mdi-close-circle" wire:click.stop="clearZohoCustomer()"></i>
                                                 </span>
                                             @endif
-                                            <input type="text" 
-                                                   wire:model.live="zohoCustomerSearch" 
-                                                   class="tag-input" 
-                                                   placeholder="Search Zoho customers..."
-                                                   autocomplete="off">
+                                            
+                                            @if(!$this->selectedZohoCustomer)
+                                                <input type="text" 
+                                                       wire:model.live="zohoCustomerSearch" 
+                                                       class="tag-input" 
+                                                       placeholder="Search Dynamics customers..."
+                                                       autocomplete="off">
+                                            @endif
                                         </div>
-                                        @if($showZohoCustomerDropdown && count($this->filteredZohoCustomers) > 0)
+                                        @if($showZohoCustomerDropdown)
                                             <div class="tag-dropdown">
-                                                @foreach($this->filteredZohoCustomers as $zCustomer)
-                                                    <div class="tag-dropdown-item" wire:click.stop="selectZohoCustomer('{{ $zCustomer->zoho_contact_id }}')">
-                                                        <strong>{{ $zCustomer->name }}</strong>
-                                                        <br><small>{{ $zCustomer->email }}</small>
+                                                @if(count($this->filteredZohoCustomers) > 0)
+                                                    @foreach($this->filteredZohoCustomers as $zCustomer)
+                                                        <div class="tag-dropdown-item" wire:click.stop="selectZohoCustomer('{{ $zCustomer->customer_no }}')">
+                                                            <strong>{{ $zCustomer->name }}</strong>
+                                                            <br><small class="text-muted">{{ $zCustomer->email }}</small>
+                                                            <br><small class="text-info">Customer No: {{ $zCustomer->customer_no }}</small>
+                                                        </div>
+                                                    @endforeach
+                                                @else
+                                                    <div class="tag-dropdown-item" style="cursor: default;">
+                                                        <small class="text-muted">
+                                                            @if($zohoCustomerSearch)
+                                                                No customers found matching "{{ $zohoCustomerSearch }}"
+                                                            @else
+                                                                Start typing to search customers...
+                                                            @endif
+                                                        </small>
                                                     </div>
-                                                @endforeach
+                                                @endif
                                             </div>
                                         @endif
                                     </div>
-                                    <small class="form-text text-muted">Select the Zoho contact for this customer</small>
+                                    <small class="form-text text-muted">Select the Dynamics contact for this customer</small>
                                 </div>
                             </div>
                             
@@ -216,19 +227,64 @@
                                     <label class="form-label">
                                         <i class="mdi mdi-currency-usd text-success"></i> Currency <span class="text-danger">*</span>
                                     </label>
-                                    <div class="form-control bg-light" style="cursor: not-allowed; min-height: 42px; display: flex; align-items: center;">
-                                        @if($this->selectedZohoCurrency)
-                                            <span class="badge bg-success text-white" style="font-size: 0.9rem;">
-                                                <i class="mdi mdi-check-circle"></i>
-                                                {{ $this->selectedZohoCurrency->code }} - {{ $this->selectedZohoCurrency->description }}
-                                            </span>
-                                        @else
-                                            <span class="text-muted">Auto-populated from customer</span>
-                                        @endif
-                                    </div>
-                                    <small class="form-text text-muted">
-                                        <i class="mdi mdi-information"></i> Currency is automatically set from the selected customer
-                                    </small>
+                                    
+                                    @if($zohoCustomerId && !$this->selectedZohoCurrency)
+                                        <!-- Manual Currency Selection when auto-populate fails -->
+                                        <div class="tag-select-container" wire:click="$set('showZohoCurrencyDropdown', true)">
+                                            <div class="tag-select-input" style="border-color: #ffc107;">
+                                                @if($this->selectedZohoCurrency)
+                                                    <span class="tag-badge">
+                                                        {{ $this->selectedZohoCurrency->code }} - {{ $this->selectedZohoCurrency->description }}
+                                                        <i class="mdi mdi-close-circle" wire:click.stop="$set('zohoCurrencyId', null)"></i>
+                                                    </span>
+                                                @endif
+                                                <input type="text" 
+                                                       wire:model.live="zohoCurrencySearch" 
+                                                       class="tag-input" 
+                                                       placeholder="{{ $this->selectedZohoCurrency ? '' : 'Search currency (required)...' }}"
+                                                       autocomplete="off">
+                                            </div>
+                                            @if($showZohoCurrencyDropdown)
+                                                <div class="tag-dropdown">
+                                                    @if(count($this->filteredCurrencies) > 0)
+                                                        @foreach($this->filteredCurrencies as $curr)
+                                                            <div class="tag-dropdown-item" wire:click.stop="selectZohoCurrency({{ $curr->id }})">
+                                                                <strong>{{ $curr->code }}</strong> - {{ $curr->description }}
+                                                            </div>
+                                                        @endforeach
+                                                    @else
+                                                        <div class="tag-dropdown-item" style="cursor: default;">
+                                                            <small class="text-muted">
+                                                                @if($zohoCurrencySearch)
+                                                                    No currencies found matching "{{ $zohoCurrencySearch }}"
+                                                                @else
+                                                                    Start typing to search currencies...
+                                                                @endif
+                                                            </small>
+                                                        </div>
+                                                    @endif
+                                                </div>
+                                            @endif
+                                        </div>
+                                        <small class="form-text text-warning">
+                                            <i class="mdi mdi-alert"></i> This customer has no currency set in Dynamics. Please select one manually.
+                                        </small>
+                                    @else
+                                        <!-- Display Selected Currency (Read-only when auto-populated) -->
+                                        <div class="form-control bg-light" style="cursor: not-allowed; min-height: 42px; display: flex; align-items: center;">
+                                            @if($this->selectedZohoCurrency)
+                                                <span class="badge bg-success text-white" style="font-size: 0.9rem;">
+                                                    <i class="mdi mdi-check-circle"></i>
+                                                    {{ $this->selectedZohoCurrency->code }} - {{ $this->selectedZohoCurrency->description }}
+                                                </span>
+                                            @else
+                                                <span class="text-muted">Auto-populated from customer</span>
+                                            @endif
+                                        </div>
+                                        <small class="form-text text-muted">
+                                            <i class="mdi mdi-information"></i> Currency is automatically set from the selected customer
+                                        </small>
+                                    @endif
                                 </div>
                             </div>
                         </div>
@@ -238,7 +294,7 @@
                                 <input type="checkbox" wire:model="updateCustomerZohoData" class="form-check-input" id="updateCustomer" checked>
                                 <label class="form-check-label" for="updateCustomer">
                                     <strong>Update customer record with this information</strong>
-                                    <br><small class="text-muted">The customer's Zoho ID and currency will be saved for future use</small>
+                                    <br><small class="text-muted">The customer's Dynamics ID and currency will be saved for future use</small>
                                 </label>
                             </div>
                         @endif
@@ -252,12 +308,20 @@
                             <h4 class="mb-0">
                                 <i class="mdi mdi-link-variant"></i> Analysis to Invoicable Items Mapping
                             </h4>
-                            <button wire:click="autoMapAllAnalyses" class="btn btn-outline-primary">
-                                <i class="mdi mdi-auto-fix"></i> Auto-Map All
+                            <button wire:click="autoMapAllAnalyses" class="btn btn-outline-secondary btn-sm">
+                                <i class="mdi mdi-refresh"></i> Re-Map All
                             </button>
                         </div>
                         
-                        <p class="text-muted mb-3">Map each analysis type to an invoicable item for billing</p>
+                        @if(count($analysisMappings) > 0)
+                            <div class="alert alert-success mb-3">
+                                <i class="mdi mdi-check-circle"></i> <strong>{{ count($analysisMappings) }}</strong> of <strong>{{ count($analysisTypesData) }}</strong> analysis types automatically mapped. You can adjust mappings below if needed.
+                            </div>
+                        @else
+                            <div class="alert alert-warning mb-3">
+                                <i class="mdi mdi-alert"></i> No automatic mappings found. Please map items manually or ensure analysis types have linked invoicable items.
+                            </div>
+                        @endif
                         
                         <div class="table-responsive">
                             <table class="table table-bordered">
@@ -310,11 +374,17 @@
                                                     @endif
                                                 </div>
                                             </td>
-                                            <td class="text-end">
+                                            <td>
                                                 @if(isset($analysisMappings[$analysisTypeId]))
                                                     @php $item = $this->getInvoicableItemById($analysisMappings[$analysisTypeId]); @endphp
                                                     @if($item)
-                                                        {{ number_format($item->unit_price, 2) }}
+                                                        <input type="number" 
+                                                               wire:model.live="analysisCustomPrices.{{ $analysisTypeId }}" 
+                                                               class="form-control form-control-sm" 
+                                                               placeholder="{{ number_format($item->unit_price, 2) }}"
+                                                               step="0.01"
+                                                               min="0">
+                                                        <small class="text-muted">Default: {{ number_format($item->unit_price, 2) }}</small>
                                                     @endif
                                                 @else
                                                     <span class="text-muted">-</span>
@@ -322,9 +392,12 @@
                                             </td>
                                             <td class="text-end">
                                                 @if(isset($analysisMappings[$analysisTypeId]))
-                                                    @php $item = $this->getInvoicableItemById($analysisMappings[$analysisTypeId]); @endphp
+                                                    @php 
+                                                        $item = $this->getInvoicableItemById($analysisMappings[$analysisTypeId]); 
+                                                        $unitPrice = $analysisCustomPrices[$analysisTypeId] ?? ($item ? $item->unit_price : 0);
+                                                    @endphp
                                                     @if($item)
-                                                        <strong>{{ number_format($item->unit_price * $data['count'], 2) }}</strong>
+                                                        <strong>{{ number_format($unitPrice * $data['count'], 2) }}</strong>
                                                     @endif
                                                 @else
                                                     <span class="text-muted">-</span>
@@ -388,7 +461,13 @@
                                                            class="form-control form-control-sm" 
                                                            min="1">
                                                 </td>
-                                                <td class="text-end">{{ number_format($item['unit_price'], 2) }}</td>
+                                                <td>
+                                                    <input type="number" 
+                                                           wire:model.live="additionalItems.{{ $index }}.unit_price" 
+                                                           class="form-control form-control-sm" 
+                                                           step="0.01"
+                                                           min="0">
+                                                </td>
                                                 <td class="text-end"><strong>{{ number_format($item['unit_price'] * $item['quantity'], 2) }}</strong></td>
                                                 <td class="text-center">
                                                     <button wire:click="removeAdditionalItem({{ $index }})" 
@@ -422,7 +501,7 @@
                 <!-- Step 5: Review & Generate -->
                 @if($currentStep === 5)
                     <div class="wizard-step">
-                        <h4 class="mb-4">
+                        <h4 class="mb-4 border-bottom">
                             <i class="mdi mdi-check-all"></i> Review & Generate Sales Order
                         </h4>
                         
@@ -438,7 +517,7 @@
                                         <p class="mb-0"><strong>Email:</strong> {{ $customer->email }}</p>
                                     </div>
                                     <div class="col-md-4">
-                                        <p class="mb-2"><strong>Zoho ID:</strong> {{ $zohoCustomerId ?? 'N/A' }}</p>
+                                        <p class="mb-2"><strong>Dynamics ID:</strong> {{ $zohoCustomerId ?? 'N/A' }}</p>
                                         <p class="mb-0"><strong>Currency:</strong> {{ $this->selectedZohoCurrency ? $this->selectedZohoCurrency->code . ' - ' . $this->selectedZohoCurrency->description : 'N/A' }}</p>
                                     </div>
                                     <div class="col-md-4">
@@ -552,30 +631,64 @@
                         <button type="button" class="btn-close" wire:click="closeAddItemModal"></button>
                     </div>
                     <div class="modal-body">
-                        <div class="form-group mb-3">
-                            <label class="form-label">Search Non-Analysis Items</label>
-                            <input type="text" 
-                                   wire:model.live="additionalItemSearch" 
-                                   class="form-control" 
-                                   placeholder="Search by item code or name..."
-                                   autocomplete="off">
+                        <div class="alert alert-info mb-3">
+                            <i class="mdi mdi-information"></i> Showing <strong>{{ count($this->nonAnalysisItems) }}</strong> available items. Use the search to filter.
                         </div>
                         
-                        <div class="list-group" style="max-height: 400px; overflow-y: auto;">
-                            @foreach($this->nonAnalysisItems as $item)
+                        <div class="form-group mb-3">
+                            <label class="form-label">
+                                <i class="mdi mdi-magnify"></i> Search Items (Code, Name, or Description)
+                            </label>
+                            <input type="text" 
+                                   wire:model.live="additionalItemSearch" 
+                                   class="form-control form-control-lg" 
+                                   placeholder="Search by item code, name, or description..."
+                                   autocomplete="off"
+                                   autofocus>
+                            @if($additionalItemSearch)
                                 <button type="button" 
-                                        wire:click="addAdditionalItem({{ $item->id }})" 
-                                        class="list-group-item list-group-item-action d-flex justify-content-between align-items-center">
-                                    <div>
-                                        <strong>{{ $item->item_code }}</strong> - {{ $item->item_name }}
-                                        <br><small class="text-muted">{{ $item->description }}</small>
-                                    </div>
-                                    <div>
-                                        <span class="badge bg-success" style="color: white; font-size: 1rem;">{{ number_format($item->unit_price, 2) }}</span>
-                                    </div>
+                                        class="btn btn-sm btn-link text-danger" 
+                                        wire:click="$set('additionalItemSearch', '')">
+                                    <i class="mdi mdi-close"></i> Clear search
                                 </button>
-                            @endforeach
+                            @endif
                         </div>
+                        
+                        @if(count($this->nonAnalysisItems) > 0)
+                            <div class="list-group" style="max-height: 450px; overflow-y: auto;">
+                                @foreach($this->nonAnalysisItems as $item)
+                                    <button type="button" 
+                                            wire:click="addAdditionalItem({{ $item->id }})" 
+                                            class="list-group-item list-group-item-action d-flex justify-content-between align-items-start">
+                                        <div style="flex: 1;">
+                                            <div class="d-flex align-items-center mb-1">
+                                                <strong class="me-2">{{ $item->item_code }}</strong>
+                                                @if($item->item_type)
+                                                    <span class="badge bg-info" style="color: white; font-size: 0.75rem;">{{ $item->item_type }}</span>
+                                                @endif
+                                            </div>
+                                            <div>{{ $item->item_name }}</div>
+                                            @if($item->description)
+                                                <small class="text-muted d-block mt-1">{{ $item->description }}</small>
+                                            @endif
+                                        </div>
+                                        <div class="text-end ms-3">
+                                            <span class="badge bg-success" style="color: white; font-size: 1rem; padding: 8px 12px;">
+                                                {{ number_format($item->unit_price, 2) }}
+                                            </span>
+                                        </div>
+                                    </button>
+                                @endforeach
+                            </div>
+                        @else
+                            <div class="text-center py-5">
+                                <i class="mdi mdi-package-variant-closed text-muted" style="font-size: 3rem;"></i>
+                                <p class="text-muted mt-3">No items found matching "{{ $additionalItemSearch }}"</p>
+                                <button type="button" class="btn btn-outline-secondary btn-sm" wire:click="$set('additionalItemSearch', '')">
+                                    <i class="mdi mdi-refresh"></i> Show All Items
+                                </button>
+                            </div>
+                        @endif
                     </div>
                     <div class="modal-footer">
                         <button type="button" class="btn btn-secondary" wire:click="closeAddItemModal">Close</button>

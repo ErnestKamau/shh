@@ -41,6 +41,7 @@ class SalesOrderWizard extends Component
     // Analysis mapping (Step 3)
     public $analysisTypesData = []; // [analysis_type_id => ['name' => '', 'code' => '', 'count' => 0]]
     public $analysisMappings = []; // [analysis_type_id => invoicable_item_id]
+    public $analysisCustomPrices = []; // [analysis_type_id => custom_unit_price]
     public $showItemDropdowns = []; // [analysis_type_id => boolean]
     public $itemSearches = []; // [analysis_type_id => search_string]
 
@@ -66,7 +67,7 @@ class SalesOrderWizard extends Component
 
     public function loadBatchData(): void
     {
-        $batches = SampleHeader::with(['sampleType', 'crmCustomer'])
+        $batches = SampleHeader::with(['sample_type', 'client'])
             ->whereIn('batch_code', $this->selectedBatches)
             ->get();
 
@@ -75,11 +76,11 @@ class SalesOrderWizard extends Component
                 'id' => $batch->id,
                 'batch_code' => $batch->batch_code,
                 'customer_id' => $batch->crm_customer_id,
-                'customer_name' => $batch->crmCustomer->name ?? 'N/A',
-                'sample_type_name' => $batch->sampleType->name ?? 'N/A',
+                'customer_name' => $batch->client->name ?? 'N/A',
+                'sample_type_name' => $batch->sample_type->name ?? 'N/A',
                 'receipt_date' => $batch->receipt_date,
                 'sample_count' => SampleDetails::where('sample_header_id', $batch->id)->count(),
-                'has_invoice' => $batch->invoice_id != null,
+                'has_invoice' => $batch->invoice_id > 0,
             ];
         })->toArray();
     }
@@ -143,6 +144,8 @@ class SalesOrderWizard extends Component
             if (!$this->validateCustomerZohoData()) {
                 return;
             }
+            // Auto-map analyses when moving to step 3 (silent - no success message)
+            $this->autoMapAllAnalyses(false);
         }
 
         if ($this->currentStep === 3) {
@@ -188,29 +191,52 @@ class SalesOrderWizard extends Component
         return empty($this->validationErrors);
     }
 
-    public function selectZohoCustomer($zohoId): void
+    public function selectZohoCustomer($customerNo): void
     {
-        $this->zohoCustomerId = $zohoId;
+        $this->zohoCustomerId = $customerNo;
         $this->showZohoCustomerDropdown = false;
         $this->zohoCustomerSearch = '';
         
+        // Clear currency first
+        $this->zohoCurrencyId = null;
+        
         // Auto-fetch currency from the selected Zoho/Dynamics customer
-        $zohoCustomer = ZohoCustomers::where('zoho_contact_id', $zohoId)->first();
-        if ($zohoCustomer && $zohoCustomer->currency_code) {
-            // Find currency in currencies table by code
-            $currency = Currency::where('code', $zohoCustomer->currency_code)
-                ->orWhere('iso_code', $zohoCustomer->currency_code)
-                ->first();
+        $zohoCustomer = ZohoCustomers::where('customer_no', $customerNo)->first();
+        
+        if ($zohoCustomer) {
+            // Try currency_id first (direct foreign key)
+            if (!empty($zohoCustomer->currency_id)) {
+                $currency = Currency::find($zohoCustomer->currency_id);
+                if ($currency) {
+                    $this->zohoCurrencyId = $currency->id;
+                }
+            }
             
-            if ($currency) {
-                $this->zohoCurrencyId = $currency->id;
+            // If no currency found yet, try currency_code
+            if (!$this->zohoCurrencyId && !empty($zohoCustomer->currency_code)) {
+                $currency = Currency::where('code', $zohoCustomer->currency_code)
+                    ->orWhere('iso_code', $zohoCustomer->currency_code)
+                    ->first();
+                
+                if ($currency) {
+                    $this->zohoCurrencyId = $currency->id;
+                }
             }
         }
         
         // Auto-check update if value changed
-        if ($this->customer && $this->customer->zoho_id != $zohoId) {
+        if ($this->customer && $this->customer->zoho_id != $customerNo) {
             $this->updateCustomerZohoData = true;
         }
+    }
+
+    public function clearZohoCustomer(): void
+    {
+        $this->zohoCustomerId = null;
+        $this->zohoCurrencyId = null;
+        $this->zohoCustomerSearch = '';
+        $this->showZohoCustomerDropdown = false;
+        $this->updateCustomerZohoData = false;
     }
 
     public function selectZohoCurrency($currencyId): void
@@ -219,8 +245,8 @@ class SalesOrderWizard extends Component
         $this->showZohoCurrencyDropdown = false;
         $this->zohoCurrencySearch = '';
         
-        // Auto-check update if value changed
-        if ($this->customer && $this->customer->currency_id != $currencyId) {
+        // Auto-check update checkbox when currency is manually selected or different from customer's
+        if ($this->customer && ($this->customer->currency_id != $currencyId || !$this->customer->currency_id)) {
             $this->updateCustomerZohoData = true;
         }
     }
@@ -232,11 +258,22 @@ class SalesOrderWizard extends Component
         if ($this->zohoCustomerSearch) {
             $query->where(function($q) {
                 $q->where('name', 'like', "%{$this->zohoCustomerSearch}%")
-                  ->orWhere('email', 'like', "%{$this->zohoCustomerSearch}%");
+                  ->orWhere('email', 'like', "%{$this->zohoCustomerSearch}%")
+                  ->orWhere('customer_no', 'like', "%{$this->zohoCustomerSearch}%");
             });
         }
 
         return $query->orderBy('name')->limit(20)->get();
+    }
+    
+    public function updatedZohoCustomerSearch()
+    {
+        $this->showZohoCustomerDropdown = true;
+    }
+    
+    public function updatedZohoCurrencySearch()
+    {
+        $this->showZohoCurrencyDropdown = true;
     }
 
     public function getFilteredCurrenciesProperty()
@@ -256,7 +293,7 @@ class SalesOrderWizard extends Component
     public function getSelectedZohoCustomerProperty()
     {
         if ($this->zohoCustomerId) {
-            return ZohoCustomers::where('zoho_contact_id', $this->zohoCustomerId)->first();
+            return ZohoCustomers::where('customer_no', $this->zohoCustomerId)->first();
         }
         return null;
     }
@@ -301,7 +338,7 @@ class SalesOrderWizard extends Component
         }
     }
 
-    public function autoMapAllAnalyses(): void
+    public function autoMapAllAnalyses($showMessage = true): void
     {
         foreach (array_keys($this->analysisTypesData) as $analysisTypeId) {
             $analysisType = AnalysisType::find($analysisTypeId);
@@ -312,7 +349,9 @@ class SalesOrderWizard extends Component
             }
         }
 
-        $this->successMessage = 'Auto-mapped ' . count($this->analysisMappings) . ' analysis type(s)';
+        if ($showMessage) {
+            $this->successMessage = 'Re-mapped ' . count($this->analysisMappings) . ' analysis type(s)';
+        }
     }
 
     public function selectInvoicableItemForAnalysis($analysisTypeId, $itemId): void
@@ -364,7 +403,9 @@ class SalesOrderWizard extends Component
             $item = $this->getInvoicableItemById($itemId);
             if ($item) {
                 $count = $this->analysisTypesData[$analysisTypeId]['count'] ?? 0;
-                $total += $item->unit_price * $count;
+                // Use custom price if set, otherwise use item price
+                $unitPrice = $this->analysisCustomPrices[$analysisTypeId] ?? $item->unit_price;
+                $total += $unitPrice * $count;
             }
         }
         return $total;
@@ -423,17 +464,19 @@ class SalesOrderWizard extends Component
 
     public function getNonAnalysisItemsProperty()
     {
-        $query = InvoicableItem::where('active', 1)
-            ->whereNotIn('item_type', ['Service', 'Analysis']);
+        // Show all active items - Service, Inventory, and Non-Inventory
+        $query = InvoicableItem::where('active', 1);
 
         if ($this->additionalItemSearch) {
             $query->where(function($q) {
                 $q->where('item_code', 'like', "%{$this->additionalItemSearch}%")
-                  ->orWhere('item_name', 'like', "%{$this->additionalItemSearch}%");
+                  ->orWhere('item_name', 'like', "%{$this->additionalItemSearch}%")
+                  ->orWhere('description', 'like', "%{$this->additionalItemSearch}%")
+                  ->orWhere('item_type', 'like', "%{$this->additionalItemSearch}%");
             });
         }
 
-        return $query->orderBy('item_name')->limit(20)->get();
+        return $query->orderBy('item_name')->get(); // Show all items, no limit
     }
 
     public function getAdditionalItemsTotalProperty()
@@ -488,13 +531,15 @@ class SalesOrderWizard extends Component
             if (!$item) continue;
             
             $analysisData = $this->analysisTypesData[$analysisTypeId];
+            // Use custom price if set, otherwise use item price
+            $unitPrice = $this->analysisCustomPrices[$analysisTypeId] ?? $item->unit_price;
             
             $preview[] = [
                 'type' => 'analysis',
                 'description' => $analysisData['name'] . ' (' . $analysisData['code'] . ')',
                 'quantity' => $analysisData['count'],
-                'unit_price' => $item->unit_price,
-                'total' => $item->unit_price * $analysisData['count'],
+                'unit_price' => $unitPrice,
+                'total' => $unitPrice * $analysisData['count'],
             ];
         }
 
@@ -574,36 +619,41 @@ class SalesOrderWizard extends Component
                 $invoicableItem = InvoicableItem::find($itemId);
                 $analysisData = $this->analysisTypesData[$analysisTypeId];
                 
-                // Get price with currency conversion
-                $priceData = getPriceForAnalysisType($analysisTypeId, $this->zohoCurrencyId);
-
-                if ($priceData) {
-                    // Get batch and sample IDs for this analysis type
-                    $batchIds = array_column($this->batchData, 'id');
-                    $relations = SampleAnalysisTypeRelation::whereIn('batch_id', $batchIds)
-                        ->where('analysis_type_id', $analysisTypeId)
-                        ->get();
-
-                    $sampleHeaderIds = $relations->pluck('batch_id')->unique()->implode(',');
-                    $sampleDetailIds = $relations->pluck('sample_detail_id')->unique()->implode(',');
-
-                    InvoiceDetails::create([
-                        'invoice_id' => $invoice->id,
-                        'analysis_type' => $analysisTypeId,
-                        'analysis_type_name' => $analysisData['name'],
-                        'invoicable_item_id' => $itemId,
-                        'quantity' => $analysisData['count'],
-                        'selling_price' => $priceData['unit_price'],
-                        'cost_price' => $priceData['unit_cost'],
-                        'selling_amount' => $priceData['unit_price'],
-                        'total' => $priceData['unit_price'] * $analysisData['count'],
-                        'sample_header_id' => $sampleHeaderIds,
-                        'sample_detail_id' => $sampleDetailIds,
-                        'crm_customer_id' => $this->customerId,
-                        'tax_rate' => '0',
-                        'tax_amount' => 0,
-                    ]);
+                // Check if custom price is set, otherwise get price with currency conversion
+                if (isset($this->analysisCustomPrices[$analysisTypeId])) {
+                    $unitPrice = $this->analysisCustomPrices[$analysisTypeId];
+                    $unitCost = $invoicableItem->unit_cost ?? 0;
+                } else {
+                    $priceData = getPriceForAnalysisType($analysisTypeId, $this->zohoCurrencyId);
+                    $unitPrice = $priceData['unit_price'] ?? $invoicableItem->unit_price;
+                    $unitCost = $priceData['unit_cost'] ?? $invoicableItem->unit_cost;
                 }
+
+                // Get batch and sample IDs for this analysis type
+                $batchIds = array_column($this->batchData, 'id');
+                $relations = SampleAnalysisTypeRelation::whereIn('batch_id', $batchIds)
+                    ->where('analysis_type_id', $analysisTypeId)
+                    ->get();
+
+                $sampleHeaderIds = $relations->pluck('batch_id')->unique()->implode(',');
+                $sampleDetailIds = $relations->pluck('sample_detail_id')->unique()->implode(',');
+
+                InvoiceDetails::create([
+                    'invoice_id' => $invoice->id,
+                    'analysis_type' => $analysisTypeId,
+                    'analysis_type_name' => $analysisData['name'],
+                    'invoicable_item_id' => $itemId,
+                    'quantity' => $analysisData['count'],
+                    'selling_price' => $unitPrice,
+                    'cost_price' => $unitCost,
+                    'selling_amount' => $unitPrice,
+                    'total' => $unitPrice * $analysisData['count'],
+                    'sample_header_id' => $sampleHeaderIds,
+                    'sample_detail_id' => $sampleDetailIds,
+                    'crm_customer_id' => $this->customerId,
+                    'tax_rate' => '0',
+                    'tax_amount' => 0,
+                ]);
             }
 
             // Create invoice details for additional items

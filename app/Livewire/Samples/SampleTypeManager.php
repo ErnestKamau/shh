@@ -117,6 +117,20 @@ class SampleTypeManager extends Component
     public $perPage = 25;
     public $perPageOptions = [25, 50, 75, 100];
 
+    // Category Creation Modal
+    public $showCategoryModal = false;
+    public $categoryForm = [
+        'sample_type_category' => '',
+        'active' => true,
+    ];
+
+    // Product Creation Modal
+    public $showProductModal = false;
+    public $productForm = [
+        'name' => '',
+        'active' => true,
+    ];
+
     protected $rules = [
         'sampleTypeForm.name' => 'required|string|max:255',
         'sampleTypeForm.code' => 'required|string|max:255|unique:sample_types,code',
@@ -693,13 +707,13 @@ class SampleTypeManager extends Component
 
     public function getFilteredCategoriesProperty()
     {
-        if (empty($this->categorySearch)) {
-            return [];
+        $query = SampleTypeCategory::query();
+        
+        if (!empty($this->categorySearch)) {
+            $query->where('sample_type_category', 'like', '%' . $this->categorySearch . '%');
         }
         
-        return SampleTypeCategory::where('sample_type_category', 'like', '%' . $this->categorySearch . '%')
-            ->limit(10)
-            ->get();
+        return $query->limit(10)->get();
     }
 
     public function getSelectedCategoryProperty()
@@ -827,14 +841,13 @@ class SampleTypeManager extends Component
 
     public function getFilteredCompanyProductsProperty()
     {
-        if (empty($this->companyProductSearch)) {
-            return [];
+        $query = \App\Models\CRM\CompanyProduct::where('active', 1);
+        
+        if (!empty($this->companyProductSearch)) {
+            $query->where('name', 'like', '%' . $this->companyProductSearch . '%');
         }
         
-        return \App\Models\CRM\CompanyProduct::where('name', 'like', '%' . $this->companyProductSearch . '%')
-            ->where('active', 1)
-            ->limit(10)
-            ->get();
+        return $query->limit(10)->get();
     }
 
     public function getSelectedCompanyProductProperty()
@@ -844,6 +857,116 @@ class SampleTypeManager extends Component
         }
         
         return \App\Models\CRM\CompanyProduct::find($this->sampleTypeForm['default_product_id']);
+    }
+
+    // Category Creation Methods
+    public function showCreateCategoryModal(): void
+    {
+        $this->resetCategoryForm();
+        $this->showCategoryModal = true;
+        $this->showCategoryDropdown = false;
+    }
+
+    public function closeCategoryModal(): void
+    {
+        $this->showCategoryModal = false;
+        $this->resetCategoryForm();
+    }
+
+    public function resetCategoryForm(): void
+    {
+        $this->categoryForm = [
+            'sample_type_category' => '',
+            'active' => true,
+        ];
+    }
+
+    public function saveCategory(): void
+    {
+        $this->validate([
+            'categoryForm.sample_type_category' => 'required|string|max:255|unique:sample_type_categories,sample_type_category',
+        ]);
+
+        try {
+            DB::beginTransaction();
+
+            $category = SampleTypeCategory::create([
+                'sample_type_category' => $this->categoryForm['sample_type_category'],
+                'active' => $this->categoryForm['active'] ?? true,
+            ]);
+
+            DB::commit();
+
+            // Auto-select the newly created category
+            $this->sampleTypeForm['category_id'] = $category->id;
+            
+            // Reload categories
+            $this->categories = SampleTypeCategory::all();
+
+            $this->message = 'Category created successfully!';
+            $this->messageType = 'success';
+            $this->closeCategoryModal();
+
+        } catch (\Exception $e) {
+            DB::rollBack();
+            $this->message = 'Error: ' . $e->getMessage();
+            $this->messageType = 'error';
+        }
+    }
+
+    // Product Creation Methods
+    public function showCreateProductModal(): void
+    {
+        $this->resetProductForm();
+        $this->showProductModal = true;
+        $this->showCompanyProductDropdown = false;
+    }
+
+    public function closeProductModal(): void
+    {
+        $this->showProductModal = false;
+        $this->resetProductForm();
+    }
+
+    public function resetProductForm(): void
+    {
+        $this->productForm = [
+            'name' => '',
+            'active' => true,
+        ];
+    }
+
+    public function saveProduct(): void
+    {
+        $this->validate([
+            'productForm.name' => 'required|string|max:255',
+        ]);
+
+        try {
+            DB::beginTransaction();
+
+            $product = \App\Models\CRM\CompanyProduct::create([
+                'name' => $this->productForm['name'],
+                'active' => $this->productForm['active'] ?? true,
+            ]);
+
+            DB::commit();
+
+            // Auto-select the newly created product
+            $this->sampleTypeForm['default_product_id'] = $product->id;
+            
+            // Reload company products
+            $this->companyProducts = \App\Models\CRM\CompanyProduct::where('active', 1)->get();
+
+            $this->message = 'Product created successfully!';
+            $this->messageType = 'success';
+            $this->closeProductModal();
+
+        } catch (\Exception $e) {
+            DB::rollBack();
+            $this->message = 'Error: ' . $e->getMessage();
+            $this->messageType = 'error';
+        }
     }
 
     public function render()
