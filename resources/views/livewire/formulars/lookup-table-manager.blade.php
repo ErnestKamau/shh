@@ -224,7 +224,7 @@
     <!-- Create Table Modal -->
     @if($showCreateModal)
     <div class="modal fade show d-block" tabindex="-1" style="background-color: rgba(0,0,0,0.5);">
-        <div class="modal-dialog modal-lg">
+        <div class="modal-dialog modal-lg modal-dialog-scrollable">
             <div class="modal-content">
                 <div class="modal-header">
                     <h5 class="modal-title">
@@ -274,81 +274,53 @@
                                 <label class="form-label fw-bold">
                                     <i class="mdi mdi-variable"></i> Range Variable Name *
                                 </label>
-                                <div x-data="{
-                                    open: false,
-                                    search: '',
-                                    selected: @entangle('rangeVariableName').live,
-                                    variables: [
-                                        { value: 'score', label: 'score' },
-                                        { value: 'temperature', label: 'temperature' },
-                                        { value: 'pressure', label: 'pressure' },
-                                        { value: 'ph_value', label: 'ph_value' },
-                                        { value: 'concentration', label: 'concentration' },
-                                        { value: 'count', label: 'count' },
-                                        { value: 'percentage', label: 'percentage' },
-                                        { value: 'measurement', label: 'measurement' },
-                                        { value: 'weight', label: 'weight' },
-                                        { value: 'volume', label: 'volume' },
-                                        { value: 'density', label: 'density' },
-                                        { value: 'bacterial_count', label: 'bacterial_count' },
-                                        { value: 'humidity', label: 'humidity' },
-                                        { value: 'time', label: 'time' },
-                                        { value: 'custom', label: '✏️ Enter Custom Name' }
-                                    ],
-                                    get filteredVariables() {
-                                        if (!this.search) return this.variables;
-                                        return this.variables.filter(v => 
-                                            v.label.toLowerCase().includes(this.search.toLowerCase())
-                                        );
-                                    },
-                                    selectVariable(value) {
-                                        this.selected = value;
-                                        this.open = false;
-                                        this.search = '';
-                                    },
-                                    getSelectedName() {
-                                        const variable = this.variables.find(v => v.value == this.selected);
-                                        return variable ? variable.label : '';
-                                    }
-                                }" class="searchable-dropdown-wrapper">
-                                    <div class="single-select-container" @click="open = !open">
-                                        <input 
-                                            type="text" 
-                                            x-model="search"
-                                            :placeholder="selected ? getSelectedName() : 'Search variables...'"
-                                            @focus="open = true"
-                                            class="form-control searchable-input-single"
-                                            autocomplete="off"
-                                        >
-                                        <i class="mdi mdi-chevron-down dropdown-arrow" :class="{ 'rotated': open }"></i>
+                                <div class="tag-select-container" wire:click="$set('showRangeVariableDropdown', true)">
+                                    <div class="tag-select-input">
+                                        @if($rangeVariableName && $rangeVariableName !== 'custom')
+                                            <span class="tag-badge">
+                                                {{ $rangeVariableName }}
+                                                <i class="mdi mdi-close-circle" wire:click.stop="$set('rangeVariableName', null)"></i>
+                                            </span>
+                                        @endif
+                                        
+                                        <input type="text" 
+                                               wire:model.live="rangeVariableSearch" 
+                                               class="tag-input" 
+                                               placeholder="{{ $rangeVariableName && $rangeVariableName !== 'custom' ? '' : 'Search variables...' }}"
+                                               autocomplete="off">
                                     </div>
-
-                                    <div x-show="open" 
-                                         @click.away="open = false"
-                                         x-transition
-                                         class="dropdown-list">
-                                        <template x-if="filteredVariables.length > 0">
-                                            <div class="options-list">
-                                                <template x-for="variable in filteredVariables" :key="variable.value">
-                                                    <div @click="selectVariable(variable.value)" 
-                                                         class="option-item"
-                                                         :class="{ 'selected': selected == variable.value }">
-                                                        <i class="mdi mdi-check-circle text-primary" x-show="selected == variable.value"></i>
-                                                        <span x-text="variable.label"></span>
-                                                    </div>
-                                                </template>
+                                    
+                                    @if($showRangeVariableDropdown ?? false)
+                                        <div class="tag-dropdown">
+                                            <div class="tag-dropdown-header">Lab Measurements</div>
+                                            <div class="tag-dropdown-item" wire:click.stop="selectRangeVariable('bacterial_count')">bacterial_count</div>
+                                            <div class="tag-dropdown-item" wire:click.stop="selectRangeVariable('ph_value')">ph_value</div>
+                                            <div class="tag-dropdown-item" wire:click.stop="selectRangeVariable('temperature')">temperature</div>
+                                            <div class="tag-dropdown-item" wire:click.stop="selectRangeVariable('pressure')">pressure</div>
+                                            <div class="tag-dropdown-item" wire:click.stop="selectRangeVariable('concentration')">concentration</div>
+                                            <div class="tag-dropdown-item" wire:click.stop="selectRangeVariable('density')">density</div>
+                                            <div class="tag-dropdown-item" wire:click.stop="selectRangeVariable('humidity')">humidity</div>
+                                            
+                                            <div class="tag-dropdown-divider"></div>
+                                            <div class="tag-dropdown-header">General Values</div>
+                                            <div class="tag-dropdown-item" wire:click.stop="selectRangeVariable('score')">score</div>
+                                            <div class="tag-dropdown-item" wire:click.stop="selectRangeVariable('count')">count</div>
+                                            <div class="tag-dropdown-item" wire:click.stop="selectRangeVariable('percentage')">percentage</div>
+                                            <div class="tag-dropdown-item" wire:click.stop="selectRangeVariable('measurement')">measurement</div>
+                                            <div class="tag-dropdown-item" wire:click.stop="selectRangeVariable('weight')">weight</div>
+                                            <div class="tag-dropdown-item" wire:click.stop="selectRangeVariable('volume')">volume</div>
+                                            <div class="tag-dropdown-item" wire:click.stop="selectRangeVariable('time')">time</div>
+                                            
+                                            <div class="tag-dropdown-divider"></div>
+                                            <div class="tag-dropdown-item tag-dropdown-create" wire:click.stop="selectRangeVariable('custom')">
+                                                <i class="mdi mdi-pencil text-primary"></i>
+                                                <strong>✏️ Enter Custom Name</strong>
                                             </div>
-                                        </template>
-                                        <template x-if="filteredVariables.length === 0">
-                                            <div class="no-results">
-                                                <i class="mdi mdi-alert-circle-outline"></i>
-                                                <span>No variables found</span>
-                                            </div>
-                                        </template>
-                                    </div>
+                                        </div>
+                                    @endif
                                 </div>
-                                <small class="text-muted">Variable to check against ranges (prevents typos)</small>
-                                @error('rangeVariableName') <span class="text-danger">{{ $message }}</span> @enderror
+                                <small class="text-muted">Variable to check against ranges (e.g., bacterial_count, temperature)</small>
+                                @error('rangeVariableName') <span class="text-danger d-block">{{ $message }}</span> @enderror
                             </div>
                             
                             @if($rangeVariableName === 'custom')
@@ -365,77 +337,40 @@
                                 <label class="form-label fw-bold">
                                     <i class="mdi mdi-text-box"></i> Value Interpretation Column
                                 </label>
-                                <div x-data="{
-                                    open: false,
-                                    search: '',
-                                    selected: @entangle('valueInterpretationColumn').live,
-                                    interpretations: [
-                                        { value: '', label: 'None (Numeric value only)' },
-                                        { value: 'interpretation', label: 'interpretation' },
-                                        { value: 'description', label: 'description' },
-                                        { value: 'grade', label: 'grade' },
-                                        { value: 'level', label: 'level' },
-                                        { value: 'category', label: 'category' },
-                                        { value: 'status', label: 'status' },
-                                        { value: 'rating', label: 'rating' },
-                                        { value: 'classification', label: 'classification' },
-                                        { value: 'risk_level', label: 'risk_level' },
-                                        { value: 'quality', label: 'quality' }
-                                    ],
-                                    get filteredInterpretations() {
-                                        if (!this.search) return this.interpretations;
-                                        return this.interpretations.filter(i => 
-                                            i.label.toLowerCase().includes(this.search.toLowerCase())
-                                        );
-                                    },
-                                    selectInterpretation(value) {
-                                        this.selected = value;
-                                        this.open = false;
-                                        this.search = '';
-                                    },
-                                    getSelectedName() {
-                                        const interpretation = this.interpretations.find(i => i.value == this.selected);
-                                        return interpretation ? interpretation.label : '';
-                                    }
-                                }" class="searchable-dropdown-wrapper">
-                                    <div class="single-select-container" @click="open = !open">
-                                        <input 
-                                            type="text" 
-                                            x-model="search"
-                                            :placeholder="selected ? getSelectedName() : 'Search interpretations...'"
-                                            @focus="open = true"
-                                            class="form-control searchable-input-single"
-                                            autocomplete="off"
-                                        >
-                                        <i class="mdi mdi-chevron-down dropdown-arrow" :class="{ 'rotated': open }"></i>
+                                <div class="tag-select-container" wire:click="$set('showValueInterpretationDropdown', true)">
+                                    <div class="tag-select-input">
+                                        @if($valueInterpretationColumn)
+                                            <span class="tag-badge">
+                                                {{ $valueInterpretationColumn }}
+                                                <i class="mdi mdi-close-circle" wire:click.stop="$set('valueInterpretationColumn', null)"></i>
+                                            </span>
+                                        @endif
+                                        
+                                        <input type="text" 
+                                               wire:model.live="valueInterpretationSearch" 
+                                               class="tag-input" 
+                                               placeholder="{{ $valueInterpretationColumn ? '' : 'Search columns (optional)...' }}"
+                                               autocomplete="off">
                                     </div>
-
-                                    <div x-show="open" 
-                                         @click.away="open = false"
-                                         x-transition
-                                         class="dropdown-list">
-                                        <template x-if="filteredInterpretations.length > 0">
-                                            <div class="options-list">
-                                                <template x-for="interpretation in filteredInterpretations" :key="interpretation.value">
-                                                    <div @click="selectInterpretation(interpretation.value)" 
-                                                         class="option-item"
-                                                         :class="{ 'selected': selected == interpretation.value }">
-                                                        <i class="mdi mdi-check-circle text-primary" x-show="selected == interpretation.value"></i>
-                                                        <span x-text="interpretation.label"></span>
-                                                    </div>
-                                                </template>
-                                            </div>
-                                        </template>
-                                        <template x-if="filteredInterpretations.length === 0">
-                                            <div class="no-results">
-                                                <i class="mdi mdi-alert-circle-outline"></i>
-                                                <span>No interpretations found</span>
-                                            </div>
-                                        </template>
-                                    </div>
+                                    
+                                    @if($showValueInterpretationDropdown ?? false)
+                                        <div class="tag-dropdown">
+                                            <div class="tag-dropdown-header">Common Interpretations</div>
+                                            <div class="tag-dropdown-item" wire:click.stop="selectValueInterpretation('interpretation')">interpretation</div>
+                                            <div class="tag-dropdown-item" wire:click.stop="selectValueInterpretation('description')">description</div>
+                                            <div class="tag-dropdown-item" wire:click.stop="selectValueInterpretation('grade')">grade</div>
+                                            <div class="tag-dropdown-item" wire:click.stop="selectValueInterpretation('level')">level</div>
+                                            <div class="tag-dropdown-item" wire:click.stop="selectValueInterpretation('category')">category</div>
+                                            <div class="tag-dropdown-item" wire:click.stop="selectValueInterpretation('status')">status</div>
+                                            <div class="tag-dropdown-item" wire:click.stop="selectValueInterpretation('rating')">rating</div>
+                                            <div class="tag-dropdown-item" wire:click.stop="selectValueInterpretation('classification')">classification</div>
+                                            <div class="tag-dropdown-item" wire:click.stop="selectValueInterpretation('risk_level')">risk_level</div>
+                                            <div class="tag-dropdown-item" wire:click.stop="selectValueInterpretation('quality')">quality</div>
+                                        </div>
+                                    @endif
                                 </div>
-                                <small class="text-muted">Optional: Text interpretation column (e.g., "Excellent", "High Risk")</small>
-                                @error('valueInterpretationColumn') <span class="text-danger">{{ $message }}</span> @enderror
+                                <small class="text-muted">Optional text description for range values (e.g., "Excellent", "Poor")</small>
+                                @error('valueInterpretationColumn') <span class="text-danger d-block">{{ $message }}</span> @enderror
                             </div>
                             
                             <!-- Preview Section -->
@@ -568,7 +503,7 @@
     <!-- Edit Table Modal -->
     @if($showEditModal)
     <div class="modal fade show d-block" tabindex="-1" style="background-color: rgba(0,0,0,0.5);">
-        <div class="modal-dialog modal-lg">
+        <div class="modal-dialog modal-lg modal-dialog-scrollable">
             <div class="modal-content">
                 <div class="modal-header">
                     <h5 class="modal-title">
@@ -618,81 +553,53 @@
                                 <label class="form-label fw-bold">
                                     <i class="mdi mdi-variable"></i> Range Variable Name *
                                 </label>
-                                <div x-data="{
-                                    open: false,
-                                    search: '',
-                                    selected: @entangle('rangeVariableName').live,
-                                    variables: [
-                                        { value: 'score', label: 'score' },
-                                        { value: 'temperature', label: 'temperature' },
-                                        { value: 'pressure', label: 'pressure' },
-                                        { value: 'ph_value', label: 'ph_value' },
-                                        { value: 'concentration', label: 'concentration' },
-                                        { value: 'count', label: 'count' },
-                                        { value: 'percentage', label: 'percentage' },
-                                        { value: 'measurement', label: 'measurement' },
-                                        { value: 'weight', label: 'weight' },
-                                        { value: 'volume', label: 'volume' },
-                                        { value: 'density', label: 'density' },
-                                        { value: 'bacterial_count', label: 'bacterial_count' },
-                                        { value: 'humidity', label: 'humidity' },
-                                        { value: 'time', label: 'time' },
-                                        { value: 'custom', label: '✏️ Enter Custom Name' }
-                                    ],
-                                    get filteredVariables() {
-                                        if (!this.search) return this.variables;
-                                        return this.variables.filter(v => 
-                                            v.label.toLowerCase().includes(this.search.toLowerCase())
-                                        );
-                                    },
-                                    selectVariable(value) {
-                                        this.selected = value;
-                                        this.open = false;
-                                        this.search = '';
-                                    },
-                                    getSelectedName() {
-                                        const variable = this.variables.find(v => v.value == this.selected);
-                                        return variable ? variable.label : '';
-                                    }
-                                }" class="searchable-dropdown-wrapper">
-                                    <div class="single-select-container" @click="open = !open">
-                                        <input 
-                                            type="text" 
-                                            x-model="search"
-                                            :placeholder="selected ? getSelectedName() : 'Search variables...'"
-                                            @focus="open = true"
-                                            class="form-control searchable-input-single"
-                                            autocomplete="off"
-                                        >
-                                        <i class="mdi mdi-chevron-down dropdown-arrow" :class="{ 'rotated': open }"></i>
+                                <div class="tag-select-container" wire:click="$set('showRangeVariableDropdown', true)">
+                                    <div class="tag-select-input">
+                                        @if($rangeVariableName && $rangeVariableName !== 'custom')
+                                            <span class="tag-badge">
+                                                {{ $rangeVariableName }}
+                                                <i class="mdi mdi-close-circle" wire:click.stop="$set('rangeVariableName', null)"></i>
+                                            </span>
+                                        @endif
+                                        
+                                        <input type="text" 
+                                               wire:model.live="rangeVariableSearch" 
+                                               class="tag-input" 
+                                               placeholder="{{ $rangeVariableName && $rangeVariableName !== 'custom' ? '' : 'Search variables...' }}"
+                                               autocomplete="off">
                                     </div>
-
-                                    <div x-show="open" 
-                                         @click.away="open = false"
-                                         x-transition
-                                         class="dropdown-list">
-                                        <template x-if="filteredVariables.length > 0">
-                                            <div class="options-list">
-                                                <template x-for="variable in filteredVariables" :key="variable.value">
-                                                    <div @click="selectVariable(variable.value)" 
-                                                         class="option-item"
-                                                         :class="{ 'selected': selected == variable.value }">
-                                                        <i class="mdi mdi-check-circle text-primary" x-show="selected == variable.value"></i>
-                                                        <span x-text="variable.label"></span>
-                                                    </div>
-                                                </template>
+                                    
+                                    @if($showRangeVariableDropdown ?? false)
+                                        <div class="tag-dropdown">
+                                            <div class="tag-dropdown-header">Lab Measurements</div>
+                                            <div class="tag-dropdown-item" wire:click.stop="selectRangeVariable('bacterial_count')">bacterial_count</div>
+                                            <div class="tag-dropdown-item" wire:click.stop="selectRangeVariable('ph_value')">ph_value</div>
+                                            <div class="tag-dropdown-item" wire:click.stop="selectRangeVariable('temperature')">temperature</div>
+                                            <div class="tag-dropdown-item" wire:click.stop="selectRangeVariable('pressure')">pressure</div>
+                                            <div class="tag-dropdown-item" wire:click.stop="selectRangeVariable('concentration')">concentration</div>
+                                            <div class="tag-dropdown-item" wire:click.stop="selectRangeVariable('density')">density</div>
+                                            <div class="tag-dropdown-item" wire:click.stop="selectRangeVariable('humidity')">humidity</div>
+                                            
+                                            <div class="tag-dropdown-divider"></div>
+                                            <div class="tag-dropdown-header">General Values</div>
+                                            <div class="tag-dropdown-item" wire:click.stop="selectRangeVariable('score')">score</div>
+                                            <div class="tag-dropdown-item" wire:click.stop="selectRangeVariable('count')">count</div>
+                                            <div class="tag-dropdown-item" wire:click.stop="selectRangeVariable('percentage')">percentage</div>
+                                            <div class="tag-dropdown-item" wire:click.stop="selectRangeVariable('measurement')">measurement</div>
+                                            <div class="tag-dropdown-item" wire:click.stop="selectRangeVariable('weight')">weight</div>
+                                            <div class="tag-dropdown-item" wire:click.stop="selectRangeVariable('volume')">volume</div>
+                                            <div class="tag-dropdown-item" wire:click.stop="selectRangeVariable('time')">time</div>
+                                            
+                                            <div class="tag-dropdown-divider"></div>
+                                            <div class="tag-dropdown-item tag-dropdown-create" wire:click.stop="selectRangeVariable('custom')">
+                                                <i class="mdi mdi-pencil text-primary"></i>
+                                                <strong>✏️ Enter Custom Name</strong>
                                             </div>
-                                        </template>
-                                        <template x-if="filteredVariables.length === 0">
-                                            <div class="no-results">
-                                                <i class="mdi mdi-alert-circle-outline"></i>
-                                                <span>No variables found</span>
-                                            </div>
-                                        </template>
-                                    </div>
+                                        </div>
+                                    @endif
                                 </div>
-                                <small class="text-muted">Variable to check against ranges (prevents typos)</small>
-                                @error('rangeVariableName') <span class="text-danger">{{ $message }}</span> @enderror
+                                <small class="text-muted">Variable to check against ranges (e.g., bacterial_count, temperature)</small>
+                                @error('rangeVariableName') <span class="text-danger d-block">{{ $message }}</span> @enderror
                             </div>
                             
                             @if($rangeVariableName === 'custom')
@@ -709,77 +616,60 @@
                                 <label class="form-label fw-bold">
                                     <i class="mdi mdi-text-box"></i> Value Interpretation Column
                                 </label>
-                                <div x-data="{
-                                    open: false,
-                                    search: '',
-                                    selected: @entangle('valueInterpretationColumn').live,
-                                    interpretations: [
-                                        { value: '', label: 'None (Numeric value only)' },
-                                        { value: 'interpretation', label: 'interpretation' },
-                                        { value: 'description', label: 'description' },
-                                        { value: 'grade', label: 'grade' },
-                                        { value: 'level', label: 'level' },
-                                        { value: 'category', label: 'category' },
-                                        { value: 'status', label: 'status' },
-                                        { value: 'rating', label: 'rating' },
-                                        { value: 'classification', label: 'classification' },
-                                        { value: 'risk_level', label: 'risk_level' },
-                                        { value: 'quality', label: 'quality' }
-                                    ],
-                                    get filteredInterpretations() {
-                                        if (!this.search) return this.interpretations;
-                                        return this.interpretations.filter(i => 
-                                            i.label.toLowerCase().includes(this.search.toLowerCase())
-                                        );
-                                    },
-                                    selectInterpretation(value) {
-                                        this.selected = value;
-                                        this.open = false;
-                                        this.search = '';
-                                    },
-                                    getSelectedName() {
-                                        const interpretation = this.interpretations.find(i => i.value == this.selected);
-                                        return interpretation ? interpretation.label : '';
-                                    }
-                                }" class="searchable-dropdown-wrapper">
-                                    <div class="single-select-container" @click="open = !open">
-                                        <input 
-                                            type="text" 
-                                            x-model="search"
-                                            :placeholder="selected ? getSelectedName() : 'Search interpretations...'"
-                                            @focus="open = true"
-                                            class="form-control searchable-input-single"
-                                            autocomplete="off"
-                                        >
-                                        <i class="mdi mdi-chevron-down dropdown-arrow" :class="{ 'rotated': open }"></i>
+                                <div class="tag-select-container" wire:click="$set('showValueInterpretationDropdown', true)">
+                                    <div class="tag-select-input">
+                                        @if($valueInterpretationColumn)
+                                            <span class="tag-badge">
+                                                {{ $valueInterpretationColumn }}
+                                                <i class="mdi mdi-close-circle" wire:click.stop="$set('valueInterpretationColumn', null)"></i>
+                                            </span>
+                                        @endif
+                                        
+                                        <input type="text" 
+                                               wire:model.live="valueInterpretationSearch" 
+                                               class="tag-input" 
+                                               placeholder="{{ $valueInterpretationColumn ? '' : 'Search columns (optional)...' }}"
+                                               autocomplete="off">
                                     </div>
-
-                                    <div x-show="open" 
-                                         @click.away="open = false"
-                                         x-transition
-                                         class="dropdown-list">
-                                        <template x-if="filteredInterpretations.length > 0">
-                                            <div class="options-list">
-                                                <template x-for="interpretation in filteredInterpretations" :key="interpretation.value">
-                                                    <div @click="selectInterpretation(interpretation.value)" 
-                                                         class="option-item"
-                                                         :class="{ 'selected': selected == interpretation.value }">
-                                                        <i class="mdi mdi-check-circle text-primary" x-show="selected == interpretation.value"></i>
-                                                        <span x-text="interpretation.label"></span>
-                                                    </div>
-                                                </template>
-                                            </div>
-                                        </template>
-                                        <template x-if="filteredInterpretations.length === 0">
-                                            <div class="no-results">
-                                                <i class="mdi mdi-alert-circle-outline"></i>
-                                                <span>No interpretations found</span>
-                                            </div>
-                                        </template>
-                                    </div>
+                                    
+                                    @if($showValueInterpretationDropdown ?? false)
+                                        <div class="tag-dropdown">
+                                            <div class="tag-dropdown-header">Common Interpretations</div>
+                                            <div class="tag-dropdown-item" wire:click.stop="selectValueInterpretation('interpretation')">interpretation</div>
+                                            <div class="tag-dropdown-item" wire:click.stop="selectValueInterpretation('description')">description</div>
+                                            <div class="tag-dropdown-item" wire:click.stop="selectValueInterpretation('grade')">grade</div>
+                                            <div class="tag-dropdown-item" wire:click.stop="selectValueInterpretation('level')">level</div>
+                                            <div class="tag-dropdown-item" wire:click.stop="selectValueInterpretation('category')">category</div>
+                                            <div class="tag-dropdown-item" wire:click.stop="selectValueInterpretation('status')">status</div>
+                                            <div class="tag-dropdown-item" wire:click.stop="selectValueInterpretation('rating')">rating</div>
+                                            <div class="tag-dropdown-item" wire:click.stop="selectValueInterpretation('classification')">classification</div>
+                                            <div class="tag-dropdown-item" wire:click.stop="selectValueInterpretation('risk_level')">risk_level</div>
+                                            <div class="tag-dropdown-item" wire:click.stop="selectValueInterpretation('quality')">quality</div>
+                                        </div>
+                                    @endif
                                 </div>
-                                <small class="text-muted">Optional: Text interpretation column (e.g., "Excellent", "High Risk")</small>
-                                @error('valueInterpretationColumn') <span class="text-danger">{{ $message }}</span> @enderror
+                                <small class="text-muted">Optional text description for range values (e.g., "Excellent", "Poor")</small>
+                                @error('valueInterpretationColumn') <span class="text-danger d-block">{{ $message }}</span> @enderror
+                            </div>
+                            
+                            <!-- Preview Section -->
+                            <div class="card bg-light">
+                                <div class="card-body">
+                                    <h6 class="card-title text-muted">📋 Preview</h6>
+                                    <p class="mb-1">
+                                        <strong>Input:</strong> <code>{{ $rangeVariableName === 'custom' ? ($customRangeVariableName ?: 'your_variable') : ($rangeVariableName ?: 'variable') }}</code>
+                                    </p>
+                                    <p class="mb-1">
+                                        <strong>Output:</strong> 
+                                        <code>value</code>
+                                        @if($valueInterpretationColumn)
+                                            + <code>{{ $valueInterpretationColumn }}</code>
+                                        @endif
+                                    </p>
+                                    <small class="text-muted">
+                                        Example: Input 85 → Returns value from matching range
+                                    </small>
+                                </div>
                             </div>
                         @endif
 
@@ -925,8 +815,10 @@
                         <div class="mt-2">
                             <small class="text-muted">
                                 <i class="mdi mdi-information"></i>
-                                The template includes: <strong>{{ implode(', ', $editingTable->key_columns ?? []) }}</strong> 
-                                @if($editingTable) and <strong>{{ $editingTable->value_column }}</strong> @endif
+                                The template includes: <strong>{{ implode(', ', $editingTable->key_columns ?? []) }}</strong>
+                                @if($editingTable && $editingTable->value_column)
+                                    and <strong>{{ $editingTable->value_column }}</strong>
+                                @endif
                             </small>
                         </div>
                     </div>
@@ -1191,5 +1083,138 @@
     .option-item i {
         font-size: 18px;
     }
+    
+    /* Tag-based Dropdown Styling */
+    .tag-select-container {
+        position: relative;
+        cursor: text;
+    }
+    
+    .tag-select-input {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        gap: 6px;
+        min-height: 42px;
+        padding: 6px 12px;
+        background: #fff;
+        border: 2px solid #e0e0e0;
+        border-radius: 8px;
+        transition: all 0.3s ease;
+    }
+    
+    .tag-select-input:hover {
+        border-color: #007bff;
+    }
+    
+    .tag-select-input:focus-within {
+        border-color: #007bff;
+        box-shadow: 0 0 0 0.2rem rgba(0, 123, 255, 0.25);
+        outline: none;
+    }
+    
+    .tag-badge {
+        display: inline-flex;
+        align-items: center;
+        gap: 4px;
+        padding: 4px 10px;
+        background-color: #007bff;
+        color: white;
+        border-radius: 16px;
+        font-size: 0.875rem;
+        font-weight: 500;
+        white-space: nowrap;
+    }
+    
+    .tag-badge i {
+        cursor: pointer;
+        font-size: 1rem;
+        opacity: 0.8;
+        transition: opacity 0.2s;
+    }
+    
+    .tag-badge i:hover {
+        opacity: 1;
+    }
+    
+    .tag-input {
+        flex: 1;
+        min-width: 120px;
+        border: none;
+        outline: none;
+        padding: 4px;
+        font-size: 0.9rem;
+    }
+    
+    .tag-dropdown {
+        position: absolute;
+        top: 100%;
+        left: 0;
+        right: 0;
+        background: white;
+        border: 2px solid #007bff;
+        border-top: none;
+        border-radius: 0 0 8px 8px;
+        max-height: 250px;
+        overflow-y: auto;
+        z-index: 1050;
+        box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        margin-top: -2px;
+    }
+    
+    .tag-dropdown-item {
+        padding: 10px 16px;
+        cursor: pointer;
+        transition: background-color 0.2s;
+        border-bottom: 1px solid #f0f0f0;
+    }
+    
+    .tag-dropdown-item:hover {
+        background-color: #f8f9fa;
+    }
+    
+    .tag-dropdown-item:last-child {
+        border-bottom: none;
+    }
+    
+    .tag-dropdown-create {
+        background-color: #f8f9fa;
+        font-weight: 600;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+    }
+    
+    .tag-dropdown-create:hover {
+        background-color: #e9ecef;
+    }
+    
+    .tag-dropdown-divider {
+        height: 1px;
+        background-color: #dee2e6;
+        margin: 4px 0;
+    }
+    
+    .tag-dropdown-header {
+        padding: 8px 16px;
+        font-size: 0.75rem;
+        font-weight: 600;
+        text-transform: uppercase;
+        color: #6c757d;
+        background-color: #f8f9fa;
+        border-bottom: 1px solid #dee2e6;
+    }
     </style>
+    
+    @script
+    <script>
+    // Close dropdowns when clicking outside
+    document.addEventListener('click', function(e) {
+        if (!e.target.closest('.tag-select-container')) {
+            $wire.set('showRangeVariableDropdown', false);
+            $wire.set('showValueInterpretationDropdown', false);
+        }
+    });
+    </script>
+    @endscript
 </div>
