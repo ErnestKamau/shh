@@ -50,6 +50,14 @@ class LookupTableManager extends Component
     // Messages
     public $message = '';
     public $messageType = '';
+    
+    // Dropdown visibility
+    public $showRangeVariableDropdown = false;
+    public $showValueInterpretationDropdown = false;
+    
+    // Search terms for dropdowns
+    public $rangeVariableSearch = '';
+    public $valueInterpretationSearch = '';
 
     protected $rules = [
         'tableName' => 'required|string|max:255',
@@ -362,6 +370,20 @@ class LookupTableManager extends Component
         } catch (\Exception $e) {
             $this->setMessage('Error exporting table: ' . $e->getMessage(), 'error');
         }
+    }
+
+    public function selectRangeVariable($variable)
+    {
+        $this->rangeVariableName = $variable;
+        $this->showRangeVariableDropdown = false;
+        $this->rangeVariableSearch = '';
+    }
+    
+    public function selectValueInterpretation($column)
+    {
+        $this->valueInterpretationColumn = $column;
+        $this->showValueInterpretationDropdown = false;
+        $this->valueInterpretationSearch = '';
     }
 
     public function clearFilters()
