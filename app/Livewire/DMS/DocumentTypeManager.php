@@ -426,7 +426,7 @@ class DocumentTypeManager extends Component
     {
         return view('livewire.dms.document-type-manager-component', [
             'documentTypes' => $this->documentTypes,
-        ])->layout('layouts.app');
+        ]);
     }
 }
 

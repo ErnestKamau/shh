@@ -109,7 +109,7 @@ class ArchivedDocuments extends Component
     {
         return view('livewire.dms.archived-documents-component', [
             'documents' => $this->documents,
-        ])->layout('layouts.app');
+        ]);
     }
 }
 
