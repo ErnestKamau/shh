@@ -787,6 +787,10 @@ class SubmissionFormInstance extends Model
                     $unit = DB::table('crm_company_units')->where('id', $id)->first();
                     return $unit ? $unit->name : $id;
                     
+                case 'company_sub_unit_select':
+                    $subUnit = DB::table('crm_company_sub_units')->where('id', $id)->first();
+                    return $subUnit ? $subUnit->name : $id;
+                    
                 case 'sample_type_select':
                     $sampleType = DB::table('sample_types')->where('id', $id)->first();
                     return $sampleType ? $sampleType->name : $id;
@@ -1052,6 +1056,10 @@ class SubmissionFormInstance extends Model
                 case 'crm_unit_id':
                     $unit = DB::table('crm_company_units')->where('id', $value)->first();
                     return $unit ? $unit->name : $value;
+                    
+                case 'company_sub_unit_id':
+                    $subUnit = DB::table('crm_company_sub_units')->where('id', $value)->first();
+                    return $subUnit ? $subUnit->name : $value;
                     
                 case 'sample_type_id':
                     $sampleType = DB::table('sample_types')->where('id', $value)->first();

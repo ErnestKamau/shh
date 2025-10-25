@@ -119,6 +119,18 @@
 					<span class="menu-collapsed">Customer Feedback</span>
 				</div>
 			</a>
+			<a href="{{ route('crm.sample-points') }}" class="bg-dark list-group-item list-group-item-action">
+				<div class="d-flex w-100 justify-content-start align-items-center">
+					<span class="mdi mdi-map-marker fa-fw mr-3"></span>
+					<span class="menu-collapsed">Sample Points</span>
+				</div>
+			</a>
+			<a href="{{ route('crm.areas') }}" class="bg-dark list-group-item list-group-item-action">
+				<div class="d-flex w-100 justify-content-start align-items-center">
+					<span class="mdi mdi-map fa-fw mr-3"></span>
+					<span class="menu-collapsed">Areas</span>
+				</div>
+			</a>
 
 			<div class="list-group-item copyright-lims p-4 text-center text-white" style="bottom:0">
 				Copyright {{ date('Y') }} <span class="text-red">Imara LIMS</span>

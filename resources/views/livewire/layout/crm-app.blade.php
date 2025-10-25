@@ -39,6 +39,10 @@
         @livewire(\App\Livewire\CRM\CustomerManager::class)
     @elseif($componentType === 'customer-profile')
         @livewire(\App\Livewire\CRM\CustomerProfile::class, ['customerId' => $customerId])
+    @elseif($componentType === 'sample-points')
+        @livewire(\App\Livewire\CRM\SamplePointManager::class)
+    @elseif($componentType === 'areas')
+        @livewire(\App\Livewire\CRM\AreaManager::class)
     @endif
 </main>
 @endsection

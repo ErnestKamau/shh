@@ -44,5 +44,27 @@ class CRMAppController extends Controller
             'customerId' => $customerId
         ]);
     }
+
+    /**
+     * Display the sample points management page.
+     */
+    public function samplePoints()
+    {
+        return view('livewire.layout.crm-app', [
+            'componentType' => 'sample-points',
+            'pageTitle' => 'Sample Points Management'
+        ]);
+    }
+
+    /**
+     * Display the areas management page.
+     */
+    public function areas()
+    {
+        return view('livewire.layout.crm-app', [
+            'componentType' => 'areas',
+            'pageTitle' => 'Areas Management'
+        ]);
+    }
 }
 

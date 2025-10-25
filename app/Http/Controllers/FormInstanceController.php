@@ -570,7 +570,7 @@ class FormInstanceController extends Controller
     private function isMultipleSelectField(SubmissionFormElement $element, Request $request): bool
     {
         // Check for specific element types that support multiple selection
-        $multipleSelectTypes = ['sample_point_select', 'analysis_elements_select'];
+        $multipleSelectTypes = ['sample_point_select', 'analysis_type_select', 'analysis_elements_select'];
         
         if (in_array($element->element_type, $multipleSelectTypes)) {
             return true;

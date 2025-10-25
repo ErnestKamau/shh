@@ -1108,7 +1108,7 @@ class SampleWorkFlowController extends Controller
     {
         $batchID = $batch;
 
-        $batch = SampleHeader::with('comments.creator', 'samples.sample_detail_lab', 'captured_results.my_analyte', 'captured_results.defacto_analyst_with', 'captured_results.sample')->find($batchID);
+        $batch = SampleHeader::with('comments.creator', 'samples.sample_detail_lab', 'captured_results.my_analyte', 'captured_results.defacto_analyst_with', 'captured_results.sample', 'stagingDetails', 'sample_type')->find($batchID);
         if (isset($batch->id) && $batch->crm_unit_id < 1) {
             $crm_unit = CRMCompanyUnit::where('crm_customer_id', $batch->crm_customer_id)->where('name', $batch->crm_unit_name)->first();
             $batch->crm_unit_id = isset($crm_unit->id) ? $crm_unit->id : $batch->crm_unit_id;

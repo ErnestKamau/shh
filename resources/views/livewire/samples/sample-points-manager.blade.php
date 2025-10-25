@@ -8,12 +8,12 @@
                         <div>
                             <h2 class="mb-0">
                                 <i class="mdi mdi-map-marker text-primary"></i>
-                                Sample Points Management
+                                {{ $customer->sample_point_configurable_name ?: 'Sample Points' }} Management
                             </h2>
-                            <p class="text-muted mb-0">Manage sample points for: <strong>{{ $customer->name }}</strong></p>
+                            <p class="text-muted mb-0">Manage {{ strtolower($customer->sample_point_configurable_name ?: 'sample points') }} for: <strong>{{ $customer->name }}</strong></p>
                         </div>
                         <button wire:click="showCreateSamplePointModal" class="btn btn-primary">
-                <i class="mdi mdi-plus"></i> Add Sample Point
+                <i class="mdi mdi-plus"></i> Add {{ $customer->sample_point_configurable_name ?: 'Sample Point' }}
             </button>
                     </div>
                 </div>
@@ -43,7 +43,7 @@
                         <div class="col-md-6">
                             <div class="form-group mb-3">
                                 <label class="form-label fw-bold">Search</label>
-                                <input type="text" wire:model.live="search" class="form-control" placeholder="Search by sample point name...">
+                                <input type="text" wire:model.live="search" class="form-control" placeholder="Search by master {{ strtolower($customer->sample_point_configurable_name ?: 'sample point') }} name or code...">
                             </div>
                         </div>
                         <div class="col-md-3">
@@ -75,87 +75,82 @@
         <div class="col-12">
             <div class="card" style="border-radius: 15px;">
                 <div class="card-body">
-                    @if($this->samplePoints->count() > 0)
-                        <!-- Show Entries -->
-                        <div class="d-flex justify-content-between align-items-center mb-3">
-                            <div class="d-flex align-items-center">
-                                <span class="text-muted">
-                                    Showing {{ $this->samplePoints->firstItem() ?? 0 }} to {{ $this->samplePoints->lastItem() ?? 0 }} of {{ $this->samplePoints->total() }} entries
-                                </span>
-                            </div>
-                            <div class="d-flex align-items-center">
-                                <label for="perPage" class="form-label mb-0 me-2 text-muted">Show:</label>
-                                <select wire:model.live="perPage" id="perPage" class="form-select form-select-sm" style="width: auto;">
-                                    @foreach($perPageOptions as $option)
-                                        <option value="{{ $option }}">{{ $option }}</option>
-                                    @endforeach
-                                </select>
-                            </div>
-                        </div>
-
-        <div class="table-responsive">
-                            <table class="table table-striped table-hover">
+                    @if($this->samplePoints->flatten()->count() > 0)
+                        <div class="table-responsive">
+                            <table class="table table-hover">
                                 <thead style="background-color: rgba(0, 0, 0, .03);">
-                    <tr>
-                        <th>Name</th>
-                                        <th>Description</th>
-                                        <th>Company Unit</th>
-                                        <th>Area</th>
-                        <th>Status</th>
+                                    <tr>
+                                        <th>Name</th>
+                                        <th>Code</th>
                                         <th>Actions</th>
-                    </tr>
-                </thead>
-                <tbody>
-                                    @foreach($this->samplePoints as $samplePoint)
-                        <tr>
-                            <td>
-                                                <strong>{{ $samplePoint->name }}</strong>
-                                            </td>
-                                            <td>
-                                                {{ Str::limit($samplePoint->description, 50) }}
-                                            </td>
-                                            <td>
-                                                {{ $samplePoint->unit_name ?? 'N/A' }}
-                                            </td>
-                                            <td>
-                                                {{ $samplePoint->area_name ?? 'N/A' }}
-                            </td>
-                            <td>
-                                                @if($samplePoint->active)
-                                                    <span class="badge bg-success p-2" style="color: white;">Active</span>
-                                @else
-                                                    <span class="badge bg-danger p-2" style="color: white;">Inactive</span>
-                                @endif
-                            </td>
-                            <td>
-                                <div class="btn-group" role="group">
-                                                    <button wire:click="showEditSamplePointModal({{ $samplePoint->id }})" 
-                                                            class="btn btn-sm btn-outline-warning mr-1" 
-                                            title="Edit">
-                                        <i class="mdi mdi-pencil"></i>
-                                    </button>
-                                                    <button wire:click="deleteSamplePoint({{ $samplePoint->id }})" 
-                                                            class="btn btn-sm btn-outline-danger mr-1" 
-                                            title="Delete"
-                                            onclick="return confirm('Are you sure you want to delete this sample point?')">
-                                        <i class="mdi mdi-delete"></i>
-                                    </button>
-                                </div>
-                            </td>
-                        </tr>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    @foreach($this->samplePoints as $areaId => $points)
+                                        @if($areaId)
+                                            @php
+                                                $area = $points->first()->area;
+                                            @endphp
+                                            <!-- Area Header Row -->
+                                            <tr>
+                                                <td colspan="3" class="bg-light fw-bold" style="padding: 12px 15px;">
+                                                    <i class="mdi mdi-map-marker text-primary"></i>
+                                                    <strong>Area:</strong> {{ $area->crmArea->name ?? 'N/A' }} ({{ $area->crmArea->code ?? 'N/A' }})
+                                                    <span class="ms-3">
+                                                        <i class="mdi mdi-file-tree text-warning"></i>
+                                                        <strong>Sub Unit:</strong> {{ $area->subUnit->name ?? 'N/A' }}
+                                                    </span>
+                                                    <span class="ms-3">
+                                                        <i class="mdi mdi-office-building text-info"></i>
+                                                        <strong>Unit:</strong> {{ $area->companyUnit->name ?? 'N/A' }}
+                                                    </span>
+                                                </td>
+                                            </tr>
+                                        @endif
+                                        
+                                        <!-- Sample Points under this Area -->
+                                        @foreach($points as $samplePoint)
+                                            <tr>
+                                                <td>
+                                                    @if($samplePoint->crmSamplePoint)
+                                                        {{ $samplePoint->crmSamplePoint->name }}
+                                                    @else
+                                                        <span class="text-muted">N/A</span>
+                                                    @endif
+                                                </td>
+                                                <td>
+                                                    @if($samplePoint->crmSamplePoint)
+                                                        {{ $samplePoint->crmSamplePoint->code }}
+                                                    @else
+                                                        <span class="text-muted">N/A</span>
+                                                    @endif
+                                                </td>
+                                                <td>
+                                                    <div class="btn-group" role="group">
+                                                        <button wire:click="showEditSamplePointModal({{ $samplePoint->id }})" 
+                                                                class="btn btn-sm btn-outline-warning me-1" 
+                                                                title="Edit">
+                                                            <i class="mdi mdi-pencil"></i>
+                                                        </button>
+                                                        <button wire:click="deleteSamplePoint({{ $samplePoint->id }})" 
+                                                                class="btn btn-sm btn-outline-danger" 
+                                                                title="Delete"
+                                                                onclick="return confirm('Are you sure you want to delete this sample point?')">
+                                                            <i class="mdi mdi-delete"></i>
+                                                        </button>
+                                                    </div>
+                                                </td>
+                                            </tr>
+                                        @endforeach
                                     @endforeach
-                </tbody>
-            </table>
-                        </div>
-                        <!-- Pagination -->
-                        <div class="d-flex justify-content-center mt-3">
-                            {{ $this->samplePoints->links() }}
+                                </tbody>
+                            </table>
                         </div>
                     @else
                         <div class="text-center py-4">
                             <i class="mdi mdi-map-marker text-muted" style="font-size: 3rem;"></i>
-                            <h5 class="text-muted mt-3">No sample points found</h5>
-                            <p class="text-muted">Start by adding your first sample point.</p>
+                            <h5 class="text-muted mt-3">No {{ strtolower($customer->sample_point_configurable_name ?: 'sample points') }} found</h5>
+                            <p class="text-muted">Start by adding your first {{ strtolower($customer->sample_point_configurable_name ?: 'sample point') }}.</p>
                         </div>
                     @endif
                 </div>
@@ -171,31 +166,12 @@
                 <div class="modal-header">
                     <h5 class="modal-title">
                             <i class="mdi mdi-{{ $editingSamplePoint ? 'pencil' : 'plus' }}"></i>
-                            {{ $editingSamplePoint ? 'Edit' : 'Create' }} Sample Point
+                            {{ $editingSamplePoint ? 'Edit' : 'Create' }} {{ $customer->sample_point_configurable_name ?: 'Sample Point' }}
                     </h5>
                         <button type="button" class="btn-close" wire:click="closeSamplePointModal"></button>
                     </div>
                     <div class="modal-body" style="max-height: 70vh; overflow-y: auto;">
                         <form wire:submit.prevent="saveSamplePoint">
-                            <div class="row">
-                                <div class="col-md-12">
-                                    <div class="form-group mb-3">
-                                        <label class="form-label">Name <span class="text-danger">*</span></label>
-                                        <input type="text" wire:model="samplePointForm.name" class="form-control @error('samplePointForm.name') is-invalid @enderror" placeholder="Enter sample point name">
-                                        @error('samplePointForm.name') <div class="invalid-feedback">{{ $message }}</div> @enderror
-                                    </div>
-                                </div>
-                </div>
-                            
-                        <div class="row">
-                                <div class="col-md-12">
-                                <div class="form-group mb-3">
-                                        <label class="form-label">Description</label>
-                                        <textarea wire:model="samplePointForm.description" class="form-control" rows="3" placeholder="Enter sample point description"></textarea>
-                                    </div>
-                                </div>
-                            </div>
-
                             <div class="row">
                             <div class="col-md-6">
                                 <div class="form-group mb-3">
@@ -324,6 +300,229 @@
                                         </div>
                                         @error('samplePointForm.area_id') <span class="text-danger">{{ $message }}</span> @enderror
                                     </div>
+                            </div>
+                        </div>
+
+                        <!-- Company Sub Unit -->
+                        <div class="row">
+                            <div class="col-md-6">
+                                <div class="form-group mb-3">
+                                    <label class="form-label"><i class="mdi mdi-file-tree text-warning"></i> Company Sub Unit</label>
+                                    <div x-data="{
+                                        open: false,
+                                        search: '',
+                                        selected: @entangle('samplePointForm.sub_unit_id').live,
+                                        subUnits: {{ json_encode($subUnits->map(fn($s) => ['id' => $s->id, 'name' => $s->name])->values()) }},
+                                        get filteredSubUnits() {
+                                            if (!this.search) return this.subUnits.slice(0, 50);
+                                            return this.subUnits.filter(subUnit => 
+                                                subUnit.name.toLowerCase().includes(this.search.toLowerCase())
+                                            );
+                                        },
+                                        selectSubUnit(subUnitId) {
+                                            this.selected = subUnitId;
+                                            this.open = false;
+                                            this.search = '';
+                                        },
+                                        clearSelection() {
+                                            this.selected = null;
+                                            this.search = '';
+                                        },
+                                        getSelectedName() {
+                                            if (!this.selected) return '';
+                                            const subUnit = this.subUnits.find(s => s.id == this.selected);
+                                            return subUnit ? subUnit.name : '';
+                                        }
+                                    }" class="searchable-dropdown-wrapper">
+                                        <div class="single-select-container" @click="open = !open">
+                                            <input 
+                                                type="text" 
+                                                x-model="search"
+                                                :placeholder="selected ? getSelectedName() : 'Select Sub Unit (Optional)'"
+                                                @focus="open = true"
+                                                class="form-control searchable-input-single"
+                                                autocomplete="off"
+                                            >
+                                            <button type="button" @click.stop="clearSelection()" x-show="selected" class="btn btn-sm btn-link position-absolute" style="right: 35px; top: 50%; transform: translateY(-50%); padding: 0; color: #dc3545;">
+                                                <i class="mdi mdi-close-circle"></i>
+                                            </button>
+                                            <i class="mdi mdi-chevron-down dropdown-arrow" :class="{ 'rotated': open }"></i>
+                                        </div>
+
+                                        <div x-show="open" 
+                                             @click.away="open = false"
+                                             x-transition
+                                             class="dropdown-list">
+                                            <template x-if="filteredSubUnits.length > 0">
+                                                <div class="options-list">
+                                                    <template x-for="subUnit in filteredSubUnits" :key="subUnit.id">
+                                                        <div @click="selectSubUnit(subUnit.id)" 
+                                                             class="option-item"
+                                                             :class="{ 'selected': selected == subUnit.id }">
+                                                            <i class="mdi mdi-check-circle text-primary" x-show="selected == subUnit.id"></i>
+                                                            <span x-text="subUnit.name"></span>
+                                                        </div>
+                                                    </template>
+                                                </div>
+                                            </template>
+                                            <template x-if="filteredSubUnits.length === 0">
+                                                <div class="no-results">
+                                                    <i class="mdi mdi-alert-circle-outline"></i>
+                                                    <span>No sub units found</span>
+                                                </div>
+                                            </template>
+                                        </div>
+                                    </div>
+                                    @error('samplePointForm.sub_unit_id') <span class="text-danger">{{ $message }}</span> @enderror
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="form-group mb-3">
+                                    <label class="form-label"><i class="mdi mdi-database text-success"></i> Master Sample Point <span class="text-danger">*</span></label>
+                                    <div x-data="{
+                                        open: false,
+                                        search: '',
+                                        selected: @entangle('samplePointForm.crm_sample_point_id').live,
+                                        points: {{ json_encode($masterSamplePoints->map(fn($p) => ['id' => $p->id, 'name' => $p->name, 'code' => $p->code])->values()) }},
+                                        get filteredPoints() {
+                                            if (!this.search) return this.points.slice(0, 50);
+                                            return this.points.filter(point => 
+                                                point.name.toLowerCase().includes(this.search.toLowerCase()) ||
+                                                point.code.toLowerCase().includes(this.search.toLowerCase())
+                                            );
+                                        },
+                                        selectPoint(pointId) {
+                                            this.selected = pointId;
+                                            this.open = false;
+                                            this.search = '';
+                                        },
+                                        clearSelection() {
+                                            this.selected = null;
+                                            this.search = '';
+                                        },
+                                        getSelectedLabel() {
+                                            if (!this.selected) return '';
+                                            const point = this.points.find(p => p.id == this.selected);
+                                            return point ? `${point.name} (${point.code})` : '';
+                                        }
+                                    }" class="searchable-dropdown-wrapper">
+                                        <div class="single-select-container" @click="open = !open">
+                                            <input 
+                                                type="text" 
+                                                x-model="search"
+                                                :placeholder="selected ? getSelectedLabel() : 'Select Master Sample Point (Optional)'"
+                                                @focus="open = true"
+                                                class="form-control searchable-input-single"
+                                                autocomplete="off"
+                                            >
+                                            <button type="button" @click.stop="clearSelection()" x-show="selected" class="btn btn-sm btn-link position-absolute" style="right: 35px; top: 50%; transform: translateY(-50%); padding: 0; color: #dc3545;">
+                                                <i class="mdi mdi-close-circle"></i>
+                                            </button>
+                                            <i class="mdi mdi-chevron-down dropdown-arrow" :class="{ 'rotated': open }"></i>
+                                        </div>
+
+                                        <div x-show="open" 
+                                             @click.away="open = false"
+                                             x-transition
+                                             class="dropdown-list">
+                                            <template x-if="filteredPoints.length > 0">
+                                                <div class="options-list">
+                                                    <template x-for="point in filteredPoints" :key="point.id">
+                                                        <div @click="selectPoint(point.id)" 
+                                                             class="option-item"
+                                                             :class="{ 'selected': selected == point.id }">
+                                                            <i class="mdi mdi-check-circle text-primary" x-show="selected == point.id"></i>
+                                                            <span x-text="`${point.name} (${point.code})`"></span>
+                                                        </div>
+                                                    </template>
+                                                </div>
+                                            </template>
+                                            <template x-if="filteredPoints.length === 0">
+                                                <div class="no-results">
+                                                    <i class="mdi mdi-alert-circle-outline"></i>
+                                                    <span>No master sample points found</span>
+                                                </div>
+                                            </template>
+                                        </div>
+                                    </div>
+                                    @error('samplePointForm.crm_sample_point_id') <span class="text-danger">{{ $message }}</span> @enderror
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Global Area -->
+                        <div class="row">
+                            <div class="col-md-12">
+                                <div class="form-group mb-3">
+                                    <label class="form-label"><i class="mdi mdi-map text-danger"></i> Global Area</label>
+                                    <div x-data="{
+                                        open: false,
+                                        search: '',
+                                        selected: @entangle('samplePointForm.crm_area_id').live,
+                                        areas: {{ json_encode($globalAreas->map(fn($a) => ['id' => $a->id, 'name' => $a->name, 'code' => $a->code])->values()) }},
+                                        get filteredAreas() {
+                                            if (!this.search) return this.areas.slice(0, 50);
+                                            return this.areas.filter(area => 
+                                                area.name.toLowerCase().includes(this.search.toLowerCase()) ||
+                                                area.code.toLowerCase().includes(this.search.toLowerCase())
+                                            );
+                                        },
+                                        selectArea(areaId) {
+                                            this.selected = areaId;
+                                            this.open = false;
+                                            this.search = '';
+                                        },
+                                        clearSelection() {
+                                            this.selected = null;
+                                            this.search = '';
+                                        },
+                                        getSelectedLabel() {
+                                            if (!this.selected) return '';
+                                            const area = this.areas.find(a => a.id == this.selected);
+                                            return area ? `${area.name} (${area.code})` : '';
+                                        }
+                                    }" class="searchable-dropdown-wrapper">
+                                        <div class="single-select-container" @click="open = !open">
+                                            <input 
+                                                type="text" 
+                                                x-model="search"
+                                                :placeholder="selected ? getSelectedLabel() : 'Select Global Area (Optional)'"
+                                                @focus="open = true"
+                                                class="form-control searchable-input-single"
+                                                autocomplete="off"
+                                            >
+                                            <button type="button" @click.stop="clearSelection()" x-show="selected" class="btn btn-sm btn-link position-absolute" style="right: 35px; top: 50%; transform: translateY(-50%); padding: 0; color: #dc3545;">
+                                                <i class="mdi mdi-close-circle"></i>
+                                            </button>
+                                            <i class="mdi mdi-chevron-down dropdown-arrow" :class="{ 'rotated': open }"></i>
+                                        </div>
+
+                                        <div x-show="open" 
+                                             @click.away="open = false"
+                                             x-transition
+                                             class="dropdown-list">
+                                            <template x-if="filteredAreas.length > 0">
+                                                <div class="options-list">
+                                                    <template x-for="area in filteredAreas" :key="area.id">
+                                                        <div @click="selectArea(area.id)" 
+                                                             class="option-item"
+                                                             :class="{ 'selected': selected == area.id }">
+                                                            <i class="mdi mdi-check-circle text-primary" x-show="selected == area.id"></i>
+                                                            <span x-text="`${area.name} (${area.code})`"></span>
+                                                        </div>
+                                                    </template>
+                                                </div>
+                                            </template>
+                                            <template x-if="filteredAreas.length === 0">
+                                                <div class="no-results">
+                                                    <i class="mdi mdi-alert-circle-outline"></i>
+                                                    <span>No global areas found</span>
+                                                </div>
+                                            </template>
+                                        </div>
+                                    </div>
+                                    @error('samplePointForm.crm_area_id') <span class="text-danger">{{ $message }}</span> @enderror
+                                </div>
                             </div>
                         </div>
                         

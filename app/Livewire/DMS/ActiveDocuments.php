@@ -113,7 +113,7 @@ class ActiveDocuments extends Component
             ])
             ->select([
                 'id', 'document_type_id', 'title', 'document_number', 
-                'description', 'owner_id', 'creator_id', 'approver_id',
+                'description', 'owner_id', 'created_by', 'approved_by',
                 'status', 'expiry_date', 'created_at', 'updated_at'
             ])
             ->active();

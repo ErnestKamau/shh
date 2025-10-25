@@ -197,6 +197,14 @@ Route::get('/livewire/customers/{customerId}/profile', [CRMAppController::class,
     ->name('livewire.customer-profile')
     ->middleware('haspermission:CRM.components.Customer-List.View');
 
+Route::get('/crm/sample-points', [CRMAppController::class, 'samplePoints'])
+    ->name('crm.sample-points')
+    ->middleware('haspermission:CRM.components.Customer-List.View');
+
+Route::get('/crm/areas', [CRMAppController::class, 'areas'])
+    ->name('crm.areas')
+    ->middleware('haspermission:CRM.components.Customer-List.View');
+
 // Livewire Billing Management Routes
 Route::get('/billing/invoicable-items', function() {
     return view('layouts.billing.invoicable-items-index');
@@ -552,6 +560,12 @@ Route::prefix('submission-forms')->name('submission-forms.')->middleware('auth')
         Route::get('/{instance}/sample-status', 'SampleCreationController@getStatus')->name('sample-status');
         Route::post('/bulk-create-samples', 'SampleCreationController@bulkCreate')->name('bulk-create-samples');
     });
+});
+
+// Sample Staging Routes (outside submission-forms group)
+Route::middleware('auth')->group(function () {
+    Route::get('/lab/samples/staging/{staging}/load-assignment-data', 'SampleCreationController@loadAssignmentData')->name('staging.load-assignment-data');
+    Route::post('/lab/samples/assign-samples', 'SampleCreationController@assignSamples')->name('samples.assign');
 });
 
 // Public Form Submission Routes (no auth required)

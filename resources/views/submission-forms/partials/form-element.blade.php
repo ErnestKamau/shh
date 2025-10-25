@@ -311,16 +311,23 @@
             @break
             
         @case('analysis_type_select')
+            @php
+                $selectName = $fieldName . '[]';
+                $savedValues = is_string($fieldValue) ? explode(',', $fieldValue) : (array) $fieldValue;
+            @endphp
+            
             <select class="form-control custom-element" 
                     id="{{ $fieldId }}" 
-                    name="{{ $fieldName }}"
+                    name="{{ $selectName }}"
+                    multiple
                     data-element-type="analysis_type_select"
                     data-depends-on="sample_type_select"
                     data-saved-value="{{ $fieldValue }}"
+                    data-saved-multiple-values="{{ implode(',', $savedValues) }}"
                     {{ $element->is_required ? 'required' : '' }}
                     {{ $element->is_readonly ? 'disabled' : '' }}>
                 @if(!$element->is_required)
-                    <option value="">{{ $element->placeholder ?: 'Select an analysis type...' }}</option>
+                    <option value="">{{ $element->placeholder ?: 'Select analysis types...' }}</option>
                 @endif
                 {{-- Options will be loaded dynamically based on selected sample type --}}
             </select>
@@ -465,6 +472,22 @@
                     <i class="mdi mdi-plus"></i>
                 </button>
             </div>
+            @break
+            
+        @case('company_sub_unit_select')
+            <select class="form-control custom-element" 
+                    id="{{ $fieldId }}" 
+                    name="{{ $fieldName }}"
+                    data-element-type="company_sub_unit_select"
+                    data-depends-on="client_unit_select"
+                    data-saved-value="{{ $fieldValue }}"
+                    {{ $element->is_required ? 'required' : '' }}
+                    {{ $element->is_readonly ? 'disabled' : '' }}>
+                @if(!$element->is_required)
+                    <option value="">{{ $element->placeholder ?: 'Select a company sub unit...' }}</option>
+                @endif
+                {{-- Options will be loaded dynamically based on selected client unit --}}
+            </select>
             @break
             
         @case('calculation')

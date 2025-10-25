@@ -8,12 +8,12 @@
                         <div>
                             <h2 class="mb-0">
                                 <i class="mdi mdi-map-marker-multiple text-primary"></i>
-                                Areas Management
+                                {{ $customer->area_configurable_name ?: 'Areas' }} Management
                             </h2>
-                            <p class="text-muted mb-0">Manage areas for: <strong>{{ $customer->name }}</strong></p>
+                            <p class="text-muted mb-0">Manage {{ strtolower($customer->area_configurable_name ?: 'areas') }} for: <strong>{{ $customer->name }}</strong></p>
                         </div>
                         <button wire:click="showCreateAreaModal" class="btn btn-primary">
-                            <i class="mdi mdi-plus"></i> Add Area
+                            <i class="mdi mdi-plus"></i> Add {{ $customer->area_configurable_name ?: 'Area' }}
                         </button>
                     </div>
                 </div>
@@ -97,8 +97,8 @@
                             <table class="table table-striped table-hover">
                                 <thead style="background-color: rgba(0, 0, 0, .03);">
                                     <tr>
-                                        <th>Name</th>
-                                        <th>Code</th>
+                                        <th>CRM Area</th>
+                                        <th>Sub Unit</th>
                                         <th>Description</th>
                                         <th>Sample Points</th>
                                         <th>Status</th>
@@ -109,10 +109,11 @@
                                     @foreach($this->areas as $area)
                                         <tr>
                                             <td>
-                                                <strong>{{ $area->name }}</strong>
+                                                <strong>{{ $area->crmArea->name ?? 'N/A' }}</strong>
+                                                <br><small class="text-muted">{{ $area->crmArea->code ?? '' }}</small>
                                             </td>
                                             <td>
-                                                <span class="badge bg-info p-2" style="color: white;">{{ $area->code }}</span>
+                                                <span class="badge bg-info p-2" style="color: white;">{{ $area->subUnit->name ?? 'N/A' }}</span>
                                             </td>
                                             <td>
                                                 {{ Str::limit($area->description, 50) ?: 'N/A' }}
@@ -154,8 +155,8 @@
                     @else
                         <div class="text-center py-4">
                             <i class="mdi mdi-map-marker-multiple text-muted" style="font-size: 3rem;"></i>
-                            <h5 class="text-muted mt-3">No areas found</h5>
-                            <p class="text-muted">Start by adding your first area.</p>
+                            <h5 class="text-muted mt-3">No {{ strtolower($customer->area_configurable_name ?: 'areas') }} found</h5>
+                            <p class="text-muted">Start by adding your first {{ strtolower($customer->area_configurable_name ?: 'area') }}.</p>
                         </div>
                     @endif
                 </div>
@@ -171,34 +172,253 @@
                     <div class="modal-header">
                         <h5 class="modal-title">
                             <i class="mdi mdi-{{ $editingArea ? 'pencil' : 'plus' }}"></i>
-                            {{ $editingArea ? 'Edit' : 'Create' }} Area
+                            {{ $editingArea ? 'Edit' : 'Create' }} {{ $customer->area_configurable_name ?: 'Area' }}
                         </h5>
                         <button type="button" class="btn-close" wire:click="closeAreaModal"></button>
                     </div>
                     <div class="modal-body" style="max-height: 70vh; overflow-y: auto;">
                         <form wire:submit.prevent="saveArea">
+                            <!-- Customer Areas Selection -->
                             <div class="row">
-                                <div class="col-md-6">
+                                <div class="col-md-12">
                                     <div class="form-group mb-3">
-                                        <label class="form-label">Name <span class="text-danger">*</span></label>
-                                        <input type="text" wire:model="areaForm.name" class="form-control @error('areaForm.name') is-invalid @enderror" placeholder="Enter area name">
-                                        @error('areaForm.name') <div class="invalid-feedback">{{ $message }}</div> @enderror
-                                    </div>
-                                </div>
-                                <div class="col-md-6">
-                                    <div class="form-group mb-3">
-                                        <label class="form-label">Code <span class="text-danger">*</span></label>
-                                        <input type="text" wire:model="areaForm.code" class="form-control @error('areaForm.code') is-invalid @enderror" placeholder="Enter area code">
-                                        @error('areaForm.code') <div class="invalid-feedback">{{ $message }}</div> @enderror
+                                        <label class="form-label"><i class="mdi mdi-map text-primary"></i> Customer Areas <span class="text-danger">*</span></label>
+                                        <div x-data="{
+                                            open: false,
+                                            search: '',
+                                            selected: @entangle('areaForm.crm_area_id').live,
+                                            areas: {{ json_encode($customerAreas->map(fn($a) => ['id' => $a->id, 'name' => $a->name, 'code' => $a->code])->values()) }},
+                                            get filteredAreas() {
+                                                if (!this.search) return this.areas.slice(0, 50);
+                                                return this.areas.filter(area => 
+                                                    area.name.toLowerCase().includes(this.search.toLowerCase()) ||
+                                                    area.code.toLowerCase().includes(this.search.toLowerCase())
+                                                );
+                                            },
+                                            selectArea(areaId) {
+                                                this.selected = areaId;
+                                                this.open = false;
+                                                this.search = '';
+                                            },
+                                            clearSelection() {
+                                                this.selected = null;
+                                                this.search = '';
+                                            },
+                                            getSelectedLabel() {
+                                                if (!this.selected) return '';
+                                                const area = this.areas.find(a => a.id == this.selected);
+                                                return area ? `${area.name} (${area.code})` : '';
+                                            }
+                                        }" class="searchable-dropdown-wrapper">
+                                            <div class="single-select-container" @click="open = !open">
+                                                <input 
+                                                    type="text" 
+                                                    x-model="search"
+                                                    :placeholder="selected ? getSelectedLabel() : 'Select Customer Area'"
+                                                    @focus="open = true"
+                                                    class="form-control searchable-input-single"
+                                                    autocomplete="off"
+                                                >
+                                                <button type="button" @click.stop="clearSelection()" x-show="selected" class="btn btn-sm btn-link position-absolute" style="right: 35px; top: 50%; transform: translateY(-50%); padding: 0; color: #dc3545;">
+                                                    <i class="mdi mdi-close-circle"></i>
+                                                </button>
+                                                <i class="mdi mdi-chevron-down dropdown-arrow" :class="{ 'rotated': open }"></i>
+                                            </div>
+
+                                            <div x-show="open" 
+                                                 @click.away="open = false"
+                                                 x-transition
+                                                 class="dropdown-list">
+                                                <template x-if="filteredAreas.length > 0">
+                                                    <div class="options-list">
+                                                        <template x-for="area in filteredAreas" :key="area.id">
+                                                            <div @click="selectArea(area.id)" 
+                                                                 class="option-item"
+                                                                 :class="{ 'selected': selected == area.id }">
+                                                                <i class="mdi mdi-check-circle text-primary" x-show="selected == area.id"></i>
+                                                                <span x-text="`${area.name} (${area.code})`"></span>
+                                                            </div>
+                                                        </template>
+                                                    </div>
+                                                </template>
+                                                <template x-if="filteredAreas.length === 0">
+                                                    <div class="no-results">
+                                                        <i class="mdi mdi-alert-circle-outline"></i>
+                                                        <span>No customer areas found</span>
+                                                    </div>
+                                                </template>
+                                            </div>
+                                        </div>
+                                        @error('areaForm.crm_area_id') <span class="text-danger">{{ $message }}</span> @enderror
                                     </div>
                                 </div>
                             </div>
-                            
+
+                            <!-- Company Sub Unit Selection -->
+                            <div class="row">
+                                <div class="col-md-12">
+                                    <div class="form-group mb-3">
+                                        <label class="form-label"><i class="mdi mdi-office-building text-success"></i> Company Sub Unit <span class="text-danger">*</span></label>
+                                        <div x-data="{
+                                            open: false,
+                                            search: '',
+                                            selected: @entangle('areaForm.crm_company_sub_unit_id').live,
+                                            subUnits: {{ json_encode($companySubUnits->map(fn($s) => ['id' => $s->id, 'name' => $s->name, 'code' => $s->code])->values()) }},
+                                            get filteredSubUnits() {
+                                                if (!this.search) return this.subUnits.slice(0, 50);
+                                                return this.subUnits.filter(subUnit => 
+                                                    subUnit.name.toLowerCase().includes(this.search.toLowerCase()) ||
+                                                    subUnit.code.toLowerCase().includes(this.search.toLowerCase())
+                                                );
+                                            },
+                                            selectSubUnit(subUnitId) {
+                                                this.selected = subUnitId;
+                                                this.open = false;
+                                                this.search = '';
+                                            },
+                                            clearSelection() {
+                                                this.selected = null;
+                                                this.search = '';
+                                            },
+                                            getSelectedLabel() {
+                                                if (!this.selected) return '';
+                                                const subUnit = this.subUnits.find(s => s.id == this.selected);
+                                                return subUnit ? `${subUnit.name} (${subUnit.code})` : '';
+                                            }
+                                        }" class="searchable-dropdown-wrapper">
+                                            <div class="single-select-container" @click="open = !open">
+                                                <input 
+                                                    type="text" 
+                                                    x-model="search"
+                                                    :placeholder="selected ? getSelectedLabel() : 'Select Company Sub Unit'"
+                                                    @focus="open = true"
+                                                    class="form-control searchable-input-single"
+                                                    autocomplete="off"
+                                                >
+                                                <button type="button" @click.stop="clearSelection()" x-show="selected" class="btn btn-sm btn-link position-absolute" style="right: 35px; top: 50%; transform: translateY(-50%); padding: 0; color: #dc3545;">
+                                                    <i class="mdi mdi-close-circle"></i>
+                                                </button>
+                                                <i class="mdi mdi-chevron-down dropdown-arrow" :class="{ 'rotated': open }"></i>
+                                            </div>
+
+                                            <div x-show="open" 
+                                                 @click.away="open = false"
+                                                 x-transition
+                                                 class="dropdown-list">
+                                                <template x-if="filteredSubUnits.length > 0">
+                                                    <div class="options-list">
+                                                        <template x-for="subUnit in filteredSubUnits" :key="subUnit.id">
+                                                            <div @click="selectSubUnit(subUnit.id)" 
+                                                                 class="option-item"
+                                                                 :class="{ 'selected': selected == subUnit.id }">
+                                                                <i class="mdi mdi-check-circle text-primary" x-show="selected == subUnit.id"></i>
+                                                                <span x-text="`${subUnit.name} (${subUnit.code})`"></span>
+                                                            </div>
+                                                        </template>
+                                                    </div>
+                                                </template>
+                                                <template x-if="filteredSubUnits.length === 0">
+                                                    <div class="no-results">
+                                                        <i class="mdi mdi-alert-circle-outline"></i>
+                                                        <span>No sub units found</span>
+                                                    </div>
+                                                </template>
+                                            </div>
+                                        </div>
+                                        @error('areaForm.crm_company_sub_unit_id') <span class="text-danger">{{ $message }}</span> @enderror
+                                    </div>
+                                </div>
+                            </div>
+
                             <div class="row">
                                 <div class="col-md-12">
                                     <div class="form-group mb-3">
                                         <label class="form-label">Description</label>
                                         <textarea wire:model="areaForm.description" class="form-control" rows="3" placeholder="Enter area description"></textarea>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Sample Points Multi-Select -->
+                            <div class="row">
+                                <div class="col-md-12">
+                                    <div class="form-group mb-3">
+                                        <label class="form-label"><i class="mdi mdi-map-marker text-success"></i> Sample Points</label>
+                                        <div x-data="{
+                                            open: false,
+                                            search: '',
+                                            selected: @entangle('areaForm.selectedSamplePoints').live,
+                                            points: {{ json_encode($masterSamplePoints->map(fn($p) => ['id' => $p->id, 'name' => $p->name, 'code' => $p->code])->values()) }},
+                                            get filteredPoints() {
+                                                if (!this.search) return this.points;
+                                                return this.points.filter(point => 
+                                                    point.name.toLowerCase().includes(this.search.toLowerCase()) ||
+                                                    point.code.toLowerCase().includes(this.search.toLowerCase())
+                                                );
+                                            },
+                                            togglePoint(pointId) {
+                                                const index = this.selected.indexOf(pointId);
+                                                if (index > -1) {
+                                                    this.selected.splice(index, 1);
+                                                } else {
+                                                    this.selected.push(pointId);
+                                                }
+                                            },
+                                            isSelected(pointId) {
+                                                return this.selected.includes(pointId);
+                                            },
+                                            getSelectedNames() {
+                                                if (this.selected.length === 0) return '';
+                                                const names = this.selected.map(id => {
+                                                    const point = this.points.find(p => p.id == id);
+                                                    return point ? point.name : '';
+                                                }).filter(n => n);
+                                                return names.length > 3 ? `${names.slice(0, 3).join(', ')} +${names.length - 3} more` : names.join(', ');
+                                            }
+                                        }" class="searchable-dropdown-wrapper">
+                                            <div class="multi-select-container" @click="open = !open">
+                                                <input 
+                                                    type="text" 
+                                                    x-model="search"
+                                                    :placeholder="selected.length > 0 ? getSelectedNames() : 'Select sample points...'"
+                                                    @focus="open = true"
+                                                    class="form-control searchable-input-single"
+                                                    autocomplete="off"
+                                                >
+                                                <span class="selected-count" x-show="selected.length > 0" x-text="selected.length"></span>
+                                                <i class="mdi mdi-chevron-down dropdown-arrow" :class="{ 'rotated': open }"></i>
+                                            </div>
+
+                                            <div x-show="open" 
+                                                 @click.away="open = false"
+                                                 x-transition
+                                                 class="dropdown-list">
+                                                <template x-if="filteredPoints.length > 0">
+                                                    <div class="options-list">
+                                                        <template x-for="point in filteredPoints" :key="point.id">
+                                                            <div @click="togglePoint(point.id)" 
+                                                                 class="option-item"
+                                                                 :class="{ 'selected': isSelected(point.id) }">
+                                                                <i class="mdi mdi-check-circle text-primary" x-show="isSelected(point.id)"></i>
+                                                                <div class="d-flex flex-column flex-grow-1">
+                                                                    <span x-text="point.name" class="fw-bold"></span>
+                                                                    <small class="text-muted" x-text="`Code: ${point.code}`"></small>
+                                                                </div>
+                                                            </div>
+                                                        </template>
+                                                    </div>
+                                                </template>
+                                                <template x-if="filteredPoints.length === 0">
+                                                    <div class="no-results">
+                                                        <i class="mdi mdi-alert-circle-outline"></i>
+                                                        <span>No sample points found</span>
+                                                    </div>
+                                                </template>
+                                            </div>
+                                        </div>
+                                        <small class="form-text text-muted">
+                                            <i class="mdi mdi-information-outline"></i> Select sample points to associate with this area
+                                        </small>
                                     </div>
                                 </div>
                             </div>
@@ -315,6 +535,145 @@
     .modern-select.is-invalid:focus {
         border-color: #dc3545;
         box-shadow: 0 0 0 0.2rem rgba(220, 53, 69, 0.25);
+    }
+    
+    /* Single-Select Searchable Dropdown Styling */
+    .searchable-input-single {
+        border: none;
+        outline: none;
+        box-shadow: none !important;
+        padding: 4px 0;
+        width: 100%;
+    }
+    
+    .searchable-input-single:focus {
+        border: none !important;
+        box-shadow: none !important;
+    }
+    
+    .single-select-container, .multi-select-container {
+        position: relative;
+        min-height: 45px;
+        border: 1px solid #ced4da;
+        border-radius: 12px;
+        padding: 8px 40px 8px 12px;
+        background: white;
+        cursor: pointer;
+        transition: all 0.3s ease;
+        display: flex;
+        align-items: center;
+    }
+    
+    .single-select-container:hover, .multi-select-container:hover {
+        border-color: #007bff;
+        box-shadow: 0 2px 8px rgba(0, 123, 255, 0.1);
+    }
+    
+    .single-select-container:has(.searchable-input-single:focus), 
+    .multi-select-container:has(.searchable-input-single:focus) {
+        border-color: #007bff;
+        box-shadow: 0 0 0 0.2rem rgba(0, 123, 255, 0.25);
+    }
+    
+    .options-list {
+        padding: 8px;
+        max-height: 300px;
+        overflow-y: auto;
+        scrollbar-width: none; /* Firefox */
+        -ms-overflow-style: none; /* IE and Edge */
+    }
+    
+    .options-list::-webkit-scrollbar {
+        display: none; /* Chrome, Safari, Opera */
+    }
+    
+    .option-item {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        padding: 10px 12px;
+        border-radius: 8px;
+        cursor: pointer;
+        transition: all 0.2s ease;
+        font-size: 14px;
+    }
+    
+    .option-item:hover {
+        background: #f8f9fa;
+    }
+    
+    .option-item.selected {
+        background: rgba(0, 123, 255, 0.08);
+        font-weight: 500;
+    }
+    
+    .option-item i {
+        font-size: 18px;
+    }
+    
+    .dropdown-list {
+        position: absolute;
+        top: 100%;
+        left: 0;
+        right: 0;
+        background: white;
+        border: 1px solid #ced4da;
+        border-radius: 12px;
+        margin-top: 4px;
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+        z-index: 1000;
+        max-height: 350px;
+        overflow-y: auto;
+        scrollbar-width: none; /* Firefox */
+        -ms-overflow-style: none; /* IE and Edge */
+    }
+    
+    .dropdown-list::-webkit-scrollbar {
+        display: none; /* Chrome, Safari, Opera */
+    }
+    
+    .searchable-dropdown-wrapper {
+        position: relative;
+    }
+    
+    .no-results {
+        padding: 20px;
+        text-align: center;
+        color: #6c757d;
+    }
+    
+    .no-results i {
+        font-size: 24px;
+        display: block;
+        margin-bottom: 8px;
+    }
+    
+    .dropdown-arrow {
+        position: absolute;
+        right: 12px;
+        top: 50%;
+        transform: translateY(-50%);
+        transition: transform 0.3s ease;
+        pointer-events: none;
+        font-size: 20px;
+        color: #6c757d;
+    }
+    
+    .dropdown-arrow.rotated {
+        transform: translateY(-50%) rotate(180deg);
+    }
+    
+    .selected-count {
+        position: absolute;
+        right: 40px;
+        top: 50%;
+        transform: translateY(-50%);
+        background: #007bff;
+        color: white;
+        padding: 2px 8px;
+        border-radius: 12px;
+        font-size: 12px;
+        font-weight: 600;
     }
     </style>
 </div>

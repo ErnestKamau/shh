@@ -9,4 +9,9 @@ class SampleDate extends Model implements Auditable
 {
 	use \OwenIt\Auditing\Auditable;
     //
+    protected $fillable = [
+        'sample_header_id',
+        'name',
+        'date',
+    ];
 }

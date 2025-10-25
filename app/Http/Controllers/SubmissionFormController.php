@@ -339,7 +339,7 @@ class SubmissionFormController extends Controller
         ]);
 
         // Validate element type
-        $validTypes = ['client_select', 'sample_type_select', 'client_unit_select', 'client_contact_select', 'analysis_type_select', 'store_select', 'store_slot_select', 'sample_condition_select', 'standard_select', 'sample_point_select'];
+        $validTypes = ['client_select', 'sample_type_select', 'client_unit_select', 'client_contact_select', 'analysis_type_select', 'store_select', 'store_slot_select', 'sample_condition_select', 'standard_select', 'sample_point_select', 'company_sub_unit_select'];
         if (!in_array($elementType, $validTypes)) {
             Log::warning('Invalid element type requested', ['element_type' => $elementType]);
             return response()->json(['error' => 'Invalid element type'], 400);
@@ -511,6 +511,22 @@ class SubmissionFormController extends Controller
                         $options[] = [
                             'value' => $samplePoint->id,
                             'label' => $label
+                        ];
+                    }
+                }
+                break;
+
+            case 'company_sub_unit_select':
+                if ($clientUnitId) {
+                    $subUnits = \App\Models\CRM\CRMCompanySubUnit::where('crm_company_unit_id', $clientUnitId)
+                        ->where('active', 1)
+                        ->orderBy('name')
+                        ->get();
+
+                    foreach ($subUnits as $subUnit) {
+                        $options[] = [
+                            'value' => $subUnit->id,
+                            'label' => $subUnit->name . ' (' . $subUnit->code . ')'
                         ];
                     }
                 }

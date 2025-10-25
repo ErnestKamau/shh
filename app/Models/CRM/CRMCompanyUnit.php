@@ -24,4 +24,8 @@ class CRMCompanyUnit extends Model implements Auditable
   public function sample_points(){
     return $this->hasMany('App\Models\CRM\SamplePoint', 'crm_company_unit_id');
   }
+
+  public function subUnits(){
+    return $this->hasMany('App\Models\CRM\CRMCompanySubUnit', 'crm_company_unit_id');
+  }
 }

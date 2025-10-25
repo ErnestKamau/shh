@@ -225,6 +225,20 @@
 @include('submission-forms.partials.add-entity-modals')
 
 <style>
+    /* Prevent horizontal overflow */
+    body {
+        overflow-x: hidden !important;
+        max-width: 100vw;
+    }
+    
+    html {
+        overflow-x: hidden !important;
+    }
+    
+    .container-fluid, .row, .col-md-10 {
+        overflow-x: hidden;
+    }
+
     /* Form Section Styling */
     .form-section {
         border-left: 3px solid #007bff;
@@ -295,6 +309,8 @@
     /* Table Styling */
     .rows-section-table {
         margin-top: 1rem;
+        max-width: 100%;
+        overflow-x: auto;
     }
 
     .rows-section-table th {
@@ -308,6 +324,17 @@
 
     td {
         vertical-align: middle !important;
+    }
+    
+    /* Ensure tables don't cause horizontal overflow */
+    .table-responsive {
+        overflow-x: auto;
+        -webkit-overflow-scrolling: touch;
+        max-width: 100%;
+    }
+    
+    table {
+        max-width: 100%;
     }
 
     /* Button Styling */
@@ -323,12 +350,14 @@
     /* Custom Element Styling */
     .custom-element {
         margin-bottom: 1rem;
-        min-width: 145px !important;
+        min-width: 145px;
+        max-width: 100%;
     }
 
     .custom-element .form-control {
         border-radius: 0.375rem;
-        min-width: 145px !important;
+        min-width: 145px;
+        max-width: 100%;
     }
 
     .custom-element .form-control:focus {
@@ -338,30 +367,35 @@
 
     /* Form Control Styling */
     .form-control {
-        min-width: 145px !important;
+        min-width: 145px;
+        max-width: 100%;
     }
 
     select.custom-element {
-        min-width: 145px !important;
+        min-width: 145px;
+        max-width: 100%;
     }
 
     /* Select2 Styling */
     .select2-container {
         width: 100% !important;
-        min-width: 145px !important;
+        min-width: 145px;
+        max-width: 100%;
     }
 
     .select2-container--default .select2-selection--single {
         height: 38px;
         border: 1px solid #ced4da;
         border-radius: 0.375rem;
-        min-width: 145px !important;
+        min-width: 145px;
+        max-width: 100%;
     }
 
     .select2-container--default .select2-selection--single .select2-selection__rendered {
         line-height: 36px;
         padding-left: 12px;
-        min-width: 145px !important;
+        min-width: 145px;
+        max-width: 100%;
     }
 
     .select2-container--default .select2-selection--single .select2-selection__arrow {
@@ -369,7 +403,8 @@
     }
 
     .select2-dropdown {
-        min-width: 145px !important;
+        min-width: 145px;
+        max-width: 100%;
     }
 
     /* Multiple Select Styling */
@@ -658,7 +693,7 @@
             //console.log('Client unit changed to:', clientUnitId);
             
             // Find all dependent elements
-            const dependentElements = $('select[data-element-type="sample_point_select"]');
+            const dependentElements = $('select[data-element-type="sample_point_select"], select[data-element-type="company_sub_unit_select"]');
             //console.log('Found', dependentElements.length, 'client unit dependent elements');
             
             if (clientUnitId) {
@@ -871,7 +906,7 @@
                 let html = '';
                 
                 // Add placeholder option (always add for dependent elements)
-                if (elementType === 'client_unit_select' || elementType === 'client_contact_select' || elementType === 'sample_point_select') {
+                if (elementType === 'client_unit_select' || elementType === 'client_contact_select' || elementType === 'sample_point_select' || elementType === 'analysis_type_select') {
                     html += '<option value="">Select...</option>';
                 } else {
                     // For non-dependent elements, check if required

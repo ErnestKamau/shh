@@ -331,6 +331,7 @@
                     <option value="sample_condition_select">Sample Condition Select</option>
                     <option value="standard_select">Standard Select</option>
                     <option value="sample_point_select">Sample Point Select</option>
+                    <option value="company_sub_unit_select">Company Sub Unit Select</option>
                   </select>
                 </div>
               </div>

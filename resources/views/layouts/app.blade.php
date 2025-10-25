@@ -2310,7 +2310,7 @@
         }
 
         @if (isset($dataTable))
-            $('.table-responsive .table.table-condensed.table-sm').not('.server-side').each(function(i, e) {
+            $('.table-responsive .table.table-condensed.table-sm').not('.server-side').not('.livewire-table').each(function(i, e) {
                 var lengthMenu = $(e).data('menutext') ?? [10, 25, 50, 75, 100];
                 var pageTitle = $(document).find('title').text();
                 var fileName = $(e).data('filename') ?? pageTitle;

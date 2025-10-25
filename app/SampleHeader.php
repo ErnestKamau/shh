@@ -30,6 +30,11 @@ class SampleHeader extends Model implements Auditable
 		return $this->hasMany('App\ChainOfCustody')->orderBy('created_at', 'desc');
 	}
 
+	public function stagingDetails()
+	{
+		return $this->hasMany(\App\Models\SampleDetailStaging::class, 'sample_header_id');
+	}
+
 	public function all_samples()
 	{
 		return SampleDetails::leftJoin('inventory_sub_categories as isc', function ($join) {

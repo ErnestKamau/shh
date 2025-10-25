@@ -4,8 +4,12 @@ namespace App\Livewire\CRM;
 
 use Livewire\Component;
 use Livewire\WithPagination;
+use App\Models\Area;
 use App\Models\SamplePointArea;
 use App\Models\CRM\CRMCustomer;
+use App\Models\CRM\CRMCompanySubUnit;
+use App\Models\SamplePoint as GlobalSamplePoint;
+use App\Models\CRM\SamplePoint;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\Rule;
 
@@ -23,11 +27,18 @@ class AreasManager extends Component
     
     // Area Form
     public $areaForm = [
-        'name' => '',
-        'code' => '',
         'description' => '',
+        'crm_area_id' => null,
+        'crm_company_sub_unit_id' => null,
+        'selectedSamplePoints' => [],
         'active' => true
     ];
+
+    // Supporting Data
+    public $masterSamplePoints = [];
+    public $availableSamplePoints = [];
+    public $customerAreas = [];
+    public $companySubUnits = [];
 
     // Search and Filter
     public $search = '';
@@ -41,36 +52,48 @@ class AreasManager extends Component
     public $perPageOptions = [25, 50, 75, 100];
 
     protected $rules = [
-        'areaForm.name' => 'required|string|max:255',
-        'areaForm.code' => 'required|string|max:50',
+        'areaForm.crm_area_id' => 'required|exists:crm_areas,id',
+        'areaForm.crm_company_sub_unit_id' => 'required|exists:crm_company_sub_units,id',
         'areaForm.description' => 'nullable|string|max:500',
     ];
 
     protected $messages = [
-        'areaForm.name.required' => 'Area name is required.',
-        'areaForm.code.required' => 'Area code is required.',
+        'areaForm.crm_area_id.required' => 'Please select a customer area.',
+        'areaForm.crm_area_id.exists' => 'Selected customer area is invalid.',
+        'areaForm.crm_company_sub_unit_id.required' => 'Please select a company sub unit.',
+        'areaForm.crm_company_sub_unit_id.exists' => 'Selected company sub unit is invalid.',
     ];
 
     public function mount($customerId)
     {
         $this->customerId = $customerId;
         $this->customer = CRMCustomer::findOrFail($customerId);
+        $this->loadMasterData();
+    }
+
+    public function loadMasterData()
+    {
+        $this->customerAreas = Area::orderBy('name')->get();
+        $this->masterSamplePoints = GlobalSamplePoint::orderBy('name')->get(); // from crm_sample_points
+        $this->companySubUnits = CRMCompanySubUnit::where('crm_customer_id', $this->customerId)
+            ->where('active', true)
+            ->orderBy('name')
+            ->get();
     }
 
     public function getAreasProperty()
     {
-        $query = SamplePointArea::where('crm_customer_id', $this->customerId)
+        $query = SamplePointArea::with(['crmArea', 'subUnit', 'samplePoints'])
+            ->where('crm_customer_id', $this->customerId)
             ->when($this->search, function ($query) {
                 $query->where(function($q) {
-                    $q->where('name', 'like', '%' . $this->search . '%')
-                      ->orWhere('code', 'like', '%' . $this->search . '%')
-                      ->orWhere('description', 'like', '%' . $this->search . '%');
+                    $q->where('description', 'like', '%' . $this->search . '%');
                 });
             })
             ->when($this->statusFilter !== '', function ($query) {
                 $query->where('active', $this->statusFilter);
             })
-            ->orderBy('name');
+            ->orderBy('created_at', 'desc');
 
         return $query->paginate($this->perPage);
     }
@@ -85,10 +108,17 @@ class AreasManager extends Component
     {
         $area = SamplePointArea::findOrFail($id);
         
+        // Get associated sample points (get the crm_sample_point_id from sample_points table)
+        $associatedSamplePoints = SamplePoint::where('sample_point_area_id', $id)
+            ->where('crm_customer_id', $this->customerId)
+            ->pluck('crm_sample_point_id')
+            ->toArray();
+        
         $this->areaForm = [
-            'name' => $area->name,
-            'code' => $area->code,
             'description' => $area->description ?? '',
+            'crm_area_id' => $area->crm_area_id,
+            'crm_company_sub_unit_id' => $area->crm_company_sub_unit_id,
+            'selectedSamplePoints' => $associatedSamplePoints,
             'active' => $area->active
         ];
         
@@ -98,35 +128,64 @@ class AreasManager extends Component
 
     public function saveArea()
     {
-        // Update validation rules for code uniqueness
-        $this->rules['areaForm.code'] = [
-            'required',
-            'string',
-            'max:50',
-            Rule::unique('sample_point_area', 'code')->where(function ($query) {
-                return $query->where('crm_customer_id', $this->customerId);
-            })->ignore($this->editingArea ? $this->editingArea->id : null)
-        ];
-
         $this->validate();
 
         try {
             DB::beginTransaction();
 
+            // Get the selected CRM Area and Sub Unit
+            $crmArea = Area::findOrFail($this->areaForm['crm_area_id']);
+            $subUnit = CRMCompanySubUnit::findOrFail($this->areaForm['crm_company_sub_unit_id']);
+
             if ($this->editingArea) {
-                // Update existing area
                 $area = $this->editingArea;
             } else {
-                // Create new area
                 $area = new SamplePointArea();
-                $area->crm_customer_id = $this->customerId;
             }
 
-            $area->name = $this->areaForm['name'];
-            $area->code = $this->areaForm['code'];
+            // Set all fields
             $area->description = $this->areaForm['description'];
+            $area->crm_customer_id = $this->customerId;
+            $area->crm_area_id = $this->areaForm['crm_area_id'];
+            $area->crm_company_sub_unit_id = $this->areaForm['crm_company_sub_unit_id'];
+            $area->crm_company_unit_id = $subUnit->crm_company_unit_id; // Auto-filled from sub unit
             $area->active = $this->areaForm['active'];
             $area->save();
+
+            // Create or update customer sample points (from sample_points table) to link to this area
+            if (!empty($this->areaForm['selectedSamplePoints'])) {
+                foreach ($this->areaForm['selectedSamplePoints'] as $masterSamplePointId) {
+                    // Get the master sample point to copy name and description
+                    $masterSamplePoint = GlobalSamplePoint::find($masterSamplePointId);
+                    
+                    if ($masterSamplePoint) {
+                        // Create or update customer-specific sample point
+                        SamplePoint::updateOrCreate(
+                            [
+                                'crm_customer_id' => $this->customerId,
+                                'crm_sample_point_id' => $masterSamplePointId,
+                            ],
+                            [
+                                'name' => $masterSamplePoint->name,
+                                'description' => $masterSamplePoint->name,
+                                'crm_area_id' => $area->crm_area_id,
+                                'crm_company_sub_unit_id' => $area->crm_company_sub_unit_id,
+                                'crm_company_unit_id' => $area->crm_company_unit_id,
+                                'sample_point_area_id' => $area->id,
+                                'active' => true,
+                            ]
+                        );
+                    }
+                }
+            }
+
+            // Remove link from deselected sample points
+            if ($this->editingArea) {
+                SamplePoint::where('sample_point_area_id', $area->id)
+                    ->where('crm_customer_id', $this->customerId)
+                    ->whereNotIn('crm_sample_point_id', $this->areaForm['selectedSamplePoints'] ?? [])
+                    ->update(['sample_point_area_id' => null]);
+            }
 
             DB::commit();
             
@@ -179,9 +238,10 @@ class AreasManager extends Component
     public function resetAreaForm()
     {
         $this->areaForm = [
-            'name' => '',
-            'code' => '',
             'description' => '',
+            'crm_area_id' => null,
+            'crm_company_sub_unit_id' => null,
+            'selectedSamplePoints' => [],
             'active' => true
         ];
         $this->editingArea = null;

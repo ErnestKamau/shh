@@ -131,6 +131,25 @@ class SampleCreationService
      */
     private function getElementValue(SubmissionFormInstance $instance, SubmissionFormElement $element)
     {
+        // Check if this is a multi-select field
+        $multiSelectTypes = ['sample_point_select', 'analysis_type_select', 'analysis_elements_select'];
+        
+        if (in_array($element->element_type, $multiSelectTypes)) {
+            // For multi-select fields, get all values
+            $instanceValues = $instance->values()
+                ->where('submission_form_element_id', $element->id)
+                ->orderBy('array_index')
+                ->get();
+            
+            if ($instanceValues->isEmpty()) {
+                return null;
+            }
+            
+            // Return comma-separated values
+            return $instanceValues->pluck('value')->filter()->implode(',');
+        }
+        
+        // For single-select fields, get first value
         $instanceValue = $instance->values()
             ->where('submission_form_element_id', $element->id)
             ->first();
@@ -145,12 +164,10 @@ class SampleCreationService
             case 'sample_type_select':
             case 'client_unit_select':
             case 'client_contact_select':
-            case 'analysis_type_select':
             case 'sample_condition_select':
             case 'store_select':
             case 'store_slot_select':
             case 'standard_select':
-            case 'sample_point_select':
                 // For custom select fields, return the selected value (ID)
                 return $instanceValue->value;
                 

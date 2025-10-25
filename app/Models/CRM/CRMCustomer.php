@@ -27,6 +27,8 @@ class CRMCustomer extends Model implements Auditable
 		'company_id',
 		'active',
 		'unit_configurable_name',
+		'sub_unit_configurable_name',
+		'area_configurable_name',
 		'sample_point_configurable_name',
 		'product_configurable_name',
 		'credit_days',
@@ -64,5 +66,9 @@ class CRMCustomer extends Model implements Auditable
   
   public function zohocustomer(){
     return $this->belongsTo(ZohoCustomers::class,'zoho_customer_id');
+  }
+
+  public function subUnits(){
+    return $this->hasMany('App\Models\CRM\CRMCompanySubUnit', 'crm_customer_id');
   }
 }

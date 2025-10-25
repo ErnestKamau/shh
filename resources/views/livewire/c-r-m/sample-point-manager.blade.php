@@ -1,0 +1,322 @@
+<div class="container-fluid" wire:id="sample-point-manager">
+    <!-- Header -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="card shadow-sm border-0" style="border-radius: 15px;">
+                <div class="card-body p-4">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div>
+                            <h2 class="mb-0">
+                                <i class="mdi mdi-map-marker text-primary"></i>
+                                Sample Points Management
+                            </h2>
+                            <p class="text-muted mb-0">Manage sample points</p>
+                        </div>
+                        <div>
+                            <button wire:click="openBulkUploadModal" class="btn btn-success me-2" type="button">
+                                <i class="mdi mdi-file-excel"></i> Bulk Create
+                            </button>
+                            <button wire:click="showCreateSamplePointModal" class="btn btn-primary" type="button">
+                                <i class="mdi mdi-plus"></i> Add Sample Point
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Message Alert -->
+    @if($message)
+        <div class="alert alert-{{ $messageType === 'success' ? 'success' : 'danger' }} alert-dismissible fade show" role="alert">
+            {{ $message }}
+            <button type="button" class="btn-close" wire:click="dismissMessage"></button>
+        </div>
+    @endif
+
+    <!-- Filters -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="card shadow-sm border-0" style="border-radius: 15px;">
+                <div class="card-header bg-light border-0" style="border-radius: 15px 15px 0 0;">
+                    <h6 class="mb-0 text-muted">
+                        <i class="mdi mdi-filter-variant"></i> Filter Options
+                    </h6>
+                </div>
+                <div class="card-body p-4">
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="form-group mb-3">
+                                <label class="form-label fw-bold">Search</label>
+                                <input type="text" wire:model.live="search" class="form-control" placeholder="Search sample points...">
+                            </div>
+                        </div>
+                        <div class="col-md-3">
+                            <div class="form-group mb-3">
+                                <label class="form-label fw-bold">From Date</label>
+                                <input type="date" wire:model.live="dateFrom" class="form-control">
+                            </div>
+                        </div>
+                        <div class="col-md-3">
+                            <div class="form-group mb-3">
+                                <label class="form-label fw-bold">To Date</label>
+                                <input type="date" wire:model.live="dateTo" class="form-control">
+                            </div>
+                        </div>
+                    </div>
+                    <div class="row">
+                        <div class="col-md-6">
+                            <button wire:click="clearFilters" class="btn btn-outline-secondary btn-sm">
+                                <i class="mdi mdi-refresh"></i> Clear Filters
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Sample Points Table -->
+    <div class="row">
+        <div class="col-12">
+            <div class="card" style="border-radius: 15px;">
+                <div class="card-body">
+                    @if($this->samplePoints->count() > 0)
+                        <!-- Bulk Actions -->
+                        @if(count($selectedSamplePoints) > 0)
+                            <div class="alert alert-info d-flex justify-content-between align-items-center mb-3">
+                                <span>
+                                    <i class="mdi mdi-information"></i>
+                                    {{ count($selectedSamplePoints) }} sample point(s) selected
+                                </span>
+                                <div class="btn-group">
+                                    <button wire:click="bulkDelete" class="btn btn-danger btn-sm" 
+                                            onclick="return confirm('Are you sure you want to delete selected sample points?')">
+                                        <i class="mdi mdi-delete"></i> Delete
+                                    </button>
+                                </div>
+                            </div>
+                        @endif
+
+                        <!-- Show Entries -->
+                        <div class="d-flex justify-content-between align-items-center mb-3">
+                            <div class="d-flex align-items-center">
+                                <span class="text-muted">
+                                    Showing {{ $this->samplePoints->firstItem() ?? 0 }} to {{ $this->samplePoints->lastItem() ?? 0 }} of {{ $this->samplePoints->total() }} entries
+                                </span>
+                            </div>
+                            <div class="d-flex align-items-center">
+                                <label for="perPage" class="form-label mb-0 me-2 text-muted">Show:</label>
+                                <select wire:model.live="perPage" id="perPage" class="form-select form-select-sm" style="width: auto;">
+                                    @foreach($perPageOptions as $option)
+                                        <option value="{{ $option }}">{{ $option }}</option>
+                                    @endforeach
+                                </select>
+                            </div>
+                        </div>
+                        
+                        <div class="table-responsive">
+                            <table class="table table-striped table-hover livewire-table">
+                                <thead style="background-color: rgba(0, 0, 0, .03);">
+                                    <tr>  
+                                        <th>Code</th>
+                                        <th>Name</th>
+                                        <th>Created By</th>
+                                        <th>Created Date</th>
+                                        <th>Actions</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    @foreach($this->samplePoints as $samplePoint)
+                                        <tr>
+                                            <td>
+                                                <span class="fw-bold text-primary">{{ $samplePoint->code }}</span>
+                                            </td>
+                                            <td>{{ $samplePoint->name }}</td>
+                                            <td>{{ $samplePoint->creator->name ?? 'N/A' }}</td>
+                                            <td>{{ $samplePoint->created_at->format('Y-m-d H:i') }}</td>
+                                            <td>
+                                                <div class="btn-group" role="group">
+                                                    <button wire:click="showEditSamplePointModal({{ $samplePoint->id }})" 
+                                                            class="btn btn-sm btn-outline-warning mr-1" 
+                                                            title="Edit">
+                                                        <i class="mdi mdi-pencil"></i>
+                                                    </button>
+                                                    <button wire:click="deleteSamplePoint({{ $samplePoint->id }})" 
+                                                            class="btn btn-sm btn-outline-danger mr-1" 
+                                                            title="Delete"
+                                                            onclick="return confirm('Are you sure you want to delete this sample point?')">
+                                                        <i class="mdi mdi-delete"></i>
+                                                    </button>
+                                                </div>
+                                            </td>
+                                        </tr>
+                                    @endforeach
+                                </tbody>
+                            </table>
+                        </div>
+                        <!-- Pagination -->
+                        <div class="d-flex justify-content-center mt-3">
+                            {{ $this->samplePoints->links() }}
+                        </div>
+                    @else
+                        <div class="text-center py-4">
+                            <i class="mdi mdi-map-marker text-muted" style="font-size: 3rem;"></i>
+                            <h5 class="text-muted mt-3">No sample points found</h5>
+                            <p class="text-muted">Start by adding your first sample point.</p>
+                        </div>
+                    @endif
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Sample Point Modal -->
+    @if($showSamplePointModal)
+        <div class="modal fade show d-block" tabindex="-1" style="background-color: rgba(0,0,0,0.5);">
+            <div class="modal-dialog modal-md">
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <h5 class="modal-title">
+                            <i class="mdi mdi-{{ $editingSamplePoint ? 'pencil' : 'plus' }}"></i>
+                            {{ $editingSamplePoint ? 'Edit' : 'Create' }} Sample Point
+                        </h5>
+                        <button type="button" class="btn-close" wire:click="closeSamplePointModal"></button>
+                    </div>
+                    <div class="modal-body">
+                        <form wire:submit.prevent="saveSamplePoint">
+                            <div class="form-group mb-3">
+                                <label class="form-label fw-bold">Code <span class="text-danger">*</span></label>
+                                <input type="text" wire:model="samplePointForm.code" class="form-control" placeholder="Sample point code...">
+                                @error('samplePointForm.code') <span class="text-danger">{{ $message }}</span> @enderror
+                            </div>
+
+                            <div class="form-group mb-3">
+                                <label class="form-label fw-bold">Name <span class="text-danger">*</span></label>
+                                <input type="text" wire:model="samplePointForm.name" class="form-control" placeholder="Sample point name...">
+                                @error('samplePointForm.name') <span class="text-danger">{{ $message }}</span> @enderror
+                            </div>
+                        </form>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" wire:click="closeSamplePointModal">Cancel</button>
+                        <button type="button" class="btn btn-primary" wire:click="saveSamplePoint">
+                            <i class="mdi mdi-content-save"></i> {{ $editingSamplePoint ? 'Update' : 'Create' }} Sample Point
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    @endif
+
+    <!-- Bulk Upload Modal -->
+    @if($showBulkUploadModal)
+        <div class="modal fade show d-block" tabindex="-1" style="background-color: rgba(0,0,0,0.5);">
+            <div class="modal-dialog modal-md">
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <h5 class="modal-title">
+                            <i class="mdi mdi-file-excel"></i>
+                            Bulk Create Sample Points
+                        </h5>
+                        <button type="button" class="btn-close" wire:click="closeBulkUploadModal"></button>
+                    </div>
+                    <div class="modal-body">
+                        <div class="alert alert-info">
+                            <i class="mdi mdi-information"></i>
+                            <strong>Instructions:</strong>
+                            <ol class="mb-0 mt-2">
+                                <li>Download the Excel template below</li>
+                                <li>Fill in the Code and Name columns</li>
+                                <li>Upload the completed file</li>
+                            </ol>
+                        </div>
+
+                        <div class="mb-3">
+                            <button wire:click="downloadTemplate" class="btn btn-outline-primary w-100">
+                                <i class="mdi mdi-download"></i> Download Excel Template
+                            </button>
+                        </div>
+
+                        <hr>
+
+                        <form wire:submit.prevent="processBulkUpload">
+                            <div class="form-group mb-3">
+                                <label class="form-label fw-bold">Upload Excel File <span class="text-danger">*</span></label>
+                                <input type="file" wire:model="bulkFile" class="form-control" accept=".xlsx,.xls,.csv">
+                                @error('bulkFile') <span class="text-danger">{{ $message }}</span> @enderror
+                                
+                                <div wire:loading wire:target="bulkFile" class="mt-2">
+                                    <small class="text-muted">
+                                        <i class="mdi mdi-loading mdi-spin"></i> Uploading file...
+                                    </small>
+                                </div>
+                            </div>
+
+                            <div class="alert alert-warning">
+                                <i class="mdi mdi-alert"></i>
+                                <small>
+                                    <strong>Note:</strong> Duplicate codes will be skipped. Maximum file size: 2MB. Supported formats: .xlsx, .xls, .csv
+                                </small>
+                            </div>
+                        </form>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" wire:click="closeBulkUploadModal">Cancel</button>
+                        <button type="button" class="btn btn-primary" wire:click="processBulkUpload" 
+                                wire:loading.attr="disabled" wire:target="processBulkUpload">
+                            <span wire:loading.remove wire:target="processBulkUpload">
+                                <i class="mdi mdi-upload"></i> Upload & Process
+                            </span>
+                            <span wire:loading wire:target="processBulkUpload">
+                                <i class="mdi mdi-loading mdi-spin"></i> Processing...
+                            </span>
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    @endif
+
+    <style>
+    .modal.show {
+        display: block !important;
+    }
+    
+    /* Make modal body scrollable */
+    .modal-body {
+        max-height: 70vh;
+        overflow-y: auto;
+        overflow-x: hidden;
+    }
+    
+    /* Custom scrollbar for better UX */
+    .modal-body::-webkit-scrollbar {
+        width: 8px;
+    }
+    
+    .modal-body::-webkit-scrollbar-track {
+        background: #f1f1f1;
+        border-radius: 4px;
+    }
+    
+    .modal-body::-webkit-scrollbar-thumb {
+        background: #888;
+        border-radius: 4px;
+    }
+    
+    .modal-body::-webkit-scrollbar-thumb:hover {
+        background: #555;
+    }
+    </style>
+
+    <script>
+        document.addEventListener('livewire:init', () => {
+            console.log('Livewire initialized for Sample Points Manager');
+            
+            Livewire.on('bulk-upload-modal-opened', () => {
+                console.log('Bulk upload modal event received!');
+            });
+        });
+    </script>
+</div>

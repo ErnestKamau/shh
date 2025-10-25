@@ -25,6 +25,16 @@ class CustomerProfile extends Component
     // Tab Management
     public $activeTab = 'details';
     
+    // Label Configuration
+    public $showLabelModal = false;
+    public $labelForm = [
+        'unit_configurable_name' => '',
+        'sub_unit_configurable_name' => '',
+        'area_configurable_name' => '',
+        'sample_point_configurable_name' => '',
+        'product_configurable_name' => ''
+    ];
+    
     // Customer Form
     public $customerForm = [
         'name' => '',
@@ -144,6 +154,10 @@ class CustomerProfile extends Component
                 // Load units data when needed
                 break;
                 
+            case 'sub-units':
+                // Load sub units data when needed
+                break;
+                
             case 'areas':
                 // Load areas data when needed
                 break;
@@ -249,6 +263,58 @@ class CustomerProfile extends Component
     {
         $this->message = '';
         $this->messageType = '';
+    }
+
+    // Label Configuration Methods
+    public function openLabelModal()
+    {
+        $this->labelForm = [
+            'unit_configurable_name' => $this->customer->unit_configurable_name ?? '',
+            'sub_unit_configurable_name' => $this->customer->sub_unit_configurable_name ?? '',
+            'area_configurable_name' => $this->customer->area_configurable_name ?? '',
+            'sample_point_configurable_name' => $this->customer->sample_point_configurable_name ?? '',
+            'product_configurable_name' => $this->customer->product_configurable_name ?? ''
+        ];
+        $this->showLabelModal = true;
+    }
+
+    public function closeLabelModal()
+    {
+        $this->showLabelModal = false;
+    }
+
+    public function saveLabels()
+    {
+        $this->validate([
+            'labelForm.unit_configurable_name' => 'nullable|string|max:100',
+            'labelForm.sub_unit_configurable_name' => 'nullable|string|max:100',
+            'labelForm.area_configurable_name' => 'nullable|string|max:100',
+            'labelForm.sample_point_configurable_name' => 'nullable|string|max:100',
+            'labelForm.product_configurable_name' => 'nullable|string|max:100',
+        ]);
+
+        try {
+            DB::beginTransaction();
+
+            $this->customer->unit_configurable_name = $this->labelForm['unit_configurable_name'];
+            $this->customer->sub_unit_configurable_name = $this->labelForm['sub_unit_configurable_name'];
+            $this->customer->area_configurable_name = $this->labelForm['area_configurable_name'];
+            $this->customer->sample_point_configurable_name = $this->labelForm['sample_point_configurable_name'];
+            $this->customer->product_configurable_name = $this->labelForm['product_configurable_name'];
+            $this->customer->save();
+
+            DB::commit();
+            
+            $this->closeLabelModal();
+            $this->loadCustomerData();
+            $this->message = 'Tab labels updated successfully!';
+            $this->messageType = 'success';
+
+        } catch (\Exception $e) {
+            DB::rollBack();
+            $this->message = 'Error: ' . $e->getMessage();
+            $this->messageType = 'error';
+        }
     }
 
     public function render()

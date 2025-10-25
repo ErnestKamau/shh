@@ -763,9 +763,9 @@
         <div class="card" style="box-shadow: rgba(149, 157, 165, 0.2) 0px 8px 24px;">
           <div class="card-body">
 			<h5 class="card-title">
-				<span class="btn btn-default batch-info-trigger" style="box-shadow: rgba(33, 35, 38, 0.1) 0px 10px 20px -10px;">
+				<span class="btn btn-default batch-info-trigger open" style="box-shadow: rgba(33, 35, 38, 0.1) 0px 10px 20px -10px;">
 					
-					<i class="mdi {{isset($batch->id) ? 'mdi-chevron-double-down' : 'mdi-chevron-double-up' }}"></i> Batch Info
+					<i class="mdi mdi-chevron-double-up"></i> Batch Info
 				</span>
 				@if(isset($batch->id))
 				<div class="btn-group float-right">
@@ -799,7 +799,8 @@
 				@endif
 			</h5>
 			<hr>
-			<form class="{{isset($batch->id) ? 'hidden' : ''}}" action="{{ route('add-batch-info', ['batch'=>$batchID]) }}" class="row" id="batch-detail-form" method="POST" autocomplete="off">
+			
+			<form class="" action="{{ route('add-batch-info', ['batch'=>$batchID]) }}" class="row" id="batch-detail-form" method="POST" autocomplete="off">
 				<?php $maxDate = getTodayDate(); ?>
 				@csrf
 				<div class="row p-2 border-bottom">
@@ -1041,7 +1042,7 @@
       </div>
 	  <span id="operators-list" data-operators='{{ json_encode($analysts) }}'></span>
       <div class="col-sm-12 p-2">
-		@if(isset($batch->id) && !$defaultClient)
+		@if(isset($batch->id))
 			<div class="card border-0 mb-2" style="background-color: inherit !important">
 				<div class="card-header- p-2 border-bottom" style="background-color: inherit !important">
 					<h5 style="font-size: large"><i class="mdi mdi-calendar-month"></i> Batch Dates</h5>
@@ -1063,7 +1064,7 @@
 		@endif
 		<div class="card-header- p-2 mt-2" style="background-color: inherit !important">
 			<h5 style="font-size: large"><i class="mdi mdi-calendar-month"></i> Sample(s)</h5>
-			@if(isset($batch->id) && !$defaultClient)
+			@if(isset($batch->id))
 				<div class="row mt-1">
 					@if(isset($batch->status) && in_array($batch->status, array("Sample Verification","Sample Approval","Reports for Collection","Reports In Payment")))
 						@if($batch->status == "Sample Verification")
@@ -1839,6 +1840,54 @@
 				</div>
 			@endif
             <form method="POST" action="{{ route('add-batch-samples', ['batch'=>$batchID]) }}" class="tab-pane fade show active p-3" id="samples" role="tabpanel" aria-labelledby="one-tab">
+              	
+				{{-- Show Unprocessed Staging Data when sample_detail_processed is 0 --}}
+				@if(isset($batch->sample_detail_processed) && $batch->sample_detail_processed == 0 && isset($batch->stagingDetails) && $batch->stagingDetails->count() > 0)
+					<div class="card mb-4">
+						<div class="card-header" style="background: linear-gradient(135deg, #fff3cd, #ffeaa7);">
+							<h5 class="mb-0"><i class="mdi mdi-clipboard-alert"></i> Unprocessed Staging Data</h5>
+						</div>
+						<div class="card-body">
+							<div class="table-responsive">
+								<table class="table table-sm">
+									<thead class="bg-light">
+										<tr>
+											<th>Actions</th>
+											<th>Specimen Type</th>
+											<th>Company Sub Unit</th>
+											<th>Analysis Types</th>
+											<th>Quantity</th>
+											<th class="hidden">Other Details</th>
+										</tr>
+									</thead>
+									<tbody>
+										@foreach($batch->stagingDetails as $staging)
+											@if(!$staging->is_processed)
+												<tr>
+													<td>
+														<button type="button" class="btn btn-sm btn-primary assign-samples-btn" 
+																data-staging-id="{{ $staging->id }}"
+																data-header-id="{{ $batch->id }}">
+															<i class="mdi mdi-checkbox-multiple-marked"></i> Assign Samples
+														</button>
+													</td>
+													<td>{{ $batch->sample_type->name ?? 'N/A' }}</td>
+													<td>{{ $staging->data_json['company_sub_unit_name'] ?? 'N/A' }}</td>
+													<td>{{ $staging->data_json['analysis_type_names'] ?? 'N/A' }}</td>
+													<td>{{ $staging->data_json['quantity'] ?? 1 }}</td>
+													<td class="hidden"><pre style="font-size: 10px; max-height: 150px; overflow-y: auto;">{{ json_encode($staging->data_json, JSON_PRETTY_PRINT) }}</pre></td>
+												</tr>
+											@endif
+										@endforeach
+									</tbody>
+								</table>
+							</div>
+						</div>
+					</div>
+				@endif
+				
+				{{-- Show Samples Configuration when sample_detail_processed is 1 or when there's no staging --}}
+				@if(!isset($batch->sample_detail_processed) || $batch->sample_detail_processed == 1)
               	<h5 class="card-title">
 					<span class="btn btn-transparent">Samples Configuration</span>
 					@if(isset($batch->id) || (Auth::user()->is_client == 1 && isset($batch->status) && $batch->status =='Samples En-Route'))
@@ -1921,6 +1970,7 @@
 					</tbody>
                 </table>
               </div>
+				@endif
             </form>
           </div>
         </div>
@@ -3852,6 +3902,13 @@
 	
 {{-- @endif --}}
 <script>
+	// Setup CSRF token for all AJAX requests
+	$.ajaxSetup({
+		headers: {
+			'X-CSRF-TOKEN': $('meta[name="csrf-token"]').attr('content')
+		}
+	});
+	
 	tinymce.init({
 		selector: 'textarea.editor'
 	});
@@ -7662,7 +7719,226 @@
 		});
 	});
 
+	// Phase 5: Assign Samples Modal JavaScript
+	$(document).on('click', '.assign-samples-btn', function() {
+		const stagingId = $(this).data('staging-id');
+		const headerId = $(this).data('header-id');
+		
+		// Load modal data via AJAX
+		$.ajax({
+			url: '/lab/samples/staging/' + stagingId + '/load-assignment-data',
+			method: 'GET',
+			headers: {
+				'X-CSRF-TOKEN': $('meta[name="csrf-token"]').attr('content'),
+				'Accept': 'application/json'
+			},
+			success: function(response) {
+				// Populate modal
+				$('#modal-batch-code').text(response.batch_code);
+				$('#modal-sample-type').text(response.sample_type);
+				$('#modal-customer').text(response.customer);
+				$('#modal-company-unit').text(response.company_unit);
+				
+				// Build sample points table
+				let tableHtml = buildSamplePointsTable(response.areas);
+				$('#sample-assignment-table-container').html(tableHtml);
+				
+				// Store IDs for submission
+				$('#assignSamplesModal').data('staging-id', stagingId);
+				$('#assignSamplesModal').data('header-id', headerId);
+				
+				// Show modal
+				$('#assignSamplesModal').modal('show');
+			},
+			error: function(xhr) {
+				console.log('Error details:', xhr);
+				alert('Error loading assignment data: ' + (xhr.responseJSON?.message || xhr.statusText));
+			}
+		});
+	});
+
+	function buildSamplePointsTable(areas) {
+		let html = '<div class="table-responsive">';
+		html += '<table class="table" style="border-collapse: collapse;">';
+		html += '<thead style="background-color: rgba(0, 0, 0, .08);">';
+		html += '<tr>';
+		html += '<th style="width: 50px; text-align: center; padding: 12px; font-weight: 600; color: #495057; border-bottom: 2px solid #dee2e6;"><i class="mdi mdi-checkbox-marked-circle-outline"></i></th>';
+		html += '<th style="padding: 12px; font-weight: 600; color: #495057; border-bottom: 2px solid #dee2e6;">Sample Point Name</th>';
+           html += '<th style="width: 150px; text-align: center; padding: 12px; font-weight: 600; color: #495057; border-bottom: 2px solid #dee2e6;">Quantity</th>';
+		html += '</tr>';
+		html += '</thead>';
+		html += '<tbody>';
+		
+		areas.forEach(area => {
+			html += `<tr style="background: linear-gradient(135deg, rgba(108, 117, 125, 0.05) 0%, rgba(248, 249, 250, 0.6) 100%);">
+				<td colspan="3" class="py-3" style="border-top: 1px solid #dee2e6; border-bottom: 1px solid #dee2e6;">
+					<strong style="font-size: 1rem; color: #495057; font-weight: 600;">
+						<i class="mdi mdi-map-marker text-primary"></i> ${area.name}
+					</strong>
+				</td>
+			</tr>`;
+			
+               area.sample_points.forEach(point => {
+                   html += `<tr>
+                       <td class="text-center align-middle" style="padding: 12px; border-bottom: 1px solid #dee2e6;">
+                           <input type="checkbox" 
+                                  class="sample-point-checkbox form-check-input" 
+                                  value="${point.id}" 
+                                  data-area-id="${area.id}"
+                                  style="width: 20px; height: 20px; cursor: pointer;">
+                       </td>
+                       <td class="align-middle" style="padding: 12px; border-bottom: 1px solid #dee2e6;">
+                           <span style="font-weight: 500; color: #495057;">${point.name}</span>
+                       </td>
+                       <td class="align-middle" style="padding: 12px; border-bottom: 1px solid #dee2e6;">
+                           <input type="number" 
+                                  class="form-control form-control-sm sample-quantity" 
+                                  min="1" 
+                                  value="1" 
+                                  data-point-id="${point.id}" 
+                                  disabled
+                                  style="max-width: 100px; margin: 0 auto; text-align: center; border-radius: 8px; border: 2px solid #e9ecef;">
+                       </td>
+                   </tr>`;
+               });
+		});
+		
+		html += '</tbody></table></div>';
+		return html;
+	}
+
+	// Enable quantity input when checkbox is checked (for record purposes)
+	$(document).on('change', '.sample-point-checkbox', function() {
+		const pointId = $(this).val();
+		$(`input.sample-quantity[data-point-id="${pointId}"]`).prop('disabled', !this.checked);
+	});
+
+	// Confirm assignment - use event delegation
+	$(document).on('click', '#confirmAssignSamples', function() {
+		console.log('Assign button clicked');
+		
+		const stagingId = $('#assignSamplesModal').data('staging-id');
+		const headerId = $('#assignSamplesModal').data('header-id');
+		
+		console.log('Staging ID:', stagingId);
+		console.log('Header ID:', headerId);
+		
+		// Collect selected sample points with quantity (for record purposes only)
+		const selections = [];
+		$('.sample-point-checkbox:checked').each(function() {
+			const pointId = $(this).val();
+			const quantity = $(`.sample-quantity[data-point-id="${pointId}"]`).val();
+			selections.push({ sample_point_id: pointId, quantity: quantity });
+		});
+		
+		console.log('Selections:', selections);
+		
+		if (selections.length === 0) {
+			alert('Please select at least one sample point');
+			return;
+		}
+		
+		// Disable button to prevent double-click
+		$(this).prop('disabled', true).html('<i class="mdi mdi-loading mdi-spin"></i> Assigning...');
+		
+		// Submit via AJAX
+		$.ajax({
+			url: '/lab/samples/assign-samples',
+			method: 'POST',
+			headers: {
+				'X-CSRF-TOKEN': $('meta[name="csrf-token"]').attr('content'),
+				'Accept': 'application/json',
+				'Content-Type': 'application/json'
+			},
+			data: JSON.stringify({
+				sample_header_id: headerId,
+				sample_detail_stage_id: stagingId,
+				selections: selections
+			}),
+			success: function(response) {
+				console.log('Success response:', response);
+				if (response.success) {
+					alert(response.message);
+					location.reload();
+				} else {
+					alert('Error: ' + (response.message || 'Unknown error'));
+					$('#confirmAssignSamples').prop('disabled', false).html('<i class="mdi mdi-check"></i> Yes, Assign');
+				}
+			},
+			error: function(xhr) {
+				console.log('Error details:', xhr);
+				console.log('Status:', xhr.status);
+				console.log('Response:', xhr.responseText);
+				alert('Error: ' + (xhr.responseJSON?.message || xhr.statusText));
+				$('#confirmAssignSamples').prop('disabled', false).html('<i class="mdi mdi-check"></i> Yes, Assign');
+			}
+		});
+	});
+
 	
 </script>
+
+<!-- Assign Samples Modal -->
+<div class="modal fade" id="assignSamplesModal" tabindex="-1" role="dialog">
+	<div class="modal-dialog modal-xl" role="document">
+		<div class="modal-content" style="border-radius: 15px; border: none;">
+			<div class="modal-header" style="background: linear-gradient(135deg, rgba(255, 255, 255, 0.9) 0%, rgba(248, 249, 250, 0.8) 100%); border-radius: 15px 15px 0 0; border-bottom: 1px solid rgba(0, 0, 0, 0.08); box-shadow: 0 2px 15px rgba(0, 0, 0, 0.05);">
+				<h5 class="modal-title" style="color: #495057; font-weight: 600;">
+					<i class="mdi mdi-clipboard-check text-primary"></i> Assign Samples
+				</h5>
+				<button type="button" class="close" data-dismiss="modal" aria-label="Close" style="color: #495057; opacity: 0.7;">
+					<span aria-hidden="true">&times;</span>
+				</button>
+			</div>
+			<div class="modal-body" style="background-color: #f8f9fa;">
+				<!-- Batch Information -->
+				<div class="card mb-3 shadow-sm border-0" style="border-radius: 15px;">
+					<div class="card-body p-4">
+						<div class="row">
+							<div class="col-md-3">
+								<strong class="text-muted" style="font-size: 0.875rem;"><i class="mdi mdi-chevron-right"></i> Lab No:</strong> 
+								<div id="modal-batch-code" style="font-size: 1rem; font-weight: 600; color: #495057;padding-left: 18px;"></div>
+							</div>
+							<div class="col-md-3">
+								<strong class="text-muted" style="font-size: 0.875rem;"><i class="mdi mdi-chevron-right"></i> Sample Type:</strong> 
+								<div id="modal-sample-type" style="font-size: 1rem; font-weight: 600; color: #495057;padding-left: 18px;"></div>
+							</div>
+							<div class="col-md-3">
+								<strong class="text-muted" style="font-size: 0.875rem;"><i class="mdi mdi-chevron-right"></i> Customer:</strong> 
+								<div id="modal-customer" style="font-size: 1rem; font-weight: 600; color: #495057;padding-left: 18px;"></div>
+							</div>
+							<div class="col-md-3">
+								<strong class="text-muted" style="font-size: 0.875rem;"><i class="mdi mdi-chevron-right"></i> Company Unit:</strong> 
+								<div id="modal-company-unit" style="font-size: 1rem; font-weight: 600; color: #495057;padding-left: 18px;"></div>
+							</div>
+						</div>
+					</div>
+				</div>
+
+				<!-- Sample Information Table -->
+				<div class="card shadow-sm border-0" style="border-radius: 15px;">
+					<div class="card-header bg-light border-0" style="border-radius: 15px 15px 0 0;">
+						<h6 class="mb-0 text-muted">
+							<i class="mdi mdi-map-marker-multiple"></i> Sample Points Assignment
+						</h6>
+					</div>
+					<div class="card-body">
+						<div id="sample-assignment-table-container">
+							<!-- Will be populated via AJAX -->
+						</div>
+					</div>
+				</div>
+			</div>
+			<div class="modal-footer" style="background-color: #f8f9fa; border-top: 1px solid rgba(0, 0, 0, 0.08); border-radius: 0 0 15px 15px;">
+				<button type="button" class="btn btn-secondary" data-dismiss="modal">
+					<i class="mdi mdi-close"></i> Cancel
+				</button>
+				<button type="button" class="btn btn-success" id="confirmAssignSamples">
+					<i class="mdi mdi-check"></i> Yes, Assign
+				</button>
+			</div>
+		</div>
+	</div>
+</div>
 
 @endsection

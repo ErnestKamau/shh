@@ -8,12 +8,12 @@
                         <div>
                             <h2 class="mb-0">
                                 <i class="mdi mdi-sitemap text-primary"></i>
-                                Company Units Management
+                                {{ $customer->unit_configurable_name ?: 'Company Units' }} Management
                             </h2>
-                            <p class="text-muted mb-0">Manage company units for: <strong>{{ $customer->name }}</strong></p>
+                            <p class="text-muted mb-0">Manage {{ strtolower($customer->unit_configurable_name ?: 'company units') }} for: <strong>{{ $customer->name }}</strong></p>
                         </div>
                         <button wire:click="showCreateUnitModal" class="btn btn-primary">
-                            <i class="mdi mdi-plus"></i> Add Unit
+                            <i class="mdi mdi-plus"></i> Add {{ $customer->unit_configurable_name ?: 'Unit' }}
                         </button>
                     </div>
                 </div>
@@ -80,8 +80,8 @@
                     @else
                         <div class="text-center py-4">
                             <i class="mdi mdi-sitemap text-muted" style="font-size: 3rem;"></i>
-                            <h5 class="text-muted mt-3">No company units found</h5>
-                            <p class="text-muted">Start by adding your first company unit.</p>
+                            <h5 class="text-muted mt-3">No {{ strtolower($customer->unit_configurable_name ?: 'company units') }} found</h5>
+                            <p class="text-muted">Start by adding your first {{ strtolower($customer->unit_configurable_name ?: 'company unit') }}.</p>
                         </div>
                     @endif
                 </div>
@@ -97,7 +97,7 @@
                 <div class="modal-header">
                     <h5 class="modal-title">
                         <i class="mdi mdi-{{ $editingUnit ? 'pencil' : 'plus' }}"></i>
-                        {{ $editingUnit ? 'Edit' : 'Create' }} Company Unit
+                        {{ $editingUnit ? 'Edit' : 'Create' }} {{ $customer->unit_configurable_name ?: 'Company Unit' }}
                     </h5>
                     <button type="button" class="btn-close" wire:click="closeUnitModal"></button>
                 </div>
@@ -105,7 +105,7 @@
                     <form wire:submit.prevent="saveUnit">
                         <div class="form-group mb-3">
                             <label class="form-label fw-bold">Name <span class="text-danger">*</span></label>
-                            <input type="text" wire:model="unitForm.name" class="form-control" placeholder="Unit name...">
+                            <input type="text" wire:model="unitForm.name" class="form-control" placeholder="{{ $customer->unit_configurable_name ?: 'Unit' }} name...">
                             @error('unitForm.name') <span class="text-danger">{{ $message }}</span> @enderror
                         </div>
                         

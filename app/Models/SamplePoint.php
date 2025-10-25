@@ -1,0 +1,34 @@
+<?php
+
+namespace App\Models;
+
+use App\User;
+use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
+
+class SamplePoint extends Model
+{
+    protected $table = 'crm_sample_points';
+    
+    protected $fillable = [
+        'code',
+        'name',
+        'created_by',
+    ];
+
+    /**
+     * Get the user who created this sample point
+     */
+    public function creator(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'created_by');
+    }
+
+    /**
+     * Get the area that this sample point belongs to
+     */
+    public function area()
+    {
+        return $this->belongsTo(\App\Models\Area::class, 'crm_area_id');
+    }
+}

@@ -12,10 +12,11 @@ class SamplePointArea extends Model
     protected $table = 'sample_point_area';
     
     protected $fillable = [
-        'name',
-        'code',
         'description',
         'crm_customer_id',
+        'crm_company_sub_unit_id',
+        'crm_area_id',
+        'crm_company_unit_id',
         'active'
     ];
 
@@ -32,5 +33,20 @@ class SamplePointArea extends Model
     public function samplePoints()
     {
         return $this->hasMany('App\Models\CRM\SamplePoint', 'sample_point_area_id');
+    }
+
+    public function crmArea()
+    {
+        return $this->belongsTo('App\Models\Area', 'crm_area_id');
+    }
+
+    public function subUnit()
+    {
+        return $this->belongsTo('App\Models\CRM\CRMCompanySubUnit', 'crm_company_sub_unit_id');
+    }
+
+    public function companyUnit()
+    {
+        return $this->belongsTo('App\Models\CRM\CRMCompanyUnit', 'crm_company_unit_id');
     }
 } 
