@@ -179,7 +179,7 @@ class Dashboard extends Component
 
     public function render()
     {
-        return view('livewire.dms.dashboard-component')->layout('layouts.app');
+        return view('livewire.dms.dashboard-component');
     }
 }
 

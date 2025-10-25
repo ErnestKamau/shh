@@ -192,7 +192,7 @@ class Reports extends Component
 
     public function render()
     {
-        return view('livewire.dms.reports-component')->layout('layouts.app');
+        return view('livewire.dms.reports-component');
     }
 }
 

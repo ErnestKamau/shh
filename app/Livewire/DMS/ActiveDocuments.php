@@ -588,7 +588,7 @@ class ActiveDocuments extends Component
         return view('livewire.dms.active-documents-component', [
             'documents' => $documents,
             'enrichedDocuments' => $enrichedDocuments,
-        ])->layout('layouts.app');
+        ]);
     }
 }
 

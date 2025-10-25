@@ -225,7 +225,7 @@ class AmendmentManager extends Component
     {
         return view('livewire.dms.amendment-manager-component', [
             'amendments' => $this->amendments,
-        ])->layout('layouts.app');
+        ]);
     }
 }
 
