@@ -13,6 +13,7 @@ use App\SampleDetails;
 
 use Session;
 use App\EntityAttachment;
+use App\Models\System\SystemConfiguration;
 use App\SampleHeader;
 use Illuminate\Http\File;
 use Illuminate\Http\Request;
@@ -58,6 +59,8 @@ class HomeController extends Controller
 		$user->is_online = 1;
 		$user->save();
 		$roles = UserRole::where('user_id',$user->id)->get();
+		$personnel_role = SystemConfiguration::where('key','personnel_role_id')->first();
+		$user_personel_access = UserRole::where('user_id',$user->id)->where('role_id',$personnel_role->value)->first();
 
 		$permissions = array();
 		$count = 0;
@@ -96,20 +99,20 @@ class HomeController extends Controller
 		if(sizeof($permissions)>0){
 			Session::put('permissions', $permissions[0]);
 			// return response()->json($permissions,200);
-			return view('home');
+			return view('home',compact('user_personel_access'));
 
 
 		}
 		else{
 			// return response()->json($roles,200);
-			return view('home');
+			return view('home',compact('user_personel_access'));
 		}
 
 		// $t = array('Laboratory','components','Samples En-Route','Add');
 		// $test = $user->check_permission($t);
 		// return response()->json($test,200);
 
-		return view('home');
+		return view('home',compact('user_personel_access'));
 
 	}
 
