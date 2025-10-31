@@ -23,10 +23,10 @@
     <h2 class="p-4">
 			<i class="mdi mdi-format-list-bulleted-type"></i>Personnel
 			<small class="label badge-pill bg-white my-small-text pt-1 pl-4 pr-4 pb-1 mr-1">
-				<i class="mdi mdi-account-group text-info"></i> Shared <span class="badge badge-info badge-pill">{{ $license_count['shared_user']."/".mamboSawa('shared_users') }}</span>
+				<i class="mdi mdi-account-group text-info"></i> Shared <span class="badge badge-info badge-pill">{{ isset($license_count['shared_user']) ? $license_count['shared_user']."/".mamboSawa('shared_users') : 0."/".mamboSawa('shared_users') }}</span>
 			</small>
 			<small class="label badge-pill bg-white my-small-text pt-1 pl-4 pr-4 pb-1">
-				<i class="mdi mdi-account text-success"></i> Named <span class="badge badge-success badge-pill">{{ $license_count['named_user']."/".mamboSawa('named_users') }}</span>
+				<i class="mdi mdi-account text-success"></i> Named <span class="badge badge-success badge-pill">{{ isset($license_count['named_user']) ? $license_count['named_user']."/".mamboSawa('named_users') : 0."/".mamboSawa('named_users') }}</span>
 			</small>
       <button class="btn btn-primary btn-sm float-right" data-toggle="modal" data-target="#add-personnel"><i class="mdi mdi-plus"></i> Add</button>
     </h2>
