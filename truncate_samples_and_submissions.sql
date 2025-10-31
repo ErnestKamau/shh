@@ -149,6 +149,7 @@ TRUNCATE TABLE `method_sequence_run_stage_data`;
 TRUNCATE TABLE `method_sequence_runs`;
 
 
+
 -- ============================================================================
 -- RE-ENABLE FOREIGN KEY CHECKS
 -- ============================================================================
