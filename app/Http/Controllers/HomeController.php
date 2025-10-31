@@ -60,7 +60,7 @@ class HomeController extends Controller
 		$user->save();
 		$roles = UserRole::where('user_id',$user->id)->get();
 		$personnel_role = SystemConfiguration::where('key','personnel_role_id')->first();
-		$user_personel_access = UserRole::where('user_id',$user->id)->where('role_id',$personnel_role->value)->first();
+		$user_personel_access = isset($personnel_role->value) && $personnel_role->value > 0 ? UserRole::where('user_id',$user->id)->where('role_id',$personnel_role->value)->first() : null;
 
 		$permissions = array();
 		$count = 0;
