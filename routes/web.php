@@ -311,7 +311,7 @@ Route::get('/get/Tat/Batch/ApprovalCounter/Ajax/{status}','SampleWorkFlowControl
 Route::post('/process-raw-results/lab','SampleWorkFlowController@processRawResultsLab')->name('process-raw-results-lab');
   Route::get('/sample-workflow/{status?}', 'SampleWorkFlowController@index')->name('sample-workflow');
 //   Route::get('/sample-workflow/{status?}/stage', 'SampleWorkFlowController@index')->name('sample-workflow')->middleware('haspermission:Laboratory.components.status.View');
-  Route::get('/sample-workflow/{status?}/stage', 'SampleWorkFlowController@index')->name('sample-workflow');
+  Route::get('/sample-workflow/{status?}/stage', 'SampleWorkFlowController@index')->name('sample-workflow-stage');
   Route::get('/sample-workflow/batch/{batch}/details/{client?}/{portal?}/{status?}', 'SampleWorkFlowController@show')->name('view-batch-details');
   Route::get('/sample-workflow/batch/{batch}/worksheets', 'WorksheetsController@index')->name('batch-worksheets');
   Route::post('/add-batch-info/{batch}', 'SampleWorkFlowController@add_batch_info')->name('add-batch-info');
@@ -873,7 +873,7 @@ Route::post('/submit-bank-details/{id}', 'RequisitionController@submit_bank_deta
 Route::post('/upload-bank-confirmation/{id}', 'RequisitionController@upload_bank_confirmation')->name('upload-bank-confirmation')->middleware('haspermission:Inventory.components.Purchase Orders.Edit');
 Route::post('/add-email-body-rfq/{id}', 'RequisitionController@add_email_body_rfq')->name('add-email-body-rfq')->middleware('haspermission:Inventory.components.Request for Quotation.Edit');
 
-Route::post('/jump-request-to-status/{id}', 'RequisitionController@jump_request_to_status')->name('jump-request-to-status')->middleware('haspermission:Inventory.components.Request for Quotation.Edit');
+// Route::post('/jump-request-to-status/{id}', 'RequisitionController@jump_request_to_status')->name('jump-request-to-status')->middleware('haspermission:Inventory.components.Request for Quotation.Edit');
 
 Route::post('/req-locations-add', 'RequisitionLocationController@add')->name('req-locations-add');
 Route::post('/req-locations-remove', 'RequisitionLocationController@remove')->name('req-locations-remove')->middleware('haspermission:Inventory.components.stage.Edit');
@@ -1247,7 +1247,7 @@ Route::post('/matrix/capability/delete','SkillsMatrix\CapabilityController@delet
 Route::get('/matrix/get/role/{matrix_id}/ajax','SkillsMatrix\CapabilityController@getSkillMatrixRolesAjax')->name('capability.get.role');
 Route::post('/matrix/get/user/position/ajax','SkillsMatrix\CapabilityController@getMatrixUsersByPositionAjax')->name('capability.get.userby.position');
 Route::get('/matrix/capability/show/{id}','SkillsMatrix\CapabilityController@show')->name('capability.show');
-Route::post('/matrix/capability/show/{id}','SkillsMatrix\CapabilityController@show')->name('capability.show');
+Route::post('/matrix/capability/show/{id}','SkillsMatrix\CapabilityController@show')->name('capability.show-post');
 Route::post('/matrix/capability/details/store','SkillsMatrix\CapabilityController@storeDetails')->name('capability.detail.store');
 
 Route::get('/matrix/training-needs','SkillsMatrix\TrainingNeedsController@index')->name('train.needs.index');
@@ -1263,21 +1263,20 @@ Route::post('/matrix/train-plan/store','SkillsMatrix\TrainingPlanController@stor
 Route::post('/matrix/train/plan/edit','SkillsMatrix\TrainingPlanController@editPlan')->name('train.plan.edit');
 Route::post('/matrix/train/plan/delete','SkillsMatrix\TrainingPlanController@deletePlan')->name('train.plan.delete');
 Route::get('/matrix/train-plan/show/{id}','SkillsMatrix\TrainingPlanController@show')->name('train.plan.show');
-Route::post('/matrix/train-plan/show/{id}','SkillsMatrix\TrainingPlanController@show')->name('train.plan.show');
+Route::post('/matrix/train-plan/show/{id}','SkillsMatrix\TrainingPlanController@show')->name('train.plan.show-post');
 
 Route::post('/matrix/train/plan/other/store','SkillsMatrix\TrainingPlanController@storeOther')->name('train.plan.store.other');
 Route::post('/matrix/train/planner/detail/store','SkillsMatrix\TrainingPlanController@storeDetail')->name('train.plan.detail.store');
 Route::post('/matrix/train/plan/others/delete','SkillsMatrix\TrainingPlanController@deleteOtherDetail')->name('train.plan.others.delete');
 
-
 Route::get('/matrix-config/{module}', 'SkillsMatrix\SkillsMatrixConfigController@index')->name('matrix-config');
-Route::get('/matrix-config/{module}/{id}', 'SkillsMatrix\SkillsMatrixConfigController@getTopologies')->name('topology');
+Route::get('/matrix-config/{module}/{id}', 'SkillsMatrix\SkillsMatrixConfigController@getTopologies')->name('topology-module');
 Route::post('/matrix-config-add/{matrix_id}/{id}', 'SkillsMatrix\SkillsMatrixConfigController@add')->name('topology-add');
 Route::post('/update-matrix-Config', 'SkillsMatrix\SkillsMatrixConfigController@updat_matrix_Config')->name('update-matrix-Config');
 Route::post('/update-user-role-matrix-Config', 'SkillsMatrix\SkillsMatrixConfigController@updat_user_role_matrix_Config')->name('update-user-role-matrix-Config');
 Route::get('/matrix-config-topology', 'SkillsMatrix\SkillsMatrixConfigController@index')->name('topology');
 Route::get('/matrix-config-topology/{id}/{matrix_id}/', 'SkillsMatrix\SkillsMatrixConfigController@getTopologies')->name('topology-parent');
-Route::post('/matrix-config-topology/{id}/{matrix_id}/', 'SkillsMatrix\SkillsMatrixConfigController@add')->name('topology-add');
+Route::post('/matrix-config-topology/{id}/{matrix_id}/', 'SkillsMatrix\SkillsMatrixConfigController@add')->name('topology-add-post');
 Route::post('/matrix-config-topology/{id}/{matrix_id}/remove', 'SkillsMatrix\SkillsMatrixConfigController@remove')->name('topology-remove');
 Route::get('/matrix-competence', 'SkillsMatrix\SkillsMatrixConfigController@competence_history')->name('matrix-competence');
 Route::post('/get-week-listing', 'SkillsMatrix\SkillsMatrixConfigController@get_weeks_listing')->name('get-week-listing');
