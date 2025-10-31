@@ -368,7 +368,7 @@
 								<select name="user_license" class="form-control" placeholder="User License..." required>
 									<option></option>
 									@foreach (getUserLicenses() as $i=>$n)
-										<option value="{{ $i }}" {{ intval($license_count[$i]) == intval(mamboSawa($i.'s')) ? 'disabled' : '' }}>{{ $n }} {{ $license_count[$i]."/".mamboSawa($i.'s') }}</option>
+										{{-- <option value="{{ $i }}" {{ intval($license_count[$i]) == intval(mamboSawa($i.'s')) ? 'disabled' : '' }}>{{ $n }} {{ $license_count[$i]."/".mamboSawa($i.'s') }}</option> --}}
 									@endforeach
 								</select>
 							</div>
