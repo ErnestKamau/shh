@@ -5,6 +5,7 @@ namespace App;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Support\Facades\DB;
 use App\Models\SubmissionForm;
 
 class CertificateTemplate extends Model
@@ -119,7 +120,15 @@ class CertificateTemplate extends Model
      */
     public function getElementsCountAttribute(): int
     {
-        return $this->sections()->withCount('elements')->get()->sum('elements_count');
+        $directElements = $this->sections()->withCount('elements')->get()->sum('elements_count');
+        $holderElements = DB::table('certificate_template_elements')
+            ->join('certificate_template_element_holders', 'certificate_template_elements.certificate_template_element_holder_id', '=', 'certificate_template_element_holders.id')
+            ->join('certificate_template_sections', 'certificate_template_element_holders.certificate_template_section_id', '=', 'certificate_template_sections.id')
+            ->where('certificate_template_sections.certificate_template_id', $this->id)
+            ->whereNotNull('certificate_template_elements.certificate_template_element_holder_id')
+            ->count();
+        
+        return $directElements + $holderElements;
     }
 
     /**

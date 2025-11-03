@@ -6,6 +6,7 @@ use App\CertificateTemplate;
 use App\CertificateTemplateSection;
 use App\CertificateTemplateElement;
 use App\CertificateTemplateReport;
+use App\Models\SubmissionFormInstance;
 use Illuminate\Http\Request;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
@@ -13,7 +14,7 @@ use Illuminate\View\View;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
-use Barryvdh\DomPDF\Facade as PDF;
+use Barryvdh\DomPDF\Facade\Pdf as PDF;
 
 class CertificateTemplateController extends Controller
 {
@@ -24,7 +25,7 @@ class CertificateTemplateController extends Controller
     {
         $submissionFormId = $request->get('submission_form_id');
         
-        $query = CertificateTemplate::with(['creator', 'sections', 'submissionForm'])
+        $query = CertificateTemplate::with(['creator', 'sections.elementHolders', 'submissionForm'])
             ->withCount(['sections', 'reports']);
             
         if ($submissionFormId) {
@@ -95,8 +96,11 @@ class CertificateTemplateController extends Controller
     {
         $template = $certificateTemplate->load([
             'creator',
-            'sections.elements' => function ($query) {
+            'sections.elementHolders.elements' => function ($query) {
                 $query->orderBy('sort_order');
+            },
+            'sections.elements' => function ($query) {
+                $query->whereNull('certificate_template_element_holder_id')->orderBy('sort_order');
             },
             'reports' => function ($query) {
                 $query->orderBy('created_at', 'desc')->limit(10);
@@ -216,7 +220,7 @@ class CertificateTemplateController extends Controller
     }
 
     /**
-     * Duplicate sections and their elements.
+     * Duplicate sections, holders, and their elements.
      */
     private function duplicateSections(CertificateTemplate $originalTemplate, CertificateTemplate $newTemplate): void
     {
@@ -228,7 +232,7 @@ class CertificateTemplateController extends Controller
     }
 
     /**
-     * Duplicate a single section and its children.
+     * Duplicate a single section, its holders, and its children.
      */
     private function duplicateSection(CertificateTemplateSection $originalSection, CertificateTemplate $newTemplate, ?int $parentId = null): CertificateTemplateSection
     {
@@ -237,8 +241,23 @@ class CertificateTemplateController extends Controller
         $newSection->parent_section_id = $parentId;
         $newSection->save();
 
-        // Duplicate elements
-        foreach ($originalSection->elements as $element) {
+        // Duplicate element holders and their elements
+        foreach ($originalSection->elementHolders as $holder) {
+            $newHolder = $holder->replicate();
+            $newHolder->certificate_template_section_id = $newSection->id;
+            $newHolder->save();
+            
+            // Duplicate elements within this holder
+            foreach ($holder->elements as $element) {
+                $newElement = $element->replicate();
+                $newElement->certificate_template_section_id = $newSection->id;
+                $newElement->certificate_template_element_holder_id = $newHolder->id;
+                $newElement->save();
+            }
+        }
+
+        // Also duplicate any orphaned elements (without holders)
+        foreach ($originalSection->elements()->whereNull('certificate_template_element_holder_id')->get() as $element) {
             $newElement = $element->replicate();
             $newElement->certificate_template_section_id = $newSection->id;
             $newElement->save();
@@ -258,8 +277,11 @@ class CertificateTemplateController extends Controller
     public function preview(CertificateTemplate $certificateTemplate): View
     {
         $template = $certificateTemplate->load([
-            'sections.elements' => function ($query) {
+            'sections.elementHolders.elements' => function ($query) {
                 $query->orderBy('sort_order');
+            },
+            'sections.elements' => function ($query) {
+                $query->whereNull('certificate_template_element_holder_id')->orderBy('sort_order');
             }
         ]);
 
@@ -272,8 +294,8 @@ class CertificateTemplateController extends Controller
     public function generatePdfPreview(CertificateTemplate $certificateTemplate)
     {
         $template = $certificateTemplate->load([
-            'sections.elements' => function ($query) {
-                $query->orderBy('sort_order');
+            'sections.elementHolders.elements' => function ($query) {
+                $query->orderBy('z_index')->orderBy('sort_order');
             }
         ]);
 
@@ -340,7 +362,7 @@ class CertificateTemplateController extends Controller
      */
     public function getSubmissionFormInstances(): JsonResponse
     {
-        $instances = \App\SubmissionFormInstance::with(['submissionForm'])
+        $instances = SubmissionFormInstance::with(['submissionForm'])
             ->where('status', 'approved')
             ->orderBy('created_at', 'desc')
             ->limit(50)
