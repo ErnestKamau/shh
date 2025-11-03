@@ -507,7 +507,7 @@
             <h3 class="app-title">CRM</h3>
         </a>
 
-        @if(auth()->user()->is_support_staff)
+        @if(auth()->user()->is_support_staff || isset($user_personel_access->id))
         <a class="app-card personnel" href="/personnel-home" data-app="personnel">
             <div class="app-icon" style="background: linear-gradient(135deg, #F44336, #D32F2F);">
                 <i class="mdi mdi-account-group"></i>
@@ -544,7 +544,7 @@
             <h3 class="app-title">Imara AI</h3>
         </a>
         
-        @if(auth()->user()->is_support_staff || isset($user_personel_access->id))
+        @if(auth()->user()->is_support_staff)
         <a class="app-card settings" href="/system-settings" data-app="settings">
             <div class="app-icon" style="background: linear-gradient(135deg, #424242, #212121);">
                 <i class="fas fa-cogs"></i>

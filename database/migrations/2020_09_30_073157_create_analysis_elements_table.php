@@ -26,7 +26,7 @@ class CreateAnalysisElementsTable extends Migration {
 			$table->integer('company_id');
 			$table->integer('analysis_type_id');
 			$table->boolean('show_on_report')->default(1);
-			$table->timestamps(10);
+			$table->timestamps();
 			$table->integer('equipment_id')->nullable()->default(0);
 			$table->integer('method')->nullable();
 			$table->smallInteger('is_manual')->nullable()->default(0);
