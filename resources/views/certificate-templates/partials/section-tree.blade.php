@@ -26,12 +26,59 @@
     </div>
     
     <div class="section-content" style="{{ $level > 0 ? 'display: none;' : '' }}">
-        @if($section->elements->count() > 0)
+        @if($section->elementHolders->count() > 0)
+            <div class="holders-list mb-3">
+                <h6 class="text-muted mb-2">
+                    <i class="mdi mdi-cube-outline"></i> Element Holders
+                </h6>
+                @foreach($section->elementHolders as $holder)
+                    <div class="holder-item mb-2">
+                        <div class="d-flex justify-content-between align-items-center p-2 bg-light rounded">
+                            <div>
+                                <strong>Holder {{ $loop->iteration }}</strong>
+                                <small class="text-muted">({{ $holder->elements->count() }}/{{ $holder->max_elements }} elements)</small>
+                            </div>
+                            <span class="badge badge-info">{{ ucfirst($holder->holder_type) }}</span>
+                        </div>
+                        @if($holder->elements->count() > 0)
+                            <div class="elements-list ml-3 mt-2">
+                                @foreach($holder->elements as $element)
+                                    <div class="element-item">
+                                        <div class="d-flex justify-content-between align-items-center">
+                                            <div>
+                                                <span class="element-type">{{ $element->element_type_label }}</span>
+                                                @if($element->content)
+                                                    <div class="element-content">
+                                                        {{ Str::limit(strip_tags($element->content), 100) }}
+                                                    </div>
+                                                @endif
+                                            </div>
+                                            <div class="d-flex align-items-center">
+                                                @if($element->is_conditional)
+                                                    <span class="badge badge-warning badge-sm mr-1">Conditional</span>
+                                                @endif
+                                                <a href="{{ route('certificate-templates.builder', $section->template) }}?element={{ $element->id }}" 
+                                                   class="btn btn-sm btn-outline-secondary" title="Edit Element">
+                                                    <i class="mdi mdi-pencil"></i>
+                                                </a>
+                                            </div>
+                                        </div>
+                                    </div>
+                                @endforeach
+                            </div>
+                        @endif
+                    </div>
+                @endforeach
+            </div>
+        @endif
+        
+        {{-- Also show orphaned elements without holders --}}
+        @if($section->elements()->whereNull('certificate_template_element_holder_id')->exists())
             <div class="elements-list mb-3">
                 <h6 class="text-muted mb-2">
-                    <i class="mdi mdi-format-list-bulleted"></i> Elements
+                    <i class="mdi mdi-format-list-bulleted"></i> Elements (Legacy)
                 </h6>
-                @foreach($section->elements as $element)
+                @foreach($section->elements()->whereNull('certificate_template_element_holder_id')->get() as $element)
                     <div class="element-item">
                         <div class="d-flex justify-content-between align-items-center">
                             <div>

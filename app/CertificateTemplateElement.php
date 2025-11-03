@@ -14,13 +14,23 @@ class CertificateTemplateElement extends Model
      */
     protected $fillable = [
         'certificate_template_section_id',
+        'certificate_template_element_holder_id',
         'element_type',
         'content',
         'properties',
         'styling',
         'sort_order',
         'is_conditional',
-        'conditional_logic'
+        'conditional_logic',
+        'position_x',
+        'position_y',
+        'width',
+        'height',
+        'position_x_percent',
+        'position_y_percent',
+        'width_percent',
+        'height_percent',
+        'z_index'
     ];
 
     /**
@@ -33,6 +43,15 @@ class CertificateTemplateElement extends Model
         'styling' => 'array',
         'is_conditional' => 'boolean',
         'conditional_logic' => 'array',
+        'position_x' => 'decimal:2',
+        'position_y' => 'decimal:2',
+        'width' => 'decimal:2',
+        'height' => 'decimal:2',
+        'position_x_percent' => 'decimal:4',
+        'position_y_percent' => 'decimal:4',
+        'width_percent' => 'decimal:4',
+        'height_percent' => 'decimal:4',
+        'z_index' => 'integer',
         'created_at' => 'datetime',
         'updated_at' => 'datetime'
     ];
@@ -72,6 +91,14 @@ class CertificateTemplateElement extends Model
     public function section(): BelongsTo
     {
         return $this->belongsTo(CertificateTemplateSection::class, 'certificate_template_section_id');
+    }
+
+    /**
+     * Get the element holder that owns this element.
+     */
+    public function elementHolder(): BelongsTo
+    {
+        return $this->belongsTo(\App\Models\CertificateTemplateElementHolder::class, 'certificate_template_element_holder_id');
     }
 
     /**

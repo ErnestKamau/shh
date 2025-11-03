@@ -60,6 +60,14 @@ class CertificateTemplateSection extends Model
     }
 
     /**
+     * Get the element holders for this section.
+     */
+    public function elementHolders(): HasMany
+    {
+        return $this->hasMany(\App\Models\CertificateTemplateElementHolder::class)->orderBy('sort_order');
+    }
+
+    /**
      * Get the elements for this section.
      */
     public function elements(): HasMany

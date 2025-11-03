@@ -20,8 +20,11 @@ class TemplateBuilderController extends Controller
     public function builder(CertificateTemplate $certificateTemplate): View
     {
         $template = $certificateTemplate->load([
-            'sections.elements' => function ($query) {
+            'sections.elementHolders.elements' => function ($query) {
                 $query->orderBy('sort_order');
+            },
+            'sections.elements' => function ($query) {
+                $query->whereNull('certificate_template_element_holder_id')->orderBy('sort_order');
             }
         ]);
 

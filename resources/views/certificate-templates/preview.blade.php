@@ -62,10 +62,32 @@
                 </div>
                 <div class="card-body">
                     <div class="preview-container">
-                        <div class="preview-content">
+                        <div class="preview-content" style="position: relative;">
                             @if($template->sections->count() > 0)
-                                @foreach($template->rootSections as $section)
-                                    @include('certificate-templates.partials.preview-section', ['section' => $section])
+                                @foreach($template->sections as $section)
+                                    {{-- Render holder-based elements with absolute positioning --}}
+                                    @foreach($section->elementHolders as $holder)
+                                        <div class="preview-holder" style="position: absolute; 
+                                             left: {{ $holder->position_x ?? 0 }}px; 
+                                             top: {{ $holder->position_y ?? 0 }}px;
+                                             width: {{ $holder->width ?? 300 }}px;
+                                             height: {{ $holder->height ?? 200 }}px;">
+                                            @foreach($holder->elements as $element)
+                                                <div class="preview-element" style="position: absolute;
+                                                     left: {{ $element->position_x ?? 0 }}px;
+                                                     top: {{ $element->position_y ?? 0 }}px;
+                                                     width: {{ $element->width ?? 200 }}px;
+                                                     height: {{ $element->height ?? 100 }}px;">
+                                                    @include('certificate-templates.partials.element-preview', ['element' => $element])
+                                                </div>
+                                            @endforeach
+                                        </div>
+                                    @endforeach
+                                    
+                                    {{-- Also render legacy elements without holders --}}
+                                    @foreach($section->elements()->whereNull('certificate_template_element_holder_id')->get() as $element)
+                                        @include('certificate-templates.partials.element-preview', ['element' => $element])
+                                    @endforeach
                                 @endforeach
                             @else
                                 <div class="text-center py-5 text-muted">

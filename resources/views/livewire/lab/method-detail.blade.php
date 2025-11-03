@@ -296,55 +296,55 @@
             </div>
         </div>
     </div>
+    <style>
+        .nav-tabs .nav-link {
+            border: none;
+            border-bottom: 2px solid transparent;
+            color: #737373;
+            transition: all 0.3s ease;
+        }
+    
+        .nav-tabs .nav-link:hover {
+            color: #007bff;
+        }
+    
+        .nav-tabs .nav-link.active {
+            border-bottom: 2px solid #007bff;
+            color: #007bff;
+            background: none;
+        }
+    
+        .dropdown-results {
+            position: absolute;
+            top: 100%;
+            left: 0;
+            right: 0;
+            background: white;
+            border: 1px solid #e5e7eb;
+            border-radius: 4px;
+            max-height: 200px;
+            overflow-y: auto;
+            z-index: 1000;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        }
+    
+        .dropdown-results .dropdown-item {
+            padding: 8px 12px;
+            cursor: pointer;
+        }
+    
+        .dropdown-results .dropdown-item:hover {
+            background: #f3f4f6;
+        }
+    </style>
+    
+    <script>
+        document.addEventListener('click', function(e) {
+            if (!e.target.closest('[wire\\:model\\.live="reagentSearch"]')) {
+                @this.set('showReagentDropdown', false);
+            }
+        });
+    </script>
 </div>
 
-<style>
-.nav-tabs .nav-link {
-    border: none;
-    border-bottom: 2px solid transparent;
-    color: #737373;
-    transition: all 0.3s ease;
-}
-
-.nav-tabs .nav-link:hover {
-    color: #007bff;
-}
-
-.nav-tabs .nav-link.active {
-    border-bottom: 2px solid #007bff;
-    color: #007bff;
-    background: none;
-}
-
-.dropdown-results {
-    position: absolute;
-    top: 100%;
-    left: 0;
-    right: 0;
-    background: white;
-    border: 1px solid #e5e7eb;
-    border-radius: 4px;
-    max-height: 200px;
-    overflow-y: auto;
-    z-index: 1000;
-    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
-}
-
-.dropdown-results .dropdown-item {
-    padding: 8px 12px;
-    cursor: pointer;
-}
-
-.dropdown-results .dropdown-item:hover {
-    background: #f3f4f6;
-}
-</style>
-
-<script>
-document.addEventListener('click', function(e) {
-    if (!e.target.closest('[wire\\:model\\.live="reagentSearch"]')) {
-        @this.set('showReagentDropdown', false);
-    }
-});
-</script>
 

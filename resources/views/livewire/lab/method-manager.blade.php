@@ -385,117 +385,117 @@
             </div>
         </div>
     @endif
+    <style>
+        .modal.show {
+            display: block !important;
+        }
+    
+        body.modal-open {
+            overflow: hidden;
+        }
+    
+        .modal-dialog-scrollable .modal-body {
+            overflow-y: auto;
+            max-height: calc(100vh - 200px);
+        }
+    
+        .modal-body {
+            scroll-behavior: smooth;
+        }
+    
+        .modal-backdrop {
+            position: fixed;
+            top: 0;
+            left: 0;
+            z-index: 1040;
+            width: 100vw;
+            height: 100vh;
+            background-color: rgba(0,0,0,0.5);
+        }
+        </style>
+    
+    <script>
+        document.addEventListener('livewire:init', () => {
+            Livewire.on('method-modal-opened', () => {
+                document.body.classList.add('modal-open');
+                document.body.style.overflow = 'hidden';
+            });
+            
+            Livewire.on('method-modal-closed', () => {
+                document.body.classList.remove('modal-open');
+                document.body.style.overflow = '';
+            });
+        });
+    </script>
+    
+    <style>
+        /* Single-Select Searchable Dropdown Styling */
+        .searchable-input-single {
+            border: none;
+            outline: none;
+            box-shadow: none !important;
+            padding: 4px 0;
+            width: 100%;
+        }
+    
+        .searchable-input-single:focus {
+            border: none !important;
+            box-shadow: none !important;
+        }
+    
+        .single-select-container {
+            position: relative;
+            min-height: 45px;
+            border: 1px solid #ced4da;
+            border-radius: 12px;
+            padding: 8px 40px 8px 12px;
+            background: white;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            display: flex;
+            align-items: center;
+        }
+    
+        .single-select-container:hover {
+            border-color: #007bff;
+            box-shadow: 0 2px 8px rgba(0, 123, 255, 0.1);
+        }
+    
+        .single-select-container:has(.searchable-input-single:focus) {
+            border-color: #007bff;
+            box-shadow: 0 0 0 0.2rem rgba(0, 123, 255, 0.25);
+        }
+    
+        .options-list {
+            padding: 8px;
+            max-height: 300px;
+            overflow-y: auto;
+        }
+    
+        .option-item {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 10px 12px;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            font-size: 14px;
+        }
+    
+        .option-item:hover {
+            background: #f8f9fa;
+        }
+    
+        .option-item.selected {
+            background: rgba(0, 123, 255, 0.08);
+            font-weight: 500;
+        }
+    
+        .option-item i {
+            font-size: 18px;
+        }
+    </style>
 </div>
 
-<style>
-.modal.show {
-    display: block !important;
-}
-
-body.modal-open {
-    overflow: hidden;
-}
-
-.modal-dialog-scrollable .modal-body {
-    overflow-y: auto;
-    max-height: calc(100vh - 200px);
-}
-
-.modal-body {
-    scroll-behavior: smooth;
-}
-
-.modal-backdrop {
-    position: fixed;
-    top: 0;
-    left: 0;
-    z-index: 1040;
-    width: 100vw;
-    height: 100vh;
-    background-color: rgba(0,0,0,0.5);
-}
-</style>
-
-<script>
-document.addEventListener('livewire:init', () => {
-    Livewire.on('method-modal-opened', () => {
-        document.body.classList.add('modal-open');
-        document.body.style.overflow = 'hidden';
-    });
-    
-    Livewire.on('method-modal-closed', () => {
-        document.body.classList.remove('modal-open');
-        document.body.style.overflow = '';
-    });
-});
-</script>
-
-<style>
-/* Single-Select Searchable Dropdown Styling */
-.searchable-input-single {
-    border: none;
-    outline: none;
-    box-shadow: none !important;
-    padding: 4px 0;
-    width: 100%;
-}
-
-.searchable-input-single:focus {
-    border: none !important;
-    box-shadow: none !important;
-}
-
-.single-select-container {
-    position: relative;
-    min-height: 45px;
-    border: 1px solid #ced4da;
-    border-radius: 12px;
-    padding: 8px 40px 8px 12px;
-    background: white;
-    cursor: pointer;
-    transition: all 0.3s ease;
-    display: flex;
-    align-items: center;
-}
-
-.single-select-container:hover {
-    border-color: #007bff;
-    box-shadow: 0 2px 8px rgba(0, 123, 255, 0.1);
-}
-
-.single-select-container:has(.searchable-input-single:focus) {
-    border-color: #007bff;
-    box-shadow: 0 0 0 0.2rem rgba(0, 123, 255, 0.25);
-}
-
-.options-list {
-    padding: 8px;
-    max-height: 300px;
-    overflow-y: auto;
-}
-
-.option-item {
-    display: flex;
-    align-items: center;
-    gap: 10px;
-    padding: 10px 12px;
-    border-radius: 8px;
-    cursor: pointer;
-    transition: all 0.2s ease;
-    font-size: 14px;
-}
-
-.option-item:hover {
-    background: #f8f9fa;
-}
-
-.option-item.selected {
-    background: rgba(0, 123, 255, 0.08);
-    font-weight: 500;
-}
-
-.option-item i {
-    font-size: 18px;
-}
-</style>
 

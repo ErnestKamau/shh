@@ -40,17 +40,27 @@ Route::middleware(['auth'])->group(function () {
     Route::get('certificate-templates/{certificateTemplate}/builder', 'TemplateBuilderController@builder')->name('certificate-templates.builder');
     
     // Section Management
-    Route::post('certificate-templates/{certificateTemplate}/sections', 'TemplateBuilderController@createSection')->name('certificate-templates.sections.store');
-    Route::put('certificate-template-sections/{section}', 'TemplateBuilderController@updateSection')->name('certificate-template-sections.update');
-    Route::delete('certificate-template-sections/{section}', 'TemplateBuilderController@deleteSection')->name('certificate-template-sections.destroy');
-    Route::post('certificate-templates/{certificateTemplate}/sections/reorder', 'TemplateBuilderController@reorderSections')->name('certificate-templates.sections.reorder');
+    Route::post('certificate-templates/{template}/sections', 'CertificateTemplateSectionController@store')->name('certificate-templates.sections.store');
+    Route::get('certificate-template-sections/{section}', 'CertificateTemplateSectionController@show')->name('certificate-template-sections.show');
+    Route::put('certificate-template-sections/{section}', 'CertificateTemplateSectionController@update')->name('certificate-template-sections.update');
+    Route::delete('certificate-template-sections/{section}', 'CertificateTemplateSectionController@destroy')->name('certificate-template-sections.destroy');
+    Route::post('certificate-templates/{template}/sections/reorder', 'CertificateTemplateSectionController@reorder')->name('certificate-templates.sections.reorder');
+    
+    // Element Holder Management
+    Route::post('certificate-template-sections/{section}/holders', 'CertificateTemplateElementHolderController@store')->name('certificate-template-sections.holders.store');
+    Route::get('certificate-template-holders/{holder}', 'CertificateTemplateElementHolderController@show')->name('certificate-template-holders.show');
+    Route::put('certificate-template-holders/{holder}', 'CertificateTemplateElementHolderController@update')->name('certificate-template-holders.update');
+    Route::delete('certificate-template-holders/{holder}', 'CertificateTemplateElementHolderController@destroy')->name('certificate-template-holders.destroy');
+    Route::post('certificate-template-sections/{section}/holders/reorder', 'CertificateTemplateElementHolderController@reorder')->name('certificate-template-sections.holders.reorder');
+    Route::post('certificate-template-holders/{holder}/clone', 'CertificateTemplateElementHolderController@clone')->name('certificate-template-holders.clone');
+    Route::put('certificate-template-holders/{holder}/position', 'CertificateTemplateElementHolderController@updatePosition')->name('certificate-template-holders.position');
     
     // Element Management
-    Route::get('certificate-template-elements/{element}', 'TemplateBuilderController@showElement')->name('certificate-template-elements.show');
-    Route::post('certificate-template-sections/{section}/elements', 'TemplateBuilderController@createElement')->name('certificate-template-sections.elements.store');
-    Route::put('certificate-template-elements/{element}', 'TemplateBuilderController@updateElement')->name('certificate-template-elements.update');
-    Route::delete('certificate-template-elements/{element}', 'TemplateBuilderController@deleteElement')->name('certificate-template-elements.destroy');
-    Route::post('certificate-template-sections/{section}/elements/reorder', 'TemplateBuilderController@reorderElements')->name('certificate-template-sections.elements.reorder');
+    Route::get('certificate-template-elements/{element}', 'CertificateTemplateElementController@show')->name('certificate-template-elements.show');
+    Route::post('certificate-template-holders/{holder}/elements', 'CertificateTemplateElementController@store')->name('certificate-template-holders.elements.store');
+    Route::put('certificate-template-elements/{element}', 'CertificateTemplateElementController@update')->name('certificate-template-elements.update');
+    Route::delete('certificate-template-elements/{element}', 'CertificateTemplateElementController@destroy')->name('certificate-template-elements.destroy');
+    Route::put('certificate-template-elements/{element}/position', 'CertificateTemplateElementController@updatePosition')->name('certificate-template-elements.position');
     
     // Utility Routes
     Route::get('template-builder/data-fields', 'TemplateBuilderController@getDataFields')->name('template-builder.data-fields');

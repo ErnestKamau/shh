@@ -74,6 +74,8 @@
                                     <th>Description</th>
                                     <th>Status</th>
                                     <th>Sections</th>
+                                    <th>Holders</th>
+                                    <th>Elements</th>
                                     <th>Reports</th>
                                     <th>Created By</th>
                                     <th>Created At</th>
@@ -114,6 +116,12 @@
                                     </td>
                                     <td>
                                         <span class="badge badge-info">{{ $template->sections_count }}</span>
+                                    </td>
+                                    <td>
+                                        <span class="badge badge-primary">{{ $template->sections->sum(function($s) { return $s->elementHolders->count(); }) }}</span>
+                                    </td>
+                                    <td>
+                                        <span class="badge badge-success">{{ $template->elements_count }}</span>
                                     </td>
                                     <td>
                                         <span class="badge badge-secondary">{{ $template->reports_count }}</span>
