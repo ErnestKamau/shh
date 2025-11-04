@@ -19,6 +19,7 @@ class CertificateTemplateSection extends Model
         'title',
         'description',
         'sort_order',
+        'height',
         'is_collapsible',
         'styling_options'
     ];

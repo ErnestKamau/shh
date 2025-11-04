@@ -44,16 +44,21 @@ Route::middleware(['auth'])->group(function () {
     Route::get('certificate-template-sections/{section}', 'CertificateTemplateSectionController@show')->name('certificate-template-sections.show');
     Route::put('certificate-template-sections/{section}', 'CertificateTemplateSectionController@update')->name('certificate-template-sections.update');
     Route::delete('certificate-template-sections/{section}', 'CertificateTemplateSectionController@destroy')->name('certificate-template-sections.destroy');
+    Route::post('certificate-template-sections/{section}/resize', 'CertificateTemplateSectionController@resize')->name('certificate-template-sections.resize');
     Route::post('certificate-templates/{template}/sections/reorder', 'CertificateTemplateSectionController@reorder')->name('certificate-templates.sections.reorder');
     
     // Element Holder Management
     Route::post('certificate-template-sections/{section}/holders', 'CertificateTemplateElementHolderController@store')->name('certificate-template-sections.holders.store');
+    // Specific routes must come before dynamic {holder} routes
+    Route::get('certificate-template-holders/data-source/fields', 'CertificateTemplateElementHolderController@getFieldsForDataSource')->name('certificate-template-holders.data-source-fields');
     Route::get('certificate-template-holders/{holder}', 'CertificateTemplateElementHolderController@show')->name('certificate-template-holders.show');
     Route::put('certificate-template-holders/{holder}', 'CertificateTemplateElementHolderController@update')->name('certificate-template-holders.update');
     Route::delete('certificate-template-holders/{holder}', 'CertificateTemplateElementHolderController@destroy')->name('certificate-template-holders.destroy');
     Route::post('certificate-template-sections/{section}/holders/reorder', 'CertificateTemplateElementHolderController@reorder')->name('certificate-template-sections.holders.reorder');
     Route::post('certificate-template-holders/{holder}/clone', 'CertificateTemplateElementHolderController@clone')->name('certificate-template-holders.clone');
     Route::put('certificate-template-holders/{holder}/position', 'CertificateTemplateElementHolderController@updatePosition')->name('certificate-template-holders.position');
+    Route::post('certificate-template-holders/{holder}/toggle-direction', 'CertificateTemplateElementHolderController@toggleDirection')->name('certificate-template-holders.toggle-direction');
+    Route::post('certificate-template-holders/{parentHolder}/nested-holders', 'CertificateTemplateElementHolderController@storeNestedHolder')->name('certificate-template-holders.nested-holders.store');
     
     // Element Management
     Route::get('certificate-template-elements/{element}', 'CertificateTemplateElementController@show')->name('certificate-template-elements.show');

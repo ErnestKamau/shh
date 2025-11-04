@@ -11,6 +11,7 @@
 -- 3. Quotation Headers, Quotation Details, and analysis type links
 -- 4. Customer Invoices, Invoice Details, and payment records
 -- 5. Method Sequence Runs and stage execution data
+-- 6. CRM Customers, Company Units, Company Sub Units, Customer Contacts, and related data
 --
 -- RECENTLY ADDED TABLES (October 2025):
 -- - equipment_usage (tracks equipment used for sample analysis)
@@ -149,6 +150,31 @@ TRUNCATE TABLE `method_sequence_run_stage_data`;
 TRUNCATE TABLE `method_sequence_runs`;
 
 
+-- ============================================================================
+-- 6. CRM CUSTOMERS AND RELATED TABLES (in dependency order)
+-- ============================================================================
+
+-- Tables that depend on crm_company_sub_units and crm_company_units
+-- Note: sample_points and sample_point_area have multiple foreign keys
+TRUNCATE TABLE `sample_point_area`;
+TRUNCATE TABLE `sample_points`;
+TRUNCATE TABLE `company_products`;
+
+-- Tables that depend on crm_company_units
+TRUNCATE TABLE `crm_company_sub_units`;
+
+-- Tables that depend on crm_customer_contacts
+-- Note: quotation_headers already truncated above, but depends on crm_customer_contact_id
+-- This is already handled in section 3
+
+-- Tables that depend on crm_customers
+TRUNCATE TABLE `crm_company_units`;
+TRUNCATE TABLE `crm_customer_contacts`;
+
+-- Main CRM customers table
+TRUNCATE TABLE `crm_customers`;
+
+
 
 -- ============================================================================
 -- RE-ENABLE FOREIGN KEY CHECKS
@@ -202,7 +228,23 @@ UNION ALL
 -- Method Sequences
 SELECT 'method_sequence_runs', COUNT(*) FROM method_sequence_runs
 UNION ALL
-SELECT 'method_sequence_run_stage_data', COUNT(*) FROM method_sequence_run_stage_data;
+SELECT 'method_sequence_run_stage_data', COUNT(*) FROM method_sequence_run_stage_data
+UNION ALL
+
+-- CRM Customers and Related
+SELECT 'crm_customers', COUNT(*) FROM crm_customers
+UNION ALL
+SELECT 'crm_company_units', COUNT(*) FROM crm_company_units
+UNION ALL
+SELECT 'crm_company_sub_units', COUNT(*) FROM crm_company_sub_units
+UNION ALL
+SELECT 'crm_customer_contacts', COUNT(*) FROM crm_customer_contacts
+UNION ALL
+SELECT 'sample_points', COUNT(*) FROM sample_points
+UNION ALL
+SELECT 'sample_point_area', COUNT(*) FROM sample_point_area
+UNION ALL
+SELECT 'company_products', COUNT(*) FROM company_products;
 */
 
 

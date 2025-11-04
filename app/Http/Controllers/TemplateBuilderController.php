@@ -19,8 +19,21 @@ class TemplateBuilderController extends Controller
      */
     public function builder(CertificateTemplate $certificateTemplate): View
     {
+        // Eager load sections with nested holders and elements recursively
         $template = $certificateTemplate->load([
+            'sections' => function ($query) {
+                $query->orderBy('sort_order');
+            },
+            'sections.elementHolders' => function ($query) {
+                $query->whereNull('parent_holder_id')->orderBy('sort_order');
+            },
+            'sections.elementHolders.childHolders' => function ($query) {
+                $query->orderBy('sort_order');
+            },
             'sections.elementHolders.elements' => function ($query) {
+                $query->orderBy('sort_order');
+            },
+            'sections.elementHolders.childHolders.elements' => function ($query) {
                 $query->orderBy('sort_order');
             },
             'sections.elements' => function ($query) {
@@ -28,7 +41,25 @@ class TemplateBuilderController extends Controller
             }
         ]);
 
+        // Load nested holders recursively for each root holder
+        foreach ($template->sections as $section) {
+            foreach ($section->elementHolders as $holder) {
+                $this->loadNestedHolders($holder);
+            }
+        }
+
         return view('certificate-templates.builder', compact('template'));
+    }
+
+    /**
+     * Recursively load nested holders.
+     */
+    private function loadNestedHolders($holder): void
+    {
+        $holder->load(['childHolders', 'elements']);
+        foreach ($holder->childHolders as $childHolder) {
+            $this->loadNestedHolders($childHolder);
+        }
     }
 
     /**

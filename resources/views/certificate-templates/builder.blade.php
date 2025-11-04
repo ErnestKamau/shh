@@ -80,7 +80,7 @@
         border-radius: 6px;
         transition: all 0.2s;
     }
-
+    
     .sections-panel .panel-header .btn:hover {
         background: rgba(255, 255, 255, 0.3);
         transform: translateY(-1px);
@@ -106,6 +106,15 @@
     .section-panel-item:hover {
         box-shadow: var(--shadow-md);
         transform: translateY(-2px);
+    }
+    
+    .section-panel-item.section-panel-active {
+        border-color: var(--primary-color);
+        background: rgba(79, 70, 229, 0.05);
+    }
+    
+    .section-panel-item.section-panel-active .section-title {
+        color: var(--primary-color);
     }
 
     .section-panel-header {
@@ -213,7 +222,7 @@
     .holder-badge:hover .btn-holder-delete {
         opacity: 1;
     }
-
+    
     .add-holder-btn {
         font-size: 12px;
         font-weight: 500;
@@ -232,123 +241,115 @@
         transform: translateY(-2px);
         box-shadow: var(--shadow-md);
     }
-
-     /* === Element Palette (Right Sidebar) === */
-     .element-palette-panel {
-         width: 240px;
-         min-width: 240px;
-         height: calc(100vh - 200px);
-         background: linear-gradient(180deg, #ffffff 0%, #f9fafb 100%);
-         border-left: 1px solid var(--gray-200);
-         z-index: 100;
-         display: flex;
-         flex-direction: column;
-         box-shadow: var(--shadow-md);
-         flex-shrink: 0;
-     }
-
-    .element-palette-panel .panel-header {
-        padding: 20px;
-        background: linear-gradient(135deg, #1f2937 0%, #111827 100%);
-        border-bottom: none;
-        color: white;
-    }
-
-    .element-palette-panel .panel-header h6 {
-        color: white;
-        font-weight: 600;
-        font-size: 15px;
-        margin: 0;
-    }
-
-    .element-palette-panel .panel-body {
-        flex: 1;
-        overflow-y: auto;
-        padding: 16px;
-    }
-
-    .element-types {
-        display: grid;
-        gap: 10px;
-    }
-
-    .element-type-btn {
+    
+    /* Holder Panel Item (Expandable) */
+    .holder-panel-item {
         background: white;
-        border: 2px solid var(--gray-200);
-        border-radius: 10px;
-        padding: 14px 10px;
-        cursor: pointer;
-        transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-        display: flex;
-        flex-direction: column;
-        align-items: center;
-        gap: 8px;
-        font-size: 11px;
-        font-weight: 600;
-        text-align: center;
-        color: var(--gray-700);
-        position: relative;
+        border: 1px solid var(--gray-200);
+        border-radius: 8px;
+        margin-bottom: 8px;
         overflow: hidden;
-    }
-
-    .element-type-btn::before {
-        content: '';
-        position: absolute;
-        top: 0;
-        left: -100%;
-        width: 100%;
-        height: 100%;
-        background: linear-gradient(90deg, transparent, rgba(79, 70, 229, 0.1), transparent);
-        transition: left 0.5s;
-    }
-
-    .element-type-btn:hover::before {
-        left: 100%;
-    }
-
-    .element-type-btn:hover {
-        border-color: var(--primary-color);
-        background: linear-gradient(135deg, #ffffff 0%, #f0f1ff 100%);
-        transform: translateY(-3px) scale(1.02);
-        box-shadow: 0 8px 16px rgba(79, 70, 229, 0.2);
-    }
-
-    .element-type-btn.active {
-        border-color: var(--primary-color);
-        background: linear-gradient(135deg, var(--primary-color) 0%, var(--primary-light) 100%);
-        color: white;
-        box-shadow: 0 8px 16px rgba(79, 70, 229, 0.3);
-    }
-
-    .element-type-btn i {
-        font-size: 24px;
-        color: var(--primary-color);
         transition: all 0.2s;
     }
-
-    .element-type-btn:hover i {
-        transform: scale(1.1);
+    
+    .holder-panel-item:hover {
+        box-shadow: var(--shadow-sm);
     }
-
-    .element-type-btn.active i {
-        color: white;
+    
+    .holder-panel-header {
+        padding: 10px 12px;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        cursor: pointer;
+        background: linear-gradient(135deg, var(--gray-50) 0%, white 100%);
+        transition: all 0.2s;
     }
-
-    .palette-help {
-        border-radius: 10px;
-        background: linear-gradient(135deg, #fef3c7 0%, #fde68a 100%);
-        border: 1px solid #fbbf24;
-        padding: 12px;
+    
+    .holder-panel-header:hover {
+        background: linear-gradient(135deg, var(--gray-100) 0%, var(--gray-50) 100%);
     }
-
-    .palette-help strong {
+    
+    .holder-panel-header-left {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        flex: 1;
+    }
+    
+    .holder-panel-toggle {
+        transition: transform 0.3s;
+        color: var(--gray-400);
+        font-size: 14px;
+    }
+    
+    .holder-panel-item:not(.holder-collapsed) .holder-panel-toggle {
+        transform: rotate(90deg);
+    }
+    
+    .holder-panel-title {
+        font-weight: 600;
+        font-size: 12px;
         color: var(--gray-800);
     }
-
-    .palette-help ol {
-        font-size: 11px;
-        color: var(--gray-700);
+    
+    .holder-panel-actions {
+        display: flex;
+        gap: 4px;
     }
+    
+    .holder-panel-content {
+        padding: 10px 12px;
+        background: var(--gray-50);
+        border-top: 1px solid var(--gray-200);
+    }
+    
+    .elements-list, .nested-holders-list {
+        margin-bottom: 10px;
+    }
+    
+    .element-badge {
+        background: white;
+        border: 1px solid var(--gray-200);
+        border-radius: 6px;
+        padding: 6px 10px;
+        margin-bottom: 4px;
+        font-size: 11px;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        transition: all 0.2s;
+    }
+    
+    .element-badge:hover {
+        border-color: var(--primary-color);
+        background: var(--gray-50);
+    }
+    
+    .element-badge-actions {
+        margin-left: auto;
+        display: flex;
+        gap: 4px;
+        opacity: 0;
+        transition: opacity 0.2s;
+    }
+    
+    .element-badge:hover .element-badge-actions {
+        opacity: 1;
+    }
+    
+    .holder-actions-panel {
+        display: flex;
+        flex-direction: column;
+        gap: 6px;
+        margin-top: 10px;
+    }
+    
+    .holder-actions-panel .btn {
+        font-size: 11px;
+        padding: 6px 10px;
+    }
+
 
      /* === Builder Container === */
      .builder-container {
@@ -359,13 +360,14 @@
      }
 
      /* === Designer Canvas (Center) === */
-     .designer-canvas-wrapper {
-         flex: 1;
-         padding: 24px;
-         background: linear-gradient(135deg, #f3f4f6 0%, #e5e7eb 100%);
-         min-height: calc(100vh - 200px);
-         overflow: auto;
-     }
+    .designer-canvas-wrapper {
+        flex: 1;
+        padding: 24px;
+        background: linear-gradient(135deg, #f3f4f6 0%, #e5e7eb 100%);
+        min-height: calc(100vh - 200px);
+        overflow: auto;
+        box-sizing: border-box;
+    }
 
     .canvas-toolbar {
         background: white;
@@ -465,7 +467,8 @@
         background-size: 20px 20px;
         background-position: -1px -1px;
         border-radius: 4px;
-        overflow: hidden;
+        overflow: visible;
+        box-sizing: border-box;
     }
 
     .designer-canvas.grid-hidden {
@@ -536,18 +539,6 @@
         box-shadow: 0 0 0 3px rgba(16, 185, 129, 0.2);
     }
 
-    .holder-header {
-        background: linear-gradient(135deg, rgba(79, 70, 229, 0.1) 0%, rgba(79, 70, 229, 0.15) 100%);
-        padding: 8px 12px;
-        display: flex;
-        align-items: center;
-        gap: 10px;
-        font-size: 11px;
-        font-weight: 600;
-        color: var(--primary-dark);
-        cursor: move;
-        border-bottom: 1px solid rgba(79, 70, 229, 0.1);
-    }
 
     .holder-title {
         flex: 1;
@@ -603,6 +594,269 @@
         font-weight: 500;
     }
 
+    /* === Enhanced Canvas Components === */
+    .canvas-section {
+        border: 1px solid var(--gray-200);
+        border-radius: 8px;
+        margin-bottom: 12px;
+        background: white;
+        transition: all 0.3s;
+        box-sizing: border-box;
+        overflow: visible;
+        box-shadow: var(--shadow-sm);
+    }
+    
+    .canvas-section.active {
+        border-color: var(--primary-color);
+        box-shadow: 0 0 0 3px rgba(79, 70, 229, 0.1);
+    }
+    
+    .section-label {
+        position: absolute;
+        top: 8px;
+        left: 8px;
+        background: var(--primary-color);
+        color: white;
+        padding: 4px 12px;
+        border-radius: 4px;
+        font-size: 12px;
+        font-weight: 600;
+        z-index: 10;
+    }
+    
+    .section-content {
+        position: relative;
+        width: 100%;
+        height: 100%;
+    }
+    
+    .section-resize-handle {
+        position: absolute;
+        bottom: 0;
+        left: 0;
+        right: 0;
+        height: 6px;
+        cursor: ns-resize;
+        background: var(--gray-200);
+        transition: background 0.2s;
+        z-index: 20;
+    }
+    
+    .section-resize-handle:hover {
+        background: var(--primary-color);
+    }
+
+    /* === Canvas Holders (Root Only - Nested Render Flat) === */
+    .canvas-holder-root {
+        position: absolute;
+        border: 1px dashed var(--gray-300);
+        background: rgba(255, 255, 255, 0.5);
+        border-radius: 6px;
+        box-sizing: border-box;
+        transition: all 0.2s;
+    }
+    
+    .canvas-holder-root:hover {
+        border-color: var(--primary-color);
+        background: rgba(79, 70, 229, 0.05);
+    }
+
+    .holder-toolbar {
+        position: absolute;
+        top: -30px;
+        right: 0;
+        display: flex;
+        gap: 4px;
+        background: white;
+        padding: 4px;
+        border-radius: 6px;
+        box-shadow: var(--shadow-md);
+        opacity: 0;
+        transition: opacity 0.2s;
+        z-index: 100;
+    }
+
+    .canvas-holder:hover .holder-toolbar {
+        opacity: 1;
+    }
+
+    .btn-toolbar {
+        padding: 6px 10px;
+        border: none;
+        background: var(--gray-100);
+        border-radius: 6px;
+        cursor: pointer;
+        font-size: 16px;
+        transition: all 0.2s;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        min-width: 32px;
+        min-height: 32px;
+        color: var(--gray-700);
+    }
+
+    .btn-toolbar:hover {
+        background: var(--primary-color);
+        color: white;
+        transform: scale(1.1);
+        box-shadow: var(--shadow-md);
+    }
+    
+    .holder-toolbar .btn-toolbar {
+        width: 32px;
+        height: 32px;
+        padding: 0;
+    }
+
+    .holder-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: 8px;
+        background: linear-gradient(135deg, var(--gray-50) 0%, var(--gray-100) 100%);
+        border-radius: 6px;
+        margin-bottom: 10px;
+        font-size: 12px;
+    }
+    
+    .holder-header-clickable {
+        cursor: pointer;
+        user-select: none;
+        transition: all 0.2s;
+    }
+    
+    .holder-header-clickable:hover {
+        background: linear-gradient(135deg, var(--gray-100) 0%, var(--gray-200) 100%);
+    }
+    
+    .holder-header-left {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        flex: 1;
+    }
+    
+    .holder-toggle-icon {
+        transition: transform 0.3s;
+        color: var(--gray-500);
+        font-size: 16px;
+    }
+    
+    .canvas-holder:not(.holder-collapsed) .holder-toggle-icon {
+        transform: rotate(90deg);
+    }
+    
+    .holder-summary {
+        font-size: 11px;
+        color: var(--gray-500);
+        font-weight: normal;
+    }
+
+    .holder-title {
+        font-weight: 600;
+        color: var(--gray-700);
+    }
+
+    .holder-capacity {
+        font-size: 11px;
+        color: var(--gray-500);
+        background: white;
+        padding: 2px 8px;
+        border-radius: 10px;
+        display: flex;
+        align-items: center;
+    }
+    
+    .holder-content-collapsible {
+        overflow: hidden;
+    }
+
+    .holder-content {
+        flex: 1;
+        position: relative;
+        min-height: 50px;
+        padding: 8px;
+        display: flex !important;
+        align-items: flex-start;
+        gap: 8px;
+        box-sizing: border-box;
+        overflow: hidden !important;
+        contain: layout style paint;
+        max-width: 100%;
+        width: 100%;
+    }
+    
+    /* Ensure elements fit within holder bounds - don't overflow */
+    .holder-content .canvas-element {
+        flex-shrink: 0;
+        box-sizing: border-box;
+        max-width: 100%;
+        max-height: 100%;
+    }
+    
+    .holder-content .canvas-holder.nested-holder {
+        flex-shrink: 0;
+        box-sizing: border-box;
+        max-width: 100%;
+        max-height: 100%;
+    }
+    
+    /* Vertical layout - no wrap */
+    .holder-content[style*="flex-direction: column"] {
+        flex-wrap: nowrap !important;
+    }
+    
+    /* Horizontal layout - allow wrap for responsive */
+    .holder-content[style*="flex-direction: row"] {
+        flex-wrap: wrap;
+    }
+    
+    .holder-content .canvas-element {
+        flex: 0 0 auto;
+    }
+    
+    .holder-content .nested-holder {
+        flex: 0 0 auto;
+    }
+
+    .holder-empty-state {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        height: 100%;
+        color: var(--gray-400);
+        font-size: 12px;
+    }
+
+    /* === Resize Handles === */
+    .resize-handle {
+        position: absolute;
+        background: var(--primary-color);
+        border: 2px solid white;
+        border-radius: 50%;
+        width: 12px;
+        height: 12px;
+        z-index: 100;
+        cursor: nwse-resize;
+        opacity: 0;
+        transition: opacity 0.2s;
+    }
+
+    .canvas-holder:hover .resize-handle,
+    .canvas-element:hover .resize-handle {
+        opacity: 1;
+    }
+
+    .resize-handle-nw { top: -6px; left: -6px; cursor: nwse-resize; }
+    .resize-handle-ne { top: -6px; right: -6px; cursor: nesw-resize; }
+    .resize-handle-sw { bottom: -6px; left: -6px; cursor: nesw-resize; }
+    .resize-handle-se { bottom: -6px; right: -6px; cursor: nwse-resize; }
+    .resize-handle-n { top: -6px; left: 50%; transform: translateX(-50%); cursor: ns-resize; }
+    .resize-handle-s { bottom: -6px; left: 50%; transform: translateX(-50%); cursor: ns-resize; }
+    .resize-handle-w { left: -6px; top: 50%; transform: translateY(-50%); cursor: ew-resize; }
+    .resize-handle-e { right: -6px; top: 50%; transform: translateY(-50%); cursor: ew-resize; }
+
     /* === Canvas Elements === */
     .canvas-element {
         border: 2px solid var(--gray-200);
@@ -612,6 +866,7 @@
         overflow: hidden;
         box-shadow: var(--shadow-md);
         transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        position: relative;
     }
 
     .canvas-element:hover {
@@ -621,9 +876,53 @@
         z-index: 100 !important;
     }
 
+    .element-toolbar {
+        position: absolute;
+        top: -38px;
+        right: 0;
+        display: flex;
+        gap: 6px;
+        background: white;
+        padding: 6px 8px;
+        border-radius: 8px;
+        box-shadow: var(--shadow-lg);
+        opacity: 0;
+        transition: all 0.2s;
+        z-index: 150;
+    }
+
+    .canvas-element:hover .element-toolbar {
+        opacity: 1;
+    }
+    
+    .element-toolbar .btn-toolbar {
+        width: 32px;
+        height: 32px;
+        padding: 0;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 16px;
+    }
+
     .canvas-element.selected {
         border: 3px solid var(--success-color);
         box-shadow: 0 0 0 4px rgba(16, 185, 129, 0.2), 0 12px 32px rgba(16, 185, 129, 0.3);
+    }
+    
+    .canvas-element.element-hidden {
+        opacity: 0.3;
+        pointer-events: none;
+        filter: blur(2px);
+    }
+    
+    .canvas-element.element-hidden .element-toolbar {
+        opacity: 1 !important;
+        pointer-events: all;
+    }
+    
+    .canvas-element.element-hidden .element-toolbar .btn-element-hide i {
+        color: var(--primary-color);
     }
 
     .element-header {
@@ -762,6 +1061,56 @@
         opacity: 1;
     }
 
+    /* Modal Select Fields Styling */
+    #holder-modal .modal-dialog {
+        overflow: visible;
+    }
+
+    #holder-modal .modal-content {
+        overflow: visible;
+    }
+
+    #holder-modal .modal-body {
+        overflow: visible;
+        max-height: none;
+    }
+
+    #holder-modal select.form-control {
+        width: 100%;
+        padding: 8px 12px;
+        font-size: 14px;
+        line-height: 1.5;
+        border: 1px solid var(--gray-300);
+        border-radius: 6px;
+        background-color: white;
+        background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='%23333' d='M6 9L1 4h10z'/%3E%3C/svg%3E");
+        background-repeat: no-repeat;
+        background-position: right 12px center;
+        background-size: 12px;
+        padding-right: 35px;
+        appearance: none;
+        -webkit-appearance: none;
+        -moz-appearance: none;
+        cursor: pointer;
+        transition: all 0.2s;
+    }
+
+    #holder-modal select.form-control:hover {
+        border-color: var(--primary-color);
+        box-shadow: 0 0 0 3px rgba(79, 70, 229, 0.1);
+    }
+
+    #holder-modal select.form-control:focus {
+        border-color: var(--primary-color);
+        outline: none;
+        box-shadow: 0 0 0 3px rgba(79, 70, 229, 0.2);
+    }
+
+    #holder-modal select.form-control option {
+        padding: 8px 12px;
+        font-size: 14px;
+    }
+
     .modal-body {
         padding: 24px;
     }
@@ -894,11 +1243,6 @@
              width: 260px;
              min-width: 260px;
          }
-         
-         .element-palette-panel {
-             width: 200px;
-             min-width: 200px;
-         }
      }
 
     /* === Animations === */
@@ -928,9 +1272,6 @@
         animation: slideInLeft 0.3s ease-out;
     }
 
-    .element-type-btn {
-        animation: slideInRight 0.3s ease-out;
-    }
 
     /* === Empty States === */
     .empty-sections-state {
@@ -990,24 +1331,20 @@
     }
 
     /* === Scrollbar Styling === */
-    .sections-panel .panel-body::-webkit-scrollbar,
-    .element-palette-panel .panel-body::-webkit-scrollbar {
+    .sections-panel .panel-body::-webkit-scrollbar {
         width: 6px;
     }
 
-    .sections-panel .panel-body::-webkit-scrollbar-track,
-    .element-palette-panel .panel-body::-webkit-scrollbar-track {
+    .sections-panel .panel-body::-webkit-scrollbar-track {
         background: var(--gray-100);
     }
 
-    .sections-panel .panel-body::-webkit-scrollbar-thumb,
-    .element-palette-panel .panel-body::-webkit-scrollbar-thumb {
+    .sections-panel .panel-body::-webkit-scrollbar-thumb {
         background: var(--gray-300);
         border-radius: 3px;
     }
 
-    .sections-panel .panel-body::-webkit-scrollbar-thumb:hover,
-    .element-palette-panel .panel-body::-webkit-scrollbar-thumb:hover {
+    .sections-panel .panel-body::-webkit-scrollbar-thumb:hover {
         background: var(--gray-400);
     }
 </style>
@@ -1081,7 +1418,7 @@
                         <a href="{{ route('certificate-templates.show', $template) }}" class="btn btn-secondary">
                             <i class="mdi mdi-arrow-left"></i> Back
                         </a>
-                    </div>
+                </div>
                 </div>
             </div>
         </div>
@@ -1095,11 +1432,11 @@
             <h6 class="mb-0"><i class="mdi mdi-folder-multiple"></i> Sections</h6>
             <button class="btn btn-sm btn-primary" id="add-section-btn">
                                         <i class="mdi mdi-plus"></i> Add Section
-                                    </button>
-                                </div>
+                    </button>
+                </div>
         <div class="panel-body">
             @forelse($template->sections as $section)
-                <div class="section-panel-item" data-section-id="{{ $section->id }}">
+                <div class="section-panel-item {{ $loop->first ? 'section-panel-active' : '' }}" data-section-id="{{ $section->id }}">
                     <div class="section-panel-header" data-toggle="collapse" data-target="#section-{{ $section->id }}-holders">
                         <i class="mdi mdi-chevron-down"></i>
                         <span class="section-title">{{ $section->title }}</span>
@@ -1109,19 +1446,90 @@
                             </button>
                             <button class="btn btn-xs btn-outline-danger delete-section" data-id="{{ $section->id }}" title="Delete">
                                 <i class="mdi mdi-delete"></i>
-                            </button>
-                        </div>
+                    </button>
+                </div>
                     </div>
                     <div class="section-holders collapse show" id="section-{{ $section->id }}-holders">
-                        @forelse($section->elementHolders as $holder)
-                            <div class="holder-badge" data-holder-id="{{ $holder->id }}" data-section-id="{{ $section->id }}">
-                                <i class="mdi mdi-cube-outline"></i>
-                                Holder {{ $loop->iteration }}
-                                <small>({{ $holder->elements->count() }}/{{ $holder->max_elements }})</small>
-                                <button class="btn-holder-delete" data-id="{{ $holder->id }}" title="Delete Holder">
-                                    <i class="mdi mdi-close"></i>
-                                </button>
-                            </div>
+                        @forelse($section->elementHolders->whereNull('parent_holder_id') as $holder)
+                            <div class="holder-panel-item holder-collapsed">
+                                <div class="holder-panel-header" data-holder-id="{{ $holder->id }}">
+                                    <div class="holder-panel-header-left">
+                                        <i class="mdi mdi-chevron-right holder-panel-toggle"></i>
+                                        <i class="mdi mdi-cube-outline"></i>
+                                        <span class="holder-panel-title">{{ $holder->holder_type }} Holder</span>
+                                        <small>({{ ($holder->elements->count() + $holder->childHolders->count()) }}/{{ $holder->max_elements ?? '∞' }})</small>
+                                    </div>
+                                    <div class="holder-panel-actions">
+                                        <button class="btn btn-xs btn-outline-primary btn-holder-edit-panel" data-id="{{ $holder->id }}" title="Edit">
+                                            <i class="mdi mdi-pencil"></i>
+                                        </button>
+                                        <button class="btn btn-xs btn-outline-danger btn-holder-delete-panel" data-id="{{ $holder->id }}" title="Delete">
+                                            <i class="mdi mdi-delete-empty"></i>
+                                        </button>
+                                    </div>
+                                </div>
+                                
+                                {{-- Holder Content (Collapsible) --}}
+                                <div class="holder-panel-content" style="display: none;">
+                                    {{-- Elements List --}}
+                                    @if($holder->elements->count() > 0)
+                                        <div class="elements-list mb-2">
+                                            <small class="text-muted d-block mb-1" style="font-size: 10px; font-weight: 600;">
+                                                <i class="mdi mdi-format-list-bulleted"></i> Elements:
+                                            </small>
+                                            @foreach($holder->elements as $element)
+                                                <div class="element-badge" data-element-id="{{ $element->id }}">
+                                                    <i class="mdi mdi-{{ $element->element_type === 'text' ? 'text' : ($element->element_type === 'image' ? 'image' : ($element->element_type === 'data_field' ? 'database' : 'file-document')) }}"></i>
+                                                    <span>{{ ucfirst(str_replace('_', ' ', $element->element_type)) }}</span>
+                                                    @if($element->content)
+                                                        <small class="text-muted">({{ Str::limit($element->content, 20) }})</small>
+                                                    @endif
+                                                    <div class="element-badge-actions">
+                                                        <button class="btn btn-xs btn-outline-primary btn-element-edit-panel" data-id="{{ $element->id }}" title="Edit">
+                                                            <i class="mdi mdi-pencil"></i>
+                                                        </button>
+                                                        <button class="btn btn-xs btn-outline-danger btn-element-delete-panel" data-id="{{ $element->id }}" title="Delete">
+                                                            <i class="mdi mdi-delete-empty"></i>
+                                                        </button>
+            </div>
+            </div>
+                                            @endforeach
+            </div>
+                                    @endif
+                                    
+                                    {{-- Nested Holders --}}
+                                    @if($holder->childHolders->count() > 0)
+                                        <div class="nested-holders-list mb-2">
+                                            <small class="text-muted d-block mb-1" style="font-size: 10px; font-weight: 600;">
+                                                <i class="mdi mdi-nested-box"></i> Nested Holders:
+                                            </small>
+                                            @foreach($holder->childHolders as $childHolder)
+                                                <div class="holder-badge nested" style="font-size: 11px; padding: 6px 10px; margin-bottom: 4px;" data-holder-id="{{ $childHolder->id }}">
+                                                    <i class="mdi mdi-folder-outline"></i>
+                                                    <span>{{ $childHolder->holder_type }} Holder</span>
+                                                    <small>({{ ($childHolder->elements->count() + $childHolder->childHolders->count()) }}/{{ $childHolder->max_elements ?? '∞' }})</small>
+                                                    <button class="btn btn-xs btn-outline-primary btn-holder-edit-panel ml-2" data-id="{{ $childHolder->id }}" title="Edit">
+                                                        <i class="mdi mdi-pencil"></i>
+                                                    </button>
+                                                    <button class="btn btn-xs btn-outline-danger btn-holder-delete-panel ml-1" data-id="{{ $childHolder->id }}" title="Delete">
+                                                        <i class="mdi mdi-delete-empty"></i>
+                                                    </button>
+            </div>
+                                            @endforeach
+            </div>
+                                    @endif
+                                    
+                                    {{-- Action Buttons --}}
+                                    <div class="holder-actions-panel">
+                                        <button class="btn btn-xs btn-block btn-outline-success btn-add-element-panel" data-holder-id="{{ $holder->id }}">
+                                            <i class="mdi mdi-plus-circle"></i> Add Element
+                                        </button>
+                                        <button class="btn btn-xs btn-block btn-outline-info btn-add-nested-holder-panel" data-holder-id="{{ $holder->id }}">
+                                            <i class="mdi mdi-folder-plus"></i> Add Nested Holder
+                                        </button>
+            </div>
+            </div>
+            </div>
                         @empty
                             <div class="empty-holders-state">
                                 <i class="mdi mdi-cube-outline"></i>
@@ -1167,9 +1575,9 @@
                 </button>
                 <button class="btn btn-sm btn-outline-secondary active" id="toggle-snap" title="Toggle Snap">
                     <i class="mdi mdi-magnet-on"></i> Snap
-                            </button>
-                        </div>
-                            </div>
+                        </button>
+                    </div>
+                </div>
 
         <div class="canvas-container" id="canvas-container">
             <div class="designer-canvas" id="designer-canvas" 
@@ -1177,186 +1585,46 @@
                  data-height="{{ $canvasHeight }}"
                  style="width: {{ $canvasWidth }}px; height: {{ $canvasHeight }}px;">
                 
+                {{-- Canvas Sections - Stacked Vertically --}}
                 @foreach($template->sections as $section)
-                    @foreach($section->elementHolders as $holder)
-                        <div class="element-holder-container" 
-                             data-holder-id="{{ $holder->id }}"
-                             data-section-id="{{ $section->id }}"
-                             data-max-elements="{{ $holder->max_elements }}"
-                             style="position: absolute; 
-                                    left: {{ $holder->position_x ?? 50 }}px; 
-                                    top: {{ $holder->position_y ?? 50 }}px;
-                                    width: {{ $holder->width ?? 300 }}px;
-                                    height: {{ $holder->height ?? 200 }}px;">
+                    <div class="canvas-section {{ $loop->first ? 'active' : '' }}" 
+                         data-section-id="{{ $section->id }}"
+                         style="height: {{ $section->height ?? 400 }}px;">
+                        
+                        {{-- Section Label --}}
+                        <div class="section-label">{{ $section->title }}</div>
+                        
+                        {{-- Section Content --}}
+                        <div class="section-content">
+                            @foreach($section->elementHolders->whereNull('parent_holder_id') as $holder)
+                                @include('certificate-templates.partials.canvas-holder', ['holder' => $holder])
+                            @endforeach
                             
-                            <div class="holder-header">
-                                <span class="holder-title">{{ $section->title }} - Holder {{ $loop->parent->iteration }}</span>
-                                <span class="holder-capacity">{{ $holder->elements->count() }}/{{ $holder->max_elements }}</span>
-                                <div class="holder-actions">
-                                    <button class="btn-holder-edit" data-id="{{ $holder->id }}" title="Edit Holder">
-                                        <i class="mdi mdi-cog"></i>
-                                    </button>
+                            {{-- Section Empty State --}}
+                            @if($section->elementHolders->whereNull('parent_holder_id')->isEmpty())
+                                <div class="section-empty-state">
+                                    <p class="text-muted">Use the sections panel to add holders and elements.</p>
                                 </div>
-                            </div>
-                            
-                            <div class="holder-content">
-                                @foreach($holder->elements as $element)
-                                    <div class="canvas-element" 
-                                         data-element-id="{{ $element->id }}"
-                                         data-holder-id="{{ $holder->id }}"
-                                         data-type="{{ $element->element_type }}"
-                                         style="position: absolute; 
-                                                left: {{ $element->position_x ?? 10 }}px; 
-                                                top: {{ $element->position_y ?? 10 }}px;
-                                                width: {{ $element->width ?? 200 }}px;
-                                                height: {{ $element->height ?? 100 }}px;
-                                                z-index: {{ $element->z_index ?? 1 }};">
-                                        
-                                        <div class="element-header">
-                                            <span class="element-type-icon">
-                                                @switch($element->element_type)
-                                                    @case('heading')
-                                                        <i class="mdi mdi-format-header-1"></i>
-                                                        @break
-                                                    @case('paragraph')
-                                                        <i class="mdi mdi-format-paragraph"></i>
-                                                        @break
-                                                    @case('image')
-                                                        <i class="mdi mdi-image"></i>
-                                                        @break
-                                                    @case('table')
-                                                        <i class="mdi mdi-table"></i>
-                                                        @break
-                                                    @case('data_field')
-                                                        <i class="mdi mdi-database"></i>
-                                                        @break
-                                                    @case('signature')
-                                                        <i class="mdi mdi-pen"></i>
-                                                        @break
-                                                    @case('date')
-                                                        <i class="mdi mdi-calendar"></i>
-                                                        @break
-                                                    @default
-                                                        <i class="mdi mdi-square"></i>
-                                                @endswitch
-                                            </span>
-                                            <span class="element-actions">
-                                                <button class="btn-element-edit" data-id="{{ $element->id }}">
-                                                    <i class="mdi mdi-pencil"></i>
-                                                </button>
-                                                <button class="btn-element-delete" data-id="{{ $element->id }}">
-                                                    <i class="mdi mdi-delete"></i>
-                                                </button>
-                                            </span>
-                                        </div>
-                                        
-                                        <div class="element-preview">
-                                            @switch($element->element_type)
-                                                @case('heading')
-                                                    <div class="preview-heading">{{ $element->content ?: 'Heading' }}</div>
-                                                    @break
-                                                @case('paragraph')
-                                                    <div class="preview-paragraph">{{ Str::limit($element->content ?: 'Paragraph text...', 50) }}</div>
-                                                    @break
-                                                @case('image')
-                                                    @if($element->content)
-                                                        <img src="{{ $element->content }}" alt="Preview" class="preview-image">
-                                                    @else
-                                                        <div class="preview-placeholder"><i class="mdi mdi-image"></i></div>
-                                                    @endif
-                                                    @break
-                                                @case('table')
-                                                    <div class="preview-table"><i class="mdi mdi-table"></i> Table</div>
-                                                    @break
-                                                @case('data_field')
-                                                    <div class="preview-data">{{ '{' . ($element->content ?: 'field') . '}' }}</div>
-                                                    @break
-                                                @case('signature')
-                                                    <div class="preview-signature"><i class="mdi mdi-pen"></i> Signature</div>
-                                                    @break
-                                                @case('date')
-                                                    <div class="preview-date"><i class="mdi mdi-calendar"></i> {{ date('Y-m-d') }}</div>
-                                                    @break
-                                            @endswitch
-                                        </div>
-                                    </div>
-                                @endforeach
-                                
-                                @if($holder->elements->count() == 0)
-                                    <div class="holder-empty-state">
-                                        <i class="mdi mdi-cube-outline"></i>
-                                        <p>Click an element type<br>then click here to add</p>
-                                    </div>
-                                @endif
-                            </div>
+                            @endif
                         </div>
-                    @endforeach
+                        
+                        {{-- Section Vertical Resize Handle --}}
+                        <div class="section-resize-handle"></div>
+                    </div>
                 @endforeach
                 
-                @if($template->sections->count() == 0 || $template->sections->sum(function($s) { return $s->elementHolders->count(); }) == 0)
+                {{-- Empty State for Canvas --}}
+                @if($template->sections->count() == 0 || $template->sections->sum(function($s) { return $s->elementHolders->whereNull('parent_holder_id')->count(); }) == 0)
                     <div class="canvas-empty-state">
-                        <i class="mdi mdi-file-document-edit" style="font-size: 4rem;"></i>
-                        <h5>Start Building Your Template</h5>
-                        <p>Add a section first, then add holders to it</p>
-                        <button class="btn btn-primary" id="add-first-section">
-                            <i class="mdi mdi-plus"></i> Add First Section
-                        </button>
+                        <i class="mdi mdi-file-document-outline" style="font-size: 4rem;"></i>
+                        <h5>Document Preview</h5>
+                        <p>Use the <strong>Sections Panel</strong> on the left to add sections, holders, and elements.</p>
+                        <p class="text-muted" style="font-size: 14px;">This canvas displays your template in document format. You can resize elements and holders here.</p>
                     </div>
                 @endif
             </div>
-        </div>
-    </div>
-    
-    <!-- Element Palette (Right Sidebar) -->
-    <div class="element-palette-panel" id="element-palette">
-        <div class="panel-header">
-            <h6 class="mb-0"><i class="mdi mdi-palette"></i> Elements</h6>
-        </div>
-        <div class="panel-body">
-            <div class="element-types">
-                <button class="element-type-btn" data-type="heading">
-                    <i class="mdi mdi-format-header-1"></i>
-                    <span>Heading</span>
-                </button>
-                <button class="element-type-btn" data-type="paragraph">
-                    <i class="mdi mdi-format-paragraph"></i>
-                    <span>Paragraph</span>
-                </button>
-                <button class="element-type-btn" data-type="image">
-                    <i class="mdi mdi-image"></i>
-                    <span>Image</span>
-                </button>
-                <button class="element-type-btn" data-type="table">
-                    <i class="mdi mdi-table"></i>
-                    <span>Table</span>
-                </button>
-                <button class="element-type-btn" data-type="data_field">
-                    <i class="mdi mdi-database"></i>
-                    <span>Data Field</span>
-                </button>
-                <button class="element-type-btn" data-type="signature">
-                    <i class="mdi mdi-pen"></i>
-                    <span>Signature</span>
-                </button>
-                <button class="element-type-btn" data-type="date">
-                    <i class="mdi mdi-calendar"></i>
-                    <span>Date</span>
-                </button>
-                <button class="element-type-btn" data-type="page_break">
-                    <i class="mdi mdi-page-layout-body"></i>
-                    <span>Page Break</span>
-                </button>
                 </div>
-            <div class="palette-help mt-3 p-2 bg-light small">
-                <strong>How to add elements:</strong>
-                <ol class="mb-0 pl-3">
-                    <li>Click an element type</li>
-                    <li>Click on a holder in the canvas</li>
-                    <li>Drag & resize as needed</li>
-                </ol>
             </div>
-        </div>
-    </div>
     <!-- End Builder Container -->
     </div>
 </main>
@@ -1379,7 +1647,7 @@
             <div class="modal-body">
                 <form id="section-form">
                     <input type="hidden" id="section-id">
-                    <div class="form-group">
+            <div class="form-group">
                         <label for="section-title">Section Title <span class="text-danger">*</span></label>
                         <input type="text" class="form-control" id="section-title" required>
                     </div>
@@ -1400,13 +1668,13 @@
                 <button type="button" class="btn btn-primary" id="save-section">Save Section</button>
             </div>
         </div>
-    </div>
-</div>
-
+                </div>
+            </div>
+            
 <!-- Element Holder Modal -->
 <div class="modal fade" id="holder-modal" tabindex="-1" role="dialog">
-    <div class="modal-dialog" role="document">
-        <div class="modal-content">
+    <div class="modal-dialog modal-lg" role="document" style="overflow: visible;">
+        <div class="modal-content" style="overflow: visible;">
             <div class="modal-header">
                 <h5 class="modal-title">Element Holder Properties</h5>
                 <button type="button" class="close" data-dismiss="modal">
@@ -1418,17 +1686,100 @@
                     <input type="hidden" id="holder-id">
                     <input type="hidden" id="holder-section-id">
             <div class="form-group">
-                        <label for="holder-type">Holder Type</label>
-                        <select class="form-control" id="holder-type">
-                            <option value="field">Field Holder (for form data)</option>
-                            <option value="text">Text Holder (for static content)</option>
+                            <label for="holder-type">Holder Type</label>
+                            <select class="form-control" id="holder-type" style="width: 100%; padding: 8px 35px 8px 12px; appearance: none; -webkit-appearance: none; -moz-appearance: none; background-image: url('data:image/svg+xml;charset=UTF-8,%3Csvg xmlns=\'http://www.w3.org/2000/svg\' width=\'12\' height=\'12\' viewBox=\'0 0 12 12\'%3E%3Cpath fill=\'%23333\' d=\'M6 9L1 4h10z\'/%3E%3C/svg%3E'); background-repeat: no-repeat; background-position: right 12px center; background-size: 12px; cursor: pointer;">
+                                <option value="field">Field Holder (for form data)</option>
+                                <option value="text">Text Holder (for static content)</option>
+                                <option value="company_header">Datasource (for database values)</option>
                 </select>
             </div>
+            
+            <div class="form-group">
+                            <label for="holder-direction">Layout Direction</label>
+                            <select class="form-control" id="holder-direction" style="width: 100%; padding: 8px 35px 8px 12px; appearance: none; -webkit-appearance: none; -moz-appearance: none; background-image: url('data:image/svg+xml;charset=UTF-8,%3Csvg xmlns=\'http://www.w3.org/2000/svg\' width=\'12\' height=\'12\' viewBox=\'0 0 12 12\'%3E%3Cpath fill=\'%23333\' d=\'M6 9L1 4h10z\'/%3E%3C/svg%3E'); background-repeat: no-repeat; background-position: right 12px center; background-size: 12px; cursor: pointer;">
+                                <option value="horizontal">Horizontal (Row)</option>
+                                <option value="vertical">Vertical (Column)</option>
+                            </select>
+                            <small class="form-text text-muted">How children will be arranged inside this holder</small>
+            </div>
+                        
+                        <input type="hidden" id="holder-parent-id">
+
+            <!-- Dynamic Data Source Selection (shown when holder_type is company_header) -->
+            <div id="data-source-section" style="display: none;">
+                <h6 class="mt-3 mb-2">Data Source</h6>
+            <div class="form-group">
+                    <label for="data-source">Select Data Source</label>
+                    <select class="form-control" id="data-source" style="width: 100%; padding: 8px 35px 8px 12px; appearance: none; -webkit-appearance: none; -moz-appearance: none; background-image: url('data:image/svg+xml;charset=UTF-8,%3Csvg xmlns=\'http://www.w3.org/2000/svg\' width=\'12\' height=\'12\' viewBox=\'0 0 12 12\'%3E%3Cpath fill=\'%23333\' d=\'M6 9L1 4h10z\'/%3E%3C/svg%3E'); background-repeat: no-repeat; background-position: right 12px center; background-size: 12px; cursor: pointer;">
+                        <option value="">-- Select Data Source --</option>
+                        <option value="Company">Company</option>
+                        <option value="CRMCustomer">CRM Customer</option>
+                        <option value="SampleHeader">Sample Header</option>
+                        <option value="SampleDetails">Sample Details</option>
+                        <option value="CapturedResult">Captured Result</option>
+                </select>
+                    <small class="form-text text-muted">Choose which model to pull data from</small>
+            </div>
+
+                <!-- Dynamic Field Mappings -->
+                <div id="field-mappings-container" style="display: none;">
+                    <h6 class="mt-3 mb-2">Select Fields to Include</h6>
+                    <div id="field-mappings-list" class="form-group">
+                        <!-- Field checkboxes will be loaded here dynamically -->
+            </div>
+                </div>
+            </div>
+            
+            <!-- Legacy Company Information Fields (deprecated - shown only if data_source is not set) -->
+            <div id="company-information-fields" style="display: none;">
+                <h6 class="mt-3 mb-2">Company Information (Legacy)</h6>
+                <div class="alert alert-warning">
+                    <small>This is the legacy method. Please use Data Source selection above for better flexibility.</small>
+            </div>
+            <div class="form-group">
+                    <label for="company-name">Company Name</label>
+                    <input type="text" class="form-control" id="company-name" placeholder="Company Name">
+            </div>
+            <div class="form-group">
+                    <label for="company-email">Company Email</label>
+                    <input type="email" class="form-control" id="company-email" placeholder="company@example.com">
+            </div>
+            <div class="form-group">
+                    <label for="company-website">Company Website</label>
+                    <input type="url" class="form-control" id="company-website" placeholder="https://www.example.com">
+            </div>
                         <div class="form-group">
+                    <label for="company-phone">Company Phone</label>
+                    <input type="text" class="form-control" id="company-phone" placeholder="+1234567890">
+                        </div>
+                        <div class="form-group">
+                    <label for="company-logo">Company Logo URL</label>
+                    <input type="text" class="form-control" id="company-logo" placeholder="https://example.com/logo.png">
+                </div>
+                
+                <h6 class="mt-3 mb-2">Document QA Details</h6>
+                <div class="form-group">
+                    <label for="form-number">Form Number</label>
+                    <input type="text" class="form-control" id="form-number" placeholder="Form Number">
+                </div>
+                <div class="form-group">
+                    <label for="publish-date">Publish Date</label>
+                    <input type="date" class="form-control" id="publish-date">
+            </div>
+                <div class="form-group">
+                    <label for="qa-other-details">Other QA Details</label>
+                    <textarea class="form-control" id="qa-other-details" rows="3" placeholder="Additional QA information"></textarea>
+                </div>
+            </div>
+            
+            <!-- Maximum Elements (hidden for company_header) -->
+            <div id="max-elements-field">
+            <div class="form-group">
                         <label for="holder-max-elements">Maximum Elements <span class="text-danger">*</span></label>
                         <input type="number" class="form-control" id="holder-max-elements" min="1" max="50" value="10" required>
                         <small class="form-text text-muted">Maximum number of elements this holder can contain</small>
-                        </div>
+                </div>
+                </div>
                 </form>
                     </div>
             <div class="modal-footer">
@@ -1436,9 +1787,54 @@
                 <button type="button" class="btn btn-primary" id="save-holder">Save Holder</button>
             </div>
         </div>
+                </div>
+            </div>
+            
+<!-- Add Element Modal (Similar to Submission Builder) -->
+<div class="modal fade" id="add-element-modal" tabindex="-1" role="dialog">
+    <div class="modal-dialog modal-lg" role="document" style="overflow: visible;">
+        <div class="modal-content" style="overflow: visible;">
+            <div class="modal-header">
+                <h5 class="modal-title">Add Element</h5>
+                <button type="button" class="close" data-dismiss="modal">
+                    <span>&times;</span>
+                </button>
+            </div>
+            <div class="modal-body">
+                <form id="add-element-form">
+                    <input type="hidden" id="add-element-holder-id">
+            <div class="form-group">
+                        <label for="add-element-type">Element Type <span class="text-danger">*</span></label>
+                        <select class="form-control" id="add-element-type" style="width: 100%; padding: 8px 35px 8px 12px; appearance: none; -webkit-appearance: none; -moz-appearance: none; background-image: url('data:image/svg+xml;charset=UTF-8,%3Csvg xmlns=\'http://www.w3.org/2000/svg\' width=\'12\' height=\'12\' viewBox=\'0 0 12 12\'%3E%3Cpath fill=\'%23333\' d=\'M6 9L1 4h10z\'/%3E%3C/svg%3E'); background-repeat: no-repeat; background-position: right 12px center; background-size: 12px; cursor: pointer;" required>
+                            <option value="">-- Select Element Type --</option>
+                            <option value="heading">Heading</option>
+                            <option value="paragraph">Paragraph</option>
+                            <option value="text">Text</option>
+                            <option value="image">Image</option>
+                            <option value="data_field">Data Field</option>
+                            <option value="table">Table</option>
+                            <option value="signature">Signature</option>
+                            <option value="date">Date</option>
+                </select>
+                        <small class="form-text text-muted">Choose the type of element to add</small>
+            </div>
+                    
+                    <div id="add-element-extra-fields" style="display: none;">
+                        <div class="form-group" id="add-element-content-field">
+                            <label for="add-element-content">Content</label>
+                            <textarea class="form-control" id="add-element-content" rows="3" placeholder="Enter content"></textarea>
+            </div>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-dismiss="modal">Cancel</button>
+                <button type="button" class="btn btn-primary" id="save-add-element">Add Element</button>
+            </div>
+        </div>
     </div>
 </div>
-                
+
 <!-- Element Properties Modal -->
 <div class="modal fade" id="element-modal" tabindex="-1" role="dialog">
     <div class="modal-dialog modal-lg" role="document">
@@ -1447,13 +1843,13 @@
                 <h5 class="modal-title">Element Properties</h5>
                 <button type="button" class="close" data-dismiss="modal">
                     <span>&times;</span>
-                    </button>
-                </div>
+                </button>
+            </div>
             <div class="modal-body">
                 <div id="element-properties-content">
                     <!-- Properties content will be loaded here dynamically -->
-            </div>
                 </div>
+            </div>
             <div class="modal-footer">
                 <button type="button" class="btn btn-secondary" data-dismiss="modal">Cancel</button>
                 <button type="button" class="btn btn-primary" id="save-element-properties">Save Changes</button>

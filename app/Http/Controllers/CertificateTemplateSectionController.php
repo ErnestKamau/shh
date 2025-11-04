@@ -113,4 +113,22 @@ class CertificateTemplateSectionController extends Controller
             'message' => 'Sections reordered successfully.'
         ]);
     }
+
+    /**
+     * Resize a section (update height).
+     */
+    public function resize(Request $request, CertificateTemplateSection $section): JsonResponse
+    {
+        $request->validate([
+            'height' => 'required|numeric|min:100|max:5000'
+        ]);
+        
+        $section->update(['height' => $request->height]);
+        
+        return response()->json([
+            'success' => true,
+            'message' => 'Section resized successfully',
+            'section' => $section
+        ]);
+    }
 }

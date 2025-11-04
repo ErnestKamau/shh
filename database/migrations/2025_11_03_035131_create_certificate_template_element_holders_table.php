@@ -14,7 +14,7 @@ return new class extends Migration
         Schema::create('certificate_template_element_holders', function (Blueprint $table) {
             $table->id();
             $table->foreignId('certificate_template_section_id')->constrained('certificate_template_sections')->onDelete('cascade');
-            $table->enum('holder_type', ['field', 'text'])->default('field');
+            $table->enum('holder_type', ['field', 'text', 'company_header'])->default('field');
             $table->integer('max_elements')->default(10);
             $table->integer('sort_order')->default(0);
             $table->decimal('position_x', 10, 2)->nullable();

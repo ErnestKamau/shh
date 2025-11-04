@@ -78,14 +78,22 @@ class CertificateTemplateElementController extends Controller
             'element_type' => 'sometimes|string',
         ]);
 
-        $element->update($request->only([
+        $updateData = $request->only([
             'content',
             'properties',
             'element_type',
             'styling',
             'is_conditional',
             'conditional_logic'
-        ]));
+        ]);
+        
+        // Merge properties if provided
+        if ($request->has('properties')) {
+            $existingProperties = $element->properties ?? [];
+            $updateData['properties'] = array_merge($existingProperties, $request->properties);
+        }
+        
+        $element->update($updateData);
 
         return response()->json([
             'success' => true,
@@ -158,3 +166,11 @@ class CertificateTemplateElementController extends Controller
         };
     }
 }
+            'data_field' => 'sample_name',
+            'signature' => 'Signature',
+            'date' => 'current_date',
+            default => ''
+        };
+    }
+}
+

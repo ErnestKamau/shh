@@ -355,10 +355,26 @@ $(document).ready(function() {
             success: function(response) {
                 // Add new option to sample point select
                 var newOption = '<option value="' + response.id + '">' + response.name + '</option>';
-                $('select[data-element-type="sample_point_select"]').append(newOption);
+                var $select = $('select[data-element-type="sample_point_select"]');
+                $select.append(newOption);
+                
+                // Set the value and trigger change events
+                $select.val(response.id);
+                $select.trigger('change');
+                // Trigger Select2 events if Select2 is initialized
+                if ($select.hasClass('select2-hidden-accessible')) {
+                    $select.trigger('select2:select');
+                }
+                
                 $('#addSamplePointModal').modal('hide');
                 $('#addSamplePointForm')[0].reset();
                 showNotification('success', 'Sample point added successfully!');
+                
+                // Update form validation and progress
+                if (typeof FormFill !== 'undefined') {
+                    FormFill.updateProgress();
+                    FormFill.updateSubmitButtonState();
+                }
             },
             error: function(xhr) {
                 showNotification('error', 'Error adding sample point: ' + (xhr.responseJSON ? xhr.responseJSON.message : 'Unknown error'));
@@ -386,10 +402,26 @@ $(document).ready(function() {
             success: function(response) {
                 // Add new option to sample condition select
                 var newOption = '<option value="' + response.id + '">' + response.name + '</option>';
-                $('select[data-element-type="sample_condition_select"]').append(newOption);
+                var $select = $('select[data-element-type="sample_condition_select"]');
+                $select.append(newOption);
+                
+                // Set the value and trigger change events
+                $select.val(response.id);
+                $select.trigger('change');
+                // Trigger Select2 events if Select2 is initialized
+                if ($select.hasClass('select2-hidden-accessible')) {
+                    $select.trigger('select2:select');
+                }
+                
                 $('#addSampleConditionModal').modal('hide');
                 $('#addSampleConditionForm')[0].reset();
                 showNotification('success', 'Sample condition added successfully!');
+                
+                // Update form validation and progress
+                if (typeof FormFill !== 'undefined') {
+                    FormFill.updateProgress();
+                    FormFill.updateSubmitButtonState();
+                }
             },
             error: function(xhr) {
                 showNotification('error', 'Error adding sample condition: ' + (xhr.responseJSON ? xhr.responseJSON.message : 'Unknown error'));
@@ -417,12 +449,29 @@ $(document).ready(function() {
             success: function(response) {
                 // Add new option to client select
                 var newOption = '<option value="' + response.id + '">' + response.name + '</option>';
-                $('select[data-element-type="client_select"]').append(newOption);
+                var $select = $('select[data-element-type="client_select"]');
+                $select.append(newOption);
+                
+                // Set the value and trigger change events
+                $select.val(response.id);
+                $select.trigger('change');
+                // Trigger Select2 events if Select2 is initialized
+                if ($select.hasClass('select2-hidden-accessible')) {
+                    $select.trigger('select2:select');
+                }
+                
                 $('#addClientModal').modal('hide');
                 $('#addClientForm')[0].reset();
                 showNotification('success', 'Client added successfully!');
+                
                 // Reload dependent dropdowns
                 loadClientUnits();
+                
+                // Update form validation and progress
+                if (typeof FormFill !== 'undefined') {
+                    FormFill.updateProgress();
+                    FormFill.updateSubmitButtonState();
+                }
             },
             error: function(xhr) {
                 showNotification('error', 'Error adding client: ' + (xhr.responseJSON ? xhr.responseJSON.message : 'Unknown error'));
@@ -450,10 +499,21 @@ $(document).ready(function() {
             success: function(response) {
                 // Add new option to client unit select
                 var newOption = '<option value="' + response.id + '">' + response.name + '</option>';
-                $('select[data-element-type="client_unit_select"]').append(newOption);
+                var $select = $('select[data-element-type="client_unit_select"]');
+                $select.append(newOption);
+                
+                // Set the value and trigger change events
+                $select.val(response.id);
+                $select.trigger('change');
+                // Trigger Select2 events if Select2 is initialized
+                if ($select.hasClass('select2-hidden-accessible')) {
+                    $select.trigger('select2:select');
+                }
+                
                 $('#addClientUnitModal').modal('hide');
                 $('#addClientUnitForm')[0].reset();
                 showNotification('success', 'Client unit added successfully!');
+                
                 // Reload sample points and refresh sample point modal dropdown
                 loadClientUnits();
                 // Also refresh the sample point modal's client unit dropdown
@@ -467,6 +527,12 @@ $(document).ready(function() {
                             $('#samplePointUnit').append('<option value="' + value + '">' + text + '</option>');
                         }
                     });
+                }
+                
+                // Update form validation and progress
+                if (typeof FormFill !== 'undefined') {
+                    FormFill.updateProgress();
+                    FormFill.updateSubmitButtonState();
                 }
             },
             error: function(xhr) {
@@ -495,10 +561,26 @@ $(document).ready(function() {
             success: function(response) {
                 // Add new option to client contact select
                 var newOption = '<option value="' + response.id + '">' + response.first_name + ' ' + response.last_name + '</option>';
-                $('select[data-element-type="client_contact_select"]').append(newOption);
+                var $select = $('select[data-element-type="client_contact_select"]');
+                $select.append(newOption);
+                
+                // Set the value and trigger change events
+                $select.val(response.id);
+                $select.trigger('change');
+                // Trigger Select2 events if Select2 is initialized
+                if ($select.hasClass('select2-hidden-accessible')) {
+                    $select.trigger('select2:select');
+                }
+                
                 $('#addClientContactModal').modal('hide');
                 $('#addClientContactForm')[0].reset();
                 showNotification('success', 'Client contact added successfully!');
+                
+                // Update form validation and progress
+                if (typeof FormFill !== 'undefined') {
+                    FormFill.updateProgress();
+                    FormFill.updateSubmitButtonState();
+                }
             },
             error: function(xhr) {
                 showNotification('error', 'Error adding client contact: ' + (xhr.responseJSON ? xhr.responseJSON.message : 'Unknown error'));

@@ -12,8 +12,13 @@
                             </h2>
                             <p class="text-muted mb-0">Manage customers, company units, sample points, and contacts</p>
                         </div>
-                        <button wire:click="showCreateCustomerModal" class="btn btn-primary">
-                            <i class="mdi mdi-plus"></i> Add Customer
+                        <button wire:click="showCreateCustomerModal" wire:loading.attr="disabled" class="btn btn-primary">
+                            <span wire:loading.remove wire:target="showCreateCustomerModal">
+                                <i class="mdi mdi-plus"></i> Add Customer
+                            </span>
+                            <span wire:loading wire:target="showCreateCustomerModal">
+                                <i class="mdi mdi-loading mdi-spin"></i> Loading...
+                            </span>
                         </button>
                     </div>
                 </div>
@@ -238,13 +243,16 @@
 
     <!-- Customer Modal -->
     @if($showCustomerModal)
-        <div class="modal fade show d-block" tabindex="-1" style="background-color: rgba(0,0,0,0.5);">
+        <div class="modal fade show d-block" tabindex="-1" style="background-color: rgba(0,0,0,0.5);" wire:loading.class="modal-loading">
             <div class="modal-dialog modal-lg">
-                <div class="modal-content">
+                <div class="modal-content" style="position: relative; z-index: 1055;">
                     <div class="modal-header">
                         <h5 class="modal-title">
                             <i class="mdi mdi-{{ $editingCustomer ? 'pencil' : 'plus' }}"></i>
                             {{ $editingCustomer ? 'Edit' : 'Create' }} Customer
+                            <span wire:loading wire:target="showCreateCustomerModal,showEditCustomerModal">
+                                <span class="spinner-border spinner-border-sm ms-2" role="status"></span>
+                            </span>
                         </h5>
                         <button type="button" class="btn-close" wire:click="closeCustomerModal"></button>
                     </div>
@@ -287,13 +295,14 @@
                                 <div class="col-md-6">
                                     <div class="form-group mb-3">
                                         <label class="form-label fw-bold"><i class="mdi mdi-earth text-primary"></i> Country <span class="text-danger">*</span></label>
-                                        <div class="searchable-dropdown-wrapper">
-                                            <div class="single-select-container" wire:click="toggleCountryDropdown">
+                                        <div class="searchable-dropdown-wrapper dropdown-wrapper-country">
+                                            <div class="single-select-container" wire:click.stop="toggleCountryDropdown">
                                                 <input 
                                                     type="text" 
-                                                    wire:model.live="countrySearch"
+                                                    wire:model.live.debounce.300ms="countrySearch"
                                                     placeholder="{{ $this->selectedCountryName ?: 'Search countries...' }}"
-                                                    wire:click="toggleCountryDropdown"
+                                                    wire:click.stop="toggleCountryDropdown"
+                                                    wire:focus="toggleCountryDropdown"
                                                     class="form-control searchable-input-single"
                                                     autocomplete="off"
                                                 >
@@ -301,11 +310,11 @@
                                             </div>
 
                                             @if($showCountryDropdown)
-                                                <div class="dropdown-list">
+                                                <div class="dropdown-list dropdown-list-country" wire:click.stop>
                                                     @if($this->filteredCountries->count() > 0)
                                                         <div class="options-list">
                                                             @foreach($this->filteredCountries as $country)
-                                                                <div wire:click="selectCountry({{ $country->id }})" 
+                                                                <div wire:click.stop="selectCountry({{ $country->id }})" 
                                                                      class="option-item {{ $customerForm['country_id'] == $country->id ? 'selected' : '' }}">
                                                                     @if($customerForm['country_id'] == $country->id)
                                                                         <i class="mdi mdi-check-circle text-primary"></i>
@@ -329,13 +338,14 @@
                                 <div class="col-md-6">
                                     <div class="form-group mb-3">
                                         <label class="form-label fw-bold"><i class="mdi mdi-cog text-info"></i> Account Settings <span class="text-danger">*</span></label>
-                                        <div class="searchable-dropdown-wrapper">
-                                            <div class="single-select-container" wire:click="toggleAccountDropdown">
+                                        <div class="searchable-dropdown-wrapper dropdown-wrapper-account">
+                                            <div class="single-select-container" wire:click.stop="toggleAccountDropdown">
                                                 <input 
                                                     type="text" 
-                                                    wire:model.live="accountSearch"
+                                                    wire:model.live.debounce.300ms="accountSearch"
                                                     placeholder="{{ $this->selectedAccountName ?: 'Search account settings...' }}"
-                                                    wire:click="toggleAccountDropdown"
+                                                    wire:click.stop="toggleAccountDropdown"
+                                                    wire:focus="toggleAccountDropdown"
                                                     class="form-control searchable-input-single"
                                                     autocomplete="off"
                                                 >
@@ -343,11 +353,11 @@
                                             </div>
 
                                             @if($showAccountDropdown)
-                                                <div class="dropdown-list">
+                                                <div class="dropdown-list dropdown-list-account" wire:click.stop>
                                                     @if($this->filteredAccounts->count() > 0)
                                                         <div class="options-list">
                                                             @foreach($this->filteredAccounts as $account)
-                                                                <div wire:click="selectAccount({{ $account->id }})" 
+                                                                <div wire:click.stop="selectAccount({{ $account->id }})" 
                                                                      class="option-item {{ $customerForm['account_status'] == $account->id ? 'selected' : '' }}">
                                                                     @if($customerForm['account_status'] == $account->id)
                                                                         <i class="mdi mdi-check-circle text-primary"></i>
@@ -370,71 +380,7 @@
                                 </div>
                             </div>
 
-                            <div class="row">
-                                <div class="col-md-12">
-                                    <div class="form-group mb-3">
-                                        <label class="form-label fw-bold"><i class="mdi mdi-link-variant text-success"></i> Dynamics Customer Mapping <small class="text-muted">(Optional)</small></label>
-                                        <div class="searchable-dropdown-wrapper">
-                                            <div class="single-select-container position-relative" wire:click="toggleZohoCustomerDropdown">
-                                                <input 
-                                                    type="text" 
-                                                    wire:model.live="zohoCustomerSearch"
-                                                    placeholder="{{ $this->selectedZohoCustomerName ?: 'Search Dynamics customers...' }}"
-                                                    wire:click="toggleZohoCustomerDropdown"
-                                                    class="form-control searchable-input-single"
-                                                    autocomplete="off"
-                                                >
-                                                <i class="mdi mdi-chevron-down dropdown-arrow {{ $showZohoCustomerDropdown ? 'rotated' : '' }}"></i>
-                                                @if($customerForm['zoho_customer_id'])
-                                                    <button 
-                                                        type="button"
-                                                        wire:click.stop="clearZohoCustomer"
-                                                        class="btn btn-sm btn-link position-absolute"
-                                                        style="right: 35px; top: 50%; transform: translateY(-50%); padding: 0; color: #dc3545;"
-                                                        title="Clear selection">
-                                                        <i class="mdi mdi-close-circle"></i>
-                                                    </button>
-                                                @endif
-                                            </div>
-
-                                            @if($showZohoCustomerDropdown)
-                                                <div class="dropdown-list">
-                                                    @if($this->filteredZohoCustomers->count() > 0)
-                                                        <div class="options-list">
-                                                            @foreach($this->filteredZohoCustomers as $zc)
-                                                                <div wire:click="selectZohoCustomer({{ $zc->id }})" 
-                                                                     class="option-item {{ $customerForm['zoho_customer_id'] == $zc->id ? 'selected' : '' }}">
-                                                                    @if($customerForm['zoho_customer_id'] == $zc->id)
-                                                                        <i class="mdi mdi-check-circle text-primary"></i>
-                                                                    @endif
-                                                                    <div class="d-flex flex-column">
-                                                                        <span class="fw-bold">{{ $zc->name }}</span>
-                                                                        <small class="text-muted">
-                                                                            <span>{{ $zc->customer_no }}</span>
-                                                                            @if($zc->currency_code)
-                                                                                <span class="ms-2 badge bg-info">{{ $zc->currency_code }}</span>
-                                                                            @endif
-                                                                        </small>
-                                                                    </div>
-                                                                </div>
-                                                            @endforeach
-                                                        </div>
-                                                    @else
-                                                        <div class="no-results">
-                                                            <i class="mdi mdi-alert-circle-outline"></i>
-                                                            <span>No Dynamics customers found</span>
-                                                        </div>
-                                                    @endif
-                                                </div>
-                                            @endif
-                                        </div>
-                                        <small class="form-text text-muted">
-                                            <i class="mdi mdi-information-outline"></i> Link this customer to a Dynamics 365 customer for billing integration.
-                                        </small>
-                                        @error('customerForm.zoho_customer_id') <span class="text-danger">{{ $message }}</span> @enderror
-                                    </div>
-                                </div>
-                            </div>
+                            
 
                             <div class="form-group mb-3">
                                 <label class="form-label fw-bold">Postal Address <span class="text-danger">*</span></label>
@@ -474,6 +420,76 @@
                                     <div class="form-group mb-3">
                                         <label class="form-label fw-bold">Credit Days</label>
                                         <input type="number" wire:model="customerForm.credit_days" class="form-control" placeholder="Credit days...">
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="row">
+                                <div class="col-md-12">
+                                    <div class="form-group mb-3">
+                                        <label class="form-label fw-bold"><i class="mdi mdi-link-variant text-success"></i> Dynamics Customer Mapping <small class="text-muted">(Optional)</small></label>
+                                        <div class="searchable-dropdown-wrapper dropdown-wrapper-zoho">
+                                            <div class="single-select-container" wire:click.stop="toggleZohoCustomerDropdown">
+                                                <input 
+                                                    type="text" 
+                                                    wire:model.live.debounce.300ms="zohoCustomerSearch"
+                                                    placeholder="{{ $this->selectedZohoCustomerName ?: 'Search Dynamics customers...' }}"
+                                                    wire:click.stop="toggleZohoCustomerDropdown"
+                                                    wire:focus="toggleZohoCustomerDropdown"
+                                                    class="form-control searchable-input-single"
+                                                    autocomplete="off"
+                                                >
+                                                <i class="mdi mdi-chevron-down dropdown-arrow {{ $showZohoCustomerDropdown ? 'rotated' : '' }}"></i>
+                                                @if($customerForm['zoho_customer_id'])
+                                                    <button 
+                                                        type="button"
+                                                        wire:click.stop="clearZohoCustomer"
+                                                        class="clear-selection-btn"
+                                                        title="Clear selection">
+                                                        <i class="mdi mdi-close-circle"></i>
+                                                    </button>
+                                                @endif
+                                            </div>
+
+                                            @if($showZohoCustomerDropdown)
+                                                <div class="dropdown-list dropdown-list-zoho" wire:click.stop>
+                                                    <div wire:loading wire:target="toggleZohoCustomerDropdown" class="text-center py-3">
+                                                        <i class="mdi mdi-loading mdi-spin"></i> Loading Dynamics customers...
+                                                    </div>
+                                                    <div wire:loading.remove wire:target="toggleZohoCustomerDropdown">
+                                                    @if($this->filteredZohoCustomers->count() > 0)
+                                                        <div class="options-list">
+                                                            @foreach($this->filteredZohoCustomers as $zc)
+                                                                <div wire:click.stop="selectZohoCustomer({{ $zc->id }})" 
+                                                                     class="option-item {{ $customerForm['zoho_customer_id'] == $zc->id ? 'selected' : '' }}">
+                                                                    @if($customerForm['zoho_customer_id'] == $zc->id)
+                                                                        <i class="mdi mdi-check-circle text-primary"></i>
+                                                                    @endif
+                                                                    <div class="d-flex flex-column">
+                                                                        <span class="fw-bold">{{ $zc->name }}</span>
+                                                                        <small class="text-muted">
+                                                                            <span>{{ $zc->customer_no }}</span>
+                                                                            @if($zc->currency_code)
+                                                                                <span class="ms-2 badge bg-info">{{ $zc->currency_code }}</span>
+                                                                            @endif
+                                                                        </small>
+                                                                    </div>
+                                                                </div>
+                                                            @endforeach
+                                                        </div>
+                                                    @else
+                                                        <div class="no-results">
+                                                            <i class="mdi mdi-alert-circle-outline"></i>
+                                                            <span>No Dynamics customers found</span>
+                                                        </div>
+                                                    @endif
+                                                    </div>
+                                                </div>
+                                            @endif
+                                        </div>
+                                        <small class="form-text text-muted">
+                                            <i class="mdi mdi-information-outline"></i> Link this customer to a Dynamics 365 customer for billing integration.
+                                        </small>
+                                        @error('customerForm.zoho_customer_id') <span class="text-danger">{{ $message }}</span> @enderror
                                     </div>
                                 </div>
                             </div>
@@ -676,13 +692,43 @@
         border-radius: 12px;
         margin-top: 4px;
         box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
-        z-index: 1000;
-        max-height: 350px;
+        z-index: 1055;
+        max-height: 300px;
         overflow-y: auto;
     }
     
+    /* All wrappers start at the same z-index */
     .searchable-dropdown-wrapper {
         position: relative;
+        z-index: 1;
+    }
+    
+    /* Ensure dropdowns in modal appear above modal content but below modal itself */
+    .modal-content .dropdown-list {
+        z-index: 1055 !important;
+    }
+    
+    /* Clear selection button */
+    .clear-selection-btn {
+        position: absolute;
+        right: 35px;
+        top: 50%;
+        transform: translateY(-50%);
+        padding: 0 !important;
+        color: #dc3545;
+        z-index: 5;
+        background: none !important;
+        border: none !important;
+        line-height: 1;
+    }
+    
+    .clear-selection-btn:hover {
+        color: #a71d2a !important;
+    }
+    
+    .clear-selection-btn:focus {
+        outline: none;
+        box-shadow: none !important;
     }
     
     .no-results {
@@ -712,5 +758,28 @@
         transform: translateY(-50%) rotate(180deg);
     }
     </style>
+
+    <script>
+        // Close dropdowns when clicking outside
+        document.addEventListener('click', function(event) {
+            // Check if click is outside any dropdown wrapper
+            if (!event.target.closest('.searchable-dropdown-wrapper')) {
+                @this.resetDropdownStates();
+            }
+        });
+
+        // Prevent modal backdrop from closing dropdowns
+        document.addEventListener('DOMContentLoaded', function() {
+            const modal = document.querySelector('.modal.show');
+            if (modal) {
+                modal.addEventListener('click', function(event) {
+                    if (event.target === modal && !event.target.closest('.modal-content')) {
+                        // Click on backdrop - but don't close dropdowns, let Livewire handle it
+                        return;
+                    }
+                });
+            }
+        });
+    </script>
 </div>
 

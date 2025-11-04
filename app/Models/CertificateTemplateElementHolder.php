@@ -10,7 +10,11 @@ class CertificateTemplateElementHolder extends Model
 {
     protected $fillable = [
         'certificate_template_section_id',
+        'parent_holder_id',
         'holder_type',
+        'direction',
+        'data_source',
+        'field_mappings',
         'max_elements',
         'sort_order',
         'position_x',
@@ -21,6 +25,19 @@ class CertificateTemplateElementHolder extends Model
         'position_y_percent',
         'width_percent',
         'height_percent',
+        'flex_grow',
+        'flex_shrink',
+        'flex_basis',
+        // Company Information (deprecated - use data_source and field_mappings instead)
+        'company_name',
+        'company_email',
+        'company_website',
+        'company_phone',
+        'company_logo',
+        // Document QA Details (deprecated - use data_source and field_mappings instead)
+        'form_number',
+        'publish_date',
+        'qa_other_details',
     ];
 
     protected function casts(): array
@@ -36,6 +53,10 @@ class CertificateTemplateElementHolder extends Model
             'position_y_percent' => 'decimal:4',
             'width_percent' => 'decimal:4',
             'height_percent' => 'decimal:4',
+            'field_mappings' => 'array',
+            'flex_grow' => 'decimal:2',
+            'flex_shrink' => 'decimal:2',
+            'publish_date' => 'date',
         ];
     }
 
@@ -48,6 +69,30 @@ class CertificateTemplateElementHolder extends Model
     }
 
     /**
+     * Get the parent holder (for nesting).
+     */
+    public function parentHolder(): BelongsTo
+    {
+        return $this->belongsTo(self::class, 'parent_holder_id');
+    }
+
+    /**
+     * Get child holders (nested holders).
+     */
+    public function childHolders(): HasMany
+    {
+        return $this->hasMany(self::class, 'parent_holder_id')->orderBy('sort_order');
+    }
+
+    /**
+     * Get all holders recursively (children and nested children).
+     */
+    public function getAllChildHolders()
+    {
+        return $this->childHolders()->with('allChildHolders')->get();
+    }
+
+    /**
      * Get the elements for the holder.
      */
     public function elements(): HasMany
@@ -56,11 +101,25 @@ class CertificateTemplateElementHolder extends Model
     }
 
     /**
+     * Get all children (both holders and elements).
+     */
+    public function getChildren()
+    {
+        return [
+            'holders' => $this->childHolders,
+            'elements' => $this->elements,
+        ];
+    }
+
+    /**
      * Check if the holder has capacity for more elements.
      */
     public function hasCapacity(): bool
     {
-        return $this->elements()->count() < $this->max_elements;
+        if ($this->max_elements === null || $this->max_elements === 0) {
+            return true; // Unlimited capacity
+        }
+        return ($this->elements()->count() + $this->childHolders()->count()) < $this->max_elements;
     }
 
     /**
@@ -68,6 +127,28 @@ class CertificateTemplateElementHolder extends Model
      */
     public function availableSlots(): int
     {
-        return max(0, $this->max_elements - $this->elements()->count());
+        if ($this->max_elements === null || $this->max_elements === 0) {
+            return 999; // Unlimited
+        }
+        return max(0, $this->max_elements - ($this->elements()->count() + $this->childHolders()->count()));
+    }
+
+    /**
+     * Check if holder is nested (has a parent).
+     */
+    public function isNested(): bool
+    {
+        return $this->parent_holder_id !== null;
+    }
+
+    /**
+     * Get nesting depth.
+     */
+    public function getDepth(): int
+    {
+        if (!$this->parent_holder_id) {
+            return 0;
+        }
+        return $this->parentHolder ? $this->parentHolder->getDepth() + 1 : 1;
     }
 }

@@ -99,26 +99,36 @@ class CustomerManager extends Component
 
     public function mount()
     {
-        $this->loadInitialData();
+        // Don't load data on mount - load lazily when modal opens
+        // This improves initial page load performance
     }
 
     public function loadInitialData()
     {
-        $this->countries = Cache::remember('countries', 3600, function() {
-            return Country::orderBy('name')->get();
+        // Load countries with optimized caching and query
+        $this->countries = Cache::remember('countries_list', 3600, function() {
+            return Country::where('status', 1)
+                ->orderBy('name')
+                ->get(['id', 'name']);
         });
         
-        $this->accounts = Cache::remember('account_settings', 1800, function() {
+        // Load account settings with caching
+        $this->accounts = Cache::remember('account_settings_list', 1800, function() {
             $account_settings = getConfigTypeByName('Account Settings');
             if (isset($account_settings->id)) {
                 return getconfigByID($account_settings->id);
             }
             return [];
         });
-        
-        $this->zohoCustomers = ZohoCustomers::where('status', 'Active')
-            ->orderBy('name')
-            ->get(['id', 'customer_no', 'name', 'currency_code']);
+    }
+    
+    public function loadZohoCustomers()
+    {
+        $this->zohoCustomers = Cache::remember('zoho_customers_active_list', 1800, function() {
+            return ZohoCustomers::where('status', 'Active')
+                ->orderBy('name')
+                ->get(['id', 'customer_no', 'name', 'currency_code']);
+        });
     }
 
     public function getCustomersProperty()
@@ -350,6 +360,12 @@ class CustomerManager extends Component
     {
         $this->resetCustomerForm();
         $this->resetDropdownStates();
+        
+        // Load data only when modal is opened to improve performance
+        if (empty($this->countries)) {
+            $this->loadInitialData();
+        }
+        
         $this->showCustomerModal = true;
     }
 
@@ -374,6 +390,11 @@ class CustomerManager extends Component
             'lpos_required' => $customer->lpos_required == 1,
             'zoho_customer_id' => $customer->zoho_customer_id
         ];
+        
+        // Load data only when modal is opened to improve performance
+        if (empty($this->countries)) {
+            $this->loadInitialData();
+        }
         
         $this->resetDropdownStates();
         $this->editingCustomer = $customer;
@@ -526,6 +547,11 @@ class CustomerManager extends Component
 
     public function toggleZohoCustomerDropdown()
     {
+        // Lazy load zoho customers when dropdown is first opened
+        if (empty($this->zohoCustomers)) {
+            $this->loadZohoCustomers();
+        }
+        
         $this->showZohoCustomerDropdown = !$this->showZohoCustomerDropdown;
         if ($this->showZohoCustomerDropdown) {
             $this->showCountryDropdown = false;
@@ -562,13 +588,15 @@ class CustomerManager extends Component
 
     public function getFilteredCountriesProperty()
     {
+        $countries = collect($this->countries);
+        
         if (empty($this->countrySearch)) {
-            return collect($this->countries)->take(50);
+            return $countries->take(100);
         }
         
-        return collect($this->countries)->filter(function($country) {
+        return $countries->filter(function($country) {
             return stripos($country->name ?? '', $this->countrySearch) !== false;
-        })->take(50);
+        })->take(100);
     }
 
     public function getFilteredAccountsProperty()
@@ -585,14 +613,16 @@ class CustomerManager extends Component
 
     public function getFilteredZohoCustomersProperty()
     {
+        $zohoCustomers = collect($this->zohoCustomers);
+        
         if (empty($this->zohoCustomerSearch)) {
-            return collect($this->zohoCustomers)->take(50);
+            return $zohoCustomers->take(100);
         }
         
-        return collect($this->zohoCustomers)->filter(function($zc) {
+        return $zohoCustomers->filter(function($zc) {
             return stripos($zc->name ?? '', $this->zohoCustomerSearch) !== false ||
                    stripos($zc->customer_no ?? '', $this->zohoCustomerSearch) !== false;
-        })->take(50);
+        })->take(100);
     }
 
     public function getSelectedCountryNameProperty()
@@ -609,7 +639,7 @@ class CustomerManager extends Component
         if ($this->customerForm['account_status']) {
             $account = collect($this->accounts)->firstWhere('id', $this->customerForm['account_status']);
             if ($account) {
-                return is_object($account) ? $account->key : ($account['key'] ?? '');
+                return is_object($account) ? ($account->key ?? '') : ($account['key'] ?? '');
             }
         }
         return '';
