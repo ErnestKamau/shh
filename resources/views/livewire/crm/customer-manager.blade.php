@@ -256,7 +256,7 @@
                         </h5>
                         <button type="button" class="btn-close" wire:click="closeCustomerModal"></button>
                     </div>
-                    <div class="modal-body">
+                    <div class="modal-body" wire:loading.class="opacity-50" wire:target="saveCustomer">
                         <form wire:submit.prevent="saveCustomer">
                             <div class="row">
                                 <div class="col-md-6">
@@ -515,9 +515,14 @@
                         </form>
                     </div>
                     <div class="modal-footer">
-                        <button type="button" class="btn btn-secondary" wire:click="closeCustomerModal">Cancel</button>
-                        <button type="button" class="btn btn-primary" wire:click="saveCustomer">
-                            <i class="mdi mdi-content-save"></i> {{ $editingCustomer ? 'Update' : 'Create' }} Customer
+                        <button type="button" class="btn btn-secondary" wire:click="closeCustomerModal" wire:loading.attr="disabled" wire:target="saveCustomer">Cancel</button>
+                        <button type="button" class="btn btn-primary" wire:click="saveCustomer" wire:loading.attr="disabled" wire:target="saveCustomer">
+                            <span wire:loading.remove wire:target="saveCustomer">
+                                <i class="mdi mdi-content-save"></i> {{ $editingCustomer ? 'Update' : 'Create' }} Customer
+                            </span>
+                            <span wire:loading wire:target="saveCustomer">
+                                <i class="mdi mdi-loading mdi-spin"></i> Saving...
+                            </span>
                         </button>
                     </div>
                 </div>
