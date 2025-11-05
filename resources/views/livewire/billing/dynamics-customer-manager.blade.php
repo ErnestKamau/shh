@@ -13,10 +13,10 @@
                             <p class="text-muted mb-0">Manage Zoho CRM customer integrations</p>
                         </div>
                         <div class="d-flex gap-2">
-                            <button wire:click="showSyncConfirmationModal" class="btn btn-info">
+                            <button wire:click="showSyncConfirmationModal" class="btn btn-sm mr-2 btn-info">
                                 <i class="mdi mdi-cloud-download"></i> Pull Customers
                             </button>
-                            <button wire:click="showSyncToImaraModal" class="btn btn-success">
+                            <button wire:click="showSyncToImaraModal" class="btn btn-sm btn-success">
                                 <i class="mdi mdi-sync"></i> Sync to Imara
                             </button>
                             {{-- <button wire:click="showCreateCustomerModal" class="btn btn-primary">
