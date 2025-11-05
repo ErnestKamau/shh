@@ -168,44 +168,35 @@ class AreasManager extends Component
             // Handle sample points for this area only
             if (!empty($this->areaForm['selectedSamplePoints'])) {
                 foreach ($this->areaForm['selectedSamplePoints'] as $masterSamplePointId) {
-                    // Get the master sample point to copy name and description
-                    $masterSamplePoint = GlobalSamplePoint::find($masterSamplePointId);
+                    // Check if this specific sample point already exists for THIS area
+                    $existingPoint = SamplePoint::where('sample_point_area_id', $area->id)
+                        ->where('crm_customer_id', $this->customerId)
+                        ->where('crm_sample_point_id', $masterSamplePointId)
+                        ->first();
                     
-                    if ($masterSamplePoint) {
-                        // Check if this specific sample point already exists for THIS area
-                        $existingPoint = SamplePoint::where('sample_point_area_id', $area->id)
-                            ->where('crm_customer_id', $this->customerId)
-                            ->where('crm_sample_point_id', $masterSamplePointId)
-                            ->first();
-                        
-                        if ($existingPoint) {
-                            // Update existing point for THIS area only
-                            $existingPoint->name = $masterSamplePoint->name;
-                            $existingPoint->description = $masterSamplePoint->name;
-                            $existingPoint->crm_area_id = $area->crm_area_id;
-                            $existingPoint->crm_company_sub_unit_id = $area->crm_company_sub_unit_id;
-                            $existingPoint->crm_company_unit_id = $area->crm_company_unit_id;
-                            $existingPoint->active = true;
-                            $existingPoint->save();
-                        } else {
-                            // Create new sample point for THIS area
-                            $newPoint = new SamplePoint();
-                            $newPoint->crm_customer_id = $this->customerId;
-                            $newPoint->crm_sample_point_id = $masterSamplePointId;
-                            $newPoint->name = $masterSamplePoint->name;
-                            $newPoint->description = $masterSamplePoint->name;
-                            $newPoint->crm_area_id = $area->crm_area_id;
-                            $newPoint->crm_company_sub_unit_id = $area->crm_company_sub_unit_id;
-                            $newPoint->crm_company_unit_id = $area->crm_company_unit_id;
-                            $newPoint->sample_point_area_id = $area->id;
-                            $newPoint->active = true;
-                            $newPoint->save();
-                        }
+                    if ($existingPoint) {
+                        // Update existing point for THIS area only
+                        $existingPoint->crm_area_id = $area->crm_area_id;
+                        $existingPoint->crm_company_sub_unit_id = $area->crm_company_sub_unit_id;
+                        $existingPoint->crm_company_unit_id = $area->crm_company_unit_id;
+                        $existingPoint->active = true;
+                        $existingPoint->save();
+                    } else {
+                        // Create new sample point for THIS area
+                        $newPoint = new SamplePoint();
+                        $newPoint->crm_customer_id = $this->customerId;
+                        $newPoint->crm_sample_point_id = $masterSamplePointId;
+                        $newPoint->crm_area_id = $area->crm_area_id;
+                        $newPoint->crm_company_sub_unit_id = $area->crm_company_sub_unit_id;
+                        $newPoint->crm_company_unit_id = $area->crm_company_unit_id;
+                        $newPoint->sample_point_area_id = $area->id;
+                        $newPoint->active = true;
+                        $newPoint->save();
                     }
                 }
             }
 
-            // Remove sample points that were deselected from THIS area only (don't unlink, delete them)
+            // Remove sample points that were deselected from THIS area only
             if ($this->editingArea) {
                 SamplePoint::where('sample_point_area_id', $area->id)
                     ->where('crm_customer_id', $this->customerId)
@@ -400,27 +391,27 @@ class AreasManager extends Component
 
                 $clonedCount++;
 
-                // Clone sample points if requested
-                if ($this->includeSamplePoints) {
-                    $samplePoints = SamplePoint::where('sample_point_area_id', $originalArea->id)
-                        ->get();
+                        // Clone sample points if requested
+                        if ($this->includeSamplePoints) {
+                            $samplePoints = SamplePoint::where('sample_point_area_id', $originalArea->id)
+                                ->get();
 
-                    foreach ($samplePoints as $originalPoint) {
-                        $newPoint = new SamplePoint();
-                        $newPoint->crm_company_unit_id = $targetSubUnit->crm_company_unit_id;
-                        $newPoint->sample_point_area_id = $newArea->id;
-                        $newPoint->crm_area_id = $originalPoint->crm_area_id;
-                        $newPoint->crm_sample_point_id = $originalPoint->crm_sample_point_id;
-                        $newPoint->crm_company_sub_unit_id = $this->cloneToSubUnitId;
-                        $newPoint->crm_customer_id = $originalPoint->crm_customer_id;
-                        $newPoint->active = $originalPoint->active;
-                        
-                        // Flag GPS as cloned
-                        $newPoint->gps = $originalPoint->gps ? $originalPoint->gps . ' (Cloned)' : '(Cloned)';
-                        
-                        $newPoint->save();
-                    }
-                }
+                            foreach ($samplePoints as $originalPoint) {
+                                $newPoint = new SamplePoint();
+                                $newPoint->crm_customer_id = $originalPoint->crm_customer_id;
+                                $newPoint->crm_sample_point_id = $originalPoint->crm_sample_point_id;
+                                $newPoint->crm_area_id = $originalPoint->crm_area_id;
+                                $newPoint->crm_company_sub_unit_id = $this->cloneToSubUnitId;
+                                $newPoint->crm_company_unit_id = $targetSubUnit->crm_company_unit_id;
+                                $newPoint->sample_point_area_id = $newArea->id;
+                                $newPoint->active = $originalPoint->active;
+                                
+                                // Flag GPS as cloned
+                                $newPoint->gps = $originalPoint->gps ? $originalPoint->gps . ' (Cloned)' : '(Cloned)';
+                                
+                                $newPoint->save();
+                            }
+                        }
             }
 
             DB::commit();
