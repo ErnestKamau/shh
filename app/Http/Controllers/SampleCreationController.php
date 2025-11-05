@@ -1414,6 +1414,7 @@ class SampleCreationController extends Controller
             'batch_code' => $staging->sampleHeader->batch_code,
             'sample_type' => $staging->sampleHeader->sample_type->name ?? 'N/A',
             'customer' => $staging->sampleHeader->client->name ?? 'N/A',
+            'customer_id' => $staging->sampleHeader->client->id ?? null,
             'company_unit' => $subUnit->companyUnit->name ?? 'N/A',
             'areas' => $formattedAreas,
         ]);

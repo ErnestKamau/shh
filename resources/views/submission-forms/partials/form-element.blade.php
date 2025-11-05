@@ -225,17 +225,7 @@
                     @if(!$element->is_required)
                         <option value="">{{ $element->placeholder ?: 'Select a client...' }}</option>
                     @endif
-                    @if(isset($isArrayField) && $isArrayField)
-                        {{-- Load static data for rows-section --}}
-                        @php
-                            $clientOptions = $element->getDynamicOptions();
-                        @endphp
-                        @foreach($clientOptions as $option)
-                            <option value="{{ $option['value'] }}" {{ ($fieldValue == $option['value']) ? 'selected' : '' }}>
-                                {{ $option['label'] }}
-                            </option>
-                        @endforeach
-                    @endif
+                    {{-- All client_select fields now use Select2 AJAX with pagination (no static loading) --}}
                 </select>
                 <button type="button" class="btn btn-sm btn-primary floating-add-btn" data-toggle="modal" data-target="#addClientModal" title="Add New Client">
                     <i class="mdi mdi-plus"></i>

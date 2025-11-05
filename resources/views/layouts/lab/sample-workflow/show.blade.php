@@ -7724,6 +7724,11 @@
 		const stagingId = $(this).data('staging-id');
 		const headerId = $(this).data('header-id');
 		
+		loadAssignmentData(stagingId, headerId);
+	});
+	
+	// Function to load assignment data
+	function loadAssignmentData(stagingId, headerId, savedSelections = null) {
 		// Load modal data via AJAX
 		$.ajax({
 			url: '/lab/samples/staging/' + stagingId + '/load-assignment-data',
@@ -7739,13 +7744,25 @@
 				$('#modal-customer').text(response.customer);
 				$('#modal-company-unit').text(response.company_unit);
 				
+				// Set customer profile link
+				if (response.customer_id) {
+					const customerProfileUrl = '{{ route("show-customer", ["id" => ":customer_id"]) }}';
+					$('#add-sample-points-link').attr('href', customerProfileUrl.replace(':customer_id', response.customer_id));
+				}
+				
 				// Build sample points table
 				let tableHtml = buildSamplePointsTable(response.areas);
 				$('#sample-assignment-table-container').html(tableHtml);
 				
+				// Restore saved selections if any
+				if (savedSelections) {
+					restoreSavedSelections(savedSelections);
+				}
+				
 				// Store IDs for submission
 				$('#assignSamplesModal').data('staging-id', stagingId);
 				$('#assignSamplesModal').data('header-id', headerId);
+				$('#assignSamplesModal').data('customer-id', response.customer_id);
 				
 				// Show modal
 				$('#assignSamplesModal').modal('show');
@@ -7755,7 +7772,7 @@
 				alert('Error loading assignment data: ' + (xhr.responseJSON?.message || xhr.statusText));
 			}
 		});
-	});
+	}
 
 	function buildSamplePointsTable(areas) {
 		let html = '<div class="table-responsive">';
@@ -7811,6 +7828,55 @@
 	$(document).on('change', '.sample-point-checkbox', function() {
 		const pointId = $(this).val();
 		$(`input.sample-quantity[data-point-id="${pointId}"]`).prop('disabled', !this.checked);
+	});
+	
+	// Function to get current selections
+	function getCurrentSelections() {
+		const selections = [];
+		$('.sample-point-checkbox:checked').each(function() {
+			const pointId = $(this).val();
+			const quantity = $(`.sample-quantity[data-point-id="${pointId}"]`).val();
+			selections.push({ 
+				sample_point_id: pointId, 
+				quantity: quantity 
+			});
+		});
+		return selections;
+	}
+	
+	// Function to restore saved selections
+	function restoreSavedSelections(savedSelections) {
+		setTimeout(function() {
+			savedSelections.forEach(function(selection) {
+				const checkbox = $(`.sample-point-checkbox[value="${selection.sample_point_id}"]`);
+				if (checkbox.length > 0) {
+					checkbox.prop('checked', true);
+					const quantityInput = $(`.sample-quantity[data-point-id="${selection.sample_point_id}"]`);
+					quantityInput.prop('disabled', false);
+					quantityInput.val(selection.quantity);
+				}
+			});
+		}, 100);
+	}
+	
+	// Handle refresh button click
+	$(document).on('click', '#refresh-sample-points-btn', function() {
+		const stagingId = $('#assignSamplesModal').data('staging-id');
+		const headerId = $('#assignSamplesModal').data('header-id');
+		
+		// Save current selections
+		const savedSelections = getCurrentSelections();
+		
+		// Show loading state
+		$(this).html('<i class="mdi mdi-loading mdi-spin"></i> Refreshing...').prop('disabled', true);
+		
+		// Reload data with saved selections
+		loadAssignmentData(stagingId, headerId, savedSelections);
+		
+		// Reset button state after a short delay
+		setTimeout(() => {
+			$(this).html('<i class="mdi mdi-refresh"></i> Refresh').prop('disabled', false);
+		}, 1000);
 	});
 
 	// Confirm assignment - use event delegation
@@ -7917,10 +7983,18 @@
 
 				<!-- Sample Information Table -->
 				<div class="card shadow-sm border-0" style="border-radius: 15px;">
-					<div class="card-header bg-light border-0" style="border-radius: 15px 15px 0 0;">
+					<div class="card-header bg-light border-0 d-flex justify-content-between align-items-center" style="border-radius: 15px 15px 0 0;">
 						<h6 class="mb-0 text-muted">
 							<i class="mdi mdi-map-marker-multiple"></i> Sample Points Assignment
 						</h6>
+						<div>
+							<a href="#" id="add-sample-points-link" target="_blank" class="btn btn-sm btn-outline-primary mr-2">
+								<i class="mdi mdi-plus"></i> Add Sample Points
+							</a>
+							<button type="button" id="refresh-sample-points-btn" class="btn btn-sm btn-outline-info">
+								<i class="mdi mdi-refresh"></i> Refresh
+							</button>
+						</div>
 					</div>
 					<div class="card-body">
 						<div id="sample-assignment-table-container">

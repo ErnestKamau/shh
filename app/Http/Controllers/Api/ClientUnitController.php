@@ -12,10 +12,16 @@ class ClientUnitController extends Controller
     /**
      * Display a listing of client units.
      */
-    public function index()
+    public function index(Request $request)
     {
-        $units = CrmCompanyUnit::where('active', 1)
-            ->with('crmCustomer:id,name')
+        $query = CrmCompanyUnit::where('active', 1);
+        
+        // Filter by customer if provided
+        if ($request->has('crm_customer_id') && $request->crm_customer_id) {
+            $query->where('crm_customer_id', $request->crm_customer_id);
+        }
+        
+        $units = $query->with('crmCustomer:id,name')
             ->select('id', 'name', 'crm_customer_id')
             ->orderBy('name')
             ->get();

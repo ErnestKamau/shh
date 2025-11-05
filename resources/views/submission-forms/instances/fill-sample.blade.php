@@ -6,6 +6,18 @@
 
 @section(isset($use_lab_layout) ? 'title2' : 'title')
   <title>Fill Form - {{ $submissionForm->name }}</title>
+  @if(isset($use_lab_layout))
+    <style>
+        main{
+            margin-top: 0px !important;
+            padding-top: 0px !important;
+        }
+        #main-container-body{
+            margin-top: 0px !important;
+            padding-top: 0px !important;
+        }
+    </style>
+  @endif
 @endsection
 
 @section(isset($use_lab_layout) ? 'content2' : 'content')
@@ -479,16 +491,11 @@
 <script>
     // Emit required field specs derived from the form configuration
     $(()=>{
-
         window.requiredFieldSpecs = window.requiredFieldSpecs || [];
-        console.log('[DEBUG] Sections being rendered:', {{ $submissionForm->sections->count() }});
         @foreach($submissionForm->sections as $section)
-          console.log('[DEBUG] Rendering section {{ $section->id }}: {{ addslashes($section->title) }} ({{ $section->section_type }})');
           @php $inRows = $section->isRowsSection(); @endphp
           @foreach($section->elementHolders as $holder)
-            console.log('[DEBUG]   - Holder {{ $holder->id }} ({{ $holder->holder_type }}): {{ $holder->elements->count() }} elements');
             @foreach($holder->elements as $element)
-              console.log('[DEBUG]     - Element: {{ $element->name }} ({{ $element->element_type }}), required: {{ $element->is_required ? "yes" : "no" }}');
               @if($element->is_required)
                 window.requiredFieldSpecs.push({
                   name: '{{ $element->name }}',
@@ -499,8 +506,262 @@
             @endforeach
           @endforeach
         @endforeach
-        console.log('[DEBUG] Total sections processed:', {{ $submissionForm->sections->count() }});
     })
+</script>
+<script>
+// Define loadDynamicOptions globally FIRST so rows-section can use it
+(function() {
+    // Wait for jQuery before defining the function
+    function initLoadDynamicOptions() {
+        if (typeof $ === 'undefined') {
+            setTimeout(initLoadDynamicOptions, 50);
+            return;
+        }
+        
+        // Make loadDynamicOptions globally accessible for rows-section and other scripts
+        window.loadDynamicOptions = function($this, elementId, elementType, clientId = null, sampleTypeId = null, storeId = null, clientUnitId = null, analysisTypeId = null) {
+            const select = $this;
+            const originalHtml = select.html();
+            
+            // Only log for client_select
+            if (elementType === 'client_select') {
+                console.log('[CLIENT_SELECT] loadDynamicOptions called for:', elementId);
+            }
+            
+            // Use Select2 AJAX for client_select to handle large datasets (20k+ records)
+            if (elementType === 'client_select' && !select.data('select2-ajax-initialized')) {
+                console.log('[CLIENT_SELECT] Initializing Select2 AJAX for:', elementId);
+                
+                const savedValue = select.attr('data-saved-value');
+                if (savedValue) {
+                    console.log('[CLIENT_SELECT] Saved value found:', savedValue);
+                }
+                
+                // Destroy existing Select2 if it exists
+                if (select.data('select2')) {
+                    console.log('[CLIENT_SELECT] Destroying existing Select2');
+                    select.select2('destroy');
+                }
+                
+                const ajaxUrl = '{{ auth()->check() ? route("submission-forms.dynamic-options") : route("forms.dynamic-options") }}';
+                console.log('[CLIENT_SELECT] AJAX URL:', ajaxUrl);
+                
+                // Initialize Select2 with AJAX
+                try {
+                    select.select2({
+                    ajax: {
+                        url: ajaxUrl,
+                        dataType: 'json',
+                        delay: 250,  // Debounce typing for 250ms
+                        headers: {
+                            'X-CSRF-TOKEN': $('meta[name="csrf-token"]').attr('content'),
+                            'X-Requested-With': 'XMLHttpRequest'
+                        },
+                        data: function (params) {
+                            console.log('[CLIENT_SELECT] AJAX data function called with params:', params);
+                            const requestData = {
+                                element_type: 'client_select',
+                                search: params.term || '',
+                                page: params.page || 1,
+                                per_page: 100
+                            };
+                            console.log('[CLIENT_SELECT] Sending request:', requestData);
+                            return requestData;
+                        },
+                        processResults: function (data, params) {
+                            params.page = params.page || 1;
+                            
+                            console.log('[CLIENT_SELECT] AJAX Response:', data);
+                            
+                            // Handle both response formats (with/without 'success' wrapper)
+                            const options = data.options || (data.success ? data.options : []);
+                            
+                            // Map options to Select2 format
+                            const results = (options || []).map(function(option) {
+                                return {
+                                    id: option.value || option.id,
+                                    text: option.label || option.text || option.name
+                                };
+                            });
+                            
+                            console.log('[CLIENT_SELECT] Mapped ' + results.length + ' results, Has more:', data.pagination && data.pagination.has_more);
+                            
+                            return {
+                                results: results,
+                                pagination: {
+                                    more: data.pagination && data.pagination.has_more
+                                }
+                            };
+                        },
+                        cache: true,
+                        error: function(xhr, status, error) {
+                            console.error('[CLIENT_SELECT] AJAX Error:', {
+                                status: status,
+                                error: error,
+                                response: xhr.responseText
+                            });
+                        }
+                    },
+                    placeholder: 'Select a client...',
+                    allowClear: true,
+                    minimumInputLength: 0,
+                    width: '100%',
+                    language: {
+                        inputTooShort: function() {
+                            return 'Start typing to search clients...';
+                        },
+                        searching: function() {
+                            return 'Searching...';
+                        },
+                        noResults: function() {
+                            return 'No clients found';
+                        }
+                    }
+                });
+                console.log('[CLIENT_SELECT] Select2 AJAX initialized successfully for:', elementId);
+                
+                // Verify Select2 is configured with AJAX
+                const select2Data = select.data('select2');
+                if (select2Data) {
+                    console.log('[CLIENT_SELECT] Select2 options:', select2Data.options);
+                    console.log('[CLIENT_SELECT] Has AJAX config?', select2Data.options.ajax !== undefined);
+                } else {
+                    console.error('[CLIENT_SELECT] Select2 data not found after initialization!');
+                }
+                } catch (error) {
+                    console.error('[CLIENT_SELECT] Error initializing Select2:', error);
+                    console.error('[CLIENT_SELECT] Error details:', error.message, error.stack);
+                }
+                
+                // Handle saved values - fetch the specific client by ID
+                if (savedValue) {
+                    console.log('[CLIENT_SELECT] Loading saved client ID:', savedValue);
+                    $.ajax({
+                        url: '/api/clients/' + savedValue,
+                        dataType: 'json',
+                        success: function(client) {
+                            console.log('[CLIENT_SELECT] Loaded saved client:', client);
+                            const option = new Option(client.name, client.id, true, true);
+                            select.append(option).trigger('change');
+                        },
+                        error: function(xhr) {
+                            console.error('[CLIENT_SELECT] Failed to load saved client:', savedValue, xhr.status);
+                            select.val(savedValue).trigger('change');
+                        }
+                    });
+                }
+                
+                // Mark as initialized to prevent re-initialization
+                select.data('select2-ajax-initialized', true);
+                
+                // Add event listeners to debug Select2 behavior
+                select.on('select2:opening', function() {
+                    console.log('[CLIENT_SELECT] Select2 dropdown opening for:', elementId);
+                });
+                
+                select.on('select2:open', function() {
+                    console.log('[CLIENT_SELECT] Select2 dropdown opened');
+                });
+                
+                select.on('select2:selecting', function(e) {
+                    console.log('[CLIENT_SELECT] Selecting:', e.params.args.data);
+                });
+                
+                // Trigger change handler if this is a regular field to update dependent fields
+                select.trigger('change.custom-elements');
+                
+                return; // Exit early - Select2 handles everything from here
+            }
+            
+            // Show loading state for non-Select2 fields
+            select.html('<option value="">Loading...</option>').prop('disabled', true);
+            
+            // Make AJAX request
+            const ajaxUrl = '{{ auth()->check() ? route("submission-forms.dynamic-options") : route("forms.dynamic-options") }}';
+            const ajaxData = {
+                element_type: elementType,
+                client_id: clientId,
+                sample_type_id: sampleTypeId,
+                store_id: storeId,
+                client_unit_id: clientUnitId,
+                analysis_type_id: analysisTypeId
+            };
+            
+            $.ajax({
+                url: ajaxUrl,
+                method: 'GET',
+                data: ajaxData,
+                success: function(response) {
+                    
+                    let html = '';
+                    
+                    // Add placeholder option (always add for dependent elements)
+                    if (elementType === 'client_unit_select' || elementType === 'client_contact_select' || elementType === 'sample_point_select' || elementType === 'analysis_type_select') {
+                        html += '<option value="">Select...</option>';
+                    } else {
+                        // For non-dependent elements, check if required
+                        const elementData = window.customElementsToInit && window.customElementsToInit.find(e => e.elementId === elementId);
+                        if (!elementData || !elementData.isRequired) {
+                            const placeholder = elementData ? elementData.placeholder : 'Select...';
+                            html += '<option value="">' + placeholder + '</option>';
+                        }
+                    }
+                    
+                    // Add options from response
+                    if (response.options && response.options.length > 0) {
+                        response.options.forEach(function(option) {
+                            html += '<option value="' + option.value + '">' + option.label + '</option>';
+                        });
+                    } else {
+                        if (html === '') {
+                            html += '<option value="">No options available</option>';
+                        }
+                    }
+                    
+                    select.html(html).prop('disabled', false);
+                    
+                    // Handle saved values for both single and multiple selects
+                    const savedValue = select.attr('data-saved-value');
+                    if (savedValue) {
+                        if (select.prop('multiple')) {
+                            // Handle multiple select saved values
+                            const savedMultipleValues = select.attr('data-saved-multiple-values');
+                            if (savedMultipleValues) {
+                                const values = savedMultipleValues.split(',').map(v => v.trim()).filter(v => v);
+                                select.val(values);
+                            }
+                        } else {
+                            // Handle single select saved values
+                            select.val(savedValue);
+                        }
+                        
+                        // Trigger change event to update dependent elements
+                        select.trigger('change.custom-elements');
+                    }
+                },
+                error: function(xhr, status, error) {
+                    //console.error('Error loading options for', elementType, ':', error);
+                    //console.error('Status:', status);
+                    //console.error('Response:', xhr.responseText);
+                    select.html(originalHtml).prop('disabled', false);
+                    
+                    // Show error message
+                    if (xhr.status === 403) {
+                        alert('You do not have permission to access this data.');
+                    } else if (xhr.status === 500) {
+                        //console.error('Server error loading dynamic options');
+                    } else {
+                        //console.error('Network error loading dynamic options');
+                    }
+                }
+            });
+        }; // End window.loadDynamicOptions
+        
+        console.log('[CLIENT_SELECT] loadDynamicOptions defined globally');
+    }
+    
+    initLoadDynamicOptions();
+})();
 </script>
 <script>
 // Wait for jQuery and DOM to be ready
@@ -514,14 +775,9 @@
 
     // Initialize all custom elements
     function initializeAllCustomElements() {
-        //console.log('Initializing custom elements...');
-        
         if (!window.customElementsToInit) {
-            //console.log('No custom elements to initialize');
             return;
         }
-        
-        //console.log('Found', window.customElementsToInit.length, 'custom elements to initialize');
         
         // Initialize each element
         window.customElementsToInit.forEach(function(elementData) {
@@ -540,11 +796,8 @@
         const elementId = elementData.elementId;
         const elementType = elementData.elementType;
         
-        //console.log('Initializing element:', elementId, 'type:', elementType);
-        
         // Load initial options for non-dependent elements
         if (elementType === 'client_select' || elementType === 'sample_type_select' || elementType === 'store_select' || elementType === 'standard_select' || elementType === 'sample_condition_select') {
-            //console.log('Loading initial options for:', elementType);
             let $element = $('#' + elementId);
             loadDynamicOptions($element, elementId, elementType);
         }
@@ -863,115 +1116,8 @@
         });
     }
 
-    function loadDynamicOptions($this, elementId, elementType, clientId = null, sampleTypeId = null, storeId = null, clientUnitId = null, analysisTypeId = null) {
-        const select = $this;
-        const originalHtml = select.html();
-        
-        // Show loading state
-        select.html('<option value="">Loading...</option>').prop('disabled', true);
-        
-        // Make AJAX request
-        const ajaxUrl = '{{ auth()->check() ? route("submission-forms.dynamic-options") : route("forms.dynamic-options") }}';
-        const ajaxData = {
-            element_type: elementType,
-            client_id: clientId,
-            sample_type_id: sampleTypeId,
-            store_id: storeId,
-            client_unit_id: clientUnitId,
-            analysis_type_id: analysisTypeId
-        };
-        
-        // Debug log specifically for sample_point_select
-        if (elementType === 'sample_point_select') {
-            console.log('=== LOADING SAMPLE POINTS ===');
-            console.log('Element ID:', elementId);
-            console.log('Client Unit ID:', clientUnitId);
-            console.log('AJAX URL:', ajaxUrl);
-            console.log('AJAX Data:', ajaxData);
-        }
-        
-        $.ajax({
-            url: ajaxUrl,
-            method: 'GET',
-            data: ajaxData,
-            success: function(response) {
-                // Debug log for sample_point_select response
-                if (elementType === 'sample_point_select') {
-                    console.log('=== SAMPLE POINTS RESPONSE ===');
-                    console.log('Response:', response);
-                    console.log('Options count:', response.options ? response.options.length : 0);
-                    if (response.options && response.options.length > 0) {
-                        console.log('Sample Points Data:', response.options);
-                    } else {
-                        console.warn('NO SAMPLE POINTS RETURNED!');
-                    }
-                }
-                
-                let html = '';
-                
-                // Add placeholder option (always add for dependent elements)
-                if (elementType === 'client_unit_select' || elementType === 'client_contact_select' || elementType === 'sample_point_select' || elementType === 'analysis_type_select') {
-                    html += '<option value="">Select...</option>';
-                } else {
-                    // For non-dependent elements, check if required
-                    const elementData = window.customElementsToInit.find(e => e.elementId === elementId);
-                    if (!elementData || !elementData.isRequired) {
-                        const placeholder = elementData ? elementData.placeholder : 'Select...';
-                        html += '<option value="">' + placeholder + '</option>';
-                    }
-                }
-                
-                // Add options from response
-                if (response.options && response.options.length > 0) {
-                    response.options.forEach(function(option) {
-                        html += '<option value="' + option.value + '">' + option.label + '</option>';
-                    });
-                } else {
-                    if (html === '') {
-                        html += '<option value="">No options available</option>';
-                    }
-                }
-                
-                select.html(html).prop('disabled', false);
-                
-                // Handle saved values for both single and multiple selects
-                const savedValue = select.attr('data-saved-value');
-                if (savedValue) {
-                    if (select.prop('multiple')) {
-                        // Handle multiple select saved values
-                        const savedMultipleValues = select.attr('data-saved-multiple-values');
-                        if (savedMultipleValues) {
-                            const values = savedMultipleValues.split(',').map(v => v.trim()).filter(v => v);
-                            select.val(values);
-                        }
-                    } else {
-                        // Handle single select saved values
-                        select.val(savedValue);
-                    }
-                    
-                    // Trigger change event to update dependent elements
-                    select.trigger('change.custom-elements');
-                }
-            },
-            error: function(xhr, status, error) {
-                //console.error('Error loading options for', elementType, ':', error);
-                //console.error('Status:', status);
-                //console.error('Response:', xhr.responseText);
-                select.html(originalHtml).prop('disabled', false);
-                
-                // Show error message
-                if (xhr.status === 403) {
-                    alert('You do not have permission to access this data.');
-                } else if (xhr.status === 500) {
-                    //console.error('Server error loading dynamic options');
-                } else {
-                    //console.error('Network error loading dynamic options');
-                }
-            }
-        });
-    }
+    // loadDynamicOptions is now defined globally at the top of this script
 
-    // Form fill functionality
     const FormFill = {
             init() {
                 this.bindEvents();
@@ -987,22 +1133,9 @@
             // Build logical groups for required fields using backend specs
             resolveRequiredFieldGroups() {
                 const specs = this.getRequiredSpecs();
-                console.log('[DEBUG] Required Field Specs:', specs);
-                
-                // DEBUG: Inspect actual DOM
-                console.log('[DEBUG] === DOM INSPECTION ===');
-                const allFields = $('#fill-form').find('input, select, textarea').not('[type="hidden"]');
-                console.log('[DEBUG] Total fields in DOM:', allFields.length);
-                allFields.each(function(idx) {
-                    const name = $(this).attr('name');
-                    const type = $(this).attr('type') || this.tagName.toLowerCase();
-                    console.log(`[DEBUG]   ${idx + 1}. name="${name}", type="${type}"`);
-                });
-                console.log('[DEBUG] === END DOM INSPECTION ===');
                 
                 if (!specs.length) {
                     // Fallback: derive groups from DOM [required]
-                    console.log('[DEBUG] No specs found, using DOM fallback');
                     const groups = {};
                     this.getAllFormFields().filter('[required]').each(function() {
                         const $el = $(this);
@@ -1011,7 +1144,6 @@
                         groups[name] = groups[name] || [];
                         groups[name].push($el);
                     });
-                    console.log('[DEBUG] DOM-based groups:', Object.keys(groups));
                     return groups;
                 }
                 
@@ -1020,13 +1152,11 @@
                 
                 specs.forEach(spec => {
                     if (!spec || !spec.name) return;
-                    console.log(`[DEBUG] Processing spec: ${spec.name}, inRows: ${spec.inRows}`);
                     
                     if (spec.inRows) {
                         // For rows: find all actual row instances
                         const selector = `[name^="${spec.name}["]`;
                         const $found = $form.find(selector);
-                        console.log(`[DEBUG] Row field ${spec.name}: found ${$found.length} elements`);
                         if ($found.length > 0) {
                             $found.each(function() {
                                 const $el = $(this);
@@ -1038,26 +1168,21 @@
                         } else {
                             // No rows exist yet - add placeholder for "at least 1 row needed"
                             groups[`${spec.name}[0]`] = [];
-                            console.log(`[DEBUG] Added placeholder for row field: ${spec.name}[0]`);
                         }
                     } else {
                         // For regular fields: find by exact name
                         const exactSelector = `[name="${spec.name}"]`;
                         const $found = $form.find(exactSelector);
-                        console.log(`[DEBUG] Regular field ${spec.name}: found ${$found.length} elements with selector ${exactSelector}`);
                         if ($found.length > 0) {
                             groups[spec.name] = [];
                             $found.each(function() { groups[spec.name].push($(this)); });
                         } else {
                             // Field not in DOM yet (or dynamic) - add placeholder
                             groups[spec.name] = [];
-                            console.log(`[DEBUG] Added placeholder for field: ${spec.name}`);
                         }
                     }
                 });
                 
-                console.log('[DEBUG] Final resolved groups:', Object.keys(groups));
-                console.log('[DEBUG] Total required groups:', Object.keys(groups).length);
                 return groups;
             },
 
@@ -1069,14 +1194,12 @@
             countFilledRequiredGroups() {
                 const groups = this.resolveRequiredFieldGroups();
                 let filled = 0;
-                console.log('[DEBUG] Counting filled groups...');
                 
                 Object.keys(groups).forEach(key => {
                     const elements = groups[key];
                     
                     // If no elements in group, it's not filled (placeholder or not found)
                     if (!elements || elements.length === 0) {
-                        console.log(`[DEBUG] Group "${key}": No elements (placeholder) - UNFILLED`);
                         return; // unfilled
                     }
                     
@@ -1109,11 +1232,9 @@
                         isFilled = typeof val === 'string' ? val.trim() !== '' : val !== null && val !== undefined && val !== '';
                     }
                     
-                    console.log(`[DEBUG] Group "${key}": ${isFilled ? 'FILLED' : 'UNFILLED'} (type: ${type || 'select'}, value: ${$first.val()})`);
                     if (isFilled) filled++;
                 });
                 
-                console.log(`[DEBUG] Total filled groups: ${filled}`);
                 return filled;
             },
             
@@ -1258,12 +1379,9 @@
             
             updateProgress() {
                 const totalRequired = this.countRequiredGroups();
-                console.log('[DEBUG] updateProgress - Total required groups:', totalRequired);
                 if (totalRequired > 0) {
                     const filledRequired = this.countFilledRequiredGroups();
-                    console.log('[DEBUG] updateProgress - Filled required groups:', filledRequired);
                     const progress = Math.round((filledRequired / totalRequired) * 100);
-                    console.log('[DEBUG] updateProgress - Progress:', progress + '%');
                     $('#progressBar').css('width', progress + '%').attr('aria-valuenow', progress);
                     $('#progressText').text(progress + '% Complete');
                     if (progress < 25) {
@@ -1453,6 +1571,15 @@
         }
         
         $(document).ready(function() {
+            console.log('[CLIENT_SELECT] === Checking for client_select fields ===');
+            
+            // Check what client_select fields exist in DOM
+            const clientSelects = $('select[data-element-type="client_select"]');
+            console.log('[CLIENT_SELECT] Found', clientSelects.length, 'client_select field(s) in DOM');
+            clientSelects.each(function() {
+                console.log('[CLIENT_SELECT] Field ID:', $(this).attr('id'), 'Name:', $(this).attr('name'));
+            });
+            
             // Set route URL for dynamic options
             window.dynamicOptionsRoute = "{{ auth()->check() ? route('submission-forms.dynamic-options') : route('forms.dynamic-options') }}";
             
@@ -1461,6 +1588,29 @@
             
             // Initialize custom elements with dependency management
             initializeAllCustomElements();
+            
+            // FALLBACK: Initialize client_select with a delay to run AFTER any global Select2 init
+            console.log('[CLIENT_SELECT] Scheduling delayed initialization...');
+            setTimeout(function() {
+                console.log('[CLIENT_SELECT] Running delayed initialization...');
+                $('select[data-element-type="client_select"]').each(function() {
+                    const $select = $(this);
+                    const elementId = $select.attr('id');
+                    
+                    // Always force re-init to ensure AJAX config is applied
+                    console.log('[CLIENT_SELECT] Force reinitializing with AJAX:', elementId);
+                    
+                    // Remove flag to allow re-initialization
+                    $select.removeData('select2-ajax-initialized');
+                    
+                    // Reinitialize
+                    loadDynamicOptions($select, elementId, 'client_select');
+                });
+                
+                console.log('[CLIENT_SELECT] === Delayed initialization complete ===');
+            }, 1000); // Wait 1 second for other scripts to finish
+            
+            console.log('[CLIENT_SELECT] === Scheduled for delayed init ===');
         });
     })(); // End initFormFill
 </script>

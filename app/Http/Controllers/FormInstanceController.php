@@ -691,13 +691,20 @@ class FormInstanceController extends Controller
         $sampleTypeId = $request->get('sample_type_id');
         $storeId = $request->get('store_id');
         $clientUnitId = $request->get('client_unit_id');
+        
+        // Pagination and search parameters for client_select
+        $page = $request->get('page', 1);
+        $perPage = $request->get('per_page', 100);
+        $search = $request->get('search', '');
 
         Log::info('Dynamic options request', [
             'element_type' => $elementType,
             'client_id' => $clientId,
             'client_unit_id' => $clientUnitId,
             'sample_type_id' => $sampleTypeId,
-            'store_id' => $storeId
+            'store_id' => $storeId,
+            'search' => $search,
+            'page' => $page
         ]);
 
         try {
@@ -705,16 +712,38 @@ class FormInstanceController extends Controller
 
             switch ($elementType) {
                 case 'client_select':
-                    $clients = \App\Models\CRM\CRMCustomer::where('active', 1)
-                        ->orderBy('name')
-                        ->get();
-
-                    foreach ($clients as $client) {
+                    // Build query with search filter
+                    $query = \App\Models\CRM\CRMCustomer::where('active', 1);
+                    
+                    if (!empty($search)) {
+                        $query->where('name', 'LIKE', "%{$search}%");
+                    }
+                    
+                    // Paginate results
+                    $paginator = $query->orderBy('name')
+                        ->paginate($perPage, ['id', 'name'], 'page', $page);
+                    
+                    // Build options array
+                    foreach ($paginator->items() as $client) {
                         $options[] = [
                             'id' => $client->id,
-                            'text' => $client->name
+                            'text' => $client->name,
+                            'value' => $client->id,
+                            'label' => $client->name
                         ];
                     }
+                    
+                    // Return with pagination metadata
+                    return response()->json([
+                        'success' => true,
+                        'options' => $options,
+                        'pagination' => [
+                            'current_page' => $paginator->currentPage(),
+                            'per_page' => $paginator->perPage(),
+                            'total' => $paginator->total(),
+                            'has_more' => $paginator->hasMorePages()
+                        ]
+                    ]);
                     break;
 
                 case 'sample_type_select':

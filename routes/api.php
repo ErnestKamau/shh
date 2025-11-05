@@ -18,6 +18,7 @@ Route::post('/kcb/receive','KCBIntegrationController@receivepayment')->name('rec
 
 // API routes for custom element modals
 Route::get('/clients', 'Api\ClientController@index');
+Route::get('/clients/{id}', 'Api\ClientController@show');
 Route::post('/clients', 'Api\ClientController@store');
 
 Route::get('/client-units', 'Api\ClientUnitController@index');

@@ -10,16 +10,47 @@ use Illuminate\Support\Facades\Validator;
 class ClientController extends Controller
 {
     /**
-     * Display a listing of clients.
+     * Display a listing of clients with pagination and search.
      */
-    public function index()
+    public function index(Request $request)
     {
-        $clients = CrmCustomer::where('active', 1)
-            ->select('id', 'name', 'code')
+        $page = $request->get('page', 1);
+        $perPage = $request->get('per_page', 100);
+        $search = $request->get('search', '');
+        
+        // Build query with search filter
+        $query = CrmCustomer::where('active', 1);
+        
+        if (!empty($search)) {
+            $query->where('name', 'LIKE', "%{$search}%");
+        }
+        
+        // Paginate results
+        $paginator = $query->select('id', 'name', 'code')
             ->orderBy('name')
-            ->get();
+            ->paginate($perPage, ['*'], 'page', $page);
+        
+        return response()->json([
+            'data' => $paginator->items(),
+            'pagination' => [
+                'current_page' => $paginator->currentPage(),
+                'per_page' => $paginator->perPage(),
+                'total' => $paginator->total(),
+                'last_page' => $paginator->lastPage(),
+                'has_more' => $paginator->hasMorePages()
+            ]
+        ]);
+    }
 
-        return response()->json($clients);
+    /**
+     * Display the specified client.
+     */
+    public function show($id)
+    {
+        $client = CrmCustomer::select('id', 'name', 'code')
+            ->findOrFail($id);
+
+        return response()->json($client);
     }
 
     /**

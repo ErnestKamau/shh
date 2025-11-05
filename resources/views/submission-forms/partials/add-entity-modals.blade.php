@@ -136,7 +136,7 @@
                                         >
                                         <i class="mdi mdi-chevron-down dropdown-arrow"></i>
                                         <input type="hidden" id="clientCountryId" name="country_id" required>
-                                    </div>
+                    </div>
 
                                     <div class="dropdown-list dropdown-list-country" id="countryDropdown" style="display: none;">
                                         <div class="options-list" id="countryOptions">
@@ -728,13 +728,21 @@ $(document).ready(function() {
     }
     window.customElementModalsInitialized = true;
 
-    // Load clients for dependent dropdowns
+    // Load clients for dependent dropdowns (handles paginated response)
     function loadClients() {
-        $.get('/api/clients', function(data) {
+        $.get('/api/clients?per_page=1000', function(response) {
+            // Handle both old format (array) and new format (paginated)
+            const clients = response.data || response;
+            
             $('#clientUnitClient, #contactClient').empty().append('<option value="">Select a client...</option>');
-            $.each(data, function(index, client) {
+            $.each(clients, function(index, client) {
                 $('#clientUnitClient, #contactClient').append('<option value="' + client.id + '">' + client.name + '</option>');
             });
+            
+            // If there are more clients, log a notice (could upgrade to Select2 AJAX in future)
+            if (response.pagination && response.pagination.has_more) {
+                console.log('Note: Showing first ' + clients.length + ' of ' + response.pagination.total + ' clients. Consider using search to find specific clients.');
+            }
         });
     }
 
@@ -802,18 +810,30 @@ $(document).ready(function() {
     
     // Auto-select client unit in Company Sub Unit modal based on main form selection
     $('#addCompanySubUnitModal').on('show.bs.modal', function() {
-        // Get the currently selected client unit from the main form
+        // Get the currently selected customer and client unit from the main form
+        var $clientSelect = $('select[data-element-type="client_select"]');
+        var selectedCustomerId = $clientSelect.val();
         var $clientUnitSelect = $('select[data-element-type="client_unit_select"]');
         var selectedClientUnitId = $clientUnitSelect.val();
         
-        console.log('Company Sub Unit modal opened, auto-selecting client unit:', selectedClientUnitId);
+        console.log('Company Sub Unit modal opened');
+        console.log('Selected Customer ID:', selectedCustomerId);
+        console.log('Selected Client Unit ID:', selectedClientUnitId);
         
-        // Load client units into the dropdown
-        $.get('/api/client-units', function(data) {
+        // Load client units for the selected customer
+        if (!selectedCustomerId) {
+            $('#companySubUnitParent').empty().append('<option value="">Please select a customer first...</option>');
+            console.warn('No customer selected. Please select a customer first.');
+            return;
+        }
+        
+        $.get('/api/client-units', { crm_customer_id: selectedCustomerId }, function(data) {
             $('#companySubUnitParent').empty().append('<option value="">Select a company unit...</option>');
             $.each(data, function(index, unit) {
                 $('#companySubUnitParent').append('<option value="' + unit.id + '">' + unit.name + '</option>');
             });
+            
+            console.log('Loaded ' + data.length + ' company units for customer ' + selectedCustomerId);
             
             // Pre-select the client unit in the modal
             if (selectedClientUnitId) {
@@ -866,26 +886,26 @@ $(document).ready(function() {
                 
                 // Add new option to sample point select (non-blocking)
                 setTimeout(function() {
-                    var newOption = '<option value="' + response.id + '">' + response.name + '</option>';
-                    var $select = $('select[data-element-type="sample_point_select"]');
+                var newOption = '<option value="' + response.id + '">' + response.name + '</option>';
+                var $select = $('select[data-element-type="sample_point_select"]');
                     
                     if ($select.length > 0) {
-                        $select.append(newOption);
+                $select.append(newOption);
+                
+                // Set the value and trigger change events
+                $select.val(response.id);
+                $select.trigger('change');
                         
-                        // Set the value and trigger change events
-                        $select.val(response.id);
-                        $select.trigger('change');
-                        
-                        // Trigger Select2 events if Select2 is initialized
-                        if ($select.hasClass('select2-hidden-accessible')) {
-                            $select.trigger('select2:select');
-                        }
-                        
-                        // Update form validation and progress
-                        if (typeof FormFill !== 'undefined') {
-                            FormFill.updateProgress();
-                            FormFill.updateSubmitButtonState();
-                        }
+                // Trigger Select2 events if Select2 is initialized
+                if ($select.hasClass('select2-hidden-accessible')) {
+                    $select.trigger('select2:select');
+                }
+                
+                // Update form validation and progress
+                if (typeof FormFill !== 'undefined') {
+                    FormFill.updateProgress();
+                    FormFill.updateSubmitButtonState();
+                }
                     }
                 }, 500);
             },
@@ -942,26 +962,26 @@ $(document).ready(function() {
                 
                 // Add new option to sample condition select (non-blocking)
                 setTimeout(function() {
-                    var newOption = '<option value="' + response.id + '">' + response.name + '</option>';
-                    var $select = $('select[data-element-type="sample_condition_select"]');
+                var newOption = '<option value="' + response.id + '">' + response.name + '</option>';
+                var $select = $('select[data-element-type="sample_condition_select"]');
                     
                     if ($select.length > 0) {
-                        $select.append(newOption);
+                $select.append(newOption);
+                
+                // Set the value and trigger change events
+                $select.val(response.id);
+                $select.trigger('change');
                         
-                        // Set the value and trigger change events
-                        $select.val(response.id);
-                        $select.trigger('change');
-                        
-                        // Trigger Select2 events if Select2 is initialized
-                        if ($select.hasClass('select2-hidden-accessible')) {
-                            $select.trigger('select2:select');
-                        }
-                        
-                        // Update form validation and progress
-                        if (typeof FormFill !== 'undefined') {
-                            FormFill.updateProgress();
-                            FormFill.updateSubmitButtonState();
-                        }
+                // Trigger Select2 events if Select2 is initialized
+                if ($select.hasClass('select2-hidden-accessible')) {
+                    $select.trigger('select2:select');
+                }
+                
+                // Update form validation and progress
+                if (typeof FormFill !== 'undefined') {
+                    FormFill.updateProgress();
+                    FormFill.updateSubmitButtonState();
+                }
                     }
                 }, 500);
             },
@@ -1601,26 +1621,26 @@ $(document).ready(function() {
                 
                 // Add new option to client select (non-blocking)
                 setTimeout(function() {
-                    var newOption = '<option value="' + response.id + '">' + response.name + '</option>';
-                    var $select = $('select[data-element-type="client_select"]');
+                var newOption = '<option value="' + response.id + '">' + response.name + '</option>';
+                var $select = $('select[data-element-type="client_select"]');
                     
                     if ($select.length > 0) {
-                        $select.append(newOption);
+                $select.append(newOption);
+                
+                // Set the value and trigger change events
+                $select.val(response.id);
+                $select.trigger('change');
                         
-                        // Set the value and trigger change events
-                        $select.val(response.id);
-                        $select.trigger('change');
-                        
-                        // Trigger Select2 events if Select2 is initialized
-                        if ($select.hasClass('select2-hidden-accessible')) {
-                            $select.trigger('select2:select');
-                        }
-                        
-                        // Update form validation and progress
-                        if (typeof FormFill !== 'undefined') {
-                            FormFill.updateProgress();
-                            FormFill.updateSubmitButtonState();
-                        }
+                // Trigger Select2 events if Select2 is initialized
+                if ($select.hasClass('select2-hidden-accessible')) {
+                    $select.trigger('select2:select');
+                }
+                
+                // Update form validation and progress
+                if (typeof FormFill !== 'undefined') {
+                    FormFill.updateProgress();
+                    FormFill.updateSubmitButtonState();
+                }
                     }
                 }, 500);
             },
@@ -1685,21 +1705,21 @@ $(document).ready(function() {
                 
                 // Add new option to client unit select (non-blocking)
                 setTimeout(function() {
-                    var newOption = '<option value="' + response.id + '">' + response.name + '</option>';
-                    var $select = $('select[data-element-type="client_unit_select"]');
+                var newOption = '<option value="' + response.id + '">' + response.name + '</option>';
+                var $select = $('select[data-element-type="client_unit_select"]');
                     
                     if ($select.length > 0) {
-                        $select.append(newOption);
+                $select.append(newOption);
+                
+                // Set the value and trigger change events
+                $select.val(response.id);
+                $select.trigger('change');
                         
-                        // Set the value and trigger change events
-                        $select.val(response.id);
-                        $select.trigger('change');
-                        
-                        // Trigger Select2 events if Select2 is initialized
-                        if ($select.hasClass('select2-hidden-accessible')) {
-                            $select.trigger('select2:select');
-                        }
-                        
+                // Trigger Select2 events if Select2 is initialized
+                if ($select.hasClass('select2-hidden-accessible')) {
+                    $select.trigger('select2:select');
+                }
+                
                         // Update form validation and progress
                         if (typeof FormFill !== 'undefined') {
                             FormFill.updateProgress();
@@ -1709,6 +1729,21 @@ $(document).ready(function() {
                         // Also update the sample point modal's client unit dropdown
                         if ($('#samplePointUnit').length > 0) {
                             $('#samplePointUnit').append('<option value="' + response.id + '">' + response.name + '</option>');
+                        }
+                        
+                        // If Company Sub Unit modal is open, auto-select the new unit in its dropdown
+                        if ($('#addCompanySubUnitModal').hasClass('show')) {
+                            console.log('Company Sub Unit modal is open, auto-selecting new unit:', response.id);
+                            
+                            var $companyUnitSelect = $('#companySubUnitParent');
+                            
+                            // Add the new option (it belongs to the selected customer by design)
+                            $companyUnitSelect.append('<option value="' + response.id + '">' + response.name + '</option>');
+                            
+                            // Auto-select the newly created unit
+                            $companyUnitSelect.val(response.id);
+                            
+                            console.log('Auto-selected client unit in Company Sub Unit modal:', response.name);
                         }
                     }
                 }, 500);
@@ -1784,13 +1819,13 @@ $(document).ready(function() {
                         // Trigger Select2 events if Select2 is initialized
                         if ($select.hasClass('select2-hidden-accessible')) {
                             $select.trigger('select2:select');
-                        }
-                        
-                        // Update form validation and progress
-                        if (typeof FormFill !== 'undefined') {
-                            FormFill.updateProgress();
-                            FormFill.updateSubmitButtonState();
-                        }
+                }
+                
+                // Update form validation and progress
+                if (typeof FormFill !== 'undefined') {
+                    FormFill.updateProgress();
+                    FormFill.updateSubmitButtonState();
+                }
                     }
                 }, 500);
             },
@@ -1851,26 +1886,26 @@ $(document).ready(function() {
                 
                 // Add new option to client contact select (non-blocking)
                 setTimeout(function() {
-                    var newOption = '<option value="' + response.id + '">' + response.first_name + ' ' + response.last_name + '</option>';
-                    var $select = $('select[data-element-type="client_contact_select"]');
+                var newOption = '<option value="' + response.id + '">' + response.first_name + ' ' + response.last_name + '</option>';
+                var $select = $('select[data-element-type="client_contact_select"]');
                     
                     if ($select.length > 0) {
-                        $select.append(newOption);
+                $select.append(newOption);
+                
+                // Set the value and trigger change events
+                $select.val(response.id);
+                $select.trigger('change');
                         
-                        // Set the value and trigger change events
-                        $select.val(response.id);
-                        $select.trigger('change');
-                        
-                        // Trigger Select2 events if Select2 is initialized
-                        if ($select.hasClass('select2-hidden-accessible')) {
-                            $select.trigger('select2:select');
-                        }
-                        
-                        // Update form validation and progress
-                        if (typeof FormFill !== 'undefined') {
-                            FormFill.updateProgress();
-                            FormFill.updateSubmitButtonState();
-                        }
+                // Trigger Select2 events if Select2 is initialized
+                if ($select.hasClass('select2-hidden-accessible')) {
+                    $select.trigger('select2:select');
+                }
+                
+                // Update form validation and progress
+                if (typeof FormFill !== 'undefined') {
+                    FormFill.updateProgress();
+                    FormFill.updateSubmitButtonState();
+                }
                     }
                 }, 500);
             },

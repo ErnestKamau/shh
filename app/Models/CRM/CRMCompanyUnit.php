@@ -28,4 +28,8 @@ class CRMCompanyUnit extends Model implements Auditable
   public function subUnits(){
     return $this->hasMany('App\Models\CRM\CRMCompanySubUnit', 'crm_company_unit_id');
   }
+
+  public function crmCustomer(){
+    return $this->belongsTo('App\Models\CRM\CRMCustomer', 'crm_customer_id');
+  }
 }
