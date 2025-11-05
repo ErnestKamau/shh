@@ -12,14 +12,25 @@
                             </h2>
                             <p class="text-muted mb-0">Manage {{ strtolower($customer->sub_unit_configurable_name ?: 'company sub units') }} for: <strong>{{ $customer->name }}</strong></p>
                         </div>
-                        <button wire:click="showCreateSubUnitModal" class="btn btn-primary" wire:loading.attr="disabled" wire:target="showCreateSubUnitModal">
-                            <span wire:loading.remove wire:target="showCreateSubUnitModal">
-                                <i class="mdi mdi-plus"></i> Add {{ $customer->sub_unit_configurable_name ?: 'Sub Unit' }}
-                            </span>
-                            <span wire:loading wire:target="showCreateSubUnitModal">
-                                <span class="spinner-border spinner-border-sm" role="status"></span> Opening form...
-                            </span>
-                        </button>
+                        <div class="float-right">
+                            <button wire:click="showCreateSubUnitModal" class="btn btn-sm btn-primary" wire:loading.attr="disabled" wire:target="showCreateSubUnitModal">
+                                <span wire:loading.remove wire:target="showCreateSubUnitModal">
+                                    <i class="mdi mdi-plus"></i> Add {{ $customer->sub_unit_configurable_name ?: 'Sub Unit' }}
+                                </span>
+                                <span wire:loading wire:target="showCreateSubUnitModal">
+                                    <span class="spinner-border spinner-border-sm" role="status"></span> Opening form...
+                                </span>
+                            </button>
+                            <button wire:click="showCloneModalMethod" class="btn btn-sm btn-success ms-2" wire:loading.attr="disabled" wire:target="showCloneModalMethod">
+                                <span wire:loading.remove wire:target="showCloneModalMethod">
+                                    <i class="mdi mdi-content-copy"></i> Clone Sub Units
+                                </span>
+                                <span wire:loading wire:target="showCloneModalMethod">
+                                    <span class="spinner-border spinner-border-sm" role="status"></span> Opening form...
+                                </span>
+                            </button>
+
+                        </div>
                     </div>
                 </div>
             </div>
@@ -310,6 +321,160 @@
                             </span>
                             <span wire:loading wire:target="saveSubUnit">
                                 <span class="spinner-border spinner-border-sm" role="status"></span> Saving data...
+                            </span>
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    @endif
+
+    <!-- Clone Sub Units Modal -->
+    @if($showCloneModal)
+        <div class="modal fade show d-block" tabindex="-1" style="background-color: rgba(0,0,0,0.5); overflow-y: auto;">
+            <div class="modal-dialog modal-lg modal-dialog-scrollable">
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <h5 class="modal-title">
+                            <i class="mdi mdi-content-copy"></i>
+                            Clone {{ $customer->sub_unit_configurable_name ?: 'Sub Units' }}
+                        </h5>
+                        <button type="button" class="btn-close" wire:click="closeCloneModal"></button>
+                    </div>
+                    <div class="modal-body" style="max-height: 70vh; overflow-y: auto;">
+                        <form wire:submit.prevent="cloneSubUnits">
+                            <!-- Clone From Company Unit -->
+                            <div class="row">
+                                <div class="col-md-6">
+                                    <div class="form-group mb-3">
+                                        <label class="form-label fw-bold"><i class="mdi mdi-source-branch text-primary"></i> Clone From {{ $customer->unit_configurable_name ?: 'Company Unit' }} <span class="text-danger">*</span></label>
+                                        <select wire:model.live="cloneFromUnitId" class="form-select modern-select">
+                                            <option value="">Select {{ $customer->unit_configurable_name ?: 'unit' }} to clone from</option>
+                                            @foreach($companyUnits as $unit)
+                                                <option value="{{ $unit->id }}">{{ $unit->name }}</option>
+                                            @endforeach
+                                        </select>
+                                        @error('cloneFromUnitId') <span class="text-danger">{{ $message }}</span> @enderror
+                                    </div>
+                                </div>
+                                <div class="col-md-6">
+                                    <div class="form-group mb-3">
+                                        <label class="form-label fw-bold"><i class="mdi mdi-target text-success"></i> Clone To {{ $customer->unit_configurable_name ?: 'Company Unit' }} <span class="text-danger">*</span></label>
+                                        <select wire:model="cloneToUnitId" class="form-select modern-select">
+                                            <option value="">Select {{ $customer->unit_configurable_name ?: 'unit' }} to clone to</option>
+                                            @foreach($companyUnits as $unit)
+                                                @if($unit->id != $cloneFromUnitId)
+                                                    <option value="{{ $unit->id }}">{{ $unit->name }}</option>
+                                                @endif
+                                            @endforeach
+                                        </select>
+                                        @error('cloneToUnitId') <span class="text-danger">{{ $message }}</span> @enderror
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Sub Units List with Checkboxes -->
+                            @if(count($availableSubUnits) > 0)
+                                <div class="row">
+                                    <div class="col-md-12">
+                                        <div class="form-group mb-3">
+                                            <label class="form-label fw-bold">
+                                                <i class="mdi mdi-checkbox-multiple-marked text-info"></i> 
+                                                Select {{ $customer->sub_unit_configurable_name ?: 'Sub Units' }} to Clone 
+                                                <span class="text-danger">*</span>
+                                            </label>
+                                            <div class="card">
+                                                <div class="card-body" style="max-height: 250px; overflow-y: auto;">
+                                                    @foreach($availableSubUnits as $subUnit)
+                                                        <div class="form-check mb-2">
+                                                            <input 
+                                                                type="checkbox" 
+                                                                wire:model="selectedSubUnitsToClone" 
+                                                                value="{{ $subUnit['id'] }}" 
+                                                                class="form-check-input" 
+                                                                id="subunit_{{ $subUnit['id'] }}">
+                                                            <label class="form-check-label" for="subunit_{{ $subUnit['id'] }}">
+                                                                <strong>{{ $subUnit['name'] }}</strong>
+                                                                <span class="badge bg-info ms-2">{{ $subUnit['code'] }}</span>
+                                                            </label>
+                                                        </div>
+                                                    @endforeach
+                                                </div>
+                                            </div>
+                                            @error('selectedSubUnitsToClone') <span class="text-danger">{{ $message }}</span> @enderror
+                                            <small class="form-text text-muted mt-2 d-block">
+                                                <i class="mdi mdi-information-outline"></i> {{ count($selectedSubUnitsToClone) }} of {{ count($availableSubUnits) }} sub unit(s) selected
+                                            </small>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <!-- Clone Options -->
+                                <div class="row">
+                                    <div class="col-md-12">
+                                        <div class="card bg-light">
+                                            <div class="card-header">
+                                                <h6 class="mb-0"><i class="mdi mdi-tune text-warning"></i> Clone Options</h6>
+                                            </div>
+                                            <div class="card-body">
+                                                <div class="form-check mb-2">
+                                                    <input 
+                                                        type="checkbox" 
+                                                        wire:model.live="includeAreas" 
+                                                        class="form-check-input" 
+                                                        id="includeAreas">
+                                                    <label class="form-check-label" for="includeAreas">
+                                                        <i class="mdi mdi-map-marker-multiple text-primary"></i>
+                                                        <strong>Include Areas</strong>
+                                                        <small class="text-muted d-block">Clone all areas associated with selected sub units</small>
+                                                    </label>
+                                                </div>
+                                                <div class="form-check">
+                                                    <input 
+                                                        type="checkbox" 
+                                                        wire:model="includeSamplePoints" 
+                                                        class="form-check-input" 
+                                                        id="includeSamplePoints"
+                                                        @if(!$includeAreas) disabled @endif>
+                                                    <label class="form-check-label @if(!$includeAreas) text-muted @endif" for="includeSamplePoints">
+                                                        <i class="mdi mdi-map-marker text-success"></i>
+                                                        <strong>Include Sample Points</strong>
+                                                        <small class="text-muted d-block">Clone all sample points from cloned areas (requires "Include Areas")</small>
+                                                    </label>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            @elseif($cloneFromUnitId)
+                                <div class="alert alert-info">
+                                    <i class="mdi mdi-information-outline"></i>
+                                    No sub units found for the selected {{ strtolower($customer->unit_configurable_name ?: 'company unit') }}.
+                                </div>
+                            @else
+                                <div class="alert alert-warning">
+                                    <i class="mdi mdi-alert-outline"></i>
+                                    Please select a {{ strtolower($customer->unit_configurable_name ?: 'company unit') }} to clone from to see available sub units.
+                                </div>
+                            @endif
+                        </form>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" wire:click="closeCloneModal" wire:loading.attr="disabled" wire:target="cloneSubUnits">
+                            <i class="mdi mdi-close"></i> Cancel
+                        </button>
+                        <button 
+                            type="button" 
+                            class="btn btn-success" 
+                            wire:click="cloneSubUnits" 
+                            wire:loading.attr="disabled" 
+                            wire:target="cloneSubUnits"
+                            @if(count($selectedSubUnitsToClone) == 0 || !$cloneFromUnitId || !$cloneToUnitId) disabled @endif>
+                            <span wire:loading.remove wire:target="cloneSubUnits">
+                                <i class="mdi mdi-content-copy"></i> Clone Selected
+                            </span>
+                            <span wire:loading wire:target="cloneSubUnits">
+                                <span class="spinner-border spinner-border-sm" role="status"></span> Cloning...
                             </span>
                         </button>
                     </div>

@@ -12,7 +12,7 @@
                             </h2>
                             <p class="text-muted mb-0">Manage customers, company units, sample points, and contacts</p>
                         </div>
-                        <button wire:click="showCreateCustomerModal" wire:loading.attr="disabled" class="btn btn-primary">
+                        <button wire:click="showCreateCustomerModal" wire:loading.attr="disabled" class="btn btn-sm btn-primary">
                             <span wire:loading.remove wire:target="showCreateCustomerModal">
                                 <i class="mdi mdi-plus"></i> Add Customer
                             </span>

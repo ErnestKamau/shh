@@ -12,14 +12,25 @@
                             </h2>
                             <p class="text-muted mb-0">Manage {{ strtolower($customer->area_configurable_name ?: 'areas') }} for: <strong>{{ $customer->name }}</strong></p>
                         </div>
-                        <button wire:click="showCreateAreaModal" class="btn btn-primary" wire:loading.attr="disabled" wire:target="showCreateAreaModal">
-                            <span wire:loading.remove wire:target="showCreateAreaModal">
-                                <i class="mdi mdi-plus"></i> Add {{ $customer->area_configurable_name ?: 'Area' }}
-                            </span>
-                            <span wire:loading wire:target="showCreateAreaModal">
-                                <span class="spinner-border spinner-border-sm" role="status"></span> Opening form...
-                            </span>
-                        </button>
+                        <div class="float-right">
+                            <button wire:click="showCreateAreaModal" class="btn btn-sm btn-primary" wire:loading.attr="disabled" wire:target="showCreateAreaModal">
+                                <span wire:loading.remove wire:target="showCreateAreaModal">
+                                    <i class="mdi mdi-plus"></i> Add {{ $customer->area_configurable_name ?: 'Area' }}
+                                </span>
+                                <span wire:loading wire:target="showCreateAreaModal">
+                                    <span class="spinner-border spinner-border-sm" role="status"></span> Opening form...
+                                </span>
+                            </button>
+                            <button wire:click="showCloneModalMethod" class="btn btn-sm btn-success ms-2" wire:loading.attr="disabled" wire:target="showCloneModalMethod">
+                                <span wire:loading.remove wire:target="showCloneModalMethod">
+                                    <i class="mdi mdi-content-copy"></i> Clone {{ $customer->area_configurable_name ?: 'Areas' }}
+                                </span>
+                                <span wire:loading wire:target="showCloneModalMethod">
+                                    <span class="spinner-border spinner-border-sm" role="status"></span> Opening form...
+                                </span>
+                            </button>
+
+                        </div>
                     </div>
                 </div>
             </div>
@@ -118,7 +129,7 @@
                                                 <br><small class="text-muted">{{ $area->crmArea->code ?? '' }}</small>
                                             </td>
                                             <td>
-                                                <span class="badge bg-info p-2" style="color: white;">{{ $area->subUnit->name ?? 'N/A' }}</span>
+                                                <span class="badge bg-info p-2" style="color: white;">{{ $area->subUnit->name ?? 'N/A' }} - {{ $area->companyUnit->name ?? '' }}</span>
                                             </td>
                                             <td>
                                                 {{ Str::limit($area->description, 50) ?: 'N/A' }}
@@ -462,6 +473,150 @@
                             </span>
                             <span wire:loading wire:target="saveArea">
                                 <span class="spinner-border spinner-border-sm" role="status"></span> Saving data...
+                            </span>
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    @endif
+
+    <!-- Clone Areas Modal -->
+    @if($showCloneModal)
+        <div class="modal fade show d-block" tabindex="-1" style="background-color: rgba(0,0,0,0.5); overflow-y: auto;">
+            <div class="modal-dialog modal-lg modal-dialog-scrollable">
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <h5 class="modal-title">
+                            <i class="mdi mdi-content-copy"></i>
+                            Clone {{ $customer->area_configurable_name ?: 'Areas' }}
+                        </h5>
+                        <button type="button" class="btn-close" wire:click="closeCloneModal"></button>
+                    </div>
+                    <div class="modal-body" style="max-height: 70vh; overflow-y: auto;">
+                        <form wire:submit.prevent="cloneAreas">
+                            <!-- Clone From/To Sub Units -->
+                            <div class="row">
+                                <div class="col-md-6">
+                                    <div class="form-group mb-3">
+                                        <label class="form-label fw-bold"><i class="mdi mdi-source-branch text-primary"></i> Clone From {{ $customer->sub_unit_configurable_name ?: 'Sub Unit' }} <span class="text-danger">*</span></label>
+                                        <select wire:model.live="cloneFromSubUnitId" class="form-select modern-select">
+                                            <option value="">Select {{ strtolower($customer->sub_unit_configurable_name ?: 'sub unit') }} to clone from</option>
+                                            @foreach($companySubUnits as $subUnit)
+                                                <option value="{{ $subUnit->id }}">{{ $subUnit->name }} - {{ $subUnit->companyUnit->name ?? '' }}</option>
+                                            @endforeach
+                                        </select>
+                                        @error('cloneFromSubUnitId') <span class="text-danger">{{ $message }}</span> @enderror
+                                    </div>
+                                </div>
+                                <div class="col-md-6">
+                                    <div class="form-group mb-3">
+                                        <label class="form-label fw-bold"><i class="mdi mdi-target text-success"></i> Clone To {{ $customer->sub_unit_configurable_name ?: 'Sub Unit' }} <span class="text-danger">*</span></label>
+                                        <select wire:model="cloneToSubUnitId" class="form-select modern-select">
+                                            <option value="">Select {{ strtolower($customer->sub_unit_configurable_name ?: 'sub unit') }} to clone to</option>
+                                            @foreach($companySubUnits as $subUnit)
+                                                @if($subUnit->id != $cloneFromSubUnitId)
+                                                    <option value="{{ $subUnit->id }}">{{ $subUnit->name }} - {{ $subUnit->companyUnit->name ?? '' }}</option>
+                                                @endif
+                                            @endforeach
+                                        </select>
+                                        @error('cloneToSubUnitId') <span class="text-danger">{{ $message }}</span> @enderror
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Areas List with Checkboxes -->
+                            @if(count($availableAreasToClone) > 0)
+                                <div class="row">
+                                    <div class="col-md-12">
+                                        <div class="form-group mb-3">
+                                            <label class="form-label fw-bold">
+                                                <i class="mdi mdi-checkbox-multiple-marked text-info"></i> 
+                                                Select {{ $customer->area_configurable_name ?: 'Areas' }} to Clone 
+                                                <span class="text-danger">*</span>
+                                            </label>
+                                            <div class="card">
+                                                <div class="card-body" style="max-height: 250px; overflow-y: auto;">
+                                                    @foreach($availableAreasToClone as $area)
+                                                        <div class="form-check mb-2">
+                                                            <input 
+                                                                type="checkbox" 
+                                                                wire:model="selectedAreasToClone" 
+                                                                value="{{ $area['id'] }}" 
+                                                                class="form-check-input" 
+                                                                id="area_{{ $area['id'] }}">
+                                                            <label class="form-check-label" for="area_{{ $area['id'] }}">
+                                                                <strong>{{ $area['area_name'] }}</strong>
+                                                                <span class="badge bg-info ms-2">{{ $area['area_code'] }}</span>
+                                                                @if($area['description'] && $area['description'] != 'N/A')
+                                                                    <br><small class="text-muted">{{ Str::limit($area['description'], 60) }}</small>
+                                                                @endif
+                                                            </label>
+                                                        </div>
+                                                    @endforeach
+                                                </div>
+                                            </div>
+                                            @error('selectedAreasToClone') <span class="text-danger">{{ $message }}</span> @enderror
+                                            <small class="form-text text-muted mt-2 d-block">
+                                                <i class="mdi mdi-information-outline"></i> {{ count($selectedAreasToClone) }} of {{ count($availableAreasToClone) }} area(s) selected
+                                            </small>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <!-- Clone Options -->
+                                <div class="row">
+                                    <div class="col-md-12">
+                                        <div class="card bg-light">
+                                            <div class="card-header">
+                                                <h6 class="mb-0"><i class="mdi mdi-tune text-warning"></i> Clone Options</h6>
+                                            </div>
+                                            <div class="card-body">
+                                                <div class="form-check">
+                                                    <input 
+                                                        type="checkbox" 
+                                                        wire:model="includeSamplePoints" 
+                                                        class="form-check-input" 
+                                                        id="includeSamplePoints">
+                                                    <label class="form-check-label" for="includeSamplePoints">
+                                                        <i class="mdi mdi-map-marker text-success"></i>
+                                                        <strong>Include Sample Points</strong>
+                                                        <small class="text-muted d-block">Clone all sample points from selected areas</small>
+                                                    </label>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            @elseif($cloneFromSubUnitId)
+                                <div class="alert alert-info">
+                                    <i class="mdi mdi-information-outline"></i>
+                                    No areas found for the selected {{ strtolower($customer->sub_unit_configurable_name ?: 'sub unit') }}.
+                                </div>
+                            @else
+                                <div class="alert alert-warning">
+                                    <i class="mdi mdi-alert-outline"></i>
+                                    Please select a {{ strtolower($customer->sub_unit_configurable_name ?: 'sub unit') }} to clone from to see available areas.
+                                </div>
+                            @endif
+                        </form>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" wire:click="closeCloneModal" wire:loading.attr="disabled" wire:target="cloneAreas">
+                            <i class="mdi mdi-close"></i> Cancel
+                        </button>
+                        <button 
+                            type="button" 
+                            class="btn btn-success" 
+                            wire:click="cloneAreas" 
+                            wire:loading.attr="disabled" 
+                            wire:target="cloneAreas"
+                            @if(count($selectedAreasToClone) == 0 || !$cloneFromSubUnitId || !$cloneToSubUnitId) disabled @endif>
+                            <span wire:loading.remove wire:target="cloneAreas">
+                                <i class="mdi mdi-content-copy"></i> Clone Selected
+                            </span>
+                            <span wire:loading wire:target="cloneAreas">
+                                <span class="spinner-border spinner-border-sm" role="status"></span> Cloning...
                             </span>
                         </button>
                     </div>

@@ -21,10 +21,10 @@
                                     <i class="mdi mdi-content-save"></i> Save Changes
                                 </button>
                             @else
-                                <button wire:click="openLabelModal" class="btn btn-outline-info me-2" title="Configure Tab Names">
+                                <button wire:click="openLabelModal" class="btn btn-sm btn-outline-info me-2" title="Configure Tab Names">
                                     <i class="mdi mdi-label-outline"></i> Edit Tab Names
                                 </button>
-                                <button wire:click="startEditing" class="btn btn-primary">
+                                <button wire:click="startEditing" class="btn btn-sm btn-primary">
                                     <i class="mdi mdi-pencil"></i> Edit Customer
                                 </button>
                             @endif

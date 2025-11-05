@@ -51,6 +51,14 @@ class AreasManager extends Component
     public $perPage = 25;
     public $perPageOptions = [25, 50, 75, 100];
 
+    // Clone Modal State
+    public $showCloneModal = false;
+    public $cloneFromSubUnitId = null;
+    public $cloneToSubUnitId = null;
+    public $availableAreasToClone = [];
+    public $selectedAreasToClone = [];
+    public $includeSamplePoints = false;
+
     protected $rules = [
         'areaForm.crm_area_id' => 'required|exists:crm_areas,id',
         'areaForm.crm_company_sub_unit_id' => 'required|exists:crm_company_sub_units,id',
@@ -258,6 +266,141 @@ class AreasManager extends Component
     {
         $this->message = '';
         $this->messageType = '';
+    }
+
+    // Clone Modal Methods
+    public function showCloneModalMethod()
+    {
+        $this->resetCloneState();
+        $this->showCloneModal = true;
+    }
+
+    public function closeCloneModal()
+    {
+        $this->showCloneModal = false;
+        $this->resetCloneState();
+    }
+
+    public function resetCloneState()
+    {
+        $this->cloneFromSubUnitId = null;
+        $this->cloneToSubUnitId = null;
+        $this->availableAreasToClone = [];
+        $this->selectedAreasToClone = [];
+        $this->includeSamplePoints = false;
+    }
+
+    public function updatedCloneFromSubUnitId($value)
+    {
+        if ($value) {
+            $this->loadAreasForCloning();
+        } else {
+            $this->availableAreasToClone = [];
+            $this->selectedAreasToClone = [];
+        }
+    }
+
+    public function loadAreasForCloning()
+    {
+        if (!$this->cloneFromSubUnitId) {
+            return;
+        }
+
+        $areas = SamplePointArea::with(['crmArea'])
+            ->where('crm_company_sub_unit_id', $this->cloneFromSubUnitId)
+            ->where('crm_customer_id', $this->customerId)
+            ->orderBy('created_at', 'desc')
+            ->get(['id', 'description', 'crm_area_id']);
+
+        $this->availableAreasToClone = $areas->map(function($area) {
+            return [
+                'id' => $area->id,
+                'description' => $area->description ?? 'N/A',
+                'area_name' => $area->crmArea->name ?? 'N/A',
+                'area_code' => $area->crmArea->code ?? 'N/A',
+            ];
+        })->toArray();
+        
+        // Pre-select all areas
+        $this->selectedAreasToClone = $areas->pluck('id')->toArray();
+    }
+
+    public function cloneAreas()
+    {
+        // Validation
+        $this->validate([
+            'cloneFromSubUnitId' => 'required|exists:crm_company_sub_units,id',
+            'cloneToSubUnitId' => 'required|exists:crm_company_sub_units,id|different:cloneFromSubUnitId',
+            'selectedAreasToClone' => 'required|array|min:1',
+        ], [
+            'cloneFromSubUnitId.required' => 'Please select a sub unit to clone from.',
+            'cloneToSubUnitId.required' => 'Please select a sub unit to clone to.',
+            'cloneToSubUnitId.different' => 'Clone from and clone to sub units must be different.',
+            'selectedAreasToClone.required' => 'Please select at least one area to clone.',
+            'selectedAreasToClone.min' => 'Please select at least one area to clone.',
+        ]);
+
+        try {
+            DB::beginTransaction();
+
+            $clonedCount = 0;
+            $targetSubUnit = CRMCompanySubUnit::findOrFail($this->cloneToSubUnitId);
+
+            foreach ($this->selectedAreasToClone as $areaId) {
+                $originalArea = SamplePointArea::findOrFail($areaId);
+
+                // Clone the area
+                $newArea = new SamplePointArea();
+                $newArea->description = $originalArea->description;
+                $newArea->crm_customer_id = $originalArea->crm_customer_id;
+                $newArea->crm_company_sub_unit_id = $this->cloneToSubUnitId;
+                $newArea->crm_area_id = $originalArea->crm_area_id;
+                $newArea->crm_company_unit_id = $targetSubUnit->crm_company_unit_id;
+                $newArea->active = $originalArea->active;
+                $newArea->save();
+
+                $clonedCount++;
+
+                // Clone sample points if requested
+                if ($this->includeSamplePoints) {
+                    $samplePoints = SamplePoint::where('sample_point_area_id', $originalArea->id)
+                        ->get();
+
+                    foreach ($samplePoints as $originalPoint) {
+                        $newPoint = new SamplePoint();
+                        $newPoint->crm_company_unit_id = $targetSubUnit->crm_company_unit_id;
+                        $newPoint->sample_point_area_id = $newArea->id;
+                        $newPoint->crm_area_id = $originalPoint->crm_area_id;
+                        $newPoint->crm_sample_point_id = $originalPoint->crm_sample_point_id;
+                        $newPoint->crm_company_sub_unit_id = $this->cloneToSubUnitId;
+                        $newPoint->crm_customer_id = $originalPoint->crm_customer_id;
+                        $newPoint->active = $originalPoint->active;
+                        
+                        // Flag GPS as cloned
+                        $newPoint->gps = $originalPoint->gps ? $originalPoint->gps . ' (Cloned)' : '(Cloned)';
+                        
+                        $newPoint->save();
+                    }
+                }
+            }
+
+            DB::commit();
+
+            $this->closeCloneModal();
+            
+            $message = "{$clonedCount} area(s) cloned successfully!";
+            if ($this->includeSamplePoints) {
+                $message .= " (with sample points)";
+            }
+            
+            $this->message = $message;
+            $this->messageType = 'success';
+
+        } catch (\Exception $e) {
+            DB::rollBack();
+            $this->message = 'Error cloning areas: ' . $e->getMessage();
+            $this->messageType = 'error';
+        }
     }
 
     public function render()

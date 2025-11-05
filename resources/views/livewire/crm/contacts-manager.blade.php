@@ -12,7 +12,7 @@
                             </h2>
                             <p class="text-muted mb-0">Manage contacts for: <strong>{{ $customer->name }}</strong></p>
                         </div>
-                        <button wire:click="showCreateContactModal" class="btn btn-primary" wire:loading.attr="disabled" wire:target="showCreateContactModal">
+                        <button wire:click="showCreateContactModal" class="btn btn-sm btn-primary" wire:loading.attr="disabled" wire:target="showCreateContactModal">
                             <span wire:loading.remove wire:target="showCreateContactModal">
                                 <i class="mdi mdi-plus"></i> Add Contact
                             </span>

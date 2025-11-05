@@ -12,7 +12,7 @@
                             </h2>
                             <p class="text-muted mb-0">Manage {{ strtolower($customer->unit_configurable_name ?: 'company units') }} for: <strong>{{ $customer->name }}</strong></p>
                         </div>
-                        <button wire:click="showCreateUnitModal" class="btn btn-primary" wire:loading.attr="disabled" wire:target="showCreateUnitModal">
+                        <button wire:click="showCreateUnitModal" class="btn btn-sm btn-primary" wire:loading.attr="disabled" wire:target="showCreateUnitModal">
                             <span wire:loading.remove wire:target="showCreateUnitModal">
                                 <i class="mdi mdi-plus"></i> Add {{ $customer->unit_configurable_name ?: 'Unit' }}
                             </span>
