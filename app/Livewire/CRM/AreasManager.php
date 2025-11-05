@@ -165,39 +165,52 @@ class AreasManager extends Component
             $area->active = $this->areaForm['active'];
             $area->save();
 
-            // Create or update customer sample points (from sample_points table) to link to this area
+            // Handle sample points for this area only
             if (!empty($this->areaForm['selectedSamplePoints'])) {
                 foreach ($this->areaForm['selectedSamplePoints'] as $masterSamplePointId) {
                     // Get the master sample point to copy name and description
                     $masterSamplePoint = GlobalSamplePoint::find($masterSamplePointId);
                     
                     if ($masterSamplePoint) {
-                        // Create or update customer-specific sample point
-                        SamplePoint::updateOrCreate(
-                            [
-                                'crm_customer_id' => $this->customerId,
-                                'crm_sample_point_id' => $masterSamplePointId,
-                            ],
-                            [
-                                'name' => $masterSamplePoint->name,
-                                'description' => $masterSamplePoint->name,
-                                'crm_area_id' => $area->crm_area_id,
-                                'crm_company_sub_unit_id' => $area->crm_company_sub_unit_id,
-                                'crm_company_unit_id' => $area->crm_company_unit_id,
-                                'sample_point_area_id' => $area->id,
-                                'active' => true,
-                            ]
-                        );
+                        // Check if this specific sample point already exists for THIS area
+                        $existingPoint = SamplePoint::where('sample_point_area_id', $area->id)
+                            ->where('crm_customer_id', $this->customerId)
+                            ->where('crm_sample_point_id', $masterSamplePointId)
+                            ->first();
+                        
+                        if ($existingPoint) {
+                            // Update existing point for THIS area only
+                            $existingPoint->name = $masterSamplePoint->name;
+                            $existingPoint->description = $masterSamplePoint->name;
+                            $existingPoint->crm_area_id = $area->crm_area_id;
+                            $existingPoint->crm_company_sub_unit_id = $area->crm_company_sub_unit_id;
+                            $existingPoint->crm_company_unit_id = $area->crm_company_unit_id;
+                            $existingPoint->active = true;
+                            $existingPoint->save();
+                        } else {
+                            // Create new sample point for THIS area
+                            $newPoint = new SamplePoint();
+                            $newPoint->crm_customer_id = $this->customerId;
+                            $newPoint->crm_sample_point_id = $masterSamplePointId;
+                            $newPoint->name = $masterSamplePoint->name;
+                            $newPoint->description = $masterSamplePoint->name;
+                            $newPoint->crm_area_id = $area->crm_area_id;
+                            $newPoint->crm_company_sub_unit_id = $area->crm_company_sub_unit_id;
+                            $newPoint->crm_company_unit_id = $area->crm_company_unit_id;
+                            $newPoint->sample_point_area_id = $area->id;
+                            $newPoint->active = true;
+                            $newPoint->save();
+                        }
                     }
                 }
             }
 
-            // Remove link from deselected sample points
+            // Remove sample points that were deselected from THIS area only (don't unlink, delete them)
             if ($this->editingArea) {
                 SamplePoint::where('sample_point_area_id', $area->id)
                     ->where('crm_customer_id', $this->customerId)
                     ->whereNotIn('crm_sample_point_id', $this->areaForm['selectedSamplePoints'] ?? [])
-                    ->update(['sample_point_area_id' => null]);
+                    ->delete();
             }
 
             DB::commit();
