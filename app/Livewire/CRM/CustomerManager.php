@@ -373,6 +373,12 @@ class CustomerManager extends Component
     {
         $customer = CRMCustomer::findOrFail($id);
         
+        // Extract first Zoho customer ID from JSON array for dropdown display
+        $zohoCustomerId = null;
+        if (is_array($customer->zoho_customer_id) && count($customer->zoho_customer_id) > 0) {
+            $zohoCustomerId = $customer->zoho_customer_id[0];
+        }
+        
         $this->customerForm = [
             'name' => $customer->name,
             'postal_address' => $customer->postal_address,
@@ -388,7 +394,7 @@ class CustomerManager extends Component
             'account_status' => $customer->account_status,
             'vat_no' => $customer->vat_no ?? '',
             'lpos_required' => $customer->lpos_required == 1,
-            'zoho_customer_id' => $customer->zoho_customer_id
+            'zoho_customer_id' => $zohoCustomerId
         ];
         
         // Load data only when modal is opened to improve performance
@@ -439,7 +445,13 @@ class CustomerManager extends Component
             $customer->account_status = $this->customerForm['account_status'];
             $customer->vat_no = $this->customerForm['vat_no'];
             $customer->lpos_required = $this->customerForm['lpos_required'] ? 1 : 0;
-            $customer->zoho_customer_id = $this->customerForm['zoho_customer_id'];
+            
+            // Handle zoho_customer_id as JSON array
+            if ($this->customerForm['zoho_customer_id']) {
+                $customer->zoho_customer_id = [$this->customerForm['zoho_customer_id']];
+            } else {
+                $customer->zoho_customer_id = null;
+            }
 
             $customer->save();
 
