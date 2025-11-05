@@ -59,6 +59,11 @@ class AreasManager extends Component
     public $selectedAreasToClone = [];
     public $includeSamplePoints = false;
 
+    // Delete Confirmation Modal State
+    public $showDeleteConfirmModal = false;
+    public $areaToDelete = null;
+    public $samplePointsCount = 0;
+
     protected $rules = [
         'areaForm.crm_area_id' => 'required|exists:crm_areas,id',
         'areaForm.crm_company_sub_unit_id' => 'required|exists:crm_company_sub_units,id',
@@ -208,31 +213,52 @@ class AreasManager extends Component
         }
     }
 
-    public function deleteArea($id)
+    public function showDeleteConfirmation($id)
     {
+        $area = SamplePointArea::findOrFail($id);
+        $this->areaToDelete = $area;
+        $this->samplePointsCount = $area->samplePoints()->count();
+        $this->showDeleteConfirmModal = true;
+    }
+
+    public function closeDeleteConfirmModal()
+    {
+        $this->showDeleteConfirmModal = false;
+        $this->areaToDelete = null;
+        $this->samplePointsCount = 0;
+    }
+
+    public function confirmDeleteArea()
+    {
+        if (!$this->areaToDelete) {
+            $this->message = 'No area selected for deletion.';
+            $this->messageType = 'error';
+            return;
+        }
+
         try {
             DB::beginTransaction();
 
-            $area = SamplePointArea::findOrFail($id);
+            $area = $this->areaToDelete;
             
-            // Check if area has sample points
-            if ($area->samplePoints()->count() > 0) {
-                $this->message = 'Cannot delete area that has sample points. Please reassign or delete sample points first.';
-                $this->messageType = 'error';
-                return;
-            }
+            // Delete all sample points associated with this area first
+            SamplePoint::where('sample_point_area_id', $area->id)
+                ->where('crm_customer_id', $this->customerId)
+                ->delete();
 
-            // Soft delete
+            // Delete the area
             $area->delete();
 
             DB::commit();
             
-            $this->message = 'Area deleted successfully!';
+            $this->closeDeleteConfirmModal();
+            $this->message = 'Area and associated sample points deleted successfully!';
             $this->messageType = 'success';
 
         } catch (\Exception $e) {
             DB::rollBack();
-            $this->message = 'Error: ' . $e->getMessage();
+            $this->closeDeleteConfirmModal();
+            $this->message = 'Error deleting area: ' . $e->getMessage();
             $this->messageType = 'error';
         }
     }

@@ -158,16 +158,15 @@
                                                             <span class="spinner-border spinner-border-sm" role="status"></span> Opening form...
                                                         </span>
                                                     </button>
-                                                    <button wire:click="deleteArea({{ $area->id }})" 
+                                                    <button wire:click="showDeleteConfirmation({{ $area->id }})" 
                                                             class="btn btn-sm btn-outline-danger mr-1" 
                                                             title="Delete"
                                                             wire:loading.attr="disabled"
-                                                            wire:target="deleteArea({{ $area->id }})"
-                                                            onclick="return confirm('Are you sure you want to delete this area?')">
-                                                        <span wire:loading.remove wire:target="deleteArea({{ $area->id }})">
+                                                            wire:target="showDeleteConfirmation({{ $area->id }})">
+                                                        <span wire:loading.remove wire:target="showDeleteConfirmation({{ $area->id }})">
                                                             <i class="mdi mdi-delete"></i>
                                                         </span>
-                                                        <span wire:loading wire:target="deleteArea({{ $area->id }})">
+                                                        <span wire:loading wire:target="showDeleteConfirmation({{ $area->id }})">
                                                             <span class="spinner-border spinner-border-sm" role="status"></span> Opening form...
                                                         </span>
                                                     </button>
@@ -617,6 +616,58 @@
                             </span>
                             <span wire:loading wire:target="cloneAreas">
                                 <span class="spinner-border spinner-border-sm" role="status"></span> Cloning...
+                            </span>
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    @endif
+
+    <!-- Delete Confirmation Modal -->
+    @if($showDeleteConfirmModal && $areaToDelete)
+        <div class="modal fade show d-block" tabindex="-1" style="background-color: rgba(0,0,0,0.5);">
+            <div class="modal-dialog modal-dialog-centered">
+                <div class="modal-content">
+                    <div class="modal-header bg-danger text-white">
+                        <h5 class="modal-title">
+                            <i class="mdi mdi-alert"></i>
+                            Confirm Deletion
+                        </h5>
+                        <button type="button" class="btn-close btn-close-white" wire:click="closeDeleteConfirmModal"></button>
+                    </div>
+                    <div class="modal-body">
+                        <div class="alert alert-warning">
+                            <i class="mdi mdi-alert-outline"></i>
+                            <strong>Warning!</strong> This action cannot be undone.
+                        </div>
+                        
+                        <p class="mb-3">
+                            You are about to delete the area: 
+                            <strong>{{ $areaToDelete->crmArea->name ?? 'N/A' }}</strong>
+                        </p>
+                        
+                        @if($samplePointsCount > 0)
+                            <div class="alert alert-danger">
+                                <i class="mdi mdi-map-marker-alert"></i>
+                                <strong>This will also delete {{ $samplePointsCount }} sample point(s)</strong> associated with this area.
+                            </div>
+                        @else
+                            <p class="text-muted">This area has no associated sample points.</p>
+                        @endif
+                        
+                        <p class="mb-0">Are you sure you want to proceed?</p>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" wire:click="closeDeleteConfirmModal" wire:loading.attr="disabled" wire:target="confirmDeleteArea">
+                            <i class="mdi mdi-close"></i> Cancel
+                        </button>
+                        <button type="button" class="btn btn-danger" wire:click="confirmDeleteArea" wire:loading.attr="disabled" wire:target="confirmDeleteArea">
+                            <span wire:loading.remove wire:target="confirmDeleteArea">
+                                <i class="mdi mdi-delete"></i> Yes, Delete
+                            </span>
+                            <span wire:loading wire:target="confirmDeleteArea">
+                                <span class="spinner-border spinner-border-sm" role="status"></span> Deleting...
                             </span>
                         </button>
                     </div>
