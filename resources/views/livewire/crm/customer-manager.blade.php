@@ -181,10 +181,16 @@
                                             </div>
                                         </td>
                                         <td>
-                                            @if($customer->zohocustomer)
+                                            @php
+                                                $linkedZohoCustomers = $customer->zohoCustomers();
+                                            @endphp
+                                            @if($linkedZohoCustomers->count() > 0)
                                                 <div>
-                                                    <div class="fw-bold">{{ $customer->zohocustomer->name }}</div>
-                                                    <small class="text-muted">{{ $customer->zohocustomer->customer_no }}</small>
+                                                    <div class="fw-bold">{{ $linkedZohoCustomers->first()->name }}</div>
+                                                    <small class="text-muted">{{ $linkedZohoCustomers->first()->customer_no }}</small>
+                                                    @if($linkedZohoCustomers->count() > 1)
+                                                        <span class="badge bg-info" style="font-size: 10px;">+{{ $linkedZohoCustomers->count() - 1 }} more</span>
+                                                    @endif
                                                 </div>
                                             @else
                                                 <span class="text-muted">-</span>

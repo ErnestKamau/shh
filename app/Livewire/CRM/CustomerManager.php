@@ -133,7 +133,7 @@ class CustomerManager extends Component
 
     public function getCustomersProperty()
     {
-        $query = CRMCustomer::with(['country', 'currencyinfo','zohocustomer'])
+        $query = CRMCustomer::with(['country', 'currencyinfo'])
             ->orderBy('name');
 
         if ($this->search) {
