@@ -16,8 +16,13 @@
                             <button wire:click="openBulkUploadModal" class="btn btn-success me-2" type="button">
                                 <i class="mdi mdi-file-excel"></i> Bulk Create
                             </button>
-                            <button wire:click="showCreateSamplePointModal" class="btn btn-primary" type="button">
-                                <i class="mdi mdi-plus"></i> Add Sample Point
+                            <button wire:click="showCreateSamplePointModal" class="btn btn-primary" type="button" wire:loading.attr="disabled" wire:target="showCreateSamplePointModal">
+                                <span wire:loading.remove wire:target="showCreateSamplePointModal">
+                                    <i class="mdi mdi-plus"></i> Add Sample Point
+                                </span>
+                                <span wire:loading wire:target="showCreateSamplePointModal">
+                                    <span class="spinner-border spinner-border-sm" role="status"></span> Opening form...
+                                </span>
                             </button>
                         </div>
                     </div>
@@ -139,14 +144,28 @@
                                                 <div class="btn-group" role="group">
                                                     <button wire:click="showEditSamplePointModal({{ $samplePoint->id }})" 
                                                             class="btn btn-sm btn-outline-warning mr-1" 
-                                                            title="Edit">
-                                                        <i class="mdi mdi-pencil"></i>
+                                                            title="Edit"
+                                                            wire:loading.attr="disabled"
+                                                            wire:target="showEditSamplePointModal({{ $samplePoint->id }})">
+                                                        <span wire:loading.remove wire:target="showEditSamplePointModal({{ $samplePoint->id }})">
+                                                            <i class="mdi mdi-pencil"></i>
+                                                        </span>
+                                                        <span wire:loading wire:target="showEditSamplePointModal({{ $samplePoint->id }})">
+                                                            <span class="spinner-border spinner-border-sm" role="status"></span> Opening form...
+                                                        </span>
                                                     </button>
                                                     <button wire:click="deleteSamplePoint({{ $samplePoint->id }})" 
                                                             class="btn btn-sm btn-outline-danger mr-1" 
                                                             title="Delete"
+                                                            wire:loading.attr="disabled"
+                                                            wire:target="deleteSamplePoint({{ $samplePoint->id }})"
                                                             onclick="return confirm('Are you sure you want to delete this sample point?')">
-                                                        <i class="mdi mdi-delete"></i>
+                                                        <span wire:loading.remove wire:target="deleteSamplePoint({{ $samplePoint->id }})">
+                                                            <i class="mdi mdi-delete"></i>
+                                                        </span>
+                                                        <span wire:loading wire:target="deleteSamplePoint({{ $samplePoint->id }})">
+                                                            <span class="spinner-border spinner-border-sm" role="status"></span> Opening form...
+                                                        </span>
                                                     </button>
                                                 </div>
                                             </td>
@@ -199,9 +218,14 @@
                         </form>
                     </div>
                     <div class="modal-footer">
-                        <button type="button" class="btn btn-secondary" wire:click="closeSamplePointModal">Cancel</button>
-                        <button type="button" class="btn btn-primary" wire:click="saveSamplePoint">
-                            <i class="mdi mdi-content-save"></i> {{ $editingSamplePoint ? 'Update' : 'Create' }} Sample Point
+                        <button type="button" class="btn btn-secondary" wire:click="closeSamplePointModal" wire:loading.attr="disabled" wire:target="saveSamplePoint">Cancel</button>
+                        <button type="button" class="btn btn-primary" wire:click="saveSamplePoint" wire:loading.attr="disabled" wire:target="saveSamplePoint">
+                            <span wire:loading.remove wire:target="saveSamplePoint">
+                                <i class="mdi mdi-content-save"></i> {{ $editingSamplePoint ? 'Update' : 'Create' }} Sample Point
+                            </span>
+                            <span wire:loading wire:target="saveSamplePoint">
+                                <span class="spinner-border spinner-border-sm" role="status"></span> Saving data...
+                            </span>
                         </button>
                     </div>
                 </div>

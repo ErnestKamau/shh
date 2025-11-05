@@ -12,8 +12,13 @@
                             </h2>
                             <p class="text-muted mb-0">Manage {{ strtolower($customer->area_configurable_name ?: 'areas') }} for: <strong>{{ $customer->name }}</strong></p>
                         </div>
-                        <button wire:click="showCreateAreaModal" class="btn btn-primary">
-                            <i class="mdi mdi-plus"></i> Add {{ $customer->area_configurable_name ?: 'Area' }}
+                        <button wire:click="showCreateAreaModal" class="btn btn-primary" wire:loading.attr="disabled" wire:target="showCreateAreaModal">
+                            <span wire:loading.remove wire:target="showCreateAreaModal">
+                                <i class="mdi mdi-plus"></i> Add {{ $customer->area_configurable_name ?: 'Area' }}
+                            </span>
+                            <span wire:loading wire:target="showCreateAreaModal">
+                                <span class="spinner-border spinner-border-sm" role="status"></span> Opening form...
+                            </span>
                         </button>
                     </div>
                 </div>
@@ -132,14 +137,28 @@
                                                 <div class="btn-group" role="group">
                                                     <button wire:click="showEditAreaModal({{ $area->id }})" 
                                                             class="btn btn-sm btn-outline-warning mr-1" 
-                                                            title="Edit">
-                                                        <i class="mdi mdi-pencil"></i>
+                                                            title="Edit"
+                                                            wire:loading.attr="disabled"
+                                                            wire:target="showEditAreaModal({{ $area->id }})">
+                                                        <span wire:loading.remove wire:target="showEditAreaModal({{ $area->id }})">
+                                                            <i class="mdi mdi-pencil"></i>
+                                                        </span>
+                                                        <span wire:loading wire:target="showEditAreaModal({{ $area->id }})">
+                                                            <span class="spinner-border spinner-border-sm" role="status"></span> Opening form...
+                                                        </span>
                                                     </button>
                                                     <button wire:click="deleteArea({{ $area->id }})" 
                                                             class="btn btn-sm btn-outline-danger mr-1" 
                                                             title="Delete"
+                                                            wire:loading.attr="disabled"
+                                                            wire:target="deleteArea({{ $area->id }})"
                                                             onclick="return confirm('Are you sure you want to delete this area?')">
-                                                        <i class="mdi mdi-delete"></i>
+                                                        <span wire:loading.remove wire:target="deleteArea({{ $area->id }})">
+                                                            <i class="mdi mdi-delete"></i>
+                                                        </span>
+                                                        <span wire:loading wire:target="deleteArea({{ $area->id }})">
+                                                            <span class="spinner-border spinner-border-sm" role="status"></span> Opening form...
+                                                        </span>
                                                     </button>
                                                 </div>
                                             </td>
@@ -436,9 +455,14 @@
                         </form>
                     </div>
                     <div class="modal-footer">
-                        <button type="button" class="btn btn-secondary" wire:click="closeAreaModal">Cancel</button>
-                        <button type="button" class="btn btn-primary" wire:click="saveArea">
-                            <i class="mdi mdi-content-save"></i> Save
+                        <button type="button" class="btn btn-secondary" wire:click="closeAreaModal" wire:loading.attr="disabled" wire:target="saveArea">Cancel</button>
+                        <button type="button" class="btn btn-primary" wire:click="saveArea" wire:loading.attr="disabled" wire:target="saveArea">
+                            <span wire:loading.remove wire:target="saveArea">
+                                <i class="mdi mdi-content-save"></i> Save
+                            </span>
+                            <span wire:loading wire:target="saveArea">
+                                <span class="spinner-border spinner-border-sm" role="status"></span> Saving data...
+                            </span>
                         </button>
                     </div>
                 </div>

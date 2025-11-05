@@ -12,8 +12,13 @@
                             </h2>
                             <p class="text-muted mb-0">Manage {{ strtolower($customer->sub_unit_configurable_name ?: 'company sub units') }} for: <strong>{{ $customer->name }}</strong></p>
                         </div>
-                        <button wire:click="showCreateSubUnitModal" class="btn btn-primary">
-                            <i class="mdi mdi-plus"></i> Add {{ $customer->sub_unit_configurable_name ?: 'Sub Unit' }}
+                        <button wire:click="showCreateSubUnitModal" class="btn btn-primary" wire:loading.attr="disabled" wire:target="showCreateSubUnitModal">
+                            <span wire:loading.remove wire:target="showCreateSubUnitModal">
+                                <i class="mdi mdi-plus"></i> Add {{ $customer->sub_unit_configurable_name ?: 'Sub Unit' }}
+                            </span>
+                            <span wire:loading wire:target="showCreateSubUnitModal">
+                                <span class="spinner-border spinner-border-sm" role="status"></span> Opening form...
+                            </span>
                         </button>
                     </div>
                 </div>
@@ -142,14 +147,28 @@
                                                 <div class="btn-group" role="group">
                                                     <button wire:click="showEditSubUnitModal({{ $subUnit->id }})" 
                                                             class="btn btn-sm btn-outline-warning mr-1" 
-                                                            title="Edit">
-                                                        <i class="mdi mdi-pencil"></i>
+                                                            title="Edit"
+                                                            wire:loading.attr="disabled"
+                                                            wire:target="showEditSubUnitModal({{ $subUnit->id }})">
+                                                        <span wire:loading.remove wire:target="showEditSubUnitModal({{ $subUnit->id }})">
+                                                            <i class="mdi mdi-pencil"></i>
+                                                        </span>
+                                                        <span wire:loading wire:target="showEditSubUnitModal({{ $subUnit->id }})">
+                                                            <span class="spinner-border spinner-border-sm" role="status"></span> Opening form...
+                                                        </span>
                                                     </button>
                                                     <button wire:click="deleteSubUnit({{ $subUnit->id }})" 
                                                             class="btn btn-sm btn-outline-danger mr-1" 
                                                             title="Delete"
+                                                            wire:loading.attr="disabled"
+                                                            wire:target="deleteSubUnit({{ $subUnit->id }})"
                                                             onclick="return confirm('Are you sure you want to delete this sub unit?')">
-                                                        <i class="mdi mdi-delete"></i>
+                                                        <span wire:loading.remove wire:target="deleteSubUnit({{ $subUnit->id }})">
+                                                            <i class="mdi mdi-delete"></i>
+                                                        </span>
+                                                        <span wire:loading wire:target="deleteSubUnit({{ $subUnit->id }})">
+                                                            <span class="spinner-border spinner-border-sm" role="status"></span> Opening form...
+                                                        </span>
                                                     </button>
                                                 </div>
                                             </td>
@@ -284,9 +303,14 @@
                         </form>
                     </div>
                     <div class="modal-footer">
-                        <button type="button" class="btn btn-secondary" wire:click="closeSubUnitModal">Cancel</button>
-                        <button type="button" class="btn btn-primary" wire:click="saveSubUnit">
-                            <i class="mdi mdi-content-save"></i> Save
+                        <button type="button" class="btn btn-secondary" wire:click="closeSubUnitModal" wire:loading.attr="disabled" wire:target="saveSubUnit">Cancel</button>
+                        <button type="button" class="btn btn-primary" wire:click="saveSubUnit" wire:loading.attr="disabled" wire:target="saveSubUnit">
+                            <span wire:loading.remove wire:target="saveSubUnit">
+                                <i class="mdi mdi-content-save"></i> Save
+                            </span>
+                            <span wire:loading wire:target="saveSubUnit">
+                                <span class="spinner-border spinner-border-sm" role="status"></span> Saving data...
+                            </span>
                         </button>
                     </div>
                 </div>

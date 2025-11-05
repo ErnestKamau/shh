@@ -12,8 +12,13 @@
                             </h2>
                             <p class="text-muted mb-0">Manage {{ strtolower($customer->unit_configurable_name ?: 'company units') }} for: <strong>{{ $customer->name }}</strong></p>
                         </div>
-                        <button wire:click="showCreateUnitModal" class="btn btn-primary">
-                            <i class="mdi mdi-plus"></i> Add {{ $customer->unit_configurable_name ?: 'Unit' }}
+                        <button wire:click="showCreateUnitModal" class="btn btn-primary" wire:loading.attr="disabled" wire:target="showCreateUnitModal">
+                            <span wire:loading.remove wire:target="showCreateUnitModal">
+                                <i class="mdi mdi-plus"></i> Add {{ $customer->unit_configurable_name ?: 'Unit' }}
+                            </span>
+                            <span wire:loading wire:target="showCreateUnitModal">
+                                <i class="mdi mdi-loading mdi-spin"></i> Opening form...
+                            </span>
                         </button>
                     </div>
                 </div>
@@ -61,14 +66,28 @@
                                                 <div class="btn-group" role="group">
                                                     <button wire:click="showEditUnitModal({{ $unit->id }})" 
                                                             class="btn btn-sm btn-outline-warning mr-1" 
-                                                            title="Edit">
-                                                        <i class="mdi mdi-pencil"></i>
+                                                            title="Edit"
+                                                            wire:loading.attr="disabled" 
+                                                            wire:target="showEditUnitModal({{ $unit->id }})">
+                                                        <span wire:loading.remove wire:target="showEditUnitModal({{ $unit->id }})">
+                                                            <i class="mdi mdi-pencil"></i>
+                                                        </span>
+                                                        <span wire:loading wire:target="showEditUnitModal({{ $unit->id }})">
+                                                            <span class="spinner-border spinner-border-sm" role="status"></span> Opening form...
+                                                        </span>
                                                     </button>
                                                     <button wire:click="deleteUnit({{ $unit->id }})" 
                                                             class="btn btn-sm btn-outline-danger mr-1" 
                                                             title="Delete"
+                                                            wire:loading.attr="disabled"
+                                                            wire:target="deleteUnit({{ $unit->id }})"
                                                             onclick="return confirm('Are you sure you want to delete this unit?')">
-                                                        <i class="mdi mdi-delete"></i>
+                                                        <span wire:loading.remove wire:target="deleteUnit({{ $unit->id }})">
+                                                            <i class="mdi mdi-delete"></i>
+                                                        </span>
+                                                        <span wire:loading wire:target="deleteUnit({{ $unit->id }})">
+                                                            <span class="spinner-border spinner-border-sm" role="status"></span> Opening form...
+                                                        </span>
                                                     </button>
                                                 </div>
                                             </td>
@@ -118,9 +137,14 @@
                     </form>
                 </div>
                 <div class="modal-footer">
-                    <button type="button" class="btn btn-secondary" wire:click="closeUnitModal">Cancel</button>
-                    <button type="button" class="btn btn-primary" wire:click="saveUnit">
-                        <i class="mdi mdi-content-save"></i> {{ $editingUnit ? 'Update' : 'Create' }} Unit
+                    <button type="button" class="btn btn-secondary" wire:click="closeUnitModal" wire:loading.attr="disabled" wire:target="saveUnit">Cancel</button>
+                    <button type="button" class="btn btn-primary" wire:click="saveUnit" wire:loading.attr="disabled" wire:target="saveUnit">
+                        <span wire:loading.remove wire:target="saveUnit">
+                            <i class="mdi mdi-content-save"></i> {{ $editingUnit ? 'Update' : 'Create' }} Unit
+                        </span>
+                        <span wire:loading wire:target="saveUnit">
+                            <span class="spinner-border spinner-border-sm" role="status"></span> Saving data...
+                        </span>
                     </button>
                 </div>
             </div>

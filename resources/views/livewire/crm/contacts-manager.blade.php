@@ -12,8 +12,13 @@
                             </h2>
                             <p class="text-muted mb-0">Manage contacts for: <strong>{{ $customer->name }}</strong></p>
                         </div>
-                        <button wire:click="showCreateContactModal" class="btn btn-primary">
-                            <i class="mdi mdi-plus"></i> Add Contact
+                        <button wire:click="showCreateContactModal" class="btn btn-primary" wire:loading.attr="disabled" wire:target="showCreateContactModal">
+                            <span wire:loading.remove wire:target="showCreateContactModal">
+                                <i class="mdi mdi-plus"></i> Add Contact
+                            </span>
+                            <span wire:loading wire:target="showCreateContactModal">
+                                <i class="mdi mdi-loading mdi-spin"></i> Opening form...
+                            </span>
                         </button>
                     </div>
                 </div>
@@ -80,14 +85,28 @@
                                                 <div class="btn-group" role="group">
                                                     <button wire:click="showEditContactModal({{ $contact->id }})" 
                                                             class="btn btn-sm btn-outline-warning mr-1" 
-                                                            title="Edit">
-                                                        <i class="mdi mdi-pencil"></i>
+                                                            title="Edit"
+                                                            wire:loading.attr="disabled"
+                                                            wire:target="showEditContactModal({{ $contact->id }})">
+                                                        <span wire:loading.remove wire:target="showEditContactModal({{ $contact->id }})">
+                                                            <i class="mdi mdi-pencil"></i>
+                                                        </span>
+                                                        <span wire:loading wire:target="showEditContactModal({{ $contact->id }})">
+                                                            <span class="spinner-border spinner-border-sm" role="status"></span> Opening form...
+                                                        </span>
                                                     </button>
                                                     <button wire:click="deleteContact({{ $contact->id }})" 
                                                             class="btn btn-sm btn-outline-danger mr-1" 
                                                             title="Delete"
+                                                            wire:loading.attr="disabled"
+                                                            wire:target="deleteContact({{ $contact->id }})"
                                                             onclick="return confirm('Are you sure you want to delete this contact?')">
-                                                        <i class="mdi mdi-delete"></i>
+                                                        <span wire:loading.remove wire:target="deleteContact({{ $contact->id }})">
+                                                            <i class="mdi mdi-delete"></i>
+                                                        </span>
+                                                        <span wire:loading wire:target="deleteContact({{ $contact->id }})">
+                                                            <span class="spinner-border spinner-border-sm" role="status"></span> Opening form...
+                                                        </span>
                                                     </button>
                                                 </div>
                                             </td>
@@ -410,11 +429,16 @@
                     </form>
                 </div>
                 <div class="modal-footer" style="border-top: 2px solid #e9ecef;">
-                    <button type="button" class="btn btn-secondary" wire:click="closeContactModal">
+                    <button type="button" class="btn btn-secondary" wire:click="closeContactModal" wire:loading.attr="disabled" wire:target="saveContact">
                         <i class="mdi mdi-close"></i> Cancel
                     </button>
-                    <button type="button" class="btn btn-primary" wire:click="saveContact">
-                        <i class="mdi mdi-content-save"></i> {{ $editingContact ? 'Update' : 'Create' }} Contact
+                    <button type="button" class="btn btn-primary" wire:click="saveContact" wire:loading.attr="disabled" wire:target="saveContact">
+                        <span wire:loading.remove wire:target="saveContact">
+                            <i class="mdi mdi-content-save"></i> {{ $editingContact ? 'Update' : 'Create' }} Contact
+                        </span>
+                        <span wire:loading wire:target="saveContact">
+                            <span class="spinner-border spinner-border-sm" role="status"></span> Saving data...
+                        </span>
                     </button>
                 </div>
             </div>
