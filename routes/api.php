@@ -23,6 +23,9 @@ Route::post('/clients', 'Api\ClientController@store');
 Route::get('/client-units', 'Api\ClientUnitController@index');
 Route::post('/client-units', 'Api\ClientUnitController@store');
 
+Route::get('/company-sub-units', 'Api\CompanySubUnitController@index');
+Route::post('/company-sub-units', 'Api\CompanySubUnitController@store');
+
 Route::get('/client-contacts', 'Api\ClientContactController@index');
 Route::post('/client-contacts', 'Api\ClientContactController@store');
 
@@ -33,4 +36,9 @@ Route::get('/sample-conditions', 'Api\SampleConditionController@index');
 Route::post('/sample-conditions', 'Api\SampleConditionController@store');
 
 Route::get('/sample-types', 'Api\SampleTypeController@index');
+
+// Supporting data endpoints for client modal
+Route::get('/countries', 'Api\CountryController@index');
+Route::get('/account-settings', 'Api\AccountSettingsController@index');
+Route::get('/zoho-customers', 'Api\ZohoCustomerController@index');
 

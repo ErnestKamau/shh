@@ -1,10 +1,14 @@
-@extends('layouts.sample-submissions', ['select2' => true])
+@if($use_lab_layout)
+  @extends('layouts.lab.layout.app', ['select2'=>true])
+@else
+  @extends('layouts.sample-submissions', ['select2' => true])
+@endif
 
-@section('title')
+@section(isset($use_lab_layout) ? 'title2' : 'title')
   <title>Fill Form - {{ $submissionForm->name }}</title>
 @endsection
 
-@section('content')
+@section(isset($use_lab_layout) ? 'content2' : 'content')
     <?php
       $items = array(
         array(
@@ -178,7 +182,7 @@
             </div>
             
             <!-- Form Data Preview -->
-            <div class="card mt-3">
+            <div class="card mt-3 hidden">
               <div class="card-header">
                 <h6 class="mb-0">
                   <i class="mdi mdi-code-json"></i> Form Data Preview

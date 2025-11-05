@@ -475,19 +475,24 @@
             @break
             
         @case('company_sub_unit_select')
-            <select class="form-control custom-element" 
-                    id="{{ $fieldId }}" 
-                    name="{{ $fieldName }}"
-                    data-element-type="company_sub_unit_select"
-                    data-depends-on="client_unit_select"
-                    data-saved-value="{{ $fieldValue }}"
-                    {{ $element->is_required ? 'required' : '' }}
-                    {{ $element->is_readonly ? 'disabled' : '' }}>
-                @if(!$element->is_required)
-                    <option value="">{{ $element->placeholder ?: 'Select a company sub unit...' }}</option>
-                @endif
-                {{-- Options will be loaded dynamically based on selected client unit --}}
-            </select>
+            <div class="custom-element-wrapper position-relative">
+                <select class="form-control custom-element" 
+                        id="{{ $fieldId }}" 
+                        name="{{ $fieldName }}"
+                        data-element-type="company_sub_unit_select"
+                        data-depends-on="client_unit_select"
+                        data-saved-value="{{ $fieldValue }}"
+                        {{ $element->is_required ? 'required' : '' }}
+                        {{ $element->is_readonly ? 'disabled' : '' }}>
+                    @if(!$element->is_required)
+                        <option value="">{{ $element->placeholder ?: 'Select a company sub unit...' }}</option>
+                    @endif
+                    {{-- Options will be loaded dynamically based on selected client unit --}}
+                </select>
+                <button type="button" class="btn btn-sm btn-primary floating-add-btn" data-toggle="modal" data-target="#addCompanySubUnitModal" title="Add New Company Sub Unit">
+                    <i class="mdi mdi-plus"></i>
+                </button>
+            </div>
             @break
             
         @case('calculation')

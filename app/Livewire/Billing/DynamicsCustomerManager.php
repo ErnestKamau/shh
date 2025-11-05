@@ -7,6 +7,8 @@ use Livewire\WithPagination;
 use App\ZohoCustomers;
 use App\Services\DynamicsCustomerSyncService;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Validation\Rule;
 
 class DynamicsCustomerManager extends Component
@@ -42,6 +44,17 @@ class DynamicsCustomerManager extends Component
     public $isSyncing = false;
     public $syncProgress = '';
     public $syncResult = null;
+    
+    // Sync to Imara properties
+    public $showSyncToImaraModalFlag = false;
+    public $isSyncingToImara = false;
+    public $syncToImaraProgress = '';
+    public $syncToImaraResult = null;
+    public $syncToImaraCurrentBatch = 0;
+    public $syncToImaraTotalCustomers = 0;
+    public $syncToImaraProcessedCount = 0;
+    public $syncToImaraCreatedCount = 0;
+    public $syncToImaraLinkedCount = 0;
 
     protected $rules = [
         'customerForm.name' => 'required|string|max:255',
@@ -276,6 +289,289 @@ class DynamicsCustomerManager extends Component
             $this->message = 'Sync failed: ' . $e->getMessage();
             $this->messageType = 'error';
         }
+    }
+
+    // Sync to Imara Methods
+    public function showSyncToImaraModal()
+    {
+        $this->showSyncToImaraModalFlag = true;
+        $this->syncToImaraResult = null;
+        $this->syncToImaraProgress = '';
+    }
+
+    public function closeSyncToImaraModal()
+    {
+        $this->showSyncToImaraModalFlag = false;
+        $this->syncToImaraResult = null;
+        $this->syncToImaraProgress = '';
+        $this->isSyncingToImara = false;
+        $this->syncToImaraCurrentBatch = 0;
+        $this->syncToImaraTotalCustomers = 0;
+        $this->syncToImaraProcessedCount = 0;
+        $this->syncToImaraCreatedCount = 0;
+        $this->syncToImaraLinkedCount = 0;
+        
+        // Clear cache
+        Cache::forget('sync_to_imara_unlinked_ids');
+    }
+
+    public function syncDynamicsToImara()
+    {
+        try {
+            // Initialize sync
+            set_time_limit(300); // 5 minutes
+            
+            Log::info('Sync to Imara - Initialization started');
+            
+            $this->isSyncingToImara = true;
+            $this->syncToImaraProgress = 'Initializing sync...';
+            
+            // Get all linked Zoho customer IDs from CRM customers
+            $linkedZohoIds = \App\Models\CRM\CRMCustomer::whereNotNull('zoho_customer_id')
+                ->get()
+                ->pluck('zoho_customer_id')
+                ->flatten()
+                ->unique()
+                ->filter()
+                ->values()
+                ->toArray();
+            
+            Log::info('Linked Zoho IDs found', ['count' => count($linkedZohoIds)]);
+            
+            // Get IDs of unlinked Zoho customers only
+            $unlinkedZohoCustomerIds = ZohoCustomers::where('status', 'Active')
+                ->whereNotIn('id', $linkedZohoIds)
+                ->pluck('id')
+                ->toArray();
+            
+            $totalCount = count($unlinkedZohoCustomerIds);
+            
+            Log::info('Unlinked Zoho customer IDs found', ['count' => $totalCount]);
+            
+            if ($totalCount === 0) {
+                $this->syncToImaraResult = [
+                    'success' => true,
+                    'message' => "All Dynamics customers are already synced to Imara.",
+                    'total_processed' => 0,
+                    'created_count' => 0,
+                    'linked_count' => 0,
+                ];
+                $this->isSyncingToImara = false;
+                $this->message = "All Dynamics customers are already synced.";
+                $this->messageType = 'success';
+                return;
+            }
+            
+            // Store unlinked IDs in cache for batch processing
+            Cache::put('sync_to_imara_unlinked_ids', $unlinkedZohoCustomerIds, now()->addHours(1));
+            
+            $this->syncToImaraTotalCustomers = $totalCount;
+            $this->syncToImaraCurrentBatch = 0;
+            $this->syncToImaraProcessedCount = 0;
+            $this->syncToImaraCreatedCount = 0;
+            $this->syncToImaraLinkedCount = 0;
+            
+            $this->syncToImaraProgress = "Ready to process {$totalCount} customers. Starting...";
+            
+            // Don't process first batch here - let wire:poll handle all batches
+            // This allows the UI to update immediately with the progress screen
+            
+        } catch (\Exception $e) {
+            Log::error('Sync to Imara initialization failed', [
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString()
+            ]);
+            
+            $this->isSyncingToImara = false;
+            $this->syncToImaraProgress = 'Sync failed!';
+            $this->syncToImaraResult = [
+                'success' => false,
+                'message' => 'Sync failed: ' . $e->getMessage(),
+                'total_processed' => 0,
+                'created_count' => 0,
+                'linked_count' => 0,
+            ];
+            $this->message = 'Sync failed: ' . $e->getMessage();
+            $this->messageType = 'error';
+        }
+    }
+    
+    public function processSyncToImaraBatch()
+    {
+        // Only process if sync is active
+        if (!$this->isSyncingToImara) {
+            return;
+        }
+        
+        try {
+            $batchSize = 500;
+            
+            // Get unlinked IDs from cache
+            $unlinkedIds = Cache::get('sync_to_imara_unlinked_ids', []);
+            
+            if (empty($unlinkedIds)) {
+                // No more customers to process
+                $this->completeSyncToImara();
+                return;
+            }
+            
+            // Get batch of IDs to process
+            $batchIds = array_slice($unlinkedIds, 0, $batchSize);
+            $remainingIds = array_slice($unlinkedIds, $batchSize);
+            
+            $this->syncToImaraCurrentBatch++;
+            
+            Log::info("Processing batch {$this->syncToImaraCurrentBatch}", [
+                'batch_size' => count($batchIds),
+                'remaining' => count($remainingIds),
+                'processed_so_far' => $this->syncToImaraProcessedCount
+            ]);
+            
+            // Update progress BEFORE processing
+            $this->syncToImaraProgress = "Processing batch {$this->syncToImaraCurrentBatch}...";
+            
+            // Fetch this batch of customers
+            $zohoCustomers = ZohoCustomers::whereIn('id', $batchIds)->get();
+            
+            DB::beginTransaction();
+            
+            foreach ($zohoCustomers as $zohoCustomer) {
+                try {
+                    $this->syncToImaraProcessedCount++;
+                    
+                    // Check if an Imara customer with the same name exists
+                    $existingCrmCustomer = \App\Models\CRM\CRMCustomer::where('name', $zohoCustomer->name)
+                        ->first();
+                    
+                    if ($existingCrmCustomer) {
+                        // Link to existing customer
+                        $existingCrmCustomer->addZohoCustomerId($zohoCustomer->id);
+                        $this->syncToImaraLinkedCount++;
+                    } else {
+                        // Create new Imara customer from Zoho data
+                        $newCrmCustomer = \App\Models\CRM\CRMCustomer::create([
+                            'name' => $zohoCustomer->name,
+                            'code' => $this->generateCustomerCode($zohoCustomer->name),
+                            'email' => $zohoCustomer->email ?? '',
+                            'telephone1' => $zohoCustomer->phone_no ?? '',
+                            'telephone2' => '',
+                            'postal_address' => $zohoCustomer->name,
+                            'physical_address' => $zohoCustomer->name,
+                            'website' => '',
+                            'fax' => '',
+                            'vat_no' => '',
+                            'country_id' => 110, // Default to Kenya
+                            'account_status' => 12, // Default to Pay Upfront
+                            'credit_days' => 0,
+                            'active' => 1,
+                            'lpos_required' => 0,
+                            'company_id' => 1,
+                            'currency_id' => $zohoCustomer->currency_id,
+                            'zoho_customer_id' => [$zohoCustomer->id],
+                        ]);
+                        $this->syncToImaraCreatedCount++;
+                    }
+                    
+                } catch (\Exception $e) {
+                    Log::error("Failed to sync customer in batch", [
+                        'customer' => $zohoCustomer->name ?? 'Unknown',
+                        'error' => $e->getMessage()
+                    ]);
+                    // Continue with next customer
+                }
+            }
+            
+            DB::commit();
+            
+            Log::info("Batch {$this->syncToImaraCurrentBatch} completed", [
+                'processed_in_batch' => count($zohoCustomers),
+                'total_processed' => $this->syncToImaraProcessedCount,
+                'created' => $this->syncToImaraCreatedCount,
+                'linked' => $this->syncToImaraLinkedCount
+            ]);
+            
+            // Update cache with remaining IDs
+            if (count($remainingIds) > 0) {
+                Cache::put('sync_to_imara_unlinked_ids', $remainingIds, now()->addHours(1));
+                // Don't recursively call - let polling handle it
+            } else {
+                // All batches complete
+                $this->completeSyncToImara();
+            }
+            
+        } catch (\Exception $e) {
+            DB::rollBack();
+            Log::error('Batch processing failed', [
+                'batch' => $this->syncToImaraCurrentBatch,
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString()
+            ]);
+            
+            $this->isSyncingToImara = false;
+            $this->syncToImaraProgress = 'Sync failed!';
+            $this->syncToImaraResult = [
+                'success' => false,
+                'message' => 'Sync failed: ' . $e->getMessage(),
+                'total_processed' => $this->syncToImaraProcessedCount,
+                'created_count' => $this->syncToImaraCreatedCount,
+                'linked_count' => $this->syncToImaraLinkedCount,
+            ];
+            $this->message = 'Sync failed: ' . $e->getMessage();
+            $this->messageType = 'error';
+            
+            Cache::forget('sync_to_imara_unlinked_ids');
+        }
+    }
+    
+    protected function completeSyncToImara(): void
+    {
+        Log::info('Sync to Imara completed', [
+            'total_processed' => $this->syncToImaraProcessedCount,
+            'created' => $this->syncToImaraCreatedCount,
+            'linked' => $this->syncToImaraLinkedCount
+        ]);
+        
+        $this->syncToImaraProgress = 'Sync completed!';
+        
+        $this->syncToImaraResult = [
+            'success' => true,
+            'message' => "Successfully synced {$this->syncToImaraProcessedCount} Dynamics customers to Imara.",
+            'total_processed' => $this->syncToImaraProcessedCount,
+            'created_count' => $this->syncToImaraCreatedCount,
+            'linked_count' => $this->syncToImaraLinkedCount,
+        ];
+        
+        $this->isSyncingToImara = false;
+        $this->message = "Sync completed: {$this->syncToImaraCreatedCount} created, {$this->syncToImaraLinkedCount} linked.";
+        $this->messageType = 'success';
+        
+        // Clear cache
+        Cache::forget('sync_to_imara_unlinked_ids');
+    }
+    
+    /**
+     * Generate a unique customer code from name.
+     */
+    protected function generateCustomerCode(string $name): string
+    {
+        // Take first 3 letters of name and add a number
+        $prefix = strtoupper(substr(preg_replace('/[^A-Za-z]/', '', $name), 0, 3));
+        if (strlen($prefix) < 3) {
+            $prefix = str_pad($prefix, 3, 'X');
+        }
+        
+        // Find the next available number
+        $lastCode = \App\Models\CRM\CRMCustomer::where('code', 'LIKE', $prefix . '%')
+            ->orderBy('code', 'desc')
+            ->first();
+        
+        if ($lastCode) {
+            $number = intval(substr($lastCode->code, 3)) + 1;
+        } else {
+            $number = 1;
+        }
+        
+        return $prefix . str_pad($number, 3, '0', STR_PAD_LEFT);
     }
 
     public function render()

@@ -13,6 +13,10 @@ class CRMCustomer extends Model implements Auditable
 	use \OwenIt\Auditing\Auditable;
 	protected $table = "crm_customers";
 	
+	protected $casts = [
+		'zoho_customer_id' => 'array',
+	];
+	
 	protected $fillable = [
 		'name',
 		'code',
@@ -66,6 +70,40 @@ class CRMCustomer extends Model implements Auditable
   
   public function zohocustomer(){
     return $this->belongsTo(ZohoCustomers::class,'zoho_customer_id');
+  }
+  
+  /**
+   * Get all linked Zoho customers (for multiple relationships).
+   */
+  public function zohoCustomers()
+  {
+    $zohoIds = $this->zoho_customer_id ?? [];
+    if (empty($zohoIds)) {
+      return collect([]);
+    }
+    return ZohoCustomers::whereIn('id', $zohoIds)->get();
+  }
+  
+  /**
+   * Add a Zoho customer ID to this customer.
+   */
+  public function addZohoCustomerId(int $zohoCustomerId): void
+  {
+    $zohoIds = $this->zoho_customer_id ?? [];
+    if (!in_array($zohoCustomerId, $zohoIds)) {
+      $zohoIds[] = $zohoCustomerId;
+      $this->zoho_customer_id = $zohoIds;
+      $this->save();
+    }
+  }
+  
+  /**
+   * Check if this customer is linked to a Zoho customer.
+   */
+  public function hasZohoCustomer(int $zohoCustomerId): bool
+  {
+    $zohoIds = $this->zoho_customer_id ?? [];
+    return in_array($zohoCustomerId, $zohoIds);
   }
 
   public function subUnits(){

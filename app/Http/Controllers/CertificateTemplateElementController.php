@@ -166,11 +166,3 @@ class CertificateTemplateElementController extends Controller
         };
     }
 }
-            'data_field' => 'sample_name',
-            'signature' => 'Signature',
-            'date' => 'current_date',
-            default => ''
-        };
-    }
-}
-

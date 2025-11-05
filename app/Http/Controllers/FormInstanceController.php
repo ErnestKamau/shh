@@ -137,8 +137,11 @@ class FormInstanceController extends Controller
 
         // Load existing values
         $existingValues = $instance->values()->with('element')->get();
+        $use_lab_layout = 1;
 
-        return view('submission-forms.instances.fill', compact('submissionForm', 'instance', 'existingValues'));
+        return view('submission-forms.instances.fill-sample', compact('submissionForm', 'instance', 'existingValues', 'use_lab_layout'));
+
+        // return view('submission-forms.instances.fill', compact('submissionForm', 'instance', 'existingValues'));
     }
 
     /**

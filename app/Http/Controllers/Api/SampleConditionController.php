@@ -30,9 +30,7 @@ class SampleConditionController extends Controller
     {
         $validator = Validator::make($request->all(), [
             'name' => 'required|string|max:255',
-            'sample_type_id' => 'required|exists:sample_types,id',
-            'short_name' => 'nullable|string|max:255',
-            'reporting_time' => 'nullable|integer|min:0',
+            'active' => 'nullable|boolean',
         ]);
 
         if ($validator->fails()) {
@@ -44,10 +42,7 @@ class SampleConditionController extends Controller
 
         $condition = SampleCondition::create([
             'name' => $request->name,
-            'sample_type_id' => $request->sample_type_id,
-            'short_name' => $request->short_name,
-            'reporting_time' => $request->reporting_time,
-            'active' => 1,
+            'active' => $request->active ?? 1,
         ]);
 
         return response()->json($condition, 201);

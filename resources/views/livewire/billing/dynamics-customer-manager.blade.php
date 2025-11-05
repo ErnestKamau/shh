@@ -16,6 +16,9 @@
                             <button wire:click="showSyncConfirmationModal" class="btn btn-info">
                                 <i class="mdi mdi-cloud-download"></i> Pull Customers
                             </button>
+                            <button wire:click="showSyncToImaraModal" class="btn btn-success">
+                                <i class="mdi mdi-sync"></i> Sync to Imara
+                            </button>
                             {{-- <button wire:click="showCreateCustomerModal" class="btn btn-primary">
                                 <i class="mdi mdi-plus"></i> Add Customer
                             </button> --}}
@@ -278,6 +281,144 @@
         </div>
     @endif
 
+    <!-- Sync to Imara Modal -->
+    @if($showSyncToImaraModalFlag)
+        <div class="modal fade show d-block" tabindex="-1" style="background-color: rgba(0,0,0,0.5);" @if($isSyncingToImara) wire:poll.1s="processSyncToImaraBatch" @endif>
+            <div class="modal-dialog modal-dialog-centered modal-lg">
+                <div class="modal-content">
+                    <div class="modal-header bg-success text-white">
+                        <h5 class="modal-title">
+                            <i class="mdi mdi-sync"></i>
+                            Sync Dynamics Customers to Imara
+                        </h5>
+                        @if(!$isSyncingToImara)
+                            <button type="button" class="btn-close btn-close-white" wire:click="closeSyncToImaraModal"></button>
+                        @endif
+                    </div>
+                    <div class="modal-body">
+                        @if(!$isSyncingToImara && !$syncToImaraResult)
+                            <!-- Confirmation Message -->
+                            <div class="alert alert-info">
+                                <i class="mdi mdi-information"></i>
+                                <strong>Sync Process:</strong> This action will:
+                                <ul class="mb-0 mt-2">
+                                    <li>Find all Dynamics customers not yet linked to Imara customers</li>
+                                    <li>Check if an Imara customer with the same name exists</li>
+                                    <li>If not, create a new Imara customer with Dynamics data</li>
+                                    <li>Link the Dynamics customer to the Imara customer</li>
+                                    <li>Support multiple Dynamics customers per Imara customer</li>
+                                </ul>
+                            </div>
+                            <p class="mb-0">Are you sure you want to sync unlinked Dynamics customers to Imara?</p>
+                        @elseif($isSyncingToImara)
+                            <!-- Progress Display -->
+                            <div class="text-center py-4">
+                                <div class="spinner-border text-success mb-3" role="status" style="width: 3rem; height: 3rem;">
+                                    <span class="visually-hidden">Loading...</span>
+                                </div>
+                                <h5 class="text-success">{{ $syncToImaraProgress }}</h5>
+                                
+                                <!-- Progress Bar -->
+                                @if($syncToImaraTotalCustomers > 0)
+                                    <div class="progress mt-3 mb-2" style="height: 25px;">
+                                        <div class="progress-bar progress-bar-striped progress-bar-animated bg-success" 
+                                             role="progressbar" 
+                                             style="width: {{ ($syncToImaraProcessedCount / $syncToImaraTotalCustomers) * 100 }}%"
+                                             aria-valuenow="{{ $syncToImaraProcessedCount }}" 
+                                             aria-valuemin="0" 
+                                             aria-valuemax="{{ $syncToImaraTotalCustomers }}">
+                                            {{ number_format($syncToImaraProcessedCount) }} of {{ number_format($syncToImaraTotalCustomers) }}
+                                        </div>
+                                    </div>
+                                    
+                                    <!-- Stats Cards -->
+                                    <div class="row mt-4">
+                                        <div class="col-6">
+                                            <div class="card bg-light">
+                                                <div class="card-body py-2">
+                                                    <h4 class="text-success mb-0">{{ number_format($syncToImaraCreatedCount) }}</h4>
+                                                    <small class="text-muted">Created</small>
+                                                </div>
+                                            </div>
+                                        </div>
+                                        <div class="col-6">
+                                            <div class="card bg-light">
+                                                <div class="card-body py-2">
+                                                    <h4 class="text-warning mb-0">{{ number_format($syncToImaraLinkedCount) }}</h4>
+                                                    <small class="text-muted">Linked</small>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                @endif
+                                
+                                <p class="text-muted mt-3">Please wait while we sync customers to Imara...</p>
+                                <small class="text-muted">Processing in batches of 500 customers</small>
+                            </div>
+                        @elseif($syncToImaraResult)
+                            <!-- Result Display -->
+                            <div class="alert alert-{{ $syncToImaraResult['success'] ? 'success' : 'danger' }}">
+                                <h6 class="alert-heading">
+                                    <i class="mdi mdi-{{ $syncToImaraResult['success'] ? 'check-circle' : 'alert-circle' }}"></i>
+                                    {{ $syncToImaraResult['success'] ? 'Sync Completed' : 'Sync Failed' }}
+                                </h6>
+                                <p class="mb-0">{{ $syncToImaraResult['message'] }}</p>
+                            </div>
+
+                            @if($syncToImaraResult['success'])
+                                <div class="row text-center mt-3">
+                                    <div class="col-4">
+                                        <div class="card bg-light">
+                                            <div class="card-body">
+                                                <h3 class="text-primary mb-0">{{ $syncToImaraResult['total_processed'] }}</h3>
+                                                <small class="text-muted">Total Processed</small>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <div class="col-4">
+                                        <div class="card bg-light">
+                                            <div class="card-body">
+                                                <h3 class="text-success mb-0">{{ $syncToImaraResult['created_count'] }}</h3>
+                                                <small class="text-muted">New Customers</small>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <div class="col-4">
+                                        <div class="card bg-light">
+                                            <div class="card-body">
+                                                <h3 class="text-warning mb-0">{{ $syncToImaraResult['linked_count'] }}</h3>
+                                                <small class="text-muted">Linked Existing</small>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            @endif
+                        @endif
+                    </div>
+                    <div class="modal-footer">
+                        @if(!$isSyncingToImara)
+                            @if(!$syncToImaraResult)
+                                <button type="button" class="btn btn-secondary" wire:click="closeSyncToImaraModal">Cancel</button>
+                                <button type="button" class="btn btn-success" wire:click="syncDynamicsToImara" wire:loading.attr="disabled" wire:loading.class="disabled">
+                                    <span wire:loading.remove wire:target="syncDynamicsToImara">
+                                        <i class="mdi mdi-check"></i> Yes, Sync Now
+                                    </span>
+                                    <span wire:loading wire:target="syncDynamicsToImara">
+                                        <i class="mdi mdi-loading mdi-spin"></i> Processing...
+                                    </span>
+                                </button>
+                            @else
+                                <button type="button" class="btn btn-primary" wire:click="closeSyncToImaraModal">
+                                    <i class="mdi mdi-close"></i> Close
+                                </button>
+                            @endif
+                        @endif
+                    </div>
+                </div>
+            </div>
+        </div>
+    @endif
+
     <!-- Dynamics Sync Modal -->
     @if($showSyncModal)
         <div class="modal fade show d-block" tabindex="-1" style="background-color: rgba(0,0,0,0.5);">
@@ -423,4 +564,18 @@
         padding-right: 40px;
     }
     </style>
+    
+    <script>
+        // Debug sync to Imara button clicks
+        document.addEventListener('livewire:init', () => {
+            Livewire.on('sync-to-imara-started', () => {
+                console.log('Sync to Imara started event received');
+            });
+        });
+        
+        // Add click handler debugging
+        document.addEventListener('DOMContentLoaded', function() {
+            console.log('Dynamics Customer Manager page loaded');
+        });
+    </script>
 </div>

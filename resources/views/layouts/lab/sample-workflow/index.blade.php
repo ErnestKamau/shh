@@ -219,7 +219,7 @@ $items = array(
 
 		<!-- Form Submission Actions - Available for all statuses -->
 		<div class="btn-group float-right mr-2" role="group">
-			<button type="button" class="btn btn-sm btn-primary hidden dropdown-toggle" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
+			<button type="button" class="btn btn-sm btn-primary dropdown-toggle" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
 				<i class="mdi mdi-form-select mr-2"></i> Sample Submissions
 			</button>
 			<div class="dropdown-menu dropdown-menu-right">
