@@ -7746,8 +7746,8 @@
 				
 				// Set customer profile link
 				if (response.customer_id) {
-					const customerProfileUrl = '{{ route("show-customer", ["id" => ":customer_id"]) }}';
-					$('#add-sample-points-link').attr('href', customerProfileUrl.replace(':customer_id', response.customer_id));
+					const customerProfileUrl = '/livewire/customers/' + response.customer_id + '/profile';
+					$('#add-sample-points-link').attr('href', customerProfileUrl);
 				}
 				
 				// Build sample points table
