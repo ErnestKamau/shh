@@ -344,69 +344,14 @@
                                     <div class="col-md-6">
                                         <div class="mb-3">
                                             <label for="stepType" class="form-label"><i class="mdi mdi-format-list-bulleted-type text-primary"></i> Step Type *</label>
-                                            <div x-data="{
-                                                open: false,
-                                                search: '',
-                                                selected: @entangle('stepType').live,
-                                                types: [
-                                                    {value: 'input', label: 'Input'},
-                                                    {value: 'derived', label: 'Derived'},
-                                                    {value: 'lookup', label: 'Lookup'},
-                                                    {value: 'parameter_result', label: 'Parameter Result'}
-                                                ],
-                                                get filteredTypes() {
-                                                    if (!this.search) return this.types;
-                                                    return this.types.filter(type => 
-                                                        type.label.toLowerCase().includes(this.search.toLowerCase())
-                                                    );
-                                                },
-                                                selectType(value) {
-                                                    this.selected = value;
-                                                    this.open = false;
-                                                    this.search = '';
-                                                },
-                                                getSelectedLabel() {
-                                                    const type = this.types.find(t => t.value == this.selected);
-                                                    return type ? type.label : '';
-                                                }
-                                            }" class="searchable-dropdown-wrapper">
-                                                <div class="single-select-container" @click="open = !open">
-                                                    <input 
-                                                        type="text" 
-                                                        x-model="search"
-                                                        :placeholder="selected ? getSelectedLabel() : 'Search step types...'"
-                                                        @focus="open = true"
-                                                        class="form-control searchable-input-single"
-                                                        autocomplete="off"
-                                                    >
-                                                    <i class="mdi mdi-chevron-down dropdown-arrow" :class="{ 'rotated': open }"></i>
-                                                </div>
-
-                                                <div x-show="open" 
-                                                     @click.away="open = false"
-                                                     x-transition
-                                                     class="dropdown-list">
-                                                    <template x-if="filteredTypes.length > 0">
-                                                        <div class="options-list">
-                                                            <template x-for="type in filteredTypes" :key="type.value">
-                                                                <div @click="selectType(type.value)" 
-                                                                     class="option-item"
-                                                                     :class="{ 'selected': selected == type.value }">
-                                                                    <i class="mdi mdi-check-circle text-primary" x-show="selected == type.value"></i>
-                                                                    <span x-text="type.label"></span>
-                                                                </div>
-                                                            </template>
-                                                        </div>
-                                                    </template>
-                                                    <template x-if="filteredTypes.length === 0">
-                                                        <div class="no-results">
-                                                            <i class="mdi mdi-alert-circle-outline"></i>
-                                                            <span>No types found</span>
-                                                        </div>
-                                                    </template>
-                                                </div>
-                                            </div>
-                                            @error('stepType') <span class="text-danger">{{ $message }}</span> @enderror
+                                            <select wire:model.live="stepType" class="form-select modern-select @error('stepType') is-invalid @enderror" id="stepType" required>
+                                                <option value="">Select Step Type</option>
+                                                <option value="input">Input</option>
+                                                <option value="derived">Derived</option>
+                                                <option value="lookup">Lookup</option>
+                                                <option value="parameter_result">Parameter Result</option>
+                                            </select>
+                                            @error('stepType') <div class="invalid-feedback">{{ $message }}</div> @enderror
                                         </div>
                                     </div>
                                 </div>
@@ -509,67 +454,16 @@
                                             </h6>
                                         </div>
                                         <div class="card-body">
-                                            <div class="mb-3">
-                                                <label for="lookupTableId" class="form-label"><i class="mdi mdi-table-search text-primary"></i> Lookup Table *</label>
-                                                <div x-data="{
-                                                    open: false,
-                                                    search: '',
-                                                    selected: @entangle('lookupTableId').live,
-                                                    tables: {{ json_encode($lookupTables->map(fn($t) => ['id' => $t->id, 'name' => $t->name])->values()) }},
-                                                    get filteredTables() {
-                                                        if (!this.search) return this.tables.slice(0, 50);
-                                                        return this.tables.filter(table => 
-                                                            table.name.toLowerCase().includes(this.search.toLowerCase())
-                                                        );
-                                                    },
-                                                    selectTable(tableId) {
-                                                        this.selected = tableId;
-                                                        this.open = false;
-                                                        this.search = '';
-                                                    },
-                                                    getSelectedName() {
-                                                        const table = this.tables.find(t => t.id == this.selected);
-                                                        return table ? table.name : '';
-                                                    }
-                                                }" class="searchable-dropdown-wrapper">
-                                                    <div class="single-select-container" @click="open = !open">
-                                                        <input 
-                                                            type="text" 
-                                                            x-model="search"
-                                                            :placeholder="selected ? getSelectedName() : 'Search lookup tables...'"
-                                                            @focus="open = true"
-                                                            class="form-control searchable-input-single"
-                                                            autocomplete="off"
-                                                        >
-                                                        <i class="mdi mdi-chevron-down dropdown-arrow" :class="{ 'rotated': open }"></i>
-                                                    </div>
-
-                                                    <div x-show="open" 
-                                                         @click.away="open = false"
-                                                         x-transition
-                                                         class="dropdown-list">
-                                                        <template x-if="filteredTables.length > 0">
-                                                            <div class="options-list">
-                                                                <template x-for="table in filteredTables" :key="table.id">
-                                                                    <div @click="selectTable(table.id)" 
-                                                                         class="option-item"
-                                                                         :class="{ 'selected': selected == table.id }">
-                                                                        <i class="mdi mdi-check-circle text-primary" x-show="selected == table.id"></i>
-                                                                        <span x-text="table.name"></span>
-                                                                    </div>
-                                                                </template>
-                                                            </div>
-                                                        </template>
-                                                        <template x-if="filteredTables.length === 0">
-                                                            <div class="no-results">
-                                                                <i class="mdi mdi-alert-circle-outline"></i>
-                                                                <span>No tables found</span>
-                                                            </div>
-                                                        </template>
-                                                    </div>
-                                                </div>
-                                                @error('lookupTableId') <span class="text-danger">{{ $message }}</span> @enderror
-                                            </div>
+                                    <div class="mb-3">
+                                        <label for="lookupTableId" class="form-label"><i class="mdi mdi-table-search text-primary"></i> Lookup Table *</label>
+                                        <select wire:model.live="lookupTableId" class="form-select modern-select @error('lookupTableId') is-invalid @enderror" id="lookupTableId" required>
+                                            <option value="">Select Lookup Table</option>
+                                            @foreach($lookupTables as $table)
+                                                <option value="{{ $table->id }}">{{ $table->name }}</option>
+                                            @endforeach
+                                        </select>
+                                        @error('lookupTableId') <div class="invalid-feedback">{{ $message }}</div> @enderror
+                                    </div>
                                             
                                             @if($lookupTableId)
                                                 @php
@@ -720,68 +614,16 @@
                                             </h6>
                                         </div>
                                         <div class="card-body">
-                                            <div class="mb-3">
-                                                <label for="analyteId" class="form-label"><i class="mdi mdi-flask text-primary"></i> Select Analyte *</label>
-                                                <div x-data="{
-                                                    open: false,
-                                                    search: '',
-                                                    selected: @entangle('analyteId').live,
-                                                    analytes: {{ json_encode($analytes->map(fn($a) => ['id' => $a->id, 'name' => $a->name, 'code' => $a->code])->values()) }},
-                                                    get filteredAnalytes() {
-                                                        if (!this.search) return this.analytes.slice(0, 50);
-                                                        return this.analytes.filter(analyte => 
-                                                            analyte.name.toLowerCase().includes(this.search.toLowerCase()) ||
-                                                            analyte.code.toLowerCase().includes(this.search.toLowerCase())
-                                                        );
-                                                    },
-                                                    selectAnalyte(analyteId) {
-                                                        this.selected = analyteId;
-                                                        this.open = false;
-                                                        this.search = '';
-                                                    },
-                                                    getSelectedLabel() {
-                                                        const analyte = this.analytes.find(a => a.id == this.selected);
-                                                        return analyte ? `${analyte.name} (${analyte.code})` : '';
-                                                    }
-                                                }" class="searchable-dropdown-wrapper">
-                                                    <div class="single-select-container" @click="open = !open">
-                                                        <input 
-                                                            type="text" 
-                                                            x-model="search"
-                                                            :placeholder="selected ? getSelectedLabel() : 'Search analytes...'"
-                                                            @focus="open = true"
-                                                            class="form-control searchable-input-single"
-                                                            autocomplete="off"
-                                                        >
-                                                        <i class="mdi mdi-chevron-down dropdown-arrow" :class="{ 'rotated': open }"></i>
-                                                    </div>
-
-                                                    <div x-show="open" 
-                                                         @click.away="open = false"
-                                                         x-transition
-                                                         class="dropdown-list">
-                                                        <template x-if="filteredAnalytes.length > 0">
-                                                            <div class="options-list">
-                                                                <template x-for="analyte in filteredAnalytes" :key="analyte.id">
-                                                                    <div @click="selectAnalyte(analyte.id)" 
-                                                                         class="option-item"
-                                                                         :class="{ 'selected': selected == analyte.id }">
-                                                                        <i class="mdi mdi-check-circle text-primary" x-show="selected == analyte.id"></i>
-                                                                        <span x-text="`${analyte.name} (${analyte.code})`"></span>
-                                                                    </div>
-                                                                </template>
-                                                            </div>
-                                                        </template>
-                                                        <template x-if="filteredAnalytes.length === 0">
-                                                            <div class="no-results">
-                                                                <i class="mdi mdi-alert-circle-outline"></i>
-                                                                <span>No analytes found</span>
-                                                            </div>
-                                                        </template>
-                                                    </div>
-                                                </div>
-                                                @error('analyteId') <span class="text-danger">{{ $message }}</span> @enderror
-                                            </div>
+                                    <div class="mb-3">
+                                        <label for="analyteId" class="form-label"><i class="mdi mdi-flask text-primary"></i> Select Analyte *</label>
+                                        <select wire:model.live="analyteId" class="form-select modern-select @error('analyteId') is-invalid @enderror" id="analyteId" required>
+                                            <option value="">Select Analyte</option>
+                                            @foreach($analytes as $analyte)
+                                                <option value="{{ $analyte->id }}">{{ $analyte->name }} ({{ $analyte->code }})</option>
+                                            @endforeach
+                                        </select>
+                                        @error('analyteId') <div class="invalid-feedback">{{ $message }}</div> @enderror
+                                    </div>
                                         </div>
                                     </div>
                                 @endif
@@ -844,69 +686,14 @@
                             <div class="col-md-6">
                                 <div class="mb-3">
                                     <label for="editStepType" class="form-label"><i class="mdi mdi-format-list-bulleted-type text-primary"></i> Step Type *</label>
-                                    <div x-data="{
-                                        open: false,
-                                        search: '',
-                                        selected: @entangle('stepType').live,
-                                        types: [
-                                            {value: 'input', label: 'Input'},
-                                            {value: 'derived', label: 'Derived'},
-                                            {value: 'lookup', label: 'Lookup'},
-                                            {value: 'parameter_result', label: 'Parameter Result'}
-                                        ],
-                                        get filteredTypes() {
-                                            if (!this.search) return this.types;
-                                            return this.types.filter(type => 
-                                                type.label.toLowerCase().includes(this.search.toLowerCase())
-                                            );
-                                        },
-                                        selectType(value) {
-                                            this.selected = value;
-                                            this.open = false;
-                                            this.search = '';
-                                        },
-                                        getSelectedLabel() {
-                                            const type = this.types.find(t => t.value == this.selected);
-                                            return type ? type.label : '';
-                                        }
-                                    }" class="searchable-dropdown-wrapper">
-                                        <div class="single-select-container" @click="open = !open">
-                                            <input 
-                                                type="text" 
-                                                x-model="search"
-                                                :placeholder="selected ? getSelectedLabel() : 'Search step types...'"
-                                                @focus="open = true"
-                                                class="form-control searchable-input-single"
-                                                autocomplete="off"
-                                            >
-                                            <i class="mdi mdi-chevron-down dropdown-arrow" :class="{ 'rotated': open }"></i>
-                                        </div>
-
-                                        <div x-show="open" 
-                                             @click.away="open = false"
-                                             x-transition
-                                             class="dropdown-list">
-                                            <template x-if="filteredTypes.length > 0">
-                                                <div class="options-list">
-                                                    <template x-for="type in filteredTypes" :key="type.value">
-                                                        <div @click="selectType(type.value)" 
-                                                             class="option-item"
-                                                             :class="{ 'selected': selected == type.value }">
-                                                            <i class="mdi mdi-check-circle text-primary" x-show="selected == type.value"></i>
-                                                            <span x-text="type.label"></span>
-                                                        </div>
-                                                    </template>
-                                                </div>
-                                            </template>
-                                            <template x-if="filteredTypes.length === 0">
-                                                <div class="no-results">
-                                                    <i class="mdi mdi-alert-circle-outline"></i>
-                                                    <span>No types found</span>
-                                                </div>
-                                            </template>
-                                        </div>
-                                    </div>
-                                    @error('stepType') <span class="text-danger">{{ $message }}</span> @enderror
+                                    <select wire:model.live="stepType" class="form-select modern-select @error('stepType') is-invalid @enderror" id="editStepType" required>
+                                        <option value="">Select Step Type</option>
+                                        <option value="input">Input</option>
+                                        <option value="derived">Derived</option>
+                                        <option value="lookup">Lookup</option>
+                                        <option value="parameter_result">Parameter Result</option>
+                                    </select>
+                                    @error('stepType') <div class="invalid-feedback">{{ $message }}</div> @enderror
                                 </div>
                             </div>
                         </div>
@@ -1171,8 +958,8 @@
                                 <div class="card-body">
                                     <div class="mb-3">
                                         <label for="editAnalyteId" class="form-label">Select Analyte *</label>
-                                        <select wire:model="analyteId" class="form-select modern-select @error('analyteId') is-invalid @enderror" id="editAnalyteId" required>
-                                            <option value="">Select an analyte</option>
+                                        <select wire:model.live="analyteId" class="form-select modern-select @error('analyteId') is-invalid @enderror" id="editAnalyteId" required>
+                                            <option value="">Select Analyte</option>
                                             @foreach($analytes as $analyte)
                                                 <option value="{{ $analyte->id }}">{{ $analyte->name }} ({{ $analyte->code }})</option>
                                             @endforeach
