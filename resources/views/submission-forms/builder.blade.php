@@ -144,6 +144,9 @@
                   <div class="element-type" data-type="sample_point_select">
                     <i class="mdi mdi-map-marker"></i> Sample Point Select
                   </div>
+                  <div class="element-type" data-type="user_select">
+                    <i class="mdi mdi-account"></i> User Select
+                  </div>
                 </div>
               </div>
             </div>
@@ -332,6 +335,7 @@
                     <option value="standard_select">Standard Select</option>
                     <option value="sample_point_select">Sample Point Select</option>
                     <option value="company_sub_unit_select">Company Sub Unit Select</option>
+                    <option value="user_select">User Select</option>
                   </select>
                 </div>
               </div>
@@ -913,7 +917,7 @@ const FormBuilder = {
     handleElementTypeChange() {
         const elementType = $('#element-type').val();
         const needsOptions = ['select', 'radio', 'checkbox'].includes(elementType);
-        const isCustomElement = ['client_select', 'sample_type_select', 'client_unit_select', 'client_contact_select', 'analysis_type_select', 'analysis_elements_select', 'store_select', 'store_slot_select', 'sample_condition_select', 'standard_select', 'sample_point_select'].includes(elementType);
+        const isCustomElement = ['client_select', 'sample_type_select', 'client_unit_select', 'client_contact_select', 'analysis_type_select', 'analysis_elements_select', 'store_select', 'store_slot_select', 'sample_condition_select', 'standard_select', 'sample_point_select', 'user_select'].includes(elementType);
         
         // Hide options for custom elements as they are loaded dynamically
         if (isCustomElement) {
@@ -1019,7 +1023,7 @@ const FormBuilder = {
         
         // Collect options if needed
         const needsOptions = ['select', 'radio', 'checkbox'].includes(formData.element_type);
-        const isCustomElement = ['client_select', 'sample_type_select', 'client_unit_select', 'client_contact_select', 'analysis_type_select', 'analysis_elements_select', 'store_select', 'store_slot_select', 'sample_condition_select', 'standard_select', 'sample_point_select'].includes(formData.element_type);
+        const isCustomElement = ['client_select', 'sample_type_select', 'client_unit_select', 'client_contact_select', 'analysis_type_select', 'analysis_elements_select', 'store_select', 'store_slot_select', 'sample_condition_select', 'standard_select', 'sample_point_select', 'user_select'].includes(formData.element_type);
         
         // Only collect options for standard elements, not custom elements
         if (needsOptions && !isCustomElement) {

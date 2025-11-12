@@ -136,6 +136,35 @@ function loadDynamicOptions(elementId, elementType, clientId = null, sampleTypeI
             }
             
             select.html(html).prop('disabled', false);
+
+            let savedValue = select.data('saved-value');
+            const savedMultipleValues = select.data('saved-multiple-values');
+            if ((!savedValue || savedValue === '') && savedMultipleValues) {
+                savedValue = savedMultipleValues;
+            }
+            let valueApplied = false;
+
+            if (savedValue && savedValue !== '') {
+                if (select.prop('multiple')) {
+                    const values = Array.isArray(savedValue) ? savedValue : savedValue.split(',').map(v => v.trim()).filter(v => v !== '');
+                    select.val(values);
+                } else {
+                    select.val(savedValue);
+                }
+                valueApplied = true;
+            }
+
+            if (!valueApplied && elementType === 'user_select') {
+                const defaultUserId = select.data('default-user-id');
+                if (defaultUserId) {
+                    select.val(defaultUserId);
+                    valueApplied = true;
+                }
+            }
+
+            if (valueApplied) {
+                select.trigger('change');
+            }
             
             // Reinitialize Select2 after loading new options
             if (select.hasClass('select2-hidden-accessible')) {

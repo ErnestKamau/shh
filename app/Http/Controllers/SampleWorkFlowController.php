@@ -63,6 +63,7 @@ use App\UserRoleView;
 use App\ZohoCustomers;
 use App\ZohoPricelist;
 use Illuminate\Http\File;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
@@ -1422,9 +1423,35 @@ class SampleWorkFlowController extends Controller
         $requestTypes = getRequestTypes();
         $notifiable_users = getNotifiableUsers();
         $notesReminderType = getNotesReminderTypes();
-        $clients = getClients();
+        $clientPageSize = 50;
+        $clients = CRMCustomer::query()
+            ->select(['id', 'name'])
+            ->where('active', 1)
+            ->orderBy('name')
+            ->limit($clientPageSize)
+            ->get();
+
+        $selectedClientId = $batch->crm_customer_id ?? ($defaultClient !== false ? $defaultClient : null);
+
+        if ($selectedClientId) {
+            $selectedClient = CRMCustomer::query()
+                ->select(['id', 'name'])
+                ->where('id', $selectedClientId)
+                ->where('active', 1)
+                ->first();
+
+            if ($selectedClient !== null && !$clients->contains('id', $selectedClientId)) {
+                if ($clients->count() >= $clientPageSize) {
+                    $clients->pop();
+                }
+
+                $clients->push($selectedClient);
+            }
+        }
+
+        $clients = $clients->sortBy('name')->values();
         // return response()->json($analaytesHolder);
-        return view('layouts.lab.sample-workflow.show', compact('batch', 'labStores', 'batchID', 'defaultClient', 'selectedSampleType', 'client_portal', 'ammendable', 'standards', 'attachments', 'not_captured', 'analysts', 'countries', 'accounts', 'methods', 'atachment_type', 'batch_scope', 'customer_survey', 'interlabs', 'labs', 'users', 'payment_detail', 'labsections', 'contacts', 'batch_sample_codes', 'report_formats', 'approvers', 'reportingUnits', 'conditions', 'products', 'headerDetails', 'analaytesHolder', 'analysisBySample', 'analysisBySampleNames', 'labSamples', 'workflowstages', 'workflows', 'sample_types', 'samplingmethods', 'active_company', 'ammendments', 'allsamples', 'selected_analysis_types', 'userLabSections', 'customer', 'requestTypes', 'notifiable_users', 'notesReminderType', 'clients', 'disposal_date', 'status', 'recieving_users', 'section_approvers_users', 'analaytesHolderPesticide', 'approvers_user_ids','ltmethods','processed_results','raw_results','qc_schemes','qc_types','qc_config_perc'));
+        return view('layouts.lab.sample-workflow.show', compact('batch', 'labStores', 'batchID', 'defaultClient', 'selectedSampleType', 'client_portal', 'ammendable', 'standards', 'attachments', 'not_captured', 'analysts', 'countries', 'accounts', 'methods', 'atachment_type', 'batch_scope', 'customer_survey', 'interlabs', 'labs', 'users', 'payment_detail', 'labsections', 'contacts', 'batch_sample_codes', 'report_formats', 'approvers', 'reportingUnits', 'conditions', 'products', 'headerDetails', 'analaytesHolder', 'analysisBySample', 'analysisBySampleNames', 'labSamples', 'workflowstages', 'workflows', 'sample_types', 'samplingmethods', 'active_company', 'ammendments', 'allsamples', 'selected_analysis_types', 'userLabSections', 'customer', 'requestTypes', 'notifiable_users', 'notesReminderType', 'clients', 'disposal_date', 'status', 'recieving_users', 'section_approvers_users', 'analaytesHolderPesticide', 'approvers_user_ids','ltmethods','processed_results','raw_results','qc_schemes','qc_types','qc_config_perc','clientPageSize'));
     }
 
     public function fetch_unit_stuff($name, $client)
@@ -4006,6 +4033,50 @@ class SampleWorkFlowController extends Controller
         ];
 
         return response()->json($res);
+    }
+
+    public function searchClients(Request $request): JsonResponse
+    {
+        $perPage = (int) $request->input('per_page', 50);
+        if ($perPage < 1) {
+            $perPage = 50;
+        }
+        $perPage = min($perPage, 100);
+
+        $page = (int) $request->input('page', 1);
+        if ($page < 1) {
+            $page = 1;
+        }
+
+        $term = trim((string) $request->input('term', $request->input('q', '')));
+
+        $builders = CrmCustomer::query()
+            ->select(['id', 'name'])
+            ->where('active', 1);
+
+        if ($term !== '') {
+            $builders->where(function ($query) use ($term) {
+                $query->where('name', 'like', '%' . $term . '%')
+                    ->orWhere('code', 'like', '%' . $term . '%');
+            });
+        }
+
+        $clients = $builders->orderBy('name')
+            ->paginate($perPage, ['*'], 'page', $page);
+
+        $results = collect($clients->items())->map(static function (CRMCustomer $client): array {
+            return [
+                'id' => $client->id,
+                'text' => $client->name,
+            ];
+        })->values();
+
+        return response()->json([
+            'results' => $results,
+            'pagination' => [
+                'more' => $clients->hasMorePages(),
+            ],
+        ]);
     }
 
     public function generateTabletCustomerFocusIndex(Request $request)

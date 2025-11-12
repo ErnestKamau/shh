@@ -46,6 +46,8 @@ if (!function_exists('getElementIcon')) {
                 return 'certificate';
             case 'sample_point_select':
                 return 'map-marker';
+            case 'user_select':
+                return 'account';
             case 'calculation':
                 return 'calculator';
             default:

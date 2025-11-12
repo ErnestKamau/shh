@@ -479,6 +479,11 @@ class FormInstanceController extends Controller
                         $elementRules[] = 'array';
                     }
                     break;
+
+                case 'user_select':
+                    $elementRules[] = 'integer';
+                    $elementRules[] = 'exists:users,id';
+                    break;
             }
             
             // Custom validation rules
@@ -539,6 +544,10 @@ class FormInstanceController extends Controller
      */
     private function processSingleField(SubmissionFormInstance $instance, SubmissionFormElement $element, $value, Request $request): void
     {
+        if (($value === null || $value === '') && $element->element_type === 'user_select' && auth()->check()) {
+            $value = auth()->id();
+        }
+
         // Handle file uploads
         if ($element->element_type === 'file' && $request->hasFile($element->name)) {
             $file = $request->file($element->name);
@@ -561,6 +570,10 @@ class FormInstanceController extends Controller
         
         // Save each value with array index
         foreach ($values as $index => $value) {
+            if (($value === null || $value === '') && $element->element_type === 'user_select' && auth()->check()) {
+                $value = auth()->id();
+            }
+
             if ($value !== null && $value !== '') {
                 $this->saveFieldValue($instance, $element, $value, null, $index);
             }
@@ -868,6 +881,57 @@ class FormInstanceController extends Controller
                         }
                     }
                     break;
+
+                case 'user_select':
+                    $query = \App\User::query();
+
+                    if (auth()->check() && function_exists('getUserCompany')) {
+                        $query->where('company_id', getUserCompany());
+                    }
+
+                    if (!empty($search)) {
+                        $query->where(function ($q) use ($search) {
+                            $q->where('name', 'LIKE', "%{$search}%")
+                              ->orWhere('email', 'LIKE', "%{$search}%");
+                        });
+                    }
+
+                    $paginator = $query->orderBy('name')
+                        ->paginate($perPage, ['id', 'name', 'email'], 'page', $page);
+
+                    foreach ($paginator->items() as $user) {
+                        $label = $user->name;
+                        if (!empty($user->email)) {
+                            $label .= ' (' . $user->email . ')';
+                        }
+
+                        $options[] = [
+                            'id' => $user->id,
+                            'text' => $label,
+                            'value' => $user->id,
+                            'label' => $label
+                        ];
+                    }
+
+                    if (empty($options)) {
+                        $options[] = [
+                            'id' => '',
+                            'text' => 'No users available',
+                            'value' => '',
+                            'label' => 'No users available'
+                        ];
+                    }
+
+                    return response()->json([
+                        'success' => true,
+                        'options' => $options,
+                        'pagination' => [
+                            'current_page' => $paginator->currentPage(),
+                            'per_page' => $paginator->perPage(),
+                            'total' => $paginator->total(),
+                            'has_more' => $paginator->hasMorePages()
+                        ]
+                    ]);
 
                 default:
                     Log::warning('Unknown element type: ' . $elementType);

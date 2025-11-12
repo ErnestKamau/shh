@@ -1179,6 +1179,7 @@ Route::get('/sample-products/index', 'CRM\CompanyProductController@index')->name
 Route::get('/sample-type-category/index', 'SampleTypeCategoryController@index')->name('sample-type-category-index');
 Route::post('/sample-type-category/add', 'SampleTypeCategoryController@addCategory')->name('sample-type-category-add');
 Route::get('/get/Client-Details/Ajax/{id}', 'SampleWorkFlowController@getClientDetailsAjax')->name('getClientDetailsAjax');
+Route::get('/ajax/clients', 'SampleWorkFlowController@searchClients')->name('sample-workflow.clients');
 
 Route::get('generate/Tablet/Customer-Focus/Index', 'SampleWorkFlowController@generateTabletCustomerFocusIndex')->name('generateTabletCustomerFocusIndex');
 Route::post('get/Table/Customer-Focus/Signing', 'SampleWorkFlowController@getTableCustomerFocusSigning')->name('getTableCustomerFocusSigning');

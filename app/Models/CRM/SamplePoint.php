@@ -9,6 +9,8 @@ class SamplePoint extends Model implements Auditable
 {
 	use \OwenIt\Auditing\Auditable;
 	
+	protected $with = ['crmSamplePoint'];
+
 	protected $fillable = [
 		'crm_company_unit_id',
 		'sample_point_area_id',
@@ -22,6 +24,10 @@ class SamplePoint extends Model implements Auditable
 
 	protected $casts = [
 		'active' => 'boolean',
+	];
+
+	protected $appends = [
+		'name',
 	];
 
 	public function unit()
@@ -42,6 +48,11 @@ class SamplePoint extends Model implements Auditable
 	public function crmSamplePoint()
 	{
 		return $this->belongsTo('App\Models\SamplePoint', 'crm_sample_point_id');
+	}
+
+	public function getNameAttribute(): ?string
+	{
+		return $this->crmSamplePoint?->name;
 	}
 
 	public function subUnit()

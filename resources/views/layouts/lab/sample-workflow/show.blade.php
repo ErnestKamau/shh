@@ -826,7 +826,7 @@
 					<div class="form-group col-md-3 qc-omit-type-field">
 												
 						<label  class="control-label">Client <span class="text-danger">*</span> <span class="btn-primary p-0 btn-sm" style="margin: 0px !important;" data-target="#add-customer" data-toggle="modal" data-toggle="tooltip" title="Add Client" ><i class="mdi mdi-plus"></i></span></label>
-						<select class="form-control qc-remove-required {{ $defaultClient === false ? '' :'no-select2' }}" name="crm_customer_id" id="client-select" onchange="detectChange(this)" {{ $defaultClient === false ? '' :'readonly' }}>
+						<select class="form-control qc-remove-required {{ $defaultClient === false ? '' :'no-select2' }}" name="crm_customer_id" id="client-select" data-client-source="{{ route('sample-workflow.clients') }}" data-page-size="{{ $clientPageSize }}" onchange="detectChange(this)" {{ $defaultClient === false ? '' :'readonly' }}>
 							<option value="">Select Client...</option>
 							@foreach ($clients as $client)
 									@if($defaultClient === false) 
@@ -1995,7 +1995,7 @@
 					<div class="col-sm-4">
 						<div class="form-group">
 							<label for="" class="control-label">Customer Contact</label>
-							<select name="customer_id" id="" class="form-control crm_customer_id">
+							<select name="customer_id" id="" class="form-control crm_customer_id" data-client-source="{{ route('sample-workflow.clients') }}" data-page-size="{{ $clientPageSize }}">
 								<option value="">Select Customer...</option>
 								@foreach($clients as $client)
 									<option value="{{$client->id}}">{{$client->name}}</option>
@@ -5174,6 +5174,80 @@
 		})
 
 		
+
+		const buildClientSelect2Options = ($element) => {
+			const ajaxUrl = $element.data('clientSource');
+			const pageSize = Number($element.data('pageSize')) || Number($('#client-select').data('pageSize')) || 50;
+
+			const options = {
+				ajax: {
+					url: ajaxUrl,
+					dataType: 'json',
+					delay: 250,
+					data: function(params){
+						return {
+							term: params.term || '',
+							page: params.page || 1,
+							per_page: pageSize
+						};
+					},
+					processResults: function(data, params){
+						params.page = params.page || 1;
+						return {
+							results: data.results || [],
+							pagination: data.pagination || {more: false}
+						};
+					},
+					cache: true
+				},
+				placeholder: 'Select Client...',
+				allowClear: true,
+				width: '100%'
+			};
+
+			const dropdownParent = $element.closest('.modal');
+			if (dropdownParent.length) {
+				options.dropdownParent = dropdownParent;
+			}
+
+			return options;
+		};
+
+		const initializeClientSelect = ($elements) => {
+			$elements.each(function(){
+				const $element = $(this);
+
+				if (!$element.length) {
+					return;
+				}
+
+				if ($element.hasClass('no-select2')) {
+					return;
+				}
+
+				if (typeof $element.attr('readonly') !== 'undefined') {
+					return;
+				}
+
+				if ($element.data('select2')) {
+					return;
+				}
+
+				const ajaxUrl = $element.data('clientSource');
+				if (!ajaxUrl) {
+					return;
+				}
+
+				$element.select2(buildClientSelect2Options($element));
+			});
+		};
+
+		initializeClientSelect($('#client-select'));
+		initializeClientSelect($('.crm_customer_id'));
+
+		$('#add-customer-contact').on('shown.bs.modal', function(){
+			initializeClientSelect($(this).find('.crm_customer_id'));
+		});
 
 		$('#client-select').on('change', function(){
 			var selectedOps = $(this).children('option:selected');

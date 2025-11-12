@@ -688,6 +688,7 @@ class SubmissionFormInstance extends Model
             case 'store_select':
             case 'standard_select':
             case 'sample_condition_select':
+            case 'user_select':
                 $dependencies['is_independent'] = true;
                 $dependencies['dependency_level'] = 1;
                 break;
@@ -832,6 +833,13 @@ class SubmissionFormInstance extends Model
                 case 'analysis_elements_select':
                     $element = DB::table('analytes')->where('id', $id)->first();
                     return $element ? $element->name : $id;
+
+                case 'user_select':
+                    $user = DB::table('users')->where('id', $id)->first();
+                    if ($user) {
+                        return $user->name ?: $user->email ?: $id;
+                    }
+                    return $id;
                     
                 // For non-select fields, return the value as-is
                 case 'text':

@@ -257,6 +257,8 @@ class CustomFieldLoader {
                 clientId = parentValue;
             } else if (elementType === 'sample_point_select') {
                 clientUnitId = parentValue;
+            } else if (elementType === 'user_select') {
+                // No additional parameters required
             } else if (elementType === 'analysis_type_select') {
                 sampleTypeId = parentValue;
             } else if (elementType === 'analysis_elements_select') {
@@ -369,7 +371,11 @@ class CustomFieldLoader {
             'analysis_elements_select': parentValue ? [
                 { value: '1', label: `Element 1 for Analysis ${parentValue}` },
                 { value: '2', label: `Element 2 for Analysis ${parentValue}` }
-            ] : []
+            ] : [],
+            'user_select': [
+                { value: '1', label: 'User One' },
+                { value: '2', label: 'User Two' }
+            ]
         };
         
         return options[elementType] || [];

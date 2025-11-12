@@ -463,6 +463,28 @@
                 </button>
             </div>
             @break
+        
+        @case('user_select')
+            @php
+                $defaultUserId = auth()->check() ? auth()->id() : null;
+                $defaultUserName = auth()->check() ? auth()->user()->name : null;
+                $resolvedValue = $fieldValue ?: $defaultUserId;
+            @endphp
+            <select class="form-control custom-element"
+                    id="{{ $fieldId }}"
+                    name="{{ $fieldName }}"
+                    data-element-type="user_select"
+                    data-saved-value="{{ $resolvedValue }}"
+                    data-default-user-id="{{ $defaultUserId }}"
+                    data-default-user-name="{{ $defaultUserName }}"
+                    {{ $element->is_required ? 'required' : '' }}
+                    {{ $element->is_readonly ? 'disabled' : '' }}>
+                @if(!$element->is_required)
+                    <option value="">{{ $element->placeholder ?: 'Select a user...' }}</option>
+                @endif
+                {{-- Options loaded dynamically; default user pre-selected when available --}}
+            </select>
+            @break
             
         @case('company_sub_unit_select')
             <div class="custom-element-wrapper position-relative">
@@ -505,7 +527,7 @@
 </div>
 
 {{-- Store element data for later initialization --}}
-@if(in_array($element->element_type, ['client_select', 'sample_type_select', 'client_unit_select', 'client_contact_select', 'analysis_type_select', 'analysis_elements_select', 'store_select', 'store_slot_select', 'sample_condition_select', 'standard_select', 'sample_point_select']))
+@if(in_array($element->element_type, ['client_select', 'sample_type_select', 'client_unit_select', 'client_contact_select', 'analysis_type_select', 'analysis_elements_select', 'store_select', 'store_slot_select', 'sample_condition_select', 'standard_select', 'sample_point_select', 'user_select']))
 @push('scripts')
 <script>
 // Store element data for initialization when jQuery is ready

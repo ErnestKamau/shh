@@ -344,7 +344,7 @@ class SubmissionFormController extends Controller
         ]);
 
         // Validate element type
-        $validTypes = ['client_select', 'sample_type_select', 'client_unit_select', 'client_contact_select', 'analysis_type_select', 'store_select', 'store_slot_select', 'sample_condition_select', 'standard_select', 'sample_point_select', 'company_sub_unit_select'];
+        $validTypes = ['client_select', 'sample_type_select', 'client_unit_select', 'client_contact_select', 'analysis_type_select', 'store_select', 'store_slot_select', 'sample_condition_select', 'standard_select', 'sample_point_select', 'company_sub_unit_select', 'user_select'];
         if (!in_array($elementType, $validTypes)) {
             Log::warning('Invalid element type requested', ['element_type' => $elementType]);
             return response()->json(['error' => 'Invalid element type'], 400);
@@ -555,6 +555,52 @@ class SubmissionFormController extends Controller
                     }
                 }
                 break;
+
+            case 'user_select':
+                $query = \App\User::query();
+
+                if (auth()->check() && function_exists('getUserCompany')) {
+                    $query->where('company_id', getUserCompany());
+                }
+
+                if (!empty($search)) {
+                    $query->where(function ($q) use ($search) {
+                        $q->where('name', 'LIKE', "%{$search}%")
+                          ->orWhere('email', 'LIKE', "%{$search}%");
+                    });
+                }
+
+                $paginator = $query->orderBy('name')
+                    ->paginate($perPage, ['id', 'name', 'email'], 'page', $page);
+
+                foreach ($paginator->items() as $user) {
+                    $label = $user->name;
+                    if (!empty($user->email)) {
+                        $label .= ' (' . $user->email . ')';
+                    }
+
+                    $options[] = [
+                        'value' => $user->id,
+                        'label' => $label
+                    ];
+                }
+
+                if (empty($options)) {
+                    $options[] = [
+                        'value' => '',
+                        'label' => 'No users available'
+                    ];
+                }
+
+                return response()->json([
+                    'options' => $options,
+                    'pagination' => [
+                        'current_page' => $paginator->currentPage(),
+                        'per_page' => $paginator->perPage(),
+                        'total' => $paginator->total(),
+                        'has_more' => $paginator->hasMorePages()
+                    ]
+                ]);
         }
 
         return response()->json(['options' => $options]);

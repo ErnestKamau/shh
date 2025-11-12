@@ -17,6 +17,7 @@ use App\SampleDetails;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\DB;
+use Carbon\Carbon;
 
 class SampleCreationController extends Controller
 {
@@ -70,8 +71,6 @@ class SampleCreationController extends Controller
                 ]);
 
 
-                $sampleDetails = [];
-                
                 // Create sample header using our custom method with batch count
                 $sampleHeader = $this->createSampleHeader($batch['sample_header'], $instance->id, $totalBatchCount);
                 
@@ -79,177 +78,17 @@ class SampleCreationController extends Controller
                 $sampleHeader->submission_form_instance_id = $instance->id;
                 $sampleHeader->save();
                 
-                // Check if company_sub_unit_id exists in sample_details or sample_header - if so, use staging instead of creating samples
-                $hasCompanySubUnitId = false;
-                $companySubUnitIdValue = null;
-                
-                // First check in sample_header (for backward compatibility)
-                if (!empty($batch['sample_header']['company_sub_unit_id'])) {
-                    $hasCompanySubUnitId = true;
-                    $companySubUnitIdValue = $batch['sample_header']['company_sub_unit_id'];
-                } else {
-                    // Check in sample_details array for company_sub_unit_id
-                    foreach ($batch['sample_details'] as $sampleDetail) {
-                        if (!empty($sampleDetail['company_sub_unit_id'])) {
-                            $hasCompanySubUnitId = true;
-                            $companySubUnitIdValue = $sampleDetail['company_sub_unit_id'];
-                            break;
-                        }
-                    }
-                }
-                
-                Log::info('Checking for company_sub_unit_id', [
-                    'batch_sample_header' => $batch['sample_header'],
-                    'batch_sample_details_count' => count($batch['sample_details']),
-                    'has_company_sub_unit_id' => $hasCompanySubUnitId,
-                    'company_sub_unit_id_value' => $companySubUnitIdValue,
-                    'sample_details_structure' => array_map(function($detail) {
-                        return array_keys($detail);
-                    }, $batch['sample_details'])
-                ]);
-                
-                if ($hasCompanySubUnitId) {
-                    // Get helper functions
-                    $getSingleValue = function($value) {
-                        if (is_array($value)) {
-                            return !empty($value) ? $value[0] : null;
-                        }
-                        return $value;
-                    };
-                    
-                    $getIntegerValue = function($value) use ($getSingleValue) {
-                        $singleValue = $getSingleValue($value);
-                        return is_numeric($singleValue) ? (int) $singleValue : null;
-                    };
-                    
-                    // Get company sub unit details
-                    $companySubUnitId = $getIntegerValue($companySubUnitIdValue);
-                    $companySubUnit = \App\Models\CRM\CRMCompanySubUnit::find($companySubUnitId);
-                    
-                    // Prepare staging data from all sample details
-                    $stagingData = [
-                        'analysis_type_ids' => '',
-                        'company_sub_unit_id' => $companySubUnitId,
-                        'company_sub_unit_name' => $companySubUnit ? $companySubUnit->name : 'N/A',
-                        'company_sub_unit_code' => $companySubUnit ? $companySubUnit->code : 'N/A',
-                        'quantity' => 0,
-                        'sample_details' => [],
-                    ];
+                $analysisTypeIds = $this->extractAnalysisTypeIds($batch['sample_details']);
+                $this->applyLabMetadataAndDates($sampleHeader, $analysisTypeIds);
+                $this->createStagingEntry($sampleHeader, $batch, $analysisTypeIds);
 
-                    $master_analysis_type_ids = [];
-                    
-                    // Collect data from sample details
-                    foreach($batch['sample_details'] as $i => $sampleDetail) {
-                        $stagingData['quantity'] += $getIntegerValue($sampleDetail['quantity'] ?? 1);
-                        $stagingData['sample_details'][] = $sampleDetail;
-                        
-                        // Collect analysis type IDs
-                        if (!empty($sampleDetail['analysis_type_id'])) {
-                            $analysisTypeId = $getSingleValue($sampleDetail['analysis_type_id']);
-                            if ($analysisTypeId && !str_contains($stagingData['analysis_type_ids'], (string)$analysisTypeId)) {
-                                $stagingData['analysis_type_ids'] .= ($stagingData['analysis_type_ids'] ? ',' : '') . $analysisTypeId;
-                            }
-                            $master_analysis_type_ids = array_merge($master_analysis_type_ids, explode(',', $sampleDetail['analysis_type_id']));
-                        }
-                    }
-
-                    $reporting_time = \App\AnalysisType::whereIn('id', $master_analysis_type_ids)->max('reporting_time');
-
-                    SampleDate::create([
-                        'sample_header_id' => $sampleHeader->id,
-                        'name' => 'Target Date',
-                        'date' => \Carbon\Carbon::now()->addDays($reporting_time),
-                    ]); 
-
-                    $labsection_ids = \App\AnalysisType::whereIn('id', $master_analysis_type_ids)->pluck('lab_section_id')->toArray();
-                    $sampleHeader->lab_section_ids = $labsection_ids;
-                    $sampleHeader->receiving_officer = auth()->user()->id;
-                    $sampleHeader->save();
-                    
-                    // Get analysis type names for display
-                    if ($stagingData['analysis_type_ids']) {
-                        $analysisTypeIds = explode(',', $stagingData['analysis_type_ids']);
-                        $analysisTypes = \App\AnalysisType::whereIn('id', $analysisTypeIds)->pluck('name')->toArray();
-                        $stagingData['analysis_type_names'] = implode(', ', $analysisTypes);
-                    } else {
-                        $stagingData['analysis_type_names'] = 'N/A';
-                    }
-                    
-                    // Add all other fields from sample details
-                    if (!empty($batch['sample_details'][0])) {
-                        $firstDetail = $batch['sample_details'][0];
-                        $stagingData['company_product_id'] = $getIntegerValue($firstDetail['company_product_id'] ?? null);
-                        $stagingData['sample_condition_id'] = $getIntegerValue($firstDetail['sample_condition_id'] ?? null);
-                        $stagingData['lab_id'] = $getIntegerValue($firstDetail['lab_id'] ?? 1);
-                        $stagingData['description'] = $getSingleValue($firstDetail['description'] ?? '');
-                        $stagingData['quantity'] = $getIntegerValue($firstDetail['quantity'] ?? 1);
-                    }
-                    
-                    // Create staging entry
-                    \App\Models\SampleDetailStaging::create([
-                        'sample_header_id' => $sampleHeader->id,
-                        'data_json' => $stagingData,
-                        'is_processed' => 0,
-                    ]);
-                    
-                    // Mark header as not processed
-                    $sampleHeader->sample_detail_processed = 0;
-                    $sampleHeader->save();
-                    
-                    Log::info('Created staging entry for batch', [
-                        'batch_id' => $sampleHeader->id,
-                        'company_sub_unit_id' => $companySubUnitId
-                    ]);
-                    
-                    // Skip sample detail creation
-                    $createdBatches[] = [
-                        'batch_id' => $sampleHeader->id,
-                        'batch_code' => $sampleHeader->batch_code,
-                        'sample_type_id' => $batch['sample_header']['sample_type_id'] ?? 'Unknown',
-                        'sample_count' => 0, // No samples created yet
-                        'staged' => true
-                    ];
-                    
-                    continue;
-                }
-                
-                // Otherwise, proceed with normal sample creation
-                // Merge all sample details arrays into one flat array
-                
-                // Count ACTUAL total samples for smart code generation (accounting for sample points expansion)
-                // $totalSampleCount = 0;
-                // foreach($batch['sample_details'] as $sampleDetail){
-                //     $samplePointIds = isset($sampleDetail['sample_point_id']) && !empty($sampleDetail['sample_point_id']) 
-                //         ? explode(',', $sampleDetail['sample_point_id']) 
-                //         : [''];
-                //     $totalSampleCount += count($samplePointIds);
-                // }
-
-                // // Create samples with proper sequential indexing
-                // $sampleIndex = 0;
-                // foreach($batch['sample_details'] as $i=>$sampleDetail){
-                //     $samplePointIds = isset($sampleDetail['sample_point_id']) && !empty($sampleDetail['sample_point_id']) 
-                //         ? explode(',', $sampleDetail['sample_point_id']) 
-                //         : [''];
-                //     $newSampleDetailsInfo = $sampleDetail;
-
-                //     foreach($samplePointIds as $j=>$samplePointId){
-                //         $newSampleDetailsInfo['sample_point_id'] = $samplePointId;
-                //         $sampleDetails[$sampleIndex] = $this->createSampleDetails($newSampleDetailsInfo, $sampleHeader->id, $sampleIndex, $sampleHeader->batch_code, $totalSampleCount, $totalBatchCount);
-                //         $this->createSampleDates($sampleHeader->id, $sampleDetails[$sampleIndex]);
-                //         $sampleIndex++;
-                //     }
-                // }
-                
-                // // Update sample header with unique lab_section_ids from all analysis types in the batch
-                // $this->updateSampleHeaderLabSections($sampleHeader->id);
-                
-                // $createdBatches[] = [
-                //     'batch_id' => $sampleHeader->id,
-                //     'batch_code' => $sampleHeader->batch_code,
-                //     'sample_type_id' => $batch['sample_header']['sample_type_id'] ?? 'Unknown',
-                //     'sample_count' => count(array_keys($sampleDetails))
-                // ];
+                $createdBatches[] = [
+                    'batch_id' => $sampleHeader->id,
+                    'batch_code' => $sampleHeader->batch_code,
+                    'sample_type_id' => $batch['sample_header']['sample_type_id'] ?? 'Unknown',
+                    'sample_count' => count($batch['sample_details']),
+                    'staged' => true
+                ];
 
             }
 
@@ -371,6 +210,19 @@ class SampleCreationController extends Controller
             return is_numeric($singleValue) ? (int) $singleValue : null;
         };
 
+        $formatDate = function($value, $default = null) use ($getSingleValue) {
+            $singleValue = $getSingleValue($value);
+            if (!$singleValue) {
+                return $default;
+            }
+
+            try {
+                return Carbon::parse($singleValue)->format('Y-m-d');
+            } catch (\Throwable $th) {
+                return $default;
+            }
+        };
+
         // Handle missing CRM unit - get first unit for the customer
         $crmCustomerId = $getIntegerValue($sampleHeaderData['crm_customer_id'] ?? null);
         $crmUnit = $getSingleValue($sampleHeaderData['crm_unit_name'] ?? null);
@@ -408,8 +260,8 @@ class SampleCreationController extends Controller
             'crm_customer_id' => $getIntegerValue($sampleHeaderData['crm_customer_id'] ?? null),
             'sample_type_id' => $getIntegerValue($sampleHeaderData['sample_type_id'] ?? null),
             'batch_code' => $batchCode,
-            'receipt_date' => $getSingleValue($sampleHeaderData['receipt_date'] ?? now()->format('Y-m-d')),
-            'date_collected' => $getSingleValue($sampleHeaderData['date_collected'] ?? now()->format('Y-m-d')),
+            'receipt_date' => $formatDate($sampleHeaderData['receipt_date'] ?? null, now()->toDateString()),
+            'date_collected' => $formatDate($sampleHeaderData['date_collected'] ?? null, now()->toDateString()),
             'batch_scope' => $getSingleValue($sampleHeaderData['batch_scope'] ?? 'General Analysis'),
             'customer_survey' => $getSingleValue($sampleHeaderData['customer_survey'] ?? ''),
             'quote_no' => $getSingleValue($sampleHeaderData['quote_no'] ?? ''),
@@ -423,7 +275,7 @@ class SampleCreationController extends Controller
             'description' => $getSingleValue($sampleHeaderData['description'] ?? ''),
             'document_number' => $getSingleValue($sampleHeaderData['document_number'] ?? ''),
             'importer_address' => $getSingleValue($sampleHeaderData['importer_address'] ?? ''),
-            'date_expected' => $getSingleValue($sampleHeaderData['date_expected'] ?? now()->addDays(7)->format('Y-m-d')),
+            'date_expected' => $formatDate($sampleHeaderData['date_expected'] ?? null, now()->addDays(7)->toDateString()),
             'quote_id' => $getIntegerValue($sampleHeaderData['quote_id'] ?? null),
             'radio_active_levels' => $getSingleValue($sampleHeaderData['radio_active_levels'] ?? ''),
             'receiving_officer_name' => $getSingleValue($sampleHeaderData['receive_by'] ?? auth()->user()->name ?? 'System'),
@@ -1365,6 +1217,147 @@ class SampleCreationController extends Controller
                 'error' => $e->getMessage()
             ]);
         }
+    }
+
+    private function extractAnalysisTypeIds(array $sampleDetails): array
+    {
+        $analysisTypeIds = [];
+
+        foreach ($sampleDetails as $detail) {
+            if (empty($detail['analysis_type_id'])) {
+                continue;
+            }
+
+            $rawValue = $detail['analysis_type_id'];
+            if (is_array($rawValue)) {
+                $values = $rawValue;
+            } else {
+                $values = explode(',', (string) $rawValue);
+            }
+
+            foreach ($values as $id) {
+                $trimmed = trim((string) $id);
+                if ($trimmed !== '') {
+                    $analysisTypeIds[] = (int) $trimmed;
+                }
+            }
+        }
+
+        return array_values(array_unique(array_filter($analysisTypeIds)));
+    }
+
+    private function applyLabMetadataAndDates(SampleHeader $sampleHeader, array $analysisTypeIds): void
+    {
+        $sampleHeader->receiving_officer = auth()->user()->id;
+
+        if (empty($analysisTypeIds)) {
+            $sampleHeader->save();
+            $this->createSampleDateRecord($sampleHeader->id, 'Login Date', Carbon::now());
+            return;
+        }
+
+        $labSectionIds = AnalysisType::whereIn('id', $analysisTypeIds)
+            ->pluck('lab_section_id')
+            ->filter()
+            ->unique()
+            ->toArray();
+
+        if (!empty($labSectionIds)) {
+            $sampleHeader->lab_section_ids = implode(',', $labSectionIds);
+        }
+
+        $sampleHeader->sample_detail_processed = 0;
+        $sampleHeader->save();
+
+        $this->createSampleDateRecord($sampleHeader->id, 'Login Date', Carbon::now());
+
+        $maxReportingTime = AnalysisType::whereIn('id', $analysisTypeIds)->max('reporting_time') ?? 0;
+        $baseDate = $sampleHeader->receipt_date
+            ? Carbon::parse($sampleHeader->receipt_date)
+            : Carbon::now();
+        $targetDate = (clone $baseDate)->addDays($maxReportingTime);
+
+        $this->createSampleDateRecord($sampleHeader->id, 'Target Date', $targetDate);
+    }
+
+    private function createStagingEntry(SampleHeader $sampleHeader, array $batch, array $analysisTypeIds): void
+    {
+        $getIntegerValue = function ($value) {
+            if (is_array($value)) {
+                $value = reset($value);
+            }
+
+            return is_numeric($value) ? (int) $value : null;
+        };
+
+        $getStringValue = function ($value) {
+            if (is_array($value)) {
+                $value = reset($value);
+            }
+
+            return $value ?? '';
+        };
+
+        $sampleDetails = $batch['sample_details'] ?? [];
+        $firstDetail = $sampleDetails[0] ?? [];
+
+        $stagingData = [
+            'analysis_type_ids' => implode(',', $analysisTypeIds),
+            'analysis_type_names' => $this->resolveAnalysisTypeNames($analysisTypeIds),
+            'company_sub_unit_id' => $getIntegerValue($batch['sample_header']['company_sub_unit_id'] ?? $firstDetail['company_sub_unit_id'] ?? null),
+            'quantity' => 0,
+            'sample_details' => $sampleDetails,
+            'lab_id' => $getIntegerValue($firstDetail['lab_id'] ?? 1),
+            'sample_condition_id' => $getIntegerValue($firstDetail['sample_condition_id'] ?? null),
+            'company_product_id' => $getIntegerValue($firstDetail['company_product_id'] ?? null),
+            'description' => $getStringValue($firstDetail['description'] ?? ''),
+            'sample_type_id' => $getIntegerValue($batch['sample_header']['sample_type_id'] ?? null),
+        ];
+
+        foreach ($sampleDetails as $detail) {
+            $stagingData['quantity'] += $getIntegerValue($detail['quantity'] ?? 1) ?? 0;
+        }
+
+        if ($stagingData['company_sub_unit_id']) {
+            $companySubUnit = \App\Models\CRM\CRMCompanySubUnit::find($stagingData['company_sub_unit_id']);
+            $stagingData['company_sub_unit_name'] = $companySubUnit->name ?? 'N/A';
+            $stagingData['company_sub_unit_code'] = $companySubUnit->code ?? 'N/A';
+        }
+
+        \App\Models\SampleDetailStaging::create([
+            'sample_header_id' => $sampleHeader->id,
+            'data_json' => $stagingData,
+            'is_processed' => 0,
+        ]);
+
+        Log::info('Created staging entry for batch', [
+            'batch_id' => $sampleHeader->id,
+            'analysis_type_ids' => $analysisTypeIds,
+            'quantity' => $stagingData['quantity'],
+        ]);
+    }
+
+    private function resolveAnalysisTypeNames(array $analysisTypeIds): string
+    {
+        if (empty($analysisTypeIds)) {
+            return 'N/A';
+        }
+
+        $names = AnalysisType::whereIn('id', $analysisTypeIds)->pluck('name')->filter()->toArray();
+        return !empty($names) ? implode(', ', $names) : 'N/A';
+    }
+
+    private function createSampleDateRecord(int $sampleHeaderId, string $name, Carbon $date): void
+    {
+        SampleDate::updateOrCreate(
+            [
+                'sample_header_id' => $sampleHeaderId,
+                'name' => $name,
+            ],
+            [
+                'date' => $date,
+            ]
+        );
     }
 
     /**

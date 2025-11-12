@@ -267,7 +267,7 @@ class SubmissionFormElement extends Model
     {
         return in_array($this->element_type, [
             'client_select', 'sample_type_select', 'client_unit_select', 'client_contact_select',
-            'analysis_type_select', 'store_select', 'store_slot_select', 'sample_condition_select', 'standard_select', 'sample_point_select'
+            'analysis_type_select', 'store_select', 'store_slot_select', 'sample_condition_select', 'standard_select', 'sample_point_select', 'user_select'
         ]);
     }
 
@@ -297,6 +297,8 @@ class SubmissionFormElement extends Model
                 return $this->getStandardOptions();
             case 'sample_point_select':
                 return $this->getSamplePointOptions($clientId);
+            case 'user_select':
+                return $this->getUserOptions();
             default:
                 return [];
         }
@@ -490,6 +492,35 @@ class SubmissionFormElement extends Model
                 'label' => $standard->name . ' (' . $standard->code . ')'
             ];
         }
+        return $options;
+    }
+
+    /**
+     * Get user options scoped to the current company
+     */
+    private function getUserOptions()
+    {
+        $query = \App\User::query()->orderBy('name');
+
+        if (function_exists('getUserCompany') && auth()->check()) {
+            $query->where('company_id', getUserCompany());
+        }
+
+        $users = $query->get(['id', 'name', 'email']);
+
+        $options = [];
+        foreach ($users as $user) {
+            $label = $user->name;
+            if (!empty($user->email)) {
+                $label .= ' (' . $user->email . ')';
+            }
+
+            $options[] = [
+                'value' => $user->id,
+                'label' => $label
+            ];
+        }
+
         return $options;
     }
 
