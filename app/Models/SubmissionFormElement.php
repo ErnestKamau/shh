@@ -500,7 +500,11 @@ class SubmissionFormElement extends Model
      */
     private function getUserOptions()
     {
-        $query = \App\User::query()->orderBy('name');
+        $query = \App\User::query()
+            ->where('active', 1)
+            ->where('is_client', 0)
+            ->where('supplier_id', 0)
+            ->orderBy('name');
 
         if (function_exists('getUserCompany') && auth()->check()) {
             $query->where('company_id', getUserCompany());

@@ -797,7 +797,7 @@
         const elementType = elementData.elementType;
         
         // Load initial options for non-dependent elements
-        if (elementType === 'client_select' || elementType === 'sample_type_select' || elementType === 'store_select' || elementType === 'standard_select' || elementType === 'sample_condition_select') {
+        if (elementType === 'client_select' || elementType === 'sample_type_select' || elementType === 'store_select' || elementType === 'standard_select' || elementType === 'sample_condition_select' || elementType === 'user_select') {
             let $element = $('#' + elementId);
             loadDynamicOptions($element, elementId, elementType);
         }

@@ -883,7 +883,10 @@ class FormInstanceController extends Controller
                     break;
 
                 case 'user_select':
-                    $query = \App\User::query();
+                    $query = \App\User::query()
+                        ->where('active', 1)
+                        ->where('is_client', 0)
+                        ->where('supplier_id', 0);
 
                     if (auth()->check() && function_exists('getUserCompany')) {
                         $query->where('company_id', getUserCompany());
