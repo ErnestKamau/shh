@@ -806,12 +806,12 @@
 				<div class="row p-2 border-bottom">
 					<div class="form-group col-md-3">
 						<label class="control-label">Date Collected <span class="text-danger">*</span></label>
-						<input type="date" max="{{ $maxDate }}" placeholder="Lab Receiption Date" value="{{ $batch->date_collected ?? '' }}" class="form-control " name="date_collected" required>
+						<input type="date" max="{{ $maxDate }}" placeholder="Lab Receiption Date" value="{{ date('Y-m-d', strtotime($batch->date_collected ?? '')) }}" class="form-control " name="date_collected" required>
 						
 					</div>
 					<div class="form-group col-md-3">
 						<label class="control-label">Lab Reception Date <span class="text-danger">*</span> </label>
-						<input type="date" max="{{ $maxDate }}" placeholder="Lab Receiption Date" value="{{ $batch->receipt_date ?? '' }}" class="form-control " name="receipt_date" {{ $defaultClient === false ? 'required' : '' }} autocomplete="off">
+						<input type="date" max="{{ $maxDate }}" placeholder="Lab Receiption Date" value="{{ date('Y-m-d', strtotime($batch->receipt_date ?? '')) }}" class="form-control " name="receipt_date" {{ $defaultClient === false ? 'required' : '' }} autocomplete="off">
 						
 					</div>
 					<div class="form-group col-md-3">

@@ -256,6 +256,9 @@ class SampleCreationController extends Controller
         
         // Create the sample header
         $sampleHeader = new SampleHeader();
+        Log::info('Sample header data', [
+            'sample_header_data' => $sampleHeaderData
+        ]);
         $sampleHeader->fill([
             'crm_customer_id' => $getIntegerValue($sampleHeaderData['crm_customer_id'] ?? null),
             'sample_type_id' => $getIntegerValue($sampleHeaderData['sample_type_id'] ?? null),
@@ -278,19 +281,19 @@ class SampleCreationController extends Controller
             'date_expected' => $formatDate($sampleHeaderData['date_expected'] ?? null, now()->addDays(7)->toDateString()),
             'quote_id' => $getIntegerValue($sampleHeaderData['quote_id'] ?? null),
             'radio_active_levels' => $getSingleValue($sampleHeaderData['radio_active_levels'] ?? ''),
-            'receiving_officer_name' => $getSingleValue($sampleHeaderData['receive_by']) ? getUserById($getSingleValue($sampleHeaderData['receive_by']))->name : auth()->user()->name ?? 'System',
-            'receiving_officer' => $getSingleValue($sampleHeaderData['receive_by'] ?? auth()->user()->id ?? 1),
-            'sampling_officer_name' => $getSingleValue($sampleHeaderData['sample_by'] ?? auth()->user()->name ?? 'System'),
+            'receiving_officer_name' => $getSingleValue($sampleHeaderData['receiving_officer']) ? getUserById($getSingleValue($sampleHeaderData['receiving_officer']))->name : auth()->user()->name ?? 'System',
+            'receiving_officer' => $getSingleValue($sampleHeaderData['receiving_officer']),
+            'sampling_officer_name' => $getSingleValue($sampleHeaderData['sampling_officer_name'] ),
             'reference_number' => $getSingleValue($sampleHeaderData['reference_number'] ?? 'n/a'),
             'is_routine' => $getIntegerValue($sampleHeaderData['is_routine'] ?? 0),
             'routine_frequency' => $getIntegerValue($sampleHeaderData['routine_frequency'] ?? 0),
             'is_client_order' => $getIntegerValue($sampleHeaderData['is_client_order'] ?? 0),
-            'submit_by' => $getSingleValue($sampleHeaderData['submit_by'] ?? auth()->user()->name ?? 'System'),
+            'submit_by' => $getSingleValue($sampleHeaderData['submit_by']),
             'crm_unit_name' => $crmUnitName,
             'crm_unit_id' => $crmUnitId,
             'lab_capable' => 1,
             'client_instruction_clear' => 1,
-            'receiving_officer' => auth()->user()->id,
+            
             'status' => 'Samples In Lab',
             'radio_active_levels' => date('H:i:s', strtotime($getSingleValue($sampleHeaderData['radio_active_levels'] ?? now()->format('Y-m-d H:i:s')) ?? '')),
             'submission_form_instance_id' => null, // Will be set by the calling method
@@ -1248,7 +1251,7 @@ class SampleCreationController extends Controller
 
     private function applyLabMetadataAndDates(SampleHeader $sampleHeader, array $analysisTypeIds): void
     {
-        $sampleHeader->receiving_officer = auth()->user()->id;
+        // $sampleHeader->receiving_officer = auth()->user()->id;
 
         if (empty($analysisTypeIds)) {
             $sampleHeader->save();
