@@ -1308,7 +1308,7 @@ class SampleCreationController extends Controller
             'analysis_type_ids' => implode(',', $analysisTypeIds),
             'analysis_type_names' => $this->resolveAnalysisTypeNames($analysisTypeIds),
             'company_sub_unit_id' => $getIntegerValue($batch['sample_header']['company_sub_unit_id'] ?? $firstDetail['company_sub_unit_id'] ?? null),
-            'quantity' => 0,
+            'quantity' => $getIntegerValue($firstDetail['quantity'] ?? 1),
             'sample_details' => $sampleDetails,
             'lab_id' => $getIntegerValue($firstDetail['lab_id'] ?? 1),
             'sample_condition_id' => $getIntegerValue($firstDetail['sample_condition_id'] ?? null),
@@ -1317,9 +1317,9 @@ class SampleCreationController extends Controller
             'sample_type_id' => $getIntegerValue($batch['sample_header']['sample_type_id'] ?? null),
         ];
 
-        foreach ($sampleDetails as $detail) {
-            $stagingData['quantity'] += $getIntegerValue($detail['quantity'] ?? 1) ?? 0;
-        }
+        // foreach ($sampleDetails as $detail) {
+        //     $stagingData['quantity'] += $getIntegerValue($detail['quantity'] ?? 1) ?? 0;
+        // }
 
         if ($stagingData['company_sub_unit_id']) {
             $companySubUnit = \App\Models\CRM\CRMCompanySubUnit::find($stagingData['company_sub_unit_id']);
