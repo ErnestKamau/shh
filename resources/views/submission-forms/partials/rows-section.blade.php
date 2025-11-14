@@ -217,7 +217,7 @@ $(document).ready(function() {
     // Trigger change event on the form to update submit button state
     $('#fill-form').trigger('change');
     
-    // If we have a client_unit from previous row, automatically load sample points for new row
+    // If we have a client_unit from previous row, automatically load dependent selects for new row
     if (previousClientUnitId) {
       const $newRowSamplePoints = $rowElement.find('[data-element-type="sample_point_select"]');
       if ($newRowSamplePoints.length > 0) {
@@ -232,6 +232,12 @@ $(document).ready(function() {
         loadDynamicOptions($newRowSamplePoints, samplePointElementId, 'sample_point_select', null, null, null, previousClientUnitId);
       } else {
         console.warn('=== ADD NEW ROW: NO SAMPLE POINTS ELEMENT FOUND ===');
+      }
+
+      const $newRowCompanySubUnits = $rowElement.find('[data-element-type="company_sub_unit_select"]');
+      if ($newRowCompanySubUnits.length > 0) {
+        const companySubUnitElementId = $newRowCompanySubUnits.attr('id');
+        loadDynamicOptions($newRowCompanySubUnits, companySubUnitElementId, 'company_sub_unit_select', null, null, null, previousClientUnitId);
       }
     } else {
       console.warn('=== ADD NEW ROW: NO PREVIOUS CLIENT UNIT ID FOUND ===');
@@ -282,6 +288,9 @@ $(document).ready(function() {
       } else if (elementType === 'sample_point_select') {
         // This depends on client_unit_select
         setupDependentElement($this, elementId, elementType, 'client_unit_select');
+      } else if (elementType === 'company_sub_unit_select') {
+        // This depends on client_unit_select but should also load when none selected
+        setupDependentElement($this, elementId, elementType, 'client_unit_select');
       } else if (elementType === 'analysis_type_select') {
         // This depends on sample_type_select
         setupDependentElement($this, elementId, elementType, 'sample_type_select');
@@ -309,6 +318,8 @@ $(document).ready(function() {
           loadDynamicOptions($this, elementId, elementType, currentParentValue);
         } else if (elementType === 'sample_point_select') {
           loadDynamicOptions($this, elementId, elementType, null, null, null, currentParentValue);
+        } else if (elementType === 'company_sub_unit_select') {
+          loadDynamicOptions($this, elementId, elementType, null, null, null, currentParentValue);
         } else if (elementType === 'analysis_type_select') {
           loadDynamicOptions($this, elementId, elementType, null, currentParentValue);
         } else if (elementType === 'analysis_elements_select') {
@@ -318,6 +329,9 @@ $(document).ready(function() {
         } else {
           loadDynamicOptions($this, elementId, elementType, currentParentValue);
         }
+      } else if (elementType === 'company_sub_unit_select') {
+        // Load all company sub units when no parent is selected
+        loadDynamicOptions($this, elementId, elementType, null, null, null, null);
       }
       
       // Set up change handler for same-row dependency
@@ -326,9 +340,11 @@ $(document).ready(function() {
         const parentId = $(this).val();
         if (parentId) {
           // Handle different parameter types based on element type and dependency
-          if (elementType === 'client_unit_select' || elementType === 'client_contact_select') {
+        if (elementType === 'client_unit_select' || elementType === 'client_contact_select') {
             loadDynamicOptions($this, elementId, elementType, parentId);
-          } else if (elementType === 'sample_point_select') {
+        } else if (elementType === 'sample_point_select') {
+          loadDynamicOptions($this, elementId, elementType, null, null, null, parentId);
+        } else if (elementType === 'company_sub_unit_select') {
             loadDynamicOptions($this, elementId, elementType, null, null, null, parentId);
           } else if (elementType === 'analysis_type_select') {
             loadDynamicOptions($this, elementId, elementType, null, parentId);
@@ -340,22 +356,29 @@ $(document).ready(function() {
             loadDynamicOptions($this, elementId, elementType, parentId);
           }
         } else {
-          // Clear dependent element and all its children
-          clearDependentElementAndChildren($this);
+          if (elementType === 'company_sub_unit_select') {
+            // Reload all options when parent cleared
+            loadDynamicOptions($this, elementId, elementType, null, null, null, null);
+          } else {
+            // Clear dependent element and all its children
+            clearDependentElementAndChildren($this);
+          }
         }
       });
     } else {
       // Fall back to global dependency
       const globalDependsOnElement = $(document).find(`[data-element-type="${dependsOn}"]`);
       if (globalDependsOnElement.length > 0) {
-        // Remove any existing handlers first to avoid duplicates
-        globalDependsOnElement.off('change.global-dependency-' + elementId).on('change.global-dependency-' + elementId, function() {
-          const parentId = $(this).val();
+        const handlerNamespace = 'change.global-dependency-' + elementId;
+
+        const handleGlobalDependencyChange = function(parentId) {
           if (parentId) {
             // Handle different parameter types based on element type and dependency
             if (elementType === 'client_unit_select' || elementType === 'client_contact_select') {
               loadDynamicOptions($this, elementId, elementType, parentId);
             } else if (elementType === 'sample_point_select') {
+              loadDynamicOptions($this, elementId, elementType, null, null, null, parentId);
+            } else if (elementType === 'company_sub_unit_select') {
               loadDynamicOptions($this, elementId, elementType, null, null, null, parentId);
             } else if (elementType === 'analysis_type_select') {
               loadDynamicOptions($this, elementId, elementType, null, parentId);
@@ -367,10 +390,23 @@ $(document).ready(function() {
               loadDynamicOptions($this, elementId, elementType, parentId);
             }
           } else {
-            // Clear dependent element and all its children
-            clearDependentElementAndChildren($this);
+            if (elementType === 'company_sub_unit_select') {
+              loadDynamicOptions($this, elementId, elementType, null, null, null, null);
+            } else {
+              // Clear dependent element and all its children
+              clearDependentElementAndChildren($this);
+            }
           }
+        };
+
+        // Remove any existing handlers first to avoid duplicates
+        globalDependsOnElement.off(handlerNamespace).on(handlerNamespace, function() {
+          handleGlobalDependencyChange($(this).val());
         });
+
+        // Immediately load options if the global dependency already has a value
+        const initialParentValue = globalDependsOnElement.first().val();
+        handleGlobalDependencyChange(initialParentValue);
       }
     }
   }
@@ -415,7 +451,7 @@ $(document).ready(function() {
     if (elementType === 'client_select') {
       dependentTypes = ['client_unit_select', 'client_contact_select'];
     } else if (elementType === 'client_unit_select') {
-      dependentTypes = ['sample_point_select'];
+      dependentTypes = ['sample_point_select', 'company_sub_unit_select'];
     } else if (elementType === 'sample_type_select') {
       dependentTypes = ['analysis_type_select'];
     } else if (elementType === 'analysis_type_select') {
@@ -572,6 +608,12 @@ $(document).ready(function() {
         
         // Load sample points immediately using the source row's client_unit
         loadDynamicOptions($clonedSamplePoints, samplePointElementId, 'sample_point_select', null, null, null, sourceClientUnitId);
+      }
+
+      const $clonedCompanySubUnits = $newRowElement.find('[data-element-type="company_sub_unit_select"]');
+      if ($clonedCompanySubUnits.length > 0) {
+        const companySubUnitElementId = $clonedCompanySubUnits.attr('id');
+        loadDynamicOptions($clonedCompanySubUnits, companySubUnitElementId, 'company_sub_unit_select', null, null, null, sourceClientUnitId);
       }
     }
     

@@ -81,6 +81,10 @@ class SampleCreationController extends Controller
                 $analysisTypeIds = $this->extractAnalysisTypeIds($batch['sample_details']);
                 $this->applyLabMetadataAndDates($sampleHeader, $analysisTypeIds);
                 $this->createStagingEntry($sampleHeader, $batch, $analysisTypeIds);
+                // log::info('Staging entry created', [
+                //     'batch' => $batch,
+                //     'sample_header' => $sampleHeader,
+                // ]);
 
                 $createdBatches[] = [
                     'batch_id' => $sampleHeader->id,
@@ -1301,14 +1305,41 @@ class SampleCreationController extends Controller
             return $value ?? '';
         };
 
+        $getQuantityValue = function ($value) {
+            if (is_array($value)) {
+                $value = reset($value);
+            }
+
+            return is_numeric($value) ? $value + 0 : null;
+        };
+
         $sampleDetails = $batch['sample_details'] ?? [];
         $firstDetail = $sampleDetails[0] ?? [];
+
+        $resolvedQuantity = $getQuantityValue($firstDetail['quantity'] ?? $firstDetail['sample_quantity'] ?? null);
+
+        if ($resolvedQuantity === null) {
+            foreach ($sampleDetails as $detail) {
+                $resolvedQuantity = $getQuantityValue($detail['quantity'] ?? $detail['sample_quantity'] ?? null);
+                if ($resolvedQuantity !== null) {
+                    break;
+                }
+            }
+        }
+
+        if ($resolvedQuantity === null) {
+            $resolvedQuantity = $getQuantityValue($batch['sample_header']['quantity'] ?? $batch['sample_header']['sample_quantity'] ?? null);
+        }
+
+        if ($resolvedQuantity === null) {
+            $resolvedQuantity = 1;
+        }
 
         $stagingData = [
             'analysis_type_ids' => implode(',', $analysisTypeIds),
             'analysis_type_names' => $this->resolveAnalysisTypeNames($analysisTypeIds),
             'company_sub_unit_id' => $getIntegerValue($batch['sample_header']['company_sub_unit_id'] ?? $firstDetail['company_sub_unit_id'] ?? null),
-            'quantity' => $getIntegerValue($firstDetail['quantity'] ?? 1),
+            'quantity' => $resolvedQuantity,
             'sample_details' => $sampleDetails,
             'lab_id' => $getIntegerValue($firstDetail['lab_id'] ?? 1),
             'sample_condition_id' => $getIntegerValue($firstDetail['sample_condition_id'] ?? null),

@@ -820,21 +820,20 @@
             }
         }
         
-        // For client unit dependent elements
-        if (elementType === 'sample_point_select') {
-            //console.log('Setting up client unit dependent element:', elementType);
-            
-            // Ensure element starts empty
+        // For client unit dependent elements (sample points & company sub units)
+        if (elementType === 'sample_point_select' || elementType === 'company_sub_unit_select') {
             const placeholder = elementData.placeholder;
-            $('#' + elementId).html('<option value="">' + placeholder + '</option>');
+            const $element = $('#' + elementId);
+            $element.html('<option value="">' + placeholder + '</option>');
             
-            // Load options if client unit is already selected
+            // Load options based on current client unit (or all sub units if none selected)
             const clientUnitSelect = $('select[data-element-type="client_unit_select"]');
             const currentClientUnitId = clientUnitSelect.val();
-            //console.log('Current client unit ID:', currentClientUnitId);
             
-            if (currentClientUnitId) {
-                loadDynamicOptions($('#' + elementId), elementId, elementType, null, null, null, currentClientUnitId);
+            if (elementType === 'company_sub_unit_select') {
+                loadDynamicOptions($element, elementId, elementType, null, null, null, currentClientUnitId || null);
+            } else if (currentClientUnitId) {
+                loadDynamicOptions($element, elementId, elementType, null, null, null, currentClientUnitId);
             }
         }
         
@@ -922,10 +921,10 @@
                 });
                 
                 // Also clear elements that depend on client_unit_select
-                const clientUnitDependentElements = $(this).closest('tr').find('select[data-element-type="sample_point_select"]');
+                let clientUnitDependentElements = $(this).closest('tr').find('select[data-element-type="sample_point_select"], select[data-element-type="company_sub_unit_select"]');
 
-                if(clientUnitDependentElements.length == 0){
-                    const clientUnitDependentElements = $('select[data-element-type="sample_point_select"]');
+                if(clientUnitDependentElements.length === 0){
+                    clientUnitDependentElements = $('select[data-element-type="sample_point_select"], select[data-element-type="company_sub_unit_select"]');
                 }
 
                 clientUnitDependentElements.each(function() {

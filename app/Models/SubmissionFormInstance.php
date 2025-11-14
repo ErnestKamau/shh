@@ -321,29 +321,35 @@ class SubmissionFormInstance extends Model
             }
         ]);
 
-        // Get all form elements
-        $elements = $this->submissionForm->sections
-            ->flatMap(function($section) {
-                return $section->elementHolders->flatMap(function($holder) {
-                    return $holder->elements;
-                });
-            });
-
-        // Separate elements by mapping table
+        // Separate elements by mapping table/section
         $sampleHeaderElements = [];
         $sampleDetailElements = [];
         $sampleTypeElement = null;
 
-        foreach ($elements as $element) {
-            if ($element->is_mapped && $element->mapping_table && $element->mapping_field) {
-                if ($element->mapping_table === 'sample_headers') {
-                    $sampleHeaderElements[] = $element;
-                    // Check if this is the sample_type_id field (not sample_type)
-                    if ($element->mapping_field === 'sample_type_id') {
-                        $sampleTypeElement = $element;
+        foreach ($this->submissionForm->sections as $section) {
+            $isRowsSection = $section->isRowsSection();
+
+            foreach ($section->elementHolders as $holder) {
+                foreach ($holder->elements as $element) {
+                    if ($element->is_mapped && $element->mapping_table && $element->mapping_field) {
+                        if ($element->mapping_table === 'sample_headers') {
+                            $sampleHeaderElements[] = $element;
+                            if ($element->mapping_field === 'sample_type_id' && !$sampleTypeElement) {
+                                $sampleTypeElement = $element;
+                            }
+                            continue;
+                        }
+
+                        if ($element->mapping_table === 'sample_details') {
+                            $sampleDetailElements[] = $element;
+                            continue;
+                        }
                     }
-                } elseif ($element->mapping_table === 'sample_details') {
-                    $sampleDetailElements[] = $element;
+
+                    // Fallback: rows sections without explicit mapping should still be treated as sample detail fields
+                    if ($isRowsSection && $element->isInputField()) {
+                        $sampleDetailElements[] = $element;
+                    }
                 }
             }
         }
@@ -438,7 +444,8 @@ class SubmissionFormInstance extends Model
                     if (!isset($sampleDetails[$index])) {
                         $sampleDetails[$index] = [];
                     }
-                    $sampleDetails[$index][$element->mapping_field] = $value;
+                    $fieldKey = $this->resolveFieldKey($element);
+                    $sampleDetails[$index][$fieldKey] = $value;
                 }
             }
         }
@@ -455,6 +462,20 @@ class SubmissionFormInstance extends Model
             'sample_header' => $sampleHeader,
             'sample_details' => $sampleDetails
         ];
+    }
+
+    /**
+     * Resolve the field key to use when building sample detail rows
+     */
+    private function resolveFieldKey($element): string
+    {
+        $fieldKey = $element->mapping_field ?: $element->name ?: 'field_' . $element->id;
+
+        $aliases = [
+            'sample_quantity' => 'quantity',
+        ];
+
+        return $aliases[$fieldKey] ?? $fieldKey;
     }
 
     /**

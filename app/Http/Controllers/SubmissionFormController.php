@@ -541,18 +541,32 @@ class SubmissionFormController extends Controller
                 break;
 
             case 'company_sub_unit_select':
-                if ($clientUnitId) {
-                    $subUnits = \App\Models\CRM\CRMCompanySubUnit::where('crm_company_unit_id', $clientUnitId)
-                        ->where('active', 1)
-                        ->orderBy('name')
-                        ->get();
+                $subUnitQuery = \App\Models\CRM\CRMCompanySubUnit::where('active', 1);
 
-                    foreach ($subUnits as $subUnit) {
-                        $options[] = [
-                            'value' => $subUnit->id,
-                            'label' => $subUnit->name . ' (' . $subUnit->code . ')'
-                        ];
-                    }
+                if ($clientUnitId) {
+                    $subUnitQuery->where('crm_company_unit_id', $clientUnitId);
+                }
+
+                if (function_exists('getUserCompany')) {
+                    $subUnitQuery->whereHas('companyUnit', function ($q) {
+                        $q->where('company_id', getUserCompany());
+                    });
+                }
+
+                $subUnits = $subUnitQuery->orderBy('name')->get();
+
+                foreach ($subUnits as $subUnit) {
+                    $options[] = [
+                        'value' => $subUnit->id,
+                        'label' => $subUnit->name . ($subUnit->code ? ' (' . $subUnit->code . ')' : '')
+                    ];
+                }
+
+                if (empty($options)) {
+                    $options[] = [
+                        'value' => '',
+                        'label' => 'No company units available'
+                    ];
                 }
                 break;
 
