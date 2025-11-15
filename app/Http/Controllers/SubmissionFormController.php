@@ -546,12 +546,12 @@ class SubmissionFormController extends Controller
                 if ($clientUnitId) {
                     $subUnitQuery->where('crm_company_unit_id', $clientUnitId);
                 }
-
-                if (function_exists('getUserCompany')) {
-                    $subUnitQuery->whereHas('companyUnit', function ($q) {
-                        $q->where('company_id', getUserCompany());
-                    });
-                }
+                // Not yet implemented companies
+                // if (function_exists('getUserCompany')) {
+                //     $subUnitQuery->whereHas('companyUnit', function ($q) {
+                //         $q->where('company_id', getUserCompany());
+                //     });
+                // }
 
                 $subUnits = $subUnitQuery->orderBy('name')->get();
 
@@ -576,9 +576,9 @@ class SubmissionFormController extends Controller
                     ->where('is_client', 0)
                     ->where('supplier_id', 0);
 
-                if (auth()->check() && function_exists('getUserCompany')) {
-                    $query->where('company_id', getUserCompany());
-                }
+                // if (auth()->check() && function_exists('getUserCompany')) {
+                //     $query->where('company_id', getUserCompany());
+                // }
 
                 if (!empty($search)) {
                     $query->where(function ($q) use ($search) {
