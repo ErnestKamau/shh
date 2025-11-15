@@ -49,19 +49,25 @@
           </span>
         </div>
       </div>
-      <div class="d-flex gap-2">
+      <div class="d-flex flex-wrap align-items-center">
+        @unless($instance->isDraft())
+          <a href="{{ route('submission-forms.instances.fill', [$submissionForm, $instance]) }}" 
+             class="btn btn-warning btn-sm mr-2 mb-2">
+            <i class="mdi mdi-pencil"></i> Edit Information
+          </a>
+        @endunless
         <a href="{{ route('submission-forms.instances.print', [$submissionForm, $instance]) }}" 
-           class="btn btn-outline-info" 
+           class="btn btn-outline-info btn-sm mr-2 mb-2" 
            target="_blank">
           <i class="mdi mdi-printer"></i> Print Form
         </a>
         @if($instance->isDraft())
           <a href="{{ route('submission-forms.instances.fill', [$submissionForm, $instance]) }}" 
-             class="btn btn-primary">
+             class="btn btn-primary btn-sm">
             <i class="mdi mdi-pencil"></i> Continue Editing
           </a>
         @endif
-        <a href="{{ route('submission-forms.instances.index') }}" class="btn btn-outline-secondary">
+        <a href="{{ route('submission-forms.instances.index') }}" class="btn btn-outline-secondary btn-sm mb-2">
           <i class="mdi mdi-arrow-left"></i> Back to My Submissions
         </a>
       </div>

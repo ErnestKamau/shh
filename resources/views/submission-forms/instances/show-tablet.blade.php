@@ -47,11 +47,18 @@
         <div class="d-flex gap-2">
           @if($instance->isDraft())
             <a href="{{ route('submission-forms.instances.fill-sample', [$submissionForm, $instance]) }}" 
-               class="btn btn-primary btn-sm">
+               class="btn btn-primary mr-2 btn-sm">
               <i class="mdi mdi-pencil"></i> Continue Editing
             </a>
+          @else
+            <button type="button" 
+                    class="btn btn-warning mr-2 btn-sm" 
+                    id="edit-instance-btn"
+                    data-edit-url="{{ route('submission-forms.instances.fill-sample', [$submissionForm, $instance]) }}">
+              <i class="mdi mdi-pencil"></i> Edit Information
+            </button>
           @endif
-          <a href="{{ route('sample-submissions') }}" class="btn btn-outline-secondary btn-sm">
+          <a href="{{ route('sample-submissions') }}" class="btn mr-2 btn-outline-secondary btn-sm">
             <i class="mdi mdi-arrow-left"></i> 
             <span class="d-none d-sm-inline">Back to Sample Submissions</span>
             <span class="d-inline d-sm-none">Back</span>
@@ -377,6 +384,26 @@
 @section('script')
 <script>
 $(document).ready(function() {
+    // Edit instance button - prompt before navigating back to form
+    $('#edit-instance-btn').on('click', function () {
+        const editUrl = $(this).data('edit-url');
+
+        Swal.fire({
+            title: 'Edit Form Data?',
+            text: 'You will be redirected to the form with your previously entered information so you can make updates.',
+            icon: 'question',
+            showCancelButton: true,
+            confirmButtonColor: '#3085d6',
+            cancelButtonColor: '#6c757d',
+            confirmButtonText: 'Edit Form',
+            cancelButtonText: 'Stay Here'
+        }).then((result) => {
+            if (result.isConfirmed && editUrl) {
+                window.location.href = editUrl;
+            }
+        });
+    });
+
     // Create samples button - Tablet version with redirect
     $('#create-samples-btn').on('click', function() {
         const instanceId = $(this).data('instance-id');
