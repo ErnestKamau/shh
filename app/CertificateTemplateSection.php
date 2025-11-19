@@ -21,7 +21,10 @@ class CertificateTemplateSection extends Model
         'sort_order',
         'height',
         'is_collapsible',
-        'styling_options'
+        'styling_options',
+        'layout_structure',
+        'css_config',
+        'data_config'
     ];
 
     /**
@@ -32,6 +35,9 @@ class CertificateTemplateSection extends Model
     protected $casts = [
         'is_collapsible' => 'boolean',
         'styling_options' => 'array',
+        'layout_structure' => 'array',
+        'css_config' => 'array',
+        'data_config' => 'array',
         'created_at' => 'datetime',
         'updated_at' => 'datetime'
     ];

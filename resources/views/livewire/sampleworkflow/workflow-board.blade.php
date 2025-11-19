@@ -1,264 +1,183 @@
-@extends('layouts.lab.layout.app', ['dataTable' => true, 'datePicker' => true, 'select2' => true])
+<div class="container-fluid">
+	<div class="row">
+		<div class="col-12">
+			<div class="card shadow-sm border-0" style="border-radius: 15px;">
+				<div class="card-body">
+					<h4 class="p-2 mb-0">
+						<span class="float-left"><i class="mdi mdi-file-document-edit"></i> Sample Workflow</span>
+						<small> <i class="mdi mdi-circle-medium"></i> {{ $status }}</small>
+						<div class="btn-group float-right">
+							<button type="button" class="btn btn-sm btn-white dropdown-toggle"
+								style="box-shadow: rgba(0, 0, 0, 0.15) 1.95px 1.95px 2.6px;" type="button" id="dropdownMenuButton"
+								data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
+								Actions
+							</button>
+							<div class="dropdown-menu dropdown-menu-right">
+								@if(isset($status) && in_array($status, array("Samples En-Route", "Samples Request Review", "Samples Reception", "Samples In Lab")))
+									<li>
+										<span class="btn btn-sm dropdown-item initiate-interlab" data-toggle="modal"
+											data-target="#inter-lab-add" data-action="bulk"><i
+												class="mdi mdi-swap-horizontal-bold mr-2 text-warning" data-toggle="tooltip"
+												title="Initiate inter Lab"></i> Intiate Inter Lab Transfer(s)</span>
 
-@section('title2')
-<title>{{ $status }} | Sample WorkFlow</title>
-
-<style>
-	.form-part-toggler {
-		margin: 0px 0px 5px 0px !important;
-		padding: 6px 6px 6px 6px;
-		border-bottom: 1px solid rgba(0, 0, 0, 0.09);
-		cursor: pointer;
-	}
-
-	.form-part-toggler:hover {
-		background-color: rgba(0, 0, 0, 0.08);
-	}
-
-	#sample-detail-rows .form-group {
-		display: none;
-	}
-
-	#sample-detail-rows tr.selected-row {
-		background-color: rgb(253, 220, 220);
-	}
-
-	#sample-detail-rows .text {
-		display: unset;
-	}
-
-	#sample-detail-rows tr.editable .form-group {
-		display: unset;
-	}
-
-	#sample-detail-rows tr.editable .text {
-		display: none;
-	}
-
-	#sample-detail-rows tr {
-		cursor: pointer;
-	}
-
-	.hidden {
-		display: none;
-	}
-
-	.overdue-bg-color {
-		background-color: rgba(240, 185, 83, 0.972) !important;
-	}
-
-	.upfront-bg-color {
-		background-color: skyblue !important;
-	}
-
-	.ammend-bg-color {
-		background-color: #fef764 !important;
-	}
-
-	.btn-white {
-		background-color: white !important;
-	}
-
-	.badge-active {
-		background-color: white !important;
-		color: black;
-	}
-</style>
-@endsection
-@section('content2')
-<main>
-	<?php
-$items = array(
-	array(
-		'link' => route('dashboard-lab'),
-		'name' => 'Dashboard',
-		'icon' => null
-	),
-	array(
-		'link' => route('sample-workflow', ['status' => 'All Samples']),
-		'name' => 'Sample Workflow',
-		'icon' => null
-	),
-	array(
-		'link' => route('sample-workflow', ['status' => $status]),
-		'name' => $status,
-		'icon' => null
-	)
-);
-	?>
-	<x-bread-crumb :items="$items"></x-bread-crumb>
-	<h4 class="p-4">
-		<span class="float-left"><i class="mdi mdi-file-document-edit"></i> Sample Workflow</span>
-		<small> <i class="mdi mdi-circle-medium"></i> {{ $status }}</small>
-		<div class="btn-group float-right">
-			<button type="button" class="btn btn-sm btn-white dropdown-toggle"
-				style="box-shadow: rgba(0, 0, 0, 0.15) 1.95px 1.95px 2.6px;" type="button" id="dropdownMenuButton"
-				data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
-				Actions
-			</button>
-			<div class="dropdown-menu dropdown-menu-right">
-				@if(isset($status) && in_array($status, array("Samples En-Route", "Samples Request Review", "Samples Reception", "Samples In Lab")))
-					<li>
-						<span class="btn btn-sm dropdown-item initiate-interlab" data-toggle="modal"
-							data-target="#inter-lab-add" data-action="bulk"><i
-								class="mdi mdi-swap-horizontal-bold mr-2 text-warning" data-toggle="tooltip"
-								title="Initiate inter Lab"></i> Intiate Inter Lab Transfer(s)</span>
-
-					</li>
-				@endif
-				@if ($status == "Samples Reception")
+									</li>
+								@endif
+								@if ($status == "Samples Reception")
 
 
-					<li>
-						<span class="btn btn-sm dropdown-item" data-toggle="modal" disabled data-target="#delete-batch">
-							<i class="mdi mdi-delete-empty mr-2"></i> Cancel Batch
-						</span>
-					</li>
-					<li>
-						<span class="btn btn-sm dropdown-item" data-toggle="modal" disabled data-target="#move-to-lab">
-							<i class="mdi mdi-swap-vertical mr-2"></i> Move to Lab
-						</span>
-					</li>
+									<li>
+										<span class="btn btn-sm dropdown-item" data-toggle="modal" disabled data-target="#delete-batch">
+											<i class="mdi mdi-delete-empty mr-2"></i> Cancel Batch
+										</span>
+									</li>
+									<li>
+										<span class="btn btn-sm dropdown-item" data-toggle="modal" disabled data-target="#move-to-lab">
+											<i class="mdi mdi-swap-vertical mr-2"></i> Move to Lab
+										</span>
+									</li>
 
-					<li>
-						<span class="btn btn-sm dropdown-item" data-target="#print-labels-modal" data-toggle="modal"><i
-								class="mdi mdi-printer mr-2"></i> Labels</span>
-					</li>
-					<li>
-						<span class="btn btn-sm dropdown-item" disabled data-target="#dispatch-to-labs-modal"
-							data-toggle="modal"><i class="mdi mdi-file-send mr-2"></i> Request Review</span>
-					</li>
-					<li>
-						<span class="btn btn-sm dropdown-item" disabled data-target="#dispatch-to-labs-modal-approve"
-							data-toggle="modal"><i class="mdi mdi-check-decagram mr-2"></i> Generate Sales Order</span>
-					</li>
-					<li>
-						<span class="btn btn-sm dropdown-item" disabled data-target="#approve-begin-process"
-							data-toggle="modal"><i class="mdi mdi-checkbox-marked-circle-outline mr-2"></i> Approve For
-							Analysis</span>
-					</li>
-					<li>
-						<span class="btn btn-sm dropdown-item" disabled
-							data-target="#dispatch-to-labs-modal-payment-reminder" data-toggle="modal"
-							title="Dispatch Labeled"><i class="mdi mdi-bell-ring mr-2"></i> Payment Reminder</span>
-					</li>
-					<li>
-						<span class="btn btn-sm dropdown-item" disabled data-target="#generarate_customer_focus"
-							data-toggle="modal" title="Generate Customer Focus"><i
-								class="mdi mdi-file-document-outline mr-2"></i> Generate Customer Focus</span>
-					</li>
-					<li>
-						<span class="btn btn-sm dropdown-item" data-toggle="modal" data-target="#send-schedule-analysis"
-							disabled>
-							<i class="mr-2 mdi mdi-email-send-outline"></i> Send Schedule of Analysis
-						</span>
-					</li>
-					<li>
-						<span class="btn btn-sm dropdown-item" data-target="#clone-batches" data-toggle="modal"><i
-								class="mdi mdi-content-duplicate mr-2"></i> Clone Batch(es)</span>
-					</li>
-				@endif
+									<li>
+										<span class="btn btn-sm dropdown-item" data-target="#print-labels-modal" data-toggle="modal"><i
+												class="mdi mdi-printer mr-2"></i> Labels</span>
+									</li>
+									<li>
+										<span class="btn btn-sm dropdown-item" disabled data-target="#dispatch-to-labs-modal"
+											data-toggle="modal"><i class="mdi mdi-file-send mr-2"></i> Request Review</span>
+									</li>
+									<li>
+										<span class="btn btn-sm dropdown-item" disabled data-target="#dispatch-to-labs-modal-approve"
+											data-toggle="modal"><i class="mdi mdi-check-decagram mr-2"></i> Generate Sales Order</span>
+									</li>
+									<li>
+										<span class="btn btn-sm dropdown-item" disabled data-target="#approve-begin-process"
+											data-toggle="modal"><i class="mdi mdi-checkbox-marked-circle-outline mr-2"></i> Approve For
+											Analysis</span>
+									</li>
+									<li>
+										<span class="btn btn-sm dropdown-item" disabled
+											data-target="#dispatch-to-labs-modal-payment-reminder" data-toggle="modal"
+											title="Dispatch Labeled"><i class="mdi mdi-bell-ring mr-2"></i> Payment Reminder</span>
+									</li>
+									<li>
+										<span class="btn btn-sm dropdown-item" disabled data-target="#generarate_customer_focus"
+											data-toggle="modal" title="Generate Customer Focus"><i
+												class="mdi mdi-file-document-outline mr-2"></i> Generate Customer Focus</span>
+									</li>
+									<li>
+										<span class="btn btn-sm dropdown-item" data-toggle="modal" data-target="#send-schedule-analysis"
+											disabled>
+											<i class="mr-2 mdi mdi-email-send-outline"></i> Send Schedule of Analysis
+										</span>
+									</li>
+									<li>
+										<span class="btn btn-sm dropdown-item" data-target="#clone-batches" data-toggle="modal"><i
+												class="mdi mdi-content-duplicate mr-2"></i> Clone Batch(es)</span>
+									</li>
+								@endif
 
 
-				@if ($status == "Reports for Collection")
-					<li>
-						<span class="btn btn-sm dropdown-item" disabled data-target="#send-email-reports-modal"
-							data-toggle="modal" title="Email Report(s)"><i class="mdi mdi-email mr-2"></i> Email
-							Report(s)</span>
+								@if ($status == "Reports for Collection")
+									<li>
+										<span class="btn btn-sm dropdown-item" disabled data-target="#send-email-reports-modal"
+											data-toggle="modal" title="Email Report(s)"><i class="mdi mdi-email mr-2"></i> Email
+											Report(s)</span>
 
-					</li>
-				@endif
-				@if($status == "Samples Request Review")
-					<li>
-						<span class="btn btn-sm dropdown-item" disabled data-target="#dispatch-to-labs-modal-approve"
-							data-toggle="modal"><i class="mdi mdi-check-decagram mr-2"></i> Generate Draft Invoice</span>
-					</li>
-					<li>
-						<span class="btn btn-sm dropdown-item" disabled data-target="#dispatch-to-labs-modal-review"
-							data-toggle="modal" title="Approve Request"><i class="mdi mdi-clipboard-arrow-right mr-2"></i>
-							Approve Request</span>
-					</li>
-					<li>
-						` <span class="btn btn-sm dropdown-item" disabled
-							data-target="#dispatch-to-labs-modal-review-reject" data-toggle="modal" title="Request Request">
-							<i class="mdi mdi-clipboard-arrow-right mr-2"></i> Reject Request
-						</span>
-					</li>
-					<li>
+									</li>
+								@endif
+								@if($status == "Samples Request Review")
+									<li>
+										<span class="btn btn-sm dropdown-item" disabled data-target="#dispatch-to-labs-modal-approve"
+											data-toggle="modal"><i class="mdi mdi-check-decagram mr-2"></i> Generate Draft Invoice</span>
+									</li>
+									<li>
+										<span class="btn btn-sm dropdown-item" disabled data-target="#dispatch-to-labs-modal-review"
+											data-toggle="modal" title="Approve Request"><i class="mdi mdi-clipboard-arrow-right mr-2"></i>
+											Approve Request</span>
+									</li>
+									<li>
+										` <span class="btn btn-sm dropdown-item" disabled
+											data-target="#dispatch-to-labs-modal-review-reject" data-toggle="modal" title="Request Request">
+											<i class="mdi mdi-clipboard-arrow-right mr-2"></i> Reject Request
+										</span>
+									</li>
+									<li>
 
-						<span class="btn btn-sm dropdown-item" data-target="#print-labels-modal" data-toggle="modal"><i class="mdi mdi-printer mr-2"></i>Print Labels</span>
-					</li>
-				@endif
-				@if($status == "Samples In Lab")
-					<li>
+										<span class="btn btn-sm dropdown-item" data-target="#print-labels-modal" data-toggle="modal"><i class="mdi mdi-printer mr-2"></i>Print Labels</span>
+									</li>
+								@endif
+								@if($status == "Samples In Lab")
+									<li>
 
-						<span class="btn btn-sm dropdown-item" data-target="#print-labels-modal" data-toggle="modal"><i
-								class="mdi mdi-printer mr-2"></i>Print Labels</span>
-					</li>
-					<li>
-						<span class="btn btn-sm dropdown-item" disabled data-target="#dispatch-to-labs-modal-approve"
-							data-toggle="modal"><i class="mdi mdi-check-decagram mr-2"></i> Generate Sales Order</span>
-					</li>
-				@endif
-				@if($status == 'Sample Approval')
-					<li>
-						<span class="btn btn-sm dropdown-item" disabled data-target="#move-batch-complete"
-							data-toggle="modal"><i class="mdi mdi-subdirectory-arrow-right mr-2"></i>Mark Complete</span>
-					</li>
-				@endif
-				@if($status == 'Finished Sample')
-					<li>
-						<sppan class="btn btn-sm dropdown-item" disabled data-target="#move-sample-approval"
-							data-toggle="modal">
-							<i class="mdi mdi-subdirectory-arrow-right mr-2"></i> Return to Approval
-						</sppan>
-					</li>
-				@endif
+										<span class="btn btn-sm dropdown-item" data-target="#print-labels-modal" data-toggle="modal"><i
+												class="mdi mdi-printer mr-2"></i>Print Labels</span>
+									</li>
+									<li>
+										<span class="btn btn-sm dropdown-item" disabled data-target="#dispatch-to-labs-modal-approve"
+											data-toggle="modal"><i class="mdi mdi-check-decagram mr-2"></i> Generate Sales Order</span>
+									</li>
+								@endif
+								@if($status == 'Sample Approval')
+									<li>
+										<span class="btn btn-sm dropdown-item" disabled data-target="#move-batch-complete"
+											data-toggle="modal"><i class="mdi mdi-subdirectory-arrow-right mr-2"></i>Mark Complete</span>
+									</li>
+								@endif
+								@if($status == 'Finished Sample')
+									<li>
+										<sppan class="btn btn-sm dropdown-item" disabled data-target="#move-sample-approval"
+											data-toggle="modal">
+											<i class="mdi mdi-subdirectory-arrow-right mr-2"></i> Return to Approval
+										</sppan>
+									</li>
+								@endif
+							</div>
+						</div>
+
+						<!-- Form Submission Actions - Available for all statuses -->
+						<div class="btn-group float-right mr-2" role="group">
+							<button type="button" class="btn btn-sm btn-primary dropdown-toggle" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
+								<i class="mdi mdi-form-select mr-2"></i> Sample Submissions
+							</button>
+							<div class="dropdown-menu dropdown-menu-right">
+								@if ($status == "Samples Reception")
+									<button class="dropdown-item" data-toggle="modal" data-target="#add-submission-form-modal">
+										<i class="mdi mdi-plus mr-2"></i> Capture Samples
+									</button>
+									<div class="dropdown-divider"></div>
+								@endif
+								<a class="dropdown-item" href="{{ route('sample-workflow.saved-forms') }}">
+									<i class="mdi mdi-file-document-multiple mr-2"></i> View Submissions
+								</a>
+							</div>
+						</div>
+						<span class="btn btn-sm btn-danger float-right mr-2" style="border-radius:25px" data-toggle="modal"
+							data-target="#get-batch-tat"><i class="mdi mdi-clock-outline"></i> TAT Today Batches <span
+								class="badge badge-light badge-pill pt-1" id="tat-counter">0</span> </span>
+						@if(in_array($status, ['Sample Approval', 'Sample Verification']))
+							<span class="btn btn-sm btn-outline-danger float-right mr-2" style="border-radius:25px"
+								data-status="{{$status}}" data-toggle="modal" data-target="#awaiting-approval-modal"><i
+									class="mdi mdi-account-check-outline"></i> Batch(es) Awaiting Approval <span
+									class="badge badge-danger badge-pill pt-1" id="approval-counter"></span> </span>
+						@endif
+					</h4>
+				</div>
 			</div>
 		</div>
-
-		<!-- Form Submission Actions - Available for all statuses -->
-		<div class="btn-group float-right mr-2" role="group">
-			<button type="button" class="btn btn-sm btn-primary dropdown-toggle" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
-				<i class="mdi mdi-form-select mr-2"></i> Sample Submissions
-			</button>
-			<div class="dropdown-menu dropdown-menu-right">
-				@if ($status == "Samples Reception")
-					<button class="dropdown-item" data-toggle="modal" data-target="#add-submission-form-modal">
-						<i class="mdi mdi-plus mr-2"></i> Capture Samples
-					</button>
-					<div class="dropdown-divider"></div>
-				@endif
-				<a class="dropdown-item" href="{{ route('sample-workflow.saved-forms') }}">
-					<i class="mdi mdi-file-document-multiple mr-2"></i> View Submissions
-				</a>
-			</div>
-		</div>
-		<span class="btn btn-sm btn-danger float-right mr-2" style="border-radius:25px" data-toggle="modal"
-			data-target="#get-batch-tat"><i class="mdi mdi-clock-outline"></i> TAT Today Batches <span
-				class="badge badge-light badge-pill pt-1" id="tat-counter">0</span> </span>
-		@if(in_array($status, ['Sample Approval', 'Sample Verification']))
-			<span class="btn btn-sm btn-outline-danger float-right mr-2" style="border-radius:25px"
-				data-status="{{$status}}" data-toggle="modal" data-target="#awaiting-approval-modal"><i
-					class="mdi mdi-account-check-outline"></i> Batch(es) Awaiting Approval <span
-					class="badge badge-danger badge-pill pt-1" id="approval-counter"></span> </span>
-		@endif
-	</h4>
+	</div>
 	@if($status == 'All Samples')
 		<b>Apply Filter ?</b>
 
 
 		<form style="background-color:white" class="p-3" action="{{route('sample-workflow', ['status' => $status])}}"
 			method="get">
-			@csrf
 			<div class="row">
 				<div class="col-md-3">
 					<div class="form-group">
 						<label for="" class="control-label">Customer</label>
 						<select name="customer_id" id="" class="form-control">
-							<option value="All">All</option>
+							<option value="All" {{ ($allFilter['customer_id'] ?? 'All') == 'All' ? 'selected' : '' }}>All</option>
 							@foreach ($clients as $client)
-								<option value="{{$client->id}}">{{$client->name}}</option>
+								<option value="{{$client->id}}" {{ ($allFilter['customer_id'] ?? 'All') == $client->id ? 'selected' : '' }}>{{$client->name}}</option>
 							@endforeach
 						</select>
 					</div>
@@ -267,9 +186,9 @@ $items = array(
 					<div class="form-group">
 						<label for="" class="control-label">Sample Types</label>
 						<select name="sample_type_id" id="" class="form-control">
-							<option value="All">All</option>
+							<option value="All" {{ ($allFilter['sample_type_id'] ?? 'All') == 'All' ? 'selected' : '' }}>All</option>
 							@foreach ($sampletypes as $s_type)
-								<option value="{{$s_type->id}}">{{$s_type->name}}</option>
+								<option value="{{$s_type->id}}" {{ ($allFilter['sample_type_id'] ?? 'All') == $s_type->id ? 'selected' : '' }}>{{$s_type->name}}</option>
 							@endforeach
 						</select>
 					</div>
@@ -277,34 +196,34 @@ $items = array(
 				<div class="col-md-3">
 					<div class="form-group">
 						<label for="" class="control-label">Receipt Date From</label>
-						<input type="date" name="receipt_date_from" id="" class="form-control">
+						<input type="date" name="receipt_date_from" id="" value="{{$allFilter['receipt_date_from'] ?? ''}}" class="form-control">
 					</div>
 				</div>
 				<div class="col-md-3">
 					<div class="form-group">
 						<label for="" class="control-label">Receipt Date To</label>
-						<input type="date" name="receipt_date_to" id="" class="form-control">
+						<input type="date" name="receipt_date_to" id="" value="{{$allFilter['receipt_date_to'] ?? ''}}" class="form-control">
 					</div>
 				</div>
 				<div class="col-md-3">
 					<div class="form-group">
 						<label for="" class="control-label">TAT Date From</label>
-						<input type="date" name="tat_date_from" id="" class="form-control">
+						<input type="date" name="tat_date_from" id="" value="{{$allFilter['tat_date_from'] ?? ''}}" class="form-control">
 					</div>
 				</div>
 				<div class="col-md-3">
 					<div class="form-group">
 						<label for="" class="control-label">TAT Date To</label>
-						<input type="date" name="tat_date_to" id="" class="form-control">
+						<input type="date" name="tat_date_to" id="" value="{{$allFilter['tat_date_to'] ?? ''}}" class="form-control">
 					</div>
 				</div>
 				<div class="col-md-3">
 					<div class="form-group">
 						<label for="" class="control-label">Schedule of Analysis Status</label>
 						<select name="schedule_sent" id="" class="form-control">
-							<option value="All">All</option>
-							<option value="sent">Sent</option>
-							<option value="not_sent">Not Sent</option>
+							<option value="All" {{ ($allFilter['schedule_sent'] ?? 'All') == 'All' ? 'selected' : '' }}>All</option>
+							<option value="sent" {{ ($allFilter['schedule_sent'] ?? 'All') == 'sent' ? 'selected' : '' }}>Sent</option>
+							<option value="not_sent" {{ ($allFilter['schedule_sent'] ?? 'All') == 'not_sent' ? 'selected' : '' }}>Not Sent</option>
 						</select>
 					</div>
 				</div>
@@ -318,19 +237,19 @@ $items = array(
 	<div class="table-responsive bg-light mt-3 p-4">
 		@if($status == 'Finished Sample')
 			<b><u>Apply Filters?</u></b>
-			<form action="/sample-workflow/Finished Sample" class="mb-4" method="get">
+			<form action="{{ route('sample-workflow', ['status' => 'Finished Sample']) }}" class="mb-4" method="get">
 				<div class="row mt-2 p-2 bg-white">
 					<div class="col-md-4">
 						<div class="form-group">
 							<label for="" class="control-label">Receipt Date From</label>
-							<input type="date" name="receipt_from" id="" value="{{$filter['receipt_from'] ?? ''}}"
+							<input type="date" name="receipt_from" id="" value="{{$finishedFilter['receipt_from'] ?? ''}}"
 								class="form-control">
 						</div>
 					</div>
 					<div class="col-md-4">
 						<div class="form-group">
 							<label for="" class="control-label">Receipt Date To</label>
-							<input type="date" name="receipt_to" id="" value="{{$filter['receipt_to'] ?? ''}}"
+							<input type="date" name="receipt_to" id="" value="{{$finishedFilter['receipt_to'] ?? ''}}"
 								class="form-control">
 						</div>
 					</div>
@@ -340,7 +259,7 @@ $items = array(
 							<select name="customer_id" id="" class="form-control">
 								<option value="">Select Customer</option>
 								@foreach($customers as $customer)
-									<option value="{{$customer->id}}" {{isset($filter['customer_id']) && $customer->id == $filter['customer_id'] ? 'selected' : ''}}>{{$customer->name}}</option>
+									<option value="{{$customer->id}}" {{isset($finishedFilter['customer_id']) && $customer->id == $finishedFilter['customer_id'] ? 'selected' : ''}}>{{$customer->name}}</option>
 								@endforeach
 							</select>
 						</div>
@@ -349,7 +268,7 @@ $items = array(
 						<div class="form-group">
 							<label for="" class="control-label">Sample Codes <small>(can provide multiple sample codes comma
 									separated)</small></label>
-							<input type="text" name="sample_codes" value="{{$filter['sample_codes'] ?? ''}}"
+							<input type="text" name="sample_codes" value="{{$finishedFilter['sample_codes'] ?? ''}}"
 								class="form-control">
 						</div>
 					</div>
@@ -517,10 +436,6 @@ $items = array(
 		<div class="btn upfront-bg-color btn-sm"></div> Account Pay Upfront <br>
 		<div class="btn ammend-bg-color btn-sm"></div> Ammended Batch
 	</div>
-</main>
-@endsection
-
-@section('script2')
 <div class="modal fade" id="get-batch-tat" role="dialog">
 	<div class="modal-dialog">
 		<div class="modal-content">
@@ -1468,6 +1383,70 @@ $items = array(
 	</div>
 
 @endif
+</div>
+
+<style>
+.form-part-toggler {
+	margin: 0px 0px 5px 0px !important;
+	padding: 6px 6px 6px 6px;
+	border-bottom: 1px solid rgba(0, 0, 0, 0.09);
+	cursor: pointer;
+}
+
+.form-part-toggler:hover {
+	background-color: rgba(0, 0, 0, 0.08);
+}
+
+#sample-detail-rows .form-group {
+	display: none;
+}
+
+#sample-detail-rows tr.selected-row {
+	background-color: rgb(253, 220, 220);
+}
+
+#sample-detail-rows .text {
+	display: unset;
+}
+
+#sample-detail-rows tr.editable .form-group {
+	display: unset;
+}
+
+#sample-detail-rows tr.editable .text {
+	display: none;
+}
+
+#sample-detail-rows tr {
+	cursor: pointer;
+}
+
+.hidden {
+	display: none;
+}
+
+.overdue-bg-color {
+	background-color: rgba(240, 185, 83, 0.972) !important;
+}
+
+.upfront-bg-color {
+	background-color: skyblue !important;
+}
+
+.ammend-bg-color {
+	background-color: #fef764 !important;
+}
+
+.btn-white {
+	background-color: white !important;
+}
+
+.badge-active {
+	background-color: white !important;
+	color: black;
+}
+</style>
+
 <script src="https://cdn.jsdelivr.net/gh/gitbrent/bootstrap4-toggle@3.6.1/js/bootstrap4-toggle.min.js"></script>
 <script type="text/javascript">
 	var selectedSampleIDs = [];
@@ -2566,4 +2545,3 @@ $items = array(
 	});
 
 </script>
-@endsection

@@ -43,8 +43,11 @@
                         </div>
                         <div class="col-auto">
                             <div class="btn-group" role="group">
+                                <a href="{{ route('certificate-templates.modern-builder', $template) }}" class="btn btn-success">
+                                    <i class="mdi mdi-pencil"></i> Modern Builder
+                                </a>
                                 <a href="{{ route('certificate-templates.builder', $template) }}" class="btn btn-primary">
-                                    <i class="mdi mdi-pencil"></i> Open Builder
+                                    <i class="mdi mdi-pencil"></i> Classic Builder
                                 </a>
                                 <a href="{{ route('certificate-templates.edit', $template) }}" class="btn btn-warning">
                                     <i class="mdi mdi-edit"></i> Edit Settings

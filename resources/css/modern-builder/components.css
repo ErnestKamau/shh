@@ -1,0 +1,207 @@
+/* Component Styles for Modern Builder */
+
+/* Section Styles */
+.section-item {
+    transition: all 0.2s;
+}
+
+.section-item:hover {
+    background: #f8f9fa;
+    transform: translateX(4px);
+}
+
+.section-item.selected {
+    border-color: #007bff !important;
+    background: #e7f3ff;
+}
+
+/* Row/Column/Cell Styles */
+.canvas-row,
+.canvas-column,
+.canvas-cell {
+    position: relative;
+}
+
+.canvas-row::before,
+.canvas-column::before,
+.canvas-cell::before {
+    content: attr(data-row-id);
+    position: absolute;
+    top: -20px;
+    left: 0;
+    font-size: 10px;
+    color: #6c757d;
+    background: white;
+    padding: 2px 6px;
+    border-radius: 3px;
+    opacity: 0;
+    transition: opacity 0.2s;
+}
+
+.canvas-row:hover::before,
+.canvas-column:hover::before,
+.canvas-cell:hover::before {
+    opacity: 1;
+}
+
+/* Element Styles */
+.canvas-element {
+    position: relative;
+}
+
+.canvas-element.selected {
+    border-color: #28a745 !important;
+    box-shadow: 0 0 0 3px rgba(40, 167, 69, 0.2);
+}
+
+.element-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding-bottom: 8px;
+    border-bottom: 1px solid #e9ecef;
+    margin-bottom: 8px;
+}
+
+.element-content {
+    min-height: 30px;
+}
+
+/* Button Styles */
+.btn-group-sm .btn {
+    padding: 2px 8px;
+    font-size: 12px;
+}
+
+/* Modal Styles */
+.modal-content {
+    border-radius: 8px;
+    border: none;
+    box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+}
+
+.modal-header {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+    border-radius: 8px 8px 0 0;
+    border-bottom: none;
+}
+
+.modal-header .close {
+    color: white;
+    opacity: 0.9;
+}
+
+.modal-header .close:hover {
+    opacity: 1;
+}
+
+/* Form Styles */
+.form-group label {
+    font-weight: 600;
+    color: #495057;
+    margin-bottom: 6px;
+}
+
+.form-control {
+    border-radius: 4px;
+    border: 1px solid #ced4da;
+    transition: all 0.2s;
+}
+
+.form-control:focus {
+    border-color: #667eea;
+    box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+}
+
+/* Properties Panel */
+.properties-panel {
+    padding: 15px;
+}
+
+.properties-panel h6 {
+    color: #495057;
+    margin-bottom: 15px;
+    padding-bottom: 10px;
+    border-bottom: 2px solid #e9ecef;
+}
+
+/* Preview Placeholder */
+.preview-placeholder {
+    background: #fff3cd;
+    border: 1px dashed #ffc107;
+    padding: 8px;
+    border-radius: 4px;
+    color: #856404;
+    font-style: italic;
+}
+
+/* Empty States */
+.empty-state {
+    text-align: center;
+    padding: 40px 20px;
+    color: #6c757d;
+}
+
+.empty-state i {
+    font-size: 3rem;
+    margin-bottom: 15px;
+    opacity: 0.5;
+}
+
+.empty-state p {
+    margin: 0;
+    font-size: 14px;
+}
+
+/* Loading States */
+.loading {
+    opacity: 0.6;
+    pointer-events: none;
+}
+
+.loading::after {
+    content: "";
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    width: 20px;
+    height: 20px;
+    margin: -10px 0 0 -10px;
+    border: 2px solid #007bff;
+    border-top-color: transparent;
+    border-radius: 50%;
+    animation: spin 0.6s linear infinite;
+}
+
+@keyframes spin {
+    to { transform: rotate(360deg); }
+}
+
+/* Scrollbar Styling */
+.builder-sidebar::-webkit-scrollbar,
+.builder-canvas::-webkit-scrollbar,
+.builder-properties::-webkit-scrollbar {
+    width: 8px;
+}
+
+.builder-sidebar::-webkit-scrollbar-track,
+.builder-canvas::-webkit-scrollbar-track,
+.builder-properties::-webkit-scrollbar-track {
+    background: #f1f1f1;
+}
+
+.builder-sidebar::-webkit-scrollbar-thumb,
+.builder-canvas::-webkit-scrollbar-thumb,
+.builder-properties::-webkit-scrollbar-thumb {
+    background: #888;
+    border-radius: 4px;
+}
+
+.builder-sidebar::-webkit-scrollbar-thumb:hover,
+.builder-canvas::-webkit-scrollbar-thumb:hover,
+.builder-properties::-webkit-scrollbar-thumb:hover {
+    background: #555;
+}
+
+

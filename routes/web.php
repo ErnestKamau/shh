@@ -39,6 +39,38 @@ Route::middleware(['auth'])->group(function () {
     // Template Builder Routes
     Route::get('certificate-templates/{certificateTemplate}/builder', 'TemplateBuilderController@builder')->name('certificate-templates.builder');
     
+    // Modern Template Builder Routes
+    Route::get('certificate-templates/{certificateTemplate}/modern-builder', 'ModernTemplateBuilderController@builder')->name('certificate-templates.modern-builder');
+    Route::post('certificate-templates/{certificateTemplate}/save-layout', 'ModernTemplateBuilderController@saveLayout')->name('certificate-templates.save-layout');
+    Route::get('certificate-templates/{certificateTemplate}/load-layout', 'ModernTemplateBuilderController@loadLayout')->name('certificate-templates.load-layout');
+    Route::post('certificate-templates/{certificateTemplate}/preview', 'ModernTemplateBuilderController@preview')->name('certificate-templates.preview');
+    Route::post('certificate-templates/{certificateTemplate}/export', 'ModernTemplateBuilderController@export')->name('certificate-templates.export');
+    
+    // Modern Section Management
+    Route::post('certificate-templates/{certificateTemplate}/modern-sections', 'ModernSectionController@store')->name('certificate-templates.modern-sections.store');
+    Route::get('certificate-templates/modern-sections/{section}', 'ModernSectionController@show')->name('certificate-templates.modern-sections.show');
+    Route::put('certificate-templates/modern-sections/{section}', 'ModernSectionController@update')->name('certificate-templates.modern-sections.update');
+    Route::delete('certificate-templates/modern-sections/{section}', 'ModernSectionController@destroy')->name('certificate-templates.modern-sections.destroy');
+    Route::post('certificate-templates/{certificateTemplate}/modern-sections/reorder', 'ModernSectionController@reorder')->name('certificate-templates.modern-sections.reorder');
+    Route::post('certificate-templates/modern-sections/{section}/add-row', 'ModernSectionController@addRow')->name('certificate-templates.modern-sections.add-row');
+    Route::post('certificate-templates/modern-sections/{section}/add-column', 'ModernSectionController@addColumn')->name('certificate-templates.modern-sections.add-column');
+    Route::post('certificate-templates/modern-sections/{section}/add-cell', 'ModernSectionController@addCell')->name('certificate-templates.modern-sections.add-cell');
+    Route::post('certificate-templates/modern-sections/{section}/add-sub-section', 'ModernSectionController@addSubSection')->name('certificate-templates.modern-sections.add-sub-section');
+    
+    // Modern Element Management
+    Route::post('certificate-templates/modern-sections/{section}/elements', 'ModernElementController@store')->name('certificate-templates.modern-elements.store');
+    Route::get('certificate-templates/modern-elements/{element}', 'ModernElementController@show')->name('certificate-templates.modern-elements.show');
+    Route::put('certificate-templates/modern-elements/{element}', 'ModernElementController@update')->name('certificate-templates.modern-elements.update');
+    Route::delete('certificate-templates/modern-elements/{element}', 'ModernElementController@destroy')->name('certificate-templates.modern-elements.destroy');
+    Route::put('certificate-templates/modern-elements/{element}/position', 'ModernElementController@updatePosition')->name('certificate-templates.modern-elements.position');
+    Route::put('certificate-templates/modern-elements/{element}/css-config', 'ModernElementController@updateCssConfig')->name('certificate-templates.modern-elements.css-config');
+    Route::put('certificate-templates/modern-elements/{element}/data-config', 'ModernElementController@updateDataConfig')->name('certificate-templates.modern-elements.data-config');
+    
+    // Query Builder Routes
+    Route::get('certificate-templates/query-builder/tables', 'QueryBuilderController@getTables')->name('certificate-templates.query-builder.tables');
+    Route::get('certificate-templates/query-builder/columns/{table}', 'QueryBuilderController@getColumns')->name('certificate-templates.query-builder.columns');
+    Route::post('certificate-templates/query-builder/preview', 'QueryBuilderController@preview')->name('certificate-templates.query-builder.preview');
+    
     // Section Management
     Route::post('certificate-templates/{template}/sections', 'CertificateTemplateSectionController@store')->name('certificate-templates.sections.store');
     Route::get('certificate-template-sections/{section}', 'CertificateTemplateSectionController@show')->name('certificate-template-sections.show');

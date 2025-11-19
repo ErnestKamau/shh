@@ -30,7 +30,10 @@ class CertificateTemplateElement extends Model
         'position_y_percent',
         'width_percent',
         'height_percent',
-        'z_index'
+        'z_index',
+        'css_config',
+        'data_config',
+        'parent_cell_id'
     ];
 
     /**
@@ -52,6 +55,8 @@ class CertificateTemplateElement extends Model
         'width_percent' => 'decimal:4',
         'height_percent' => 'decimal:4',
         'z_index' => 'integer',
+        'css_config' => 'array',
+        'data_config' => 'array',
         'created_at' => 'datetime',
         'updated_at' => 'datetime'
     ];
@@ -67,6 +72,17 @@ class CertificateTemplateElement extends Model
     const TYPE_DATA_FIELD = 'data_field';
     const TYPE_TABLE = 'table';
     const TYPE_SPACER = 'spacer';
+    const TYPE_BUTTON = 'button';
+    const TYPE_DIVIDER = 'divider';
+    const TYPE_LIST = 'list';
+    const TYPE_ICON = 'icon';
+    const TYPE_CUSTOM_HTML = 'custom_html';
+    const TYPE_INPUT_TEXT = 'input_text';
+    const TYPE_INPUT_EMAIL = 'input_email';
+    const TYPE_INPUT_NUMBER = 'input_number';
+    const TYPE_INPUT_DATE = 'input_date';
+    const TYPE_TEXTAREA = 'textarea';
+    const TYPE_SELECT = 'select';
 
     /**
      * Get all available element types.
@@ -81,7 +97,18 @@ class CertificateTemplateElement extends Model
             self::TYPE_IMAGE => 'Image',
             self::TYPE_DATA_FIELD => 'Data Field',
             self::TYPE_TABLE => 'Table',
-            self::TYPE_SPACER => 'Spacer'
+            self::TYPE_SPACER => 'Spacer',
+            self::TYPE_BUTTON => 'Button',
+            self::TYPE_DIVIDER => 'Divider',
+            self::TYPE_LIST => 'List',
+            self::TYPE_ICON => 'Icon',
+            self::TYPE_CUSTOM_HTML => 'Custom HTML',
+            self::TYPE_INPUT_TEXT => 'Text Input',
+            self::TYPE_INPUT_EMAIL => 'Email Input',
+            self::TYPE_INPUT_NUMBER => 'Number Input',
+            self::TYPE_INPUT_DATE => 'Date Input',
+            self::TYPE_TEXTAREA => 'Textarea',
+            self::TYPE_SELECT => 'Select Dropdown'
         ];
     }
 

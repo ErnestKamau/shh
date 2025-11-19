@@ -23,24 +23,7 @@ class CertificateTemplateController extends Controller
      */
     public function index(Request $request): View
     {
-        $submissionFormId = $request->get('submission_form_id');
-        
-        $query = CertificateTemplate::with(['creator', 'sections.elementHolders', 'submissionForm'])
-            ->withCount(['sections', 'reports']);
-            
-        if ($submissionFormId) {
-            $query->where('submission_form_id', $submissionFormId);
-        }
-        
-        $templates = $query->orderBy('created_at', 'desc')->paginate(15);
-        
-        // Get all submission forms for the filter dropdown
-        $submissionForms = \App\Models\SubmissionForm::where('is_published', true)
-            ->where('is_active', true)
-            ->orderBy('name')
-            ->get();
-
-        return view('certificate-templates.index', compact('templates', 'submissionForms', 'submissionFormId'));
+        return view('certificate-templates.index');
     }
 
     /**
@@ -154,11 +137,75 @@ class CertificateTemplateController extends Controller
      */
     public function destroy(CertificateTemplate $certificateTemplate): RedirectResponse
     {
-        $certificateTemplate->delete();
+        DB::transaction(function () use ($certificateTemplate) {
+            // Delete all report files before deleting the template
+            $reports = $certificateTemplate->reports()->get();
+            foreach ($reports as $report) {
+                if ($report->file_path) {
+                    // Report file_path is relative to storage/app
+                    if (Storage::disk('local')->exists($report->file_path)) {
+                        Storage::disk('local')->delete($report->file_path);
+                    }
+                }
+            }
+
+            // Delete images from header_settings and footer_settings
+            if ($certificateTemplate->header_settings) {
+                $headerSettings = $certificateTemplate->header_settings;
+                if (isset($headerSettings['logo']) && !empty($headerSettings['logo'])) {
+                    $logoPath = str_replace(asset('storage/'), '', $headerSettings['logo']);
+                    if (Storage::disk('public')->exists($logoPath)) {
+                        Storage::disk('public')->delete($logoPath);
+                    }
+                }
+            }
+
+            if ($certificateTemplate->footer_settings) {
+                $footerSettings = $certificateTemplate->footer_settings;
+                if (isset($footerSettings['logo']) && !empty($footerSettings['logo'])) {
+                    $logoPath = str_replace(asset('storage/'), '', $footerSettings['logo']);
+                    if (Storage::disk('public')->exists($logoPath)) {
+                        Storage::disk('public')->delete($logoPath);
+                    }
+                }
+            }
+
+            // Delete all sections (this will cascade delete elements and holders via database constraints)
+            // But we'll also explicitly delete files to ensure everything is cleaned up
+            $sections = $certificateTemplate->sections()->with(['elementHolders.elements', 'elements'])->get();
+            foreach ($sections as $section) {
+                // Delete elements in holders first
+                foreach ($section->elementHolders as $holder) {
+                    foreach ($holder->elements as $element) {
+                        // Delete any associated files (e.g., images)
+                        if ($element->element_type === 'image' && !empty($element->properties['image_path'])) {
+                            $imagePath = str_replace(asset('storage/'), '', $element->properties['image_path']);
+                            if (Storage::disk('public')->exists($imagePath)) {
+                                Storage::disk('public')->delete($imagePath);
+                            }
+                        }
+                    }
+                }
+                
+                // Delete direct elements (not in holders)
+                foreach ($section->elements as $element) {
+                    // Delete any associated files (e.g., images)
+                    if ($element->element_type === 'image' && !empty($element->properties['image_path'])) {
+                        $imagePath = str_replace(asset('storage/'), '', $element->properties['image_path']);
+                        if (Storage::disk('public')->exists($imagePath)) {
+                            Storage::disk('public')->delete($imagePath);
+                        }
+                    }
+                }
+            }
+
+            // Delete the template (this will cascade delete sections, elements, holders, and reports via database constraints)
+            $certificateTemplate->delete();
+        });
 
         return redirect()
             ->route('certificate-templates.index')
-            ->with('success', 'Certificate template deleted successfully.');
+            ->with('success', 'Certificate template and all associated data deleted successfully.');
     }
 
     /**

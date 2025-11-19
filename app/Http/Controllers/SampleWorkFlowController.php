@@ -88,109 +88,11 @@ class SampleWorkFlowController extends Controller
         if (!$status) {
             $status = getSampleWorflowStages()[0];
         }
-        $labsections = SampleAnalysisStage::where('active', 1)->get();
-        $zoho_items = InventorySubCategories::all();
-        $role_a = SystemConfiguration::where('key', 'analyst_role_id')->first();
-        $analysts = User::orderBy('name')->join('user_roles as ur', 'ur.user_id', '=', 'users.id')
-            ->join('roles as r', 'r.id', '=', 'ur.role_id')
-            ->where('r.id', $role_a->value)->where('users.active', 1)->where('users.is_support_staff', 0)->selectRaw('users.*')->get();
-        $users = User::where('is_client', 0)->where('supplier_id', 0)->where('active', 1)->get();
 
-        $clients = [];
-        $sampletypes = [];
-
-        // return response()->json('test');
-        if ($status == 'Finished Sample') {
-            $filter = [];
-            if (isset($request->has_filter)) {
-                $batchesquery = SampleHeader::with('invoice');
-
-                if ($request->sample_codes != '') {
-                    $filter['sample_codes'] = $request->sample_codes;
-                    $sample_Batches = SampleDetails::whereIn('sample_code', explode(',', trim($request->sample_codes)))->pluck('sample_header_id')->toArray();
-                    $batchesquery = sizeof($sample_Batches) > 0 ? $batchesquery->whereIn('id', $sample_Batches) : $batchesquery;
-                }
-                if ($request->receipt_from != '') {
-                    $filter['receipt_from'] = $request->receipt_from;
-                    $batchesquery = $batchesquery->where('receipt_date', '>=', $request->receipt_from);
-                }
-                if ($request->receipt_to != '') {
-                    $filter['receipt_to'] = $request->receipt_to;
-                    $batchesquery = $batchesquery->where('receipt_date', '<=', $request->receipt_to);
-                }
-                if ($request->customer_id != '') {
-                    $filter['customer_id'] = $request->customer_id;
-                    $batchesquery = $batchesquery->where('crm_customer_id', $request->customer_id);
-                }
-                $batches = $batchesquery->with('samples')->where('status', 'Finished Sample')->where('isactive', 1)->orderBy('receipt_date', 'desc')->get();
-            } else {
-                $batches = [];
-            }
-            $role_a = SystemConfiguration::where('key', 'analyst_role_id')->first();
-            $analysts = User::orderBy('name')->join('user_roles as ur', 'ur.user_id', '=', 'users.id')
-                ->join('roles as r', 'r.id', '=', 'ur.role_id')
-                ->where('r.id', $role_a->value)->where('users.active', 1)->where('users.is_support_staff', 0)->selectRaw('users.*')->get();
-            $users = User::where('is_client', 0)->where('supplier_id', 0)->where('active', 1)->get();
-            $customers = CRMCustomer::where('active', 1)->get();
-
-            return view('layouts.lab.sample-workflow.index', compact('batches', 'status', 'analysts', 'labsections', 'users', 'customers', 'filter', 'zoho_items'));
-
-
-        }
-        if ($status == 'All Samples') {
-            $clients = CRMCustomer::where('active', 1)->get();
-            $sampletypes = SampleType::where('active', 1)->get();
-            $tat_to = 0;
-            $batches = SampleHeader::query();
-            $batches = $batches->with('samples')->where('isactive', 1)->orderBy('receipt_date', 'desc');
-            if ($request->customer_id && $request->customer_id != '' && $request->customer_id != 'All') {
-                $batches = $batches->where('crm_customer_id', $request->customer_id);
-            }
-            if ($request->sample_type_id && $request->sample_type_id != '' && $request->sample_type_id != 'All') {
-                $batches = $batches->where('sample_type_id', $request->sample_type_id);
-            }
-            if ($request->receipt_date_from && $request->receipt_date_from != '') {
-                $batches = $batches->where('receipt_date', '>=', $request->receipt_date_from);
-            }
-            if ($request->receipt_date_to && $request->receipt_date_to != '') {
-                $batches = $batches->where('receipt_date', '<=', $request->receipt_date_to);
-            }
-            if ($request->tat_date_from && $request->tat_date_from != '') {
-                $tatbatch = SampleDate::query();
-                $tatbatch = $tatbatch->where('name', 'Target Date');
-                $tatbatch = $tatbatch->where('date', '>=', $request->tat_date_from);
-                if ($request->tat_date_to && $request->tat_date_to != '') {
-                    $tatbatch = $tatbatch->where('date', '<=', $request->tat_date_from);
-                    $tat_to = 1;
-                }
-                $tatbatchIDs = $tatbatch->pluck('sample_header_id')->toArray();
-                $batches = $batches->whereIn('id', $tatbatchIDs);
-            }
-            if ($request->tat_date_to && $request->tat_date_to != '') {
-                $tatbatch = SampleDate::where('name', 'Target Date')->where('date', '<=', $request->tat_date_to);
-                $batches = $batches->whereIn('id', $tatbatch);
-            }
-            if ($request->schedule_sent && $request->schedule_sent != '') {
-                if ($request->schedule_sent == 'sent') {
-                    $batches = $batches->where('schedule_analysis_sent', 1);
-                } elseif ($request->schedule_sent == 'not_sent') {
-                    $batches = $batches->where('schedule_analysis_sent', 0);
-                }
-            }
-            $batches = $batches->orderBy('receipt_date', 'desc')->get();
-        } else {
-            $batches = SampleHeader::with('samples')->where('isactive', 1)->orderBy('receipt_date', 'desc');
-            if ($status == 'Schedule of Analysis') {
-                $q = 'Samples In Lab';
-                $l = 1;
-                $batches = $batches->where('status', $q)->where('schedule_sent', '<', $l);
-            } else {
-                $batches = $batches->where('status', $status)->orWhere('prelim_batch_status', $status);
-            }
-            $batches = $batches->get();
-        }
-
-        return view('layouts.lab.sample-workflow.index', compact('batches', 'status', 'analysts', 'labsections', 'users', 'zoho_items', 'sampletypes', 'clients'));
+        return view('livewire.layout.sample-workflow', [
+            'status' => $status,
+            'initialFilters' => $request->all(),
+        ]);
     }
 
     public function print_labels(Request $request)
