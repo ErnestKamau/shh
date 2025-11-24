@@ -9,7 +9,7 @@ use App\SampleDate;
 use App\SampleDetails;
 use App\SampleHeader;
 use App\SampleType;
-use App\SystemConfiguration;
+use App\Models\System\SystemConfiguration;
 use App\User;
 use Illuminate\Support\Collection;
 use Livewire\Component;
@@ -32,9 +32,31 @@ class WorkflowBoard extends Component
     public array $allFilter = [];
 
     /**
-     * Filters for the “Finished Sample” tab.
+     * Filters for the "Finished Sample" tab.
      */
     public array $finishedFilter = [];
+
+    /**
+     * Livewire search and filters for all statuses.
+     */
+    public string $search = '';
+    public ?string $receiptDateFrom = null;
+    public ?string $receiptDateTo = null;
+    public ?int $customerFilter = null;
+    public ?int $sampleTypeFilter = null;
+    
+    /**
+     * Customer dropdown state.
+     */
+    public bool $showCustomerDropdown = false;
+    public string $customerSearch = '';
+    public int $customerPage = 1;
+    public int $customerPerPage = 50;
+    
+    /**
+     * Track if component has finished initial load.
+     */
+    public bool $initialLoadComplete = false;
 
     /**
      * Shared datasets required by the legacy modals/forms.
@@ -61,6 +83,17 @@ class WorkflowBoard extends Component
 
         $this->hydrateFiltersFromRequest();
         $this->loadReferenceData();
+        
+        // Mark initial load as complete after a short delay
+        $this->dispatch('initial-load-complete');
+    }
+    
+    /**
+     * Mark initial load as complete.
+     */
+    public function markInitialLoadComplete(): void
+    {
+        $this->initialLoadComplete = true;
     }
 
     /**
@@ -270,6 +303,36 @@ class WorkflowBoard extends Component
             });
         }
 
+        // Apply search filter (batch_code and sample_code)
+        if (!empty($this->search)) {
+            $searchTerm = '%' . $this->search . '%';
+            $query->where(function ($q) use ($searchTerm) {
+                $q->where('batch_code', 'like', $searchTerm)
+                    ->orWhereHas('samples', function ($sampleQuery) use ($searchTerm) {
+                        $sampleQuery->where('sample_code', 'like', $searchTerm);
+                    });
+            });
+        }
+
+        // Apply receipt date filters
+        if ($this->receiptDateFrom) {
+            $query->whereDate('receipt_date', '>=', $this->receiptDateFrom);
+        }
+
+        if ($this->receiptDateTo) {
+            $query->whereDate('receipt_date', '<=', $this->receiptDateTo);
+        }
+
+        // Apply customer filter
+        if ($this->customerFilter) {
+            $query->where('crm_customer_id', $this->customerFilter);
+        }
+
+        // Apply sample type filter
+        if ($this->sampleTypeFilter) {
+            $query->where('sample_type_id', $this->sampleTypeFilter);
+        }
+
         return $query->get();
     }
 
@@ -281,6 +344,99 @@ class WorkflowBoard extends Component
             ->unique()
             ->values()
             ->toArray();
+    }
+
+    /**
+     * Clear all filters.
+     */
+    public function clearFilters(): void
+    {
+        $this->search = '';
+        $this->receiptDateFrom = null;
+        $this->receiptDateTo = null;
+        $this->customerFilter = null;
+        $this->sampleTypeFilter = null;
+        $this->customerSearch = '';
+        $this->showCustomerDropdown = false;
+        $this->customerPage = 1;
+    }
+    
+    /**
+     * Get filtered customers for dropdown with pagination.
+     * Returns all customers up to the current page (accumulated).
+     */
+    public function getFilteredCustomersProperty()
+    {
+        $customers = $this->clients;
+        
+        // Apply search filter if provided
+        if (!empty($this->customerSearch)) {
+            $customers = $customers->filter(function($customer) {
+                return stripos($customer->name ?? '', $this->customerSearch) !== false;
+            });
+        }
+        
+        // Return all customers up to current page (for infinite scroll accumulation)
+        $totalToShow = $this->customerPage * $this->customerPerPage;
+        return $customers->take($totalToShow);
+    }
+    
+    /**
+     * Check if there are more customers to load.
+     */
+    public function getHasMoreCustomersProperty()
+    {
+        $customers = $this->clients;
+        
+        if (!empty($this->customerSearch)) {
+            $customers = $customers->filter(function($customer) {
+                return stripos($customer->name ?? '', $this->customerSearch) !== false;
+            });
+        }
+        
+        $totalLoaded = $this->customerPage * $this->customerPerPage;
+        return $customers->count() > $totalLoaded;
+    }
+    
+    /**
+     * Load more customers (for infinite scroll).
+     */
+    public function loadMoreCustomers(): void
+    {
+        if ($this->hasMoreCustomers) {
+            $this->customerPage++;
+        }
+    }
+    
+    /**
+     * Get selected customer name.
+     */
+    public function getSelectedCustomerProperty()
+    {
+        if (!$this->customerFilter) {
+            return null;
+        }
+        
+        return $this->clients->firstWhere('id', $this->customerFilter);
+    }
+    
+    /**
+     * Select a customer from dropdown.
+     */
+    public function selectCustomer(int $customerId): void
+    {
+        $this->customerFilter = $customerId;
+        $this->customerSearch = ''; // Clear search input, only show badge
+        $this->showCustomerDropdown = false;
+        $this->customerPage = 1; // Reset pagination
+    }
+    
+    /**
+     * Reset customer pagination when search changes.
+     */
+    public function updatedCustomerSearch(): void
+    {
+        $this->customerPage = 1; // Reset to first page when searching
     }
 
     public function render()

@@ -1,4 +1,4 @@
-@extends('layouts.lab.layout.app', ['dataTable' => true, 'datePicker' => true, 'select2' => true])
+@extends('layouts.lab.layout.app', [ 'datePicker' => true, 'select2' => true])
 
 @section('title2')
 <title>{{ $status }} | Sample WorkFlow</title>
@@ -33,8 +33,9 @@ $items = [
 	])
 </main>
 @endsection
-
-
+@section('script2')
+@stack('script2')
+@endsection
 
 
 
