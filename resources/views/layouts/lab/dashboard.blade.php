@@ -243,12 +243,12 @@
                             <td>{{$loop->iteration}}</td>
                             <td nowrap>{!! $item->priority != "Normal" ? '<i class="mdi mdi-star text-danger"></i>' : '' !!} {{ $item->priority }}</td>
                             <td><a href="{{ route('view-batch-details', ['batch'=>$item->id]) }}">{{ $item->batch_code }}</a></td>
-                            <td nowrap>{{ date('Y-m-d', strtotime($item->receipt_date)) }}</td>
-                            <td nowrap>{{ date('Y-m-d', strtotime($item->date_collected)) }}</td>
+                            <td nowrap>{{ $item->receipt_date ? date('Y-m-d', strtotime($item->receipt_date)) : 'NOT SET' }}</td>
+                            <td nowrap>{{ $item->date_collected ? date('Y-m-d', strtotime($item->date_collected)) : 'NOT SET' }}</td>
                             <td nowrap>{{ date('Y-m-d', strtotime($target_date ?? '')) }}</td>
                             <td nowrap>{{ number_format($diff ?? 0, 0) }} Day(s)</td>
                             <td>{{ $item->samples->count() }}</td>
-                            <td nowrap>{{ $item->client->name }}</td>
+                            <td nowrap>{{ $item->client->name ?? 'NOT SET' }}</td>
                             <td nowrap>{{ $item->unit_name }}</td>
                             <td nowrap>{{ implode(", ", $item->labs(true)) }}</td>
                             <td nowrap>{{ $item->sample_type->name ?? '' }}</td>

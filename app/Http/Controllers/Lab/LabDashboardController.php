@@ -28,7 +28,9 @@ class LabDashboardController extends Controller
             array_unique($samplesTypes);
             foreach ($samplesTypes as $id) {
                 $stype = getSampleTypeByID($id);
-                $results[$stype->name] = SampleHeader::where('sample_type_id', $id)->whereYear('created_at', $request->year)->where('status','!=','Completed')->where('isactive', 1)->get()->count();
+                if ($stype) {
+                    $results[$stype->name] = SampleHeader::where('sample_type_id', $id)->whereYear('created_at', $request->year)->where('status','!=','Completed')->where('isactive', 1)->get()->count();
+                }
             }
         } else {
             $currentY = date('Y');
@@ -37,7 +39,9 @@ class LabDashboardController extends Controller
             $results = [];
             foreach ($samplesTypes as $id) {
                 $stype = getSampleTypeByID($id);
-                $results[$stype->name] = SampleHeader::where('sample_type_id', $id)->where('status','!=','Completed')->whereYear('created_at', $currentY)->where('isactive', 1)->get()->count();
+                if ($stype) {
+                    $results[$stype->name] = SampleHeader::where('sample_type_id', $id)->where('status','!=','Completed')->whereYear('created_at', $currentY)->where('isactive', 1)->get()->count();
+                }
             }
         }
         return response()->json($results);
@@ -75,22 +79,26 @@ class LabDashboardController extends Controller
                 $details = SampleDetails::where('sample_header_id', $sample->id)->get();
                 foreach ($details as $detail) {
                     $sample_point = SamplePoint::find($detail->sample_point_id);
-                    if (!isset($sample_point->id)) {
+                    if (!$sample_point || !isset($sample_point->id)) {
 
                         $crm_unit = CRMCompanyUnit::where('name', $sample->crm_unit_name)->first();
-                        if (isset($crm_unit->id)) {
+                        if ($crm_unit && isset($crm_unit->id)) {
                             $sample_point_ = SamplePoint::where('crm_company_unit_id', $crm_unit->id)->first();
                             // return response()->json($sample_point_);
-                            if (!isset($results[$sample_point_->gps])) {
-                                $results[$sample_point_->gps] = 0;
+                            if ($sample_point_ && isset($sample_point_->gps)) {
+                                if (!isset($results[$sample_point_->gps])) {
+                                    $results[$sample_point_->gps] = 0;
+                                }
+                                ++$results[$sample_point_->gps];
                             }
-                            ++$results[$sample_point_->gps];
                         }
                     } else {
-                        if (!isset($results[$sample_point->gps])) {
-                            $results[$sample_point->gps] = 0;
+                        if ($sample_point && isset($sample_point->gps)) {
+                            if (!isset($results[$sample_point->gps])) {
+                                $results[$sample_point->gps] = 0;
+                            }
+                            ++$results[$sample_point->gps];
                         }
-                        ++$results[$sample_point->gps];
                     }
                 }
             }
@@ -101,22 +109,26 @@ class LabDashboardController extends Controller
                 $details = SampleDetails::where('sample_header_id', $sample->id)->get();
                 foreach ($details as $detail) {
                     $sample_point = SamplePoint::find($detail->sample_point_id);
-                    if (!isset($sample_point->id)) {
+                    if (!$sample_point || !isset($sample_point->id)) {
 
                         $crm_unit = CRMCompanyUnit::where('name', $sample->crm_unit_name)->first();
-                        if (isset($crm_unit->id)) {
+                        if ($crm_unit && isset($crm_unit->id)) {
                             $sample_point_ = SamplePoint::where('crm_company_unit_id', $crm_unit->id)->first();
                             // return response()->json($sample_point_);
-                            if (!isset($results[$sample_point_->gps])) {
-                                $results[$sample_point_->gps] = 0;
+                            if ($sample_point_ && isset($sample_point_->gps)) {
+                                if (!isset($results[$sample_point_->gps])) {
+                                    $results[$sample_point_->gps] = 0;
+                                }
+                                ++$results[$sample_point_->gps];
                             }
-                            ++$results[$sample_point_->gps];
                         }
                     } else {
-                        if (!isset($results[$sample_point->gps])) {
-                            $results[$sample_point->gps] = 0;
+                        if ($sample_point && isset($sample_point->gps)) {
+                            if (!isset($results[$sample_point->gps])) {
+                                $results[$sample_point->gps] = 0;
+                            }
+                            ++$results[$sample_point->gps];
                         }
-                        ++$results[$sample_point->gps];
                     }
                 }
             }
@@ -161,7 +173,7 @@ class LabDashboardController extends Controller
         $notification = getBatchNotificationUser();
         foreach ($notification as $note) {
             $batch = getSampleHeaderByID($note->batch_id);
-            if (isset($batch->status) && $batch->status != $note->status) {
+            if ($batch && isset($batch->status) && $batch->status != $note->status) {
                 $note->delete();
             }
         }

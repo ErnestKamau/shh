@@ -261,7 +261,8 @@ class SampleHeader extends Model implements Auditable
 		if ($this->sample_tracking_stage == 0) {
 			return (object) ["name" => "N/A"];
 		}
-		return \App\SampleAnalysisStage::find($this->sample_tracking_stage);
+		$stage = \App\SampleAnalysisStage::find($this->sample_tracking_stage);
+		return $stage ? $stage : (object) ["name" => "NOT SET"];
 	}
 
 	public function captured_results()
@@ -336,9 +337,10 @@ class SampleHeader extends Model implements Auditable
 	}
 	public function getUnitNameAttribute(){
 		if($this->crm_unit_id > 0){
-			return CRMCompanyUnit::find($this->crm_unit_id)->name;
+			$unit = CRMCompanyUnit::find($this->crm_unit_id);
+			return $unit ? $unit->name : 'NOT SET';
 		}
-		return $this->crm_unit_name;
+		return $this->crm_unit_name ?? 'NOT SET';
 	}
 	public function invoice(){
 		return $this->belongsTo(Invoice::class,'invoice_id');

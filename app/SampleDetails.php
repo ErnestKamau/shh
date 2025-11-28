@@ -34,7 +34,11 @@ class SampleDetails extends Model implements Auditable
 		$labs = array();
 		if (sizeof($analysisTypes) > 0) {
 			foreach ($analysisTypes as $a) {
-				$labs[] = array($a->lab->code, $a->lab->name);
+				if ($a && $a->lab) {
+					$labs[] = array($a->lab->code, $a->lab->name);
+				} else {
+					$labs[] = array('NOT SET', 'NOT SET');
+				}
 			}
 		}
 
