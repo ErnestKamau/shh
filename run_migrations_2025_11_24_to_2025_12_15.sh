@@ -6,6 +6,12 @@
 echo "Running migrations from 2025-11-24 to 2025-12-15..."
 echo "=================================================="
 
+# Prerequisite tables (TemplateEngine module)
+echo ""
+echo "Running prerequisite TemplateEngine migrations..."
+php artisan migrate --path=Modules/TemplateEngine/Database/Migrations/2024_12_08_000001_create_form_templates_table.php
+php artisan migrate --path=Modules/TemplateEngine/Database/Migrations/2024_12_08_000003_create_form_fields_table.php
+
 # December 5, 2025
 echo ""
 echo "Running December 5, 2025 migrations..."
