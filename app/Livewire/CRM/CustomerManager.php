@@ -5,6 +5,10 @@ namespace App\Livewire\CRM;
 use Livewire\Component;
 use Livewire\WithPagination;
 use App\Models\CRM\CRMCustomer;
+use App\Models\CRM\CRMCompanyUnit;
+use App\Models\CRM\CRMCompanySubUnit;
+use App\Models\SamplePointArea;
+use App\Models\CRM\SamplePoint;
 use App\Country;
 use App\ModulePreConfigs;
 use App\ZohoCustomers;
@@ -74,6 +78,11 @@ class CustomerManager extends Component
     public $messageType = '';
     public $perPage = 25;
     public $perPageOptions = [25, 50, 75, 100];
+
+    // Clone Modal State
+    public $showCloneModal = false;
+    public $customerToClone = null;
+    public $cloneCustomerName = '';
 
     protected $rules = [
         'customerForm.name' => 'required|string|max:255',
@@ -674,6 +683,206 @@ class CustomerManager extends Component
         $this->showCountryDropdown = false;
         $this->showAccountDropdown = false;
         $this->showZohoCustomerDropdown = false;
+    }
+
+    // Clone Methods
+    public function showCloneModal($customerId)
+    {
+        $this->customerToClone = CRMCustomer::with([
+            'units.subUnits.areas.samplePoints',
+            'units.subUnits',
+            'units'
+        ])->findOrFail($customerId);
+        
+        $this->cloneCustomerName = '';
+        $this->showCloneModal = true;
+    }
+
+    public function closeCloneModal()
+    {
+        $this->showCloneModal = false;
+        $this->customerToClone = null;
+        $this->cloneCustomerName = '';
+    }
+
+    public function getCloneSummaryProperty()
+    {
+        if (!$this->customerToClone) {
+            return [
+                'company_units' => 0,
+                'company_sub_units' => 0,
+                'sample_areas' => 0,
+                'sample_points' => 0,
+            ];
+        }
+
+        $units = $this->customerToClone->units;
+        $unitsCount = $units->count();
+        
+        $subUnitsCount = 0;
+        $areasCount = 0;
+        $samplePointsCount = 0;
+
+        foreach ($units as $unit) {
+            $subUnits = $unit->subUnits;
+            $subUnitsCount += $subUnits->count();
+            
+            foreach ($subUnits as $subUnit) {
+                $areas = SamplePointArea::where('crm_company_sub_unit_id', $subUnit->id)
+                    ->where('crm_customer_id', $this->customerToClone->id)
+                    ->get();
+                $areasCount += $areas->count();
+                
+                foreach ($areas as $area) {
+                    $points = SamplePoint::where('sample_point_area_id', $area->id)
+                        ->where('crm_customer_id', $this->customerToClone->id)
+                        ->get();
+                    $samplePointsCount += $points->count();
+                }
+            }
+        }
+
+        return [
+            'company_units' => $unitsCount,
+            'company_sub_units' => $subUnitsCount,
+            'sample_areas' => $areasCount,
+            'sample_points' => $samplePointsCount,
+        ];
+    }
+
+    public function cloneCustomer()
+    {
+        $this->validate([
+            'cloneCustomerName' => 'required|string|max:255|unique:crm_customers,name',
+        ], [
+            'cloneCustomerName.required' => 'New customer name is required.',
+            'cloneCustomerName.unique' => 'A customer with this name already exists.',
+        ]);
+
+        if (!$this->customerToClone) {
+            $this->message = 'No customer selected for cloning.';
+            $this->messageType = 'error';
+            return;
+        }
+
+        try {
+            DB::beginTransaction();
+
+            // Clone customer
+            $newCustomer = new CRMCustomer();
+            $newCustomer->name = $this->cloneCustomerName;
+            $newCustomer->code = getNamingConventionCode("Customers", $this->cloneCustomerName);
+            $newCustomer->postal_address = $this->customerToClone->postal_address;
+            $newCustomer->physical_address = $this->customerToClone->physical_address;
+            $newCustomer->website = $this->customerToClone->website;
+            $newCustomer->fax = $this->customerToClone->fax;
+            $newCustomer->email = $this->customerToClone->email;
+            $newCustomer->telephone1 = $this->customerToClone->telephone1;
+            $newCustomer->telephone2 = $this->customerToClone->telephone2;
+            $newCustomer->country_id = $this->customerToClone->country_id;
+            $newCustomer->credit_days = $this->customerToClone->credit_days;
+            $newCustomer->active = $this->customerToClone->active;
+            $newCustomer->account_status = $this->customerToClone->account_status;
+            $newCustomer->vat_no = $this->customerToClone->vat_no;
+            $newCustomer->lpos_required = $this->customerToClone->lpos_required;
+            $newCustomer->zoho_customer_id = null; // Don't clone zoho mapping
+            $newCustomer->company_id = $this->customerToClone->company_id;
+            $newCustomer->unit_configurable_name = $this->customerToClone->unit_configurable_name;
+            $newCustomer->sub_unit_configurable_name = $this->customerToClone->sub_unit_configurable_name;
+            $newCustomer->area_configurable_name = $this->customerToClone->area_configurable_name;
+            $newCustomer->sample_point_configurable_name = $this->customerToClone->sample_point_configurable_name;
+            $newCustomer->product_configurable_name = $this->customerToClone->product_configurable_name;
+            $newCustomer->currency_id = $this->customerToClone->currency_id;
+            $newCustomer->lab_id = $this->customerToClone->lab_id;
+            $newCustomer->save();
+
+            // Mapping arrays to maintain relationships
+            $unitMapping = []; // oldUnitId => newUnitId
+            $subUnitMapping = []; // oldSubUnitId => newSubUnitId
+            $areaMapping = []; // oldAreaId => newAreaId
+
+            // Clone company units
+            $originalUnits = $this->customerToClone->units;
+            foreach ($originalUnits as $originalUnit) {
+                $newUnit = new CRMCompanyUnit();
+                $newUnit->name = $originalUnit->name;
+                $newUnit->crm_customer_id = $newCustomer->id;
+                $newUnit->company_id = $originalUnit->company_id;
+                $newUnit->active = $originalUnit->active;
+                $newUnit->save();
+                
+                $unitMapping[$originalUnit->id] = $newUnit->id;
+
+                // Clone company sub units
+                $originalSubUnits = $originalUnit->subUnits;
+                foreach ($originalSubUnits as $originalSubUnit) {
+                    $newSubUnit = new CRMCompanySubUnit();
+                    $newSubUnit->name = $originalSubUnit->name;
+                    $newSubUnit->code = $originalSubUnit->code;
+                    $newSubUnit->crm_customer_id = $newCustomer->id;
+                    $newSubUnit->crm_company_unit_id = $newUnit->id;
+                    $newSubUnit->active = $originalSubUnit->active;
+                    $newSubUnit->save();
+                    
+                    $subUnitMapping[$originalSubUnit->id] = $newSubUnit->id;
+
+                    // Clone sample point areas
+                    $originalAreas = SamplePointArea::where('crm_company_sub_unit_id', $originalSubUnit->id)
+                        ->where('crm_customer_id', $this->customerToClone->id)
+                        ->get();
+                    
+                    foreach ($originalAreas as $originalArea) {
+                        $newArea = new SamplePointArea();
+                        $newArea->description = $originalArea->description;
+                        $newArea->crm_customer_id = $newCustomer->id;
+                        $newArea->crm_company_sub_unit_id = $newSubUnit->id;
+                        $newArea->crm_area_id = $originalArea->crm_area_id;
+                        $newArea->crm_company_unit_id = $newUnit->id;
+                        $newArea->active = $originalArea->active;
+                        $newArea->save();
+                        
+                        $areaMapping[$originalArea->id] = $newArea->id;
+
+                        // Clone sample points
+                        $originalSamplePoints = SamplePoint::where('sample_point_area_id', $originalArea->id)
+                            ->where('crm_customer_id', $this->customerToClone->id)
+                            ->get();
+                        
+                        foreach ($originalSamplePoints as $originalPoint) {
+                            $newPoint = new SamplePoint();
+                            $newPoint->crm_company_unit_id = $newUnit->id;
+                            $newPoint->sample_point_area_id = $newArea->id;
+                            $newPoint->crm_area_id = $originalPoint->crm_area_id;
+                            $newPoint->crm_sample_point_id = $originalPoint->crm_sample_point_id;
+                            $newPoint->crm_company_sub_unit_id = $newSubUnit->id;
+                            $newPoint->crm_customer_id = $newCustomer->id;
+                            $newPoint->active = $originalPoint->active;
+                            $newPoint->gps = $originalPoint->gps ? $originalPoint->gps . ' (Cloned)' : '(Cloned)';
+                            $newPoint->save();
+                        }
+                    }
+                }
+            }
+
+            DB::commit();
+
+            // Calculate summary before closing modal
+            $summary = [
+                'company_units' => count($unitMapping),
+                'company_sub_units' => count($subUnitMapping),
+                'sample_areas' => count($areaMapping),
+                'sample_points' => SamplePoint::where('crm_customer_id', $newCustomer->id)->count(),
+            ];
+            
+            $this->closeCloneModal();
+            $this->message = "Customer cloned successfully! Cloned: {$summary['company_units']} company unit(s), {$summary['company_sub_units']} sub unit(s), {$summary['sample_areas']} area(s), {$summary['sample_points']} sample point(s).";
+            $this->messageType = 'success';
+
+        } catch (\Exception $e) {
+            DB::rollBack();
+            $this->message = 'Error cloning customer: ' . $e->getMessage();
+            $this->messageType = 'error';
+        }
     }
 
     public function render()

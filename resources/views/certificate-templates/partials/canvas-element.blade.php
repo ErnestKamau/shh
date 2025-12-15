@@ -77,6 +77,24 @@
             </div>
         @elseif($element->element_type === 'table')
             <div class="preview-table"><i class="mdi mdi-table"></i> Table</div>
+        @elseif($element->element_type === 'checkbox')
+            <div class="form-check">
+                <input class="form-check-input" type="checkbox" {{ ($element->properties['checked'] ?? false) ? 'checked' : '' }} disabled>
+                <label class="form-check-label">{{ $element->content ?? 'Checkbox' }}</label>
+            </div>
+        @elseif($element->element_type === 'radio')
+            <div class="form-check">
+                <input class="form-check-input" type="radio" {{ ($element->properties['checked'] ?? false) ? 'checked' : '' }} disabled>
+                <label class="form-check-label">{{ $element->content ?? 'Radio' }}</label>
+            </div>
+        @elseif($element->element_type === 'link')
+            <a href="{{ $element->properties['url'] ?? '#' }}" target="{{ $element->properties['target'] ?? '_blank' }}" style="color: {{ $element->properties['color'] ?? '#4f46e5' }}; text-decoration: underline; pointer-events: none;">{{ $element->content ?? 'Link' }}</a>
+        @elseif($element->element_type === 'blockquote')
+            <blockquote style="border-left: 4px solid {{ $element->properties['border_left_color'] ?? '#e5e7eb' }}; padding-left: 1rem; color: #4b5563; font-style: italic; margin: 0;">
+                {{ $element->content ?? 'Blockquote' }}
+            </blockquote>
+        @elseif($element->element_type === 'code_block')
+            <pre style="background: #f3f4f6; padding: 0.5rem; border-radius: 0.25rem; font-family: monospace; font-size: 0.875rem; overflow-x: auto; margin: 0;"><code class="language-{{ $element->properties['language'] ?? 'text' }}">{{ $element->content ?? '// Code block' }}</code></pre>
         @else
             <span>{{ ucfirst(str_replace('_', ' ', $element->element_type ?? 'Element')) }}</span>
         @endif

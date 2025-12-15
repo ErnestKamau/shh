@@ -11,7 +11,13 @@
                                     <i class="mdi mdi-format-list-numbered text-primary"></i>
                                     Sequence Stages Editor
                                 </h2>
-                                <p class="text-muted mb-0">{{ $version->methodSequence->name }} - Version {{ $version->version_number }}</p>
+                                <p class="text-muted mb-0">
+                                    @if($version->methodSequence)
+                                        {{ $version->methodSequence->name ?? 'N/A' }} - Version {{ $version->version_number ?? 'N/A' }}
+                                    @else
+                                        Version {{ $version->version_number ?? 'N/A' }}
+                                    @endif
+                                </p>
                             </div>
                             <div class="d-flex gap-2">
                                 <a href="{{ route('method-sequences.manage') }}" class="btn mr-2 btn-outline-secondary">
@@ -80,10 +86,10 @@
                                                     <strong>{{ $stage->name }}</strong>
                                                 </td>
                                                 <td>
-                                                    <span class="text-muted">{{ Str::limit($stage->description, 50) }}</span>
+                                                    <span class="text-muted">{{ $stage->description ? Str::limit($stage->description, 50) : 'No description' }}</span>
                                                 </td>
                                                 <td>
-                                                    <small class="text-muted">{{ $stage->duration_range }}</small>
+                                                    <small class="text-muted">{{ $stage->duration_range ?? 'N/A' }}</small>
                                                 </td>
                                                 <td>
                                                     @if($stage->is_result_stage)
@@ -271,7 +277,7 @@
                                                      wire:click="selectMedia({{ $media->id }}, '{{ $media->name }}')"
                                                      style="cursor: pointer; padding: 8px 12px; border-bottom: 1px solid #eee;">
                                                     {{ $media->name }}
-                                                    <small class="text-muted d-block">{{ $media->category->name ?? 'Unknown Category' }}</small>
+                                                    <small class="text-muted d-block">{{ $media->category->name ?? 'No Category' }}</small>
                                                 </div>
                                             @endforeach
                                         </div>
@@ -317,7 +323,7 @@
                                                      wire:click="selectControl({{ $control->id }}, '{{ $control->name }}')"
                                                      style="cursor: pointer; padding: 8px 12px; border-bottom: 1px solid #eee;">
                                                     {{ $control->name }}
-                                                    <small class="text-muted d-block">{{ $control->category->name ?? 'Unknown Category' }}</small>
+                                                    <small class="text-muted d-block">{{ $control->category->name ?? 'No Category' }}</small>
                                                 </div>
                                             @endforeach
                                         </div>

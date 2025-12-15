@@ -31,4 +31,19 @@ class SamplePoint extends Model
     {
         return $this->belongsTo(\App\Models\Area::class, 'crm_area_id');
     }
+
+    /**
+     * Get the sample types that this sample point is assigned to
+     *
+     * @return \Illuminate\Database\Eloquent\Relations\BelongsToMany
+     */
+    public function sampleTypes()
+    {
+        return $this->belongsToMany(
+            \App\SampleType::class,
+            'sampletype_sample_point_relation',
+            'sample_point_id',
+            'sample_type_id'
+        )->withTimestamps();
+    }
 }

@@ -2006,7 +2006,7 @@
         background-color: #f3f3f3 !important;
     }
 </style>
-@if (isset($dataTable))
+@if (isset($dataTable) && $dataTable === true)
     <script src="/assets/js/libs/DataTables/jquery.dataTables.min.js"></script>
     <script src="/assets/js/libs/DataTables/data.datatables.min.js"></script>
     <script src="/assets/js/libs/DataTables/datatable.buttons.min.js"></script>
@@ -2309,7 +2309,7 @@
             });
         }
 
-        @if (isset($dataTable))
+        @if (isset($dataTable) && $dataTable === true)
             $('.table-responsive .table.table-condensed.table-sm').not('.server-side').not('.livewire-table').each(function(i, e) {
                 var lengthMenu = $(e).data('menutext') ?? [10, 25, 50, 75, 100];
                 var pageTitle = $(document).find('title').text();

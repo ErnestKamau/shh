@@ -6,6 +6,7 @@ use Livewire\Component;
 use Livewire\WithPagination;
 use Livewire\WithFileUploads;
 use App\Models\SamplePoint;
+use App\SampleType;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Auth;
 use Maatwebsite\Excel\Facades\Excel;
@@ -33,16 +34,26 @@ class SamplePointManager extends Component
     public $search = '';
     public $dateFrom = '';
     public $dateTo = '';
+    public $sampleTypeFilter = '';
 
     // Bulk Operations
     public $selectedSamplePoints = [];
     public $selectAll = false;
+
+    // Sample Type Assignment
+    public $showAssignSampleTypeModal = false;
+    public $selectedSampleTypes = [];
+    public $sampleTypeSearch = '';
+    public $sampleTypeDropdownOpen = false;
 
     // UI State
     public $message = '';
     public $messageType = '';
     public $perPage = 25;
     public $perPageOptions = [25, 50, 75, 100];
+    
+    // Cache for sample types
+    private $sampleTypesCache = null;
 
     protected $rules = [
         'samplePointForm.name' => 'required|string|max:255',
@@ -74,10 +85,31 @@ class SamplePointManager extends Component
             $query->whereDate('created_at', '<=', $this->dateTo);
         }
 
+        if ($this->sampleTypeFilter) {
+            // Use Eloquent relationship for filtering
+            $query->whereHas('sampleTypes', function($q) {
+                $q->where('sample_types.id', $this->sampleTypeFilter);
+            });
+        }
+
         return $query->paginate($this->perPage);
     }
 
+    public function getSampleTypesProperty()
+    {
+        $companyId = getUserCompany();
+        return SampleType::where('active', 1)
+            ->where('company_id', $companyId)
+            ->orderBy('name')
+            ->get();
+    }
+
     public function updatedSearch()
+    {
+        $this->resetPage();
+    }
+
+    public function updatedSampleTypeFilter()
     {
         $this->resetPage();
     }
@@ -87,6 +119,7 @@ class SamplePointManager extends Component
         $this->search = '';
         $this->dateFrom = '';
         $this->dateTo = '';
+        $this->sampleTypeFilter = '';
         $this->resetPage();
     }
 
@@ -355,6 +388,159 @@ class SamplePointManager extends Component
             $this->message = 'Error processing file: ' . $e->getMessage();
             $this->messageType = 'error';
         }
+    }
+
+    // Sample Type Assignment Methods
+    public function showAssignSampleTypeModalInitiator()
+    {
+       
+        
+        if (empty($this->selectedSamplePoints)) {
+            $this->message = 'Please select at least one sample point.';
+            $this->messageType = 'error';
+            return;
+        }
+        
+        $this->selectedSampleTypes = [];
+        $this->sampleTypeSearch = '';
+        $this->sampleTypeDropdownOpen = false;
+        $this->showAssignSampleTypeModal = true;
+    }
+
+    public function closeAssignSampleTypeModal()
+    {
+        $this->showAssignSampleTypeModal = false;
+        $this->selectedSampleTypes = [];
+        $this->sampleTypeSearch = '';
+        $this->sampleTypeDropdownOpen = false;
+    }
+
+    public function toggleSampleType($sampleTypeId)
+    {
+        $index = array_search($sampleTypeId, $this->selectedSampleTypes);
+        if ($index !== false) {
+            unset($this->selectedSampleTypes[$index]);
+            $this->selectedSampleTypes = array_values($this->selectedSampleTypes);
+        } else {
+            $this->selectedSampleTypes[] = $sampleTypeId;
+        }
+    }
+
+    public function isSampleTypeSelected($sampleTypeId)
+    {
+        return in_array($sampleTypeId, $this->selectedSampleTypes);
+    }
+
+    public function getFilteredSampleTypesProperty()
+    {
+        $sampleTypes = $this->sampleTypes;
+        if (empty($this->sampleTypeSearch)) {
+            return $sampleTypes;
+        }
+        $search = strtolower($this->sampleTypeSearch);
+        return $sampleTypes->filter(function($st) use ($search) {
+            return str_contains(strtolower($st->name), $search) || str_contains(strtolower($st->code), $search);
+        });
+    }
+
+    public function getSelectedSampleTypeNames()
+    {
+        if (empty($this->selectedSampleTypes)) {
+            return '';
+        }
+        $names = [];
+        foreach ($this->selectedSampleTypes as $id) {
+            $st = $this->sampleTypes->firstWhere('id', $id);
+            if ($st) {
+                $names[] = $st->name;
+            }
+        }
+        if (count($names) > 3) {
+            return implode(', ', array_slice($names, 0, 3)) . ' +' . (count($names) - 3) . ' more';
+        }
+        return implode(', ', $names);
+    }
+
+    public function toggleSampleTypeDropdown()
+    {
+        $this->sampleTypeDropdownOpen = !$this->sampleTypeDropdownOpen;
+    }
+
+    public function assignSampleTypes()
+    {
+        if (empty($this->selectedSamplePoints)) {
+            $this->message = 'Please select at least one sample point.';
+            $this->messageType = 'error';
+            return;
+        }
+
+        if (empty($this->selectedSampleTypes)) {
+            $this->message = 'Please select at least one sample type.';
+            $this->messageType = 'error';
+            return;
+        }
+
+        try {
+            DB::beginTransaction();
+
+            $assignedCount = 0;
+            foreach ($this->selectedSamplePoints as $samplePointId) {
+                $samplePoint = SamplePoint::find($samplePointId);
+                if (!$samplePoint) {
+                    continue;
+                }
+                
+                foreach ($this->selectedSampleTypes as $sampleTypeId) {
+                    // Check if relation already exists using Eloquent
+                    $exists = $samplePoint->sampleTypes()->where('sample_types.id', $sampleTypeId)->exists();
+
+                    if (!$exists) {
+                        // Use Eloquent attach method
+                        $samplePoint->sampleTypes()->attach($sampleTypeId);
+                        $assignedCount++;
+                    }
+                }
+            }
+
+            DB::commit();
+
+            $this->closeAssignSampleTypeModal();
+            $this->selectedSamplePoints = [];
+            $this->selectAll = false;
+            $this->message = "Sample types assigned successfully! ({$assignedCount} relation(s) created)";
+            $this->messageType = 'success';
+
+        } catch (\Exception $e) {
+            DB::rollBack();
+            $this->message = 'Error assigning sample types: ' . $e->getMessage();
+            $this->messageType = 'error';
+        }
+    }
+
+    public function getSampleTypesForSamplePoint($samplePointId): string
+    {
+        static $sampleTypesCache = null;
+        
+        if ($sampleTypesCache === null) {
+            $samplePointIds = $this->samplePoints->pluck('id')->toArray();
+            
+            if (empty($samplePointIds)) {
+                return '';
+            }
+            
+            // Use Eloquent to get sample types for sample points
+            $samplePoints = SamplePoint::whereIn('id', $samplePointIds)
+                ->with(['sampleTypes' => function($query) {
+                    $query->where('active', 1)->select('sample_types.id', 'sample_types.name');
+                }])
+                ->get();
+            
+            $sampleTypesCache = $samplePoints->mapWithKeys(function($samplePoint) {
+                return [$samplePoint->id => $samplePoint->sampleTypes->pluck('name')->implode(', ')];
+            })->toArray();
+        }
+        
+        return $sampleTypesCache[$samplePointId] ?? '';
     }
 
     public function render()

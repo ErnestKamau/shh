@@ -67,7 +67,7 @@
 							@if($item->is_disposal == 0)
 							<tr>
 							<td>
-							<a class="btn btn-outline-success btn-sm" data-toggle="tooltip" title="View Equipment" href="{{ route('view-equipment', ['id'=>$item->id]) }}">
+							<a class="btn btn-outline-success btn-sm" data-toggle="tooltip" title="View Equipment" href="{{ route('view-equipment', ['equipmentId'=>$item->id]) }}">
 										<i class="mdi mdi-eye-outline"></i></a>
 									<span class="btn btn-outline-danger btn-sm" data-toggle="modal" data-target="#dispose-equipment" data-toggle="tooltip" title="Dispose Equipment"> <i class="mdi mdi-delete"></i></span>
 									<div id="dispose-equipment" class="modal fade" role="dialog">
@@ -107,7 +107,7 @@
 									</div>
 								</td>
 								<td><img src="{{ $item->picture }}" style="width: 125px" /></td>
-								<td nowrap><a href="{{ route('view-equipment', ['id'=>$item->id]) }}">{{ $item->name }}</a> </td>
+								<td nowrap><a href="{{ route('view-equipment', ['equipmentId'=>$item->id]) }}">{{ $item->name }}</a> </td>
 								<td>{{ $item->equipment_number }}</td>
 								<td>{{ $item->make }}</td>
 								<td>{{ $item->model }}</td>
@@ -198,13 +198,13 @@
 							@if($item->is_disposal == 1)
 							<tr>
 								<td>
-								<a class="btn btn-outline-success btn-sm" href="{{ route('view-equipment', ['id'=>$item->id]) }}" data-toggle="tooltip" title="View Equipment">
+								<a class="btn btn-outline-success btn-sm" href="{{ route('view-equipment', ['equipmentId'=>$item->id]) }}" data-toggle="tooltip" title="View Equipment">
 										<i class="mdi mdi-eye-outline"></i></a>
 										<a class="btn btn-outline-primary btn-sm" href="{{ route('revert-equipment', ['id'=>$item->id]) }}" data-toggle="tooltip" title="Edit">
 										<i class="mdi mdi-pencil"></i></a>
 								</td>
 								<td><img src="{{ $item->picture }}" style="width: 125px" /></td>
-								<td nowrap><a href="{{ route('view-equipment', ['id'=>$item->id]) }}">{{ $item->name }}</a> </td>
+								<td nowrap><a href="{{ route('view-equipment', ['equipmentId'=>$item->id]) }}">{{ $item->name }}</a> </td>
 								<td>{{ $item->equipment_number }}</td>
 								<td>{{$item->serial_number}}</td>
 								<td>{{ $item->make }}</td>

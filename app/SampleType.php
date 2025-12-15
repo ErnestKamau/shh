@@ -49,4 +49,19 @@ class SampleType extends Model implements Auditable
   public function defaultProduct(){
     return $this->belongsTo('App\Models\CRM\CompanyProduct', 'default_product_id');
   }
+
+  /**
+   * Get the sample points assigned to this sample type
+   *
+   * @return \Illuminate\Database\Eloquent\Relations\BelongsToMany
+   */
+  public function samplePoints()
+  {
+    return $this->belongsToMany(
+      \App\Models\SamplePoint::class,
+      'sampletype_sample_point_relation',
+      'sample_type_id',
+      'sample_point_id'
+    )->withTimestamps();
+  }
 }

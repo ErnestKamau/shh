@@ -1,4 +1,4 @@
-@extends('layouts.crm.layout.app', ['dataTable'=>true, 'select2'=>true])
+@extends('layouts.crm.layout.app', ['dataTable'=>false, 'select2'=>true])
 
 @section('title2')
 <title>{{ $pageTitle ?? 'CRM Management' }}</title>

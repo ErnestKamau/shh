@@ -83,6 +83,11 @@ class CertificateTemplateElement extends Model
     const TYPE_INPUT_DATE = 'input_date';
     const TYPE_TEXTAREA = 'textarea';
     const TYPE_SELECT = 'select';
+    const TYPE_CHECKBOX = 'checkbox';
+    const TYPE_RADIO = 'radio';
+    const TYPE_LINK = 'link';
+    const TYPE_BLOCKQUOTE = 'blockquote';
+    const TYPE_CODE_BLOCK = 'code_block';
 
     /**
      * Get all available element types.
@@ -108,7 +113,12 @@ class CertificateTemplateElement extends Model
             self::TYPE_INPUT_NUMBER => 'Number Input',
             self::TYPE_INPUT_DATE => 'Date Input',
             self::TYPE_TEXTAREA => 'Textarea',
-            self::TYPE_SELECT => 'Select Dropdown'
+            self::TYPE_SELECT => 'Select Dropdown',
+            self::TYPE_CHECKBOX => 'Checkbox',
+            self::TYPE_RADIO => 'Radio Button',
+            self::TYPE_LINK => 'Link',
+            self::TYPE_BLOCKQUOTE => 'Blockquote',
+            self::TYPE_CODE_BLOCK => 'Code Block'
         ];
     }
 
@@ -288,6 +298,33 @@ class CertificateTemplateElement extends Model
                 return [
                     'height' => '20px',
                     'type' => 'divider'
+                ];
+            case self::TYPE_CHECKBOX:
+                return [
+                    'label' => 'Checkbox Label',
+                    'checked' => false
+                ];
+            case self::TYPE_RADIO:
+                return [
+                    'label' => 'Radio Option',
+                    'checked' => false,
+                    'group' => 'default_group'
+                ];
+            case self::TYPE_LINK:
+                return [
+                    'url' => '#',
+                    'target' => '_blank',
+                    'color' => '#4f46e5'
+                ];
+            case self::TYPE_BLOCKQUOTE:
+                return [
+                    'border_left_color' => '#e5e7eb',
+                    'font_style' => 'italic'
+                ];
+            case self::TYPE_CODE_BLOCK:
+                return [
+                    'language' => 'text',
+                    'theme' => 'light'
                 ];
             default:
                 return [];

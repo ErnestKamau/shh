@@ -7837,6 +7837,11 @@
 				$('#assignSamplesModal').data('staging-id', stagingId);
 				$('#assignSamplesModal').data('header-id', headerId);
 				$('#assignSamplesModal').data('customer-id', response.customer_id);
+				$('#assignSamplesModal').data('company-unit-id', response.company_unit_id);
+				$('#assignSamplesModal').data('company-sub-unit-id', response.company_sub_unit_id);
+				
+				// Load available areas and points for adding new ones
+				loadAvailableAreasAndPoints(stagingId);
 				
 				// Show modal
 				$('#assignSamplesModal').modal('show');
@@ -8015,6 +8020,154 @@
 		});
 	});
 
+// Load available areas and sample points
+function loadAvailableAreasAndPoints(stagingId) {
+	$.ajax({
+		url: '/lab/samples/staging/' + stagingId + '/available-areas-points',
+		method: 'GET',
+		headers: {
+			'X-CSRF-TOKEN': $('meta[name="csrf-token"]').attr('content'),
+			'Accept': 'application/json'
+		},
+		success: function(response) {
+			console.log('Response from available-areas-points:', response);
+			
+			//  Populate areas dropdown
+			const $areaSelect = $('#new-sample-area');
+			$areaSelect.html('<option value="">-- Select Area --</option>');
+			
+			if (response.areas && response.areas.length > 0) {
+				response.areas.forEach(function(area) {
+					$areaSelect.append('<option value="' + area.id + '">' + area.name + '</option>');
+				});
+			}
+			
+			// Populate sample points dropdown immediately (not dependent on area selection)
+			const $pointSelect = $('#new-sample-point');
+			$pointSelect.html('<option value="">-- Select Sample Point --</option>');
+			
+			// Get all sample points for this sample type
+			const allPoints = response.sample_points.all || [];
+			console.log('All sample points:', allPoints);
+			
+			if (allPoints.length > 0) {
+				allPoints.forEach(function(point) {
+					$pointSelect.append('<option value="' + point.id + '">' + point.name + '</option>');
+				});
+				$pointSelect.prop('disabled', false); // Enable the dropdown
+				console.log('Sample point dropdown enabled with', allPoints.length, 'points');
+			} else {
+				$pointSelect.html('<option value="">-- No Sample Points Available --</option>');
+				$pointSelect.prop('disabled', true);
+				console.log('No sample points found');
+			}
+			
+			// Store sample points data (keep for compatibility)
+			$('#assignSamplesModal').data('available-sample-points', response.sample_points);
+			$('#assignSamplesModal').data('all-sample-points', allPoints);
+			$('#assignSamplesModal').data('sub-unit-id', response.sub_unit_id);
+			// Store company unit/sub unit IDs if not already set (from loadAssignmentData)
+			if (response.company_unit_id) {
+				$('#assignSamplesModal').data('company-unit-id', response.company_unit_id);
+			}
+			if (response.sub_unit_id) {
+				$('#assignSamplesModal').data('company-sub-unit-id', response.sub_unit_id);
+			}
+		},
+		error: function(xhr) {
+			console.error('Error loading available areas and points:', xhr);
+		}
+	});
+}
+
+// Handle area selection change - now only for visual feedback, doesn't filter points
+$(document).on('change', '#new-sample-area', function() {
+	const areaId = $(this).val();
+	// Sample point dropdown is already populated and enabled
+	// No need to filter - just keep all points available
+});
+
+// Handle sample point selection change
+$(document).on('change', '#new-sample-point', function() {
+	const pointId = $(this).val();
+	$('#btn-add-sample-point').prop('disabled', !pointId);
+});
+
+// Handle add button click
+$(document).on('click', '#btn-add-sample-point', function() {
+	const areaId = $('#new-sample-area').val();
+	const samplePointId = $('#new-sample-point').val();
+	const customerId = $('#assignSamplesModal').data('customer-id');
+	const subUnitId = $('#assignSamplesModal').data('company-sub-unit-id') || $('#assignSamplesModal').data('sub-unit-id');
+	const companyUnitId = $('#assignSamplesModal').data('company-unit-id');
+	const stagingId = $('#assignSamplesModal').data('staging-id');
+	
+	if (!areaId || !samplePointId) {
+		alert('Please select both area and sample point');
+		return;
+	}
+	
+	if (!customerId) {
+		alert('Customer ID is missing. Please reload the modal.');
+		return;
+	}
+	
+	// Prepare request data
+	const requestData = {
+		customer_id: customerId,
+		area_id: areaId,
+		sample_point_id: samplePointId
+	};
+	
+	// Only include company unit/sub unit if they exist
+	if (companyUnitId) {
+		requestData.crm_company_unit_id = companyUnitId;
+	}
+	if (subUnitId) {
+		requestData.crm_company_sub_unit_id = subUnitId;
+	}
+	
+	console.log('Adding sample point with data:', requestData);
+	
+	// Disable button during request
+	$(this).prop('disabled', true).html('<i class="mdi mdi-loading mdi-spin"></i> Adding...');
+	
+	$.ajax({
+		url: '/lab/samples/add-customer-sample-point',
+		method: 'POST',
+		headers: {
+			'X-CSRF-TOKEN': $('meta[name="csrf-token"]').attr('content'),
+			'Accept': 'application/json',
+			'Content-Type': 'application/json'
+		},
+		data: JSON.stringify(requestData),
+		success: function(response) {
+			if (response.success) {
+				alert(response.message);
+				// Refresh the sample points table
+				const headerId = $('#assignSamplesModal').data('header-id');
+				$('#refresh-sample-points-btn').click();
+				
+				// Reset dropdowns
+				$('#new-sample-area').val('');
+				$('#new-sample-point').html('<option value="">-- Select Area First --</option>').prop('disabled', true);
+				$('#btn-add-sample-point').prop('disabled', true).html('<i class="mdi mdi-plus"></i> Add to Customer');
+				
+				// Reload available areas/points
+				loadAvailableAreasAndPoints(stagingId);
+			} else {
+				alert('Error: ' + (response.message || 'Unknown error'));
+				$('#btn-add-sample-point').prop('disabled', false).html('<i class="mdi mdi-plus"></i> Add to Customer');
+			}
+		},
+		error: function(xhr) {
+			console.error('Error adding sample point:', xhr);
+			alert('Error: ' + (xhr.responseJSON?.error || xhr.statusText));
+			$('#btn-add-sample-point').prop('disabled', false).html('<i class="mdi mdi-plus"></i> Add to Customer');
+		}
+	});
+});
+
 	
 </script>
 
@@ -8053,9 +8206,46 @@
 							</div>
 						</div>
 					</div>
-				</div>
+			</div>
 
-				<!-- Sample Information Table -->
+			<!-- Add New Sample Point Section -->
+			<div class="card mb-3 shadow-sm border-0" style="border-radius: 15px;">
+				<div class="card-header bg-light border-0" style="border-radius: 15px 15px 0 0;">
+					<h6 class="mb-0 text-muted">
+						<i class="mdi mdi-plus-circle"></i> Add New Sample Point
+					</h6>
+				</div>
+				<div class="card-body">
+					<div class="row">
+						<div class="col-md-4">
+							<div class="form-group">
+								<label for="new-sample-area" class="form-label"><strong>Sample Area</strong></label>
+								<select id="new-sample-area" class="form-control">
+									<option value="">-- Select Area --</option>
+								</select>
+							</div>
+						</div>
+						<div class="col-md-4">
+							<div class="form-group">
+								<label for="new-sample-point" class="form-label"><strong>Sample Point</strong></label>
+								<select id="new-sample-point" class="form-control">
+									<option value="">-- Loading Sample Points --</option>
+								</select>
+							</div>
+						</div>
+						<div class="col-md-4">
+							<div class="form-group">
+								<label class="form-label">&nbsp;</label>
+								<button id="btn-add-sample-point" class="btn btn-primary btn-block" disabled>
+									<i class="mdi mdi-plus"></i> Add to Customer
+								</button>
+							</div>
+						</div>
+					</div>
+				</div>
+			</div>
+
+			<!-- Sample Information Table -->
 				<div class="card shadow-sm border-0" style="border-radius: 15px;">
 					<div class="card-header bg-light border-0 d-flex justify-content-between align-items-center" style="border-radius: 15px 15px 0 0;">
 						<h6 class="mb-0 text-muted">

@@ -1081,7 +1081,7 @@ function getModulePermissions()
 		),
 		"Equipment" => array(
 			"permission" => false,
-			"components" => array_merge(array("Equipment-List", "Asset-Type", "Asset-Location"), getEquipmentLogs())
+			"components" => array_merge(array("Equipment-List", "Asset-Type", "Asset-Location", "Equipment-Disposal", "Equipment-Evaluation", "Equipment-Decommission"), getEquipmentLogs())
 		),
 
 		"CRM" => array(
@@ -1729,9 +1729,13 @@ function isUserSomebody($USER)
 	return $isSomeBody;
 }
 
-function refreshPermissions(){
-	$home = new App\Http\Controllers\HomeController;
-	return $home->index(true);
+function refreshPermissions($refreshOnly = false){
+	if(\Auth::check()){
+		$user = \Auth::user();
+		$home = new App\Http\Controllers\HomeController;
+		$home->loadUserPermissions($user);
+	}
+	return true;
 }
 
 function permissionInModule($vars, $altVar=false){

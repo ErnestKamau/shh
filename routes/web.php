@@ -14,6 +14,7 @@
 use App\Http\Controllers\LivewireControllers\LabAppController;
 use App\Http\Controllers\LivewireControllers\StandardsController;
 use App\Http\Controllers\LivewireControllers\CRMAppController;
+use App\Http\Controllers\LivewireControllers\EquipmentAppController;
 
 Route::get('/', function () {
     return redirect()->route('home');
@@ -526,6 +527,7 @@ Route::prefix('submission-forms')->name('submission-forms.')->middleware('auth')
     
     // Dynamic Options for Custom Elements (must be before /{submissionForm} route)
     Route::get('/dynamic-options', 'SubmissionFormController@getDynamicOptions')->name('dynamic-options');
+    Route::get('/user-signature', 'SubmissionFormController@getUserSignature')->name('user-signature');
     
     // Quick Store Routes for Modal Forms (must be before /{submissionForm} route)
     Route::post('/quick-store/client', 'SubmissionFormController@quickStoreClient')->name('quick-store.client');
@@ -613,6 +615,8 @@ Route::prefix('submission-forms')->name('submission-forms.')->middleware('auth')
 Route::middleware('auth')->group(function () {
     Route::get('/lab/samples/staging/{staging}/load-assignment-data', 'SampleCreationController@loadAssignmentData')->name('staging.load-assignment-data');
     Route::post('/lab/samples/assign-samples', 'SampleCreationController@assignSamples')->name('samples.assign');
+    Route::get('/lab/samples/staging/{staging}/available-areas-points', 'SampleCreationController@getAvailableAreasAndPoints')->name('staging.available-areas-points');
+    Route::post('/lab/samples/add-customer-sample-point', 'SampleCreationController@addCustomerSamplePoint')->name('samples.add-customer-point');
 });
 
 // Public Form Submission Routes (no auth required)
@@ -738,10 +742,14 @@ Route::post('/add-user-access/{id}', 'InventoryLocationController@add_user')->na
 Route::post('/remove-user-access/{id}/{user}', 'InventoryLocationController@remove_user_access')->name('remove-user-access');
 //############################################LOCATIONS##########################################################
 
+// Asset Management Routes
+Route::get('/equipment/asset-types', [EquipmentAppController::class, 'assetTypeManager'])->name('equipment.asset-types.index')->middleware(['auth', 'haspermission:Equipment.components.Asset-Type.View']);
+Route::get('/equipment/asset-locations', [EquipmentAppController::class, 'assetLocationManager'])->name('equipment.asset-locations.index')->middleware(['auth', 'haspermission:Equipment.components.Asset-Location.View']);
+
 //############################################EQUIPMENT##########################################################
-Route::get('/equipment-home', 'Equipment\EquipmentController@index')->name('equipment-home')->middleware('haspermission:Equipment.permission');
+Route::get('/equipment-home', [EquipmentAppController::class, 'equipmentManager'])->name('equipment-home')->middleware('haspermission:Equipment.permission');
 Route::post('/equipment', 'Equipment\EquipmentController@add')->name('add-equipment')->middleware('haspermission:Equipment.components.Equipment-List.Add');
-Route::get('/equipment/{id}', 'Equipment\EquipmentController@show')->name('view-equipment')->middleware('haspermission:Equipment.components.Equipment-List.View');
+Route::get('/equipment/{equipmentId}', [EquipmentAppController::class, 'equipmentDetail'])->name('view-equipment')->middleware('haspermission:Equipment.components.Equipment-List.View');
 Route::post('/equipment/{id}', 'Equipment\EquipmentController@edit')->name('edit-equipment')->middleware('haspermission:Equipment.components.Equipment-List.Edit');
 Route::post('/schedule-maintainance/{id}', 'Equipment\MaintainanceCalibrationLogController@add')->name('new-maintainance')->middleware('haspermission:Equipment.components.Maintainance-Log.Add');
 Route::post('/edit-maintainance', 'Equipment\MaintainanceCalibrationLogController@edit')->name('edit-maintainance')->middleware('haspermission:Equipment.components.Maintainance-Log.Edit');
@@ -761,6 +769,18 @@ Route::post('/delete/log', 'Equipment\MaintainanceCalibrationLogController@delet
 
 Route::post('/add/equipment/frequency','Equipment\EquipmentController@addEquipmentNotification')->name('add-equipment-frequency');
 Route::post('/delete/equipment/notification','Equipment\EquipmentController@deleteEquipmentNotification')->name('delete-equipment-frequency');
+
+
+// Equipment Disposal Workflow Routes
+Route::get('/equipment-disposal/workflows', [EquipmentAppController::class, 'workflowManager'])->name('equipment.disposal.workflow.index')->middleware(['auth', 'haspermission:Equipment.components.Equipment-Disposal.View']);
+Route::get('/equipment-disposal/workflows/create', [EquipmentAppController::class, 'workflowForm'])->name('equipment.disposal.workflow.create')->middleware(['auth', 'haspermission:Equipment.components.Equipment-Disposal.View']);
+Route::get('/equipment-disposal/workflows/{id}/edit', [EquipmentAppController::class, 'workflowForm'])->name('equipment.disposal.workflow.edit')->middleware(['auth', 'haspermission:Equipment.components.Equipment-Disposal.View']);
+
+// Equipment Disposal Routes
+Route::get('/equipment-disposal', [EquipmentAppController::class, 'disposalManager'])->name('equipment-disposal-home')->middleware(['auth', 'haspermission:Equipment.components.Equipment-Disposal.View']);
+Route::get('/equipment-disposal/{disposalId}', [EquipmentAppController::class, 'disposalDetail'])->name('equipment-disposal-detail')->middleware(['auth', 'haspermission:Equipment.components.Equipment-Disposal.View']);
+Route::get('/equipment-disposal/{disposalId}/download-report', 'Equipment\DisposalController@downloadReport')->name('equipment-disposal-download-report')->middleware(['auth', 'haspermission:Equipment.components.Equipment-Disposal.Report.Download']);
+
 
 //############################################EQUIPMENT##########################################################
 

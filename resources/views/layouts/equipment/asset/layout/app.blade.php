@@ -79,6 +79,13 @@
 				</div>
 			</a>
 			
+			<a href="{{ route('equipment-disposal-home') }}" class="bg-dark list-group-item list-group-item-action">
+				<div class="d-flex w-100 justify-content-start align-items-center">
+					<span class="mdi mdi-delete-sweep fa-fw mr-1"></span>
+					<span class="menu-collapsed">Equipment Disposal</span>
+				</div>
+			</a>
+			
 			<a href="/asset-type-home" class="bg-dark list-group-item list-group-item-action">
 				<div class="d-flex w-100 justify-content-start align-items-center">
 					<span class="mdi mdi-layers-triple fa-fw mr-1"></span>

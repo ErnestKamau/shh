@@ -834,4 +834,69 @@ class SubmissionFormController extends Controller
         }
     }
 
+    /**
+     * Get user signature image
+     *
+     * @param Request $request
+     * @return \Illuminate\Http\JsonResponse
+     */
+    public function getUserSignature(Request $request): \Illuminate\Http\JsonResponse
+    {
+        try {
+            // Ensure user is authenticated
+            if (!auth()->check()) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Unauthorized'
+                ], 401);
+            }
+
+            $userId = $request->get('user_id');
+
+            if (!$userId) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'User ID is required'
+                ], 400);
+            }
+
+            $user = \App\User::find($userId);
+
+            if (!$user) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'User not found'
+                ], 404);
+            }
+
+            $signaturePath = $user->electronic_sig;
+
+            if (!$signaturePath || trim($signaturePath) === '') {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'No signature available for this user'
+                ], 404);
+            }
+
+            // Build full URL if path is relative
+            $signatureUrl = $signaturePath;
+            if (!filter_var($signaturePath, FILTER_VALIDATE_URL)) {
+                $signatureUrl = asset($signaturePath);
+            }
+
+            return response()->json([
+                'success' => true,
+                'signature_path' => $signaturePath,
+                'signature_url' => $signatureUrl
+            ]);
+
+        } catch (\Exception $e) {
+            Log::error('Error fetching user signature: ' . $e->getMessage());
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to fetch user signature: ' . $e->getMessage()
+            ], 500);
+        }
+    }
+
 }

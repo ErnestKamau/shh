@@ -218,6 +218,11 @@
                                                         title="Edit">
                                                     <i class="mdi mdi-pencil"></i>
                                                 </button>
+                                                <button wire:click="showCloneModal({{ $customer->id }})" 
+                                                            class="btn btn-sm btn-outline-info mr-1" 
+                                                        title="Clone Customer">
+                                                    <i class="mdi mdi-content-copy"></i>
+                                                </button>
                                                 <button wire:click="deleteCustomer({{ $customer->id }})" 
                                                             class="btn btn-sm btn-outline-danger mr-1" 
                                                         title="Delete"
@@ -528,6 +533,113 @@
                             </span>
                             <span wire:loading wire:target="saveCustomer">
                                 <i class="mdi mdi-loading mdi-spin"></i> Saving...
+                            </span>
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    @endif
+
+    <!-- Clone Customer Modal -->
+    @if($showCloneModal && $customerToClone)
+        <div class="modal fade show d-block" tabindex="-1" style="background-color: rgba(0,0,0,0.5); overflow-y: auto;">
+            <div class="modal-dialog modal-lg modal-dialog-scrollable">
+                <div class="modal-content">
+                    <div class="modal-header bg-info text-white">
+                        <h5 class="modal-title">
+                            <i class="mdi mdi-content-copy"></i>
+                            Clone Customer
+                        </h5>
+                        <button type="button" class="btn-close btn-close-white" wire:click="closeCloneModal"></button>
+                    </div>
+                    <div class="modal-body" style="max-height: 70vh; overflow-y: auto;">
+                        <!-- Confirmation Message -->
+                        <div class="alert alert-info mb-4">
+                            <i class="mdi mdi-information"></i>
+                            <strong>Confirm Cloning:</strong> You are about to clone <strong>{{ $customerToClone->name }}</strong> and all its profile information. Please review the summary below and enter a new customer name.
+                        </div>
+
+                        <!-- Summary Card -->
+                        <div class="card mb-4">
+                            <div class="card-header bg-light">
+                                <h6 class="mb-0">
+                                    <i class="mdi mdi-chart-box text-primary"></i>
+                                    Profile Summary
+                                </h6>
+                            </div>
+                            <div class="card-body">
+                                <div class="row">
+                                    <div class="col-md-6 mb-3">
+                                        <div class="d-flex align-items-center">
+                                            <i class="mdi mdi-office-building text-primary me-2" style="font-size: 24px;"></i>
+                                            <div>
+                                                <div class="fw-bold text-muted" style="font-size: 12px;">Company Units</div>
+                                                <div class="h4 mb-0 text-primary">{{ $this->cloneSummary['company_units'] }}</div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <div class="col-md-6 mb-3">
+                                        <div class="d-flex align-items-center">
+                                            <i class="mdi mdi-domain text-success me-2" style="font-size: 24px;"></i>
+                                            <div>
+                                                <div class="fw-bold text-muted" style="font-size: 12px;">Company Sub Units</div>
+                                                <div class="h4 mb-0 text-success">{{ $this->cloneSummary['company_sub_units'] }}</div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <div class="col-md-6 mb-3">
+                                        <div class="d-flex align-items-center">
+                                            <i class="mdi mdi-map text-warning me-2" style="font-size: 24px;"></i>
+                                            <div>
+                                                <div class="fw-bold text-muted" style="font-size: 12px;">Sample Areas</div>
+                                                <div class="h4 mb-0 text-warning">{{ $this->cloneSummary['sample_areas'] }}</div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <div class="col-md-6 mb-3">
+                                        <div class="d-flex align-items-center">
+                                            <i class="mdi mdi-map-marker text-danger me-2" style="font-size: 24px;"></i>
+                                            <div>
+                                                <div class="fw-bold text-muted" style="font-size: 12px;">Sample Points</div>
+                                                <div class="h4 mb-0 text-danger">{{ $this->cloneSummary['sample_points'] }}</div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- New Customer Name Input -->
+                        <div class="form-group mb-3">
+                            <label class="form-label fw-bold">
+                                <i class="mdi mdi-account text-primary"></i> New Customer Name <span class="text-danger">*</span>
+                            </label>
+                            <input 
+                                type="text" 
+                                wire:model="cloneCustomerName" 
+                                class="form-control" 
+                                placeholder="Enter new customer name..."
+                                autofocus
+                            >
+                            @error('cloneCustomerName') 
+                                <span class="text-danger">{{ $message }}</span> 
+                            @enderror
+                            <small class="form-text text-muted mt-2 d-block">
+                                <i class="mdi mdi-information-outline"></i> A unique customer code will be automatically generated from this name.
+                            </small>
+                        </div>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" wire:click="closeCloneModal" wire:loading.attr="disabled" wire:target="cloneCustomer">
+                            <i class="mdi mdi-close"></i> Close
+                        </button>
+                        <button type="button" class="btn btn-info" wire:click="cloneCustomer" wire:loading.attr="disabled" wire:target="cloneCustomer">
+                            <span wire:loading.remove wire:target="cloneCustomer">
+                                <i class="mdi mdi-content-copy"></i> Yes, Clone
+                            </span>
+                            <span wire:loading wire:target="cloneCustomer">
+                                <span class="spinner-border spinner-border-sm" role="status"></span> Cloning...
                             </span>
                         </button>
                     </div>

@@ -790,7 +790,29 @@ $(document).ready(function() {
         
         // Pre-select the client in the modal
         if (selectedClientId) {
-            $('#clientUnitClient').val(selectedClientId);
+            var $clientUnitClient = $('#clientUnitClient');
+            
+            // Check if the option already exists in the dropdown
+            var optionExists = $clientUnitClient.find('option[value="' + selectedClientId + '"]').length > 0;
+            
+            if (optionExists) {
+                // Option exists, set the value immediately
+                $clientUnitClient.val(selectedClientId);
+                console.log('Auto-selected client:', selectedClientId);
+            } else {
+                // Option doesn't exist, fetch it and add it
+                console.log('Client option not found, fetching client details...');
+                $.get('/api/clients/' + selectedClientId, function(client) {
+                    // Add the option if it doesn't exist
+                    if ($clientUnitClient.find('option[value="' + client.id + '"]').length === 0) {
+                        $clientUnitClient.append('<option value="' + client.id + '">' + client.name + '</option>');
+                    }
+                    $clientUnitClient.val(client.id);
+                    console.log('Added and auto-selected client:', client.name);
+                }).fail(function() {
+                    console.warn('Could not load client details for ID:', selectedClientId);
+                });
+            }
         }
     });
     
@@ -828,16 +850,40 @@ $(document).ready(function() {
         }
         
         $.get('/api/client-units', { crm_customer_id: selectedCustomerId }, function(data) {
-            $('#companySubUnitParent').empty().append('<option value="">Select a company unit...</option>');
+            var $parentSelect = $('#companySubUnitParent');
+            $parentSelect.empty().append('<option value="">Select a company unit...</option>');
+            
             $.each(data, function(index, unit) {
-                $('#companySubUnitParent').append('<option value="' + unit.id + '">' + unit.name + '</option>');
+                $parentSelect.append('<option value="' + unit.id + '">' + unit.name + '</option>');
             });
             
             console.log('Loaded ' + data.length + ' company units for customer ' + selectedCustomerId);
             
-            // Pre-select the client unit in the modal
+            // Pre-select the client unit in the modal AFTER options are loaded
             if (selectedClientUnitId) {
-                $('#companySubUnitParent').val(selectedClientUnitId);
+                // Use a small delay to ensure DOM is fully updated
+                setTimeout(function() {
+                    var optionExists = $parentSelect.find('option[value="' + selectedClientUnitId + '"]').length > 0;
+                    
+                    if (optionExists) {
+                        $parentSelect.val(selectedClientUnitId);
+                        console.log('Auto-selected client unit:', selectedClientUnitId);
+                    } else {
+                        console.warn('Selected client unit ID not found in loaded options:', selectedClientUnitId);
+                        // Fetch the unit and add it if it belongs to the selected customer
+                        $.get('/api/client-units/' + selectedClientUnitId, function(unit) {
+                            if (unit && unit.crm_customer_id == selectedCustomerId) {
+                                $parentSelect.append('<option value="' + unit.id + '">' + unit.name + '</option>');
+                                $parentSelect.val(unit.id);
+                                console.log('Added and auto-selected client unit:', unit.name);
+                            } else {
+                                console.warn('Client unit does not belong to selected customer');
+                            }
+                        }).fail(function() {
+                            console.warn('Could not load client unit details for ID:', selectedClientUnitId);
+                        });
+                    }
+                }, 50);
             }
         });
     });

@@ -25,7 +25,18 @@ class MethodSequenceController extends Controller
      */
     public function stages(MethodSequenceVersion $methodSequenceVersion)
     {
-        $methodSequenceVersion->load(['methodSequence.analyte', 'methodSequence.method', 'stages']);
+        // Load relationships with null checks
+        $methodSequenceVersion->load([
+            'methodSequence.analyte',
+            'methodSequence.method',
+            'stages'
+        ]);
+        
+        // Ensure methodSequence exists, if not, redirect with error
+        if (!$methodSequenceVersion->methodSequence) {
+            return redirect()->route('method-sequences.manage')
+                ->with('error', 'Method sequence not found for this version.');
+        }
         
         return view('method-sequences.stages', compact('methodSequenceVersion'));
     }

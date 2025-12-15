@@ -1209,6 +1209,21 @@ const VisualBuilder = {
             case 'date':
                 html += this.generateDateProperties(element);
                 break;
+            case 'link':
+                html += this.generateLinkProperties(element);
+                break;
+            case 'checkbox':
+                html += this.generateCheckboxProperties(element);
+                break;
+            case 'radio':
+                html += this.generateRadioProperties(element);
+                break;
+            case 'blockquote':
+                html += this.generateBlockquoteProperties(element);
+                break;
+            case 'code_block':
+                html += this.generateCodeBlockProperties(element);
+                break;
             default:
                 html += `
                     <div class="form-group">
@@ -1324,6 +1339,88 @@ const VisualBuilder = {
             </div>
         `;
     },
+
+    generateLinkProperties(element) {
+        const props = element.properties || {};
+        return `
+            <div class="form-group">
+                <label>Link Text</label>
+                <input type="text" class="form-control" id="element-content" value="${element.content || 'Link Text'}">
+            </div>
+            <div class="form-group">
+                <label>URL</label>
+                <input type="url" class="form-control" id="link-url" value="${props.url || '#'}" placeholder="https://example.com">
+            </div>
+            <div class="form-group">
+                <label>Target</label>
+                <select class="form-control" id="link-target">
+                    <option value="_blank" ${(props.target || '_blank') === '_blank' ? 'selected' : ''}>New Window (_blank)</option>
+                    <option value="_self" ${(props.target || '_blank') === '_self' ? 'selected' : ''}>Same Window (_self)</option>
+                </select>
+            </div>
+        `;
+    },
+
+    generateCheckboxProperties(element) {
+        const props = element.properties || {};
+        return `
+            <div class="form-group">
+                <label>Label</label>
+                <input type="text" class="form-control" id="element-content" value="${element.content || 'Checkbox'}">
+            </div>
+            <div class="form-check">
+                <input type="checkbox" class="form-check-input" id="checkbox-checked" ${(props.checked) ? 'checked' : ''}>
+                <label class="form-check-label" for="checkbox-checked">Checked by default</label>
+            </div>
+        `;
+    },
+
+    generateRadioProperties(element) {
+        const props = element.properties || {};
+        return `
+            <div class="form-group">
+                <label>Label</label>
+                <input type="text" class="form-control" id="element-content" value="${element.content || 'Radio Option'}">
+            </div>
+            <div class="form-group">
+                <label>Group Name</label>
+                <input type="text" class="form-control" id="radio-group" value="${props.group || 'default_group'}">
+                <small class="text-muted">Radio buttons with the same group name work together.</small>
+            </div>
+            <div class="form-check">
+                <input type="checkbox" class="form-check-input" id="radio-checked" ${(props.checked) ? 'checked' : ''}>
+                <label class="form-check-label" for="radio-checked">Selected by default</label>
+            </div>
+        `;
+    },
+
+    generateBlockquoteProperties(element) {
+        const props = element.properties || {};
+        return `
+            <div class="form-group">
+                <label>Quote Content</label>
+                <textarea class="form-control" id="element-content" rows="3">${element.content || ''}</textarea>
+            </div>
+            <div class="form-group">
+                <label>Border Color</label>
+                <input type="color" class="form-control" id="blockquote-border-color" value="${props.border_left_color || '#e5e7eb'}">
+            </div>
+        `;
+    },
+
+    generateCodeBlockProperties(element) {
+        const props = element.properties || {};
+        return `
+            <div class="form-group">
+                <label>Code Content</label>
+                <textarea class="form-control" id="element-content" rows="5" style="font-family: monospace;">${element.content || ''}</textarea>
+            </div>
+            <div class="form-group">
+                <label>Language</label>
+                <input type="text" class="form-control" id="code-language" value="${props.language || 'text'}" placeholder="javascript, python, html...">
+            </div>
+        `;
+    },
     
     saveElementProperties() {
         const elementId = $('#element-id').val();
@@ -1338,6 +1435,23 @@ const VisualBuilder = {
         }
         if ($('#image-alt').length) {
             properties.alt_text = $('#image-alt').val();
+        }
+        if ($('#link-url').length) {
+            properties.url = $('#link-url').val();
+            properties.target = $('#link-target').val();
+        }
+        if ($('#checkbox-checked').length) {
+            properties.checked = $('#checkbox-checked').is(':checked');
+        }
+        if ($('#radio-checked').length) {
+            properties.checked = $('#radio-checked').is(':checked');
+            properties.group = $('#radio-group').val();
+        }
+        if ($('#blockquote-border-color').length) {
+            properties.border_left_color = $('#blockquote-border-color').val();
+        }
+        if ($('#code-language').length) {
+            properties.language = $('#code-language').val();
         }
         
         $.ajax({

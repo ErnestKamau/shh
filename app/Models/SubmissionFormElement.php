@@ -267,7 +267,7 @@ class SubmissionFormElement extends Model
     {
         return in_array($this->element_type, [
             'client_select', 'sample_type_select', 'client_unit_select', 'client_contact_select',
-            'analysis_type_select', 'store_select', 'store_slot_select', 'sample_condition_select', 'standard_select', 'sample_point_select', 'user_select'
+            'analysis_type_select', 'store_select', 'store_slot_select', 'sample_condition_select', 'standard_select', 'sample_point_select', 'user_select', 'user_signature'
         ]);
     }
 

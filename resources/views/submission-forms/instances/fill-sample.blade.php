@@ -485,6 +485,52 @@
         max-height: 300px;
         overflow-y: auto;
     }
+
+    /* User Signature Styling */
+    .user-signature-container {
+        margin-bottom: 1rem;
+    }
+
+    .signature-preview-wrapper {
+        position: relative;
+        width: 100%;
+        min-height: 120px;
+    }
+
+    .signature-preview {
+        max-height: 120px;
+        max-width: 100%;
+        border: 1px solid #dee2e6;
+        border-radius: 4px;
+        padding: 8px;
+        background-color: #f8f9fa;
+        object-fit: contain;
+    }
+
+    .signature-placeholder {
+        padding: 20px;
+        text-align: center;
+        border: 1px dashed #dee2e6;
+        border-radius: 4px;
+        background-color: #f8f9fa;
+        min-height: 120px;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+    }
+
+    .signature-placeholder i {
+        font-size: 2rem;
+        display: block;
+        margin-bottom: 8px;
+        color: #6c757d;
+    }
+
+    .signature-placeholder small {
+        color: #6c757d;
+        font-size: 0.875rem;
+    }
 </style>
 <!-- Custom Elements Initialization Script -->
 
@@ -1115,6 +1161,75 @@
         });
     }
 
+    // User Signature Loading Functions
+    function loadUserSignature(userId, signatureElementId) {
+        if (!userId) {
+            // Clear signature if no user selected
+            clearUserSignature(signatureElementId);
+            return;
+        }
+
+        const signatureContainer = $('#' + signatureElementId + '_container');
+        const signatureImage = $('#' + signatureElementId + '_image');
+        const signaturePlaceholder = $('#' + signatureElementId + '_placeholder');
+        const signatureInput = $('#' + signatureElementId);
+
+        // Show loading state
+        signaturePlaceholder.html('<i class="mdi mdi-loading mdi-spin" style="font-size: 2rem;"></i><br><small>Loading signature...</small>');
+
+        $.ajax({
+            url: '{{ route("submission-forms.user-signature") }}',
+            method: 'GET',
+            data: { user_id: userId },
+            success: function(response) {
+                if (response.success && response.signature_url) {
+                    signatureImage.attr('src', response.signature_url).show();
+                    signaturePlaceholder.hide();
+                    signatureInput.val(response.signature_path);
+                } else {
+                    // No signature available
+                    signaturePlaceholder.html('<i class="mdi mdi-account-remove" style="font-size: 2rem; display: block; margin-bottom: 8px;"></i><small>No signature available for this user</small>').show();
+                    signatureImage.hide();
+                    signatureInput.val('');
+                }
+            },
+            error: function(xhr) {
+                console.error('Error loading user signature:', xhr);
+                signaturePlaceholder.html('<i class="mdi mdi-alert-circle" style="font-size: 2rem; display: block; margin-bottom: 8px;"></i><small>Error loading signature</small>').show();
+                signatureImage.hide();
+                signatureInput.val('');
+            }
+        });
+    }
+
+    function clearUserSignature(signatureElementId) {
+        const signatureImage = $('#' + signatureElementId + '_image');
+        const signaturePlaceholder = $('#' + signatureElementId + '_placeholder');
+        const signatureInput = $('#' + signatureElementId);
+
+        signatureImage.hide().attr('src', '');
+        signaturePlaceholder.html('<i class="mdi mdi-account-check" style="font-size: 2rem; display: block; margin-bottom: 8px;"></i><small>Signature will appear here when user is selected</small>').show();
+        signatureInput.val('');
+    }
+
+    function setupUserSignatureHandlers() {
+        // Set up change handlers for user_select fields that have dependent user_signature fields
+        // Handle both regular change and Select2 change events
+        $('select[data-element-type="user_select"]').on('change.user-signature select2:select.user-signature select2:unselect.user-signature', function() {
+            const userId = $(this).val();
+            const fieldName = $(this).attr('name');
+            
+            // Find all user_signature fields that depend on this field
+            $('.user-signature-container').each(function() {
+                const dependsOn = $(this).data('depends-on');
+                if (dependsOn === fieldName) {
+                    const signatureElementId = $(this).data('element-id');
+                    loadUserSignature(userId, signatureElementId);
+                }
+            });
+        });
+    }
+
     // loadDynamicOptions is now defined globally at the top of this script
 
     const FormFill = {
@@ -1587,6 +1702,25 @@
             
             // Initialize custom elements with dependency management
             initializeAllCustomElements();
+            
+            // Setup user signature handlers
+            setupUserSignatureHandlers();
+            
+            // Initialize user signature fields if depends field already has value
+            $('.user-signature-container').each(function() {
+                const dependsOn = $(this).data('depends-on');
+                if (dependsOn) {
+                    // Find the depends field by name
+                    const dependsField = $('select[data-element-type="user_select"][name="' + dependsOn + '"]');
+                    if (dependsField.length > 0) {
+                        const userId = dependsField.val();
+                        if (userId) {
+                            const signatureElementId = $(this).data('element-id');
+                            loadUserSignature(userId, signatureElementId);
+                        }
+                    }
+                }
+            });
             
             // FALLBACK: Initialize client_select with a delay to run AFTER any global Select2 init
             console.log('[CLIENT_SELECT] Scheduling delayed initialization...');

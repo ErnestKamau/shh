@@ -6,6 +6,7 @@ use Livewire\Component;
 use Livewire\WithPagination;
 use Livewire\WithFileUploads;
 use App\Models\Area;
+use App\SampleType;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Auth;
 use Maatwebsite\Excel\Facades\Excel;
@@ -33,10 +34,17 @@ class AreaManager extends Component
     public $search = '';
     public $dateFrom = '';
     public $dateTo = '';
+    public $sampleTypeFilter = '';
 
     // Bulk Operations
     public $selectedAreas = [];
     public $selectAll = false;
+
+    // Sample Type Assignment
+    public $showAssignSampleTypeModal = false;
+    public $selectedSampleTypes = [];
+    public $sampleTypeSearch = '';
+    public $sampleTypeDropdownOpen = false;
 
     // UI State
     public $message = '';
@@ -74,10 +82,32 @@ class AreaManager extends Component
             $query->whereDate('created_at', '<=', $this->dateTo);
         }
 
+        if ($this->sampleTypeFilter) {
+            $query->whereIn('id', function($q) {
+                $q->select('area_id')
+                  ->from('sampletype_area_relation')
+                  ->where('sample_type_id', $this->sampleTypeFilter);
+            });
+        }
+
         return $query->paginate($this->perPage);
     }
 
+    public function getSampleTypesProperty()
+    {
+        $companyId = getUserCompany();
+        return SampleType::where('active', 1)
+            ->where('company_id', $companyId)
+            ->orderBy('name')
+            ->get();
+    }
+
     public function updatedSearch()
+    {
+        $this->resetPage();
+    }
+
+    public function updatedSampleTypeFilter()
     {
         $this->resetPage();
     }
@@ -87,6 +117,7 @@ class AreaManager extends Component
         $this->search = '';
         $this->dateFrom = '';
         $this->dateTo = '';
+        $this->sampleTypeFilter = '';
         $this->resetPage();
     }
 
@@ -355,6 +386,160 @@ class AreaManager extends Component
             $this->message = 'Error processing file: ' . $e->getMessage();
             $this->messageType = 'error';
         }
+    }
+
+    // Sample Type Assignment Methods
+    public function showAssignSampleTypeModalInitiator()
+    {
+        if (empty($this->selectedAreas)) {
+            $this->message = 'Please select at least one area.';
+            $this->messageType = 'error';
+            return;
+        }
+        
+        $this->selectedSampleTypes = [];
+        $this->sampleTypeSearch = '';
+        $this->sampleTypeDropdownOpen = false;
+        $this->showAssignSampleTypeModal = true;
+    }
+
+    public function closeAssignSampleTypeModal()
+    {
+        $this->showAssignSampleTypeModal = false;
+        $this->selectedSampleTypes = [];
+        $this->sampleTypeSearch = '';
+        $this->sampleTypeDropdownOpen = false;
+    }
+
+    public function toggleSampleType($sampleTypeId)
+    {
+        $index = array_search($sampleTypeId, $this->selectedSampleTypes);
+        if ($index !== false) {
+            unset($this->selectedSampleTypes[$index]);
+            $this->selectedSampleTypes = array_values($this->selectedSampleTypes);
+        } else {
+            $this->selectedSampleTypes[] = $sampleTypeId;
+        }
+    }
+
+    public function isSampleTypeSelected($sampleTypeId)
+    {
+        return in_array($sampleTypeId, $this->selectedSampleTypes);
+    }
+
+    public function getFilteredSampleTypesProperty()
+    {
+        $sampleTypes = $this->sampleTypes;
+        if (empty($this->sampleTypeSearch)) {
+            return $sampleTypes;
+        }
+        $search = strtolower($this->sampleTypeSearch);
+        return $sampleTypes->filter(function($st) use ($search) {
+            return str_contains(strtolower($st->name), $search) || str_contains(strtolower($st->code), $search);
+        });
+    }
+
+    public function getSelectedSampleTypeNames()
+    {
+        if (empty($this->selectedSampleTypes)) {
+            return '';
+        }
+        $names = [];
+        foreach ($this->selectedSampleTypes as $id) {
+            $st = $this->sampleTypes->firstWhere('id', $id);
+            if ($st) {
+                $names[] = $st->name;
+            }
+        }
+        if (count($names) > 3) {
+            return implode(', ', array_slice($names, 0, 3)) . ' +' . (count($names) - 3) . ' more';
+        }
+        return implode(', ', $names);
+    }
+
+    public function toggleSampleTypeDropdown()
+    {
+        $this->sampleTypeDropdownOpen = !$this->sampleTypeDropdownOpen;
+    }
+
+    public function assignSampleTypes()
+    {
+        if (empty($this->selectedAreas)) {
+            $this->message = 'Please select at least one area.';
+            $this->messageType = 'error';
+            return;
+        }
+
+        if (empty($this->selectedSampleTypes)) {
+            $this->message = 'Please select at least one sample type.';
+            $this->messageType = 'error';
+            return;
+        }
+
+        try {
+            DB::beginTransaction();
+
+            $assignedCount = 0;
+            foreach ($this->selectedAreas as $areaId) {
+                foreach ($this->selectedSampleTypes as $sampleTypeId) {
+                    // Check if relation already exists
+                    $exists = DB::table('sampletype_area_relation')
+                        ->where('sample_type_id', $sampleTypeId)
+                        ->where('area_id', $areaId)
+                        ->exists();
+
+                    if (!$exists) {
+                        DB::table('sampletype_area_relation')->insert([
+                            'sample_type_id' => $sampleTypeId,
+                            'area_id' => $areaId,
+                            'created_at' => now(),
+                            'updated_at' => now(),
+                        ]);
+                        $assignedCount++;
+                    }
+                }
+            }
+
+            DB::commit();
+
+            $this->closeAssignSampleTypeModal();
+            $this->selectedAreas = [];
+            $this->selectAll = false;
+            $this->message = "Sample types assigned successfully! ({$assignedCount} relation(s) created)";
+            $this->messageType = 'success';
+
+        } catch (\Exception $e) {
+            DB::rollBack();
+            $this->message = 'Error assigning sample types: ' . $e->getMessage();
+            $this->messageType = 'error';
+        }
+    }
+
+    public function getSampleTypesForArea($areaId): string
+    {
+        static $sampleTypesCache = null;
+        
+        if ($sampleTypesCache === null) {
+            $areaIds = $this->areas->pluck('id')->toArray();
+            
+            if (empty($areaIds)) {
+                return '';
+            }
+            
+            $sampleTypesCache = DB::table('sampletype_area_relation')
+                ->join('sample_types', 'sampletype_area_relation.sample_type_id', '=', 'sample_types.id')
+                ->whereIn('sampletype_area_relation.area_id', $areaIds)
+                ->where('sample_types.active', 1)
+                ->select('sampletype_area_relation.area_id', 'sample_types.name')
+                ->get()
+                ->groupBy('area_id')
+                ->map(function ($items) {
+                    return $items->pluck('name')->implode(', ');
+                })
+                ->toArray();
+        }
+        
+        return $sampleTypesCache[$areaId] ?? '';
     }
 
     public function render()

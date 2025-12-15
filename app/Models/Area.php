@@ -39,4 +39,19 @@ class Area extends Model
     {
         return $this->hasMany(\App\Models\SamplePoint::class, 'crm_area_id');
     }
+
+    /**
+     * Get the sample types that this area is assigned to
+     *
+     * @return \Illuminate\Database\Eloquent\Relations\BelongsToMany
+     */
+    public function sampleTypes()
+    {
+        return $this->belongsToMany(
+            \App\SampleType::class,
+            'sampletype_area_relation',
+            'area_id',
+            'sample_type_id'
+        )->withTimestamps();
+    }
 }

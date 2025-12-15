@@ -507,6 +507,33 @@
             </div>
             @break
             
+        @case('user_signature')
+            @php
+                $dependsField = $element->options && isset($element->options['depends']) ? $element->options['depends'] : '';
+            @endphp
+            <div class="user-signature-container" 
+                 id="{{ $fieldId }}_container"
+                 data-depends-on="{{ $dependsField }}"
+                 data-element-id="{{ $fieldId }}"
+                 data-element-name="{{ $element->name }}">
+                <div class="signature-preview-wrapper">
+                    <img id="{{ $fieldId }}_image" 
+                         class="signature-preview" 
+                         src="" 
+                         alt="User signature"
+                         style="display: none; max-height: 120px; border: 1px solid #dee2e6; border-radius: 4px; padding: 8px; background-color: #f8f9fa;">
+                    <div id="{{ $fieldId }}_placeholder" class="signature-placeholder text-muted" style="padding: 20px; text-align: center; border: 1px dashed #dee2e6; border-radius: 4px; background-color: #f8f9fa;">
+                        <i class="mdi mdi-account-check" style="font-size: 2rem; display: block; margin-bottom: 8px;"></i>
+                        <small>Signature will appear here when user is selected</small>
+                    </div>
+                </div>
+                <input type="hidden" 
+                       id="{{ $fieldId }}" 
+                       name="{{ $fieldName }}"
+                       value="{{ $fieldValue ?: '' }}">
+            </div>
+            @break
+            
         @case('calculation')
             <input type="text" 
                    class="form-control" 
@@ -527,7 +554,7 @@
 </div>
 
 {{-- Store element data for later initialization --}}
-@if(in_array($element->element_type, ['client_select', 'sample_type_select', 'client_unit_select', 'client_contact_select', 'analysis_type_select', 'analysis_elements_select', 'store_select', 'store_slot_select', 'sample_condition_select', 'standard_select', 'sample_point_select', 'company_sub_unit_select', 'user_select']))
+@if(in_array($element->element_type, ['client_select', 'sample_type_select', 'client_unit_select', 'client_contact_select', 'analysis_type_select', 'analysis_elements_select', 'store_select', 'store_slot_select', 'sample_condition_select', 'standard_select', 'sample_point_select', 'company_sub_unit_select', 'user_select', 'user_signature']))
 @push('scripts')
 <script>
 // Store element data for initialization when jQuery is ready
@@ -536,7 +563,10 @@ window.customElementsToInit.push({
     elementId: '{{ $fieldId }}',
     elementType: '{{ $element->element_type }}',
     isRequired: {{ $element->is_required ? 'true' : 'false' }},
-    placeholder: '{{ $element->placeholder ?: "Select..." }}'
+    placeholder: '{{ $element->placeholder ?: "Select..." }}',
+    @if($element->element_type === 'user_signature' && $element->options && isset($element->options['depends']))
+    dependsOn: '{{ $element->options['depends'] }}',
+    @endif
 });
 </script>
 @endpush

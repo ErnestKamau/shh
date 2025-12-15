@@ -1443,6 +1443,8 @@ class SampleCreationController extends Controller
             'customer' => $staging->sampleHeader->client->name ?? 'N/A',
             'customer_id' => $staging->sampleHeader->client->id ?? null,
             'company_unit' => $subUnit->companyUnit->name ?? 'N/A',
+            'company_unit_id' => $subUnit->companyUnit->id ?? null,
+            'company_sub_unit_id' => $subUnitId,
             'areas' => $formattedAreas,
         ]);
     }
@@ -1606,5 +1608,165 @@ class SampleCreationController extends Controller
             'id' => $sampleDetail->id,
             'sample_code' => $sampleDetail->sample_code
         ];
+    }
+
+    /**
+     * Get available areas and sample points (not yet mapped to customer) filtered by sample type
+     */
+    public function getAvailableAreasAndPoints($stagingId)
+    {
+        try {
+            $staging = \App\Models\SampleDetailStaging::with('sampleHeader.sample_type')->findOrFail($stagingId);
+            
+            $sampleTypeId = $staging->sampleHeader->sample_type_id;
+            $dataJson = $staging->data_json;
+            $subUnitId = $dataJson['company_sub_unit_id'] ?? null;
+            $customerId = $staging->sampleHeader->crm_customer_id;
+            
+            // Get company unit id from sub unit if available
+            $companyUnitId = null;
+            if ($subUnitId) {
+                $subUnit = \App\Models\CRM\CRMCompanySubUnit::with('companyUnit')->find($subUnitId);
+                $companyUnitId = $subUnit->companyUnit->id ?? null;
+            }
+            
+            if (!$sampleTypeId || !$customerId) {
+                Log::error('Missing sample type or customer', [
+                    'sample_type_id' => $sampleTypeId,
+                    'customer_id' => $customerId
+                ]);
+                return response()->json(['error' => 'Sample type or customer not found'], 400);
+            }
+            
+            // Get ALL areas linked to this sample type using Eloquent
+            $availableAreas = \App\Models\Area::whereHas('sampleTypes', function($query) use ($sampleTypeId) {
+                    $query->where('sample_types.id', $sampleTypeId);
+                })
+                ->select('id', 'name', 'code')
+                ->distinct()
+                ->get();
+            
+            Log::info('Found areas for sample type', [
+                'sample_type_id' => $sampleTypeId,
+                'area_count' => $availableAreas->count()
+            ]);
+            
+            // Get ALL sample points for this sample type (not filtered by area)
+            // User can select any sample point regardless of area selection
+            $allSamplePoints = \App\Models\SamplePoint::whereHas('sampleTypes', function($query) use ($sampleTypeId) {
+                    $query->where('sample_types.id', $sampleTypeId);
+                })
+                ->select('id', 'name', 'code')
+                ->distinct()
+                ->get();
+            
+            Log::info('All sample points for sample type', [
+                'sample_type_id' => $sampleTypeId,
+                'all_points_count' => $allSamplePoints->count(),
+                'sample_points' => $allSamplePoints->toArray()
+            ]);
+            
+            // For compatibility with frontend, group all points under a single key
+            // Or return as flat array - the frontend needs to be updated accordingly
+            $samplePointsByArea = [];
+            foreach ($availableAreas as $area) {
+                // Return all sample points for each area (same list for all areas)
+                $samplePointsByArea[$area->id] = $allSamplePoints;
+            }
+            
+            // Also add a special key for "all points" so frontend can show all regardless of area selection
+            $samplePointsByArea['all'] = $allSamplePoints;
+            
+            Log::info('Returning areas and points', [
+                'areas' => count($availableAreas),
+                'sample_points_count' => array_sum(array_map('count', $samplePointsByArea))
+            ]);
+            
+            return response()->json([
+                'areas' => $availableAreas,
+                'sample_points' => $samplePointsByArea,
+                'sub_unit_id' => $subUnitId,
+                'company_unit_id' => $companyUnitId,
+                'customer_id' => $customerId
+            ]);
+            
+        } catch (\Exception $e) {
+            Log::error('Error fetching available areas and points: ' . $e->getMessage());
+            Log::error($e->getTraceAsString());
+            return response()->json(['error' => $e->getMessage()], 500);
+        }
+    }
+
+    /**
+     * Create customer sample point (area and point mapping)
+     */
+    public function addCustomerSamplePoint(Request $request)
+    {
+        $validated = $request->validate([
+            'customer_id' => 'required|exists:crm_customers,id',
+            'area_id' => 'required|exists:crm_areas,id',
+            'sample_point_id' => 'required|exists:crm_sample_points,id',
+            'crm_company_unit_id' => 'nullable|exists:crm_company_units,id',
+            'crm_company_sub_unit_id' => 'nullable|exists:crm_company_sub_units,id',
+        ]);
+        
+        DB::beginTransaction();
+        try {
+            // 1. Check if SamplePointArea exists for this customer + area
+            $samplePointArea = \App\Models\SamplePointArea::where('crm_customer_id', $validated['customer_id'])
+                ->where('crm_area_id', $validated['area_id'])
+                ->first();
+            
+            if (!$samplePointArea) {
+                // Create new SamplePointArea
+                $samplePointArea = \App\Models\SamplePointArea::create([
+                    'crm_customer_id' => $validated['customer_id'],
+                    'crm_area_id' => $validated['area_id'],
+                    'crm_company_unit_id' => $validated['crm_company_unit_id'] ?? null,
+                    'crm_company_sub_unit_id' => $validated['crm_company_sub_unit_id'] ?? null,
+                    'description' => 'Auto-created from sample assignment',
+                    'active' => true
+                ]);
+                
+                Log::info('Created new SamplePointArea', ['id' => $samplePointArea->id]);
+            }
+            
+            // 2. Check if CRM\SamplePoint exists for this customer + sample_point + area
+            $crmSamplePoint = \App\Models\CRM\SamplePoint::where('crm_customer_id', $validated['customer_id'])
+                ->where('crm_sample_point_id', $validated['sample_point_id'])
+                ->where('crm_area_id', $validated['area_id'])
+                ->first();
+            
+            if (!$crmSamplePoint) {
+                // Create new CRM\SamplePoint
+                $crmSamplePoint = \App\Models\CRM\SamplePoint::create([
+                    'crm_customer_id' => $validated['customer_id'],
+                    'crm_sample_point_id' => $validated['sample_point_id'],
+                    'crm_area_id' => $validated['area_id'],
+                    'sample_point_area_id' => $samplePointArea->id,
+                    'crm_company_unit_id' => $validated['crm_company_unit_id'] ?? null,
+                    'crm_company_sub_unit_id' => $validated['crm_company_sub_unit_id'] ?? null,
+                    'active' => true
+                ]);
+                
+                Log::info('Created new CRM\SamplePoint', ['id' => $crmSamplePoint->id]);
+            }
+            
+            DB::commit();
+            
+            return response()->json([
+                'success' => true,
+                'message' => 'Sample point added to customer successfully',
+                'data' => [
+                    'sample_point_area_id' => $samplePointArea->id,
+                    'crm_sample_point_id' => $crmSamplePoint->id
+                ]
+            ]);
+            
+        } catch (\Exception $e) {
+            DB::rollBack();
+            Log::error('Error adding customer sample point: ' . $e->getMessage());
+            return response()->json(['success' => false, 'error' => $e->getMessage()], 500);
+        }
     }
 }

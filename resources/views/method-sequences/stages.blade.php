@@ -103,22 +103,46 @@
             <div class="card-body">
                 <div class="row">
                     <div class="col-md-6">
-                        <h4 class="mb-3">{{ $methodSequenceVersion->methodSequence->name }}</h4>
-                        <p class="text-muted">{{ $methodSequenceVersion->methodSequence->description }}</p>
+                        <h4 class="mb-3">
+                            @if($methodSequenceVersion->methodSequence)
+                                {{ $methodSequenceVersion->methodSequence->name ?? 'N/A' }}
+                            @else
+                                N/A
+                            @endif
+                        </h4>
+                        <p class="text-muted">
+                            @if($methodSequenceVersion->methodSequence)
+                                {{ $methodSequenceVersion->methodSequence->description ?? 'No description available' }}
+                            @else
+                                No description available
+                            @endif
+                        </p>
                     </div>
                     <div class="col-md-3">
                         <p class="mb-1"><strong>Analyte:</strong></p>
-                        <p class="text-muted">{{ $methodSequenceVersion->methodSequence->analyte->name }}</p>
+                        <p class="text-muted">
+                            @if($methodSequenceVersion->methodSequence && $methodSequenceVersion->methodSequence->analyte)
+                                {{ $methodSequenceVersion->methodSequence->analyte->name }}
+                            @else
+                                <span class="text-muted">N/A</span>
+                            @endif
+                        </p>
                     </div>
                     <div class="col-md-3">
                         <p class="mb-1"><strong>Method:</strong></p>
-                        <p class="text-muted">{{ $methodSequenceVersion->methodSequence->method->name }}</p>
+                        <p class="text-muted">
+                            @if($methodSequenceVersion->methodSequence && $methodSequenceVersion->methodSequence->method)
+                                {{ $methodSequenceVersion->methodSequence->method->name }}
+                            @else
+                                <span class="text-muted">N/A</span>
+                            @endif
+                        </p>
                     </div>
                 </div>
                 <div class="row mt-2">
                     <div class="col-md-12">
-                        <span class="badge badge-info">Version {{ $methodSequenceVersion->version_number }}</span>
-                        @if($methodSequenceVersion->is_active)
+                        <span class="badge badge-info">Version {{ $methodSequenceVersion->version_number ?? 'N/A' }}</span>
+                        @if(isset($methodSequenceVersion->is_active) && $methodSequenceVersion->is_active)
                             <span class="badge badge-success">Active</span>
                         @endif
                     </div>

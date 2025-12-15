@@ -1815,6 +1815,11 @@
                             <option value="table">Table</option>
                             <option value="signature">Signature</option>
                             <option value="date">Date</option>
+                            <option value="checkbox">Checkbox</option>
+                            <option value="radio">Radio Button</option>
+                            <option value="link">Link</option>
+                            <option value="blockquote">Blockquote</option>
+                            <option value="code_block">Code Block</option>
                 </select>
                         <small class="form-text text-muted">Choose the type of element to add</small>
             </div>

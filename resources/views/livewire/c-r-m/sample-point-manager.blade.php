@@ -1,4 +1,4 @@
-<div class="container-fluid" wire:id="sample-point-manager">
+<div class="container-fluid">
     <!-- Header -->
     <div class="row mb-4">
         <div class="col-12">
@@ -12,11 +12,12 @@
                             </h2>
                             <p class="text-muted mb-0">Manage sample points</p>
                         </div>
+                        
                         <div>
-                            <button wire:click="openBulkUploadModal" class="btn btn-success me-2" type="button">
+                            <button wire:click="openBulkUploadModal" class="btn btn-success me-2" type="button" style="border-radius: 8px;">
                                 <i class="mdi mdi-file-excel"></i> Bulk Create
                             </button>
-                            <button wire:click="showCreateSamplePointModal" class="btn btn-primary" type="button" wire:loading.attr="disabled" wire:target="showCreateSamplePointModal">
+                            <button wire:click="showCreateSamplePointModal" class="btn btn-primary" type="button" style="border-radius: 8px;" wire:loading.attr="disabled" wire:target="showCreateSamplePointModal">
                                 <span wire:loading.remove wire:target="showCreateSamplePointModal">
                                     <i class="mdi mdi-plus"></i> Add Sample Point
                                 </span>
@@ -50,10 +51,21 @@
                 </div>
                 <div class="card-body p-4">
                     <div class="row">
-                        <div class="col-md-6">
+                        <div class="col-md-4">
                             <div class="form-group mb-3">
                                 <label class="form-label fw-bold">Search</label>
                                 <input type="text" wire:model.live="search" class="form-control" placeholder="Search sample points...">
+                            </div>
+                        </div>
+                        <div class="col-md-2">
+                            <div class="form-group mb-3">
+                                <label class="form-label fw-bold">Sample Type</label>
+                                <select wire:model.live="sampleTypeFilter" class="form-select">
+                                    <option value="">All Sample Types</option>
+                                    @foreach($this->sampleTypes as $sampleType)
+                                        <option value="{{ $sampleType->id }}">{{ $sampleType->name }}</option>
+                                    @endforeach
+                                </select>
                             </div>
                         </div>
                         <div class="col-md-3">
@@ -88,20 +100,34 @@
                 <div class="card-body">
                     @if($this->samplePoints->count() > 0)
                         <!-- Bulk Actions -->
-                        @if(count($selectedSamplePoints) > 0)
-                            <div class="alert alert-info d-flex justify-content-between align-items-center mb-3">
-                                <span>
-                                    <i class="mdi mdi-information"></i>
-                                    {{ count($selectedSamplePoints) }} sample point(s) selected
-                                </span>
-                                <div class="btn-group">
-                                    <button wire:click="bulkDelete" class="btn btn-danger btn-sm" 
-                                            onclick="return confirm('Are you sure you want to delete selected sample points?')">
-                                        <i class="mdi mdi-delete"></i> Delete
-                                    </button>
-                                </div>
+                        
+                        <div class="alert alert-info d-flex justify-content-between align-items-center mb-3" wire:key="bulk-actions-{{ count($selectedSamplePoints) }}">
+                            <span>
+                                <i class="mdi mdi-information"></i>
+                                {{ count($selectedSamplePoints) }} sample point(s) selected
+                            </span>
+                            <div class="btn-group" role="group">
+                                <button wire:click="showAssignSampleTypeModalInitiator" 
+                                        class="btn btn-success btn-sm mr-2" 
+                                        type="button"
+                                        style="border-radius: 8px;"
+                                        wire:loading.attr="disabled" 
+                                        wire:target="showAssignSampleTypeModalInitiator">
+                                    <span wire:loading.remove wire:target="showAssignSampleTypeModalInitiator">
+                                        <i class="mdi mdi-tag-multiple"></i> Assign Sample Type
+                                    </span>
+                                    <span wire:loading wire:target="showAssignSampleTypeModalInitiator">
+                                        <span class="spinner-border spinner-border-sm" role="status"></span> Opening...
+                                    </span>
+                                </button>
+                                <button wire:click="bulkDelete" class="btn btn-danger btn-sm" type="button"
+                                        style="border-radius: 8px;"
+                                        onclick="return confirm('Are you sure you want to delete selected sample points?')">
+                                    <i class="mdi mdi-delete"></i> Delete
+                                </button>
                             </div>
-                        @endif
+                        </div>
+                        
 
                         <!-- Show Entries -->
                         <div class="d-flex justify-content-between align-items-center mb-3">
@@ -121,11 +147,15 @@
                         </div>
                         
                         <div class="table-responsive">
-                            <table class="table table-striped table-hover livewire-table">
+                            <table class="table table-striped table-hover">
                                 <thead style="background-color: rgba(0, 0, 0, .03);">
                                     <tr>  
+                                        <th style="width: 50px; text-align: center; vertical-align: middle;">
+                                            <input type="checkbox" wire:model.live="selectAll" class="form-check-input">
+                                        </th>
                                         <th>Code</th>
                                         <th>Name</th>
+                                        <th>Sample Types</th>
                                         <th>Created By</th>
                                         <th>Created Date</th>
                                         <th>Actions</th>
@@ -134,16 +164,25 @@
                                 <tbody>
                                     @foreach($this->samplePoints as $samplePoint)
                                         <tr>
+                                            <td style="text-align: center; vertical-align: middle;">
+                                                <input type="checkbox" wire:model.live="selectedSamplePoints" value="{{ $samplePoint->id }}" class="form-check-input">
+                                            </td>
                                             <td>
                                                 <span class="fw-bold text-primary">{{ $samplePoint->code }}</span>
                                             </td>
                                             <td>{{ $samplePoint->name }}</td>
+                                            <td>
+                                                <span class="text-muted">
+                                                    {{ $this->getSampleTypesForSamplePoint($samplePoint->id) ?: '—' }}
+                                                </span>
+                                            </td>
                                             <td>{{ $samplePoint->creator->name ?? 'N/A' }}</td>
                                             <td>{{ $samplePoint->created_at->format('Y-m-d H:i') }}</td>
                                             <td>
                                                 <div class="btn-group" role="group">
                                                     <button wire:click="showEditSamplePointModal({{ $samplePoint->id }})" 
                                                             class="btn btn-sm btn-outline-warning mr-1" 
+                                                            style="border-radius: 8px;"
                                                             title="Edit"
                                                             wire:loading.attr="disabled"
                                                             wire:target="showEditSamplePointModal({{ $samplePoint->id }})">
@@ -156,6 +195,7 @@
                                                     </button>
                                                     <button wire:click="deleteSamplePoint({{ $samplePoint->id }})" 
                                                             class="btn btn-sm btn-outline-danger mr-1" 
+                                                            style="border-radius: 8px;"
                                                             title="Delete"
                                                             wire:loading.attr="disabled"
                                                             wire:target="deleteSamplePoint({{ $samplePoint->id }})"
@@ -302,16 +342,138 @@
         </div>
     @endif
 
+    <!-- Assign Sample Type Modal -->
+    @if($showAssignSampleTypeModal)
+        <div class="modal fade show d-block" tabindex="-1" role="dialog" style="background-color: rgba(0,0,0,0.5);">
+            <div class="modal-dialog modal-lg" role="document" style="max-width: 90%;">
+                <div class="modal-content">
+                    <div class="modal-header bg-success text-white">
+                        <h5 class="modal-title">
+                            <i class="mdi mdi-tag-multiple"></i>
+                            Assign Sample Types
+                        </h5>
+                        <button type="button" class="btn-close btn-close-white" wire:click="closeAssignSampleTypeModal"></button>
+                    </div>
+                    <div class="modal-body" style="max-height: 85vh; overflow-y: auto;">
+                        <!-- Selected Sample Points -->
+                        <div class="mb-4">
+                            <h6 class="fw-bold mb-3">
+                                <i class="mdi mdi-map-marker text-primary"></i> Selected Sample Points ({{ count($selectedSamplePoints) }})
+                            </h6>
+                            <div class="card">
+                                <div class="card-body" style="max-height: 250px; overflow-y: auto;">
+                                    @foreach($selectedSamplePoints as $samplePointId)
+                                        @php
+                                            $samplePoint = \App\Models\SamplePoint::find($samplePointId);
+                                        @endphp
+                                        @if($samplePoint)
+                                            <div class="d-flex align-items-center mb-2">
+                                                <i class="mdi mdi-check-circle text-success me-2"></i>
+                                                <span><strong>{{ $samplePoint->code }}</strong> - {{ $samplePoint->name }}</span>
+                                            </div>
+                                        @endif
+                                    @endforeach
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Sample Types Multi-Select -->
+                        <div class="mb-3">
+                            <label class="form-label fw-bold">
+                                <i class="mdi mdi-tag-multiple text-success"></i> Select Sample Types <span class="text-danger">*</span>
+                            </label>
+                            <div class="searchable-dropdown-wrapper" wire:key="sample-type-dropdown">
+                                <div class="multi-select-container" wire:click="toggleSampleTypeDropdown">
+                                    <input 
+                                        type="text" 
+                                        wire:model.live="sampleTypeSearch"
+                                        placeholder="@if(count($selectedSampleTypes) > 0){{ $this->getSelectedSampleTypeNames() }}@else Select sample types...@endif"
+                                        class="form-control searchable-input-single"
+                                        autocomplete="off"
+                                        wire:click.stop
+                                    >
+                                    @if(count($selectedSampleTypes) > 0)
+                                        <span class="selected-count">{{ count($selectedSampleTypes) }}</span>
+                                    @endif
+                                    <i class="mdi mdi-chevron-down dropdown-arrow @if($sampleTypeDropdownOpen) rotated @endif"></i>
+                                </div>
+
+                                @if($sampleTypeDropdownOpen)
+                                    <div class="dropdown-list">
+                                        @if($this->filteredSampleTypes->count() > 0)
+                                            <div class="options-list">
+                                                @foreach($this->filteredSampleTypes as $st)
+                                                    <div wire:click="toggleSampleType({{ $st->id }})" 
+                                                         class="option-item @if($this->isSampleTypeSelected($st->id)) selected @endif"
+                                                         style="cursor: pointer;">
+                                                        @if($this->isSampleTypeSelected($st->id))
+                                                            <i class="mdi mdi-check-circle text-primary"></i>
+                                                        @endif
+                                                        <div class="d-flex flex-column flex-grow-1">
+                                                            <span class="fw-bold">{{ $st->name }}</span>
+                                                            <small class="text-muted">Code: {{ $st->code }}</small>
+                                                        </div>
+                                                    </div>
+                                                @endforeach
+                                            </div>
+                                        @else
+                                            <div class="no-results">
+                                                <i class="mdi mdi-alert-circle-outline"></i>
+                                                <span>No sample types found</span>
+                                            </div>
+                                        @endif
+                                    </div>
+                                @endif
+                            </div>
+                            <small class="form-text text-muted mt-2 d-block">
+                                <i class="mdi mdi-information-outline"></i> Select one or more sample types to assign to the selected sample points
+                            </small>
+                        </div>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" wire:click="closeAssignSampleTypeModal" wire:loading.attr="disabled" wire:target="assignSampleTypes">
+                            <i class="mdi mdi-close"></i> Close
+                        </button>
+                        <button type="button" class="btn btn-success" wire:click="assignSampleTypes" wire:loading.attr="disabled" wire:target="assignSampleTypes">
+                            <span wire:loading.remove wire:target="assignSampleTypes">
+                                <i class="mdi mdi-check"></i> Yes, Assign
+                            </span>
+                            <span wire:loading wire:target="assignSampleTypes">
+                                <span class="spinner-border spinner-border-sm" role="status"></span> Assigning...
+                            </span>
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    @endif
+
     <style>
     .modal.show {
         display: block !important;
     }
     
+    /* Ensure modal is properly positioned */
+    .modal.fade.show {
+        position: fixed !important;
+        top: 0 !important;
+        left: 0 !important;
+        width: 100% !important;
+        height: 100% !important;
+        z-index: 1050 !important;
+        overflow-y: auto !important;
+    }
+    
     /* Make modal body scrollable */
     .modal-body {
-        max-height: 70vh;
+        max-height: 85vh;
         overflow-y: auto;
         overflow-x: hidden;
+    }
+    
+    /* Specific styling for Assign Sample Type Modal */
+    .modal-dialog.modal-lg .modal-body {
+        max-height: 85vh;
     }
     
     /* Custom scrollbar for better UX */
@@ -332,15 +494,161 @@
     .modal-body::-webkit-scrollbar-thumb:hover {
         background: #555;
     }
+    
+    /* Searchable Dropdown Styling */
+    .searchable-input-single {
+        border: none;
+        outline: none;
+        box-shadow: none !important;
+        padding: 4px 0;
+        width: 100%;
+    }
+    
+    .searchable-input-single:focus {
+        border: none !important;
+        box-shadow: none !important;
+    }
+    
+    .single-select-container, .multi-select-container {
+        position: relative;
+        min-height: 45px;
+        border: 1px solid #ced4da;
+        border-radius: 12px;
+        padding: 8px 40px 8px 12px;
+        background: white;
+        cursor: pointer;
+        transition: all 0.3s ease;
+        display: flex;
+        align-items: center;
+    }
+    
+    .single-select-container:hover, .multi-select-container:hover {
+        border-color: #007bff;
+        box-shadow: 0 2px 8px rgba(0, 123, 255, 0.1);
+    }
+    
+    .single-select-container:has(.searchable-input-single:focus), 
+    .multi-select-container:has(.searchable-input-single:focus) {
+        border-color: #007bff;
+        box-shadow: 0 0 0 0.2rem rgba(0, 123, 255, 0.25);
+    }
+    
+    .options-list {
+        padding: 8px;
+        max-height: 300px;
+        overflow-y: auto;
+        scrollbar-width: none;
+        -ms-overflow-style: none;
+    }
+    
+    .options-list::-webkit-scrollbar {
+        display: none;
+    }
+    
+    .option-item {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        padding: 10px 12px;
+        border-radius: 8px;
+        cursor: pointer;
+        transition: all 0.2s ease;
+        font-size: 14px;
+    }
+    
+    .option-item:hover {
+        background: #f8f9fa;
+    }
+    
+    .option-item.selected {
+        background: rgba(0, 123, 255, 0.08);
+        font-weight: 500;
+    }
+    
+    .option-item i {
+        font-size: 18px;
+    }
+    
+    .dropdown-list {
+        position: absolute;
+        top: 100%;
+        left: 0;
+        right: 0;
+        background: white;
+        border: 1px solid #ced4da;
+        border-radius: 12px;
+        margin-top: 4px;
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+        z-index: 1000;
+        max-height: 350px;
+        overflow-y: auto;
+        scrollbar-width: none;
+        -ms-overflow-style: none;
+    }
+    
+    .dropdown-list::-webkit-scrollbar {
+        display: none;
+    }
+    
+    .searchable-dropdown-wrapper {
+        position: relative;
+    }
+    
+    .no-results {
+        padding: 20px;
+        text-align: center;
+        color: #6c757d;
+    }
+    
+    .no-results i {
+        font-size: 24px;
+        display: block;
+        margin-bottom: 8px;
+    }
+    
+    .dropdown-arrow {
+        position: absolute;
+        right: 12px;
+        top: 50%;
+        transform: translateY(-50%);
+        transition: transform 0.3s ease;
+        pointer-events: none;
+        font-size: 20px;
+        color: #6c757d;
+    }
+    
+    .dropdown-arrow.rotated {
+        transform: translateY(-50%) rotate(180deg);
+    }
+    
+    .selected-count {
+        position: absolute;
+        right: 40px;
+        top: 50%;
+        transform: translateY(-50%);
+        background: #007bff;
+        color: white;
+        padding: 2px 8px;
+        border-radius: 12px;
+        font-size: 12px;
+        font-weight: 600;
+    }
     </style>
 
     <script>
         document.addEventListener('livewire:init', () => {
             console.log('Livewire initialized for Sample Points Manager');
-            
-            Livewire.on('bulk-upload-modal-opened', () => {
-                console.log('Bulk upload modal event received!');
-            });
+        });
+
+        // Close dropdown when clicking outside
+        document.addEventListener('click', function(e) {
+            if (!e.target.closest('.searchable-dropdown-wrapper')) {
+                Livewire.all().forEach(component => {
+                    if (component.get && typeof component.get('sampleTypeDropdownOpen') !== 'undefined') {
+                        component.set('sampleTypeDropdownOpen', false);
+                    }
+                });
+            }
         });
     </script>
 </div>

@@ -33,6 +33,65 @@ class HomeController extends Controller
   }
 
   /**
+   * Load and merge user permissions from all roles
+   *
+   * @param \App\User $user
+   * @return void
+   */
+  public function loadUserPermissions($user)
+  {
+		$roles = UserRole::where('user_id',$user->id)->get();
+		$permissions = array();
+		$count = 0;
+		foreach($roles as $role){
+			$permission = Role::find($role->role_id);
+			$perms = json_decode($permission->permissions);
+
+			if($count == 0){
+				array_push($permissions,$perms);
+			}else{
+				foreach($perms ?? [] as $key=>$perm){
+					// Initialize module if it doesn't exist in first role
+					if(!isset($permissions[0]->$key)){
+						$permissions[0]->$key = new \stdClass();
+						$permissions[0]->$key->permission = $perm->permission ?? "false";
+					}
+					// return response()->json($permissions[0]->Laboratory->components->$t,200);
+					if(isset($permissions[0]->$key) && $permissions[0]->$key->permission != "true"){
+						$permissions[0]->$key->permission = $perm->permission;
+					}
+					// return response()->json($perm,200);
+					if(isset($perm->components)){
+						// Initialize components if they don't exist
+						if(!isset($permissions[0]->$key->components)){
+							$permissions[0]->$key->components = new \stdClass();
+						}
+						foreach($perm->components as $comp => $value){
+							// Initialize component if it doesn't exist
+							if(!isset($permissions[0]->$key->components->$comp)){
+								$permissions[0]->$key->components->$comp = new \stdClass();
+							}
+							foreach($value as $act => $action){
+								// Add permission if it doesn't exist, or update if current value is not "true"
+								if(!isset($permissions[0]->$key->components->$comp->$act) || $permissions[0]->$key->components->$comp->$act != "true"){
+									$permissions[0]->$key->components->$comp->$act = $action;
+								}
+							}
+
+						}
+					}
+				}
+			}
+
+			++$count;
+
+		}
+		if(sizeof($permissions)>0){
+			Session::put('permissions', $permissions[0]);
+		}
+  }
+
+  /**
    * Show the application dashboard.
    *
    * @return \Illuminate\Contracts\Support\Renderable
@@ -58,59 +117,10 @@ class HomeController extends Controller
 	else{
 		$user->is_online = 1;
 		$user->save();
-		$roles = UserRole::where('user_id',$user->id)->get();
 		$personnel_role = SystemConfiguration::where('key','personnel_role_id')->first();
 		$user_personel_access = isset($personnel_role->value) && $personnel_role->value > 0 ? UserRole::where('user_id',$user->id)->where('role_id',$personnel_role->value)->first() : null;
 
-		$permissions = array();
-		$count = 0;
-		foreach($roles as $role){
-			$permission = Role::find($role->role_id);
-			$perms = json_decode($permission->permissions);
-
-			if($count == 0){
-				array_push($permissions,$perms);
-			}else{
-				foreach($perms ?? [] as $key=>$perm){
-					// return response()->json($permissions[0]->Laboratory->components->$t,200);
-					if(isset($permissions[0]->$key) && $permissions[0]->$key->permission != "true"){
-						$permissions[0]->$key->permissions = $perm->permission;
-					}
-					// return response()->json($perm,200);
-					if(isset($perm->components)){
-						foreach($perm->components as $comp => $value){
-							foreach($value as $act => $action){
-								if(isset($permissions[0]->$key->components->$comp->$act)){
-									if($permissions[0]->$key->components->$comp->$act != "true"){
-										// return response()->json($act,200);
-										$permissions[0]->$key->components->$comp->$act = $action;
-									}
-								}
-							}
-
-						}
-					}
-				}
-			}
-
-			++$count;
-
-		}
-		if(sizeof($permissions)>0){
-			Session::put('permissions', $permissions[0]);
-			// return response()->json($permissions,200);
-			return view('home',compact('user_personel_access'));
-
-
-		}
-		else{
-			// return response()->json($roles,200);
-			return view('home',compact('user_personel_access'));
-		}
-
-		// $t = array('Laboratory','components','Samples En-Route','Add');
-		// $test = $user->check_permission($t);
-		// return response()->json($test,200);
+		$this->loadUserPermissions($user);
 
 		return view('home',compact('user_personel_access'));
 

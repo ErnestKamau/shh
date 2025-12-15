@@ -96,14 +96,15 @@
 				?>
 				@foreach (getComplaintWorkflowStages() as $item)
 				<a href="{{route('complaint-workflow',['stage'=>$item])}}" class="list-group-item list-group-item-action bg-dark text-white">
-					<span class="menu-collapsed"><i class="mdi mdi-circle-medium"></i>{{ $item }}
+					<div class="d-flex w-100 justify-content-between align-items-center">
+						<span class="menu-collapsed"><i class="mdi mdi-circle-medium"></i>{{ $item }}</span>
 						@if ($item == "All Complaints")
-						<small class="float-right badge badge-pill {{ $item == "Samples Request Review" ? 'badge-danger' : 'badge-dark' }}">{{ getAllComplaints() }}</small>
+						<small class="badge badge-pill {{ $item == "Samples Request Review" ? 'badge-danger' : 'badge-dark' }}">{{ getAllComplaints() }}</small>
 						@endif
 						@if($item != "All Complaints")
-						<small class="float-right badge badge-pill {{ $item == "Samples Request Review" ? 'badge-danger' : 'badge-dark' }}">{{ getComplaintsInWorkflow($loop->iteration-1) ?? 0 }}</small>
+						<small class="badge badge-pill {{ $item == "Samples Request Review" ? 'badge-danger' : 'badge-dark' }}">{{ getComplaintsInWorkflow($loop->iteration-1) ?? 0 }}</small>
 						@endif
-					</span>
+					</div>
 				</a>
 				@endforeach
 			</div>

@@ -326,6 +326,10 @@
 			<span class="menu-collapsed"><i class="mdi mdi-circle-medium"></i> Certificate Templates
 				<small class="float-right badge badge-pill"></small></span>
 		</a>
+		<a href="{{route('templates.index')}}" class="list-group-item list-group-item-action bg-dark text-white">
+			<span class="menu-collapsed"><i class="mdi mdi-circle-medium"></i> Form Templates
+				<small class="float-right badge badge-pill"></small></span>
+		</a>
 
 	</div>
 
