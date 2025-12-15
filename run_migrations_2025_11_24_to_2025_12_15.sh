@@ -35,6 +35,7 @@ echo ""
 echo "Running December 14, 2025 migrations..."
 php artisan migrate --path=database/migrations/2025_12_14_140219_add_parent_field_id_to_form_fields_table.php
 php artisan migrate --path=database/migrations/2025_12_14_143657_add_process_columns_to_form_templates_table.php
+php artisan migrate --path=database/migrations/2025_12_15_114915_make_picture_nullable_in_equipment_table.php
 
 echo ""
 echo "=================================================="

@@ -16,6 +16,7 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Http\File;
 use Maatwebsite\Excel\Facades\Excel;
+use App\Imports\EquipmentImport;
 
 class EquipmentManager extends Component
 {
@@ -511,7 +512,7 @@ class EquipmentManager extends Component
                 'Serial Number',
                 'Manufacturer',
                 'Assigned Department',
-                'Purchased On',
+                'Date Purchased',
                 'Previous Calibration Date',
                 'Calibration Interval (Days)',
                 'Previous Maintainance Date',
@@ -541,180 +542,22 @@ class EquipmentManager extends Component
         ]);
 
         try {
-            DB::beginTransaction();
+            $import = new EquipmentImport();
+            
+            Excel::import($import, $this->bulkFile);
 
-            $path = $this->bulkFile->getRealPath();
-            $data = Excel::toArray(new class implements \Maatwebsite\Excel\Concerns\ToArray {
-                public function array(array $array)
-                {
-                    return $array;
-                }
-            }, $path);
-
-            if (empty($data) || empty($data[0])) {
-                throw new \Exception('The uploaded file is empty.');
-            }
-
-            $rows = $data[0];
-            $header = array_shift($rows); // Remove header row
-
-            $successCount = 0;
-            $errorCount = 0;
-            $errors = [];
-
-            foreach ($rows as $index => $row) {
-                $rowNumber = $index + 2; // +2 because of header and 0-index
-                
-                // Skip empty rows
-                if (empty(array_filter($row))) {
-                    continue;
-                }
-
-                // Map Excel columns to data
-                $name = trim($row[0] ?? '');
-                $equipmentNumber = trim($row[1] ?? '');
-                $make = trim($row[2] ?? '');
-                $model = trim($row[3] ?? '');
-                $serialNumber = trim($row[4] ?? '');
-                $manufacturer = trim($row[5] ?? '');
-                $departmentName = trim($row[6] ?? '');
-                $datePurchased = trim($row[7] ?? '');
-                $previousCalibrationDate = trim($row[8] ?? '');
-                $calibrationInterval = trim($row[9] ?? '');
-                $previousMaintainanceDate = trim($row[10] ?? '');
-                $intermediateChecksInterval = trim($row[11] ?? '');
-
-                // Check for duplicate equipment number
-                $existingEquipment = Equipment::where('equipment_number', $equipmentNumber)
-                    ->where('company_id', getUserCompany())
-                    ->first();
-                
-                if ($existingEquipment) {
-                    $errorCount++;
-                    $errors[] = "Row {$rowNumber}: Equipment number '{$equipmentNumber}' already exists.";
-                    continue;
-                }
-
-                // Validate row data
-                $validator = Validator::make([
-                    'name' => $name,
-                    'equipment_number' => $equipmentNumber,
-                    'make' => $make,
-                    'model' => $model,
-                    'department_name' => $departmentName,
-                    'date_purchased' => $datePurchased,
-                    'calibration_interval' => $calibrationInterval,
-                    'intermediate_checks_interval' => $intermediateChecksInterval,
-                ], [
-                    'name' => 'required|string|max:255',
-                    'equipment_number' => 'required|string|max:255',
-                    'make' => 'required|string|max:255',
-                    'model' => 'required|string|max:255',
-                    'department_name' => 'required|string',
-                    'date_purchased' => 'required|date',
-                    'calibration_interval' => 'required|integer|min:0',
-                    'intermediate_checks_interval' => 'required|integer|min:0',
-                ]);
-
-                if ($validator->fails()) {
-                    $errorCount++;
-                    $errors[] = "Row {$rowNumber}: " . implode(', ', $validator->errors()->all());
-                    continue;
-                }
-
-                // Get or create department
-                $department = InventoryDepartment::where('module', 'organizational')
-                    ->where('name', $departmentName)
-                    ->first();
-
-                if (!$department) {
-                    $locationId = null;
-                    if (function_exists('getCurrentUserLocation')) {
-                        $location = getCurrentUserLocation();
-                        $locationId = $location ? $location->id : null;
-                    }
-                    
-                    $department = InventoryDepartment::create([
-                        'name' => $departmentName,
-                        'module' => 'organizational',
-                        'company_id' => getUserCompany(),
-                        'location_id' => $locationId,
-                        'active' => 1,
-                    ]);
-                }
-
-                // Prepare equipment data
-                $equipmentData = [
-                    'name' => $name,
-                    'equipment_number' => $equipmentNumber,
-                    'description' => $name, // Use name as description
-                    'make' => $make,
-                    'model' => $model,
-                    'serial_number' => $serialNumber ?: null,
-                    'manufacturer' => $manufacturer ?: null,
-                    'assigned_department' => $department->id,
-                    'date_purchased' => $datePurchased,
-                    'calibration_days' => (int)$calibrationInterval,
-                    'calibration_notification_in_days' => (int)$calibrationInterval,
-                    'maintainance_days' => 365, // Default to 365 days
-                    'maintainance_notification_in_days' => (int)$intermediateChecksInterval,
-                    'status' => 'Active',
-                    'condition' => 'Active',
-                    'warranty_date' => null, // Nullable
-                    'picture' => null, // Nullable for bulk import
-                    'active' => true,
-                    'company_id' => getUserCompany(),
-                    'is_disposal' => 0,
-                ];
-
-                // Create equipment
-                $equipment = Equipment::create($equipmentData);
-
-                // Create calibration log if previous calibration date provided
-                if ($previousCalibrationDate) {
-                    try {
-                        $calibrationDate = \Carbon\Carbon::parse($previousCalibrationDate)->format('Y-m-d');
-                        MaintainanceCalibrationLog::create([
-                            'equipment_id' => $equipment->id,
-                            'type' => 'Calibration',
-                            'date' => $calibrationDate,
-                            'notes' => 'from the bulk upload',
-                            'overseen_by' => auth()->id(),
-                            'edit_by' => auth()->id(),
-                            'certificate' => 'no-document',
-                        ]);
-                    } catch (\Exception $e) {
-                        // Skip log creation if date is invalid
-                    }
-                }
-
-                // Create maintenance log if previous maintenance date provided
-                if ($previousMaintainanceDate) {
-                    try {
-                        $maintenanceDate = \Carbon\Carbon::parse($previousMaintainanceDate)->format('Y-m-d');
-                        MaintainanceCalibrationLog::create([
-                            'equipment_id' => $equipment->id,
-                            'type' => 'Maintainance',
-                            'date' => $maintenanceDate,
-                            'notes' => 'from the bulk upload',
-                            'overseen_by' => auth()->id(),
-                            'edit_by' => auth()->id(),
-                            'certificate' => 'no-document',
-                        ]);
-                    } catch (\Exception $e) {
-                        // Skip log creation if date is invalid
-                    }
-                }
-
-                $successCount++;
-            }
-
-            DB::commit();
+            $successCount = $import->getSuccessCount();
+            $errorCount = $import->getErrorCount();
+            $errors = $import->getErrors();
 
             $this->closeBulkUploadModal();
             
             if ($errorCount > 0) {
-                $this->message = "{$successCount} equipment item(s) created successfully. {$errorCount} row(s) failed. Errors: " . implode(' | ', array_slice($errors, 0, 5));
+                $errorMessage = implode(' | ', array_slice($errors, 0, 10));
+                if (count($errors) > 10) {
+                    $errorMessage .= ' ... and ' . (count($errors) - 10) . ' more error(s)';
+                }
+                $this->message = "{$successCount} equipment item(s) created successfully. {$errorCount} row(s) failed. Errors: " . $errorMessage;
                 $this->messageType = 'warning';
             } else {
                 $this->message = "{$successCount} equipment item(s) created successfully!";
@@ -722,7 +565,6 @@ class EquipmentManager extends Component
             }
 
         } catch (\Exception $e) {
-            DB::rollBack();
             $this->message = 'Error processing file: ' . $e->getMessage();
             $this->messageType = 'danger';
         }

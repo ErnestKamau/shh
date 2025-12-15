@@ -9,6 +9,41 @@ class MaintainanceCalibrationLog extends Model implements Auditable
 {
 	use \OwenIt\Auditing\Auditable;
 
+	protected $fillable = [
+		'equipment_id',
+		'service_provider',
+		'notes',
+		'type',
+		'date',
+		'certificate',
+		'overseen_by',
+		'edit_by',
+		'maintainance_notification_in_days',
+		'calibration_notification_in_days',
+		'replacement_date',
+		'reference_number',
+		'maintenance_type',
+		'operator_id',
+		'supplier_id',
+		'employee_id',
+		'maintainance_type',
+		'cause',
+		'start_time',
+		'end_time',
+		'remedy',
+		'anomalies',
+		'diagnosis',
+		'operation_carried',
+		'comments',
+		'labour',
+		'samaco_no',
+		'barcode_no',
+		'area_code',
+		'stage',
+		'operator_approve',
+		'proccess_owner_approve',
+	];
+
 	public function overseer(){
 		return \App\User::find($this->overseen_by);
 	}

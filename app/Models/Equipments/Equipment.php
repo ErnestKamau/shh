@@ -55,11 +55,22 @@ class Equipment extends Model implements Auditable
 		$date = Carbon::parse($result['date']);
 		$now = Carbon::now();
 
-		$diff = $date->diffInDays($now);
+		// Calculate days remaining (positive if date is in future, negative if past)
+		$diff = $now->diffInDays($date, false);
 
 		$result['remaining_days'] = $diff;
 
-		$result['status'] = $diff < 0 ? 'badge-danger' : ($this->calibration_notification_in_days > $diff ? 'badge-warning' : 'badge-success');
+		// Status logic: 
+		// - badge-danger if past due (diff < 0)
+		// - badge-warning if within notification period (diff <= notification_days and diff > 0)
+		// - badge-success otherwise
+		if ($diff < 0) {
+			$result['status'] = 'badge-danger';
+		} elseif ($this->calibration_notification_in_days && $diff <= $this->calibration_notification_in_days) {
+			$result['status'] = 'badge-warning';
+		} else {
+			$result['status'] = 'badge-success';
+		}
 
 		return $result;
 	}
@@ -78,11 +89,22 @@ class Equipment extends Model implements Auditable
 		$date = Carbon::parse($result['date']);
 		$now = Carbon::now();
 
-		$diff = $date->diffInDays($now);
+		// Calculate days remaining (positive if date is in future, negative if past)
+		$diff = $now->diffInDays($date, false);
 
 		$result['remaining_days'] = $diff;
 
-		$result['status'] = $diff < 0 ? 'badge-danger' : ($this->maintainance_notification_in_days > $diff ? 'badge-warning' : 'badge-success');
+		// Status logic: 
+		// - badge-danger if past due (diff < 0)
+		// - badge-warning if within notification period (diff <= notification_days and diff > 0)
+		// - badge-success otherwise
+		if ($diff < 0) {
+			$result['status'] = 'badge-danger';
+		} elseif ($this->maintainance_notification_in_days && $diff <= $this->maintainance_notification_in_days) {
+			$result['status'] = 'badge-warning';
+		} else {
+			$result['status'] = 'badge-success';
+		}
 
 		return $result;
 	}
