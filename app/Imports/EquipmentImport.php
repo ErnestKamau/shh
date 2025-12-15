@@ -75,14 +75,17 @@ class EquipmentImport implements ToCollection, WithHeadingRow, SkipsOnFailure
                 continue;
             }
 
-            // Parse and validate date
-            $parsedDatePurchased = $this->parseDate($datePurchased);
-            if (!$parsedDatePurchased) {
-                $this->errorCount++;
-                $dateValueType = gettype($datePurchased);
-                $dateValueDisplay = is_object($datePurchased) ? get_class($datePurchased) : (string)$datePurchased;
-                $this->errors[] = "Row {$rowNumber}: The date purchased is not a valid date. Value: '{$dateValueDisplay}' (type: {$dateValueType})";
-                continue;
+            // Parse and validate date (nullable)
+            $parsedDatePurchased = null;
+            if (!empty($datePurchased)) {
+                $parsedDatePurchased = $this->parseDate($datePurchased);
+                if (!$parsedDatePurchased) {
+                    $this->errorCount++;
+                    $dateValueType = gettype($datePurchased);
+                    $dateValueDisplay = is_object($datePurchased) ? get_class($datePurchased) : (string)$datePurchased;
+                    $this->errors[] = "Row {$rowNumber}: The date purchased is not a valid date. Value: '{$dateValueDisplay}' (type: {$dateValueType})";
+                    continue;
+                }
             }
 
             // Validate row data
@@ -144,7 +147,7 @@ class EquipmentImport implements ToCollection, WithHeadingRow, SkipsOnFailure
                     'serial_number' => $serialNumber ?: null,
                     'manufacturer' => $manufacturer ?: null,
                     'assigned_department' => $department->id,
-                    'date_purchased' => $parsedDatePurchased->format('Y-m-d'),
+                    'date_purchased' => $parsedDatePurchased ? $parsedDatePurchased->format('Y-m-d') : null,
                     'calibration_days' => (int)$calibrationInterval,
                     'calibration_notification_in_days' => (int)$calibrationInterval,
                     'maintainance_days' => 365, // Default to 365 days
@@ -161,8 +164,8 @@ class EquipmentImport implements ToCollection, WithHeadingRow, SkipsOnFailure
                 // Create equipment
                 $equipment = Equipment::create($equipmentData);
 
-                // Create calibration log if previous calibration date provided
-                if ($previousCalibrationDate) {
+                // Create calibration log if previous calibration date provided and valid
+                if (!empty($previousCalibrationDate)) {
                     $calibrationDate = $this->parseDate($previousCalibrationDate);
                     if ($calibrationDate) {
                         MaintainanceCalibrationLog::create([
@@ -174,11 +177,14 @@ class EquipmentImport implements ToCollection, WithHeadingRow, SkipsOnFailure
                             'edit_by' => auth()->id(),
                             'certificate' => 'no-document',
                         ]);
+                    } else {
+                        // Log warning but don't fail the import
+                        $this->errors[] = "Row {$rowNumber}: Previous calibration date is invalid, skipping calibration log creation.";
                     }
                 }
 
-                // Create maintenance log if previous maintenance date provided
-                if ($previousMaintainanceDate) {
+                // Create maintenance log if previous maintenance date provided and valid
+                if (!empty($previousMaintainanceDate)) {
                     $maintenanceDate = $this->parseDate($previousMaintainanceDate);
                     if ($maintenanceDate) {
                         MaintainanceCalibrationLog::create([
@@ -190,6 +196,9 @@ class EquipmentImport implements ToCollection, WithHeadingRow, SkipsOnFailure
                             'edit_by' => auth()->id(),
                             'certificate' => 'no-document',
                         ]);
+                    } else {
+                        // Log warning but don't fail the import
+                        $this->errors[] = "Row {$rowNumber}: Previous maintenance date is invalid, skipping maintenance log creation.";
                     }
                 }
 
@@ -278,14 +287,18 @@ class EquipmentImport implements ToCollection, WithHeadingRow, SkipsOnFailure
             return null;
         }
 
-        // Try common date formats
+        // Try common date formats (including d/m/y with 2-digit year)
         $formats = [
             'Y-m-d',           // 2025-12-15
             'Y/m/d',           // 2025/12/15
             'd-m-Y',           // 15-12-2025
             'd/m/Y',           // 15/12/2025
+            'd/m/y',           // 15/12/25 (2-digit year)
+            'd-m-y',           // 15-12-25 (2-digit year)
             'm/d/Y',           // 12/15/2025
+            'm/d/y',           // 12/15/25 (2-digit year)
             'd.m.Y',           // 15.12.2025
+            'd.m.y',           // 15.12.25 (2-digit year)
             'Y-m-d H:i:s',     // 2025-12-15 00:00:00
             'Y-m-d H:i:s.u',   // 2025-12-15 00:00:00.000000
         ];

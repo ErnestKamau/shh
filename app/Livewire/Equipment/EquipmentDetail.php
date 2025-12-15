@@ -251,7 +251,7 @@ class EquipmentDetail extends Component
             'equipmentForm.condition' => 'required|string|max:255',
             'equipmentForm.assigned_department' => 'required|integer',
             'equipmentForm.warranty_date' => 'required|date',
-            'equipmentForm.date_purchased' => 'required|date',
+            'equipmentForm.date_purchased' => 'nullable|date',
             'equipmentForm.maintainance_days' => 'required|integer|min:0',
             'equipmentForm.maintainance_notification_in_days' => 'required|integer|min:0',
             'equipmentForm.calibration_days' => 'required|integer|min:0',

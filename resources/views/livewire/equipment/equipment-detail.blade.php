@@ -804,8 +804,8 @@
                             <div class="row">
                                 <div class="col-md-6">
                                     <div class="form-group mb-3">
-                                        <label class="form-label">Date Purchased <span class="text-danger">*</span></label>
-                                        <input type="date" wire:model="equipmentForm.date_purchased" class="form-control" required>
+                                        <label class="form-label">Date Purchased</label>
+                                        <input type="date" wire:model="equipmentForm.date_purchased" class="form-control">
                                     </div>
                                 </div>
                                 <div class="col-md-6">

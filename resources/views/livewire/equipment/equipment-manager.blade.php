@@ -499,9 +499,9 @@
                                 <div class="col-md-6">
                                     <div class="form-group mb-3">
                                         <label class="form-label">
-                                            <i class="mdi mdi-calendar text-primary"></i> Date Purchased <span class="text-danger">*</span>
+                                            <i class="mdi mdi-calendar text-primary"></i> Date Purchased
                                         </label>
-                                        <input type="date" wire:model="equipmentForm.date_purchased" class="form-control" required>
+                                        <input type="date" wire:model="equipmentForm.date_purchased" class="form-control">
                                         @error('equipmentForm.date_purchased') <span class="text-danger">{{ $message }}</span> @enderror
                                     </div>
                                 </div>
