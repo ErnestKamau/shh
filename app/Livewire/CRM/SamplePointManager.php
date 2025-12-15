@@ -55,6 +55,8 @@ class SamplePointManager extends Component
     // Cache for sample types
     private $sampleTypesCache = null;
 
+    
+
     protected $rules = [
         'samplePointForm.name' => 'required|string|max:255',
         'samplePointForm.code' => 'required|string|max:255',
