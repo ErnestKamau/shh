@@ -344,7 +344,7 @@ class SubmissionFormController extends Controller
         ]);
 
         // Validate element type
-        $validTypes = ['client_select', 'sample_type_select', 'client_unit_select', 'client_contact_select', 'analysis_type_select', 'store_select', 'store_slot_select', 'sample_condition_select', 'standard_select', 'sample_point_select', 'company_sub_unit_select', 'user_select'];
+        $validTypes = ['client_select', 'sample_type_select', 'client_unit_select', 'client_contact_select', 'client_submission_officers_select', 'analysis_type_select', 'store_select', 'store_slot_select', 'sample_condition_select', 'standard_select', 'sample_point_select', 'company_sub_unit_select', 'user_select'];
         if (!in_array($elementType, $validTypes)) {
             Log::warning('Invalid element type requested', ['element_type' => $elementType]);
             return response()->json(['error' => 'Invalid element type'], 400);
@@ -442,6 +442,24 @@ class SubmissionFormController extends Controller
                         $options[] = [
                             'value' => $contact->id,
                             'label' => $fullName . ' (' . $contact->email . ')'
+                        ];
+                    }
+                }
+                break;
+
+            case 'client_submission_officers_select':
+                if ($clientId) {
+                    $officers = \App\Models\CRM\CustomerContact::where('crm_customer_id', $clientId)
+                        ->where('active', 1)
+                        ->where('can_submit_sample', 1)
+                        ->orderBy('first_name')
+                        ->get();
+
+                    foreach ($officers as $officer) {
+                        $fullName = trim($officer->first_name . ' ' . $officer->middle_name . ' ' . $officer->last_name);
+                        $options[] = [
+                            'value' => $officer->id,
+                            'label' => $fullName . ' (' . $officer->email . ')'
                         ];
                     }
                 }
@@ -895,6 +913,130 @@ class SubmissionFormController extends Controller
             return response()->json([
                 'success' => false,
                 'message' => 'Failed to fetch user signature: ' . $e->getMessage()
+            ], 500);
+        }
+    }
+
+    public function getContactSignature(Request $request): \Illuminate\Http\JsonResponse
+    {
+        try {
+            // Ensure user is authenticated
+            if (!auth()->check()) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Unauthorized'
+                ], 401);
+            }
+
+            $contactId = $request->get('contact_id');
+
+            if (!$contactId) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Contact ID is required'
+                ], 400);
+            }
+
+            $contact = \App\Models\CRM\CustomerContact::find($contactId);
+
+            if (!$contact) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Contact not found'
+                ], 404);
+            }
+
+            $signaturePath = $contact->signature;
+
+            if (!$signaturePath || trim($signaturePath) === '') {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'No signature available for this contact'
+                ], 404);
+            }
+
+            // Build full URL if path is relative
+            $signatureUrl = $signaturePath;
+            if (!filter_var($signaturePath, FILTER_VALIDATE_URL)) {
+                $signatureUrl = asset('storage/' . $signaturePath);
+            }
+
+            return response()->json([
+                'success' => true,
+                'signature_path' => $signaturePath,
+                'signature_url' => $signatureUrl
+            ]);
+
+        } catch (\Exception $e) {
+            Log::error('Error fetching contact signature: ' . $e->getMessage());
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to fetch contact signature: ' . $e->getMessage()
+            ], 500);
+        }
+    }
+
+    public function saveContactSignature(Request $request): \Illuminate\Http\JsonResponse
+    {
+        try {
+            // Ensure user is authenticated
+            if (!auth()->check()) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Unauthorized'
+                ], 401);
+            }
+
+            $request->validate([
+                'contact_id' => 'required|exists:crm_customer_contacts,id',
+                'signature' => 'required|string', // Base64 image data
+            ]);
+
+            $contact = \App\Models\CRM\CustomerContact::findOrFail($request->contact_id);
+            
+            // Decode base64 image
+            $signatureData = $request->signature;
+            
+            // Check if it's a data URL
+            if (preg_match('/^data:image\/(\w+);base64,/', $signatureData, $matches)) {
+                $imageData = substr($signatureData, strpos($signatureData, ',') + 1);
+                $imageData = base64_decode($imageData);
+                $extension = $matches[1];
+                
+                // Generate unique filename
+                $filename = 'contact_' . $contact->id . '_' . time() . '.' . $extension;
+                $path = 'signatures/' . $filename;
+                
+                // Save to storage
+                \Illuminate\Support\Facades\Storage::disk('public')->put($path, $imageData);
+                
+                // Delete old signature if exists
+                if ($contact->signature && \Illuminate\Support\Facades\Storage::disk('public')->exists($contact->signature)) {
+                    \Illuminate\Support\Facades\Storage::disk('public')->delete($contact->signature);
+                }
+                
+                // Update contact
+                $contact->signature = $path;
+                $contact->save();
+                
+                return response()->json([
+                    'success' => true,
+                    'message' => 'Signature saved successfully',
+                    'signature_path' => $path,
+                    'signature_url' => asset('storage/' . $path)
+                ]);
+            } else {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Invalid signature format'
+                ], 400);
+            }
+
+        } catch (\Exception $e) {
+            Log::error('Error saving contact signature: ' . $e->getMessage());
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to save contact signature: ' . $e->getMessage()
             ], 500);
         }
     }

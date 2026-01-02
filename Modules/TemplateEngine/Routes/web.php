@@ -10,12 +10,16 @@ Route::prefix('form-templates')->name('templates.')->middleware(['auth'])->group
     Route::get('/', [TemplateBuilderController::class, 'index'])->name('index');
     Route::get('/create', [TemplateBuilderController::class, 'create'])->name('create');
     Route::post('/', [TemplateBuilderController::class, 'store'])->name('store');
+    Route::delete('/{id}', [TemplateBuilderController::class, 'destroy'])->name('destroy');
     
     // Builder
     Route::get('/{id}/builder', [TemplateBuilderController::class, 'builder'])->name('builder');
     
     // Preview
     Route::get('/{id}/preview', [TemplateBuilderController::class, 'preview'])->name('preview');
+    
+    // Submissions
+    Route::get('/{template}/submissions/{submission}', [TemplateBuilderController::class, 'showSubmission'])->name('submissions.show');
 
     // Field API (AJAX/Fetch)
     Route::post('/sections/{section}/fields', [TemplateFieldsController::class, 'store'])->name('fields.store');
@@ -28,3 +32,5 @@ Route::prefix('template-data')->name('template-data.')->middleware(['auth'])->gr
     Route::get('/tables', [TemplateDataController::class, 'getTables'])->name('tables');
     Route::get('/tables/{table}/columns', [TemplateDataController::class, 'getColumns'])->name('columns');
 });
+
+

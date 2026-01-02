@@ -24,6 +24,9 @@ class TemplateEngineServiceProvider extends ServiceProvider
         $this->loadViewsFrom(__DIR__ . '/../Resources/views', 'template-engine');
         $this->registerRoutes();
         $this->registerLivewireComponents();
+        
+        // Register observers
+        \Modules\TemplateEngine\Models\TemplateSubmission::observe(\Modules\TemplateEngine\Observers\TemplateSubmissionObserver::class);
     }
 
     protected function registerRoutes(): void

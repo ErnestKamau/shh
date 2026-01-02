@@ -18,8 +18,22 @@ class DynamicFieldResolverService
             return [];
         }
 
-        $query = DB::table($binding->table_name)
-            ->select($binding->column_value . ' as value', $binding->column_label . ' as label');
+        $query = DB::table($binding->table_name);
+
+        // For Lists, we want all columns available for substitution
+        if (in_array($field->type, ['ul', 'ol'])) {
+            $query->select('*');
+            // Also include the selected value/label columns as aliases for convenience (if selected)
+            if ($binding->column_value) {
+                $query->addSelect($binding->column_value . ' as value');
+            }
+            if ($binding->column_label) {
+                $query->addSelect($binding->column_label . ' as label');
+            }
+        } else {
+            // For dropdowns, we only need value and label
+            $query->select($binding->column_value . ' as value', $binding->column_label . ' as label');
+        }
 
         if ($binding->filters) {
             foreach ($binding->filters as $filter) {

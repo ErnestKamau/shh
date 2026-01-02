@@ -1,13 +1,57 @@
 @extends('layouts.lab.layout.app', ['select2'=>true])
 
+@section('title2')
+<title>Create Form Template - Template Engine</title>
+@endsection
+
 @section('content2')
 <div class="container-fluid">
+    <?php
+    $breadcrumbItems = [
+        [
+            'link' => route('dashboard-lab'),
+            'name' => 'Dashboard',
+            'icon' => null
+        ],
+        [
+            'link' => route('templates.index'),
+            'name' => 'Form Templates',
+            'icon' => null
+        ],
+        [
+            'link' => '#',
+            'name' => 'Create Template',
+            'icon' => null
+        ]
+    ];
+    ?>
+    <x-bread-crumb :items="$breadcrumbItems"></x-bread-crumb>
+
+    <!-- Page Title Section -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="card shadow-sm border-0" style="border-radius: 15px;">
+                <div class="card-body p-4">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div>
+                            <h2 class="mb-0">
+                                <i class="fas fa-file-alt text-primary"></i>
+                                Create New Form Template
+                            </h2>
+                            <p class="text-muted mb-0">Create a new form template to start building your form</p>
+                        </div>
+                        <a href="{{ route('templates.index') }}" class="btn btn-outline-secondary">
+                            <i class="fas fa-arrow-left"></i> Back to Templates
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <div class="row justify-content-center">
         <div class="col-md-8">
             <div class="card shadow-sm border-0" style="border-radius: 15px;">
-                <div class="card-header bg-white border-0 pt-4 px-4 pb-0">
-                    <h3 class="card-title text-primary"><i class="fas fa-plus-circle"></i> Create New Template</h3>
-                </div>
                 <div class="card-body p-4">
                     <form action="{{ route('templates.store') }}" method="POST">
                         @csrf
@@ -25,10 +69,11 @@
                             <label for="process_id" class="font-weight-bold">Linked Process (Optional)</label>
                             <select name="process_id" id="process_id" class="form-control select2">
                                 <option value="">-- None --</option>
-                                @foreach($processes as $process)
-                                    <option value="{{ $process->id }}">{{ $process->name }}</option>
+                                @foreach(getTemplateProcesses() as $key => $label)
+                                    <option value="{{ $key }}">{{ $label }}</option>
                                 @endforeach
                             </select>
+                            <small class="text-muted">Select a process to link this template to</small>
                         </div>
 
                         <div class="form-group mb-4">

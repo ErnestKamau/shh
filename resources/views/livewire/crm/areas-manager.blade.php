@@ -466,7 +466,7 @@
                                 <div class="col-md-6">
                                     <div class="form-group mb-3">
                                         <label class="form-label fw-bold"><i class="mdi mdi-target text-success"></i> Clone To {{ $customer->sub_unit_configurable_name ?: 'Sub Unit' }} <span class="text-danger">*</span></label>
-                                        <select wire:model="cloneToSubUnitId" class="form-select modern-select">
+                                        <select wire:model.live="cloneToSubUnitId" class="form-select modern-select">
                                             <option value="">Select {{ strtolower($customer->sub_unit_configurable_name ?: 'sub unit') }} to clone to</option>
                                             @foreach($companySubUnits as $subUnit)
                                                 @if($subUnit->id != $cloneFromSubUnitId)
@@ -655,7 +655,7 @@
                                 <label class="form-label fw-bold">
                                     <i class="mdi mdi-target text-success"></i> Clone To {{ $customer->sub_unit_configurable_name ?: 'Sub Unit' }} <span class="text-danger">*</span>
                                 </label>
-                                <select wire:model="cloneToSubUnitIdIndividual" class="form-select modern-select">
+                                <select wire:model.live="cloneToSubUnitIdIndividual" class="form-select modern-select">
                                     <option value="">Select {{ strtolower($customer->sub_unit_configurable_name ?: 'sub unit') }} to clone to</option>
                                     @foreach($companySubUnits as $subUnit)
                                         @if($subUnit->id != $areaToClone->crm_company_sub_unit_id)

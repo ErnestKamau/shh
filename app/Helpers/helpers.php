@@ -2121,3 +2121,21 @@ function getCustomExp($base,$is_neagtive,$to_power,$remark){
 	$image = public_path($expo_path);
 	return '<span>'.$base.' x </span><img src="'.$image.'" alt="expo icon" style="width:12px !important;height:10px !important;margin-top:3px !important">';
 }
+
+/**
+ * Get available template processes
+ * 
+ * @return array
+ */
+function getTemplateProcesses()
+{
+	return [
+		'submission_process' => 'Submission Process',
+		'equipment_disposal' => 'Equipment Disposal',
+		'sample_coa' => 'Sample COA',
+		'sample_rejection' => 'Sample Rejection',
+		'audit_report' => 'Audit Report',
+		'document_management' => 'Document Management',
+		'quality_control' => 'Quality Control',
+	];
+}

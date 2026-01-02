@@ -26,6 +26,8 @@ class CustomerContact extends Model implements Auditable
 		'crm_customer_id',
 		'active',
 		'can_login',
+		'can_submit_sample',
+		'signature',
 		'title_id'
 	];
 }

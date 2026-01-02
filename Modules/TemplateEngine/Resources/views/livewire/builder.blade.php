@@ -266,36 +266,93 @@
 
     <!-- Sidebar / Navigation -->
     <div class="sections-panel">
-        <div class="panel-header">
-            <h6><i class="fas fa-layer-group mr-2"></i>Sections</h6>
-            <!-- Add Section Button -->
-            <button class="btn btn-sm btn-outline-light" onclick="alert('In progress: Add Section')">
-                <i class="fas fa-plus"></i>
-            </button>
+        <div class="panel-header p-0">
+            <div class="btn-group w-100" role="group">
+                <button type="button" class="btn {{ !$showVariablesPanel ? 'btn-primary' : 'btn-light' }} rounded-0 py-3 font-weight-bold" wire:click="$set('showVariablesPanel', false)" style="border:none;">
+                    <i class="fas fa-layer-group mr-2"></i>Sections
+                </button>
+                <button type="button" class="btn {{ $showVariablesPanel ? 'btn-primary' : 'btn-light' }} rounded-0 py-3 font-weight-bold" wire:click="$set('showVariablesPanel', true)" style="border:none;">
+                    <i class="fas fa-brackets-curly mr-2"></i>Variables
+                </button>
+            </div>
         </div>
         <div class="panel-body">
-            @foreach($sections as $section)
-                <div class="section-panel-item {{ $currentSectionId == $section->id ? 'active-section' : '' }}">
-                    <div class="section-panel-header" wire:click="$set('currentSectionId', {{ $section->id }})">
-                        <i class="fas fa-grip-vertical text-muted"></i>
-                        <span class="section-title">{{ $section->title }}</span>
-                        <div class="section-panel-actions">
-                             <a href="#section-{{ $section->id }}" class="btn btn-xs btn-light">
-                                <i class="fas fa-arrow-right"></i>
-                             </a>
-                        </div>
-                    </div>
-                </div>
-            @endforeach
-            
-            <div class="mt-4">
-                <h6 class="text-muted text-uppercase small font-weight-bold mb-3">Toolbox</h6>
-                <div class="d-flex flex-wrap" style="gap: 8px;">
-                    <button class="btn btn-sm btn-white border shadow-sm" wire:click="addField({{ $currentSectionId ?? $sections->first()->id ?? 0 }})" {{ !$currentSectionId && $sections->isEmpty() ? 'disabled' : '' }}>
-                        <i class="fas fa-plus text-primary mr-1"></i> Add Item
+            @if(!$showVariablesPanel)
+                <!-- SECTIONS VIEW -->
+                <div class="d-flex justify-content-between align-items-center mb-3">
+                    <h6 class="text-muted text-uppercase small font-weight-bold mb-0">Sections List</h6>
+                     <button class="btn btn-xs btn-outline-primary" onclick="alert('In progress: Add Section')">
+                        <i class="fas fa-plus"></i>
                     </button>
                 </div>
-            </div>
+                
+                @foreach($sections as $section)
+                    <div class="section-panel-item {{ $currentSectionId == $section->id ? 'active-section' : '' }}">
+                        <div class="section-panel-header" wire:click="$set('currentSectionId', {{ $section->id }})">
+                            <i class="fas fa-grip-vertical text-muted"></i>
+                            <span class="section-title">{{ $section->title }}</span>
+                            <div class="section-panel-actions">
+                                 <a href="#section-{{ $section->id }}" class="btn btn-xs btn-light">
+                                    <i class="fas fa-arrow-right"></i>
+                                 </a>
+                            </div>
+                        </div>
+                    </div>
+                @endforeach
+                
+                <div class="mt-4">
+                    <h6 class="text-muted text-uppercase small font-weight-bold mb-3">Toolbox</h6>
+                    <div class="d-flex flex-wrap" style="gap: 8px;">
+                        <button class="btn btn-sm btn-white border shadow-sm" wire:click="addField({{ $currentSectionId ?? $sections->first()->id ?? 0 }})" {{ !$currentSectionId && $sections->isEmpty() ? 'disabled' : '' }}>
+                            <i class="fas fa-plus text-primary mr-1"></i> Add Item
+                        </button>
+                    </div>
+                </div>
+            @else
+                <!-- VARIABLES VIEW -->
+                <div class="d-flex justify-content-between align-items-center mb-3">
+                    <h6 class="text-muted text-uppercase small font-weight-bold mb-0">Defined Variables</h6>
+                     <button class="btn btn-xs btn-outline-primary" wire:click="openVariableModal">
+                        <i class="fas fa-plus"></i> New
+                    </button>
+                </div>
+                
+                @if($variables->isEmpty())
+                    <div class="text-center py-4 bg-light rounded border border-dashed">
+                        <i class="fas fa-code text-muted mb-2"></i>
+                        <p class="small text-muted mb-0">No variables yet</p>
+                    </div>
+                @else
+                    @foreach($variables as $variable)
+                        <div class="card mb-2 shadow-sm border-0">
+                            <div class="card-body p-2 d-flex justify-content-between align-items-center">
+                                <div class="overflow-hidden mr-2">
+                                    <div class="font-weight-bold text-truncate" title="{{ $variable->name }}">
+                                        <code class="text-primary"><?php echo "{{" . $variable->name . "}}"; ?></code>
+                                    </div>
+                                    <div class="small">
+                                        <span class="badge badge-light border">{{ $variable->type }}</span>
+                                        <span class="text-muted text-xs ml-1">{{ $variable->data_type }}</span>
+                                    </div>
+                                </div>
+                                <div class="btn-group">
+                                    <button class="btn btn-xs btn-white border" wire:click="openVariableModal({{ $variable->id }})">
+                                        <i class="fas fa-cog text-muted"></i>
+                                    </button>
+                                     <button class="btn btn-xs btn-white border text-danger" wire:click="deleteVariable({{ $variable->id }})" wire:confirm="Are you sure?">
+                                        <i class="fas fa-trash"></i>
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    @endforeach
+                @endif
+                
+                <div class="mt-3 p-3 bg-light rounded small text-muted">
+                    <i class="fas fa-info-circle mr-1"></i>
+                    Use variables in fields matching <code>@{{ name }}</code>
+                </div>
+            @endif
         </div>
     </div>
 
@@ -344,9 +401,9 @@
     <!-- Field Modal -->
     @if($showFieldModal)
         <div class="modal fade show" style="display: block; background: rgba(0,0,0,0.5); z-index: 1050;" tabindex="-1">
-            <div class="modal-dialog modal-lg modal-dialog-centered">
-                <div class="modal-content border-0 shadow-lg" style="border-radius: 12px;">
-                    <div class="modal-header bg-light">
+            <div class="modal-dialog modal-lg modal-dialog-centered" style="max-height: 90vh; margin: 1.75rem auto;">
+                <div class="modal-content border-0 shadow-lg d-flex flex-column" style="border-radius: 12px; max-height: 90vh;">
+                    <div class="modal-header bg-light flex-shrink-0">
                         <h5 class="modal-title font-weight-bold">
                             @if($editingFieldId)
                                 <i class="fas fa-edit text-primary mr-2"></i> Edit Field
@@ -358,7 +415,7 @@
                             <span>&times;</span>
                         </button>
                     </div>
-                    <div class="modal-body p-4">
+                    <div class="modal-body p-4" style="overflow-y: auto; flex: 1 1 auto; min-height: 0;">
                         <div class="row">
                             <div class="col-md-6">
                                 <div class="form-group">
@@ -372,8 +429,11 @@
                                         <option value="radio">Radio Buttons</option>
                                         <option value="checkbox">Checkbox</option>
                                         <option value="dynamic">Dataset Binding (Dynamic)</option>
+                                        <option value="image_upload">Image Upload</option>
                                         <optgroup label="Layout & Structure">
                                             <option value="container">Container (Holder)</option>
+                                            <option value="ul">Unordered List (UL)</option>
+                                            <option value="ol">Ordered List (OL)</option>
                                         </optgroup>
                                         <optgroup label="Static Content">
                                             <option value="heading">Heading</option>
@@ -381,7 +441,8 @@
                                             <option value="blockquote">Blockquote</option>
                                             <option value="code_block">Code Block</option>
                                             <option value="link">Link</option>
-                                            <option value="image">Image</option>
+                                            <option value="image">Image (URL)</option>
+                                            <option value="static_image_upload">Image Upload (Static)</option>
                                         </optgroup>
                                     </select>
                                 </div>
@@ -472,6 +533,108 @@
                             </div>
                         @endif
 
+                        @if($fieldData['type'] === 'static_image_upload')
+                            <div class="bg-light p-3 rounded mb-3 border">
+                                <h6 class="text-primary font-weight-bold mb-3">
+                                    <i class="fas fa-image mr-2"></i>Static Image Upload Configuration
+                                </h6>
+                                
+                                <!-- Image Upload -->
+                                <div class="form-group mb-3">
+                                    <label class="font-weight-bold">Upload Image</label>
+                                    <input type="file" 
+                                           wire:model="staticImageUpload" 
+                                           class="form-control" 
+                                           accept="image/*">
+                                    <small class="text-muted">Max size: 5MB. Supported: JPG, PNG, GIF, SVG, WebP</small>
+                                    
+                                    @if($staticImageUpload)
+                                        <div class="mt-2">
+                                            <img src="{{ $staticImageUpload->temporaryUrl() }}" 
+                                                 alt="Preview" 
+                                                 class="img-fluid border rounded p-2 bg-white"
+                                                 style="max-width: 200px; max-height: 200px;">
+                                            <div class="small text-success mt-1">
+                                                <i class="fas fa-check-circle"></i> Image ready to upload
+                                            </div>
+                                        </div>
+                                    @elseif(isset($fieldData['meta']['image_path']) && $fieldData['meta']['image_path'])
+                                        <div class="mt-2">
+                                            <img src="{{ asset('storage/' . $fieldData['meta']['image_path']) }}" 
+                                                 alt="Current Image" 
+                                                 class="img-fluid border rounded p-2 bg-white"
+                                                 style="max-width: 200px; max-height: 200px;">
+                                            <div class="small text-muted mt-1">
+                                                <i class="fas fa-image"></i> Current image
+                                            </div>
+                                        </div>
+                                    @endif
+                                    
+                                    @error('staticImageUpload') 
+                                        <div class="alert alert-danger alert-sm mt-2">
+                                            <i class="fas fa-exclamation-circle"></i> {{ $message }}
+                                        </div>
+                                    @enderror
+                                    
+                                    <div wire:loading wire:target="staticImageUpload" class="mt-2">
+                                        <div class="text-center">
+                                            <div class="spinner-border spinner-border-sm text-primary" role="status">
+                                                <span class="sr-only">Loading...</span>
+                                            </div>
+                                            <span class="small text-muted ml-2">Uploading...</span>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <!-- Image Properties -->
+                                <div class="row">
+                                    <div class="col-md-6">
+                                        <div class="form-group">
+                                            <label class="small font-weight-bold">Width</label>
+                                            <input type="text" 
+                                                   wire:model="fieldData.meta.width" 
+                                                   class="form-control" 
+                                                   placeholder="auto, 100%, 200px">
+                                            <small class="text-muted">CSS value (px, %, auto, etc.)</small>
+                                        </div>
+                                    </div>
+                                    <div class="col-md-6">
+                                        <div class="form-group">
+                                            <label class="small font-weight-bold">Height</label>
+                                            <input type="text" 
+                                                   wire:model="fieldData.meta.height" 
+                                                   class="form-control" 
+                                                   placeholder="auto, 100px">
+                                            <small class="text-muted">CSS value (px, auto, etc.)</small>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <div class="row">
+                                    <div class="col-md-6">
+                                        <div class="form-group">
+                                            <label class="small font-weight-bold">Alignment</label>
+                                            <select wire:model="fieldData.meta.alignment" class="form-control">
+                                                <option value="left">Left</option>
+                                                <option value="center">Center</option>
+                                                <option value="right">Right</option>
+                                            </select>
+                                        </div>
+                                    </div>
+                                    <div class="col-md-6">
+                                        <div class="form-group">
+                                            <label class="small font-weight-bold">Alt Text</label>
+                                            <input type="text" 
+                                                   wire:model="fieldData.meta.alt_text" 
+                                                   class="form-control" 
+                                                   placeholder="Alternative text for image">
+                                            <small class="text-muted">For accessibility</small>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        @endif
+
                         @if($fieldData['type'] === 'link')
                             <div class="row bg-light p-3 rounded mb-3">
                                 <div class="col-md-8">
@@ -507,6 +670,436 @@
                                 @livewire('template-engine::dataset-selector', ['binding' => $fieldData['dataset_binding'] ?? []], 'ds-'.time())
                             </div>
                         @endif
+
+                        <!-- Image Upload Configuration -->
+                        @if($fieldData['type'] === 'image_upload')
+                            <div class="bg-light p-3 rounded mb-3 border">
+                                <h6 class="text-primary font-weight-bold mb-3">
+                                    <i class="fas fa-cloud-upload-alt mr-2"></i>Image Upload Configuration
+                                </h6>
+                                
+                                <div class="row">
+                                    <div class="col-md-6">
+                                        <div class="form-group">
+                                            <label class="small font-weight-bold">Max File Size (MB)</label>
+                                            <input type="number" 
+                                                   wire:model="fieldData.meta.max_size" 
+                                                   class="form-control" 
+                                                   placeholder="2" 
+                                                   min="0.1" 
+                                                   max="20" 
+                                                   step="0.1">
+                                            <small class="text-muted">Maximum: 20MB</small>
+                                        </div>
+                                    </div>
+                                    <div class="col-md-6">
+                                        <div class="form-group">
+                                            <label class="small font-weight-bold">Allowed File Types</label>
+                                            <select wire:model="fieldData.meta.allowed_types" 
+                                                    class="form-control" 
+                                                    multiple 
+                                                    size="4">
+                                                <option value="jpg">JPG</option>
+                                                <option value="jpeg">JPEG</option>
+                                                <option value="png">PNG</option>
+                                                <option value="gif">GIF</option>
+                                                <option value="svg">SVG</option>
+                                                <option value="webp">WebP</option>
+                                            </select>
+                                            <small class="text-muted">Hold Ctrl/Cmd to select multiple</small>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <div class="row">
+                                    <div class="col-md-6">
+                                        <div class="form-group">
+                                            <label class="small font-weight-bold">Display Width</label>
+                                            <input type="text" 
+                                                   wire:model="fieldData.meta.display_width" 
+                                                   class="form-control" 
+                                                   placeholder="200px or 100%">
+                                            <small class="text-muted">CSS value (px, %, em, etc.)</small>
+                                        </div>
+                                    </div>
+                                    <div class="col-md-6">
+                                        <div class="form-group">
+                                            <label class="small font-weight-bold">Display Height</label>
+                                            <input type="text" 
+                                                   wire:model="fieldData.meta.display_height" 
+                                                   class="form-control" 
+                                                   placeholder="auto">
+                                            <small class="text-muted">CSS value (px, auto, etc.)</small>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <div class="row">
+                                    <div class="col-md-6">
+                                        <div class="form-group">
+                                            <label class="small font-weight-bold">Max Image Width (px)</label>
+                                            <input type="number" 
+                                                   wire:model="fieldData.meta.max_width" 
+                                                   class="form-control" 
+                                                   placeholder="1920">
+                                            <small class="text-muted">Optional - resize if larger</small>
+                                        </div>
+                                    </div>
+                                    <div class="col-md-6">
+                                        <div class="form-group">
+                                            <label class="small font-weight-bold">Max Image Height (px)</label>
+                                            <input type="number" 
+                                                   wire:model="fieldData.meta.max_height" 
+                                                   class="form-control" 
+                                                   placeholder="1080">
+                                            <small class="text-muted">Optional - resize if larger</small>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        @endif
+                        
+                        <!-- List Configuration -->
+                        @if($fieldData['type'] === 'ul' || $fieldData['type'] === 'ol')
+                             <div class="bg-light p-3 rounded mb-3 border">
+                                <h6 class="text-primary font-weight-bold mb-3">
+                                    <i class="fas fa-list-{{ $fieldData['type'] === 'ul' ? 'ul' : 'ol' }} mr-2"></i>List Configuration
+                                </h6>
+                                
+                                <div class="form-group">
+                                    <label class="font-weight-bold small">List Style Type</label>
+                                    <select wire:model="fieldData.meta.css.list_style_type" class="form-control">
+                                        <option value="">Default</option>
+                                        <option value="none">None</option>
+                                        @if($fieldData['type'] === 'ul')
+                                            <option value="disc">Disc</option>
+                                            <option value="circle">Circle</option>
+                                            <option value="square">Square</option>
+                                        @else
+                                            <option value="decimal">Decimal (1, 2, 3)</option>
+                                            <option value="decimal-leading-zero">Decimal Leading Zero (01, 02)</option>
+                                            <option value="lower-alpha">Lower Alpha (a, b, c)</option>
+                                            <option value="upper-alpha">Upper Alpha (A, B, C)</option>
+                                            <option value="lower-roman">Lower Roman (i, ii, iii)</option>
+                                            <option value="upper-roman">Upper Roman (I, II, III)</option>
+                                        @endif
+                                    </select>
+                                </div>
+                                
+                                <div class="form-group">
+                                    <label class="font-weight-bold small">CSS Class</label>
+                                    <input type="text" wire:model="fieldData.meta.css.custom_css" class="form-control" placeholder="e.g. section">
+                                    <small class="text-muted">Add custom classes here (e.g. 'section' for report headers)</small>
+                                </div>
+                                
+                                <hr>
+                                
+                                <div class="form-group">
+                                    <label class="font-weight-bold small">Data Source</label>
+                                    <select wire:model.live="fieldData.meta.data_source" class="form-control">
+                                        <option value="static">Static (Manual Items)</option>
+                                        <option value="dynamic">Dynamic (Database Table)</option>
+                                    </select>
+                                </div>
+                                
+                                {{-- Quick Add Items (Only when creating new list) --}}
+                                @if(!$editingFieldId)
+                                    <div class="mt-3 p-2 border rounded bg-white">
+                                        <div class="d-flex justify-content-between align-items-center mb-2">
+                                            <label class="font-weight-bold small mb-0">Quick Add Items (Columns)</label>
+                                            <button class="btn btn-xs btn-outline-primary" wire:click="addQuickListItem">
+                                                <i class="fas fa-plus"></i> Add Column
+                                            </button>
+                                        </div>
+                                        <p class="small text-muted mb-2">Define columns here and they will be automatically created as child elements.</p>
+                                        
+                                        @if(isset($fieldData['quick_list_items']) && count($fieldData['quick_list_items']) > 0)
+                                            @foreach($fieldData['quick_list_items'] as $index => $item)
+                                                <div class="input-group input-group-sm mb-2">
+                                                    <input type="text" wire:model="fieldData.quick_list_items.{{ $index }}" class="form-control" placeholder="e.g. @{{ name }} or Name: @{{ name }}">
+                                                    <div class="input-group-append">
+                                                        <button class="btn btn-outline-danger" wire:click="removeQuickListItem({{ $index }})">
+                                                            <i class="fas fa-times"></i>
+                                                        </button>
+                                                    </div>
+                                                </div>
+                                            @endforeach
+                                        @else
+                                            <div class="text-center py-2 text-muted small border border-dashed rounded bg-light">
+                                                No columns defined. You can add them later manually.
+                                            </div>
+                                        @endif
+                                    </div>
+                                @endif
+                                
+                                @if(isset($fieldData['meta']['data_source']) && $fieldData['meta']['data_source'] === 'dynamic')
+                                    <div class="mt-3">
+                                        <label class="font-weight-bold small">Dataset Binding</label>
+                                        @livewire('template-engine::dataset-selector', ['binding' => $fieldData['dataset_binding'] ?? []], 'ds-list-'.time())
+                                    </div>
+                                @endif
+                             </div>
+                        @endif
+                        
+                        <!-- Container Configuration -->
+                        @if($fieldData['type'] === 'container')
+                            <div class="bg-light p-3 rounded mb-3 border">
+                                <h6 class="text-primary font-weight-bold mb-3">
+                                    <i class="fas fa-layer-group mr-2"></i>Container Configuration
+                                </h6>
+                                
+                                <!-- Column Configuration -->
+                                <div class="form-group mb-3">
+                                    <label class="font-weight-bold small">Columns per Row</label>
+                                    <select wire:model="fieldData.meta.columns" class="form-control">
+                                        <option value="1">1 Column (Full Width)</option>
+                                        <option value="2">2 Columns</option>
+                                        <option value="3">3 Columns</option>
+                                        <option value="4">4 Columns</option>
+                                        <option value="6">6 Columns</option>
+                                        <option value="12">12 Columns (Minimum Width)</option>
+                                    </select>
+                                    <small class="text-muted">This will create {{ $fieldData['meta']['columns'] ?? 1 }} column(s) horizontally</small>
+                                </div>
+
+                                <!-- CSS Configuration Tabs -->
+                                <div class="mt-4">
+                                    <ul class="nav nav-tabs" role="tablist">
+                                        <li class="nav-item">
+                                            <a class="nav-link active" data-toggle="tab" href="#spacing-tab" role="tab">
+                                                <i class="fas fa-arrows-alt mr-1"></i> Spacing
+                                            </a>
+                                        </li>
+                                        <li class="nav-item">
+                                            <a class="nav-link" data-toggle="tab" href="#colors-tab" role="tab">
+                                                <i class="fas fa-palette mr-1"></i> Colors
+                                            </a>
+                                        </li>
+                                        <li class="nav-item">
+                                            <a class="nav-link" data-toggle="tab" href="#border-tab" role="tab">
+                                                <i class="fas fa-square mr-1"></i> Border
+                                            </a>
+                                        </li>
+                                        <li class="nav-item">
+                                            <a class="nav-link" data-toggle="tab" href="#typography-tab" role="tab">
+                                                <i class="fas fa-font mr-1"></i> Typography
+                                            </a>
+                                        </li>
+                                        <li class="nav-item">
+                                            <a class="nav-link" data-toggle="tab" href="#layout-tab" role="tab">
+                                                <i class="fas fa-expand-arrows-alt mr-1"></i> Layout
+                                            </a>
+                                        </li>
+                                        <li class="nav-item">
+                                            <a class="nav-link" data-toggle="tab" href="#effects-tab" role="tab">
+                                                <i class="fas fa-magic mr-1"></i> Effects
+                                            </a>
+                                        </li>
+                                        <li class="nav-item">
+                                            <a class="nav-link" data-toggle="tab" href="#advanced-tab" role="tab">
+                                                <i class="fas fa-code mr-1"></i> Advanced
+                                            </a>
+                                        </li>
+                                    </ul>
+
+                                    <div class="tab-content mt-3">
+                                        <!-- Spacing Tab -->
+                                        <div class="tab-pane fade show active" id="spacing-tab" role="tabpanel">
+                                            <div class="row">
+                                                <div class="col-md-6">
+                                                    <h6 class="small font-weight-bold mb-2">Margin</h6>
+                                                    <div class="form-group mb-2">
+                                                        <label class="small">Top</label>
+                                                        <input type="text" wire:model="fieldData.meta.css.margin_top" class="form-control form-control-sm" placeholder="e.g., 10px">
+                                                    </div>
+                                                    <div class="form-group mb-2">
+                                                        <label class="small">Right</label>
+                                                        <input type="text" wire:model="fieldData.meta.css.margin_right" class="form-control form-control-sm" placeholder="e.g., 10px">
+                                                    </div>
+                                                    <div class="form-group mb-2">
+                                                        <label class="small">Bottom</label>
+                                                        <input type="text" wire:model="fieldData.meta.css.margin_bottom" class="form-control form-control-sm" placeholder="e.g., 10px">
+                                                    </div>
+                                                    <div class="form-group mb-0">
+                                                        <label class="small">Left</label>
+                                                        <input type="text" wire:model="fieldData.meta.css.margin_left" class="form-control form-control-sm" placeholder="e.g., 10px">
+                                                    </div>
+                                                </div>
+                                                <div class="col-md-6">
+                                                    <h6 class="small font-weight-bold mb-2">Padding</h6>
+                                                    <div class="form-group mb-2">
+                                                        <label class="small">Top</label>
+                                                        <input type="text" wire:model="fieldData.meta.css.padding_top" class="form-control form-control-sm" placeholder="e.g., 10px">
+                                                    </div>
+                                                    <div class="form-group mb-2">
+                                                        <label class="small">Right</label>
+                                                        <input type="text" wire:model="fieldData.meta.css.padding_right" class="form-control form-control-sm" placeholder="e.g., 10px">
+                                                    </div>
+                                                    <div class="form-group mb-2">
+                                                        <label class="small">Bottom</label>
+                                                        <input type="text" wire:model="fieldData.meta.css.padding_bottom" class="form-control form-control-sm" placeholder="e.g., 10px">
+                                                    </div>
+                                                    <div class="form-group mb-0">
+                                                        <label class="small">Left</label>
+                                                        <input type="text" wire:model="fieldData.meta.css.padding_left" class="form-control form-control-sm" placeholder="e.g., 10px">
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
+
+                                        <!-- Colors Tab -->
+                                        <div class="tab-pane fade" id="colors-tab" role="tabpanel">
+                                            <div class="row">
+                                                <div class="col-md-6">
+                                                    <div class="form-group">
+                                                        <label class="small font-weight-bold">Background Color</label>
+                                                        <div class="input-group">
+                                                            <input type="color" wire:model="fieldData.meta.css.background_color" class="form-control form-control-sm" style="max-width: 60px;">
+                                                            <input type="text" wire:model="fieldData.meta.css.background_color" class="form-control form-control-sm" placeholder="#ffffff or rgb(255,255,255)">
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                                <div class="col-md-6">
+                                                    <div class="form-group">
+                                                        <label class="small font-weight-bold">Text Color</label>
+                                                        <div class="input-group">
+                                                            <input type="color" wire:model="fieldData.meta.css.text_color" class="form-control form-control-sm" style="max-width: 60px;">
+                                                            <input type="text" wire:model="fieldData.meta.css.text_color" class="form-control form-control-sm" placeholder="#000000 or rgb(0,0,0)">
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
+
+                                        <!-- Border Tab -->
+                                        <div class="tab-pane fade" id="border-tab" role="tabpanel">
+                                            <div class="row">
+                                                <div class="col-md-6">
+                                                    <div class="form-group">
+                                                        <label class="small font-weight-bold">Width</label>
+                                                        <input type="text" wire:model="fieldData.meta.css.border_width" class="form-control form-control-sm" placeholder="e.g., 1px">
+                                                    </div>
+                                                    <div class="form-group">
+                                                        <label class="small font-weight-bold">Style</label>
+                                                        <select wire:model="fieldData.meta.css.border_style" class="form-control form-control-sm">
+                                                            <option value="">None</option>
+                                                            <option value="solid">Solid</option>
+                                                            <option value="dashed">Dashed</option>
+                                                            <option value="dotted">Dotted</option>
+                                                            <option value="double">Double</option>
+                                                            <option value="groove">Groove</option>
+                                                            <option value="ridge">Ridge</option>
+                                                        </select>
+                                                    </div>
+                                                </div>
+                                                <div class="col-md-6">
+                                                    <div class="form-group">
+                                                        <label class="small font-weight-bold">Color</label>
+                                                        <div class="input-group">
+                                                            <input type="color" wire:model="fieldData.meta.css.border_color" class="form-control form-control-sm" style="max-width: 60px;">
+                                                            <input type="text" wire:model="fieldData.meta.css.border_color" class="form-control form-control-sm" placeholder="#000000">
+                                                        </div>
+                                                    </div>
+                                                    <div class="form-group">
+                                                        <label class="small font-weight-bold">Radius</label>
+                                                        <input type="text" wire:model="fieldData.meta.css.border_radius" class="form-control form-control-sm" placeholder="e.g., 5px">
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
+
+                                        <!-- Typography Tab -->
+                                        <div class="tab-pane fade" id="typography-tab" role="tabpanel">
+                                            <div class="row">
+                                                <div class="col-md-4">
+                                                    <div class="form-group">
+                                                        <label class="small font-weight-bold">Font Family</label>
+                                                        <input type="text" wire:model="fieldData.meta.css.font_family" class="form-control form-control-sm" placeholder="e.g., Arial, sans-serif">
+                                                        <small class="text-muted">Common: Arial, Helvetica, Times New Roman, Georgia, Courier New</small>
+                                                    </div>
+                                                </div>
+                                                <div class="col-md-4">
+                                                    <div class="form-group">
+                                                        <label class="small font-weight-bold">Font Size</label>
+                                                        <input type="text" wire:model="fieldData.meta.css.font_size" class="form-control form-control-sm" placeholder="e.g., 14px, 1em">
+                                                    </div>
+                                                </div>
+                                                <div class="col-md-4">
+                                                    <div class="form-group">
+                                                        <label class="small font-weight-bold">Font Weight</label>
+                                                        <select wire:model="fieldData.meta.css.font_weight" class="form-control form-control-sm">
+                                                            <option value="">Default</option>
+                                                            <option value="normal">Normal</option>
+                                                            <option value="bold">Bold</option>
+                                                            <option value="100">100</option>
+                                                            <option value="200">200</option>
+                                                            <option value="300">300</option>
+                                                            <option value="400">400</option>
+                                                            <option value="500">500</option>
+                                                            <option value="600">600</option>
+                                                            <option value="700">700</option>
+                                                            <option value="800">800</option>
+                                                            <option value="900">900</option>
+                                                        </select>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
+
+                                        <!-- Layout Tab -->
+                                        <div class="tab-pane fade" id="layout-tab" role="tabpanel">
+                                            <div class="row">
+                                                <div class="col-md-4">
+                                                    <div class="form-group">
+                                                        <label class="small font-weight-bold">Width</label>
+                                                        <input type="text" wire:model="fieldData.meta.css.width" class="form-control form-control-sm" placeholder="e.g., 100%, 500px">
+                                                    </div>
+                                                </div>
+                                                <div class="col-md-4">
+                                                    <div class="form-group">
+                                                        <label class="small font-weight-bold">Height</label>
+                                                        <input type="text" wire:model="fieldData.meta.css.height" class="form-control form-control-sm" placeholder="e.g., auto, 200px">
+                                                    </div>
+                                                </div>
+                                                <div class="col-md-4">
+                                                    <div class="form-group">
+                                                        <label class="small font-weight-bold">Display</label>
+                                                        <select wire:model="fieldData.meta.css.display" class="form-control form-control-sm">
+                                                            <option value="">Default</option>
+                                                            <option value="block">Block</option>
+                                                            <option value="inline">Inline</option>
+                                                            <option value="inline-block">Inline Block</option>
+                                                            <option value="flex">Flex</option>
+                                                            <option value="grid">Grid</option>
+                                                            <option value="table">Table</option>
+                                                            <option value="none">None</option>
+                                                        </select>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
+
+                                        <!-- Effects Tab -->
+                                        <div class="tab-pane fade" id="effects-tab" role="tabpanel">
+                                            <div class="form-group">
+                                                <label class="small font-weight-bold">Box Shadow</label>
+                                                <input type="text" wire:model="fieldData.meta.css.box_shadow" class="form-control form-control-sm" placeholder="e.g., 0 2px 4px rgba(0,0,0,0.1)">
+                                                <small class="text-muted">Format: offset-x offset-y blur-radius color</small>
+                                            </div>
+                                        </div>
+
+                                        <!-- Advanced Tab -->
+                                        <div class="tab-pane fade" id="advanced-tab" role="tabpanel">
+                                            <div class="form-group">
+                                                <label class="small font-weight-bold">Custom CSS</label>
+                                                <textarea wire:model="fieldData.meta.css.custom_css" class="form-control" rows="6" placeholder="Enter custom CSS properties (e.g., opacity: 0.8; transform: scale(1.1);)"></textarea>
+                                                <small class="text-muted">Only whitelisted CSS properties are allowed for security. Dangerous patterns will be removed.</small>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        @endif
                         
                         @if($fieldData['parent_field_id'])
                             <div class="alert alert-warning small">
@@ -515,7 +1108,7 @@
                         @endif
 
                     </div>
-                    <div class="modal-footer bg-light" style="border-radius: 0 0 12px 12px;">
+                    <div class="modal-footer bg-light flex-shrink-0" style="border-radius: 0 0 12px 12px;">
                         <button type="button" class="btn btn-secondary" wire:click="$set('showFieldModal', false)">Cancel</button>
                         <button type="button" class="btn btn-primary px-4" wire:click="saveField">
                             <i class="fas fa-save mr-1"></i> Save Field
@@ -525,4 +1118,164 @@
             </div>
         </div>
     @endif
+
+    <!-- Variable Modal -->
+    @if($showVariableModal)
+        <div class="modal fade show" style="display: block; background: rgba(0,0,0,0.5); z-index: 1060;" tabindex="-1">
+            <div class="modal-dialog modal-dialog-centered" style="margin: 1.75rem auto;">
+                <div class="modal-content border-0 shadow-lg" style="border-radius: 12px;">
+                    <div class="modal-header bg-light">
+                        <h5 class="modal-title font-weight-bold">
+                            @if($variableData['id']) <i class="fas fa-edit text-primary mr-2"></i> Edit Variable @else <i class="fas fa-plus text-success mr-2"></i> New Variable @endif
+                        </h5>
+                        <button type="button" class="close" wire:click="$set('showVariableModal', false)">
+                            <span>&times;</span>
+                        </button>
+                    </div>
+                    <div class="modal-body p-4">
+                        <div class="form-group">
+                            <label class="font-weight-bold small">Variable Name</label>
+                            <input type="text" wire:model="variableData.name" class="form-control" placeholder="e.g. client_name">
+                            <small class="text-muted">Use alphanumeric characters and underscores. Reference as <code>@{{ name }}</code></small>
+                            @error('variableData.name') <span class="text-danger small">{{ $message }}</span> @enderror
+                        </div>
+
+                        <div class="row">
+                            <div class="col-6">
+                                <div class="form-group">
+                                    <label class="font-weight-bold small">Type</label>
+                                    <select wire:model.live="variableData.type" class="form-control" {{ $variableData['id'] ? 'disabled' : '' }}>
+                                        <option value="static">Static Value</option>
+                                        <option value="database">Database Query</option>
+                                        <option value="system">System / Context</option>
+                                    </select>
+                                </div>
+                            </div>
+                            <div class="col-6">
+                                <div class="form-group">
+                                    <label class="font-weight-bold small">Data Type</label>
+                                    <select wire:model="variableData.data_type" class="form-control">
+                                        <option value="string">String (Text)</option>
+                                        <option value="number">Number</option>
+                                        <option value="boolean">Boolean</option>
+                                        <option value="date">Date</option>
+                                        <option value="collection">Collection (List)</option>
+                                        <option value="record">Single Record</option>
+                                    </select>
+                                </div>
+                            </div>
+                        </div>
+
+                        <hr>
+
+                        <!-- Static Config -->
+                        @if($variableData['type'] === 'static')
+                            <div class="form-group">
+                                <label class="font-weight-bold small">Value</label>
+                                <input type="text" wire:model="variableData.config.value" class="form-control" placeholder="Enter static value">
+                            </div>
+                        @endif
+
+                        <!-- System Config -->
+                        @if($variableData['type'] === 'system')
+                            <div class="form-group">
+                                <label class="font-weight-bold small">System Source</label>
+                                <select wire:model="variableData.config.source" class="form-control">
+                                    <option value="">Select source...</option>
+                                    <option value="auth_user">Logged In User (Object)</option>
+                                    <option value="auth_user_name">Logged In User Name (String)</option>
+                                    <option value="current_date">Current Date (YYYY-MM-DD)</option>
+                                    <option value="current_datetime">Current Date & Time</option>
+                                </select>
+                            </div>
+                        @endif
+
+                        <!-- Database Config -->
+                        @if($variableData['type'] === 'database')
+                            <div class="bg-light p-3 rounded border">
+                                <div class="form-group">
+                                    <label class="font-weight-bold small">Database Table</label>
+                                    <input type="text" wire:model="variableData.config.table" class="form-control" placeholder="e.g. users, products">
+                                </div>
+                                
+                                <div class="form-group">
+                                    <label class="font-weight-bold small">Filters (JSON)</label>
+                                    <!-- Simplified Filter UI for prototype - can be enhanced later -->
+                                    <textarea wire:model="variableData.config.filters" class="form-control" rows="3" placeholder='[{"field":"status","operator":"=","value":"active"}]'></textarea>
+                                    <small class="text-muted">Enter explicit JSON filter array for now.</small>
+                                </div>
+
+                                <div class="row">
+                                    <div class="col-6">
+                                        <div class="form-group">
+                                            <label class="font-weight-bold small">Limit</label>
+                                            <input type="number" wire:model="variableData.config.limit" class="form-control">
+                                        </div>
+                                    </div>
+                                    <div class="col-6">
+                                        <div class="form-group">
+                                             <label class="font-weight-bold small">Return Type</label>
+                                             <select wire:model="variableData.config.return_type" class="form-control">
+                                                 <option value="collection">Collection (Multiple)</option>
+                                                 <option value="single">Single Record</option>
+                                             </select>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        @endif
+
+                    </div>
+                    <div class="modal-footer bg-light">
+                        <button type="button" class="btn btn-secondary" wire:click="$set('showVariableModal', false)">Cancel</button>
+                        <button type="button" class="btn btn-primary" wire:click="saveVariable">Save Variable</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    @endif
 </div>
+
+@push('scripts')
+    <script>
+        document.addEventListener('livewire:load', function () {
+            
+            function initSortable() {
+                try {
+                    $(".sortable-list").sortable("destroy");
+                } catch(e) {}
+
+                $(".sortable-list").sortable({
+                    handle: ".drag-handle",
+                    connectWith: ".sortable-list",
+                    placeholder: "ui-state-highlight",
+                    tolerance: "pointer",
+                    cursor: "move",
+                    opacity: 0.8,
+                    start: function(e, ui) {
+                        ui.placeholder.height(ui.item.height());
+                        ui.placeholder.addClass('mb-3 bg-light border border-dashed rounded');
+                    },
+                    stop: function(event, ui) {
+                        let item = ui.item;
+                        let newParent = item.closest('.sortable-list');
+                        let parentId = newParent.data('parent-id');
+                        
+                        let orderedIds = [];
+                        newParent.find('.field-wrapper').each(function() {
+                            orderedIds.push($(this).data('id'));
+                        });
+                        
+                        @this.updateFieldOrder(parentId, orderedIds);
+                    }
+                });
+            }
+
+            initSortable();
+
+            Livewire.hook('message.processed', (message, component) => {
+                initSortable();
+            });
+        });
+    </script>
+@endpush

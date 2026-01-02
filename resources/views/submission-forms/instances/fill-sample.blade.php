@@ -742,7 +742,7 @@
                     let html = '';
                     
                     // Add placeholder option (always add for dependent elements)
-                    if (elementType === 'client_unit_select' || elementType === 'client_contact_select' || elementType === 'sample_point_select' || elementType === 'analysis_type_select') {
+                    if (elementType === 'client_unit_select' || elementType === 'client_contact_select' || elementType === 'client_submission_officers_select' || elementType === 'sample_point_select' || elementType === 'analysis_type_select') {
                         html += '<option value="">Select...</option>';
                     } else {
                         // For non-dependent elements, check if required
@@ -768,7 +768,10 @@
                     
                     // Handle saved values for both single and multiple selects
                     const savedValue = select.attr('data-saved-value');
-                    if (savedValue) {
+                    const defaultUserId = select.attr('data-default-user-id');
+                    const valueToSet = savedValue || defaultUserId;
+                    
+                    if (valueToSet) {
                         if (select.prop('multiple')) {
                             // Handle multiple select saved values
                             const savedMultipleValues = select.attr('data-saved-multiple-values');
@@ -778,11 +781,36 @@
                             }
                         } else {
                             // Handle single select saved values
-                            select.val(savedValue);
+                            select.val(valueToSet);
                         }
                         
                         // Trigger change event to update dependent elements
                         select.trigger('change.custom-elements');
+                        
+                        // For user_select fields, trigger signature loading immediately
+                        if (elementType === 'user_select') {
+                            const fieldName = select.attr('name');
+                            // Use valueToSet directly as it's the correct value we just set
+                            const userIdToLoad = valueToSet;
+                            
+                            // Small delay to ensure DOM/Select2 is updated
+                            setTimeout(function() {
+                                // Trigger the user-signature change event (handlers should be set up by now)
+                                select.trigger('change.user-signature');
+                                
+                                // Also manually trigger signature loading for immediate feedback
+                                // This ensures signature loads even if event handlers aren't set up yet
+                                if (userIdToLoad) {
+                                    $('.user-signature-container').each(function() {
+                                        const dependsOn = $(this).data('depends-on');
+                                        if (dependsOn === fieldName) {
+                                            const signatureElementId = $(this).data('element-id');
+                                            loadUserSignature(userIdToLoad, signatureElementId);
+                                        }
+                                    });
+                                }
+                            }, 150); // Small delay to ensure value is set in DOM/Select2
+                        }
                     }
                 },
                 error: function(xhr, status, error) {
@@ -932,7 +960,7 @@
             //console.log('Client changed to:', clientId);
             
             // Find all dependent elements (only direct dependencies)
-            const dependentElements = $('select[data-element-type="client_unit_select"], select[data-element-type="client_contact_select"]');
+            const dependentElements = $('select[data-element-type="client_unit_select"], select[data-element-type="client_contact_select"], select[data-element-type="client_submission_officers_select"]');
             //console.log('Found', dependentElements.length, 'client dependent elements');
             
             // Debug: Check what custom elements exist
@@ -1229,6 +1257,288 @@
             });
         });
     }
+
+    // Contact Signature Loading Functions
+    function loadContactSignature(contactId, signatureElementId) {
+        if (!contactId) {
+            // Clear signature if no contact selected
+            clearContactSignature(signatureElementId);
+            return;
+        }
+
+        const signatureContainer = $('#' + signatureElementId + '_container');
+        const signatureImage = $('#' + signatureElementId + '_signature_image');
+        const signatureDisplay = $('#' + signatureElementId + '_signature_display');
+        const signaturePad = $('#' + signatureElementId + '_signature_pad');
+        const signaturePlaceholder = $('#' + signatureElementId + '_placeholder');
+        const signatureInput = $('#' + signatureElementId);
+        
+        // Store contact ID
+        signatureContainer.data('contact-id', contactId);
+
+        // Show loading state
+        signaturePlaceholder.html('<i class="mdi mdi-loading mdi-spin" style="font-size: 2rem;"></i><br><small>Loading signature...</small>').show();
+        signatureDisplay.hide();
+        signaturePad.hide();
+
+        $.ajax({
+            url: '{{ route("submission-forms.contact-signature") }}',
+            method: 'GET',
+            data: { contact_id: contactId },
+            success: function(response) {
+                if (response.success && response.signature_url) {
+                    // Contact has signature - display it
+                    signatureImage.attr('src', response.signature_url).show();
+                    signatureDisplay.show();
+                    signaturePlaceholder.hide();
+                    signaturePad.hide();
+                    signatureInput.val(response.signature_path);
+                } else {
+                    // No signature - show signature pad
+                    signaturePlaceholder.hide();
+                    signatureDisplay.hide();
+                    signaturePad.show();
+                    initializeContactSignaturePad(signatureElementId);
+                    signatureInput.val('');
+                }
+            },
+            error: function(xhr) {
+                console.error('Error loading contact signature:', xhr);
+                // On error, show signature pad
+                signaturePlaceholder.hide();
+                signatureDisplay.hide();
+                signaturePad.show();
+                initializeContactSignaturePad(signatureElementId);
+                signatureInput.val('');
+            }
+        });
+    }
+
+    function clearContactSignature(signatureElementId) {
+        const signatureImage = $('#' + signatureElementId + '_signature_image');
+        const signatureDisplay = $('#' + signatureElementId + '_signature_display');
+        const signaturePad = $('#' + signatureElementId + '_signature_pad');
+        const signaturePlaceholder = $('#' + signatureElementId + '_placeholder');
+        const signatureInput = $('#' + signatureElementId);
+        const signatureContainer = $('#' + signatureElementId + '_container');
+
+        // Clear the signature image
+        signatureImage.hide().attr('src', '');
+        signatureDisplay.hide();
+        
+        // Show signature pad for new signature
+        signaturePlaceholder.hide();
+        signaturePad.show();
+        initializeContactSignaturePad(signatureElementId);
+        
+        // Clear the input value
+        signatureInput.val('');
+        
+        // Keep contact ID so we can save the new signature
+        // Don't clear contact-id as we want to save to the same contact
+    }
+
+    function clearContactSignaturePad(signatureElementId) {
+        const canvas = document.getElementById(signatureElementId + '_canvas');
+        if (canvas) {
+            const ctx = canvas.getContext('2d');
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            // Reset canvas styling
+            canvas.style.borderColor = '';
+            canvas.style.boxShadow = '';
+        }
+        const signatureInput = $('#' + signatureElementId);
+        signatureInput.val('');
+        
+        // Show placeholder again
+        const placeholder = canvas ? canvas.parentElement.querySelector('.signature-placeholder') : null;
+        if (placeholder) {
+            placeholder.style.opacity = '1';
+        }
+    }
+
+    function initializeContactSignaturePad(signatureElementId) {
+        const canvas = document.getElementById(signatureElementId + '_canvas');
+        if (!canvas || canvas.dataset.initialized === 'true') return;
+        
+        const ctx = canvas.getContext('2d');
+        const placeholder = canvas.parentElement.querySelector('.signature-placeholder');
+        let isDrawing = false;
+        let hasSignature = false;
+        let resizeTimeout;
+        let savedSignatureData = null;
+
+        function debouncedResize() {
+            clearTimeout(resizeTimeout);
+            resizeTimeout = setTimeout(resizeCanvas, 100);
+        }
+
+        function resizeCanvas() {
+            const container = canvas.parentElement;
+            const wrapper = container.parentElement;
+            const availableWidth = wrapper.clientWidth - 16;
+            const containerWidth = Math.max(200, Math.min(availableWidth, 800));
+            const containerHeight = 150;
+
+            canvas.style.width = containerWidth + 'px';
+            canvas.style.height = containerHeight + 'px';
+            canvas.style.maxWidth = '100%';
+            canvas.width = containerWidth;
+            canvas.height = containerHeight;
+
+            ctx.strokeStyle = '#2c3e50';
+            ctx.lineWidth = 2.5;
+            ctx.lineCap = 'round';
+            ctx.lineJoin = 'round';
+
+            if (savedSignatureData) {
+                redrawSignature();
+            }
+        }
+
+        function redrawSignature() {
+            if (savedSignatureData) {
+                const img = new Image();
+                img.onload = function() {
+                    ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+                };
+                img.src = savedSignatureData;
+            }
+        }
+
+        resizeCanvas();
+        window.addEventListener('resize', debouncedResize);
+
+        if (window.ResizeObserver) {
+            const resizeObserver = new ResizeObserver(debouncedResize);
+            resizeObserver.observe(canvas.parentElement.parentElement);
+        }
+
+        function getCanvasCoordinates(e) {
+            const rect = canvas.getBoundingClientRect();
+            const scaleX = canvas.width / rect.width;
+            const scaleY = canvas.height / rect.height;
+            const clientX = e.clientX || (e.touches && e.touches[0] ? e.touches[0].clientX : 0);
+            const clientY = e.clientY || (e.touches && e.touches[0] ? e.touches[0].clientY : 0);
+            return {
+                x: (clientX - rect.left) * scaleX,
+                y: (clientY - rect.top) * scaleY
+            };
+        }
+
+        function startDrawing(e) {
+            isDrawing = true;
+            const coords = getCanvasCoordinates(e);
+            ctx.beginPath();
+            ctx.moveTo(coords.x, coords.y);
+            if (placeholder) placeholder.style.opacity = '0';
+        }
+
+        function draw(e) {
+            if (!isDrawing) return;
+            e.preventDefault();
+            const coords = getCanvasCoordinates(e);
+            ctx.lineTo(coords.x, coords.y);
+            ctx.stroke();
+            hasSignature = true;
+            canvas.style.borderColor = '#28a745';
+            canvas.style.boxShadow = '0 0 0 2px rgba(40, 167, 69, 0.25)';
+            
+            // Update hidden input with signature data
+            const dataURL = canvas.toDataURL('image/png');
+            $('#' + signatureElementId).val(dataURL);
+            savedSignatureData = dataURL;
+        }
+
+        function stopDrawing() {
+            if (isDrawing) {
+                isDrawing = false;
+                const dataURL = canvas.toDataURL('image/png');
+                $('#' + signatureElementId).val(dataURL);
+                savedSignatureData = dataURL;
+            }
+        }
+
+        function handleTouchStart(e) {
+            e.preventDefault();
+            if (e.touches && e.touches.length > 0) {
+                startDrawing(e.touches[0]);
+            }
+        }
+
+        function handleTouchMove(e) {
+            e.preventDefault();
+            if (e.touches && e.touches.length > 0) {
+                draw(e.touches[0]);
+            }
+        }
+
+        function handleTouchEnd(e) {
+            e.preventDefault();
+            stopDrawing();
+        }
+
+        canvas.addEventListener('mousedown', startDrawing);
+        canvas.addEventListener('mousemove', draw);
+        canvas.addEventListener('mouseup', stopDrawing);
+        canvas.addEventListener('mouseout', stopDrawing);
+        canvas.addEventListener('touchstart', handleTouchStart, { passive: false });
+        canvas.addEventListener('touchmove', handleTouchMove, { passive: false });
+        canvas.addEventListener('touchend', handleTouchEnd, { passive: false });
+
+        canvas.dataset.initialized = 'true';
+    }
+
+    function setupContactSignatureHandlers() {
+        // Set up change handlers for contact select fields
+        $('select[data-element-type="client_contact_select"], select[data-element-type="client_submission_officers_select"]').on('change.contact-signature select2:select.contact-signature select2:unselect.contact-signature', function() {
+            const contactId = $(this).val();
+            const fieldName = $(this).attr('name');
+            
+            // Find all contact_signature fields that depend on this field
+            $('.contact-signature-container').each(function() {
+                const dependsOn = $(this).data('depends-on');
+                if (dependsOn === fieldName) {
+                    const signatureElementId = $(this).data('element-id');
+                    loadContactSignature(contactId, signatureElementId);
+                }
+            });
+        });
+    }
+
+    // Save contact signature when form is submitted (if checkbox is checked)
+    $(document).on('submit', '#fill-form', function() {
+        $('.contact-signature-container').each(function() {
+            const signatureElementId = $(this).data('element-id');
+            const saveCheckbox = $('#' + signatureElementId + '_save_signature');
+            const signatureInput = $('#' + signatureElementId);
+            const contactId = $(this).data('contact-id');
+            
+            if (saveCheckbox.is(':checked') && signatureInput.val() && contactId) {
+                const signatureData = signatureInput.val();
+                
+                // Save signature via AJAX
+                $.ajax({
+                    url: '{{ route("submission-forms.save-contact-signature") }}',
+                    method: 'POST',
+                    data: {
+                        contact_id: contactId,
+                        signature: signatureData,
+                        _token: $('meta[name="csrf-token"]').attr('content')
+                    },
+                    async: false, // Wait for save to complete
+                    success: function(response) {
+                        if (response.success) {
+                            console.log('Contact signature saved successfully');
+                        }
+                    },
+                    error: function(xhr) {
+                        console.error('Error saving contact signature:', xhr);
+                    }
+                });
+            }
+        });
+    });
 
     // loadDynamicOptions is now defined globally at the top of this script
 
@@ -1700,23 +2010,55 @@
             // Initialize form fill
             FormFill.init();
             
+            // Setup user signature handlers FIRST so they're ready when values are set
+            setupUserSignatureHandlers();
+            
+            // Setup contact signature handlers
+            setupContactSignatureHandlers();
+            
             // Initialize custom elements with dependency management
             initializeAllCustomElements();
             
-            // Setup user signature handlers
-            setupUserSignatureHandlers();
-            
             // Initialize user signature fields if depends field already has value
+            // This runs after all elements are initialized, so we check both current value and data attributes
+            setTimeout(function() {
             $('.user-signature-container').each(function() {
                 const dependsOn = $(this).data('depends-on');
                 if (dependsOn) {
                     // Find the depends field by name
                     const dependsField = $('select[data-element-type="user_select"][name="' + dependsOn + '"]');
                     if (dependsField.length > 0) {
-                        const userId = dependsField.val();
+                            // Check for value in the select field (after options are loaded)
+                            let userId = dependsField.val();
+                            
+                            // If no value, check for saved value or default user ID from data attributes
+                            if (!userId) {
+                                userId = dependsField.attr('data-saved-value');
+                            }
+                            if (!userId) {
+                                userId = dependsField.attr('data-default-user-id');
+                            }
+                            
                         if (userId) {
                             const signatureElementId = $(this).data('element-id');
                             loadUserSignature(userId, signatureElementId);
+                            }
+                        }
+                    }
+                });
+            }, 1000); // Wait for all AJAX calls to complete and options to be loaded
+            
+            // Initialize contact signature fields if depends field already has value
+            $('.contact-signature-container').each(function() {
+                const dependsOn = $(this).data('depends-on');
+                if (dependsOn) {
+                    // Find the depends field by name (could be client_contact_select or client_submission_officers_select)
+                    const dependsField = $('select[data-element-type="client_contact_select"][name="' + dependsOn + '"], select[data-element-type="client_submission_officers_select"][name="' + dependsOn + '"]');
+                    if (dependsField.length > 0) {
+                        const contactId = dependsField.val();
+                        if (contactId) {
+                            const signatureElementId = $(this).data('element-id');
+                            loadContactSignature(contactId, signatureElementId);
                         }
                     }
                 }

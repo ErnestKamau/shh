@@ -282,7 +282,7 @@ $(document).ready(function() {
       if (['client_select', 'sample_type_select', 'store_select', 'standard_select', 'sample_condition_select'].includes(elementType)) {
         // Independent elements - data is already loaded statically, just initialize Select2
         //console.log('Independent element with static data:', elementType, elementId);
-      } else if (['client_unit_select', 'client_contact_select'].includes(elementType)) {
+      } else if (['client_unit_select', 'client_contact_select', 'client_submission_officers_select'].includes(elementType)) {
         // Set up dependent elements - these depend on client_select
         setupDependentElement($this, elementId, elementType, 'client_select');
       } else if (elementType === 'sample_point_select') {
@@ -314,7 +314,7 @@ $(document).ready(function() {
       const currentParentValue = dependsOnElement.val();
       if (currentParentValue) {
         // Load options based on current parent value
-        if (elementType === 'client_unit_select' || elementType === 'client_contact_select') {
+        if (elementType === 'client_unit_select' || elementType === 'client_contact_select' || elementType === 'client_submission_officers_select') {
           loadDynamicOptions($this, elementId, elementType, currentParentValue);
         } else if (elementType === 'sample_point_select') {
           loadDynamicOptions($this, elementId, elementType, null, null, null, currentParentValue);
@@ -340,7 +340,7 @@ $(document).ready(function() {
         const parentId = $(this).val();
         if (parentId) {
           // Handle different parameter types based on element type and dependency
-        if (elementType === 'client_unit_select' || elementType === 'client_contact_select') {
+        if (elementType === 'client_unit_select' || elementType === 'client_contact_select' || elementType === 'client_submission_officers_select') {
             loadDynamicOptions($this, elementId, elementType, parentId);
         } else if (elementType === 'sample_point_select') {
           loadDynamicOptions($this, elementId, elementType, null, null, null, parentId);
@@ -413,7 +413,7 @@ $(document).ready(function() {
 
   function clearDependentElementsInRow($rowElement) {
     // Clear dependent elements that should be empty in cloned rows
-    const dependentElements = $rowElement.find('[data-element-type="client_unit_select"], [data-element-type="client_contact_select"], [data-element-type="sample_point_select"], [data-element-type="analysis_type_select"], [data-element-type="analysis_elements_select"], [data-element-type="store_slot_select"]');
+    const dependentElements = $rowElement.find('[data-element-type="client_unit_select"], [data-element-type="client_contact_select"], [data-element-type="client_submission_officers_select"], [data-element-type="sample_point_select"], [data-element-type="analysis_type_select"], [data-element-type="analysis_elements_select"], [data-element-type="store_slot_select"]');
     
     dependentElements.each(function() {
       const $element = $(this);
@@ -449,7 +449,7 @@ $(document).ready(function() {
     
     // Define dependency chain
     if (elementType === 'client_select') {
-      dependentTypes = ['client_unit_select', 'client_contact_select'];
+      dependentTypes = ['client_unit_select', 'client_contact_select', 'client_submission_officers_select'];
     } else if (elementType === 'client_unit_select') {
       dependentTypes = ['sample_point_select', 'company_sub_unit_select'];
     } else if (elementType === 'sample_type_select') {

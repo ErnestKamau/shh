@@ -66,5 +66,21 @@ class CRMAppController extends Controller
             'pageTitle' => 'Areas Management'
         ]);
     }
+    /**
+     * Display the complaints management page.
+     */
+    public function complaintsManager($stage = null)
+    {
+        $pageTitle = 'Complaint Management';
+        if ($stage) {
+            $pageTitle = $stage . ' - Complaint Management';
+        }
+        
+        return view('livewire.layout.crm-app', [
+            'componentType' => 'complaints',
+            'pageTitle' => $pageTitle,
+            'stage' => $stage
+        ]);
+    }
 }
 

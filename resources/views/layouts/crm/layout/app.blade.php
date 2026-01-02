@@ -95,7 +95,7 @@
 				// }
 				?>
 				@foreach (getComplaintWorkflowStages() as $item)
-				<a href="{{route('complaint-workflow',['stage'=>$item])}}" class="list-group-item list-group-item-action bg-dark text-white">
+				<a href="{{ route('crm.complaints-manager', ['stage' => $item]) }}" class="list-group-item list-group-item-action bg-dark text-white">
 					<div class="d-flex w-100 justify-content-between align-items-center">
 						<span class="menu-collapsed"><i class="mdi mdi-circle-medium"></i>{{ $item }}</span>
 						@if ($item == "All Complaints")
@@ -108,7 +108,6 @@
 				</a>
 				@endforeach
 			</div>
-			<a href="/complaint-type/home" class="bg-dark list-group-item list-group-item-action">
 				<div class="d-flex w-100 justify-content-start align-items-center">
 					<span class="mdi mdi-message-cog fa-fw mr-3"></span>
 					<span class="menu-collapsed">Complaint Type</span>

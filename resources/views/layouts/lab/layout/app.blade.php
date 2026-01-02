@@ -174,7 +174,7 @@
 			</div>
 
 		</div>
-			<a href="#qc-workflow-menu" data-toggle="collapse" aria-expanded="false" class="bg-dark list-group-item list-group-item-action flex-column align-items-start">
+			<a href="#qc-workflow-menu" data-toggle="collapse" aria-expanded="false" class="bg-dark hidden list-group-item list-group-item-action flex-column align-items-start">
 				<div class="d-flex w-100 justify-content-start align-items-center">
 					<span class="mdi mdi-file-certificate-outline mr-3"></span>
 					<span class="menu-collapsed">Qc Workflow</span>
@@ -322,10 +322,7 @@
 			<span class="menu-collapsed"><i class="mdi mdi-circle-medium"></i> Submission Form Templates
 				<small class="float-right badge badge-pill"></small></span>
 		</a>
-		<a href="{{route('certificate-templates.index')}}" class="list-group-item list-group-item-action bg-dark text-white">
-			<span class="menu-collapsed"><i class="mdi mdi-circle-medium"></i> Certificate Templates
-				<small class="float-right badge badge-pill"></small></span>
-		</a>
+		
 		<a href="{{route('templates.index')}}" class="list-group-item list-group-item-action bg-dark text-white">
 			<span class="menu-collapsed"><i class="mdi mdi-circle-medium"></i> Form Templates
 				<small class="float-right badge badge-pill"></small></span>
@@ -333,7 +330,7 @@
 
 	</div>
 
-	<a href="/qualification-home" class="bg-dark list-group-item list-group-item-action">
+	<a href="/qualification-home" class="bg-dark hidden list-group-item list-group-item-action">
 		<div class="d-flex w-100 justify-content-start align-items-center">
 			<span class="mdi mdi-file-certificate fa-fw mr-3"></span>
 			<span class="menu-collapsed">Certifications</span>

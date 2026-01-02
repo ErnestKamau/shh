@@ -300,6 +300,88 @@
             </div>
             @break
             
+        @case('client_submission_officers_select')
+            <div class="custom-element-wrapper position-relative">
+                <select class="form-control custom-element" 
+                        id="{{ $fieldId }}" 
+                        name="{{ $fieldName }}"
+                        data-element-type="client_submission_officers_select"
+                        data-depends-on="client_select"
+                        data-saved-value="{{ $fieldValue }}"
+                        {{ $element->is_required ? 'required' : '' }}
+                        {{ $element->is_readonly ? 'disabled' : '' }}>
+                    @if(!$element->is_required)
+                        <option value="">{{ $element->placeholder ?: 'Select a submission officer...' }}</option>
+                    @endif
+                    {{-- Options will be loaded dynamically based on selected client (only contacts with can_submit_sample = 1) --}}
+                </select>
+            </div>
+            @break
+            
+        @case('contact_signature')
+            @php
+                $dependsField = $element->options && isset($element->options['depends']) ? $element->options['depends'] : '';
+            @endphp
+            <div class="contact-signature-container" 
+                 id="{{ $fieldId }}_container"
+                 data-depends-on="{{ $dependsField }}"
+                 data-element-id="{{ $fieldId }}"
+                 data-element-name="{{ $element->name }}"
+                 data-contact-id="">
+                {{-- Display existing signature if available --}}
+                <div id="{{ $fieldId }}_signature_display" class="signature-display-wrapper" style="display: none;">
+                    <img id="{{ $fieldId }}_signature_image" 
+                         class="signature-preview" 
+                         src="" 
+                         alt="Contact signature"
+                         style="max-height: 150px; border: 1px solid #dee2e6; border-radius: 4px; padding: 8px; background-color: #f8f9fa; width: 100%; object-fit: contain;">
+                    <button type="button" class="btn btn-sm btn-outline-secondary mt-2" onclick="clearContactSignature('{{ $fieldId }}')">
+                        <i class="mdi mdi-refresh"></i> Clear and Sign New
+                    </button>
+                </div>
+                
+                {{-- Signature pad (shown when no signature or when cleared) --}}
+                <div id="{{ $fieldId }}_signature_pad" class="signature-container" style="display: none;">
+                    <div class="signature-pad-wrapper" style="position: relative; width: 100%; border: 1px solid #dee2e6; border-radius: 4px; background-color: #fff; overflow: hidden;">
+                        <canvas id="{{ $fieldId }}_canvas" 
+                                class="signature-canvas"
+                                style="width: 100%; height: 150px; display: block; cursor: crosshair; touch-action: none;"></canvas>
+                        <div class="signature-placeholder" style="position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); pointer-events: none; color: #6c757d; text-align: center; z-index: 1;">
+                            <i class="mdi mdi-pen" style="font-size: 2rem; display: block; margin-bottom: 8px;"></i>
+                            <span>Sign here</span>
+                        </div>
+                    </div>
+                    <div class="signature-controls mt-3">
+                        <div class="d-flex align-items-center gap-3">
+                            <button type="button" class="btn btn-sm btn-outline-danger" onclick="clearContactSignaturePad('{{ $fieldId }}')">
+                                <i class="mdi mdi-refresh"></i> Clear Signature
+                            </button>
+                            <div class="form-check">
+                                <input type="checkbox" class="form-check-input" id="{{ $fieldId }}_save_signature" name="{{ $fieldName }}_save_signature">
+                                <label class="form-check-label" for="{{ $fieldId }}_save_signature">
+                                    <i class="mdi mdi-content-save"></i> Save for future use
+                                </label>
+                            </div>
+                        </div>
+                        <small class="text-muted d-block mt-2">
+                            <i class="mdi mdi-information-outline"></i> Use mouse or touch to sign
+                        </small>
+                    </div>
+                </div>
+                
+                {{-- Placeholder when no contact selected --}}
+                <div id="{{ $fieldId }}_placeholder" class="signature-placeholder text-muted" style="padding: 20px; text-align: center; border: 1px dashed #dee2e6; border-radius: 4px; background-color: #f8f9fa; min-height: 150px; display: flex; flex-direction: column; align-items: center; justify-content: center;">
+                    <i class="mdi mdi-account-check" style="font-size: 2rem; display: block; margin-bottom: 8px;"></i>
+                    <small>Select a contact to view or create signature</small>
+                </div>
+                
+                <input type="hidden" 
+                       id="{{ $fieldId }}" 
+                       name="{{ $fieldName }}"
+                       value="{{ $fieldValue ?: '' }}">
+            </div>
+            @break
+            
         @case('analysis_type_select')
             @php
                 $selectName = $fieldName . '[]';
@@ -554,7 +636,7 @@
 </div>
 
 {{-- Store element data for later initialization --}}
-@if(in_array($element->element_type, ['client_select', 'sample_type_select', 'client_unit_select', 'client_contact_select', 'analysis_type_select', 'analysis_elements_select', 'store_select', 'store_slot_select', 'sample_condition_select', 'standard_select', 'sample_point_select', 'company_sub_unit_select', 'user_select', 'user_signature']))
+@if(in_array($element->element_type, ['client_select', 'sample_type_select', 'client_unit_select', 'client_contact_select', 'client_submission_officers_select', 'analysis_type_select', 'analysis_elements_select', 'store_select', 'store_slot_select', 'sample_condition_select', 'standard_select', 'sample_point_select', 'company_sub_unit_select', 'user_select', 'user_signature', 'contact_signature']))
 @push('scripts')
 <script>
 // Store element data for initialization when jQuery is ready
@@ -565,6 +647,9 @@ window.customElementsToInit.push({
     isRequired: {{ $element->is_required ? 'true' : 'false' }},
     placeholder: '{{ $element->placeholder ?: "Select..." }}',
     @if($element->element_type === 'user_signature' && $element->options && isset($element->options['depends']))
+    dependsOn: '{{ $element->options['depends'] }}',
+    @endif
+    @if($element->element_type === 'contact_signature' && $element->options && isset($element->options['depends']))
     dependsOn: '{{ $element->options['depends'] }}',
     @endif
 });
@@ -646,6 +731,25 @@ window.customElementsToInit.push({
 @endpush
 
 {{-- Signature pad JavaScript --}}
+@if($element->element_type === 'contact_signature')
+@push('styles')
+<style>
+.contact-signature-container {
+    margin-bottom: 1rem;
+}
+
+.signature-display-wrapper {
+    margin-bottom: 1rem;
+}
+
+.signature-display-wrapper img {
+    display: block;
+    margin: 0 auto;
+}
+</style>
+@endpush
+@endif
+
 @if($element->element_type === 'signature')
 @push('scripts')
 <script>

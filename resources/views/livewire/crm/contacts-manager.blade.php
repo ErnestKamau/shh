@@ -201,6 +201,27 @@
                                         </div>
                                     </div>
                                 </div>
+                                
+                                <div class="row">
+                                    <div class="col-md-12">
+                                        <div class="form-group mb-3">
+                                            <label class="form-label fw-bold">
+                                                <i class="mdi mdi-draw-pen text-primary"></i> Signature
+                                            </label>
+                                            <input type="file" wire:model="signatureFile" accept="image/*" class="form-control">
+                                            @if($contactForm['signature'])
+                                                <div class="mt-2">
+                                                    <small class="text-muted">Current signature:</small>
+                                                    <div class="mt-1">
+                                                        <img src="{{ asset('storage/' . $contactForm['signature']) }}" alt="Signature" style="max-height: 100px; border: 1px solid #ddd; border-radius: 4px; padding: 4px;">
+                                                    </div>
+                                                </div>
+                                            @endif
+                                            @error('signatureFile') <span class="text-danger">{{ $message }}</span> @enderror
+                                            <small class="form-text text-muted">Upload a signature image (JPG, PNG, etc.)</small>
+                                        </div>
+                                    </div>
+                                </div>
                             </div>
                         </div>
 
@@ -374,7 +395,7 @@
                                 </div>
 
                                 <div class="row">
-                                    <div class="col-md-6">
+                                    <div class="col-md-4">
                                         <div class="form-check form-switch mb-2">
                                             <input type="checkbox" wire:model="contactForm.can_login" class="form-check-input" id="canLogin" role="switch">
                                             <label class="form-check-label" for="canLogin">
@@ -382,7 +403,15 @@
                                             </label>
                                         </div>
                                     </div>
-                                    <div class="col-md-6">
+                                    <div class="col-md-4">
+                                        <div class="form-check form-switch mb-2">
+                                            <input type="checkbox" wire:model="contactForm.can_submit_sample" class="form-check-input" id="canSubmitSample" role="switch">
+                                            <label class="form-check-label" for="canSubmitSample">
+                                                <i class="mdi mdi-flask text-info"></i> Can Submit Sample
+                                            </label>
+                                        </div>
+                                    </div>
+                                    <div class="col-md-4">
                                         <div class="form-check form-switch mb-2">
                                             <input type="checkbox" wire:model="contactForm.active" class="form-check-input" id="contactActive" role="switch">
                                             <label class="form-check-label" for="contactActive">

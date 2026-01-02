@@ -110,6 +110,9 @@
                   <div class="element-type" data-type="signature">
                     <i class="mdi mdi-draw"></i> Signature
                   </div>
+                  <div class="element-type" data-type="contact_signature">
+                    <i class="mdi mdi-account-check"></i> Contact Signature
+                  </div>
                   <h5 style="font-size:18px; padding: 5px; margin:0px">Custom Fields</h5>
                   <div class="element-type" data-type="client_select">
                     <i class="mdi mdi-account-group"></i> Client Select
@@ -122,6 +125,9 @@
                   </div>
                   <div class="element-type" data-type="client_contact_select">
                     <i class="mdi mdi-account-multiple"></i> Client Contact Select
+                  </div>
+                  <div class="element-type" data-type="client_submission_officers_select">
+                    <i class="mdi mdi-account-check"></i> Client Submission Officers
                   </div>
                   <div class="element-type" data-type="analysis_type_select">
                     <i class="mdi mdi-flask"></i> Analysis Type Select
@@ -326,6 +332,7 @@
                     <option value="checkbox">Checkbox</option>
                     <option value="file">File Upload</option>
                     <option value="signature">Signature</option>
+                    <option value="contact_signature">Contact Signature</option>
                     <option value="client_select">Client Select</option>
                     <option value="sample_type_select">Sample Type Select</option>
                     <option value="client_unit_select">Client Unit Select</option>
@@ -422,23 +429,23 @@
               </div>
             </div>
             
-            <!-- Depends On Configuration (for user_signature) -->
+            <!-- Depends On Configuration (for user_signature and contact_signature) -->
             <div class="card mt-3" id="depends-config" style="display: none;">
               <div class="card-header">
                 <h6 class="mb-0">
                   <i class="mdi mdi-link"></i> Dependency Configuration
-                  <small class="text-muted">(Required for User Signature)</small>
+                  <small class="text-muted">(Required for User/Contact Signature)</small>
                 </h6>
               </div>
               <div class="card-body">
                 <div class="form-group">
                   <label for="element-depends" class="required">Depends On Field</label>
                   <select class="form-control" id="element-depends" name="depends">
-                    <option value="">Select a user field...</option>
+                    <option value="">Select a field...</option>
                     <!-- Options will be dynamically populated -->
                   </select>
-                  <small class="form-text text-muted">
-                    Select which user_select field this signature should depend on. The signature will automatically load when that field is filled.
+                  <small class="form-text text-muted" id="depends-help-text">
+                    Select which field this signature should depend on. The signature will automatically load when that field is filled.
                   </small>
                 </div>
               </div>
@@ -944,6 +951,12 @@ const FormBuilder = {
             $('#element-depends').val(element.options.depends);
             this.loadUserSelectFields();
         }
+        
+        // Handle depends for contact_signature
+        if (element.element_type === 'contact_signature' && element.options && element.options.depends) {
+            $('#element-depends').val(element.options.depends);
+            this.loadContactSelectFields();
+        }
     },
     
     loadUserSelectFields() {
@@ -975,15 +988,49 @@ const FormBuilder = {
         });
     },
     
+    loadContactSelectFields() {
+        const dependsSelect = $('#element-depends');
+        const currentValue = dependsSelect.val();
+        const contactSelectFields = [];
+        
+        // Find all client_contact_select and client_submission_officers_select elements in the form builder DOM
+        $('#sections-container .element-item').each(function() {
+            const elementTypeText = $(this).find('small.text-muted').text().trim();
+            // Extract type from format like "name (type)"
+            const typeMatch = elementTypeText.match(/\((.+?)\)$/);
+            if (typeMatch && (typeMatch[1] === 'client_contact_select' || typeMatch[1] === 'client_submission_officers_select')) {
+                const label = $(this).find('.font-weight-medium').text().trim().replace(' *', '');
+                // Extract name from the text before the parenthesis
+                const nameMatch = elementTypeText.match(/^(.+?)\s*\(/);
+                if (nameMatch) {
+                    const name = nameMatch[1].trim();
+                    contactSelectFields.push({ name, label, type: typeMatch[1] });
+                }
+            }
+        });
+        
+        // Populate dropdown
+        dependsSelect.html('<option value="">Select a contact field...</option>');
+        contactSelectFields.forEach(field => {
+            const selected = (currentValue === field.name) ? ' selected' : '';
+            dependsSelect.append(`<option value="${field.name}"${selected}>${field.label} (${field.name})</option>`);
+        });
+    },
+    
     handleElementTypeChange() {
         const elementType = $('#element-type').val();
         const needsOptions = ['select', 'radio', 'checkbox'].includes(elementType);
-        const isCustomElement = ['client_select', 'sample_type_select', 'client_unit_select', 'client_contact_select', 'analysis_type_select', 'analysis_elements_select', 'store_select', 'store_slot_select', 'sample_condition_select', 'standard_select', 'sample_point_select', 'user_select', 'user_signature'].includes(elementType);
+        const isCustomElement = ['client_select', 'sample_type_select', 'client_unit_select', 'client_contact_select', 'client_submission_officers_select', 'analysis_type_select', 'analysis_elements_select', 'store_select', 'store_slot_select', 'sample_condition_select', 'standard_select', 'sample_point_select', 'user_select', 'user_signature', 'contact_signature'].includes(elementType);
         
-        // Show/hide depends configuration for user_signature
+        // Show/hide depends configuration for user_signature and contact_signature
         if (elementType === 'user_signature') {
             $('#depends-config').show();
+            $('#depends-help-text').text('Select which user_select field this signature should depend on. The signature will automatically load when that field is filled.');
             this.loadUserSelectFields();
+        } else if (elementType === 'contact_signature') {
+            $('#depends-config').show();
+            $('#depends-help-text').text('Select which client_contact_select or client_submission_officers_select field this signature should depend on. The signature will automatically load when that field is filled.');
+            this.loadContactSelectFields();
         } else {
             $('#depends-config').hide();
         }
@@ -1092,10 +1139,10 @@ const FormBuilder = {
         
         // Collect options if needed
         const needsOptions = ['select', 'radio', 'checkbox'].includes(formData.element_type);
-        const isCustomElement = ['client_select', 'sample_type_select', 'client_unit_select', 'client_contact_select', 'analysis_type_select', 'analysis_elements_select', 'store_select', 'store_slot_select', 'sample_condition_select', 'standard_select', 'sample_point_select', 'user_select', 'user_signature'].includes(formData.element_type);
+        const isCustomElement = ['client_select', 'sample_type_select', 'client_unit_select', 'client_contact_select', 'client_submission_officers_select', 'analysis_type_select', 'analysis_elements_select', 'store_select', 'store_slot_select', 'sample_condition_select', 'standard_select', 'sample_point_select', 'user_select', 'user_signature'].includes(formData.element_type);
         
-        // Handle user_signature - save depends in options
-        if (formData.element_type === 'user_signature') {
+        // Handle user_signature and contact_signature - save depends in options
+        if (formData.element_type === 'user_signature' || formData.element_type === 'contact_signature') {
             const depends = $('#element-depends').val();
             formData.options = depends ? { depends: depends } : {};
         } else if (needsOptions && !isCustomElement) {

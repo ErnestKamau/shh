@@ -8,9 +8,12 @@ use App\Models\CRM\CRMCompanyUnit;
 use App\User;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\Storage;
+use Livewire\WithFileUploads;
 
 class ContactsManager extends Component
 {
+    use WithFileUploads;
     // Customer Data
     public $customerId;
     public $customer;
@@ -35,9 +38,14 @@ class ContactsManager extends Component
         'receive_report' => false,
         'active' => true,
         'can_login' => false,
+        'can_submit_sample' => false,
+        'signature' => null,
         'main_password' => '',
         'confirm_password' => ''
     ];
+    
+    // File upload
+    public $signatureFile;
 
     // Supporting Data
     public $units = [];
@@ -56,6 +64,7 @@ class ContactsManager extends Component
         'contactForm.unit_name' => 'required|array|min:1',
         'contactForm.main_password' => 'required_if:contactForm.can_login,true|min:8',
         'contactForm.confirm_password' => 'required_if:contactForm.can_login,true|same:contactForm.main_password',
+        'signatureFile' => 'nullable|image|max:2048',
     ];
 
     protected $messages = [
@@ -68,6 +77,8 @@ class ContactsManager extends Component
         'contactForm.main_password.required_if' => 'Password is required when creating user account.',
         'contactForm.confirm_password.required_if' => 'Password confirmation is required when creating user account.',
         'contactForm.confirm_password.same' => 'Password confirmation does not match.',
+        'signatureFile.image' => 'Signature must be an image file.',
+        'signatureFile.max' => 'Signature image must not exceed 2MB.',
     ];
 
     public function mount($customerId)
@@ -120,9 +131,12 @@ class ContactsManager extends Component
             'receive_report' => $contact->receive_report == 1,
             'active' => $contact->active == 1,
             'can_login' => $contact->can_login == 1,
+            'can_submit_sample' => $contact->can_submit_sample == 1,
+            'signature' => $contact->signature,
             'main_password' => '',
             'confirm_password' => ''
         ];
+        $this->signatureFile = null;
         
         $this->editingContact = $contact;
         $this->showContactModal = true;
@@ -250,9 +264,12 @@ class ContactsManager extends Component
             'receive_report' => false,
             'active' => true,
             'can_login' => false,
+            'can_submit_sample' => false,
+            'signature' => null,
             'main_password' => '',
             'confirm_password' => ''
         ];
+        $this->signatureFile = null;
         $this->editingContact = null;
     }
 

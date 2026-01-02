@@ -31,6 +31,15 @@
             'icon' => null
         ];
     }
+    
+    // Add Complaint Stage if viewing complaints
+    if ($componentType === 'complaints' && isset($stage) && $stage) {
+        $breadcrumbItems[] = [
+            'link' => route('crm.complaints-manager', ['stage' => $stage]),
+            'name' => $stage,
+            'icon' => null
+        ];
+    }
     ?>
     <x-bread-crumb :items="$breadcrumbItems"></x-bread-crumb>
     
@@ -43,6 +52,8 @@
         @livewire(\App\Livewire\CRM\SamplePointManager::class)
     @elseif($componentType === 'areas')
         @livewire(\App\Livewire\CRM\AreaManager::class)
+    @elseif($componentType === 'complaints')
+        @livewire(\App\Livewire\CRM\Complaint\ComplaintManager::class, ['stage' => $stage ?? null])
     @endif
 </main>
 @endsection

@@ -783,6 +783,24 @@ class FormInstanceController extends Controller
                     }
                     break;
 
+                case 'client_submission_officers_select':
+                    if ($clientId) {
+                        $officers = \App\Models\CRM\CustomerContact::where('crm_customer_id', $clientId)
+                            ->where('active', 1)
+                            ->where('can_submit_sample', 1)
+                            ->get();
+                        
+                        $options = [];
+                        foreach ($officers as $officer) {
+                            $fullName = trim($officer->first_name . ' ' . $officer->middle_name . ' ' . $officer->last_name);
+                            $options[] = [
+                                'id' => $officer->id,
+                                'text' => $fullName . ' (' . $officer->email . ')'
+                            ];
+                        }
+                    }
+                    break;
+
                 case 'store_select':
                     $options = \App\InventoryStore::select('id', 'name as text')
                         ->get()

@@ -14,6 +14,8 @@ class DatasetSelector extends Component
     public $selectedValueColumn;
     public $selectedLabelColumn;
     
+    public $filters = [];
+    
     public function mount($binding = [])
     {
         $service = app(DatabaseMetadataService::class);
@@ -23,6 +25,7 @@ class DatasetSelector extends Component
             $this->selectedTable = $binding['table_name'] ?? null;
             $this->selectedValueColumn = $binding['column_value'] ?? null;
             $this->selectedLabelColumn = $binding['column_label'] ?? null;
+            $this->filters = $binding['filters'] ?? [];
             
             if ($this->selectedTable) {
                 $this->columns = $service->getColumns($this->selectedTable);
@@ -36,11 +39,33 @@ class DatasetSelector extends Component
         $this->columns = $service->getColumns($value);
         $this->selectedValueColumn = null;
         $this->selectedLabelColumn = null;
+        $this->filters = [];
         $this->emitData();
     }
     
     public function updatedSelectedValueColumn() { $this->emitData(); }
     public function updatedSelectedLabelColumn() { $this->emitData(); }
+    
+    public function addFilter()
+    {
+        $this->filters[] = [
+            'column' => '',
+            'operator' => '=',
+            'value' => ''
+        ];
+    }
+    
+    public function removeFilter($index)
+    {
+        unset($this->filters[$index]);
+        $this->filters = array_values($this->filters);
+        $this->emitData();
+    }
+    
+    public function updatedFilters()
+    {
+         $this->emitData();
+    }
 
     public function emitData()
     {
@@ -49,7 +74,7 @@ class DatasetSelector extends Component
                 'table_name' => $this->selectedTable,
                 'column_value' => $this->selectedValueColumn,
                 'column_label' => $this->selectedLabelColumn,
-                // filters can be added here
+                'filters' => $this->filters
             ]);
         }
     }

@@ -19,16 +19,49 @@ class TemplateBuilderController extends Controller
         $this->metadataService = $metadataService;
     }
 
-    public function index()
+    public function index(Request $request)
     {
-        $templates = FormTemplate::latest()->paginate(10);
-        return view('template-engine::index', compact('templates'));
+        $query = FormTemplate::query();
+
+        // Search functionality
+        if ($request->filled('search')) {
+            $search = $request->get('search');
+            $query->where(function($q) use ($search) {
+                $q->where('name', 'like', "%{$search}%")
+                  ->orWhere('description', 'like', "%{$search}%")
+                  ->orWhere('category', 'like', "%{$search}%")
+                  ->orWhere('status', 'like', "%{$search}%");
+            });
+        }
+
+        // Filter by status
+        if ($request->filled('status')) {
+            $query->where('status', $request->get('status'));
+        }
+
+        // Filter by category
+        if ($request->filled('category')) {
+            $query->where('category', $request->get('category'));
+        }
+
+        // Get per page value (default to 25, validate against allowed values)
+        $perPage = $request->get('per_page', 25);
+        $allowedPerPage = [10, 25, 50, 100];
+        if (!in_array((int)$perPage, $allowedPerPage)) {
+            $perPage = 25;
+        }
+        
+        $templates = $query->with('creator')->latest()->paginate((int)$perPage)->withQueryString();
+        
+        // Get unique categories for filter dropdown
+        $categories = FormTemplate::distinct()->whereNotNull('category')->pluck('category')->sort()->values();
+        
+        return view('template-engine::index', compact('templates', 'categories'));
     }
 
     public function create()
     {
-        $processes = \App\AnalysisMethod::select('id', 'name')->get();
-        return view('template-engine::create', compact('processes'));
+        return view('template-engine::create');
     }
 
     public function store(Request $request)
@@ -37,11 +70,13 @@ class TemplateBuilderController extends Controller
             'name' => 'required|string|max:255',
             'description' => 'nullable|string',
             'category' => 'nullable|string',
-            'process_id' => 'nullable|integer',
+            'process_id' => 'nullable|string|in:' . implode(',', array_keys(getTemplateProcesses())),
         ]);
 
+        // Store process identifier in process_type since process_id is for polymorphic relationships
         if (!empty($data['process_id'])) {
-            $data['process_type'] = \App\AnalysisMethod::class;
+            $data['process_type'] = $data['process_id'];
+            $data['process_id'] = null; // Set to null since we're using process_type for the identifier
         }
 
         $template = $this->service->createTemplate($data, auth()->user());
@@ -61,5 +96,24 @@ class TemplateBuilderController extends Controller
     {
         $template = FormTemplate::with(['sections.fields.options', 'sections.fields.datasetBinding'])->findOrFail($id);
         return view('template-engine::preview', compact('template'));
+    }
+
+    public function destroy($id)
+    {
+        $template = FormTemplate::findOrFail($id);
+        
+        // Delete the template (soft delete if SoftDeletes is used, otherwise hard delete)
+        $template->delete();
+        
+        return redirect()->route('templates.index')
+            ->with('success', 'Template deleted successfully.');
+    }
+
+    public function showSubmission($templateId, $submissionId)
+    {
+        $template = FormTemplate::with(['sections.fields.options'])->findOrFail($templateId);
+        $submission = $template->submissions()->findOrFail($submissionId);
+        
+        return view('template-engine::submissions.show', compact('template', 'submission'));
     }
 }

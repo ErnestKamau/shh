@@ -34,8 +34,8 @@ class FormTemplate extends Model
         return $this->belongsTo(User::class, 'created_by');
     }
 
-    public function process()
+    public function variables(): HasMany
     {
-        return $this->morphTo();
+        return $this->hasMany(FormTemplateVariable::class);
     }
 }

@@ -344,7 +344,7 @@
     <!-- Assign Sample Type Modal -->
     @if($showAssignSampleTypeModal)
         <div class="modal fade show d-block" tabindex="-1" role="dialog" style="background-color: rgba(0,0,0,0.5);">
-            <div class="modal-dialog modal-lg" role="document" style="max-width: 90%;">
+            <div class="modal-dialog modal-md" role="document">
                 <div class="modal-content">
                     <div class="modal-header bg-success text-white">
                         <h5 class="modal-title">
@@ -383,14 +383,30 @@
                             </label>
                             <div class="searchable-dropdown-wrapper" wire:key="sample-type-dropdown">
                                 <div class="multi-select-container" wire:click="toggleSampleTypeDropdown">
+                                    <div class="d-flex flex-wrap align-items-center gap-2" style="flex: 1; min-height: 20px;">
+                                        @if(count($selectedSampleTypes) > 0)
+                                            @foreach($selectedSampleTypes as $sampleTypeId)
+                                                @php
+                                                    $sampleType = \App\SampleType::find($sampleTypeId);
+                                                @endphp
+                                                @if($sampleType)
+                                                    <span class="tag-badge">
+                                                        {{ $sampleType->name }}
+                                                        <i class="mdi mdi-close-circle" wire:click.stop="toggleSampleType({{ $sampleTypeId }})"></i>
+                                                    </span>
+                                                @endif
+                                            @endforeach
+                                        @endif
                                     <input 
                                         type="text" 
                                         wire:model.live="sampleTypeSearch"
-                                        placeholder="@if(count($selectedSampleTypes) > 0){{ $this->getSelectedSampleTypeNames() }}@else Select sample types...@endif"
+                                            placeholder="@if(count($selectedSampleTypes) == 0) Select sample types...@endif"
                                         class="form-control searchable-input-single"
                                         autocomplete="off"
                                         wire:click.stop
+                                            style="flex: 1; min-width: 120px;"
                                     >
+                                    </div>
                                     @if(count($selectedSampleTypes) > 0)
                                         <span class="selected-count">{{ count($selectedSampleTypes) }}</span>
                                     @endif
@@ -471,7 +487,7 @@
     }
     
     /* Specific styling for Assign Sample Type Modal */
-    .modal-dialog.modal-lg .modal-body {
+    .modal-dialog.modal-md .modal-body {
         max-height: 85vh;
     }
     
@@ -519,6 +535,8 @@
         transition: all 0.3s ease;
         display: flex;
         align-items: center;
+        flex-wrap: wrap;
+        gap: 6px;
     }
     
     .single-select-container:hover, .multi-select-container:hover {
@@ -631,6 +649,30 @@
         border-radius: 12px;
         font-size: 12px;
         font-weight: 600;
+    }
+    
+    .tag-badge {
+        display: inline-flex;
+        align-items: center;
+        gap: 4px;
+        padding: 4px 10px;
+        background-color: #007bff;
+        color: white;
+        border-radius: 16px;
+        font-size: 0.875rem;
+        font-weight: 500;
+        white-space: nowrap;
+    }
+    
+    .tag-badge i {
+        cursor: pointer;
+        font-size: 1rem;
+        opacity: 0.8;
+        transition: opacity 0.2s;
+    }
+    
+    .tag-badge i:hover {
+        opacity: 1;
     }
     </style>
 

@@ -253,6 +253,10 @@ Route::get('/crm/areas', [CRMAppController::class, 'areas'])
     ->name('crm.areas')
     ->middleware('haspermission:CRM.components.Customer-List.View');
 
+Route::get('/crm/complaints-manager/{stage?}', [CRMAppController::class, 'complaintsManager'])
+    ->name('crm.complaints-manager')
+    ->middleware('haspermission:CRM.components.Complaints.View');
+
 // Livewire Billing Management Routes
 Route::get('/billing/invoicable-items', function() {
     return view('layouts.billing.invoicable-items-index');
@@ -528,6 +532,8 @@ Route::prefix('submission-forms')->name('submission-forms.')->middleware('auth')
     // Dynamic Options for Custom Elements (must be before /{submissionForm} route)
     Route::get('/dynamic-options', 'SubmissionFormController@getDynamicOptions')->name('dynamic-options');
     Route::get('/user-signature', 'SubmissionFormController@getUserSignature')->name('user-signature');
+    Route::get('/contact-signature', 'SubmissionFormController@getContactSignature')->name('contact-signature');
+    Route::post('/contact-signature', 'SubmissionFormController@saveContactSignature')->name('save-contact-signature');
     
     // Quick Store Routes for Modal Forms (must be before /{submissionForm} route)
     Route::post('/quick-store/client', 'SubmissionFormController@quickStoreClient')->name('quick-store.client');
@@ -838,7 +844,10 @@ Route::get('/complaint-type/home', 'CRM\Complaint\ComplaintTypeController@index'
 Route::post('/edit/complaint-type/{id}', 'CRM\Complaint\ComplaintTypeController@edit')->name('edit-complaint-type')->middleware('haspermission:CRM.components.Complaint Type.Edit');
 Route::post('/add/complaint-type', 'CRM\Complaint\ComplaintTypeController@add')->name('add-complaint-type')->middleware('haspermission:CRM.components.Complaint Type.Add');
 
-Route::get('/complaint/{stage}', 'CRM\Complaint\ComplaintController@index')->name('complaint-workflow')->middleware('haspermission:CRM.components.stage.View');
+// Old complaint workflow route - redirect to new Livewire route
+Route::get('/complaint/{stage}', function($stage) {
+    return redirect()->route('crm.complaints-manager', ['stage' => $stage]);
+})->name('complaint-workflow')->middleware('haspermission:CRM.components.stage.View');
 Route::post('/add/open-complaint', 'CRM\Complaint\ComplaintController@add')->name('add-complaint')->middleware('haspermission:CRM.components.Open Complaints.Add');
 Route::post('/add-open-complaint/customer', 'CRM\Complaint\ComplaintController@customer_add')->name('customer-add-complaint');
 Route::post('/edit-complaint/{id}', 'CRM\Complaint\ComplaintController@edit')->name('edit-complaint')->middleware('haspermission:CRM.components.Complaints.Edit');
