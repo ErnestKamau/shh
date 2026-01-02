@@ -12,6 +12,8 @@ use Modules\TemplateEngine\Services\TemplateFieldService;
 use Modules\TemplateEngine\Models\FormField;
 use Modules\TemplateEngine\Services\VariableManager;
 use Modules\TemplateEngine\Models\FormTemplateVariable;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Schema;
 
 class Builder extends Component
 {
@@ -45,6 +47,14 @@ class Builder extends Component
     public $showVariablesPanel = false;
     public $showVariableModal = false;
     public $variables = [];
+    public $dbTables = [];
+    public $availableColumns = [];
+    public $selectedVariableColumns = [];
+    public $selectedVariableType = 'collection'; // 'collection' or 'single'
+    public $injectionColumns = []; // [ index => [columns] ]
+    public $queryPreview = null;
+    public $queryError = null;
+    
     public $variableData = [
         'id' => null,
         'name' => '',
@@ -54,18 +64,41 @@ class Builder extends Component
             'value' => '', // for static
             'table' => '', // for database
             'select' => [],
-            'filters' => [],
+            'filters' => [], // Now array of objects
+            'joins' => [], // New: Array of join objects
             'sort' => ['field' => '', 'direction' => 'asc'],
             'limit' => 50,
             'source' => '', // for system
         ]
     ];
 
+
+
     public function mount(FormTemplate $template)
     {
         $this->template = $template;
         $this->loadSections();
         $this->loadVariables();
+        $this->loadTables();
+    }
+
+    public function loadTables()
+    {
+        try {
+            // Fallback for MySQL/MariaDB
+            $tables = DB::select('SHOW TABLES');
+            $this->dbTables = array_map(function($table) {
+                return array_values((array)$table)[0];
+            }, $tables);
+        } catch (\Throwable $e) {
+            // If show tables fails, try schema (if dbal present)
+             try {
+                $this->dbTables = DB::connection()->getDoctrineSchemaManager()->listTableNames();
+             } catch (\Throwable $e2) {
+                 $this->dbTables = [];
+             }
+        }
+        sort($this->dbTables);
     }
 
     public function loadVariables()
@@ -275,7 +308,11 @@ class Builder extends Component
     // Quick List Items
     public function addQuickListItem()
     {
-        $this->fieldData['quick_list_items'][] = '';
+        if ($this->selectedVariableType === 'single') {
+             $this->fieldData['quick_list_items'][] = ['label' => '', 'column' => ''];
+        } else {
+             $this->fieldData['quick_list_items'][] = '';
+        }
     }
 
     public function removeQuickListItem($index)
@@ -388,15 +425,34 @@ class Builder extends Component
             
             // Handle Quick List Items (only for new UL/OL fields)
             if (isset($this->fieldData['quick_list_items']) && is_array($this->fieldData['quick_list_items'])) {
-                foreach ($this->fieldData['quick_list_items'] as $index => $itemLabel) {
-                    if (!empty($itemLabel)) {
+                foreach ($this->fieldData['quick_list_items'] as $index => $item) {
+                    $childLabel = '';
+                    $childMeta = [];
+
+                    if (is_array($item)) {
+                        // Handle Structured Item (Label + Column)
+                        $prefix = $item['label'] ?? '';
+                        $column = $item['column'] ?? '';
+                        
+                        if (!empty($column)) {
+                             $childLabel = trim($prefix . ' {{ ' . $column . ' }}');
+                             $childMeta['variable_column'] = $column;
+                        } else {
+                             $childLabel = $prefix;
+                        }
+                    } else {
+                        // Handle Simple String Item
+                        $childLabel = $item;
+                    }
+
+                    if (!empty($childLabel)) {
                         $childData = [
-                            'label' => $itemLabel,
+                            'label' => $childLabel,
                             'type' => 'paragraph', // Default type for list items
                             'required' => false,
                             'parent_field_id' => $field->id, // Parent is the newly created UL/OL
                             'order_index' => $index,
-                            'meta' => [],
+                            'meta' => $childMeta,
                         ];
                         $service->addField($section, $childData);
                     }
@@ -472,10 +528,322 @@ class Builder extends Component
                     'data_type' => $variable->data_type,
                     'config' => $variable->config ?? [],
                 ];
+
+                // Ensure injections array exists
+                if (!isset($this->variableData['config']['injections'])) {
+                    $this->variableData['config']['injections'] = [];
+                }
+
+                // Load columns for existing injections
+                if (!empty($this->variableData['config']['injections'])) {
+                    foreach($this->variableData['config']['injections'] as $index => $injection) {
+                        if (!empty($injection['table'])) {
+                            try {
+                                $this->injectionColumns[$index] = Schema::getColumnListing($injection['table']);
+                            } catch (\Exception $e) {
+                                $this->injectionColumns[$index] = [];
+                            }
+                        }
+                    }
+                }
+
+                // Legacy Filter conversion (if previously missed or new logic)
+                if (isset($this->variableData['config']['filters']) && is_string($this->variableData['config']['filters'])) {   }
             }
         }
         
+        $this->loadAvailableColumns();
         $this->showVariableModal = true;
+    }
+
+    public function updatedVariableDataConfigTable($value)
+    {
+        $this->loadAvailableColumns();
+    }
+
+    public function updated($propertyName)
+    {
+        // Check if a join table was selected
+        if (str_starts_with($propertyName, 'variableData.config.joins') && str_ends_with($propertyName, 'table')) {
+            $this->loadAvailableColumns();
+        }
+
+        // Check if an injection table was selected
+        if (str_starts_with($propertyName, 'variableData.config.injections') && str_ends_with($propertyName, 'table')) {
+            $this->loadInjectionColumns();
+        }
+
+        // Check if Variable ID changed in Field Modal
+        if ($propertyName === 'fieldData.meta.variable_id') {
+            $this->handleFieldVariableChange();
+        }
+    }
+
+    public function handleFieldVariableChange()
+    {
+        $variableId = $this->fieldData['meta']['variable_id'] ?? null;
+        $this->selectedVariableColumns = [];
+        $this->selectedVariableType = 'collection';
+
+        if (!$variableId) return;
+
+        $variable = collect($this->variables)->firstWhere('id', $variableId);
+        if (!$variable) return;
+
+        // Determine Type (Single vs Collection)
+        if ($variable->type === 'database') {
+             $limit = $variable->config['limit'] ?? 50;
+             if ($limit == 1) {
+                 $this->selectedVariableType = 'single';
+             }
+        }
+
+        // Load Columns
+        if ($variable->type === 'database') {
+            $mainTable = $variable->config['table'] ?? null;
+            if ($mainTable) {
+                try {
+                    // Get Main Table Columns
+                    $columns = Schema::getColumnListing($mainTable);
+                    foreach($columns as $col) {
+                        $this->selectedVariableColumns[] = $mainTable . '.' . $col;
+                    }
+                    
+                    // Get Join Columns
+                    if (!empty($variable->config['joins'])) {
+                        foreach($variable->config['joins'] as $join) {
+                            if (!empty($join['table'])) {
+                                $joinCols = Schema::getColumnListing($join['table']);
+                                foreach($joinCols as $col) {
+                                    $this->selectedVariableColumns[] = $join['table'] . '.' . $col;
+                                }
+                            }
+                        }
+                    }
+
+                    // Get Injection Columns
+                    if (!empty($variable->config['injections'])) {
+                        foreach($variable->config['injections'] as $injection) {
+                            if (!empty($injection['table'])) {
+                                $injectionCols = Schema::getColumnListing($injection['table']);
+                                foreach($injectionCols as $col) {
+                                    $this->selectedVariableColumns[] = $injection['table'] . '.' . $col;
+                                }
+                            }
+                        }
+                    }
+                } catch (\Throwable $e) {
+                    // Silent fail
+                }
+            }
+        }
+    }
+
+    public function loadAvailableColumns()
+    {
+        $this->availableColumns = [];
+        $config = $this->variableData['config'];
+        $tables = [];
+
+        // Main Table
+        if (!empty($config['table'])) {
+            $tables[] = $config['table'];
+        }
+
+        // Joined Tables
+        if (isset($config['joins']) && is_array($config['joins'])) {
+            foreach ($config['joins'] as $join) {
+                if (!empty($join['table'])) {
+                    $tables[] = $join['table'];
+                }
+            }
+        }
+
+        // Injected Tables
+        if (isset($config['injections']) && is_array($config['injections'])) {
+            foreach ($config['injections'] as $injection) {
+                if (!empty($injection['table'])) {
+                    $tables[] = $injection['table'];
+                }
+            }
+        }
+
+        // Fetch columns for each table
+        foreach (array_unique($tables) as $table) {
+            try {
+               $columns = Schema::getColumnListing($table);
+               foreach ($columns as $column) {
+                   $this->availableColumns[] = "{$table}.{$column}";
+               }
+            } catch (\Exception $e) {
+                // Ignore if table doesn't exist or error
+            }
+        }
+    }
+
+    public function loadInjectionColumns()
+    {
+        $this->injectionColumns = [];
+        if (isset($this->variableData['config']['injections']) && is_array($this->variableData['config']['injections'])) {
+            foreach ($this->variableData['config']['injections'] as $index => $injection) {
+                if (!empty($injection['table'])) {
+                    try {
+                        $this->injectionColumns[$index] = Schema::getColumnListing($injection['table']);
+                    } catch (\Exception $e) {
+                        $this->injectionColumns[$index] = [];
+                    }
+                } else {
+                    $this->injectionColumns[$index] = [];
+                }
+            }
+        }
+    }
+
+    public function addJoin()
+    {
+        if (!isset($this->variableData['config']['joins'])) {
+            $this->variableData['config']['joins'] = [];
+        }
+        $this->variableData['config']['joins'][] = [
+            'table' => '',
+            'type' => 'inner',
+            'on_first' => '',
+            'operator' => '=',
+            'on_second' => ''
+        ];
+    }
+    
+    // Trigger load available columns when join table changes requires a bit more complex binding or just a button refresh.
+    // For simplicity, we'll try to hook into the array update if possible or rely on the user refreshing/saving.
+    // But better: Let's make a method updatedVariableDataConfigJoins to reload.
+    public function updatedVariableDataConfigJoins()
+    {
+        $this->loadAvailableColumns();
+    }
+
+    public function removeJoin($index)
+    {
+        unset($this->variableData['config']['joins'][$index]);
+        $this->variableData['config']['joins'] = array_values($this->variableData['config']['joins']);
+        $this->loadAvailableColumns();
+    }
+
+    public function addInjection()
+    {
+        if (!isset($this->variableData['config']['injections'])) {
+            $this->variableData['config']['injections'] = [];
+        }
+        $this->variableData['config']['injections'][] = [
+            'label' => '',
+            'table' => '',
+            'column' => '',
+        ];
+        $this->loadInjectionColumns();
+    }
+
+    public function removeInjection($index)
+    {
+        unset($this->variableData['config']['injections'][$index]);
+        $this->variableData['config']['injections'] = array_values($this->variableData['config']['injections']);
+        $this->loadInjectionColumns();
+        $this->loadAvailableColumns(); // Also reload main available columns as an injection might have been removed
+    }
+
+    public function addFilter()
+    {
+        // If filters is still a string (legacy JSON), clear it or convert
+        if (is_string($this->variableData['config']['filters'])) {
+            $this->variableData['config']['filters'] = [];
+        }
+        
+        $this->variableData['config']['filters'][] = [
+            'field' => '',
+            'operator' => '=',
+            'value' => ''
+        ];
+    }
+
+    public function removeFilter($index)
+    {
+        unset($this->variableData['config']['filters'][$index]);
+        $this->variableData['config']['filters'] = array_values($this->variableData['config']['filters']);
+    }
+
+    public function testQuery()
+    {
+        $this->queryPreview = null;
+        $this->queryError = null;
+        
+        $config = $this->variableData['config'];
+        $table = $config['table'] ?? null;
+        
+        if (!$table) {
+            $this->queryError = "Please select a database table.";
+            return;
+        }
+        
+        try {
+            $query = DB::table($table);
+            
+            // Apply Joins
+            if (isset($config['joins']) && is_array($config['joins'])) {
+                foreach ($config['joins'] as $join) {
+                    if (!empty($join['table']) && !empty($join['on_first']) && !empty($join['on_second'])) {
+                        $type = $join['type'] ?? 'inner';
+                        $method = $type === 'left' ? 'leftJoin' : ($type === 'right' ? 'rightJoin' : 'join');
+                        $query->$method($join['table'], $join['on_first'], $join['operator'] ?? '=', $join['on_second']);
+                    }
+                }
+            }
+
+            // Apply Injections (left joins for optional data)
+            if (isset($config['injections']) && is_array($config['injections'])) {
+                foreach ($config['injections'] as $injection) {
+                    if (!empty($injection['table']) && !empty($injection['foreign_key']) && !empty($injection['local_key'])) {
+                        $query->leftJoin(
+                            $injection['table'] . (isset($injection['alias']) && !empty($injection['alias']) ? ' as ' . $injection['alias'] : ''),
+                            $table . '.' . $injection['local_key'],
+                            '=',
+                            (isset($injection['alias']) && !empty($injection['alias']) ? $injection['alias'] : $injection['table']) . '.' . $injection['foreign_key']
+                        );
+                    }
+                }
+            }
+            
+            // Apply Filters
+            if (isset($config['filters'])) {
+                $filters = $config['filters'];
+                if (is_string($filters)) {
+                    $jsonFilters = json_decode($filters, true);
+                    if (is_array($jsonFilters)) {
+                        $filters = $jsonFilters;
+                    }
+                }
+                
+                if (is_array($filters)) {
+                    foreach ($filters as $filter) {
+                        if (!empty($filter['field'])) {
+                            $query->where($filter['field'], $filter['operator'] ?? '=', $filter['value']);
+                        }
+                    }
+                }
+            }
+            
+            // Limit and Select
+            // For preview, we force limit 5
+            $results = $query->take(5)->get();
+            
+            if ($results->isEmpty()) {
+                $this->queryPreview = [];
+                $this->queryError = "No results found.";
+            } else {
+                // Convert to array for easy display
+                $this->queryPreview = $results->map(fn($item) => (array)$item)->toArray();
+            }
+            
+        } catch (\Exception $e) {
+            $this->queryError = "Query Failed: " . $e->getMessage();
+        }
     }
 
     public function resetVariableData()
@@ -490,11 +858,16 @@ class Builder extends Component
                 'table' => '', 
                 'select' => [],
                 'filters' => [],
+                'joins' => [],
+                'injections' => [],
                 'sort' => ['field' => 'id', 'direction' => 'asc'],
                 'limit' => 50, 
                 'source' => '',
             ]
         ];
+        $this->injectionColumns = [];
+        $this->queryPreview = null;
+        $this->queryError = null;
     }
 
     public function saveVariable()

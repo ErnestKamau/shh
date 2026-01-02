@@ -459,6 +459,34 @@
                                 </div>
                             </div>
                         </div>
+
+                        {{-- Default Value Configuration for Input Fields --}}
+                        @if(in_array($fieldData['type'], ['text', 'textarea', 'number', 'date']))
+                            <div class="row bg-light p-2 rounded mb-2 mx-0 border">
+                                <div class="col-12">
+                                    <div class="form-group mb-0">
+                                        <label class="font-weight-bold small text-muted mb-1">Default Value Source</label>
+                                        <div class="d-flex align-items-center">
+                                            <select wire:model.live="fieldData.meta.default_source" class="form-control form-control-sm w-auto mr-2">
+                                                <option value="manual">Manual / None</option>
+                                                <option value="variable">From Variable</option>
+                                            </select>
+                                            
+                                            @if(isset($fieldData['meta']['default_source']) && $fieldData['meta']['default_source'] === 'variable')
+                                                <select wire:model.live="fieldData.meta.default_variable_id" class="form-control form-control-sm">
+                                                    <option value="">-- Select Variable --</option>
+                                                    @foreach($variables as $var)
+                                                        <option value="{{ $var->id }}">{{ $var->name }}</option>
+                                                    @endforeach
+                                                </select>
+                                            @elseif(!isset($fieldData['meta']['default_source']) || $fieldData['meta']['default_source'] === 'manual')
+                                                 <input type="text" wire:model="fieldData.default_value" class="form-control form-control-sm" placeholder="Default value (optional)">
+                                            @endif
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        @endif
                         
                         <div class="row mt-3">
                              <div class="col-12">
@@ -491,34 +519,90 @@
                         @if($fieldData['type'] === 'select' || $fieldData['type'] === 'radio')
                             <div class="bg-light p-3 rounded mb-3 border">
                                 <div class="d-flex justify-content-between align-items-center mb-2">
-                                    <h6 class="font-weight-bold mb-0">Options</h6>
-                                    <button class="btn btn-xs btn-outline-primary" wire:click="addOption">
-                                        <i class="fas fa-plus"></i> Add Option
-                                    </button>
+                                    <h6 class="font-weight-bold mb-0">Options Configuration</h6>
                                 </div>
-                                <p class="small text-muted mb-3">Define the choices available for this field.</p>
-                                
-                                <div class="options-list">
-                                    @foreach($fieldData['options'] as $index => $option)
-                                        <div class="row mb-2">
-                                            <div class="col-5">
-                                                <input type="text" wire:model="fieldData.options.{{ $index }}.label" class="form-control form-control-sm" placeholder="Label">
-                                            </div>
-                                            <div class="col-5">
-                                                <input type="text" wire:model="fieldData.options.{{ $index }}.value" class="form-control form-control-sm" placeholder="Value">
-                                            </div>
-                                            <div class="col-2">
-                                                <button class="btn btn-sm btn-outline-danger" wire:click="removeOption({{ $index }})">
-                                                    <i class="fas fa-times"></i>
-                                                </button>
-                                            </div>
+
+                                <div class="form-group">
+                                    <label class="font-weight-bold small">Data Source</label>
+                                    <select wire:model.live="fieldData.meta.data_source" class="form-control">
+                                        <option value="manual">Manual Options</option>
+                                        <option value="variable">From Variable</option>
+                                    </select>
+                                </div>
+
+                                @if(isset($fieldData['meta']['data_source']) && $fieldData['meta']['data_source'] === 'variable')
+                                    <div class="variable-config p-2 border rounded bg-white">
+                                        <div class="form-group">
+                                            <label class="font-weight-bold small">Select Variable</label>
+                                            <select wire:model.live="fieldData.meta.variable_id" class="form-control">
+                                                <option value="">-- Choose Variable --</option>
+                                                @foreach($variables as $var)
+                                                    <option value="{{ $var->id }}">{{ $var->name }} ({{ $var->type }})</option>
+                                                @endforeach
+                                            </select>
                                         </div>
-                                    @endforeach
-                                    
-                                    @if(empty($fieldData['options']))
-                                        <div class="alert alert-warning small py-2">No options defined.</div>
-                                    @endif
-                                </div>
+
+                                        @php
+                                            $selectedVar = $variables->find($fieldData['meta']['variable_id'] ?? null);
+                                        @endphp
+
+                                        @if($selectedVar && $selectedVar->type === 'database')
+                                            <div class="row">
+                                                <div class="col-6">
+                                                    <div class="form-group">
+                                                        <label class="font-weight-bold small">Label Column</label>
+                                                        <input type="text" wire:model="fieldData.meta.label_column" class="form-control" placeholder="e.g. name">
+                                                        <small class="text-muted">Column to show in the dropdown</small>
+                                                    </div>
+                                                </div>
+                                                <div class="col-6">
+                                                    <div class="form-group">
+                                                        <label class="font-weight-bold small">Value Column</label>
+                                                        <input type="text" wire:model="fieldData.meta.value_column" class="form-control" placeholder="e.g. id">
+                                                        <small class="text-muted">Column to save as value</small>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        @elseif($selectedVar)
+                                            <div class="alert alert-info small p-2 mb-0">
+                                                <i class="fas fa-info-circle mr-1"></i>
+                                                Using variable <strong>{{ $selectedVar->name }}</strong> as source.
+                                                Ensure it contains a list or array of values.
+                                            </div>
+                                        @endif
+                                    </div>
+                                @else
+                                    <div class="manual-options">
+                                        <div class="d-flex justify-content-between align-items-center mb-2">
+                                            <label class="font-weight-bold small mb-0 text-muted">Manual Options List</label>
+                                            <button class="btn btn-xs btn-outline-primary" wire:click="addOption">
+                                                <i class="fas fa-plus"></i> Add Option
+                                            </button>
+                                        </div>
+                                        
+                                        <div class="options-list">
+                                            @foreach($fieldData['options'] as $index => $option)
+                                                <div class="row mb-2">
+                                                    <div class="col-5">
+                                                        <input type="text" wire:model="fieldData.options.{{ $index }}.label" class="form-control form-control-sm" placeholder="Label">
+                                                    </div>
+                                                    <div class="col-5">
+                                                        <input type="text" wire:model="fieldData.options.{{ $index }}.value" class="form-control form-control-sm" placeholder="Value">
+                                                    </div>
+                                                    <div class="col-2">
+                                                        <button class="btn btn-sm btn-outline-danger" wire:click="removeOption({{ $index }})">
+                                                            <i class="fas fa-times"></i>
+                                                        </button>
+                                                    </div>
+                                                </div>
+                                            @endforeach
+                                            
+                                            @if(empty($fieldData['options']))
+                                                <div class="alert alert-warning small py-2">No options defined.</div>
+                                            @endif
+                                        </div>
+                                    </div>
+                                @endif
                             </div>
                         @endif
 
@@ -799,11 +883,93 @@
                                     <select wire:model.live="fieldData.meta.data_source" class="form-control">
                                         <option value="static">Static (Manual Items)</option>
                                         <option value="dynamic">Dynamic (Database Table)</option>
+                                        <option value="variable">From Variable</option>
                                     </select>
                                 </div>
+
+                                @if(isset($fieldData['meta']['data_source']) && $fieldData['meta']['data_source'] === 'variable')
+                                    <div class="variable-config mt-3 p-2 border rounded bg-white">
+                                        <div class="form-group">
+                                            <label class="font-weight-bold small">Select Variable</label>
+                                            <select wire:model.live="fieldData.meta.variable_id" class="form-control">
+                                                <option value="">-- Choose Variable --</option>
+                                                @foreach($variables as $var)
+                                                    <option value="{{ $var->id }}">{{ $var->name }} ({{ $var->type }})</option>
+                                                @endforeach
+                                            </select>
+                                        </div>
+
+                                        @if(isset($fieldData['meta']['variable_id']) && $fieldData['meta']['variable_id'])
+                                            <div class="d-flex align-items-center mb-2">
+                                                <span class="badge badge-{{ $selectedVariableType === 'single' ? 'info' : 'primary' }} mr-2">
+                                                    {{ $selectedVariableType === 'single' ? 'Single Record' : 'Collection Loop' }}
+                                                </span>
+                                                <small class="text-muted">
+                                                    @if($selectedVariableType === 'single')
+                                                        Build list items manually from record fields.
+                                                    @else
+                                                        This will loop through all results.
+                                                    @endif
+                                                </small>
+                                            </div>
+
+                                            @if($selectedVariableType === 'collection')
+                                                <div class="form-group">
+                                                    <label class="font-weight-bold small">Item Content Template</label>
+                                                    <input type="text" wire:model="fieldData.meta.item_template" class="form-control" placeholder="e.g. {{ '{' . '{ name }' . '}' }} - {{ '{' . '{ email }' . '}' }}">
+                                                    <small class="text-muted">Available columns: 
+                                                        @foreach(array_slice($selectedVariableColumns, 0, 5) as $col)
+                                                            <code>{{ $col }}</code>
+                                                        @endforeach
+                                                        @if(count($selectedVariableColumns) > 5)...@endif
+                                                    </small>
+                                                </div>
+                                            @else
+                                                {{-- Single Record Mode: Manual List Builder --}}
+                                                <div class="list-builder">
+                                                    <div class="d-flex justify-content-between align-items-center mb-2">
+                                                        <label class="font-weight-bold small mb-0">List Items</label>
+                                                        <button class="btn btn-xs btn-outline-primary" wire:click="addQuickListItem">
+                                                            <i class="fas fa-plus"></i> Add Item
+                                                        </button>
+                                                    </div>
+                                                    
+                                                    @if(isset($fieldData['quick_list_items']) && count($fieldData['quick_list_items']) > 0)
+                                                        @foreach($fieldData['quick_list_items'] as $index => $item)
+                                                            <div class="p-2 border rounded mb-2 bg-light">
+                                                                <div class="row align-items-center">
+                                                                    <div class="col-5">
+                                                                        <input type="text" wire:model="fieldData.quick_list_items.{{ $index }}.label" class="form-control form-control-sm" placeholder="Label / Prefix">
+                                                                    </div>
+                                                                    <div class="col-6">
+                                                                        <select wire:model="fieldData.quick_list_items.{{ $index }}.column" class="form-control form-control-sm">
+                                                                            <option value="">-- Select Field --</option>
+                                                                            @foreach($selectedVariableColumns as $col)
+                                                                                <option value="{{ $col }}">{{ $col }}</option>
+                                                                            @endforeach
+                                                                        </select>
+                                                                    </div>
+                                                                    <div class="col-1">
+                                                                        <button class="btn btn-sm btn-link text-danger p-0" wire:click="removeQuickListItem({{ $index }})">
+                                                                            <i class="fas fa-times"></i>
+                                                                        </button>
+                                                                    </div>
+                                                                </div>
+                                                            </div>
+                                                        @endforeach
+                                                    @else
+                                                        <div class="text-center py-2 text-muted small border border-dashed rounded">
+                                                            No items added. Click "Add Item" to build your list.
+                                                        </div>
+                                                    @endif
+                                                </div>
+                                            @endif
+                                        @endif
+                                    </div>
+                                @endif
                                 
-                                {{-- Quick Add Items (Only when creating new list) --}}
-                                @if(!$editingFieldId)
+                                {{-- Quick Add Items (Only when creating new list AND static mode) --}}
+                                @if(!$editingFieldId && (!isset($fieldData['meta']['data_source']) || $fieldData['meta']['data_source'] === 'static'))
                                     <div class="mt-3 p-2 border rounded bg-white">
                                         <div class="d-flex justify-content-between align-items-center mb-2">
                                             <label class="font-weight-bold small mb-0">Quick Add Items (Columns)</label>
@@ -1121,18 +1287,47 @@
 
     <!-- Variable Modal -->
     @if($showVariableModal)
-        <div class="modal fade show" style="display: block; background: rgba(0,0,0,0.5); z-index: 1060;" tabindex="-1">
-            <div class="modal-dialog modal-dialog-centered" style="margin: 1.75rem auto;">
+        <div class="modal fade show" style="display: block; background: rgba(0,0,0,0.5); z-index: 1060; overflow-y: auto;" tabindex="-1">
+            <div class="modal-dialog modal-xl modal-dialog-centered" style="margin: 1.75rem auto;">
                 <div class="modal-content border-0 shadow-lg" style="border-radius: 12px;">
                     <div class="modal-header bg-light">
                         <h5 class="modal-title font-weight-bold">
                             @if($variableData['id']) <i class="fas fa-edit text-primary mr-2"></i> Edit Variable @else <i class="fas fa-plus text-success mr-2"></i> New Variable @endif
                         </h5>
-                        <button type="button" class="close" wire:click="$set('showVariableModal', false)">
-                            <span>&times;</span>
-                        </button>
+                        <div class="d-flex align-items-center">
+                            <button class="btn btn-xs btn-info mr-3 rounded-pill px-3" type="button" data-toggle="collapse" data-target="#varHelpCollapse">
+                                <i class="fas fa-question-circle mr-1"></i> Help
+                            </button>
+                            <button type="button" class="close" wire:click="$set('showVariableModal', false)">
+                                <span>&times;</span>
+                            </button>
+                        </div>
                     </div>
                     <div class="modal-body p-4">
+                        <div class="collapse mb-4" id="varHelpCollapse">
+                            <div class="alert alert-info border-info bg-white shadow-sm">
+                                <h6 class="font-weight-bold text-info"><i class="fas fa-info-circle mr-2"></i>How to use Database Variables</h6>
+                                <hr class="my-2">
+                                <div class="row">
+                                    <div class="col-md-3 border-right">
+                                        <div class="font-weight-bold small text-uppercase mb-1">1. Select Table</div>
+                                        <p class="small text-muted mb-0">Choose the main database table to fetch data from.</p>
+                                    </div>
+                                    <div class="col-md-3 border-right">
+                                        <div class="font-weight-bold small text-uppercase mb-1">2. Join Tables (Optional)</div>
+                                        <p class="small text-muted mb-0">Connect other tables to access their data. Use <code>table.column</code> syntax.</p>
+                                    </div>
+                                    <div class="col-md-3 border-right">
+                                        <div class="font-weight-bold small text-uppercase mb-1">3. Add Filters</div>
+                                        <p class="small text-muted mb-0">Restrict the data returned. Pick columns from the dropdown.</p>
+                                    </div>
+                                    <div class="col-md-3">
+                                        <div class="font-weight-bold small text-uppercase mb-1">4. Test Query</div>
+                                        <p class="small text-muted mb-0">Click "Test Query" to preview results and ensure accuracy.</p>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
                         <div class="form-group">
                             <label class="font-weight-bold small">Variable Name</label>
                             <input type="text" wire:model="variableData.name" class="form-control" placeholder="e.g. client_name">
@@ -1195,15 +1390,214 @@
                             <div class="bg-light p-3 rounded border">
                                 <div class="form-group">
                                     <label class="font-weight-bold small">Database Table</label>
-                                    <input type="text" wire:model="variableData.config.table" class="form-control" placeholder="e.g. users, products">
+                                    <select wire:model.live="variableData.config.table" class="form-control">
+                                        <option value="">Select Table...</option>
+                                        @foreach($dbTables as $table)
+                                            <option value="{{ $table }}">{{ $table }}</option>
+                                        @endforeach
+                                    </select>
+                                </div>
+
+                                <!-- Joins Section -->
+                                <div class="card mb-4 border shadow-sm">
+                                    <div class="card-header bg-white py-2 d-flex justify-content-between align-items-center">
+                                        <h6 class="font-weight-bold text-primary mb-0"><i class="fas fa-project-diagram mr-2"></i>Joins</h6>
+                                        <button class="btn btn-xs btn-outline-primary" wire:click="addJoin">
+                                            <i class="fas fa-plus"></i> Add Join
+                                        </button>
+                                    </div>
+                                    <div class="card-body bg-light p-3">
+                                        @if(empty($variableData['config']['joins']))
+                                            <div class="text-center text-muted small py-2">No joins defined.</div>
+                                        @else
+                                            @foreach($variableData['config']['joins'] as $index => $join)
+                                                <div class="card mb-2 p-2 border-white shadow-sm">
+                                                    <div class="form-row align-items-end">
+                                                        <div class="col-md-2">
+                                                            <label class="small text-muted mb-1 font-weight-bold">Type</label>
+                                                            <select wire:model="variableData.config.joins.{{ $index }}.type" class="form-control form-control-sm bg-light">
+                                                                <option value="inner">Inner</option>
+                                                                <option value="left">Left</option>
+                                                                <option value="right">Right</option>
+                                                            </select>
+                                                        </div>
+                                                        <div class="col-md-3">
+                                                            <label class="small text-muted mb-1 font-weight-bold">Table</label>
+                                                            <select wire:model.live="variableData.config.joins.{{ $index }}.table" class="form-control form-control-sm bg-light">
+                                                                <option value="">Select...</option>
+                                                                @foreach($dbTables as $table)
+                                                                    <option value="{{ $table }}">{{ $table }}</option>
+                                                                @endforeach
+                                                            </select>
+                                                        </div>
+                                                        <div class="col-md-3">
+                                                            <label class="small text-muted mb-1 font-weight-bold">On (First)</label>
+                                                            <!-- Suggest columns from available if possible, or text -->
+                                                            <input type="text" wire:model="variableData.config.joins.{{ $index }}.on_first" class="form-control form-control-sm" placeholder="e.g. users.id" list="cols-{{ $index }}">
+                                                            <datalist id="cols-{{ $index }}">
+                                                                @foreach($availableColumns as $col)
+                                                                    <option value="{{ $col }}">
+                                                                @endforeach
+                                                            </datalist>
+                                                        </div>
+                                                        <div class="col-md-1">
+                                                            <label class="small text-muted mb-1 font-weight-bold">Op</label>
+                                                            <select wire:model="variableData.config.joins.{{ $index }}.operator" class="form-control form-control-sm bg-light">
+                                                                <option value="=">=</option>
+                                                                <option value=">">></option>
+                                                                <option value="<"><</option>
+                                                            </select>
+                                                        </div>
+                                                        <div class="col-md-3">
+                                                            <label class="small text-muted mb-1 font-weight-bold">On (Second)</label>
+                                                             <div class="input-group input-group-sm">
+                                                                <input type="text" wire:model="variableData.config.joins.{{ $index }}.on_second" class="form-control" placeholder="e.g. meta.user_id">
+                                                                <div class="input-group-append">
+                                                                    <button class="btn btn-outline-danger" wire:click="removeJoin({{ $index }})">&times;</button>
+                                                                </div>
+                                                            </div>
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            @endforeach
+                                        @endif
+                                    </div>
                                 </div>
                                 
-                                <div class="form-group">
-                                    <label class="font-weight-bold small">Filters (JSON)</label>
-                                    <!-- Simplified Filter UI for prototype - can be enhanced later -->
-                                    <textarea wire:model="variableData.config.filters" class="form-control" rows="3" placeholder='[{"field":"status","operator":"=","value":"active"}]'></textarea>
-                                    <small class="text-muted">Enter explicit JSON filter array for now.</small>
+                                <div class="card mb-3 outline-dashed">
+                            <div class="card-header bg-warning-subtle py-2 d-flex justify-content-between align-items-center">
+                                <h6 class="mb-0 text-dark small font-weight-bold"><i class="fas fa-syringe mr-1"></i> Injections (Query Parameters)</h6>
+                                <button class="btn btn-xs btn-outline-dark" wire:click="addInjection">
+                                    <i class="fas fa-plus"></i> Add Injection
+                                </button>
+                            </div>
+                            <div class="card-body p-2">
+                                <p class="text-muted small mb-2">Define parameters that must be provided when using this variable (e.g. <code>sample_id</code> from a Sample Header).</p>
+                                
+                                @if(isset($variableData['config']['injections']) && count($variableData['config']['injections']) > 0)
+                                    @foreach($variableData['config']['injections'] as $index => $injection)
+                                        <div class="row align-items-center mb-2 bg-white p-2 border rounded mx-0">
+                                            <div class="col-3 pl-1 pr-1">
+                                                <small class="text-muted d-block">Label (Param Name)</small>
+                                                <input type="text" wire:model.live="variableData.config.injections.{{ $index }}.label" class="form-control form-control-sm" placeholder="e.g. sample_header_id">
+                                            </div>
+                                            <div class="col-3 pl-1 pr-1">
+                                                <small class="text-muted d-block">Source Table</small>
+                                                <select wire:model.live="variableData.config.injections.{{ $index }}.table" class="form-control form-control-sm">
+                                                    <option value="">Select Table...</option>
+                                                    @foreach($dbTables as $t)
+                                                        <option value="{{ $t }}">{{ $t }}</option>
+                                                    @endforeach
+                                                </select>
+                                            </div>
+                                            <div class="col-3 pl-1 pr-1">
+                                                <small class="text-muted d-block">Source Column</small>
+                                                <select wire:model="variableData.config.injections.{{ $index }}.column" class="form-control form-control-sm">
+                                                    <option value="">Select Column...</option>
+                                                    @if(isset($injectionColumns[$index]))
+                                                        @foreach($injectionColumns[$index] as $col)
+                                                            <option value="{{ $col }}">{{ $col }}</option>
+                                                        @endforeach
+                                                    @endif
+                                                </select>
+                                            </div>
+                                            <div class="col-1 text-right">
+                                                 <button class="btn btn-sm btn-link text-danger" wire:click="removeInjection({{ $index }})">
+                                                    <i class="fas fa-trash"></i>
+                                                </button>
+                                            </div>
+                                        </div>
+                                    @endforeach
+                                @else
+                                    <div class="text-center py-3 text-muted small">
+                                        No injections defined.
+                                    </div>
+                                @endif
+                            </div>
+                        </div>
+
+                        {{-- Filters --}}
+                        <div class="card mb-3 outline-dashed">
+                            <div class="card-header bg-light py-2 d-flex justify-content-between align-items-center">
+                                <h6 class="mb-0 text-primary small font-weight-bold"><i class="fas fa-filter mr-1"></i> Check Filters (Where)</h6>
+                                <button class="btn btn-xs btn-outline-primary" wire:click="addFilter">
+                                    <i class="fas fa-plus"></i> Add Filter
+                                </button>
+                            </div>
+                            <div class="card-body p-2">
+                                @if(isset($variableData['config']['filters']) && is_array($variableData['config']['filters']) && count($variableData['config']['filters']) > 0)
+                                    @foreach($variableData['config']['filters'] as $index => $filter)
+                                        <div class="row align-items-center mb-2 bg-white p-2 border rounded mx-0">
+                                            <div class="col-4 pl-1 pr-1">
+                                                <input type="hidden" wire:model="variableData.config.filters.{{ $index }}.field" />
+                                                <div class="input-group input-group-sm">
+                                                    <div class="input-group-prepend">
+                                                        <span class="input-group-text bg-light border-0"><i class="fas fa-columns text-muted"></i></span>
+                                                    </div>
+                                                     <select wire:model="variableData.config.filters.{{ $index }}.field" class="form-control form-control-sm">
+                                                        <option value="">Field...</option>
+                                                        @foreach($availableColumns as $col)
+                                                            <option value="{{ $col }}">{{ $col }}</option>
+                                                        @endforeach
+                                                    </select>
+                                                </div>
+                                            </div>
+                                            <div class="col-2 pl-1 pr-1">
+                                                <select wire:model="variableData.config.filters.{{ $index }}.operator" class="form-control form-control-sm">
+                                                    <option value="=">=</option>
+                                                    <option value=">">></option>
+                                                    <option value="<"><</option>
+                                                    <option value=">=">>=</option>
+                                                    <option value="<="><=</option>
+                                                    <option value="<>"><></option>
+                                                    <option value="LIKE">LIKE</option>
+                                                    <option value="IN">IN</option>
+                                                </select>
+                                            </div>
+                                            <div class="col-2 pl-1 pr-1">
+                                                 <select wire:model.live="variableData.config.filters.{{ $index }}.value_source" class="form-control form-control-sm">
+                                                    <option value="static">Static Value</option>
+                                                    <option value="injection">Injection</option>
+                                                </select>
+                                            </div>
+                                            <div class="col-3 pl-1 pr-1">
+                                                @if(isset($filter['value_source']) && $filter['value_source'] === 'injection')
+                                                    <select wire:model="variableData.config.filters.{{ $index }}.value" class="form-control form-control-sm">
+                                                        <option value="">Select Injection...</option>
+                                                        @if(isset($variableData['config']['injections']))
+                                                            @foreach($variableData['config']['injections'] as $inj)
+                                                                <option value="{{ $inj['label'] ?? '' }}">{{ $inj['label'] ?? 'Unnamed' }}</option>
+                                                            @endforeach
+                                                        @endif
+                                                    </select>
+                                                @else
+                                                    <input type="text" wire:model="variableData.config.filters.{{ $index }}.value" class="form-control form-control-sm" placeholder="Value">
+                                                @endif
+                                            </div>
+                                            <div class="col-1 text-right">
+                                                <button class="btn btn-sm btn-link text-danger" wire:click="removeFilter({{ $index }})">
+                                                    <i class="fas fa-times"></i>
+                                                </button>
+                                            </div>
+                                        </div>
+                                    @endforeach
+                                @else
+                                    <div class="text-center py-3 text-muted small">
+                                        No filters defined.
+                                    </div>
+                                @endif
+                                <div class="mt-2">
+                                     <small class="text-info"><i class="fas fa-info-circle"></i> Use standard SQL wildcards (%) for LIKE operator.</small>
                                 </div>
+                            </div>
+                        </div>
+                                {{-- Backward compatibility warning for raw JSON filters --}}
+                                        @if(isset($variableData['config']['filters']) && is_string($variableData['config']['filters']) && !empty($variableData['config']['filters']))
+                                            <div class="alert alert-warning small p-2 mt-2 mb-0">
+                                                <i class="fas fa-exclamation-triangle mr-1"></i> Legacy JSON filters detected.
+                                                <div class="text-monospace bg-white p-1 border mt-1">{{ $variableData['config']['filters'] }}</div>
+                                            </div>
+                                        @endif
 
                                 <div class="row">
                                     <div class="col-6">
@@ -1221,6 +1615,64 @@
                                              </select>
                                         </div>
                                     </div>
+                                </div>
+                                
+                                <hr>
+                                
+                                <!-- Test Query Section -->
+                                <div class="mb-2">
+                                    <button class="btn btn-sm btn-info btn-block" wire:click="testQuery" wire:loading.attr="disabled">
+                                        <i class="fas fa-play mr-1"></i> Test Query
+                                    </button>
+                                    
+                                    <div wire:loading wire:target="testQuery" class="text-center mt-2 small text-muted">
+                                        <div class="spinner-border spinner-border-sm mr-1" role="status"></div> Running query...
+                                    </div>
+
+                                    @if($queryError)
+                                        <div class="alert alert-danger small mt-2 mb-0">
+                                            {{ $queryError }}
+                                        </div>
+                                    @endif
+                                    
+                                    @if($queryPreview !== null && is_array($queryPreview))
+                                        <div class="mt-3">
+                                            <label class="small font-weight-bold text-success">Query Results (Preview)</label>
+                                            <div class="table-responsive bg-white border rounded" style="max-height: 200px; overflow: auto;">
+                                                <table class="table table-sm table-striped table-bordered mb-0 small" style="font-size: 11px;">
+                                                    @if(count($queryPreview) > 0)
+                                                        <thead>
+                                                            <tr>
+                                                                @foreach(array_keys($queryPreview[0]) as $header)
+                                                                    <th>{{ $header }}</th>
+                                                                @endforeach
+                                                            </tr>
+                                                        </thead>
+                                                        <tbody>
+                                                            @foreach($queryPreview as $row)
+                                                                <tr>
+                                                                    @foreach($row as $cell)
+                                                                        <td>
+                                                                            @if(is_array($cell) || is_object($cell))
+                                                                                {{ json_encode($cell) }}
+                                                                            @else
+                                                                                {{ \Illuminate\Support\Str::limit($cell, 20) }}
+                                                                            @endif
+                                                                        </td>
+                                                                    @endforeach
+                                                                </tr>
+                                                            @endforeach
+                                                        </tbody>
+                                                    @else
+                                                        <tbody>
+                                                            <tr><td class="text-center text-muted">Empty result set</td></tr>
+                                                        </tbody>
+                                                    @endif
+                                                </table>
+                                            </div>
+                                            <small class="text-muted d-block mt-1">Showing first 5 records.</small>
+                                        </div>
+                                    @endif
                                 </div>
                             </div>
                         @endif
