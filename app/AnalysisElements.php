@@ -91,4 +91,8 @@ class AnalysisElements extends Model implements Auditable
   public function methodSequence(){
     return $this->belongsTo('App\Models\MethodSequences\MethodSequence', 'method_sequence_id');
   }
+
+  public function formular(){
+    return $this->belongsTo('App\Models\Formulars\Formula', 'formular_id');
+  }
 }

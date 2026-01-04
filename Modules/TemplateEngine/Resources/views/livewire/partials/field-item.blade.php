@@ -170,6 +170,44 @@
             </div>
         </div>
     
+    @elseif($field->type === 'dynamic_table')
+        <div>
+            <div class="d-flex justify-content-between align-items-center mb-1">
+                <label class="field-label small text-uppercase text-muted mb-0">
+                    <i class="fas fa-table mr-1"></i> Dynamic Table
+                </label>
+                <span class="badge badge-light border">{{ count($field->meta['rows'] ?? []) }} Rows</span>
+            </div>
+            
+            <div class="table-responsive bg-white border rounded p-2">
+                <table class="table table-sm table-bordered mb-0" style="font-size: 0.8rem;">
+                    <thead>
+                        <tr class="bg-light">
+                            @foreach($field->meta['headers'] ?? [] as $h)
+                                <th>{{ $h['label'] }}</th>
+                            @endforeach
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach($field->meta['rows'] ?? [] as $row)
+                            <tr class="{{ ($row['type'] ?? '') === 'variable' ? 'bg-light' : '' }}">
+                                @foreach($row['cells'] ?? [] as $i => $cell)
+                                    @if($i < count($field->meta['headers'] ?? []))
+                                        <td colspan="{{ $cell['colspan'] ?? 1 }}">
+                                            @if(($row['type'] ?? '') === 'variable')
+                                                <i class="fas fa-sync text-muted mr-1"></i>
+                                            @endif
+                                            {{ Str::limit($cell['content'] ?? '', 20) }}
+                                        </td>
+                                    @endif
+                                @endforeach
+                            </tr>
+                        @endforeach
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
     @else
         <!-- Form Fields Preview -->
         <div>

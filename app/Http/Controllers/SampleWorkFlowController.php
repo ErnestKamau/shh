@@ -3607,6 +3607,11 @@ class SampleWorkFlowController extends Controller
     public function sendBatchScheduleAnalysis(Request $request)
     {
         $batch = SampleHeader::with(['customer','sample_type'])->find($request->batch_id);
+
+        if($batch->samples()->count() == 0){
+            return redirect()->back()->with('error', 'You cannot send schedule of analysis for a batch with no sample');
+        }
+
         $samples = SampleDetails::where('sample_header_id', $batch->id)->get();
         $sampleTrs = "";
         foreach ($samples as $sample) {
@@ -5455,6 +5460,44 @@ class SampleWorkFlowController extends Controller
                 ->update($updateData);
             
             $updatedCount = count($sampleIds);
+            
+            // Recalculate Batch Target Date
+            $sampleHeader = \App\SampleHeader::find($batchId);
+            if ($sampleHeader) {
+                // Get all analysis types for this batch
+                $batchAnalysisTypeIds = \App\SampleAnalysisTypeRelation::where('batch_id', $batchId)
+                    ->pluck('analysis_type_id')
+                    ->unique()
+                    ->toArray();
+
+                if (!empty($batchAnalysisTypeIds)) {
+                    // Calculate max reporting time
+                    $analysisMaxReportingTime = \App\AnalysisType::whereIn('id', $batchAnalysisTypeIds)->max('reporting_time') ?? 0;
+                    $elementsMaxReportingTime = \App\AnalysisElements::whereIn('analysis_type_id', $batchAnalysisTypeIds)->max('reporting_time') ?? 0;
+                    
+                    $maxReportingTime = max($analysisMaxReportingTime, $elementsMaxReportingTime);
+                    
+                    // Update Target Date
+                    $targetDateStr = 'Target Date';
+                    $targetDate = \App\SampleDate::where('sample_header_id', $batchId)
+                        ->where('name', $targetDateStr)
+                        ->first() ?? new \App\SampleDate();
+                    
+                    $targetDate->name = $targetDateStr;
+                    $targetDate->sample_header_id = $batchId;
+                    // Use receipt_date or fallback to now
+                    $baseDate = $sampleHeader->receipt_date ? \Carbon\Carbon::parse($sampleHeader->receipt_date) : now();
+                    $targetDate->date = $baseDate->addDays($maxReportingTime);
+                    $targetDate->save();
+                    
+                    \Log::info('Recalculated Target Date for batch after bulk update', [
+                        'batch_id' => $batchId,
+                        'max_reporting_time' => $maxReportingTime,
+                        'new_target_date' => $targetDate->date
+                    ]);
+                }
+            }
+
             $updatedFields = implode(', ', array_keys($updateData));
             
             return redirect()->back()->with('success', "Successfully updated {$updatedCount} sample(s). Updated fields: {$updatedFields}");

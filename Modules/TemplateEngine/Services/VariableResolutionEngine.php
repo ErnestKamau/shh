@@ -86,6 +86,27 @@ class VariableResolutionEngine
         try {
             $query = DB::table($table);
 
+            // Joins
+            if (!empty($config['joins']) && is_array($config['joins'])) {
+                foreach ($config['joins'] as $join) {
+                    $joinTable = $join['table'] ?? null;
+                    $onFirst = $join['on_first'] ?? null;
+                    $operator = $join['operator'] ?? '=';
+                    $onSecond = $join['on_second'] ?? null;
+                    $joinType = $join['type'] ?? 'inner';
+                    
+                    if ($joinTable && $onFirst && $onSecond) {
+                        if ($joinType === 'left') {
+                            $query->leftJoin($joinTable, $onFirst, $operator, $onSecond);
+                        } elseif ($joinType === 'right') {
+                            $query->rightJoin($joinTable, $onFirst, $operator, $onSecond);
+                        } else {
+                            $query->join($joinTable, $onFirst, $operator, $onSecond);
+                        }
+                    }
+                }
+            }
+
             // Select
             if (!empty($config['select'])) {
                 $query->select($config['select']);
@@ -97,9 +118,21 @@ class VariableResolutionEngine
                     $field = $filter['field'];
                     $operator = $filter['operator'] ?? '=';
                     $val = $filter['value'];
+                    $valueSource = $filter['value_source'] ?? 'static';
 
-                    // Interpolate value if it refers to another variable {{ var }}
-                    $val = $this->interpolateValue($val);
+                    // Handle injection values - look in context first
+                    if ($valueSource === 'injection') {
+                        $val = $this->context[$val] ?? $this->interpolateValue($val);
+                    } else {
+                        // Interpolate value if it refers to another variable {{ var }}
+                        $val = $this->interpolateValue($val);
+                    }
+
+                    // Skip filter if injection value is empty/not provided
+                    if ($valueSource === 'injection' && empty($val)) {
+                        \Log::warning("VariableResolutionEngine: Skipping filter for {$field} - injection value not provided");
+                        continue;
+                    }
 
                     $query->where($field, $operator, $val);
                 }
@@ -109,11 +142,23 @@ class VariableResolutionEngine
             if (!empty($config['sort']['field'])) {
                 $query->orderBy($config['sort']['field'], $config['sort']['direction'] ?? 'asc');
             }
+            
+            // Order bys
+            if (!empty($config['order_bys']) && is_array($config['order_bys'])) {
+                foreach ($config['order_bys'] as $orderBy) {
+                    if (!empty($orderBy['field'])) {
+                        $query->orderBy($orderBy['field'], $orderBy['direction'] ?? 'asc');
+                    }
+                }
+            }
 
             // Limit
             if (!empty($config['limit'])) {
-                $query->limit($config['limit']);
+                $query->limit((int)$config['limit']);
             }
+
+            // Debug logging
+            \Log::info("VariableResolutionEngine: Query for '{$var->name}': " . $query->toSql(), $query->getBindings());
 
             // Return Type
             if (($config['return_type'] ?? 'collection') === 'single') {
@@ -123,8 +168,8 @@ class VariableResolutionEngine
             }
 
         } catch (Exception $e) {
-            // Log error? Return empty?
-            return []; // Fail gracefully for now
+            \Log::error("VariableResolutionEngine: Error resolving '{$var->name}': " . $e->getMessage());
+            return null; // Fail gracefully for now
         }
     }
 
@@ -132,12 +177,15 @@ class VariableResolutionEngine
     {
         if (is_string($value) && preg_match('/^\{\{\s*(.+?)\s*\}\}$/', $value, $matches)) {
             $varName = $matches[1];
-            // Check context or previously resolved variables
-            if (isset($this->resolvedVariables[$varName])) {
-                return $this->resolvedVariables[$varName];
-            }
+            
+            // 1. Check Context (Injections) first - allows overriding
             if (isset($this->context[$varName])) {
                 return $this->context[$varName];
+            }
+            
+            // 2. Check previously resolved variables
+            if (isset($this->resolvedVariables[$varName])) {
+                return $this->resolvedVariables[$varName];
             }
         }
         return $value;

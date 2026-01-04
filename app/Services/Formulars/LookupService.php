@@ -44,7 +44,38 @@ class LookupService
             ->whereKeys($keys)
             ->first();
 
-        return $entry ? $entry->value : null;
+        return $entry ? $entry->value : $this->findLooseMatch($lookupTableId, $keys);
+    }
+
+    /**
+     * proper comparison for key-value lookup
+     * @param int $lookupTableId
+     * @param array $keys
+     * @return string|null
+     */
+    protected function findLooseMatch(int $lookupTableId, array $keys): ?string
+    {
+        // Fallback: Fetch all entries and compare keys loosely (php types)
+        $entries = LookupTableEntry::where('lookup_table_id', $lookupTableId)->get();
+
+        foreach ($entries as $entry) {
+            $entryKeys = $entry->keys;
+            
+            // Check if all requested keys match loosely
+            $allMatch = true;
+            foreach ($keys as $k => $v) {
+                if (!isset($entryKeys[$k]) || $entryKeys[$k] != $v) {
+                    $allMatch = false;
+                    break;
+                }
+            }
+            
+            if ($allMatch) {
+                return $entry->value;
+            }
+        }
+
+        return null;
     }
 
     /**
@@ -85,8 +116,8 @@ class LookupService
                     ];
                 }
             } else {
-                // Bounded range: low <= input < high
-                if ($inputValue >= $low && $inputValue < $high) {
+                // Bounded range: low <= input <= high
+                if ($inputValue >= $low && $inputValue <= $high) {
                     return [
                         'value' => $entry->value,
                         'interpretation' => $entry->keys['value_interpretation'] ?? null,

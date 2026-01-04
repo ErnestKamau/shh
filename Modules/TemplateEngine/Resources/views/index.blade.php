@@ -146,6 +146,9 @@
                                     <td>{{ $template->created_at->format('M d, Y') }}</td>
                                     <td>
                                         <div class="btn-group">
+                                            <a href="{{ route('templates.edit', $template->id) }}" class="btn btn-sm btn-outline-primary" title="Edit Metadata">
+                                                <i class="fas fa-edit"></i>
+                                            </a>
                                             <a href="{{ route('templates.builder', $template->id) }}" class="btn btn-sm btn-outline-info" title="Builder">
                                                 <i class="fas fa-tools"></i>
                                             </a>

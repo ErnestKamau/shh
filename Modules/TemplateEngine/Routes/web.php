@@ -11,6 +11,8 @@ Route::prefix('form-templates')->name('templates.')->middleware(['auth'])->group
     Route::get('/create', [TemplateBuilderController::class, 'create'])->name('create');
     Route::post('/', [TemplateBuilderController::class, 'store'])->name('store');
     Route::delete('/{id}', [TemplateBuilderController::class, 'destroy'])->name('destroy');
+    Route::get('/{id}/edit', [TemplateBuilderController::class, 'edit'])->name('edit');
+    Route::put('/{id}', [TemplateBuilderController::class, 'update'])->name('update');
     
     // Builder
     Route::get('/{id}/builder', [TemplateBuilderController::class, 'builder'])->name('builder');

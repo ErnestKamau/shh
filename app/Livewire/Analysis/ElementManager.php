@@ -182,6 +182,7 @@ class ElementManager extends Component
             'equipment', 
             'operator', 
             'remedyHeader', 
+            'formular',
             'methodSequence.activeVersion',
             'methodSequence.latestVersion'
         ])->where('analysis_type_id', $this->analysisTypeId);

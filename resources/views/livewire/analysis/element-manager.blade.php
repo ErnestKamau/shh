@@ -148,6 +148,9 @@
                                                     <span class="badge badge-info p-2" title="Result is Calculated">
                                                         <i class="mdi mdi-calculator"></i> Yes
                                                     </span>
+                                                    @if($element->formular)
+                                                        <br><small class="text-muted">{{ $element->formular->name }}</small>
+                                                    @endif
                                                 @else
                                                     <span class="badge badge-secondary p-2">No</span>
                                                 @endif

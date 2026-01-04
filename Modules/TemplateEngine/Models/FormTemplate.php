@@ -13,6 +13,9 @@ class FormTemplate extends Model
     use SoftDeletes;
 
     protected $guarded = ['id'];
+    
+    const TYPE_FORM = 'form';
+    const TYPE_REPORT = 'report';
 
     public function sections(): HasMany
     {

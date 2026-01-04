@@ -1,7 +1,7 @@
 @extends('layouts.lab.layout.app', ['select2'=>true])
 
 @section('title2')
-<title>Create Form Template - Template Engine</title>
+<title>Edit Form Template - Template Engine</title>
 @endsection
 
 @section('content2')
@@ -20,7 +20,7 @@
         ],
         [
             'link' => '#',
-            'name' => 'Create Template',
+            'name' => 'Edit Template',
             'icon' => null
         ]
     ];
@@ -35,10 +35,10 @@
                     <div class="d-flex justify-content-between align-items-center">
                         <div>
                             <h2 class="mb-0">
-                                <i class="fas fa-file-alt text-primary"></i>
-                                Create New Form Template
+                                <i class="fas fa-edit text-primary"></i>
+                                Edit Form Template
                             </h2>
-                            <p class="text-muted mb-0">Create a new form template to start building your form</p>
+                            <p class="text-muted mb-0">Update template metadata</p>
                         </div>
                         <a href="{{ route('templates.index') }}" class="btn btn-outline-secondary">
                             <i class="fas fa-arrow-left"></i> Back to Templates
@@ -53,25 +53,26 @@
         <div class="col-md-8">
             <div class="card shadow-sm border-0" style="border-radius: 15px;">
                 <div class="card-body p-4">
-                    <form action="{{ route('templates.store') }}" method="POST">
+                    <form action="{{ route('templates.update', $template->id) }}" method="POST">
                         @csrf
+                        @method('PUT')
                         <div class="form-group mb-3">
                             <label for="name" class="font-weight-bold">Template Name <span class="text-danger">*</span></label>
-                            <input type="text" name="name" id="name" class="form-control" required placeholder="e.g. Employee Evaluation Form">
+                            <input type="text" name="name" id="name" class="form-control" required value="{{ old('name', $template->name) }}" placeholder="e.g. Employee Evaluation Form">
                         </div>
 
                         <div class="form-group mb-3">
                             <label for="type" class="font-weight-bold">Template Type <span class="text-danger">*</span></label>
                             <select name="type" id="type" class="form-control">
-                                <option value="form">Form (Data Entry)</option>
-                                <option value="report">Report (Read Only / Print)</option>
+                                <option value="form" {{ old('type', $template->type) === 'form' ? 'selected' : '' }}>Form (Data Entry)</option>
+                                <option value="report" {{ old('type', $template->type) === 'report' ? 'selected' : '' }}>Report (Read Only / Print)</option>
                             </select>
                             <small class="text-muted">Form allows data submission. Report is for generating documents.</small>
                         </div>
 
                         <div class="form-group mb-3">
                             <label for="category" class="font-weight-bold">Category</label>
-                            <input type="text" name="category" id="category" class="form-control" placeholder="e.g. HR, Operations">
+                            <input type="text" name="category" id="category" class="form-control" value="{{ old('category', $template->category) }}" placeholder="e.g. HR, Operations">
                         </div>
 
                         <div class="form-group mb-3">
@@ -79,7 +80,7 @@
                             <select name="process_id" id="process_id" class="form-control select2">
                                 <option value="">-- None --</option>
                                 @foreach(getTemplateProcesses() as $key => $label)
-                                    <option value="{{ $key }}">{{ $label }}</option>
+                                    <option value="{{ $key }}" {{ (old('process_id', $template->process_type) == $key) ? 'selected' : '' }}>{{ $label }}</option>
                                 @endforeach
                             </select>
                             <small class="text-muted">Select a process to link this template to</small>
@@ -87,12 +88,12 @@
 
                         <div class="form-group mb-4">
                             <label for="description" class="font-weight-bold">Description</label>
-                            <textarea name="description" id="description" class="form-control" rows="3" placeholder="Brief description of the template..."></textarea>
+                            <textarea name="description" id="description" class="form-control" rows="3" placeholder="Brief description of the template...">{{ old('description', $template->description) }}</textarea>
                         </div>
 
                         <div class="d-flex justify-content-end">
                             <a href="{{ route('templates.index') }}" class="btn btn-secondary mr-2">Cancel</a>
-                            <button type="submit" class="btn btn-primary px-4">Create & Open Builder</button>
+                            <button type="submit" class="btn btn-primary px-4">Save Changes</button>
                         </div>
                     </form>
                 </div>

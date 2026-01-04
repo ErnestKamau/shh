@@ -46,10 +46,15 @@ class Builder extends Component
     // Variables State
     public $showVariablesPanel = false;
     public $showVariableModal = false;
+    public $activeVariableStep = 1;
     public $variables = [];
     public $dbTables = [];
     public $availableColumns = [];
+    public $tableColumnsCache = [];
     public $selectedVariableColumns = [];
+    public $showTestInjectionModal = false;
+    public $testInjectionOptions = [];
+    public $testInjectionValues = [];
     public $selectedVariableType = 'collection'; // 'collection' or 'single'
     public $injectionColumns = []; // [ index => [columns] ]
     public $queryPreview = null;
@@ -66,7 +71,9 @@ class Builder extends Component
             'select' => [],
             'filters' => [], // Now array of objects
             'joins' => [], // New: Array of join objects
-            'sort' => ['field' => '', 'direction' => 'asc'],
+            'group_bys' => [],
+            'order_bys' => [],
+            'injections' => [],
             'limit' => 50,
             'source' => '', // for system
         ]
@@ -215,7 +222,44 @@ class Builder extends Component
             'dataset_binding' => $field->datasetBinding ? $field->datasetBinding->toArray() : null,
             'meta' => $meta,
             'parent_field_id' => $field->parent_field_id,
+            'data_sources' => $meta['data_sources'] ?? [],
         ];
+        
+        // Reconstruct data sources for older fields if empty
+        if (empty($this->fieldData['data_sources'])) {
+            // If it's a list with children
+            if (in_array($field->type, ['ul', 'ol']) && $field->children->count() > 0) {
+                foreach($field->children as $child) {
+                    $sourceType = 'static';
+                    $config = ['label' => $child->label, 'value' => ''];
+                    
+                    if (str_contains($child->label, '{{')) {
+                       // Heuristic: if contains braces, might be variable
+                       // Or check meta
+                    }
+                    if ($child->datasetBinding) {
+                        $sourceType = 'dynamic';
+                        $config['dataset_binding'] = $child->datasetBinding->toArray();
+                    }
+                    
+                    $this->fieldData['data_sources'][] = [
+                        'type' => $sourceType,
+                        'config' => $config,
+                        'order' => count($this->fieldData['data_sources'])
+                    ];
+                }
+            }
+            // If it's options
+            elseif (count($field->options) > 0) {
+                 foreach($field->options as $opt) {
+                     $this->fieldData['data_sources'][] = [
+                        'type' => 'static',
+                        'config' => ['label' => $opt->label, 'value' => $opt->value],
+                        'order' => count($this->fieldData['data_sources'])
+                    ];
+                 }
+            }
+        }
         
         $this->showFieldModal = true;
     }
@@ -229,7 +273,8 @@ class Builder extends Component
             'parent_field_id' => null,
             'options' => [],
             'dataset_binding' => null,
-            'quick_list_items' => [], // for new lists
+            'quick_list_items' => [], // Legacy: keep for now
+            'data_sources' => [], // New: Multi-source support
             'meta' => []
         ];
         // Pre-fill one option for usability
@@ -272,11 +317,20 @@ class Builder extends Component
                     'list_style_type' => '', // For UL/OL
                 ];
             }
-            if (($value === 'ul' || $value === 'ol') && !isset($this->fieldData['quick_list_items'])) {
-                $this->fieldData['quick_list_items'] = [];
+            
+            // Initialize data sources for Lists
+            if (($value === 'ul' || $value === 'ol') && !isset($this->fieldData['data_sources'])) {
+                $this->fieldData['data_sources'] = [];
             }
         }
         
+        // Initialize data sources for Option types
+        if (in_array($value, ['select', 'radio', 'checkbox'])) {
+             if (!isset($this->fieldData['data_sources'])) {
+                $this->fieldData['data_sources'] = [];
+            }
+        }
+
         // Initialize image_upload defaults when type changes to image_upload
         if ($value === 'image_upload') {
             if (!isset($this->fieldData['meta']['max_size'])) {
@@ -291,7 +345,83 @@ class Builder extends Component
             if (!isset($this->fieldData['meta']['display_height'])) {
                 $this->fieldData['meta']['display_height'] = 'auto';
             }
+            if (!isset($this->fieldData['meta']['display_height'])) {
+                $this->fieldData['meta']['display_height'] = 'auto';
+            }
         }
+        
+        // Initialize Defaults for Dynamic Table
+        if ($value === 'dynamic_table') {
+            if (!isset($this->fieldData['meta']['headers'])) {
+                $this->fieldData['meta']['headers'] = [
+                    ['label' => 'Header 1', 'width' => '', 'style' => '']
+                ];
+            }
+            if (!isset($this->fieldData['meta']['rows'])) {
+                $this->fieldData['meta']['rows'] = [
+                    [
+                        'type' => 'static', // static, variable
+                        'source' => '', // variable_id if type is variable
+                        'cells' => [
+                            ['content' => 'Cell 1', 'style' => '', 'colspan' => 1]
+                        ]
+                    ]
+                ];
+            }
+            // Default Config Styles
+            if (!isset($this->fieldData['meta']['css'])) {
+                $this->fieldData['meta']['css'] = [
+                    'width' => '100%',
+                    'border_collapse' => 'collapse',
+                    'class' => 'table table-bordered'
+                ];
+            }
+        }
+    }
+
+    // === Data Source Management ===
+
+    public function addDataSource($type = 'static')
+    {
+        if (!isset($this->fieldData['data_sources'])) {
+            $this->fieldData['data_sources'] = [];
+        }
+
+        $config = [];
+        if ($type === 'static') {
+            $config = ['label' => '', 'value' => '']; // Value used for options, label for lists
+        } elseif ($type === 'variable') {
+            $config = ['variable_id' => '', 'column' => '', 'template' => ''];
+        } elseif ($type === 'dynamic') {
+            $config = ['dataset_binding' => null];
+        }
+
+        $this->fieldData['data_sources'][] = [
+            'type' => $type,
+            'config' => $config,
+            'order' => count($this->fieldData['data_sources'])
+        ];
+    }
+
+    public function removeDataSource($index)
+    {
+        unset($this->fieldData['data_sources'][$index]);
+        $this->fieldData['data_sources'] = array_values($this->fieldData['data_sources']);
+    }
+
+    public function moveDataSource($index, $direction)
+    {
+        $sources = $this->fieldData['data_sources'];
+        if ($direction === 'up' && $index > 0) {
+            $temp = $sources[$index];
+            $sources[$index] = $sources[$index - 1];
+            $sources[$index - 1] = $temp;
+        } elseif ($direction === 'down' && $index < count($sources) - 1) {
+            $temp = $sources[$index];
+            $sources[$index] = $sources[$index + 1];
+            $sources[$index + 1] = $temp;
+        }
+        $this->fieldData['data_sources'] = $sources;
     }
 
     public function addOption()
@@ -423,8 +553,8 @@ class Builder extends Component
             // Create the main field
             $field = $service->addField($section, $this->fieldData);
             
-            // Handle Quick List Items (only for new UL/OL fields)
-            if (isset($this->fieldData['quick_list_items']) && is_array($this->fieldData['quick_list_items'])) {
+            // Handle Quick List Items (Legacy)
+            if (isset($this->fieldData['quick_list_items']) && is_array($this->fieldData['quick_list_items']) && !isset($this->fieldData['data_sources'])) {
                 foreach ($this->fieldData['quick_list_items'] as $index => $item) {
                     $childLabel = '';
                     $childMeta = [];
@@ -455,6 +585,155 @@ class Builder extends Component
                             'meta' => $childMeta,
                         ];
                         $service->addField($section, $childData);
+                    }
+                }
+            }
+
+            // Handle New Data Sources (Multi-Source for Lists & Options)
+            if (isset($this->fieldData['data_sources']) && is_array($this->fieldData['data_sources'])) {
+                // Determine Field Mode (List or Options)
+                $isList = in_array($field->type, ['ul', 'ol']);
+                
+                // If Options based, we might need to store the config in meta instead of creating child fields?
+                // Actually, for consistency, options are strictly Meta or Related Table.
+                // CURRENT ARCHITECTURE: 'options' are a separate generic relationship or JSON. 
+                // Let's check 'options' handling in `editField`. It maps `$field->options`.
+                // So options are stored in `form_field_options` table probably.
+                // WE NEED TO DECIDE: Do we store complex sources in `meta` and resolve at runtime, OR do we "compile" them?
+                // For Lists (UL/OL): We DO create child fields (paragraphs/etc).
+                // For Options (Select/Radio): We likely need to store the configuration in `meta` so the renderer can built the options dynamically.
+                
+                if ($isList) {
+                    // For Lists: Create Child Fields
+                    foreach ($this->fieldData['data_sources'] as $index => $source) {
+                        $sourceType = $source['type'] ?? 'static';
+                        $config = $source['config'] ?? [];
+                        
+                        // == STATIC SOURCE ==
+                        if ($sourceType === 'static') {
+                            $label = $config['label'] ?? '';
+                            if (!empty($label)) {
+                                $service->addField($section, [
+                                    'label' => $label,
+                                    'type' => 'paragraph',
+                                    'required' => false,
+                                    'parent_field_id' => $field->id,
+                                    'order_index' => $index,
+                                    'meta' => ['source_type' => 'static']
+                                ]);
+                            }
+                        }
+                        
+                        // == VARIABLE SOURCE ==
+                        elseif ($sourceType === 'variable') {
+                            $varId = $config['variable_id'] ?? null;
+                            if ($varId) {
+                                $variable = collect($this->variables)->firstWhere('id', $varId);
+                                if ($variable) {
+                                    // Detect if Single Record or Collection
+                                    $isSingle = false;
+                                    if ($variable->type === 'database' && ($variable->config['limit'] ?? 50) == 1) {
+                                        $isSingle = true;
+                                    } elseif ($variable->type === 'static' || $variable->type === 'system') {
+                                        // Assume static/system might be single string, or check data_type
+                                        $isSingle = ($variable->data_type !== 'collection');
+                                    }
+
+                                    if ($isSingle) {
+                                        // Single Record: Just mapped text
+                                        $labelTemplate = $config['template'] ?? ''; // User entered template
+                                        // Fallback to column selection if template empty
+                                        if (empty($labelTemplate) && !empty($config['column'])) {
+                                            $labelTemplate = '{{ ' . $config['column'] . ' }}';
+                                        }
+                                        
+                                        // Prepend Label Prefix if exists
+                                        $prefixLabel = $config['label_prefix'] ?? ''; // Renamed from 'label' to avoid confusion with internal field label
+                                        if (!empty($prefixLabel)) {
+                                            $finalLabel = $prefixLabel . ' ' . $labelTemplate;
+                                        } else {
+                                            $finalLabel = $labelTemplate;
+                                        }
+                                        
+                                        $service->addField($section, [
+                                            'label' => $finalLabel,
+                                            'type' => 'paragraph',
+                                            'required' => false,
+                                            'parent_field_id' => $field->id,
+                                            'order_index' => $index,
+                                            'meta' => ['source_type' => 'variable_single']
+                                        ]);
+                                    } else {
+                                        // Collection: Repeater
+                                        // We create a child field that has a dataset binding OR a variable binding
+                                        // Since we don't have a "variable binding" field prop yet, let's look at `dataset_binding`.
+                                        // But this is a VARIABLE, not a raw Dataset.
+                                        // Solution: Create a child with meta pointing to the variable loop.
+                                        $service->addField($section, [
+                                            'label' => $config['template'] ?? '{{ item }}',
+                                            'type' => 'paragraph',
+                                            'required' => false,
+                                            'parent_field_id' => $field->id,
+                                            'order_index' => $index,
+                                            'meta' => [
+                                                'source_type' => 'variable_collection',
+                                                'variable_id' => $varId,
+                                                'loop_variable' => true
+                                            ]
+                                        ]);
+                                    }
+                                }
+                            }
+                        }
+                        
+                        // == DYNAMIC (Dataset) SOURCE ==
+                        elseif ($sourceType === 'dynamic') {
+                             $datasetBinding = $config['dataset_binding'] ?? null;
+                             if ($datasetBinding) {
+                                 // Create a child that acts as the template for the loop
+                                 $childWithBinding = $service->addField($section, [
+                                     'label' => '{{ value }}', // Default, should be configurable in source manager
+                                     'type' => 'paragraph',
+                                     'required' => false,
+                                     'parent_field_id' => $field->id,
+                                     'order_index' => $index,
+                                     'meta' => ['source_type' => 'dataset']
+                                 ]);
+                                 
+                                 // Save Binding
+                                 // We need to attach the binding to this child field
+                                 // The service might not do this automatically if we didn't pass it under `dataset_binding` key
+                                 // So we do it manually:
+                                 $childWithBinding->datasetBinding()->create([
+                                     'dataset_type' => 'table', // Assuming table for now, or get from binding
+                                     'table_name' => $datasetBinding['table'] ?? '',
+                                     'columns' => $datasetBinding['columns'] ?? ['*'],
+                                     'filters' => $datasetBinding['filters'] ?? [],
+                                     'limit' => $datasetBinding['limit'] ?? null,
+                                     'order_by' => $datasetBinding['order_by'] ?? null,
+                                 ]);
+                             }
+                        }
+                    }
+                } else {
+                    // For Options (Select/Radio): Save Config to Meta
+                    // We merge this into the field's meta
+                    $newMeta = $field->meta ?? [];
+                    $newMeta['data_sources'] = $this->fieldData['data_sources'];
+                    $field->meta = $newMeta;
+                    $field->save();
+                    
+                    // Also, for static options, we should probably sync them to the `options` relationship for backward compatibility/DB integrity
+                    // Clear existing options
+                    $field->options()->delete();
+                    
+                    foreach ($this->fieldData['data_sources'] as $source) {
+                        if (($source['type'] ?? 'static') === 'static') {
+                            $field->options()->create([
+                                'label' => $source['config']['label'] ?? '',
+                                'value' => $source['config']['value'] ?? '',
+                            ]);
+                        }
                     }
                 }
             }
@@ -503,8 +782,32 @@ class Builder extends Component
     
     public function handleDatasetBinding($bindingData)
     {
-        // Receive binding data from child component/modal
-        $this->fieldData['dataset_binding'] = $bindingData;
+        // Check if binding key is provided (format: object.key or key)
+        // Usually passed as $params in emitting event, but here we just get $bindingData as first arg.
+        // Livewire event args: listener($payload, ...$params)
+        // We need to know WHICH source triggered this.
+        // We can use a property to track "binding target".
+        
+        if (isset($this->activeBindingTarget) && str_starts_with($this->activeBindingTarget, 'data_source.')) {
+            // "data_source.2"
+            $parts = explode('.', $this->activeBindingTarget);
+            $index = $parts[1] ?? null;
+            
+            if ($index !== null && isset($this->fieldData['data_sources'][$index])) {
+                $this->fieldData['data_sources'][$index]['config']['dataset_binding'] = $bindingData;
+            }
+            $this->activeBindingTarget = null; // Reset
+        } else {
+            // Default field binding
+            $this->fieldData['dataset_binding'] = $bindingData;
+        }
+    }
+    
+    public $activeBindingTarget = null;
+    
+    public function setBindingTarget($target)
+    {
+        $this->activeBindingTarget = $target;
     }
 
     // === Variable Management ===
@@ -668,17 +971,93 @@ class Builder extends Component
             }
         }
 
-        // Fetch columns for each table
+        // Fetch columns for each table and populate cache
         foreach (array_unique($tables) as $table) {
-            try {
-               $columns = Schema::getColumnListing($table);
-               foreach ($columns as $column) {
-                   $this->availableColumns[] = "{$table}.{$column}";
-               }
-            } catch (\Exception $e) {
-                // Ignore if table doesn't exist or error
+            if (!isset($this->tableColumnsCache[$table])) {
+                try {
+                   $this->tableColumnsCache[$table] = Schema::getColumnListing($table);
+                } catch (\Exception $e) {
+                   $this->tableColumnsCache[$table] = [];
+                }
+            }
+            
+            foreach ($this->tableColumnsCache[$table] as $column) {
+               $this->availableColumns[] = "{$table}.{$column}";
             }
         }
+    }
+
+    public function getColumnsForJoinFirst($joinIndex)
+    {
+        $columns = [];
+        
+        // Main Table
+        $mainTable = $this->variableData['config']['table'] ?? null;
+        if ($mainTable && isset($this->tableColumnsCache[$mainTable])) {
+            foreach ($this->tableColumnsCache[$mainTable] as $col) {
+                $columns[] = "{$mainTable}.{$col}";
+            }
+        }
+
+        // Previous Joins
+        if (isset($this->variableData['config']['joins'])) {
+            foreach ($this->variableData['config']['joins'] as $idx => $join) {
+                if ($idx < $joinIndex) {
+                    $table = $join['table'] ?? null;
+                    if ($table && isset($this->tableColumnsCache[$table])) {
+                        foreach ($this->tableColumnsCache[$table] as $col) {
+                            $columns[] = "{$table}.{$col}";
+                        }
+                    }
+                }
+            }
+        }
+        
+        return $columns;
+    }
+
+    public function getSelectOptions()
+    {
+        $options = [];
+        
+        // Global Wildcard
+        $options[] = '*';
+
+        // Table Wildcards
+        $tables = [];
+        if (!empty($this->variableData['config']['table'])) {
+            $tables[] = $this->variableData['config']['table'];
+        }
+        if (isset($this->variableData['config']['joins'])) {
+            foreach ($this->variableData['config']['joins'] as $join) {
+                if (!empty($join['table'])) {
+                    $tables[] = $join['table'];
+                }
+            }
+        }
+        foreach (array_unique($tables) as $table) {
+            $options[] = "{$table}.*";
+        }
+
+        // Standard Columns
+        return array_merge($options, $this->availableColumns);
+    }
+
+    public function getColumnsForJoinSecond($joinIndex)
+    {
+        $columns = [];
+        $join = $this->variableData['config']['joins'][$joinIndex] ?? null;
+        
+        if ($join) {
+            $table = $join['table'] ?? null;
+            if ($table && isset($this->tableColumnsCache[$table])) {
+                 foreach ($this->tableColumnsCache[$table] as $col) {
+                    $columns[] = "{$table}.{$col}";
+                }
+            }
+        }
+        
+        return $columns;
     }
 
     public function loadInjectionColumns()
@@ -769,6 +1148,114 @@ class Builder extends Component
         $this->variableData['config']['filters'] = array_values($this->variableData['config']['filters']);
     }
 
+    public function addSelectField()
+    {
+        $this->variableData['config']['select'][] = '';
+    }
+
+    public function removeSelectField($index)
+    {
+        unset($this->variableData['config']['select'][$index]);
+        $this->variableData['config']['select'] = array_values($this->variableData['config']['select']);
+    }
+
+    public function addGroupBy()
+    {
+        if (!isset($this->variableData['config']['group_bys'])) {
+            $this->variableData['config']['group_bys'] = [];
+        }
+        $this->variableData['config']['group_bys'][] = '';
+    }
+
+    public function removeGroupBy($index)
+    {
+        unset($this->variableData['config']['group_bys'][$index]);
+        $this->variableData['config']['group_bys'] = array_values($this->variableData['config']['group_bys']);
+    }
+
+    public function addOrderBy()
+    {
+        if (!isset($this->variableData['config']['order_bys'])) {
+            $this->variableData['config']['order_bys'] = [];
+        }
+        $this->variableData['config']['order_bys'][] = ['field' => '', 'direction' => 'asc'];
+    }
+
+    public function removeOrderBy($index)
+    {
+        unset($this->variableData['config']['order_bys'][$index]);
+        $this->variableData['config']['order_bys'] = array_values($this->variableData['config']['order_bys']);
+    }
+
+    public function prepareTestQuery()
+    {
+        $this->testInjectionOptions = [];
+        $hasInjections = false;
+
+        if (isset($this->variableData['config']['injections']) && is_array($this->variableData['config']['injections'])) {
+            $injections = $this->variableData['config']['injections'];
+            
+            // Filter out empty injections
+            $validInjections = array_filter($injections, function($inj) {
+                return !empty($inj['label']) && !empty($inj['table']);
+            });
+
+            if (count($validInjections) > 0) {
+                $hasInjections = true;
+                foreach ($validInjections as $inj) {
+                    $table = $inj['table'];
+                    $label = $inj['label'];
+                    
+                    // Initial fetch or use existing if already set? Let's refresh options
+                    try {
+                        $columns = \Illuminate\Support\Facades\Schema::getColumnListing($table);
+                        $displayCol = 'id';
+                        foreach(['name', 'title', 'code', 'label', 'description', 'email', 'slug'] as $g) {
+                            if (in_array($g, $columns)) {
+                                $displayCol = $g;
+                                break;
+                            }
+                        }
+                        
+                        // Select ID and Display Column
+                        $rows = \Illuminate\Support\Facades\DB::table($table)
+                                ->select('id', $displayCol)
+                                ->limit(50)
+                                ->get();
+                                
+                        $options = [];
+                        foreach ($rows as $row) {
+                            $options[$row->id] = $row->$displayCol . " (ID: {$row->id})";
+                        }
+                        
+                        $this->testInjectionOptions[$label] = $options;
+                    } catch (\Exception $e) {
+                         $this->testInjectionOptions[$label] = [];
+                    }
+                }
+            }
+        }
+        
+        if ($hasInjections) {
+            $this->showTestInjectionModal = true;
+        } else {
+            $this->testQuery();
+        }
+    }
+
+    public function cancelTestInjection()
+    {
+        $this->showTestInjectionModal = false;
+        $this->testInjectionOptions = [];
+        $this->testInjectionValues = [];
+    }
+
+    public function runTestQueryWithInjections()
+    {
+        $this->showTestInjectionModal = false;
+        $this->testQuery();
+    }
+
     public function testQuery()
     {
         $this->queryPreview = null;
@@ -796,20 +1283,31 @@ class Builder extends Component
                 }
             }
 
-            // Apply Injections (left joins for optional data)
-            if (isset($config['injections']) && is_array($config['injections'])) {
-                foreach ($config['injections'] as $injection) {
-                    if (!empty($injection['table']) && !empty($injection['foreign_key']) && !empty($injection['local_key'])) {
-                        $query->leftJoin(
-                            $injection['table'] . (isset($injection['alias']) && !empty($injection['alias']) ? ' as ' . $injection['alias'] : ''),
-                            $table . '.' . $injection['local_key'],
-                            '=',
-                            (isset($injection['alias']) && !empty($injection['alias']) ? $injection['alias'] : $injection['table']) . '.' . $injection['foreign_key']
-                        );
-                    }
-                }
-            }
+            // Injections are parameters, not joins usually. 
             
+            // Apply Selects
+            if (!empty($config['select']) && is_array($config['select'])) {
+                $selects = array_filter($config['select']);
+                if (!empty($selects)) {
+                     // Check for table.* pattern
+                     $normalizedSelects = [];
+                     foreach($selects as $sel) {
+                         if (empty($sel)) continue;
+                         // If string, pass through. In Builder we might support simple strings.
+                         $normalizedSelects[] = $sel; 
+                     }
+                     if(!empty($normalizedSelects)) {
+                        $query->select($normalizedSelects);
+                     } else {
+                        $query->select($table.'.*'); 
+                     }
+                } else {
+                    $query->select($table.'.*');
+                }
+            } else {
+                 $query->select($table.'.*');
+            }
+
             // Apply Filters
             if (isset($config['filters'])) {
                 $filters = $config['filters'];
@@ -823,26 +1321,61 @@ class Builder extends Component
                 if (is_array($filters)) {
                     foreach ($filters as $filter) {
                         if (!empty($filter['field'])) {
-                            $query->where($filter['field'], $filter['operator'] ?? '=', $filter['value']);
+                            $val = $filter['value'];
+                            if (isset($filter['value_source']) && $filter['value_source'] === 'injection') {
+                                // Dynamic Injection Logic
+                                $injectionLabel = $val; // In this case 'value' holds the label
+                                if (isset($this->testInjectionValues[$injectionLabel])) {
+                                    $val = $this->testInjectionValues[$injectionLabel];
+                                } else {
+                                    // Fallback or warning?
+                                    // For preview, if no value provided, maybe default to 0 or NULL to avoid query error?
+                                    // Or let it run and fail/return empty.
+                                    // Let's leave $val as is (the label) which will likely result in 0 rows or conversion error 
+                                    // unless the column is string. 
+                                    // Actually, better to use NULL or an obvious dummy if valid type.
+                                }
+                            }
+                            $query->where($filter['field'], $filter['operator'] ?? '=', $val);
                         }
                     }
                 }
             }
-            
-            // Limit and Select
-            // For preview, we force limit 5
-            $results = $query->take(5)->get();
-            
-            if ($results->isEmpty()) {
-                $this->queryPreview = [];
-                $this->queryError = "No results found.";
-            } else {
-                // Convert to array for easy display
-                $this->queryPreview = $results->map(fn($item) => (array)$item)->toArray();
+
+            // Apply Group By
+            if (isset($config['group_bys']) && is_array($config['group_bys'])) {
+                $groups = array_filter($config['group_bys']);
+                if (!empty($groups)) {
+                    $query->groupBy(array_values($groups));
+                }
+            }
+
+            // Apply Order By
+            if (isset($config['order_bys']) && is_array($config['order_bys'])) {
+                 foreach($config['order_bys'] as $sort) {
+                     if (!empty($sort['field'])) {
+                         $query->orderBy($sort['field'], $sort['direction'] ?? 'asc');
+                     }
+                 }
+            } elseif (isset($config['sort']) && !empty($config['sort']['field'])) {
+                // Legacy Fallback
+                $query->orderBy($config['sort']['field'], $config['sort']['order'] ?? 'asc');
             }
             
+            // Apply Limit
+            $limit = isset($config['limit']) ? (int)$config['limit'] : 50;
+            if ($limit > 100) $limit = 100; // Protection cap for preview
+            
+            $this->queryPreview = $query->limit($limit)->get()->toArray();
+            
+            // Convert objects to arrays for view compatibility if needed
+            $this->queryPreview = array_map(function($item) {
+                return (array)$item;
+            }, $this->queryPreview);
+            
         } catch (\Exception $e) {
-            $this->queryError = "Query Failed: " . $e->getMessage();
+            $this->queryError = "SQL Error: " . $e->getMessage();
+            $this->queryPreview = null;
         }
     }
 
@@ -859,8 +1392,9 @@ class Builder extends Component
                 'select' => [],
                 'filters' => [],
                 'joins' => [],
+                'group_bys' => [],
+                'order_bys' => [],
                 'injections' => [],
-                'sort' => ['field' => 'id', 'direction' => 'asc'],
                 'limit' => 50, 
                 'source' => '',
             ]
@@ -868,6 +1402,31 @@ class Builder extends Component
         $this->injectionColumns = [];
         $this->queryPreview = null;
         $this->queryError = null;
+        $this->activeVariableStep = 1;
+    }
+
+    public function setVariableStep($step)
+    {
+        $this->activeVariableStep = $step;
+    }
+
+    public function nextVariableStep()
+    {
+        if ($this->activeVariableStep === 1) {
+            $this->validate([
+                'variableData.name' => 'required|regex:/^[a-zA-Z0-9_]+$/',
+                'variableData.type' => 'required',
+                'variableData.data_type' => 'required',
+            ]);
+        }
+        $this->activeVariableStep++;
+    }
+
+    public function prevVariableStep()
+    {
+        if ($this->activeVariableStep > 1) {
+            $this->activeVariableStep--;
+        }
     }
 
     public function saveVariable()
@@ -906,8 +1465,103 @@ class Builder extends Component
         }
     }
 
+    public function getExpandedVariableColumns($variableId)
+    {
+        $columns = [];
+        $variable = collect($this->variables)->firstWhere('id', $variableId);
+        
+        if ($variable && $variable->type === 'database' && isset($variable->config['select']) && is_array($variable->config['select'])) {
+            // Check for wildcards
+            foreach ($variable->config['select'] as $sel) {
+                if (empty($sel)) continue;
+                
+                if (str_ends_with($sel, '.*')) {
+                    // It's a table wildcard
+                    $tableName = substr($sel, 0, -2);
+                    // Use schema if possible or cache
+                    try {
+                        if (isset($this->tableColumnsCache[$tableName])) {
+                            $cols = $this->tableColumnsCache[$tableName];
+                        } else {
+                            $cols = Schema::getColumnListing($tableName);
+                            $this->tableColumnsCache[$tableName] = $cols; // Cache it
+                        }
+                        
+                        foreach ($cols as $c) {
+                            $columns[] = "{$tableName}.{$c}";
+                        }
+                    } catch (\Throwable $e) {
+                         // Fallback: just add item itself if schema fails
+                         $columns[] = $sel; 
+                    }
+                } else {
+                    $columns[] = $sel;
+                }
+            }
+        }
+        
+        return array_unique($columns); // Remove duplicates
+    }
+
     public function render()
     {
         return view('template-engine::livewire.builder');
+    }
+    // === Dynamic Table Management ===
+
+    public function addTableHeader()
+    {
+        $this->fieldData['meta']['headers'][] = ['label' => 'New Header', 'width' => '', 'style' => ''];
+        
+        // Add a corresponding cell to each existing row to maintain structure
+        if (isset($this->fieldData['meta']['rows'])) {
+            foreach ($this->fieldData['meta']['rows'] as $index => $row) {
+                 $this->fieldData['meta']['rows'][$index]['cells'][] = ['content' => '', 'style' => '', 'colspan' => 1];
+            }
+        }
+    }
+
+    public function removeTableHeader($index)
+    {
+        unset($this->fieldData['meta']['headers'][$index]);
+        $this->fieldData['meta']['headers'] = array_values($this->fieldData['meta']['headers']);
+        
+        // Remove corresponding cell from each row?
+        // This might be destructive if not careful, but generally expected in a grid.
+        if (isset($this->fieldData['meta']['rows'])) {
+            foreach ($this->fieldData['meta']['rows'] as $rIndex => $row) {
+                 if (isset($row['cells'][$index])) {
+                     unset($this->fieldData['meta']['rows'][$rIndex]['cells'][$index]);
+                     $this->fieldData['meta']['rows'][$rIndex]['cells'] = array_values($this->fieldData['meta']['rows'][$rIndex]['cells']);
+                 }
+            }
+        }
+    }
+
+    public function addTableRow()
+    {
+        // Calculate number of cells needed based on headers
+        $cellCount = count($this->fieldData['meta']['headers'] ?? []);
+        $cells = [];
+        for ($i = 0; $i < $cellCount; $i++) {
+            $cells[] = ['content' => '', 'style' => '', 'colspan' => 1];
+        }
+
+        $this->fieldData['meta']['rows'][] = [
+            'type' => 'static',
+            'source' => '',
+            'cells' => $cells // Initialize with empty cells matching headers
+        ];
+    }
+
+    public function removeTableRow($index)
+    {
+        unset($this->fieldData['meta']['rows'][$index]);
+        $this->fieldData['meta']['rows'] = array_values($this->fieldData['meta']['rows']);
+    }
+
+    public function updateTableCell($rowIndex, $cellIndex, $key, $value)
+    {
+        $this->fieldData['meta']['rows'][$rowIndex]['cells'][$cellIndex][$key] = $value;
     }
 }

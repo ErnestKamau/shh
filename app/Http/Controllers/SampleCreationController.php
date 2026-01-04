@@ -1597,7 +1597,7 @@ class SampleCreationController extends Controller
         }
         
         // Create sample dates
-        $this->createSampleDates($sampleHeader->id, $sampleDetail->id);
+        $this->createSampleDates($sampleHeader->id, [$sampleDetail]);
         
         Log::info('Created sample detail from staging', [
             'sample_detail_id' => $sampleDetail->id,

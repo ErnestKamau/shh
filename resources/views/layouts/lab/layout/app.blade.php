@@ -403,6 +403,5 @@
 @endsection
 
 @section('script')
-@livewireScripts
 @yield('script2')
 @endsection

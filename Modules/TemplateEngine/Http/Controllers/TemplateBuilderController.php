@@ -68,6 +68,7 @@ class TemplateBuilderController extends Controller
     {
         $data = $request->validate([
             'name' => 'required|string|max:255',
+            'type' => 'required|string|in:form,report',
             'description' => 'nullable|string',
             'category' => 'nullable|string',
             'process_id' => 'nullable|string|in:' . implode(',', array_keys(getTemplateProcesses())),
@@ -82,6 +83,39 @@ class TemplateBuilderController extends Controller
         $template = $this->service->createTemplate($data, auth()->user());
 
         return redirect()->route('templates.builder', $template->id);
+    }
+
+    public function edit($id)
+    {
+        $template = FormTemplate::findOrFail($id);
+        return view('template-engine::edit', compact('template'));
+    }
+
+    public function update(Request $request, $id)
+    {
+        $template = FormTemplate::findOrFail($id);
+        
+        $data = $request->validate([
+            'name' => 'required|string|max:255',
+            'type' => 'required|string|in:form,report',
+            'description' => 'nullable|string',
+            'category' => 'nullable|string',
+            'process_id' => 'nullable|string|in:' . implode(',', array_keys(getTemplateProcesses())),
+        ]);
+
+        // Store process identifier in process_type since process_id is for polymorphic relationships
+        if (!empty($data['process_id'])) {
+            $data['process_type'] = $data['process_id'];
+            $data['process_id'] = null; // Set to null since we're using process_type for the identifier
+        } else {
+             $data['process_type'] = null;
+             $data['process_id'] = null;
+        }
+        
+        $template->update($data);
+
+        return redirect()->route('templates.index')
+            ->with('success', 'Template updated successfully.');
     }
 
     public function builder($id)
