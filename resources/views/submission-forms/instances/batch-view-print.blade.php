@@ -103,17 +103,56 @@
         object-fit: contain !important;
       }
       
-      .compact-section .form-group {
-        margin-bottom: 5px !important;
-      }
-      
-      .compact-section .form-control-plaintext {
-        padding: 3px 6px !important;
-        font-size: 12px !important;
-      }
-      
+      /* Compact Section styling to look like a table */
       .compact-section .row {
-        margin-bottom: 8px !important;
+        margin: 0 !important;
+        border-left: 1px solid #000;
+        border-top: 1px solid #000;
+      }
+      
+      .compact-section .col-4,
+      .compact-section .col-6,
+      .compact-section .col-12 {
+        border-right: 1px solid #000;
+        border-bottom: 1px solid #000;
+        padding: 5px 8px !important;
+        margin: 0 !important;
+        min-height: 80px; /* Ensure consistent height for rows */
+      }
+
+      .compact-section .form-group {
+        margin-bottom: 0 !important;
+        height: 100%;
+        display: flex;
+        flex-direction: column;
+      }
+      
+      .compact-section label {
+        font-weight: bold;
+        font-size: 11px !important;
+        text-transform: uppercase;
+        margin-bottom: 2px;
+        color: #333;
+      }
+
+      /* Fix signature image in compact section */
+      .compact-section .signature-image {
+        max-height: 40px !important;
+        border: none !important;
+        margin-top: auto;
+      }
+
+      .compact-section .form-control-plaintext {
+        padding: 0 !important;
+        font-size: 12px !important;
+        border: none !important;
+        margin-top: auto; /* Push content to bottom alignment if needed, or keep top */
+        flex-grow: 1;
+      }
+
+      /* Hide empty label space validation asterisks in print if needed for alignment */
+      .compact-section label span.text-danger {
+        display: none;
       }
       
       .test-required-table {
@@ -156,9 +195,9 @@
         margin-right: 0 !important;
       }
       
-      .col-md-4,
-      .col-md-6,
-      .col-md-12 {
+      .col-4,
+      .col-6,
+      .col-12 {
         padding-left: 3px !important;
         padding-right: 3px !important;
       }
@@ -271,7 +310,7 @@
             <div class="company-header">
             <div class="row align-items-center">
                 <!-- Left: Company Details -->
-                <div class="col-md-4">
+                <div class="col-4">
                 {{-- <h3 class="mb-3" style="font-weight: 700;">{{ strtoupper($company->name) }}</h3> --}}
                 <p class="mb-1"> {{ $company->name }}</p>
                 <p class="mb-1">{{ $company->street }}</p>
@@ -280,13 +319,13 @@
                 </div>
                 
                 <!-- Center: Company Logo -->
-                <div class="col-md-4 text-center">
+                <div class="col-4 text-center">
                 <img src="{{ $company->logo }}" alt="{{ $company->name }} Logo" class="company-logo">
                 <p class="mt-3" style="font-size:18px"><b><u>{{ $instance->submissionForm->name }}</u></b></p>
                 </div>
                 
                 <!-- Right: Form Details -->
-                <div class="col-md-4">
+                <div class="col-4">
                     <div class="form-info-box">
                     
                     <p class="mb-2">FM/QA/047</p>
@@ -324,7 +363,7 @@
                             @endphp
                             
                             @if(!$isClientUnitInClientDetails)
-                            <div class="col-md-{{  $section->title == 'Client Details' ? 12 : getColumnWidth($holder->elements->count()) }} mb-3">
+                            <div class="col-{{  $section->title == 'Client Details' ? 12 : getColumnWidth($holder->elements->count()) }} mb-3">
                                 <div class="{{  $section->title == 'Client Details' ? '' : 'form-group' }}">
                                 @if($section->title !== 'Client Details')
                                 <label class="font-weight-bold">
@@ -391,6 +430,9 @@
                                     } elseif ($element->element_type === 'standard_select' && $value && is_numeric($value)) {
                                         $standard = \App\Standards::find($value);
                                         $value = $standard ? $standard->name : $value;
+                                    } elseif ($element->element_type === 'user_select' && $value && is_numeric($value)) {
+                                        $user = \App\User::find($value);
+                                        $value = $user ? $user->name : $value;
                                     }
                                     
                                     // Check if this is a signature field
@@ -398,9 +440,18 @@
                                                     str_contains(strtolower($element->name ?? ''), 'signature');
                                     @endphp
                                     
-                                    @if($isSignature && $value && str_starts_with($value, 'data:image'))
-                                    {{-- Display signature as image --}}
-                                    <img src="{{ $value }}" alt="Signature" class="signature-image" style="max-width: 200px; max-height: 100px; border: 1px solid #ddd; border-radius: 4px;">
+                                    @if($isSignature && $value)
+                                      @php
+                                          $sigSrc = $value;
+                                          if (!str_starts_with($value, 'data:image')) {
+                                              if (str_starts_with($value, '/storage') || str_starts_with($value, 'http')) {
+                                                  $sigSrc = $value;
+                                              } else {
+                                                  $sigSrc = \Illuminate\Support\Facades\Storage::disk('public')->url($value);
+                                              }
+                                          }
+                                      @endphp
+                                      <img src="{{ $sigSrc }}" alt="Signature" class="signature-image" style="max-width: 200px; max-height: 100px; border: 1px solid #ddd; border-radius: 4px;">
                                     @else
                                     {{-- Display regular text value or HTML content --}}
                                     {!! $value !!}

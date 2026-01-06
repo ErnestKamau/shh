@@ -418,6 +418,9 @@
                                  } elseif ($element->element_type === 'standard_select' && $value && is_numeric($value)) {
                                    $standard = \App\Standards::find($value);
                                    $value = $standard ? $standard->name : $value;
+                                 } elseif ($element->element_type === 'user_select' && $value && is_numeric($value)) {
+                                   $user = \App\User::find($value);
+                                   $value = $user ? $user->name : $value;
                                  }
                                  
                                  // Check if this is a signature field
@@ -425,10 +428,19 @@
                                                 str_contains(strtolower($element->name ?? ''), 'signature');
                                @endphp
                                
-                               @if($isSignature && $value && str_starts_with($value, 'data:image'))
-                                 {{-- Display signature as image --}}
-                                 <img src="{{ $value }}" alt="Signature" class="signature-image" style="max-width: 200px; max-height: 100px; border: 1px solid #ddd; border-radius: 4px;">
-                               @else
+                               @if($isSignature && $value)
+                                  @php
+                                      $sigSrc = $value;
+                                      if (!str_starts_with($value, 'data:image')) {
+                                          if (str_starts_with($value, '/storage') || str_starts_with($value, 'http')) {
+                                              $sigSrc = $value;
+                                          } else {
+                                              $sigSrc = \Illuminate\Support\Facades\Storage::disk('public')->url($value);
+                                          }
+                                      }
+                                  @endphp
+                                  <img src="{{ $sigSrc }}" alt="Signature" class="signature-image" style="max-width: 200px; max-height: 100px; border: 1px solid #ddd; border-radius: 4px;">
+                                @else
                                  {{-- Display regular text value or HTML content --}}
                                  {!! $value !!}
                                @endif

@@ -367,6 +367,10 @@ class MethodSequenceWorksheet extends Component
             }
             
             $this->setMessage('Equipment usage saved!', 'success');
+            
+            // Close dropdown and clear search
+            $this->showEquipmentDropdown = false;
+            $this->equipmentSearch = '';
         } catch (\Exception $e) {
             $this->setMessage('Error saving equipment usage: ' . $e->getMessage(), 'error');
         }

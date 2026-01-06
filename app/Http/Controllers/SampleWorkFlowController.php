@@ -3131,10 +3131,153 @@ class SampleWorkFlowController extends Controller
         }
     }
 
+    public function merge_attachments(Request $request)
+    {
+        $request->validate([
+            'attachment_ids' => 'required|string',
+            'title' => 'required|string',
+            'attachment_type' => 'required|integer',
+            'batch_id' => 'required|integer'
+        ]);
+
+        $ids = explode(',', $request->attachment_ids);
+        if (empty($ids)) {
+            return redirect()->back()->with('error', 'No attachments selected for merging.');
+        }
+
+        // Fetch attachments. Note: WHERE IN does not guarantee order, so we sort manually
+        $attachments = BatchAttachment::whereIn('id', $ids)->get();
+        
+        $orderedAttachments = [];
+        foreach ($ids as $id) {
+            $att = $attachments->firstWhere('id', $id);
+            if ($att) {
+                $orderedAttachments[] = $att;
+            }
+        }
+
+        if (empty($orderedAttachments)) {
+            return redirect()->back()->with('error', 'Could not retrieve selected attachments.');
+        }
+
+        $pdf = new \setasign\Fpdi\Fpdi();
+        
+        $filesMerged = 0;
+
+        foreach ($orderedAttachments as $attachment) {
+            // attachment_url is stored like '/storage/batch-attachments/Start%20Report.pdf'
+            
+            $relativePath = urldecode($attachment->attachment_url);
+            
+            // Handle duplicate leading slashes if public_path adds one
+            // If path starts with /, public_path may double it, usually fine but let's be clean
+            $relativePath = ltrim($relativePath, '/');
+            
+            $filePath = public_path($relativePath);
+
+            \Log::info("Merging Attachment: ID {$attachment->id}, URL: {$attachment->attachment_url}");
+            \Log::info("Resolved Path: {$filePath}");
+
+            if (!file_exists($filePath)) {
+               \Log::warning("File not found at path: {$filePath}");
+               
+               // Fallback: Check in storage/app if not in public
+               // URL: /storage/folder/file.pdf -> Path: storage/app/folder/file.pdf
+               $cleanPath = ltrim($relativePath, '/');
+               if (strpos($cleanPath, 'storage/') === 0) {
+                   $storageInternalPath = substr($cleanPath, 8); // remove 'storage/'
+                   $fallbackPath = storage_path('app/' . $storageInternalPath);
+                   \Log::info("Checking fallback path: {$fallbackPath}");
+                   
+                   if (file_exists($fallbackPath)) {
+                       $filePath = $fallbackPath;
+                       \Log::info("File found at fallback path.");
+                   }
+               }
+            }
+
+            if (!file_exists($filePath)) {
+               continue;
+            }
+
+            try {
+                $pageCount = $pdf->setSourceFile($filePath);
+                \Log::info("File found. Page count: {$pageCount}");
+                for ($pageNo = 1; $pageNo <= $pageCount; $pageNo++) {
+                    $templateId = $pdf->importPage($pageNo);
+                    $size = $pdf->getTemplateSize($templateId);
+                    
+                    // Add Page with same orientation/size as source
+                    $pdf->AddPage($size['orientation'], [$size['width'], $size['height']]);
+                    $pdf->useTemplate($templateId);
+                }
+                $filesMerged++;
+            } catch (\Exception $e) {
+                \Log::error("Error merging file {$attachment->title}: " . $e->getMessage());
+                return redirect()->back()->with('error', 'Error merging file ' . $attachment->title . ': ' . $e->getMessage());
+            }
+        }
+
+        if ($filesMerged === 0) {
+            return redirect()->back()->with('error', 'No valid files found to merge.');
+        }
+
+        // Output merged PDF
+        $outputContent = $pdf->Output('S');
+        $fileName = 'Merged_Report_' . time() . '.pdf';
+        $storagePath = 'batch-attachments/' . $fileName;
+
+        // Save to storage
+        Storage::put($storagePath, $outputContent);
+
+        // Save to Database
+        $newAttachment = new BatchAttachment();
+        $newAttachment->batch_id = $request->batch_id;
+        $newAttachment->uploaded_by = auth()->user()->id;
+        $newAttachment->title = $request->title;
+        $newAttachment->attachment_type = $request->attachment_type;
+        $newAttachment->is_internal = 0; // Default to public/external
+        $newAttachment->attachment_url = '/storage/' . $storagePath;
+        $newAttachment->save();
+
+        return redirect()->back()->with('success', 'Attachments merged successfully!');
+    }
+
     public function delete_batch_attachmment(Request $request)
     {
         $attachment = BatchAttachment::find($request->attachment_id);
-        if (isset($attachment->id)) {
+        if ($attachment) {
+            
+            // Delete the physical file
+            $relativePath = urldecode($attachment->attachment_url);
+            $filePath = public_path($relativePath);
+            
+            if (!file_exists($filePath)) {
+                // Fallback check in storage/app
+                $cleanPath = ltrim($relativePath, '/');
+                if (strpos($cleanPath, 'storage/') === 0) {
+                   $storageInternalPath = substr($cleanPath, 8);
+                   $fallbackPath = storage_path('app/' . $storageInternalPath);
+                   if (file_exists($fallbackPath)) {
+                       $filePath = $fallbackPath;
+                   }
+                }
+            }
+
+            if (file_exists($filePath)) {
+                try {
+                    unlink($filePath);
+                    \Log::info("Deleted attachment file: {$filePath}");
+                } catch (\Exception $e) {
+                    \Log::error("Failed to delete attachment file: {$filePath}. Error: " . $e->getMessage());
+                }
+            } else {
+                \Log::warning("Attachment file to delete not found: {$attachment->attachment_url}");
+            }
+
+            // Delete the database record
+            // Since User requested "Deletes it permanently", we force delete if soft deletes were enabled, 
+            // but BatchAttachment model doesn't use SoftDeletes trait, so delete() is permanent.
             $attachment->delete();
 
             return redirect()->back()->with('success', 'Attachment deleted successfully!');
@@ -5510,6 +5653,35 @@ class SampleWorkFlowController extends Controller
             
             return redirect()->back()->with('error', 'Error updating samples: ' . $e->getMessage());
         }
+    }
+
+    public function store_attachment_type(Request $request)
+    {
+        $request->validate([
+            'value' => 'required|string',
+        ]);
+
+        if(SystemConfiguration::where('key', 'attachment_type')->where('value', $request->value)->exists()){
+             return response()->json(['success'=>false, 'message'=>'Attachment Type already exists']);
+        }
+
+        $config_type = SystemConfiguration::where('key', 'attachment_type_config_id')->first();
+        if(!isset($config_type->id)){
+            return response()->json(['success'=>false, 'message'=>'Attachment Type Config not found']);
+        }
+
+        $config = new SystemConfiguration();
+        $config->key = 'attachment_type';
+        $config->value = $request->value;
+
+        $config->configuration_type_id = $config_type->id;
+        $config->save();
+
+        return response()->json([
+            'success' => true,
+            'id' => $config->id,
+            'value' => $config->value
+        ]);
     }
 
 }

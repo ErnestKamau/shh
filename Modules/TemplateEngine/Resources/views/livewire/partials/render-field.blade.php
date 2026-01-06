@@ -206,7 +206,7 @@
                                             }
                                         }
 
-                                        // 2. If not found in item, try Global Variables (e.g. {{ table.column }} or {{ var }})
+                                        // 2. If not found in item, try Global Variables (e.g. table.column or variable)
                                         if (!$foundInItem) {
                                             // Access global resolvedVariables passed securely to view or via Livewire
                                             // In RenderForm component context, they are properties. But inside partial loop?
@@ -368,7 +368,7 @@
                 </div>
             @endif
         @endif
-            @endif
+
         @elseif($field->type === 'dynamic_table')
             @php
                 $headers = $field->meta['headers'] ?? [];

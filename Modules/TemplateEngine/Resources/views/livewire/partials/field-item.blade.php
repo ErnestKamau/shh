@@ -28,10 +28,11 @@
             $columnClass = $styleService->getColumnClass($columns);
             $colWidth = 12 / $columns;
         @endphp
-        <div style="min-height: 50px;{{ $inlineStyles ? $inlineStyles : '' }}">
-            <div class="holder-header">
+        <div style="min-height: 50px;{{ $inlineStyles ? $inlineStyles : '' }}" x-data="{ expanded: true }">
+            <div class="holder-header" @click="expanded = !expanded" style="cursor: pointer;">
                 <span class="holder-title">
-                    <i class="fas fa-box-open mr-1 text-muted"></i> {{ $field->label }}
+                    <i class="fas" :class="expanded ? 'fa-chevron-down' : 'fa-chevron-right'"></i>
+                    <i class="fas fa-box-open mx-1 text-muted"></i> {{ $field->label }}
                 </span>
                 <div>
                     <span class="badge badge-info border mr-1">{{ $columns }} column(s)</span>
@@ -44,7 +45,7 @@
                 </div>
             </div>
             
-            <div class="holder-content p-2">
+            <div class="holder-content p-2" x-show="expanded" x-collapse>
                 @if($field->children->count() > 0)
                    <div class="card-body p-3">
                        <div class="row sortable-list" data-parent-id="{{ $field->id }}" style="min-height: 50px;">
@@ -61,6 +62,10 @@
                     </div>
                 @endif
             </div>
+            
+            <div x-show="!expanded" class="text-center text-muted py-1 small italic" style="display: none; background: #f9fafb; border-radius: 0 0 4px 4px;">
+                <span class="opacity-50">Content hidden ({{ $field->children->count() }} items)</span>
+            </div>
         </div>
     @elseif(in_array($field->type, ['ul', 'ol']))
         @php
@@ -69,10 +74,11 @@
             $customClass = $field->meta['css']['custom_css'] ?? '';
             $dataSource = $field->meta['data_source'] ?? 'static';
         @endphp
-        <div class="element-holder-container {{ $customClass }}">
-             <div class="holder-header">
+        <div class="element-holder-container {{ $customClass }}" x-data="{ expanded: true }">
+             <div class="holder-header" @click="expanded = !expanded" style="cursor: pointer;">
                 <span class="holder-title">
-                    <i class="fas fa-list-{{ $listType }} mr-1 text-muted"></i> {{ $field->label }}
+                    <i class="fas" :class="expanded ? 'fa-chevron-down' : 'fa-chevron-right'"></i>
+                    <i class="fas fa-list-{{ $listType }} mx-1 text-muted"></i> {{ $field->label }}
                 </span>
                 <div>
                      @if($dataSource === 'dynamic')
@@ -84,7 +90,7 @@
                 </div>
             </div>
             
-            <div class="holder-content p-2">
+            <div class="holder-content p-2" x-show="expanded" x-collapse>
                 <{{ $listType }} style="{{ $listStyle ? 'list-style-type: ' . $listStyle : '' }}" class="pl-4 mb-0 sortable-list" data-parent-id="{{ $field->id }}" style="min-height: 20px;">
                     @if($field->children->count() > 0)
                         @foreach($field->children as $child)
@@ -100,6 +106,10 @@
                         </li>
                     @endif
                 </{{ $listType }}>
+            </div>
+            
+            <div x-show="!expanded" class="text-center text-muted py-1 small italic" style="display: none; background: #f9fafb; border-radius: 0 0 4px 4px;">
+                <span class="opacity-50">List hidden ({{ $field->children->count() }} items)</span>
             </div>
         </div>
     @elseif(in_array($field->type, ['heading', 'paragraph', 'blockquote', 'code_block', 'link']))

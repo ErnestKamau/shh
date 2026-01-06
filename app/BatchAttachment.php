@@ -14,7 +14,7 @@ class BatchAttachment extends Model implements Auditable
     public function getUploadUserAttribute(){
         return User::find($this->uploaded_by)->name ?? '';
     }
-    public function getAttachTypeName(){
+    public function getAttachtypenameAttribute(){
         return SystemConfiguration::find($this->attachment_type)->value ?? 'General';
     }
 

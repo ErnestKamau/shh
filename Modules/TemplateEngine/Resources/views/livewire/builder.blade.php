@@ -1168,7 +1168,7 @@
                                 </h6>
                                 
                                 <!-- Column Configuration -->
-                                <div class="form-group mb-3">
+                                <div class="form-group mb-0">
                                     <label class="font-weight-bold small">Columns per Row</label>
                                     <select wire:model="fieldData.meta.columns" class="form-control">
                                         <option value="1">1 Column (Full Width)</option>
@@ -1180,9 +1180,17 @@
                                     </select>
                                     <small class="text-muted">This will create {{ $fieldData['meta']['columns'] ?? 1 }} column(s) horizontally</small>
                                 </div>
+                            </div>
+                        @endif
 
-                                <!-- CSS Configuration Tabs -->
-                                <div class="mt-4">
+                        <!-- Style Configuration (Global) -->
+                        <div class="bg-light p-3 rounded mb-3 border">
+                            <h6 class="text-primary font-weight-bold mb-3">
+                                <i class="fas fa-paint-brush mr-2"></i>Style Configuration
+                            </h6>
+
+                            <!-- CSS Configuration Tabs -->
+                            <div class="mt-2">
                                     <ul class="nav nav-tabs" role="tablist">
                                         <li class="nav-item">
                                             <a class="nav-link active" data-toggle="tab" href="#spacing-tab" role="tab">
@@ -1363,6 +1371,20 @@
                                                     </div>
                                                 </div>
                                             </div>
+                                            <div class="row">
+                                                <div class="col-md-4">
+                                                    <div class="form-group">
+                                                        <label class="small font-weight-bold">Text Align</label>
+                                                        <select wire:model="fieldData.meta.css.text_align" class="form-control form-control-sm">
+                                                            <option value="">Default</option>
+                                                            <option value="left">Left</option>
+                                                            <option value="center">Center</option>
+                                                            <option value="right">Right</option>
+                                                            <option value="justify">Justify</option>
+                                                        </select>
+                                                    </div>
+                                                </div>
+                                            </div>
                                         </div>
 
                                         <!-- Layout Tab -->
@@ -1418,7 +1440,7 @@
                                     </div>
                                 </div>
                             </div>
-                        @endif
+
                         
                         @if($fieldData['parent_field_id'])
                             <div class="alert alert-warning small">

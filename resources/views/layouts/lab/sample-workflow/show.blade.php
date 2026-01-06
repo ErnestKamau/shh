@@ -1730,19 +1730,22 @@
 				<div class="tab-pane fade p-3" id="Attachment" role="tabpanel" aria-labelledby="one-tab">
 					<h5 class="card-tile">
 						<i class="mdi mdi-attachment"></i> Attachments
-						<span class="btn btn-outline-info btn-sm float-right mb-2" data-target="#add-attachment-batch" data-toggle="modal"><i class="mdi mdi-plus"></i> Add</span>
+						<div class="float-right mb-2">
+							<button type="button" class="btn btn-outline-primary btn-sm mr-1" id="merge-attachments-btn" disabled><i class="mdi mdi-file-document-box-multiple"></i> Merge Selected <span id="merge-count" class="badge badge-primary">0</span></button>
+							<span class="btn btn-outline-info btn-sm" data-target="#add-attachment-batch" data-toggle="modal"><i class="mdi mdi-plus"></i> Add</span>
+						</div>
 					</h5>
 					<div class="table-responsive">
-					<table class="table table-condensed table-sm table-hover table-stripped table-bordered">
+					<table class="table table-bordered mb-0" id="attachments-table">
 						<thead class="bg-light p-2">
 							<tr>
-								<th></th>
+								<th style="width: 30px;"><input type="checkbox" id="check-all-attachments"></th>
 								<th>Type</th>
 								<th>Title</th>
 								<th>Upload Date</th>
 								<th>Uploaded By</th>
 								<th>File</th>
-								<th></th>
+								<th>Action</th>
 							</tr>
 						</thead>
 						<tbody>
@@ -1751,42 +1754,23 @@
 									@if($a->is_internal == 0)
 										
 										<tr>
-											<td>{{$loop->iteration}}</td>
+											<td><input type="checkbox" class="attachment-checkbox" value="{{$a->id}}" data-title="{{$a->title}}" data-type="{{$a->attachtypename}}"></td>
 											<td>{{ $a->attachtypename}}</td>
 											<td>{{$a->title ?? 'N/a'}}</td>
 											<td>{{date('Y-m-d',strtotime($a->created_at))}}</td>
 											<td>{{$a->uploaduser}}</td>
 											<td class="text-center">
-											<a href="'.$a->attachment_url.'" target="_blank" data-toggle="tooltip" data-title="View Attachment" class=" btn-sm btn btn-outline-dark"><i class="mdi mdi-eye"></i></a>
+											<a href="{{$a->attachment_url}}" target="_blank" data-toggle="tooltip" data-title="View Attachment" class=" btn-sm btn btn-outline-dark"><i class="mdi mdi-eye"></i></a>
 											
 											</td>
 											<td>
-												<span class="btn btn-sm btn-outline-danger" data-title="Delete Attachment" data-toggle="modal" data-target="#delete-attachment-'.$a->id.'" ><i class="mdi mdi-delete-empty"></i></span>
-												
-												<div class="modal fade" id="delete-attachment-{{$a->id}}" role="dialog">
-													<div class="modal-dialog">
-														<div class="modal-content">
-															<form action="{{route('delete_batch_attachmment')}}" method="post">
-																@csrf  
-																<div class="modal-body">
-																	
-																		<div class="alert alert-danger p-3">
-																		<i class="mdi mdi-delete-empty"></i>	Confirm you want to delete attchment {{$loop->iteration}}.
-																		</div>
-																
-																	<input type="hidden" name="attachment_id" value="{{$a->id}}">
-
-																</div>
-																
-																<div class="modal-footer">
-																	<button type="submit" class="btn btn-success btn-sm"><i class="mdi mdi-thumb-up"></i> Confirm</button>
-																	<button type="button" class="btn btn-default btn-sm" data-dismiss="modal">Close</button>
-							
-																</div>
-															</form>
-														</div>
-													</div>
-												</div>
+												<span class="btn btn-sm btn-outline-danger delete-attachment-btn" 
+													data-id="{{$a->id}}" 
+													data-title="{{$a->title}}" 
+													data-toggle="tooltip" 
+													title="Delete Attachment">
+													<i class="mdi mdi-delete-empty"></i>
+												</span>
 											</td>
 										</tr>
 									@endif
@@ -1795,41 +1779,25 @@
 								@foreach($attachments as $a)
 								
 								<tr>
-									<td>{{$loop->iteration}}</td>
+									<td><input type="checkbox" class="attachment-checkbox" value="{{$a->id}}" data-title="{{$a->title}}" data-type="{{$a->attachtypename}}"></td>
 									<td>{{ $a->attachtypename}}</td>
 									<td>{{$a->title ?? 'N/a'}}</td>
 									<td>{{date('Y-m-d',strtotime($a->created_at))}}</td>
 									<td>{{$a->uploaduser}}</td>
 									
 									<td class="text-center">
-										<a href="'.$a->attachment_url.'" target="_blank" data-toggle="tooltip" data-title="View Attachment" class=" btn-sm btn btn-outline-dark"><i class="mdi mdi-eye"></i></a>
+										<a href="{{$a->attachment_url}}" target="_blank" data-toggle="tooltip" data-title="View Attachment" class=" btn-sm btn btn-outline-dark"><i class="mdi mdi-eye"></i></a>
 									
 									
 									</td>
 									<td>
-										
-									<span class="btn btn-sm btn-outline-danger" data-title="Delete Attachment" data-toggle="modal" data-target="#delete-attachment-'.$a->id.'" ><i class="mdi mdi-delete-empty"></i></span>
-										<div class="modal fade" id="delete-attachment-{{$a->id}}" role="dialog">
-											<div class="modal-dialog">
-												<div class="modal-content">
-													<form action="{{route('delete_batch_attachmment')}}" method="post">
-														@csrf  
-														<div class="modal-body">
-															
-																<div class="alert alert-danger p-3">
-																<i class="mdi mdi-delete-empty"></i>	Confirm you want to delete attachment {{$loop->iteration}}.
-																</div>
-														
-															<input type="hidden" name="attachment_id" value="{{$a->id}}">
-														</div>
-														<div class="modal-footer">
-															<button type="submit" class="btn btn-success btn-sm"><i class="mdi mdi-thumb-up"></i> Confirm</button>
-															<button type="button" class="btn btn-default btn-sm" data-dismiss="modal">Close</button>
-														</div>
-													</form>
-												</div>
-											</div>
-										</div>
+										<span class="btn btn-sm btn-outline-danger delete-attachment-btn" 
+											data-id="{{$a->id}}" 
+											data-title="{{$a->title}}" 
+											data-toggle="tooltip" 
+											title="Delete Attachment">
+											<i class="mdi mdi-delete-empty"></i>
+										</span>
 									</td>
 								</tr>
 								@endforeach
@@ -1839,6 +1807,158 @@
 					</div>
 				</div>
 			@endif
+
+			<div class="modal fade" id="merge-attachments-modal" role="dialog">
+				<div class="modal-dialog">
+					<div class="modal-content">
+						<form action="{{route('merge-attachments')}}" method="post">
+							@csrf
+							<div class="modal-header">
+								<h5 class="modal-title">Merge Attachments</h5>
+							</div>
+							<div class="modal-body p-4">
+								<div class="alert alert-info p-2 mb-3">
+									<i class="mdi mdi-information"></i> Drag and drop items to reorder the report sections.
+								</div>
+								
+								<div class="form-group mb-3">
+									<label class="control-label font-weight-bold text-muted text-uppercase small">Title</label>
+									<input type="text" name="title" class="form-control form-control-lg" required placeholder="Merged Report Title" style="border-radius: 8px;">
+								</div>
+
+								<div class="form-group mb-4">
+									<label class="control-label font-weight-bold text-muted text-uppercase small">Attachment Type</label>
+									<select name="attachment_type" class="form-control form-control-lg" required style="border-radius: 8px;">
+										<option value="">Choose Attachment Type ...</option>
+										@foreach($atachment_type as $aType)
+										<option value="{{$aType->id}}">{{$aType->value}}</option>
+										@endforeach
+									</select>
+								</div>
+
+								<div class="form-group">
+									<label class="control-label font-weight-bold text-muted text-uppercase small">Selected Files (Order Matters)</label>
+									<ul id="sortable-attachments" class="list-group">
+										<!-- Populated by JS -->
+									</ul>
+								</div>
+								<input type="hidden" name="attachment_ids" id="ordered-attachment-ids">
+								<input type="hidden" name="batch_id" value="{{$batch->id}}">
+							</div>
+							<div class="modal-footer">
+								<button type="submit" class="btn btn-success btn-sm"><i class="mdi mdi-check"></i> Merge & Save</button>
+								<button type="button" class="btn btn-default btn-sm" data-dismiss="modal">Close</button>
+							</div>
+						</form>
+					</div>
+				</div>
+			</div>
+
+			<style>
+				#sortable-attachments { list-style-type: none; margin: 0; padding: 0; }
+				#sortable-attachments li { cursor: move; border: 1px solid #ddd; background: #fff; border-radius: 4px; }
+				#sortable-attachments li:hover { background-color: #f8f9fa; }
+			</style>
+
+			<script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.0/Sortable.min.js"></script>
+			<script>
+				document.addEventListener('DOMContentLoaded', function() {
+					(function($) {
+						if (!$) {
+							console.error('jQuery not found completely');
+							return;
+						}
+						console.log('Attachments script loaded'); // Debug
+						
+						// Helper: Update Button State
+						function updateMergeButtonState() {
+							var checkedCount = $('.attachment-checkbox:checked').length;
+							$('#merge-count').text(checkedCount);
+							
+							if (checkedCount >= 2) {
+								$('#merge-attachments-btn').prop('disabled', false);
+							} else {
+								$('#merge-attachments-btn').prop('disabled', true);
+							}
+						}
+
+						// Event Delegation for Checkboxes
+						$(document).off('change', '.attachment-checkbox').on('change', '.attachment-checkbox', function() {
+							updateMergeButtonState();
+							// Debug
+							console.log('Checkbox changed. Total checked:', $('.attachment-checkbox:checked').length);
+							
+							// Update "Check All" state
+							var allChecked = $('.attachment-checkbox:checked').length == $('.attachment-checkbox').length;
+							$('#check-all-attachments').prop('checked', allChecked);
+						});
+
+						// Event Delegation for Check All
+						$(document).off('change', '#check-all-attachments').on('change', '#check-all-attachments', function() {
+							$('.attachment-checkbox').prop('checked', $(this).prop('checked'));
+							updateMergeButtonState();
+						});
+
+						// Event Delegation for Merge Button Click
+						$(document).off('click', '#merge-attachments-btn').on('click', '#merge-attachments-btn', function(e) {
+							e.preventDefault();
+							
+							try {
+								// Populate Modal
+								$('#sortable-attachments').empty();
+								
+								$('.attachment-checkbox:checked').each(function() {
+									var id = $(this).val();
+									var title = $(this).data('title');
+									var type = $(this).data('type');
+									
+									var li = '<li class="list-group-item p-2 mb-1 d-flex justify-content-between align-items-center" data-id="'+id+'">' +
+											'<span><i class="mdi mdi-drag-vertical mr-2 text-muted"></i> ' + title + ' <small class="text-muted">(' + type + ')</small></span>' +
+											'</li>';
+									$('#sortable-attachments').append(li);
+								});
+
+								$('#merge-attachments-modal').modal('show');
+								
+								// Initialize SortableJS
+								var el = document.getElementById('sortable-attachments');
+								if(el){
+									Sortable.create(el, {
+										animation: 150,
+										onEnd: function() {
+											var ids = [];
+											$('#sortable-attachments li').each(function() {
+												ids.push($(this).data('id'));
+											});
+											$('#ordered-attachment-ids').val(ids.join(','));
+										}
+									});
+									
+									// Initial update
+									var ids = [];
+									$('#sortable-attachments li').each(function() {
+										ids.push($(this).data('id'));
+									});
+									$('#ordered-attachment-ids').val(ids.join(','));
+								}
+
+							} catch (err) {
+								console.error('Error opening modal:', err);
+							}
+						});
+
+						// Form Submit handler
+						$(document).off('submit', '#merge-attachments-modal form').on('submit', '#merge-attachments-modal form', function() {
+							var ids = [];
+							$('#sortable-attachments li').each(function() {
+								ids.push($(this).data('id'));
+							});
+							$('#ordered-attachment-ids').val(ids.join(','));
+						});
+
+					})(window.jQuery);
+				});
+			</script>
             <form method="POST" action="{{ route('add-batch-samples', ['batch'=>$batchID]) }}" class="tab-pane fade show active p-3" id="samples" role="tabpanel" aria-labelledby="one-tab">
               	
 				{{-- Show Unprocessed Staging Data when sample_detail_processed is 0 --}}
@@ -1974,11 +2094,54 @@
             </form>
           </div>
         </div>
-      </div>
+
+	<!-- Global Delete Attachment Modal -->
+	<div class="modal fade" id="delete-attachment-modal" tabindex="-1" role="dialog" aria-hidden="true">
+		<div class="modal-dialog">
+			<div class="modal-content">
+				<form action="{{route('delete_batch_attachmment')}}" method="post">
+					@csrf  
+					<div class="modal-header">
+						<h5 class="modal-title">Delete Attachment</h5>
+						<button type="button" class="close" data-dismiss="modal" aria-label="Close">
+							<span aria-hidden="true">&times;</span>
+						</button>
+					</div>
+					<div class="modal-body">
+						<div class="alert alert-danger p-3">
+							<i class="mdi mdi-alert-circle"></i> Are you sure you want to permanently delete: <strong id="delete-attachment-title"></strong>?
+						</div>
+						<p class="text-danger small mb-0">This action cannot be undone. The file will be permanently removed from the server.</p>
+						<input type="hidden" name="attachment_id" id="delete-attachment-id" value="">
+					</div>
+					<div class="modal-footer">
+						<button type="submit" class="btn btn-danger"><i class="mdi mdi-delete"></i> Yes, Delete Permanently</button>
+						<button type="button" class="btn btn-secondary" data-dismiss="modal">Cancel</button>
+					</div>
+				</form>
+			</div>
+		</div>
+	</div>
+
     </div>
   </main>
 @endsection
 @section('script2')
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    $(document).off('click', '.delete-attachment-btn').on('click', '.delete-attachment-btn', function() {
+        var attachmentId = $(this).data('id');
+        var attachmentTitle = $(this).data('title');
+        
+        // Update Modal Content
+        $('#delete-attachment-id').val(attachmentId);
+        $('#delete-attachment-title').text(attachmentTitle);
+        
+        // Open Modal
+        $('#delete-attachment-modal').modal('show');
+    });
+});
+</script>
 
 <div class="carry_data hidden" data-userlabsection="{{json_encode($userLabSections)}}" ></div>
 
@@ -2629,30 +2792,101 @@
 				<div class="modal-header">
 					<h5 class="modal-title">Add Attachment For {{$batch->batch_code}}</h5>
 				</div>
-				<div class="modal-body">
-					<div class="form-group">
-						<label class="control-label">Title</label>
-						<input type="text" name="title" id="" class="form-control" required>
+				<div class="modal-body p-4">
+					<div class="form-group mb-4">
+						<label class="control-label font-weight-bold text-muted text-uppercase small">Title</label>
+						<input type="text" name="title" id="" class="form-control form-control-lg" placeholder="e.g. Lab Report, Invoice..." required style="border-radius: 8px;">
 					</div>
-					<div class="form-group">
-						<label class="control-label">Attachment Type</label>
-						<select name="attachment_type" id="" class="form-control">
+					<div class="form-group mb-4">
+						<div class="d-flex justify-content-between align-items-center">
+							<label class="control-label font-weight-bold text-muted text-uppercase small mb-2">Attachment Type</label>
+							<span class="btn btn-xs btn-info mb-2" style="cursor: pointer; padding: 2px 6px; font-size: 10px; border-radius: 4px;" data-toggle="modal" data-target="#add-attachment-type-modal" title="Add New Attachment Type">
+								<i class="mdi mdi-plus"></i> ADD NEW
+							</span>
+						</div>
+						<select name="attachment_type" id="attachment_type_select" class="form-control form-control-lg" style="border-radius: 8px;">
 							<option value="">Choose Attachment Type ...</option>
 							@foreach($atachment_type as $aType)
 							<option value="{{$aType->id}}">{{$aType->value}}</option>
 							@endforeach
 						</select>
 					</div>
-					<div class="form-group">
-						<label class="control-label">Choose File</label>
-						<input type="file" name="attachment" required class="form-control">
-						<input type="hidden" name="batch_id" value="{{$batch->id}}">
+					<div class="form-group mb-4">
+						<label class="control-label font-weight-bold text-muted text-uppercase small">Upload File</label>
+						<div class="custom-file">
+							<input type="file" class="custom-file-input" id="customFile" name="attachment" required>
+							<label class="custom-file-label" for="customFile" style="border-radius: 8px;">Choose file...</label>
+						</div>
 					</div>
-					<div class="form-group">
-						<label class="control-label">
-							<input type="checkbox" name="is_internal" id=""> For Internal Use
-						</label>
+					
+					<div class="form-group mb-2">
+						<div class="custom-control custom-checkbox">
+							<input type="checkbox" class="custom-control-input" id="internalUse" name="internal_use">
+							<label class="custom-control-label font-weight-bold text-muted small" for="internalUse">For Internal Use Only</label>
+						</div>
 					</div>
+					<input type="hidden" name="batch_id" value="{{$batch->id}}">
+
+					<!-- Nested Modal for Adding Type -->
+					<div class="modal fade" id="add-attachment-type-modal" role="dialog" style="z-index: 1060;">
+						<div class="modal-dialog modal-dialog-centered modal-sm" role="document">
+							<div class="modal-content border-0 shadow-lg" style="border-radius: 15px;">
+								<div class="modal-header border-0 pb-0">
+									<h5 class="modal-title font-weight-bold">New Type</h5>
+									<button type="button" class="close" data-dismiss="modal" aria-label="Close">
+										<span aria-hidden="true">&times;</span>
+									</button>
+								</div>
+								<div class="modal-body">
+									<div class="form-group">
+										<input type="text" class="form-control" id="new_attachment_type_name" placeholder="Type Name..." style="border-radius: 8px; background-color: #f8f9fa; border: 1px solid #e9ecef;">
+									</div>
+								</div>
+								<div class="modal-footer border-0 pt-0">
+									<button type="button" class="btn btn-light btn-sm rounded-pill px-3" data-dismiss="modal">Cancel</button>
+									<button type="button" class="btn btn-primary btn-sm rounded-pill px-4" onclick="saveAttachmentType()">Save</button>
+								</div>
+							</div>
+						</div>
+					</div>
+					<script>
+						// Update file input label
+						$(".custom-file-input").on("change", function() {
+						  var fileName = $(this).val().split("\\").pop();
+						  $(this).siblings(".custom-file-label").addClass("selected").html(fileName);
+						});
+
+						function saveAttachmentType() {
+							var name = $('#new_attachment_type_name').val();
+							if (!name) {
+								alert('Please enter a name for the attachment type.');
+								return;
+							}
+							
+							$.ajax({
+								url: "{{ route('store-attachment-type') }}",
+								type: "POST",
+								data: {
+									_token: "{{ csrf_token() }}",
+									value: name
+								},
+								success: function(response) {
+									if (response.success) {
+										var newOption = new Option(response.value, response.id, true, true);
+										$('#attachment_type_select').append(newOption).trigger('change');
+										$('#add-attachment-type-modal').modal('hide');
+										$('#new_attachment_type_name').val('');
+									} else {
+										alert('Error adding attachment type: ' + response.message);
+									}
+								},
+								error: function(xhr) {
+									alert('Error adding attachment type. Pleae try again.');
+								}
+							});
+						}
+					</script>
+
 				</div>
 				<div class="modal-footer">
 					<button type="submit" class="btn btn-success btn-sm"><i class="mdi mdi-thumb-up"></i> Save</button>
