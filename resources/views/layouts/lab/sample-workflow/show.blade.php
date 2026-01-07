@@ -1029,7 +1029,8 @@
 				<div class="form-group col-md-12 text-center">
 					@if(Auth::user()->is_client == 1 && isset($batch->status) && $batch->status != 'Samples En-Route')
 					@else
-						@if(!isset($batch->id) || in_array($batch->status,['Samples Reception']))
+						{{-- Allow save for all active stages as per user request --}}
+						@if(!isset($batch->id) || in_array($batch->status, ['Samples Reception', 'Samples In Lab', 'Sample Verification', 'Sample Approval', 'Reports for Collection', 'Reports In Payment', 'Completed']))
 							<button class="btn btn-primary btn-sm" style="width:60%" id="save-headers">
 								<i class="mdi mdi-content-save"></i> Save
 							</button>
@@ -1061,6 +1062,31 @@
 					</div>
 				</div>
 			</div>
+		@endif
+		{{-- Related Batches Section --}}
+		@if(isset($batch->id) && $batch->hasSubmissionForm())
+			@php
+				$relatedBatches = $batch->submissionFormInstance->batches->where('id', '!=', $batch->id);
+			@endphp
+			@if($relatedBatches->count() > 0)
+				<div class="card border-0 mb-2" style="background-color: inherit !important">
+					<div class="card-header- p-2 border-bottom" style="background-color: inherit !important">
+						<h5 style="font-size: large"><i class="mdi mdi-link-variant"></i> Related Batches</h5>
+					</div>
+					<div class="card-body border-bottom bg-white">
+						<div class="row no-gutters">
+							@foreach($relatedBatches as $relatedBatch)
+								<div class="col-sm-3 p-1">
+									<a href="{{ route('view-batch-details', ['batch' => $relatedBatch->id, 'client' => 0, 'portal' => 0, 'status' => $relatedBatch->status]) }}" 
+									   style="color: rgb(68, 68, 68);font-size:11px; font-weight: bold; text-decoration: none;">
+										<i class="mdi mdi-flask-outline"></i> {{ $relatedBatch->batch_code }}
+									</a>
+								</div>
+							@endforeach
+						</div>
+					</div>
+				</div>
+			@endif
 		@endif
 		<div class="card-header- p-2 mt-2" style="background-color: inherit !important">
 			<h5 style="font-size: large"><i class="mdi mdi-calendar-month"></i> Sample(s)</h5>

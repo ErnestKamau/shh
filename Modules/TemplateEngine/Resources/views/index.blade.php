@@ -10,9 +10,9 @@
                         <div>
                             <h2 class="mb-0">
                                 <i class="fas fa-file-alt text-primary"></i>
-                                Form Templates
+                                Report Templates
                             </h2>
-                            <p class="text-muted mb-0">Manage form templates and builders</p>
+                            <p class="text-muted mb-0">Manage report templates and builders</p>
                         </div>
                         <a href="{{ route('templates.create') }}" class="btn btn-primary">
                             <i class="fas fa-plus"></i> New Template
@@ -225,8 +225,8 @@
                     <div class="border-left border-danger pl-3 mb-3">
                         <h6 class="text-danger mb-2"><i class="fas fa-info-circle mr-1"></i> Consequences:</h6>
                         <ul class="mb-0 pl-3">
-                            <li>All form fields and configurations will be permanently deleted</li>
-                            <li>All form submissions associated with this template will be deleted</li>
+                            <li>All report fields and configurations will be permanently deleted</li>
+                            <li>All report submissions associated with this template will be deleted</li>
                             <li>All uploaded images and files in submissions will be removed</li>
                             <li>This template will no longer be accessible to any users</li>
                             <li>Any links or references to this template will break</li>

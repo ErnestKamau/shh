@@ -255,7 +255,7 @@ class SampleWorkFlowController extends Controller
             $header->batch_code = $cP . '' . $final_no;
         }
 
-        if (isset($header->status) && $header->status == 'Samples Reception') {
+        if (isset($header->status) && in_array($header->status, ['Samples Reception', 'Samples In Lab', 'Sample Verification', 'Sample Approval', 'Reports for Collection', 'Reports In Payment', 'Completed'])) {
             $isInReception = true;
         }
 

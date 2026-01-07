@@ -1,7 +1,7 @@
 @extends('layouts.lab.layout.app', ['select2'=>true])
 
 @section('title2')
-<title>Edit Form Template - Template Engine</title>
+<title>Edit Report Template - Template Engine</title>
 @endsection
 
 @section('content2')
@@ -15,7 +15,7 @@
         ],
         [
             'link' => route('templates.index'),
-            'name' => 'Form Templates',
+            'name' => 'Report Templates',
             'icon' => null
         ],
         [
@@ -36,7 +36,7 @@
                         <div>
                             <h2 class="mb-0">
                                 <i class="fas fa-edit text-primary"></i>
-                                Edit Form Template
+                                Edit Report Template
                             </h2>
                             <p class="text-muted mb-0">Update template metadata</p>
                         </div>
@@ -58,7 +58,7 @@
                         @method('PUT')
                         <div class="form-group mb-3">
                             <label for="name" class="font-weight-bold">Template Name <span class="text-danger">*</span></label>
-                            <input type="text" name="name" id="name" class="form-control" required value="{{ old('name', $template->name) }}" placeholder="e.g. Employee Evaluation Form">
+                            <input type="text" name="name" id="name" class="form-control" required value="{{ old('name', $template->name) }}" placeholder="e.g. Employee Evaluation Report">
                         </div>
 
                         <div class="form-group mb-3">

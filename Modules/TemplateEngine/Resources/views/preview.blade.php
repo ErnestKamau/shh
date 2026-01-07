@@ -15,7 +15,7 @@
         ],
         [
             'link' => route('templates.index'),
-            'name' => 'Form Templates',
+            'name' => 'Report Templates',
             'icon' => null
         ],
         [
@@ -63,11 +63,7 @@
         <div class="col-md-10">
             <div class="card shadow-sm border-0" style="border-radius: 15px;">
                 <div class="card-header bg-white border-bottom-0 pt-4 pb-0">
-                    <h4 class="text-center">{{ $template->name }}</h4>
-                    @if($template->description)
-                        <p class="text-muted text-center">{{ $template->description }}</p>
-                    @endif
-                    <hr>
+                    {{-- Header removed as per user request --}}
                 </div>
                 <div class="card-body p-4">
                     @livewire('template-engine::render-form', ['template' => $template])

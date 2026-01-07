@@ -12,7 +12,7 @@ class ContainerStyleService
         'padding-top', 'padding-right', 'padding-bottom', 'padding-left',
         'background-color', 'color',
         'border-width', 'border-style', 'border-color', 'border-radius',
-        'font-family', 'font-size', 'font-weight',
+        'font-family', 'font-size', 'font-weight', 'text-align',
         'width', 'height',
         'box-shadow',
         'display',
@@ -64,6 +64,7 @@ class ContainerStyleService
             'font_family' => 'font-family',
             'font_size' => 'font-size',
             'font_weight' => 'font-weight',
+            'text_align' => 'text-align',
             'width' => 'width',
             'height' => 'height',
             'box_shadow' => 'box-shadow',
@@ -139,6 +140,13 @@ class ContainerStyleService
 
             case 'font-weight':
                 $allowed = ['normal', 'bold', 'bolder', 'lighter', '100', '200', '300', '400', '500', '600', '700', '800', '900'];
+                if (!in_array(strtolower($value), $allowed)) {
+                    return '';
+                }
+                break;
+
+            case 'text-align':
+                $allowed = ['left', 'right', 'center', 'justify', 'justify-all', 'start', 'end', 'match-parent', 'inherit', 'initial', 'unset'];
                 if (!in_array(strtolower($value), $allowed)) {
                     return '';
                 }

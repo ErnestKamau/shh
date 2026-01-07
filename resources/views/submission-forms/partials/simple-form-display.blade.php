@@ -66,10 +66,10 @@
                                                             $elementId = $element['id'];
                                                             $savedValue = $rowData[$elementId] ?? null;
                                                             $displayValue = $savedValue['display_value'] ?? $savedValue['value'] ?? 'N/A';
-                                                            $isSignature = $element['element_type'] === 'signature';
+                                                            $isSignature = $element['element_type'] === 'signature' || str_contains((string)$displayValue, '/storage/personnel-signature/');
                                                         @endphp
                                                         @if($isSignature && $displayValue && $displayValue !== 'N/A')
-                                                            @if(str_starts_with($displayValue, 'data:image'))
+                                                            @if(str_starts_with($displayValue, 'data:image') || $displayValue)
                                                                 <img src="{{ $displayValue }}" alt="Signature" class="signature-image" style="max-width: 150px; max-height: 75px; border: 1px solid #dee2e6; border-radius: 4px;">
                                                             @else
                                                                 <div class="signature-placeholder" style="text-align: center; color: #6c757d; font-size: 0.8rem;">
@@ -118,12 +118,12 @@
                                             @php
                                                 $savedValue = $element['saved_values'][0] ?? null;
                                                 $displayValue = $savedValue['display_value'] ?? $savedValue['value'] ?? 'N/A';
-                                                $isSignature = $element['element_type'] === 'signature';
+                                                $isSignature = $element['element_type'] === 'signature' || str_contains((string)$displayValue, '/storage/personnel-signature/');
                                             @endphp
                                             
                                             <div class="field-value-display">
                                                 @if($isSignature && $displayValue && $displayValue !== 'N/A')
-                                                    @if(str_starts_with($displayValue, 'data:image'))
+                                                    @if(str_starts_with($displayValue, 'data:image') || $displayValue)
                                                         <img src="{{ $displayValue }}" alt="Signature" class="signature-image" style="max-width: 200px; max-height: 100px; border: 1px solid #dee2e6; border-radius: 4px;">
                                                     @else
                                                         <div class="signature-placeholder">

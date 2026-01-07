@@ -32,44 +32,74 @@
     ?>
     <x-bread-crumb :items="$items"></x-bread-crumb>
     
-    <div class="d-flex justify-content-between align-items-center p-4">
-      <div>
-        <h2>
-          <i class="mdi mdi-file-document"></i> {{ $submissionForm->name }}
-          <small class="text-muted">{{ $instance->form_number }}</small>
-        </h2>
-        @if($instance->title)
-          <p class="text-muted mb-0">{{ $instance->title }}</p>
-        @endif
-        <div class="alert alert-info mt-2 mb-0">
-          <i class="mdi mdi-information-outline"></i>
-          <strong>Form Instance:</strong> View submitted form data and status information.
-          <span class="badge badge-{{ $instance->getStatusBadgeColor() }} ml-2">
-            {{ ucfirst(str_replace('_', ' ', $instance->status)) }}
-          </span>
+    <div class="card border-0 shadow-sm mx-4 mt-4 mb-0">
+      <div class="card-body p-4">
+        <div class="row align-items-center">
+          <div class="col-lg-8">
+            <div class="d-flex align-items-start">
+              <div class="mr-3">
+                <span class="btn btn-primary btn-circle btn-lg pointer-events-none">
+                  <i class="mdi mdi-file-document mdi-24px"></i>
+                </span>
+              </div>
+              <div>
+                <h4 class="mb-1 font-weight-bold">
+                  {{ $submissionForm->name }}
+                  <span class="text-muted font-weight-normal mx-2">-</span>
+                  <span class="text-muted small">{{ $instance->form_number }}</span>
+                  <span class="badge badge-{{ $instance->getStatusBadgeColor() }} ml-2 align-middle" style="font-size: 0.7em;">
+                    {{ ucfirst(str_replace('_', ' ', $instance->status)) }}
+                  </span>
+                </h4>
+                
+                @if($instance->title)
+                  <h5 class="text-muted mb-2">{{ $instance->title }}</h5>
+                @endif
+                
+                <p class="text-muted mb-0 small">
+                  <i class="mdi mdi-information-outline mr-1"></i>
+                  View submitted form data and status information.
+                </p>
+              </div>
+            </div>
+          </div>
+          
+          <div class="col-lg-4 text-lg-right mt-3 mt-lg-0">
+            <div class="btn-group">
+                <button type="button" class="btn btn-secondary dropdown-toggle" style="border-radius: 20px;" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
+                    Actions
+                </button>
+                <div class="dropdown-menu dropdown-menu-right">
+                    @unless($instance->isDraft())
+                        <a href="{{ route('submission-forms.instances.fill', [$submissionForm, $instance]) }}" class="dropdown-item">
+                            <i class="mdi mdi-pencil mr-2"></i> Edit Information
+                        </a>
+                    @endunless
+
+                    @if($instance->isDraft())
+                        <a href="{{ route('submission-forms.instances.fill', [$submissionForm, $instance]) }}" class="dropdown-item">
+                            <i class="mdi mdi-pencil mr-2"></i> Continue Editing
+                        </a>
+                    @endif
+
+                    @php
+                        $firstBatch = $instance->batches->first();
+                    @endphp
+                    @if($firstBatch)
+                        <a href="{{ route('view-batch-details', ['batch' => $firstBatch->id, 'client' => 0, 'portal' => 0, 'status' => $firstBatch->status]) }}" class="dropdown-item">
+                            <i class="mdi mdi-flask mr-2"></i> View Sample Batch
+                        </a>
+                    @endif
+
+                    <div class="dropdown-divider"></div>
+                    
+                    <a href="{{ route('submission-forms.instances.index') }}" class="dropdown-item">
+                        <i class="mdi mdi-arrow-left mr-2"></i> Back to My Submissions
+                    </a>
+                </div>
+            </div>
+          </div>
         </div>
-      </div>
-      <div class="d-flex flex-wrap align-items-center">
-        @unless($instance->isDraft())
-          <a href="{{ route('submission-forms.instances.fill', [$submissionForm, $instance]) }}" 
-             class="btn btn-warning btn-sm mr-2 mb-2">
-            <i class="mdi mdi-pencil"></i> Edit Information
-          </a>
-        @endunless
-        <a href="{{ route('submission-forms.instances.print', [$submissionForm, $instance]) }}" 
-           class="btn btn-outline-info btn-sm mr-2 mb-2" 
-           target="_blank">
-          <i class="mdi mdi-printer"></i> Print Form
-        </a>
-        @if($instance->isDraft())
-          <a href="{{ route('submission-forms.instances.fill', [$submissionForm, $instance]) }}" 
-             class="btn btn-primary btn-sm">
-            <i class="mdi mdi-pencil"></i> Continue Editing
-          </a>
-        @endif
-        <a href="{{ route('submission-forms.instances.index') }}" class="btn btn-outline-secondary btn-sm mb-2">
-          <i class="mdi mdi-arrow-left"></i> Back to My Submissions
-        </a>
       </div>
     </div>
 
@@ -77,68 +107,81 @@
       <div class="row justify-content-center">
         <div class="col-md-10">
           <div class="card">
-            <div class="card-header">
-              <div class="d-flex justify-content-between align-items-center">
-                <div>
-                  <h4 class="mb-1">{{ $submissionForm->name }}</h4>
-                  @if($submissionForm->description)
-                    <p class="text-muted mb-0">{{ $submissionForm->description }}</p>
-                  @endif
-                </div>
-                <div class="text-right">
-                  <small class="text-muted">Form Number: <strong>{{ $instance->form_number }}</strong></small>
-                </div>
-              </div>
-            </div>
+           
             <div class="card-body">
               <!-- Instance Information -->
+              <!-- Instance Information Summary -->
               <div class="row mb-4">
-                <div class="col-md-8">
-                  <div class="card bg-light">
-                    <div class="card-body">
-                      <h6 class="card-title">Submission Details</h6>
+                <div class="col-12">
+                   <div class="bg-light rounded p-4 border table-responsive">
                       <div class="row">
-                        <div class="col-md-6">
-                          <p><strong>Form Number:</strong> {{ $instance->form_number }}</p>
-                          <p><strong>Status:</strong> 
-                            <span class="badge badge-{{ $instance->getStatusBadgeColor() }}">
-                              {{ ucfirst(str_replace('_', ' ', $instance->status)) }}
-                            </span>
-                          </p>
-                          <p><strong>Priority:</strong> 
-                            <span class="badge badge-{{ $instance->getPriorityBadgeColor() }}">
-                              {{ ucfirst($instance->priority) }}
-                            </span>
-                          </p>
-                        </div>
-                        <div class="col-md-6">
-                          <p><strong>Submitted By:</strong> {{ $instance->submittedBy->name }}</p>
-                          <p><strong>Created:</strong> {{ $instance->created_at->format('M d, Y H:i') }}</p>
-                          @if($instance->submitted_at)
-                            <p><strong>Submitted:</strong> {{ $instance->submitted_at->format('M d, Y H:i') }}</p>
-                          @endif
-                          @if($instance->due_date)
-                            <p><strong>Due Date:</strong> 
-                              {{ $instance->due_date->format('M d, Y') }}
-                              @if($instance->isOverdue())
-                                <span class="text-danger ml-1">(Overdue)</span>
+                          <div class="col-md-4 border-right">
+                              <h6 class="text-uppercase text-muted small font-weight-bold mb-3">Submission Details</h6>
+                              <div class="mb-3">
+                                  <label class="text-muted small mb-0 d-block">Form Number</label>
+                                  <span class="font-weight-bold text-dark">{{ $instance->form_number }}</span>
+                              </div>
+                              <div class="mb-3">
+                                  <label class="text-muted small mb-0 d-block">Submitted By</label>
+                                  <div class="d-flex align-items-center">
+                                      <i class="mdi mdi-account-circle mr-1 text-primary"></i>
+                                      <span class="font-weight-medium">{{ $instance->submittedBy->name }}</span>
+                                  </div>
+                              </div>
+                              <div>
+                                  <label class="text-muted small mb-0 d-block">Priority</label>
+                                  <span class="badge badge-{{ $instance->getPriorityBadgeColor() }} badge-pill px-2">
+                                    {{ ucfirst($instance->priority) }}
+                                  </span>
+                              </div>
+                          </div>
+                          
+                          <div class="col-md-4 border-right">
+                              <h6 class="text-uppercase text-muted small font-weight-bold mb-3">Timeline</h6>
+                              <div class="mb-3">
+                                  <label class="text-muted small mb-0 d-block">Created On</label>
+                                  <span class="text-dark"><i class="mdi mdi-calendar-blank mr-1"></i> {{ $instance->created_at->format('M d, Y H:i') }}</span>
+                              </div>
+                              @if($instance->submitted_at)
+                              <div class="mb-3">
+                                  <label class="text-muted small mb-0 d-block">Submitted On</label>
+                                  <span class="text-dark"><i class="mdi mdi-send mr-1"></i> {{ $instance->submitted_at->format('M d, Y H:i') }}</span>
+                              </div>
                               @endif
-                            </p>
-                          @endif
-                        </div>
+                              @if($instance->due_date)
+                              <div>
+                                  <label class="text-muted small mb-0 d-block">Due Date</label>
+                                  <span class="{{ $instance->isOverdue() ? 'text-danger font-weight-bold' : 'text-dark' }}">
+                                    <i class="mdi mdi-clock-alert mr-1"></i> {{ $instance->due_date->format('M d, Y') }}
+                                    @if($instance->isOverdue()) (Overdue) @endif
+                                  </span>
+                              </div>
+                              @endif
+                          </div>
+
+                          <div class="col-md-4">
+                              <h6 class="text-uppercase text-muted small font-weight-bold mb-3">Form Context</h6>
+                              <div class="mb-3">
+                                  <label class="text-muted small mb-0 d-block">Definition</label>
+                                  <a href="#" class="font-weight-medium text-dark border-bottom border-dark pb-1 text-decoration-none">
+                                    {{ $submissionForm->name }} <small class="text-muted">(v{{ $submissionForm->version }})</small>
+                                  </a>
+                              </div>
+                              @if($submissionForm->description)
+                              <div class="mb-3">
+                                  <label class="text-muted small mb-0 d-block">Description</label>
+                                  <p class="small text-muted mb-0">{{ Str::limit($submissionForm->description, 100) }}</p>
+                              </div>
+                              @endif
+                              <div>
+                                   <label class="text-muted small mb-0 d-block">Status</label>
+                                   <span class="badge badge-{{ $instance->getStatusBadgeColor() }} badge-pill px-3 py-1">
+                                      {{ ucfirst(str_replace('_', ' ', $instance->status)) }}
+                                   </span>
+                              </div>
+                          </div>
                       </div>
-                    </div>
-                  </div>
-                </div>
-                <div class="col-md-4">
-                  <div class="card">
-                    <div class="card-body">
-                      <h6 class="card-title">Form Information</h6>
-                      <p><strong>Form Name:</strong> {{ $submissionForm->name }}</p>
-                      <p><strong>Version:</strong> {{ $submissionForm->version }}</p>
-                      <p><strong>Description:</strong> {{ $submissionForm->description }}</p>
-                    </div>
-                  </div>
+                   </div>
                 </div>
               </div>
 

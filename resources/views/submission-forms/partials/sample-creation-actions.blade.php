@@ -30,7 +30,7 @@
                 
                 @if(isset($sampleStatus['sample_headers']) && count($sampleStatus['sample_headers']) > 0)
                     <div class="mt-3">
-                        <a href="{{ route('view-batch-details', $sampleStatus['sample_headers']->first()->id) }}" 
+                        <a href="{{ route('view-batch-details', ['batch' => $sampleStatus['sample_headers']->first()->id, 'client' => 0, 'portal' => 0, 'status' => $sampleStatus['sample_headers']->first()->status]) }}" 
                            class="btn btn-success">
                             <i class="mdi mdi-eye"></i> View Sample Batch
                         </a>

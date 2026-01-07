@@ -76,8 +76,13 @@
                         return $matches[0];
                     }, $headingContent);
                 }
+
+                // Apply Styles
+                $css = $field->meta['css'] ?? [];
+                $styleService = app(\Modules\TemplateEngine\Services\ContainerStyleService::class);
+                $inlineStyles = $styleService->buildInlineStyles($css);
             @endphp
-            <{{ $field->meta['level'] ?? 'h2' }}>{!! e($headingContent) !!}</{{ $field->meta['level'] ?? 'h2' }}>
+            <{{ $field->meta['level'] ?? 'h2' }} style="{{ $inlineStyles }}">{!! e($headingContent) !!}</{{ $field->meta['level'] ?? 'h2' }}>
         @elseif($field->type === 'paragraph')
             @php
                 $content = $field->label;
@@ -136,19 +141,45 @@
                         return $matches[0];
                     }, $content);
                 }
+
+                // Apply Styles
+                $css = $field->meta['css'] ?? [];
+                $styleService = app(\Modules\TemplateEngine\Services\ContainerStyleService::class);
+                $inlineStyles = $styleService->buildInlineStyles($css);
             @endphp
-            <p>{!! nl2br(e($content)) !!}</p>
+            <p style="{{ $inlineStyles }}">{!! nl2br(e($content)) !!}</p>
         @elseif($field->type === 'blockquote')
-            <blockquote class="blockquote border-left pl-3">
+            @php
+                $css = $field->meta['css'] ?? [];
+                $styleService = app(\Modules\TemplateEngine\Services\ContainerStyleService::class);
+                $inlineStyles = $styleService->buildInlineStyles($css);
+            @endphp
+            <blockquote class="blockquote border-left pl-3" style="{{ $inlineStyles }}">
                 <p class="mb-0">{{ $field->label }}</p>
             </blockquote>
         @elseif($field->type === 'code_block')
-            <pre><code class="language-{{ $field->meta['language'] ?? 'text' }}">{{ $field->label }}</code></pre>
+            @php
+                $css = $field->meta['css'] ?? [];
+                $styleService = app(\Modules\TemplateEngine\Services\ContainerStyleService::class);
+                $inlineStyles = $styleService->buildInlineStyles($css);
+            @endphp
+            <div style="{{ $inlineStyles }}">
+                <pre><code class="language-{{ $field->meta['language'] ?? 'text' }}">{{ $field->label }}</code></pre>
+            </div>
         @elseif($field->type === 'link')
-            <a href="{{ $field->meta['url'] ?? '#' }}" target="{{ ($field->meta['new_tab'] ?? false) ? '_blank' : '_self' }}">{{ $field->label }}</a>
+             @php
+                $css = $field->meta['css'] ?? [];
+                $styleService = app(\Modules\TemplateEngine\Services\ContainerStyleService::class);
+                $inlineStyles = $styleService->buildInlineStyles($css);
+            @endphp
+            <a href="{{ $field->meta['url'] ?? '#' }}" target="{{ ($field->meta['new_tab'] ?? false) ? '_blank' : '_self' }}" style="{{ $inlineStyles }}">{{ $field->label }}</a>
         @elseif($field->type === 'image')
-            <img src="{{ $field->meta['url'] ?? '' }}" alt="{{ $field->label }}" class="img-fluid">
-            @if($field->label && $field->label !== 'Image') <div class="text-muted small">{{ $field->label }}</div> @endif
+             @php
+                $css = $field->meta['css'] ?? [];
+                $styleService = app(\Modules\TemplateEngine\Services\ContainerStyleService::class);
+                $inlineStyles = $styleService->buildInlineStyles($css);
+            @endphp
+            <img src="{{ $field->meta['url'] ?? '' }}" alt="{{ $field->label }}" class="img-fluid" style="{{ $inlineStyles }}">
         @elseif(trim($field->type) == 'ul' || trim($field->type) == 'ol')
              @php
                 $listType = $field->type === 'ul' ? 'ul' : 'ol';
@@ -358,9 +389,6 @@
                          class="img-fluid"
                          style="width: {{ $field->meta['width'] ?? 'auto' }}; 
                                 height: {{ $field->meta['height'] ?? 'auto' }};">
-                    @if($field->label && $field->label !== 'Image') 
-                        <div class="text-muted small mt-1">{{ $field->label }}</div> 
-                    @endif
                 </div>
             @else
                 <div class="alert alert-warning small">

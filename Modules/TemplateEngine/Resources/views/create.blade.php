@@ -1,7 +1,7 @@
 @extends('layouts.lab.layout.app', ['select2'=>true])
 
 @section('title2')
-<title>Create Form Template - Template Engine</title>
+<title>Create Report Template - Template Engine</title>
 @endsection
 
 @section('content2')
@@ -15,7 +15,7 @@
         ],
         [
             'link' => route('templates.index'),
-            'name' => 'Form Templates',
+            'name' => 'Report Templates',
             'icon' => null
         ],
         [
@@ -36,9 +36,9 @@
                         <div>
                             <h2 class="mb-0">
                                 <i class="fas fa-file-alt text-primary"></i>
-                                Create New Form Template
+                                Create New Report Template
                             </h2>
-                            <p class="text-muted mb-0">Create a new form template to start building your form</p>
+                            <p class="text-muted mb-0">Create a new report template to start building your report</p>
                         </div>
                         <a href="{{ route('templates.index') }}" class="btn btn-outline-secondary">
                             <i class="fas fa-arrow-left"></i> Back to Templates
@@ -57,7 +57,7 @@
                         @csrf
                         <div class="form-group mb-3">
                             <label for="name" class="font-weight-bold">Template Name <span class="text-danger">*</span></label>
-                            <input type="text" name="name" id="name" class="form-control" required placeholder="e.g. Employee Evaluation Form">
+                            <input type="text" name="name" id="name" class="form-control" required placeholder="e.g. Employee Evaluation Report">
                         </div>
 
                         <div class="form-group mb-3">

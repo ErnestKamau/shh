@@ -15,12 +15,12 @@
         ],
         [
             'link' => route('templates.index'),
-            'name' => 'Form Templates',
+            'name' => 'Report Templates',
             'icon' => null
         ],
         [
             'link' => '#',
-            'name' => 'Template Builder',
+            'name' => 'Report Builder',
             'icon' => null
         ]
     ];
@@ -36,13 +36,13 @@
                         <div>
                             <h2 class="mb-0">
                                 <i class="fas fa-tools text-primary"></i>
-                                Form Builder
+                                Report Builder
                             </h2>
                             <p class="text-muted mb-0">Building: {{ $template->name }}</p>
                         </div>
                         <div class="btn-group">
                             <a href="{{ route('templates.preview', $template->id) }}" class="btn btn-outline-success">
-                                <i class="fas fa-eye"></i> Preview Form
+                                <i class="fas fa-eye"></i> Preview Report
                             </a>
                             <a href="{{ route('templates.index') }}" class="btn btn-outline-secondary ml-2">
                                 <i class="fas fa-arrow-left"></i> Back to Templates
