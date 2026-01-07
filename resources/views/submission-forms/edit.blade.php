@@ -1,4 +1,4 @@
-@extends('layouts.lab.layout.app')
+@extends('layouts.lab.layout.app',['select2' => true])
 
 @section('title2')
   <title>Edit Submission Form - {{ $submissionForm->name }}</title>
@@ -173,6 +173,26 @@
                   @enderror
                   <small class="form-text text-muted">
                     Select a custom print template for this form. If not specified, the default template will be used.
+                  </small>
+                </div>
+
+                <div class="form-group">
+                  <label for="sample_analysis_stage_ids">Lab Sections</label>
+                  <select class="form-control select2 @error('sample_analysis_stage_ids') is-invalid @enderror" 
+                          id="sample_analysis_stage_ids" 
+                          name="sample_analysis_stage_ids[]"
+                          multiple>
+                    @foreach($labSections as $section)
+                      <option value="{{ $section->id }}" {{ in_array($section->id, old('sample_analysis_stage_ids', $submissionForm->sampleAnalysisStages->pluck('id')->toArray())) ? 'selected' : '' }}>
+                        {{ $section->name }}
+                      </option>
+                    @endforeach
+                  </select>
+                  @error('sample_analysis_stage_ids')
+                    <div class="invalid-feedback">{{ $message }}</div>
+                  @enderror
+                  <small class="form-text text-muted">
+                    Select the lab sections associated with this form.
                   </small>
                 </div>
 

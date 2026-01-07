@@ -106,6 +106,7 @@
                                         <th>Name</th>
                                         <th>Category</th>
                                         <th>Report Format</th>
+                                        <th>Lab Sections</th>
                                         <th>Analysis Types</th>
                                         <th>Status</th>
                                         <th>Actions</th>
@@ -138,6 +139,11 @@
                                                 @else
                                                     <span class="text-muted">No Format</span>
                                                 @endif
+                                            </td>
+                                            <td>
+                                                @foreach($sampleType->sampleAnalysisStages as $stage)
+                                                    <span class="badge bg-secondary mb-1" style="color: white;">{{ $stage->name }}</span>
+                                                @endforeach
                                             </td>
                                             <td>
                                                 <span class="badge bg-info" style="color: white;">{{ $sampleType->analysis_types->count() }}</span>
@@ -204,7 +210,7 @@
     <!-- Sample Type Modal -->
     @if($showSampleTypeModal)
         <div class="modal fade show d-block" tabindex="-1" style="background-color: rgba(0,0,0,0.5);">
-            <div class="modal-dialog modal-lg">
+            <div class="modal-dialog modal-lg modal-dialog-scrollable">
                 <div class="modal-content">
                     <div class="modal-header">
                         <h5 class="modal-title">
@@ -294,6 +300,50 @@
                                             @endif
                                         </div>
                                         @error('sampleTypeForm.category_id') <span class="text-danger">{{ $message }}</span> @enderror
+                                    </div>
+                                </div>
+                                <div class="col-md-6">
+                                    <div class="form-group mb-3">
+                                        <label class="form-label">
+                                            <i class="mdi mdi-flask-outline text-info"></i> Lab Sections
+                                        </label>
+                                        <div class="tag-select-container" wire:click="$set('showLabSectionDropdown', true)">
+                                            <div class="tag-select-input">
+                                                @foreach($this->selectedLabSections as $section)
+                                                    <span class="tag-badge">
+                                                        {{ $section->name }}
+                                                        <i class="mdi mdi-close-circle" wire:click.stop="toggleLabSection({{ $section->id }})"></i>
+                                                    </span>
+                                                @endforeach
+                                                
+                                                <input type="text" 
+                                                       wire:model.live="labSectionSearch" 
+                                                       class="tag-input" 
+                                                       placeholder="{{ count($this->selectedLabSections) > 0 ? '' : 'Search lab sections...' }}"
+                                                       autocomplete="off">
+                                            </div>
+                                            
+                                            <!-- Dropdown -->
+                                            @if($showLabSectionDropdown)
+                                                <div class="tag-dropdown">
+                                                    @if(count($this->filteredLabSections) > 0)
+                                                        @foreach($this->filteredLabSections as $section)
+                                                            <div class="tag-dropdown-item" wire:click.stop="toggleLabSection({{ $section->id }})">
+                                                                <div class="d-flex justify-content-between align-items-center w-100">
+                                                                    <span>{{ $section->name }}</span>
+                                                                    @if(in_array($section->id, $sampleTypeForm['sample_analysis_stage_ids']))
+                                                                        <i class="mdi mdi-check text-success"></i>
+                                                                    @endif
+                                                                </div>
+                                                            </div>
+                                                        @endforeach
+                                                    @else
+                                                        <div class="p-3 text-center text-muted">No sections found</div>
+                                                    @endif
+                                                </div>
+                                            @endif
+                                        </div>
+                                        <small class="form-text text-muted">Select lab sections required for this sample type</small>
                                     </div>
                                 </div>
                                 <div class="col-md-6">
@@ -461,7 +511,7 @@
     <!-- Analysis Type Modal -->
     @if($showAnalysisTypeModal)
         <div class="modal fade show d-block" tabindex="-1" style="background-color: rgba(0,0,0,0.5);">
-            <div class="modal-dialog modal-lg">
+            <div class="modal-dialog modal-lg modal-dialog-scrollable">
                 <div class="modal-content">
                     <div class="modal-header">
                         <h5 class="modal-title">

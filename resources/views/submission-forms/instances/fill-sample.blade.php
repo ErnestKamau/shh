@@ -103,7 +103,10 @@
                   </div>
                   @foreach($submissionForm->sections as $section)
                     @if($section->isRowsSection())
-                      @include('submission-forms.partials.rows-section', ['section' => $section])
+                      @include('submission-forms.partials.rows-section', [
+                        'section' => $section, 
+                        'allowedSampleTypeIds' => $allowedSampleTypeIds ?? null
+                      ])
                     @else
                       <div class="form-section mb-4">
                         <div class="section-header mb-3">
@@ -730,7 +733,8 @@
                 sample_type_id: sampleTypeId,
                 store_id: storeId,
                 client_unit_id: clientUnitId,
-                analysis_type_id: analysisTypeId
+                analysis_type_id: analysisTypeId,
+                submission_form_id: '{{ $submissionForm->id }}'
             };
             
             $.ajax({

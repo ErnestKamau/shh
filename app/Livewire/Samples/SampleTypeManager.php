@@ -28,6 +28,11 @@ class SampleTypeManager extends Component
     public $editingSampleType = null;
     public $showSampleTypeModal = false;
     
+    // Lab Sections
+    public $labSections = [];
+    public $labSectionSearch = '';
+    public $showLabSectionDropdown = false;
+
     // Sample Type Form
     public $sampleTypeForm = [
         'name' => '',
@@ -38,7 +43,8 @@ class SampleTypeManager extends Component
         'report_format_id' => null,
         'default_product_id' => null,
         'disposal_count' => 0,
-        'active' => true
+        'active' => true,
+        'sample_analysis_stage_ids' => []
     ];
 
     // Analysis Types Management
@@ -172,13 +178,17 @@ class SampleTypeManager extends Component
         $this->methods = AnalysisMethod::where('active', 1)->get();
         $this->equipment = Equipment::where('active', 1)->get();
         $this->operators = User::where('active', 1)->get();
+        $this->labSections = \App\SampleAnalysisStage::where('active', 1)
+            ->where('is_sample_stage', 0)
+            ->orderBy('name')
+            ->get();
     }
 
     public function getSampleTypesProperty()
     {
         $query = SampleType::with(['analysis_types' => function($q) {
             $q->orderBy('level', 'asc');
-        }, 'reportFormat']);
+        }, 'reportFormat', 'sampleAnalysisStages']);
 
         if ($this->search) {
             $query->where(function($q) {
@@ -245,7 +255,8 @@ class SampleTypeManager extends Component
             'report_format_id' => $sampleType->report_format_id,
             'default_product_id' => $sampleType->default_product_id,
             'disposal_count' => $sampleType->disposal_count ?? 0,
-            'active' => $sampleType->active
+            'active' => $sampleType->active,
+            'sample_analysis_stage_ids' => $sampleType->sampleAnalysisStages()->pluck('sample_analysis_stages.id')->toArray()
         ];
         $this->editingSampleType = $id;
         $this->showSampleTypeModal = true;
@@ -282,9 +293,10 @@ class SampleTypeManager extends Component
                     'active' => $this->sampleTypeForm['active'],
                     'company_id' => getUserCompany(),
                 ]);
+                $sampleType->sampleAnalysisStages()->sync($this->sampleTypeForm['sample_analysis_stage_ids'] ?? []);
                 $this->message = 'Sample type updated successfully!';
             } else {
-                SampleType::create([
+                $sampleType = SampleType::create([
                     'name' => $this->sampleTypeForm['name'],
                     'code' => $this->sampleTypeForm['code'],
                     'description' => $this->sampleTypeForm['description'],
@@ -296,6 +308,7 @@ class SampleTypeManager extends Component
                     'active' => $this->sampleTypeForm['active'],
                     'company_id' => getUserCompany(),
                 ]);
+                $sampleType->sampleAnalysisStages()->sync($this->sampleTypeForm['sample_analysis_stage_ids'] ?? []);
                 $this->message = 'Sample type created successfully!';
             }
 
@@ -395,7 +408,8 @@ class SampleTypeManager extends Component
             'report_format_id' => null,
             'default_product_id' => null,
             'disposal_count' => 0,
-            'active' => true
+            'active' => true,
+            'sample_analysis_stage_ids' => []
         ];
         $this->editingSampleType = null;
         $this->categorySearch = '';
@@ -406,6 +420,9 @@ class SampleTypeManager extends Component
         $this->showReportFormatDropdown = false;
         $this->companyProductSearch = '';
         $this->showCompanyProductDropdown = false;
+        $this->labSectionSearch = '';
+        $this->showLabSectionDropdown = false;
+        $this->resetValidation();
     }
 
     // Analysis Type Methods
@@ -972,5 +989,37 @@ class SampleTypeManager extends Component
     public function render()
     {
         return view('livewire.samples.sample-type-manager');
+    }
+
+    public function getFilteredLabSectionsProperty()
+    {
+        if (empty($this->labSectionSearch)) {
+            return $this->labSections;
+        }
+
+        return $this->labSections->filter(function($section) {
+            return stripos($section->name, $this->labSectionSearch) !== false;
+        });
+    }
+
+    public function getSelectedLabSectionsProperty()
+    {
+        if (empty($this->sampleTypeForm['sample_analysis_stage_ids'])) {
+            return collect();
+        }
+
+        return $this->labSections->whereIn('id', $this->sampleTypeForm['sample_analysis_stage_ids']);
+    }
+
+    public function toggleLabSection($id)
+    {
+        if (in_array($id, $this->sampleTypeForm['sample_analysis_stage_ids'])) {
+            $this->sampleTypeForm['sample_analysis_stage_ids'] = array_diff($this->sampleTypeForm['sample_analysis_stage_ids'], [$id]);
+        } else {
+            $this->sampleTypeForm['sample_analysis_stage_ids'][] = $id;
+        }
+        
+        // Re-index array
+        $this->sampleTypeForm['sample_analysis_stage_ids'] = array_values($this->sampleTypeForm['sample_analysis_stage_ids']);
     }
 }

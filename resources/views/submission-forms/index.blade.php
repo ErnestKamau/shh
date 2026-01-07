@@ -70,6 +70,7 @@
               <th>Name</th>
               <th>Description</th>
               <th>Submission Start No.</th>
+              <th>Lab Sections</th>
               <th>Sections</th>
               <th>Instances</th>
               <th>Status</th>
@@ -93,6 +94,11 @@
                 </td>
                 <td class="text-center">
                   {{ $form->start_submission_number }}
+                 </td> 
+                 <td>
+                   @foreach($form->sampleAnalysisStages as $stage)
+                     <span class="badge badge-outline-primary mb-1">{{ $stage->name }}</span>
+                   @endforeach
                  </td> 
                 <td class="text-center">
                   <span class="badge badge-info">{{ $form->sections_count }}</span>

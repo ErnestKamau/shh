@@ -165,4 +165,14 @@ class SubmissionForm extends Model
     {
         return $this->print_template_name ?? 'submission-forms.print.default';
     }
+
+    /**
+     * Get the sample analysis stages (lab sections) for this submission form
+     * 
+     * @return \Illuminate\Database\Eloquent\Relations\BelongsToMany
+     */
+    public function sampleAnalysisStages()
+    {
+        return $this->belongsToMany(\App\SampleAnalysisStage::class, 'submission_form_sample_analysis_stage');
+    }
 }

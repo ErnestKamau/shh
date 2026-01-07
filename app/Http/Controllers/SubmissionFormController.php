@@ -22,7 +22,7 @@ class SubmissionFormController extends Controller
      */
     public function index(Request $request)
     {
-        $query = SubmissionForm::with(['creator', 'sections'])
+        $query = SubmissionForm::with(['creator', 'sections', 'sampleAnalysisStages'])
             ->withCount(['sections', 'instances']);
 
         // Search functionality
@@ -67,7 +67,11 @@ class SubmissionFormController extends Controller
      */
     public function create()
     {
-        return view('submission-forms.create');
+        $labSections = \App\SampleAnalysisStage::where('active', 1)
+            ->where('is_sample_stage', 0)
+            ->orderBy('name')
+            ->get();
+        return view('submission-forms.create', compact('labSections'));
     }
 
     /**
@@ -85,8 +89,9 @@ class SubmissionFormController extends Controller
             'naming_convention_format' => ['required', 'string', 'max:100'],
             'is_active' => ['boolean'],
             'start_submission_number' => ['nullable', 'integer', 'min:1'],
-            'print_template_name' => ['nullable', 'string', 'max:255']
-            
+            'print_template_name' => ['nullable', 'string', 'max:255'],
+            'sample_analysis_stage_ids' => ['nullable', 'array'],
+            'sample_analysis_stage_ids.*' => ['exists:sample_analysis_stages,id']
         ]);
 
         $validated['created_by'] = Auth::id();
@@ -94,6 +99,10 @@ class SubmissionFormController extends Controller
         $validated['version'] = '1.0';
 
         $form = SubmissionForm::create($validated);
+
+        if (isset($validated['sample_analysis_stage_ids'])) {
+            $form->sampleAnalysisStages()->sync($validated['sample_analysis_stage_ids']);
+        }
 
         return redirect()
             ->route('submission-forms.show', $form)
@@ -126,7 +135,12 @@ class SubmissionFormController extends Controller
      */
     public function edit(SubmissionForm $submissionForm)
     {
-        return view('submission-forms.edit', compact('submissionForm'));
+        $labSections = \App\SampleAnalysisStage::where('active', 1)
+            ->where('is_sample_stage', 0)
+            ->orderBy('name')
+            ->get();
+        $submissionForm->load('sampleAnalysisStages');
+        return view('submission-forms.edit', compact('submissionForm', 'labSections'));
     }
 
     /**
@@ -150,10 +164,22 @@ class SubmissionFormController extends Controller
             'naming_convention_format' => ['required', 'string', 'max:100'],
             'is_active' => ['boolean'],
             'start_submission_number' => ['nullable', 'integer', 'min:1'],
-            'print_template_name' => ['nullable', 'string', 'max:255']
+            'print_template_name' => ['nullable', 'string', 'max:255'],
+            'sample_analysis_stage_ids' => ['nullable', 'array'],
+            'sample_analysis_stage_ids.*' => ['exists:sample_analysis_stages,id']
         ]);
 
         $submissionForm->update($validated);
+
+        if (isset($validated['sample_analysis_stage_ids'])) {
+            $submissionForm->sampleAnalysisStages()->sync($validated['sample_analysis_stage_ids']);
+        } else {
+            // If the field is present in request but empty (unselected all), sync empty array
+            // If it's not present (e.g. API call that didn't include it), we might want to check for presence
+            if ($request->has('sample_analysis_stage_ids')) {
+                $submissionForm->sampleAnalysisStages()->sync([]);
+            }
+        }
 
         return redirect()
             ->route('submission-forms.show', $submissionForm)
@@ -396,7 +422,23 @@ class SubmissionFormController extends Controller
                 break;
 
             case 'sample_type_select':
-                $sampleTypes = \App\SampleType::orderBy('name')->get();
+                $query = \App\SampleType::orderBy('name');
+                
+                // If submission form ID is present, filter by associated lab sections
+                if ($request->has('submission_form_id')) {
+                    $formId = $request->get('submission_form_id');
+                    $form = \App\Models\SubmissionForm::with('sampleAnalysisStages')->find($formId);
+                    
+                    if ($form && $form->sampleAnalysisStages->isNotEmpty()) {
+                        $stageIds = $form->sampleAnalysisStages->pluck('id')->toArray();
+                        
+                        $query->whereHas('sampleAnalysisStages', function($q) use ($stageIds) {
+                            $q->whereIn('sample_analysis_stages.id', $stageIds);
+                        });
+                    }
+                }
+                
+                $sampleTypes = $query->get();
 
                 foreach ($sampleTypes as $sampleType) {
                     $options[] = [

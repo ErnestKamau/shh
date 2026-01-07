@@ -250,6 +250,9 @@
                         $sampleTypeOptions = $element->getDynamicOptions();
                     @endphp
                     @foreach($sampleTypeOptions as $option)
+                        @if(isset($allowedSampleTypeIds) && is_array($allowedSampleTypeIds) && !in_array($option['value'], $allowedSampleTypeIds))
+                            @continue
+                        @endif
                         <option value="{{ $option['value'] }}" {{ ($fieldValue == $option['value']) ? 'selected' : '' }}>
                             {{ $option['label'] }}
                         </option>

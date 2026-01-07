@@ -70,7 +70,8 @@
                             'element' => $element,
                             'isArrayField' => true,
                             'rowIndex' => 'ROW_INDEX_PLACEHOLDER',
-                            'hideLabel' => true
+                            'hideLabel' => true,
+                            'allowedSampleTypeIds' => $allowedSampleTypeIds ?? null
                         ])
               </div>
             </td>

@@ -64,4 +64,17 @@ class SampleType extends Model implements Auditable
       'sample_point_id'
     )->withTimestamps();
   }
+
+  /**
+   * Get the lab sections (Sample Analysis Stages) for this sample type
+   */
+  public function sampleAnalysisStages()
+  {
+      return $this->belongsToMany(
+          \App\SampleAnalysisStage::class,
+          'sample_to_sample_analysis_stages',
+          'sample_type_id',
+          'sample_analysis_stage_id'
+      )->withTimestamps();
+  }
 }

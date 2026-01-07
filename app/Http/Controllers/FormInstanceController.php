@@ -132,14 +132,24 @@ class FormInstanceController extends Controller
         $submissionForm->load([
             'sections.elementHolders.elements' => function($query) {
                 $query->orderBy('sort_order');
-            }
+            },
+            'sampleAnalysisStages'
         ]);
+
+        // Filter sample types based on lab sections
+        $allowedSampleTypeIds = null;
+        if ($submissionForm->sampleAnalysisStages->isNotEmpty()) {
+            $stageIds = $submissionForm->sampleAnalysisStages->pluck('id')->toArray();
+            $allowedSampleTypeIds = \App\SampleType::whereHas('sampleAnalysisStages', function($q) use ($stageIds) {
+                $q->whereIn('sample_analysis_stages.id', $stageIds);
+            })->pluck('id')->toArray();
+        }
 
         // Load existing values
         $existingValues = $instance->values()->with('element')->get();
         $use_lab_layout = 1;
 
-        return view('submission-forms.instances.fill-sample', compact('submissionForm', 'instance', 'existingValues', 'use_lab_layout'));
+        return view('submission-forms.instances.fill-sample', compact('submissionForm', 'instance', 'existingValues', 'use_lab_layout', 'allowedSampleTypeIds'));
 
         // return view('submission-forms.instances.fill', compact('submissionForm', 'instance', 'existingValues'));
     }
@@ -163,13 +173,23 @@ class FormInstanceController extends Controller
         $submissionForm->load([
             'sections.elementHolders.elements' => function($query) {
                 $query->orderBy('sort_order');
-            }
+            },
+            'sampleAnalysisStages'
         ]);
+
+        // Filter sample types based on lab sections
+        $allowedSampleTypeIds = null;
+        if ($submissionForm->sampleAnalysisStages->isNotEmpty()) {
+            $stageIds = $submissionForm->sampleAnalysisStages->pluck('id')->toArray();
+            $allowedSampleTypeIds = \App\SampleType::whereHas('sampleAnalysisStages', function($q) use ($stageIds) {
+                $q->whereIn('sample_analysis_stages.id', $stageIds);
+            })->pluck('id')->toArray();
+        }
 
         // Load existing values
         $existingValues = $instance->values()->with('element')->get();
 
-        return view('submission-forms.instances.fill-sample', compact('submissionForm', 'instance', 'existingValues'));
+        return view('submission-forms.instances.fill-sample', compact('submissionForm', 'instance', 'existingValues', 'allowedSampleTypeIds'));
     }
 
     /**
@@ -760,9 +780,28 @@ class FormInstanceController extends Controller
                     break;
 
                 case 'sample_type_select':
-                    $options = \App\SampleType::select('id', 'name as text')
-                        ->get()
-                        ->toArray();
+                    $query = \App\SampleType::select('id', 'name as text', 'name as label')->orderBy('name');
+                    
+                    // If submission form ID is present, filter by associated lab sections
+                    if ($request->has('submission_form_id')) {
+                        $formId = $request->get('submission_form_id');
+                        $form = \App\Models\SubmissionForm::with('sampleAnalysisStages')->find($formId);
+                        
+                        if ($form && $form->sampleAnalysisStages->isNotEmpty()) {
+                            $stageIds = $form->sampleAnalysisStages->pluck('id')->toArray();
+                            
+                            $query->whereHas('sampleAnalysisStages', function($q) use ($stageIds) {
+                                $q->whereIn('sample_analysis_stages.id', $stageIds);
+                            });
+                        }
+                    }
+                    
+                    $options = $query->get()->toArray();
+                    
+                    // Add value key for compatibility
+                    foreach ($options as &$option) {
+                        $option['value'] = $option['id'];
+                    }
                     break;
 
                 case 'client_unit_select':

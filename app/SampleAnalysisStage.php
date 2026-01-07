@@ -38,4 +38,14 @@ class SampleAnalysisStage extends Model implements Auditable
   public function getNameCodeAttribute(){
     return $this->code.'-'.$this->name;
   }
+
+  /**
+   * Get the submission forms for this sample analysis stage
+   * 
+   * @return \Illuminate\Database\Eloquent\Relations\BelongsToMany
+   */
+  public function submissionForms()
+  {
+      return $this->belongsToMany(Models\SubmissionForm::class, 'submission_form_sample_analysis_stage');
+  }
 }
