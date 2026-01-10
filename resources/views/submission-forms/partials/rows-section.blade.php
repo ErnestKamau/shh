@@ -90,11 +90,32 @@
       </template>
     </div>
   @else
-    <div class="alert alert-warning">
-      <i class="mdi mdi-alert-circle"></i> No elements configured for this rows section. 
-      Please add elements to the template holder in the form builder.
     </div>
   @endif
+
+  {{-- Clone Row Modal --}}
+  <div class="modal fade" id="clone-modal-{{ $section->id }}" tabindex="-1" role="dialog" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered modal-sm" role="document">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h5 class="modal-title">Clone Row</h5>
+          <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+            <span aria-hidden="true">&times;</span>
+          </button>
+        </div>
+        <div class="modal-body">
+          <div class="form-group">
+            <label for="clone-count-{{ $section->id }}">Number of copies:</label>
+            <input type="number" class="form-control" id="clone-count-{{ $section->id }}" value="1" min="1" max="50">
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" data-dismiss="modal">Cancel</button>
+          <button type="button" class="btn btn-primary" id="confirm-clone-{{ $section->id }}">Clone</button>
+        </div>
+      </div>
+    </div>
+  </div>
 </div>
 <script>
 // Wait for jQuery before initializing rows section
@@ -106,6 +127,10 @@
     
 $(document).ready(function() {
   const sectionId = {{ $section->id }};
+  console.log('Rows initialized for section ' + sectionId);
+  // Uncomment the next line to debug if the script is running
+  // alert('Rows initialized for section ' + sectionId);
+
   const addRowBtn = document.getElementById('add-row-' + sectionId);
   const tbody = document.getElementById('rows-tbody-' + sectionId);
   const template = document.getElementById('row-template-' + sectionId);
@@ -480,189 +505,268 @@ $(document).ready(function() {
   }
 
   // Clone row functionality
-  $('body').on('click', '#rows-tbody-'+sectionId, function(e) {
-    if ($(e.target).closest('.clone-row').length) {
-      const $row = $(e.target).closest('tr');
-      if (!($row.length > 0)) return;
-      
-      // Prompt user for number of clones
-      const numClones = prompt('How many copies would you like to create?', '1');
-      
-      // Validate input
-      if (numClones === null) {
-        return; // User cancelled
-      }
-      
-      const num = parseInt(numClones);
-      if (isNaN(num) || num < 1 || num > 50) {
+  // Clone row functionality
+  $(document).on('click', '#rows-tbody-' + sectionId + ' .clone-row', function(e) {
+    e.preventDefault();
+    console.log('Clone button clicked for section ' + sectionId);
+    
+    // Explicitly find the row
+    const $row = $(this).closest('tr');
+    
+    if ($row.length === 0) {
+        console.error('Could not find row for clone button');
+        alert('Error: Could not find row to clone.');
+        return;
+    }
+    
+    
+    // Open modal instead of prompt
+    const $modal = $('#clone-modal-' + sectionId);
+    
+    // Store the source row on the modal for retrieval later
+    $modal.data('source-row', $row);
+    
+    // Reset input to 1
+    $('#clone-count-' + sectionId).val(1);
+    
+    // Show modal
+    $modal.modal('show');
+  });
+
+  // Modal Confirm Handler
+  $(document).on('click', '#confirm-clone-' + sectionId, function() {
+    const $modal = $('#clone-modal-' + sectionId);
+    const $row = $modal.data('source-row');
+    
+    if (!$row || $row.length === 0) {
+        alert('Error: Source row lost.');
+        $modal.modal('hide');
+        return;
+    }
+
+    const numClones = parseInt($('#clone-count-' + sectionId).val());
+    
+    if (isNaN(numClones) || numClones < 1 || numClones > 50) {
         alert('Please enter a valid number between 1 and 50.');
         return;
-      }
-      
-      // Create the specified number of clones
-      for (let i = 0; i < num; i++) {
-        cloneRow($row);
-      }
-    } else if ($(e.target).closest('.delete-row').length) {
-      const $row = $(e.target).closest('tr');
-      deleteRow($row);
     }
+    
+    // Create clones
+    try {
+        console.log('Starting clone loop for ' + numClones + ' copies');
+        for (let i = 0; i < numClones; i++) {
+            console.log('Creating clone ' + (i + 1));
+            cloneRow($row);
+        }
+    } catch (err) {
+        console.error('Error during cloning:', err);
+        alert('An error occurred while cloning: ' + err.message);
+    } finally {
+        // Hide modal regardless of success or failure
+        $modal.modal('hide');
+        $('.modal-backdrop').remove(); // Force remove backdrop if it gets stuck
+    }
+  });
+
+  // Delete row functionality
+  $(document).on('click', '#rows-tbody-' + sectionId + ' .delete-row', function(e) {
+    e.preventDefault();
+    const $row = $(this).closest('tr');
+    deleteRow($row);
   });
 
   function cloneRow($sourceRow) {
     const newRow = $sourceRow.clone(true);
-    // sourceRow is already a <tr> element, so newRow is also a <tr> element
     const $newRowElement = newRow;
     
     // Set new row index
     $newRowElement.attr('data-row-index', rowIndex);
     
-    // Update field names and IDs
+    // First, iterate through all selects in the source row and copy their options HTML to the new row
+    // This preserves dynamically loaded options that aren't in the template
+    const $sourceSelects = $sourceRow.find('select');
+    const $newSelects = $newRowElement.find('select');
+    
+    $sourceSelects.each(function(index) {
+        if (index < $newSelects.length) {
+            const $src = $(this);
+            const $dst = $newSelects.eq(index);
+            // Copy innerHTML to preserve options
+            $dst.html($src.html());
+            // Store value to set later
+            $dst.data('cloned-value', $src.val());
+        }
+    });
+
+    // Update field names, IDs, and labels
     const $inputs = $newRowElement.find('input, select, textarea');
     $inputs.each(function() {
       const $this = $(this);
+      const currentIndex = $sourceRow.attr('data-row-index');
+      
       if ($this.attr('name')) {
-        const currentIndex = $sourceRow.attr('data-row-index');
         $this.attr('name', $this.attr('name').replace(`[${currentIndex}]`, `[${rowIndex}]`));
       }
       if ($this.attr('id')) {
-        const currentIndex = $sourceRow.attr('data-row-index');
         $this.attr('id', $this.attr('id').replace(`_${currentIndex}`, `_${rowIndex}`));
       }
-      // Clear values for dependent elements to avoid duplication
-      const elementType = $this.attr('data-element-type');
       
-      // Ensure cloned elements are editable (remove disabled attribute)
+      // Ensure cloned elements are editable
       $this.removeAttr('disabled');
       $this.removeAttr('readonly');
+      
+      // Explicitly remove Select2 ID data
+      $this.removeData('select2-id');
+      $this.removeData('select2');
     });
     
-    // Update labels
     const $labels = $newRowElement.find('label');
     $labels.each(function() {
       const $this = $(this);
+      const currentIndex = $sourceRow.attr('data-row-index');
       if ($this.attr('for')) {
-        const currentIndex = $sourceRow.attr('data-row-index');
         $this.attr('for', $this.attr('for').replace(`_${currentIndex}`, `_${rowIndex}`));
       }
+    });
+
+    // Clean up Select2 artifacts BEFORE appending to DOM
+    $newRowElement.find('.select2-container').remove();
+    $newRowElement.find('select').each(function() {
+      const $select = $(this);
+      // Remove all Select2 classes and attributes
+      $select.removeClass('select2-hidden-accessible');
+      $select.removeAttr('data-select2-id');
+      $select.removeAttr('tabindex');
+      $select.removeAttr('aria-hidden');
+      $select.find('option').removeAttr('data-select2-id');
+      $select.show(); // Ensure visibility
     });
     
     // Insert after source row
     $sourceRow.after($newRowElement);
     rowIndex++;
     
-    // Ensure all form elements are properly enabled and editable
-    const $allFormElements = $newRowElement.find('input, select, textarea, button');
-    $allFormElements.each(function() {
-      const $element = $(this);
-      $element.removeAttr('disabled');
-      $element.removeAttr('readonly');
-      // Ensure the element is not in a disabled state
-      if ($element.is('button') && $element.hasClass('disabled')) {
-        $element.removeClass('disabled');
-      }
-    });
+    // Now verify and set values from source using robust matching
+    // We match elements by their 'data-element-type' or index if type is missing
+    const $sourceAllFields = $sourceRow.find('input, textarea, select');
+    const $newAllFields = $newRowElement.find('input, textarea, select');
     
-    $newRowElement.find('select').not('.hidden').each(function(i, e) {
-      let parentTD = $(e).closest('td');
-      let clonedSelect = parentTD.find('select').clone();
-      parentTD.html('');
-
-      parentTD.html(clonedSelect[0].outerHTML);
-
-      if (!parentTD.find('select').hasClass('no-select2')) {
-        parentTD.find('select').select2({
-          placeholder: parentTD.find('select').attr('placeholder') || parentTD.find('select').data('placeholder') || 'Select...'
-        });
-        parentTD.find('select').attr('style', 'width: 100%');
+    $sourceAllFields.each(function(i, sourceEl) {
+        const $src = $(sourceEl);
+        const elementType = $src.attr('data-element-type');
+        let $dst = null;
         
-        // Ensure Select2 change events trigger regular change events for form tracking
-        parentTD.find('select').on('select2:select select2:unselect', function() {
+        // Try to find the corresponding element in the new row
+        if (elementType) {
+            $dst = $newRowElement.find(`[data-element-type="${elementType}"]`);
+            // If multiple elements with same type, fallback to index within that type
+            if ($dst.length > 1) {
+                 const typeIndex = $sourceRow.find(`[data-element-type="${elementType}"]`).index($src);
+                 $dst = $dst.eq(typeIndex);
+            }
+        } else {
+            // Fallback to sequential index
+             $dst = $newAllFields.eq(i);
+        }
+
+        if ($dst && $dst.length > 0) {
+            // console.log(`Copying value for ${elementType || 'unknown'}:`, $src.val());
+            
+            if ($src.is('select')) {
+                 // For selects, value will be set later via data-cloned-value to handle Select2
+                 $dst.data('cloned-value', $src.val());
+            } else if ($src.attr('type') === 'checkbox' || $src.attr('type') === 'radio') {
+                $dst.prop('checked', $src.prop('checked'));
+            } else {
+                $dst.val($src.val());
+            }
+        }
+    });
+
+    // Re-initialize Select2 and set values for selects
+    $newRowElement.find('select').not('.hidden').each(function() {
+       const $select = $(this);
+       const clonedValue = $select.data('cloned-value');
+       
+       if (!$select.hasClass('no-select2')) {
+        $select.select2({
+          placeholder: $select.attr('placeholder') || $select.data('placeholder') || 'Select...',
+          width: '100%'
+        });
+        
+        $select.on('select2:select select2:unselect', function() {
           $(this).trigger('change');
         });
-      }
+       }
+       
+       // Set the value!
+       if (clonedValue) {
+           // Ensure the option exists and is selected in the DOM to help Select2 pick it up
+           if ($select.find('option[value="' + clonedValue + '"]').length > 0) {
+               $select.val(clonedValue);
+           }
+           $select.trigger('change.select2');
+           
+           // Double check for Company Unit or specific fields that might be stubborn
+           if ($select.data('element-type') === 'client_unit_select' || $select.data('element-type') === 'analysis_type_select') {
+               console.log('Force setting value for ' + $select.data('element-type') + ' to ' + clonedValue);
+               $select.val(clonedValue).trigger('change');
+           }
+       }
     });
 
-    //  // Clear dependent elements that should be empty in cloned rows first
-    // clearDependentElementsInRow($newRowElement);
+    // Re-apply values one last time after a short delay to override any auto-clearing by dependencies
+    setTimeout(function() {
+        $newRowElement.find('select').each(function(index) {
+            const $s = $(this);
+            const v = $s.data('cloned-value');
+            
+            // Re-copy options if they were wiped by dependent logic
+            if ($s.children('option').length <= 1 && $sourceSelects.eq(index).children('option').length > 1) {
+                console.log('Restoring options for ' + $s.attr('name'));
+                // Destroy Select2 briefly to update DOM properly if needed, but usually html() works
+                const $src = $sourceSelects.eq(index);
+                $s.html($src.html());
+            }
+
+            if (v) {
+                // Determine if we need to set the value
+                const currentVal = $s.val();
+                let needUpdate = false;
+                
+                if (Array.isArray(v)) {
+                     // For arrays (multiple selects), simpler comparison
+                     if (!currentVal || v.sort().toString() !== currentVal.sort().toString()) {
+                         needUpdate = true;
+                     }
+                } else {
+                     if (currentVal != v) {
+                         needUpdate = true;
+                     }
+                }
+                
+                if (needUpdate) {
+                    console.log('Restoring value for ' + $s.attr('name') + ' to ' + v);
+                    $s.val(v).trigger('change.select2');
+                }
+            }
+         });
+    }, 800); // Increased delay slightly to ensures async clears have finished
     
-    // // Initialize custom elements for the cloned row (this will set up dependencies)
+    // Initialize custom elements (dependencies) but prevent them from wiping values
+    // We pass a flag 'isCloned' = true to our custom init function if needed,
+    // or we rely on the fact that we pre-filled the values so 'loadDynamicOptions' might respect them
+    // However, existing 'initializeRowCustomElements' calls 'start from scratch' logic.
+    // Let's modify 'initializeRowCustomElements' slightly or just manually attach handlers.
+    
+    // Actually, 'initializeRowCustomElements' sets up specific dependency listeners.
+    // We WANT listeners, but we DON'T want immediate triggering of empty loads.
     initializeRowCustomElements($newRowElement, true);
     
-    // Get the client_unit value from the cloned (source) row
-    const $sourceClientUnit = $sourceRow.find('[data-element-type="client_unit_select"]');
-    let sourceClientUnitId = null;
-    
-    if ($sourceClientUnit.length > 0) {
-      sourceClientUnitId = $sourceClientUnit.val();
-    }
-    
-    // If we have a client_unit from source row, automatically load sample points for cloned row
-    if (sourceClientUnitId) {
-      const $clonedSamplePoints = $newRowElement.find('[data-element-type="sample_point_select"]');
-      if ($clonedSamplePoints.length > 0) {
-        const samplePointElementId = $clonedSamplePoints.attr('id');
-        
-        console.log('=== CLONE ROW: AUTO-LOADING SAMPLE POINTS ===');
-        console.log('Source Row Client Unit ID:', sourceClientUnitId);
-        console.log('Cloned Row Sample Points Element ID:', samplePointElementId);
-        
-        // Load sample points immediately using the source row's client_unit
-        loadDynamicOptions($clonedSamplePoints, samplePointElementId, 'sample_point_select', null, null, null, sourceClientUnitId);
-      }
-
-      const $clonedCompanySubUnits = $newRowElement.find('[data-element-type="company_sub_unit_select"]');
-      if ($clonedCompanySubUnits.length > 0) {
-        const companySubUnitElementId = $clonedCompanySubUnits.attr('id');
-        loadDynamicOptions($clonedCompanySubUnits, companySubUnitElementId, 'company_sub_unit_select', null, null, null, sourceClientUnitId);
-      }
-    }
-    
-    // After cloning, trigger change events on parent elements to load dependent dropdowns
-    $newRowElement.find('[data-element-type="client_select"]').each(function() {
-      const $parentSelect = $(this);
-      if ($parentSelect.val()) {
-        $parentSelect.trigger('change.custom-elements');
-      }
-    });
-    
-    $newRowElement.find('[data-element-type="client_unit_select"]').each(function() {
-      const $parentSelect = $(this);
-      if ($parentSelect.val()) {
-        $parentSelect.trigger('change.custom-elements');
-      }
-    });
-    
-    $newRowElement.find('[data-element-type="sample_type_select"]').each(function() {
-      const $parentSelect = $(this);
-      if ($parentSelect.val()) {
-        $parentSelect.trigger('change.custom-elements');
-      }
-    });
-    
-    // Re-initialize global change handlers to include new elements
-    if (typeof setupClientChangeHandlers === 'function') {
-      setupClientChangeHandlers();
-    }
-    if (typeof setupClientUnitChangeHandlers === 'function') {
-      setupClientUnitChangeHandlers();
-    }
-    if (typeof setupSampleTypeChangeHandlers === 'function') {
-      setupSampleTypeChangeHandlers();
-    }
-    if (typeof setupAnalysisTypeChangeHandlers === 'function') {
-      setupAnalysisTypeChangeHandlers();
-    }
-    if (typeof setupStoreChangeHandlers === 'function') {
-      setupStoreChangeHandlers();
-    }
-    
-    // Update form progress after cloning row
+    // Update progress and buttons
     if (typeof FormFill !== 'undefined' && FormFill.updateProgress) {
       FormFill.updateProgress();
     }
-    
-    // Trigger change event on the form to update submit button state
     $('#fill-form').trigger('change');
   }
 
@@ -682,6 +786,20 @@ $(document).ready(function() {
 
   // Load existing data on page load
   loadExistingData();
+
+  // Update rowIndex to ensure it starts after the last existing row
+  const existingRows = $(tbody).find('tr[data-row-index]');
+  if (existingRows.length > 0) {
+      let maxIndex = -1;
+      existingRows.each(function() {
+          const idx = parseInt($(this).attr('data-row-index'));
+          if (!isNaN(idx) && idx > maxIndex) {
+              maxIndex = idx;
+          }
+      });
+      rowIndex = maxIndex + 1;
+      console.log('Updated rowIndex based on existing data to:', rowIndex);
+  }
   
   function loadExistingData() {
     @if(isset($existingValues) && $existingValues)

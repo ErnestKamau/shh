@@ -30,6 +30,12 @@
         )
       );
     ?>
+    @php
+        $canCreateSamples = $instance->isSubmitted() && $instance->submissionForm->sections()->whereHas('elements', function($query) {
+            $query->where('is_mapped', true);
+        })->exists();
+        $sampleStatus = app(\App\Services\SampleCreationService::class)->getSampleCreationStatus($instance);
+    @endphp
     <x-bread-crumb :items="$items"></x-bread-crumb>
     
     <div class="card border-0 shadow-sm mx-4 mt-4 mb-0">
@@ -70,10 +76,16 @@
                     Actions
                 </button>
                 <div class="dropdown-menu dropdown-menu-right">
-                    @unless($instance->isDraft())
+    @unless($instance->isDraft())
                         <a href="{{ route('submission-forms.instances.fill', [$submissionForm, $instance]) }}" class="dropdown-item">
                             <i class="mdi mdi-pencil mr-2"></i> Edit Information
                         </a>
+
+                        @if($canCreateSamples && $sampleStatus['status'] === 'ready')
+                            <a href="#" class="dropdown-item create-samples-btn" data-instance-id="{{ $instance->id }}">
+                                <i class="mdi mdi-flask mr-2"></i> Create Batch
+                            </a>
+                        @endif
                     @endunless
 
                     @if($instance->isDraft())

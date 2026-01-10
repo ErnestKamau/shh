@@ -1,8 +1,5 @@
 @php
-    $canCreateSamples = $instance->isSubmitted() && $instance->submissionForm->sections()->whereHas('elements', function($query) {
-        $query->where('is_mapped', true);
-    })->exists();
-    $sampleStatus = app(\App\Services\SampleCreationService::class)->getSampleCreationStatus($instance);
+    // Variables $canCreateSamples and $sampleStatus are passed from parent view 'submission-forms.instances.show'
 @endphp
 
 @if($canCreateSamples)
@@ -49,8 +46,7 @@
                 
                 <div class="mt-3">
                     <button type="button" 
-                            class="btn btn-primary" 
-                            id="create-samples-btn"
+                            class="btn btn-primary create-samples-btn" 
                             data-instance-id="{{ $instance->id }}">
                         <i class="mdi mdi-flask"></i> Create Batch
                     </button>
@@ -77,7 +73,9 @@
     <script>
     $(document).ready(function() {
         // Create samples button
-        $('#create-samples-btn').on('click', function() {
+        // Create samples button
+        $('.create-samples-btn').on('click', function(e) {
+            e.preventDefault();
             const instanceId = $(this).data('instance-id');
             const $btn = $(this);
             

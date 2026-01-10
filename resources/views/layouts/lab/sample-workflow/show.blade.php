@@ -8099,6 +8099,11 @@ document.addEventListener('DOMContentLoaded', function() {
 				$('#assignSamplesModal').data('customer-id', response.customer_id);
 				$('#assignSamplesModal').data('company-unit-id', response.company_unit_id);
 				$('#assignSamplesModal').data('company-sub-unit-id', response.company_sub_unit_id);
+				$('#assignSamplesModal').data('total-submission-quantity', response.total_submission_quantity);
+                
+                // Hide warning initially
+                $('#quantity-warning-alert').hide();
+                $('#quantity-warning-details').text('');
 				
 				// Load available areas and points for adding new ones
 				loadAvailableAreasAndPoints(stagingId);
@@ -8195,8 +8200,41 @@ document.addEventListener('DOMContentLoaded', function() {
 					quantityInput.val(selection.quantity);
 				}
 			});
+            
+            // Re-check quantity limit after restoration
+            checkQuantityLimit();
 		}, 100);
 	}
+	
+    // Function to check quantity limit
+	function checkQuantityLimit() {
+		const totalSubmissionQty = parseFloat($('#assignSamplesModal').data('total-submission-quantity')) || 0;
+		// If no total quantity limit (or 0), likely not applicable or legacy data, so we skip
+		if (totalSubmissionQty <= 0) return;
+
+		let currentAssignedQty = 0;
+		$('.sample-quantity:not(:disabled)').each(function() {
+			currentAssignedQty += parseFloat($(this).val()) || 0;
+		});
+
+		if (currentAssignedQty > totalSubmissionQty) {
+			$('#quantity-warning-details').text(`(Assigned: ${currentAssignedQty} / Total: ${totalSubmissionQty})`);
+			$('#quantity-warning-alert').slideDown();
+		} else {
+			$('#quantity-warning-alert').slideUp();
+		}
+	}
+
+    // Event listeners for quantity check
+    $(document).on('input keyup change', '.sample-quantity', function() {
+        checkQuantityLimit();
+    });
+    
+    // Also check when checkbox changes (enabling/disabling inputs)
+    $(document).on('change', '.sample-point-checkbox', function() {
+        // Wait a tick for disabled state to update
+        setTimeout(checkQuantityLimit, 100);
+    });
 	
 	// Handle refresh button click
 	$(document).on('click', '#refresh-sample-points-btn', function() {
@@ -8422,7 +8460,16 @@ $(document).on('click', '#btn-add-sample-point', function() {
 		},
 		error: function(xhr) {
 			console.error('Error adding sample point:', xhr);
-			alert('Error: ' + (xhr.responseJSON?.error || xhr.statusText));
+            let errorMsg = 'Unknown error';
+            if (xhr.responseJSON) {
+                errorMsg = xhr.responseJSON.message || xhr.responseJSON.error || xhr.statusText;
+                if (xhr.responseJSON.errors) {
+                    errorMsg += '\n' + Object.values(xhr.responseJSON.errors).join('\n');
+                }
+            } else {
+                errorMsg = xhr.statusText;
+            }
+			alert('Error: ' + errorMsg);
 			$('#btn-add-sample-point').prop('disabled', false).html('<i class="mdi mdi-plus"></i> Add to Customer');
 		}
 	});
@@ -8467,6 +8514,11 @@ $(document).on('click', '#btn-add-sample-point', function() {
 						</div>
 					</div>
 			</div>
+
+            <!-- Quantity Warning Alert -->
+            <div id="quantity-warning-alert" class="alert alert-warning alert-dismissible fade show mb-3" role="alert" style="display: none; border-radius: 10px;">
+                <strong><i class="mdi mdi-alert"></i> Warning:</strong> <span>The quantities assigned have surpassed the sample quantity from submission forms.</span> <span id="quantity-warning-details" style="font-weight: bold;"></span>
+            </div>
 
 			<!-- Add New Sample Point Section -->
 			<div class="card mb-3 shadow-sm border-0" style="border-radius: 15px;">

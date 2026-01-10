@@ -1446,6 +1446,7 @@ class SampleCreationController extends Controller
             'company_unit_id' => $subUnit->companyUnit->id ?? null,
             'company_sub_unit_id' => $subUnitId,
             'areas' => $formattedAreas,
+            'total_submission_quantity' => $dataJson['quantity'] ?? 0,
         ]);
     }
 
@@ -1712,18 +1713,24 @@ class SampleCreationController extends Controller
         
         DB::beginTransaction();
         try {
-            // 1. Check if SamplePointArea exists for this customer + area
             $samplePointArea = \App\Models\SamplePointArea::where('crm_customer_id', $validated['customer_id'])
                 ->where('crm_area_id', $validated['area_id'])
+                ->where('crm_company_sub_unit_id', $validated['crm_company_sub_unit_id'] ?? null)
                 ->first();
             
             if (!$samplePointArea) {
+                // Get area details for name
+                $area = \App\Models\Area::find($validated['area_id']);
+                $areaName = $area ? $area->name : 'Unknown Area';
+                
                 // Create new SamplePointArea
                 $samplePointArea = \App\Models\SamplePointArea::create([
                     'crm_customer_id' => $validated['customer_id'],
                     'crm_area_id' => $validated['area_id'],
                     'crm_company_unit_id' => $validated['crm_company_unit_id'] ?? null,
                     'crm_company_sub_unit_id' => $validated['crm_company_sub_unit_id'] ?? null,
+                    'name' => $areaName,
+                    'code' => 'SPA-' . strtoupper(uniqid()),
                     'description' => 'Auto-created from sample assignment',
                     'active' => true
                 ]);
