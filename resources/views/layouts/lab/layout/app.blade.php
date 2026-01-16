@@ -306,6 +306,11 @@
 	</a>
 	<div id="configuration-menu" class="collapse sidebar-submenu">
 
+		<a href="{{ route('ser-worksheet-steps') }}" class="list-group-item list-group-item-action bg-dark text-white">
+			<span class="menu-collapsed"><i class="mdi mdi-circle-medium"></i> SER Worksheet Steps
+				<small class="float-right badge badge-pill"></small></span>
+		</a>
+
 		<a href="{{route('sample-product-index')}}" class="list-group-item list-group-item-action bg-dark text-white">
 			<span class="menu-collapsed"><i class="mdi mdi-circle-medium"></i> Products
 				<small class="float-right badge badge-pill"></small></span>

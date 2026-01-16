@@ -29,6 +29,13 @@
         </div>
     @endif
 
+    <!-- Disclaimer Alert -->
+    @if($this->analysisType && $this->analysisType->has_no_result)
+        <div class="alert alert-warning fade show" role="alert">
+            <i class="mdi mdi-alert-circle"></i> <strong>Disclaimer:</strong> This Analysis has been marked as <strong>Has No Result Captured</strong>.
+        </div>
+    @endif
+
     <!-- Filters -->
     <div class="row mb-4">
         <div class="col-12">

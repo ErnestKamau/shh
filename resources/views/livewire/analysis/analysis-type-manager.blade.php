@@ -100,6 +100,7 @@
                                         <th>Elements</th>
                                         <th>Level</th>
                                         <th>Calculations</th>
+                                        <th>No Result</th>
                                         <th>Reporting Time</th>
                                         <th>Status</th>
                                         <th>Actions</th>
@@ -136,6 +137,13 @@
                                                 @endif
                                                 @if(!$analysisType->include_hygiene_score && !$analysisType->include_sanitizer_efficiency)
                                                     <span class="text-muted">Not set</span>
+                                                @endif
+                                            </td>
+                                            <td>
+                                                @if($analysisType->has_no_result)
+                                                    <span class="badge bg-warning p-2" style="color: black;">Yes</span>
+                                                @else
+                                                    <span class="text-muted">No</span>
                                                 @endif
                                             </td>
                                             <td>
@@ -244,7 +252,7 @@
                                 <div class="col-md-4">
                                     <div class="form-group mb-3">
                                         <label class="form-label"><i class="mdi mdi-layers text-primary"></i> Lab Section <span class="text-danger">*</span></label>
-                                        <div class="tag-select-container" wire:click="$set('showLabSectionDropdown', true)">
+                                        <div class="tag-select-container" wire:click="$set('showLabSectionDropdown', true)" wire:click.outside="$set('showLabSectionDropdown', false)">
                                             <div class="tag-select-input">
                                                 <!-- Display selected lab section or allow searching -->
                                                 @if($this->selectedLabSection)
@@ -310,7 +318,7 @@
                                         <label class="form-label">
                                             <i class="mdi mdi-currency-usd text-success"></i> Invoicable Item
                                         </label>
-                                        <div class="tag-select-container" wire:click="$set('showInvoicableItemDropdown', true)">
+                                        <div class="tag-select-container" wire:click="$set('showInvoicableItemDropdown', true)" wire:click.outside="$set('showInvoicableItemDropdown', false)">
                                             <div class="tag-select-input">
                                                 @if($this->selectedInvoicableItem)
                                                     <span class="tag-badge">
@@ -352,7 +360,7 @@
                                 </div>
                                 <div class="card-body">
                                     <div class="row">
-                                        <div class="col-md-4">
+                                        <div class="col-md-6 mb-2">
                                             <div class="form-check form-switch">
                                                 <input type="checkbox" wire:model="analysisTypeForm.active" class="form-check-input" id="analysis_active" role="switch">
                                                 <label class="form-check-label" for="analysis_active">
@@ -360,7 +368,15 @@
                                                 </label>
                                             </div>
                                         </div>
-                                        <div class="col-md-4">
+                                        <div class="col-md-6 mb-2">
+                                            <div class="form-check form-switch">
+                                                <input type="checkbox" wire:model="analysisTypeForm.has_no_result" class="form-check-input" id="has_no_result" role="switch">
+                                                <label class="form-check-label" for="has_no_result">
+                                                    <i class="mdi mdi-flask-empty-off-outline text-warning"></i> Has No Result Captured
+                                                </label>
+                                            </div>
+                                        </div>
+                                        <div class="col-md-6 mb-2">
                                             <div class="form-check form-switch">
                                                 <input type="checkbox" wire:model="analysisTypeForm.include_hygiene_score" class="form-check-input" id="include_hygiene_score" role="switch">
                                                 <label class="form-check-label" for="include_hygiene_score">
@@ -368,7 +384,7 @@
                                                 </label>
                                             </div>
                                         </div>
-                                        <div class="col-md-4">
+                                        <div class="col-md-6 mb-2">
                                             <div class="form-check form-switch">
                                                 <input type="checkbox" wire:model="analysisTypeForm.include_sanitizer_efficiency" class="form-check-input" id="include_sanitizer_efficiency" role="switch">
                                                 <label class="form-check-label" for="include_sanitizer_efficiency">
@@ -616,16 +632,4 @@
     }
     </style>
     
-    @script
-    <script>
-    // Close dropdowns when clicking outside
-    document.addEventListener('click', function(e) {
-        if (!e.target.closest('.tag-select-container')) {
-            $wire.set('showLabDropdown', false);
-            $wire.set('showLabSectionDropdown', false);
-            $wire.set('showInvoicableItemDropdown', false);
-        }
-    });
-    </script>
-    @endscript
 </div>

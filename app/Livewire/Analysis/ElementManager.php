@@ -173,6 +173,11 @@ class ElementManager extends Component
         $this->methodSequences = collect([]); // Will be loaded dynamically based on analyte
     }
 
+    public function getAnalysisTypeProperty()
+    {
+        return AnalysisType::find($this->analysisTypeId);
+    }
+
     public function getElementsProperty()
     {
         $query = AnalysisElements::with([

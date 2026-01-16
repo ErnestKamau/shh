@@ -28,6 +28,8 @@ class CustomerContact extends Model implements Auditable
 		'can_login',
 		'can_submit_sample',
 		'signature',
+		'can_receive_schedule_of_analysis',
+		'can_receive_payment_reminders',
 		'title_id'
 	];
 }

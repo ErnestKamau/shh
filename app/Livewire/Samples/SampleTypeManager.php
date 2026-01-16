@@ -1018,6 +1018,7 @@ class SampleTypeManager extends Component
         } else {
             $this->sampleTypeForm['sample_analysis_stage_ids'][] = $id;
         }
+        $this->labSectionSearch = '';
         
         // Re-index array
         $this->sampleTypeForm['sample_analysis_stage_ids'] = array_values($this->sampleTypeForm['sample_analysis_stage_ids']);

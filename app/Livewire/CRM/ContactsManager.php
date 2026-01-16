@@ -36,6 +36,8 @@ class ContactsManager extends Component
         'receive_price_list' => false,
         'receive_invoice' => false,
         'receive_report' => false,
+        'can_receive_schedule_of_analysis' => false,
+        'can_receive_payment_reminders' => false,
         'active' => true,
         'can_login' => false,
         'can_submit_sample' => false,
@@ -129,6 +131,8 @@ class ContactsManager extends Component
             'receive_price_list' => $contact->receive_price_list == 1,
             'receive_invoice' => $contact->receive_invoice == 1,
             'receive_report' => $contact->receive_report == 1,
+            'can_receive_schedule_of_analysis' => $contact->can_receive_schedule_of_analysis == 1,
+            'can_receive_payment_reminders' => $contact->can_receive_payment_reminders == 1,
             'active' => $contact->active == 1,
             'can_login' => $contact->can_login == 1,
             'can_submit_sample' => $contact->can_submit_sample == 1,
@@ -170,6 +174,8 @@ class ContactsManager extends Component
             $contact->receive_price_list = $this->contactForm['receive_price_list'] ? 1 : 0;
             $contact->receive_invoice = $this->contactForm['receive_invoice'] ? 1 : 0;
             $contact->receive_report = $this->contactForm['receive_report'] ? 1 : 0;
+            $contact->can_receive_schedule_of_analysis = $this->contactForm['can_receive_schedule_of_analysis'] ? 1 : 0;
+            $contact->can_receive_payment_reminders = $this->contactForm['can_receive_payment_reminders'] ? 1 : 0;
             $contact->active = $this->contactForm['active'] ? 1 : 0;
             $contact->can_login = $this->contactForm['can_login'] ? 1 : 0;
 
@@ -262,6 +268,8 @@ class ContactsManager extends Component
             'receive_price_list' => false,
             'receive_invoice' => false,
             'receive_report' => false,
+            'can_receive_schedule_of_analysis' => false,
+            'can_receive_payment_reminders' => false,
             'active' => true,
             'can_login' => false,
             'can_submit_sample' => false,

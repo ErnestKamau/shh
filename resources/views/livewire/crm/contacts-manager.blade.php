@@ -361,62 +361,156 @@
 
                         <!-- Preferences & Settings Section -->
                         <div class="form-section mb-4">
-                            <div class="section-header mb-3">
+                            <div class="section-header mb-4">
                                 <h6 class="mb-0 text-muted">
                                     <i class="mdi mdi-cog text-info"></i> Preferences & Settings
                                 </h6>
                             </div>
-                            <div class="section-body">
-                                <div class="row">
-                                    <div class="col-md-4">
-                                        <div class="form-check form-switch mb-3">
-                                            <input type="checkbox" wire:model="contactForm.receive_price_list" class="form-check-input" id="priceList" role="switch">
-                                            <label class="form-check-label" for="priceList">
-                                                <i class="mdi mdi-currency-usd text-success"></i> Receives Price List
-                                            </label>
+                            <div class="section-body" style="padding-bottom: 20px;">
+                           
+                                
+                                <div class="row g-3 gy-4">
+                                    <!-- Reports -->
+                                    <div class="col-md-6 col-xl-4">
+                                        <div class="h-100" wire:click="$toggle('contactForm.receive_report')">
+                                            <div class="preference-card" :class="{ 'active': @entangle('contactForm.receive_report') }">
+                                                <div class="preference-icon bg-primary bg-opacity-10 text-primary" style="background-color: rgba(13, 110, 253, 0.1) !important;">
+                                                    <i class="mdi mdi-file-document"></i>
+                                                </div>
+                                                <div class="preference-info">
+                                                    <span class="preference-title">Analysis Reports</span>
+                                                    <span class="preference-desc">Receive PDF analysis reports</span>
+                                                </div>
+                                                <div class="form-check form-switch p-0 m-0">
+                                                    <input class="form-check-input ms-0" type="checkbox" wire:model="contactForm.receive_report" role="switch">
+                                                </div>
+                                            </div>
                                         </div>
                                     </div>
-                                    <div class="col-md-4">
-                                        <div class="form-check form-switch mb-3">
-                                            <input type="checkbox" wire:model="contactForm.receive_invoice" class="form-check-input" id="invoice" role="switch">
-                                            <label class="form-check-label" for="invoice">
-                                                <i class="mdi mdi-receipt text-warning"></i> Receives Invoice
-                                            </label>
-                                        </div>
-                                    </div>
-                                    <div class="col-md-4">
-                                        <div class="form-check form-switch mb-3">
-                                            <input type="checkbox" wire:model="contactForm.receive_report" class="form-check-input" id="report" role="switch">
-                                            <label class="form-check-label" for="report">
-                                                <i class="mdi mdi-file-document text-primary"></i> Receives Report
-                                            </label>
-                                        </div>
-                                    </div>
-                                </div>
 
-                                <div class="row">
-                                    <div class="col-md-4">
-                                        <div class="form-check form-switch mb-2">
-                                            <input type="checkbox" wire:model="contactForm.can_login" class="form-check-input" id="canLogin" role="switch">
-                                            <label class="form-check-label" for="canLogin">
-                                                <i class="mdi mdi-account-key text-danger"></i> Can Login (Create/Update Passwords)
-                                            </label>
+                                    <!-- Schedule of Analysis -->
+                                    <div class="col-md-6 col-xl-4">
+                                        <div class="h-100" wire:click="$toggle('contactForm.can_receive_schedule_of_analysis')">
+                                            <div class="preference-card" :class="{ 'active': @entangle('contactForm.can_receive_schedule_of_analysis') }">
+                                                <div class="preference-icon bg-info bg-opacity-10 text-info" style="background-color: rgba(13, 202, 240, 0.1) !important;">
+                                                    <i class="mdi mdi-calendar-clock"></i>
+                                                </div>
+                                                <div class="preference-info">
+                                                    <span class="preference-title">Analysis Schedule</span>
+                                                    <span class="preference-desc">Updates on analysis progression</span>
+                                                </div>
+                                                <div class="form-check form-switch p-0 m-0">
+                                                    <input class="form-check-input ms-0" type="checkbox" wire:model="contactForm.can_receive_schedule_of_analysis" role="switch">
+                                                </div>
+                                            </div>
                                         </div>
                                     </div>
-                                    <div class="col-md-4">
-                                        <div class="form-check form-switch mb-2">
-                                            <input type="checkbox" wire:model="contactForm.can_submit_sample" class="form-check-input" id="canSubmitSample" role="switch">
-                                            <label class="form-check-label" for="canSubmitSample">
-                                                <i class="mdi mdi-flask text-info"></i> Can Submit Sample
-                                            </label>
+
+                                    <!-- Price List -->
+                                    <div class="col-md-6 col-xl-4">
+                                        <div class="h-100" wire:click="$toggle('contactForm.receive_price_list')">
+                                            <div class="preference-card" :class="{ 'active': @entangle('contactForm.receive_price_list') }">
+                                                <div class="preference-icon bg-success bg-opacity-10 text-success" style="background-color: rgba(25, 135, 84, 0.1) !important;">
+                                                    <i class="mdi mdi-currency-usd"></i>
+                                                </div>
+                                                <div class="preference-info">
+                                                    <span class="preference-title">Price Lists</span>
+                                                    <span class="preference-desc">Receive updated product prices</span>
+                                                </div>
+                                                <div class="form-check form-switch p-0 m-0">
+                                                    <input class="form-check-input ms-0" type="checkbox" wire:model="contactForm.receive_price_list" role="switch">
+                                                </div>
+                                            </div>
                                         </div>
                                     </div>
-                                    <div class="col-md-4">
-                                        <div class="form-check form-switch mb-2">
-                                            <input type="checkbox" wire:model="contactForm.active" class="form-check-input" id="contactActive" role="switch">
-                                            <label class="form-check-label" for="contactActive">
-                                                <i class="mdi mdi-check-circle text-success"></i> Is Active
-                                            </label>
+
+                                    <!-- Invoices -->
+                                    <div class="col-md-6 col-xl-4">
+                                        <div class="h-100" wire:click="$toggle('contactForm.receive_invoice')">
+                                            <div class="preference-card" :class="{ 'active': @entangle('contactForm.receive_invoice') }">
+                                                <div class="preference-icon bg-warning bg-opacity-10 text-warning" style="background-color: rgba(255, 193, 7, 0.1) !important;">
+                                                    <i class="mdi mdi-receipt"></i>
+                                                </div>
+                                                <div class="preference-info">
+                                                    <span class="preference-title">Invoices</span>
+                                                    <span class="preference-desc">Billing and invoice notifications</span>
+                                                </div>
+                                                <div class="form-check form-switch p-0 m-0">
+                                                    <input class="form-check-input ms-0" type="checkbox" wire:model="contactForm.receive_invoice" role="switch">
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    <!-- Payment Reminders -->
+                                    <div class="col-md-6 col-xl-4">
+                                        <div class="h-100" wire:click="$toggle('contactForm.can_receive_payment_reminders')">
+                                            <div class="preference-card" :class="{ 'active': @entangle('contactForm.can_receive_payment_reminders') }">
+                                                <div class="preference-icon bg-danger bg-opacity-10 text-danger" style="background-color: rgba(220, 53, 69, 0.1) !important;">
+                                                    <i class="mdi mdi-bell-ring"></i>
+                                                </div>
+                                                <div class="preference-info">
+                                                    <span class="preference-title">Payment Alerts</span>
+                                                    <span class="preference-desc">Reminders for pending payments</span>
+                                                </div>
+                                                <div class="form-check form-switch p-0 m-0">
+                                                    <input class="form-check-input ms-0" type="checkbox" wire:model="contactForm.can_receive_payment_reminders" role="switch">
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    <!-- Login Access -->
+                                    <div class="col-md-6 col-xl-4">
+                                        <div class="h-100" wire:click="$toggle('contactForm.can_login')">
+                                            <div class="preference-card" :class="{ 'active': @entangle('contactForm.can_login') }">
+                                                <div class="preference-icon bg-dark bg-opacity-10 text-dark" style="background-color: rgba(33, 37, 41, 0.1) !important;">
+                                                    <i class="mdi mdi-login"></i>
+                                                </div>
+                                                <div class="preference-info">
+                                                    <span class="preference-title">Portal Access</span>
+                                                    <span class="preference-desc">Allow login to customer portal</span>
+                                                </div>
+                                                <div class="form-check form-switch p-0 m-0">
+                                                    <input class="form-check-input ms-0" type="checkbox" wire:model="contactForm.can_login" role="switch">
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    <!-- Submit Sample -->
+                                    <div class="col-md-6 col-xl-4">
+                                        <div class="h-100" wire:click="$toggle('contactForm.can_submit_sample')">
+                                            <div class="preference-card" :class="{ 'active': @entangle('contactForm.can_submit_sample') }">
+                                                <div class="preference-icon bg-secondary bg-opacity-10 text-secondary" style="background-color: rgba(108, 117, 125, 0.1) !important;">
+                                                    <i class="mdi mdi-flask"></i>
+                                                </div>
+                                                <div class="preference-info">
+                                                    <span class="preference-title">Submit Samples</span>
+                                                    <span class="preference-desc">Permission to register samples</span>
+                                                </div>
+                                                <div class="form-check form-switch p-0 m-0">
+                                                    <input class="form-check-input ms-0" type="checkbox" wire:model="contactForm.can_submit_sample" role="switch">
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    <!-- Active Status -->
+                                    <div class="col-md-6 col-xl-4">
+                                        <div class="h-100" wire:click="$toggle('contactForm.active')">
+                                            <div class="preference-card" :class="{ 'active': @entangle('contactForm.active') }">
+                                                <div class="preference-icon bg-success bg-opacity-10 text-success" style="background-color: rgba(25, 135, 84, 0.1) !important;">
+                                                    <i class="mdi mdi-check-circle"></i>
+                                                </div>
+                                                <div class="preference-info">
+                                                    <span class="preference-title">Active Status</span>
+                                                    <span class="preference-desc">Contact is currently active</span>
+                                                </div>
+                                                <div class="form-check form-switch p-0 m-0">
+                                                    <input class="form-check-input ms-0" type="checkbox" wire:model="contactForm.active" role="switch">
+                                                </div>
+                                            </div>
                                         </div>
                                     </div>
                                 </div>
@@ -476,8 +570,64 @@
     @endif
     
     <!-- Modern Styling -->
+
     <style>
     /* Modern Select Field Styling */
+    .preference-card {
+        background: white;
+        border: 1px solid #e9ecef;
+        border-radius: 12px;
+        padding: 8px;
+        height: 100%;
+        display: flex;
+        align-items: center;
+        gap: 15px;
+        transition: all 0.3s ease;
+        cursor: pointer;
+        position: relative;
+        margin: 10px !important;
+    }
+    .preference-card:hover {
+        border-color: #007bff;
+        box-shadow: 0 4px 12px rgba(0, 123, 255, 0.1);
+        transform: translateY(-2px);
+    }
+    .preference-card.active {
+        border-color: #007bff;
+        background: rgba(0, 123, 255, 0.02);
+    }
+    .preference-icon {
+        width: 42px;
+        height: 42px;
+        border-radius: 10px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 20px;
+        flex-shrink: 0;
+    }
+    .preference-info {
+        flex: 1;
+    }
+    .preference-title {
+        display: block;
+        font-weight: 600;
+        color: #495057;
+        font-size: 14px;
+        margin-bottom: 2px;
+    }
+    .preference-desc {
+        display: block;
+        font-size: 11px;
+        color: #6c757d;
+        line-height: 1.2;
+    }
+    /* Custom Switch Positioning */
+    .preference-card .form-check-input {
+        width: 2.5em; 
+        height: 1.25em;
+        cursor: pointer;
+    }
     .modern-select {
         border: 1px solid #ced4da;
         border-radius: 12px;
@@ -568,7 +718,8 @@
     /* Form section styling with border bottoms */
     .form-section {
         border-bottom: 2px solid #e9ecef;
-        padding-bottom: 20px;
+        padding-bottom: 24px;
+        margin-bottom: 24px !important;
     }
     
     .form-section:last-of-type {
@@ -588,7 +739,8 @@
     }
     
     .section-body {
-        padding-top: 10px;
+        padding-top: 20px;
+        padding-bottom: 10px;
     }
     
     /* Form switch styling */
@@ -817,4 +969,3 @@
     }
     </style>
 </div>
-

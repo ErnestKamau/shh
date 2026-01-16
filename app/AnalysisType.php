@@ -10,9 +10,16 @@ class AnalysisType extends Model implements Auditable
 	use \OwenIt\Auditing\Auditable;
   protected $fillable  = [
     'name', 'code', 'description', 'sample_type_id', 'lab_id', 'company_id', 
-    'active', 'level', 'reporting_time', 'short_name', 'lab_section_id', 
+    'active', 'has_no_result', 'level', 'reporting_time', 'short_name', 'lab_section_id', 
     'brand_id', 'is_pesticide', 'zoho_id', 'product_type', 'result_expo',
-    'include_hygiene_score', 'include_sanitizer_efficiency'
+    'include_hygiene_score', 'include_sanitizer_efficiency', 'invoicable_item_id'
+  ];
+
+  protected $casts = [
+    'active' => 'boolean',
+    'has_no_result' => 'boolean',
+    'include_hygiene_score' => 'boolean',
+    'include_sanitizer_efficiency' => 'boolean'
   ];
   protected $appends = ['labsectionname'];
   public function lab(){

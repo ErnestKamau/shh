@@ -262,7 +262,7 @@
                                         <label class="form-label">
                                             <i class="mdi mdi-shape text-primary"></i> Category <span class="text-danger">*</span>
                                         </label>
-                                        <div class="tag-select-container" wire:click="$set('showCategoryDropdown', true)">
+                                        <div class="tag-select-container" wire:click="$set('showCategoryDropdown', true)" wire:click.outside="$set('showCategoryDropdown', false)">
                                             <div class="tag-select-input">
                                                 <!-- Display selected category -->
                                                 @if($this->selectedCategory)
@@ -307,7 +307,7 @@
                                         <label class="form-label">
                                             <i class="mdi mdi-flask-outline text-info"></i> Lab Sections
                                         </label>
-                                        <div class="tag-select-container" wire:click="$set('showLabSectionDropdown', true)">
+                                        <div class="tag-select-container" wire:click="$set('showLabSectionDropdown', true)" wire:click.outside="$set('showLabSectionDropdown', false)">
                                             <div class="tag-select-input">
                                                 @foreach($this->selectedLabSections as $section)
                                                     <span class="tag-badge">
@@ -351,7 +351,7 @@
                                         <label class="form-label">
                                             <i class="mdi mdi-star text-warning"></i> Rating System
                                         </label>
-                                        <div class="tag-select-container" wire:click="$set('showRatingHeaderDropdown', true)">
+                                        <div class="tag-select-container" wire:click="$set('showRatingHeaderDropdown', true)" wire:click.outside="$set('showRatingHeaderDropdown', false)">
                                             <div class="tag-select-input">
                                                 <!-- Display selected rating header -->
                                                 @if($this->selectedRatingHeader)
@@ -391,7 +391,7 @@
                                         <label class="form-label">
                                             <i class="mdi mdi-file-document text-info"></i> Report Format
                                         </label>
-                                        <div class="tag-select-container" wire:click="$set('showReportFormatDropdown', true)">
+                                        <div class="tag-select-container" wire:click="$set('showReportFormatDropdown', true)" wire:click.outside="$set('showReportFormatDropdown', false)">
                                             <div class="tag-select-input">
                                                 <!-- Display selected report format -->
                                                 @if($this->selectedReportFormat)
@@ -429,7 +429,7 @@
                                         <label class="form-label">
                                             <i class="mdi mdi-package-variant text-success"></i> Default Product
                                         </label>
-                                        <div class="tag-select-container" wire:click="$set('showCompanyProductDropdown', true)">
+                                        <div class="tag-select-container" wire:click="$set('showCompanyProductDropdown', true)" wire:click.outside="$set('showCompanyProductDropdown', false)">
                                             <div class="tag-select-input">
                                                 <!-- Display selected company product -->
                                                 @if($this->selectedCompanyProduct)
@@ -548,7 +548,7 @@
                                         <label class="form-label">
                                             <i class="mdi mdi-flask text-primary"></i> Lab <span class="text-danger">*</span>
                                         </label>
-                                        <div class="tag-select-container" wire:click="$set('showLabDropdown', true)">
+                                        <div class="tag-select-container" wire:click="$set('showLabDropdown', true)" wire:click.outside="$set('showLabDropdown', false)">
                                             <div class="tag-select-input">
                                                 <!-- Display selected lab -->
                                                 @if($this->selectedLab)
@@ -865,18 +865,4 @@
     }
     </style>
     
-    @script
-    <script>
-    // Close dropdowns when clicking outside
-    document.addEventListener('click', function(e) {
-        if (!e.target.closest('.tag-select-container') && !e.target.closest('.modal')) {
-            $wire.set('showCategoryDropdown', false);
-            $wire.set('showRatingHeaderDropdown', false);
-            $wire.set('showReportFormatDropdown', false);
-            $wire.set('showCompanyProductDropdown', false);
-            $wire.set('showLabDropdown', false);
-        }
-    });
-    </script>
-    @endscript
 </div>
