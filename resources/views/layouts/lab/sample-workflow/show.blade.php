@@ -519,11 +519,11 @@
 		</div>
 	@endif
 
-    @if(isset($batch) && $batch->sample_details->where('has_no_result_capture', 1)->count() > 0)
+    @if(isset($samplesWithNoResultCapture) && count($samplesWithNoResultCapture) > 0)
         <div class="alert alert-warning alert-dismissible fade show m-3" role="alert">
             <i class="mdi mdi-alert"></i> 
             <strong>No Result Capture Needed:</strong> The following samples are marked as having no result capture required: 
-            {{ implode(', ', $batch->sample_details->where('has_no_result_capture', 1)->pluck('sample_code')->toArray()) }}
+            {{ implode(', ', $samplesWithNoResultCapture) }}
             <button type="button" class="close" data-dismiss="alert">
                 <span>&times;</span>
             </button>

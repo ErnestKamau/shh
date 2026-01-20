@@ -544,6 +544,29 @@ class SampleWorkFlowController extends Controller
             }
             $s_samples_comments = str_replace('<p>&nbsp;</p>', '', $request->sample_details['comments'][$k]);
             $detail->comments = trim($s_samples_comments);
+
+            // Calculate has_no_result_capture
+            $hasNoResultCapture = true;
+            if (!empty($detail->analysis_type_id)) {
+                $aTypes = explode(',', $detail->analysis_type_id);
+                if (count($aTypes) > 0) {
+                    foreach ($aTypes as $atId) {
+                        if (trim($atId) != "") {
+                            $at = AnalysisType::find($atId);
+                            if (!$at || !$at->has_no_result) {
+                                $hasNoResultCapture = false;
+                                break;
+                            }
+                        }
+                    }
+                } else {
+                    $hasNoResultCapture = false;
+                }
+            } else {
+                $hasNoResultCapture = false;
+            }
+            $detail->has_no_result_capture = $hasNoResultCapture;
+
             $detail->save();
             if ($SampleHeader->status == 'Samples Reception') {
                 if ($request->sample_details['is_duplicate'][$k] != '0') {
@@ -809,6 +832,12 @@ class SampleWorkFlowController extends Controller
                         $captured->lab_section_id = $analysisType->lab_section_id;
                         $captured->parameters_order = $analysisType->level ?? 0;
                         $captured->remark_is_manual = $analysisType->remark_is_manual;
+                        $captured->formular_id = $analysisType->formular_id;
+                        $captured->method_sequence_id = $analysisType->method_sequence_id;
+                        
+                        // Get analysis type for has_no_result_capture
+                        $aType = AnalysisType::find($a->id);
+                        $captured->has_no_result_capture = $aType ? $aType->has_no_result : 0;
 
                         $captured->save();
 
@@ -832,6 +861,7 @@ class SampleWorkFlowController extends Controller
                         $result->lab_section_id = $analysisType->lab_section_id;
                         $result->parameters_order = $analysisType->level ?? 0;
                         $result->remark_is_manual = $analysisType->remark_is_manual;
+                        $result->has_no_result_capture = $captured->has_no_result_capture;
 
                         $result->save();
                     }
@@ -1378,6 +1408,7 @@ class SampleWorkFlowController extends Controller
         $custody = new \App\ChainOfCustody();
         $custody->workflow_stage = $data['target']['status'];
         $custody->tracking_stage_id = $data['target']['tracking_stage'];
+
         $custody->moved_in_by = \Auth::user()->id;
         $custody->sample_header_id = $data['batch_id'];
 
@@ -2093,9 +2124,14 @@ class SampleWorkFlowController extends Controller
                         $captured->superscript_negative = round(intval($request->result[$cID])) >= 1 ? 0 : 1;
                     }
                 }
-                $standard_main = Standards::where('code', $request->main_standard[$cID])->first();
-                $sec_standard = Standards::where('code', $request->secondary_standard[$cID])->first();
-                $third_standard = Standards::where('code', $request->third_standard[$cID])->first();
+                $main_std_code = $request->input('main_standard.'.$cID);
+                $standard_main = $main_std_code ? Standards::where('code', $main_std_code)->first() : null;
+                
+                $sec_std_code = $request->input('secondary_standard.'.$cID);
+                $sec_standard = $sec_std_code ? Standards::where('code', $sec_std_code)->first() : null;
+
+                $third_std_code = $request->input('third_standard.'.$cID);
+                $third_standard = $third_std_code ? Standards::where('code', $third_std_code)->first() : null;
                 if (isset($standard_main->id)) {
                     $main_standard_analyte = StandardAnalytes::where('analyte_id', $captured->analyte_id)->where('standard_id', $standard_main->id)->first();
                     $sec_standard_analyte = isset($sec_standard->id) ? StandardAnalytes::where('analyte_id', $captured->analyte_id)->where('standard_id', $sec_standard->id)->first() : '';
@@ -2153,6 +2189,10 @@ class SampleWorkFlowController extends Controller
         $strStage = 'Capture Results';
         $samWk = 'Samples In Lab';
         $stage = SampleAnalysisStage::where('name', $strStage)->where('sample_workflow', $samWk)->first();
+        if (!$stage) {
+            $stage = SampleAnalysisStage::find(20015);
+        }
+
 
         $custodyDetails = [
             'batch_id' => $batch->id,
@@ -2163,7 +2203,7 @@ class SampleWorkFlowController extends Controller
             ],
             'target' => [
                 'status' => $samWk,
-                'tracking_stage' => $stage->id,
+                'tracking_stage' => $stage ? $stage->id : $batch->sample_tracking_stage,
             ],
         ];
         $this->updateChainofCustody($custodyDetails);

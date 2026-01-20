@@ -44,8 +44,8 @@
                                 <span class="badge badge-light ml-1 d-none" wire:loading.class.remove="d-none" wire:target="switchTab">
                                     <i class="mdi mdi-loading mdi-spin"></i> Loading...
                                 </span>
-                                @if($formulas->count() > 0)
-                                    <span class="badge badge-primary">{{ $formulas->count() }}</span>
+                                @if($formulas->count() > 0 || $hasNoCaptureSamples)
+                                    <span class="badge badge-primary">{{ $formulas->count() + count($groupedNoCaptureSamples) }}</span>
                                 @endif
                             </a>
                         </li>
@@ -72,7 +72,7 @@
                     <!-- Formula Worksheets Tab -->
                     @if($activeTab === 'formulas')
                         <div class="tab-pane fade show active">
-                            @if($formulas->count() > 0)
+                            @if($formulas->count() > 0 || $hasNoCaptureSamples)
                                 <div class="d-flex align-items-center mb-3 border-bottom pb-1">
                                     <span class="font-weight-bold mr-3">WORKSHEETS :</span>
                                     <ul class="nav nav-pills mb-0" role="tablist">
@@ -87,6 +87,18 @@
                                                 </a>
                                             </li>
                                         @endforeach
+                                        
+                                        @foreach($groupedNoCaptureSamples as $analysisId => $group)
+                                            <li class="nav-item">
+                                                <a class="nav-link {{ ($formulas->count() == 0 && $loop->first) ? 'active' : '' }}" 
+                                                   data-toggle="pill" 
+                                                   href="#ser-worksheet-{{ $analysisId }}" 
+                                                   role="tab"
+                                                   style="{{ ($formulas->count() == 0 && $loop->first) ? 'background: linear-gradient(135deg, rgba(0, 123, 255, 0.08) 0%, rgba(74, 144, 226, 0.05) 100%); color: black;' : '' }}">
+                                                    {{ $group['name'] }} Worksheet
+                                                </a>
+                                            </li>
+                                        @endforeach
                                     </ul>
                                 </div>
                                 
@@ -98,14 +110,26 @@
                                             @livewire('worksheets.formula-worksheet', [
                                                 'batch' => $batch,
                                                 'formula' => $formula
-                                            ], key('formula-'.$formula->id))
+                                            ], 'formula-'.$formula->id)
                                         </div>
                                     @endforeach
-                                </div>
+                                    
+                                    @foreach($groupedNoCaptureSamples as $analysisId => $group)
+                                        <div class="tab-pane fade {{ ($formulas->count() == 0 && $loop->first) ? 'show active' : '' }}" 
+                                             id="ser-worksheet-{{ $analysisId }}" 
+                                             role="tabpanel">
+                                            @livewire('worksheets.ser-worksheet', [
+                                                'batch' => $batch,
+                                                'analysisTypeId' => $analysisId,
+                                                'samples' => $group['samples'],
+                                                'analysisTypeName' => $group['name']
+                                            ], 'ser-worksheet-'.$analysisId)
+                                        </div>
+                                    @endforeach
                             @else
                                 <div class="alert alert-info">
                                     <i class="mdi mdi-information"></i> 
-                                    No formulas found for this batch. Captured results must have formula configurations.
+                                    No formulas or worksheets found for this batch. Captured results must have formula configurations.
                                 </div>
                             @endif
                         </div>
@@ -140,7 +164,7 @@
                                             @livewire('worksheets.method-sequence-worksheet', [
                                                 'batch' => $batch,
                                                 'methodSequence' => $sequence
-                                            ], key('sequence-'.$sequence->id))
+                                            ], key: 'sequence-'.$sequence->id)
                                         </div>
                                     @endforeach
                                 </div>

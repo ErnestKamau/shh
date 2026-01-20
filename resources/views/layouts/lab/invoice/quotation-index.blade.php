@@ -284,7 +284,7 @@
                         <select name="client" class="form-control" id="select-client" aria-readonly="true" aria-placeholder="Choose Client..." required>
                             <option value="" disabled selected>Choose Client...</option>
                             @foreach($customers as $customer)
-                            <option value="{{$customer->id}}" data-zoho-customer-id="{{$customer->zoho_customer_id}}">{{$customer->name}}</option>
+                            <option value="{{$customer->id}}" data-zoho-customer-id="{{ is_array($customer->zoho_customer_id) ? ($customer->zoho_customer_id[0] ?? '') : $customer->zoho_customer_id }}">{{$customer->name}}</option>
                             @endforeach
                         </select>
                     </div>

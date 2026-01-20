@@ -284,15 +284,15 @@ class SampleCreationController extends Controller
             'importer_address' => $getSingleValue($sampleHeaderData['importer_address'] ?? ''),
             'date_expected' => $formatDate($sampleHeaderData['date_expected'] ?? null, now()->addDays(7)->toDateString()),
             'quote_id' => $getIntegerValue($sampleHeaderData['quote_id'] ?? null),
-            'radio_active_levels' => $getSingleValue($sampleHeaderData['radio_active_levels'] ?? ''),
-            'receiving_officer_name' => $getSingleValue($sampleHeaderData['receiving_officer']) ? getUserById($getSingleValue($sampleHeaderData['receiving_officer']))->name : auth()->user()->name ?? 'System',
-            'receiving_officer' => $getSingleValue($sampleHeaderData['receiving_officer']),
-            'sampling_officer_name' => $getSingleValue($sampleHeaderData['sampling_officer_name'] ),
+
+            'receiving_officer_name' => $getSingleValue($sampleHeaderData['receiving_officer'] ?? $sampleHeaderData['receiving_officer_name'] ?? null) && is_numeric($getSingleValue($sampleHeaderData['receiving_officer'] ?? $sampleHeaderData['receiving_officer_name'] ?? null)) ? (\App\User::find($getSingleValue($sampleHeaderData['receiving_officer'] ?? $sampleHeaderData['receiving_officer_name'] ?? null))->name ?? auth()->user()->name ?? 'System') : ($getSingleValue($sampleHeaderData['receiving_officer_name'] ?? null) ?? auth()->user()->name ?? 'System'),
+            'receiving_officer' => $getSingleValue($sampleHeaderData['receiving_officer'] ?? $sampleHeaderData['receiving_officer_name'] ?? null),
+            'sampling_officer_name' => $getSingleValue($sampleHeaderData['sampling_officer_name'] ?? ''),
             'reference_number' => $getSingleValue($sampleHeaderData['reference_number'] ?? 'n/a'),
             'is_routine' => $getIntegerValue($sampleHeaderData['is_routine'] ?? 0),
             'routine_frequency' => $getIntegerValue($sampleHeaderData['routine_frequency'] ?? 0),
             'is_client_order' => $getIntegerValue($sampleHeaderData['is_client_order'] ?? 0),
-            'submit_by' => $getSingleValue($sampleHeaderData['submit_by']),
+            'submit_by' => $getSingleValue($sampleHeaderData['submit_by'] ?? ''),
             'crm_unit_name' => $crmUnitName,
             'crm_unit_id' => $crmUnitId,
             'lab_capable' => 1,
@@ -467,7 +467,7 @@ class SampleCreationController extends Controller
             $sampleDetail->save();
         
         // Create analysis type relations and captured results
-        $this->createAnalysisRelationsAndResults($sampleHeaderId, $sampleDetail->id, $sampleDetail->analysis_type_id, $sampleDetail->sample_code);
+        $this->createCapturedResultsForAnalysisType($sampleHeaderId, $sampleDetail->id, $sampleDetail->analysis_type_id, $sampleDetail->sample_code);
         
         $createdDetails[] = $sampleDetail;
         Log::info('Created sample detail', [
@@ -525,7 +525,7 @@ class SampleCreationController extends Controller
         // Get analysis type to access lab_section_id
         $analysisType = \App\AnalysisType::find($analysisTypeId);
         $labSectionIdFromAnalysisType = $analysisType ? $analysisType->lab_section_id : null;
-        $analysisTypeHasNoResultCapture = $analysisType ? $analysisType->has_no_result_capture : false;
+        $analysisTypeHasNoResultCapture = $analysisType ? (int) ($analysisType->has_no_result ?? 0) : 0;
         
         foreach ($analysisElements as $element) {
             // Get the analyte code from the related analyte
@@ -1545,7 +1545,7 @@ class SampleCreationController extends Controller
         
         // Create analysis relations and results
         if (!empty($dataJson['analysis_type_ids'])) {
-            $this->createAnalysisRelationsAndResults(
+            $this->createCapturedResultsForAnalysisType(
                 $sampleHeader->id,
                 $sampleDetail->id,
                 $dataJson['analysis_type_ids'],
