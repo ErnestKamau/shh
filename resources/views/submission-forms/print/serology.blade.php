@@ -3,22 +3,28 @@
 <?php
 $active = getActiveCompany();
 
-$headerDetails = $existingValues['sample_header'];
-$sampleDetails = $existingValues['sample_details'];
+$headerDetails = $existingValues['sample_header'] ?? [];
+$sampleDetails = $existingValues['sample_details'] ?? [];
 
-$companyDetails = \App\Models\CRM\CRMCustomer::find($headerDetails['crm_customer_id']);
-$companyUnitDetails = \App\Models\CRM\CRMCompanyUnit::find($headerDetails['crm_unit_id']);
-$sampleTypeDetails = \App\SampleType::find($headerDetails['sample_type_id']);
+$companyDetails = isset($headerDetails['crm_customer_id']) ? \App\Models\CRM\CRMCustomer::find($headerDetails['crm_customer_id']) : null;
+// Fix: Look for company unit using the correct field name stored in the form
+$companyUnitId = $headerDetails['crm_unit_name'] ?? $headerDetails['crm_unit_id'] ?? null;
+$companyUnitDetails = $companyUnitId ? \App\Models\CRM\CRMCompanyUnit::find($companyUnitId) : null;
+$sampleTypeDetails = isset($headerDetails['sample_type_id']) ? \App\SampleType::find($headerDetails['sample_type_id']) : null;
 
 $samplePoints = [];
 
+// Collect sample points from each sample detail row - use 'company_sub_unit_id' field
 foreach ($sampleDetails as $sample) {
-    $samplePoints = array_merge($samplePoints, explode(",", $sample['sample_point_id']));
+    $samplePointField = $sample['company_sub_unit_id'] ?? $sample['sample_point_id'] ?? null;
+    if ($samplePointField) {
+        $samplePoints = array_merge($samplePoints, explode(",", $samplePointField));
+    }
 }
 
-// dd($samplePoints);
-
-$samplePointNames = \App\Models\CRM\SamplePoint::whereIn('id', $samplePoints)->select('name')->pluck('name')->toArray();
+// Remove duplicates and get names
+$samplePoints = array_unique(array_filter($samplePoints));
+$samplePointNames = !empty($samplePoints) ? \App\Models\CRM\SamplePoint::whereIn('id', $samplePoints)->select('name')->pluck('name')->toArray() : [];
 ?>
 <head>
     <meta charset="UTF-8">
@@ -416,19 +422,19 @@ $samplePointNames = \App\Models\CRM\SamplePoint::whereIn('id', $samplePoints)->s
     <table style="width: 100%; border-collapse: collapse; border: 1px solid #000;">
         <tr>
             <th style="text-align: left; padding: 10px; border: 1px solid #000; font-weight: bold;">OWNER/COMPANY NAME</th>
-            <td style="text-align: left; padding: 10px; border: 1px solid #000;">{{ $companyDetails->name }}</td>
+            <td style="text-align: left; padding: 10px; border: 1px solid #000;">{{ $companyDetails?->name ?? 'N/A' }}</td>
         </tr>
         <tr>
             <th style="text-align: left; padding: 10px; border: 1px solid #000; font-weight: bold;">ADDRESS</th>
-            <td style="text-align: left; padding: 10px; border: 1px solid #000;">{{ $companyDetails->physical_address }}</td>
+            <td style="text-align: left; padding: 10px; border: 1px solid #000;">{{ $companyDetails?->physical_address ?? 'N/A' }}</td>
         </tr>
         <tr>
             <th style="text-align: left; padding: 10px; border: 1px solid #000; font-weight: bold;">TELEPHONE</th>
-            <td style="text-align: left; padding: 10px; border: 1px solid #000;">{{ $companyDetails->telephone1 }}</td>
+            <td style="text-align: left; padding: 10px; border: 1px solid #000;">{{ $companyDetails?->telephone1 ?? 'N/A' }}</td>
         </tr>
         <tr>
             <th style="text-align: left; padding: 10px; border: 1px solid #000; font-weight: bold;">EMAIL</th>
-            <td style="text-align: left; padding: 10px; border: 1px solid #000;">{{ $companyDetails->email }}</td>
+            <td style="text-align: left; padding: 10px; border: 1px solid #000;">{{ $companyDetails?->email ?? 'N/A' }}</td>
         </tr>
     </table>
     <br>
@@ -438,15 +444,15 @@ $samplePointNames = \App\Models\CRM\SamplePoint::whereIn('id', $samplePoints)->s
             <td style="text-align: left; padding: 10px; border: 1px solid #000; font-weight: bold;" colspan="50%">
                 <div style="display: flex; width: 100%;">
                     <div style="width: 50%; padding-right: 10px;">
-                        Specimen Type:<span style="font-weight: 400; border-bottom: 1px dotted #000; display: inline-block; width: 80px; margin-left: 5px;">{{$sampleTypeDetails->name}}</span>
+                        Specimen Type:<span style="font-weight: 400; border-bottom: 1px dotted #000; display: inline-block; width: 80px; margin-left: 5px;">{{$sampleTypeDetails?->name ?? 'N/A'}}</span>
                     </div>
                     <div style="width: 50%; padding-left: 10px;">
-                        Animal: <span style="font-weight: 400; border-bottom: 1px dotted #000; display: inline-block; width: 80px; margin-left: 5px;">{{$headerDetails['animal']}}</span>
+                        Animal: <span style="font-weight: 400; border-bottom: 1px dotted #000; display: inline-block; width: 80px; margin-left: 5px;">{{$headerDetails['animal'] ?? 'N/A'}}</span>
                     </div>
                 </div>
             </td>
             <td style="text-align: left; padding: 10px; border: 1px solid #000;" colspan="50%">
-                Sample Collection Point/Site: <span style="border-bottom: 1px dotted #000; display: inline-block; min-width: 200px; margin-left: 5px;">{{$companyUnitDetails->name}}</span>
+                Sample Collection Point/Site: <span style="border-bottom: 1px dotted #000; display: inline-block; min-width: 200px; margin-left: 5px;">{{$companyUnitDetails?->name ?? 'N/A'}}</span>
             </td>
         </tr>
         <tr>
@@ -454,31 +460,31 @@ $samplePointNames = \App\Models\CRM\SamplePoint::whereIn('id', $samplePoints)->s
                 Number Samples <span style="font-weight: 400; border-bottom: 1px dotted #000; display: inline-block; width: 80px; margin-left: 5px;">{{count($samplePoints)}}</span></td>
             <td style="text-align: left; padding: 10px; border: 1px solid #000;" colspan="50%">
                 House/ Pen #: <span style="font-weight: 400; border-bottom: 1px dotted #000; margin-left: 5px; margin-right:20px">{{ implode(", ", $samplePointNames) }}</span>
-                Age: <span style="font-weight: 400; border-bottom: 1px dotted #000; display: inline-block; width: 80px; margin-left: 5px;">{{ $headerDetails['age'] }}</span>
+                Age: <span style="font-weight: 400; border-bottom: 1px dotted #000; display: inline-block; width: 80px; margin-left: 5px;">{{ $headerDetails['age'] ?? 'N/A' }}</span>
             </td>
         </tr>
         <tr>
             <td style="text-align: left; padding: 10px; border: 1px solid #000; font-weight: bold;" colspan="33%">
                 Date of Bleeding
                 <span style="font-weight: 400; border-bottom: 1px dotted #000; margin-left: 5px; margin-right:20px">
-                    {{ \Carbon\Carbon::parse($headerDetails['date_collected'])->format("d/m/Y") }}
+                    {{ isset($headerDetails['date_collected']) ? \Carbon\Carbon::parse($headerDetails['date_collected'])->format("d/m/Y") : 'N/A' }}
                 </span>
             </td>
             <td style="text-align: left; padding: 10px; border: 1px solid #000;" colspan="33%">
                 Time of Bleeding
                 <span style="font-weight: 400; border-bottom: 1px dotted #000; margin-left: 5px; margin-right:20px">
-                    {{ \Carbon\Carbon::parse($headerDetails['date_collected'])->format("H:i") }}
+                    {{ isset($headerDetails['date_collected']) ? \Carbon\Carbon::parse($headerDetails['date_collected'])->format("H:i") : 'N/A' }}
                 </span>
             </td>
             <td style="text-align: left; padding: 10px; border: 1px solid #000; font-weight: bold;" colspan="33%">
                 Submitted By 
                 <span style="font-weight: 400; border-bottom: 1px dotted #000; margin-left: 5px; margin-right:20px">
-                    {{ $headerDetails['sampling_officer'] }}
+                    {{ $headerDetails['sampling_officer'] ?? 'N/A' }}
                 </span>
                 <br>
                 Signature 
                 <span style="font-weight: 400; border-bottom: 1px dotted #000; margin-left: 5px; margin-right:20px">
-                    <img src="{{ $headerDetails['signature'] }}" style="height: 30px; margin: 3px 5px" />
+                    @if(isset($headerDetails['signature']))<img src="{{ $headerDetails['signature'] }}" style="height: 30px; margin: 3px 5px" />@endif
                 </span>
             </td>
         </tr>
@@ -486,24 +492,24 @@ $samplePointNames = \App\Models\CRM\SamplePoint::whereIn('id', $samplePoints)->s
             <td style="text-align: left; padding: 10px; border: 1px solid #000; font-weight: bold;" colspan="33%">
                 Date of Submission
                 <span style="font-weight: 400; border-bottom: 1px dotted #000; margin-left: 5px; margin-right:20px">
-                    {{ \Carbon\Carbon::parse($headerDetails['date_time_of_submission'])->format("d/m/Y") }}
+                    {{ isset($headerDetails['date_time_of_submission']) ? \Carbon\Carbon::parse($headerDetails['date_time_of_submission'])->format("d/m/Y") : 'N/A' }}
                 </span>
             </td>
             <td style="text-align: left; padding: 10px; border: 1px solid #000;" colspan="33%">
                 Time of Submission
                 <span style="font-weight: 400; border-bottom: 1px dotted #000; margin-left: 5px; margin-right:20px">
-                    {{ \Carbon\Carbon::parse($headerDetails['date_time_of_submission'])->format("H:i") }}
+                    {{ isset($headerDetails['date_time_of_submission']) ? \Carbon\Carbon::parse($headerDetails['date_time_of_submission'])->format("H:i") : 'N/A' }}
                 </span>
             </td>
             <td style="text-align: left; padding: 10px; border: 1px solid #000; font-weight: bold;" colspan="33%">
                 Submitted By 
                 <span style="font-weight: 400; border-bottom: 1px dotted #000; margin-left: 5px; margin-right:20px">
-                    {{ $headerDetails['submit_by'] }}
+                    {{ $headerDetails['submit_by'] ?? 'N/A' }}
                 </span>
                 <br>
                 Signature 
                 <span style="font-weight: 400; border-bottom: 1px dotted #000; margin-left: 5px; margin-right:20px">
-                    <img src="{{ $headerDetails['signature_submission'] }}" style="height: 30px; margin: 3px 5px" />
+                    @if(isset($headerDetails['signature_submission']))<img src="{{ $headerDetails['signature_submission'] }}" style="height: 30px; margin: 3px 5px" />@endif
                 </span>
             </td>
         </tr>
@@ -511,24 +517,24 @@ $samplePointNames = \App\Models\CRM\SamplePoint::whereIn('id', $samplePoints)->s
             <td style="text-align: left; padding: 10px; border: 1px solid #000; font-weight: bold;" colspan="33%">
                 Date of Reception
                 <span style="font-weight: 400; border-bottom: 1px dotted #000; margin-left: 5px; margin-right:20px">
-                    {{ \Carbon\Carbon::parse($headerDetails['receipt_date'])->format("d/m/Y") }}
+                    {{ isset($headerDetails['receipt_date']) ? \Carbon\Carbon::parse($headerDetails['receipt_date'])->format("d/m/Y") : 'N/A' }}
                 </span>
             </td>
             <td style="text-align: left; padding: 10px; border: 1px solid #000;" colspan="33%">
                 Time of Reception
                 <span style="font-weight: 400; border-bottom: 1px dotted #000; margin-left: 5px; margin-right:20px">
-                    {{ \Carbon\Carbon::parse($headerDetails['receipt_date'])->format("H:i") }}
+                    {{ isset($headerDetails['receipt_date']) ? \Carbon\Carbon::parse($headerDetails['receipt_date'])->format("H:i") : 'N/A' }}
                 </span>
             </td>
             <td style="text-align: left; padding: 10px; border: 1px solid #000; font-weight: bold;" colspan="33%">
                 Received By 
                 <span style="font-weight: 400; border-bottom: 1px dotted #000; margin-left: 5px; margin-right:20px">
-                    {{ $headerDetails['receiving_officer'] }}
+                    {{ $headerDetails['receiving_officer'] ?? 'N/A' }}
                 </span>
                 <br>
                 Signature 
                 <span style="font-weight: 400; border-bottom: 1px dotted #000; margin-left: 5px; margin-right:20px">
-                    <img src="{{ $headerDetails['signature_reception'] }}" style="height: 30px; margin: 3px 5px" />
+                    @if(isset($headerDetails['signature_reception']))<img src="{{ $headerDetails['signature_reception'] }}" style="height: 30px; margin: 3px 5px" />@endif
                 </span>
             </td>
         </tr>
@@ -552,11 +558,20 @@ $samplePointNames = \App\Models\CRM\SamplePoint::whereIn('id', $samplePoints)->s
             <th colspan="33.33"style="text-align: center; padding: 10px; border: 1px solid #000; font-weight: bold;; font-weight: 600; text-decoration: underline;  padding: 3px 4px">Tick Appropriate</th>
         </tr>
         @foreach($sampleDetails as $detail)
-        @php($analysisType = \App\AnalysisType::find($detail['analysis_type_id']))
-        <tr>
-            <th colspan="66.67" style="text-align: left; padding: 10px; border: 1px solid #000; font-weight: bold; padding: 5px">{{$analysisType->name}}</th>
-            <th colspan="33.33"style="text-align: center; padding: 10px; border: 1px solid #000; font-weight: bold; padding: 5px">✔</th>
-        </tr>
+            @php
+                // Handle comma-separated analysis type IDs
+                $analysisTypeIds = isset($detail['analysis_type_id']) ? explode(',', $detail['analysis_type_id']) : [];
+                $analysisTypeIds = array_filter(array_map('trim', $analysisTypeIds)); // Remove empty values and trim
+            @endphp
+            @foreach($analysisTypeIds as $analysisTypeId)
+                @php($analysisType = \App\AnalysisType::find($analysisTypeId))
+                @if($analysisType)
+                <tr>
+                    <th colspan="66.67" style="text-align: left; padding: 10px; border: 1px solid #000; font-weight: bold; padding: 5px">{{$analysisType->name}}</th>
+                    <th colspan="33.33"style="text-align: center; padding: 10px; border: 1px solid #000; font-weight: bold; padding: 5px">✔</th>
+                </tr>
+                @endif
+            @endforeach
         @endforeach
     </table>
 </body>

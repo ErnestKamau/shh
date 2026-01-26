@@ -1129,6 +1129,19 @@ class FormInstanceController extends Controller
         // Get company information
         $company = getActiveCompany();
 
+        // Check if the form has a custom print template
+        $submissionForm = $instance->submissionForm;
+        $templateName = $submissionForm->getPrintTemplateName();
+
+        // If a custom template exists, use it with the appropriate data format
+        if ($templateName !== 'submission-forms.print.default' && view()->exists($templateName)) {
+            // Prepare data in the format expected by custom templates (e.g., serology)
+            $existingValues = $instance->getSubmittedFormData();
+            
+            return view($templateName, compact('submissionForm', 'instance', 'existingValues'));
+        }
+
+        // Otherwise, use the default batch view print template
         // Get all batches linked to this form instance
         $batches = $instance->batches()->with([
             'sample_type',

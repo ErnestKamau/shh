@@ -17,5 +17,12 @@ class BatchAttachment extends Model implements Auditable
     public function getAttachtypenameAttribute(){
         return SystemConfiguration::find($this->attachment_type)->value ?? 'General';
     }
-
+    
+    /**
+     * Get all annotations for this attachment.
+     */
+    public function annotations()
+    {
+        return $this->hasMany(\App\Models\BatchAttachmentAnnotation::class, 'batch_attachment_id');
+    }
 }

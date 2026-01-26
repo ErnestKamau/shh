@@ -5724,4 +5724,121 @@ class SampleWorkFlowController extends Controller
         ]);
     }
 
+    /**
+     * Show PDF annotation page
+     */
+    public function showAnnotationPage($id)
+    {
+        $attachment = BatchAttachment::findOrFail($id);
+        
+        // Verify attachment is a PDF
+        if (!str_ends_with(strtolower($attachment->attachment_url), '.pdf')) {
+            return redirect()->back()->with('error', 'Only PDF files can be annotated.');
+        }
+        
+        return view('layouts.lab.sample-workflow.pdf-annotate', compact('attachment'));
+    }
+    
+    /**
+     * Get annotations for a PDF attachment
+     */
+    public function getAnnotations($id)
+    {
+        try {
+            $annotations = \App\Models\BatchAttachmentAnnotation::where('batch_attachment_id', $id)
+                ->orderBy('page_number')
+                ->orderBy('created_at')
+                ->get();
+            
+            return response()->json([
+                'success' => true,
+                'annotations' => $annotations
+            ]);
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to load annotations: ' . $e->getMessage()
+            ], 500);
+        }
+    }
+    
+    /**
+     * Save annotated PDF
+     */
+    public function saveAnnotatedPdf(Request $request)
+    {
+        try {
+            $request->validate([
+                'attachment_id' => 'required|exists:batch_attachments,id',
+                'annotations_data' => 'required|json',
+                'pdf_pages_data' => 'required|json'
+            ]);
+            
+            $attachment = BatchAttachment::findOrFail($request->attachment_id);
+            $annotationsData = json_decode($request->annotations_data, true);
+            $pdfPagesData = json_decode($request->pdf_pages_data, true);
+            
+            // Rename old PDF (backup)
+            $oldPath = public_path($attachment->attachment_url);
+            $backupPath = str_replace('.pdf', '_backup_' . time() . '.pdf', $oldPath);
+            if (file_exists($oldPath)) {
+                rename($oldPath, $backupPath);
+            }
+            
+            // Generate new annotated PDF using TCPDF
+            $pdf = new \TCPDF('P', 'mm', 'A4', true, 'UTF-8');
+            $pdf->SetCreator('FIVET LIMS');
+            $pdf->SetAuthor(auth()->user()->name);
+            $pdf->SetTitle($attachment->title . ' (Annotated)');
+            $pdf->setPrintHeader(false);
+            $pdf->setPrintFooter(false);
+            
+            // Add each page as image
+            foreach ($pdfPagesData as $pageData) {
+                $pdf->AddPage();
+                
+                // Decode base64 image data
+                $imageData = explode(',', $pageData['image_data'])[1];
+                $decodedImage = base64_decode($imageData);
+                
+                // Save temporary image
+                $tempImagePath = storage_path('app/temp_page_' . $pageData['page_number'] . '.jpg');
+                file_put_contents($tempImagePath, $decodedImage);
+                
+                // Add image to PDF (fill page)
+                $pdf->Image($tempImagePath, 0, 0, 210, 297, 'JPG', '', '', false, 300, '', false, false, 0);
+                
+                // Clean up temp image
+                unlink($tempImagePath);
+            }
+            
+            // Save new PDF
+            $newPdfPath = $oldPath;
+            $pdf->Output($newPdfPath, 'F');
+            
+            // Save annotations to database
+            \App\Models\BatchAttachmentAnnotation::where('batch_attachment_id', $attachment->id)->delete();
+            
+            foreach ($annotationsData as $annData) {
+                \App\Models\BatchAttachmentAnnotation::create([
+                    'batch_attachment_id' => $attachment->id,
+                    'page_number' => $annData['page_number'],
+                    'annotation_type' => $annData['annotation_type'],
+                    'content' => $annData['content'],
+                    'x_position' => $annData['x_position'],
+                    'y_position' => $annData['y_position'],
+                    'width' => $annData['width'] ?? null,
+                    'height' => $annData['height'] ?? null,
+                    'style_data' => $annData['style_data'] ?? null
+                ]);
+            }
+            
+            return redirect()->back()->with('success', 'PDF annotated and saved successfully!');
+            
+        } catch (\Exception $e) {
+            \Log::error('PDF annotation save error: ' . $e->getMessage());
+            return redirect()->back()->with('error', 'Failed to save annotated PDF: ' . $e->getMessage());
+        }
+    }
+
 }
