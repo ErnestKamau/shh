@@ -13,7 +13,7 @@
 								Actions
 							</button>
 							<div class="dropdown-menu dropdown-menu-right">
-								@if(isset($status) && in_array($status, array("Samples En-Route", "Samples Request Review", "Samples Reception", "Samples In Lab")))
+								@if(itesset($status) && in_array($status, array("Samples En-Route", "Samples Request Review", "Samples Reception", "Samples In Lab")))
 									<li>
 										<span class="btn btn-sm dropdown-item initiate-interlab" data-toggle="modal"
 											data-target="#inter-lab-add" data-action="bulk"><i

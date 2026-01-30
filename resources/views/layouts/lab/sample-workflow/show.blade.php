@@ -837,7 +837,7 @@
 					<div class="form-group col-md-3 qc-omit-type-field">
 												
 						<label  class="control-label">Client <span class="text-danger">*</span> <span class="btn-primary p-0 btn-sm" style="margin: 0px !important;" data-target="#add-customer" data-toggle="modal" data-toggle="tooltip" title="Add Client" ><i class="mdi mdi-plus"></i></span></label>
-						<select class="form-control qc-remove-required {{ $defaultClient === false ? '' :'no-select2' }}" name="crm_customer_id" id="client-select" data-client-source="{{ route('sample-workflow.clients') }}" data-page-size="{{ $clientPageSize }}" onchange="detectChange(this)" {{ $defaultClient === false ? '' :'readonly' }}>
+						<select class="form-control qc-remove-required {{ $defaultClient === false ? '' :'' }}" name="crm_customer_id" id="client-select" data-client-source="{{ route('sample-workflow.clients') }}" data-page-size="{{ $clientPageSize }}" onchange="detectChange(this)" {{ $defaultClient === false ? '' :'' }}>
 							<option value="">Select Client...</option>
 							@foreach ($clients as $client)
 									@if($defaultClient === false) 
@@ -871,7 +871,7 @@
 					</div>
 					<div class="form-group col-md-3">
 						<label class="control-label text-sm">Sample Type <span class="text-danger">*</span></label>
-						<select class="form-control {{ isset($batch->status) && !in_array($batch->status, array("Samples Reception", "Samples En-Route")) ? 'no-select2' : '' }}" {{ isset($batch->status) && !in_array($batch->status, array("Samples Reception", "Samples En-Route")) ? 'readonly' : '' }} name="sample_type_id" required id="batch-info-sample-type">
+						<select class="form-control" name="sample_type_id" required id="batch-info-sample-type">
 							<option value="">Select Sample Type...</option>
 							@foreach ($sample_types as $sample)
 								<option value="{{ $sample->id }}"  {{ isset($batch->sample_type_id) && $batch->sample_type_id == $sample->id ? 'selected' : '' }} data-conditions="{{ json_encode($sample->sample_condition) }}">{{ $sample->name }}</option>
@@ -1041,11 +1041,9 @@
 					@if(Auth::user()->is_client == 1 && isset($batch->status) && $batch->status != 'Samples En-Route')
 					@else
 						{{-- Allow save for all active stages as per user request --}}
-						@if(!isset($batch->id) || in_array($batch->status, ['Samples Reception', 'Samples In Lab', 'Sample Verification', 'Sample Approval', 'Reports for Collection', 'Reports In Payment', 'Completed']))
 							<button class="btn btn-primary btn-sm" style="width:60%" id="save-headers">
 								<i class="mdi mdi-content-save"></i> Save
 							</button>
-						@endif
 					@endif
 				</div>
 			</form>
@@ -2027,6 +2025,19 @@
 																data-header-id="{{ $batch->id }}">
 															<i class="mdi mdi-checkbox-multiple-marked"></i> Assign Samples
 														</button>
+														<button type="button" class="btn btn-sm btn-info edit-staging-btn" 
+																data-staging-id="{{ $staging->id }}"
+																data-staging-json="{{ json_encode($staging->data_json) }}"
+																data-toggle="modal"
+																data-target="#edit-staging-modal">
+															<i class="mdi mdi-pencil"></i>
+														</button>
+														<button type="button" class="btn btn-sm btn-danger delete-staging-btn" 
+																data-staging-id="{{ $staging->id }}"
+																data-toggle="modal"
+																data-target="#delete-staging-modal">
+															<i class="mdi mdi-delete"></i>
+														</button>
 													</td>
 													<td>{{ $batch->sample_type->name ?? 'N/A' }}</td>
 													<td>{{ $staging->data_json['company_sub_unit_name'] ?? 'N/A' }}</td>
@@ -2162,8 +2173,102 @@
 
     </div>
   </main>
+	<!-- Edit Staging Modal -->
+	<div class="modal fade" id="edit-staging-modal" tabindex="-1" role="dialog" aria-hidden="true">
+		<div class="modal-dialog" role="document">
+			<div class="modal-content">
+				<form action="{{ route('update-staging-detail', ['id' => 0]) }}" method="POST" id="edit-staging-form">
+					@csrf
+					<div class="modal-header">
+						<h5 class="modal-title">Edit Staging Detail</h5>
+						<button type="button" class="close" data-dismiss="modal" aria-label="Close">
+							<span aria-hidden="true">&times;</span>
+						</button>
+					</div>
+					<div class="modal-body">
+						<input type="hidden" name="staging_id" id="edit-staging-id">
+						<div class="form-group">
+							<label>Company Sub Unit</label>
+							<input type="text" class="form-control" name="company_sub_unit_name" id="edit-staging-sub-unit">
+						</div>
+						<div class="form-group">
+							<label>Analysis Types (Comma separated)</label>
+							<input type="text" class="form-control" name="analysis_type_names" id="edit-staging-analysis">
+						</div>
+						<div class="form-group">
+							<label>Quantity</label>
+							<input type="number" class="form-control" name="quantity" id="edit-staging-quantity">
+						</div>
+					</div>
+					<div class="modal-footer">
+						<button type="button" class="btn btn-secondary" data-dismiss="modal">Close</button>
+						<button type="submit" class="btn btn-primary">Save Changes</button>
+					</div>
+				</form>
+			</div>
+		</div>
+	</div>
+
+	<!-- Delete Staging Modal -->
+	<div class="modal fade" id="delete-staging-modal" tabindex="-1" role="dialog" aria-hidden="true">
+		<div class="modal-dialog" role="document">
+			<div class="modal-content">
+				<form action="{{ route('delete-staging-detail', ['id' => 0]) }}" method="POST" id="delete-staging-form">
+					@csrf
+					@method('DELETE')
+					<div class="modal-header">
+						<h5 class="modal-title">Delete Staging Detail</h5>
+						<button type="button" class="close" data-dismiss="modal" aria-label="Close">
+							<span aria-hidden="true">&times;</span>
+						</button>
+					</div>
+					<div class="modal-body">
+						<p>Are you sure you want to delete this staging record? This action cannot be undone.</p>
+						<input type="hidden" name="staging_id" id="delete-staging-id-input">
+					</div>
+					<div class="modal-footer">
+						<button type="button" class="btn btn-secondary" data-dismiss="modal">Cancel</button>
+						<button type="submit" class="btn btn-danger">Delete</button>
+					</div>
+				</form>
+			</div>
+		</div>
+	</div>
+
 @endsection
+
 @section('script2')
+<script>
+	$(document).ready(function() {
+		// Edit Staging
+		$('.edit-staging-btn').click(function() {
+			var id = $(this).data('staging-id');
+			var json = $(this).data('staging-json');
+			
+			$('#edit-staging-id').val(id);
+			$('#edit-staging-sub-unit').val(json.company_sub_unit_name || '');
+			$('#edit-staging-analysis').val(json.analysis_type_names || '');
+			$('#edit-staging-quantity').val(json.quantity || 1);
+			
+			// Update form action with correct ID
+			var url = "{{ route('update-staging-detail', ['id' => ':id']) }}";
+			url = url.replace(':id', id);
+			$('#edit-staging-form').attr('action', url);
+		});
+
+		// Delete Staging
+		$('.delete-staging-btn').click(function() {
+			var id = $(this).data('staging-id');
+			$('#delete-staging-id-input').val(id);
+			
+			// Update form action with correct ID
+			var url = "{{ route('delete-staging-detail', ['id' => ':id']) }}";
+			url = url.replace(':id', id);
+			$('#delete-staging-form').attr('action', url);
+		});
+	});
+</script>
+
 <script>
 document.addEventListener('DOMContentLoaded', function() {
     $(document).off('click', '.delete-attachment-btn').on('click', '.delete-attachment-btn', function() {

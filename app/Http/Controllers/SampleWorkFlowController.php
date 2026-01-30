@@ -1383,7 +1383,7 @@ class SampleWorkFlowController extends Controller
 
         $clients = $clients->sortBy('name')->values();
         // return response()->json($analaytesHolder);
-        return view('layouts.lab.sample-workflow.show', compact('batch', 'labStores', 'batchID', 'defaultClient', 'selectedSampleType', 'client_portal', 'ammendable', 'standards', 'attachments', 'not_captured', 'analysts', 'countries', 'accounts', 'methods', 'atachment_type', 'batch_scope', 'customer_survey', 'interlabs', 'labs', 'users', 'payment_detail', 'labsections', 'contacts', 'batch_sample_codes', 'report_formats', 'approvers', 'reportingUnits', 'conditions', 'products', 'headerDetails', 'analaytesHolder', 'analysisBySample', 'analysisBySampleNames', 'labSamples', 'workflowstages', 'workflows', 'sample_types', 'samplingmethods', 'active_company', 'ammendments', 'allsamples', 'selected_analysis_types', 'userLabSections', 'customer', 'requestTypes', 'notifiable_users', 'notesReminderType', 'clients', 'disposal_date', 'status', 'recieving_users', 'section_approvers_users', 'analaytesHolderPesticide', 'approvers_user_ids','ltmethods','processed_results','raw_results','qc_schemes','qc_types','qc_config_perc','clientPageSize'));
+        return view('batches.show', compact('batch', 'labStores', 'batchID', 'defaultClient', 'selectedSampleType', 'client_portal', 'ammendable', 'standards', 'attachments', 'not_captured', 'analysts', 'countries', 'accounts', 'methods', 'atachment_type', 'batch_scope', 'customer_survey', 'interlabs', 'labs', 'users', 'payment_detail', 'labsections', 'contacts', 'batch_sample_codes', 'report_formats', 'approvers', 'reportingUnits', 'conditions', 'products', 'headerDetails', 'analaytesHolder', 'analysisBySample', 'analysisBySampleNames', 'labSamples', 'workflowstages', 'workflows', 'sample_types', 'samplingmethods', 'active_company', 'ammendments', 'allsamples', 'selected_analysis_types', 'userLabSections', 'customer', 'requestTypes', 'notifiable_users', 'notesReminderType', 'clients', 'disposal_date', 'status', 'recieving_users', 'section_approvers_users', 'analaytesHolderPesticide', 'approvers_user_ids','ltmethods','processed_results','raw_results','qc_schemes','qc_types','qc_config_perc','clientPageSize'));
     }
 
     public function fetch_unit_stuff($name, $client)
@@ -5841,4 +5841,31 @@ class SampleWorkFlowController extends Controller
         }
     }
 
+    public function updateStagingDetail(Request $request, $id)
+    {
+        $staging = \App\Models\SampleDetailStaging::find($id);
+        if (!$staging) {
+             return redirect()->back()->with('error', 'Staging record not found.');
+        }
+
+        $data = $staging->data_json;
+        $data['company_sub_unit_name'] = $request->company_sub_unit_name;
+        $data['analysis_type_names'] = $request->analysis_type_names;
+        $data['quantity'] = $request->quantity;
+
+        $staging->data_json = $data;
+        $staging->save();
+
+        return redirect()->back()->with('success', 'Staging detail updated successfully.');
+    }
+
+    public function deleteStagingDetail($id)
+    {
+        $staging = \App\Models\SampleDetailStaging::find($id);
+        if ($staging) {
+            $staging->delete();
+            return redirect()->back()->with('success', 'Staging detail deleted successfully.');
+        }
+        return redirect()->back()->with('error', 'Staging record not found.');
+    }
 }

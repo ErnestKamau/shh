@@ -439,6 +439,9 @@ Route::post('/process-raw-results/lab','SampleWorkFlowController@processRawResul
   Route::get('/fetch-detail-data/{id}', 'Invoice\QuotationController@get_quotation_detail')->name('get_quotation_detail');
   Route::get('/addBatchSamplesDynamically', 'SampleWorkFlowController@addBatchSamplesDynamically')->name('addBatchSamplesDynamically');
 
+  Route::post('/sample-workflow/staging/update/{id}', 'SampleWorkFlowController@updateStagingDetail')->name('update-staging-detail');
+  Route::delete('/sample-workflow/staging/delete/{id}', 'SampleWorkFlowController@deleteStagingDetail')->name('delete-staging-detail');
+
   Route::post('filter-Quotations', 'Invoice\QuotationController@filterQuotations')->name('filterQuotations');
   Route::get('populate/Quotation-Detail/Split', 'Invoice\QuotationController@populateQuotationDetailSplit')->name('populateQuotationDetailSplit');
   Route::get('get/Labs-By-Analysis/Type-Id-Ajax', 'SampleWorkFlowController@getLabsByAnalysisTypeIdAjax')->name('getLabsByAnalysisTypeIdAjax');
