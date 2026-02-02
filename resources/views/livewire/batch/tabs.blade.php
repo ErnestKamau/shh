@@ -34,14 +34,43 @@
             </a>
         </li>
         <li class="nav-item">
-            <a class="nav-link" id="attachments-tab" data-toggle="tab" href="#attachments" role="tab" aria-controls="attachments" aria-selected="false">
-                <i class="mdi mdi-paperclip"></i> Attachments 
-                <span class="badge badge-pill badge-primary">{{ $batch->batch_attachments?->count() ?? 0 }}</span>
+            <a class="nav-link" id="amendment-tab" data-toggle="tab" href="#amendment" role="tab" aria-controls="amendment" aria-selected="false">
+                <i class="mdi mdi-file-document-edit"></i> Amendment
             </a>
         </li>
         <li class="nav-item">
             <a class="nav-link" id="interlabs-tab" data-toggle="tab" href="#interlabs" role="tab" aria-controls="interlabs" aria-selected="false">
                 <i class="mdi mdi-flask-outline"></i> Interlab Logs
+            </a>
+        </li>
+        @if(in_array($batch->status, ['Samples In Lab','Sample Verification','Sample Approval','Reports In Payment','Reports for Collection']) || in_array($batch->prelim_batch_status ?? '', ['Sample Verification','Sample Approval']))
+        <li class="nav-item">
+            <a class="nav-link" id="raw-results-tab" data-toggle="tab" href="#raw-results" role="tab" aria-controls="raw-results" aria-selected="false">
+                <i class="mdi mdi-sync-alert text-warning"></i> Raw Results
+            </a>
+        </li>
+        <li class="nav-item">
+            <a class="nav-link" id="processed-results-tab" data-toggle="tab" href="#processed-results" role="tab" aria-controls="processed-results" aria-selected="false">
+                <i class="mdi mdi-sync text-success"></i> Processed Results
+            </a>
+        </li>
+        @endif
+        @if(in_array($batch->status, ['Sample Verification','Sample Approval','Reports In Payment','Reports for Collection']) || in_array($batch->prelim_batch_status ?? '', ['Sample Verification','Sample Approval']))
+        <li class="nav-item">
+            <a class="nav-link" id="approvals-tab" data-toggle="tab" href="#approvals" role="tab" aria-controls="approvals" aria-selected="false">
+                <i class="mdi mdi-account-check-outline"></i> Approvals
+            </a>
+        </li>
+        @endif
+        <li class="nav-item">
+            <a class="nav-link" id="payment-details-tab" data-toggle="tab" href="#payment-details" role="tab" aria-controls="payment-details" aria-selected="false">
+                <i class="mdi mdi-account-cash-outline"></i> Payment Details
+            </a>
+        </li>
+        <li class="nav-item">
+            <a class="nav-link" id="attachments-tab" data-toggle="tab" href="#attachments" role="tab" aria-controls="attachments" aria-selected="false">
+                <i class="mdi mdi-paperclip"></i> Attachments 
+                <span class="badge badge-pill badge-primary">{{ $batch->batch_attachments?->count() ?? 0 }}</span>
             </a>
         </li>
     </ul>
@@ -55,105 +84,51 @@
 
         {{-- Notes Tab --}}
         <div class="tab-pane fade" id="notes" role="tabpanel" aria-labelledby="notes-tab">
-            <div class="card">
-                <div class="card-body">
-                    <h5><i class="mdi mdi-comment-text-outline"></i> Batch Notes/Comments</h5>
-                    {{-- TODO: Implement Notes component or include existing notes functionality --}}
-                    <p class="text-muted">Notes functionality will be migrated here.</p>
-                </div>
-            </div>
+            @livewire('batch.tabs.notes', ['batch' => $batch], 'notes-tab-'.$batch->id)
         </div>
 
         {{-- Chain of Custody Tab --}}
         <div class="tab-pane fade" id="chain-of-custody" role="tabpanel" aria-labelledby="chain-of-custody-tab">
-            <div class="card">
-                <div class="card-body">
-                    <h5><i class="mdi mdi-sitemap"></i> Chain of Custody</h5>
-                    @if($batch->custody && $batch->custody->count() > 0)
-                        <div class="table-responsive">
-                            <table class="table table-sm table-bordered">
-                                <thead class="bg-light">
-                                    <tr>
-                                        <th>Date</th>
-                                        <th>From</th>
-                                        <th>To</th>
-                                        <th>Purpose</th>
-                                        <th>Status</th>
-                                    </tr>
-                                </thead>
-                                <tbody>
-                                    @foreach($batch->custody as $custody)
-                                        <tr>
-                                            <td>{{ $custody->created_at->format('Y-m-d H:i') }}</td>
-                                            <td>{{ $custody->from_user->name ?? 'N/A' }}</td>
-                                            <td>{{ $custody->to_user->name ?? 'N/A' }}</td>
-                                            <td>{{ $custody->purpose ?? '-' }}</td>
-                                            <td>
-                                                <span class="badge badge-{{ $custody->status == 'completed' ? 'success' : 'warning' }}">
-                                                    {{ ucfirst($custody->status) }}
-                                                </span>
-                                            </td>
-                                        </tr>
-                                    @endforeach
-                                </tbody>
-                            </table>
-                        </div>
-                    @else
-                        <p class="text-muted">No chain of custody records found.</p>
-                    @endif
-                </div>
-            </div>
+            @livewire('batch.tabs.chain-of-custody', ['batch' => $batch], 'custody-tab-'.$batch->id)
         </div>
 
-        {{-- Attachments Tab --}}
-        <div class="tab-pane fade" id="attachments" role="tabpanel" aria-labelledby="attachments-tab">
-            <div class="card">
-                <div class="card-body">
-                    <h5><i class="mdi mdi-paperclip"></i> Batch Attachments</h5>
-                    @if($batch->batch_attachments && $batch->batch_attachments->count() > 0)
-                        <div class="table-responsive">
-                            <table class="table table-sm table-bordered">
-                                <thead class="bg-light">
-                                    <tr>
-                                        <th>File Name</th>
-                                        <th>Type</th>
-                                        <th>Uploaded By</th>
-                                        <th>Date</th>
-                                        <th>Actions</th>
-                                    </tr>
-                                </thead>
-                                <tbody>
-                                    @foreach($batch->batch_attachments as $attachment)
-                                        <tr>
-                                            <td>{{ $attachment->file_name }}</td>
-                                            <td>{{ $attachment->file_type ?? '-' }}</td>
-                                            <td>{{ $attachment->uploader->name ?? 'N/A' }}</td>
-                                            <td>{{ $attachment->created_at->format('Y-m-d H:i') }}</td>
-                                            <td>
-                                                <a href="{{ route('download-attachment', $attachment->id) }}" class="btn btn-sm btn-primary">
-                                                    <i class="mdi mdi-download"></i> Download
-                                                </a>
-                                            </td>
-                                        </tr>
-                                    @endforeach
-                                </tbody>
-                            </table>
-                        </div>
-                    @else
-                        <p class="text-muted">No attachments found.</p>
-                    @endif
-                </div>
-            </div>
+        {{-- Amendment Tab --}}
+        <div class="tab-pane fade" id="amendment" role="tabpanel" aria-labelledby="amendment-tab">
+            @livewire('batch.tabs.amendment', ['batch' => $batch], 'amendment-tab-'.$batch->id)
         </div>
 
         {{-- Interlab Logs Tab --}}
         <div class="tab-pane fade" id="interlabs" role="tabpanel" aria-labelledby="interlabs-tab">
-            <div class="card">
-                <div class="card-body">
-                    <h5><i class="mdi mdi-flask-outline"></i> Interlab Transfer Logs</h5>
-                    <p class="text-muted">Interlab logs functionality will be migrated here.</p>
-                </div>
-            </div>
+            @livewire('batch.tabs.interlab-logs', ['batch' => $batch], 'interlabs-tab-'.$batch->id)
+        </div>
+
+        @if(in_array($batch->status, ['Samples In Lab','Sample Verification','Sample Approval','Reports In Payment','Reports for Collection']) || in_array($batch->prelim_batch_status ?? '', ['Sample Verification','Sample Approval']))
+        {{-- Raw Results Tab --}}
+        <div class="tab-pane fade" id="raw-results" role="tabpanel" aria-labelledby="raw-results-tab">
+            @livewire('batch.tabs.raw-results', ['batch' => $batch], 'raw-results-tab-'.$batch->id)
+        </div>
+
+        {{-- Processed Results Tab --}}
+        <div class="tab-pane fade" id="processed-results" role="tabpanel" aria-labelledby="processed-results-tab">
+            @livewire('batch.tabs.processed-results', ['batch' => $batch], 'processed-results-tab-'.$batch->id)
+        </div>
+        @endif
+
+        @if(in_array($batch->status, ['Sample Verification','Sample Approval','Reports In Payment','Reports for Collection']) || in_array($batch->prelim_batch_status ?? '', ['Sample Verification','Sample Approval']))
+        {{-- Approvals Tab --}}
+        <div class="tab-pane fade" id="approvals" role="tabpanel" aria-labelledby="approvals-tab">
+            @livewire('batch.tabs.approvals', ['batch' => $batch], 'approvals-tab-'.$batch->id)
+        </div>
+        @endif
+
+        {{-- Payment Details Tab --}}
+        <div class="tab-pane fade" id="payment-details" role="tabpanel" aria-labelledby="payment-details-tab">
+            @livewire('batch.tabs.payment-details', ['batch' => $batch], 'payment-details-tab-'.$batch->id)
+        </div>
+
+        {{-- Attachments Tab --}}
+        <div class="tab-pane fade" id="attachments" role="tabpanel" aria-labelledby="attachments-tab">
+            @livewire('batch.tabs.attachments', ['batch' => $batch], 'attachments-tab-'.$batch->id)
         </div>
     </div>
 </div>

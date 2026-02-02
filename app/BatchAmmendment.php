@@ -16,6 +16,11 @@ class BatchAmmendment extends Model implements Auditable
         return User::find($this->created_by_id)->name ?? '-';
     }
     
+    public function creator()
+    {
+        return $this->belongsTo('App\User', 'created_by_id');
+    }
+    
     public function sampleHeader()
     {
         return $this->belongsTo('App\SampleHeader', 'batch_id');

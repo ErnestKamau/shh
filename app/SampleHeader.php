@@ -30,6 +30,30 @@ class SampleHeader extends Model implements Auditable
 		return $this->hasMany('App\ChainOfCustody')->orderBy('created_at', 'desc');
 	}
 
+	public function batch_amendments()
+	{
+		return $this->hasMany('App\BatchAmmendment', 'batch_id')->orderBy('created_at', 'desc');
+	}
+
+	public function payment_details()
+	{
+		return \App\InvoicePaymentDetail::where('invoice_id', $this->invoice_id)
+			->where('is_delete', 0)
+			->orderBy('created_at', 'desc')
+			->get();
+	}
+
+	public function approvers()
+	{
+		return $this->hasMany('App\BatchLabSectionApprover', 'batch_id')->orderBy('created_at', 'desc');
+	}
+
+	public function batch_attachments()
+	{
+		return $this->hasMany('App\BatchAttachment', 'batch_id')->orderBy('created_at', 'desc');
+	}
+
+
 	public function stagingDetails()
 	{
 		return $this->hasMany(\App\Models\SampleDetailStaging::class, 'sample_header_id');
