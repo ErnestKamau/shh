@@ -3326,6 +3326,40 @@ class SampleWorkFlowController extends Controller
         }
     }
 
+    public function downloadBatchAttachment($id)
+    {
+        $attachment = BatchAttachment::findOrFail($id);
+        
+        // Get the file path from attachment_url
+        $relativePath = urldecode($attachment->attachment_url);
+        $relativePath = ltrim($relativePath, '/');
+        $filePath = public_path($relativePath);
+
+        // Check if file exists in public path
+        if (!file_exists($filePath)) {
+            // Fallback: Check in storage/app
+            $cleanPath = ltrim($relativePath, '/');
+            if (strpos($cleanPath, 'storage/') === 0) {
+                $storageInternalPath = substr($cleanPath, 8);
+                $fallbackPath = storage_path('app/' . $storageInternalPath);
+                
+                if (file_exists($fallbackPath)) {
+                    $filePath = $fallbackPath;
+                }
+            }
+        }
+
+        if (!file_exists($filePath)) {
+            return redirect()->back()->with('error', 'Attachment file not found.');
+        }
+
+        // Get the original filename from the path
+        $fileName = basename($filePath);
+        
+        // Return the file as a download
+        return response()->download($filePath, $fileName);
+    }
+
     public function fetch_sample_type($id)
     {
         $sample_type = SampleType::find($id);

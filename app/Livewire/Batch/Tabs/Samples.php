@@ -51,6 +51,39 @@ class Samples extends Component
     public $deletingSampleIndex = null;
     public $showDeleteSampleModal = false;
     
+    // Track which row is being edited (null = all read-only)
+    public $editingRowIndex = null;
+    
+    // Analysis type dropdown state (per row)
+    public $showAnalysisTypeDropdown = [];
+    public $analysisTypeSearch = '';
+    public $uncertaintyRequired = false;
+    
+    // Parameter Modal Data
+    public $showEditStandardModal = false;
+    public $standardValueOptions = [];
+    public $editingStandardData = [
+        'captured_result_id' => null,
+        'analyte_id' => null,
+        'standard_id' => null,
+        'standard_level' => 1,
+        'analyte_name' => '',
+        'previous_value' => '',
+        'standard_value_type' => 1, // 1=Range, 2=Value
+        'min' => '',
+        'max' => '',
+        'standard_valuetype' => '', // ID from standard_values
+        'limit_measure' => '',
+        'value' => '',
+    ];
+
+    public $parametersForm = [];
+    public $modalLists = [
+        'operators' => [],
+        'methods' => [],
+        'equipments' => [],
+        'units' => [],
+    ];
     // View parameters modal
     public $showParametersModal = false;
     public $selectedSampleCode = null;
@@ -294,6 +327,10 @@ class Samples extends Component
         ];
         
         $this->sampleForms[] = $newSample;
+        
+        // Automatically enter edit mode for the new row
+        $this->editingRowIndex = count($this->sampleForms) - 1;
+        
         session()->flash('success', 'New sample row added');
     }
 
@@ -325,6 +362,10 @@ class Samples extends Component
         $newSample['sample_code'] = $this->generateSampleCode();
         
         $this->sampleForms[] = $newSample;
+        
+        // Automatically enter edit mode for the duplicated row
+        $this->editingRowIndex = count($this->sampleForms) - 1;
+        
         session()->flash('success', 'Sample duplicated successfully');
     }
 
@@ -376,6 +417,68 @@ class Samples extends Component
     {
         $this->showDeleteSampleModal = false;
         $this->deletingSampleIndex = null;
+    }
+    
+    /**
+     * Enable editing for a specific row
+     */
+    public function editRow($index)
+    {
+        $this->editingRowIndex = $index;
+    }
+    
+    /**
+     * Cancel editing (makes all rows read-only)
+     */
+    public function cancelEditRow()
+    {
+        $this->editingRowIndex = null;
+        // Clear dropdown states
+        $this->showAnalysisTypeDropdown = [];
+        $this->analysisTypeSearch = '';
+    }
+    
+    
+    /**
+     * Toggle analysis type selection for a specific row
+     */
+    public function toggleAnalysisType($index, $analysisTypeId)
+    {
+        if (!isset($this->sampleForms[$index])) {
+            return;
+        }
+        
+        if (!is_array($this->sampleForms[$index]['analysis_type_id'])) {
+            $this->sampleForms[$index]['analysis_type_id'] = [];
+        }
+        
+        $key = array_search($analysisTypeId, $this->sampleForms[$index]['analysis_type_id']);
+        
+        if ($key !== false) {
+            // Remove if already selected
+            unset($this->sampleForms[$index]['analysis_type_id'][$key]);
+            $this->sampleForms[$index]['analysis_type_id'] = array_values($this->sampleForms[$index]['analysis_type_id']);
+        } else {
+            // Add if not selected
+            $this->sampleForms[$index]['analysis_type_id'][] = $analysisTypeId;
+        }
+    }
+    
+    /**
+     * Get filtered analysis types for a specific row
+     */
+    public function getFilteredAnalysisTypes($index)
+    {
+        $search = $this->analysisTypeSearch;
+        
+        if (empty($search)) {
+            return $this->analysisTypes;
+        }
+        
+        return array_filter($this->analysisTypes, function($type) use ($search) {
+            return stripos($type['name'], $search) !== false || 
+                   stripos($type['code'], $search) !== false;
+        });
     }
 
     /**
@@ -441,6 +544,9 @@ class Samples extends Component
             }
             
             DB::commit();
+            
+            // Exit edit mode after successful save
+            $this->editingRowIndex = null;
             
             session()->flash('success', 'All samples saved successfully!');
             $this->dispatch('samplesUpdated');
@@ -519,7 +625,7 @@ class Samples extends Component
     }
 
     /**
-     * Phase 5: View Parameters Modal - Show all analytes for a sample
+     * Phase 5: View Parameters Modal - Show all captured results for a sample
      */
     public function viewParameters($sampleCode)
     {
@@ -536,50 +642,349 @@ class Samples extends Component
                 return;
             }
             
-            // Get analysis type IDs (comma-separated)
-            $analysisIds = array_filter(explode(',', $sample->analysis_type_id ?? ''));
+            $this->uncertaintyRequired = $this->batch->require_mu == 1;
+
+            // Fetch all captured results for this sample with relationships
+            $capturedResults = DB::table('captured_results')
+                ->where('sample_detail_code', $sampleCode)
+                ->where('sample_header_id', $this->batch->id)
+                ->orderBy('analysis_type_order')
+                ->orderBy('parameters_order')
+                ->get();
             
-            if (empty($analysisIds)) {
+            if ($capturedResults->isEmpty()) {
                 $this->sampleParameters = [];
                 $this->showParametersModal = true;
                 return;
             }
             
-            // Load analytes grouped by analysis type
+            // Enrich each result with additional data
             $parameters = [];
-            
-            foreach ($analysisIds as $analysisId) {
-                $analysisType = AnalysisType::find($analysisId);
+            foreach ($capturedResults as $result) {
+                // Get analysis type
+                $analysisType = AnalysisType::find($result->analysis_type_id);
                 
-                if ($analysisType) {
-                    // Get active analysis elements (which contain analytes)
-                    $elements = $analysisType->active_analysis_elements();
-                    
-                    $analytes = [];
-                    foreach ($elements as $element) {
-                        $analyte = \App\Analyte::find($element->analyte_id);
-                        if ($analyte) {
-                            $analytes[] = [
-                                'code' => $analyte->code,
-                                'name' => $analyte->name,
-                                'unit' => $analyte->reporting_unit ?? '-',
-                                'method' => $element->mmethod->name ?? '-',
-                            ];
-                        }
-                    }
-                    
-                    if (!empty($analytes)) {
-                        $parameters[$analysisType->name] = $analytes;
+                // Get operator
+                $operator = \App\User::find($result->operator_id);
+                
+                // Get method
+                $method = \App\AnalysisMethod::find($result->method_id);
+                
+                // Get LTM method (stored as simple value, not a model)
+                $ltmMethod = null;
+                
+                // Get equipment
+                $equipment = \App\Models\Equipments\Equipment::find($result->equipment_id);
+                
+                // Get analyte for reporting unit
+                $analyte = \App\Analyte::find($result->analyte_id);
+                
+                // Get standard info
+                $standardInfo = $this->getStandardInfo(
+                    $result->main_standard_id,
+                    $result->main_value
+                );
+                
+                $secStandardInfo = $result->secondary_standard_id ? $this->getStandardInfo(
+                    $result->secondary_standard_id,
+                    $result->secondary_value
+                ) : null;
+                
+                // Fetch limit data for evaluation
+                $limitType = null;
+                $limitLow = null;
+                $limitHigh = null;
+                
+                if ($result->main_standard_id && $result->analyte_id) {
+                    $stdAnalyte = \App\StandardAnalytes::where('standard_id', $result->main_standard_id)
+                        ->where('analyte_id', $result->analyte_id)
+                        ->first();
+                    if ($stdAnalyte) {
+                        $limitType = $stdAnalyte->standard_value_type;
+                        $limitLow = $stdAnalyte->low;
+                        $limitHigh = $stdAnalyte->high;
                     }
                 }
+
+                $parameters[$result->id] = [
+                    'id' => $result->id,
+                    'sample_code' => $result->sample_detail_code,
+                    'analysis_type' => $analysisType->code ?? '-',
+                    'analysis_type_id' => $result->analysis_type_id,
+                    'analyte_code' => $result->analyte_code,
+                    'analyte_id' => $result->analyte_id,
+                    'analyte_name' => $analyte->name ?? $result->analyte_code,
+                    'result_reporting_symbol' => $result->result_reporting_symbol,
+                    'result' => $result->result,
+                    'measure_uncertanity' => $result->measure_uncertanity,
+                    'standard_value' => $standardInfo['display'] ?? '-',
+                    'standard_id' => $result->main_standard_id,
+                    'sec_standard_value' => $secStandardInfo['display'] ?? null,
+                    'sec_standard_id' => $result->secondary_standard_id,
+                    'remark' => $result->remark ?: '', 
+                    'remark_is_manual' => $result->remark_is_manual,
+                    'reporting_unit' => $result->reporting_unit_id,
+                    'operator_name' => $operator->name ?? '-',
+                    'operator_id' => $result->operator_id,
+                    'method_name' => $method->name ?? '-',
+                    'method_id' => $result->method_id,
+                    'ltm_method_name' => $result->ltm_method_id ? 'LTM-' . $result->ltm_method_id : '-',
+                    'ltm_method_id' => $result->ltm_method_id,
+                    'equipment_name' => $equipment->name ?? '-',
+                    'equipment_id' => $result->equipment_id,
+                    'subcontracted' => $result->analyte_status_contracted,
+                    'accredited' => $result->analyte_accredited,
+                    'result_confirmation' => $result->result, // Initialize with same value
+                    'limit_type' => $limitType,
+                    'limit_low' => $limitLow,
+                    'limit_high' => $limitHigh,
+                    'standard_editable' => false,
+                ];
             }
             
+            // Populate form data for editing
+            $this->parametersForm = $parameters;
+            
+            // Load dropdown lists if empty
+            if (empty($this->modalLists['operators'])) {
+                $this->modalLists['operators'] = \App\User::orderBy('name')->get();
+                $this->modalLists['methods'] = \App\AnalysisMethod::orderBy('name')->get();
+                $this->modalLists['equipments'] = \App\Models\Equipments\Equipment::orderBy('name')->get();
+                $this->modalLists['units'] = \App\ReportingUnit::all();
+            }
+            
+            // Load standard values for edit modal
+            if (empty($this->standardValueOptions)) {
+                $this->standardValueOptions = \App\StandardValue::all();
+            }
+
             $this->sampleParameters = $parameters;
             $this->showParametersModal = true;
             
         } catch (\Exception $e) {
             Log::error('Error loading sample parameters: ' . $e->getMessage());
             session()->flash('error', 'Failed to load parameters: ' . $e->getMessage());
+        }
+    }
+
+    /**
+     * Handle parameter updates (Auto-Remark)
+     */
+    public function updatedParametersForm($value, $key)
+    {
+        $parts = explode('.', $key);
+        // key format: parametersForm.123.result
+        if (count($parts) === 3 && $parts[2] === 'result') {
+            $id = $parts[1];
+            $this->evaluateResult($id);
+        }
+    }
+
+    /**
+     * Evaluate result against standard
+     */
+    public function evaluateResult($id)
+    {
+        if (!isset($this->parametersForm[$id])) return;
+        
+        $data = $this->parametersForm[$id];
+        $result = $data['result'];
+        
+        // Skip if manual remark
+        if (!empty($data['remark_is_manual']) && $data['remark_is_manual'] == 1) {
+             return;
+        }
+
+        if (!is_numeric($result)) {
+             // Non-numeric handling could go here
+             return;
+        }
+        
+        $val = floatval($result);
+        $remark = 'PASS';
+        
+        if ($data['limit_type']) {
+            $low = floatval($data['limit_low']);
+            $high = floatval($data['limit_high']);
+            
+            if ($data['limit_type'] == 'is_range') {
+                if ($val < $low || $val > $high) $remark = 'FAIL';
+            } elseif ($data['limit_type'] == 'is_min') {
+                if ($val < $low) $remark = 'FAIL';
+            } elseif ($data['limit_type'] == 'is_max') {
+                if ($val > $high) $remark = 'FAIL';
+            }
+        }
+        
+        $this->parametersForm[$id]['remark'] = $remark;
+    }
+
+    /**
+     * Toggle standard edit mode
+     */
+    public function toggleStandardEdit($id)
+    {
+        if (isset($this->parametersForm[$id])) {
+            $this->parametersForm[$id]['standard_editable'] = !$this->parametersForm[$id]['standard_editable'];
+        }
+    }
+
+    public function openEditStandardModal($id, $level = 1)
+    {
+        if (!isset($this->parametersForm[$id])) {
+            $this->dispatch('notify', ['message' => "Error: Parameter ID $id not found in form.", 'type' => 'error']);
+            return;
+        }
+        
+        $param = $this->parametersForm[$id];
+        $standardId = $level == 1 ? $param['standard_id'] : $param['sec_standard_id'];
+        
+        if (!$standardId || !$param['analyte_id']) {
+            $this->dispatch('notify', ['message' => 'No standard or analyte linked.', 'type' => 'error']);
+            return;
+        }
+
+        // Fetch StandardAnalyte
+        $stdAnalyte = \App\StandardAnalytes::where('standard_id', $standardId)
+            ->where('analyte_id', $param['analyte_id'])
+            ->first();
+
+        if (!$stdAnalyte) {
+            // Should creating new one be allowed? Legacy implies "update", but if missing maybe create?
+            // Legacy code creates new StandardAnalytes() if missing.
+            $stdAnalyte = new \App\StandardAnalytes();
+            $stdAnalyte->standard_id = $standardId;
+            $stdAnalyte->analyte_id = $param['analyte_id'];
+        }
+
+        $this->editingStandardData = [
+            'captured_result_id' => $id,
+            'analyte_id' => $param['analyte_id'],
+            'standard_id' => $standardId,
+            'standard_level' => $level,
+            'analyte_name' => $param['analyte_name'],
+            'previous_value' => $level == 1 ? $param['standard_value'] : $param['sec_standard_value'],
+            'standard_value_type' => $stdAnalyte->standard_value_type == 'is_range' ? 1 : 2,
+            'min' => $stdAnalyte->low,
+            'max' => $stdAnalyte->high,
+            'standard_valuetype' => $stdAnalyte->standard_value_id,
+            'limit_measure' => $stdAnalyte->value_type,
+            'value' => $stdAnalyte->standard_is_value,
+        ];
+        
+        $this->showEditStandardModal = true;
+        $this->dispatch('show-edit-standard-modal');
+    }
+
+    public function saveStandardLimit()
+    {
+        $data = $this->editingStandardData;
+        
+        // Find or create
+        $stdAnalyte = \App\StandardAnalytes::where('standard_id', $data['standard_id'])
+            ->where('analyte_id', $data['analyte_id'])
+            ->first();
+
+        if (!$stdAnalyte) {
+            $stdAnalyte = new \App\StandardAnalytes();
+            $stdAnalyte->standard_id = $data['standard_id'];
+            $stdAnalyte->analyte_id = $data['analyte_id'];
+        }
+
+        // Map inputs to model (legacy logic)
+        $stdAnalyte->low = $data['min'];
+        $stdAnalyte->high = $data['max'];
+        $stdAnalyte->standard_value_id = $data['standard_valuetype'];
+        $stdAnalyte->value_type = $data['limit_measure'];
+        $stdAnalyte->standard_is_value = $data['value'];
+        $stdAnalyte->standard_value_type = $data['standard_value_type'] == 1 ? 'is_range' : 'is_standard_value';
+        $stdAnalyte->is_active = 1;
+        $stdAnalyte->save();
+
+        // Calculate display string (Legacy Logic)
+        $newValue = 'NS';
+        if ($data['standard_value_type'] == 1) {
+            $newValue = $data['min'] . ' - ' . $data['max'];
+        } else {
+             // Logic: 2 && limit_measure == '' -> limit code
+             //        2 && limit_measure != '' -> value . ' ' . limit_measure
+             if ($data['limit_measure'] == '') {
+                 $sv = \App\StandardValue::find($data['standard_valuetype']);
+                 $newValue = $sv ? $sv->code : $newValue;
+             } else {
+                 $newValue = $data['value'] . ' ' . $data['limit_measure']; // e.g. "10 Max"
+             }
+        }
+
+        // Update CapturedResult snapshot
+        $updateField = $data['standard_level'] == 1 ? 'standard_value' : 'sec_standard_value';
+        
+        DB::table('captured_results')
+            ->where('id', $data['captured_result_id'])
+            ->update([$updateField => $newValue]);
+
+        // Refresh view
+        $this->viewParameters();
+        $this->showEditStandardModal = false;
+        $this->dispatch('hide-edit-standard-modal');
+        
+        // Re-evaluate current row result against new limits
+        $this->evaluateResult($data['captured_result_id']);
+    }
+
+    /**
+     * Save parameters from modal
+     */
+    public function saveParameters()
+    {
+        try {
+            foreach ($this->parametersForm as $id => $data) {
+                $updateData = [
+                    'result' => $data['result'],
+                    'measure_uncertanity' => $data['measure_uncertanity'],
+                    'remark' => $data['remark'],
+                    'reporting_unit_id' => $data['reporting_unit'],
+                    'operator_id' => $data['operator_id'],
+                    'method_id' => $data['method_id'],
+                    'equipment_id' => $data['equipment_id'],
+                    'analyte_status_contracted' => $data['subcontracted'] ? 1 : 0,
+                    'analyte_accredited' => $data['accredited'] ? 1 : 0,
+                    'updated_at' => now(),
+                    // Mark manual remark if changed? For now just save.
+                ];
+                
+                DB::table('captured_results')
+                    ->where('id', $id)
+                    ->update($updateData);
+            }
+            
+            session()->flash('message', 'Parameters saved successfully.');
+            $this->showParametersModal = false;
+            
+        } catch (\Exception $e) {
+            Log::error('Error saving parameters: ' . $e->getMessage());
+            session()->flash('error', 'Failed to save parameters: ' . $e->getMessage());
+        }
+    }
+    
+    /**
+     * Get formatted standard info
+     */
+    private function getStandardInfo($standardId, $value)
+    {
+        if (!$standardId || !$value) {
+            return ['display' => '-'];
+        }
+        
+        try {
+            $standard = Standards::find($standardId);
+            return [
+                'display' => ($standard->name ?? 'Standard') . ': ' . $value,
+                'name' => $standard->name ?? '-',
+                'value' => $value
+            ];
+        } catch (\Exception $e) {
+            return ['display' => $value];
         }
     }
 
@@ -605,9 +1010,9 @@ class Samples extends Component
     ];
 
     /**
-     * Show Comments & Interpretations modal for a sample
+     * Open Comments & Interpretations modal for a sample
      */
-    public function showCommentsModal($sampleId)
+    public function openCommentsModal($sampleId)
     {
         try {
             $sample = SampleDetails::findOrFail($sampleId);
@@ -675,9 +1080,9 @@ class Samples extends Component
     ];
 
     /**
-     * Show Interlab Transfer modal for a sample
+     * Open Interlab Transfer modal for a sample
      */
-    public function showInterlabModal($sampleId, $sampleCode)
+    public function openInterlabModal($sampleId, $sampleCode)
     {
         try {
             $sample = SampleDetails::findOrFail($sampleId);

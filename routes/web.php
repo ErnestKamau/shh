@@ -477,6 +477,7 @@ Route::post('/process-raw-results/lab','SampleWorkFlowController@processRawResul
   Route::post('/store-attachment-type', 'SampleWorkFlowController@store_attachment_type')->name('store-attachment-type');
   Route::post('/delete_batch_attachmment', 'SampleWorkFlowController@delete_batch_attachmment')->name('delete_batch_attachmment');
   Route::post('/merge-attachments', 'SampleWorkFlowController@merge_attachments')->name('merge-attachments');
+  Route::get('/batch/attachments/{id}/download', 'SampleWorkFlowController@downloadBatchAttachment')->name('download-attachment');
   
   // PDF Annotation routes
   Route::get('/batch/attachments/{id}/annotate', 'SampleWorkFlowController@showAnnotationPage')->name('show-pdf-annotation-page');
