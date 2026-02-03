@@ -91,7 +91,16 @@ class MethodSequenceRunStageData extends Model
             return null;
         }
 
-        $startTime = \Carbon\Carbon::createFromFormat('Y-m-d H:i:s', $this->date_in . ' ' . $this->time_in);
+        // Safeguard for Carbon objects
+        $dateStr = $this->date_in instanceof \Carbon\Carbon ? $this->date_in->format('Y-m-d') : $this->date_in;
+        $timeStr = $this->time_in instanceof \Carbon\Carbon ? $this->time_in->format('H:i:s') : $this->time_in;
+
+        try {
+            $startTime = \Carbon\Carbon::parse($dateStr . ' ' . $timeStr);
+        } catch (\Exception $e) {
+            return null;
+        }
+
         $currentTime = now();
         $elapsedHours = $currentTime->diffInHours($startTime, true);
 
@@ -101,7 +110,7 @@ class MethodSequenceRunStageData extends Model
             if ($remaining > 0) {
                 return $remaining;
             }
-            
+
             // Safe duration expired, calculate remaining based on total duration
             if ($this->duration_hours) {
                 return $this->duration_hours - $elapsedHours;
@@ -119,7 +128,7 @@ class MethodSequenceRunStageData extends Model
     public function getTimerStatus(): string
     {
         $remaining = $this->getRemainingTime();
-        
+
         if ($remaining === null) {
             return 'safe';
         }
@@ -145,9 +154,17 @@ class MethodSequenceRunStageData extends Model
             return false;
         }
 
-        $startTime = \Carbon\Carbon::createFromFormat('Y-m-d H:i:s', $this->date_in . ' ' . $this->time_in);
+        $dateStr = $this->date_in instanceof \Carbon\Carbon ? $this->date_in->format('Y-m-d') : $this->date_in;
+        $timeStr = $this->time_in instanceof \Carbon\Carbon ? $this->time_in->format('H:i:s') : $this->time_in;
+
+        try {
+            $startTime = \Carbon\Carbon::parse($dateStr . ' ' . $timeStr);
+        } catch (\Exception $e) {
+            return false;
+        }
+
         $elapsedHours = now()->diffInHours($startTime, true);
-        
+
         return $elapsedHours >= $this->safe_duration_hours;
     }
 
@@ -160,9 +177,52 @@ class MethodSequenceRunStageData extends Model
             return false;
         }
 
-        $startTime = \Carbon\Carbon::createFromFormat('Y-m-d H:i:s', $this->date_in . ' ' . $this->time_in);
+        $dateStr = $this->date_in instanceof \Carbon\Carbon ? $this->date_in->format('Y-m-d') : $this->date_in;
+        $timeStr = $this->time_in instanceof \Carbon\Carbon ? $this->time_in->format('H:i:s') : $this->time_in;
+
+        try {
+            $startTime = \Carbon\Carbon::parse($dateStr . ' ' . $timeStr);
+        } catch (\Exception $e) {
+            return false;
+        }
+
         $elapsedHours = now()->diffInHours($startTime, true);
-        
+
         return $elapsedHours >= $this->duration_hours;
+    }
+
+    /**
+     * Calculate and set the estimated time out based on time in and duration
+     */
+    public function calculateEstimatedTimeOut(): void
+    {
+        if (!$this->time_in || !$this->date_in || !$this->duration_hours) {
+            return;
+        }
+
+        // Safeguard for Carbon objects vs strings
+        $dateStr = $this->date_in instanceof \Carbon\Carbon ? $this->date_in->format('Y-m-d') : $this->date_in;
+        $timeStr = $this->time_in instanceof \Carbon\Carbon ? $this->time_in->format('H:i:s') : $this->time_in;
+
+        try {
+            $startTime = \Carbon\Carbon::parse($dateStr . ' ' . $timeStr);
+            $endTime = $startTime->addMinutes(round($this->duration_hours * 60));
+
+            $this->date_out = $endTime->toDateString();
+            $this->time_out = $endTime->format('H:i:s');
+            $this->save();
+
+            \Illuminate\Support\Facades\Log::info('Calculated estimated time out', [
+                'stage_data_id' => $this->id,
+                'time_in' => $timeStr,
+                'duration' => $this->duration_hours,
+                'calculated_time_out' => $this->time_out
+            ]);
+        } catch (\Exception $e) {
+            \Illuminate\Support\Facades\Log::error('Failed to calculate estimated time out', [
+                'error' => $e->getMessage(),
+                'stage_data_id' => $this->id
+            ]);
+        }
     }
 }

@@ -39,12 +39,12 @@ class FormInstanceController extends Controller
         // Search by form number or title
         if ($request->filled('search')) {
             $search = $request->search;
-            $query->where(function($q) use ($search) {
+            $query->where(function ($q) use ($search) {
                 $q->where('form_number', 'like', "%{$search}%")
-                  ->orWhere('title', 'like', "%{$search}%")
-                  ->orWhereHas('submissionForm', function($q) use ($search) {
-                      $q->where('name', 'like', "%{$search}%");
-                });
+                    ->orWhere('title', 'like', "%{$search}%")
+                    ->orWhereHas('submissionForm', function ($q) use ($search) {
+                        $q->where('name', 'like', "%{$search}%");
+                    });
             });
         }
 
@@ -65,7 +65,7 @@ class FormInstanceController extends Controller
 
         // Load form with all relationships
         $submissionForm->load([
-            'sections.elementHolders.elements' => function($query) {
+            'sections.elementHolders.elements' => function ($query) {
                 $query->orderBy('sort_order');
             }
         ]);
@@ -93,7 +93,7 @@ class FormInstanceController extends Controller
             'form_name' => $submissionForm->name,
             'is_public' => $isPublicSubmission
         ]);
-        
+
         $instance = $this->createFormInstanceWithRetry($submissionForm, $request, $submittedBy);
 
         // Log the creation (only if user is authenticated)
@@ -130,7 +130,7 @@ class FormInstanceController extends Controller
 
         // Load form with all relationships
         $submissionForm->load([
-            'sections.elementHolders.elements' => function($query) {
+            'sections.elementHolders.elements' => function ($query) {
                 $query->orderBy('sort_order');
             },
             'sampleAnalysisStages'
@@ -140,7 +140,7 @@ class FormInstanceController extends Controller
         $allowedSampleTypeIds = null;
         if ($submissionForm->sampleAnalysisStages->isNotEmpty()) {
             $stageIds = $submissionForm->sampleAnalysisStages->pluck('id')->toArray();
-            $allowedSampleTypeIds = \App\SampleType::whereHas('sampleAnalysisStages', function($q) use ($stageIds) {
+            $allowedSampleTypeIds = \App\SampleType::whereHas('sampleAnalysisStages', function ($q) use ($stageIds) {
                 $q->whereIn('sample_analysis_stages.id', $stageIds);
             })->pluck('id')->toArray();
         }
@@ -171,7 +171,7 @@ class FormInstanceController extends Controller
 
         // Load form with all relationships
         $submissionForm->load([
-            'sections.elementHolders.elements' => function($query) {
+            'sections.elementHolders.elements' => function ($query) {
                 $query->orderBy('sort_order');
             },
             'sampleAnalysisStages'
@@ -181,7 +181,7 @@ class FormInstanceController extends Controller
         $allowedSampleTypeIds = null;
         if ($submissionForm->sampleAnalysisStages->isNotEmpty()) {
             $stageIds = $submissionForm->sampleAnalysisStages->pluck('id')->toArray();
-            $allowedSampleTypeIds = \App\SampleType::whereHas('sampleAnalysisStages', function($q) use ($stageIds) {
+            $allowedSampleTypeIds = \App\SampleType::whereHas('sampleAnalysisStages', function ($q) use ($stageIds) {
                 $q->whereIn('sample_analysis_stages.id', $stageIds);
             })->pluck('id')->toArray();
         }
@@ -209,24 +209,24 @@ class FormInstanceController extends Controller
         // }
 
         // Load form elements for validation
-        $elements = SubmissionFormElement::whereHas('holder.section', function($query) use ($submissionForm) {
+        $elements = SubmissionFormElement::whereHas('holder.section', function ($query) use ($submissionForm) {
             $query->where('submission_form_id', $submissionForm->id);
         })->get();
 
 
         // Build validation rules
         $validationRules = $this->buildValidationRules($elements, $request);
-       
+
         // dd($validationRules);
 
         // Validate the request
         $validator = Validator::make($request->all(), $validationRules);
 
         // dd($validator->validate());
-        
+
         if ($validator->fails()) {
             return redirect()->back()
-                           ->withErrors($validator)
+                ->withErrors($validator)
                 ->withInput()
                 ->with('error', 'Please correct the errors below.');
         }
@@ -238,7 +238,7 @@ class FormInstanceController extends Controller
             Log::info('Processing form data');
 
             if ($request->input('action') === 'submit') {
-                
+
                 $instance->submit(auth()->user());
             } else {
                 // Log as updated for draft saves
@@ -278,7 +278,7 @@ class FormInstanceController extends Controller
 
         // Load form with all relationships
         $submissionForm->load([
-            'sections.elementHolders.elements' => function($query) {
+            'sections.elementHolders.elements' => function ($query) {
                 $query->orderBy('sort_order');
             }
         ]);
@@ -311,7 +311,7 @@ class FormInstanceController extends Controller
 
         // Load form with all relationships
         $submissionForm->load([
-            'sections.elementHolders.elements' => function($query) {
+            'sections.elementHolders.elements' => function ($query) {
                 $query->orderBy('sort_order');
             }
         ]);
@@ -356,7 +356,7 @@ class FormInstanceController extends Controller
 
         // Load form with all relationships
         $submissionForm->load([
-            'sections.elementHolders.elements' => function($query) {
+            'sections.elementHolders.elements' => function ($query) {
                 $query->orderBy('sort_order');
             }
         ]);
@@ -403,10 +403,10 @@ class FormInstanceController extends Controller
     {
         $maxRetries = 5;
         $retryCount = 0;
-        
+
         do {
             $retryCount++;
-            
+
             try {
                 return DB::transaction(function () use ($submissionForm, $request, $submittedBy) {
                     // Generate form number
@@ -424,7 +424,7 @@ class FormInstanceController extends Controller
                         'due_date' => $request->input('due_date')
                     ]);
                 });
-                
+
             } catch (\Illuminate\Database\QueryException $e) {
                 // Check if it's a duplicate key error
                 if ($e->getCode() == 23000 && strpos($e->getMessage(), 'submission_form_instances_form_number_unique') !== false) {
@@ -433,7 +433,7 @@ class FormInstanceController extends Controller
                         'retry_count' => $retryCount,
                         'error' => $e->getMessage()
                     ]);
-                    
+
                     if ($retryCount >= $maxRetries) {
                         Log::error('Maximum retries reached for form instance creation', [
                             'form_id' => $submissionForm->id,
@@ -441,18 +441,18 @@ class FormInstanceController extends Controller
                         ]);
                         throw $e;
                     }
-                    
+
                     // Small delay before retry to reduce collision probability
                     usleep(100000); // 100ms delay
                     continue;
                 }
-                
+
                 // If it's not a duplicate key error, re-throw
                 throw $e;
             }
-            
+
         } while ($retryCount < $maxRetries);
-        
+
         // This should never be reached, but just in case
         throw new \Exception('Failed to create form instance after maximum retries');
     }
@@ -463,18 +463,18 @@ class FormInstanceController extends Controller
     private function buildValidationRules($elements, Request $request): array
     {
         $rules = [];
-        
+
         foreach ($elements as $element) {
             $fieldName = $element->name;
             $elementRules = [];
-            
+
             // Required validation
             if ($element->is_required) {
                 $elementRules[] = 'required';
             } else {
                 $elementRules[] = 'nullable';
             }
-            
+
             // Type-specific validation
             switch ($element->element_type) {
                 case 'email':
@@ -488,7 +488,7 @@ class FormInstanceController extends Controller
                     break;
                 case 'datetime':
                     $elementRules[] = 'date';
-                break;
+                    break;
                 case 'file':
                     $elementRules[] = 'file';
                     break;
@@ -505,12 +505,12 @@ class FormInstanceController extends Controller
                     $elementRules[] = 'exists:users,id';
                     break;
             }
-            
+
             // Custom validation rules
             if ($element->validation_rules) {
                 $elementRules = array_merge($elementRules, $element->validation_rules);
             }
-                
+
             // Handle array fields (from rows sections or multiple selects)
             if ($request->has($fieldName) && is_array($request->input($fieldName))) {
                 // Check if this is a multiple select field
@@ -528,7 +528,7 @@ class FormInstanceController extends Controller
                 $rules[$fieldName] = $elementRules;
             }
         }
-        
+
         return $rules;
     }
 
@@ -573,7 +573,7 @@ class FormInstanceController extends Controller
             $file = $request->file($element->name);
             $filename = time() . '_' . Str::slug($element->name) . '.' . $file->getClientOriginalExtension();
             $path = $file->storeAs('submission-forms/' . $instance->id, $filename, 'public');
-            
+
             $this->saveFieldValue($instance, $element, null, $path);
         } else {
             $this->saveFieldValue($instance, $element, $value);
@@ -587,7 +587,7 @@ class FormInstanceController extends Controller
     {
         // Delete existing values for this element
         $instance->values()->where('submission_form_element_id', $element->id)->delete();
-        
+
         // Save each value with array index
         foreach ($values as $index => $value) {
             if (($value === null || $value === '') && $element->element_type === 'user_select' && auth()->check()) {
@@ -607,16 +607,16 @@ class FormInstanceController extends Controller
     {
         // Check for specific element types that support multiple selection
         $multipleSelectTypes = ['sample_point_select', 'analysis_type_select', 'analysis_elements_select'];
-        
+
         if (in_array($element->element_type, $multipleSelectTypes)) {
             return true;
         }
-        
+
         // Check if element has multiple property set
         if (isset($element->properties['multiple']) && $element->properties['multiple'] === true) {
             return true;
         }
-        
+
         return false;
     }
 
@@ -626,13 +626,13 @@ class FormInstanceController extends Controller
     private function processMultipleSelectField(SubmissionFormInstance $instance, SubmissionFormElement $element, array $values): void
     {
         // Filter out empty values and convert to comma-separated string
-        $filteredValues = array_filter($values, function($value) {
+        $filteredValues = array_filter($values, function ($value) {
             return $value !== null && $value !== '';
         });
 
         $convertTOArray = [];
-        
-        foreach($filteredValues as $value){
+
+        foreach ($filteredValues as $value) {
             $convertTOArray[] = implode(',', $value);
         }
 
@@ -669,7 +669,7 @@ class FormInstanceController extends Controller
     private function processFieldMapping(SubmissionFormElement $element, $value, $arrayIndex = null): void
     {
         $mapping = $element->getMappingConfig();
-        
+
         if (!$mapping || !$value) {
             return;
         }
@@ -712,10 +712,10 @@ class FormInstanceController extends Controller
     public function getDynamicOptions(Request $request)
     {
         $elementType = $request->get('element_type');
-        
+
         // Allow public access for certain element types (for public form submissions)
         $publicElementTypes = ['sample_condition_select', 'standard_select', 'sample_type_select', 'analysis_elements_select'];
-        
+
         if (!auth()->check() && !in_array($elementType, $publicElementTypes)) {
             Log::warning('Unauthenticated request to dynamic options for restricted element type', ['element_type' => $elementType]);
             return response()->json(['error' => 'Unauthorized'], 401);
@@ -724,7 +724,7 @@ class FormInstanceController extends Controller
         $sampleTypeId = $request->get('sample_type_id');
         $storeId = $request->get('store_id');
         $clientUnitId = $request->get('client_unit_id');
-        
+
         // Pagination and search parameters for client_select
         $page = $request->get('page', 1);
         $perPage = $request->get('per_page', 100);
@@ -747,15 +747,15 @@ class FormInstanceController extends Controller
                 case 'client_select':
                     // Build query with search filter
                     $query = \App\Models\CRM\CRMCustomer::where('active', 1);
-                    
+
                     if (!empty($search)) {
                         $query->where('name', 'LIKE', "%{$search}%");
                     }
-                    
+
                     // Paginate results
                     $paginator = $query->orderBy('name')
                         ->paginate($perPage, ['id', 'name'], 'page', $page);
-                    
+
                     // Build options array
                     foreach ($paginator->items() as $client) {
                         $options[] = [
@@ -765,7 +765,7 @@ class FormInstanceController extends Controller
                             'label' => $client->name
                         ];
                     }
-                    
+
                     // Return with pagination metadata
                     return response()->json([
                         'success' => true,
@@ -781,23 +781,23 @@ class FormInstanceController extends Controller
 
                 case 'sample_type_select':
                     $query = \App\SampleType::select('id', 'name as text', 'name as label')->orderBy('name');
-                    
+
                     // If submission form ID is present, filter by associated lab sections
                     if ($request->has('submission_form_id')) {
                         $formId = $request->get('submission_form_id');
                         $form = \App\Models\SubmissionForm::with('sampleAnalysisStages')->find($formId);
-                        
+
                         if ($form && $form->sampleAnalysisStages->isNotEmpty()) {
                             $stageIds = $form->sampleAnalysisStages->pluck('id')->toArray();
-                            
-                            $query->whereHas('sampleAnalysisStages', function($q) use ($stageIds) {
+
+                            $query->whereHas('sampleAnalysisStages', function ($q) use ($stageIds) {
                                 $q->whereIn('sample_analysis_stages.id', $stageIds);
                             });
                         }
                     }
-                    
+
                     $options = $query->get()->toArray();
-                    
+
                     // Add value key for compatibility
                     foreach ($options as &$option) {
                         $option['value'] = $option['id'];
@@ -828,7 +828,7 @@ class FormInstanceController extends Controller
                             ->where('active', 1)
                             ->where('can_submit_sample', 1)
                             ->get();
-                        
+
                         $options = [];
                         foreach ($officers as $officer) {
                             $fullName = trim($officer->first_name . ' ' . $officer->middle_name . ' ' . $officer->last_name);
@@ -876,18 +876,18 @@ class FormInstanceController extends Controller
                         'analysis_type_id' => $analysisTypeId,
                         'request_data' => $request->all()
                     ]);
-                    
+
                     if ($analysisTypeId) {
                         $elements = \App\AnalysisElements::where('analysis_type_id', $analysisTypeId)
                             ->with('analyte')
                             ->get();
-                            
+
                         Log::info('Found analysis elements', [
                             'count' => $elements->count(),
                             'elements' => $elements->toArray()
                         ]);
-                        
-                        $options = $elements->map(function($element) {
+
+                        $options = $elements->map(function ($element) {
                             // Get parameter name from the relationship or fallback
                             $parametername = 'Unknown Parameter';
                             if ($element->analyte) {
@@ -897,14 +897,14 @@ class FormInstanceController extends Controller
                                 $analyte = \App\Analyte::find($element->analyte_id);
                                 $parametername = $analyte ? $analyte->name : 'Unknown Parameter';
                             }
-                            
+
                             $method = $element->method ?? 'No Method';
                             return [
                                 'id' => $element->id,
                                 'text' => $parametername . ' (' . $method . ')'
                             ];
                         })->toArray();
-                        
+
                         Log::info('Mapped options', ['options' => $options]);
                     } else {
                         $options = [];
@@ -923,14 +923,14 @@ class FormInstanceController extends Controller
                         $samplePoints = \App\Models\CRM\SamplePoint::where('crm_company_unit_id', $clientUnitId)
                             ->with('area')
                             ->get();
-                            
+
                         $options = [];
                         foreach ($samplePoints as $samplePoint) {
                             // Format: "area - sample point" if area exists, otherwise just "sample point"
-                            $text = $samplePoint->area && $samplePoint->area->name 
-                                ? $samplePoint->area->name . ' - ' . $samplePoint->name 
+                            $text = $samplePoint->area && $samplePoint->area->name
+                                ? $samplePoint->area->name . ' - ' . $samplePoint->name
                                 : $samplePoint->name;
-                                
+
                             $options[] = [
                                 'id' => $samplePoint->id,
                                 'text' => $text
@@ -952,7 +952,7 @@ class FormInstanceController extends Controller
                     if (!empty($search)) {
                         $query->where(function ($q) use ($search) {
                             $q->where('name', 'LIKE', "%{$search}%")
-                              ->orWhere('email', 'LIKE', "%{$search}%");
+                                ->orWhere('email', 'LIKE', "%{$search}%");
                         });
                     }
 
@@ -1020,7 +1020,7 @@ class FormInstanceController extends Controller
     {
         // Load form instance with all relationships
         $instance->load([
-            'submissionForm.sections.elementHolders.elements' => function($query) {
+            'submissionForm.sections.elementHolders.elements' => function ($query) {
                 $query->orderBy('sort_order');
             },
             'values.element',
@@ -1034,45 +1034,45 @@ class FormInstanceController extends Controller
         // Get all batches linked to this form instance
         $batches = $instance->batches()->with([
             'sample_type',
-            'samples' => function($query) {
+            'samples' => function ($query) {
                 $query->orderBy('sample_code', 'asc');
             }
         ])->get();
 
         // Group samples by sample_type_id and then by analysis_type_id
         $groupedSamples = [];
-        
+
         foreach ($batches as $batch) {
             $sampleTypeId = $batch->sample_type_id;
             $sampleTypeName = $batch->sample_type ? $batch->sample_type->name : 'Unknown Type';
-            
+
             if (!isset($groupedSamples[$sampleTypeId])) {
                 $groupedSamples[$sampleTypeId] = [
                     'name' => $sampleTypeName,
                     'analyses' => []
                 ];
             }
-            
+
             foreach ($batch->samples as $sample) {
                 // Get analysis types for this sample
                 $analysisRelations = \App\SampleAnalysisTypeRelation::where('sample_detail_id', $sample->id)->get();
-                
+
                 foreach ($analysisRelations as $relation) {
                     $analysisTypeId = $relation->analysis_type_id;
-                    
+
                     // Get analysis type details
                     $analysisType = \App\AnalysisType::find($analysisTypeId);
-                    
+
                     if ($analysisType) {
                         $analysisTypeName = $analysisType->name;
-                        
+
                         if (!isset($groupedSamples[$sampleTypeId]['analyses'][$analysisTypeId])) {
                             $groupedSamples[$sampleTypeId]['analyses'][$analysisTypeId] = [
                                 'name' => $analysisTypeName,
                                 'samples' => []
                             ];
                         }
-                        
+
                         $groupedSamples[$sampleTypeId]['analyses'][$analysisTypeId]['samples'][] = $sample;
                     }
                 }
@@ -1083,23 +1083,81 @@ class FormInstanceController extends Controller
         $processedSampleData = [];
         foreach ($groupedSamples as $sampleTypeId => $sampleTypeData) {
             $processedAnalyses = [];
-            
+
             foreach ($sampleTypeData['analyses'] as $analysisTypeId => $analysisData) {
                 $samples = collect($analysisData['samples'])->unique('id');
                 $sampleCodes = $samples->pluck('sample_code')->sort()->values();
-                
+
                 // Get min and max sample codes
                 $minCode = $sampleCodes->first();
                 $maxCode = $sampleCodes->last();
                 $codeRange = $minCode === $maxCode ? $minCode : "{$minCode} - {$maxCode}";
-                
+
+                // Collect reporting info
+                $sampleIds = $samples->pluck('id')->toArray();
+                $results = \App\CapturedResult::whereIn('sample_detail_id', $sampleIds)
+                    ->where('analysis_type_id', $analysisTypeId)
+                    ->whereNotNull('result')
+                    ->with('operator')
+                    ->get();
+
+                $reporters = $results->pluck('operator.name')->unique()->filter()->implode(', ');
+                $reportDate = $results->max('updated_at');
+                $reportedInfo = $reporters ? $reporters . ($reportDate ? " (" . $reportDate->format('d/m/Y') . ")" : "") : 'Pending';
+
+                // Sent info (use form submission info)
+                $sentBy = $instance->submittedBy ? $instance->submittedBy->name : 'N/A';
+                $sentDate = $instance->submitted_at ? $instance->submitted_at->format('d/m/Y') : 'N/A';
+                $sentInfo = "{$sentBy} ({$sentDate})";
+
                 $processedAnalyses[] = [
                     'analysis_type_name' => $analysisData['name'],
                     'sample_count' => $samples->count(),
-                    'code_range' => $codeRange
+                    'code_range' => $codeRange,
+                    'reported_info' => $reportedInfo,
+                    'sent_info' => $sentInfo
                 ];
             }
-            
+
+            // If no analyses were found through relations, but we have samples, add a generic row
+            if (empty($processedAnalyses)) {
+                $batchForThisType = $batches->where('sample_type_id', $sampleTypeId)->first();
+                if ($batchForThisType) {
+                    $allSamples = $batchForThisType->samples ? $batchForThisType->samples->unique('id') : collect();
+                    $sampleCount = $allSamples->count();
+                    
+                    if ($sampleCount > 0) {
+                        $sampleCodes = $allSamples->pluck('sample_code')->sort()->values();
+                        $minCode = $sampleCodes->first();
+                        $maxCode = $sampleCodes->last();
+                        $codeRange = $minCode === $maxCode ? $minCode : "{$minCode} - {$maxCode}";
+                    } else {
+                        // Fallback to form field values for quantity and range
+                        $sampleCount = $instance->getValueByElementName('no_of_samples') ?: $instance->getValueByElementName('quantity') ?: 0;
+                        $codeRange = 'Pending Assignment';
+                    }
+
+                    // Try to get test names from form values
+                    $testsRequired = $instance->resolveDisplayValueByName('tests_required') 
+                                    ?: $instance->resolveDisplayValueByName('analysis_elements_select') 
+                                    ?: 'General Analysis';
+
+                    // Sent info
+                    $sentBy = $instance->submittedBy ? $instance->submittedBy->name : 'N/A';
+                    $sentBy = empty($sentBy) ? 'N/A' : $sentBy;
+                    $sentDate = $instance->submitted_at ? $instance->submitted_at->format('d/m/Y') : 'N/A';
+                    $sentInfo = "{$sentBy} ({$sentDate})";
+
+                    $processedAnalyses[] = [
+                        'analysis_type_name' => strip_tags($testsRequired),
+                        'sample_count' => $sampleCount,
+                        'code_range' => $codeRange,
+                        'reported_info' => 'Pending',
+                        'sent_info' => $sentInfo
+                    ];
+                }
+            }
+
             $processedSampleData[] = [
                 'sample_type_name' => $sampleTypeData['name'],
                 'analyses' => $processedAnalyses
@@ -1118,7 +1176,7 @@ class FormInstanceController extends Controller
     {
         // Load form instance with all relationships
         $instance->load([
-            'submissionForm.sections.elementHolders.elements' => function($query) {
+            'submissionForm.sections.elementHolders.elements' => function ($query) {
                 $query->orderBy('sort_order');
             },
             'values.element',
@@ -1132,45 +1190,45 @@ class FormInstanceController extends Controller
         // Get all batches linked to this form instance
         $batches = $instance->batches()->with([
             'sample_type',
-            'samples' => function($query) {
+            'samples' => function ($query) {
                 $query->orderBy('sample_code', 'asc');
             }
         ])->get();
 
         // Group samples by sample_type_id and then by analysis_type_id
         $groupedSamples = [];
-        
+
         foreach ($batches as $batch) {
             $sampleTypeId = $batch->sample_type_id;
             $sampleTypeName = $batch->sample_type ? $batch->sample_type->name : 'Unknown Type';
-            
+
             if (!isset($groupedSamples[$sampleTypeId])) {
                 $groupedSamples[$sampleTypeId] = [
                     'name' => $sampleTypeName,
                     'analyses' => []
                 ];
             }
-            
+
             foreach ($batch->samples as $sample) {
                 // Get analysis types for this sample
                 $analysisRelations = \App\SampleAnalysisTypeRelation::where('sample_detail_id', $sample->id)->get();
-                
+
                 foreach ($analysisRelations as $relation) {
                     $analysisTypeId = $relation->analysis_type_id;
-                    
+
                     // Get analysis type details
                     $analysisType = \App\AnalysisType::find($analysisTypeId);
-                    
+
                     if ($analysisType) {
                         $analysisTypeName = $analysisType->name;
-                        
+
                         if (!isset($groupedSamples[$sampleTypeId]['analyses'][$analysisTypeId])) {
                             $groupedSamples[$sampleTypeId]['analyses'][$analysisTypeId] = [
                                 'name' => $analysisTypeName,
                                 'samples' => []
                             ];
                         }
-                        
+
                         $groupedSamples[$sampleTypeId]['analyses'][$analysisTypeId]['samples'][] = $sample;
                     }
                 }
@@ -1181,23 +1239,81 @@ class FormInstanceController extends Controller
         $processedSampleData = [];
         foreach ($groupedSamples as $sampleTypeId => $sampleTypeData) {
             $processedAnalyses = [];
-            
+
             foreach ($sampleTypeData['analyses'] as $analysisTypeId => $analysisData) {
                 $samples = collect($analysisData['samples'])->unique('id');
                 $sampleCodes = $samples->pluck('sample_code')->sort()->values();
-                
+
                 // Get min and max sample codes
                 $minCode = $sampleCodes->first();
                 $maxCode = $sampleCodes->last();
                 $codeRange = $minCode === $maxCode ? $minCode : "{$minCode} - {$maxCode}";
-                
+
+                // Collect reporting info
+                $sampleIds = $samples->pluck('id')->toArray();
+                $results = \App\CapturedResult::whereIn('sample_detail_id', $sampleIds)
+                    ->where('analysis_type_id', $analysisTypeId)
+                    ->whereNotNull('result')
+                    ->with('operator')
+                    ->get();
+
+                $reporters = $results->pluck('operator.name')->unique()->filter()->implode(', ');
+                $reportDate = $results->max('updated_at');
+                $reportedInfo = $reporters ? $reporters . ($reportDate ? " (" . $reportDate->format('d/m/Y') . ")" : "") : 'Pending';
+
+                // Sent info (use form submission info)
+                $sentBy = $instance->submittedBy ? $instance->submittedBy->name : 'N/A';
+                $sentDate = $instance->submitted_at ? $instance->submitted_at->format('d/m/Y') : 'N/A';
+                $sentInfo = "{$sentBy} ({$sentDate})";
+
                 $processedAnalyses[] = [
                     'analysis_type_name' => $analysisData['name'],
                     'sample_count' => $samples->count(),
-                    'code_range' => $codeRange
+                    'code_range' => $codeRange,
+                    'reported_info' => $reportedInfo,
+                    'sent_info' => $sentInfo
                 ];
             }
-            
+
+            // If no analyses were found through relations, but we have samples, add a generic row
+            if (empty($processedAnalyses)) {
+                $batchForThisType = $batches->where('sample_type_id', $sampleTypeId)->first();
+                if ($batchForThisType) {
+                    $allSamples = $batchForThisType->samples ? $batchForThisType->samples->unique('id') : collect();
+                    $sampleCount = $allSamples->count();
+                    
+                    if ($sampleCount > 0) {
+                        $sampleCodes = $allSamples->pluck('sample_code')->sort()->values();
+                        $minCode = $sampleCodes->first();
+                        $maxCode = $sampleCodes->last();
+                        $codeRange = $minCode === $maxCode ? $minCode : "{$minCode} - {$maxCode}";
+                    } else {
+                        // Fallback to form field values for quantity and range
+                        $sampleCount = $instance->getValueByElementName('no_of_samples') ?: $instance->getValueByElementName('quantity') ?: 0;
+                        $codeRange = 'Pending Assignment';
+                    }
+
+                    // Try to get test names from form values
+                    $testsRequired = $instance->resolveDisplayValueByName('tests_required') 
+                                    ?: $instance->resolveDisplayValueByName('analysis_elements_select') 
+                                    ?: 'General Analysis';
+
+                    // Sent info
+                    $sentBy = $instance->submittedBy ? $instance->submittedBy->name : 'N/A';
+                    $sentBy = empty($sentBy) ? 'N/A' : $sentBy;
+                    $sentDate = $instance->submitted_at ? $instance->submitted_at->format('d/m/Y') : 'N/A';
+                    $sentInfo = "{$sentBy} ({$sentDate})";
+
+                    $processedAnalyses[] = [
+                        'analysis_type_name' => strip_tags($testsRequired),
+                        'sample_count' => $sampleCount,
+                        'code_range' => $codeRange,
+                        'reported_info' => 'Pending',
+                        'sent_info' => $sentInfo
+                    ];
+                }
+            }
+
             $processedSampleData[] = [
                 'sample_type_name' => $sampleTypeData['name'],
                 'analyses' => $processedAnalyses

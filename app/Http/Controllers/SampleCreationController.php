@@ -36,7 +36,7 @@ class SampleCreationController extends Controller
     {
         try {
             // Get sample batches from form 
-            
+
             // dd($request->all());
 
             $sampleBatches = $instance->getAllFieldsWithValues();
@@ -48,7 +48,7 @@ class SampleCreationController extends Controller
                 'first_batch_sample_details_count' => count($sampleBatches[0]['sample_details'] ?? []),
                 'available_keys_sample_header' => array_keys($sampleBatches[0]['sample_header'] ?? [])
             ]);
-            
+
             if (empty($sampleBatches)) {
                 return response()->json([
                     'success' => false,
@@ -57,7 +57,7 @@ class SampleCreationController extends Controller
             }
 
             $createdBatches = [];
-            
+
             // Count total batches for smart code generation
             $totalBatchCount = count($sampleBatches);
 
@@ -73,11 +73,11 @@ class SampleCreationController extends Controller
 
                 // Create sample header using our custom method with batch count
                 $sampleHeader = $this->createSampleHeader($batch['sample_header'], $instance->id, $totalBatchCount);
-                
+
                 // Update the sample header with the instance ID
                 $sampleHeader->submission_form_instance_id = $instance->id;
                 $sampleHeader->save();
-                
+
                 $analysisTypeIds = $this->extractAnalysisTypeIds($batch['sample_details']);
                 $this->applyLabMetadataAndDates($sampleHeader, $analysisTypeIds);
                 $this->createStagingEntry($sampleHeader, $batch, $analysisTypeIds);
@@ -125,71 +125,71 @@ class SampleCreationController extends Controller
     private function createBatchHeaderRequest(array $sampleHeader)
     {
         $request = new \Illuminate\Http\Request();
-        
+
         // Log the sample header data for debugging
         Log::info('Sample header data received', [
             'sample_header' => $sampleHeader,
             'available_keys' => array_keys($sampleHeader)
         ]);
-        
+
         // Helper function to get single value from array or return the value itself
-        $getSingleValue = function($value) {
+        $getSingleValue = function ($value) {
             if (is_array($value)) {
                 return !empty($value) ? $value[0] : null;
             }
             return $value;
         };
-        
+
         // Helper function to ensure integer values
-        $getIntegerValue = function($value) use ($getSingleValue) {
+        $getIntegerValue = function ($value) use ($getSingleValue) {
             $singleValue = $getSingleValue($value);
             return is_numeric($singleValue) ? (int) $singleValue : null;
         };
-        
+
         // Helper function to safely get array value
-        $getArrayValue = function($key, $default = []) use ($sampleHeader) {
+        $getArrayValue = function ($key, $default = []) use ($sampleHeader) {
             return isset($sampleHeader[$key]) && is_array($sampleHeader[$key]) ? $sampleHeader[$key] : $default;
         };
-        
+
         // Map form data to expected fields, ensuring single values
         // Map form data to expected fields, ensuring single values and correct mapping to sampleheader table columns
         // Reference: sampleheader table columns from ddl.sql
         $requestData = [
-            'crm_customer_id'      => $getIntegerValue($sampleHeader['crm_customer_id'] ?? null), // maps to crm_customer_id
-            'sample_type_id'       => $getIntegerValue($sampleHeader['sample_type_id'] ?? null),   // maps to sample_type_id
-            'receipt_date'         => $getSingleValue($sampleHeader['receipt_date'] ?? now()->format('Y-m-d')), // maps to receipt_date
-            'date_collected'       => $getSingleValue($sampleHeader['date_collected'] ?? now()->format('Y-m-d')), // maps to date_collected
-            'batch_scope'          => $getSingleValue($sampleHeader['batch_scope'] ?? 'General Analysis'), // maps to batch_scope
-            'customer_survey'      => $getSingleValue($sampleHeader['customer_survey'] ?? ''), // maps to customer_survey
-            'quote_no'             => $getSingleValue($sampleHeader['quote_no'] ?? ''), // maps to quote_no
-            'batch_instructions'   => $getSingleValue($sampleHeader['batch_instructions'] ?? ''), // maps to batch_instructions
-            'sampling_method_id'   => $getIntegerValue($sampleHeader['sampling_method_id'] ?? null), // maps to sampling_method_id
-            'require_mu'           => $getIntegerValue($sampleHeader['require_mu'] ?? 0), // maps to require_mu
-            'payment_done_by'      => $getSingleValue($sampleHeader['payment_done_by'] ?? 'Client'), // maps to payment_done_by
+            'crm_customer_id' => $getIntegerValue($sampleHeader['crm_customer_id'] ?? null), // maps to crm_customer_id
+            'sample_type_id' => $getIntegerValue($sampleHeader['sample_type_id'] ?? null),   // maps to sample_type_id
+            'receipt_date' => $getSingleValue($sampleHeader['receipt_date'] ?? now()->format('Y-m-d')), // maps to receipt_date
+            'date_collected' => $getSingleValue($sampleHeader['date_collected'] ?? now()->format('Y-m-d')), // maps to date_collected
+            'batch_scope' => $getSingleValue($sampleHeader['batch_scope'] ?? 'General Analysis'), // maps to batch_scope
+            'customer_survey' => $getSingleValue($sampleHeader['customer_survey'] ?? ''), // maps to customer_survey
+            'quote_no' => $getSingleValue($sampleHeader['quote_no'] ?? ''), // maps to quote_no
+            'batch_instructions' => $getSingleValue($sampleHeader['batch_instructions'] ?? ''), // maps to batch_instructions
+            'sampling_method_id' => $getIntegerValue($sampleHeader['sampling_method_id'] ?? null), // maps to sampling_method_id
+            'require_mu' => $getIntegerValue($sampleHeader['require_mu'] ?? 0), // maps to require_mu
+            'payment_done_by' => $getSingleValue($sampleHeader['payment_done_by'] ?? 'Client'), // maps to payment_done_by
             'condition_quality_sample' => $getSingleValue($sampleHeader['condition_quality_sample'] ?? 'Good'), // maps to condition_quality_sample
-            'crm_contact_id'       => $getIntegerValue($sampleHeader['crm_contact_id'] ?? null), // maps to crm_contact_id
-            'customer_email'       => $getSingleValue($sampleHeader['customer_email'] ?? ''), // maps to customer_email
-            'description'          => $getSingleValue($sampleHeader['description'] ?? ''), // maps to description
-            'document_number'      => $getSingleValue($sampleHeader['document_number'] ?? ''), // maps to document_number
-            'importer_address'     => $getSingleValue($sampleHeader['importer_address'] ?? ''), // maps to importer_address
-            'date_expected'        => $getSingleValue($sampleHeader['date_expected'] ?? now()->addDays(7)->format('Y-m-d')), // maps to date_expected
-            'quote_id'             => $getIntegerValue($sampleHeader['quote_id'] ?? null), // maps to quote_id
-            'radio_active_levels'  => $getSingleValue($sampleHeader['radio_active_levels'] ?? ''), // maps to radio_active_levels
-            'receive_by'           => $getSingleValue($sampleHeader['receive_by'] ?? (auth()->user()->name ?? 'System')), // maps to receive_by
-            'sample_by'            => $getSingleValue($sampleHeader['sample_by'] ?? (auth()->user()->name ?? 'System')), // maps to sample_by
-            'reference_number'     => $getSingleValue($sampleHeader['reference_number'] ?? 'n/a'), // maps to reference_number
-            'is_routine'           => $getIntegerValue($sampleHeader['is_routine'] ?? 0), // maps to is_routine
-            'routine_frequency'    => $getIntegerValue($sampleHeader['routine_frequency'] ?? 0), // maps to routine_frequency
-            'is_client_order'      => $getIntegerValue($sampleHeader['is_client_order'] ?? 0), // maps to is_client_order (should be int/tinyint)
-            'lab_section_ids'      => $getArrayValue('lab_section_ids', []), // not a direct column, but may be used for relations
-            'crm_unit_name'        => $getSingleValue($sampleHeader['crm_unit_name'] ?? null), // maps to crm_unit_name
+            'crm_contact_id' => $getIntegerValue($sampleHeader['crm_contact_id'] ?? null), // maps to crm_contact_id
+            'customer_email' => $getSingleValue($sampleHeader['customer_email'] ?? ''), // maps to customer_email
+            'description' => $getSingleValue($sampleHeader['description'] ?? ''), // maps to description
+            'document_number' => $getSingleValue($sampleHeader['document_number'] ?? ''), // maps to document_number
+            'importer_address' => $getSingleValue($sampleHeader['importer_address'] ?? ''), // maps to importer_address
+            'date_expected' => $getSingleValue($sampleHeader['date_expected'] ?? now()->addDays(7)->format('Y-m-d')), // maps to date_expected
+            'quote_id' => $getIntegerValue($sampleHeader['quote_id'] ?? null), // maps to quote_id
+            'radio_active_levels' => $getSingleValue($sampleHeader['radio_active_levels'] ?? ''), // maps to radio_active_levels
+            'receive_by' => $getSingleValue($sampleHeader['receive_by'] ?? (auth()->user()->name ?? 'System')), // maps to receive_by
+            'sample_by' => $getSingleValue($sampleHeader['sample_by'] ?? (auth()->user()->name ?? 'System')), // maps to sample_by
+            'reference_number' => $getSingleValue($sampleHeader['reference_number'] ?? 'n/a'), // maps to reference_number
+            'is_routine' => $getIntegerValue($sampleHeader['is_routine'] ?? 0), // maps to is_routine
+            'routine_frequency' => $getIntegerValue($sampleHeader['routine_frequency'] ?? 0), // maps to routine_frequency
+            'is_client_order' => $getIntegerValue($sampleHeader['is_client_order'] ?? 0), // maps to is_client_order (should be int/tinyint)
+            'lab_section_ids' => $getArrayValue('lab_section_ids', []), // not a direct column, but may be used for relations
+            'crm_unit_name' => $getSingleValue($sampleHeader['crm_unit_name'] ?? null), // maps to crm_unit_name
         ];
-        
+
         // Log the processed request data
         Log::info('Processed request data', [
             'request_data' => $requestData
         ]);
-        
+
         $request->merge($requestData);
 
         return $request;
@@ -201,20 +201,20 @@ class SampleCreationController extends Controller
     private function createSampleHeader(array $sampleHeaderData, $submissionFormInstanceId = null, $batchCount = 1)
     {
         // Helper function to get single value from array or return the value itself
-        $getSingleValue = function($value) {
+        $getSingleValue = function ($value) {
             if (is_array($value)) {
                 return !empty($value) ? $value[0] : null;
             }
             return $value;
         };
-        
+
         // Helper function to ensure integer values
-        $getIntegerValue = function($value) use ($getSingleValue) {
+        $getIntegerValue = function ($value) use ($getSingleValue) {
             $singleValue = $getSingleValue($value);
             return is_numeric($singleValue) ? (int) $singleValue : null;
         };
 
-        $formatDate = function($value, $default = null) use ($getSingleValue) {
+        $formatDate = function ($value, $default = null) use ($getSingleValue) {
             $singleValue = $getSingleValue($value);
             if (!$singleValue) {
                 return $default;
@@ -232,7 +232,7 @@ class SampleCreationController extends Controller
         $crmUnit = $getSingleValue($sampleHeaderData['crm_unit_name'] ?? null);
         $crmUnitId = '';
         $crmUnitName = '';
-        
+
         if ($crmCustomerId && !$crmUnit) {
             $firstUnit = \App\Models\CRM\CRMCompanyUnit::where('crm_customer_id', $crmCustomerId)->first();
             if ($firstUnit) {
@@ -244,7 +244,7 @@ class SampleCreationController extends Controller
                     'unit_id' => $firstUnit->id
                 ]);
             }
-        }else{
+        } else {
             $unit = \App\Models\CRM\CRMCompanyUnit::find(intval($crmUnit));
             $crmUnitId = isset($unit) ? $unit->id : '';
             $crmUnitName = isset($unit) ? $unit->name : '';
@@ -257,7 +257,7 @@ class SampleCreationController extends Controller
 
         // Generate batch code with smart logic
         $batchCode = $this->generateBatchCode($sampleHeaderData, $submissionFormInstanceId, $batchCount);
-        
+
         // Create the sample header
         $sampleHeader = new SampleHeader();
         Log::info('Sample header data', [
@@ -297,17 +297,17 @@ class SampleCreationController extends Controller
             'crm_unit_id' => $crmUnitId,
             'lab_capable' => 1,
             'client_instruction_clear' => 1,
-            
+
             'status' => 'Samples In Lab',
             'radio_active_levels' => date('H:i:s', strtotime($getSingleValue($sampleHeaderData['radio_active_levels'] ?? now()->format('Y-m-d H:i:s')) ?? '')),
             'submission_form_instance_id' => null, // Will be set by the calling method
         ]);
-        
+
         $sampleHeader->save();
-        
+
         // Create chain of custody for sample creation
         $this->createChainOfCustody($sampleHeader, 'Sample Creation');
-        
+
         Log::info('Created sample header', [
             'header_id' => $sampleHeader->id,
             'batch_code' => $sampleHeader->batch_code,
@@ -316,10 +316,10 @@ class SampleCreationController extends Controller
             'crm_unit_name' => $sampleHeader->crm_unit_name,
             'batch_count' => $batchCount
         ]);
-        
+
         return $sampleHeader;
     }
-    
+
     /**
      * Create chain of custody entry for sample creation
      */
@@ -332,13 +332,13 @@ class SampleCreationController extends Controller
         $custody->sample_header_id = $sampleHeader->id;
         $custody->comments = $action . ' - Created from submission form';
         $custody->save();
-        
+
         Log::info('Created chain of custody', [
             'sample_header_id' => $sampleHeader->id,
             'action' => $action,
             'workflow_stage' => $sampleHeader->status
         ]);
-        
+
         return $custody;
     }
 
@@ -351,15 +351,15 @@ class SampleCreationController extends Controller
 
         $detailData = $sampleDetailsData;
         // Helper function to get single value from array or return the value itself
-        $getSingleValue = function($value) {
+        $getSingleValue = function ($value) {
             if (is_array($value)) {
                 return !empty($value) ? $value[0] : null;
             }
             return $value;
         };
-        
+
         // Helper function to ensure integer values
-        $getIntegerValue = function($value) use ($getSingleValue) {
+        $getIntegerValue = function ($value) use ($getSingleValue) {
             $singleValue = $getSingleValue($value);
             return is_numeric($singleValue) ? (int) $singleValue : $singleValue;
         };
@@ -367,14 +367,14 @@ class SampleCreationController extends Controller
         // Generate sample code with smart logic
         $sampleCode = $this->generateSampleCode($sampleHeaderId, $index, $batchCode, $sampleCount, $totalBatchCount);
 
-        
+
         // Get sample header to access sample_type_id
         $sampleHeader = SampleHeader::with('sample_type')->find($sampleHeaderId);
 
         $disposal_count = $sampleHeader->sample_type->disposal_count;
         if ($disposal_count) {
             $disposal_date = \Carbon\Carbon::parse($sampleHeader->receipt_date)->addDays($disposal_count)->format('Y-m-d');
-        }else{
+        } else {
             $disposal_date = null;
             Log::info('Disposal count not found for sample type', [
                 'sample_type_id' => $sampleHeader->sample_type_id
@@ -392,7 +392,7 @@ class SampleCreationController extends Controller
                 ]);
             }
         }
-        
+
         // If sample_condition_id is not provided, get it from system configuration
         $sampleConditionId = $getIntegerValue($detailData['sample_condition_id'] ?? null);
         if (!$sampleConditionId) {
@@ -405,7 +405,7 @@ class SampleCreationController extends Controller
                 ]);
             }
         }
-        
+
         // Create the sample detail
         $sampleDetail = new \App\SampleDetails();
         $sampleData = [
@@ -439,36 +439,36 @@ class SampleCreationController extends Controller
         // $sampleData = array_merge($sampleData, $detailData);
 
         $sampleDetail->fill($sampleData);
-        
+
         $sampleDetail->save();
-        
-            // Check for No Result Capture flag on Sample Detail
-            $hasNoResultCapture = true; 
-            if (!empty($sampleDetail->analysis_type_id)) {
-                $aTypes = explode(',', $sampleDetail->analysis_type_id);
-                if (count($aTypes) > 0) {
-                    foreach ($aTypes as $atId) {
-                        if (trim($atId) != "") {
-                            $at = \App\AnalysisType::find($atId);
-                            if (!$at || !$at->has_no_result_capture) {
-                                $hasNoResultCapture = false;
-                                break;
-                            }
+
+        // Check for No Result Capture flag on Sample Detail
+        $hasNoResultCapture = true;
+        if (!empty($sampleDetail->analysis_type_id)) {
+            $aTypes = explode(',', $sampleDetail->analysis_type_id);
+            if (count($aTypes) > 0) {
+                foreach ($aTypes as $atId) {
+                    if (trim($atId) != "") {
+                        $at = \App\AnalysisType::find($atId);
+                        if (!$at || !$at->has_no_result_capture) {
+                            $hasNoResultCapture = false;
+                            break;
                         }
                     }
-                } else {
-                    $hasNoResultCapture = false;
                 }
             } else {
                 $hasNoResultCapture = false;
             }
-            
-            $sampleDetail->has_no_result_capture = $hasNoResultCapture;
-            $sampleDetail->save();
-        
+        } else {
+            $hasNoResultCapture = false;
+        }
+
+        $sampleDetail->has_no_result_capture = $hasNoResultCapture;
+        $sampleDetail->save();
+
         // Create analysis type relations and captured results
         $this->createCapturedResultsForAnalysisType($sampleHeaderId, $sampleDetail->id, $sampleDetail->analysis_type_id, $sampleDetail->sample_code);
-        
+
         $createdDetails[] = $sampleDetail;
         Log::info('Created sample detail', [
             'detail_id' => $sampleDetail->id,
@@ -478,7 +478,7 @@ class SampleCreationController extends Controller
             'sample_count' => $sampleCount,
             'has_no_result_capture' => $hasNoResultCapture
         ]);
-       
+
         return $createdDetails;
     }
 
@@ -521,33 +521,33 @@ class SampleCreationController extends Controller
 
         // Get sample detail to access its standards
         $sampleDetail = \App\SampleDetails::find($sampleDetailId);
-        
+
         // Get analysis type to access lab_section_id
         $analysisType = \App\AnalysisType::find($analysisTypeId);
         $labSectionIdFromAnalysisType = $analysisType ? $analysisType->lab_section_id : null;
         $analysisTypeHasNoResultCapture = $analysisType ? (int) ($analysisType->has_no_result ?? 0) : 0;
-        
+
         foreach ($analysisElements as $element) {
             // Get the analyte code from the related analyte
             $analyteCode = $element->analyte->code ?? 'UNKNOWN';
-            
+
             // Get standards from sample detail, not analysis element
             $standardID = null;
             $secondaryStandardID = null;
             $thirdStandardID = null;
-            
+
             if ($sampleDetail) {
                 if ($sampleDetail->main_standard) {
                     $standardID = StandardAnalytes::where('analyte_id', $element->analyte_id)
                         ->where('standard_id', $sampleDetail->main_standard)->first();
                 }
-                
+
 
                 if ($sampleDetail->secondary_standard) {
                     $secondaryStandardID = StandardAnalytes::where('analyte_id', $element->analyte_id)
                         ->where('standard_id', $sampleDetail->secondary_standard)->first();
                 }
-                
+
                 if ($sampleDetail->third_standard_id) {
                     $thirdStandardID = StandardAnalytes::where('analyte_id', $element->analyte_id)
                         ->where('standard_id', $sampleDetail->third_standard_id)->first();
@@ -560,7 +560,7 @@ class SampleCreationController extends Controller
 
             $reportingUnit = ReportingUnit::where('id', $element->reporting_unit)
                 ->orWhere('name', $element->reporting_unit)->first();
-            
+
             // Use lab_section_id from analysis type, fallback to element's lab_section_id
             $labSectionId = $labSectionIdFromAnalysisType ?? $element->lab_section_id;
 
@@ -592,9 +592,9 @@ class SampleCreationController extends Controller
                 'repeat_captured_id' => null,
                 'has_no_result_capture' => $analysisTypeHasNoResultCapture,
             ]);
-            
+
             $capturedResult->save();
-            
+
             Log::info('Created captured result', [
                 'captured_result_id' => $capturedResult->id,
                 'analysis_type_id' => $analysisTypeId,
@@ -661,28 +661,28 @@ class SampleCreationController extends Controller
             // SMART LOGIC: If only 1 batch, reuse the form_number
             if ($totalBatchCount === 1) {
                 $batch_code = $instance->form_number;
-                
+
                 Log::info('Smart batch code generation: Reusing form_number for single batch', [
                     'form_number' => $batch_code,
                     'total_batch_count' => $totalBatchCount
                 ]);
-                
+
                 return $batch_code;
             }
 
             // Multiple batches: Use sequential batch codes
             $batch_count = SampleHeader::where('submission_form_instance_id', $submissionFormInstanceId)->count();
-            $batch_count = $batch_count ? $batch_count + 1 : 1;                
-            
-            $batch_code = $instance->form_number.'-'.$batch_count;
-            
+            $batch_count = $batch_count ? $batch_count + 1 : 1;
+
+            $batch_code = $instance->form_number . '-' . $batch_count;
+
             Log::info('Standard batch code generation for multiple batches', [
                 'batch_code' => $batch_code,
                 'total_batch_count' => $totalBatchCount
             ]);
-            
+
             return $batch_code;
-            
+
         } catch (\Exception $e) {
             Log::error('Error generating new batch code: ' . $e->getMessage());
             // Fall back to legacy method
@@ -696,18 +696,18 @@ class SampleCreationController extends Controller
     private function generateLegacyBatchCode(array $sampleHeaderData)
     {
         // Get customer and sample type for code generation
-        $customerId = is_array($sampleHeaderData['crm_customer_id'] ?? null) 
-            ? $sampleHeaderData['crm_customer_id'][0] 
+        $customerId = is_array($sampleHeaderData['crm_customer_id'] ?? null)
+            ? $sampleHeaderData['crm_customer_id'][0]
             : $sampleHeaderData['crm_customer_id'] ?? null;
-            
-        $sampleTypeId = is_array($sampleHeaderData['sample_type_id'] ?? null) 
-            ? $sampleHeaderData['sample_type_id'][0] 
+
+        $sampleTypeId = is_array($sampleHeaderData['sample_type_id'] ?? null)
+            ? $sampleHeaderData['sample_type_id'][0]
             : $sampleHeaderData['sample_type_id'] ?? null;
 
         // Get customer and sample type
         $customer = \App\Models\CRM\CRMCustomer::find($customerId);
         $sampleType = \App\SampleType::find($sampleTypeId);
-        
+
         if (!$customer || !$sampleType) {
             // Fallback code generation
             return 'BA' . date('Y') . '0001' . ($sampleType ? $sampleType->code : 'XX');
@@ -722,7 +722,7 @@ class SampleCreationController extends Controller
         $code = [];
         $loop = 0;
         $cont = [];
-        
+
         foreach ($custCode as $cc) {
             if ((int) $cc > 0) {
                 array_push($cont, $loop);
@@ -731,11 +731,11 @@ class SampleCreationController extends Controller
             }
             ++$loop;
         }
-        
+
         $tt = sizeof($custCode) - 1;
         $ranges = range($cont[0], $tt);
         $values = [];
-        
+
         if (sizeof($cont) < 2) {
             array_push($values, '0');
             array_push($values, $custCode[$cont[0]]);
@@ -746,12 +746,12 @@ class SampleCreationController extends Controller
         }
 
         $cP = 'BA' . $configValue . implode('', $values) . $sampleType->code;
-        
+
         // Get batch number
         $configBatchNo = \App\Models\System\SystemConfiguration::where('key', 'batch_start_no')->first();
         $lastId = SampleHeader::latest('id')->first()->id ?? 0;
         $batchNoS = ($configBatchNo ? $configBatchNo->value : 1) + $lastId + 1;
-        
+
         $finalNo = '';
         if (strlen(strval($batchNoS)) < 4) {
             $zerosss = str_repeat('0', 4 - strlen(strval($batchNoS)));
@@ -759,7 +759,7 @@ class SampleCreationController extends Controller
         } else {
             $finalNo = strval($batchNoS);
         }
-        
+
         return $cP . '' . $finalNo;
     }
 
@@ -784,13 +784,13 @@ class SampleCreationController extends Controller
                     $sampleCode = $batchCode;
                     $sampleNo = '01';
                     $reportNumber = $batchCode;
-                    
+
                     Log::info('Smart sample code generation: Reusing batch_code for single sample in single batch', [
                         'batch_code' => $batchCode,
                         'total_sample_count' => $totalSampleCount,
                         'total_batch_count' => $totalBatchCount
                     ]);
-                    
+
                     return [
                         'sample_code' => $sampleCode,
                         'sample_no' => $sampleNo,
@@ -806,7 +806,7 @@ class SampleCreationController extends Controller
                 // Generate sample code: {batch_code}-{sample_no_seq_no}
                 $sampleCode = $batchCode . '-' . sprintf('%02d', $sampleSeqNo);
                 $sampleNo = sprintf('%02d', $sampleSeqNo);
-                
+
                 // Generate report number (keeping existing format for now)
                 $reportNumber = $batchCode;
 
@@ -821,7 +821,7 @@ class SampleCreationController extends Controller
                     'sample_no' => $sampleNo,
                     'report_number' => $reportNumber
                 ];
-                
+
             } catch (\Exception $e) {
                 Log::error('Error generating new sample code: ' . $e->getMessage());
                 // Fall back to legacy method
@@ -858,7 +858,7 @@ class SampleCreationController extends Controller
         // Get last sample number
         $lastSample = \App\SampleDetails::orderBy('id', 'DESC')->first();
         $lastSampleNo = $lastSample ? $lastSample->sample_no : $lab->start_sample_no;
-        
+
         $sampleNumber = intval($lastSampleNo) + 1;
         $sampleCode = 'S' . date('Y') . $lab->code . $sampleType->code . sprintf('%04d', $sampleNumber);
         $sampleNo = sprintf('%04d', $sampleNumber);
@@ -877,7 +877,7 @@ class SampleCreationController extends Controller
     private function createBatchDetailsRequest(array $sampleDetails, $batchId)
     {
         $request = new \Illuminate\Http\Request();
-        
+
         $detailsArray = [
             'sample_code' => [],
             'detail_header' => [],
@@ -936,7 +936,7 @@ class SampleCreationController extends Controller
     {
         try {
             $status = $this->sampleCreationService->getSampleCreationStatus($instance);
-            
+
             return response()->json([
                 'success' => true,
                 'data' => $status
@@ -972,10 +972,10 @@ class SampleCreationController extends Controller
         foreach ($request->instance_ids as $instanceId) {
             try {
                 $instance = SubmissionFormInstance::findOrFail($instanceId);
-                
+
                 if ($this->canUserCreateSamples($instance)) {
                     $result = $this->sampleCreationService->createSamplesFromForm($instance);
-                    
+
                     if ($result) {
                         $results[] = [
                             'instance_id' => $instanceId,
@@ -1047,7 +1047,7 @@ class SampleCreationController extends Controller
     {
         // Create Login Date (current date)
         $this->createSampleDate($sampleHeaderId, 'Login Date', now());
-        
+
         // Create Target Date (calculated based on analysis types)
         $targetDate = $this->calculateTargetDate($sampleHeaderId, $sampleDetails);
         $this->createSampleDate($sampleHeaderId, 'Target Date', $targetDate);
@@ -1060,29 +1060,29 @@ class SampleCreationController extends Controller
     {
         // Get analysis type IDs from sample details
         $analysisTypeIds = $this->getAnalysisTypeIdsFromSampleDetails($sampleDetails);
-        
+
         if (empty($analysisTypeIds)) {
             // If no analysis types found, use default reporting time of 0
             $maxReportingTime = 0;
         } else {
             // Get maximum reporting time from analysis types
             $analysisMaxReportingTime = AnalysisType::whereIn('id', $analysisTypeIds)->max('reporting_time') ?? 0;
-            
+
             // Get maximum reporting time from analysis elements
             $elementsMaxReportingTime = AnalysisElements::whereIn('analysis_type_id', $analysisTypeIds)->max('reporting_time') ?? 0;
-            
+
             // Use the maximum of both
             $maxReportingTime = max($analysisMaxReportingTime, $elementsMaxReportingTime);
         }
-        
+
         // Get sample header to access receipt_date
         $sampleHeader = SampleHeader::find($sampleHeaderId);
-        
+
         if (!$sampleHeader || !$sampleHeader->receipt_date) {
             // Fallback to current date if no receipt date
             return now()->addDays($maxReportingTime);
         }
-        
+
         // Calculate target date = receipt_date + max_reporting_time
         return \Carbon\Carbon::parse($sampleHeader->receipt_date)->addDays($maxReportingTime);
     }
@@ -1093,11 +1093,11 @@ class SampleCreationController extends Controller
     private function getAnalysisTypeIdsFromSampleDetails($sampleDetails)
     {
         $sampleDetailIds = collect($sampleDetails)->pluck('id')->filter()->toArray();
-        
+
         if (empty($sampleDetailIds)) {
             return [];
         }
-        
+
         // Get analysis type IDs from sample analysis type relations
         return SampleAnalysisTypeRelationView::whereIn('sample_detail_id', $sampleDetailIds)
             ->pluck('analysis_type_id')
@@ -1113,12 +1113,12 @@ class SampleCreationController extends Controller
         $sampleDate = SampleDate::where('sample_header_id', $sampleHeaderId)
             ->where('name', $dateName)
             ->first() ?? new SampleDate();
-        
+
         $sampleDate->name = $dateName;
         $sampleDate->sample_header_id = $sampleHeaderId;
         $sampleDate->date = $dateValue;
         $sampleDate->save();
-        
+
         return $sampleDate;
     }
 
@@ -1357,34 +1357,34 @@ class SampleCreationController extends Controller
     {
         $staging = \App\Models\SampleDetailStaging::with('sampleHeader.sample_type', 'sampleHeader.client')
             ->findOrFail($stagingId);
-        
+
         $dataJson = $staging->data_json;
         $subUnitId = $dataJson['company_sub_unit_id'] ?? null;
-        
+
         if (!$subUnitId) {
             return response()->json(['error' => 'No company sub unit specified'], 400);
         }
-        
+
         // Get sub unit
         $subUnit = \App\Models\CRM\CRMCompanySubUnit::with('companyUnit')->findOrFail($subUnitId);
-        
+
         // Get all sample point areas tied to this sub unit
         $areas = \App\Models\SamplePointArea::with([
             'crmArea',
-            'samplePoints' => function($q) {
+            'samplePoints' => function ($q) {
                 $q->where('active', 1)->with('crmSamplePoint');
             }
         ])
-        ->where('crm_company_sub_unit_id', $subUnitId)
-        ->where('active', 1)
-        ->get();
-        
+            ->where('crm_company_sub_unit_id', $subUnitId)
+            ->where('active', 1)
+            ->get();
+
         // Format areas for frontend
-        $formattedAreas = $areas->map(function($area) {
+        $formattedAreas = $areas->map(function ($area) {
             return [
                 'id' => $area->id,
                 'name' => $area->crmArea->name ?? 'N/A',
-                'sample_points' => $area->samplePoints->map(function($point) {
+                'sample_points' => $area->samplePoints->map(function ($point) {
                     return [
                         'id' => $point->id,
                         'name' => $point->crmSamplePoint->name ?? $point->name,
@@ -1392,7 +1392,7 @@ class SampleCreationController extends Controller
                 })
             ];
         });
-        
+
         return response()->json([
             'batch_code' => $staging->sampleHeader->batch_code,
             'sample_type' => $staging->sampleHeader->sample_type->name ?? 'N/A',
@@ -1418,25 +1418,25 @@ class SampleCreationController extends Controller
             'selections.*.sample_point_id' => 'required|exists:sample_points,id',
             'selections.*.quantity' => 'nullable|integer|min:1',
         ]);
-        
+
         DB::beginTransaction();
         try {
             $sampleHeader = \App\SampleHeader::findOrFail($validated['sample_header_id']);
             $staging = \App\Models\SampleDetailStaging::findOrFail($validated['sample_detail_stage_id']);
-            
+
             $dataJson = $staging->data_json;
             $analysisTypeIds = $dataJson['analysis_type_ids'] ?? '';
-            
+
             $createdSamples = [];
             $sampleIndex = 0;
-            
+
             // Count total samples that will be created (one per selected sample point)
             $totalSamples = count($validated['selections']);
-            
+
             // Loop through selected sample points - create one sample per point
             foreach ($validated['selections'] as $selection) {
                 $samplePointId = $selection['sample_point_id'];
-                
+
                 // Create one sample for this point (ignore quantity)
                 $sampleDetail = $this->createSampleDetailsFromStaging(
                     $sampleHeader,
@@ -1445,36 +1445,45 @@ class SampleCreationController extends Controller
                     $sampleIndex,
                     $totalSamples
                 );
-                
+
                 $createdSamples[] = $sampleDetail;
                 $sampleIndex++;
             }
-            
+
             // Mark staging as processed
             $staging->is_processed = 1;
             $staging->save();
-            
+
             // Create chain of custody for sample assignment
             $this->createChainOfCustody($sampleHeader, 'Sample Assignment');
-            
+
             // Check if all staging records for this header are processed
             $unprocessedCount = \App\Models\SampleDetailStaging::where('sample_header_id', $sampleHeader->id)
                 ->where('is_processed', 0)
                 ->count();
-            
+
             if ($unprocessedCount === 0) {
                 $sampleHeader->sample_detail_processed = 1;
                 $sampleHeader->save();
             }
-            
+
             DB::commit();
-            
+
+            // Auto-create runs/formulas for worksheets
+            try {
+                $autoRunService = app(\App\Services\Worksheets\AutoRunCreationService::class);
+                $autoRunService->createRunsForBatch($sampleHeader->id);
+            } catch (\Exception $e) {
+                Log::error('Error triggering auto run creation in assignSamples: ' . $e->getMessage());
+                // Don't fail the whole assignment if auto-run fails
+            }
+
             return response()->json([
                 'success' => true,
                 'message' => count($createdSamples) . ' samples assigned successfully!',
                 'sample_codes' => array_column($createdSamples, 'sample_code')
             ]);
-            
+
         } catch (\Exception $e) {
             DB::rollBack();
             Log::error('Error assigning samples: ' . $e->getMessage());
@@ -1488,16 +1497,16 @@ class SampleCreationController extends Controller
     private function createSampleDetailsFromStaging($sampleHeader, $staging, $samplePointId, $index, $totalSamples = 1)
     {
         $dataJson = $staging->data_json;
-        
+
         // Generate sample code
         $sampleCode = $this->generateSampleCode(
-            $sampleHeader->id, 
-            $index, 
-            $sampleHeader->batch_code, 
-            $totalSamples, 
+            $sampleHeader->id,
+            $index,
+            $sampleHeader->batch_code,
+            $totalSamples,
             1
         );
-        
+
         // Get sample header to access sample_type_id
         $sampleHeaderFull = \App\SampleHeader::with('sample_type')->find($sampleHeader->id);
 
@@ -1516,7 +1525,7 @@ class SampleCreationController extends Controller
                 $companyProductId = $sampleType->default_product_id;
             }
         }
-        
+
         // Get sample_condition_id
         $sampleConditionId = $dataJson['sample_condition_id'] ?? null;
         if (!$sampleConditionId) {
@@ -1525,7 +1534,7 @@ class SampleCreationController extends Controller
                 $sampleConditionId = (int) $sampleConditionConfig->value;
             }
         }
-        
+
         // Create sample detail
         $sampleDetail = new \App\SampleDetails();
         $sampleDetail->fill([
@@ -1542,7 +1551,7 @@ class SampleCreationController extends Controller
             'disposal_date' => $disposal_date,
         ]);
         $sampleDetail->save();
-        
+
         // Create analysis relations and results
         if (!empty($dataJson['analysis_type_ids'])) {
             $this->createCapturedResultsForAnalysisType(
@@ -1552,15 +1561,15 @@ class SampleCreationController extends Controller
                 $sampleDetail->sample_code
             );
         }
-        
+
         // Create sample dates
         $this->createSampleDates($sampleHeader->id, [$sampleDetail]);
-        
+
         Log::info('Created sample detail from staging', [
             'sample_detail_id' => $sampleDetail->id,
             'sample_code' => $sampleDetail->sample_code
         ]);
-        
+
         return [
             'id' => $sampleDetail->id,
             'sample_code' => $sampleDetail->sample_code
@@ -1574,19 +1583,19 @@ class SampleCreationController extends Controller
     {
         try {
             $staging = \App\Models\SampleDetailStaging::with('sampleHeader.sample_type')->findOrFail($stagingId);
-            
+
             $sampleTypeId = $staging->sampleHeader->sample_type_id;
             $dataJson = $staging->data_json;
             $subUnitId = $dataJson['company_sub_unit_id'] ?? null;
             $customerId = $staging->sampleHeader->crm_customer_id;
-            
+
             // Get company unit id from sub unit if available
             $companyUnitId = null;
             if ($subUnitId) {
                 $subUnit = \App\Models\CRM\CRMCompanySubUnit::with('companyUnit')->find($subUnitId);
                 $companyUnitId = $subUnit->companyUnit->id ?? null;
             }
-            
+
             if (!$sampleTypeId || !$customerId) {
                 Log::error('Missing sample type or customer', [
                     'sample_type_id' => $sampleTypeId,
@@ -1594,35 +1603,35 @@ class SampleCreationController extends Controller
                 ]);
                 return response()->json(['error' => 'Sample type or customer not found'], 400);
             }
-            
+
             // Get ALL areas linked to this sample type using Eloquent
-            $availableAreas = \App\Models\Area::whereHas('sampleTypes', function($query) use ($sampleTypeId) {
-                    $query->where('sample_types.id', $sampleTypeId);
-                })
+            $availableAreas = \App\Models\Area::whereHas('sampleTypes', function ($query) use ($sampleTypeId) {
+                $query->where('sample_types.id', $sampleTypeId);
+            })
                 ->select('id', 'name', 'code')
                 ->distinct()
                 ->get();
-            
+
             Log::info('Found areas for sample type', [
                 'sample_type_id' => $sampleTypeId,
                 'area_count' => $availableAreas->count()
             ]);
-            
+
             // Get ALL sample points for this sample type (not filtered by area)
             // User can select any sample point regardless of area selection
-            $allSamplePoints = \App\Models\SamplePoint::whereHas('sampleTypes', function($query) use ($sampleTypeId) {
-                    $query->where('sample_types.id', $sampleTypeId);
-                })
+            $allSamplePoints = \App\Models\SamplePoint::whereHas('sampleTypes', function ($query) use ($sampleTypeId) {
+                $query->where('sample_types.id', $sampleTypeId);
+            })
                 ->select('id', 'name', 'code')
                 ->distinct()
                 ->get();
-            
+
             Log::info('All sample points for sample type', [
                 'sample_type_id' => $sampleTypeId,
                 'all_points_count' => $allSamplePoints->count(),
                 'sample_points' => $allSamplePoints->toArray()
             ]);
-            
+
             // For compatibility with frontend, group all points under a single key
             // Or return as flat array - the frontend needs to be updated accordingly
             $samplePointsByArea = [];
@@ -1630,15 +1639,15 @@ class SampleCreationController extends Controller
                 // Return all sample points for each area (same list for all areas)
                 $samplePointsByArea[$area->id] = $allSamplePoints;
             }
-            
+
             // Also add a special key for "all points" so frontend can show all regardless of area selection
             $samplePointsByArea['all'] = $allSamplePoints;
-            
+
             Log::info('Returning areas and points', [
                 'areas' => count($availableAreas),
                 'sample_points_count' => array_sum(array_map('count', $samplePointsByArea))
             ]);
-            
+
             return response()->json([
                 'areas' => $availableAreas,
                 'sample_points' => $samplePointsByArea,
@@ -1646,7 +1655,7 @@ class SampleCreationController extends Controller
                 'company_unit_id' => $companyUnitId,
                 'customer_id' => $customerId
             ]);
-            
+
         } catch (\Exception $e) {
             Log::error('Error fetching available areas and points: ' . $e->getMessage());
             Log::error($e->getTraceAsString());
@@ -1666,19 +1675,19 @@ class SampleCreationController extends Controller
             'crm_company_unit_id' => 'nullable|exists:crm_company_units,id',
             'crm_company_sub_unit_id' => 'nullable|exists:crm_company_sub_units,id',
         ]);
-        
+
         DB::beginTransaction();
         try {
             $samplePointArea = \App\Models\SamplePointArea::where('crm_customer_id', $validated['customer_id'])
                 ->where('crm_area_id', $validated['area_id'])
                 ->where('crm_company_sub_unit_id', $validated['crm_company_sub_unit_id'] ?? null)
                 ->first();
-            
+
             if (!$samplePointArea) {
                 // Get area details for name
                 $area = \App\Models\Area::find($validated['area_id']);
                 $areaName = $area ? $area->name : 'Unknown Area';
-                
+
                 // Create new SamplePointArea
                 $samplePointArea = \App\Models\SamplePointArea::create([
                     'crm_customer_id' => $validated['customer_id'],
@@ -1690,16 +1699,16 @@ class SampleCreationController extends Controller
                     'description' => 'Auto-created from sample assignment',
                     'active' => true
                 ]);
-                
+
                 Log::info('Created new SamplePointArea', ['id' => $samplePointArea->id]);
             }
-            
+
             // 2. Check if CRM\SamplePoint exists for this customer + sample_point + area
             $crmSamplePoint = \App\Models\CRM\SamplePoint::where('crm_customer_id', $validated['customer_id'])
                 ->where('crm_sample_point_id', $validated['sample_point_id'])
                 ->where('crm_area_id', $validated['area_id'])
                 ->first();
-            
+
             if (!$crmSamplePoint) {
                 // Create new CRM\SamplePoint
                 $crmSamplePoint = \App\Models\CRM\SamplePoint::create([
@@ -1711,12 +1720,12 @@ class SampleCreationController extends Controller
                     'crm_company_sub_unit_id' => $validated['crm_company_sub_unit_id'] ?? null,
                     'active' => true
                 ]);
-                
+
                 Log::info('Created new CRM\SamplePoint', ['id' => $crmSamplePoint->id]);
             }
-            
+
             DB::commit();
-            
+
             return response()->json([
                 'success' => true,
                 'message' => 'Sample point added to customer successfully',
@@ -1725,7 +1734,7 @@ class SampleCreationController extends Controller
                     'crm_sample_point_id' => $crmSamplePoint->id
                 ]
             ]);
-            
+
         } catch (\Exception $e) {
             DB::rollBack();
             Log::error('Error adding customer sample point: ' . $e->getMessage());

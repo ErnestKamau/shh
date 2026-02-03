@@ -29,11 +29,11 @@ class SampleCreationService
         ]);
 
         DB::beginTransaction();
-        
+
         try {
             // Get all mapped elements for this form
             $mappedElements = $this->getMappedElements($instance);
-            
+
             if (empty($mappedElements)) {
                 Log::warning('No mapped elements found for form instance', ['instance_id' => $instance->id]);
                 DB::rollBack();
@@ -42,30 +42,38 @@ class SampleCreationService
 
             // Extract form data
             $formData = $this->extractFormData($instance, $mappedElements);
-            
+
             // Count distinct sample_type_id values to determine batch count
             $batchCount = $this->countDistinctSampleTypes($instance);
-            
+
             // Create sample header
             $sampleHeader = $this->createSampleHeader($formData, $instance, $batchCount);
-            
+
             // Create sample details
             $sampleDetails = $this->createSampleDetails($sampleHeader, $formData, $instance, $batchCount);
-            
+
             DB::commit();
-            
+
+            // Auto-create runs/formulas for worksheets
+            try {
+                $autoRunService = app(\App\Services\Worksheets\AutoRunCreationService::class);
+                $autoRunService->createRunsForBatch($sampleHeader->id);
+            } catch (\Exception $e) {
+                Log::error('Error triggering auto run creation in createSamplesFromForm: ' . $e->getMessage());
+            }
+
             Log::info('Successfully created samples from form instance', [
                 'instance_id' => $instance->id,
                 'sample_header_id' => $sampleHeader->id,
                 'sample_details_count' => count($sampleDetails),
                 'batch_count' => $batchCount
             ]);
-            
+
             return [
                 'sample_header' => $sampleHeader,
                 'sample_details' => $sampleDetails
             ];
-            
+
         } catch (\Exception $e) {
             DB::rollBack();
             Log::error('Failed to create samples from form instance', [
@@ -82,13 +90,13 @@ class SampleCreationService
      */
     private function getMappedElements(SubmissionFormInstance $instance)
     {
-        return SubmissionFormElement::whereHas('holder.section', function($query) use ($instance) {
+        return SubmissionFormElement::whereHas('holder.section', function ($query) use ($instance) {
             $query->where('submission_form_id', $instance->submission_form_id);
         })
-        ->where('is_mapped', true)
-        ->whereNotNull('mapping_table')
-        ->whereNotNull('mapping_field')
-        ->get();
+            ->where('is_mapped', true)
+            ->whereNotNull('mapping_table')
+            ->whereNotNull('mapping_field')
+            ->get();
     }
 
     /**
@@ -103,12 +111,12 @@ class SampleCreationService
 
         foreach ($mappedElements as $element) {
             $value = $this->getElementValue($instance, $element);
-            
+
             if ($value !== null) {
                 $mappingConfig = $element->getMappingConfig();
                 $table = $mappingConfig['table'];
                 $field = $mappingConfig['field'];
-                
+
                 // Handle array values (from rows sections)
                 if (is_array($value)) {
                     foreach ($value as $index => $itemValue) {
@@ -133,22 +141,22 @@ class SampleCreationService
     {
         // Check if this is a multi-select field
         $multiSelectTypes = ['sample_point_select', 'analysis_type_select', 'analysis_elements_select'];
-        
+
         if (in_array($element->element_type, $multiSelectTypes)) {
             // For multi-select fields, get all values
             $instanceValues = $instance->values()
                 ->where('submission_form_element_id', $element->id)
                 ->orderBy('array_index')
                 ->get();
-            
+
             if ($instanceValues->isEmpty()) {
                 return null;
             }
-            
+
             // Return comma-separated values
             return $instanceValues->pluck('value')->filter()->implode(',');
         }
-        
+
         // For single-select fields, get first value
         $instanceValue = $instance->values()
             ->where('submission_form_element_id', $element->id)
@@ -170,18 +178,18 @@ class SampleCreationService
             case 'standard_select':
                 // For custom select fields, return the selected value (ID)
                 return $instanceValue->value;
-                
+
             case 'date':
             case 'datetime':
                 return $instanceValue->value ? Carbon::parse($instanceValue->value)->format('Y-m-d') : null;
-                
+
             case 'checkbox':
                 return $instanceValue->value ? 1 : 0;
-                
+
             case 'file':
                 // For file fields, we might want to store the file path or handle differently
                 return $instanceValue->file_path;
-                
+
             default:
                 return $instanceValue->value;
         }
@@ -193,12 +201,12 @@ class SampleCreationService
     private function createSampleHeader($formData, SubmissionFormInstance $instance, $batchCount = 1)
     {
         $headerData = $formData['sample_headers'] ?? [];
-        
+
         // Generate batch code if not provided
         if (empty($headerData['batch_code'])) {
             $headerData['batch_code'] = $this->generateBatchCode($headerData, $instance->id, $batchCount, $instance);
         }
-        
+
         // Set default values
         $headerData['status'] = $headerData['status'] ?? 'Samples Reception';
         $headerData['priority'] = $headerData['priority'] ?? 'Normal';
@@ -209,17 +217,17 @@ class SampleCreationService
         $headerData['submission_form_instance_id'] = $instance->id;
         $headerData['created_at'] = now();
         $headerData['updated_at'] = now();
-        
+
         // Set receipt date if not provided
         if (empty($headerData['receipt_date'])) {
             $headerData['receipt_date'] = now()->format('Y-m-d');
         }
-        
+
         // Set date collected if not provided
         if (empty($headerData['date_collected'])) {
             $headerData['date_collected'] = now()->format('Y-m-d');
         }
-        
+
         // Get CRM unit name from client unit ID
         if (!empty($headerData['crm_unit_id']) && empty($headerData['crm_unit_name'])) {
             $crmUnit = CRMCompanyUnit::find($headerData['crm_unit_id']);
@@ -227,15 +235,15 @@ class SampleCreationService
                 $headerData['crm_unit_name'] = $crmUnit->name;
             }
         }
-        
+
         $sampleHeader = SampleHeader::create($headerData);
-        
+
         Log::info('Created sample header', [
             'sample_header_id' => $sampleHeader->id,
             'batch_code' => $sampleHeader->batch_code,
             'batch_count' => $batchCount
         ]);
-        
+
         return $sampleHeader;
     }
 
@@ -246,50 +254,50 @@ class SampleCreationService
     {
         $sampleDetails = [];
         $detailsData = $formData['sample_details'] ?? [];
-        
+
         // If no sample details data, create a default sample
         if (empty($detailsData)) {
             $detailsData = [0 => []]; // Create one default sample
         }
-        
+
         // Determine total sample count for smart code generation
         $sampleCount = $this->determineSampleCount($detailsData, $formData);
-        
+
         foreach ($detailsData as $index => $detailData) {
             // Generate sample code if not provided
             if (empty($detailData['sample_code'])) {
                 $detailData['sample_code'] = $this->generateSampleCode($sampleHeader, $detailData, $sampleHeader->batch_code, $sampleCount, $batchCount);
             }
-            
+
             // Set required fields
             $detailData['sample_header_id'] = $sampleHeader->id;
             $detailData['created_at'] = now();
             $detailData['updated_at'] = now();
-            
+
             // Set default values
             $detailData['is_ammendment'] = $detailData['is_ammendment'] ?? 0;
             $detailData['ammendment_number'] = $detailData['ammendment_number'] ?? 1;
             $detailData['is_disposed'] = $detailData['is_disposed'] ?? 0;
-            
+
             $sampleDetail = SampleDetails::create($detailData);
             $sampleDetails[] = $sampleDetail;
-            
+
             // Create analysis relations if analysis types are specified
             if (!empty($detailData['analysis_type_id'])) {
                 $this->createDetailAnalysisRelation(
-                    $sampleHeader->id, 
-                    $sampleDetail->id, 
+                    $sampleHeader->id,
+                    $sampleDetail->id,
                     explode(',', $detailData['analysis_type_id'])
                 );
             }
-            
+
             Log::info('Created sample detail', [
                 'sample_detail_id' => $sampleDetail->id,
                 'sample_code' => $sampleDetail->sample_code,
                 'sample_count' => $sampleCount
             ]);
         }
-        
+
         return $sampleDetails;
     }
 
@@ -309,7 +317,7 @@ class SampleCreationService
             if (!$instance) {
                 $instance = \App\Models\SubmissionFormInstance::find($submissionFormInstanceId);
             }
-            
+
             if (!$instance) {
                 throw new \Exception('Submission form instance not found');
             }
@@ -322,32 +330,32 @@ class SampleCreationService
             // SMART LOGIC: If only 1 batch, reuse the form_number
             if ($batchCount === 1) {
                 $batchCode = $instance->form_number;
-                
+
                 Log::info('Smart batch code generation: Reusing form_number for single batch', [
                     'form_number' => $batchCode,
                     'batch_count' => $batchCount
                 ]);
-                
+
                 return $batchCode;
             }
 
             // Multiple batches: Use sequential batch codes
             $prefix = $submissionForm->naming_convention_prefix ?? 'SF';
             $currentYear = date('Y');
-            
+
             // Get next batch sequence for this form instance and year
             $batchSeqNo = \App\Models\BatchSequence::getNextBatchSequence($submissionFormInstanceId, $currentYear);
-            
+
             // Generate batch code: {prefix}{batch_seq_no}/{YY}
             $batchCode = $prefix . sprintf('%03d', $batchSeqNo) . '/' . date('y');
-            
+
             Log::info('Standard batch code generation for multiple batches', [
                 'batch_code' => $batchCode,
                 'batch_count' => $batchCount
             ]);
-            
+
             return $batchCode;
-            
+
         } catch (\Exception $e) {
             Log::error('Error generating new batch code: ' . $e->getMessage());
             // Fall back to legacy method
@@ -365,33 +373,33 @@ class SampleCreationService
         if (!empty($headerData['crm_customer_id'])) {
             $customer = CRMCustomer::find($headerData['crm_customer_id']);
         }
-        
+
         if (!$customer) {
             throw new \Exception('Customer is required to generate batch code');
         }
-        
+
         // Get sample type
         $sampleType = null;
         if (!empty($headerData['sample_type_id'])) {
             $sampleType = SampleType::find($headerData['sample_type_id']);
         }
-        
+
         if (!$sampleType) {
             throw new \Exception('Sample type is required to generate batch code');
         }
-        
+
         // Get batch configuration
         $batchConfig = SystemConfiguration::where('key', 'batch_code_config')->first();
         if (!$batchConfig) {
             throw new \Exception('Batch code configuration not found');
         }
-        
+
         // Generate customer code part
         $custCode = str_split($customer->code);
         $code = [];
         $loop = 0;
         $cont = [];
-        
+
         foreach ($custCode as $cc) {
             if ((int) $cc > 0) {
                 array_push($cont, $loop);
@@ -400,11 +408,11 @@ class SampleCreationService
             }
             ++$loop;
         }
-        
+
         $tt = sizeof($custCode) - 1;
         $ranges = range($cont[0], $tt);
         $values = [];
-        
+
         if (sizeof($cont) < 2) {
             array_push($values, '0');
             array_push($values, $custCode[$cont[0]]);
@@ -413,26 +421,26 @@ class SampleCreationService
                 array_push($values, $custCode[$r]);
             }
         }
-        
+
         $cP = 'BA' . $batchConfig->value . implode('', $values) . $sampleType->code;
-        
+
         // Get batch number
         $configBatchNo = SystemConfiguration::where('key', 'batch_start_no')->first();
         if (!$configBatchNo) {
             throw new \Exception('Batch start number configuration not found');
         }
-        
+
         $lastId = SampleHeader::latest('id')->first()->id ?? 0;
         $batchNoS = $configBatchNo->value + $lastId + 1;
         $finalNo = '';
-        
+
         if (strlen(strval($batchNoS)) < 4) {
             $zerosss = str_repeat('0', 4 - strlen(strval($batchNoS)));
             $finalNo = $zerosss . '' . strval($batchNoS);
         } else {
             $finalNo = strval($batchNoS);
         }
-        
+
         return $cP . '' . $finalNo;
     }
 
@@ -448,31 +456,31 @@ class SampleCreationService
                 // SMART LOGIC: Only reuse batch_code if this is truly a single sample in a single batch
                 if ($sampleCount === 1 && $batchCount === 1) {
                     $sampleCode = $batchCode;
-                    
+
                     Log::info('Smart sample code generation: Reusing batch_code for single sample in single batch', [
                         'batch_code' => $batchCode,
                         'sample_count' => $sampleCount,
                         'batch_count' => $batchCount
                     ]);
-                    
+
                     return $sampleCode;
                 }
-                
+
                 // Multiple samples: Use sequential sample codes
                 // Get next sample sequence for this batch
                 $sampleSeqNo = \App\Models\SampleSequence::getNextSampleSequence($batchCode);
-                
+
                 // Generate sample code: {batch_code}-{sample_no_seq_no}
                 $sampleCode = $batchCode . '-' . sprintf('%03d', $sampleSeqNo);
-                
+
                 Log::info('Standard sample code generation for multiple samples', [
                     'sample_code' => $sampleCode,
                     'sample_count' => $sampleCount,
                     'batch_count' => $batchCount
                 ]);
-                
+
                 return $sampleCode;
-                
+
             } catch (\Exception $e) {
                 Log::error('Error generating new sample code: ' . $e->getMessage());
                 // Fall back to legacy method
@@ -494,31 +502,31 @@ class SampleCreationService
         if (!empty($detailData['lab_id'])) {
             $lab = Lab::find($detailData['lab_id']);
         }
-        
+
         if (!$lab) {
             // Get default lab or first available lab
             $lab = Lab::where('active', 1)->first();
         }
-        
+
         if (!$lab) {
             throw new \Exception('Lab is required to generate sample code');
         }
-        
+
         // Get sample type
         $sampleType = SampleType::find($sampleHeader->sample_type_id);
         if (!$sampleType) {
             throw new \Exception('Sample type not found');
         }
-        
+
         // Get last sample number
         $lastSample = SampleDetails::orderBy('id', 'DESC')->first();
         $lastSampleNo = $lastSample ? $lastSample->sample_no : $lab->start_sample_no;
-        
+
         $sampleNumber = intval($lastSampleNo) + 1;
-        
+
         // Generate sample code
         $sampleCode = 'S' . date('Y') . $lab->code . $sampleType->code . sprintf('%04d', $sampleNumber);
-        
+
         return $sampleCode;
     }
 
@@ -528,8 +536,9 @@ class SampleCreationService
     private function createDetailAnalysisRelation($sampleHeaderId, $sampleDetailId, $analysisTypeIds)
     {
         foreach ($analysisTypeIds as $analysisTypeId) {
-            if (empty($analysisTypeId)) continue;
-            
+            if (empty($analysisTypeId))
+                continue;
+
             // Create the analysis relation
             // This would typically create a record in a sample_analysis_relations table
             // The exact implementation depends on your database structure
@@ -552,7 +561,7 @@ class SampleCreationService
         if (!$instance->isSubmitted()) {
             return false;
         }
-        
+
         // Check if there are mapped elements
         $mappedElements = $this->getMappedElements($instance);
         return $mappedElements->count() > 0;
@@ -565,7 +574,7 @@ class SampleCreationService
     {
         // Check if samples already exist for this instance
         $existingSamples = SampleHeader::where('submission_form_instance_id', $instance->id)->get();
-        
+
         if ($existingSamples->count() > 0) {
             return [
                 'status' => 'created',
@@ -573,14 +582,14 @@ class SampleCreationService
                 'message' => 'Samples already created for this form instance'
             ];
         }
-        
+
         if (!$this->canCreateSamples($instance)) {
             return [
                 'status' => 'cannot_create',
                 'message' => 'Cannot create samples from this form instance'
             ];
         }
-        
+
         return [
             'status' => 'ready',
             'message' => 'Ready to create samples'
@@ -593,13 +602,13 @@ class SampleCreationService
     private function countDistinctSampleTypes(SubmissionFormInstance $instance)
     {
         // Find sample_type_id element
-        $sampleTypeElement = SubmissionFormElement::whereHas('holder.section', function($query) use ($instance) {
+        $sampleTypeElement = SubmissionFormElement::whereHas('holder.section', function ($query) use ($instance) {
             $query->where('submission_form_id', $instance->submission_form_id);
         })
-        ->where('is_mapped', true)
-        ->where('mapping_table', 'sample_headers')
-        ->where('mapping_field', 'sample_type_id')
-        ->first();
+            ->where('is_mapped', true)
+            ->where('mapping_table', 'sample_headers')
+            ->where('mapping_field', 'sample_type_id')
+            ->first();
 
         if (!$sampleTypeElement) {
             // No sample type element found, default to 1 batch

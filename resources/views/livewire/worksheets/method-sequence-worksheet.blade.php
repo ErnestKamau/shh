@@ -61,26 +61,29 @@
         }
 
         @keyframes pulse-blue {
-            0%, 100% {
+
+            0%,
+            100% {
                 box-shadow: 0 4px 12px rgba(59, 130, 246, 0.3), 0 0 0 4px white;
             }
+
             50% {
                 box-shadow: 0 4px 20px rgba(59, 130, 246, 0.5), 0 0 0 4px white;
             }
         }
-        
+
         .timer-safe {
             color: #10b981;
         }
-        
+
         .timer-warning {
             color: #f59e0b;
         }
-        
+
         .timer-expired {
             color: #ef4444;
         }
-        
+
         .timeline-stage .card {
             border-radius: 12px;
             box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
@@ -119,15 +122,15 @@
         .run-card {
             transition: all 0.3s ease;
         }
-        
+
         .run-card:hover {
             box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
         }
-        
+
         .searchable-dropdown {
             position: relative;
         }
-        
+
         .dropdown-results {
             position: absolute;
             top: 100%;
@@ -141,12 +144,12 @@
             z-index: 1000;
             box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
         }
-        
+
         .dropdown-results .dropdown-item {
             padding: 8px 12px;
             cursor: pointer;
         }
-        
+
         .dropdown-results .dropdown-item:hover {
             background: #f3f4f6;
         }
@@ -154,7 +157,8 @@
 
     <!-- Message Alert -->
     @if($message)
-        <div class="alert alert-{{ $messageType === 'success' ? 'success' : 'danger' }} alert-dismissible fade show" role="alert">
+        <div class="alert alert-{{ $messageType === 'success' ? 'success' : 'danger' }} alert-dismissible fade show"
+            role="alert">
             {{ $message }}
             <button type="button" class="btn-close" wire:click="dismissMessage"></button>
         </div>
@@ -179,56 +183,60 @@
     <!-- Runs Section -->
     @if($runs && $runs->count() > 0)
         <div class="runs-section">
-                @foreach($runs as $run)
+            @foreach($runs as $run)
                 <div class="card run-card mb-3">
                     <!-- Collapsed Run Header -->
-                    <div class="card-header d-flex justify-content-between align-items-center" 
-                         style="cursor: pointer; background: #f8f9fa;">
+                    <div class="card-header d-flex justify-content-between align-items-center"
+                        style="cursor: pointer; background: #f8f9fa;">
                         <div class="d-flex align-items-center">
                             <h5 class="mb-0 mr-3">
                                 <i class="mdi mdi-run text-primary"></i>
-                        {{ $run->run_name }}
+                                {{ $run->run_name }}
                             </h5>
-                            <span class="badge badge-{{ $run->status === 'completed' ? 'success' : ($run->status === 'in_progress' ? 'warning' : 'secondary') }} mr-2">
-                            {{ ucfirst($run->status) }}
-                        </span>
+                            <span
+                                class="badge badge-{{ $run->status === 'completed' ? 'success' : ($run->status === 'in_progress' ? 'warning' : 'secondary') }} mr-2">
+                                {{ ucfirst($run->status) }}
+                            </span>
                             <span class="text-muted">
-                                <i class="mdi mdi-calendar"></i> 
+                                <i class="mdi mdi-calendar"></i>
                                 {{ $run->run_date ? $run->run_date->format('Y-m-d') : '-' }}
                             </span>
                             <span class="text-muted ml-3">
-                                <i class="mdi mdi-account"></i> 
+                                <i class="mdi mdi-account"></i>
                                 {{ $run->analyst->name ?? 'No analyst assigned' }}
                             </span>
                         </div>
                         <div class="d-flex align-items-center">
-                            <button class="btn btn-sm btn-outline-danger mr-2" 
-                                    wire:click.stop="deleteRun({{ $run->id }})"
-                                    onclick="return confirm('Are you sure you want to delete this run?')">
+                            @if($run->status === 'pending')
+                                <button class="btn btn-sm btn-success mr-2" wire:click.stop="startRun({{ $run->id }})">
+                                    <i class="mdi mdi-play"></i> Start Run
+                                </button>
+                            @endif
+                            <button class="btn btn-sm btn-outline-danger mr-2" wire:click.stop="deleteRun({{ $run->id }})"
+                                onclick="return confirm('Are you sure you want to delete this run?')">
                                 <i class="mdi mdi-delete"></i>
                             </button>
-                            <button class="btn btn-sm btn-outline-primary mr-2" 
-                                    wire:click.stop="editRun({{ $run->id }})">
+                            <button class="btn btn-sm btn-outline-primary mr-2" wire:click.stop="editRun({{ $run->id }})">
                                 <i class="mdi mdi-pencil"></i>
                             </button>
-                            <button class="btn btn-sm btn-outline-secondary" 
-                                    wire:click.stop="toggleRunExpansion({{ $run->id }})">
+                            <button class="btn btn-sm btn-outline-secondary"
+                                wire:click.stop="toggleRunExpansion({{ $run->id }})">
                                 <i class="mdi mdi-chevron-{{ in_array($run->id, $expandedRunIds) ? 'up' : 'down' }}"></i>
-                    </button>
-            </div>
-        </div>
+                            </button>
+                        </div>
+                    </div>
 
                     <!-- Expanded Run Body -->
                     @if(in_array($run->id, $expandedRunIds))
-                <div class="card-body">
+                        <div class="card-body">
                             <!-- Samples in Run -->
                             <div class="mb-4">
                                 <h6 class="mb-3">Samples ({{ $run->samples->count() }}):</h6>
                                 <div class="d-flex flex-wrap">
                                     @foreach($run->samples as $runSample)
                                         <span class="badge badge-pill badge-info p-2 mr-2 mb-2">
-                                    {{ $runSample->capturedResult->sample->sample_code }}
-                                </span>
+                                            {{ $runSample->capturedResult->sample->sample_code }}
+                                        </span>
                                     @endforeach
                                 </div>
                             </div>
@@ -237,23 +245,23 @@
                             @php
                                 $timerStatus = $this->getRunTimerStatus($run);
                             @endphp
-                            
+
                             @if($timerStatus['hasExpired'])
                                 <div class="alert alert-danger">
-                                    <i class="mdi mdi-alert"></i> 
+                                    <i class="mdi mdi-alert"></i>
                                     <strong>Alert:</strong> One or more stages have exceeded their duration limit!
                                 </div>
                             @elseif($timerStatus['hasWarnings'])
                                 <div class="alert alert-warning">
-                                    <i class="mdi mdi-clock-alert"></i> 
+                                    <i class="mdi mdi-clock-alert"></i>
                                     <strong>Warning:</strong> One or more stages are approaching their duration limit.
-                    </div>
+                                </div>
                             @endif
 
                             <!-- Vertical Timeline -->
-                    <h6 class="mb-3">
-                        <i class="mdi mdi-timeline"></i> Stages Timeline
-                    </h6>
+                            <h6 class="mb-3">
+                                <i class="mdi mdi-timeline"></i> Stages Timeline
+                            </h6>
                             <div class="vertical-timeline">
                                 @foreach($run->stageData->sortBy('stage.order') as $stageData)
                                     <div class="timeline-stage">
@@ -264,8 +272,8 @@
 
                                         <!-- Collapsed Stage Block -->
                                         <div class="card">
-                                            <div class="card-header d-flex justify-content-between align-items-center" 
-                                                 style="cursor: pointer; background: {{ $stageData->status === 'completed' ? '#f0fdf4' : ($stageData->status === 'in_progress' ? '#eff6ff' : '#f9fafb') }};">
+                                            <div class="card-header d-flex justify-content-between align-items-center"
+                                                style="cursor: pointer; background: {{ $stageData->status === 'completed' ? '#f0fdf4' : ($stageData->status === 'in_progress' ? '#eff6ff' : '#f9fafb') }};">
                                                 <div class="flex-grow-1">
                                                     <div class="d-flex align-items-center mb-1">
                                                         <h6 class="mb-0 mr-2">{{ $stageData->stage->name }}</h6>
@@ -277,10 +285,11 @@
                                                         @endif
                                                     </div>
                                                     <div class="d-flex align-items-center mt-1">
-                                                        <span class="badge badge-{{ $stageData->status === 'completed' ? 'success' : ($stageData->status === 'in_progress' ? 'warning' : 'secondary') }} mr-2">
+                                                        <span
+                                                            class="badge badge-{{ $stageData->status === 'completed' ? 'success' : ($stageData->status === 'in_progress' ? 'warning' : 'secondary') }} mr-2">
                                                             {{ ucfirst($stageData->status) }}
                                                         </span>
-                                                        
+
                                                         @if($stageData->status === 'in_progress' && $stageData->getRemainingTime() !== null)
                                                             @php
                                                                 $remaining = $stageData->getRemainingTime();
@@ -299,9 +308,10 @@
                                                         @endif
                                                     </div>
                                                 </div>
-                                                <button class="btn btn-sm btn-outline-secondary" 
-                                                        wire:click.stop="toggleStageExpansion({{ $stageData->id }})">
-                                                    <i class="mdi mdi-chevron-{{ in_array($stageData->id, $expandedStageIds) ? 'up' : 'down' }}"></i>
+                                                <button class="btn btn-sm btn-outline-secondary"
+                                                    wire:click.stop="toggleStageExpansion({{ $stageData->id }})">
+                                                    <i
+                                                        class="mdi mdi-chevron-{{ in_array($stageData->id, $expandedStageIds) ? 'up' : 'down' }}"></i>
                                                 </button>
                                             </div>
 
@@ -312,28 +322,26 @@
                                                     <div class="row mb-3">
                                                         <div class="col-md-4">
                                                             <label class="form-label small">Date In</label>
-                                                            <input type="date" 
-                                                                   class="form-control form-control-sm" 
-                                                                   value="{{ $stageData->date_in?->format('Y-m-d') }}"
-                                                                   wire:blur="autoSaveStageField({{ $stageData->id }}, 'date_in', $event.target.value)">
-                                            </div>
+                                                            <input type="date" class="form-control form-control-sm"
+                                                                value="{{ $stageData->date_in?->format('Y-m-d') }}"
+                                                                wire:blur="autoSaveStageField({{ $stageData->id }}, 'date_in', $event.target.value)">
+                                                        </div>
                                                         <div class="col-md-4">
                                                             <label class="form-label small">Time In</label>
-                                                            <input type="time" 
-                                                                   class="form-control form-control-sm" 
-                                                                   value="{{ $stageData->time_in?->format('H:i') }}"
-                                                                   wire:blur="autoSaveStageField({{ $stageData->id }}, 'time_in', $event.target.value)">
-                                        </div>
-                                                <div class="col-md-4">
+                                                            <input type="time" class="form-control form-control-sm"
+                                                                value="{{ $stageData->time_in?->format('H:i') }}"
+                                                                wire:blur="autoSaveStageField({{ $stageData->id }}, 'time_in', $event.target.value)">
+                                                        </div>
+                                                        <div class="col-md-4">
                                                             <label class="form-label small">Started By</label>
-                                                            <select class="form-control form-control-sm" 
-                                                                    wire:change="autoSaveStageField({{ $stageData->id }}, 'started_by_user_id', $event.target.value)">
+                                                            <select class="form-control form-control-sm"
+                                                                wire:change="autoSaveStageField({{ $stageData->id }}, 'started_by_user_id', $event.target.value)">
                                                                 <option value="">Select...</option>
                                                                 @foreach($users as $user)
                                                                     <option value="{{ $user->id }}" {{ $stageData->started_by_user_id == $user->id ? 'selected' : '' }}>
                                                                         {{ $user->name }}
                                                                     </option>
-                                                        @endforeach
+                                                                @endforeach
                                                             </select>
                                                         </div>
                                                     </div>
@@ -341,28 +349,26 @@
                                                     <div class="row mb-3">
                                                         <div class="col-md-4">
                                                             <label class="form-label small">Date Out</label>
-                                                            <input type="date" 
-                                                                   class="form-control form-control-sm" 
-                                                                   value="{{ $stageData->date_out?->format('Y-m-d') }}"
-                                                                   wire:blur="autoSaveStageField({{ $stageData->id }}, 'date_out', $event.target.value)">
+                                                            <input type="date" class="form-control form-control-sm"
+                                                                value="{{ $stageData->date_out?->format('Y-m-d') }}"
+                                                                wire:blur="autoSaveStageField({{ $stageData->id }}, 'date_out', $event.target.value)">
                                                         </div>
                                                         <div class="col-md-4">
                                                             <label class="form-label small">Time Out</label>
-                                                            <input type="time" 
-                                                                   class="form-control form-control-sm" 
-                                                                   value="{{ $stageData->time_out?->format('H:i') }}"
-                                                                   wire:blur="autoSaveStageField({{ $stageData->id }}, 'time_out', $event.target.value)">
-                                                </div>
-                                                <div class="col-md-4">
+                                                            <input type="time" class="form-control form-control-sm"
+                                                                value="{{ $stageData->time_out?->format('H:i') }}"
+                                                                wire:blur="autoSaveStageField({{ $stageData->id }}, 'time_out', $event.target.value)">
+                                                        </div>
+                                                        <div class="col-md-4">
                                                             <label class="form-label small">Completed By</label>
-                                                            <select class="form-control form-control-sm" 
-                                                                    wire:change="autoSaveStageField({{ $stageData->id }}, 'completed_by_user_id', $event.target.value)">
+                                                            <select class="form-control form-control-sm"
+                                                                wire:change="autoSaveStageField({{ $stageData->id }}, 'completed_by_user_id', $event.target.value)">
                                                                 <option value="">Select...</option>
                                                                 @foreach($users as $user)
                                                                     <option value="{{ $user->id }}" {{ $stageData->completed_by_user_id == $user->id ? 'selected' : '' }}>
                                                                         {{ $user->name }}
                                                                     </option>
-                                                        @endforeach
+                                                                @endforeach
                                                             </select>
                                                         </div>
                                                     </div>
@@ -371,30 +377,28 @@
                                                     <div class="mb-3">
                                                         <h6 class="mb-2">Equipment</h6>
                                                         <div class="searchable-dropdown">
-                                                            <input type="text" 
-                                                                   class="form-control form-control-sm" 
-                                                                   placeholder="Search equipment..."
-                                                                   wire:model="equipmentSearch"
-                                                                   wire:keyup="searchEquipments"
-                                                                   wire:focus="$set('showEquipmentDropdown', true)">
-                                                            
+                                                            <input type="text" class="form-control form-control-sm"
+                                                                placeholder="Search equipment..." wire:model="equipmentSearch"
+                                                                wire:keyup="searchEquipments"
+                                                                wire:focus="$set('showEquipmentDropdown', true)">
+
                                                             @if($showEquipmentDropdown && count($filteredEquipments) > 0)
                                                                 <div class="dropdown-results">
                                                                     @foreach($filteredEquipments as $equipment)
-                                                                        <div class="dropdown-item" 
-                                                                             wire:click="autoSaveEquipmentUsage({{ $stageData->id }}, {{ $equipment['id'] }}, '{{ $equipment['name'] }}')">
+                                                                        <div class="dropdown-item"
+                                                                            wire:click="autoSaveEquipmentUsage({{ $stageData->id }}, {{ $equipment['id'] }}, '{{ $equipment['name'] }}')">
                                                                             {{ $equipment['name'] }}
                                                                         </div>
                                                                     @endforeach
-                                                </div>
-                                            @endif
+                                                                </div>
+                                                            @endif
                                                         </div>
-                                                        
+
                                                         @if($stageData->equipmentUsage->count() > 0)
                                                             <div class="mt-2">
                                                                 @foreach($stageData->equipmentUsage as $equip)
                                                                     <span class="badge badge-secondary mr-2">{{ $equip->equipment_name }}</span>
-                                                        @endforeach
+                                                                @endforeach
                                                             </div>
                                                         @endif
                                                     </div>
@@ -405,45 +409,36 @@
                                                         <div class="row">
                                                             <div class="col-md-5">
                                                                 <div class="searchable-dropdown">
-                                                                    <input type="text" 
-                                                                           class="form-control form-control-sm" 
-                                                                           placeholder="Search media..."
-                                                                           wire:model="mediaSearch"
-                                                                           wire:keyup="searchMedias"
-                                                                           wire:focus="$set('showMediaDropdown', true)">
-                                                                    
+                                                                    <input type="text" class="form-control form-control-sm"
+                                                                        placeholder="Search media..." wire:model="mediaSearch"
+                                                                        wire:keyup="searchMedias"
+                                                                        wire:focus="$set('showMediaDropdown', true)">
+
                                                                     @if($showMediaDropdown && count($filteredMedias) > 0)
                                                                         <div class="dropdown-results">
                                                                             @foreach($filteredMedias as $media)
-                                                                                <div class="dropdown-item" 
-                                                                                     wire:click="selectMedia({{ $stageData->id }}, {{ $media['id'] }}, '{{ $media['name'] }}')">
+                                                                                <div class="dropdown-item"
+                                                                                    wire:click="selectMedia({{ $stageData->id }}, {{ $media['id'] }}, '{{ $media['name'] }}')">
                                                                                     {{ $media['name'] }}
                                                                                 </div>
                                                                             @endforeach
-                                                </div>
-                                            @endif
-                                        </div>
-                                    </div>
+                                                                        </div>
+                                                                    @endif
+                                                                </div>
+                                                            </div>
                                                             <div class="col-md-3">
-                                                                <input type="number" 
-                                                                       step="0.01"
-                                                                       class="form-control form-control-sm" 
-                                                                       placeholder="Volume"
-                                                                       id="media-volume-{{ $stageData->id }}">
+                                                                <input type="number" step="0.01" class="form-control form-control-sm"
+                                                                    placeholder="Volume" id="media-volume-{{ $stageData->id }}">
                                                             </div>
                                                             <div class="col-md-2">
-                                                                <input type="text" 
-                                                                       class="form-control form-control-sm" 
-                                                                       placeholder="Unit"
-                                                                       id="media-unit-{{ $stageData->id }}">
+                                                                <input type="text" class="form-control form-control-sm" placeholder="Unit"
+                                                                    id="media-unit-{{ $stageData->id }}">
                                                             </div>
                                                             <div class="col-md-2">
-                                                                <input type="text" 
-                                                                       class="form-control form-control-sm" 
-                                                                       placeholder="Batch"
-                                                                       id="media-batch-{{ $stageData->id }}">
+                                                                <input type="text" class="form-control form-control-sm" placeholder="Batch"
+                                                                    id="media-batch-{{ $stageData->id }}">
                                                             </div>
-                                </div>
+                                                        </div>
 
                                                         @if($stageData->mediaUsage->count() > 0)
                                                             <table class="table table-sm mt-2">
@@ -453,19 +448,19 @@
                                                                         <th>Volume</th>
                                                                         <th>Unit</th>
                                                                         <th>Batch</th>
-                                                    </tr>
-                                                </thead>
-                                                <tbody>
+                                                                    </tr>
+                                                                </thead>
+                                                                <tbody>
                                                                     @foreach($stageData->mediaUsage as $media)
                                                                         <tr>
                                                                             <td>{{ $media->media_name }}</td>
                                                                             <td>{{ $media->volume }}</td>
                                                                             <td>{{ $media->unit }}</td>
                                                                             <td>{{ $media->batch_number }}</td>
-                                                        </tr>
-                                                    @endforeach
-                                                </tbody>
-                                            </table>
+                                                                        </tr>
+                                                                    @endforeach
+                                                                </tbody>
+                                                            </table>
                                                         @endif
                                                     </div>
 
@@ -475,18 +470,16 @@
                                                         <div class="row">
                                                             <div class="col-md-5">
                                                                 <div class="searchable-dropdown">
-                                                                    <input type="text" 
-                                                                           class="form-control form-control-sm" 
-                                                                           placeholder="Search controls..."
-                                                                           wire:model="controlSearch"
-                                                                           wire:keyup="searchControls"
-                                                                           wire:focus="$set('showControlDropdown', true)">
-                                                                    
+                                                                    <input type="text" class="form-control form-control-sm"
+                                                                        placeholder="Search controls..." wire:model="controlSearch"
+                                                                        wire:keyup="searchControls"
+                                                                        wire:focus="$set('showControlDropdown', true)">
+
                                                                     @if($showControlDropdown && count($filteredControls) > 0)
                                                                         <div class="dropdown-results">
                                                                             @foreach($filteredControls as $control)
-                                                                                <div class="dropdown-item" 
-                                                                                     wire:click="selectControl({{ $stageData->id }}, {{ $control['id'] }}, '{{ $control['name'] }}')">
+                                                                                <div class="dropdown-item"
+                                                                                    wire:click="selectControl({{ $stageData->id }}, {{ $control['id'] }}, '{{ $control['name'] }}')">
                                                                                     {{ $control['name'] }}
                                                                                 </div>
                                                                             @endforeach
@@ -495,27 +488,20 @@
                                                                 </div>
                                                             </div>
                                                             <div class="col-md-3">
-                                                                <input type="number" 
-                                                                       step="0.01"
-                                                                       class="form-control form-control-sm" 
-                                                                       placeholder="Volume"
-                                                                       id="control-volume-{{ $stageData->id }}">
+                                                                <input type="number" step="0.01" class="form-control form-control-sm"
+                                                                    placeholder="Volume" id="control-volume-{{ $stageData->id }}">
                                                             </div>
                                                             <div class="col-md-2">
-                                                                <input type="text" 
-                                                                       class="form-control form-control-sm" 
-                                                                       placeholder="Unit"
-                                                                       id="control-unit-{{ $stageData->id }}">
+                                                                <input type="text" class="form-control form-control-sm" placeholder="Unit"
+                                                                    id="control-unit-{{ $stageData->id }}">
                                                             </div>
                                                             <div class="col-md-2">
-                                                                <input type="text" 
-                                                                       class="form-control form-control-sm" 
-                                                                       placeholder="Batch"
-                                                                       id="control-batch-{{ $stageData->id }}">
+                                                                <input type="text" class="form-control form-control-sm" placeholder="Batch"
+                                                                    id="control-batch-{{ $stageData->id }}">
                                                             </div>
-                                        </div>
+                                                        </div>
 
-                                        @if($stageData->controlUsage->count() > 0)
+                                                        @if($stageData->controlUsage->count() > 0)
                                                             <table class="table table-sm mt-2">
                                                                 <thead>
                                                                     <tr>
@@ -523,19 +509,19 @@
                                                                         <th>Volume</th>
                                                                         <th>Unit</th>
                                                                         <th>Batch</th>
-                                                        </tr>
-                                                    </thead>
-                                                    <tbody>
+                                                                    </tr>
+                                                                </thead>
+                                                                <tbody>
                                                                     @foreach($stageData->controlUsage as $control)
                                                                         <tr>
                                                                             <td>{{ $control->control_name }}</td>
                                                                             <td>{{ $control->volume }}</td>
                                                                             <td>{{ $control->unit }}</td>
                                                                             <td>{{ $control->batch_number }}</td>
-                                                            </tr>
-                                                        @endforeach
-                                                    </tbody>
-                                                </table>
+                                                                        </tr>
+                                                                    @endforeach
+                                                                </tbody>
+                                                            </table>
                                                         @endif
                                                     </div>
 
@@ -546,41 +532,39 @@
                                                             <div class="row">
                                                                 <div class="col-md-6">
                                                                     <label class="form-label small">Result</label>
-                                                                    <input type="text" 
-                                                                           class="form-control form-control-sm" 
-                                                                           placeholder="Enter result"
-                                                                           id="result-{{ $stageData->id }}">
+                                                                    <input type="text" class="form-control form-control-sm"
+                                                                        placeholder="Enter result" id="result-{{ $stageData->id }}">
                                                                 </div>
                                                                 <div class="col-md-6">
                                                                     <label class="form-label small">Remark (Pass/Fail)</label>
-                                                                    <select class="form-control form-control-sm" 
-                                                                            id="remark-{{ $stageData->id }}"
-                                                                            wire:change="updateResult({{ $stageData->id }}, document.getElementById('result-{{ $stageData->id }}').value, $event.target.value)">
+                                                                    <select class="form-control form-control-sm"
+                                                                        id="remark-{{ $stageData->id }}"
+                                                                        wire:change="updateResult({{ $stageData->id }}, document.getElementById('result-{{ $stageData->id }}').value, $event.target.value)">
                                                                         <option value="">Select...</option>
                                                                         <option value="Pass">Pass</option>
                                                                         <option value="Fail">Fail</option>
                                                                     </select>
                                                                 </div>
                                                             </div>
-                                            </div>
-                                        @endif
-                                    </div>
-                                @endif
+                                                        </div>
+                                                    @endif
+                                                </div>
+                                            @endif
                                         </div>
+                                    </div>
+                                @endforeach
                             </div>
-                        @endforeach
-                    </div>
                         </div>
                     @endif
                 </div>
             @endforeach
-            </div>
+        </div>
     @else
         <div class="alert alert-info">
-            <i class="mdi mdi-information"></i> 
+            <i class="mdi mdi-information"></i>
             No runs created yet. Click "Create New Run" to start processing samples.
         </div>
-        
+
         @if($availableSamples->count() > 0)
             <div class="alert alert-warning">
                 <strong>{{ $availableSamples->count() }} samples</strong> are available for this method sequence.
@@ -604,58 +588,50 @@
                     <div class="modal-body">
                         <div class="form-group">
                             <label class="form-label">Run Name <span class="text-danger">*</span></label>
-                            <input type="text" 
-                                   class="form-control" 
-                                   wire:model="newRunName"
-                                   placeholder="e.g., Run 1, Morning Batch, etc.">
+                            <input type="text" class="form-control" wire:model="newRunName"
+                                placeholder="e.g., Run 1, Morning Batch, etc.">
                         </div>
 
                         <div class="form-group">
-                            <label class="form-label"><i class="mdi mdi-account-circle text-primary"></i> Analyst <span class="text-danger">*</span></label>
+                            <label class="form-label"><i class="mdi mdi-account-circle text-primary"></i> Analyst <span
+                                    class="text-danger">*</span></label>
                             <div x-data="{
-                                open: false,
-                                search: '',
-                                selected: @entangle('selectedAnalystId').live,
-                                analysts: {{ json_encode($analysts->map(fn($a) => ['id' => $a->id, 'name' => $a->name])->values()) }},
-                                get filteredAnalysts() {
-                                    if (!this.search) return this.analysts.slice(0, 50);
-                                    return this.analysts.filter(analyst => 
-                                        analyst.name.toLowerCase().includes(this.search.toLowerCase())
-                                    );
-                                },
-                                selectAnalyst(analystId) {
-                                    this.selected = analystId;
-                                    this.open = false;
-                                    this.search = '';
-                                },
-                                getSelectedName() {
-                                    const analyst = this.analysts.find(a => a.id == this.selected);
-                                    return analyst ? analyst.name : '';
-                                }
-                            }" class="searchable-dropdown-wrapper">
+                                        open: false,
+                                        search: '',
+                                        selected: @entangle('selectedAnalystId').live,
+                                        analysts: {{ json_encode($analysts->map(fn($a) => ['id' => $a->id, 'name' => $a->name])->values()) }},
+                                        get filteredAnalysts() {
+                                            if (!this.search) return this.analysts.slice(0, 50);
+                                            return this.analysts.filter(analyst => 
+                                                analyst.name.toLowerCase().includes(this.search.toLowerCase())
+                                            );
+                                        },
+                                        selectAnalyst(analystId) {
+                                            this.selected = analystId;
+                                            this.open = false;
+                                            this.search = '';
+                                        },
+                                        getSelectedName() {
+                                            const analyst = this.analysts.find(a => a.id == this.selected);
+                                            return analyst ? analyst.name : '';
+                                        }
+                                    }" class="searchable-dropdown-wrapper">
                                 <div class="single-select-container" @click="open = !open">
-                                    <input 
-                                        type="text" 
-                                        x-model="search"
+                                    <input type="text" x-model="search"
                                         :placeholder="selected ? getSelectedName() : 'Search analysts...'"
-                                        @focus="open = true"
-                                        class="form-control searchable-input-single"
-                                        autocomplete="off"
-                                    >
+                                        @focus="open = true" class="form-control searchable-input-single"
+                                        autocomplete="off">
                                     <i class="mdi mdi-chevron-down dropdown-arrow" :class="{ 'rotated': open }"></i>
                                 </div>
 
-                                <div x-show="open" 
-                                     @click.away="open = false"
-                                     x-transition
-                                     class="dropdown-list">
+                                <div x-show="open" @click.away="open = false" x-transition class="dropdown-list">
                                     <template x-if="filteredAnalysts.length > 0">
                                         <div class="options-list">
                                             <template x-for="analyst in filteredAnalysts" :key="analyst.id">
-                                                <div @click="selectAnalyst(analyst.id)" 
-                                                     class="option-item"
-                                                     :class="{ 'selected': selected == analyst.id }">
-                                                    <i class="mdi mdi-check-circle text-primary" x-show="selected == analyst.id"></i>
+                                                <div @click="selectAnalyst(analyst.id)" class="option-item"
+                                                    :class="{ 'selected': selected == analyst.id }">
+                                                    <i class="mdi mdi-check-circle text-primary"
+                                                        x-show="selected == analyst.id"></i>
                                                     <span x-text="analyst.name"></span>
                                                 </div>
                                             </template>
@@ -673,10 +649,8 @@
 
                         <div class="form-group">
                             <label class="form-label">Run Date <span class="text-danger">*</span></label>
-                            <input type="date" 
-                                   class="form-control" 
-                                   wire:model="runDate"
-                                   value="{{ now()->toDateString() }}">
+                            <input type="date" class="form-control" wire:model="runDate"
+                                value="{{ now()->toDateString() }}">
                         </div>
 
                         <div class="form-group">
@@ -685,13 +659,10 @@
                                 @if($availableSamples->count() > 0)
                                     @foreach($availableSamples as $sample)
                                         <div class="form-check">
-                                            <input class="form-check-input" 
-                                                   type="checkbox" 
-                                                   wire:model="selectedSamples" 
-                                                   value="{{ $sample->id }}"
-                                                   id="sample-{{ $sample->id }}">
+                                            <input class="form-check-input" type="checkbox" wire:model="selectedSamples"
+                                                value="{{ $sample->id }}" id="sample-{{ $sample->id }}">
                                             <label class="form-check-label" for="sample-{{ $sample->id }}">
-                                                {{ $sample->sample->sample_code }} - 
+                                                {{ $sample->sample->sample_code }} -
                                                 {{ $sample->analysisElement->analyte->name ?? 'Unknown Analyte' }}
                                             </label>
                                         </div>
@@ -732,58 +703,50 @@
                     <div class="modal-body">
                         <div class="form-group">
                             <label class="form-label">Run Name <span class="text-danger">*</span></label>
-                            <input type="text" 
-                                               class="form-control" 
-                                   wire:model="editRunName"
-                                   placeholder="e.g., Run 1, Morning Batch, etc.">
+                            <input type="text" class="form-control" wire:model="editRunName"
+                                placeholder="e.g., Run 1, Morning Batch, etc.">
                         </div>
 
                         <div class="form-group">
-                            <label class="form-label"><i class="mdi mdi-account-circle text-primary"></i> Analyst <span class="text-danger">*</span></label>
+                            <label class="form-label"><i class="mdi mdi-account-circle text-primary"></i> Analyst <span
+                                    class="text-danger">*</span></label>
                             <div x-data="{
-                                open: false,
-                                search: '',
-                                selected: @entangle('editRunAnalystId').live,
-                                analysts: {{ json_encode($analysts->map(fn($a) => ['id' => $a->id, 'name' => $a->name])->values()) }},
-                                get filteredAnalysts() {
-                                    if (!this.search) return this.analysts.slice(0, 50);
-                                    return this.analysts.filter(analyst => 
-                                        analyst.name.toLowerCase().includes(this.search.toLowerCase())
-                                    );
-                                },
-                                selectAnalyst(analystId) {
-                                    this.selected = analystId;
-                                    this.open = false;
-                                    this.search = '';
-                                },
-                                getSelectedName() {
-                                    const analyst = this.analysts.find(a => a.id == this.selected);
-                                    return analyst ? analyst.name : '';
-                                }
-                            }" class="searchable-dropdown-wrapper">
+                                        open: false,
+                                        search: '',
+                                        selected: @entangle('editRunAnalystId').live,
+                                        analysts: {{ json_encode($analysts->map(fn($a) => ['id' => $a->id, 'name' => $a->name])->values()) }},
+                                        get filteredAnalysts() {
+                                            if (!this.search) return this.analysts.slice(0, 50);
+                                            return this.analysts.filter(analyst => 
+                                                analyst.name.toLowerCase().includes(this.search.toLowerCase())
+                                            );
+                                        },
+                                        selectAnalyst(analystId) {
+                                            this.selected = analystId;
+                                            this.open = false;
+                                            this.search = '';
+                                        },
+                                        getSelectedName() {
+                                            const analyst = this.analysts.find(a => a.id == this.selected);
+                                            return analyst ? analyst.name : '';
+                                        }
+                                    }" class="searchable-dropdown-wrapper">
                                 <div class="single-select-container" @click="open = !open">
-                                    <input 
-                                        type="text" 
-                                        x-model="search"
+                                    <input type="text" x-model="search"
                                         :placeholder="selected ? getSelectedName() : 'Search analysts...'"
-                                        @focus="open = true"
-                                        class="form-control searchable-input-single"
-                                        autocomplete="off"
-                                    >
+                                        @focus="open = true" class="form-control searchable-input-single"
+                                        autocomplete="off">
                                     <i class="mdi mdi-chevron-down dropdown-arrow" :class="{ 'rotated': open }"></i>
                                 </div>
 
-                                <div x-show="open" 
-                                     @click.away="open = false"
-                                     x-transition
-                                     class="dropdown-list">
+                                <div x-show="open" @click.away="open = false" x-transition class="dropdown-list">
                                     <template x-if="filteredAnalysts.length > 0">
                                         <div class="options-list">
                                             <template x-for="analyst in filteredAnalysts" :key="analyst.id">
-                                                <div @click="selectAnalyst(analyst.id)" 
-                                                     class="option-item"
-                                                     :class="{ 'selected': selected == analyst.id }">
-                                                    <i class="mdi mdi-check-circle text-primary" x-show="selected == analyst.id"></i>
+                                                <div @click="selectAnalyst(analyst.id)" class="option-item"
+                                                    :class="{ 'selected': selected == analyst.id }">
+                                                    <i class="mdi mdi-check-circle text-primary"
+                                                        x-show="selected == analyst.id"></i>
                                                     <span x-text="analyst.name"></span>
                                                 </div>
                                             </template>
@@ -801,9 +764,7 @@
 
                         <div class="form-group">
                             <label class="form-label">Run Date <span class="text-danger">*</span></label>
-                            <input type="date" 
-                                   class="form-control" 
-                                   wire:model="editRunDate">
+                            <input type="date" class="form-control" wire:model="editRunDate">
                         </div>
                     </div>
                     <div class="modal-footer">
@@ -821,12 +782,11 @@
 
     <script>
         // Auto-refresh timers every minute
-        setInterval(function() {
+        setInterval(functio n() { 
             @this.call('loadData');
-        }, 60000);
-        
-        // Close dropdowns when clicking outside
-        document.addEventListener('click', function(event) {
+        }, 60000)   ;
+         // Close dropdowns when clicking outside
+        document.addEventListener('click', function(eve nt) {
             if (!event.target.closest('.searchable-dropdown')) {
                 @this.set('showEquipmentDropdown', false);
                 @this.set('showMediaDropdown', false);
@@ -834,73 +794,73 @@
             }
         });
     </script>
-    
+
     <style>
-    /* Single-Select Searchable Dropdown Styling */
-    .searchable-input-single {
-        border: none;
-        outline: none;
-        box-shadow: none !important;
-        padding: 4px 0;
-        width: 100%;
-    }
-    
-    .searchable-input-single:focus {
-        border: none !important;
-        box-shadow: none !important;
-    }
-    
-    .single-select-container {
-        position: relative;
-        min-height: 45px;
-        border: 1px solid #ced4da;
-        border-radius: 12px;
-        padding: 8px 40px 8px 12px;
-        background: white;
-        cursor: pointer;
-        transition: all 0.3s ease;
-        display: flex;
-        align-items: center;
-    }
-    
-    .single-select-container:hover {
-        border-color: #007bff;
-        box-shadow: 0 2px 8px rgba(0, 123, 255, 0.1);
-    }
-    
-    .single-select-container:has(.searchable-input-single:focus) {
-        border-color: #007bff;
-        box-shadow: 0 0 0 0.2rem rgba(0, 123, 255, 0.25);
-    }
-    
-    .options-list {
-        padding: 8px;
-        max-height: 300px;
-        overflow-y: auto;
-    }
-    
-    .option-item {
-        display: flex;
-        align-items: center;
-        gap: 10px;
-        padding: 10px 12px;
-        border-radius: 8px;
-        cursor: pointer;
-        transition: all 0.2s ease;
-        font-size: 14px;
-    }
-    
-    .option-item:hover {
-        background: #f8f9fa;
-    }
-    
-    .option-item.selected {
-        background: rgba(0, 123, 255, 0.08);
-        font-weight: 500;
-    }
-    
-    .option-item i {
-        font-size: 18px;
-    }
+        /* Single-Select Searchable Dropdown Styling */
+        .searchable-input-single {
+            border: none;
+            outline: none;
+            box-shadow: none !important;
+            padding: 4px 0;
+            width: 100%;
+        }
+
+        .searchable-input-single:focus {
+            border: none !important;
+            box-shadow: none !important;
+        }
+
+        .single-select-container {
+            position: relative;
+            min-height: 45px;
+            border: 1px solid #ced4da;
+            border-radius: 12px;
+            padding: 8px 40px 8px 12px;
+            background: white;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            display: flex;
+            align-items: center;
+        }
+
+        .single-select-container:hover {
+            border-color: #007bff;
+            box-shadow: 0 2px 8px rgba(0, 123, 255, 0.1);
+        }
+
+        .single-select-container:has(.searchable-input-single:focus) {
+            border-color: #007bff;
+            box-shadow: 0 0 0 0.2rem rgba(0, 123, 255, 0.25);
+        }
+
+        .options-list {
+            padding: 8px;
+            max-height: 300px;
+            overflow-y: auto;
+        }
+
+        .option-item {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 10px 12px;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            font-size: 14px;
+        }
+
+        .option-item:hover {
+            background: #f8f9fa;
+        }
+
+        .option-item.selected {
+            background: rgba(0, 123, 255, 0.08);
+            font-weight: 500;
+        }
+
+        .option-item i {
+            font-size: 18px;
+        }
     </style>
 </div>

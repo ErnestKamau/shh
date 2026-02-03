@@ -47,9 +47,9 @@ class QuotationController extends Controller
             $drafts = QuotationHeaderView::where('is_draft', 1)->orderBy('id', 'desc')->get();
             $stage = 'All Quotations';
         }
-        
+
         // return response()->json($stage,200);
-        $customers = CRMCustomer::where('active',1)->get();
+        $customers = CRMCustomer::where('active', 1)->get();
         // foreach ($quotations as $quotation) {
         //     $customer = getCrmCustomerByID($quotation->crm_customer_id);
         //     $contact = getCrmCustomerContactById($quotation->crm_customer_contact_id);
@@ -60,49 +60,51 @@ class QuotationController extends Controller
         //     $quotation['pricelist'] = $pricelist->code ?? '-';
         //     $quotation['prepared_by_name'] = $user->name;
         // }
-        $sample_types = SampleType::where('active',1)->get();
+        $sample_types = SampleType::where('active', 1)->get();
 
-        return view('layouts.lab.invoice.quotation-index', compact('customers', 'quotations', 'drafts', 'stage','sample_types'));
+        return view('layouts.lab.invoice.quotation-index', compact('customers', 'quotations', 'drafts', 'stage', 'sample_types'));
     }
-    public function filterQuotations(Request $request){
-        
+    public function filterQuotations(Request $request)
+    {
+
 
         $drafts = QuotationHeaderView::where('is_draft', 1)->orderBy('id', 'desc')->get();
-        if($request->quote_type == 'Analysis'){
+        if ($request->quote_type == 'Analysis') {
             $quotations_d = QuotationDetails::query();
-            $quotations_d  = $request->sample_type_id != '' ? $quotations_d->where('sample_type',$request->sample_type_id) : $quotations_d;
-            $analysis_detail_ids = $request->analysis_type_id != '' ?  QuotationDetailAnalysisSplit::where('id',$request->analysis_type_id)->pluck('quotation_detail_id')->toArray() : [];
-            $quotations_d = sizeof($analysis_detail_ids) > 0 ? $quotations_d->whereIn('id',$analysis_detail_ids) : $quotations_d;
+            $quotations_d = $request->sample_type_id != '' ? $quotations_d->where('sample_type', $request->sample_type_id) : $quotations_d;
+            $analysis_detail_ids = $request->analysis_type_id != '' ? QuotationDetailAnalysisSplit::where('id', $request->analysis_type_id)->pluck('quotation_detail_id')->toArray() : [];
+            $quotations_d = sizeof($analysis_detail_ids) > 0 ? $quotations_d->whereIn('id', $analysis_detail_ids) : $quotations_d;
             $quotations_d_ids = $quotations_d->pluck('quotation_header_id')->toArray();
-            $quotations = QuotationHeaderView::where('is_draft', 0)->whereIn('id',$quotations_d_ids);
-            
-            $quotations = $request->end_date != '' ? $quotations->where('created_at','>=',$request->end_date) : $quotations;
+            $quotations = QuotationHeaderView::where('is_draft', 0)->whereIn('id', $quotations_d_ids);
+
+            $quotations = $request->end_date != '' ? $quotations->where('created_at', '>=', $request->end_date) : $quotations;
             $quotations = $quotations->where('is_draft', 0)->orderBy('id', 'desc')->get();
         }
-        if($request->quote_type == 'General'){
-            $quotations_d = QuotationDetails::where('description','LIKE','%'.$request->item_description.'%')->pluck('quotation_header_id')->toArray();
-            $quotations = QuotationHeaderView::where('is_draft', 0)->whereIn('id',$quotations_d);
-            
-            $quotations = $request->end_date != '' ? $quotations->where('created_at','>=',$request->end_date) : $quotations;
+        if ($request->quote_type == 'General') {
+            $quotations_d = QuotationDetails::where('description', 'LIKE', '%' . $request->item_description . '%')->pluck('quotation_header_id')->toArray();
+            $quotations = QuotationHeaderView::where('is_draft', 0)->whereIn('id', $quotations_d);
+
+            $quotations = $request->end_date != '' ? $quotations->where('created_at', '>=', $request->end_date) : $quotations;
             $quotations = $quotations->where('is_draft', 0)->orderBy('id', 'desc')->get();
 
         }
 
 
         $stage = 'All Quotations';
-        $customers = CRMCustomer::where('active',1)->get();
-        $sample_types = SampleType::where('active',1)->get();
+        $customers = CRMCustomer::where('active', 1)->get();
+        $sample_types = SampleType::where('active', 1)->get();
 
-        return view('layouts.lab.invoice.quotation-index', compact('customers', 'quotations', 'drafts', 'stage','sample_types'));
+        return view('layouts.lab.invoice.quotation-index', compact('customers', 'quotations', 'drafts', 'stage', 'sample_types'));
     }
-    public function populateQuotationDetailSplit(){
-        $headers = QuotationHeader::where('quotation_type','Analysis')->pluck('id')->toArray();
-        $details = QuotationDetails::whereIn('quotation_header_id',$headers)->get();
-        foreach($details as $detail){
-            $idsTypes = explode(',',$detail->part_no);
+    public function populateQuotationDetailSplit()
+    {
+        $headers = QuotationHeader::where('quotation_type', 'Analysis')->pluck('id')->toArray();
+        $details = QuotationDetails::whereIn('quotation_header_id', $headers)->get();
+        foreach ($details as $detail) {
+            $idsTypes = explode(',', $detail->part_no);
             $insertArr = [];
-            foreach($idsTypes as $id){
-                array_push($insertArr,['quotation_detail_id'=>$detail->id,'analysis_type_id'=>$id]);
+            foreach ($idsTypes as $id) {
+                array_push($insertArr, ['quotation_detail_id' => $detail->id, 'analysis_type_id' => $id]);
             }
             QuotationDetailAnalysisSplit::insert($insertArr);
         }
@@ -128,24 +130,24 @@ class QuotationController extends Controller
         $header->quote_date = $request->quotation_date;
         $header->expiring_date = $request->expire_date;
         $header->prepared_by_id = auth()->user()->id;
-        
+
         // Handle Dynamics customer linking
         if ($request->filled('zoho_customer_id')) {
             // Update CRM customer with zoho_customer_id
             $customer->zoho_customer_id = $request->zoho_customer_id;
             $customer->save();
         }
-        
+
         // Handle currency
         if ($request->filled('currency_id')) {
             $header->currency_id = $request->currency_id;
         }
-        
+
         if (!isset($request->quote_id)) {
             $header->status = 'Quote In Reception';
         }
         $header->quotation_type = $request->quotation_type;
-        
+
         $header->status = 'Quote In Preparation';
         // return response()->json($header,200);
         $header->save();
@@ -167,21 +169,21 @@ class QuotationController extends Controller
 
         return redirect()->route('add-qoute-details-view', ['id' => $header->id, 'stage' => $header->status]);
     }
-    
+
     public function getCurrencyByCode(Request $request)
     {
         $currencyCode = $request->input('currency_code');
-        
+
         if (!$currencyCode) {
             return response()->json(['error' => 'Currency code is required'], 400);
         }
-        
+
         $currency = Currency::where('code', $currencyCode)->first();
-        
+
         if (!$currency) {
             return response()->json(['error' => 'Currency not found'], 404);
         }
-        
+
         return response()->json([
             'id' => $currency->id,
             'code' => $currency->code,
@@ -231,28 +233,28 @@ class QuotationController extends Controller
                 $default_a = [];
                 $part_no = [];
                 foreach ($detail_accredited_analytes as $ac) {
-                    $analyte  = AnalysisElements::find($ac);
+                    $analyte = AnalysisElements::find($ac);
                     if (isset($analyte->id)) {
                         $an = getAnalyteByID($analyte->analyte_id);
                         array_push($analytes_ac, $an->name);
                     }
                 }
                 foreach ($detail_sub_analytes as $sa) {
-                    $analyte  = AnalysisElements::find($sa);
+                    $analyte = AnalysisElements::find($sa);
                     if (isset($analyte->id)) {
                         $an = getAnalyteByID($analyte->analyte_id);
                         array_push($analyte_sa, $an->name);
                     }
                 }
                 foreach (explode(',', $detail->sub_acc_analytes) as $sc) {
-                    $analyte  = AnalysisElements::find($sc);
+                    $analyte = AnalysisElements::find($sc);
                     if (isset($analyte->id)) {
                         $an = getAnalyteByID($analyte->analyte_id);
                         array_push($analyte_sub_acc, $an->name);
                     }
                 }
                 foreach (explode(',', $detail->default_analytes) as $sc) {
-                    $analyte  = AnalysisElements::find($sc);
+                    $analyte = AnalysisElements::find($sc);
                     if (isset($analyte->id)) {
                         $an = getAnalyteByID($analyte->analyte_id);
                         array_push($default_a, $an->name);
@@ -304,17 +306,17 @@ class QuotationController extends Controller
         $header = QuotationHeader::find($id);
 
         if (isset($header->id)) {
-            if(in_array($header->status,['Quote Complete','Quote In Approval']) && in_array($stage,['Quote In Preparation','Quote In Approval'])){
+            if (in_array($header->status, ['Quote Complete', 'Quote In Approval']) && in_array($stage, ['Quote In Preparation', 'Quote In Approval'])) {
                 $header->is_complete = 0;
                 $header->is_draft = 0;
                 $header->is_print = 0;
-                
+
                 $header->is_approved = 0;
             }
-            if(in_array($header->status,['Quote In Preparation','Quote In Approval']) && in_array($stage,['Quote Complete'])){
-                return redirect()->back()->with('error','Quote '.$header->quote_number.' has not being approved');
+            if (in_array($header->status, ['Quote In Preparation', 'Quote In Approval']) && in_array($stage, ['Quote Complete'])) {
+                return redirect()->back()->with('error', 'Quote ' . $header->quote_number . ' has not being approved');
             }
-           
+
             $previous = $header->status;
             $header->status = $stage;
             if ($stage == 'Quote Complete') {
@@ -327,7 +329,7 @@ class QuotationController extends Controller
                 $header->is_print = 0;
                 $header->is_approved = 0;
             }
-           
+
 
 
 
@@ -340,7 +342,7 @@ class QuotationController extends Controller
     public function approve_workflow(Request $request)
     {
         $header = QuotationHeader::find($request->header_id);
-        
+
         $res_approve = getUserById($request->user_id);
         $company = getActiveCompany();
         $prepared = getUserById($header->prepared_by_id);
@@ -357,8 +359,8 @@ class QuotationController extends Controller
                     return redirect()->back()->with('error', 'Kindly add the sms configurations in the configurations section!');
                 }
             }
-            if(!isset($res_approve->id)){
-                return redirect()->back()->with('error','Kindly Provide the approve before sending for approval!');
+            if (!isset($res_approve->id)) {
+                return redirect()->back()->with('error', 'Kindly Provide the approve before sending for approval!');
             }
             $header->approved_by = $res_approve->id;
         }
@@ -444,32 +446,32 @@ class QuotationController extends Controller
                 $detail->accredited_analytes = $request->accreditted_analytes[$count];
                 $detail->subcontracted_analytes = $request->sub_analytes[$count];
                 $detail->sub_acc_analytes = $request->sub_acc[$count];
-                $detail->default_analytes  = $request->default_analytes[$count];
+                $detail->default_analytes = $request->default_analytes[$count];
                 $detail->quotation_header_id = $header->id;
 
                 $detail->save();
-                $analysis_types_ids = explode(',',$request->part_number_final[$count]);
-                $insertArr =[];
-                QuotationDetailAnalysisSplit::where('quotation_detail_id',$detail->id)->delete();
+                $analysis_types_ids = explode(',', $request->part_number_final[$count]);
+                $insertArr = [];
+                QuotationDetailAnalysisSplit::where('quotation_detail_id', $detail->id)->delete();
 
-                foreach($analysis_types_ids as $a_id){
-                    $data = ["analysis_type_id"=>$a_id,'quotation_detail_id'=>$detail->id];
-                    array_push($insertArr,$data);
+                foreach ($analysis_types_ids as $a_id) {
+                    $data = ["analysis_type_id" => $a_id, 'quotation_detail_id' => $detail->id];
+                    array_push($insertArr, $data);
                 }
                 QuotationDetailAnalysisSplit::insert($insertArr);
                 ++$count;
             }
 
         }
-        $details = QuotationDetails::where('quotation_header_id',$header->id)->get();
+        $details = QuotationDetails::where('quotation_header_id', $header->id)->get();
         $sub_total = [];
         $taxes = [];
-        foreach($details as $detail){
-            $detail['extended_price'] = (int)$detail->quantity * (float) $detail->unit_price;
+        foreach ($details as $detail) {
+            $detail['extended_price'] = (int) $detail->quantity * (float) $detail->unit_price;
 
-            array_push($sub_total, (float)$detail->extended_price);
+            array_push($sub_total, (float) $detail->extended_price);
             if ($detail->tax != 0) {
-                $tax = (int) $detail->tax / 100 * (float) $detail->unit_price * (int)$detail->quantity;
+                $tax = (int) $detail->tax / 100 * (float) $detail->unit_price * (int) $detail->quantity;
                 // return response()->json($tax);
                 array_push($taxes, $tax);
             }
@@ -494,7 +496,7 @@ class QuotationController extends Controller
         $header->quote_date = $request->quotation_date;
         $header->quotation_type = $request->quotation_type;
         $header->expiring_date = $request->expire_date;
-        
+
         // Pricelist no longer used - using invoicable items instead
         $header->pricelist_id = null;
         $header->save();
@@ -538,28 +540,28 @@ class QuotationController extends Controller
                 $default_a = [];
                 $part_no = [];
                 foreach ($detail_accredited_analytes as $ac) {
-                    $analyte  = AnalysisElements::find($ac);
+                    $analyte = AnalysisElements::find($ac);
                     if (isset($analyte->id)) {
                         $an = getAnalyteByID($analyte->analyte_id);
                         array_push($analytes_ac, $an->name);
                     }
                 }
                 foreach ($detail_sub_analytes as $sa) {
-                    $analyte  = AnalysisElements::find($sa);
+                    $analyte = AnalysisElements::find($sa);
                     if (isset($analyte->id)) {
                         $an = getAnalyteByID($analyte->analyte_id);
                         array_push($analyte_sa, $an->name);
                     }
                 }
                 foreach (explode(',', $detail->sub_acc_analytes) as $sc) {
-                    $analyte  = AnalysisElements::find($sc);
+                    $analyte = AnalysisElements::find($sc);
                     if (isset($analyte->id)) {
                         $an = getAnalyteByID($analyte->analyte_id);
                         array_push($analyte_sub_acc, $an->name);
                     }
                 }
                 foreach (explode(',', $detail->default_analytes) as $sc) {
-                    $analyte  = AnalysisElements::find($sc);
+                    $analyte = AnalysisElements::find($sc);
                     if (isset($analyte->id)) {
                         $an = getAnalyteByID($analyte->analyte_id);
                         array_push($default_a, $an->name);
@@ -580,11 +582,11 @@ class QuotationController extends Controller
                 $detail['part_no_final'] = implode(',', $part_no);
                 $detail['sample_type_name'] = getSampleTypeByID($detail->sample_type)->name;
             }
-            $detail['extended_price'] = (int)$detail->quantity * (float) $detail->unit_price;
+            $detail['extended_price'] = (int) $detail->quantity * (float) $detail->unit_price;
 
-            array_push($sub_total, (float)$detail->extended_price);
+            array_push($sub_total, (float) $detail->extended_price);
             if ($detail->tax != 0) {
-                $tax = (int) $detail->tax / 100 * (float) $detail->unit_price * (int)$detail->quantity;
+                $tax = (int) $detail->tax / 100 * (float) $detail->unit_price * (int) $detail->quantity;
                 // return response()->json($tax);
                 array_push($taxes, $tax);
             }
@@ -611,13 +613,13 @@ class QuotationController extends Controller
         foreach ($banks as $bank) {
             $bankarr[$bank->key] = $bank->value;
         }
-        $labs = Lab::where('active',1)->get();
+        $labs = Lab::where('active', 1)->get();
         // return response()->json($bankarr,200);
         $company = getActiveCompany();
 
         // return response()->json($header,200);
 
-        return view('layouts.lab.invoice.quotation-doc', compact('header', 'terms_array', 'bankarr', 'company', 'details', 'currency','labs'));
+        return view('layouts.lab.invoice.quotation-doc', compact('header', 'terms_array', 'bankarr', 'company', 'details', 'currency', 'labs'));
     }
 
     public function edit_quotation_detail(Request $request)
@@ -640,19 +642,19 @@ class QuotationController extends Controller
                 $detail->photo_url = (string) $fname;
             }
         } else {
-            
+
             $detail->part_no = implode(',', $request->part_no);
-            $detail->accredited_analytes = isset( $request->accreditted_analytes) ?  $request->accreditted_analytes : $detail->accredited_analytes ;
-            $detail->subcontracted_analytes = isset( $request->sub_analytes) ?  $request->sub_analytes : $detail->subcontracted_analytes;
+            $detail->accredited_analytes = isset($request->accreditted_analytes) ? $request->accreditted_analytes : $detail->accredited_analytes;
+            $detail->subcontracted_analytes = isset($request->sub_analytes) ? $request->sub_analytes : $detail->subcontracted_analytes;
             $detail->sub_acc_analytes = isset($request->sub_acc) ? $request->sub_acc : $detail->sub_acc_analytes;
-            $detail->default_analytes  = isset($request->default_analytes) ?  $request->default_analytes : $detail->default_analytes;
-            $analysis_types_ids = explode(',',$request->part_no);
-            $insertArr =[];
-            QuotationDetailAnalysisSplit::where('quotation_detail_id',$detail->id)->delete();
-            
-            foreach($analysis_types_ids as $a_id){
-                $data = ["analysis_type_id"=>$a_id,'quotation_detail_id'=>$detail->id];
-                array_push($insertArr,$data);
+            $detail->default_analytes = isset($request->default_analytes) ? $request->default_analytes : $detail->default_analytes;
+            $analysis_types_ids = explode(',', $request->part_no);
+            $insertArr = [];
+            QuotationDetailAnalysisSplit::where('quotation_detail_id', $detail->id)->delete();
+
+            foreach ($analysis_types_ids as $a_id) {
+                $data = ["analysis_type_id" => $a_id, 'quotation_detail_id' => $detail->id];
+                array_push($insertArr, $data);
             }
             QuotationDetailAnalysisSplit::insert($insertArr);
         }
@@ -661,15 +663,15 @@ class QuotationController extends Controller
         $detail->quantity = $request->quantity;
         $detail->save();
 
-        $details = QuotationDetails::where('quotation_header_id',$header->id)->get();
+        $details = QuotationDetails::where('quotation_header_id', $header->id)->get();
         $sub_total = [];
         $taxes = [];
-        foreach($details as $detail){
-            $detail['extended_price'] = (int)$detail->quantity * (float) $detail->unit_price;
+        foreach ($details as $detail) {
+            $detail['extended_price'] = (int) $detail->quantity * (float) $detail->unit_price;
 
-            array_push($sub_total, (float)$detail->extended_price);
+            array_push($sub_total, (float) $detail->extended_price);
             if ($detail->tax != 0) {
-                $tax = (int) $detail->tax / 100 * (float) $detail->unit_price * (int)$detail->quantity;
+                $tax = (int) $detail->tax / 100 * (float) $detail->unit_price * (int) $detail->quantity;
                 // return response()->json($tax);
                 array_push($taxes, $tax);
             }
@@ -717,7 +719,7 @@ class QuotationController extends Controller
         $header = QuotationHeader::find($id);
         $header->status = 'Quote Complete';
         // return response()->json((int) $id,200);
-        $header->tax =  (int) $request->tax;
+        $header->tax = (int) $request->tax;
         $header->sub_total = (int) $request->sub_total;
         $header->total_amount = (int) $request->total;
         $header->is_draft = 0;
@@ -757,7 +759,7 @@ class QuotationController extends Controller
         foreach ($details as $detail) {
             $new = new QuotationDetails();
             $new->sample_type = $detail->sample_type;
-            $new->unit_price =  $detail->unit_price;
+            $new->unit_price = $detail->unit_price;
             // return response()->json($request->unit_price);
             $new->tax = $detail->tax;
             $new->part_no = $detail->part_no;
@@ -814,28 +816,28 @@ class QuotationController extends Controller
                 $default_a = [];
                 $part_no = [];
                 foreach ($detail_accredited_analytes as $ac) {
-                    $analyte  = AnalysisElements::find($ac);
+                    $analyte = AnalysisElements::find($ac);
                     if (isset($analyte->id)) {
                         $an = getAnalyteByID($analyte->analyte_id);
                         array_push($analytes_ac, $an->name);
                     }
                 }
                 foreach ($detail_sub_analytes as $sa) {
-                    $analyte  = AnalysisElements::find($sa);
+                    $analyte = AnalysisElements::find($sa);
                     if (isset($analyte->id)) {
                         $an = getAnalyteByID($analyte->analyte_id);
                         array_push($analyte_sa, $an->name);
                     }
                 }
                 foreach (explode(',', $detail->sub_acc_analytes) as $sc) {
-                    $analyte  = AnalysisElements::find($sc);
+                    $analyte = AnalysisElements::find($sc);
                     if (isset($analyte->id)) {
                         $an = getAnalyteByID($analyte->analyte_id);
                         array_push($analyte_sub_acc, $an->name);
                     }
                 }
                 foreach (explode(',', $detail->default_analytes) as $sc) {
-                    $analyte  = AnalysisElements::find($sc);
+                    $analyte = AnalysisElements::find($sc);
                     if (isset($analyte->id)) {
                         $an = getAnalyteByID($analyte->analyte_id);
                         array_push($default_a, $an->name);
@@ -860,7 +862,7 @@ class QuotationController extends Controller
                 $url_a = implode('/', $url_arr);
                 $detail->photo_url_approved = storage_path() . $url_a;
             }
-            $detail['extended_price'] = (int)$detail->quantity * (float) $detail->unit_price;
+            $detail['extended_price'] = (int) $detail->quantity * (float) $detail->unit_price;
         }
         // return response()->json(array_sum($sub_total));      
         $terms_config = getConfigTypeByName('Terms of Sale');
@@ -878,14 +880,14 @@ class QuotationController extends Controller
         // return response()->json($bankarr,200);
         $company = getActiveCompany();
         $customer = getCrmCustomerByID($check->crm_customer_id);
-        $customer_name =preg_replace('/[^A-Za-z0-9]/', '', $customer->name);
-        
-        $filename =   $customer_name . '-' . $header->quote_number . '-' . date("d-M-Y", strtotime(getTodayDate())) . '.pdf';
+        $customer_name = preg_replace('/[^A-Za-z0-9]/', '', $customer->name);
+
+        $filename = $customer_name . '-' . $header->quote_number . '-' . date("d-M-Y", strtotime(getTodayDate())) . '.pdf';
         $filename = urlencode($filename);
         $currency = getCurrencyById($check->currency_id);
-        if(isset($currency->id)){
+        if (isset($currency->id)) {
             $currency_name = $currency->name;
-        }else{
+        } else {
             $currency_name = '-';
         }
         // return response()->json($header);
@@ -893,27 +895,27 @@ class QuotationController extends Controller
         $qrcode = base64_encode(\QrCode::format('svg')->size(50)->errorCorrection('H')->generate($qr_url));
         $path = public_path('images/logo-imara.png');
 
-        
+
         $tick = public_path('images/tick.png');
         $pdf = app('dompdf.wrapper');
         $pdf->getDomPDF()->set_option("enable_php", true);
         $pdf = PDF::loadView('layouts.lab.invoice.print-quotation', compact('header', 'terms_array', 'bankarr', 'company', 'details', 'pdf', 'qrcode', 'path', 'tick', 'currency_name'));
 
-        if (is_dir(storage_path() . '/app/quotations/' .   $customer_name)) {
-            $pdf->save(storage_path() . '/app/quotations/' .   $customer_name . '/' . $filename);
+        if (is_dir(storage_path() . '/app/quotations/' . $customer_name)) {
+            $pdf->save(storage_path() . '/app/quotations/' . $customer_name . '/' . $filename);
         } else {
-            $path = storage_path() . '/app/quotations/' .   $customer_name;
+            $path = storage_path() . '/app/quotations/' . $customer_name;
 
             $check_dir = mkdir($path);
             if ($check_dir) {
 
-                $pdf->save(storage_path() . '/app/quotations/' .   $customer_name . '/' . $filename);
+                $pdf->save(storage_path() . '/app/quotations/' . $customer_name . '/' . $filename);
             } else {
                 return response()->json(['error' => 'Error while creating customer storage folder']);
             }
         }
 
-        $check->upload_url = '/quotations/' .   $customer_name . '/' . $filename;
+        $check->upload_url = '/quotations/' . $customer_name . '/' . $filename;
         $check->save();
         return $check;
         // return response()->json($details,200);
@@ -953,28 +955,28 @@ class QuotationController extends Controller
             $default_a = [];
             $part_no = [];
             foreach ($detail_accredited_analytes as $ac) {
-                $analyte  = AnalysisElements::find($ac);
+                $analyte = AnalysisElements::find($ac);
                 if (isset($analyte->id)) {
                     $an = getAnalyteByID($analyte->analyte_id);
                     array_push($analytes_ac, $an->name);
                 }
             }
             foreach ($detail_sub_analytes as $sa) {
-                $analyte  = AnalysisElements::find($sa);
+                $analyte = AnalysisElements::find($sa);
                 if (isset($analyte->id)) {
                     $an = getAnalyteByID($analyte->analyte_id);
                     array_push($analyte_sa, $an->name);
                 }
             }
             foreach (explode(',', $detail->sub_acc_analytes) as $sc) {
-                $analyte  = AnalysisElements::find($sc);
+                $analyte = AnalysisElements::find($sc);
                 if (isset($analyte->id)) {
                     $an = getAnalyteByID($analyte->analyte_id);
                     array_push($analyte_sub_acc, $an->name);
                 }
             }
             foreach (explode(',', $detail->default_analytes) as $sc) {
-                $analyte  = AnalysisElements::find($sc);
+                $analyte = AnalysisElements::find($sc);
                 if (isset($analyte->id)) {
                     $an = getAnalyteByID($analyte->analyte_id);
                     array_push($default_a, $an->name);
@@ -1000,16 +1002,17 @@ class QuotationController extends Controller
         $final['detail'] = $detail;
         return $final;
     }
-    public function convertQuoteToBatch(Request $request){
-        $quote = QuotationHeader::with(['details','contact','customer'])->find($request->quote_id);
-        $sample_type_arr = array_unique(QuotationDetails::where('quotation_header_id',$quote->id)->pluck('sample_type')->toArray());
-        $sampletypes = SampleType::whereIn('id',$sample_type_arr)->get();
+    public function convertQuoteToBatch(Request $request)
+    {
+        $quote = QuotationHeader::with(['details', 'contact', 'customer'])->find($request->quote_id);
+        $sample_type_arr = array_unique(QuotationDetails::where('quotation_header_id', $quote->id)->pluck('sample_type')->toArray());
+        $sampletypes = SampleType::whereIn('id', $sample_type_arr)->get();
         $batch_config = SystemConfiguration::where('key', 'batch_code_config')->first();
         if (!isset($batch_config->id)) {
             return redirect()->back()->with('error', 'Kindly add batch_code_config configuration');
         }
-        $unit = CRMCompanyUnit::where('crm_customer_id',$quote->crm_customer_id)->where('name',$quote->contact->unit_name)->first();
-       
+        $unit = CRMCompanyUnit::where('crm_customer_id', $quote->crm_customer_id)->where('name', $quote->contact->unit_name)->first();
+
         $account = SystemConfiguration::find($quote->customer->account_status);
         if (isset($account->id)) {
             $account_status = $account->key;
@@ -1019,7 +1022,7 @@ class QuotationController extends Controller
         } else {
             $account_status = 'N/a';
         }
-        foreach($sampletypes as $sample_type){
+        foreach ($sampletypes as $sample_type) {
             $cust_code = str_split($quote->customer->code);
             $code = [];
             $loop = 0;
@@ -1033,7 +1036,7 @@ class QuotationController extends Controller
                 ++$loop;
             }
             $tt = sizeof($cust_code) - 1;
-    
+
             $ranges = range($cont[0], $tt);
             $values = [];
             if (sizeof($cont) < 2) {
@@ -1044,8 +1047,8 @@ class QuotationController extends Controller
                     array_push($values, $cust_code[$r]);
                 }
             }
-    
-            $cP = 'BA'. $batch_config->value . implode('', $values) . $sample_type->code;
+
+            $cP = 'BA' . $batch_config->value . implode('', $values) . $sample_type->code;
             $config_batch_no = SystemConfiguration::where('key', 'batch_start_no')->first();
             if (!isset($config_batch_no->id)) {
                 return redirect()->back()->with('error', 'Kindly set the start batch no');
@@ -1060,65 +1063,65 @@ class QuotationController extends Controller
                 $final_no = strval($batch_no_s);
             }
             $batch_code = $cP . '' . $final_no;
-    
-            
-           
+
+
+
             $insert_batch = [
-                'receipt_date'=>date('Y-m-d'),
-                'date_collected'=>date('Y-m-d'),
+                'receipt_date' => date('Y-m-d'),
+                'date_collected' => date('Y-m-d'),
                 'crm_customer_id' => $quote->crm_customer_id,
                 'crm_unit_name' => $quote->contact->unit_name,
                 'sample_type_id' => $sample_type->id,
                 'reference_number' => $quote->quote_number,
                 'quote_no' => $quote->quote_number,
-                'batch_code'=> $batch_code,
+                'batch_code' => $batch_code,
                 'crm_contact_id' => $quote->contact->id,
                 'status' => 'Samples Reception',
-                'crm_unit_id'=>$unit->id,
+                'crm_unit_id' => $unit->id,
                 'lab_capable' => 1,
                 'client_instruction_clear' => 1,
                 'current_account_status' => $account_status,
                 'receiving_officer' => auth()->user()->id,
                 'quote_id' => $quote->id,
-                
+
             ];
             $batch = SampleHeader::create($insert_batch);
             $analysis_max_report_time = 0;
             $analytes_max_report_time = 0;
-    
-            foreach($quote->details as $detail){
-                if($detail->sample_type == $sample_type->id){
-                    $analysis_types_arr = QuotationDetailAnalysisSplit::where('quotation_detail_id',$detail->id)->pluck('analysis_type_id')->toArray();
-                    foreach(range(1,$detail->quantity) as $no_samples){
+
+            foreach ($quote->details as $detail) {
+                if ($detail->sample_type == $sample_type->id) {
+                    $analysis_types_arr = QuotationDetailAnalysisSplit::where('quotation_detail_id', $detail->id)->pluck('analysis_type_id')->toArray();
+                    foreach (range(1, $detail->quantity) as $no_samples) {
                         $lab = Lab::find($request->lab_id);
-                        $code = SampleDetails::orderBy('id','DESC')->first();
+                        $code = SampleDetails::orderBy('id', 'DESC')->first();
                         $last_sample = isset($code->id) ? $code->sample_no : $lab->start_sample_no;
-                        
+
                         // $last_sample = isset(SampleDetails::latest('id')->first()->id) ? substr(SampleDetails::latest('id')->first()->sample_code,9,strlen(SampleDetails::latest('id')->first()->sample_code) -1) : $config_start_no->value;
-        
+
                         // return response()->json($request->sample_details['lab_id'][$k]);
                         $sample_number = intval($last_sample) + 1;
                         // $sample_number = str_pad($sample_number, 4, '0', STR_PAD_LEFT);
-        
-                        $sample_code = 'S' . date('Y') . $lab->code .$sample_type->code. sprintf('%0' . '4' . 'd', $sample_number);
+
+                        $sample_code = 'S' . date('Y') . $lab->code . $sample_type->code . sprintf('%0' . '4' . 'd', $sample_number);
                         $sample_no = sprintf('%0' . '4' . 'd', $sample_number);
-                        $report_number = 'LR/'.$sample_type->code.'/'.date('Y').'/'.$lab->code.'/'.sprintf('%0' . '4' . 'd', $sample_number);
+                        $report_number = 'LR/' . $sample_type->code . '/' . date('Y') . '/' . $lab->code . '/' . sprintf('%0' . '4' . 'd', $sample_number);
                         $insert_sample = [
-                            'sample_code'=>$sample_code,
+                            'sample_code' => $sample_code,
                             'sample_no' => $sample_no,
                             'report_number' => $report_number,
-                            'analysis_type_id' => implode(',',$analysis_types_arr),
+                            'analysis_type_id' => implode(',', $analysis_types_arr),
                             'lab_id' => $lab->id,
                             'sample_header_id' => $batch->id,
                             'disposal_date' => \Carbon\Carbon::parse($batch->receipt_date)->addDays(14)->format('Y-m-d'),
                         ];
                         $sample = SampleDetails::create($insert_sample);
                         $this->createDetailAnalysisRelation($batch->id, $sample->id, explode(',', $sample->analysis_type_id));
-    
-                        $analysis_elements = AnalysisElements::with(['analyte'])->whereIn('id',explode(',',$detail->default_analytes))->get();
-                        foreach($analysis_elements as $element){
+
+                        $analysis_elements = AnalysisElements::with(['analyte'])->whereIn('id', explode(',', $detail->default_analytes))->get();
+                        foreach ($analysis_elements as $element) {
                             $insert_captured = [
-                                "sample_detail_code"=>$sample->sample_code,
+                                "sample_detail_code" => $sample->sample_code,
                                 "sample_detail_id" => $sample->id,
                                 "sample_header_id" => $batch->id,
                                 "analyte_id" => $element->analyte_id,
@@ -1130,8 +1133,8 @@ class QuotationController extends Controller
                                 "user_id" => Auth()->user()->id,
                                 "operator_id" => $element->operator_id,
                                 "ltm_method_id" => $element->ltm_method_id,
-                                "analyte_accredited"=> $element->non_accredited,
-                                "analyte_status_contracted"=>$lab->is_external ?? 0,
+                                "analyte_accredited" => $element->non_accredited,
+                                "analyte_status_contracted" => $lab->is_external ?? 0,
                                 "lab_section_id" => $element->lab_section_id,
                                 "parameters_order" => $element->level,
                                 "remark_is_manual" => $element->remark_is_manual
@@ -1140,23 +1143,23 @@ class QuotationController extends Controller
                             $insert_result = [
                                 'captured_result_id' => $captured->id,
                                 "sample_detail_id" => $sample->id,
-                                'sample_detail_code'=>$sample->sample_code,
+                                'sample_detail_code' => $sample->sample_code,
                                 "sample_header_id" => $batch->id,
                                 "analyte_id" => $element->analyte_id,
                                 "analysis_type_id" => $element->analysis_type_id,
                                 "analyte_code" => $element->analyte->code,
                                 "unit_code" => $element->reporting_unit,
                                 "reporting_symbol" => $element->reporting_symbol,
-                                "recheck"=>0,
-                                "analyte_status_contracted"=>$lab->is_external ?? 0,
+                                "recheck" => 0,
+                                "analyte_status_contracted" => $lab->is_external ?? 0,
                                 "lab_section_id" => $element->lab_section_id,
                                 "parameters_order" => $element->level,
                                 "remark_is_manual" => $element->remark_is_manual
-    
+
                             ];
                             $result = Result::create($insert_result);
                         }
-    
+
                         $analysis_max_report_time = AnalysisType::whereIn('id', $analysis_types_arr)->max('reporting_time');
                         $analytes_max_report_time = AnalysisElements::whereIn('analysis_type_id', $analysis_types_arr)->max('reporting_time');
                         $maxReportingTime = $analysis_max_report_time > $analytes_max_report_time ? $analysis_max_report_time : $analytes_max_report_time;
@@ -1180,9 +1183,9 @@ class QuotationController extends Controller
 
         }
 
-        QuotationHeader::find($request->quote_id)->update(['is_batch_generate'=>1]);
-        
-        return redirect()->back()->with('success','Batch created successfully');
+        QuotationHeader::find($request->quote_id)->update(['is_batch_generate' => 1]);
+
+        return redirect()->back()->with('success', 'Batch created successfully');
 
 
     }

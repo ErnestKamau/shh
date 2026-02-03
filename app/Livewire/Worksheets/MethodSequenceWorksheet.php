@@ -28,22 +28,22 @@ class MethodSequenceWorksheet extends Component
     public $selectedRunId = null;
     public $showCreateRunModal = false;
     public $showStageModal = false;
-    
+
     // Create Run Form
     public $newRunName = '';
     public $selectedSamples = [];
     public $availableSamples = [];
     public $selectedAnalystId = null;
     public $runDate = '';
-    
+
     // Stage Data Form
     public $editingStageData = null;
     public $stageFormData = [];
-    
+
     // Collapsible UI
     public $expandedRunIds = [];
     public $expandedStageIds = [];
-    
+
     // Searchable dropdowns
     public $equipmentSearch = '';
     public $mediaSearch = '';
@@ -54,14 +54,14 @@ class MethodSequenceWorksheet extends Component
     public $filteredEquipments = [];
     public $filteredMedias = [];
     public $filteredControls = [];
-    
+
     // Messages
     public $message = '';
     public $messageType = '';
-    
+
     // Analysts
     public $analysts = [];
-    
+
     // Edit Run Modal
     public $showEditRunModal = false;
     public $editingRunId = null;
@@ -90,7 +90,7 @@ class MethodSequenceWorksheet extends Component
         $runIds = $this->runs->pluck('id')->toArray();
         /** @var array<int> $usedCapturedIds */
         $usedCapturedIds = [];
-        
+
         if (count($runIds) > 0) {
             $usedCapturedIds = MethodSequenceRunSample::whereIn('run_id', $runIds)
                 ->pluck('captured_result_id')
@@ -100,11 +100,11 @@ class MethodSequenceWorksheet extends Component
         $query = CapturedResult::where('sample_header_id', $this->batch->id)
             ->where('method_sequence_id', $this->methodSequence->id)
             ->with('sample');
-            
+
         if (count($usedCapturedIds) > 0) {
             $query->whereNotIn('id', $usedCapturedIds);
         }
-        
+
         $this->availableSamples = $query->get();
 
         // Select first run if available
@@ -112,6 +112,16 @@ class MethodSequenceWorksheet extends Component
         $firstRun = $this->runs->first();
         if ($firstRun && !$this->selectedRunId) {
             $this->selectedRunId = $firstRun->id;
+        }
+
+        // Auto-expand runs with warnings or expired stages
+        foreach ($this->runs as $run) {
+            $timerStatus = $this->getRunTimerStatus($run);
+            if ($timerStatus['hasWarnings'] || $timerStatus['hasExpired'] || $run->status === 'pending') {
+                if (!in_array($run->id, $this->expandedRunIds)) {
+                    $this->expandedRunIds[] = $run->id;
+                }
+            }
         }
     }
 
@@ -136,7 +146,7 @@ class MethodSequenceWorksheet extends Component
             $lastRun = MethodSequenceRun::where('sample_header_id', $this->batch->id)
                 ->where('method_sequence_id', $this->methodSequence->id)
                 ->max('run_number');
-            
+
             $runNumber = ($lastRun ?? 0) + 1;
 
             // Create run
@@ -187,6 +197,48 @@ class MethodSequenceWorksheet extends Component
         }
     }
 
+    public function startRun(int $runId): void
+    {
+        try {
+            DB::beginTransaction();
+
+            $run = MethodSequenceRun::find($runId);
+            if (!$run) {
+                throw new \Exception('Run not found');
+            }
+
+            if ($run->status !== 'pending') {
+                throw new \Exception('Only pending runs can be started');
+            }
+
+            $run->update([
+                'status' => 'in_progress',
+                'started_by_user_id' => Auth::id(),
+                'started_at' => now(),
+            ]);
+
+            // Set the first stage as in_progress if it exists
+            $firstStageData = $run->stageData()->where('status', 'pending')->orderBy('id')->first();
+            if ($firstStageData) {
+                $firstStageData->update([
+                    'status' => 'in_progress',
+                    'date_in' => now()->toDateString(),
+                    'time_in' => now()->format('H:i'),
+                    'started_by_user_id' => Auth::id(),
+                ]);
+                $firstStageData->calculateEstimatedTimeOut();
+                $this->expandedStageIds[] = $firstStageData->id;
+            }
+
+            DB::commit();
+            $this->setMessage('Run started successfully!', 'success');
+            $this->loadData();
+        } catch (\Exception $e) {
+            DB::rollBack();
+            $this->setMessage('Error starting run: ' . $e->getMessage(), 'error');
+        }
+    }
+
     public function selectRun(int $runId): void
     {
         $this->selectedRunId = $runId;
@@ -195,7 +247,7 @@ class MethodSequenceWorksheet extends Component
     public function openStageModal(int $stageDataId): void
     {
         $this->editingStageData = MethodSequenceRunStageData::with(['stage', 'equipmentUsage', 'mediaUsage', 'controlUsage'])->find($stageDataId);
-        
+
         if ($this->editingStageData) {
             $this->stageFormData = [
                 'date_in' => $this->editingStageData->date_in?->format('Y-m-d') ?? now()->format('Y-m-d'),
@@ -218,7 +270,7 @@ class MethodSequenceWorksheet extends Component
                     'unit' => $c->unit,
                 ])->toArray(),
             ];
-            
+
             $this->showStageModal = true;
         }
     }
@@ -242,6 +294,11 @@ class MethodSequenceWorksheet extends Component
                 'completed_by_user_id' => $this->stageFormData['completed_by_user_id'] ?: null,
                 'status' => $this->stageFormData['date_out'] ? 'completed' : 'in_progress',
             ]);
+
+            // Calculate estimated time out if not already completed
+            if ($this->editingStageData->status !== 'completed') {
+                $this->editingStageData->calculateEstimatedTimeOut();
+            }
 
             // Update equipment usage
             $this->editingStageData->equipmentUsage()->delete();
@@ -345,6 +402,13 @@ class MethodSequenceWorksheet extends Component
             $stageData = MethodSequenceRunStageData::find($stageDataId);
             if ($stageData) {
                 $stageData->update([$field => $value]);
+
+                // Recalculate estimated time out if date_in or time_in changed
+                if (in_array($field, ['date_in', 'time_in']) && $stageData->status !== 'completed') {
+                    $stageData->refresh(); // Load new values from DB before calculation
+                    $stageData->calculateEstimatedTimeOut();
+                }
+
                 $this->setMessage('Field saved successfully!', 'success');
             }
         } catch (\Exception $e) {
@@ -357,7 +421,7 @@ class MethodSequenceWorksheet extends Component
         try {
             // Delete existing equipment usage
             MethodSequenceStageEquipmentUsage::where('run_stage_data_id', $stageDataId)->delete();
-            
+
             if ($equipmentId) {
                 MethodSequenceStageEquipmentUsage::create([
                     'run_stage_data_id' => $stageDataId,
@@ -365,9 +429,9 @@ class MethodSequenceWorksheet extends Component
                     'equipment_name' => $equipmentName,
                 ]);
             }
-            
+
             $this->setMessage('Equipment usage saved!', 'success');
-            
+
             // Close dropdown and clear search
             $this->showEquipmentDropdown = false;
             $this->equipmentSearch = '';
@@ -381,7 +445,7 @@ class MethodSequenceWorksheet extends Component
         try {
             // Delete existing media usage
             MethodSequenceStageMediaUsage::where('run_stage_data_id', $stageDataId)->delete();
-            
+
             if ($mediaId) {
                 $media = LabSubCategory::find($mediaId);
                 MethodSequenceStageMediaUsage::create([
@@ -393,7 +457,7 @@ class MethodSequenceWorksheet extends Component
                     'batch_number' => $batchNumber,
                 ]);
             }
-            
+
             $this->setMessage('Media usage saved!', 'success');
         } catch (\Exception $e) {
             $this->setMessage('Error saving media usage: ' . $e->getMessage(), 'error');
@@ -405,7 +469,7 @@ class MethodSequenceWorksheet extends Component
         try {
             // Delete existing control usage
             MethodSequenceStageControlUsage::where('run_stage_data_id', $stageDataId)->delete();
-            
+
             if ($controlId) {
                 $control = LabSubCategory::find($controlId);
                 MethodSequenceStageControlUsage::create([
@@ -417,7 +481,7 @@ class MethodSequenceWorksheet extends Component
                     'batch_number' => $batchNumber,
                 ]);
             }
-            
+
             $this->setMessage('Control usage saved!', 'success');
         } catch (\Exception $e) {
             $this->setMessage('Error saving control usage: ' . $e->getMessage(), 'error');
@@ -435,9 +499,9 @@ class MethodSequenceWorksheet extends Component
 
     public function searchMedias(): void
     {
-        $this->filteredMedias = LabSubCategory::whereHas('category', function($q) {
-                $q->where('name', 'LIKE', '%media%');
-            })
+        $this->filteredMedias = LabSubCategory::whereHas('category', function ($q) {
+            $q->where('name', 'LIKE', '%media%');
+        })
             ->where('name', 'LIKE', '%' . $this->mediaSearch . '%')
             ->limit(10)
             ->get()
@@ -446,9 +510,9 @@ class MethodSequenceWorksheet extends Component
 
     public function searchControls(): void
     {
-        $this->filteredControls = LabSubCategory::whereHas('category', function($q) {
-                $q->where('name', 'LIKE', '%control%');
-            })
+        $this->filteredControls = LabSubCategory::whereHas('category', function ($q) {
+            $q->where('name', 'LIKE', '%control%');
+        })
             ->where('name', 'LIKE', '%' . $this->controlSearch . '%')
             ->limit(10)
             ->get()
@@ -459,7 +523,7 @@ class MethodSequenceWorksheet extends Component
     {
         try {
             DB::beginTransaction();
-            
+
             $stageData = MethodSequenceRunStageData::find($stageDataId);
             if ($stageData) {
                 // Update stage data
@@ -479,7 +543,7 @@ class MethodSequenceWorksheet extends Component
                             $captured->result = $result;
                             $captured->remark = $remark;
                             $captured->operator_id = $stageData->completed_by_user_id ?? Auth::id();
-                            
+
                             // Populate from analysis element configuration if not already set
                             if ($captured->analysisElement) {
                                 if (!$captured->reporting_unit_id) {
@@ -489,7 +553,7 @@ class MethodSequenceWorksheet extends Component
                                     $captured->method_id = $captured->analysisElement->method;
                                 }
                             }
-                            
+
                             $captured->save();
                         }
                     }
@@ -499,12 +563,12 @@ class MethodSequenceWorksheet extends Component
                 if ($stage && $stage->is_end_stage) {
                     // Check if we should complete based on result
                     $shouldComplete = true;
-                    
+
                     if ($stage->is_end_stage_if_pass) {
                         // Only complete if result is Pass
                         $shouldComplete = ($remark === 'Pass');
                     }
-                    
+
                     if ($shouldComplete) {
                         // Complete the run
                         $run = $stageData->run;
@@ -561,7 +625,7 @@ class MethodSequenceWorksheet extends Component
                     'analyst_id' => $this->editRunAnalystId,
                     'run_date' => $this->editRunDate,
                 ]);
-                
+
                 $this->showEditRunModal = false;
                 $this->setMessage('Run updated successfully!', 'success');
                 $this->loadData();
@@ -600,19 +664,19 @@ class MethodSequenceWorksheet extends Component
     {
         // Get analyst role ID from system configuration
         $analystRoleConfig = \App\Models\System\SystemConfiguration::where('key', 'analyst_role_id')->first();
-        
+
         if (!$analystRoleConfig) {
             // Fallback to all active users if config not found
             return User::where('active', 1)->get();
         }
-        
+
         $analystRoleId = $analystRoleConfig->value;
-        
+
         // Get user IDs with analyst role
         $analystUserIds = \App\UserRole::where('role_id', $analystRoleId)
             ->pluck('user_id')
             ->toArray();
-        
+
         // Return users with analyst role and active status
         return User::whereIn('id', $analystUserIds)
             ->where('active', 1)
@@ -627,15 +691,17 @@ class MethodSequenceWorksheet extends Component
     {
         $hasWarnings = false;
         $hasExpired = false;
-        
-        foreach($run->stageData as $sd) {
-            if($sd->status === 'in_progress') {
+
+        foreach ($run->stageData as $sd) {
+            if ($sd->status === 'in_progress') {
                 $timerStatus = $sd->getTimerStatus();
-                if($timerStatus === 'warning') $hasWarnings = true;
-                if($timerStatus === 'expired') $hasExpired = true;
+                if ($timerStatus === 'warning')
+                    $hasWarnings = true;
+                if ($timerStatus === 'expired')
+                    $hasExpired = true;
             }
         }
-        
+
         return [
             'hasWarnings' => $hasWarnings,
             'hasExpired' => $hasExpired,
@@ -662,10 +728,10 @@ class MethodSequenceWorksheet extends Component
             'users' => User::where('active', 1)->get(),
             'analysts' => $this->analysts,
             'equipments' => Equipment::where('active', 1)->get(),
-            'medias' => LabSubCategory::whereHas('category', function($q) {
+            'medias' => LabSubCategory::whereHas('category', function ($q) {
                 $q->where('name', 'LIKE', '%media%');
             })->get(),
-            'controls' => LabSubCategory::whereHas('category', function($q) {
+            'controls' => LabSubCategory::whereHas('category', function ($q) {
                 $q->where('name', 'LIKE', '%control%');
             })->get(),
             'selectedRun' => $selectedRun,
