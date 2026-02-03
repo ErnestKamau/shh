@@ -1125,22 +1125,54 @@ class FormInstanceController extends Controller
                 if ($batchForThisType) {
                     $allSamples = $batchForThisType->samples ? $batchForThisType->samples->unique('id') : collect();
                     $sampleCount = $allSamples->count();
-                    
+
                     if ($sampleCount > 0) {
                         $sampleCodes = $allSamples->pluck('sample_code')->sort()->values();
                         $minCode = $sampleCodes->first();
                         $maxCode = $sampleCodes->last();
                         $codeRange = $minCode === $maxCode ? $minCode : "{$minCode} - {$maxCode}";
                     } else {
-                        // Fallback to form field values for quantity and range
-                        $sampleCount = $instance->getValueByElementName('no_of_samples') ?: $instance->getValueByElementName('quantity') ?: 0;
+                        // Check for staging data first
+                        $staging = \App\Models\SampleDetailStaging::where('sample_header_id', $batchForThisType->id)->first();
+                        if ($staging && isset($staging->data_json['quantity'])) {
+                            $sampleCount = $staging->data_json['quantity'];
+                        } else {
+                            // Fallback to form field values for quantity and range
+                            $sampleCount = 0;
+                            $possibleKeywords = ["no_of_samples", "no_samples", "number_of_samples", "quantity", "total_samples", "count"];
+                            foreach ($possibleKeywords as $keyword) {
+                                $val = $instance->getValueByElementName($keyword);
+                                if ($val !== null && is_numeric($val) && $val > 0) {
+                                    $sampleCount = $val;
+                                    break;
+                                }
+                            }
+                        }
+
+                        if ($sampleCount == 0) {
+                            $instance->values()->with("element")->get()->each(function ($v) use (&$sampleCount) {
+                                if ($sampleCount > 0)
+                                    return;
+                                $label = strtolower($v->element->label ?? "");
+                                if (
+                                    (str_contains($label, "number") && str_contains($label, "sample")) ||
+                                    (str_contains($label, "no") && str_contains($label, "sample")) ||
+                                    str_contains($label, "quantity")
+                                ) {
+                                    if (is_numeric($v->value) && $v->value > 0) {
+                                        $sampleCount = $v->value;
+                                    }
+                                }
+                            });
+                        }
                         $codeRange = 'Pending Assignment';
                     }
 
                     // Try to get test names from form values
-                    $testsRequired = $instance->resolveDisplayValueByName('tests_required') 
-                                    ?: $instance->resolveDisplayValueByName('analysis_elements_select') 
-                                    ?: 'General Analysis';
+                    $testsRequired = $instance->resolveDisplayValueByName('tests_required')
+                        ?: $instance->resolveDisplayValueByName('analysis_elements_select')
+                        ?: $instance->resolveDisplayValueByName('analysis_type_id')
+                        ?: 'General Analysis';
 
                     // Sent info
                     $sentBy = $instance->submittedBy ? $instance->submittedBy->name : 'N/A';
@@ -1281,22 +1313,29 @@ class FormInstanceController extends Controller
                 if ($batchForThisType) {
                     $allSamples = $batchForThisType->samples ? $batchForThisType->samples->unique('id') : collect();
                     $sampleCount = $allSamples->count();
-                    
+
                     if ($sampleCount > 0) {
                         $sampleCodes = $allSamples->pluck('sample_code')->sort()->values();
                         $minCode = $sampleCodes->first();
                         $maxCode = $sampleCodes->last();
                         $codeRange = $minCode === $maxCode ? $minCode : "{$minCode} - {$maxCode}";
                     } else {
-                        // Fallback to form field values for quantity and range
-                        $sampleCount = $instance->getValueByElementName('no_of_samples') ?: $instance->getValueByElementName('quantity') ?: 0;
+                        // Check for staging data first
+                        $staging = \App\Models\SampleDetailStaging::where('sample_header_id', $batchForThisType->id)->first();
+                        if ($staging && isset($staging->data_json['quantity'])) {
+                            $sampleCount = $staging->data_json['quantity'];
+                        } else {
+                            // Fallback to form field values for quantity and range
+                            $sampleCount = $instance->getValueByElementName('no_of_samples') ?: $instance->getValueByElementName('quantity') ?: 0;
+                        }
                         $codeRange = 'Pending Assignment';
                     }
 
                     // Try to get test names from form values
-                    $testsRequired = $instance->resolveDisplayValueByName('tests_required') 
-                                    ?: $instance->resolveDisplayValueByName('analysis_elements_select') 
-                                    ?: 'General Analysis';
+                    $testsRequired = $instance->resolveDisplayValueByName('tests_required')
+                        ?: $instance->resolveDisplayValueByName('analysis_elements_select')
+                        ?: $instance->resolveDisplayValueByName('analysis_type_id')
+                        ?: 'General Analysis';
 
                     // Sent info
                     $sentBy = $instance->submittedBy ? $instance->submittedBy->name : 'N/A';

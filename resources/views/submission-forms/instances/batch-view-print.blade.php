@@ -374,7 +374,22 @@
               @foreach($section->elementHolders as $holder)
                 @if($holder->holder_type === 'field')
                   <div class="row">
-                    @foreach($holder->elements as $element)
+                    @php
+                      $sortedElements = $holder->elements;
+                      if ($isSamplingSection) {
+                        $sortedElements = $holder->elements->sortBy(function ($el) {
+                          $label = strtolower($el->label ?? '');
+                          if (str_contains($label, 'date') || str_contains($label, 'time'))
+                            return 1;
+                          if (str_contains($label, 'by') || str_contains($label, 'person') || str_contains($label, 'officer'))
+                            return 2;
+                          if (str_contains($label, 'signature'))
+                            return 3;
+                          return 4;
+                        });
+                      }
+                    @endphp
+                    @foreach($sortedElements as $element)
                       @php
                         // Skip client unit field if we're in Client Details section as it's included in the table
                         $isClientUnitInClientDetails = $element->element_type === 'client_unit_select' &&
@@ -431,33 +446,33 @@
                                     }
 
                                     $value = '<div class="table-responsive">
-                                                                                                                                                                          <table class="table table-sm table-bordered mb-0 w-100" style="font-size: 14px; background-color: white;">
-                                                                                                                                                                          <tr>
-                                                                                                                                                                              <td class="font-weight-bold" style="width: 25%; background-color: #f8f9fa;">Client Name</td>
-                                                                                                                                                                              <td>' . ($client->name ?? 'N/A') . '</td>
-                                                                                                                                                                          </tr>
-                                                                                                                                                                          <tr>
-                                                                                                                                                                              <td class="font-weight-bold" style="background-color: #f8f9fa;">Address</td>
-                                                                                                                                                                              <td>' . ($client->address ?? 'N/A') . '</td>
-                                                                                                                                                                          </tr>
-                                                                                                                                                                          <tr>
-                                                                                                                                                                              <td class="font-weight-bold" style="background-color: #f8f9fa;">Telephone</td>
-                                                                                                                                                                              <td>' . ($client->telephone ?? 'N/A') . '</td>
-                                                                                                                                                                          </tr>
-                                                                                                                                                                          <tr>
-                                                                                                                                                                              <td class="font-weight-bold" style="background-color: #f8f9fa;">Email</td>
-                                                                                                                                                                              <td>' . ($client->email ?? 'N/A') . '</td>
-                                                                                                                                                                          </tr>
-                                                                                                                                                                          <tr>
-                                                                                                                                                                              <td class="font-weight-bold" style="background-color: #f8f9fa;">Client Unit</td>
-                                                                                                                                                                              <td>' . $clientUnitValue . '</td>
-                                                                                                                                                                          </tr>
-                                                                                                                                                                          <tr>
-                                                                                                                                                                              <td class="font-weight-bold" style="background-color: #f8f9fa;">Client Section</td>
-                                                                                                                                                                              <td>' . $clientSectionValue . '</td>
-                                                                                                                                                                          </tr>
-                                                                                                                                                                          </table>
-                                                                                                                                                                      </div>';
+                                                                                                                                                                                            <table class="table table-sm table-bordered mb-0 w-100" style="font-size: 14px; background-color: white;">
+                                                                                                                                                                                            <tr>
+                                                                                                                                                                                                <td class="font-weight-bold" style="width: 25%; background-color: #f8f9fa;">Client Name</td>
+                                                                                                                                                                                                <td>' . ($client->name ?? 'N/A') . '</td>
+                                                                                                                                                                                            </tr>
+                                                                                                                                                                                            <tr>
+                                                                                                                                                                                                <td class="font-weight-bold" style="background-color: #f8f9fa;">Address</td>
+                                                                                                                                                                                                <td>' . ($client->address ?? 'N/A') . '</td>
+                                                                                                                                                                                            </tr>
+                                                                                                                                                                                            <tr>
+                                                                                                                                                                                                <td class="font-weight-bold" style="background-color: #f8f9fa;">Telephone</td>
+                                                                                                                                                                                                <td>' . ($client->telephone ?? 'N/A') . '</td>
+                                                                                                                                                                                            </tr>
+                                                                                                                                                                                            <tr>
+                                                                                                                                                                                                <td class="font-weight-bold" style="background-color: #f8f9fa;">Email</td>
+                                                                                                                                                                                                <td>' . ($client->email ?? 'N/A') . '</td>
+                                                                                                                                                                                            </tr>
+                                                                                                                                                                                            <tr>
+                                                                                                                                                                                                <td class="font-weight-bold" style="background-color: #f8f9fa;">Client Unit</td>
+                                                                                                                                                                                                <td>' . $clientUnitValue . '</td>
+                                                                                                                                                                                            </tr>
+                                                                                                                                                                                            <tr>
+                                                                                                                                                                                                <td class="font-weight-bold" style="background-color: #f8f9fa;">Client Section</td>
+                                                                                                                                                                                                <td>' . $clientSectionValue . '</td>
+                                                                                                                                                                                            </tr>
+                                                                                                                                                                                            </table>
+                                                                                                                                                                                        </div>';
                                   }
                                 } else {
                                   $value = $instance->resolveDisplayValue($element, $value);

@@ -358,8 +358,20 @@
                 {{-- Other sections: show form fields but no description --}}
                 @foreach($section->elementHolders as $holder)
                   @if($holder->holder_type === 'field')
-                    <div class="row">
-                      @foreach($holder->elements as $element)
+                     <div class="row">
+                       @php
+                         $sortedElements = $holder->elements;
+                         if ($isSamplingSection) {
+                           $sortedElements = $holder->elements->sortBy(function($el) {
+                             $label = strtolower($el->label ?? '');
+                             if (str_contains($label, 'date') || str_contains($label, 'time')) return 1;
+                             if (str_contains($label, 'by') || str_contains($label, 'person') || str_contains($label, 'officer')) return 2;
+                             if (str_contains($label, 'signature')) return 3;
+                             return 4;
+                           });
+                         }
+                       @endphp
+                       @foreach($sortedElements as $element)
                         @php
                           // Skip client unit field if we're in Client Details section as it's included in the table
                           $isClientUnitInClientDetails = $element->element_type === 'client_unit_select' &&
