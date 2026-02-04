@@ -1,6 +1,6 @@
 <div>
     @if(isset($batch->id))
-        <div class="card border-0 mb-2" style="background-color: inherit !important">
+        <div class="card border-0 mb-2" style="background-color: inherit !important; border-radius: 15px; overflow: hidden;">
             <div class="card-header- p-2 border-bottom" style="background-color: inherit !important">
                 <h5 style="font-size: large"><i class="mdi mdi-calendar-month"></i> Batch Dates</h5>
             </div>

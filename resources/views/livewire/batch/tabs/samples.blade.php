@@ -638,18 +638,22 @@
                                                 <td>
                                                     <div class="d-flex align-items-center justify-content-between">
                                                         <small>{{ $param['standard_value'] }}</small>
-                                                        <button type="button" wire:click.stop="openEditStandardModal({{ $id }}, 1)" class="btn btn-sm btn-link p-0 text-primary ml-1" title="Edit Main Standard" style="line-height: 1;" wire:loading.attr="disabled">
-                                                            <i wire:loading.remove wire:target="openEditStandardModal({{ $id }}, 1)" class="mdi mdi-pencil" style="font-size: 12px;"></i>
-                                                            <i wire:loading wire:target="openEditStandardModal({{ $id }}, 1)" class="mdi mdi-loading mdi-spin" style="font-size: 12px;"></i>
-                                                        </button>
+                                                        @if($param['standard_id'])
+                                                            <button type="button" wire:click.stop="openEditStandardModal({{ $id }}, 1)" class="btn btn-sm btn-link p-0 text-secondary ml-1" title="Edit Main Standard" style="line-height: 1;" wire:loading.attr="disabled">
+                                                                <i wire:loading.remove wire:target="openEditStandardModal({{ $id }}, 1)" class="mdi mdi-pencil" style="font-size: 12px;"></i>
+                                                                <i wire:loading wire:target="openEditStandardModal({{ $id }}, 1)" class="mdi mdi-loading mdi-spin" style="font-size: 12px;"></i>
+                                                            </button>
+                                                        @endif
                                                     </div>
                                                     @if($param['sec_standard_value'])
                                                         <div class="d-flex align-items-center justify-content-between mt-1">
-                                                            <small class="text-info">{{ $param['sec_standard_value'] }}</small>
-                                                            <button type="button" wire:click.stop="openEditStandardModal({{ $id }}, 2)" class="btn btn-sm btn-link p-0 text-info ml-1" title="Edit Secondary Standard" style="line-height: 1;" wire:loading.attr="disabled">
-                                                                <i wire:loading.remove wire:target="openEditStandardModal({{ $id }}, 2)" class="mdi mdi-pencil" style="font-size: 12px;"></i>
-                                                                <i wire:loading wire:target="openEditStandardModal({{ $id }}, 2)" class="mdi mdi-loading mdi-spin" style="font-size: 12px;"></i>
-                                                            </button>
+                                                            <small class="text-muted">{{ $param['sec_standard_value'] }}</small>
+                                                            @if($param['sec_standard_id'])
+                                                                <button type="button" wire:click.stop="openEditStandardModal({{ $id }}, 2)" class="btn btn-sm btn-link p-0 text-muted ml-1" title="Edit Secondary Standard" style="line-height: 1;" wire:loading.attr="disabled">
+                                                                    <i wire:loading.remove wire:target="openEditStandardModal({{ $id }}, 2)" class="mdi mdi-pencil" style="font-size: 12px;"></i>
+                                                                    <i wire:loading wire:target="openEditStandardModal({{ $id }}, 2)" class="mdi mdi-loading mdi-spin" style="font-size: 12px;"></i>
+                                                                </button>
+                                                            @endif
                                                         </div>
                                                     @endif
                                                 </td>
@@ -1086,136 +1090,294 @@
             background-color: #dee2e6;
             margin: 4px 0;
         }
+        
+        /* Edit Standard Modal - Grey Styling */
+        .grey-input {
+            border-color: #ced4da !important;
+        }
+        
+        .grey-input:focus {
+            border-color: #6c757d !important;
+            box-shadow: 0 0 0 0.2rem rgba(108, 117, 125, 0.25) !important;
+        }
+        
+        /* Grey radio button focus */
+        .form-check-input:focus {
+            border-color: #6c757d !important;
+            box-shadow: 0 0 0 0.2rem rgba(108, 117, 125, 0.15) !important;
+        }
+        
+        .form-check-input:checked {
+            background-color: #6c757d !important;
+            border-color: #6c757d !important;
+        }
     </style>
 
     <!-- Edit Standard Modal -->
     
-    <div class="modal fade" id="editStandardModal" tabindex="-1" role="dialog" wire:ignore.self>
+    @if($showEditStandardModal)
+    <div class="modal fade show" tabindex="-1" role="dialog" style="display: block; background-color: rgba(0,0,0,0.5); z-index: 1600;">
         <div class="modal-dialog modal-dialog-centered" role="document">
             <div class="modal-content">
-                <div class="modal-header">
-                    <h5 class="modal-title">Edit Standard: {{ $editingStandardData['analyte_name'] }}</h5>
-                    <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+                <form wire:submit.prevent="saveStandardLimit">
+                    <div class="modal-header bg-light">
+                        <h5 class="modal-title text-dark">Edit Standard: {{ $editingStandardData['analyte_name'] }}</h5>
+                        <button type="button" class="close" wire:click="cancelEditStandardModal">
+                            <span>&times;</span>
+                        </button>
+                    </div>
+                    <div class="modal-body">
+                        <div class="alert" style="background-color: #f8f9fa; border-color: #dee2e6; color: #6c757d;">
+                            <small>Updating this standard will affect the master setup for this analyte.</small>
+                        </div>
+                        
+                        <div class="form-group mb-2">
+                            <label class="text-muted">Previous Value</label>
+                            <input type="text" class="form-control form-control-sm" readonly value="{{ $editingStandardData['previous_value'] }}">
+                        </div>
+                        
+                        <div class="form-group mb-3">
+                            <label class="d-block">Standard Value Type</label>
+                            <div class="form-check form-check-inline">
+                                <input class="form-check-input" type="radio" wire:model.live="editingStandardData.standard_value_type" value="1" id="svt_range">
+                                <label class="form-check-label" for="svt_range">Use Range</label>
+                            </div>
+                            <div class="form-check form-check-inline">
+                                <input class="form-check-input" type="radio" wire:model.live="editingStandardData.standard_value_type" value="2" id="svt_value">
+                                <label class="form-check-label" for="svt_value">Use Value</label>
+                            </div>
+                        </div>
+
+                        @if($editingStandardData['standard_value_type'] == 1)
+                            <div class="row">
+                                <div class="col-6">
+                                    <div class="form-group">
+                                        <label>Min</label>
+                                        <input type="text" class="form-control grey-input" wire:model.defer="editingStandardData.min" placeholder="Min">
+                                    </div>
+                                </div>
+                                <div class="col-6">
+                                    <div class="form-group">
+                                        <label>Max</label>
+                                        <input type="text" class="form-control grey-input" wire:model.defer="editingStandardData.max" placeholder="Max">
+                                    </div>
+                                </div>
+                            </div>
+                        @else
+                            <div class="form-group">
+                                <label>Value Type</label>
+                                <select class="form-control grey-input" wire:model.defer="editingStandardData.standard_valuetype">
+                                    <option value="">- Select -</option>
+                                    @foreach($standardValueOptions as $opt)
+                                        <option value="{{ $opt->id }}">{{ $opt->code }}</option>
+                                    @endforeach
+                                </select>
+                            </div>
+                            <div class="row mt-2">
+                                <div class="col-6">
+                                    <div class="form-group">
+                                        <label>Limit Measure</label>
+                                        <select class="form-control grey-input" wire:model.defer="editingStandardData.limit_measure">
+                                            <option value="">- Choose -</option>
+                                            <option value="Max">Max</option>
+                                            <option value="Min">Min</option>
+                                            <option value="less_than">&lt; (Less Than)</option>
+                                            <option value="greater_than">&gt; (Greater Than)</option>
+                                        </select>
+                                    </div>
+                                </div>
+                                <div class="col-6">
+                                    <div class="form-group">
+                                        <label>Value</label>
+                                        <input type="text" class="form-control grey-input" wire:model.defer="editingStandardData.value" placeholder="Value">
+                                    </div>
+                                </div>
+                            </div>
+                        @endif
+                    </div>
+                    <div class="modal-footer bg-light">
+                        <button type="button" class="btn btn-secondary" wire:click="cancelEditStandardModal">Close</button>
+                        <button type="submit" class="btn btn-dark">Save Changes</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+    @endif
+
+    <!-- Assign Samples Modal -->
+    <!-- Livewire Assign Samples Modal -->
+    @if($showAssignSamplesModal)
+    <div class="modal fade show" tabindex="-1" role="dialog" style="display: block; background-color: rgba(0,0,0,0.5); z-index: 1050; overflow-y: auto;">
+        <div class="modal-dialog modal-xl" role="document">
+            <div class="modal-content" style="border-radius: 15px; border: none;">
+                <div class="modal-header" style="background: linear-gradient(135deg, rgba(255, 255, 255, 0.9) 0%, rgba(248, 249, 250, 0.8) 100%); border-radius: 15px 15px 0 0; border-bottom: 1px solid rgba(0, 0, 0, 0.08); box-shadow: 0 2px 15px rgba(0, 0, 0, 0.05);">
+                    <h5 class="modal-title" style="color: #495057; font-weight: 600;">
+                        <i class="mdi mdi-clipboard-check text-primary"></i> Assign Samples
+                    </h5>
+                    <button type="button" class="close" wire:click="$set('showAssignSamplesModal', false)" style="color: #495057; opacity: 0.7;">
                         <span aria-hidden="true">&times;</span>
                     </button>
                 </div>
-                <div class="modal-body">
-                    <div class="alert alert-info">
-                        <small>Updating this standard will affect the master setup for this analyte.</small>
-                    </div>
+                <div class="modal-body" style="background-color: #f8f9fa;">
                     
-                    <div class="form-group mb-2">
-                        <label class="text-muted">Previous Value</label>
-                        <input type="text" class="form-control form-control-sm" readonly value="{{ $editingStandardData['previous_value'] }}">
-                    </div>
-                    
-                    <div class="form-group mb-3">
-                        <label class="d-block">Standard Value Type</label>
-                        <div class="form-check form-check-inline">
-                            <input class="form-check-input" type="radio" wire:model="editingStandardData.standard_value_type" value="1" id="svt_range">
-                            <label class="form-check-label" for="svt_range">Use Range</label>
+                    @if (session()->has('error'))
+                        <div class="alert alert-danger">
+                            {{ session('error') }}
                         </div>
-                        <div class="form-check form-check-inline">
-                            <input class="form-check-input" type="radio" wire:model="editingStandardData.standard_value_type" value="2" id="svt_value">
-                            <label class="form-check-label" for="svt_value">Use Value</label>
+                    @endif
+
+                    <!-- Batch Information -->
+                    <div class="card mb-3 shadow-sm border-0" style="border-radius: 15px;">
+                        <div class="card-body p-4">
+                            <div class="row">
+                                <div class="col-md-3">
+                                    <strong class="text-muted" style="font-size: 0.875rem;"><i class="mdi mdi-chevron-right"></i> Lab No:</strong> 
+                                    <div style="font-size: 1rem; font-weight: 600; color: #495057;padding-left: 18px;">{{ $assignBatchCode }}</div>
+                                </div>
+                                <div class="col-md-3">
+                                    <strong class="text-muted" style="font-size: 0.875rem;"><i class="mdi mdi-chevron-right"></i> Sample Type:</strong> 
+                                    <div style="font-size: 1rem; font-weight: 600; color: #495057;padding-left: 18px;">{{ $assignSampleType }}</div>
+                                </div>
+                                <div class="col-md-3">
+                                    <strong class="text-muted" style="font-size: 0.875rem;"><i class="mdi mdi-chevron-right"></i> Customer:</strong> 
+                                    <div style="font-size: 1rem; font-weight: 600; color: #495057;padding-left: 18px;">{{ $assignCustomer }}</div>
+                                </div>
+                                <div class="col-md-3">
+                                    <strong class="text-muted" style="font-size: 0.875rem;"><i class="mdi mdi-chevron-right"></i> Company Unit:</strong> 
+                                    <div style="font-size: 1rem; font-weight: 600; color: #495057;padding-left: 18px;">{{ $assignCompanyUnit }}</div>
+                                </div>
+                            </div>
                         </div>
                     </div>
 
-                    @if($editingStandardData['standard_value_type'] == 1)
-                        <div class="row">
-                            <div class="col-6">
-                                <div class="form-group">
-                                    <label>Min</label>
-                                    <input type="text" class="form-control" wire:model.defer="editingStandardData.min" placeholder="Min">
+
+                    <!-- Add New Sample Point Section -->
+                    <div class="card mb-3 shadow-sm border-0" style="border-radius: 15px;">
+                        <div class="card-header bg-light border-0" style="border-radius: 15px 15px 0 0;">
+                            <h6 class="mb-0 text-muted">
+                                <i class="mdi mdi-plus-circle"></i> Add New Sample Point
+                            </h6>
+                        </div>
+                        <div class="card-body">
+                            <div class="row">
+                                <div class="col-md-4">
+                                    <div class="form-group">
+                                        <label class="form-label"><strong>Sample Area</strong></label>
+                                        <select wire:model="assignNewAreaId" class="form-control">
+                                            <option value="">-- Select Area --</option>
+                                            @foreach($assignAvailableAreas as $area)
+                                                <option value="{{ $area['id'] }}">{{ $area['name'] }}</option>
+                                            @endforeach
+                                        </select>
+                                    </div>
                                 </div>
-                            </div>
-                            <div class="col-6">
-                                <div class="form-group">
-                                    <label>Max</label>
-                                    <input type="text" class="form-control" wire:model.defer="editingStandardData.max" placeholder="Max">
+                                <div class="col-md-4">
+                                    <div class="form-group">
+                                        <label class="form-label"><strong>Sample Point</strong></label>
+                                        <select wire:model="assignNewPointId" class="form-control">
+                                            <option value="">-- Select Sample Point --</option>
+                                            @foreach($assignAvailablePoints as $point)
+                                                <option value="{{ $point['id'] }}">{{ $point['name'] }}</option>
+                                            @endforeach
+                                        </select>
+                                    </div>
+                                </div>
+                                <div class="col-md-4">
+                                    <div class="form-group">
+                                        <label class="form-label">&nbsp;</label>
+                                        <button wire:click="addCustomerSamplePoint" class="btn btn-primary btn-block" 
+                                                @if(!$assignNewAreaId || !$assignNewPointId) disabled @endif
+                                                wire:loading.attr="disabled"
+                                                wire:target="addCustomerSamplePoint">
+                                            <i class="mdi mdi-plus"></i> Add to Customer
+                                        </button>
+                                        <div wire:loading wire:target="addCustomerSamplePoint" class="text-center text-primary small mt-1">
+                                            <span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span> Adding...
+                                        </div>
+                                    </div>
                                 </div>
                             </div>
                         </div>
-                    @else
-                        <div class="form-group">
-                            <label>Value Type</label>
-                            <select class="form-control" wire:model.defer="editingStandardData.standard_valuetype">
-                                <option value="">- Select -</option>
-                                @foreach($standardValueOptions as $opt)
-                                    <option value="{{ $opt->id }}">{{ $opt->code }}</option>
-                                @endforeach
-                            </select>
-                        </div>
-                        <div class="row mt-2">
-                            <div class="col-6">
-                                <div class="form-group">
-                                    <label>Limit Measure</label>
-                                    <select class="form-control" wire:model.defer="editingStandardData.limit_measure">
-                                        <option value="">- Choose -</option>
-                                        <option value="Max">Max</option>
-                                        <option value="Min">Min</option>
-                                        <option value="less_than">&lt; (Less Than)</option>
-                                        <option value="greater_than">&gt; (Greater Than)</option>
-                                    </select>
-                                </div>
-                            </div>
-                            <div class="col-6">
-                                <div class="form-group">
-                                    <label>Value</label>
-                                    <input type="text" class="form-control" wire:model.defer="editingStandardData.value" placeholder="Value">
-                                </div>
+                    </div>
+
+                    <!-- Sample Information Table -->
+                    <div class="card shadow-sm border-0" style="border-radius: 15px;">
+                        <div class="card-header bg-light border-0 d-flex justify-content-between align-items-center" style="border-radius: 15px 15px 0 0;">
+                            <h6 class="mb-0 text-muted">
+                                <i class="mdi mdi-map-marker-multiple"></i> Sample Points Assignment
+                            </h6>
+                            <div>
+                                <span class="badge badge-info mr-2">Total Qty: {{ $assignTotalQty }}</span>
                             </div>
                         </div>
-                    @endif
+                        <div class="card-body p-0">
+                            <div class="table-responsive">
+                                <table class="table table-hover mb-0">
+                                    <thead class="bg-light">
+                                        <tr>
+                                            <th style="width: 50px;" class="text-center">Select</th>
+                                            <th>Sample Point</th>
+                                            <th style="width: 150px;">Quantity</th>
+                                            <th style="width: 150px;">Status</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        @forelse($assignAreas as $area)
+                                            <tr>
+                                                <td colspan="4" class="bg-light font-weight-bold pl-4">
+                                                    <i class="mdi mdi-map-marker text-primary"></i> Area: {{ $area['name'] }}
+                                                </td>
+                                            </tr>
+                                            @foreach($area['sample_points'] as $point)
+                                                <tr>
+                                                    <td class="text-center">
+                                                        <div class="custom-control custom-checkbox">
+                                                            <input type="checkbox" class="custom-control-input" 
+                                                                   id="assign_point_{{ $point['id'] }}" 
+                                                                   wire:model.defer="assignSelectedPoints.{{ $point['id'] }}"
+                                                                   value="1">
+                                                            <label class="custom-control-label" for="assign_point_{{ $point['id'] }}"></label>
+                                                        </div>
+                                                    </td>
+                                                    <td>{{ $point['name'] }}</td>
+                                                    <td>
+                                                        <input type="number" class="form-control form-control-sm" 
+                                                               style="width: 80px;" 
+                                                               value="1" 
+                                                               disabled>
+                                                        <!-- Quantity logic can be expanded here if needed, currently fixed to 1 per selection logic -->
+                                                    </td>
+                                                    <td>
+                                                        <span class="badge badge-success">Active</span>
+                                                    </td>
+                                                </tr>
+                                            @endforeach
+                                        @empty
+                                            <tr>
+                                                <td colspan="4" class="text-center py-4">No sample points available for this unit.</td>
+                                            </tr>
+                                        @endforelse
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+
                 </div>
-                <div class="modal-footer">
-                    <button type="button" class="btn btn-secondary" data-dismiss="modal">Close</button>
-                    <button type="button" class="btn btn-primary" wire:click="saveStandardLimit">Save Changes</button>
+                <div class="modal-footer" style="background-color: #f8f9fa; border-radius: 0 0 15px 15px;">
+                    <button type="button" class="btn btn-secondary" wire:click="$set('showAssignSamplesModal', false)">Close</button>
+                    <button type="button" class="btn btn-primary" wire:click="performAssignment" wire:loading.attr="disabled">
+                        <span wire:loading wire:target="performAssignment" class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span>
+                        Assign Samples
+                    </button>
                 </div>
             </div>
         </div>
     </div>
-    
-    
-
-    <script>
-        console.log('Samples.blade.php script loaded');
-        // alert('Samples script loaded'); // Uncomment if console is hard to reach
-        document.addEventListener('livewire:initialized', () => {
-            console.log('Livewire initialized listener registered');
-            Livewire.on('show-edit-standard-modal', () => {
-                console.log('Event received: show-edit-standard-modal');
-                alert('Event Received: show-edit-standard-modal');
-                $('#editStandardModal').modal('show');
-            });
-            Livewire.on('hide-edit-standard-modal', () => {
-                $('#editStandardModal').modal('hide');
-            });
-        });
-    </script>
+    @endif
 </div>
 
-
-
-
-{{-- JavaScript bridge for assign samples modal (maintains compatibility with existing implementation) --}}
-@push('scripts')
-<script>
-document.addEventListener('livewire:initialized', () => {
-    Livewire.on('openAssignModal', (event) => {
-        const stagingId = event.stagingId;
-        const headerId = event.headerId;
-        
-        // Call the existing JavaScript function if it exists
-        if (typeof loadAssignmentData === 'function') {
-            loadAssignmentData(stagingId, headerId);
-        } else {
-            console.error('loadAssignmentData function not found. Make sure the original JavaScript is loaded.');
-        }
-    });
-});
-</script>
-@endpush
 
 
 

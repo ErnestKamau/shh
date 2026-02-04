@@ -60,7 +60,7 @@
         <div class="alert alert-info mb-0 p-2 p-md-3">
           <i class="mdi mdi-information-outline"></i>
           <strong>Form Instance:</strong> 
-          <span class="d-block d-sm-inline">{{ $instance->form_number }} - {{ $instance->title }}</span>
+          <span class="d-block d-sm-inline">{{ $instance->form_number ?? 'New Submission' }} - {{ $instance->title }}</span>
           <span class="badge badge-{{ $instance->getStatusBadgeColor() }} ml-0 ml-sm-2 mt-1 mt-sm-0">
             {{ ucfirst(str_replace('_', ' ', $instance->status)) }}
           </span>
@@ -81,7 +81,7 @@
                   @endif
                 </div>
                 <div class="text-right">
-                  <small class="text-muted">Form Number: <strong>{{ $instance->form_number }}</strong></small>
+                  <small class="text-muted">Form Number: <strong>{{ $instance->form_number ?? 'Pending' }}</strong></small>
                 </div>
               </div>
             </div>

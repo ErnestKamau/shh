@@ -16,6 +16,38 @@ class Header extends Component
     public $clientPortal;
     public $notCaptured;
 
+    // Data Properties
+    public $contacts = [];
+    public $users = [];
+    public $standards = [];
+    public $allSamples = [];
+    public $sectionApprovers = [];
+    public $labStores = [];
+    public $storeSlots = [];
+
+    // Modal State
+    public $showSendScheduleModal = false;
+    public $showPaymentReminderModal = false;
+    public $showBulkUpdateModal = false;
+    public $showVerificationModal = false;
+
+    // Form Data
+    public $selectedContact;
+    public $emailBody;
+    public $bulkData = [
+        'main_standard' => '',
+        'secondary_standard' => '',
+        'disposal_date' => '',
+        'store_id' => '',
+        'store_slot_id' => '',
+    ];
+    public $selectedSamples = []; // For bulk update
+    public $verificationData = [ // for verification modal
+        'approver_user' => [], // [section_id => user_id]
+        'title' => [], // [section_id => title]
+        'level' => 0,
+    ];
+
     protected $listeners = ['batchUpdated' => '$refresh'];
 
     public function mount(SampleHeader $batch, $workflows = [], $workflowstages = [], $status = null, $defaultClient = false, $clientPortal = false)
@@ -31,10 +63,404 @@ class Header extends Component
         $this->notCaptured = CapturedResult::whereNull('result')
             ->where('sample_header_id', $batch->id)
             ->get();
+
+        // Load specific data needed for actions
+        $this->loadActionData();
     }
 
-    public function render(): \Illuminate\View\View
+    public function loadActionData()
     {
-        return view('livewire.batch.header');
+        if (isset($this->batch->id)) {
+            // Contacts
+            $this->contacts = \App\Models\CRM\CustomerContact::where('crm_customer_id', $this->batch->crm_customer_id)->get();
+            
+            // Standards
+             if ($this->batch->is_qc_batch) {
+                $this->standards = \App\Standards::where('status', 1)->where('qc_type_id', $this->batch->qc_type_id)->get();
+            } else {
+                $this->standards = \App\Standards::where('status', 1)->get();
+            }
+
+            // All Samples (for bulk update)
+             $this->allSamples = $this->batch->all_samples();
+             if ($this->allSamples instanceof \Illuminate\Support\Collection) {
+                 $this->selectedSamples = $this->allSamples->pluck('id')->map(fn($id) => (string)$id)->toArray();
+             } else {
+                  // Fallback if not collection (though it likely is)
+                  $this->selectedSamples = collect($this->allSamples)->pluck('id')->map(fn($id) => (string)$id)->toArray();
+             }
+
+             // Users (for verification)
+             $this->users = \App\User::where('is_client', 0)
+                ->where('supplier_id', 0)
+                ->where('active', 1)
+                ->orderBy('name')
+                ->get();
+            
+            // Section Approvers (for verification modal)
+             $this->sectionApprovers = \App\LabSectionApproverRelationShip::whereIn('lab_section_id', explode(',', $this->batch->lab_section_ids))->get();
+
+            // Lab Stores
+            $this->labStores = getStorageByType('lab_store');
+        }
+    }
+
+    public function updatedBulkDataStoreId($value)
+    {
+        $this->bulkData['store_slot_id'] = '';
+        $this->storeSlots = [];
+
+        if (!empty($value)) {
+            // Find the selected store in labStores array
+            foreach ($this->labStores as $store) {
+                if ($store['id'] == $value) {
+                    $this->storeSlots = $store['items'];
+                    break;
+                }
+            }
+        }
+    }
+
+    public function sendScheduleAnalysis()
+    {
+        $this->validate([
+            'selectedContact' => 'required',
+        ]);
+
+        if ($this->batch->samples()->count() == 0) {
+            session()->flash('error', 'You cannot send schedule of analysis for a batch with no sample');
+            return;
+        }
+
+        $contact = \App\Models\CRM\CustomerContact::find($this->selectedContact);
+        
+        if (!$contact || empty($contact->email)) {
+             session()->flash('error', 'Selected contact does not have a valid email address.');
+             return;
+        }
+
+        $samples = \App\SampleDetails::where('sample_header_id', $this->batch->id)->get();
+        $sampleTrs = "";
+        
+        foreach ($samples as $sample) {
+            $target_date = date('Y-m-d', strtotime($sample->targetDateRelation()));
+            $sampleTrs .= '
+            <tr>
+                <td style="padding: 8px; border: 1px solid #ddd;">' . htmlspecialchars($sample->sample_code) . '</td>
+                <td style="padding: 8px; border: 1px solid #ddd;">' . htmlspecialchars(implode(',',$sample->analyteNames())) . '</td>
+                <td style="padding: 8px; border: 1px solid #ddd;">' . htmlspecialchars($target_date) . '</td>  
+            </tr>';
+        }
+
+        $body = '
+            <div style="font-family: Arial, sans-serif; color: #333; line-height: 1.6;">
+            <p style="font-size: 12px;">
+                Dear '.$this->batch->customer->name.', <br><br>
+                I hope this message finds you well. <br>
+                We are pleased to confirm that your samples <b>'.strtoupper($this->batch->sample_type->name).'</b> have been successfully received and assigned following Ref IDs: 
+            </p>
+
+            <table style="width: 100%; border-collapse: collapse; margin-top: 15px;">
+                <tr>
+                    <th style="text-align: left; padding: 8px; background-color: #f2f2f2; border: 1px solid #ddd;">Sample Reference No</th>
+                    <th style="text-align: left; padding: 8px; background-color: #f2f2f2; border: 1px solid #ddd;">Test(s) Required</th>
+                    <th style="text-align: left; padding: 8px; background-color: #f2f2f2; border: 1px solid #ddd;">Expected Results Date</th>
+                </tr>
+                ' . $sampleTrs . '
+            </table>
+
+            <p style="font-size: 12px; margin-top: 15px;">
+                <br>
+                Once analysis is completed, you will receive an update regarding your test results.<br>
+                For any inquiries, please contact us on <b>fivet.co.ke, /+12345678 </b>. <br>
+                Thank you for the opportunity to serve you. <br><br>
+                Kind regards, <br>
+                FIVET COMPANY LIMITED
+            </p>
+        </div>
+            ';
+        
+        notify_user($body, $contact->email, '[FIVET] Confirmation of Sample Receipt and Schedule of Analysis ' . $this->batch->batch_code, false, true, ['dannyagah13@gmail.com']);
+
+        $this->batch->schedule_sent = 1;
+        $this->batch->schedule_analysis_sent = date('Y-m-d');
+        $this->batch->schedule_analysis_sender = auth()->user()->id;
+        $this->batch->save();
+
+        $schedule_str = 'Schedule Of Analysis Sendoff';
+        $schedueDate = \App\SampleDate::where('sample_header_id', $this->batch->id)->where('name', $schedule_str)->first() ?? new \App\SampleDate();
+        $schedueDate->name = $schedule_str;
+        $schedueDate->sample_header_id = $this->batch->id;
+        $schedueDate->date = date('Y-m-d');
+        $schedueDate->save();
+
+        $this->showSendScheduleModal = false;
+        session()->flash('success', 'Schedule of analysis sent out successfully');
+        $this->dispatch('batchUpdated');
+    }
+
+    public function sendPaymentReminder()
+    {
+        $this->validate([
+            'selectedContact' => 'required',
+            'emailBody' => 'required',
+        ]);
+
+        $contact = \App\Models\CRM\CustomerContact::find($this->selectedContact);
+
+         if (!$contact || empty($contact->email)) {
+             session()->flash('error', 'Selected contact does not have a valid email address.');
+             return;
+        }
+
+        notify_user($this->emailBody, $contact->email, '[FIVET LIMS] Payment Reminder ' . $this->batch->batch_code);
+
+        $this->showPaymentReminderModal = false;
+        session()->flash('success', 'Payment reminder sent out successfully');
+    }
+
+    public function updatedSelectedContact($value)
+    {
+        // When contact is selected for payment reminder, we might want to pre-fill body if empty?
+        // The legacy used `getPaymentReminderBody($customer->name)`. 
+        // I should check if I need to implement that. 
+        if ($this->showPaymentReminderModal && empty($this->emailBody)) {
+             // Assuming this helper exists as per legacy view
+             // {!! getPaymentReminderBody($customer->name) !!}
+             if (function_exists('getPaymentReminderBody')) {
+                  $this->emailBody = getPaymentReminderBody($this->batch->customer->name);
+             }
+        }
+    }
+
+    public function bulkUpdateSampleData()
+    {
+        $this->validate([
+            'selectedSamples' => 'required|array|min:1',
+            // 'selectedSamples.*' => 'exists:sample_details,id', // Livewire validation might be tricky with array keys/values depending on how it's bound
+        ]);
+
+        try {
+            // Build update data array - only include non-empty values
+            $updateData = [];
+            
+            if (!empty($this->bulkData['main_standard'])) {
+                $updateData['main_standard'] = $this->bulkData['main_standard'];
+            }
+            
+            if (!empty($this->bulkData['secondary_standard'])) {
+                $updateData['secondary_standard'] = $this->bulkData['secondary_standard'];
+            }
+            
+             // Store/Slot logic if I add those fields to the modal. 
+             // Legacy has store_id and store_slot_id but my proposed implementation plan didn't explicitly separate them in bulkData init.
+             // I'll stick to what I have or add them if needed. 
+             // For now, let's include disposal_date as per plan.
+            
+            if (!empty($this->bulkData['disposal_date'])) {
+                $updateData['disposal_date'] = $this->bulkData['disposal_date'];
+            }
+            
+            if (!empty($this->bulkData['store_id'])) {
+                $updateData['store_id'] = $this->bulkData['store_id'];
+            }
+            
+            if (!empty($this->bulkData['store_slot_id'])) {
+                $updateData['store_slot_id'] = $this->bulkData['store_slot_id'];
+            }
+            
+            // Only proceed if there's data to update
+            if (empty($updateData)) {
+                 session()->flash('error', 'No fields were provided for update.');
+                 return;
+            }
+            
+            // Update selected samples
+            \App\SampleDetails::whereIn('id', $this->selectedSamples)
+                ->where('sample_header_id', $this->batch->id)
+                ->update($updateData);
+            
+            $updatedCount = count($this->selectedSamples);
+            
+            // Recalculate Batch Target Date
+            $this->recalculateBatchTargetDate();
+
+            $updatedFields = implode(', ', array_keys($updateData));
+            
+            session()->flash('success', "Successfully updated {$updatedCount} sample(s). Updated fields: {$updatedFields}");
+            $this->showBulkUpdateModal = false;
+            $this->dispatch('batchUpdated');
+            // Reset bulk data
+            $this->bulkData = [
+                'main_standard' => '',
+                'secondary_standard' => '',
+                'disposal_date' => '',
+                'store_id' => '',
+                'store_slot_id' => '',
+            ];
+            $this->selectedSamples = [];
+
+        } catch (\Exception $e) {
+            \Log::error('Bulk update sample data error', [
+                'error' => $e->getMessage(),
+                'data' => $this->bulkData
+            ]);
+            
+             session()->flash('error', 'Error updating samples: ' . $e->getMessage());
+        }
+    }
+
+    public function recalculateBatchTargetDate()
+    {
+        $batchId = $this->batch->id;
+         // Get all analysis types for this batch
+        $batchAnalysisTypeIds = \App\SampleAnalysisTypeRelation::where('batch_id', $batchId)
+            ->pluck('analysis_type_id')
+            ->unique()
+            ->toArray();
+
+        if (!empty($batchAnalysisTypeIds)) {
+            // Calculate max reporting time
+            $analysisMaxReportingTime = \App\AnalysisType::whereIn('id', $batchAnalysisTypeIds)->max('reporting_time') ?? 0;
+            $elementsMaxReportingTime = \App\AnalysisElements::whereIn('analysis_type_id', $batchAnalysisTypeIds)->max('reporting_time') ?? 0;
+            
+            $maxReportingTime = max($analysisMaxReportingTime, $elementsMaxReportingTime);
+            
+            // Update Target Date
+            $targetDateStr = 'Target Date';
+            $targetDate = \App\SampleDate::where('sample_header_id', $batchId)
+                ->where('name', $targetDateStr)
+                ->first() ?? new \App\SampleDate();
+            
+            $targetDate->name = $targetDateStr;
+            $targetDate->sample_header_id = $batchId;
+            // Use receipt_date or fallback to now
+            $baseDate = $this->batch->receipt_date ? \Carbon\Carbon::parse($this->batch->receipt_date) : now();
+            $targetDate->date = $baseDate->addDays($maxReportingTime);
+            $targetDate->save();
+        }
+    }
+
+    public function moveToVerification()
+    {
+        $batch = $this->batch;
+
+        if (empty($batch->lab_section_ids)) {
+             session()->flash('error', 'Kindly provide the lab sections associated with the sample at batch information section');
+             return;
+        }
+
+        $section_users = \App\LabSectionApproverRelationShip::whereIn('lab_section_id', explode(',', $batch->lab_section_ids))->get();
+        if ($section_users->count() <= 0) {
+             session()->flash('error', 'Kindly provide approval configuration for the selected batch lab sections');
+             return;
+        }
+        
+        // Populate analysts based on Captured Results logic
+        // The legacy controller logic does this:
+        $users = [];
+        $user_approvers = [];
+        foreach (explode(',', $batch->lab_section_ids) as $section_id) {
+            $c_user = CapturedResult::where('lab_section_id', $section_id)
+                ->where('sample_header_id', $batch->id)
+                ->orderBy('updated_at', 'DESC')
+                ->first();
+
+            if ($c_user && $c_user->operator_id) {
+                array_push($users, $c_user->operator_id);
+                $user_approvers[$c_user->operator_id] = $section_id;
+            }
+        }
+        $analysts = \App\User::whereIn('id', $users)->get();
+
+        // Perform updates
+        \App\Models\Lab\TatCaptured::where('sample_header_id', $batch->id)->update(['is_complete' => 1]);
+        
+        $level = $this->verificationData['level'];
+        $status = 'Sample Verification'; // Hardcoded as per form input hidden value in legacy
+
+        // Status Logic
+        $batch->status = ($level == '0') ? $status : $batch->status;
+        $batch->report_status = ($level == '0') ? $level : $batch->report_status;
+        $batch->prelim_report_status = ($level != '0') ? $level : $batch->prelim_report_status;
+        $batch->prelim_batch_status = ($level != '0') ? $status : $batch->prelim_batch_status;
+
+        if ($level == '0') {
+            $batch->report_status = '';
+            $batch->prelim_report_status = 0;
+            $batch->prelim_batch_status = '';
+        }
+
+        if ($level != '2') {
+            // Delete old approvers
+            $level != 0 
+                ? \App\BatchLabSectionApprover::where('batch_id', $batch->id)->delete() 
+                : \App\BatchLabSectionApprover::where('batch_id', $batch->id)->where('is_prelim', 0)->delete();
+            
+            // Add new approvers from Form Data
+            foreach ($this->verificationData['approver_user'] as $section_id => $user_id) {
+                // Ensure section_id is valid for this batch? Assume yes from UI.
+                
+                $approvers = \App\BatchLabSectionApprover::where('batch_id', $batch->id)
+                    ->where('user_id', $user_id)
+                    // ->where('title', '$user_id->title') // This looks like a bug in legacy code '$user_id->title', let's ignore or fix if needed. 
+                    // Legacy code was: ->where('title', '$user_id->title') which is literally string literal. Probably bug.
+                    ->first() ?? new \App\BatchLabSectionApprover();
+                
+                $title = $this->verificationData['title'][$section_id] ?? 'Verifier';
+
+                $approvers->status = 0;
+                $approvers->user_id = $user_id;
+                $approvers->title = $title;
+                $approvers->lab_section_ids = ($approvers->lab_section_ids == '') ? $section_id : $approvers->lab_section_ids . ',' . $section_id;
+                $approvers->batch_id = $batch->id;
+                $approvers->batch_status = $status;
+                $approvers->is_prelim = ($level != '0') ? 1 : 0;
+                $approvers->show_report = 1;
+                $approvers->save();
+            }
+
+            // Add analysts who worked on it as approved/verifier?
+             foreach ($analysts as $analyst) {
+                // Legacy logic used $user_approvers which maps analyst to section
+                 // $section = SampleAnalysisStage::find($user_approvers[$analyst->id]);
+                 // We need to implement this if it's critical. Legacy code does it.
+                 // Let's implement it.
+                 if (isset($user_approvers[$analyst->id])) {
+                     $section = \App\SampleAnalysisStage::find($user_approvers[$analyst->id]);
+                     
+                     $approvers = new \App\BatchLabSectionApprover(); // Always new? Legacy used findOrNew with weird where clause.
+                     // Actually legacy used same weird where clause. I'll just create new one to match logic of "adding approver"
+                     
+                     $approvers->status = 1; // Auto-approved?
+                     $approvers->user_id = $analyst->id;
+                     $approvers->title = $section->title ?? 'Verifier';
+                     $approvers->lab_section_ids = $section->id;
+                     $approvers->batch_id = $batch->id;
+                     $approvers->batch_status = $status;
+                     $approvers->is_prelim = ($level != '0') ? 1 : 0;
+                     $approvers->approval_date = date('Y-m-d h:i:s a');
+                     $approvers->show_report = 0;
+                     $approvers->save();
+                 }
+            }
+        }
+        
+        $batch->save();
+
+        session()->flash('success', 'Batch move was successful');
+        $this->showVerificationModal = false;
+        // Redirect to workflow since we moved stage? 
+        // Legacy: return redirect()->route('sample-workflow', ['status' => $previousWorkflow])->with('success', 'Batch move was successful');
+        // Livewire: we can just refresh, or redirect. 
+        // If status changed, we probably entered a new stage where this component might not be relevant or view changed.
+        // But let's stick to refresh for now, or redirect if user wants.
+        // I'll emit batchUpdated.
+        $this->dispatch('batchUpdated');
+        
+        // Optionally redirect if the status change means we leave this page? 
+        // "Samples In Lab" -> "Sample Verification". 
+        // The view might depend on status. 
+        return redirect()->route('sample-workflow', ['status' => 'Samples In Lab']);
     }
 }

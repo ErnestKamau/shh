@@ -233,6 +233,12 @@ class FormInstanceController extends Controller
 
         DB::beginTransaction();
         try {
+            // Assign form number if not present (First Valid Save)
+            if (empty($instance->form_number)) {
+                 $this->assignFormNumberWithRetry($instance, $submissionForm);
+                 $instance->refresh();
+            }
+
             // dd("here");
             $this->processFormData($instance, $request, $elements);
             Log::info('Processing form data');
@@ -397,9 +403,26 @@ class FormInstanceController extends Controller
     }
 
     /**
-     * Create form instance with retry logic for duplicate form numbers
+     * Create form instance without generating number (will be generated on first save)
      */
     private function createFormInstanceWithRetry(SubmissionForm $submissionForm, Request $request, $submittedBy): SubmissionFormInstance
+    {
+        return SubmissionFormInstance::create([
+            'submission_form_id' => $submissionForm->id,
+            'form_number' => null,
+            'sequence_number' => null,
+            'title' => $request->input('title'),
+            'submitted_by' => $submittedBy,
+            'status' => 'draft',
+            'priority' => $request->input('priority', 'normal'),
+            'due_date' => $request->input('due_date')
+        ]);
+    }
+
+    /**
+     * Assign form number to an existing instance with retry logic
+     */
+    private function assignFormNumberWithRetry(SubmissionFormInstance $instance, SubmissionForm $submissionForm): void
     {
         $maxRetries = 5;
         $retryCount = 0;
@@ -408,34 +431,31 @@ class FormInstanceController extends Controller
             $retryCount++;
             
             try {
-                return DB::transaction(function () use ($submissionForm, $request, $submittedBy) {
+                DB::transaction(function () use ($instance, $submissionForm) {
                     // Generate form number
                     $formNumber = $this->generateFormNumber($submissionForm);
 
-                    // Create the instance
-                    return SubmissionFormInstance::create([
-                        'submission_form_id' => $submissionForm->id,
+                    // Update the instance
+                    $instance->update([
                         'form_number' => $formNumber['format'],
                         'sequence_number' => $formNumber['sequence_no'],
-                        'title' => $request->input('title'),
-                        'submitted_by' => $submittedBy,
-                        'status' => 'draft',
-                        'priority' => $request->input('priority', 'normal'),
-                        'due_date' => $request->input('due_date')
                     ]);
                 });
+                return;
                 
             } catch (\Illuminate\Database\QueryException $e) {
                 // Check if it's a duplicate key error
                 if ($e->getCode() == 23000 && strpos($e->getMessage(), 'submission_form_instances_form_number_unique') !== false) {
-                    Log::warning('Duplicate form number detected during creation, retrying', [
+                    Log::warning('Duplicate form number detected during assignment, retrying', [
+                        'instance_id' => $instance->id,
                         'form_id' => $submissionForm->id,
                         'retry_count' => $retryCount,
                         'error' => $e->getMessage()
                     ]);
                     
                     if ($retryCount >= $maxRetries) {
-                        Log::error('Maximum retries reached for form instance creation', [
+                        Log::error('Maximum retries reached for form instance number assignment', [
+                            'instance_id' => $instance->id,
                             'form_id' => $submissionForm->id,
                             'retries' => $maxRetries
                         ]);
@@ -452,9 +472,6 @@ class FormInstanceController extends Controller
             }
             
         } while ($retryCount < $maxRetries);
-        
-        // This should never be reached, but just in case
-        throw new \Exception('Failed to create form instance after maximum retries');
     }
 
     /**

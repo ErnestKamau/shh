@@ -52,7 +52,7 @@
                 <h4 class="mb-1 font-weight-bold">
                   {{ $submissionForm->name }}
                   <span class="text-muted font-weight-normal mx-2">-</span>
-                  <span class="text-muted small">{{ $instance->form_number }}</span>
+                  <span class="text-muted small">{{ $instance->form_number ?? 'Pending' }}</span>
                   <span class="badge badge-{{ $instance->getStatusBadgeColor() }} ml-2 align-middle" style="font-size: 0.7em;">
                     {{ ucfirst(str_replace('_', ' ', $instance->status)) }}
                   </span>
@@ -131,7 +131,7 @@
                               <h6 class="text-uppercase text-muted small font-weight-bold mb-3">Submission Details</h6>
                               <div class="mb-3">
                                   <label class="text-muted small mb-0 d-block">Form Number</label>
-                                  <span class="font-weight-bold text-dark">{{ $instance->form_number }}</span>
+                                  <span class="font-weight-bold text-dark">{{ $instance->form_number ?? 'Pending' }}</span>
                               </div>
                               <div class="mb-3">
                                   <label class="text-muted small mb-0 d-block">Submitted By</label>
