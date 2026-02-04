@@ -8,6 +8,7 @@ use App\Models\SampleDetailStaging;
 use App\AnalysisType;
 use App\Standards;
 use App\SampleCondition;
+use App\SampleDate;
 use App\Lab;
 use Livewire\Component;
 use Illuminate\Support\Facades\DB;
@@ -18,7 +19,7 @@ class Samples extends Component
     public $batchId;
     public SampleHeader $batch;
     public $not_captured = [];
-    
+
     // Staging edit form
     public $editingStagingId = null;
     public $stagingForm = [
@@ -30,17 +31,17 @@ class Samples extends Component
         'analysis_type_names' => '',
         'quantity' => 1,
     ];
-    
+
     // Delete confirmation modals
     public $deletingStagingId = null;
     public $showDeleteModal = false;
     public $showEditModal = false;
-    
+
     // Sample management
     public $samples = [];
     public $sampleForms = [];  // Array of sample data for editing
     public $editingSampleIndex = null;
-    
+
     // Dropdown data
     public $analysisTypes = [];
     public $standards = [];
@@ -50,11 +51,11 @@ class Samples extends Component
     public $labSections = [];
     public $storageLocations = [];
     public $unitsOfMeasure = ['ml', 'L', 'kg', 'g', 'pcs', 'bottles'];
-    
+
     // Staging Edit Dropdown Data
     public $sampleTypes = [];
     public $subUnits = [];
-    
+
     // Search properties for Staging Edit
     public $subUnitSearch = '';
     public $showSubUnitDropdown = false;
@@ -62,19 +63,19 @@ class Samples extends Component
     public $showSampleTypeDropdown = false;
     public $stagingAnalysisTypeSearch = '';
     public $showStagingAnalysisTypeDropdown = false;
-    
+
     // Sample delete confirmation
     public $deletingSampleIndex = null;
     public $showDeleteSampleModal = false;
-    
+
     // Track which row is being edited (null = all read-only)
     public $editingRowIndex = null;
-    
+
     // Analysis type dropdown state (per row)
     public $showAnalysisTypeDropdown = [];
     public $analysisTypeSearch = '';
     public $uncertaintyRequired = false;
-    
+
     // Parameter Modal Data
     public $showEditStandardModal = false;
     public $standardValueOptions = [];
@@ -104,7 +105,7 @@ class Samples extends Component
     public $showParametersModal = false;
     public $selectedSampleCode = null;
     public $sampleParameters = [];
-    
+
     // Assign Samples Modal Data
     public $showAssignSamplesModal = false;
     public $assignStagingId = null;
@@ -115,7 +116,7 @@ class Samples extends Component
     public $assignAreas = []; // Structure: [['id' => 1, 'name' => 'Area', 'sample_points' => [['id' => 1, 'name' => 'Point', 'active' => false]]]]
     public $assignTotalQty = 0;
     public $assignSelectedPoints = []; // ['point_id' => quantity]
-    
+
     // Assignment Edit Context
     public $assignSampleTypeId = '';
     public $assignCompanySubUnitId = '';
@@ -123,7 +124,7 @@ class Samples extends Component
     public $assignCompanySubUnitName = '';
     public $assignSampleTypeName = '';
     public $assignAnalysisTypeNames = '';
-    
+
     // Search properties for Assignment Edit
     public $assignSubUnitSearch = '';
     public $showAssignSubUnitDropdown = false;
@@ -131,13 +132,13 @@ class Samples extends Component
     public $showAssignSampleTypeDropdown = false;
     public $assignAnalysisTypeSearch = '';
     public $showAssignAnalysisTypeDropdown = false;
-    
+
     // Add New Sample Point Data
     public $assignNewAreaId = '';
     public $assignNewPointId = '';
     public $assignAvailableAreas = [];
     public $assignAvailablePoints = [];
-    
+
     protected $listeners = ['samplesUpdated' => '$refresh', 'refreshSamples' => '$refresh'];
 
     public function mount(SampleHeader $batch)
@@ -174,7 +175,7 @@ class Samples extends Component
             $this->analysisTypes = AnalysisType::select('id', 'name', 'code')->get()->toArray();
             $this->standards = Standards::select('id', 'code', 'name')->get()->toArray();
             $this->conditions = SampleCondition::select('id', 'name')->get()->toArray();
-            
+
             // Load customer-specific data
             if ($this->batch->client_id) {
                 $this->samplePoints = \App\Models\CRM\SamplePoint::where('customer_id', $this->batch->client_id)
@@ -182,9 +183,9 @@ class Samples extends Component
                 $this->products = \App\Models\CRM\CompanyProduct::where('customer_id', $this->batch->client_id)
                     ->select('id', 'name')->get()->toArray();
             }
-            
+
             $this->labSections = Lab::select('id', 'name', 'code')->get()->toArray();
-            
+
             // Load all sample types
             $this->sampleTypes = \App\SampleType::select('id', 'name')->where('active', 1)->orderBy('name')->get()->toArray();
 
@@ -193,12 +194,12 @@ class Samples extends Component
                 $this->subUnits = \App\Models\CRM\CRMCompanySubUnit::where('crm_customer_id', $this->batch->client_id)
                     ->select('id', 'name')->get()->toArray();
             }
-            
+
             // Load storage locations if model exists
             if (class_exists('\App\LabStore')) {
                 $this->storageLocations = \App\LabStore::select('id', 'name')->get()->toArray();
             }
-            
+
         } catch (\Exception $e) {
             Log::error('Error loading dropdown data: ' . $e->getMessage());
         }
@@ -211,7 +212,7 @@ class Samples extends Component
     {
         try {
             $samples = $this->batch->samples;
-            
+
             $this->sampleForms = [];
             foreach ($samples as $index => $sample) {
                 $this->sampleForms[$index] = [
@@ -233,9 +234,9 @@ class Samples extends Component
                     'unit_of_measure' => $sample->unit_of_measure ?? 'ml',
                 ];
             }
-            
+
             $this->samples = $samples;
-            
+
         } catch (\Exception $e) {
             Log::error('Error loading samples: ' . $e->getMessage());
             $this->sampleForms = [];
@@ -259,32 +260,32 @@ class Samples extends Component
         try {
             $staging = SampleDetailStaging::with('sampleHeader.sample_type', 'sampleHeader.client')
                 ->findOrFail($stagingId);
-            
+
             $this->assignStagingId = $stagingId;
-            
+
             $dataJson = $staging->data_json;
             $subUnitId = $dataJson['company_sub_unit_id'] ?? null;
-            
+
             if (!$subUnitId) {
                 session()->flash('error', 'No company sub unit specified in staging data.');
                 return;
             }
-            
+
             // Get sub unit and company unit info
             $subUnit = \App\Models\CRM\CRMCompanySubUnit::with('companyUnit')->find($subUnitId);
-            
+
             $this->assignBatchCode = $staging->sampleHeader->batch_code;
             $this->assignSampleType = $staging->sampleHeader->sample_type->name ?? 'N/A';
             $this->assignCustomer = $staging->sampleHeader->client->name ?? 'N/A';
             $this->assignCompanyUnit = $subUnit ? ($subUnit->companyUnit->name ?? 'N/A') : 'N/A';
             $this->assignTotalQty = $dataJson['quantity'] ?? 0;
-            
+
             // Populate IDs for editing
             $this->assignSampleTypeId = $staging->sampleHeader->sample_type_id ?? '';
             $this->assignCompanySubUnitId = $subUnitId;
             $this->assignCompanySubUnitName = $subUnit->name ?? 'N/A';
             $this->assignSampleTypeName = $this->assignSampleType;
-            
+
             $atIds = $dataJson['analysis_type_ids'] ?? [];
             if (is_string($atIds)) {
                 $atIds = array_filter(explode(',', $atIds));
@@ -294,21 +295,21 @@ class Samples extends Component
 
             // Load areas and points
             $this->loadAssignAreasAndPoints($subUnitId);
-            
+
             // Reset selections
             $this->assignSelectedPoints = [];
-            
+
             // Load available areas/points for "Add New Query" (if needed later)
             // For now we just focus on assignment
-            
+
             $this->showAssignSamplesModal = true;
-            
+
         } catch (\Exception $e) {
             Log::error('Error opening assign modal: ' . $e->getMessage());
             session()->flash('error', 'Failed to load assignment data.');
         }
     }
-    
+
     /**
      * Load sample point areas for the given sub unit
      */
@@ -316,19 +317,19 @@ class Samples extends Component
     {
         $areas = \App\Models\SamplePointArea::with([
             'crmArea',
-            'samplePoints' => function($q) {
+            'samplePoints' => function ($q) {
                 $q->where('active', 1)->with('crmSamplePoint');
             }
         ])
-        ->where('crm_company_sub_unit_id', $subUnitId)
-        ->where('active', 1)
-        ->get();
-        
-        $this->assignAreas = $areas->map(function($area) {
+            ->where('crm_company_sub_unit_id', $subUnitId)
+            ->where('active', 1)
+            ->get();
+
+        $this->assignAreas = $areas->map(function ($area) {
             return [
                 'id' => $area->id,
                 'name' => $area->crmArea->name ?? 'N/A',
-                'sample_points' => $area->samplePoints->map(function($point) {
+                'sample_points' => $area->samplePoints->map(function ($point) {
                     return [
                         'id' => $point->id,
                         'name' => $point->crmSamplePoint->name ?? $point->name,
@@ -336,7 +337,7 @@ class Samples extends Component
                 })->toArray()
             ];
         })->toArray();
-        
+
         // Also load available areas for the "Add New" dropdowns
         // Load areas using the correct Area model
         // Note: Ideally we should filter by sample type or customer if that logic exists, 
@@ -347,12 +348,12 @@ class Samples extends Component
             ->orderBy('name')
             ->get()
             ->toArray();
-            
+
         // Load all defined sample points (Master list)
         $this->assignAvailablePoints = \App\Models\SamplePoint::select('id', 'name')
-             ->orderBy('name')
-             ->get()
-             ->toArray();
+            ->orderBy('name')
+            ->get()
+            ->toArray();
     }
 
     public function addCustomerSamplePoint()
@@ -361,16 +362,16 @@ class Samples extends Component
             'assignNewAreaId' => 'required|exists:crm_areas,id',
             'assignNewPointId' => 'required|exists:crm_sample_points,id',
         ]);
-        
+
         $customerId = $this->batch->client_id;
         $staging = SampleDetailStaging::find($this->assignStagingId);
         $subUnitId = $staging->data_json['company_sub_unit_id'] ?? null;
-        
+
         // We need to fetch the company unit ID from the sub unit if possible
         $companyUnitId = null;
         if ($subUnitId) {
-             $subUnit = \App\Models\CRM\CRMCompanySubUnit::find($subUnitId);
-             $companyUnitId = $subUnit ? $subUnit->crm_company_unit_id : null;
+            $subUnit = \App\Models\CRM\CRMCompanySubUnit::find($subUnitId);
+            $companyUnitId = $subUnit ? $subUnit->crm_company_unit_id : null;
         }
 
         DB::beginTransaction();
@@ -379,12 +380,12 @@ class Samples extends Component
                 ->where('crm_area_id', $this->assignNewAreaId)
                 ->where('crm_company_sub_unit_id', $subUnitId)
                 ->first();
-            
+
             if (!$samplePointArea) {
                 // Get area details for name
                 $area = \App\Models\Area::find($this->assignNewAreaId);
                 $areaName = $area ? $area->name : 'Unknown Area';
-                
+
                 // Create new SamplePointArea
                 $samplePointArea = \App\Models\SamplePointArea::create([
                     'crm_customer_id' => $customerId,
@@ -397,26 +398,26 @@ class Samples extends Component
                     'active' => true
                 ]);
             }
-            
+
             // Check if CRM\SamplePoint exists for this customer + sample_point + area
             $crmSamplePoint = \App\Models\CRM\SamplePoint::where('crm_customer_id', $customerId)
                 ->where('crm_sample_point_id', $this->assignNewPointId)
                 ->where('crm_area_id', $this->assignNewAreaId)
                 ->first(); // Note: Legacy checked crm_sample_point table, but here we are using the pivot table or similar?
-                // Wait, \App\Models\CRM\SamplePoint is usually the definition of best practice sample points?
-                // The legacy code used: \App\Models\CRM\SamplePoint::create(...)
-                // But wait, the standard table is `crm_sample_points` (plural?). 
-                // Let's assume the model `\App\Models\CRM\SamplePoint` maps to a pivot/relation or the point itself.
-                // Actually, looking at legacy code:
-                // $crmSamplePoint = \App\Models\CRM\SamplePoint::where('crm_customer_id', ...)->where('crm_sample_point_id', $validated['sample_point_id'])...
-                // This implies `\App\Models\CRM\SamplePoint` is a LINKING table (maybe `crm_customer_sample_points`?).
-                // AND `crm_sample_point_id` refers to the "Master" sample point ID.
-                
-                // Let's double check this model name correspondence.
-                // Using the exact logic from controller:
-            
+            // Wait, \App\Models\CRM\SamplePoint is usually the definition of best practice sample points?
+            // The legacy code used: \App\Models\CRM\SamplePoint::create(...)
+            // But wait, the standard table is `crm_sample_points` (plural?). 
+            // Let's assume the model `\App\Models\CRM\SamplePoint` maps to a pivot/relation or the point itself.
+            // Actually, looking at legacy code:
+            // $crmSamplePoint = \App\Models\CRM\SamplePoint::where('crm_customer_id', ...)->where('crm_sample_point_id', $validated['sample_point_id'])...
+            // This implies `\App\Models\CRM\SamplePoint` is a LINKING table (maybe `crm_customer_sample_points`?).
+            // AND `crm_sample_point_id` refers to the "Master" sample point ID.
+
+            // Let's double check this model name correspondence.
+            // Using the exact logic from controller:
+
             if (!$crmSamplePoint) {
-                 // Create new CRM\SamplePoint (Link)
+                // Create new CRM\SamplePoint (Link)
                 $crmSamplePoint = \App\Models\CRM\SamplePoint::create([
                     'crm_customer_id' => $customerId,
                     'crm_sample_point_id' => $this->assignNewPointId,
@@ -427,18 +428,18 @@ class Samples extends Component
                     'active' => true
                 ]);
             }
-            
+
             DB::commit();
-            
+
             // Refresh areas/points
             $this->loadAssignAreasAndPoints($subUnitId);
-            
+
             // Clear selection
             $this->assignNewAreaId = '';
             $this->assignNewPointId = '';
-            
+
             session()->flash('success', 'Sample point added to customer successfully');
-            
+
         } catch (\Exception $e) {
             DB::rollBack();
             Log::error('Error adding customer sample point: ' . $e->getMessage());
@@ -453,7 +454,7 @@ class Samples extends Component
         if (empty($this->assignSubUnitSearch)) {
             return $this->subUnits;
         }
-        return array_filter($this->subUnits, function($unit) {
+        return array_filter($this->subUnits, function ($unit) {
             return stripos($unit['name'], $this->assignSubUnitSearch) !== false;
         });
     }
@@ -464,14 +465,14 @@ class Samples extends Component
         if ($unit) {
             $this->assignCompanySubUnitId = $id;
             $this->assignCompanySubUnitName = $unit['name'];
-            
+
             // Update the staging record data_json immediately? 
             // Or only on performAssignment? 
             // Better to update header/staging only if they confirm or we can do it on the fly.
             // Let's do it on the fly to keep UI in sync.
             $this->updateStagingData('company_sub_unit_id', $id);
             $this->updateStagingData('company_sub_unit_name', $unit['name']);
-            
+
             // Re-load areas/points for the new sub-unit
             $this->loadAssignAreasAndPoints($id);
         }
@@ -484,7 +485,7 @@ class Samples extends Component
         if (empty($this->assignSampleTypeSearch)) {
             return $this->sampleTypes;
         }
-        return array_filter($this->sampleTypes, function($type) {
+        return array_filter($this->sampleTypes, function ($type) {
             return stripos($type['name'], $this->assignSampleTypeSearch) !== false;
         });
     }
@@ -513,9 +514,9 @@ class Samples extends Component
         if (empty($this->assignAnalysisTypeSearch)) {
             return $this->analysisTypes;
         }
-        return array_filter($this->analysisTypes, function($type) {
-            return stripos($type['name'], $this->assignAnalysisTypeSearch) !== false || 
-                   stripos($type['code'], $this->assignAnalysisTypeSearch) !== false;
+        return array_filter($this->analysisTypes, function ($type) {
+            return stripos($type['name'], $this->assignAnalysisTypeSearch) !== false ||
+                stripos($type['code'], $this->assignAnalysisTypeSearch) !== false;
         });
     }
 
@@ -523,15 +524,15 @@ class Samples extends Component
     {
         $atIds = $this->assignAnalysisTypeIds;
         $key = array_search($id, $atIds);
-        
+
         if ($key !== false) {
             unset($atIds[$key]);
         } else {
             $atIds[] = $id;
         }
-        
+
         $this->assignAnalysisTypeIds = array_values($atIds);
-        
+
         // Update display names
         $names = [];
         foreach ($this->analysisTypes as $type) {
@@ -556,28 +557,6 @@ class Samples extends Component
             $staging->save();
         }
     }
-             
-             // Also need to check if the SamplePointArea has this point linked in `sample_points` relation if that's how it works.
-             // But based on controller, creating the `CRM\SamplePoint` record seems sufficient.
-            
-            DB::commit();
-            
-            // Refresh the assignment list
-            $this->loadAssignAreasAndPoints($subUnitId);
-            
-            // Reset form
-            $this->assignNewAreaId = '';
-            $this->assignNewPointId = '';
-            
-            session()->flash('success', 'Sample point added successfully!');
-            
-        } catch (\Exception $e) {
-            DB::rollBack();
-            Log::error('Error adding customer sample point: ' . $e->getMessage());
-            session()->flash('error', 'Error adding sample point: ' . $e->getMessage());
-        }
-    
-    }
 
     /**
      * Submit assignment
@@ -590,13 +569,13 @@ class Samples extends Component
             // In the array check, we might want boolean check or quantity check
             // Assuming frontend sends ['point_id' => quantity] if selected
             if ($qty > 0) {
-                 $selections[] = [
-                     'sample_point_id' => $pointId,
-                     'quantity' => $qty // Logic says quantity doesn't affect creation count, but we keep it
-                 ];
+                $selections[] = [
+                    'sample_point_id' => $pointId,
+                    'quantity' => $qty // Logic says quantity doesn't affect creation count, but we keep it
+                ];
             }
         }
-        
+
         if (empty($selections)) {
             session()->flash('error', 'Please select at least one sample point.');
             return;
@@ -606,19 +585,19 @@ class Samples extends Component
         try {
             $sampleHeader = $this->batch;
             $staging = SampleDetailStaging::findOrFail($this->assignStagingId);
-            
+
             $createdSamples = [];
             $sampleIndex = 0;
             $totalSamples = count($selections);
-            
+
             // Replicate logic from SampleCreationController::assignSamples
             foreach ($selections as $selection) {
                 // ... (Create logic will go here - we need to copy helper methods or call service)
                 // Since this is complex logic, ideally we invoke a service. 
                 // For now, I will implement a simplified version mirroring the controller given I am in a Livewire component.
-                
+
                 $samplePointId = $selection['sample_point_id'];
-                
+
                 $sampleDetail = $this->createSampleDetailsFromStagingLivewire(
                     $sampleHeader,
                     $staging,
@@ -626,33 +605,33 @@ class Samples extends Component
                     $sampleIndex,
                     $totalSamples
                 );
-                
+
                 $createdSamples[] = $sampleDetail;
                 $sampleIndex++;
             }
-            
+
             $staging->is_processed = 1;
             $staging->save();
-            
+
             $this->createChainOfCustodyLivewire('Sample Assignment');
-            
+
             // Check if all processed
             $unprocessedCount = SampleDetailStaging::where('sample_header_id', $sampleHeader->id)
                 ->where('is_processed', 0)
                 ->count();
-            
+
             if ($unprocessedCount === 0) {
                 $sampleHeader->sample_detail_processed = 1;
                 $sampleHeader->save();
             }
-            
+
             DB::commit();
-            
+
             $this->showAssignSamplesModal = false;
             $this->dispatch('samplesUpdated');
             // Reload samples list
             $this->loadSamples();
-            
+
             session()->flash('success', count($createdSamples) . ' samples assigned successfully!');
 
         } catch (\Exception $e) {
@@ -661,12 +640,12 @@ class Samples extends Component
             session()->flash('error', 'Error assigning samples: ' . $e->getMessage());
         }
     }
-    
+
     // Support methods for assignment (Simplification of Controller methods)
     private function createSampleDetailsFromStagingLivewire($sampleHeader, $staging, $samplePointId, $index, $totalSamples)
     {
         $dataJson = $staging->data_json;
-        
+
         // Generate code
         // Simple generation for now, ideally matched with controller logic
         $sampleSeqNo = SampleDetails::where('sample_header_id', $sampleHeader->id)->count();
@@ -674,23 +653,23 @@ class Samples extends Component
         $sampleCodeStr = $sampleHeader->batch_code . '-' . sprintf('%02d', $sampleSeqNo);
         $sampleNo = sprintf('%02d', $sampleSeqNo);
         $reportNumber = $sampleHeader->batch_code;
-        
+
         // Defaults
         $disposal_date = null;
         if ($sampleHeader->sample_type && $sampleHeader->sample_type->disposal_count) {
-             $disposal_date = \Carbon\Carbon::parse($sampleHeader->receipt_date)->addDays($sampleHeader->sample_type->disposal_count)->format('Y-m-d');
+            $disposal_date = \Carbon\Carbon::parse($sampleHeader->receipt_date)->addDays($sampleHeader->sample_type->disposal_count)->format('Y-m-d');
         }
-        
+
         $companyProductId = $dataJson['company_product_id'] ?? null;
-         if (!$companyProductId && $sampleHeader->sample_type_id) {
+        if (!$companyProductId && $sampleHeader->sample_type_id) {
             $sampleType = \App\SampleType::find($sampleHeader->sample_type_id);
             if ($sampleType && $sampleType->default_product_id) {
                 $companyProductId = $sampleType->default_product_id;
             }
         }
-        
+
         $sampleConditionId = $dataJson['sample_condition_id'] ?? 1; // Default
-        
+
         $sampleDetail = new SampleDetails();
         $sampleDetail->fill([
             'sample_header_id' => $sampleHeader->id,
@@ -706,23 +685,23 @@ class Samples extends Component
             'disposal_date' => $disposal_date,
         ]);
         $sampleDetail->save();
-        
+
         // Create captured results (We need to replicate createCapturedResultsForAnalysisType logic or call it)
         // Since that logic is complex and involves AnalysisElements, we should duplicate it or refactor to Service.
         // Assuming we can't refactor easily now, I will use a simplified call or the existing Controller logic if accessible.
         // But Controller methods are private. 
         // I will duplicate `createCapturedResultsForAnalysisType` logic briefly here.
         if (!empty($dataJson['analysis_type_ids'])) {
-             $this->generateResultsForSample($sampleDetail, $dataJson['analysis_type_ids']);
+            $this->generateResultsForSample($sampleDetail, $dataJson['analysis_type_ids']);
         }
-        
+
         // Sample Dates
         SampleDate::updateOrCreate(
             ['sample_header_id' => $sampleHeader->id, 'name' => 'Login Date'],
             ['date' => now()]
         );
         // Target date logic... skipped for brevity, defaults to now + reporting time if possible.
-        
+
         return $sampleDetail;
     }
 
@@ -730,8 +709,9 @@ class Samples extends Component
     {
         $analysisTypeIds = explode(',', $analysisTypeIdsStr);
         foreach ($analysisTypeIds as $atId) {
-            if (!$atId) continue;
-            
+            if (!$atId)
+                continue;
+
             $elements = \App\AnalysisElements::where('analysis_type_id', $atId)->where('active', 1)->get();
             foreach ($elements as $element) {
                 // Create CapturedResult and Result
@@ -739,7 +719,7 @@ class Samples extends Component
                 $analyteCode = $element->analyte->code ?? 'UNKNOWN';
                 $reportingUnit = \App\ReportingUnit::find($element->reporting_unit);
                 $reportingUnitName = $reportingUnit ? $reportingUnit->name : '';
-                
+
                 $captured = new \App\CapturedResult();
                 $captured->fill([
                     'sample_detail_code' => $sampleDetail->sample_code,
@@ -753,7 +733,7 @@ class Samples extends Component
                     'reporting_unit_id' => $reportingUnitName,
                 ]);
                 $captured->save();
-                
+
                 $result = new \App\Result();
                 $result->fill([
                     'captured_result_id' => $captured->id,
@@ -788,10 +768,10 @@ class Samples extends Component
     {
         try {
             $staging = SampleDetailStaging::findOrFail($stagingId);
-            
+
             $this->editingStagingId = $stagingId;
             $dataJson = $staging->data_json;
-            
+
             // Handle analysis_type_ids which might be stored as comma separated string or array in json
             $atIds = $dataJson['analysis_type_ids'] ?? [];
             if (is_string($atIds)) {
@@ -807,9 +787,9 @@ class Samples extends Component
                 'analysis_type_names' => $dataJson['analysis_type_names'] ?? '',
                 'quantity' => $dataJson['quantity'] ?? 1,
             ];
-            
+
             $this->showEditModal = true;
-            
+
         } catch (\Exception $e) {
             Log::error('Error loading staging for edit: ' . $e->getMessage());
             session()->flash('error', 'Failed to load staging data');
@@ -829,14 +809,14 @@ class Samples extends Component
 
         try {
             $staging = SampleDetailStaging::findOrFail($this->editingStagingId);
-            
+
             $dataJson = $staging->data_json;
             $dataJson['company_sub_unit_id'] = $this->stagingForm['company_sub_unit_id'];
             $dataJson['company_sub_unit_name'] = $this->stagingForm['company_sub_unit_name'];
             $dataJson['analysis_type_ids'] = implode(',', $this->stagingForm['analysis_type_ids']);
             $dataJson['analysis_type_names'] = $this->stagingForm['analysis_type_names'];
             $dataJson['quantity'] = $this->stagingForm['quantity'];
-            
+
             $staging->data_json = $dataJson;
             $staging->save();
 
@@ -847,13 +827,13 @@ class Samples extends Component
                 $staging->sampleHeader->sample_type_id = $this->stagingForm['sample_type_id'];
                 $staging->sampleHeader->save();
             }
-            
+
             $this->showEditModal = false;
             $this->reset('editingStagingId', 'stagingForm');
-            
+
             $this->dispatch('samplesUpdated');
             session()->flash('success', 'Staging data updated successfully!');
-            
+
         } catch (\Exception $e) {
             Log::error('Error updating staging: ' . $e->getMessage());
             session()->flash('error', 'Failed to update staging data: ' . $e->getMessage());
@@ -879,7 +859,7 @@ class Samples extends Component
         if (empty($this->subUnitSearch)) {
             return $this->subUnits;
         }
-        return array_filter($this->subUnits, function($unit) {
+        return array_filter($this->subUnits, function ($unit) {
             return stripos($unit['name'], $this->subUnitSearch) !== false;
         });
     }
@@ -900,7 +880,7 @@ class Samples extends Component
         if (empty($this->sampleTypeSearch)) {
             return $this->sampleTypes;
         }
-        return array_filter($this->sampleTypes, function($type) {
+        return array_filter($this->sampleTypes, function ($type) {
             return stripos($type['name'], $this->sampleTypeSearch) !== false;
         });
     }
@@ -921,9 +901,9 @@ class Samples extends Component
         if (empty($this->stagingAnalysisTypeSearch)) {
             return $this->analysisTypes;
         }
-        return array_filter($this->analysisTypes, function($type) {
-            return stripos($type['name'], $this->stagingAnalysisTypeSearch) !== false || 
-                   stripos($type['code'], $this->stagingAnalysisTypeSearch) !== false;
+        return array_filter($this->analysisTypes, function ($type) {
+            return stripos($type['name'], $this->stagingAnalysisTypeSearch) !== false ||
+                stripos($type['code'], $this->stagingAnalysisTypeSearch) !== false;
         });
     }
 
@@ -931,15 +911,15 @@ class Samples extends Component
     {
         $atIds = $this->stagingForm['analysis_type_ids'];
         $key = array_search($id, $atIds);
-        
+
         if ($key !== false) {
             unset($atIds[$key]);
         } else {
             $atIds[] = $id;
         }
-        
+
         $this->stagingForm['analysis_type_ids'] = array_values($atIds);
-        
+
         // Update display names
         $names = [];
         foreach ($this->analysisTypes as $type) {
@@ -967,13 +947,13 @@ class Samples extends Component
         try {
             $staging = SampleDetailStaging::findOrFail($this->deletingStagingId);
             $staging->delete();
-            
+
             $this->showDeleteModal = false;
             $this->reset('deletingStagingId');
-            
+
             $this->dispatch('samplesUpdated');
             session()->flash('success', 'Staging record deleted successfully!');
-            
+
         } catch (\Exception $e) {
             Log::error('Error deleting staging: ' . $e->getMessage());
             session()->flash('error', 'Failed to delete staging record: ' . $e->getMessage());
@@ -995,7 +975,7 @@ class Samples extends Component
     public function addSample()
     {
         $nextCode = $this->generateSampleCode();
-        
+
         $newSample = [
             'id' => null,  // Null indicates unsaved
             'sample_code' => $nextCode,
@@ -1014,12 +994,12 @@ class Samples extends Component
             'sample_quantity' => 1,
             'unit_of_measure' => 'ml',
         ];
-        
+
         $this->sampleForms[] = $newSample;
-        
+
         // Automatically enter edit mode for the new row
         $this->editingRowIndex = count($this->sampleForms) - 1;
-        
+
         session()->flash('success', 'New sample row added');
     }
 
@@ -1030,7 +1010,7 @@ class Samples extends Component
     {
         $batchCode = $this->batch->batch_code;
         $existingCount = count($this->sampleForms);
-        
+
         // Format: BATCH_CODE + sequence (e.g., 2024L001-01)
         return $batchCode . '-' . str_pad($existingCount + 1, 2, '0', STR_PAD_LEFT);
     }
@@ -1044,17 +1024,17 @@ class Samples extends Component
             session()->flash('error', 'No sample to duplicate');
             return;
         }
-        
+
         $lastSample = end($this->sampleForms);
         $newSample = $lastSample;
         $newSample['id'] = null;  // Mark as new
         $newSample['sample_code'] = $this->generateSampleCode();
-        
+
         $this->sampleForms[] = $newSample;
-        
+
         // Automatically enter edit mode for the duplicated row
         $this->editingRowIndex = count($this->sampleForms) - 1;
-        
+
         session()->flash('success', 'Sample duplicated successfully');
     }
 
@@ -1073,10 +1053,10 @@ class Samples extends Component
     public function deleteSample()
     {
         $index = $this->deletingSampleIndex;
-        
+
         if (isset($this->sampleForms[$index])) {
             $sampleId = $this->sampleForms[$index]['id'];
-            
+
             // If saved to DB, delete from DB
             if ($sampleId) {
                 try {
@@ -1089,12 +1069,12 @@ class Samples extends Component
                     return;
                 }
             }
-            
+
             // Remove from array
             unset($this->sampleForms[$index]);
             $this->sampleForms = array_values($this->sampleForms);  // Re-index
         }
-        
+
         $this->showDeleteSampleModal = false;
         $this->deletingSampleIndex = null;
     }
@@ -1107,7 +1087,7 @@ class Samples extends Component
         $this->showDeleteSampleModal = false;
         $this->deletingSampleIndex = null;
     }
-    
+
     /**
      * Enable editing for a specific row
      */
@@ -1115,7 +1095,7 @@ class Samples extends Component
     {
         $this->editingRowIndex = $index;
     }
-    
+
     /**
      * Cancel editing (makes all rows read-only)
      */
@@ -1126,8 +1106,8 @@ class Samples extends Component
         $this->showAnalysisTypeDropdown = [];
         $this->analysisTypeSearch = '';
     }
-    
-    
+
+
     /**
      * Toggle analysis type selection for a specific row
      */
@@ -1136,13 +1116,13 @@ class Samples extends Component
         if (!isset($this->sampleForms[$index])) {
             return;
         }
-        
+
         if (!is_array($this->sampleForms[$index]['analysis_type_id'])) {
             $this->sampleForms[$index]['analysis_type_id'] = [];
         }
-        
+
         $key = array_search($analysisTypeId, $this->sampleForms[$index]['analysis_type_id']);
-        
+
         if ($key !== false) {
             // Remove if already selected
             unset($this->sampleForms[$index]['analysis_type_id'][$key]);
@@ -1152,21 +1132,21 @@ class Samples extends Component
             $this->sampleForms[$index]['analysis_type_id'][] = $analysisTypeId;
         }
     }
-    
+
     /**
      * Get filtered analysis types for a specific row
      */
     public function getFilteredAnalysisTypes($index)
     {
         $search = $this->analysisTypeSearch;
-        
+
         if (empty($search)) {
             return $this->analysisTypes;
         }
-        
-        return array_filter($this->analysisTypes, function($type) use ($search) {
-            return stripos($type['name'], $search) !== false || 
-                   stripos($type['code'], $search) !== false;
+
+        return array_filter($this->analysisTypes, function ($type) use ($search) {
+            return stripos($type['name'], $search) !== false ||
+                stripos($type['code'], $search) !== false;
         });
     }
 
@@ -1193,9 +1173,9 @@ class Samples extends Component
             'sampleForms.*.company_product_id.required' => 'Product is required',
             'sampleForms.*.main_standard.required' => 'Main standard is required',
         ]);
-        
+
         DB::beginTransaction();
-        
+
         try {
             foreach ($this->sampleForms as $index => $sampleData) {
                 if ($sampleData['id']) {
@@ -1207,9 +1187,9 @@ class Samples extends Component
                     $sample->sample_header_id = $this->batch->id;
                     $sample->sample_code = $sampleData['sample_code'];
                 }
-                
+
                 // Set all fields
-                $sample->analysis_type_id = is_array($sampleData['analysis_type_id']) 
+                $sample->analysis_type_id = is_array($sampleData['analysis_type_id'])
                     ? implode(',', $sampleData['analysis_type_id'])
                     : $sampleData['analysis_type_id'];
                 $sample->lab_id = $sampleData['lab_id'];
@@ -1225,22 +1205,22 @@ class Samples extends Component
                 $sample->storage_slot = $sampleData['storage_slot'];
                 $sample->sample_quantity = $sampleData['sample_quantity'];
                 $sample->unit_of_measure = $sampleData['unit_of_measure'];
-                
+
                 $sample->save();
-                
+
                 // Update ID in form array for subsequent saves
                 $this->sampleForms[$index]['id'] = $sample->id;
             }
-            
+
             DB::commit();
-            
+
             // Exit edit mode after successful save
             $this->editingRowIndex = null;
-            
+
             session()->flash('success', 'All samples saved successfully!');
             $this->dispatch('samplesUpdated');
             $this->loadSamples();  // Reload to get fresh data
-            
+
         } catch (\Exception $e) {
             DB::rollBack();
             Log::error('Error saving samples: ' . $e->getMessage());
@@ -1267,7 +1247,7 @@ class Samples extends Component
             // Extract index from key (e.g., "0.analysis_type_id" -> 0)
             preg_match('/(\d+)\./', $key, $matches);
             $index = $matches[1] ?? null;
-            
+
             if ($index !== null && isset($this->sampleForms[$index])) {
                 $this->filterLabsForSample($index);
             }
@@ -1280,13 +1260,13 @@ class Samples extends Component
     protected function filterLabsForSample($index)
     {
         $selectedAnalysisIds = $this->sampleForms[$index]['analysis_type_id'] ?? [];
-        
+
         if (empty($selectedAnalysisIds)) {
             // Reset to all labs if no analysis types selected
             $this->labSections = Lab::select('id', 'name', 'code')->get()->toArray();
             return;
         }
-        
+
         try {
             // Get unique lab IDs from selected analysis types
             $labIds = AnalysisType::whereIn('id', $selectedAnalysisIds)
@@ -1294,7 +1274,7 @@ class Samples extends Component
                 ->unique()
                 ->filter()
                 ->toArray();
-            
+
             if (!empty($labIds)) {
                 // Filter labs to only those that handle the selected analysis types
                 $this->labSections = Lab::whereIn('id', $labIds)
@@ -1305,7 +1285,7 @@ class Samples extends Component
                 // No labs found, keep all labs available
                 $this->labSections = Lab::select('id', 'name', 'code')->get()->toArray();
             }
-            
+
         } catch (\Exception $e) {
             Log::error('Error filtering labs: ' . $e->getMessage());
             // On error, show all labs
@@ -1320,17 +1300,17 @@ class Samples extends Component
     {
         try {
             $this->selectedSampleCode = $sampleCode;
-            
+
             // Find the sample
             $sample = SampleDetails::where('sample_code', $sampleCode)
                 ->where('sample_header_id', $this->batch->id)
                 ->first();
-            
+
             if (!$sample) {
                 session()->flash('error', 'Sample not found');
                 return;
             }
-            
+
             $this->uncertaintyRequired = $this->batch->require_mu == 1;
 
             // Fetch all captured results for this sample with relationships
@@ -1340,50 +1320,50 @@ class Samples extends Component
                 ->orderBy('analysis_type_order')
                 ->orderBy('parameters_order')
                 ->get();
-            
+
             if ($capturedResults->isEmpty()) {
                 $this->sampleParameters = [];
                 $this->showParametersModal = true;
                 return;
             }
-            
+
             // Enrich each result with additional data
             $parameters = [];
             foreach ($capturedResults as $result) {
                 // Get analysis type
                 $analysisType = AnalysisType::find($result->analysis_type_id);
-                
+
                 // Get operator
                 $operator = \App\User::find($result->operator_id);
-                
+
                 // Get method
                 $method = \App\AnalysisMethod::find($result->method_id);
-                
+
                 // Get LTM method (stored as simple value, not a model)
                 $ltmMethod = null;
-                
+
                 // Get equipment
                 $equipment = \App\Models\Equipments\Equipment::find($result->equipment_id);
-                
+
                 // Get analyte for reporting unit
                 $analyte = \App\Analyte::find($result->analyte_id);
-                
+
                 // Get standard info
                 $standardInfo = $this->getStandardInfo(
                     $result->main_standard_id,
                     $result->main_value
                 );
-                
+
                 $secStandardInfo = $result->secondary_standard_id ? $this->getStandardInfo(
                     $result->secondary_standard_id,
                     $result->secondary_value
                 ) : null;
-                
+
                 // Fetch limit data for evaluation
                 $limitType = null;
                 $limitLow = null;
                 $limitHigh = null;
-                
+
                 if ($result->main_standard_id && $result->analyte_id) {
                     $stdAnalyte = \App\StandardAnalytes::where('standard_id', $result->main_standard_id)
                         ->where('analyte_id', $result->analyte_id)
@@ -1410,7 +1390,7 @@ class Samples extends Component
                     'standard_id' => $result->main_standard_id,
                     'sec_standard_value' => $secStandardInfo['display'] ?? null,
                     'sec_standard_id' => $result->secondary_standard_id,
-                    'remark' => $result->remark ?: '', 
+                    'remark' => $result->remark ?: '',
                     'remark_is_manual' => $result->remark_is_manual,
                     'reporting_unit' => $result->reporting_unit_id,
                     'operator_name' => $operator->name ?? '-',
@@ -1430,10 +1410,10 @@ class Samples extends Component
                     'standard_editable' => false,
                 ];
             }
-            
+
             // Populate form data for editing
             $this->parametersForm = $parameters;
-            
+
             // Load dropdown lists if empty
             if (empty($this->modalLists['operators'])) {
                 $this->modalLists['operators'] = \App\User::orderBy('name')->get();
@@ -1441,7 +1421,7 @@ class Samples extends Component
                 $this->modalLists['equipments'] = \App\Models\Equipments\Equipment::orderBy('name')->get();
                 $this->modalLists['units'] = \App\ReportingUnit::all();
             }
-            
+
             // Load standard values for edit modal
             if (empty($this->standardValueOptions)) {
                 $this->standardValueOptions = \App\StandardValue::all();
@@ -1449,7 +1429,7 @@ class Samples extends Component
 
             $this->sampleParameters = $parameters;
             $this->showParametersModal = true;
-            
+
         } catch (\Exception $e) {
             Log::error('Error loading sample parameters: ' . $e->getMessage());
             session()->flash('error', 'Failed to load parameters: ' . $e->getMessage());
@@ -1474,37 +1454,41 @@ class Samples extends Component
      */
     public function evaluateResult($id)
     {
-        if (!isset($this->parametersForm[$id])) return;
-        
+        if (!isset($this->parametersForm[$id]))
+            return;
+
         $data = $this->parametersForm[$id];
         $result = $data['result'];
-        
+
         // Skip if manual remark
         if (!empty($data['remark_is_manual']) && $data['remark_is_manual'] == 1) {
-             return;
+            return;
         }
 
         if (!is_numeric($result)) {
-             // Non-numeric handling could go here
-             return;
+            // Non-numeric handling could go here
+            return;
         }
-        
+
         $val = floatval($result);
         $remark = 'PASS';
-        
+
         if ($data['limit_type']) {
             $low = floatval($data['limit_low']);
             $high = floatval($data['limit_high']);
-            
+
             if ($data['limit_type'] == 'is_range') {
-                if ($val < $low || $val > $high) $remark = 'FAIL';
+                if ($val < $low || $val > $high)
+                    $remark = 'FAIL';
             } elseif ($data['limit_type'] == 'is_min') {
-                if ($val < $low) $remark = 'FAIL';
+                if ($val < $low)
+                    $remark = 'FAIL';
             } elseif ($data['limit_type'] == 'is_max') {
-                if ($val > $high) $remark = 'FAIL';
+                if ($val > $high)
+                    $remark = 'FAIL';
             }
         }
-        
+
         $this->parametersForm[$id]['remark'] = $remark;
     }
 
@@ -1524,10 +1508,10 @@ class Samples extends Component
             session()->flash('error', "Error: Parameter ID $id not found in form.");
             return;
         }
-        
+
         $param = $this->parametersForm[$id];
         $standardId = $level == 1 ? $param['standard_id'] : $param['sec_standard_id'];
-        
+
         if (!$standardId || !$param['analyte_id']) {
             session()->flash('error', 'No standard or analyte linked to this result.');
             return;
@@ -1560,7 +1544,7 @@ class Samples extends Component
             'limit_measure' => $stdAnalyte->value_type,
             'value' => $stdAnalyte->standard_is_value,
         ];
-        
+
         $this->showEditStandardModal = true;
     }
 
@@ -1573,7 +1557,7 @@ class Samples extends Component
     public function saveStandardLimit()
     {
         $data = $this->editingStandardData;
-        
+
         // Find or create
         $stdAnalyte = \App\StandardAnalytes::where('standard_id', $data['standard_id'])
             ->where('analyte_id', $data['analyte_id'])
@@ -1600,19 +1584,19 @@ class Samples extends Component
         if ($data['standard_value_type'] == 1) {
             $newValue = $data['min'] . ' - ' . $data['max'];
         } else {
-             // Logic: 2 && limit_measure == '' -> limit code
-             //        2 && limit_measure != '' -> value . ' ' . limit_measure
-             if ($data['limit_measure'] == '') {
-                 $sv = \App\StandardValue::find($data['standard_valuetype']);
-                 $newValue = $sv ? $sv->code : $newValue;
-             } else {
-                 $newValue = $data['value'] . ' ' . $data['limit_measure']; // e.g. "10 Max"
-             }
+            // Logic: 2 && limit_measure == '' -> limit code
+            //        2 && limit_measure != '' -> value . ' ' . limit_measure
+            if ($data['limit_measure'] == '') {
+                $sv = \App\StandardValue::find($data['standard_valuetype']);
+                $newValue = $sv ? $sv->code : $newValue;
+            } else {
+                $newValue = $data['value'] . ' ' . $data['limit_measure']; // e.g. "10 Max"
+            }
         }
 
         // Update CapturedResult snapshot
         $updateField = $data['standard_level'] == 1 ? 'standard_value' : 'sec_standard_value';
-        
+
         DB::table('captured_results')
             ->where('id', $data['captured_result_id'])
             ->update([$updateField => $newValue]);
@@ -1623,7 +1607,7 @@ class Samples extends Component
         }
         $this->showEditStandardModal = false;
         $this->reset('editingStandardData');
-        
+
         // Re-evaluate current row result against new limits
         $this->evaluateResult($data['captured_result_id']);
     }
@@ -1648,21 +1632,21 @@ class Samples extends Component
                     'updated_at' => now(),
                     // Mark manual remark if changed? For now just save.
                 ];
-                
+
                 DB::table('captured_results')
                     ->where('id', $id)
                     ->update($updateData);
             }
-            
+
             session()->flash('message', 'Parameters saved successfully.');
             $this->showParametersModal = false;
-            
+
         } catch (\Exception $e) {
             Log::error('Error saving parameters: ' . $e->getMessage());
             session()->flash('error', 'Failed to save parameters: ' . $e->getMessage());
         }
     }
-    
+
     /**
      * Get formatted standard info
      */
@@ -1671,7 +1655,7 @@ class Samples extends Component
         if (!$standardId || !$value) {
             return ['display' => '-'];
         }
-        
+
         try {
             $standard = Standards::find($standardId);
             return [
@@ -1695,7 +1679,7 @@ class Samples extends Component
     }
 
     // ========== Comments & Interpretations Feature ==========
-    
+
     public $showCommentsModal = false;
     public $editingCommentsSampleId = null;
     public $commentsForm = [
@@ -1712,7 +1696,7 @@ class Samples extends Component
     {
         try {
             $sample = SampleDetails::findOrFail($sampleId);
-            
+
             $this->editingCommentsSampleId = $sampleId;
             $this->commentsForm = [
                 'header_body' => $sample->header_body ?? '',
@@ -1720,9 +1704,9 @@ class Samples extends Component
                 'notes_body' => $sample->notes_body ?? '',
                 'batch_comment_scope' => '1',
             ];
-            
+
             $this->showCommentsModal = true;
-            
+
         } catch (\Exception $e) {
             Log::error('Error loading comments: ' . $e->getMessage());
             session()->flash('error', 'Failed to load sample comments');
@@ -1736,17 +1720,17 @@ class Samples extends Component
     {
         try {
             $sample = SampleDetails::findOrFail($this->editingCommentsSampleId);
-            
+
             $sample->main_body = $this->commentsForm['main_body'];
             $sample->header_body = $this->commentsForm['header_body'];
             $sample->notes_body = $this->commentsForm['notes_body'];
             $sample->save();
-            
+
             $this->showCommentsModal = false;
             $this->reset('editingCommentsSampleId', 'commentsForm');
-            
+
             session()->flash('success', 'Sample Comments and Interpretations have been saved');
-            
+
         } catch (\Exception $e) {
             Log::error('Error saving comments: ' . $e->getMessage());
             session()->flash('error', 'Failed to save comments: ' . $e->getMessage());
@@ -1763,7 +1747,7 @@ class Samples extends Component
     }
 
     // ========== Interlab Transfer Feature ==========
-    
+
     public $showInterlabModal = false;
     public $interlabSampleId = null;
     public $interlabSampleCode = '';
@@ -1782,13 +1766,13 @@ class Samples extends Component
     {
         try {
             $sample = SampleDetails::findOrFail($sampleId);
-            
+
             $this->interlabSampleId = $sampleId;
             $this->interlabSampleCode = $sampleCode;
-            
+
             // Get target date from batch
             $targetDate = $this->batch->batch_date_expected ?? date('Y-m-d');
-            
+
             $this->interlabForm = [
                 'to_lab_section_id' => '',
                 'quantity' => '',
@@ -1796,9 +1780,9 @@ class Samples extends Component
                 'prelim_date' => '',
                 'remarks' => '',
             ];
-            
+
             $this->showInterlabModal = true;
-            
+
         } catch (\Exception $e) {
             Log::error('Error loading interlab modal: ' . $e->getMessage());
             session()->flash('error', 'Failed to open interlab transfer modal');
@@ -1823,13 +1807,13 @@ class Samples extends Component
 
         try {
             DB::beginTransaction();
-            
+
             // Get the last interlab log to determine from_lab
             $lastLog = \App\InterLabLog::where('sample_id', $this->interlabSampleId)
                 ->where('status', 1)
                 ->orderBy('date_received', 'DESC')
                 ->first();
-            
+
             $interlabData = [
                 'sample_id' => $this->interlabSampleId,
                 'to_lab_section_id' => $this->interlabForm['to_lab_section_id'],
@@ -1841,19 +1825,19 @@ class Samples extends Component
                 'prelim_date' => $this->interlabForm['prelim_date'] ?: null,
                 'remarks' => $this->interlabForm['remarks'] ?: null,
             ];
-            
+
             \App\InterLabLog::create($interlabData);
-            
+
             DB::commit();
-            
+
             $this->showInterlabModal = false;
             $this->reset('interlabSampleId', 'interlabSampleCode', 'interlabForm');
-            
+
             // Dispatch event to refresh interlab logs tab if it exists
             $this->dispatch('interlabLogsUpdated');
-            
+
             session()->flash('success', 'Inter laboratory Log created successfully');
-            
+
         } catch (\Exception $e) {
             DB::rollBack();
             Log::error('Error saving interlab log: ' . $e->getMessage());
@@ -1880,7 +1864,7 @@ class Samples extends Component
             },
             'sample_type'
         ]);
-        
+
         return view('livewire.batch.tabs.samples', [
             'batch' => $this->batch,
             'not_captured' => $this->not_captured,
