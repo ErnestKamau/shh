@@ -1351,123 +1351,25 @@
                                 <div class="col-md-3">
                                     <div class="form-group mb-0">
                                         <label class="text-muted small fw-bold">Lab No</label>
-                                        <div class="fw-bold text-dark" style="font-size: 1.1rem;">{{ $assignBatchCode }}</div>
+                                        <div class="fw-bold text-dark" style="font-size: 0.9rem;">{{ $assignBatchCode }}</div>
                                     </div>
                                 </div>
-                                <div class="col-md-3">
+                                <div class="col-md-3 text-center border-right">
                                     <div class="form-group mb-0">
-                                        <label class="text-muted small fw-bold">Specimen Type</label>
-                                        <div class="tag-select-container" 
-                                             wire:click="$set('showAssignSampleTypeDropdown', true)" 
-                                             wire:click.outside="$set('showAssignSampleTypeDropdown', false)">
-                                            <div class="tag-select-input" style="min-height: 38px; padding: 4px 8px;">
-                                                @if($assignSampleTypeName)
-                                                    <span class="tag-badge" style="font-size: 0.8rem;">
-                                                        {{ $assignSampleTypeName }}
-                                                        <i class="mdi mdi-pencil small" style="margin-left: 5px;"></i>
-                                                    </span>
-                                                @endif
-                                                <input type="text" 
-                                                       wire:model.live="assignSampleTypeSearch" 
-                                                       class="tag-input" 
-                                                       style="font-size: 0.85rem;"
-                                                       placeholder="{{ $assignSampleTypeName ? '' : 'Search type...' }}"
-                                                       autocomplete="off">
-                                            </div>
-                                            @if($showAssignSampleTypeDropdown)
-                                                <div class="tag-dropdown" style="z-index: 2000;">
-                                                    @php $filteredTypes = $this->getFilteredAssignSampleTypes(); @endphp
-                                                    @if(count($filteredTypes) > 0)
-                                                        @foreach($filteredTypes as $type)
-                                                            <div class="tag-dropdown-item py-2 px-3" wire:click.stop="selectAssignSampleType({{ $type['id'] }})">
-                                                                {{ $type['name'] }}
-                                                            </div>
-                                                        @endforeach
-                                                    @else
-                                                        <div class="p-2 text-center text-muted small">No types found</div>
-                                                    @endif
-                                                </div>
-                                            @endif
-                                        </div>
+                                        <label class="text-muted small fw-bold d-block">Specimen Type</label>
+                                        <div class="fw-bold text-dark" style="font-size: 0.9rem;">{{ $assignSampleTypeName }}</div>
                                     </div>
                                 </div>
-                                <div class="col-md-3">
+                                <div class="col-md-3 text-center border-right">
                                     <div class="form-group mb-0">
-                                        <label class="text-muted small fw-bold">Company Sub Unit</label>
-                                        <div class="tag-select-container" 
-                                             wire:click="$set('showAssignSubUnitDropdown', true)" 
-                                             wire:click.outside="$set('showAssignSubUnitDropdown', false)">
-                                            <div class="tag-select-input" style="min-height: 38px; padding: 4px 8px;">
-                                                @if($assignCompanySubUnitName)
-                                                    <span class="tag-badge" style="font-size: 0.8rem;">
-                                                        {{ $assignCompanySubUnitName }}
-                                                        <i class="mdi mdi-pencil small" style="margin-left: 5px;"></i>
-                                                    </span>
-                                                @endif
-                                                <input type="text" 
-                                                       wire:model.live="assignSubUnitSearch" 
-                                                       class="tag-input" 
-                                                       style="font-size: 0.85rem;"
-                                                       placeholder="{{ $assignCompanySubUnitName ? '' : 'Search sub unit...' }}"
-                                                       autocomplete="off">
-                                            </div>
-                                            @if($showAssignSubUnitDropdown)
-                                                <div class="tag-dropdown" style="z-index: 2000;">
-                                                    @php $filteredSubUnits = $this->getFilteredAssignSubUnits(); @endphp
-                                                    @if(count($filteredSubUnits) > 0)
-                                                        @foreach($filteredSubUnits as $unit)
-                                                            <div class="tag-dropdown-item py-2 px-3" wire:click.stop="selectAssignSubUnit({{ $unit['id'] }})">
-                                                                {{ $unit['name'] }}
-                                                            </div>
-                                                        @endforeach
-                                                    @else
-                                                        <div class="p-2 text-center text-muted small">No sub units found</div>
-                                                    @endif
-                                                </div>
-                                            @endif
-                                        </div>
+                                        <label class="text-muted small fw-bold d-block">Company Sub Unit</label>
+                                        <div class="fw-bold text-dark" style="font-size: 0.9rem;">{{ $assignCompanySubUnitName }}</div>
                                     </div>
                                 </div>
-                                <div class="col-md-3">
+                                <div class="col-md-3 text-center">
                                     <div class="form-group mb-0">
-                                        <label class="text-muted small fw-bold">Analysis Types</label>
-                                        <div class="tag-select-container" 
-                                             wire:click="$set('showAssignAnalysisTypeDropdown', true)" 
-                                             wire:click.outside="$set('showAssignAnalysisTypeDropdown', false)">
-                                            <div class="tag-select-input" style="min-height: 38px; padding: 4px 8px;">
-                                                @if(count($assignAnalysisTypeIds) > 0)
-                                                    <span class="tag-badge" style="font-size: 0.8rem;">
-                                                        {{ count($assignAnalysisTypeIds) }} selected
-                                                        <i class="mdi mdi-chevron-down small" style="margin-left: 5px;"></i>
-                                                    </span>
-                                                @endif
-                                                <input type="text" 
-                                                       wire:model.live="assignAnalysisTypeSearch" 
-                                                       class="tag-input" 
-                                                       style="font-size: 0.85rem;"
-                                                       placeholder="{{ count($assignAnalysisTypeIds) > 0 ? '' : 'Search analysis...' }}"
-                                                       autocomplete="off">
-                                            </div>
-                                            @if($showAssignAnalysisTypeDropdown)
-                                                <div class="tag-dropdown" style="z-index: 2000;">
-                                                    @php $filteredTypes = $this->getFilteredAssignAnalysisTypes(); @endphp
-                                                    @if(count($filteredTypes) > 0)
-                                                        @foreach($filteredTypes as $type)
-                                                            <div class="tag-dropdown-item py-2 px-3" wire:click.stop="toggleAssignAnalysisType({{ $type['id'] }})">
-                                                                <div class="d-flex justify-content-between align-items-center w-100">
-                                                                    <span>{{ $type['name'] }}</span>
-                                                                    @if(in_array($type['id'], $assignAnalysisTypeIds))
-                                                                        <i class="mdi mdi-check text-success"></i>
-                                                                    @endif
-                                                                </div>
-                                                            </div>
-                                                        @endforeach
-                                                    @else
-                                                        <div class="p-2 text-center text-muted small">No analysis types found</div>
-                                                    @endif
-                                                </div>
-                                            @endif
-                                        </div>
+                                        <label class="text-muted small fw-bold d-block">Analysis Types</label>
+                                        <div class="fw-bold text-dark" style="font-size: 0.9rem;">{{ $assignAnalysisTypeNames }}</div>
                                     </div>
                                 </div>
                             </div>
