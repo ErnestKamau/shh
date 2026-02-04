@@ -556,28 +556,6 @@ class Samples extends Component
             $staging->save();
         }
     }
-             
-             // Also need to check if the SamplePointArea has this point linked in `sample_points` relation if that's how it works.
-             // But based on controller, creating the `CRM\SamplePoint` record seems sufficient.
-            
-            DB::commit();
-            
-            // Refresh the assignment list
-            $this->loadAssignAreasAndPoints($subUnitId);
-            
-            // Reset form
-            $this->assignNewAreaId = '';
-            $this->assignNewPointId = '';
-            
-            session()->flash('success', 'Sample point added successfully!');
-            
-        } catch (\Exception $e) {
-            DB::rollBack();
-            Log::error('Error adding customer sample point: ' . $e->getMessage());
-            session()->flash('error', 'Error adding sample point: ' . $e->getMessage());
-        }
-    
-    }
 
     /**
      * Submit assignment
