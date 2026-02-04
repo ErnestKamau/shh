@@ -115,17 +115,45 @@
                             <th style="min-width: 150px;">Analysis<sup class="text-danger">*</sup></th>
                             <th style="min-width: 120px;">Lab<sup class="text-danger">*</sup></th>
                             <th style="min-width: 120px;">Condition<sup class="text-danger">*</sup></th>
-                            <th style="min-width: 150px;">Sample Point<sup class="text-danger">*</sup></th>
-                            <th style="min-width: 150px;">Product<sup class="text-danger">*</sup></th>
+                            <th style="min-width: 150px;">
+                                Sample Point<sup class="text-danger">*</sup>
+                                <button type="button" class="btn btn-xs btn-outline-primary ml-1"
+                                    wire:click="openAddModal('sample_point_id', null)" title="Add New Sample Point">
+                                    <i class="mdi mdi-plus"></i>
+                                </button>
+                            </th>
+                            <th style="min-width: 150px;">
+                                Product<sup class="text-danger">*</sup>
+                                <button type="button" class="btn btn-xs btn-outline-primary ml-1"
+                                    wire:click="openAddModal('company_product_id', null)" title="Add New Product">
+                                    <i class="mdi mdi-plus"></i>
+                                </button>
+                            </th>
                             <th style="min-width: 150px;">Description</th>
                             <th style="min-width: 100px;">Time Sampled</th>
-                            <th style="min-width: 120px;">Main Std<sup class="text-danger">*</sup></th>
-                            <th style="min-width: 120px;">Secondary Std</th>
+                            <th style="min-width: 120px;">
+                                Main Std<sup class="text-danger">*</sup>
+                            </th>
+                            <th style="min-width: 120px;">
+                                Secondary Std
+                            </th>
                             <th style="min-width: 110px;">Disposal Date</th>
-                            <th style="min-width: 120px;">Storage</th>
+                            <th style="min-width: 120px;">
+                                Storage
+                                <button type="button" class="btn btn-xs btn-outline-primary ml-1"
+                                    wire:click="openAddModal('store_id', null)" title="Add New Storage Location">
+                                    <i class="mdi mdi-plus"></i>
+                                </button>
+                            </th>
                             <th style="min-width: 80px;">Slot</th>
                             <th style="min-width: 80px;">Quantity</th>
-                            <th style="min-width: 80px;">UoM</th>
+                            <th style="min-width: 80px;">
+                                UoM
+                                <button type="button" class="btn btn-xs btn-outline-primary ml-1"
+                                    wire:click="openAddModal('reporting_unit_id', null)" title="Add New Unit of Measure">
+                                    <i class="mdi mdi-plus"></i>
+                                </button>
+                            </th>
                         </tr>
                     </thead>
                     <tbody>
@@ -441,12 +469,14 @@
                                 <td>
                                     @if($isReadOnly)
                                         <input type="text" class="form-control form-control-sm readonly-input"
-                                            value="{{ $sampleForm['reporting_unit_id'] ?? '' }}" readonly>
+                                            value="{{ collect($unitsOfMeasure)->firstWhere('id', $sampleForm['reporting_unit_id'])['name'] ?? '' }}"
+                                            readonly>
                                     @else
                                         <select class="form-control form-control-sm modern-select"
                                             wire:model.defer="sampleForms.{{ $index }}.reporting_unit_id">
+                                            <option value="">Select...</option>
                                             @foreach($unitsOfMeasure as $unit)
-                                                <option value="{{ $unit }}">{{ $unit }}</option>
+                                                <option value="{{ $unit['id'] }}">{{ $unit['name'] }}</option>
                                             @endforeach
                                         </select>
                                     @endif
@@ -745,18 +775,18 @@
                                                     <input type="text" class="form-control form-control-sm"
                                                         wire:model.lazy="parametersForm.{{ $id }}.result" x-data
                                                         x-on:change="
-                                                                                                                                                                            let val = $el.value;
-                                                                                                                                                                            if(val) {
-                                                                                                                                                                                setTimeout(() => {
-                                                                                                                                                                                    let conf = prompt('Please confirm result for {{ $param['analyte_code'] }}:');
-                                                                                                                                                                                    if(conf != val) {
-                                                                                                                                                                                        alert('Result mismatch! Please re-enter.');
-                                                                                                                                                                                        $el.value = '';
-                                                                                                                                                                                        $el.dispatchEvent(new Event('change'));
-                                                                                                                                                                                    }
-                                                                                                                                                                                }, 50);
-                                                                                                                                                                            }
-                                                                                                                                                                       "
+                                                                                                                                                                                                                                                    let val = $el.value;
+                                                                                                                                                                                                                                                    if(val) {
+                                                                                                                                                                                                                                                        setTimeout(() => {
+                                                                                                                                                                                                                                                            let conf = prompt('Please confirm result for {{ $param['analyte_code'] }}:');
+                                                                                                                                                                                                                                                            if(conf != val) {
+                                                                                                                                                                                                                                                                alert('Result mismatch! Please re-enter.');
+                                                                                                                                                                                                                                                                $el.value = '';
+                                                                                                                                                                                                                                                                $el.dispatchEvent(new Event('change'));
+                                                                                                                                                                                                                                                            }
+                                                                                                                                                                                                                                                        }, 50);
+                                                                                                                                                                                                                                                    }
+                                                                                                                                                                                                                                               "
                                                         placeholder="Result">
                                                 </td>
                                                 @if($uncertaintyRequired)
@@ -1551,11 +1581,152 @@
             </div>
         </div>
     @endif
+
+    {{-- Add New Sample Point Modal --}}
+    @if($showAddPointModal)
+        <div class="modal fade show" style="display: block; background-color: rgba(0,0,0,0.5);" tabindex="-1" role="dialog">
+            <div class="modal-dialog" role="document">
+                <div class="modal-content">
+                    <form wire:submit.prevent="saveNewPoint">
+                        <div class="modal-header bg-primary text-white">
+                            <h5 class="modal-title"><i class="mdi mdi-plus"></i> Add New Sample Point</h5>
+                            <button type="button" class="close text-white" wire:click="$set('showAddPointModal', false)">
+                                <span>&times;</span>
+                            </button>
+                        </div>
+                        <div class="modal-body">
+                            <div class="form-group mb-3">
+                                <label>Sample Point Name <span class="text-danger">*</span></label>
+                                <input type="text" class="form-control" wire:model="newPointName"
+                                    placeholder="Enter point name" required>
+                                @error('newPointName') <span class="text-danger small">{{ $message }}</span> @enderror
+                            </div>
+                            <div class="form-group">
+                                <label>Area <span class="text-danger">*</span></label>
+                                <select class="form-control" wire:model="newPointAreaId" required>
+                                    <option value="">Select Area...</option>
+                                    @foreach($areas as $area)
+                                        <option value="{{ $area['id'] }}">{{ $area['name'] }}</option>
+                                    @endforeach
+                                </select>
+                                @error('newPointAreaId') <span class="text-danger small">{{ $message }}</span> @enderror
+                            </div>
+                        </div>
+                        <div class="modal-footer">
+                            <button type="button" class="btn btn-secondary"
+                                wire:click="$set('showAddPointModal', false)">Cancel</button>
+                            <button type="submit" class="btn btn-primary" wire:loading.attr="disabled">
+                                <span wire:loading.remove>Save Point</span>
+                                <span wire:loading><i class="mdi mdi-loading mdi-spin"></i> Saving...</span>
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    @endif
+
+    {{-- Add New Product Modal --}}
+    @if($showAddProductModal)
+        <div class="modal fade show" style="display: block; background-color: rgba(0,0,0,0.5);" tabindex="-1" role="dialog">
+            <div class="modal-dialog" role="document">
+                <div class="modal-content">
+                    <form wire:submit.prevent="saveNewProduct">
+                        <div class="modal-header bg-primary text-white">
+                            <h5 class="modal-title"><i class="mdi mdi-plus"></i> Add New Product</h5>
+                            <button type="button" class="close text-white" wire:click="$set('showAddProductModal', false)">
+                                <span>&times;</span>
+                            </button>
+                        </div>
+                        <div class="modal-body">
+                            <div class="form-group">
+                                <label>Product Name <span class="text-danger">*</span></label>
+                                <input type="text" class="form-control" wire:model="newProductName"
+                                    placeholder="Enter product name" required>
+                                @error('newProductName') <span class="text-danger small">{{ $message }}</span> @enderror
+                            </div>
+                        </div>
+                        <div class="modal-footer">
+                            <button type="button" class="btn btn-secondary"
+                                wire:click="$set('showAddProductModal', false)">Cancel</button>
+                            <button type="submit" class="btn btn-primary" wire:loading.attr="disabled">
+                                <span wire:loading.remove>Save Product</span>
+                                <span wire:loading><i class="mdi mdi-loading mdi-spin"></i> Saving...</span>
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    @endif
+
+    {{-- Add New Unit of Measure Modal --}}
+    @if($showAddUomModal)
+        <div class="modal fade show" style="display: block; background-color: rgba(0,0,0,0.5);" tabindex="-1" role="dialog">
+            <div class="modal-dialog" role="document">
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <h5 class="modal-title">Add New Unit of Measure</h5>
+                        <button type="button" class="close" wire:click="$set('showAddUomModal', false)">
+                            <span>&times;</span>
+                        </button>
+                    </div>
+                    <div class="modal-body">
+                        <div class="form-group">
+                            <label>UoM Name <span class="text-danger">*</span></label>
+                            <input type="text" class="form-control" wire:model.defer="newUomName"
+                                placeholder="e.g. ml, kg, L">
+                            @error('newUomName') <span class="text-danger small">{{ $message }}</span> @enderror
+                        </div>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary"
+                            wire:click="$set('showAddUomModal', false)">Cancel</button>
+                        <button type="button" class="btn btn-primary" wire:click="saveNewUom">Save UoM</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    @endif
+
+    {{-- Add New Storage Modal --}}
+    @if($showAddStorageModal)
+        <div class="modal fade show" style="display: block; background-color: rgba(0,0,0,0.5);" tabindex="-1" role="dialog">
+            <div class="modal-dialog" role="document">
+                <div class="modal-content">
+                    <form wire:submit.prevent="saveNewStorage">
+                        <div class="modal-header bg-primary text-white">
+                            <h5 class="modal-title"><i class="mdi mdi-plus"></i> Add New Storage Location</h5>
+                            <button type="button" class="close text-white" wire:click="$set('showAddStorageModal', false)">
+                                <span>&times;</span>
+                            </button>
+                        </div>
+                        <div class="modal-body">
+                            <div class="form-group">
+                                <label>Storage Name <span class="text-danger">*</span></label>
+                                <input type="text" class="form-control" wire:model="newStorageName"
+                                    placeholder="Enter storage name" required>
+                                @error('newStorageName') <span class="text-danger small">{{ $message }}</span> @enderror
+                            </div>
+                        </div>
+                        <div class="modal-footer">
+                            <button type="button" class="btn btn-secondary"
+                                wire:click="$set('showAddStorageModal', false)">Cancel</button>
+                            <button type="submit" class="btn btn-primary" wire:loading.attr="disabled">
+                                <span wire:loading.remove>Save Storage</span>
+                                <span wire:loading><i class="mdi mdi-loading mdi-spin"></i> Saving...</span>
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    @endif
 </div>
 {{-- JavaScript for Sample Duplication --}}
 <script>
     // Function to handle duplicate button click
-    function duplicateSelected() {
+  function duplicateSelected() {
         const count = prompt("Enter number of duplicates", 1);
         if (count !== null && count > 0) {
             @this.call('duplicateSelectedSamples', parseInt(count));
@@ -1571,7 +1742,7 @@
                 checkboxes.forEach(checkbox => {
                     checkbox.click(); // Trigger Livewire event
                 });
-            });
+            }) ;
         }
     });
 </script>

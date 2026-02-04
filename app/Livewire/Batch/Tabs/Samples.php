@@ -136,11 +136,23 @@ class Samples extends Component
     public $assignAnalysisTypeSearch = '';
     public $showAssignAnalysisTypeDropdown = false;
 
-    // Add New Sample Point Data
-    public $assignNewAreaId = '';
-    public $assignNewPointId = '';
-    public $assignAvailableAreas = [];
-    public $assignAvailablePoints = [];
+    // Add New UoM Data
+    public $newUomName = '';
+    public $showAddUomModal = false;
+
+    // On-the-fly addition modals
+    public $showAddPointModal = false;
+    public $showAddProductModal = false;
+    public $showAddStorageModal = false;
+
+    public $newPointName = '';
+    public $newPointAreaId = '';
+    public $newProductName = '';
+    public $newStorageName = '';
+
+    public $activeRowIndex = null;
+    public $activeField = null; // 'sample_point_id', 'company_product_id', etc.
+    public $areas = [];
 
     protected $listeners = ['samplesUpdated' => '$refresh', 'refreshSamples' => '$refresh'];
 
@@ -180,10 +192,18 @@ class Samples extends Component
             $this->conditions = SampleCondition::select('id', 'name')->get()->toArray();
 
             // Load customer-specific data
-            if ($this->batch->client_id) {
-                $this->samplePoints = \App\Models\CRM\SamplePoint::where('customer_id', $this->batch->client_id)
-                    ->select('id', 'name')->get()->toArray();
-                $this->products = \App\Models\CRM\CompanyProduct::where('customer_id', $this->batch->client_id)
+            if ($this->batch->crm_customer_id) {
+                // For SamplePoints, table column is crm_customer_id
+                $this->samplePoints = \App\Models\CRM\SamplePoint::where('crm_customer_id', $this->batch->crm_customer_id)
+                    ->get()->map(function ($point) {
+                        return [
+                            'id' => $point->id,
+                            'name' => $point->name
+                        ];
+                    })->toArray();
+
+                // For CompanyProduct, table column is crm_company_unit_id
+                $this->products = \App\Models\CRM\CompanyProduct::where('crm_company_unit_id', $this->batch->crm_unit_id)
                     ->select('id', 'name')->get()->toArray();
             }
 
@@ -191,6 +211,9 @@ class Samples extends Component
 
             // Load all sample types
             $this->sampleTypes = \App\SampleType::select('id', 'name')->where('active', 1)->orderBy('name')->get()->toArray();
+
+            // Load Units of Measure
+            $this->unitsOfMeasure = \App\ReportingUnit::select('id', 'name')->get()->toArray();
 
             // Load sub-units for current client
             if ($this->batch->client_id) {
@@ -201,7 +224,12 @@ class Samples extends Component
             // Load storage locations if model exists
             if (class_exists('\App\LabStore')) {
                 $this->storageLocations = \App\LabStore::select('id', 'name')->get()->toArray();
+            } else {
+                $this->storageLocations = \App\InventoryStore::where('type_of_store', 'lab_store')->select('id', 'name')->get()->toArray();
             }
+
+            // Load Areas for point creation
+            $this->areas = \App\Models\Area::select('id', 'name')->orderBy('name')->get()->toArray();
 
         } catch (\Exception $e) {
             Log::error('Error loading dropdown data: ' . $e->getMessage());
@@ -795,6 +823,182 @@ class Samples extends Component
         } catch (\Exception $e) {
             Log::error('Error loading staging for edit: ' . $e->getMessage());
             session()->flash('error', 'Failed to load staging data');
+        }
+    }
+
+    public function openAddModal($field, $index)
+    {
+        $this->activeField = $field;
+        $this->activeRowIndex = $index;
+
+        if ($field === 'sample_point_id') {
+            $this->newPointName = '';
+            $this->newPointAreaId = '';
+            $this->showAddPointModal = true;
+        } elseif ($field === 'company_product_id') {
+            $this->newProductName = '';
+            $this->showAddProductModal = true;
+        } elseif ($field === 'reporting_unit_id') {
+            $this->newUomName = '';
+            $this->showAddUomModal = true;
+        } elseif ($field === 'store_id') {
+            $this->newStorageName = '';
+            $this->showAddStorageModal = true;
+        }
+    }
+
+    public function saveNewPoint()
+    {
+        $this->validate([
+            'newPointName' => 'required|string|max:255',
+            'newPointAreaId' => 'required|exists:crm_areas,id',
+        ]);
+
+        DB::beginTransaction();
+        try {
+            // 1. Create Master Sample Point
+            $masterPoint = \App\Models\SamplePoint::create([
+                'name' => $this->newPointName,
+                'code' => 'SP-' . strtoupper(uniqid()),
+                'created_by' => auth()->id(),
+            ]);
+
+            // 2. Link to Customer
+            $crmSamplePoint = \App\Models\CRM\SamplePoint::create([
+                'crm_customer_id' => $this->batch->crm_customer_id,
+                'crm_company_unit_id' => $this->batch->crm_unit_id,
+                'crm_sample_point_id' => $masterPoint->id,
+                'crm_area_id' => $this->newPointAreaId,
+                'active' => true
+            ]);
+
+            DB::commit();
+
+            // Refresh Sample Points
+            $this->samplePoints = \App\Models\CRM\SamplePoint::where('crm_customer_id', $this->batch->crm_customer_id)
+                ->get()->map(function ($point) {
+                    return [
+                        'id' => $point->id,
+                        'name' => $point->name
+                    ];
+                })->toArray();
+
+            // Assign to row if opened from a specific row
+            if ($this->activeRowIndex !== null && isset($this->sampleForms[$this->activeRowIndex])) {
+                $this->sampleForms[$this->activeRowIndex]['sample_point_id'] = $crmSamplePoint->id;
+            }
+
+            $this->showAddPointModal = false;
+            session()->flash('success', 'Sample point added successfully.');
+        } catch (\Exception $e) {
+            DB::rollBack();
+            Log::error('Error saving new point: ' . $e->getMessage());
+            session()->flash('error', 'Error saving new point.');
+        }
+    }
+
+    public function saveNewProduct()
+    {
+        $this->validate([
+            'newProductName' => 'required|string|max:255',
+        ]);
+
+        try {
+            $product = \App\Models\CRM\CompanyProduct::create([
+                'name' => $this->newProductName,
+                'crm_company_unit_id' => $this->batch->crm_unit_id,
+                'active' => true,
+            ]);
+
+            // Refresh Products
+            $this->products = \App\Models\CRM\CompanyProduct::where('crm_company_unit_id', $this->batch->crm_unit_id)
+                ->select('id', 'name')->get()->toArray();
+
+            // Assign to row if opened from a specific row
+            if ($this->activeRowIndex !== null && isset($this->sampleForms[$this->activeRowIndex])) {
+                $this->sampleForms[$this->activeRowIndex]['company_product_id'] = $product->id;
+            }
+
+            $this->showAddProductModal = false;
+            session()->flash('success', 'Product added successfully.');
+        } catch (\Exception $e) {
+            Log::error('Error saving new product: ' . $e->getMessage());
+            session()->flash('error', 'Error saving new product.');
+        }
+    }
+
+    public function saveNewUom()
+    {
+        $this->validate([
+            'newUomName' => 'required|string|max:255',
+        ]);
+
+        try {
+            Log::info('Attempting to save UoM: ' . $this->newUomName);
+            $uom = \App\ReportingUnit::create([
+                'name' => $this->newUomName,
+                'active' => 1,
+            ]);
+            Log::info('UoM saved with ID: ' . $uom->id);
+
+            // Refresh UoMs
+            $this->unitsOfMeasure = \App\ReportingUnit::select('id', 'name')->get()->toArray();
+
+            // Assign to row if opened from a specific row
+            if ($this->activeRowIndex !== null && isset($this->sampleForms[$this->activeRowIndex])) {
+                $this->sampleForms[$this->activeRowIndex]['reporting_unit_id'] = $uom->id;
+            }
+
+            $this->showAddUomModal = false;
+            session()->flash('success', 'Unit of measure added successfully.');
+        } catch (\Exception $e) {
+            Log::error('Error saving new UoM: ' . $e->getMessage());
+            Log::error($e->getTraceAsString());
+            session()->flash('error', 'Error saving new unit of measure: ' . $e->getMessage());
+        }
+    }
+
+    public function saveNewStorage()
+    {
+        $this->validate([
+            'newStorageName' => 'required|string|max:255',
+        ]);
+
+        DB::beginTransaction();
+        try {
+            // InventoryStore might not have $fillable, using manual assignment
+            $store = new \App\InventoryStore();
+            $store->name = $this->newStorageName;
+            $store->type_of_store = 'lab_store';
+            // Removed invalid 'active' column that was causing SQL errors
+            $store->save();
+
+            // Create a default slot for this store to make it visible in joined queries
+            $slot = new \App\InventoryStoreSlot();
+            $slot->inventory_store_id = $store->id;
+            $slot->name = 'Slot 1';
+            $slot->save();
+
+            DB::commit();
+
+            // Refresh Storage
+            if (class_exists('\App\LabStore')) {
+                $this->storageLocations = \App\LabStore::select('id', 'name')->get()->toArray();
+            } else {
+                $this->storageLocations = \App\InventoryStore::where('type_of_store', 'lab_store')->select('id', 'name')->get()->toArray();
+            }
+
+            // Assign to row if opened from a specific row
+            if ($this->activeRowIndex !== null && isset($this->sampleForms[$this->activeRowIndex])) {
+                $this->sampleForms[$this->activeRowIndex]['store_id'] = $store->id;
+            }
+
+            $this->showAddStorageModal = false;
+            session()->flash('success', 'Storage location added successfully.');
+        } catch (\Exception $e) {
+            DB::rollBack();
+            Log::error('Error saving new storage: ' . $e->getMessage());
+            session()->flash('error', 'Error saving new storage.');
         }
     }
 
