@@ -96,11 +96,29 @@ class SubmissionFormInstance extends Model
     public function getValueByElementName(string $elementName)
     {
         $value = $this->values()
-            ->whereHas('element', function($query) use ($elementName) {
+            ->whereHas('element', function ($query) use ($elementName) {
                 $query->where('name', $elementName);
             })->first();
-            
+
         return $value ? $value->value : null;
+    }
+
+    /**
+     * Resolve a display value by element name
+     */
+    public function resolveDisplayValueByName(string $elementName)
+    {
+        $instanceValue = $this->values()
+            ->with('element')
+            ->whereHas('element', function ($query) use ($elementName) {
+                $query->where('name', $elementName);
+            })->first();
+
+        if (!$instanceValue || !$instanceValue->element) {
+            return null;
+        }
+
+        return $this->resolveDisplayValue($instanceValue->element, $instanceValue->value);
     }
 
     /**
@@ -109,11 +127,11 @@ class SubmissionFormInstance extends Model
     public function getValuesArray(): array
     {
         $valuesArray = [];
-        
-        $this->values()->with('element')->get()->each(function($value) use (&$valuesArray) {
+
+        $this->values()->with('element')->get()->each(function ($value) use (&$valuesArray) {
             $valuesArray[$value->element->name] = $value->getFormattedValue();
         });
-        
+
         return $valuesArray;
     }
 
@@ -122,9 +140,9 @@ class SubmissionFormInstance extends Model
      */
     public function isOverdue(): bool
     {
-        return $this->due_date && 
-               $this->due_date->isPast() && 
-               !in_array($this->status, ['approved', 'rejected', 'cancelled']);
+        return $this->due_date &&
+            $this->due_date->isPast() &&
+            !in_array($this->status, ['approved', 'rejected', 'cancelled']);
     }
 
     /**
@@ -189,7 +207,7 @@ class SubmissionFormInstance extends Model
         ]);
 
         $this->logAction('submitted', $user);
-        
+
         return true;
     }
 
@@ -210,7 +228,7 @@ class SubmissionFormInstance extends Model
         ]);
 
         $this->logAction('approved', $user, null, $notes);
-        
+
         return true;
     }
 
@@ -231,7 +249,7 @@ class SubmissionFormInstance extends Model
         ]);
 
         $this->logAction('rejected', $user, null, $notes);
-        
+
         return true;
     }
 
@@ -240,7 +258,7 @@ class SubmissionFormInstance extends Model
      */
     public function getStatusBadgeColor(): string
     {
-        switch($this->status) {
+        switch ($this->status) {
             case 'draft':
                 return 'secondary';
             case 'in_review':
@@ -260,8 +278,8 @@ class SubmissionFormInstance extends Model
      * Get priority badge color for UI
      */
     public function getPriorityBadgeColor(): string
-{
-        switch($this->priority) {
+    {
+        switch ($this->priority) {
             case 'low':
                 return 'success';
             case 'normal':
@@ -297,7 +315,7 @@ class SubmissionFormInstance extends Model
     public function scopeOverdue($query)
     {
         return $query->where('due_date', '<', now())
-                    ->whereNotIn('status', ['approved', 'rejected', 'cancelled']);
+            ->whereNotIn('status', ['approved', 'rejected', 'cancelled']);
     }
 
     /**
@@ -316,7 +334,7 @@ class SubmissionFormInstance extends Model
     {
         // Load the form with all relationships
         $this->load([
-            'submissionForm.sections.elementHolders.elements' => function($query) {
+            'submissionForm.sections.elementHolders.elements' => function ($query) {
                 $query->orderBy('sort_order');
             }
         ]);
@@ -375,10 +393,10 @@ class SubmissionFormInstance extends Model
         foreach ($uniqueSampleTypes as $sampleTypeId) {
             // Get array indexes for this sample type
             $arrayIndexes = $sampleTypeValues->where('value', $sampleTypeId)->pluck('array_index')->toArray();
-            
+
             $sampleBatches[] = $this->createSampleBatch(
-                $sampleHeaderElements, 
-                $sampleDetailElements, 
+                $sampleHeaderElements,
+                $sampleDetailElements,
                 $sampleTypeId,
                 $arrayIndexes
             );
@@ -410,7 +428,7 @@ class SubmissionFormInstance extends Model
             }
 
             $value = $this->getElementValue($element, $elementValues);
-            
+
             if ($value !== null) {
                 $sampleHeader[$element->mapping_field] = $value;
             }
@@ -435,10 +453,10 @@ class SubmissionFormInstance extends Model
 
             // Group values by array_index to create separate detail records
             $groupedValues = $elementValues->groupBy('array_index');
-            
+
             foreach ($groupedValues as $index => $values) {
                 $value = $this->getElementValue($element, $values);
-                
+
                 if ($value !== null) {
                     // Initialize detail record if not exists
                     if (!isset($sampleDetails[$index])) {
@@ -494,7 +512,7 @@ class SubmissionFormInstance extends Model
         }
 
         // For multiple values, return as array
-        $values = $elementValues->pluck('value')->filter(function($value) {
+        $values = $elementValues->pluck('value')->filter(function ($value) {
             return $value !== null && $value !== '';
         })->values()->toArray();
 
@@ -524,7 +542,7 @@ class SubmissionFormInstance extends Model
     public function getSampleBatchesByType(string $sampleTypeId)
     {
         $batches = $this->getAllFieldsWithValues();
-        return array_filter($batches, function($batch) use ($sampleTypeId) {
+        return array_filter($batches, function ($batch) use ($sampleTypeId) {
             return ($batch['sample_header']['sample_type_id'] ?? null) == $sampleTypeId;
         });
     }
@@ -536,14 +554,14 @@ class SubmissionFormInstance extends Model
     {
         $batches = $this->getAllFieldsWithValues();
         $sampleTypeIds = [];
-        
+
         foreach ($batches as $batch) {
             $sampleTypeId = $batch['sample_header']['sample_type_id'] ?? null;
             if ($sampleTypeId && !in_array($sampleTypeId, $sampleTypeIds)) {
                 $sampleTypeIds[] = $sampleTypeId;
             }
         }
-        
+
         return $sampleTypeIds;
     }
 
@@ -562,11 +580,11 @@ class SubmissionFormInstance extends Model
     {
         $batches = $this->getAllFieldsWithValues();
         $allDetails = [];
-        
+
         foreach ($batches as $batch) {
             $allDetails = array_merge($allDetails, $batch['sample_details']);
         }
-        
+
         return $allDetails;
     }
 
@@ -577,11 +595,11 @@ class SubmissionFormInstance extends Model
     {
         $batches = $this->getSampleBatchesByType($sampleTypeId);
         $details = [];
-        
+
         foreach ($batches as $batch) {
             $details = array_merge($details, $batch['sample_details']);
         }
-        
+
         return $details;
     }
 
@@ -593,7 +611,7 @@ class SubmissionFormInstance extends Model
     {
         // Load the form with all relationships
         $this->load([
-            'submissionForm.sections.elementHolders.elements' => function($query) {
+            'submissionForm.sections.elementHolders.elements' => function ($query) {
                 $query->orderBy('sort_order');
             }
         ]);
@@ -668,9 +686,9 @@ class SubmissionFormInstance extends Model
 
                 // For rows sections, group data by array index
                 // Check if this is a rows section based on section type or holder type
-                $isRowsSection = $holder->holder_type === 'rows' || 
-                                ($section->section_type === 'rows_section' && $this->hasMultipleArrayIndices($holder->elements));
-                
+                $isRowsSection = $holder->holder_type === 'rows' ||
+                    ($section->section_type === 'rows_section' && $this->hasMultipleArrayIndices($holder->elements));
+
                 if ($isRowsSection) {
                     $holderData['holder_type'] = 'rows'; // Override to ensure proper display
                     $holderData['rows_data'] = $this->groupRowsDataByIndex($holder->elements);
@@ -695,7 +713,7 @@ class SubmissionFormInstance extends Model
     {
         // Use element_type as the custom type since that's where the actual type is stored
         $customType = $element->element_type;
-        
+
         $dependencies = [
             'depends_on' => null,
             'dependency_level' => 0,
@@ -713,28 +731,28 @@ class SubmissionFormInstance extends Model
                 $dependencies['is_independent'] = true;
                 $dependencies['dependency_level'] = 1;
                 break;
-                
+
             case 'client_unit_select':
             case 'client_contact_select':
                 $dependencies['depends_on'] = 'client_select';
                 $dependencies['dependency_level'] = 2;
                 break;
-                
+
             case 'sample_point_select':
                 $dependencies['depends_on'] = 'client_unit_select';
                 $dependencies['dependency_level'] = 3;
                 break;
-                
+
             case 'analysis_type_select':
                 $dependencies['depends_on'] = 'sample_type_select';
                 $dependencies['dependency_level'] = 2;
                 break;
-                
+
             case 'analysis_elements_select':
                 $dependencies['depends_on'] = 'analysis_type_select';
                 $dependencies['dependency_level'] = 3;
                 break;
-                
+
             case 'store_slot_select':
                 $dependencies['depends_on'] = 'store_select';
                 $dependencies['dependency_level'] = 2;
@@ -750,16 +768,16 @@ class SubmissionFormInstance extends Model
     private function hasMultipleArrayIndices($elements)
     {
         $arrayIndices = [];
-        
+
         foreach ($elements as $element) {
             $elementValues = $this->values()
                 ->where('submission_form_element_id', $element->id)
                 ->pluck('array_index')
                 ->toArray();
-                
+
             $arrayIndices = array_merge($arrayIndices, $elementValues);
         }
-        
+
         // Check if we have more than one unique array index
         return count(array_unique($arrayIndices)) > 1;
     }
@@ -768,79 +786,79 @@ class SubmissionFormInstance extends Model
      * Resolve display value for custom field elements
      * Converts IDs to actual names/labels from the database
      */
-    private function resolveDisplayValue($element, $value)
+    public function resolveDisplayValue($element, $value)
     {
         if (empty($value)) {
             return 'N/A';
         }
 
         $elementType = $element->element_type;
-        
+
         // Handle comma-separated values (for multi-select fields)
         if (strpos($value, ',') !== false) {
             $ids = explode(',', $value);
             $resolvedValues = [];
-            
+
             foreach ($ids as $id) {
                 $id = trim($id);
                 if (!empty($id)) {
                     $resolvedValues[] = $this->resolveSingleValue($elementType, $id);
                 }
             }
-            
+
             return implode(', ', $resolvedValues);
         }
-        
+
         return $this->resolveSingleValue($elementType, $value);
     }
 
     /**
      * Resolve a single ID to its display value
      */
-    private function resolveSingleValue($elementType, $id)
+    public function resolveSingleValue($elementType, $id)
     {
         try {
             switch ($elementType) {
                 case 'client_select':
                     $client = DB::table('crm_customers')->where('id', $id)->first();
                     return $client ? $client->name : $id;
-                    
+
                 case 'client_unit_select':
                     $unit = DB::table('crm_company_units')->where('id', $id)->first();
                     return $unit ? $unit->name : $id;
-                    
+
                 case 'company_sub_unit_select':
                     $subUnit = DB::table('crm_company_sub_units')->where('id', $id)->first();
                     return $subUnit ? $subUnit->name : $id;
-                    
+
                 case 'sample_type_select':
                     $sampleType = DB::table('sample_types')->where('id', $id)->first();
                     return $sampleType ? $sampleType->name : $id;
-                    
+
                 case 'analysis_type_select':
                     $analysisType = DB::table('analysis_types')->where('id', $id)->first();
                     return $analysisType ? $analysisType->name : $id;
-                    
+
                 case 'sample_point_select':
                     $samplePoint = DB::table('sample_points')->where('id', $id)->first();
                     return $samplePoint ? $samplePoint->name : $id;
-                    
+
                 case 'sample_condition_select':
                     $condition = DB::table('sample_conditions')->where('id', $id)->first();
                     return $condition ? $condition->name : $id;
-                    
+
                 case 'standard_select':
                     $standard = DB::table('standards')->where('id', $id)->first();
                     return $standard ? $standard->name : $id;
-                    
+
                 case 'store_select':
                     $store = DB::table('inventory_stores')->where('id', $id)->first();
                     return $store ? $store->name : $id;
-                    
+
                 case 'store_slot_select':
                     $slot = DB::table('inventory_store_slots')->where('id', $id)->first();
                     return $slot ? $slot->name : $id;
-                    
+
                 case 'client_contact_select':
                     $contact = DB::table('crm_customer_contacts')
                         ->where('id', $id)
@@ -850,7 +868,7 @@ class SubmissionFormInstance extends Model
                         return $name ?: $id;
                     }
                     return $id;
-                    
+
                 case 'analysis_elements_select':
                     $element = DB::table('analytes')->where('id', $id)->first();
                     return $element ? $element->name : $id;
@@ -861,7 +879,7 @@ class SubmissionFormInstance extends Model
                         return $user->name ?: $user->email ?: $id;
                     }
                     return $id;
-                    
+
                 // For non-select fields, return the value as-is
                 case 'text':
                 case 'textarea':
@@ -884,7 +902,7 @@ class SubmissionFormInstance extends Model
     private function groupRowsDataByIndex($elements)
     {
         $rowsData = [];
-        
+
         foreach ($elements as $element) {
             $elementValues = $this->values()
                 ->where('submission_form_element_id', $element->id)
@@ -893,11 +911,11 @@ class SubmissionFormInstance extends Model
 
             foreach ($elementValues as $value) {
                 $arrayIndex = $value->array_index ?? 0;
-                
+
                 if (!isset($rowsData[$arrayIndex])) {
                     $rowsData[$arrayIndex] = [];
                 }
-                
+
                 $rowsData[$arrayIndex][$element->id] = [
                     'element' => $element,
                     'value' => $value,
@@ -916,7 +934,7 @@ class SubmissionFormInstance extends Model
     {
         $chain = [];
         $levels = [];
-        
+
         // Group elements by dependency level
         foreach ($elementsMetadata as $elementId => $elementData) {
             $level = $elementData['dependency_info']['dependency_level'];
@@ -925,7 +943,7 @@ class SubmissionFormInstance extends Model
             }
             $levels[$level][] = $elementId;
         }
-        
+
         // Sort by level and build chain
         ksort($levels);
         foreach ($levels as $level => $elementIds) {
@@ -935,7 +953,7 @@ class SubmissionFormInstance extends Model
                 'is_independent' => $level === 1
             ];
         }
-        
+
         return $chain;
     }
 
@@ -947,7 +965,7 @@ class SubmissionFormInstance extends Model
     {
         // Load the form with all relationships
         $this->load([
-            'submissionForm.sections.elementHolders.elements' => function($query) {
+            'submissionForm.sections.elementHolders.elements' => function ($query) {
                 $query->orderBy('sort_order');
             }
         ]);
@@ -1059,7 +1077,7 @@ class SubmissionFormInstance extends Model
 
         // Handle array values
         if (is_array($value)) {
-            return array_map(function($v) use ($fieldName) {
+            return array_map(function ($v) use ($fieldName) {
                 return $this->resolveSingleValueByFieldName($fieldName, $v);
             }, $value);
         }
@@ -1081,44 +1099,44 @@ class SubmissionFormInstance extends Model
                 case 'crm_customer_id':
                     $customer = DB::table('crm_customers')->where('id', $value)->first();
                     return $customer ? $customer->name : $value;
-                    
+
                 case 'crm_unit_id':
                     $unit = DB::table('crm_company_units')->where('id', $value)->first();
                     return $unit ? $unit->name : $value;
-                    
+
                 case 'company_sub_unit_id':
                     $subUnit = DB::table('crm_company_sub_units')->where('id', $value)->first();
                     return $subUnit ? $subUnit->name : $value;
-                    
+
                 case 'sample_type_id':
                     $sampleType = DB::table('sample_types')->where('id', $value)->first();
                     return $sampleType ? $sampleType->name : $value;
-                    
+
                 case 'analysis_type_id':
                     $analysisType = DB::table('analysis_types')->where('id', $value)->first();
                     return $analysisType ? $analysisType->name : $value;
-                    
+
                 case 'sample_point_id':
                     $samplePoint = DB::table('sample_points')->where('id', $value)->first();
                     return $samplePoint ? $samplePoint->name : $value;
-                    
+
                 case 'sample_condition_id':
                     $condition = DB::table('sample_conditions')->where('id', $value)->first();
                     return $condition ? $condition->name : $value;
-                    
+
                 case 'main_standard':
                 case 'secondary_standard':
                     $standard = DB::table('standards')->where('id', $value)->first();
                     return $standard ? $standard->name : $value;
-                    
+
                 case 'store_id':
                     $store = DB::table('inventory_stores')->where('id', $value)->first();
                     return $store ? $store->name : $value;
-                    
+
                 case 'store_slot_id':
                     $slot = DB::table('inventory_store_slots')->where('id', $value)->first();
                     return $slot ? $slot->name : $value;
-                    
+
                 case 'crm_contact_id':
                     $contact = DB::table('crm_customer_contacts')->where('id', $value)->first();
                     if ($contact) {
@@ -1126,7 +1144,7 @@ class SubmissionFormInstance extends Model
                         return $name ?: $value;
                     }
                     return $value;
-                    
+
                 default:
                     return $value;
             }

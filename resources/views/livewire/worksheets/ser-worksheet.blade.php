@@ -12,16 +12,45 @@
         <div class="d-flex justify-content-between align-items-center mb-4">
             <h4>{{ $analysisTypeName }} Worksheet</h4>
             <button class="btn btn-primary" wire:click="createRun">
-                <i class="mdi mdi-plus"></i> Create Run
+                <i class="mdi mdi-plus"></i> Create New Run
             </button>
         </div>
+
+        @if(count($availableRuns) > 0)
+            <div class="mb-4">
+                <h5>Existing Runs</h5>
+                <div class="row">
+                    @foreach($availableRuns as $run)
+                        <div class="col-md-4 mb-3">
+                            <div class="card border-primary shadow-sm h-100">
+                                <div class="card-body p-3">
+                                    <div class="d-flex justify-content-between align-items-start mb-2">
+                                        <h6 class="text-primary mb-0">Run for {{ $run->sample->sample_code }}</h6>
+                                        <span class="badge badge-success">Created</span>
+                                    </div>
+                                    <p class="small text-muted mb-3">
+                                        <i class="mdi mdi-calendar"></i> {{ $run->date_tested ? $run->date_tested->format('M d, Y') : 'No date' }}
+                                    </p>
+                                    <button class="btn btn-sm btn-outline-primary btn-block" wire:click="selectRun({{ $run->id }})">
+                                        <i class="mdi mdi-pencil"></i> View / Edit Details
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    @endforeach
+                </div>
+            </div>
+        @endif
         
         <div class="card">
             <div class="card-body">
-                <p class="text-muted">Select "Create Run" to start capturing data for samples in this group.</p>
+                <div class="d-flex justify-content-between align-items-center mb-3">
+                    <h5 class="mb-0">Samples Awaiting Run</h5>
+                    <p class="text-muted small mb-0">Select "Create New Run" to start capturing data for these samples.</p>
+                </div>
                 <div class="table-responsive">
-                    <table class="table table-bordered table-striped">
-                        <thead>
+                    <table class="table table-bordered table-striped table-sm">
+                        <thead class="thead-light">
                             <tr>
                                 <th>Sample Code</th>
                                 <th>Analysis Type</th>
@@ -30,11 +59,17 @@
                         </thead>
                         <tbody>
                             @foreach($samples as $sample)
-                                <tr>
-                                    <td>{{ $sample['sample_code'] ?? $sample->sample_code }}</td>
-                                    <td>{{ $analysisTypeName }}</td>
-                                    <td><span class="badge badge-secondary">Pending Run</span></td>
-                                </tr>
+                                @php 
+                                    $sampleId = $sample['id'] ?? $sample->id;
+                                    $hasRun = collect($availableRuns)->contains('sample_detail_id', $sampleId);
+                                @endphp
+                                @if(!$hasRun)
+                                    <tr>
+                                        <td>{{ $sample['sample_code'] ?? $sample->sample_code }}</td>
+                                        <td>{{ $analysisTypeName }}</td>
+                                        <td><span class="badge badge-secondary">Pending Run</span></td>
+                                    </tr>
+                                @endif
                             @endforeach
                         </tbody>
                     </table>

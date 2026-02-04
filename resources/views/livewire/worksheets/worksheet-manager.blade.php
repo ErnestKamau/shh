@@ -164,7 +164,7 @@
                                             @livewire('worksheets.method-sequence-worksheet', [
                                                 'batch' => $batch,
                                                 'methodSequence' => $sequence
-                                            ], key: 'sequence-'.$sequence->id)
+                                            ], 'sequence-'.$sequence->id)
                                         </div>
                                     @endforeach
                                 </div>

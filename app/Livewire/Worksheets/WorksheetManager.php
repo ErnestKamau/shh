@@ -14,7 +14,7 @@ class WorksheetManager extends Component
 {
     public SampleHeader $batch;
     public $activeTab = 'formulas';
-    
+
     // Formulas and Method Sequences for this batch
     public $formulas = [];
 
@@ -22,7 +22,7 @@ class WorksheetManager extends Component
     public $noCaptureSamples = [];
     public $hasNoCaptureSamples = false;
     public $groupedNoCaptureSamples = [];
-    
+
     public function mount(SampleHeader $batch): void
     {
         $this->batch = $batch;
@@ -35,7 +35,7 @@ class WorksheetManager extends Component
         $capturedResults = CapturedResult::where('sample_header_id', $this->batch->id)
             ->where(function ($query) {
                 $query->whereNotNull('formular_id')
-                      ->orWhereNotNull('method_sequence_id');
+                    ->orWhereNotNull('method_sequence_id');
             })
             ->with(['analysisElement', 'formular', 'methodSequence', 'sample'])
             ->get();
@@ -45,7 +45,7 @@ class WorksheetManager extends Component
             ->pluck('formular_id')
             ->unique()
             ->values();
-        
+
         $this->formulas = Formula::whereIn('id', $formulaIds)
             ->with('activeVersion')
             ->get();
@@ -55,7 +55,7 @@ class WorksheetManager extends Component
             ->pluck('method_sequence_id')
             ->unique()
             ->values();
-        
+
         $this->methodSequences = MethodSequence::whereIn('id', $sequenceIds)
             ->with('activeVersion.stages')
             ->get();
@@ -71,7 +71,7 @@ class WorksheetManager extends Component
 
         foreach ($noCaptureResults as $result) {
             $analysisId = $result->analysis_type_id;
-            
+
             // Initialize group if not exists
             if (!isset($this->groupedNoCaptureSamples[$analysisId])) {
                 $this->groupedNoCaptureSamples[$analysisId] = [
@@ -81,8 +81,9 @@ class WorksheetManager extends Component
             }
 
             // Check if sample is already added to this group
-            $existingSampleIds = array_map(function($s) { return $s->id; }, $this->groupedNoCaptureSamples[$analysisId]['samples']);
-            
+            $existingSampleIds = array_map(function ($s) {
+                return $s->id; }, $this->groupedNoCaptureSamples[$analysisId]['samples']);
+
             if (!in_array($result->sample->id, $existingSampleIds)) {
                 $this->groupedNoCaptureSamples[$analysisId]['samples'][] = $result->sample;
             }
