@@ -498,20 +498,137 @@
                             </button>
                         </div>
                         <div class="modal-body">
-                            <div class="form-group">
-                                <label>Company Sub Unit</label>
-                                <input type="text" class="form-control" wire:model="stagingForm.company_sub_unit_name">
-                                @error('stagingForm.company_sub_unit_name') <span class="text-danger">{{ $message }}</span> @enderror
+                            {{-- Company Sub Unit (Searchable) --}}
+                            <div class="form-group mb-3">
+                                <label class="form-label">Company Sub Unit <span class="text-danger">*</span></label>
+                                <div class="tag-select-container" 
+                                     wire:click="$set('showSubUnitDropdown', true)" 
+                                     wire:click.outside="$set('showSubUnitDropdown', false)">
+                                    <div class="tag-select-input">
+                                        @if($stagingForm['company_sub_unit_name'])
+                                            <span class="tag-badge">
+                                                {{ $stagingForm['company_sub_unit_name'] }}
+                                                <i class="mdi mdi-close-circle" wire:click.stop="$set('stagingForm.company_sub_unit_id', null); $set('stagingForm.company_sub_unit_name', '')"></i>
+                                            </span>
+                                        @endif
+                                        
+                                        <input type="text" 
+                                               wire:model.live="subUnitSearch" 
+                                               class="tag-input" 
+                                               placeholder="{{ $stagingForm['company_sub_unit_name'] ? '' : 'Search sub units...' }}"
+                                               autocomplete="off">
+                                    </div>
+                                    
+                                    @if($showSubUnitDropdown)
+                                        <div class="tag-dropdown">
+                                            @php $filteredSubUnits = $this->getFilteredSubUnits(); @endphp
+                                            @if(count($filteredSubUnits) > 0)
+                                                @foreach($filteredSubUnits as $unit)
+                                                    <div class="tag-dropdown-item" wire:click.stop="selectSubUnit({{ $unit['id'] }})">
+                                                        {{ $unit['name'] }}
+                                                    </div>
+                                                @endforeach
+                                            @else
+                                                <div class="p-2 text-center text-muted">No sub units found</div>
+                                            @endif
+                                        </div>
+                                    @endif
+                                </div>
+                                @error('stagingForm.company_sub_unit_id') <span class="text-danger small">{{ $message }}</span> @enderror
                             </div>
-                            <div class="form-group">
-                                <label>Analysis Types (Comma separated)</label>
-                                <input type="text" class="form-control" wire:model="stagingForm.analysis_type_names">
-                                @error('stagingForm.analysis_type_names') <span class="text-danger">{{ $message }}</span> @enderror
+
+                            {{-- Specimen Type / Sample Type (Searchable) --}}
+                            <div class="form-group mb-3">
+                                <label class="form-label">Specimen Type <span class="text-danger">*</span></label>
+                                <div class="tag-select-container" 
+                                     wire:click="$set('showSampleTypeDropdown', true)" 
+                                     wire:click.outside="$set('showSampleTypeDropdown', false)">
+                                    <div class="tag-select-input">
+                                        @if($stagingForm['sample_type_name'])
+                                            <span class="tag-badge">
+                                                {{ $stagingForm['sample_type_name'] }}
+                                                <i class="mdi mdi-close-circle" wire:click.stop="$set('stagingForm.sample_type_id', null); $set('stagingForm.sample_type_name', '')"></i>
+                                            </span>
+                                        @endif
+                                        
+                                        <input type="text" 
+                                               wire:model.live="sampleTypeSearch" 
+                                               class="tag-input" 
+                                               placeholder="{{ $stagingForm['sample_type_name'] ? '' : 'Search specimen types...' }}"
+                                               autocomplete="off">
+                                    </div>
+                                    
+                                    @if($showSampleTypeDropdown)
+                                        <div class="tag-dropdown">
+                                            @php $filteredSampleTypes = $this->getFilteredSampleTypes(); @endphp
+                                            @if(count($filteredSampleTypes) > 0)
+                                                @foreach($filteredSampleTypes as $type)
+                                                    <div class="tag-dropdown-item" wire:click.stop="selectSampleType({{ $type['id'] }})">
+                                                        {{ $type['name'] }}
+                                                    </div>
+                                                @endforeach
+                                            @else
+                                                <div class="p-2 text-center text-muted">No specimen types found</div>
+                                            @endif
+                                        </div>
+                                    @endif
+                                </div>
+                                @error('stagingForm.sample_type_id') <span class="text-danger small">{{ $message }}</span> @enderror
                             </div>
+
+                            {{-- Analysis Types (Searchable Multi-Select) --}}
+                            <div class="form-group mb-3">
+                                <label class="form-label">Analysis Types <span class="text-danger">*</span></label>
+                                <div class="tag-select-container" 
+                                     wire:click="$set('showStagingAnalysisTypeDropdown', true)" 
+                                     wire:click.outside="$set('showStagingAnalysisTypeDropdown', false)">
+                                    <div class="tag-select-input">
+                                        @if(count($stagingForm['analysis_type_ids']) > 0)
+                                            @foreach($analysisTypes as $type)
+                                                @if(in_array($type['id'], $stagingForm['analysis_type_ids']))
+                                                    <span class="tag-badge">
+                                                        {{ $type['name'] }}
+                                                        <i class="mdi mdi-close-circle" 
+                                                           wire:click.stop="toggleStagingAnalysisType({{ $type['id'] }})"></i>
+                                                    </span>
+                                                @endif
+                                            @endforeach
+                                        @endif
+                                        
+                                        <input type="text" 
+                                               wire:model.live="stagingAnalysisTypeSearch" 
+                                               class="tag-input" 
+                                               placeholder="{{ count($stagingForm['analysis_type_ids']) > 0 ? '' : 'Search analysis types...' }}"
+                                               autocomplete="off">
+                                    </div>
+                                    
+                                    @if($showStagingAnalysisTypeDropdown)
+                                        <div class="tag-dropdown">
+                                            @php $filteredStagingTypes = $this->getFilteredStagingAnalysisTypes(); @endphp
+                                            @if(count($filteredStagingTypes) > 0)
+                                                @foreach($filteredStagingTypes as $type)
+                                                    <div class="tag-dropdown-item" wire:click.stop="toggleStagingAnalysisType({{ $type['id'] }})">
+                                                        <div class="d-flex justify-content-between align-items-center w-100">
+                                                            <span>{{ $type['name'] }} <small class="text-muted">({{ $type['code'] }})</small></span>
+                                                            @if(in_array($type['id'], $stagingForm['analysis_type_ids']))
+                                                                <i class="mdi mdi-check text-success"></i>
+                                                            @endif
+                                                        </div>
+                                                    </div>
+                                                @endforeach
+                                            @else
+                                                <div class="p-2 text-center text-muted">No analysis types found</div>
+                                            @endif
+                                        </div>
+                                    @endif
+                                </div>
+                                @error('stagingForm.analysis_type_ids') <span class="text-danger small">{{ $message }}</span> @enderror
+                            </div>
+
                             <div class="form-group">
                                 <label>Quantity</label>
                                 <input type="number" class="form-control" wire:model="stagingForm.quantity" min="1">
-                                @error('stagingForm.quantity') <span class="text-danger">{{ $message }}</span> @enderror
+                                @error('stagingForm.quantity') <span class="text-danger small">{{ $message }}</span> @enderror
                             </div>
                         </div>
                         <div class="modal-footer">
@@ -1227,25 +1344,131 @@
                         </div>
                     @endif
 
-                    <!-- Batch Information -->
+                    <!-- Batch Information Editing -->
                     <div class="card mb-3 shadow-sm border-0" style="border-radius: 15px;">
                         <div class="card-body p-4">
-                            <div class="row">
+                            <div class="row align-items-end">
                                 <div class="col-md-3">
-                                    <strong class="text-muted" style="font-size: 0.875rem;"><i class="mdi mdi-chevron-right"></i> Lab No:</strong> 
-                                    <div style="font-size: 1rem; font-weight: 600; color: #495057;padding-left: 18px;">{{ $assignBatchCode }}</div>
+                                    <div class="form-group mb-0">
+                                        <label class="text-muted small fw-bold">Lab No</label>
+                                        <div class="fw-bold text-dark" style="font-size: 1.1rem;">{{ $assignBatchCode }}</div>
+                                    </div>
                                 </div>
                                 <div class="col-md-3">
-                                    <strong class="text-muted" style="font-size: 0.875rem;"><i class="mdi mdi-chevron-right"></i> Sample Type:</strong> 
-                                    <div style="font-size: 1rem; font-weight: 600; color: #495057;padding-left: 18px;">{{ $assignSampleType }}</div>
+                                    <div class="form-group mb-0">
+                                        <label class="text-muted small fw-bold">Specimen Type</label>
+                                        <div class="tag-select-container" 
+                                             wire:click="$set('showAssignSampleTypeDropdown', true)" 
+                                             wire:click.outside="$set('showAssignSampleTypeDropdown', false)">
+                                            <div class="tag-select-input" style="min-height: 38px; padding: 4px 8px;">
+                                                @if($assignSampleTypeName)
+                                                    <span class="tag-badge" style="font-size: 0.8rem;">
+                                                        {{ $assignSampleTypeName }}
+                                                        <i class="mdi mdi-pencil small" style="margin-left: 5px;"></i>
+                                                    </span>
+                                                @endif
+                                                <input type="text" 
+                                                       wire:model.live="assignSampleTypeSearch" 
+                                                       class="tag-input" 
+                                                       style="font-size: 0.85rem;"
+                                                       placeholder="{{ $assignSampleTypeName ? '' : 'Search type...' }}"
+                                                       autocomplete="off">
+                                            </div>
+                                            @if($showAssignSampleTypeDropdown)
+                                                <div class="tag-dropdown" style="z-index: 2000;">
+                                                    @php $filteredTypes = $this->getFilteredAssignSampleTypes(); @endphp
+                                                    @if(count($filteredTypes) > 0)
+                                                        @foreach($filteredTypes as $type)
+                                                            <div class="tag-dropdown-item py-2 px-3" wire:click.stop="selectAssignSampleType({{ $type['id'] }})">
+                                                                {{ $type['name'] }}
+                                                            </div>
+                                                        @endforeach
+                                                    @else
+                                                        <div class="p-2 text-center text-muted small">No types found</div>
+                                                    @endif
+                                                </div>
+                                            @endif
+                                        </div>
+                                    </div>
                                 </div>
                                 <div class="col-md-3">
-                                    <strong class="text-muted" style="font-size: 0.875rem;"><i class="mdi mdi-chevron-right"></i> Customer:</strong> 
-                                    <div style="font-size: 1rem; font-weight: 600; color: #495057;padding-left: 18px;">{{ $assignCustomer }}</div>
+                                    <div class="form-group mb-0">
+                                        <label class="text-muted small fw-bold">Company Sub Unit</label>
+                                        <div class="tag-select-container" 
+                                             wire:click="$set('showAssignSubUnitDropdown', true)" 
+                                             wire:click.outside="$set('showAssignSubUnitDropdown', false)">
+                                            <div class="tag-select-input" style="min-height: 38px; padding: 4px 8px;">
+                                                @if($assignCompanySubUnitName)
+                                                    <span class="tag-badge" style="font-size: 0.8rem;">
+                                                        {{ $assignCompanySubUnitName }}
+                                                        <i class="mdi mdi-pencil small" style="margin-left: 5px;"></i>
+                                                    </span>
+                                                @endif
+                                                <input type="text" 
+                                                       wire:model.live="assignSubUnitSearch" 
+                                                       class="tag-input" 
+                                                       style="font-size: 0.85rem;"
+                                                       placeholder="{{ $assignCompanySubUnitName ? '' : 'Search sub unit...' }}"
+                                                       autocomplete="off">
+                                            </div>
+                                            @if($showAssignSubUnitDropdown)
+                                                <div class="tag-dropdown" style="z-index: 2000;">
+                                                    @php $filteredSubUnits = $this->getFilteredAssignSubUnits(); @endphp
+                                                    @if(count($filteredSubUnits) > 0)
+                                                        @foreach($filteredSubUnits as $unit)
+                                                            <div class="tag-dropdown-item py-2 px-3" wire:click.stop="selectAssignSubUnit({{ $unit['id'] }})">
+                                                                {{ $unit['name'] }}
+                                                            </div>
+                                                        @endforeach
+                                                    @else
+                                                        <div class="p-2 text-center text-muted small">No sub units found</div>
+                                                    @endif
+                                                </div>
+                                            @endif
+                                        </div>
+                                    </div>
                                 </div>
                                 <div class="col-md-3">
-                                    <strong class="text-muted" style="font-size: 0.875rem;"><i class="mdi mdi-chevron-right"></i> Company Unit:</strong> 
-                                    <div style="font-size: 1rem; font-weight: 600; color: #495057;padding-left: 18px;">{{ $assignCompanyUnit }}</div>
+                                    <div class="form-group mb-0">
+                                        <label class="text-muted small fw-bold">Analysis Types</label>
+                                        <div class="tag-select-container" 
+                                             wire:click="$set('showAssignAnalysisTypeDropdown', true)" 
+                                             wire:click.outside="$set('showAssignAnalysisTypeDropdown', false)">
+                                            <div class="tag-select-input" style="min-height: 38px; padding: 4px 8px;">
+                                                @if(count($assignAnalysisTypeIds) > 0)
+                                                    <span class="tag-badge" style="font-size: 0.8rem;">
+                                                        {{ count($assignAnalysisTypeIds) }} selected
+                                                        <i class="mdi mdi-chevron-down small" style="margin-left: 5px;"></i>
+                                                    </span>
+                                                @endif
+                                                <input type="text" 
+                                                       wire:model.live="assignAnalysisTypeSearch" 
+                                                       class="tag-input" 
+                                                       style="font-size: 0.85rem;"
+                                                       placeholder="{{ count($assignAnalysisTypeIds) > 0 ? '' : 'Search analysis...' }}"
+                                                       autocomplete="off">
+                                            </div>
+                                            @if($showAssignAnalysisTypeDropdown)
+                                                <div class="tag-dropdown" style="z-index: 2000;">
+                                                    @php $filteredTypes = $this->getFilteredAssignAnalysisTypes(); @endphp
+                                                    @if(count($filteredTypes) > 0)
+                                                        @foreach($filteredTypes as $type)
+                                                            <div class="tag-dropdown-item py-2 px-3" wire:click.stop="toggleAssignAnalysisType({{ $type['id'] }})">
+                                                                <div class="d-flex justify-content-between align-items-center w-100">
+                                                                    <span>{{ $type['name'] }}</span>
+                                                                    @if(in_array($type['id'], $assignAnalysisTypeIds))
+                                                                        <i class="mdi mdi-check text-success"></i>
+                                                                    @endif
+                                                                </div>
+                                                            </div>
+                                                        @endforeach
+                                                    @else
+                                                        <div class="p-2 text-center text-muted small">No analysis types found</div>
+                                                    @endif
+                                                </div>
+                                            @endif
+                                        </div>
+                                    </div>
                                 </div>
                             </div>
                         </div>

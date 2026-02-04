@@ -22,7 +22,11 @@ class Samples extends Component
     // Staging edit form
     public $editingStagingId = null;
     public $stagingForm = [
+        'company_sub_unit_id' => '',
         'company_sub_unit_name' => '',
+        'sample_type_id' => '',
+        'sample_type_name' => '',
+        'analysis_type_ids' => [],
         'analysis_type_names' => '',
         'quantity' => 1,
     ];
@@ -46,6 +50,18 @@ class Samples extends Component
     public $labSections = [];
     public $storageLocations = [];
     public $unitsOfMeasure = ['ml', 'L', 'kg', 'g', 'pcs', 'bottles'];
+    
+    // Staging Edit Dropdown Data
+    public $sampleTypes = [];
+    public $subUnits = [];
+    
+    // Search properties for Staging Edit
+    public $subUnitSearch = '';
+    public $showSubUnitDropdown = false;
+    public $sampleTypeSearch = '';
+    public $showSampleTypeDropdown = false;
+    public $stagingAnalysisTypeSearch = '';
+    public $showStagingAnalysisTypeDropdown = false;
     
     // Sample delete confirmation
     public $deletingSampleIndex = null;
@@ -100,6 +116,22 @@ class Samples extends Component
     public $assignTotalQty = 0;
     public $assignSelectedPoints = []; // ['point_id' => quantity]
     
+    // Assignment Edit Context
+    public $assignSampleTypeId = '';
+    public $assignCompanySubUnitId = '';
+    public $assignAnalysisTypeIds = [];
+    public $assignCompanySubUnitName = '';
+    public $assignSampleTypeName = '';
+    public $assignAnalysisTypeNames = '';
+    
+    // Search properties for Assignment Edit
+    public $assignSubUnitSearch = '';
+    public $showAssignSubUnitDropdown = false;
+    public $assignSampleTypeSearch = '';
+    public $showAssignSampleTypeDropdown = false;
+    public $assignAnalysisTypeSearch = '';
+    public $showAssignAnalysisTypeDropdown = false;
+    
     // Add New Sample Point Data
     public $assignNewAreaId = '';
     public $assignNewPointId = '';
@@ -152,6 +184,15 @@ class Samples extends Component
             }
             
             $this->labSections = Lab::select('id', 'name', 'code')->get()->toArray();
+            
+            // Load all sample types
+            $this->sampleTypes = \App\SampleType::select('id', 'name')->where('active', 1)->orderBy('name')->get()->toArray();
+
+            // Load sub-units for current client
+            if ($this->batch->client_id) {
+                $this->subUnits = \App\Models\CRM\CRMCompanySubUnit::where('crm_customer_id', $this->batch->client_id)
+                    ->select('id', 'name')->get()->toArray();
+            }
             
             // Load storage locations if model exists
             if (class_exists('\App\LabStore')) {
@@ -238,6 +279,19 @@ class Samples extends Component
             $this->assignCompanyUnit = $subUnit ? ($subUnit->companyUnit->name ?? 'N/A') : 'N/A';
             $this->assignTotalQty = $dataJson['quantity'] ?? 0;
             
+            // Populate IDs for editing
+            $this->assignSampleTypeId = $staging->sampleHeader->sample_type_id ?? '';
+            $this->assignCompanySubUnitId = $subUnitId;
+            $this->assignCompanySubUnitName = $subUnit->name ?? 'N/A';
+            $this->assignSampleTypeName = $this->assignSampleType;
+            
+            $atIds = $dataJson['analysis_type_ids'] ?? [];
+            if (is_string($atIds)) {
+                $atIds = array_filter(explode(',', $atIds));
+            }
+            $this->assignAnalysisTypeIds = $atIds;
+            $this->assignAnalysisTypeNames = $dataJson['analysis_type_names'] ?? '';
+
             // Load areas and points
             $this->loadAssignAreasAndPoints($subUnitId);
             
@@ -372,8 +426,136 @@ class Samples extends Component
                     'crm_company_sub_unit_id' => $subUnitId,
                     'active' => true
                 ]);
-                 // Note: Legacy also set 'crm_company_unit_id' and 'crm_company_sub_unit_id'
             }
+            
+            DB::commit();
+            
+            // Refresh areas/points
+            $this->loadAssignAreasAndPoints($subUnitId);
+            
+            // Clear selection
+            $this->assignNewAreaId = '';
+            $this->assignNewPointId = '';
+            
+            session()->flash('success', 'Sample point added to customer successfully');
+            
+        } catch (\Exception $e) {
+            DB::rollBack();
+            Log::error('Error adding customer sample point: ' . $e->getMessage());
+            session()->flash('error', 'Failed to add sample point: ' . $e->getMessage());
+        }
+    }
+
+    // ========== Search & Select Methods for Assign Modal Edit ==========
+
+    public function getFilteredAssignSubUnits()
+    {
+        if (empty($this->assignSubUnitSearch)) {
+            return $this->subUnits;
+        }
+        return array_filter($this->subUnits, function($unit) {
+            return stripos($unit['name'], $this->assignSubUnitSearch) !== false;
+        });
+    }
+
+    public function selectAssignSubUnit($id)
+    {
+        $unit = collect($this->subUnits)->firstWhere('id', $id);
+        if ($unit) {
+            $this->assignCompanySubUnitId = $id;
+            $this->assignCompanySubUnitName = $unit['name'];
+            
+            // Update the staging record data_json immediately? 
+            // Or only on performAssignment? 
+            // Better to update header/staging only if they confirm or we can do it on the fly.
+            // Let's do it on the fly to keep UI in sync.
+            $this->updateStagingData('company_sub_unit_id', $id);
+            $this->updateStagingData('company_sub_unit_name', $unit['name']);
+            
+            // Re-load areas/points for the new sub-unit
+            $this->loadAssignAreasAndPoints($id);
+        }
+        $this->showAssignSubUnitDropdown = false;
+        $this->assignSubUnitSearch = '';
+    }
+
+    public function getFilteredAssignSampleTypes()
+    {
+        if (empty($this->assignSampleTypeSearch)) {
+            return $this->sampleTypes;
+        }
+        return array_filter($this->sampleTypes, function($type) {
+            return stripos($type['name'], $this->assignSampleTypeSearch) !== false;
+        });
+    }
+
+    public function selectAssignSampleType($id)
+    {
+        $type = collect($this->sampleTypes)->firstWhere('id', $id);
+        if ($type) {
+            $this->assignSampleTypeId = $id;
+            $this->assignSampleTypeName = $type['name'];
+            $this->assignSampleType = $type['name'];
+
+            // Update header
+            $staging = SampleDetailStaging::find($this->assignStagingId);
+            if ($staging && $staging->sampleHeader) {
+                $staging->sampleHeader->sample_type_id = $id;
+                $staging->sampleHeader->save();
+            }
+        }
+        $this->showAssignSampleTypeDropdown = false;
+        $this->assignSampleTypeSearch = '';
+    }
+
+    public function getFilteredAssignAnalysisTypes()
+    {
+        if (empty($this->assignAnalysisTypeSearch)) {
+            return $this->analysisTypes;
+        }
+        return array_filter($this->analysisTypes, function($type) {
+            return stripos($type['name'], $this->assignAnalysisTypeSearch) !== false || 
+                   stripos($type['code'], $this->assignAnalysisTypeSearch) !== false;
+        });
+    }
+
+    public function toggleAssignAnalysisType($id)
+    {
+        $atIds = $this->assignAnalysisTypeIds;
+        $key = array_search($id, $atIds);
+        
+        if ($key !== false) {
+            unset($atIds[$key]);
+        } else {
+            $atIds[] = $id;
+        }
+        
+        $this->assignAnalysisTypeIds = array_values($atIds);
+        
+        // Update display names
+        $names = [];
+        foreach ($this->analysisTypes as $type) {
+            if (in_array($type['id'], $this->assignAnalysisTypeIds)) {
+                $names[] = $type['name'];
+            }
+        }
+        $this->assignAnalysisTypeNames = implode(', ', $names);
+
+        // Update staging record
+        $this->updateStagingData('analysis_type_ids', implode(',', $this->assignAnalysisTypeIds));
+        $this->updateStagingData('analysis_type_names', $this->assignAnalysisTypeNames);
+    }
+
+    protected function updateStagingData($key, $value)
+    {
+        $staging = SampleDetailStaging::find($this->assignStagingId);
+        if ($staging) {
+            $dataJson = $staging->data_json;
+            $dataJson[$key] = $value;
+            $staging->data_json = $dataJson;
+            $staging->save();
+        }
+    }
              
              // Also need to check if the SamplePointArea has this point linked in `sample_points` relation if that's how it works.
              // But based on controller, creating the `CRM\SamplePoint` record seems sufficient.
@@ -610,8 +792,18 @@ class Samples extends Component
             $this->editingStagingId = $stagingId;
             $dataJson = $staging->data_json;
             
+            // Handle analysis_type_ids which might be stored as comma separated string or array in json
+            $atIds = $dataJson['analysis_type_ids'] ?? [];
+            if (is_string($atIds)) {
+                $atIds = array_filter(explode(',', $atIds));
+            }
+
             $this->stagingForm = [
+                'company_sub_unit_id' => $dataJson['company_sub_unit_id'] ?? '',
                 'company_sub_unit_name' => $dataJson['company_sub_unit_name'] ?? '',
+                'sample_type_id' => $staging->sampleHeader->sample_type_id ?? '',
+                'sample_type_name' => $staging->sampleHeader->sample_type->name ?? '',
+                'analysis_type_ids' => $atIds,
                 'analysis_type_names' => $dataJson['analysis_type_names'] ?? '',
                 'quantity' => $dataJson['quantity'] ?? 1,
             ];
@@ -639,12 +831,22 @@ class Samples extends Component
             $staging = SampleDetailStaging::findOrFail($this->editingStagingId);
             
             $dataJson = $staging->data_json;
+            $dataJson['company_sub_unit_id'] = $this->stagingForm['company_sub_unit_id'];
             $dataJson['company_sub_unit_name'] = $this->stagingForm['company_sub_unit_name'];
+            $dataJson['analysis_type_ids'] = implode(',', $this->stagingForm['analysis_type_ids']);
             $dataJson['analysis_type_names'] = $this->stagingForm['analysis_type_names'];
             $dataJson['quantity'] = $this->stagingForm['quantity'];
             
             $staging->data_json = $dataJson;
             $staging->save();
+
+            // Also update sample header sample_type if changed? 
+            // Usually staging records for a batch share the same header, 
+            // so updating sample_type_id on the header might affect others.
+            if ($this->stagingForm['sample_type_id'] != $staging->sampleHeader->sample_type_id) {
+                $staging->sampleHeader->sample_type_id = $this->stagingForm['sample_type_id'];
+                $staging->sampleHeader->save();
+            }
             
             $this->showEditModal = false;
             $this->reset('editingStagingId', 'stagingForm');
@@ -664,7 +866,88 @@ class Samples extends Component
     public function cancelEdit()
     {
         $this->showEditModal = false;
-        $this->reset('editingStagingId', 'stagingForm');
+        $this->reset('editingStagingId', 'stagingForm', 'subUnitSearch', 'sampleTypeSearch', 'stagingAnalysisTypeSearch');
+        $this->showSubUnitDropdown = false;
+        $this->showSampleTypeDropdown = false;
+        $this->showStagingAnalysisTypeDropdown = false;
+    }
+
+    // ========== Search & Select Methods for Staging Edit ==========
+
+    public function getFilteredSubUnits()
+    {
+        if (empty($this->subUnitSearch)) {
+            return $this->subUnits;
+        }
+        return array_filter($this->subUnits, function($unit) {
+            return stripos($unit['name'], $this->subUnitSearch) !== false;
+        });
+    }
+
+    public function selectSubUnit($id)
+    {
+        $unit = collect($this->subUnits)->firstWhere('id', $id);
+        if ($unit) {
+            $this->stagingForm['company_sub_unit_id'] = $id;
+            $this->stagingForm['company_sub_unit_name'] = $unit['name'];
+        }
+        $this->showSubUnitDropdown = false;
+        $this->subUnitSearch = '';
+    }
+
+    public function getFilteredSampleTypes()
+    {
+        if (empty($this->sampleTypeSearch)) {
+            return $this->sampleTypes;
+        }
+        return array_filter($this->sampleTypes, function($type) {
+            return stripos($type['name'], $this->sampleTypeSearch) !== false;
+        });
+    }
+
+    public function selectSampleType($id)
+    {
+        $type = collect($this->sampleTypes)->firstWhere('id', $id);
+        if ($type) {
+            $this->stagingForm['sample_type_id'] = $id;
+            $this->stagingForm['sample_type_name'] = $type['name'];
+        }
+        $this->showSampleTypeDropdown = false;
+        $this->sampleTypeSearch = '';
+    }
+
+    public function getFilteredStagingAnalysisTypes()
+    {
+        if (empty($this->stagingAnalysisTypeSearch)) {
+            return $this->analysisTypes;
+        }
+        return array_filter($this->analysisTypes, function($type) {
+            return stripos($type['name'], $this->stagingAnalysisTypeSearch) !== false || 
+                   stripos($type['code'], $this->stagingAnalysisTypeSearch) !== false;
+        });
+    }
+
+    public function toggleStagingAnalysisType($id)
+    {
+        $atIds = $this->stagingForm['analysis_type_ids'];
+        $key = array_search($id, $atIds);
+        
+        if ($key !== false) {
+            unset($atIds[$key]);
+        } else {
+            $atIds[] = $id;
+        }
+        
+        $this->stagingForm['analysis_type_ids'] = array_values($atIds);
+        
+        // Update display names
+        $names = [];
+        foreach ($this->analysisTypes as $type) {
+            if (in_array($type['id'], $this->stagingForm['analysis_type_ids'])) {
+                $names[] = $type['name'];
+            }
+        }
+        $this->stagingForm['analysis_type_names'] = implode(', ', $names);
     }
 
     /**
