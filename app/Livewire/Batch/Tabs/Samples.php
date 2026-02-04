@@ -68,6 +68,9 @@ class Samples extends Component
     public $deletingSampleIndex = null;
     public $showDeleteSampleModal = false;
 
+    // Row selection for duplication
+    public $selectedRows = [];
+
     // Track which row is being edited (null = all read-only)
     public $editingRowIndex = null;
 
@@ -220,18 +223,17 @@ class Samples extends Component
                     'sample_code' => $sample->sample_code,
                     'analysis_type_id' => array_filter(explode(',', $sample->analysis_type_id ?? '')),
                     'lab_id' => $sample->lab_id ?? '',
-                    'condition_id' => $sample->condition_id ?? '',
+                    'sample_condition_id' => $sample->sample_condition_id ?? '',
                     'sample_point_id' => $sample->sample_point_id ?? '',
                     'company_product_id' => $sample->company_product_id ?? '',
-                    'description' => $sample->description ?? '',
-                    'time_sampled' => $sample->time_sampled ?? '',
+                    'comments' => $sample->comments ?? '',
                     'main_standard' => $sample->main_standard ?? '',
                     'secondary_standard' => $sample->secondary_standard ?? '',
                     'disposal_date' => $sample->disposal_date ?? '',
-                    'storage_location' => $sample->storage_location ?? '',
-                    'storage_slot' => $sample->storage_slot ?? '',
-                    'sample_quantity' => $sample->sample_quantity ?? 1,
-                    'unit_of_measure' => $sample->unit_of_measure ?? 'ml',
+                    'store_id' => $sample->store_id ?? '',
+                    'store_slot_id' => $sample->store_slot_id ?? '',
+                    'quantity' => $sample->quantity ?? 1,
+                    'reporting_unit_id' => $sample->reporting_unit_id ?? '',
                 ];
             }
 
@@ -981,18 +983,17 @@ class Samples extends Component
             'sample_code' => $nextCode,
             'analysis_type_id' => [],
             'lab_id' => '',
-            'condition_id' => '',
+            'sample_condition_id' => '',
             'sample_point_id' => '',
             'company_product_id' => '',
-            'description' => '',
-            'time_sampled' => '',
+            'comments' => '',
             'main_standard' => '',
             'secondary_standard' => '',
             'disposal_date' => '',
-            'storage_location' => '',
-            'storage_slot' => '',
-            'sample_quantity' => 1,
-            'unit_of_measure' => 'ml',
+            'store_id' => '',
+            'store_slot_id' => '',
+            'quantity' => 1,
+            'reporting_unit_id' => '',
         ];
 
         $this->sampleForms[] = $newSample;
@@ -1016,7 +1017,63 @@ class Samples extends Component
     }
 
     /**
-     * Duplicate last sample row
+     * Toggle row selection
+     */
+    public function toggleRowSelection($index)
+    {
+        if (in_array($index, $this->selectedRows)) {
+            $this->selectedRows = array_values(array_diff($this->selectedRows, [$index]));
+        } else {
+            $this->selectedRows[] = $index;
+        }
+    }
+
+    /**
+     * Duplicate selected samples with specified count
+     */
+    public function duplicateSelectedSamples($count = 1)
+    {
+        if (count($this->selectedRows) === 0) {
+            session()->flash('error', 'No rows selected for duplication');
+            return;
+        }
+
+        if ($count < 1) {
+            session()->flash('error', 'Invalid duplicate count');
+            return;
+        }
+
+        $duplicatedCount = 0;
+
+        foreach ($this->selectedRows as $index) {
+            if (!isset($this->sampleForms[$index])) {
+                continue;
+            }
+
+            $originalSample = $this->sampleForms[$index];
+
+            // Create N duplicates of this sample
+            for ($i = 0; $i < $count; $i++) {
+                $newSample = $originalSample;
+                $newSample['id'] = null;  // Mark as new/unsaved
+                $newSample['sample_code'] = $this->generateSampleCode();
+
+                // Mark as duplicate of original (similar to show.blade.php)
+                $newSample['is_duplicate'] = $originalSample['sample_code'];
+
+                $this->sampleForms[] = $newSample;
+                $duplicatedCount++;
+            }
+        }
+
+        // Clear selection after duplication
+        $this->selectedRows = [];
+
+        session()->flash('success', "Successfully created {$duplicatedCount} duplicate(s)");
+    }
+
+    /**
+     * Duplicate last sample row (kept for backward compatibility)
      */
     public function duplicateLastSample()
     {
@@ -1151,6 +1208,91 @@ class Samples extends Component
     }
 
     /**
+     * Save a single sample row
+     */
+    public function saveSample($index)
+    {
+        if (!isset($this->sampleForms[$index])) {
+            return;
+        }
+
+        $sampleData = $this->sampleForms[$index];
+
+        // Validate only this specific row
+        $this->validate([
+            "sampleForms.$index.analysis_type_id" => 'required|array|min:1',
+            "sampleForms.$index.lab_id" => 'required',
+            "sampleForms.$index.sample_condition_id" => 'required',
+            "sampleForms.$index.sample_point_id" => 'required',
+            "sampleForms.$index.company_product_id" => 'required',
+            "sampleForms.$index.main_standard" => 'required',
+            "sampleForms.$index.quantity" => 'required|numeric|min:0',
+        ], [
+            "sampleForms.$index.analysis_type_id.required" => 'Analysis type is required',
+            "sampleForms.$index.analysis_type_id.min" => 'At least one analysis type must be selected',
+            "sampleForms.$index.lab_id.required" => 'Lab is required',
+            "sampleForms.$index.sample_condition_id.required" => 'Condition is required',
+            "sampleForms.$index.sample_point_id.required" => 'Sample point is required',
+            "sampleForms.$index.company_product_id.required" => 'Product is required',
+            "sampleForms.$index.main_standard.required" => 'Main standard is required',
+        ]);
+
+        DB::beginTransaction();
+
+        try {
+            if ($sampleData['id']) {
+                // Update existing
+                $sample = SampleDetails::find($sampleData['id']);
+            } else {
+                // Create new
+                $sample = new SampleDetails();
+                $sample->sample_header_id = $this->batch->id;
+                $sample->sample_code = $sampleData['sample_code'];
+            }
+
+            if (!$sample) {
+                throw new \Exception("Sample not found.");
+            }
+
+            // Set all fields
+            $sample->analysis_type_id = is_array($sampleData['analysis_type_id'])
+                ? implode(',', $sampleData['analysis_type_id'])
+                : $sampleData['analysis_type_id'];
+            $sample->lab_id = $sampleData['lab_id'];
+            $sample->sample_condition_id = $sampleData['sample_condition_id'];
+            $sample->sample_point_id = $sampleData['sample_point_id'];
+            $sample->company_product_id = $sampleData['company_product_id'];
+            $sample->comments = $sampleData['comments'];
+            $sample->main_standard = $sampleData['main_standard'];
+            $sample->secondary_standard = $sampleData['secondary_standard'];
+            $sample->disposal_date = $sampleData['disposal_date'];
+            $sample->store_id = $sampleData['store_id'];
+            $sample->store_slot_id = $sampleData['store_slot_id'];
+            $sample->quantity = $sampleData['quantity'];
+            $sample->reporting_unit_id = $sampleData['reporting_unit_id'];
+
+            $sample->save();
+
+            // Update ID in form array for subsequent saves
+            $this->sampleForms[$index]['id'] = $sample->id;
+
+            DB::commit();
+
+            // Exit edit mode for this row
+            $this->editingRowIndex = null;
+
+            session()->flash('success', "Sample {$sample->sample_code} saved successfully!");
+            $this->dispatch('samplesUpdated');
+            $this->loadSamples();  // Reload to get fresh data
+
+        } catch (\Exception $e) {
+            DB::rollBack();
+            Log::error('Error saving individual sample: ' . $e->getMessage());
+            session()->flash('error', 'Failed to save sample: ' . $e->getMessage());
+        }
+    }
+
+    /**
      * Save all samples with validation
      */
     public function saveSamples()
@@ -1159,16 +1301,16 @@ class Samples extends Component
         $this->validate([
             'sampleForms.*.analysis_type_id' => 'required|array|min:1',
             'sampleForms.*.lab_id' => 'required',
-            'sampleForms.*.condition_id' => 'required',
+            'sampleForms.*.sample_condition_id' => 'required',
             'sampleForms.*.sample_point_id' => 'required',
             'sampleForms.*.company_product_id' => 'required',
             'sampleForms.*.main_standard' => 'required',
-            'sampleForms.*.sample_quantity' => 'required|numeric|min:0',
+            'sampleForms.*.quantity' => 'required|numeric|min:0',
         ], [
             'sampleForms.*.analysis_type_id.required' => 'Analysis type is required',
             'sampleForms.*.analysis_type_id.min' => 'At least  one analysis type must be selected',
             'sampleForms.*.lab_id.required' => 'Lab is required',
-            'sampleForms.*.condition_id.required' => 'Condition is required',
+            'sampleForms.*.sample_condition_id.required' => 'Condition is required',
             'sampleForms.*.sample_point_id.required' => 'Sample point is required',
             'sampleForms.*.company_product_id.required' => 'Product is required',
             'sampleForms.*.main_standard.required' => 'Main standard is required',
@@ -1193,18 +1335,17 @@ class Samples extends Component
                     ? implode(',', $sampleData['analysis_type_id'])
                     : $sampleData['analysis_type_id'];
                 $sample->lab_id = $sampleData['lab_id'];
-                $sample->condition_id = $sampleData['condition_id'];
+                $sample->sample_condition_id = $sampleData['sample_condition_id'];
                 $sample->sample_point_id = $sampleData['sample_point_id'];
                 $sample->company_product_id = $sampleData['company_product_id'];
-                $sample->description = $sampleData['description'];
-                $sample->time_sampled = $sampleData['time_sampled'];
+                $sample->comments = $sampleData['comments'];
                 $sample->main_standard = $sampleData['main_standard'];
                 $sample->secondary_standard = $sampleData['secondary_standard'];
                 $sample->disposal_date = $sampleData['disposal_date'];
-                $sample->storage_location = $sampleData['storage_location'];
-                $sample->storage_slot = $sampleData['storage_slot'];
-                $sample->sample_quantity = $sampleData['sample_quantity'];
-                $sample->unit_of_measure = $sampleData['unit_of_measure'];
+                $sample->store_id = $sampleData['store_id'];
+                $sample->store_slot_id = $sampleData['store_slot_id'];
+                $sample->quantity = $sampleData['quantity'];
+                $sample->reporting_unit_id = $sampleData['reporting_unit_id'];
 
                 $sample->save();
 
