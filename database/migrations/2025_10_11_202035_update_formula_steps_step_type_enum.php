@@ -10,7 +10,9 @@ return new class extends Migration
      */
     public function up(): void
     {
-        DB::statement("ALTER TABLE formula_steps MODIFY step_type ENUM('input', 'derived', 'lookup', 'parameter_result') NOT NULL");
+        if (DB::getDriverName() !== 'sqlite') {
+            DB::statement("ALTER TABLE formula_steps MODIFY step_type ENUM('input', 'derived', 'lookup', 'parameter_result') NOT NULL");
+        }
     }
 
     /**
@@ -18,6 +20,8 @@ return new class extends Migration
      */
     public function down(): void
     {
-        DB::statement("ALTER TABLE formula_steps MODIFY step_type ENUM('input', 'derived', 'lookup') NOT NULL");
+        if (DB::getDriverName() !== 'sqlite') {
+            DB::statement("ALTER TABLE formula_steps MODIFY step_type ENUM('input', 'derived', 'lookup') NOT NULL");
+        }
     }
 };

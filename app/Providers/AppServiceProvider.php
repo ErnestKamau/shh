@@ -35,6 +35,13 @@ class AppServiceProvider extends ServiceProvider
         if (config('app.env') === 'production') {
             URL::forceScheme('https');
         }
+        
+        $mainPath = database_path('migrations');
+        $directories = glob($mainPath . '/*' , GLOB_ONLYDIR);
+        $paths = array_merge([$mainPath], $directories);
+        
+        $this->loadMigrationsFrom($paths);
+        
         CapturedResult::observe(CapturedObserver::class);
         Supplier::observe(SupplierObserver::class);
         InventorySubCategories::observe(ItemObserver::class);
