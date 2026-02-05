@@ -315,6 +315,7 @@
             <div class="col-md-4 text-center">
               <img src="{{ $company->logo }}" alt="{{ $company->name }} Logo" class="company-logo">
               <p class="mt-3" style="font-size:18px"><b><u>{{ $instance->submissionForm->name }}</u></b></p>
+              <p class="mt-2 mb-0"><b class="text-danger">Form Number:</b> {{ $instance->form_number }}</p>
             </div>
 
             <!-- Right: Form Details -->
@@ -324,7 +325,6 @@
                 <p class="mb-2">FM/QA/047</p>
                 <p class="mb-2">Reveion : 05</p>
                 <p class="mb-4">Issue Date: 11/09/2023</p>
-                <p class="mb-0"><b class="text-danger">Form Number:</b> {{ $instance->form_number }}</p>
 
               </div>
             </div>
