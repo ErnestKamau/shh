@@ -1489,14 +1489,20 @@ class Samples extends Component
                 // Get analyte for reporting unit
                 $analyte = \App\Analyte::find($result->analyte_id);
 
-                // Get standard info
-                $standardInfo = $this->getStandardInfo(
-                    $result->main_standard_id,
+                // Use result's standard ID or fallback to sample's standard ID
+                $effectiveMainStandardId = $result->main_standard_id ?: $sample->main_standard;
+                $effectiveSecStandardId = $result->secondary_standard_id ?: $sample->secondary_standard;
+
+                // Get standard info (Calculated dynamically to match legacy logic)
+                $standardInfo = $this->getStandardInfoCalculated(
+                    $effectiveMainStandardId,
+                    $result->analyte_id,
                     $result->main_value
                 );
 
-                $secStandardInfo = $result->secondary_standard_id ? $this->getStandardInfo(
-                    $result->secondary_standard_id,
+                $secStandardInfo = $effectiveSecStandardId ? $this->getStandardInfoCalculated(
+                    $effectiveSecStandardId,
+                    $result->analyte_id,
                     $result->secondary_value
                 ) : null;
 
@@ -1505,8 +1511,8 @@ class Samples extends Component
                 $limitLow = null;
                 $limitHigh = null;
 
-                if ($result->main_standard_id && $result->analyte_id) {
-                    $stdAnalyte = \App\StandardAnalytes::where('standard_id', $result->main_standard_id)
+                if ($effectiveMainStandardId && $result->analyte_id) {
+                    $stdAnalyte = \App\StandardAnalytes::where('standard_id', $effectiveMainStandardId)
                         ->where('analyte_id', $result->analyte_id)
                         ->first();
                     if ($stdAnalyte) {
@@ -1528,9 +1534,9 @@ class Samples extends Component
                     'result' => $result->result,
                     'measure_uncertanity' => $result->measure_uncertanity,
                     'standard_value' => $standardInfo['display'] ?? '-',
-                    'standard_id' => $result->main_standard_id,
+                    'standard_id' => $effectiveMainStandardId,
                     'sec_standard_value' => $secStandardInfo['display'] ?? null,
-                    'sec_standard_id' => $result->secondary_standard_id,
+                    'sec_standard_id' => $effectiveSecStandardId,
                     'remark' => $result->remark ?: '',
                     'remark_is_manual' => $result->remark_is_manual,
                     'reporting_unit' => $result->reporting_unit_id,
@@ -1725,31 +1731,53 @@ class Samples extends Component
         if ($data['standard_value_type'] == 1) {
             $newValue = $data['min'] . ' - ' . $data['max'];
         } else {
+            // Start with IS Value logic
             // Logic: 2 && limit_measure == '' -> limit code
             //        2 && limit_measure != '' -> value . ' ' . limit_measure
             if ($data['limit_measure'] == '') {
                 $sv = \App\StandardValue::find($data['standard_valuetype']);
                 $newValue = $sv ? $sv->code : $newValue;
             } else {
-                $newValue = $data['value'] . ' ' . $data['limit_measure']; // e.g. "10 Max"
+                $limit = $data['limit_measure'];
+                $val = $data['value'];
+
+                if ($limit == 'less_than' || $limit == '<') {
+                    $newValue = '< ' . $val;
+                } elseif ($limit == 'greater_than' || $limit == '>') {
+                    $newValue = '> ' . $val;
+                } else {
+                    $newValue = $val . ' ' . $limit; // e.g. "10 Max"
+                }
             }
         }
 
-        // Update CapturedResult snapshot
-        $updateField = $data['standard_level'] == 1 ? 'standard_value' : 'sec_standard_value';
+        // Update CapturedResult snapshot with the Display Value
+        $updateField = $data['standard_level'] == 1 ? 'main_value' : 'secondary_value';
+        $idField = $data['standard_level'] == 1 ? 'main_standard_id' : 'secondary_standard_id';
 
         DB::table('captured_results')
             ->where('id', $data['captured_result_id'])
-            ->update([$updateField => $newValue]);
+            ->update([
+                $updateField => $newValue,
+                $idField => $data['standard_id']
+            ]);
 
         // Refresh view
         if ($this->selectedSampleCode) {
             $this->viewParameters($this->selectedSampleCode);
+            // Also update the parametersForm used for editing if needed, 
+            // but viewParameters should rebuild it.
         }
+        
         $this->showEditStandardModal = false;
         $this->reset('editingStandardData');
 
         // Re-evaluate current row result against new limits
+        // (Optional: Recalculate pass/fail based on new limits? 
+        //  The legacy code does not seem to trigger a full re-evaluation of ALL results, 
+        //  but the user might expect the "Remark" to update if they change the limit.
+        //  Legacy JS performs an ajax call to /fetch/results-remark. We should do similar.)
+        
         $this->evaluateResult($data['captured_result_id']);
     }
 
@@ -1791,21 +1819,71 @@ class Samples extends Component
     /**
      * Get formatted standard info
      */
-    private function getStandardInfo($standardId, $value)
+    /**
+     * Get formatted standard info dynamically calculated from StandardAnalyte
+     */
+    private function getStandardInfoCalculated($standardId, $analyteId, $capturedValue = null)
     {
-        if (!$standardId || !$value) {
-            return ['display' => '-'];
+        if (!$standardId) {
+            return ['display' => $capturedValue ?: 'NS', 'value' => $capturedValue];
         }
 
         try {
-            $standard = Standards::find($standardId);
+            // Try to find the setting in StandardAnalytes
+            $stdAnalyte = \App\StandardAnalytes::where('standard_id', $standardId)
+                ->where('analyte_id', $analyteId)
+                ->first();
+
+            if (!$stdAnalyte) {
+                // If no specific setting, fallback to captured value or NS
+                return ['display' => $capturedValue ?: 'NS', 'value' => $capturedValue];
+            }
+
+            $displayValue = '';
+            $rawValue = '';
+            $limitType = '';
+
+            if ($stdAnalyte->standard_value_type == 'is_range') {
+                $displayValue = $stdAnalyte->low . ' - ' . $stdAnalyte->high;
+                $rawValue = $displayValue;
+            } elseif ($stdAnalyte->standard_value_type == 'is_standard_value') {
+                $sv = \App\StandardValue::find($stdAnalyte->standard_value_id);
+                if ($sv) {
+                    if ($sv->code == 'IsValue') {
+                        $rawValue = $stdAnalyte->standard_is_value;
+                        $limitType = $stdAnalyte->value_type; // Max, Min, <, >, less_than, greater_than
+                    } else {
+                        $rawValue = $sv->code;
+                        $displayValue = $sv->code;
+                    }
+                }
+            }
+
+            // Format display string if not already set by code
+            if (!$displayValue && $rawValue !== '') {
+                if ($limitType == 'less_than' || $limitType == '<') {
+                    $displayValue = '< ' . $rawValue;
+                } elseif ($limitType == 'greater_than' || $limitType == '>') {
+                    $displayValue = '> ' . $rawValue;
+                } elseif ($limitType && $rawValue) {
+                    $displayValue = $rawValue . ' ' . $limitType;
+                } else {
+                    $displayValue = $rawValue;
+                }
+            }
+            
+            // If we failed to calculate anything, fallback
+            if ($displayValue == '') {
+                 $displayValue = 'NS';
+            }
+
             return [
-                'display' => ($standard->name ?? 'Standard') . ': ' . $value,
-                'name' => $standard->name ?? '-',
-                'value' => $value
+                'display' => $displayValue,
+                'value' => $rawValue // This might be used for edits
             ];
+
         } catch (\Exception $e) {
-            return ['display' => $value];
+            return ['display' => $capturedValue ?: '-', 'value' => $capturedValue];
         }
     }
 
