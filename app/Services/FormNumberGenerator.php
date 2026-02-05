@@ -22,10 +22,12 @@ class FormNumberGenerator
         $sequence_number = SubmissionFormInstance::where('submission_form_id', $form->id)
             ->max('sequence_number');
         
-        // If no sequence exists, start from start_submission_number + 1, otherwise increment
-        $sequence_number = $sequence_number && $sequence_number > 0 
-            ? ($sequence_number + 1) 
-            : (($form->start_submission_number ?? 0) + 1);
+        // If no sequence exists, start from start_submission_number, otherwise increment
+        if ($sequence_number && $sequence_number > 0) {
+            $sequence_number = $sequence_number + 1;
+        } else {
+            $sequence_number = $form->start_submission_number ?: 1;
+        }
         
         // Use 2-digit year
         $year = date('y');
