@@ -257,8 +257,19 @@
                                     </div>
                                 </a>
                             </div>
-                        </div>
-                        <div class="row mt-3">
+
+                            <div class="col-md-3 mb-3">
+                                <a href="{{ route('formulars.procedures.manage') }}" class="formula-card card text-decoration-none">
+                                    <div class="card-body">
+                                        <div class="text-center">
+                                            <i class="mdi mdi-clipboard-text fa-3x text-primary mb-3"></i>
+                                            <h5 class="card-title">Procedure Worksheets</h5>
+                                            <p class="card-text">Manage procedure capture worksheets</p>
+                                        </div>
+                                    </div>
+                                </a>
+                            </div>
+
                             <div class="col-md-3 mb-3">
                                 <a href="{{ route('formulars.history') }}" class="formula-card card text-decoration-none">
                                     <div class="card-body">

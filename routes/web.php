@@ -1466,6 +1466,12 @@ Route::middleware(['auth'])->prefix('formulars')->name('formulars.')->group(func
     Route::get('/global-variables', 'Formulars\FormulaController@globalVariables')->name('global-variables');
     Route::get('/lookup-tables', 'Formulars\FormulaController@lookupTables')->name('lookup-tables');
     Route::get('/lookup-tables/{lookupTable}/entries', 'Formulars\FormulaController@lookupTableEntries')->name('lookup-table-entries');
+
+    // Procedure Worksheets
+    Route::prefix('procedures')->name('procedures.')->group(function () {
+        Route::get('/manage', 'Procedures\ProcedureWorksheetController@manage')->name('manage');
+        Route::get('/{procedureWorksheet}/edit', 'Procedures\ProcedureWorksheetController@edit')->name('edit');
+    });
 });
 
 Route::middleware(['auth'])->prefix('method-sequences')->name('method-sequences.')->group(function () {
