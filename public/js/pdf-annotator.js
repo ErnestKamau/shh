@@ -64,15 +64,12 @@ class PDFAnnotator {
             // Load existing annotations from database first
             await this.loadExistingAnnotations();
             
-            // If annotations exist in database, they're likely baked into the PDF
-            // (because when we save, we bake them into the PDF and save to DB)
-            // So we should NOT render them as overlays to avoid duplicates
-            // Exception: if there's a success message, definitely don't render (just saved)
-            const hasAnnotations = Object.keys(this.annotations).length > 0 && 
-                Object.values(this.annotations).some(pageAnns => pageAnns.length > 0);
-            
-            if (hasSuccessMessage || hasAnnotations) {
+            // Only mark as baked if we just successfully saved.
+            // Otherwise, render overlays even if annotations exist in DB.
+            if (hasSuccessMessage) {
                 this.annotationsBakedIntoPdf = true;
+            } else {
+                this.annotationsBakedIntoPdf = false;
             }
 
             // Render first page
@@ -355,19 +352,22 @@ class PDFAnnotator {
         if (this.captureMode) {
             annotationDiv.style.border = 'none';
             annotationDiv.style.backgroundColor = 'transparent';
+            annotationDiv.style.borderRadius = '0';
         } else if (isEditing) {
             annotationDiv.style.border = '3px solid #4caf50';
             annotationDiv.style.backgroundColor = 'rgba(200, 255, 200, 0.1)';
+            annotationDiv.style.borderRadius = '4px';
         } else if (isSelected) {
             annotationDiv.style.border = '3px solid #ff5722';
             annotationDiv.style.backgroundColor = 'rgba(255, 200, 100, 0.1)';
+            annotationDiv.style.borderRadius = '4px';
         } else {
-            annotationDiv.style.border = '2px solid #ff9800';
-            annotationDiv.style.backgroundColor = 'transparent'; // No background by default
+            annotationDiv.style.border = 'none';
+            annotationDiv.style.backgroundColor = 'transparent';
+            annotationDiv.style.borderRadius = '0';
         }
         
         annotationDiv.style.padding = '5px';
-        annotationDiv.style.borderRadius = '4px';
         annotationDiv.style.boxSizing = 'border-box';
         
         // Ensure the content is styled properly BEFORE setting content
@@ -1462,14 +1462,9 @@ class PDFAnnotator {
                 document.getElementById('save-annotations-data').value = JSON.stringify(uniqueAnnotations);
                 document.getElementById('save-pdf-pages-data').value = JSON.stringify(pdfPagesData);
 
-                // Mark that annotations will be baked into PDF after save
-                this.annotationsBakedIntoPdf = true;
-                
-                // Re-render current page to update display
-                await this.renderPage(this.currentPage);
-                
-                // Submit form
-                document.getElementById('save-annotations-form').submit();
+                // Submit form (backend redirect handles reload)
+                const form = document.getElementById('save-annotations-form');
+                form.submit();
 
             } catch (error) {
                 console.error('Error saving annotations:', error);
