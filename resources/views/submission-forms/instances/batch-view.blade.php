@@ -315,7 +315,7 @@
             <div class="col-md-4 text-center">
               <img src="{{ $company->logo }}" alt="{{ $company->name }} Logo" class="company-logo">
               <p class="mt-3" style="font-size:18px"><b><u>{{ $instance->submissionForm->name }}</u></b></p>
-              <p class="mt-2 mb-0"><b class="text-danger">Form Number:</b> {{ $instance->form_number }}</p>
+              <p class="mt-2 mb-0"><b class="text-danger">Lab Number:</b> {{ $instance->form_number }}</p>
             </div>
 
             <!-- Right: Form Details -->
@@ -427,11 +427,17 @@
                                         }
                                       }
 
+                                      // Combine Client Name with Client Section
+                                      $clientNameDisplay = ($client->name ?? 'N/A');
+                                      if ($clientSectionValue && $clientSectionValue !== 'N/A') {
+                                        $clientNameDisplay .= ', ' . $clientSectionValue;
+                                      }
+                                      
                                       $value = '<div class="table-responsive">
                                                                                                                        <table class="table table-sm table-bordered mb-0 w-100" style="font-size: 14px; background-color: white;">
                                                                                                                          <tr>
                                                                                                                            <td class="font-weight-bold" style="width: 25%; background-color: #f8f9fa;">Client Name</td>
-                                                                                                                           <td>' . ($client->name ?? 'N/A') . '</td>
+                                                                                                                           <td>' . $clientNameDisplay . '</td>
                                                                                                                          </tr>
                                                                                                                          <tr>
                                                                                                                            <td class="font-weight-bold" style="background-color: #f8f9fa;">Address</td>
@@ -448,10 +454,6 @@
                                                                                                                          <tr>
                                                                                                                            <td class="font-weight-bold" style="background-color: #f8f9fa;">Client Unit</td>
                                                                                                                            <td>' . $clientUnitValue . '</td>
-                                                                                                                         </tr>
-                                                                                                                         <tr>
-                                                                                                                           <td class="font-weight-bold" style="background-color: #f8f9fa;">Client Section</td>
-                                                                                                                           <td>' . $clientSectionValue . '</td>
                                                                                                                          </tr>
                                                                                                                        </table>
                                                                                                                      </div>';
