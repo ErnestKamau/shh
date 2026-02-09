@@ -18,12 +18,11 @@ use Illuminate\Support\Str;
 class FormInstanceController extends Controller
 {
     /**
-     * Display a listing of form instances for the current user
+     * Display a listing of form instances (all users can see all forms)
      */
     public function index(Request $request)
     {
         $query = SubmissionFormInstance::with(['submissionForm', 'submittedBy'])
-            ->submittedBy(auth()->id())
             ->latest();
 
         // Filter by status
@@ -377,10 +376,8 @@ class FormInstanceController extends Controller
      */
     public function destroy(SubmissionForm $submissionForm, SubmissionFormInstance $instance)
     {
-        // Allow deletion by owner or admin users
-        if ($instance->submitted_by !== auth()->id() && !auth()->user()->hasRole('admin')) {
-            abort(403, 'You are not authorized to delete this form instance.');
-        }
+        // Allow deletion by any authenticated user (removed ownership restriction)
+        // Users can now delete all submission forms, even ones they didn't create
 
         DB::beginTransaction();
 

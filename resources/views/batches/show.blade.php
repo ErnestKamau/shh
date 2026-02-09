@@ -52,6 +52,17 @@
         </div>
     @endif
 
+    @if(!$batch || !isset($batch->id))
+        <div class="alert alert-warning alert-dismissible fade show m-3" role="alert">
+            <i class="mdi mdi-alert-circle"></i> Batch not found. It may have been deleted.
+            <button type="button" class="close" data-dismiss="alert"><span>&times;</span></button>
+        </div>
+        <div class="text-center m-3">
+            <a href="{{ route('sample-workflow', ['status' => 'Samples Reception']) }}" class="btn btn-primary">
+                <i class="mdi mdi-arrow-left mr-2"></i> Back to Samples Reception
+            </a>
+        </div>
+    @else
     <div class="container-fluid">
       {{-- Livewire Components --}}
       @livewire('batch.header', [
@@ -99,6 +110,7 @@
         </div>
       </div>
     </div>
+    @endif
     
     {{-- Include all modals from original show.blade.php --}}
     {{-- This section would need to include all modal definitions from the original file --}}
