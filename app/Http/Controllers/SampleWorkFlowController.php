@@ -5283,14 +5283,16 @@ class SampleWorkFlowController extends Controller
             }
 
             // Create form instance
-            $formNumber = \App\Services\FormNumberGenerator::generate($submissionForm);
+            //$formNumber = \App\Services\FormNumberGenerator::generate($submissionForm);
             $instance = \App\Models\SubmissionFormInstance::create([
                 'submission_form_id' => $submissionForm->id,
                 'submitted_by' => auth()->id(),
                 'status' => 'draft',
                 'title' => 'New ' . $submissionForm->name . ' Submission',
-                'form_number' => $formNumber['format'],
-                'sequence_number' => $formNumber['sequence_no'],
+                //'form_number' => $formNumber['format'],
+                //'sequence_number' => $formNumber['sequence_no'],
+                'form_number' => null,
+                'sequence_number' => null,
                 'due_date' => now()->addDays(7), // Default 7 days from now
                 'priority' => 'medium'
             ]);

@@ -231,41 +231,40 @@ class FormInstanceController extends Controller
                 ->with('error', 'Please correct the errors below.');
         }
 
+        // If the user is not submitting the form, do not persist any changes.
+        // Draft saving has been explicitly disabled.
+        if ($request->input('action') !== 'submit') {
+            return redirect()->back()
+                ->withInput()
+                ->with('error', 'Draft saving is disabled. Please submit the form when ready.');
+        }
+
         DB::beginTransaction();
         try {
-            // Assign form number if not present (First Valid Save)
-            if (empty($instance->form_number)) {
-                 $this->assignFormNumberWithRetry($instance, $submissionForm);
-                 $instance->refresh();
-            }
-
-            // dd("here");
+            // Process and save form data only on final submit
             $this->processFormData($instance, $request, $elements);
             Log::info('Processing form data');
 
             if ($request->input('action') === 'submit') {
+                if (empty($instance->form_number)) {
+                    $this->assignFormNumberWithRetry($instance, $submissionForm);
+                    $instance->refresh();
+                }
 
                 $instance->submit(auth()->user());
-            } else {
-                // Log as updated for draft saves
-                $instance->logAction('updated', auth()->user());
             }
 
             DB::commit();
 
-            if ($request->input('action') === 'submit') {
-                return redirect()->route('submission-forms.instances.show', [
-                    'submissionForm' => $submissionForm,
-                    'instance' => $instance
-                ])->with('success', 'Form submitted successfully!');
-            } else {
-                return redirect()->back()->with('success', 'Form saved as draft.');
-            }
+            return redirect()->route('submission-forms.instances.show', [
+                'submissionForm' => $submissionForm,
+                'instance' => $instance
+            ])->with('success', 'Form submitted successfully!');
 
         } catch (\Exception $e) {
             DB::rollBack();
             Log::error('Error updating form instance: ' . $e->getMessage());
-            dd($e->getMessage());
+            //dd($e->getMessage());
             return redirect()->back()
                 ->withInput()
                 ->with('error', 'An error occurred while saving the form. Please try again.');
@@ -427,7 +426,7 @@ class FormInstanceController extends Controller
         $maxRetries = 5;
         $retryCount = 0;
 
-        do {
+        while ($retryCount < $maxRetries) {
             $retryCount++;
 
             try {
@@ -441,6 +440,9 @@ class FormInstanceController extends Controller
                         'sequence_number' => $formNumber['sequence_no'],
                     ]);
                 });
+
+                // Success – exit the method
+                return;
             } catch (\Illuminate\Database\QueryException $e) {
                 // Check if it's a duplicate key error
                 if ($e->getCode() == 23000 && strpos($e->getMessage(), 'submission_form_instances_form_number_unique') !== false) {
@@ -457,7 +459,8 @@ class FormInstanceController extends Controller
                             'form_id' => $submissionForm->id,
                             'retries' => $maxRetries
                         ]);
-                        throw $e;
+
+                        throw new \Exception('Failed to assign form number after maximum retries', 0, $e);
                     }
 
                     // Small delay before retry to reduce collision probability
@@ -468,11 +471,7 @@ class FormInstanceController extends Controller
                 // If it's not a duplicate key error, re-throw
                 throw $e;
             }
-
-        } while ($retryCount < $maxRetries);
-
-        // This should never be reached, but just in case
-        throw new \Exception('Failed to create form instance after maximum retries');
+        }
     }
 
     /**

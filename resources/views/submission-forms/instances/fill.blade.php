@@ -132,9 +132,9 @@
                   <div class="form-actions mt-4 pt-3 border-top">
                     <div class="row">
                       <div class="col-md-6">
-                        <button type="button" class="btn btn-outline-secondary" id="save-draft-btn">
+                        <!--<button type="button" class="btn btn-outline-secondary" id="save-draft-btn">
                           <i class="mdi mdi-content-save-outline"></i> Save as Draft
-                        </button>
+                        </button>-->
                       </div>
                       <div class="col-md-6 text-right">
                         <button type="button" class="btn btn-outline-danger mr-2" id="clear-form-btn">
@@ -1191,9 +1191,9 @@
                 });
                 
                 // Save draft
-                $('#save-draft-btn').on('click', () => {
-                    this.saveDraft();
-                });
+                //$('#save-draft-btn').on('click', () => {
+                  //  this.saveDraft();
+                //});
                 
                 // Clear form
                 $('#clear-form-btn').on('click', () => {

@@ -136,6 +136,12 @@ class Samples extends Component
     public $assignAnalysisTypeSearch = '';
     public $showAssignAnalysisTypeDropdown = false;
 
+    // Add New Sample Point properties
+    public $assignNewAreaId = '';
+    public $assignNewPointId = '';
+    public $assignAvailableAreas = [];
+    public $assignAvailablePoints = [];
+
     // Add New UoM Data
     public $newUomName = '';
     public $showAddUomModal = false;
