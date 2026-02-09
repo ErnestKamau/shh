@@ -377,20 +377,50 @@ class FormInstanceController extends Controller
      */
     public function destroy(SubmissionForm $submissionForm, SubmissionFormInstance $instance)
     {
-        // Check if user owns this instance
-        if ($instance->submitted_by !== auth()->id()) {
+        // Allow deletion by owner or admin users
+        if ($instance->submitted_by !== auth()->id() && !auth()->user()->hasRole('admin')) {
             abort(403, 'You are not authorized to delete this form instance.');
         }
 
-        // Check if instance can be deleted
-        if (!$instance->isDraft()) {
-            return redirect()->back()->with('error', 'Only draft instances can be deleted.');
+        DB::beginTransaction();
+
+        try {
+            // Delete all related batches and their samples
+            $instance->batches()->get()->each(function (\App\SampleHeader $batch) {
+                // Delete samples linked to this batch
+                if ($batch->samples()->exists()) {
+                    $batch->samples()->delete();
+                }
+
+                // Delete any staging details linked to this batch
+                if (method_exists($batch, 'stagingDetails') && $batch->stagingDetails()->exists()) {
+                    $batch->stagingDetails()->delete();
+                }
+
+                // Finally delete the batch itself
+                $batch->delete();
+            });
+
+            // Delete instance values and audit logs
+            $instance->values()->delete();
+            $instance->auditLogs()->delete();
+
+            // Delete the instance
+            $instance->delete();
+
+            DB::commit();
+
+            return redirect()->route('sample-workflow', ['status' => 'Samples Reception'])
+                ->with('success', 'Form submission and all related batches and samples deleted successfully.');
+        } catch (\Exception $e) {
+            DB::rollBack();
+            Log::error('Error deleting form instance and related records', [
+                'instance_id' => $instance->id,
+                'error' => $e->getMessage(),
+            ]);
+
+            return redirect()->back()->with('error', 'An error occurred while deleting the submission. Please try again.');
         }
-
-        $instance->delete();
-
-        return redirect()->route('submission-forms.instances.index')
-            ->with('success', 'Form instance deleted successfully.');
     }
 
     /**

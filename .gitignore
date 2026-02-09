@@ -27,3 +27,6 @@ WEB_TESTING_GUIDE.md
 helpdesk-developer.backup.20260111-183650/
 replace-create-ticket.sh
 tests/Unit/AutoRunCreationServiceTest.php
+.mcp.json
+CLAUDE.md
+boost.json

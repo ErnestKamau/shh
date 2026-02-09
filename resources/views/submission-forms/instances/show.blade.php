@@ -108,6 +108,19 @@
                     <a href="{{ route('submission-forms.instances.index') }}" class="dropdown-item">
                         <i class="mdi mdi-arrow-left mr-2"></i> Back to My Submissions
                     </a>
+
+                    <form
+                        action="{{ route('submission-forms.instances.destroy', [$submissionForm->id, $instance->id]) }}"
+                        method="POST"
+                        onsubmit="return confirm('Are you sure you want to delete this submission and all its batches and samples? This cannot be undone.');"
+                    >
+                        @csrf
+                        @method('DELETE')
+                        <button type="submit" class="dropdown-item text-danger">
+                            <i class="mdi mdi-delete-empty mr-2"></i> Delete Submission & Batches
+                        </button>
+                    </form>
+
                 </div>
             </div>
           </div>

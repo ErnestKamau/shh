@@ -582,6 +582,24 @@
 					<i class="mdi mdi-database-edit mr-2"></i> Update Sample Data
 				</span>
 			</li>
+			{{-- Removed "Delete Submission & Batches" option from UI - backend logic kept intact
+			<li>@if($batch->submissionFormInstance)
+				<form
+					action="{{ route(
+						'submission-forms.instances.destroy',
+						[$batch->submissionFormInstance->submission_form_id, $batch->submission_form_instance_id]
+					) }}"
+					method="POST"
+					onsubmit="return confirm('Delete the linked submission form {{ $batch->submissionFormInstance->form_number }} and ALL its batches and samples? This cannot be undone.');"
+				>
+					@csrf
+					@method('DELETE')
+					<button type="submit" class="dropdown-item text-danger">
+						<i class="mdi mdi-delete-empty"></i> Delete Submission & Batches
+					</button>
+				</form>
+			@endif</li>
+			--}}
 			<li>
 				<span class="btn btn-sm dropdown-item" data-toggle="modal" data-target="#send-to-verification-modal">
 				<i class="mdi mdi-subdirectory-arrow-right mr-2"></i> Send for Verification
