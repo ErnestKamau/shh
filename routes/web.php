@@ -483,6 +483,7 @@ Route::post('/process-raw-results/lab','SampleWorkFlowController@processRawResul
   Route::get('/batch/attachments/{id}/annotate', 'SampleWorkFlowController@showAnnotationPage')->name('show-pdf-annotation-page');
   Route::post('/batch/attachments/annotate/save', 'SampleWorkFlowController@saveAnnotatedPdf')->name('save-annotated-pdf');
   Route::get('/batch/attachments/{id}/annotations', 'SampleWorkFlowController@getAnnotations')->name('get-pdf-annotations');
+  Route::post('/batch/attachments/{id}/annotations/delete', 'SampleWorkFlowController@deleteAnnotations')->name('delete-pdf-annotations');
 
   Route::post('/lab/batch/ammendment', 'BatchAmmendmentController@add')->name('add-batch-ammendment');
 

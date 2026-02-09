@@ -5799,6 +5799,40 @@ class SampleWorkFlowController extends Controller
     }
     
     /**
+     * Delete selected annotations
+     */
+    public function deleteAnnotations(Request $request, $id)
+    {
+        try {
+            $request->validate([
+                'annotation_ids' => 'required|array',
+                'annotation_ids.*' => 'required|integer|exists:batch_attachment_annotations,id'
+            ]);
+            
+            // Verify attachment exists
+            $attachment = BatchAttachment::findOrFail($id);
+            
+            // Delete annotations
+            $deletedCount = \App\Models\BatchAttachmentAnnotation::where('batch_attachment_id', $id)
+                ->whereIn('id', $request->annotation_ids)
+                ->delete();
+            
+            return response()->json([
+                'success' => true,
+                'message' => "Successfully deleted {$deletedCount} annotation(s).",
+                'deleted_count' => $deletedCount
+            ]);
+            
+        } catch (\Exception $e) {
+            \Log::error('Annotation deletion error: ' . $e->getMessage());
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to delete annotations: ' . $e->getMessage()
+            ], 500);
+        }
+    }
+    
+    /**
      * Save annotated PDF
      */
     public function saveAnnotatedPdf(Request $request)
@@ -5856,16 +5890,26 @@ class SampleWorkFlowController extends Controller
             \App\Models\BatchAttachmentAnnotation::where('batch_attachment_id', $attachment->id)->delete();
             
             foreach ($annotationsData as $annData) {
+                // Store HTML content if available, otherwise use plain text
+                $content = $annData['htmlContent'] ?? $annData['content'] ?? '';
+                
+                // Store plain text in style_data for search/fallback
+                $styleData = $annData['style_data'] ?? [];
+                if (!is_array($styleData)) {
+                    $styleData = [];
+                }
+                $styleData['plainText'] = strip_tags($content);
+                
                 \App\Models\BatchAttachmentAnnotation::create([
                     'batch_attachment_id' => $attachment->id,
                     'page_number' => $annData['page_number'],
                     'annotation_type' => $annData['annotation_type'],
-                    'content' => $annData['content'],
+                    'content' => $content, // Store HTML content
                     'x_position' => $annData['x_position'],
                     'y_position' => $annData['y_position'],
                     'width' => $annData['width'] ?? null,
                     'height' => $annData['height'] ?? null,
-                    'style_data' => $annData['style_data'] ?? null
+                    'style_data' => $styleData
                 ]);
             }
             
