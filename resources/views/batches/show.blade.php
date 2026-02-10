@@ -4,7 +4,56 @@
   <title> {{ isset($batch->batch_code) ? $batch->batch_code." | Batch Info" : "New Batch" }}</title>
   {{-- Include all CSS from original show.blade.php lines 5-431 --}}
   <style>
-  {{-- Copy all styles from original file --}}
+		body{
+			overflow-x: hidden !important;
+		}
+		.form-part-toggler{
+			margin: 0px 0px 5px 0px !important;
+			padding: 6px 6px 6px 6px;
+			border-bottom: 1px solid rgba(0,0,0,0.09);
+			cursor: pointer;
+		}
+
+		.form-part-toggler:hover{
+			background-color: rgba(0,0,0,0.08);
+		}
+
+		#sample-detail-rows .form-group{
+			display: none;
+		}
+
+		#sample-detail-rows tr.selected-row{
+			background-color: #eef7d5;
+		}
+		#sample-detail-rows tr.selected-row td{
+			border: none !important;
+		}
+
+		td .form-group {
+			margin-bottom: unset !important;
+		}
+
+		#sample-detail-rows .text{
+			display: unset;
+		}
+
+		#sample-detail-rows tr.editable .form-group{
+			display: unset;
+		}
+
+		#sample-detail-rows tr.editable .text{
+			display: none;
+		}
+		
+		.select2-selection{
+			min-width: 200px !important;
+		}
+		.bg-white{
+			background-color: white !important;
+		}
+		.hidden{
+			display: none;
+		}
   </style>
 @endsection
 
@@ -119,6 +168,61 @@
 @endsection
 
 @section('script2')
-  {{-- Include all JavaScript from original show.blade.php --}}
-  {{-- This section would include all existing JS functionality --}}
+  <script>
+	// Setup CSRF token for all AJAX requests
+	$.ajaxSetup({
+		headers: {
+			'X-CSRF-TOKEN': $('meta[name="csrf-token"]').attr('content')
+		}
+	});
+	
+	var detectChange = function(ts){
+		var op = $(ts).children('option:selected');
+		$('#client-unit-select').html('<option value="" selected>Select Organizational Unit...</option>');
+		$('#client-unit-select').trigger('change');
+		if(op.val() > 0){
+			$.ajax({
+				url:`/get/Client-Details/Ajax/${op.val()}`,
+				method:'GET',
+				success:(data)=>{
+					$('#crm_contact_id').empty();
+					$.each(data['contacts'],(i,obj)=>{
+						var name = `${obj.first_name} ${obj.middle_name || ''} ${obj.last_name || ''}`
+						var option = `<option value="${obj.id}">${name}</option>`
+						$('#crm_contact_id').append(option)
+					});
+					$('#crm_contact_id').select2();
+					$('#crm_contact_id').val($('#crm_contact_id').data('selected')).trigger('change');
+
+					$.each(data['units'], function(i, e){
+						$('#client-unit-select').append('<option value="'+e.id+'">'+e.name+'</option>');
+					});
+					$('#customer_email').val(data['customer'].email);
+					$('#client-unit-select').val($('#client-unit-select').data('selected')).trigger('change');
+				},
+				error:(data)=>{
+					console.log(data);
+				}
+			})
+		}
+	};
+	
+	$(function(){
+		$('#client-select').on('change', function(){
+			detectChange(this);
+		}).trigger('change');
+
+		$('.batch-info-trigger').on('click', function(){
+			$(this).toggleClass('open');
+			if($(this).hasClass('open')){
+				$(this).html(`<i class="mdi mdi-chevron-double-up"></i> Batch Info`);
+				$('#batch-detail-form').removeClass('hidden');
+			}
+			else{
+				$(this).html(`<i class="mdi mdi-chevron-double-down"></i> Batch Info`);
+				$('#batch-detail-form').addClass('hidden');
+			}
+		});
+	});
+  </script>
 @endsection

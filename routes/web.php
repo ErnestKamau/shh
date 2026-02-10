@@ -26,7 +26,7 @@ Auth::routes();
 Route::middleware(['auth'])->group(function () {
     // Certificate Template Management
     Route::resource('certificate-templates', 'CertificateTemplateController');
-    
+
     // Additional template actions
     Route::post('certificate-templates/{certificateTemplate}/toggle-published', 'CertificateTemplateController@togglePublished')->name('certificate-templates.toggle-published');
     Route::post('certificate-templates/{certificateTemplate}/toggle-active', 'CertificateTemplateController@toggleActive')->name('certificate-templates.toggle-active');
@@ -36,17 +36,17 @@ Route::middleware(['auth'])->group(function () {
     Route::get('certificate-templates/{certificateTemplate}/data', 'CertificateTemplateController@getTemplateData')->name('certificate-templates.data');
     Route::get('certificate-templates/submission-form-instances', 'CertificateTemplateController@getSubmissionFormInstances')->name('certificate-templates.submission-form-instances');
     Route::post('certificate-templates/{certificateTemplate}/generate-report', 'CertificateTemplateController@generateReport')->name('certificate-templates.generate-report');
-    
+
     // Template Builder Routes
     Route::get('certificate-templates/{certificateTemplate}/builder', 'TemplateBuilderController@builder')->name('certificate-templates.builder');
-    
+
     // Modern Template Builder Routes
     Route::get('certificate-templates/{certificateTemplate}/modern-builder', 'ModernTemplateBuilderController@builder')->name('certificate-templates.modern-builder');
     Route::post('certificate-templates/{certificateTemplate}/save-layout', 'ModernTemplateBuilderController@saveLayout')->name('certificate-templates.save-layout');
     Route::get('certificate-templates/{certificateTemplate}/load-layout', 'ModernTemplateBuilderController@loadLayout')->name('certificate-templates.load-layout');
     Route::post('certificate-templates/{certificateTemplate}/preview', 'ModernTemplateBuilderController@preview')->name('certificate-templates.preview');
     Route::post('certificate-templates/{certificateTemplate}/export', 'ModernTemplateBuilderController@export')->name('certificate-templates.export');
-    
+
     // Modern Section Management
     Route::post('certificate-templates/{certificateTemplate}/modern-sections', 'ModernSectionController@store')->name('certificate-templates.modern-sections.store');
     Route::get('certificate-templates/modern-sections/{section}', 'ModernSectionController@show')->name('certificate-templates.modern-sections.show');
@@ -57,7 +57,7 @@ Route::middleware(['auth'])->group(function () {
     Route::post('certificate-templates/modern-sections/{section}/add-column', 'ModernSectionController@addColumn')->name('certificate-templates.modern-sections.add-column');
     Route::post('certificate-templates/modern-sections/{section}/add-cell', 'ModernSectionController@addCell')->name('certificate-templates.modern-sections.add-cell');
     Route::post('certificate-templates/modern-sections/{section}/add-sub-section', 'ModernSectionController@addSubSection')->name('certificate-templates.modern-sections.add-sub-section');
-    
+
     // Modern Element Management
     Route::post('certificate-templates/modern-sections/{section}/elements', 'ModernElementController@store')->name('certificate-templates.modern-elements.store');
     Route::get('certificate-templates/modern-elements/{element}', 'ModernElementController@show')->name('certificate-templates.modern-elements.show');
@@ -66,12 +66,12 @@ Route::middleware(['auth'])->group(function () {
     Route::put('certificate-templates/modern-elements/{element}/position', 'ModernElementController@updatePosition')->name('certificate-templates.modern-elements.position');
     Route::put('certificate-templates/modern-elements/{element}/css-config', 'ModernElementController@updateCssConfig')->name('certificate-templates.modern-elements.css-config');
     Route::put('certificate-templates/modern-elements/{element}/data-config', 'ModernElementController@updateDataConfig')->name('certificate-templates.modern-elements.data-config');
-    
+
     // Query Builder Routes
     Route::get('certificate-templates/query-builder/tables', 'QueryBuilderController@getTables')->name('certificate-templates.query-builder.tables');
     Route::get('certificate-templates/query-builder/columns/{table}', 'QueryBuilderController@getColumns')->name('certificate-templates.query-builder.columns');
     Route::post('certificate-templates/query-builder/preview', 'QueryBuilderController@preview')->name('certificate-templates.query-builder.preview');
-    
+
     // Section Management
     Route::post('certificate-templates/{template}/sections', 'CertificateTemplateSectionController@store')->name('certificate-templates.sections.store');
     Route::get('certificate-template-sections/{section}', 'CertificateTemplateSectionController@show')->name('certificate-template-sections.show');
@@ -79,7 +79,7 @@ Route::middleware(['auth'])->group(function () {
     Route::delete('certificate-template-sections/{section}', 'CertificateTemplateSectionController@destroy')->name('certificate-template-sections.destroy');
     Route::post('certificate-template-sections/{section}/resize', 'CertificateTemplateSectionController@resize')->name('certificate-template-sections.resize');
     Route::post('certificate-templates/{template}/sections/reorder', 'CertificateTemplateSectionController@reorder')->name('certificate-templates.sections.reorder');
-    
+
     // Element Holder Management
     Route::post('certificate-template-sections/{section}/holders', 'CertificateTemplateElementHolderController@store')->name('certificate-template-sections.holders.store');
     // Specific routes must come before dynamic {holder} routes
@@ -92,14 +92,14 @@ Route::middleware(['auth'])->group(function () {
     Route::put('certificate-template-holders/{holder}/position', 'CertificateTemplateElementHolderController@updatePosition')->name('certificate-template-holders.position');
     Route::post('certificate-template-holders/{holder}/toggle-direction', 'CertificateTemplateElementHolderController@toggleDirection')->name('certificate-template-holders.toggle-direction');
     Route::post('certificate-template-holders/{parentHolder}/nested-holders', 'CertificateTemplateElementHolderController@storeNestedHolder')->name('certificate-template-holders.nested-holders.store');
-    
+
     // Element Management
     Route::get('certificate-template-elements/{element}', 'CertificateTemplateElementController@show')->name('certificate-template-elements.show');
     Route::post('certificate-template-holders/{holder}/elements', 'CertificateTemplateElementController@store')->name('certificate-template-holders.elements.store');
     Route::put('certificate-template-elements/{element}', 'CertificateTemplateElementController@update')->name('certificate-template-elements.update');
     Route::delete('certificate-template-elements/{element}', 'CertificateTemplateElementController@destroy')->name('certificate-template-elements.destroy');
     Route::put('certificate-template-elements/{element}/position', 'CertificateTemplateElementController@updatePosition')->name('certificate-template-elements.position');
-    
+
     // Utility Routes
     Route::get('template-builder/data-fields', 'TemplateBuilderController@getDataFields')->name('template-builder.data-fields');
     Route::post('certificate-templates/upload-image', 'CertificateTemplateController@uploadImage')->name('certificate-templates.upload-image');
@@ -258,27 +258,27 @@ Route::get('/crm/complaints-manager/{stage?}', [CRMAppController::class, 'compla
     ->middleware('haspermission:CRM.components.Complaints.View');
 
 // Livewire Billing Management Routes
-Route::get('/billing/invoicable-items', function() {
+Route::get('/billing/invoicable-items', function () {
     return view('layouts.billing.invoicable-items-index');
 })->name('billing.invoicable-items')->middleware('auth');
 
-Route::get('/billing/dynamics-customers', function() {
+Route::get('/billing/dynamics-customers', function () {
     return view('layouts.billing.dynamics-customers-index');
 })->name('billing.dynamics-customers')->middleware('auth');
 
-Route::get('/billing/currencies', function() {
+Route::get('/billing/currencies', function () {
     return view('layouts.billing.currencies-index');
 })->name('billing.currencies')->middleware('auth');
 
-Route::get('/billing/invoices', function() {
+Route::get('/billing/invoices', function () {
     return view('layouts.billing.invoices-index');
 })->name('billing.invoices')->middleware('auth');
 
-Route::get('/billing/quotations', function() {
+Route::get('/billing/quotations', function () {
     return view('layouts.billing.quotations-index');
 })->name('billing.quotations')->middleware('auth');
 
-Route::get('/billing/sales-order/create', function() {
+Route::get('/billing/sales-order/create', function () {
     $batchCodes = request()->get('batches', []);
     return view('layouts.billing.sales-order-create', ['batchCodes' => $batchCodes]);
 })->name('billing.sales-order.create')->middleware('auth');
@@ -299,13 +299,13 @@ Route::post('/analysis-element/{id}', 'AnalysisElementsController@edit')->name('
 Route::get('/move-analysis-analyte/{direction}/{analysis}/{element}', 'AnalysisElementsController@move_analysis_analyte')->name('move-analysis-analyte');
 Route::post('/delete-Analysis-Element', 'AnalysisElementsController@deleteAnalysisElement')->name('deleteAnalysisElement');
 
-Route::get('/analysis-methods', function() {
+Route::get('/analysis-methods', function () {
     return view('livewire.lab.method-manager-page');
 })->name('analysis-methods')->middleware('haspermission:Laboratory.components.Methods.View');
 Route::post('/analysis-methods', 'AnalysisMethodController@add')->name('add-analysis-methods')->middleware('haspermission:Laboratory.components.Methods.Add');
 Route::post('/analysis-method/edit', 'AnalysisMethodController@edit')->name('edit-analysis-method')->middleware('haspermission:Laboratory.components.Methods.Edit');
-Route::get('/analysis-method/{id}', function($id) {
-    return view('livewire.lab.method-detail-page', ['methodId' => (int)$id]);
+Route::get('/analysis-method/{id}', function ($id) {
+    return view('livewire.lab.method-detail-page', ['methodId' => (int) $id]);
 })->name('analysis-method');
 
 Route::post('/check_rft_no', 'SampleWorkFlowController@check_rft_no')->name('check_rft_no');
@@ -325,7 +325,7 @@ Route::get('/reporting-unit/addAjax', 'ReportingUnitController@addAjax')->name('
 Route::get('/sample-analysis-stages', 'SampleAnalysisStageController@index')->name('sample-analysis-stages')->middleware('haspermission:Laboratory.components.Sample-Tracking-Stages.View');
 Route::post('/sample-analysis-stages', 'SampleAnalysisStageController@add')->name('add-sample-analysis-stage')->middleware('haspermission:Laboratory.components.Sample-Tracking-Stages.Add');
 Route::post('/sample-analysis-stage/update', 'SampleAnalysisStageController@update')->name('update-sample_analysis_stage')->middleware('haspermission:Laboratory.components.Sample-Tracking-Stages.Edit');
-Route::post('/sample-stages/delete','SampleAnalysisStageController@deleteStage')->name('delete-stage')->middleware('haspermission:Laboratory.components.Sample-Tracking-Stages.Delete');
+Route::post('/sample-stages/delete', 'SampleAnalysisStageController@deleteStage')->name('delete-stage')->middleware('haspermission:Laboratory.components.Sample-Tracking-Stages.Delete');
 
 Route::post('/sample-analysis-stages-to-sample-type/{sample_type_id}', 'SampleToSampleAnalysisStageController@add')->name('add-sample-analysis-stage-to-sample-type');
 Route::post('/sample-analysis-stages-to-sample-type/{id}/inactivate', 'SampleToSampleAnalysisStageController@update')->name('update-sample-analysis-stage-to-sample-type');
@@ -355,137 +355,138 @@ Route::post('/stock-taking-counter/{id}/add', 'StockTakingCounterController@add'
 Route::post('/stock-taking-counter/{id}/remove', 'StockTakingCounterController@remove')->name('remove-stock-taking-counter');
 
 //#############################################Sample Workflow###################################################
-Route::get('/get-Tat/Delayed/Sample','SampleWorkFlowController@getTatDelayedSample')->name('getTatDelayedSample');
-Route::get('/awaiting/Approval/Samples/{status}','SampleWorkFlowController@awaitingApprovalSamples')->name('awaitingApprovalSamples');
-Route::get('/updateTatCaptured','SampleWorkFlowController@updateTatCaptured')->name('updateTatCaptured');
-Route::get('/get/Tat/Batch/ApprovalCounter/Ajax/{status}','SampleWorkFlowController@getTatBatchApprovalCounterAjax')->name('getTatBatchApprovalCounterAjax');
+Route::get('/get-Tat/Delayed/Sample', 'SampleWorkFlowController@getTatDelayedSample')->name('getTatDelayedSample');
+Route::get('/awaiting/Approval/Samples/{status}', 'SampleWorkFlowController@awaitingApprovalSamples')->name('awaitingApprovalSamples');
+Route::get('/updateTatCaptured', 'SampleWorkFlowController@updateTatCaptured')->name('updateTatCaptured');
+Route::get('/get/Tat/Batch/ApprovalCounter/Ajax/{status}', 'SampleWorkFlowController@getTatBatchApprovalCounterAjax')->name('getTatBatchApprovalCounterAjax');
 
-Route::post('/process-raw-results/lab','SampleWorkFlowController@processRawResultsLab')->name('process-raw-results-lab');
-  Route::get('/sample-workflow/{status?}', 'SampleWorkFlowController@index')->name('sample-workflow');
+Route::post('/process-raw-results/lab', 'SampleWorkFlowController@processRawResultsLab')->name('process-raw-results-lab');
+Route::get('/sample-workflow/{status?}', 'SampleWorkFlowController@index')->name('sample-workflow');
 //   Route::get('/sample-workflow/{status?}/stage', 'SampleWorkFlowController@index')->name('sample-workflow')->middleware('haspermission:Laboratory.components.status.View');
-  Route::get('/sample-workflow/{status?}/stage', 'SampleWorkFlowController@index')->name('sample-workflow-stage');
-  Route::get('/sample-workflow/batch/{batch}/details/{client?}/{portal?}/{status?}', 'SampleWorkFlowController@show')->name('view-batch-details');
-  Route::get('/sample-workflow/batch/{batch}/worksheets', 'WorksheetsController@index')->name('batch-worksheets');
-  Route::post('/add-batch-info/{batch}', 'SampleWorkFlowController@add_batch_info')->name('add-batch-info');
-  Route::post('/add-batch-samples/{batch}', 'SampleWorkFlowController@add_batch_samples')->name('add-batch-samples');
-  Route::post('/add-new-samples', 'SampleWorkFlowController@add_batch_samples')->name('add-new-samples');
-  Route::post('/delete-sample/{id}', 'SampleDetailsController@delete')->name('delete-sample');
-  Route::post('/bulk-update-sample-data', 'SampleWorkFlowController@bulkUpdateSampleData')->name('bulk-update-sample-data');
-  
-  // Submission Form Integration Routes
-  Route::get('/sample-workflow-forms/submission-forms', 'SampleWorkFlowController@getAvailableSubmissionForms')->name('sample-workflow.submission-forms');
-  Route::post('/sample-workflow-forms/submission-forms/create-instance', 'SampleWorkFlowController@createSubmissionFormInstance')->name('sample-workflow.create-form-instance');
-  Route::get('/sample-submission-forms/forms', 'FormInstanceController@index')->name('sample-workflow.saved-forms');
-  
-  // Sample Submissions Management Page (Livewire)
-  Route::get('/sample-submissions', function() {
-      return view('layouts.lab.sample-workflow.sign-customer-focus-index');
-  })->name('sample-submissions')->middleware('auth');
-  
-  Route::post('/print-labels', 'SampleWorkFlowController@print_labels')->name('print-labels');
-  Route::post('/send-out-email-reports', 'SampleWorkFlowController@send_report_email')->name('send-out-email-reports');
-  Route::get('/lab/batch/approve/{id}', 'SampleWorkFlowController@approve_batch')->name('approve-batch-analysis');
+Route::get('/sample-workflow/{status?}/stage', 'SampleWorkFlowController@index')->name('sample-workflow-stage');
+Route::get('/sample-workflow/batch/{batch}/details/{client?}/{portal?}/{status?}', 'SampleWorkFlowController@show')->name('view-batch-details');
+Route::get('/sample-workflow/batch/{batch}/worksheets', 'WorksheetsController@index')->name('batch-worksheets');
+Route::post('/add-batch-info/{batch}', 'SampleWorkFlowController@add_batch_info')->name('add-batch-info');
+Route::post('/add-batch-samples/{batch}', 'SampleWorkFlowController@add_batch_samples')->name('add-batch-samples');
+Route::post('/add-new-samples', 'SampleWorkFlowController@add_batch_samples')->name('add-new-samples');
+Route::post('/delete-sample/{id}', 'SampleDetailsController@delete')->name('delete-sample');
+Route::post('/bulk-update-sample-data', 'SampleWorkFlowController@bulkUpdateSampleData')->name('bulk-update-sample-data');
 
-  Route::post('/change-batch-workflow', 'SampleWorkFlowController@change_workflow_status')->name('change-batch-workflow');
-  Route::post('/batch-approve-payment', 'SampleWorkFlowController@generate_batch_invoice')->name('generate_batch_invoice')->middleware('haspermission:Laboratory.components.Generate Invoice.View');
-  Route::post('/batch-payment-reminders', 'SampleWorkFlowController@send_payment_notification')->name('send_payment_notification');
-  Route::post('/return-back-verification', 'SampleWorkFlowController@return_back_verification')->name('return_back_verification');
+// Submission Form Integration Routes
+Route::get('/sample-workflow-forms/submission-forms', 'SampleWorkFlowController@getAvailableSubmissionForms')->name('sample-workflow.submission-forms');
+Route::post('/sample-workflow-forms/submission-forms/create-instance', 'SampleWorkFlowController@createSubmissionFormInstance')->name('sample-workflow.create-form-instance');
+Route::get('/sample-submission-forms/forms', 'FormInstanceController@index')->name('sample-workflow.saved-forms');
 
-  Route::post('/update-invoice','SampleWorkFlowController@updateInvoiceDetails')->name('updateinvoicedetail');
-  Route::get('/get-invoice/itemData/{invoice_id}/{item_id}','SampleWorkFlowController@getInvoiceItemData')->name('getInvoiceItemData');
-  // -----------------------------------SALES ORDERS----------------------
-  Route::post('/generate/batch-invoice/ajax','SampleWorkFlowController@generate_batch_invoice_ajax')->name('generate_batch_invoice_ajax');
-  Route::get('/send/Sales-Order/{id}','SampleWorkFlowController@sendSalesOrder')->name('sendSalesOrder');
-  Route::get('/delete/sales-order/{id}','SampleWorkFlowController@deleteSalesOrder')->name('deleteSalesOrder');
-  Route::post('/send/sales/order-ajax','SampleWorkFlowController@moveToLabAjax')->name('move-to-lab-ajax');
+// Sample Submissions Management Page (Livewire)
+Route::get('/sample-submissions', function () {
+    return view('layouts.lab.sample-workflow.sign-customer-focus-index');
+})->name('sample-submissions')->middleware('auth');
 
-  Route::get('/zoho-item/analysis-types','SampleTypeController@zohotoAnalysisTypes')->name('zoho-item-analysis');
-  Route::post('zoho/item/analysis-store','SampleTypeController@zohoAnalysisStore')->name('zoho-item-analysis-store');
-  // -----------------------------------SALES ORDERS----------------------
+Route::post('/print-labels', 'SampleWorkFlowController@print_labels')->name('print-labels');
+Route::post('/send-out-email-reports', 'SampleWorkFlowController@send_report_email')->name('send-out-email-reports');
+Route::get('/lab/batch/approve/{id}', 'SampleWorkFlowController@approve_batch')->name('approve-batch-analysis');
 
+Route::post('/change-batch-workflow', 'SampleWorkFlowController@change_workflow_status')->name('change-batch-workflow');
+Route::post('/batch-approve-payment', 'SampleWorkFlowController@generate_batch_invoice')->name('generate_batch_invoice')->middleware('haspermission:Laboratory.components.Generate Invoice.View');
+Route::post('/batch-payment-reminders', 'SampleWorkFlowController@send_payment_notification')->name('send_payment_notification');
+Route::post('/return-back-verification', 'SampleWorkFlowController@return_back_verification')->name('return_back_verification');
 
-  Route::get('/send_notification_reminders', 'Event\EventController@send_notification_reminders')->name('send_notification_reminders');
+Route::post('/update-invoice', 'SampleWorkFlowController@updateInvoiceDetails')->name('updateinvoicedetail');
+Route::get('/get-invoice/itemData/{invoice_id}/{item_id}', 'SampleWorkFlowController@getInvoiceItemData')->name('getInvoiceItemData');
+// -----------------------------------SALES ORDERS----------------------
+Route::post('/generate/batch-invoice/ajax', 'SampleWorkFlowController@generate_batch_invoice_ajax')->name('generate_batch_invoice_ajax');
+Route::get('/send/Sales-Order/{id}', 'SampleWorkFlowController@sendSalesOrder')->name('sendSalesOrder');
+Route::get('/delete/sales-order/{id}', 'SampleWorkFlowController@deleteSalesOrder')->name('deleteSalesOrder');
+Route::post('/send/sales/order-ajax', 'SampleWorkFlowController@moveToLabAjax')->name('move-to-lab-ajax');
 
-  Route::get('/regerateCustomerInvoice/{id}', 'SampleWorkFlowController@regerateCustomerInvoice')->name('regerateCustomerInvoice');
-  Route::get('/split-contact', 'SampleWorkFlowController@splitSchoolContacts')->name('/split-contact');
-  //############################################################################################################################
-  Route::get('/billing-quotation/{stage?}', 'Invoice\QuotationController@index')->name('quotation-index')->middleware('haspermission:Laboratory.components.Quotation.View');
-  Route::get('/billing/change-quotation-workflow/{id}/{stage}', 'Invoice\QuotationController@change_quotation_workflow')->name('change_quotation_workflow');
-  Route::get('/billing-add-quote-detail-index/{id}/{stage?}', 'Invoice\QuotationController@view_quote_header_detail')->name('add-qoute-details-view');
-  Route::post('/billing-add-quote-header', 'Invoice\QuotationController@add_quotation_header')->name('add-quotation-header');
-  Route::post('/api/get-currency-by-code', 'Invoice\QuotationController@getCurrencyByCode');
-  Route::post('/billing/add-quotation-detail/{id}', 'Invoice\QuotationController@add_quotation_detail')->name('add_quotation_detail');
-  Route::get('/billing-quotation-view-final/{id}/{stage?}', 'Invoice\QuotationController@view_quotation_final')->name('view_quotation_final');
-  Route::post('/billing/edit_quotation_detail', 'Invoice\QuotationController@edit_quotation_detail')->name('edit_quotation_detail');
-  Route::get('/billing/delete_quotation_detail/{id}', 'Invoice\QuotationController@delete_quotation_detail')->name('delete_quotation_detail');
-  Route::post('/billing/save_draft/{id}', 'Invoice\QuotationController@save_draft')->name('save_draft');
-  Route::get('/billing/redirect_from_docs/{id}/{stage?}', 'Invoice\QuotationController@redirect_from_docs')->name('redirect_from_docs');
-  Route::get('/billing/clone_quotation/{id}', 'Invoice\QuotationController@clone_quotation')->name('clone_quotation');
-  Route::post('/billing/save-quotation-final/{id}', 'Invoice\QuotationController@save_quotation_final')->name('save_quotation_final');
-  Route::post('/billing/delete_quotation/{id}', 'Invoice\QuotationController@delete_quotation')->name('delete_quotation');
-  Route::get('/billing/print_quotation/{id}', 'Invoice\QuotationController@print_quotation')->name('print_quotation');
-  Route::post('/billing/upload_quotation/{id}', 'Invoice\QuotationController@upload_quotation')->name('upload_quotation');
-  Route::post('/approve-workflow', 'Invoice\QuotationController@approve_workflow')->name('approve-workflow');
-  Route::post('/convert-quote/batch','Invoice\QuotationController@convertQuoteToBatch')->name('convert-quote-batch');
-
-  Route::post('/billing/payment-detail-add', 'InvoicePaymentDetailController@add')->name('payment-detail-add');
-  Route::post('/billing/payment-detail-edit', 'InvoicePaymentDetailController@edit')->name('payment-detail-edit');
-  Route::post('/billing/payment-detail-delete', 'InvoicePaymentDetailController@delete')->name('payment-detail-delete');
-
-  Route::post('/approve/ready-proccess', 'SampleWorkFlowController@approve_batch_begin_process')->name('approve_batch_begin_process')->middleware('haspermission:Laboratory.components.Approve For Analysis.Edit');
-
-  Route::get('/fetch-sample-type/{id}', 'SampleWorkFlowController@fetch_sample_type')->name('fetch_sample_type');
-  Route::get('/fetch-sample-analytes/{id}/{analysis}/{detail?}', 'SampleWorkFlowController@fetch_sample_analyte')->name('fetch_sample_analytes');
-  Route::get('/fetch-detail-data/{id}', 'Invoice\QuotationController@get_quotation_detail')->name('get_quotation_detail');
-  Route::get('/addBatchSamplesDynamically', 'SampleWorkFlowController@addBatchSamplesDynamically')->name('addBatchSamplesDynamically');
-
-  Route::post('/sample-workflow/staging/update/{id}', 'SampleWorkFlowController@updateStagingDetail')->name('update-staging-detail');
-  Route::delete('/sample-workflow/staging/delete/{id}', 'SampleWorkFlowController@deleteStagingDetail')->name('delete-staging-detail');
-
-  Route::post('filter-Quotations', 'Invoice\QuotationController@filterQuotations')->name('filterQuotations');
-  Route::get('populate/Quotation-Detail/Split', 'Invoice\QuotationController@populateQuotationDetailSplit')->name('populateQuotationDetailSplit');
-  Route::get('get/Labs-By-Analysis/Type-Id-Ajax', 'SampleWorkFlowController@getLabsByAnalysisTypeIdAjax')->name('getLabsByAnalysisTypeIdAjax');
-  Route::post('/add/Batch-Invoice','SampleWorkFlowController@addBatchInvoice')->name('addBatchInvoice');
+Route::get('/zoho-item/analysis-types', 'SampleTypeController@zohotoAnalysisTypes')->name('zoho-item-analysis');
+Route::post('zoho/item/analysis-store', 'SampleTypeController@zohoAnalysisStore')->name('zoho-item-analysis-store');
+// -----------------------------------SALES ORDERS----------------------
 
 
-  //#####################################################################################################################################
+Route::get('/send_notification_reminders', 'Event\EventController@send_notification_reminders')->name('send_notification_reminders');
 
-    Route::post('/move-to-stage/{stage}/{batch_id}', 'SampleWorkFlowController@move_to_stage')->name('move-to-stage');
-    Route::post('/move-to-workflow/{status}/{batch_id}', 'SampleWorkFlowController@move_to_workflow')->name('move-to-workflow');
-    Route::post('/add-analytes-to-sample-analysis', 'SampleWorkFlowController@add_analyte_to_sample_analysis')->name('add-analytes-to-sample-analysis');
-    Route::post('/capture-raw-results', 'SampleWorkFlowController@capture_raw_results')->name('capture-raw-results');
-    
-    // Captured Results Modal AJAX Routes
-    Route::post('/captured-results/update-parameter-settings', 'SampleWorkFlowController@updateParameterSettings')->name('update-parameter-settings');
-    Route::post('/captured-results/update-standard-limit', 'SampleWorkFlowController@updateStandardLimit')->name('update-standard-limit');
-    Route::post('/captured-results/update-result', 'SampleWorkFlowController@updateResult')->name('update-result');
-    Route::get('/captured-results/get-parameter-settings/{resultId}', 'SampleWorkFlowController@getParameterSettings')->name('get-parameter-settings');
-    Route::get('/captured-results/get-standard-settings/{resultId}', 'SampleWorkFlowController@getStandardSettings')->name('get-standard-settings');
+Route::get('/regerateCustomerInvoice/{id}', 'SampleWorkFlowController@regerateCustomerInvoice')->name('regerateCustomerInvoice');
+Route::get('/split-contact', 'SampleWorkFlowController@splitSchoolContacts')->name('/split-contact');
+//############################################################################################################################
+Route::get('/billing-quotation/{stage?}', 'Invoice\QuotationController@index')->name('quotation-index')->middleware('haspermission:Laboratory.components.Quotation.View');
+Route::get('/billing/change-quotation-workflow/{id}/{stage}', 'Invoice\QuotationController@change_quotation_workflow')->name('change_quotation_workflow');
+Route::get('/billing-add-quote-detail-index/{id}/{stage?}', 'Invoice\QuotationController@view_quote_header_detail')->name('add-qoute-details-view');
+Route::post('/billing-add-quote-header', 'Invoice\QuotationController@add_quotation_header')->name('add-quotation-header');
+Route::post('/api/get-currency-by-code', 'Invoice\QuotationController@getCurrencyByCode');
+Route::post('/billing/add-quotation-detail/{id}', 'Invoice\QuotationController@add_quotation_detail')->name('add_quotation_detail');
+Route::get('/billing-quotation-view-final/{id}/{stage?}', 'Invoice\QuotationController@view_quotation_final')->name('view_quotation_final');
+Route::post('/billing/edit_quotation_detail', 'Invoice\QuotationController@edit_quotation_detail')->name('edit_quotation_detail');
+Route::get('/billing/delete_quotation_detail/{id}', 'Invoice\QuotationController@delete_quotation_detail')->name('delete_quotation_detail');
+Route::post('/billing/save_draft/{id}', 'Invoice\QuotationController@save_draft')->name('save_draft');
+Route::get('/billing/redirect_from_docs/{id}/{stage?}', 'Invoice\QuotationController@redirect_from_docs')->name('redirect_from_docs');
+Route::get('/billing/clone_quotation/{id}', 'Invoice\QuotationController@clone_quotation')->name('clone_quotation');
+Route::post('/billing/save-quotation-final/{id}', 'Invoice\QuotationController@save_quotation_final')->name('save_quotation_final');
+Route::post('/billing/delete_quotation/{id}', 'Invoice\QuotationController@delete_quotation')->name('delete_quotation');
+Route::get('/billing/print_quotation/{id}', 'Invoice\QuotationController@print_quotation')->name('print_quotation');
+Route::post('/billing/upload_quotation/{id}', 'Invoice\QuotationController@upload_quotation')->name('upload_quotation');
+Route::post('/approve-workflow', 'Invoice\QuotationController@approve_workflow')->name('approve-workflow');
+Route::post('/convert-quote/batch', 'Invoice\QuotationController@convertQuoteToBatch')->name('convert-quote-batch');
 
-    Route::get('/process-raw-results/{batch_id}', 'SampleWorkFlowController@process_results')->name('process-raw-results');
-    Route::post('/report-interpretations/{batch_id}', 'ReportHeaderDetailController@report_interpretations')->name('report-interpretations');
-    Route::get('/process-pdf-report/{batch_id}/{report_format}', 'ReportHeaderDetailController@process_pdf_report')->name('process-pdf-report');
-  Route::get('colorQrCode/', 'ReportHeaderDetailController@colorQrCode')->name('colorQrCode');
+Route::post('/billing/payment-detail-add', 'InvoicePaymentDetailController@add')->name('payment-detail-add');
+Route::post('/billing/payment-detail-edit', 'InvoicePaymentDetailController@edit')->name('payment-detail-edit');
+Route::post('/billing/payment-detail-delete', 'InvoicePaymentDetailController@delete')->name('payment-detail-delete');
 
-    Route::get('/fetch-unit-stuff/{name}/{client}', 'SampleWorkFlowController@fetch_unit_stuff')->name('fetch-unit-stuff');
-  Route::get('/mail-report', 'MailController@html_email')->name('mail-report');
+Route::post('/approve/ready-proccess', 'SampleWorkFlowController@approve_batch_begin_process')->name('approve_batch_begin_process')->middleware('haspermission:Laboratory.components.Approve For Analysis.Edit');
 
-  Route::post('/lab/delete/batch', 'SampleWorkFlowController@delete_batch')->name('delete-batch');
-  Route::post('/sample-interpretations/{sample_id}', 'ReportHeaderDetailController@sample_interpretations')->name('sample-interpretations');
+Route::get('/fetch-sample-type/{id}', 'SampleWorkFlowController@fetch_sample_type')->name('fetch_sample_type');
+Route::get('/fetch-sample-analytes/{id}/{analysis}/{detail?}', 'SampleWorkFlowController@fetch_sample_analyte')->name('fetch_sample_analytes');
+Route::get('/fetch-detail-data/{id}', 'Invoice\QuotationController@get_quotation_detail')->name('get_quotation_detail');
+Route::get('/addBatchSamplesDynamically', 'SampleWorkFlowController@addBatchSamplesDynamically')->name('addBatchSamplesDynamically');
 
-  Route::post('/add_batch_attachment', 'SampleWorkFlowController@add_batch_attachment')->name('add_batch_attachment');
-  Route::post('/store-attachment-type', 'SampleWorkFlowController@store_attachment_type')->name('store-attachment-type');
-  Route::post('/delete_batch_attachmment', 'SampleWorkFlowController@delete_batch_attachmment')->name('delete_batch_attachmment');
-  Route::post('/merge-attachments', 'SampleWorkFlowController@merge_attachments')->name('merge-attachments');
-  Route::get('/batch/attachments/{id}/download', 'SampleWorkFlowController@downloadBatchAttachment')->name('download-attachment');
-  
-  // PDF Annotation routes
-  Route::get('/batch/attachments/{id}/annotate', 'SampleWorkFlowController@showAnnotationPage')->name('show-pdf-annotation-page');
-  Route::post('/batch/attachments/annotate/save', 'SampleWorkFlowController@saveAnnotatedPdf')->name('save-annotated-pdf');
-  Route::get('/batch/attachments/{id}/annotations', 'SampleWorkFlowController@getAnnotations')->name('get-pdf-annotations');
-  Route::post('/batch/attachments/{id}/annotations/delete', 'SampleWorkFlowController@deleteAnnotations')->name('delete-pdf-annotations');
+Route::post('/sample-workflow/staging/update/{id}', 'SampleWorkFlowController@updateStagingDetail')->name('update-staging-detail');
+Route::delete('/sample-workflow/staging/delete/{id}', 'SampleWorkFlowController@deleteStagingDetail')->name('delete-staging-detail');
 
-  Route::post('/lab/batch/ammendment', 'BatchAmmendmentController@add')->name('add-batch-ammendment');
+Route::post('filter-Quotations', 'Invoice\QuotationController@filterQuotations')->name('filterQuotations');
+Route::get('populate/Quotation-Detail/Split', 'Invoice\QuotationController@populateQuotationDetailSplit')->name('populateQuotationDetailSplit');
+Route::get('get/Labs-By-Analysis/Type-Id-Ajax', 'SampleWorkFlowController@getLabsByAnalysisTypeIdAjax')->name('getLabsByAnalysisTypeIdAjax');
+Route::post('/add/Batch-Invoice', 'SampleWorkFlowController@addBatchInvoice')->name('addBatchInvoice');
+
+
+//#####################################################################################################################################
+
+Route::post('/move-to-stage/{stage}/{batch_id}', 'SampleWorkFlowController@move_to_stage')->name('move-to-stage');
+Route::post('/move-to-workflow/{status}/{batch_id}', 'SampleWorkFlowController@move_to_workflow')->name('move-to-workflow');
+Route::post('/add-analytes-to-sample-analysis', 'SampleWorkFlowController@add_analyte_to_sample_analysis')->name('add-analytes-to-sample-analysis');
+Route::post('/capture-raw-results', 'SampleWorkFlowController@capture_raw_results')->name('capture-raw-results');
+
+// Captured Results Modal AJAX Routes
+Route::post('/captured-results/update-parameter-settings', 'SampleWorkFlowController@updateParameterSettings')->name('update-parameter-settings');
+Route::post('/captured-results/update-standard-limit', 'SampleWorkFlowController@updateStandardLimit')->name('update-standard-limit');
+Route::post('/captured-results/update-result', 'SampleWorkFlowController@updateResult')->name('update-result');
+Route::get('/captured-results/get-parameter-settings/{resultId}', 'SampleWorkFlowController@getParameterSettings')->name('get-parameter-settings');
+Route::get('/captured-results/get-standard-settings/{resultId}', 'SampleWorkFlowController@getStandardSettings')->name('get-standard-settings');
+
+Route::get('/process-raw-results/{batch_id}', 'SampleWorkFlowController@process_results')->name('process-raw-results');
+Route::post('/report-interpretations/{batch_id}', 'ReportHeaderDetailController@report_interpretations')->name('report-interpretations');
+Route::get('/process-pdf-report/{batch_id}/{report_format}', 'ReportHeaderDetailController@process_pdf_report')->name('process-pdf-report');
+Route::get('colorQrCode/', 'ReportHeaderDetailController@colorQrCode')->name('colorQrCode');
+
+Route::get('/fetch-unit-stuff/{name}/{client}', 'SampleWorkFlowController@fetch_unit_stuff')->name('fetch-unit-stuff');
+Route::get('/mail-report', 'MailController@html_email')->name('mail-report');
+
+Route::post('/lab/delete/batch', 'SampleWorkFlowController@delete_batch')->name('delete-batch');
+Route::post('/sample-interpretations/{sample_id}', 'ReportHeaderDetailController@sample_interpretations')->name('sample-interpretations');
+
+Route::post('/add_batch_attachment', 'SampleWorkFlowController@add_batch_attachment')->name('add_batch_attachment');
+Route::post('/store-attachment-type', 'SampleWorkFlowController@store_attachment_type')->name('store-attachment-type');
+Route::post('/delete_batch_attachmment', 'SampleWorkFlowController@delete_batch_attachmment')->name('delete_batch_attachmment');
+Route::post('/merge-attachments', 'SampleWorkFlowController@merge_attachments')->name('merge-attachments');
+Route::get('/batch/attachments/{id}/download', 'SampleWorkFlowController@downloadBatchAttachment')->name('download-attachment');
+
+// PDF Annotation routes
+Route::get('/batch/attachments/{id}/annotate', 'SampleWorkFlowController@showAnnotationPage')->name('show-pdf-annotation-page');
+Route::post('/batch/attachments/annotate/save', 'SampleWorkFlowController@saveAnnotatedPdf')->name('save-annotated-pdf');
+Route::post('/batch/attachments/annotate/upload-image', 'SampleWorkFlowController@uploadAnnotationImage')->name('upload-annotation-image');
+Route::get('/batch/attachments/{id}/annotations', 'SampleWorkFlowController@getAnnotations')->name('get-pdf-annotations');
+Route::post('/batch/attachments/{id}/annotations/delete', 'SampleWorkFlowController@deleteAnnotations')->name('delete-pdf-annotations');
+
+Route::post('/lab/batch/ammendment', 'BatchAmmendmentController@add')->name('add-batch-ammendment');
 
 //#####################LABS######################################################################################
 
@@ -502,10 +503,10 @@ Route::get('/reports/fields/{table}', 'ReportGeneratorController@fields')->name(
 Route::post('/reports/save', 'ReportGeneratorController@store')->name('store_report')->middleware('haspermission:Inventory.components.Inventory-Movement.View');
 Route::post('/reports/fetch', 'ReportGeneratorController@fetch')->name('fetch_report')->middleware('haspermission:Inventory.components.Inventory-Movement.View');
 Route::post('/reports/delete', 'ReportGeneratorController@delete')->name('delete_report')->middleware('haspermission:Inventory.components.Inventory-Movement.View');
-Route::post('/reports/print','ReportGeneratorController@print')->name('report_print')->middleware('haspermission:Inventory.components.Inventory-Movement.View');
-Route::post('/reports/csv','ReportGeneratorController@exportCsv')->name('report_csv')->middleware('haspermission:Inventory.components.Inventory-Movement.View');
+Route::post('/reports/print', 'ReportGeneratorController@print')->name('report_print')->middleware('haspermission:Inventory.components.Inventory-Movement.View');
+Route::post('/reports/csv', 'ReportGeneratorController@exportCsv')->name('report_csv')->middleware('haspermission:Inventory.components.Inventory-Movement.View');
 
-Route::get('/reports/consumption-reports','ReportGeneratorController@consumption')->name('consumption-reports')->middleware('haspermission:Inventory.components.Inventory-Movement.View');
+Route::get('/reports/consumption-reports', 'ReportGeneratorController@consumption')->name('consumption-reports')->middleware('haspermission:Inventory.components.Inventory-Movement.View');
 
 
 Route::get('/inventory-categories', 'InventoryCategoriesController@index')->name('inventory-categories')->middleware('haspermission:Inventory.components.Categories.View');
@@ -539,23 +540,23 @@ Route::prefix('submission-forms')->name('submission-forms.')->middleware('auth')
     Route::get('/', 'SubmissionFormController@index')->name('index');
     Route::get('/create', 'SubmissionFormController@create')->name('create');
     Route::post('/', 'SubmissionFormController@store')->name('store');
-    
+
     // Dynamic Options for Custom Elements (must be before /{submissionForm} route)
     Route::get('/dynamic-options', 'SubmissionFormController@getDynamicOptions')->name('dynamic-options');
     Route::get('/user-signature', 'SubmissionFormController@getUserSignature')->name('user-signature');
     Route::get('/contact-signature', 'SubmissionFormController@getContactSignature')->name('contact-signature');
     Route::post('/contact-signature', 'SubmissionFormController@saveContactSignature')->name('save-contact-signature');
-    
+
     // Quick Store Routes for Modal Forms (must be before /{submissionForm} route)
     Route::post('/quick-store/client', 'SubmissionFormController@quickStoreClient')->name('quick-store.client');
     Route::post('/quick-store/client-unit', 'SubmissionFormController@quickStoreClientUnit')->name('quick-store.client-unit');
     Route::post('/quick-store/client-contact', 'SubmissionFormController@quickStoreClientContact')->name('quick-store.client-contact');
     Route::post('/quick-store/sample-condition', 'SubmissionFormController@quickStoreSampleCondition')->name('quick-store.sample-condition');
     Route::post('/quick-store/sample-point', 'SubmissionFormController@quickStoreSamplePoint')->name('quick-store.sample-point');
-    
+
     // Mapping Fields (must be before /{submissionForm} route)
     Route::get('/mapping-fields', 'FormBuilderController@getMappingFields')->name('mapping-fields');
-    
+
     Route::get('/{submissionForm}', 'SubmissionFormController@show')->name('show');
     Route::get('/{submissionForm}/edit', 'SubmissionFormController@edit')->name('edit');
     Route::put('/{submissionForm}', 'SubmissionFormController@update')->name('update');
@@ -564,12 +565,12 @@ Route::prefix('submission-forms')->name('submission-forms.')->middleware('auth')
     Route::post('/{submissionForm}/toggle-published', 'SubmissionFormController@togglePublished')->name('toggle-published');
     Route::post('/{submissionForm}/clone', 'SubmissionFormController@clone')->name('clone');
     Route::get('/{submissionForm}/export', 'SubmissionFormController@export')->name('export');
-    
+
     // Form Builder Routes
     Route::get('/{submissionForm}/builder', 'FormBuilderController@index')->name('builder');
     Route::get('/{submissionForm}/structure', 'FormBuilderController@getFormStructure')->name('structure');
     Route::get('/{submissionForm}/validate-element-name', 'FormBuilderController@validateElementName')->name('validate-element-name');
-    
+
     // Section Management
     Route::post('/{submissionForm}/sections', 'FormBuilderController@addSection')->name('sections.store');
     Route::put('/sections/{section}', 'FormBuilderController@updateSection')->name('sections.update');
@@ -577,7 +578,7 @@ Route::prefix('submission-forms')->name('submission-forms.')->middleware('auth')
     Route::post('/{submissionForm}/sections/reorder', 'FormBuilderController@reorderSections')->name('sections.reorder');
     Route::post('/sections/{section}/clone', 'FormBuilderController@cloneSection')->name('sections.clone');
     Route::post('/sections/{section}/move', 'FormBuilderController@moveSectionToPosition')->name('sections.move');
-    
+
     // Element Holder Management
     Route::get('/holders/{holder}', 'FormBuilderController@getElementHolder')->name('holders.show');
     Route::post('/sections/{section}/holders', 'FormBuilderController@addElementHolder')->name('holders.store');
@@ -586,7 +587,7 @@ Route::prefix('submission-forms')->name('submission-forms.')->middleware('auth')
     Route::post('/sections/{section}/holders/reorder', 'FormBuilderController@reorderElementHolders')->name('holders.reorder');
     Route::post('/holders/{holder}/clone', 'FormBuilderController@cloneElementHolder')->name('holders.clone');
     Route::post('/holders/{holder}/move', 'FormBuilderController@moveHolderToSection')->name('holders.move');
-    
+
     // Element Management
     Route::post('/holders/{holder}/elements', 'FormBuilderController@addElement')->name('elements.store');
     Route::put('/elements/{element}', 'FormBuilderController@updateElement')->name('elements.update');
@@ -594,24 +595,24 @@ Route::prefix('submission-forms')->name('submission-forms.')->middleware('auth')
     Route::post('/holders/{holder}/elements/reorder', 'FormBuilderController@reorderElements')->name('elements.reorder');
     Route::post('/elements/{element}/clone', 'FormBuilderController@cloneElement')->name('elements.clone');
     Route::post('/elements/{element}/move', 'FormBuilderController@moveElementToHolder')->name('elements.move');
-    
+
     // Form Instance Routes
     Route::prefix('instances')->name('instances.')->group(function () {
         Route::get('/', 'FormInstanceController@index')->name('index');
-        
+
         // Batch View - Display form instance with all linked batches and samples (safe route pattern)
         Route::get('/batch/{instance}/view', 'FormInstanceController@batchView')->name('batch-view')->where('instance', '[0-9]+');
-        
+
         // Batch View Print - Print version of batch view
         Route::get('/batch/{instance}/print', 'FormInstanceController@batchViewPrint')->name('batch-view-print')->where('instance', '[0-9]+');
-        
+
         // Dynamic options route
         Route::get('/dynamic-options', 'FormInstanceController@getDynamicOptions')->name('dynamic-options');
-        
+
         // Form creation routes
         Route::get('/{submissionForm}/create', 'FormInstanceController@create')->name('create');
         Route::post('/{submissionForm}', 'FormInstanceController@store')->name('store');
-        
+
         // Instance-specific routes
         Route::get('/{submissionForm}/{instance}/fill', 'FormInstanceController@fill')->name('fill');
         Route::get('/{submissionForm}/{instance}/fill-sample', 'FormInstanceController@fillSample')->name('fill-sample');
@@ -620,7 +621,7 @@ Route::prefix('submission-forms')->name('submission-forms.')->middleware('auth')
         Route::get('/{submissionForm}/{instance}/edit', 'FormInstanceController@edit')->name('edit');
         Route::get('/{submissionForm}/{instance}/print', 'FormInstanceController@print')->name('print');
         Route::delete('/{submissionForm}/{instance}', 'FormInstanceController@destroy')->name('destroy');
-        
+
         // Sample Creation Routes
         Route::post('/{instance}/create-samples', 'SampleCreationController@createFromForm')->name('create-samples');
         Route::get('/{instance}/sample-status', 'SampleCreationController@getStatus')->name('sample-status');
@@ -642,12 +643,12 @@ Route::post('/forms/{submissionForm:slug}', 'FormInstanceController@store')->nam
 Route::get('/forms/dynamic-options', 'FormInstanceController@getDynamicOptions')->name('forms.dynamic-options');
 
 // Debug route for testing analysis elements
-Route::get('/debug/analysis-elements/{analysisTypeId}', function($analysisTypeId) {
+Route::get('/debug/analysis-elements/{analysisTypeId}', function ($analysisTypeId) {
     $elements = \App\AnalysisElements::where('analysis_type_id', $analysisTypeId)
         ->with('analyte')
         ->get();
-    
-    $options = $elements->map(function($element) {
+
+    $options = $elements->map(function ($element) {
         $parametername = 'Unknown Parameter';
         if ($element->analyte) {
             $parametername = $element->analyte->name ?? 'Unknown Parameter';
@@ -655,14 +656,14 @@ Route::get('/debug/analysis-elements/{analysisTypeId}', function($analysisTypeId
             $analyte = \App\Analyte::find($element->analyte_id);
             $parametername = $analyte ? $analyte->name : 'Unknown Parameter';
         }
-        
+
         $method = $element->method ?? 'No Method';
         return [
             'id' => $element->id,
             'text' => $parametername . ' (' . $method . ')'
         ];
     })->toArray();
-    
+
     return response()->json([
         'success' => true,
         'options' => $options,
@@ -784,8 +785,8 @@ Route::get('/revert/equipment/{id}', 'Equipment\EquipmentController@revert')->na
 Route::post('/delete/part-repaired', 'Equipment\MaintainanceCalibrationLogController@delete')->name('delete-part-repaired')->middleware('haspermission:Equipment.components.Repair-Log.Delete');
 Route::post('/delete/log', 'Equipment\MaintainanceCalibrationLogController@delete_logs')->name('delete-logs')->middleware('haspermission:Equipment.components.Repair-Log.Delete');
 
-Route::post('/add/equipment/frequency','Equipment\EquipmentController@addEquipmentNotification')->name('add-equipment-frequency');
-Route::post('/delete/equipment/notification','Equipment\EquipmentController@deleteEquipmentNotification')->name('delete-equipment-frequency');
+Route::post('/add/equipment/frequency', 'Equipment\EquipmentController@addEquipmentNotification')->name('add-equipment-frequency');
+Route::post('/delete/equipment/notification', 'Equipment\EquipmentController@deleteEquipmentNotification')->name('delete-equipment-frequency');
 
 
 // Equipment Disposal Workflow Routes
@@ -856,7 +857,7 @@ Route::post('/edit/complaint-type/{id}', 'CRM\Complaint\ComplaintTypeController@
 Route::post('/add/complaint-type', 'CRM\Complaint\ComplaintTypeController@add')->name('add-complaint-type')->middleware('haspermission:CRM.components.Complaint Type.Add');
 
 // Old complaint workflow route - redirect to new Livewire route
-Route::get('/complaint/{stage}', function($stage) {
+Route::get('/complaint/{stage}', function ($stage) {
     return redirect()->route('crm.complaints-manager', ['stage' => $stage]);
 })->name('complaint-workflow')->middleware('haspermission:CRM.components.stage.View');
 Route::post('/add/open-complaint', 'CRM\Complaint\ComplaintController@add')->name('add-complaint')->middleware('haspermission:CRM.components.Open Complaints.Add');
@@ -1116,7 +1117,7 @@ Route::post('/add_tax_invoice', 'Invoice\InvoiceController@add_tax_invoice')->na
 
 //#################################TAX REGIME#######################################
 // New Livewire-based route
-Route::get('/billing/tax-regime', function() {
+Route::get('/billing/tax-regime', function () {
     return view('layouts.billing.tax-regime-index');
 })->name('billing.tax-regime')->middleware('auth');
 
@@ -1133,11 +1134,11 @@ Route::post('/lab/report/show', 'Lab\Reports\SamplesReportsController@show')->na
 Route::get('/lab/sample-generate/certificate-analysis/{id}', 'SampleWorkFlowController@certificate_analysis')->name('certificate-analysis');
 Route::get('/getAnalysisTypeBySampleTypeAjax/{type_id}', 'Lab\Reports\SamplesReportsController@getAnalysisTypeBySampleTypeAjax')->name('getAnalysisTypeBySampleTypeAjax');
 
-Route::get('/lab/disposal/report','SampleWorkFlowController@disposalReportIndex')->name('lab-report-disposal');
-Route::get('/lab/tat/report','SampleWorkFlowController@tatReportIndex')->name('lab-report-tat');
+Route::get('/lab/disposal/report', 'SampleWorkFlowController@disposalReportIndex')->name('lab-report-disposal');
+Route::get('/lab/tat/report', 'SampleWorkFlowController@tatReportIndex')->name('lab-report-tat');
 
-Route::get('/get-analysis-type/{id}/Ajax','SampleWorkFlowController@getAnalysisTypeAjax')->name('getAnalysisTypeAjax');
-Route::get('/get-Analyte/{id}/Ajax','SampleWorkFlowController@getAnalyteAjax')->name('getAnalyteAjax');
+Route::get('/get-analysis-type/{id}/Ajax', 'SampleWorkFlowController@getAnalysisTypeAjax')->name('getAnalysisTypeAjax');
+Route::get('/get-Analyte/{id}/Ajax', 'SampleWorkFlowController@getAnalyteAjax')->name('getAnalyteAjax');
 //#################################LAB REPORTSS#######################################
 
 //###################################DISPOSED EQUIPMENT REPORTS######################################
@@ -1204,17 +1205,17 @@ Route::prefix('qualitycontrol')->group(function () {
     Route::get('/get/Qc-Type/Config/{id}/Ajax', 'QcModule\QualityControlController@getQcTypeConfigAjax')->name('getQcTypeConfigAjax');
 
     Route::post('/add/Qc-Approvvers', 'QcModule\QualityControlController@addQcApprovvers')->name('addQcApprovvers');
-    Route::post('/edit/qc-approver','QcModule\QualityControlController@editQcApprovers')->name('edit-qc-approver');
+    Route::post('/edit/qc-approver', 'QcModule\QualityControlController@editQcApprovers')->name('edit-qc-approver');
     Route::get('/deleteQcApprovvers/{id}', 'QcModule\QualityControlController@deleteQcApprovvers')->name('deleteQcApprovvers');
 
     Route::get('get/Analysis-Elements/By-Type-Id/{id}', 'QcModule\QualityControlController@getAnalysisElementsByTypeId')->name('getAnalysisElementsByTypeId');
-    Route::post('/mark/qc/batch/complete','SampleWorkFlowController@markQCBatchComplete')->name('mark-batch-complete');
+    Route::post('/mark/qc/batch/complete', 'SampleWorkFlowController@markQCBatchComplete')->name('mark-batch-complete');
 
-    Route::post('/process-qc/results','QcModule\QualityControlController@processResults')->name('process-qc-results');
-    Route::get('/show-processing/results','QcModule\QualityControlController@showUnProcessed')->name('showUnProcessed');
+    Route::post('/process-qc/results', 'QcModule\QualityControlController@processResults')->name('process-qc-results');
+    Route::get('/show-processing/results', 'QcModule\QualityControlController@showUnProcessed')->name('showUnProcessed');
 
-    Route::get('/results-reports','QcModule\QualityControlController@showQcReport')->name('qc-reports');
-    Route::get('/result-report/show/{result_id}','QcModule\QualityControlController@showQcReportGraph')->name('qc-result-show');
+    Route::get('/results-reports', 'QcModule\QualityControlController@showQcReport')->name('qc-reports');
+    Route::get('/result-report/show/{result_id}', 'QcModule\QualityControlController@showQcReportGraph')->name('qc-result-show');
 });
 //############################################QC Module###########################################
 
@@ -1224,7 +1225,7 @@ Route::get('/assign-Lab/Section-To-Analysis-Element/{id}', 'SampleWorkFlowContro
 Route::get('/generate/Customer-Focus/Index/{batch_id}', 'SampleWorkFlowController@generateCustomerFocusIndex')->name('generateCustomerFocusIndex');
 Route::post('/send/Batch-Schedule/Analysis', 'SampleWorkFlowController@sendBatchScheduleAnalysis')->name('sendBatchScheduleAnalysis');
 Route::post('/send/Batch-Payment/Reminder', 'SampleWorkFlowController@sendBatchPaymentReminder')->name('sendBatchPaymentReminder');
-Route::post('/send/batches-SOA','SampleWorkFlowController@sendBatchesScheduleAnalysis')->name('send-batches-soa');
+Route::post('/send/batches-SOA', 'SampleWorkFlowController@sendBatchesScheduleAnalysis')->name('send-batches-soa');
 //###################Inter Lab Log ####################################
 Route::get('/getSampleCurrentLabSection/{id}', 'SampleWorkFlowController@getSampleCurrentLabSection')->name('getSampleCurrentLabSection');
 Route::post('/create-sample-inter-lab-log', 'SampleWorkFlowController@create_sample_inter_lab_log')->name('create_sample_inter_lab_log');
@@ -1278,8 +1279,8 @@ Route::post('/save-Sample/AnalysisDate', 'SampleWorkFlowController@saveSampleAna
 Route::get('/get/Sample-IntelabLogs-Approval/Status', 'SampleWorkFlowController@getSampleIntelabLogsApprovalStatus')->name('getSampleIntelabLogsApprovalStatus');
 Route::get('/getSampleResultCapturedNot', 'SampleWorkFlowController@getSampleResultCapturedNot')->name('getSampleResultCapturedNot');
 
-Route::post('/mark/finished-sample','SampleWorkFlowController@markBatchesFinished')->name('mark-finished');
-Route::post('/return/finished-sample','SampleWorkFlowController@returnFromFinished')->name('return-finished');
+Route::post('/mark/finished-sample', 'SampleWorkFlowController@markBatchesFinished')->name('mark-finished');
+Route::post('/return/finished-sample', 'SampleWorkFlowController@returnFromFinished')->name('return-finished');
 
 //###############################################Polucon#########################################
 
@@ -1292,23 +1293,23 @@ Route::post('/email-recheck/{link_key}/{type}/{userid}', 'ExternalApprovalContro
 //##############################################EMAILAPPROVALS#######################################
 
 ###############################################NOTIFICATIONS#######################################
-Route::get('/send-restock-notifications','InventoryItemController@sendReorderNotifications')->name('send-restock-notifications');
+Route::get('/send-restock-notifications', 'InventoryItemController@sendReorderNotifications')->name('send-restock-notifications');
 ###############################################NOTIFICATIONS#######################################
 
 ###############################################ZOHO INTEGRATION#######################################
-Route::get('/zoho-auth-redirect','ZohoController@redirect')->name('zoho-auth-redirect');
-Route::get('/zoho-purchase-orders','ZohoController@getPurchaseOrders')->name('zoho-purchase-orders');
+Route::get('/zoho-auth-redirect', 'ZohoController@redirect')->name('zoho-auth-redirect');
+Route::get('/zoho-purchase-orders', 'ZohoController@getPurchaseOrders')->name('zoho-purchase-orders');
 Route::get('/zoho-get-things', 'ZohoController@sync_zoho_things')->name('zoho-sync-things');
 Route::get('/zoho-sync-coa', 'ChartOfAccountController@synchronize')->name('zoho-sync-coa');
-Route::get('/zoho-sync-all/{type}','ZohoController@sync_all')->name('zoho-sync-all');
+Route::get('/zoho-sync-all/{type}', 'ZohoController@sync_all')->name('zoho-sync-all');
 Route::get('/zoho-authenticate', 'ZohoController@authenticate')->name('zoho-authenticate');
 Route::get('/recreate-purchase-order/{id}', 'RequisitionController@resend_to_zoho')->name('recreate-purchase-order');
-Route::get('/getItemsTest','ZohoController@getItemsTest')->name('getItemsTest');
-Route::get('/changeSalesOrderStatus','ZohoController@changeSalesOrderStatus')->name('changeSalesOrderStatus');
+Route::get('/getItemsTest', 'ZohoController@getItemsTest')->name('getItemsTest');
+Route::get('/changeSalesOrderStatus', 'ZohoController@changeSalesOrderStatus')->name('changeSalesOrderStatus');
 
-Route::get('/matchCrmCurrency','SampleWorkFlowController@matchCrmCurrency')->name('matchCrmCurrency');
+Route::get('/matchCrmCurrency', 'SampleWorkFlowController@matchCrmCurrency')->name('matchCrmCurrency');
 // Route::get('/zoho-purchase-orders','ZohoController@getPurchaseOrders')->name('zoho-purchase-orders');
-Route::get('/sync-all-suppliers-to-items','ZohoController@supplier_to_item_sync')->name('sync-all-suppliers-to-items');
+Route::get('/sync-all-suppliers-to-items', 'ZohoController@supplier_to_item_sync')->name('sync-all-suppliers-to-items');
 ###############################################ZOHO INTEGRATION#######################################
 
 #################################### Matrix CONFIGURATIONS#######################################
@@ -1322,40 +1323,40 @@ Route::get('/move-skills-type/{direction}/{module}/{element}', 'SkillsMatrix\Mod
 Route::get('/matrix', 'SkillsMatrix\SkillsMatrixController@index')->name('matrix');
 Route::post('/matrix', 'SkillsMatrix\SkillsMatrixController@add')->name('assign-matrix');
 Route::post('/matrix/edit', 'SkillsMatrix\SkillsMatrixController@edit')->name('edit-matrix');
-Route::get('/matrix/show/{id}','SkillsMatrix\SkillsMatrixController@show')->name('show-matrix');
-Route::post('/matrix/create','SkillsMatrix\SkillsMatrixController@createSkillsMatrix')->name('create-matrix');
-Route::post('/matrix/detail/delete','SkillsMatrix\SkillsMatrixController@deleteMatrixDetail')->name('delete-matrix-detail');
-Route::post('/matrix/detail/role/edit','SkillsMatrix\SkillsMatrixController@editMatrixdetailRole')->name('edit-matrix-detail-role');
+Route::get('/matrix/show/{id}', 'SkillsMatrix\SkillsMatrixController@show')->name('show-matrix');
+Route::post('/matrix/create', 'SkillsMatrix\SkillsMatrixController@createSkillsMatrix')->name('create-matrix');
+Route::post('/matrix/detail/delete', 'SkillsMatrix\SkillsMatrixController@deleteMatrixDetail')->name('delete-matrix-detail');
+Route::post('/matrix/detail/role/edit', 'SkillsMatrix\SkillsMatrixController@editMatrixdetailRole')->name('edit-matrix-detail-role');
 
-Route::get('/matrix/capability/index','SkillsMatrix\CapabilityController@index')->name('capability-index');
-Route::post('/matrix/capability/add','SkillsMatrix\CapabilityController@store')->name('capability.add');
-Route::post('/matrix/capability/edit','SkillsMatrix\CapabilityController@editCapabaility')->name('capability.edit');
-Route::post('/matrix/capability/delete','SkillsMatrix\CapabilityController@deleteCapabaility')->name('capability.delete');
+Route::get('/matrix/capability/index', 'SkillsMatrix\CapabilityController@index')->name('capability-index');
+Route::post('/matrix/capability/add', 'SkillsMatrix\CapabilityController@store')->name('capability.add');
+Route::post('/matrix/capability/edit', 'SkillsMatrix\CapabilityController@editCapabaility')->name('capability.edit');
+Route::post('/matrix/capability/delete', 'SkillsMatrix\CapabilityController@deleteCapabaility')->name('capability.delete');
 
-Route::get('/matrix/get/role/{matrix_id}/ajax','SkillsMatrix\CapabilityController@getSkillMatrixRolesAjax')->name('capability.get.role');
-Route::post('/matrix/get/user/position/ajax','SkillsMatrix\CapabilityController@getMatrixUsersByPositionAjax')->name('capability.get.userby.position');
-Route::get('/matrix/capability/show/{id}','SkillsMatrix\CapabilityController@show')->name('capability.show');
-Route::post('/matrix/capability/show/{id}','SkillsMatrix\CapabilityController@show')->name('capability.show-post');
-Route::post('/matrix/capability/details/store','SkillsMatrix\CapabilityController@storeDetails')->name('capability.detail.store');
+Route::get('/matrix/get/role/{matrix_id}/ajax', 'SkillsMatrix\CapabilityController@getSkillMatrixRolesAjax')->name('capability.get.role');
+Route::post('/matrix/get/user/position/ajax', 'SkillsMatrix\CapabilityController@getMatrixUsersByPositionAjax')->name('capability.get.userby.position');
+Route::get('/matrix/capability/show/{id}', 'SkillsMatrix\CapabilityController@show')->name('capability.show');
+Route::post('/matrix/capability/show/{id}', 'SkillsMatrix\CapabilityController@show')->name('capability.show-post');
+Route::post('/matrix/capability/details/store', 'SkillsMatrix\CapabilityController@storeDetails')->name('capability.detail.store');
 
-Route::get('/matrix/training-needs','SkillsMatrix\TrainingNeedsController@index')->name('train.needs.index');
-Route::post('/matrix/train-needs/store','SkillsMatrix\TrainingNeedsController@store')->name('train.needs.store');
-Route::get('/matrix/get-capability-users/{id}','SkillsMatrix\TrainingNeedsController@getCapabilityUsers')->name('train.needs.get.cabailityusers');
-Route::get('/matrix/train-needs/{id}','SkillsMatrix\TrainingNeedsController@show')->name('train.needs.show');
-Route::post('/matrix/train-need/edit','SkillsMatrix\TrainingNeedsController@editTrainNeed')->name('train.needs.edit');
-Route::post('/matrix/train-need/delete','SkillsMatrix\TrainingNeedsController@deleteTrainNeed')->name('train.needs.delete');
+Route::get('/matrix/training-needs', 'SkillsMatrix\TrainingNeedsController@index')->name('train.needs.index');
+Route::post('/matrix/train-needs/store', 'SkillsMatrix\TrainingNeedsController@store')->name('train.needs.store');
+Route::get('/matrix/get-capability-users/{id}', 'SkillsMatrix\TrainingNeedsController@getCapabilityUsers')->name('train.needs.get.cabailityusers');
+Route::get('/matrix/train-needs/{id}', 'SkillsMatrix\TrainingNeedsController@show')->name('train.needs.show');
+Route::post('/matrix/train-need/edit', 'SkillsMatrix\TrainingNeedsController@editTrainNeed')->name('train.needs.edit');
+Route::post('/matrix/train-need/delete', 'SkillsMatrix\TrainingNeedsController@deleteTrainNeed')->name('train.needs.delete');
 
 
-Route::get('/matrix/train-plan/index','SkillsMatrix\TrainingPlanController@index')->name('train.plan.index');
-Route::post('/matrix/train-plan/store','SkillsMatrix\TrainingPlanController@store')->name('train.plan.store');
-Route::post('/matrix/train/plan/edit','SkillsMatrix\TrainingPlanController@editPlan')->name('train.plan.edit');
-Route::post('/matrix/train/plan/delete','SkillsMatrix\TrainingPlanController@deletePlan')->name('train.plan.delete');
-Route::get('/matrix/train-plan/show/{id}','SkillsMatrix\TrainingPlanController@show')->name('train.plan.show');
-Route::post('/matrix/train-plan/show/{id}','SkillsMatrix\TrainingPlanController@show')->name('train.plan.show-post');
+Route::get('/matrix/train-plan/index', 'SkillsMatrix\TrainingPlanController@index')->name('train.plan.index');
+Route::post('/matrix/train-plan/store', 'SkillsMatrix\TrainingPlanController@store')->name('train.plan.store');
+Route::post('/matrix/train/plan/edit', 'SkillsMatrix\TrainingPlanController@editPlan')->name('train.plan.edit');
+Route::post('/matrix/train/plan/delete', 'SkillsMatrix\TrainingPlanController@deletePlan')->name('train.plan.delete');
+Route::get('/matrix/train-plan/show/{id}', 'SkillsMatrix\TrainingPlanController@show')->name('train.plan.show');
+Route::post('/matrix/train-plan/show/{id}', 'SkillsMatrix\TrainingPlanController@show')->name('train.plan.show-post');
 
-Route::post('/matrix/train/plan/other/store','SkillsMatrix\TrainingPlanController@storeOther')->name('train.plan.store.other');
-Route::post('/matrix/train/planner/detail/store','SkillsMatrix\TrainingPlanController@storeDetail')->name('train.plan.detail.store');
-Route::post('/matrix/train/plan/others/delete','SkillsMatrix\TrainingPlanController@deleteOtherDetail')->name('train.plan.others.delete');
+Route::post('/matrix/train/plan/other/store', 'SkillsMatrix\TrainingPlanController@storeOther')->name('train.plan.store.other');
+Route::post('/matrix/train/planner/detail/store', 'SkillsMatrix\TrainingPlanController@storeDetail')->name('train.plan.detail.store');
+Route::post('/matrix/train/plan/others/delete', 'SkillsMatrix\TrainingPlanController@deleteOtherDetail')->name('train.plan.others.delete');
 
 Route::get('/matrix-config/{module}', 'SkillsMatrix\SkillsMatrixConfigController@index')->name('matrix-config');
 Route::get('/matrix-config/{module}/{id}', 'SkillsMatrix\SkillsMatrixConfigController@getTopologies')->name('topology-module');
@@ -1382,31 +1383,30 @@ Route::get('/training-acceptance/{training_id}/{dept_number}/{user_id}/{acceptan
 
 #################################### Matrix CONFIGURATIONS#######################################
 ###############################VGM MODULE###############################
-Route::get('/vgm/index','Inspection\InspectionController@index')->name('vgm.index');
-Route::get('/vgm/show/{id}','Inspection\InspectionController@show')->name('vgm.show');
-Route::post('/vgm/store','Inspection\InspectionController@store')->name('vgm.store');
-Route::post('/vgm/delete','Inspection\InspectionController@delete')->name('vgm.delete');
+Route::get('/vgm/index', 'Inspection\InspectionController@index')->name('vgm.index');
+Route::get('/vgm/show/{id}', 'Inspection\InspectionController@show')->name('vgm.show');
+Route::post('/vgm/store', 'Inspection\InspectionController@store')->name('vgm.store');
+Route::post('/vgm/delete', 'Inspection\InspectionController@delete')->name('vgm.delete');
 
 #################################SAMPLE WORKFLOW SEND SALES ORDER#######################
-Route::post('/validate/client-batches','SampleWorkFlowController@validateClientBatches')->name('validate-clients');
-Route::post('/ajax/send-schedule','SampleWorkFlowController@sendScheduleAjax')->name('ajax-send-schedule');
+Route::post('/validate/client-batches', 'SampleWorkFlowController@validateClientBatches')->name('validate-clients');
+Route::post('/ajax/send-schedule', 'SampleWorkFlowController@sendScheduleAjax')->name('ajax-send-schedule');
 #######################################################################################
 
 #####################################IMARA AI#######################
-Route::get('/imara/ai/index','HomeController@aiIndex')->name('imara-ai-index');
+Route::get('/imara/ai/index', 'HomeController@aiIndex')->name('imara-ai-index');
 
 
 
 
 #STORAGE ROUTES
-Route::get('storage/{type}/{filename}', function ($type, $filename)
-{
-  // Add folder path here instead of storing in the database.
-  $path = storage_path('app/'.$type.'/'. $filename);
-  // return $path;
-  if (!File::exists($path)) {
-    abort(404);
-  }
+Route::get('storage/{type}/{filename}', function ($type, $filename) {
+    // Add folder path here instead of storing in the database.
+    $path = storage_path('app/' . $type . '/' . $filename);
+    // return $path;
+    if (!File::exists($path)) {
+        abort(404);
+    }
 
     $file = File::get($path);
     $type = File::mimeType($path);
@@ -1418,7 +1418,7 @@ Route::get('storage/{type}/{filename}', function ($type, $filename)
 });
 Route::get('storage/{type}/{company}/{filename}', function ($type, $company, $filename) {
     // Add folder path here instead of storing in the database.
-    $path = storage_path('app/'.$type.'/'.$company.'/'.$filename);
+    $path = storage_path('app/' . $type . '/' . $company . '/' . $filename);
     // return $path;
     if (!File::exists($path)) {
         abort(404);
@@ -1437,14 +1437,14 @@ Route::get('/set-available-stock', function () {
     $items = \App\InventorySubCategories::all();
 
     foreach ($items as $item) {
-        echo calculateAvailableStock($item->id).'<br>';
-        echo setItemReorderLevel($item->id, $item->reorder_level()).'<br>';
+        echo calculateAvailableStock($item->id) . '<br>';
+        echo setItemReorderLevel($item->id, $item->reorder_level()) . '<br>';
     }
 
     return 'OK';
 });
 
-Route::get('/pinfo', function(){
+Route::get('/pinfo', function () {
     phpinfo();
     return 'OK';
 });
@@ -1489,7 +1489,7 @@ Route::middleware(['auth'])->prefix('dms')->name('dms.')->group(function () {
     Route::get('/archived-documents', 'LivewireControllers\DMSController@archivedDocuments')->name('archived');
     Route::get('/amendments', 'LivewireControllers\DMSController@amendments')->name('amendments');
     Route::get('/reports', 'LivewireControllers\DMSController@reports')->name('reports');
-    
+
     // File operations
     Route::get('/documents/{id}/download', 'DMSController@download')->name('download');
     Route::get('/documents/{id}/preview', 'DMSController@preview')->name('preview');

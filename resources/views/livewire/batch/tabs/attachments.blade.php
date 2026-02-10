@@ -68,7 +68,7 @@
                                             </td>
                                             <td>
                                                 <button type="button" wire:click="deleteAttachment({{$a->id}})"
-                                                    onclick="return confirm('Are you sure you want to delete attachment: {{$a->title}}?')"
+                                                    wire:confirm="Are you sure you want to delete attachment: {{$a->title}}?"
                                                     class="btn btn-sm btn-outline-danger" data-toggle="tooltip"
                                                     title="Delete Attachment">
                                                     <i class="mdi mdi-delete-empty"></i>
@@ -103,7 +103,7 @@
                                         </td>
                                         <td>
                                             <button type="button" wire:click="deleteAttachment({{$a->id}})"
-                                                onclick="return confirm('Are you sure you want to delete attachment: {{$a->title}}?')"
+                                                wire:confirm="Are you sure you want to delete attachment: {{$a->title}}?"
                                                 class="btn btn-sm btn-outline-danger" data-toggle="tooltip"
                                                 title="Delete Attachment">
                                                 <i class="mdi mdi-delete-empty"></i>
@@ -295,19 +295,19 @@
 
     <script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.0/Sortable.min.js"></script>
     <script>
-        (function() {
+        (function () {
             'use strict';
-            
+
             function updateMergeButtonState() {
                 var checkboxes = document.querySelectorAll('.attachment-checkbox:checked');
                 var count = checkboxes.length;
                 var mergeBtn = document.getElementById('merge-attachments-btn');
                 var mergeCount = document.getElementById('merge-count');
-                
+
                 if (mergeCount) {
                     mergeCount.textContent = count;
                 }
-                
+
                 if (mergeBtn) {
                     if (count >= 2) {
                         mergeBtn.disabled = false;
@@ -318,7 +318,7 @@
                     }
                 }
             }
-            
+
             function initializeHandlers() {
                 // Use event delegation on the container (which persists through Livewire updates)
                 var container = document.getElementById('attachments-container');
@@ -326,33 +326,33 @@
                     // Fallback to document if container not found
                     container = document;
                 }
-                
+
                 // Remove old listener and add new one
                 container.removeEventListener('change', handleCheckboxChange);
                 container.addEventListener('change', handleCheckboxChange);
-                
+
                 // Check all handler
                 var checkAll = document.getElementById('check-all-attachments');
                 if (checkAll) {
                     checkAll.removeEventListener('change', handleCheckAllChange);
                     checkAll.addEventListener('change', handleCheckAllChange);
                 }
-                
+
                 // Merge button handler
                 var mergeBtn = document.getElementById('merge-attachments-btn');
                 if (mergeBtn) {
                     mergeBtn.removeEventListener('click', handleMergeClick);
                     mergeBtn.addEventListener('click', handleMergeClick);
                 }
-                
+
                 // Initial state
                 updateMergeButtonState();
             }
-            
+
             function handleCheckboxChange(e) {
                 if (e.target.classList.contains('attachment-checkbox')) {
                     updateMergeButtonState();
-                    
+
                     // Update check-all state
                     var table = document.getElementById('attachments-table');
                     if (table) {
@@ -365,64 +365,64 @@
                     }
                 }
             }
-            
+
             function handleCheckAllChange(e) {
                 var table = document.getElementById('attachments-table');
                 if (table) {
                     var isChecked = e.target.checked;
-                    table.querySelectorAll('.attachment-checkbox').forEach(function(cb) {
+                    table.querySelectorAll('.attachment-checkbox').forEach(function (cb) {
                         cb.checked = isChecked;
                     });
                     updateMergeButtonState();
                 }
             }
-            
+
             function handleMergeClick(e) {
                 e.preventDefault();
-                
+
                 var table = document.getElementById('attachments-table');
                 if (!table) return;
-                
+
                 var checkedBoxes = table.querySelectorAll('.attachment-checkbox:checked');
                 if (checkedBoxes.length < 2) {
                     alert('Please select at least 2 attachments to merge.');
                     return;
                 }
-                
+
                 // Populate modal
                 var sortableList = document.getElementById('sortable-attachments');
                 if (sortableList) {
                     sortableList.innerHTML = '';
-                    
-                    checkedBoxes.forEach(function(cb) {
+
+                    checkedBoxes.forEach(function (cb) {
                         var id = cb.value;
                         var title = cb.getAttribute('data-title') || 'N/a';
                         var type = cb.getAttribute('data-type') || 'General';
-                        
+
                         var li = document.createElement('li');
                         li.className = 'list-group-item p-2 mb-1 d-flex justify-content-between align-items-center';
                         li.setAttribute('data-id', id);
                         li.innerHTML = '<span><i class="mdi mdi-drag-vertical mr-2 text-muted"></i> ' + title + ' <small class="text-muted">(' + type + ')</small></span>';
                         sortableList.appendChild(li);
                     });
-                    
+
                     // Show modal (using jQuery/bootstrap)
                     if (window.jQuery && window.jQuery.fn.modal) {
                         window.jQuery('#merge-attachments-modal').modal('show');
                     }
-                    
+
                     // Initialize SortableJS
                     if (window.Sortable) {
                         // Destroy existing instance
                         if (sortableList.sortableInstance) {
                             sortableList.sortableInstance.destroy();
                         }
-                        
+
                         sortableList.sortableInstance = window.Sortable.create(sortableList, {
                             animation: 150,
-                            onEnd: function() {
+                            onEnd: function () {
                                 var ids = [];
-                                sortableList.querySelectorAll('li').forEach(function(li) {
+                                sortableList.querySelectorAll('li').forEach(function (li) {
                                     ids.push(li.getAttribute('data-id'));
                                 });
                                 var hiddenInput = document.getElementById('ordered-attachment-ids');
@@ -431,10 +431,10 @@
                                 }
                             }
                         });
-                        
+
                         // Initial update
                         var ids = [];
-                        sortableList.querySelectorAll('li').forEach(function(li) {
+                        sortableList.querySelectorAll('li').forEach(function (li) {
                             ids.push(li.getAttribute('data-id'));
                         });
                         var hiddenInput = document.getElementById('ordered-attachment-ids');
@@ -444,34 +444,34 @@
                     }
                 }
             }
-            
-            
+
+
             // Initialize when DOM is ready
             if (document.readyState === 'loading') {
                 document.addEventListener('DOMContentLoaded', initializeHandlers);
             } else {
                 initializeHandlers();
             }
-            
+
             // Re-initialize after Livewire updates
             if (typeof Livewire !== 'undefined') {
                 document.addEventListener('livewire:load', initializeHandlers);
-                
-                Livewire.hook('message.processed', function() {
+
+                Livewire.hook('message.processed', function () {
                     setTimeout(initializeHandlers, 50);
                 });
             }
-            
+
             // Also listen for Livewire component updates
-            document.addEventListener('livewire:update', function() {
+            document.addEventListener('livewire:update', function () {
                 setTimeout(initializeHandlers, 50);
             });
         })();
-        
+
         // Form Submit handler and file input handler (jQuery)
-        (function($) {
+        (function ($) {
             // Vanilla JS fallback for file input labels
-            document.addEventListener('change', function(e) {
+            document.addEventListener('change', function (e) {
                 if (e.target && e.target.classList.contains('custom-file-input')) {
                     var fileName = e.target.value.split("\\").pop();
                     var label = e.target.nextElementSibling;
@@ -483,15 +483,15 @@
             });
 
             if ($) {
-                $(document).on('submit', '#merge-attachments-modal form', function() {
+                $(document).on('submit', '#merge-attachments-modal form', function () {
                     var ids = [];
-                    $('#sortable-attachments li').each(function() {
+                    $('#sortable-attachments li').each(function () {
                         ids.push($(this).data('id'));
                     });
                     $('#ordered-attachment-ids').val(ids.join(','));
                 });
 
-                $(document).on('change', '.custom-file-input', function() {
+                $(document).on('change', '.custom-file-input', function () {
                     var fileName = $(this).val().split("\\").pop();
                     $(this).siblings(".custom-file-label").addClass("selected").html(fileName);
                 });
@@ -504,7 +504,7 @@
                 alert('Please enter a name for the attachment type.');
                 return;
             }
-            
+
             $.ajax({
                 url: "{{ route('store-attachment-type') }}",
                 type: "POST",
@@ -512,7 +512,7 @@
                     _token: "{{ csrf_token() }}",
                     value: name
                 },
-                success: function(response) {
+                success: function (response) {
                     if (response.success) {
                         var newOption = new Option(response.value, response.id, true, true);
                         $('#attachment_type_select').append(newOption).trigger('change');
@@ -524,7 +524,7 @@
                         alert('Error adding attachment type: ' + response.message);
                     }
                 },
-                error: function(xhr) {
+                error: function (xhr) {
                     alert('Error adding attachment type. Please try again.');
                 }
             });

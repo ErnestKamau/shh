@@ -182,8 +182,8 @@
 
     .form-info-box {
       /* background: #f8f9fa;
-              border: 1px solid #dee2e6;
-              border-radius: 8px; */
+                  border: 1px solid #dee2e6;
+                  border-radius: 8px; */
       padding: 15px;
       margin-left: 45%
     }
@@ -279,7 +279,7 @@
       'icon' => null
     ]
   ];
-            ?>
+                ?>
     <x-bread-crumb :items="$items"></x-bread-crumb>
 
     <!-- Action Buttons -->
@@ -358,23 +358,26 @@
                 {{-- Other sections: show form fields but no description --}}
                 @foreach($section->elementHolders as $holder)
                   @if($holder->holder_type === 'field')
-                     <div class="row">
-                       @php
-                         $sortedElements = $holder->elements;
-                         if ($isSamplingSection) {
-                           $sortedElements = $holder->elements->sortBy(function($el) {
-                             $label = strtolower($el->label ?? '');
-                             if (str_contains($label, 'date') || str_contains($label, 'time')) return 1;
-                             if (str_contains($label, 'by') || str_contains($label, 'person') || str_contains($label, 'officer')) return 2;
-                             if (str_contains($label, 'signature')) return 3;
-                             return 4;
-                           });
-                         }
+                    <div class="row">
+                      @php
+                        $sortedElements = $holder->elements;
+                        if ($isSamplingSection) {
+                          $sortedElements = $holder->elements->sortBy(function ($el) {
+                            $label = strtolower($el->label ?? '');
+                            if (str_contains($label, 'date') || str_contains($label, 'time'))
+                              return 1;
+                            if (str_contains($label, 'by') || str_contains($label, 'person') || str_contains($label, 'officer'))
+                              return 2;
+                            if (str_contains($label, 'signature'))
+                              return 3;
+                            return 4;
+                          });
+                        }
                        @endphp
-                       @foreach($sortedElements as $element)
+                      @foreach($sortedElements as $element)
                         @php
                           // Skip client unit field if we're in Client Details section as it's included in the table
-                          $isClientUnitInClientDetails = $element->element_type === 'client_unit_select' &&
+                          $isClientUnitInClientDetails = in_array($element->element_type, ['client_unit_select', 'company_sub_unit_select']) &&
                             $sectionTitle === 'CLIENT DETAILS';
                          @endphp
 
@@ -406,7 +409,7 @@
                                       $clientUnitElements = $instance->values()
                                         ->with('element')
                                         ->whereHas('element', function ($query) {
-                                          $query->where('element_type', 'client_unit_select');
+                                          $query->whereIn('element_type', ['client_unit_select', 'company_sub_unit_select']);
                                         })
                                         ->get();
 
@@ -414,11 +417,7 @@
                                       $clientSectionValue = 'N/A';
 
                                       foreach ($clientUnitElements as $unitVal) {
-                                        $resolvedVal = 'N/A';
-                                        if ($unitVal->value) {
-                                          $unitModel = \App\Models\CRM\CRMCompanyUnit::find($unitVal->value);
-                                          $resolvedVal = $unitModel ? $unitModel->name : $unitVal->value;
-                                        }
+                                        $resolvedVal = $instance->resolveDisplayValue($unitVal->element, $unitVal->value);
 
                                         if (str_contains(strtolower($unitVal->element->label), 'section')) {
                                           $clientSectionValue = $resolvedVal;
@@ -432,31 +431,31 @@
                                       if ($clientSectionValue && $clientSectionValue !== 'N/A') {
                                         $clientNameDisplay .= ', ' . $clientSectionValue;
                                       }
-                                      
+
                                       $value = '<div class="table-responsive">
-                                                                                                                       <table class="table table-sm table-bordered mb-0 w-100" style="font-size: 14px; background-color: white;">
-                                                                                                                         <tr>
-                                                                                                                           <td class="font-weight-bold" style="width: 25%; background-color: #f8f9fa;">Client Name</td>
-                                                                                                                           <td>' . $clientNameDisplay . '</td>
-                                                                                                                         </tr>
-                                                                                                                         <tr>
-                                                                                                                           <td class="font-weight-bold" style="background-color: #f8f9fa;">Address</td>
-                                                                                                                           <td>' . ($client->address ?? 'N/A') . '</td>
-                                                                                                                         </tr>
-                                                                                                                         <tr>
-                                                                                                                           <td class="font-weight-bold" style="background-color: #f8f9fa;">Telephone</td>
-                                                                                                                           <td>' . ($client->telephone ?? 'N/A') . '</td>
-                                                                                                                         </tr>
-                                                                                                                         <tr>
-                                                                                                                           <td class="font-weight-bold" style="background-color: #f8f9fa;">Email</td>
-                                                                                                                           <td>' . ($client->email ?? 'N/A') . '</td>
-                                                                                                                         </tr>
-                                                                                                                         <tr>
-                                                                                                                           <td class="font-weight-bold" style="background-color: #f8f9fa;">Client Unit</td>
-                                                                                                                           <td>' . $clientUnitValue . '</td>
-                                                                                                                         </tr>
-                                                                                                                       </table>
-                                                                                                                     </div>';
+                                                                                                                                                               <table class="table table-sm table-bordered mb-0 w-100" style="font-size: 14px; background-color: white;">
+                                                                                                                                                                 <tr>
+                                                                                                                                                                   <td class="font-weight-bold" style="width: 25%; background-color: #f8f9fa;">Client Name</td>
+                                                                                                                                                                   <td>' . $clientNameDisplay . '</td>
+                                                                                                                                                                 </tr>
+                                                                                                                                                                 <tr>
+                                                                                                                                                                   <td class="font-weight-bold" style="background-color: #f8f9fa;">Address</td>
+                                                                                                                                                                   <td>' . ($client->physical_address ?? 'N/A') . '</td>
+                                                                                                                                                                 </tr>
+                                                                                                                                                                 <tr>
+                                                                                                                                                                   <td class="font-weight-bold" style="background-color: #f8f9fa;">Telephone</td>
+                                                                                                                                                                   <td>' . ($client->telephone1 ?? 'N/A') . '</td>
+                                                                                                                                                                 </tr>
+                                                                                                                                                                 <tr>
+                                                                                                                                                                   <td class="font-weight-bold" style="background-color: #f8f9fa;">Email</td>
+                                                                                                                                                                   <td>' . ($client->email ?? 'N/A') . '</td>
+                                                                                                                                                                 </tr>
+                                                                                                                                                                 <tr>
+                                                                                                                                                                   <td class="font-weight-bold" style="background-color: #f8f9fa;">Client Unit</td>
+                                                                                                                                                                   <td>' . $clientUnitValue . '</td>
+                                                                                                                                                                 </tr>
+                                                                                                                                                               </table>
+                                                                                                                                                             </div>';
                                     }
                                   } else {
                                     $value = $instance->resolveDisplayValue($element, $value);
@@ -555,10 +554,10 @@
 
 @section('script2')
   <script>
-          // Auto-hide alerts after 5 seconds
-          setTimeout (fun ction ()  {
-            $('.alert-dismissible').fadeOut('slow');
-          }, 5000);
+    // Auto-hide alerts after 5 seconds
+    setTimeout(fun ction()  {
+      $('.alert-dismissible').fadeOut('slow');
+    }, 5000);
   </script>
 @endsection
 

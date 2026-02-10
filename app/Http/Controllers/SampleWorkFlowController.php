@@ -3200,61 +3200,71 @@ class SampleWorkFlowController extends Controller
             return redirect()->back()->with('error', 'Could not retrieve selected attachments.');
         }
 
-        $pdf = new \setasign\Fpdi\Fpdi();
+        $pdf = new TcpdfFpdi();
+        $pdf->setPrintHeader(false);
+        $pdf->setPrintFooter(false);
+        $pdf->SetMargins(0, 0, 0);
+        $pdf->SetAutoPageBreak(false);
 
-        $filesMerged = 0;
+        $validFiles = [];
+        $totalPageCount = 0;
 
         foreach ($orderedAttachments as $attachment) {
-            // attachment_url is stored like '/storage/batch-attachments/Start%20Report.pdf'
-
             $relativePath = urldecode($attachment->attachment_url);
-
-            // Handle duplicate leading slashes if public_path adds one
-            // If path starts with /, public_path may double it, usually fine but let's be clean
             $relativePath = ltrim($relativePath, '/');
-
             $filePath = public_path($relativePath);
 
-            \Log::info("Merging Attachment: ID {$attachment->id}, URL: {$attachment->attachment_url}");
-            \Log::info("Resolved Path: {$filePath}");
-
             if (!file_exists($filePath)) {
-                \Log::warning("File not found at path: {$filePath}");
-
-                // Fallback: Check in storage/app if not in public
-                // URL: /storage/folder/file.pdf -> Path: storage/app/folder/file.pdf
                 $cleanPath = ltrim($relativePath, '/');
                 if (strpos($cleanPath, 'storage/') === 0) {
-                    $storageInternalPath = substr($cleanPath, 8); // remove 'storage/'
+                    $storageInternalPath = substr($cleanPath, 8);
                     $fallbackPath = storage_path('app/' . $storageInternalPath);
-                    \Log::info("Checking fallback path: {$fallbackPath}");
-
                     if (file_exists($fallbackPath)) {
                         $filePath = $fallbackPath;
-                        \Log::info("File found at fallback path.");
                     }
                 }
             }
 
-            if (!file_exists($filePath)) {
-                continue;
+            if (file_exists($filePath)) {
+                try {
+                    $tempPdf = new TcpdfFpdi();
+                    $pCount = $tempPdf->setSourceFile($filePath);
+                    $totalPageCount += $pCount;
+                    $validFiles[] = ['path' => $filePath, 'count' => $pCount, 'title' => $attachment->title];
+                } catch (\Exception $e) {
+                    \Log::warning("Could not pre-scan PDF {$attachment->title}: " . $e->getMessage());
+                }
             }
+        }
 
+        $filesMerged = count($validFiles);
+        if ($filesMerged === 0) {
+            return redirect()->back()->with('error', 'No valid files found to merge.');
+        }
+
+        $currentPageGlobal = 1;
+        foreach ($validFiles as $fileInfo) {
             try {
-                $pageCount = $pdf->setSourceFile($filePath);
-                \Log::info("File found. Page count: {$pageCount}");
-                for ($pageNo = 1; $pageNo <= $pageCount; $pageNo++) {
+                $pdf->setSourceFile($fileInfo['path']);
+                for ($pageNo = 1; $pageNo <= $fileInfo['count']; $pageNo++) {
                     $templateId = $pdf->importPage($pageNo);
                     $size = $pdf->getTemplateSize($templateId);
 
-                    // Add Page with same orientation/size as source
-                    $pdf->AddPage($size['orientation'], [$size['width'], $size['height']]);
+                    $pdf->AddPage($size['orientation'], array($size['width'], $size['height']));
                     $pdf->useTemplate($templateId);
+
+                    // Add "Page X of Y" numbering at the bottom
+                    $pdf->SetFont('helvetica', '', 10);
+                    $pdf->SetTextColor(0, 0, 0);
+                    $text = "Page $currentPageGlobal of $totalPageCount";
+
+                    // Position: bottom center
+                    $pdf->Text($size['width'] / 2 - 15, $size['height'] - 10, $text);
+
+                    $currentPageGlobal++;
                 }
-                $filesMerged++;
             } catch (\Exception $e) {
-                \Log::error("Error merging file {$attachment->title}: " . $e->getMessage());
-                return redirect()->back()->with('error', 'Error merging file ' . $attachment->title . ': ' . $e->getMessage());
+                \Log::error("Error merging file {$fileInfo['title']}: " . $e->getMessage());
             }
         }
 
@@ -5844,6 +5854,39 @@ class SampleWorkFlowController extends Controller
             ], 500);
         }
     }
+    /**
+     * Handle TinyMCE image uploads for annotations
+     */
+    public function uploadAnnotationImage(Request $request)
+    {
+        try {
+            if (!$request->hasFile('file')) {
+                return response()->json(['error' => 'No file uploaded'], 400);
+            }
+
+            $file = $request->file('file');
+
+            // Validate file type
+            $allowedExtensions = ['jpg', 'jpeg', 'png', 'gif'];
+            $extension = strtolower($file->getClientOriginalExtension());
+            if (!in_array($extension, $allowedExtensions)) {
+                return response()->json(['error' => 'Invalid file type'], 400);
+            }
+
+            // Store the file
+            $path = Storage::disk('public')->putFile('annotation-images', $file);
+
+            // Return the full URL for TinyMCE
+            $location = url(Storage::url($path));
+
+            return response()->json(['location' => $location]);
+
+        } catch (\Exception $e) {
+            Log::error('TinyMCE upload error: ' . $e->getMessage());
+            return response()->json(['error' => 'Upload failed: ' . $e->getMessage()], 500);
+        }
+    }
+
 
     /**
      * Save annotated PDF
@@ -5943,29 +5986,10 @@ class SampleWorkFlowController extends Controller
             // Save new PDF (overwriting original)
             $pdf->Output($filePath, 'F');
 
-            // Save annotations to database for future editing
+            // Clear annotations from database. 
+            // Since they are now "baked" into the PDF, we clear the DB records 
+            // to prevent overlapping renderings in the annotator tool.
             BatchAttachmentAnnotation::where('batch_attachment_id', $attachment->id)->delete();
-
-            foreach ($annotationsData as $annData) {
-                $content = $annData['htmlContent'] ?? $annData['content'] ?? '';
-                $styleData = $annData['style_data'] ?? [];
-                if (!is_array($styleData)) {
-                    $styleData = [];
-                }
-                $styleData['plainText'] = strip_tags($content);
-
-                BatchAttachmentAnnotation::create([
-                    'batch_attachment_id' => $attachment->id,
-                    'page_number' => $annData['page_number'],
-                    'annotation_type' => $annData['annotation_type'],
-                    'content' => $content,
-                    'x_position' => $annData['x_position'],
-                    'y_position' => $annData['y_position'],
-                    'width' => $annData['width'] ?? null,
-                    'height' => $annData['height'] ?? null,
-                    'style_data' => $styleData
-                ]);
-            }
 
             return redirect()->back()->with('success', 'PDF annotated and saved successfully!');
 

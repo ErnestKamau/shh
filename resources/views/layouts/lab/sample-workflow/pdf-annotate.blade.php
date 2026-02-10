@@ -296,8 +296,53 @@
                         'searchreplace visualblocks code fullscreen',
                         'insertdatetime media table paste code help wordcount'
                     ],
-                    toolbar: 'undo redo | formatselect | bold italic backcolor | alignleft aligncenter alignright alignjustify | bullist numlist outdent indent | removeformat | help',
+                    toolbar: 'undo redo | formatselect | bold italic backcolor | alignleft aligncenter alignright alignjustify | bullist numlist outdent indent | removeformat | image | help',
                     content_style: 'body { font-family: Arial, sans-serif; font-size: 14px; }',
+                    images_upload_handler: function (blobInfo, success, failure, progress) {
+                        var xhr, formData;
+
+                        xhr = new XMLHttpRequest();
+                        xhr.withCredentials = false;
+                        xhr.open('POST', '{{ route('upload-annotation-image') }}');
+
+                        // Set headers
+                        xhr.setRequestHeader('X-CSRF-TOKEN', '{{ csrf_token() }}');
+
+                        xhr.onload = function() {
+                            var json;
+
+                            if (xhr.status != 200) {
+                                failure('HTTP Error: ' + xhr.status);
+                                return;
+                            }
+
+                            try {
+                                json = JSON.parse(xhr.responseText);
+
+                                if (!json || typeof json.location != 'string') {
+                                    failure('Invalid JSON: ' + xhr.responseText);
+                                    return;
+                                }
+
+                                success(json.location);
+                            } catch (e) {
+                                failure('JSON parse error: ' + xhr.responseText);
+                            }
+                        };
+
+                        xhr.onerror = function () {
+                            failure('Image upload failed due to a network error.');
+                        };
+
+                        formData = new FormData();
+                        formData.append('file', blobInfo.blob(), blobInfo.filename());
+
+                        xhr.send(formData);
+                    },
+                    automatic_uploads: true,
+                    relative_urls: false,
+                    remove_script_host: false,
+                    convert_urls: true,
                     setup: function (editor) {
                         annotationEditor = editor;
                     }

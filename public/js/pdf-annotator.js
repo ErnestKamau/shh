@@ -1292,7 +1292,7 @@ class PDFAnnotator {
     }
 
     async saveAnnotations() {
-        if (confirm('Save all annotations and create a new annotated PDF? This will replace the current attachment.')) {
+        if (confirm('Save all annotations and create a new annotated PDF? \n\nIMPORTANT: Once saved, annotations are permanently merged into the document and CANNOT be edited or deleted. To make changes, you would need to re-upload the original document.')) {
             try {
                 // Show loading state
                 const saveBtn = document.getElementById('save-annotations-btn');
