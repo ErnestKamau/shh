@@ -67,9 +67,9 @@ use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
-use App\Models\QcModule\Data\QcResults;
+use App\Models\BatchAttachmentAnnotation;
+use setasign\Fpdi\TcpdfFpdi;
 use Illuminate\Support\Facades\Log;
-use PhpParser\PrettyPrinter\Standard;
 
 class SampleWorkFlowController extends Controller
 {
@@ -132,33 +132,33 @@ class SampleWorkFlowController extends Controller
             // echo json_encode($batch);
             // return;
             $client = $batch->client;
-            
+
             // Get target date for the batch
             $targetDate = $batch->get_date('Target Date');
             $targetDateFormatted = $targetDate ? date('Y-m-d', strtotime($targetDate->date)) : 'N/A';
-            
+
             foreach ($samples as $sample) {
                 // return response()->json(SampleAnalysisTypeRelationView::where('sample_detail_id',$sample->id)->pluck('analysis_type_name')->toArray(),200);
                 $analysis = $sample->analysis();
                 $data = [];
                 !isset($data['ref_no']) ? $data['ref_no'] = $sample->sample_code : $data;
-                
+
                 // Add client name from batch
                 !isset($data['client_name']) ? $data['client_name'] = $client->name ?? 'N/A' : $data;
-                
+
                 // Add sample point name from sample detail
                 $samplePoint = $sample->sample_point;
                 !isset($data['sample_point']) ? $data['sample_point'] = (isset($samplePoint->name) ? $samplePoint->name : 'N/A') : $data;
-                
+
                 // Add sample code (separate from ref_no which is already there)
                 !isset($data['sample_code']) ? $data['sample_code'] = $sample->sample_code : $data;
-                
+
                 // Add analysis types (using getAnalysisRelation method)
                 !isset($data['analysis_types']) ? $data['analysis_types'] = $sample->getAnalysisRelation() ?: 'N/A' : $data;
-                
+
                 // Add target date
                 !isset($data['target_date']) ? $data['target_date'] = $targetDateFormatted : $data;
-                
+
                 // Keep legacy fields for reference (commented out)
                 // !isset($data['Markings']) ? $data['Markings']  = $sample->comments : $data;
                 // !isset($data['date_received']) ? $data['date_received'] = $batch->receipt_date : $data;
@@ -170,14 +170,14 @@ class SampleWorkFlowController extends Controller
                 // !isset($data['Date Expected']) ? $data['Date Expected'] = date('Y-m-d', strtotime($batch->get_date('Target Date')['date'])) : $data;
                 // !isset($data['Disposal Date']) ? $data['Disposal Date'] = $sample->disposal_date : $data;
 
-                
+
                 $labels[] = $data;
             }
             // return response()->json($labels,200);
             $batch->sample_tracking_stage = $stage->id;
             $batch->save();
 
-            
+
         }
 
         // return response()->json($labels, 200);
@@ -190,13 +190,13 @@ class SampleWorkFlowController extends Controller
         Log::info(json_encode($request->all(), JSON_PRETTY_PRINT));
         if (isset($request->is_qc_batch)) {
             $qc_customer_id = SystemConfiguration::where('key', 'qc_customer_id')->first();
-            if(!isset($qc_customer_id->id)){
-                return redirect()->back()->with('error','Kindly set company QC Customer first');
+            if (!isset($qc_customer_id->id)) {
+                return redirect()->back()->with('error', 'Kindly set company QC Customer first');
             }
             $selectedCustomer = CRMCustomer::find($qc_customer_id->value);
             if (isset($request->repeat_samples_id) && $request->repeat_samples_id != '') {
-                $repeat_samples = SampleDetails::whereIn('id',$request->repeat_samples_id)->get();
-            } 
+                $repeat_samples = SampleDetails::whereIn('id', $request->repeat_samples_id)->get();
+            }
         } else {
             $selectedCustomer = CRMCustomer::find($request->crm_customer_id);
         }
@@ -231,7 +231,7 @@ class SampleWorkFlowController extends Controller
             }
         }
 
-        $cP = 'BA'. $batch_config->value . implode('', $values) . $selectedSampleType->code;
+        $cP = 'BA' . $batch_config->value . implode('', $values) . $selectedSampleType->code;
         $isNew = false;
         $isInReception = false;
         $header = SampleHeader::find($batch) ?? new SampleHeader();
@@ -296,7 +296,7 @@ class SampleWorkFlowController extends Controller
                     $header->crm_unit_name = $qc_customer_unit->value;
                     $header->qc_type_id = $request->qc_type_id;
                     $header->qc_scheme_id = $request->qc_scheme_id;
-                    $header->repeat_sample_id = implode(',',$request->repeat_samples_id) ?? '';
+                    $header->repeat_sample_id = implode(',', $request->repeat_samples_id) ?? '';
                 } else {
                     $header->crm_customer_id = $request->crm_customer_id;
 
@@ -369,24 +369,24 @@ class SampleWorkFlowController extends Controller
         $header->save();
 
         Log::info("-------------------------------------");
-        
+
         if (isset($request->repeat_samples_id) && $request->repeat_samples_id != '') {
-            $sample_point = SystemConfiguration::where('key','qc_sample_point_id')->first();
-            foreach($repeat_samples as $old_sample){
+            $sample_point = SystemConfiguration::where('key', 'qc_sample_point_id')->first();
+            foreach ($repeat_samples as $old_sample) {
                 $new_sample = $old_sample->replicate();
                 $lab = Lab::find($old_sample->lab_id);
-                $code = SampleDetails::orderBy('id','DESC')->first();
+                $code = SampleDetails::orderBy('id', 'DESC')->first();
                 $last_sample = isset($code->id) ? $code->sample_no : $lab->start_sample_no;
-                
+
                 // $last_sample = isset(SampleDetails::latest('id')->first()->id) ? substr(SampleDetails::latest('id')->first()->sample_code,9,strlen(SampleDetails::latest('id')->first()->sample_code) -1) : $config_start_no->value;
 
                 // return response()->json($request->sample_details['lab_id'][$k]);
                 $sample_number = intval($last_sample) + 1;
                 // $sample_number = str_pad($sample_number, 4, '0', STR_PAD_LEFT);
 
-                $sample_code = 'S' . date('Y') . $lab->code .$selectedSampleType->code. sprintf('%0' . '4' . 'd', $sample_number);
+                $sample_code = 'S' . date('Y') . $lab->code . $selectedSampleType->code . sprintf('%0' . '4' . 'd', $sample_number);
                 $sample_no = sprintf('%0' . '4' . 'd', $sample_number);
-                $report_number = 'LR/'.$selectedSampleType->code.'/'.date('Y').'/'.$lab->code.'/'.sprintf('%0' . '4' . 'd', $sample_number);
+                $report_number = 'LR/' . $selectedSampleType->code . '/' . date('Y') . '/' . $lab->code . '/' . sprintf('%0' . '4' . 'd', $sample_number);
                 $new_sample->fill([
                     "sample_header_id" => $header->id,
                     "sample_code" => $sample_code,
@@ -396,15 +396,15 @@ class SampleWorkFlowController extends Controller
                 ]);
                 $new_sample->save();
                 $this->createDetailAnalysisRelation($header->id, $new_sample->id, explode(',', $new_sample->analysis_type_id));
-                $captured_results = CapturedResult::where('sample_detail_id',$old_sample->id)->get();
-                foreach($captured_results as $c_result){
+                $captured_results = CapturedResult::where('sample_detail_id', $old_sample->id)->get();
+                foreach ($captured_results as $c_result) {
                     $new_captured = $c_result->replicate();
                     $new_captured->fill([
                         "sample_detail_id" => $new_sample->id,
-                        "sample_header_id"=>$header->id,
-                        "sample_detail_code"=>$new_sample->sample_code,
+                        "sample_header_id" => $header->id,
+                        "sample_detail_code" => $new_sample->sample_code,
                         "result" => null,
-                        "remark"=>null,
+                        "remark" => null,
                         "repeat_captured_id" => $c_result->id,
                     ]);
                     $new_captured->save();
@@ -413,23 +413,23 @@ class SampleWorkFlowController extends Controller
                     $new_result->fill([
                         "captured_result_id" => $new_captured->id,
                         "sample_detail_id" => $new_sample->id,
-                        "sample_header_id"=>$header->id,
-                        "sample_detail_code"=>$new_sample->sample_code,
+                        "sample_header_id" => $header->id,
+                        "sample_detail_code" => $new_sample->sample_code,
                         "result" => null,
-                        "remark"=>null,
+                        "remark" => null,
                         "repeat_results_id" => $result->id,
                     ]);
                     $new_result->save();
                 }
             }
         }
-        if(isset($request->is_qc_batch) && $request->repeat_samples_id != ''){
-            $batch_a_types  = SampleAnalysisTypeRelationView::where('batch_id',$header->id)->pluck('analysis_type_id')->toArray();
-            $analysis_time = AnalysisType::whereIn('id',$batch_a_types)->max('reporting_time');
-            $analytes_ids = CapturedResult::where('sample_header_id',$header->id)->pluck('analyte_id')->toArray();
-            $element_time = AnalysisElements::whereIn('analysis_type_id',$batch_a_types)->whereIn('analyte_id',$analytes_ids)->max('reporting_time');
+        if (isset($request->is_qc_batch) && $request->repeat_samples_id != '') {
+            $batch_a_types = SampleAnalysisTypeRelationView::where('batch_id', $header->id)->pluck('analysis_type_id')->toArray();
+            $analysis_time = AnalysisType::whereIn('id', $batch_a_types)->max('reporting_time');
+            $analytes_ids = CapturedResult::where('sample_header_id', $header->id)->pluck('analyte_id')->toArray();
+            $element_time = AnalysisElements::whereIn('analysis_type_id', $batch_a_types)->whereIn('analyte_id', $analytes_ids)->max('reporting_time');
             $maxReportingTime = $analysis_time > $element_time ? $analysis_time : $element_time;
-        }else{
+        } else {
             $maxReportingTime = 0;
         }
         $targetDateStr = 'Target Date';
@@ -499,18 +499,18 @@ class SampleWorkFlowController extends Controller
             if (!isset($detail->sample_code)) {
                 // $config_start_no = SystemConfiguration::where('key', 'start_sample_no')->first();
                 $lab = Lab::find($request->sample_details['lab_id'][$k]);
-                $code = SampleDetails::orderBy('id','DESC')->first();
+                $code = SampleDetails::orderBy('id', 'DESC')->first();
                 $last_sample = isset($code->id) ? $code->sample_no : $lab->start_sample_no;
-                
+
                 // $last_sample = isset(SampleDetails::latest('id')->first()->id) ? substr(SampleDetails::latest('id')->first()->sample_code,9,strlen(SampleDetails::latest('id')->first()->sample_code) -1) : $config_start_no->value;
 
                 // return response()->json($request->sample_details['lab_id'][$k]);
                 $sample_number = intval($last_sample) + 1;
                 // $sample_number = str_pad($sample_number, 4, '0', STR_PAD_LEFT);
 
-                $detail->sample_code = 'S' . date('Y') . $lab->code .$SampleHeader->sample_type->code. sprintf('%0' . '4' . 'd', $sample_number);
+                $detail->sample_code = 'S' . date('Y') . $lab->code . $SampleHeader->sample_type->code . sprintf('%0' . '4' . 'd', $sample_number);
                 $detail->sample_no = sprintf('%0' . '4' . 'd', $sample_number);
-                $detail->report_number = 'LR/'.$SampleHeader->sample_type->code.'/'.date('Y').'/'.$lab->code.'/'.sprintf('%0' . '4' . 'd', $sample_number);
+                $detail->report_number = 'LR/' . $SampleHeader->sample_type->code . '/' . date('Y') . '/' . $lab->code . '/' . sprintf('%0' . '4' . 'd', $sample_number);
             }
 
             if (isset($detail->id) && $SampleHeader->status == 'Samples Reception') {
@@ -521,9 +521,9 @@ class SampleWorkFlowController extends Controller
                 foreach ($current_analysis as $ca) {
                     if (!in_array($ca, $updated_analysis)) {
                         CapturedResult::where('sample_detail_id', $detail->id)->where('analysis_type_id', $ca)->delete();
-                        
+
                         Result::where('sample_detail_id', $detail->id)->where('analysis_type_id', $ca)->delete();
-                        
+
                     }
                 }
             }
@@ -834,7 +834,7 @@ class SampleWorkFlowController extends Controller
                         $captured->remark_is_manual = $analysisType->remark_is_manual;
                         $captured->formular_id = $analysisType->formular_id;
                         $captured->method_sequence_id = $analysisType->method_sequence_id;
-                        
+
                         // Get analysis type for has_no_result_capture
                         $aType = AnalysisType::find($a->id);
                         $captured->has_no_result_capture = $aType ? $aType->has_no_result : 0;
@@ -1048,13 +1048,13 @@ class SampleWorkFlowController extends Controller
             // return response()->json($batch);
             $batch->save();
         }
-        
-        $qc_schemes = QcSchemes::where('is_active',1)->get();
-        $qc_types = QcTypes::where('is_active',1)->get();
-        if(isset($batch->id) && $batch->is_qc_batch == 1){
-            $qcconfigperc = SystemConfiguration::where('key','qc_percentage_config')->first();
+
+        $qc_schemes = QcSchemes::where('is_active', 1)->get();
+        $qc_types = QcTypes::where('is_active', 1)->get();
+        if (isset($batch->id) && $batch->is_qc_batch == 1) {
+            $qcconfigperc = SystemConfiguration::where('key', 'qc_percentage_config')->first();
             $qc_config_perc = $qcconfigperc->value;
-        }else{
+        } else {
             $qc_config_perc = '';
         }
         $section_approvers_users = isset($batch->id) ? LabSectionApproverRelationShip::whereIn('lab_section_id', explode(',', $batch->lab_section_ids))->get() : [];
@@ -1068,14 +1068,14 @@ class SampleWorkFlowController extends Controller
         $customer_survey = SystemConfiguration::where('key', 'customer_survey')->first();
         $countries = Country::orderBy('name')->get();
         // $methods = AnalysisMethod::where('active', 1)->where('is_sampling_method',0)->where('is_ltm',0)->get();
-        $is_ltm_id = SystemConfiguration::where('key','method_ltm_id')->first();
-        $ltmethods = AnalysisMethod::where('active', 1)->where('method_type_id',$is_ltm_id->value)->get();
+        $is_ltm_id = SystemConfiguration::where('key', 'method_ltm_id')->first();
+        $ltmethods = AnalysisMethod::where('active', 1)->where('method_type_id', $is_ltm_id->value)->get();
         // return response()->json(['methods'=>$methods,'ltm'=>$ltmethods])
 
         $account_settings = getConfigTypeByName('Account Settings');
         $atachment_type = SystemConfiguration::where('key', 'attachment_type')->get();
         $users = User::where('is_client', 0)->where('supplier_id', 0)->where('active', 1)->get();
-        $labsections = SampleAnalysisStage::where('active', 1)->where('is_system',0)->get();
+        $labsections = SampleAnalysisStage::where('active', 1)->where('is_system', 0)->get();
         $reportingUnits = getReportingUnits();
         $labStores = getStorageByType('lab_store');
         // return response()->json($reportingUnits);
@@ -1084,8 +1084,8 @@ class SampleWorkFlowController extends Controller
         $workflowstages = [];
         $workflows = getSampleWorflowStages();
         $sample_types = getSampleTypes();
-        $is_sampling = SystemConfiguration::where('key','sampling_method_type_id')->first();
-        $samplingmethods = AnalysisMethod::where('active',1)->where('method_type_id',$is_sampling->value)->get();
+        $is_sampling = SystemConfiguration::where('key', 'sampling_method_type_id')->first();
+        $samplingmethods = AnalysisMethod::where('active', 1)->where('method_type_id', $is_sampling->value)->get();
         $processed_results = [];
         $raw_results = [];
         $interlabs = [];
@@ -1107,9 +1107,9 @@ class SampleWorkFlowController extends Controller
         $allsamples = isset($batch->id) ? $batch->all_samples() : [];
 
         if (isset($batch->id)) {
-            if(in_array($batch->status,['Samples In Lab','Sample Verification','Sample Approval','Reports In Payment','Reports for Collection'])){
-                $raw_results = CapturedResult::with(['sample','analysis_type','operator'])->where('sample_header_id',$batch->id)->orderBy('sample_detail_id','ASC')->get();
-                $processed_results = Result::with(['captured','captured.sample','captured.analysis_type','captured.operator'])->where('sample_header_id',$batch->id)->orderBy('sample_detail_id','ASC')->get();
+            if (in_array($batch->status, ['Samples In Lab', 'Sample Verification', 'Sample Approval', 'Reports In Payment', 'Reports for Collection'])) {
+                $raw_results = CapturedResult::with(['sample', 'analysis_type', 'operator'])->where('sample_header_id', $batch->id)->orderBy('sample_detail_id', 'ASC')->get();
+                $processed_results = Result::with(['captured', 'captured.sample', 'captured.analysis_type', 'captured.operator'])->where('sample_header_id', $batch->id)->orderBy('sample_detail_id', 'ASC')->get();
 
                 // return response()->json(['raw'=>$raw_results,'processed' => $processed_results]);
             }
@@ -1204,9 +1204,9 @@ class SampleWorkFlowController extends Controller
         $l = 1;
 
         // return response()->json($batch);
-       
 
-        $methods = AnalysisMethod::whereNotIn('method_type_id',[$is_sampling->value])->pluck('name', 'id')->toArray();
+
+        $methods = AnalysisMethod::whereNotIn('method_type_id', [$is_sampling->value])->pluck('name', 'id')->toArray();
 
         // return response()->json($methods);
 
@@ -1383,7 +1383,7 @@ class SampleWorkFlowController extends Controller
 
         $clients = $clients->sortBy('name')->values();
         // return response()->json($analaytesHolder);
-        return view('batches.show', compact('batch', 'labStores', 'batchID', 'defaultClient', 'selectedSampleType', 'client_portal', 'ammendable', 'standards', 'attachments', 'not_captured', 'analysts', 'countries', 'accounts', 'methods', 'atachment_type', 'batch_scope', 'customer_survey', 'interlabs', 'labs', 'users', 'payment_detail', 'labsections', 'contacts', 'batch_sample_codes', 'report_formats', 'approvers', 'reportingUnits', 'conditions', 'products', 'headerDetails', 'analaytesHolder', 'analysisBySample', 'analysisBySampleNames', 'labSamples', 'workflowstages', 'workflows', 'sample_types', 'samplingmethods', 'active_company', 'ammendments', 'allsamples', 'selected_analysis_types', 'userLabSections', 'customer', 'requestTypes', 'notifiable_users', 'notesReminderType', 'clients', 'disposal_date', 'status', 'recieving_users', 'section_approvers_users', 'analaytesHolderPesticide', 'approvers_user_ids','ltmethods','processed_results','raw_results','qc_schemes','qc_types','qc_config_perc','clientPageSize'));
+        return view('batches.show', compact('batch', 'labStores', 'batchID', 'defaultClient', 'selectedSampleType', 'client_portal', 'ammendable', 'standards', 'attachments', 'not_captured', 'analysts', 'countries', 'accounts', 'methods', 'atachment_type', 'batch_scope', 'customer_survey', 'interlabs', 'labs', 'users', 'payment_detail', 'labsections', 'contacts', 'batch_sample_codes', 'report_formats', 'approvers', 'reportingUnits', 'conditions', 'products', 'headerDetails', 'analaytesHolder', 'analysisBySample', 'analysisBySampleNames', 'labSamples', 'workflowstages', 'workflows', 'sample_types', 'samplingmethods', 'active_company', 'ammendments', 'allsamples', 'selected_analysis_types', 'userLabSections', 'customer', 'requestTypes', 'notifiable_users', 'notesReminderType', 'clients', 'disposal_date', 'status', 'recieving_users', 'section_approvers_users', 'analaytesHolderPesticide', 'approvers_user_ids', 'ltmethods', 'processed_results', 'raw_results', 'qc_schemes', 'qc_types', 'qc_config_perc', 'clientPageSize'));
     }
 
     public function fetch_unit_stuff($name, $client)
@@ -2110,27 +2110,27 @@ class SampleWorkFlowController extends Controller
             $captured->result_reporting_symbol = $request->result_reporting_symbol[$cID] ?? '';
             $captured->operator_id = $request->operators[$cID] ?? 0;
             $captured->analyte_code = Analyte::find($captured->analyte_id)->code;
-            
+
             if ($batch->status == 'Samples In Lab') {
                 $captured->ltm_method_id = $request->ltm_method_id[$cID] ?? '';
-                $scientific_arr = is_numeric($request->result[$cID]) ?  $this->toScientificNotation($request->result[$cID]) : [];
+                $scientific_arr = is_numeric($request->result[$cID]) ? $this->toScientificNotation($request->result[$cID]) : [];
                 $captured->scienctific_result = !is_numeric($request->result[$cID]) ? $request->result[$cID] : $scientific_arr['scientific'];
                 $captured->result = $request->result[$cID] ?? '';
                 $captured->remark = $captured->remark_is_manual == 0 ? $request->remark[$cID] : $request->remarkmanual[$cID];
-                if(is_numeric($request->result[$cID])){
-                    if($scientific_arr['to_power'] <= 0){
-                        $captured->supercsript_base = number_format($scientific_arr['value'],1);
+                if (is_numeric($request->result[$cID])) {
+                    if ($scientific_arr['to_power'] <= 0) {
+                        $captured->supercsript_base = number_format($scientific_arr['value'], 1);
                         $captured->superscript_number = $scientific_arr['to_power'];
                         $captured->superscript_negative = round(intval($request->result[$cID])) >= 1 ? 0 : 1;
                     }
                 }
-                $main_std_code = $request->input('main_standard.'.$cID);
+                $main_std_code = $request->input('main_standard.' . $cID);
                 $standard_main = $main_std_code ? Standards::where('code', $main_std_code)->first() : null;
-                
-                $sec_std_code = $request->input('secondary_standard.'.$cID);
+
+                $sec_std_code = $request->input('secondary_standard.' . $cID);
                 $sec_standard = $sec_std_code ? Standards::where('code', $sec_std_code)->first() : null;
 
-                $third_std_code = $request->input('third_standard.'.$cID);
+                $third_std_code = $request->input('third_standard.' . $cID);
                 $third_standard = $third_std_code ? Standards::where('code', $third_std_code)->first() : null;
                 if (isset($standard_main->id)) {
                     $main_standard_analyte = StandardAnalytes::where('analyte_id', $captured->analyte_id)->where('standard_id', $standard_main->id)->first();
@@ -2249,7 +2249,7 @@ class SampleWorkFlowController extends Controller
             array_push($remarkArr, $third_res);
         }
 
-        return response()->json($remarkArr,200);
+        return response()->json($remarkArr, 200);
 
         if (in_array('FAIL', array_unique($remarkArr))) {
             return response()->json('FAIL', 200);
@@ -2335,7 +2335,7 @@ class SampleWorkFlowController extends Controller
                                         $response = $result >= floatval($analyte_guide->standard_is_value) ? 'PASS' : 'FAIL';
                                     }
                                 } elseif ($reporting_symbol == '<') {
-                                    
+
                                     if ($analyte_guide->value_type == 'Max' || $analyte_guide->value_type == '' || $analyte_guide->value_type == null) {
                                         $response = $result <= floatval($analyte_guide->standard_is_value) ? 'PASS' : 'FAIL';
                                     }
@@ -2651,10 +2651,10 @@ class SampleWorkFlowController extends Controller
             $previous = $batch->status;
             // return response()->json(['start'=>$start,'end'=>$end],200);
             foreach ($contact as $c) {
-                $body = 'Dear '.$customer->name.',<br><br>
+                $body = 'Dear ' . $customer->name . ',<br><br>
                 We are pleased to inform you that your test report is now ready. Please find the report
                 attached for your review.<br>
-                '.($message == '' ? '' : $message.'<br>').'
+                ' . ($message == '' ? '' : $message . '<br>') . '
                 If you have any questions or clarifications, feel free to contact us.<br><br>
                 Thank you for choosing FIVET COMPANY LIMITED.<br><br>
                 Best regards, <br>
@@ -2777,10 +2777,10 @@ class SampleWorkFlowController extends Controller
     {
         // DEPRECATED: Redirecting to new Sales Order Wizard
         // This method has been replaced with the modern Livewire-based wizard
-        
+
         $batchCodes = $request->batch_code ?? [];
         $batchesParam = http_build_query(['batches' => $batchCodes]);
-        
+
         return redirect()->route('billing.sales-order.create', $batchesParam)
             ->with('info', 'Using new Sales Order Wizard interface');
     }
@@ -2812,7 +2812,7 @@ class SampleWorkFlowController extends Controller
             if (!isset($customer->id)) {
                 return redirect()->back()->with('error', 'There is no customer with the specified Batches!');
             }
-            
+
             // OLD PRICELIST CODE REMOVED
             $invoice = new Invoice();
             $invoice->pricelist_id = $customer_pricelist[0]->pricelist_id;
@@ -2918,7 +2918,7 @@ class SampleWorkFlowController extends Controller
         // Return URL for frontend to redirect
         $batchCodes = $request->batch_code ?? [];
         $url = route('billing.sales-order.create') . '?' . http_build_query(['batches' => $batchCodes]);
-        
+
         return response()->json([
             'redirect' => $url,
             'message' => 'Redirecting to Sales Order Wizard...'
@@ -3187,7 +3187,7 @@ class SampleWorkFlowController extends Controller
 
         // Fetch attachments. Note: WHERE IN does not guarantee order, so we sort manually
         $attachments = BatchAttachment::whereIn('id', $ids)->get();
-        
+
         $orderedAttachments = [];
         foreach ($ids as $id) {
             $att = $attachments->firstWhere('id', $id);
@@ -3201,43 +3201,43 @@ class SampleWorkFlowController extends Controller
         }
 
         $pdf = new \setasign\Fpdi\Fpdi();
-        
+
         $filesMerged = 0;
 
         foreach ($orderedAttachments as $attachment) {
             // attachment_url is stored like '/storage/batch-attachments/Start%20Report.pdf'
-            
+
             $relativePath = urldecode($attachment->attachment_url);
-            
+
             // Handle duplicate leading slashes if public_path adds one
             // If path starts with /, public_path may double it, usually fine but let's be clean
             $relativePath = ltrim($relativePath, '/');
-            
+
             $filePath = public_path($relativePath);
 
             \Log::info("Merging Attachment: ID {$attachment->id}, URL: {$attachment->attachment_url}");
             \Log::info("Resolved Path: {$filePath}");
 
             if (!file_exists($filePath)) {
-               \Log::warning("File not found at path: {$filePath}");
-               
-               // Fallback: Check in storage/app if not in public
-               // URL: /storage/folder/file.pdf -> Path: storage/app/folder/file.pdf
-               $cleanPath = ltrim($relativePath, '/');
-               if (strpos($cleanPath, 'storage/') === 0) {
-                   $storageInternalPath = substr($cleanPath, 8); // remove 'storage/'
-                   $fallbackPath = storage_path('app/' . $storageInternalPath);
-                   \Log::info("Checking fallback path: {$fallbackPath}");
-                   
-                   if (file_exists($fallbackPath)) {
-                       $filePath = $fallbackPath;
-                       \Log::info("File found at fallback path.");
-                   }
-               }
+                \Log::warning("File not found at path: {$filePath}");
+
+                // Fallback: Check in storage/app if not in public
+                // URL: /storage/folder/file.pdf -> Path: storage/app/folder/file.pdf
+                $cleanPath = ltrim($relativePath, '/');
+                if (strpos($cleanPath, 'storage/') === 0) {
+                    $storageInternalPath = substr($cleanPath, 8); // remove 'storage/'
+                    $fallbackPath = storage_path('app/' . $storageInternalPath);
+                    \Log::info("Checking fallback path: {$fallbackPath}");
+
+                    if (file_exists($fallbackPath)) {
+                        $filePath = $fallbackPath;
+                        \Log::info("File found at fallback path.");
+                    }
+                }
             }
 
             if (!file_exists($filePath)) {
-               continue;
+                continue;
             }
 
             try {
@@ -3246,7 +3246,7 @@ class SampleWorkFlowController extends Controller
                 for ($pageNo = 1; $pageNo <= $pageCount; $pageNo++) {
                     $templateId = $pdf->importPage($pageNo);
                     $size = $pdf->getTemplateSize($templateId);
-                    
+
                     // Add Page with same orientation/size as source
                     $pdf->AddPage($size['orientation'], [$size['width'], $size['height']]);
                     $pdf->useTemplate($templateId);
@@ -3287,20 +3287,20 @@ class SampleWorkFlowController extends Controller
     {
         $attachment = BatchAttachment::find($request->attachment_id);
         if ($attachment) {
-            
+
             // Delete the physical file
             $relativePath = urldecode($attachment->attachment_url);
             $filePath = public_path($relativePath);
-            
+
             if (!file_exists($filePath)) {
                 // Fallback check in storage/app
                 $cleanPath = ltrim($relativePath, '/');
                 if (strpos($cleanPath, 'storage/') === 0) {
-                   $storageInternalPath = substr($cleanPath, 8);
-                   $fallbackPath = storage_path('app/' . $storageInternalPath);
-                   if (file_exists($fallbackPath)) {
-                       $filePath = $fallbackPath;
-                   }
+                    $storageInternalPath = substr($cleanPath, 8);
+                    $fallbackPath = storage_path('app/' . $storageInternalPath);
+                    if (file_exists($fallbackPath)) {
+                        $filePath = $fallbackPath;
+                    }
                 }
             }
 
@@ -3329,7 +3329,7 @@ class SampleWorkFlowController extends Controller
     public function downloadBatchAttachment($id)
     {
         $attachment = BatchAttachment::findOrFail($id);
-        
+
         // Get the file path from attachment_url
         $relativePath = urldecode($attachment->attachment_url);
         $relativePath = ltrim($relativePath, '/');
@@ -3342,7 +3342,7 @@ class SampleWorkFlowController extends Controller
             if (strpos($cleanPath, 'storage/') === 0) {
                 $storageInternalPath = substr($cleanPath, 8);
                 $fallbackPath = storage_path('app/' . $storageInternalPath);
-                
+
                 if (file_exists($fallbackPath)) {
                     $filePath = $fallbackPath;
                 }
@@ -3355,7 +3355,7 @@ class SampleWorkFlowController extends Controller
 
         // Get the original filename from the path
         $fileName = basename($filePath);
-        
+
         // Return the file as a download
         return response()->download($filePath, $fileName);
     }
@@ -3759,21 +3759,21 @@ class SampleWorkFlowController extends Controller
     public function generateCustomerFocusIndex(Request $request, $batch_id)
     {
         $batch = SampleHeader::with('submissionFormInstance')->find($batch_id);
-        
+
         // Check if batch exists
         if (!$batch) {
             return redirect()->back()->with('error', 'Batch not found.');
         }
-        
+
         // Check if batch has a submission form instance linked
         if ($batch->hasSubmissionForm()) {
             return redirect()->route('submission-forms.instances.batch-view', $batch->submissionFormInstance);
         }
-        
+
         // No submission form instance - redirect back with error message
         return redirect()->route('view-batch-details', $batch_id)
             ->with('error', 'This batch does not have a submission form instance linked. Please create or link a submission form first.');
-        
+
         // Old customer_focus logic below (kept for reference but unreachable)
         if ($batch_id == 0 || $batch->c_focus_ids_clustered != '') {
             $batches = $batch_id == 0 ? SampleHeader::whereIn('batch_code', $request->batch_code) : SampleHeader::whereIn('id', explode(',', $batch->c_focus_ids_clustered));
@@ -3823,9 +3823,9 @@ class SampleWorkFlowController extends Controller
 
     public function sendBatchScheduleAnalysis(Request $request)
     {
-        $batch = SampleHeader::with(['customer','sample_type'])->find($request->batch_id);
+        $batch = SampleHeader::with(['customer', 'sample_type'])->find($request->batch_id);
 
-        if($batch->samples()->count() == 0){
+        if ($batch->samples()->count() == 0) {
             return redirect()->back()->with('error', 'You cannot send schedule of analysis for a batch with no sample');
         }
 
@@ -3836,7 +3836,7 @@ class SampleWorkFlowController extends Controller
             $sampleTrs .= '
             <tr>
                 <td style="padding: 8px; border: 1px solid #ddd;">' . htmlspecialchars($sample->sample_code) . '</td>
-                <td style="padding: 8px; border: 1px solid #ddd;">' . htmlspecialchars(implode(',',$sample->analyteNames())) . '</td>
+                <td style="padding: 8px; border: 1px solid #ddd;">' . htmlspecialchars(implode(',', $sample->analyteNames())) . '</td>
                 <td style="padding: 8px; border: 1px solid #ddd;">' . htmlspecialchars($target_date) . '</td>  
             </tr>';
 
@@ -3850,9 +3850,9 @@ class SampleWorkFlowController extends Controller
             $body = '
 			<div style="font-family: Arial, sans-serif; color: #333; line-height: 1.6;">
                 <p style="font-size: 12px;">
-                    Dear '.$batch->customer->name.', <br><br>
+                    Dear ' . $batch->customer->name . ', <br><br>
                     I hope this message finds you well. <br>
-                    We are pleased to confirm that your samples <b>'.strtoupper($batch->sample_type->name).'</b> have been successfully received and assigned following Ref IDs: 
+                    We are pleased to confirm that your samples <b>' . strtoupper($batch->sample_type->name) . '</b> have been successfully received and assigned following Ref IDs: 
                 </p>
 
                 <table style="width: 100%; border-collapse: collapse; margin-top: 15px;">
@@ -3913,10 +3913,10 @@ class SampleWorkFlowController extends Controller
     {
         // return response()->json($request->all());
         $status = 'Samples In Lab';
-        
+
         foreach ($request->batch_code as $code) {
             $batch = SampleHeader::where('batch_code', $code)->first();
-            
+
             $custodyDetails = [
                 'batch_id' => $batch->id,
                 'comments' => $request->comments ?? '',
@@ -3932,7 +3932,7 @@ class SampleWorkFlowController extends Controller
 
             $this->updateChainofCustody($custodyDetails);
             $batch->status = $status;
-            $batch->save(); 
+            $batch->save();
         }
 
         return redirect()->back()->with('success', 'Sample(s) moved to samples in Lab section successfully');
@@ -3943,16 +3943,16 @@ class SampleWorkFlowController extends Controller
         $batch = SampleHeader::find($request->batch_id);
         $batch_approvers = BatchLabSectionApprover::where('batch_id', $batch->id)->where('show_report', 1)->where('status', 1)->get();
         $samples = SamplesCategory::where('sample_header_id', $request->batch_id)->get();
-        
+
         $status = $batch->status;
-        $result_presentation = SystemConfiguration::where('key','exponential_result_format')->first();
+        $result_presentation = SystemConfiguration::where('key', 'exponential_result_format')->first();
 
         $company = getActiveCompany();
         $exclude_pesticides = isset($request->add_pesticide) ? 0 : 1;
         $standard_report = $request->template_id;
         $analysis_date = SampleAnalysisDates::where('sample_header_id', $batch->id)->orderBy('start_analysis_date', 'ASC')->first();
         // return response()->json('here');
-        return view('layouts.lab.sample-workflow.report-formats.standard_report', compact('batch', 'samples', 'status', 'company', 'batch_approvers', 'standard_report', 'analysis_date', 'exclude_pesticides','result_presentation'));
+        return view('layouts.lab.sample-workflow.report-formats.standard_report', compact('batch', 'samples', 'status', 'company', 'batch_approvers', 'standard_report', 'analysis_date', 'exclude_pesticides', 'result_presentation'));
     }
 
     public function getShowBatchCOA($batch_code, $format)
@@ -4740,7 +4740,7 @@ class SampleWorkFlowController extends Controller
         // return response()->json(array_unique($batch_customers));
         $batch_ids = SampleHeader::whereIn('batch_code', $request->batch_code)->pluck('id')->toArray();
         $sampletypesIds = SampleHeader::whereIn('batch_code', $request->batch_code)->pluck('sample_type_id')->toArray();
-        $sampleTypeNames = implode(', ',SampleType::whereIn('id',$sampletypesIds)->pluck('name')->toArray());
+        $sampleTypeNames = implode(', ', SampleType::whereIn('id', $sampletypesIds)->pluck('name')->toArray());
         $samples = SampleDetails::whereIn('sample_header_id', $batch_ids)->get();
         $sampleTrs = "";
         foreach ($samples as $sample) {
@@ -4748,13 +4748,13 @@ class SampleWorkFlowController extends Controller
             $sampleTrs .= '
             <tr>
                 <td style="padding: 8px; border: 1px solid #ddd;">' . htmlspecialchars($sample->sample_code) . '</td>
-                <td style="padding: 8px; border: 1px solid #ddd;">' . htmlspecialchars(implode(',',$sample->analyteNames())) . '</td>
+                <td style="padding: 8px; border: 1px solid #ddd;">' . htmlspecialchars(implode(',', $sample->analyteNames())) . '</td>
                 <td style="padding: 8px; border: 1px solid #ddd;">' . htmlspecialchars($target_date) . '</td>
             </tr>';
 
         }
 
-        
+
         if ($customer->email != '') {
             foreach ($batch_ids as $b_ids) {
                 $header = SampleHeader::find($b_ids);
@@ -4773,9 +4773,9 @@ class SampleWorkFlowController extends Controller
             $body = '
 			<div style="font-family: Arial, sans-serif; color: #333; line-height: 1.6;">
                 <p style="font-size: 12px;">
-                    Dear '.$customer->name.', <br><br>
+                    Dear ' . $customer->name . ', <br><br>
                     I hope this message finds you well. <br>
-                    We are pleased to confirm that your samples <b>'.strtoupper($sampleTypeNames).'</b> have been successfully received and assigned following Ref IDs: 
+                    We are pleased to confirm that your samples <b>' . strtoupper($sampleTypeNames) . '</b> have been successfully received and assigned following Ref IDs: 
                 </p>
 
                 <table style="width: 100%; border-collapse: collapse; margin-top: 15px;">
@@ -4902,7 +4902,7 @@ class SampleWorkFlowController extends Controller
     public function awaitingApprovalSamples($status)
     {
         // return response()->json($status);
-        $headers = BatchLabSectionApprover::join('sample_headers as s', 's.id', '=', 'batch_labsection_approval.batch_id')->join('users as u', 'u.id', '=', 'batch_labsection_approval.user_id')->where('batch_labsection_approval.status', 0)->where('batch_labsection_approval.batch_status', $status)->where('s.isactive',1)->selectRaw('s.*,u.name as batch_approver')->get();
+        $headers = BatchLabSectionApprover::join('sample_headers as s', 's.id', '=', 'batch_labsection_approval.batch_id')->join('users as u', 'u.id', '=', 'batch_labsection_approval.user_id')->where('batch_labsection_approval.status', 0)->where('batch_labsection_approval.batch_status', $status)->where('s.isactive', 1)->selectRaw('s.*,u.name as batch_approver')->get();
         return response()->json($headers);
     }
     public function updateTatCaptured()
@@ -5065,7 +5065,7 @@ class SampleWorkFlowController extends Controller
             </div>
             ';
         // return response()->json(['email'=>$customer_email,'body'=>$body,'error'=>'My testing']);
-        if($sampleTrs != "" && $customer_email != ''){
+        if ($sampleTrs != "" && $customer_email != '') {
             notify_user($body, $customer_email, '[FIVET LIMS] Schedule Of Analysis ' . implode(',', $request->batch_code), false, true, ['donotreply@FIVET.com']);
             SampleHeader::whereIn('batch_code', $request->batch_code)->update(["schedule_analysis_sent" => date('Y-m-d'), "schedule_analysis_sender" => auth()->user()->id]);
         }
@@ -5101,91 +5101,104 @@ class SampleWorkFlowController extends Controller
         return response()->json(['batch_codes' => $request->batch_code, 'process' => 'Complete']);
     }
 
-    public function splitSchoolContacts(){
+    public function splitSchoolContacts()
+    {
         $contacts = SchoolContacts::all();
         $address_counter = 0;
-        foreach($contacts as $contact){
-            $ad_arr = explode("\n",$contact->address);
+        foreach ($contacts as $contact) {
+            $ad_arr = explode("\n", $contact->address);
             // return response()->json($ad_arr);
             $address_counter = sizeof($ad_arr) > $address_counter ? sizeof($ad_arr) : $address_counter;
             $a_counter = 0;
-            
+
             $r_address = [];
 
-            foreach($ad_arr as $ad){
-                if($ad != ''){
-                    $address = explode('-',$ad);
-                    $r_address []= [
-                        "address"=>$address[0] ?? '',
+            foreach ($ad_arr as $ad) {
+                if ($ad != '') {
+                    $address = explode('-', $ad);
+                    $r_address[] = [
+                        "address" => $address[0] ?? '',
                         "relation" => $address[1] ?? ''
                     ];
-                    
+
                 }
             }
             $contact['refine_address'] = $r_address;
             // return response()->json($contact);
         }
-        return view('layouts.lab.sample-workflow.index-other',compact('contacts'));
+        return view('layouts.lab.sample-workflow.index-other', compact('contacts'));
     }
-    private function toScientificNotation($number) {
+    private function toScientificNotation($number)
+    {
         $exponent = floor(log10(abs($number))); // Get the exponent (power of 10)
         $coefficient = $number / pow(10, $exponent); // Get the coefficient
-        
+
         // Adjust if coefficient rounds to 10.0
         if (round($coefficient, 1) == 10.0) {
             $coefficient = 1.0;
             $exponent += 1;
         }
-    
-        
-        return ['value'=>$coefficient,'to_power'=>$exponent,'scientific'=> sprintf("%.1f × 10%s", $coefficient, $this->toSuperscript($exponent))];
+
+
+        return ['value' => $coefficient, 'to_power' => $exponent, 'scientific' => sprintf("%.1f × 10%s", $coefficient, $this->toSuperscript($exponent))];
     }
-    private function toSuperscript($number) {
+    private function toSuperscript($number)
+    {
         $superscripts = [
-            '0' => '⁰', '1' => '¹', '2' => '²', '3' => '³', '4' => '⁴',
-            '5' => '⁵', '6' => '⁶', '7' => '⁷', '8' => '⁸', '9' => '⁹', 
+            '0' => '⁰',
+            '1' => '¹',
+            '2' => '²',
+            '3' => '³',
+            '4' => '⁴',
+            '5' => '⁵',
+            '6' => '⁶',
+            '7' => '⁷',
+            '8' => '⁸',
+            '9' => '⁹',
             '-' => '⁻' // Use HTML entity for superscript minus
         ];
-    
+
         $strNumber = strval($number);
         $superscriptNumber = '';
-    
+
         foreach (str_split($strNumber) as $digit) {
             $superscriptNumber .= $superscripts[$digit] ?? $digit;
         }
-    
+
         return $superscriptNumber;
     }
-    public function processRawResultsLab(Request $request){
-        $captured = CapturedResult::where('sample_header_id',$request->batch_id)->whereNotNull('result')->get();
-       
-        foreach($captured as $c){
-            Result::where('captured_result_id',$c->id)->update([
-                "result"=>$c->result,
-                "remarks"=>$c->remark,
+    public function processRawResultsLab(Request $request)
+    {
+        $captured = CapturedResult::where('sample_header_id', $request->batch_id)->whereNotNull('result')->get();
+
+        foreach ($captured as $c) {
+            Result::where('captured_result_id', $c->id)->update([
+                "result" => $c->result,
+                "remarks" => $c->remark,
                 "reporting_symbol" => $c->result_reporting_symbol,
-                "seond_guide"=>$c->secondary_value,
-                'guide'=>$c->main_value,
-                'unit_code'=> $c->reporting_unit,
-                'analyte_accredited'=> $c->analyte_accredited,
+                "seond_guide" => $c->secondary_value,
+                'guide' => $c->main_value,
+                'unit_code' => $c->reporting_unit,
+                'analyte_accredited' => $c->analyte_accredited,
                 'analyte_status_contracted' => $c->analyte_status_contracted,
             ]);
         }
-        return redirect()->back()->with('success','Results processed successfully!');
+        return redirect()->back()->with('success', 'Results processed successfully!');
     }
 
-    public function markQCBatchComplete(Request $request){
-        $captured_results = CapturedResult::with('sample')->where('sample_header_id',$request->batch_id)->get();
-        QcResults::where('sample_header_id',$request->batch_id)->delete();
-        $qc_config_percentage = SystemConfiguration::where('key','qc_percentage_config')->first();
+    public function markQCBatchComplete(Request $request)
+    {
+        $captured_results = CapturedResult::with('sample')->where('sample_header_id', $request->batch_id)->get();
+        QcResults::where('sample_header_id', $request->batch_id)->delete();
+        $qc_config_percentage = SystemConfiguration::where('key', 'qc_percentage_config')->first();
         $batch = SampleHeader::with('qctype')->find($request->batch_id);
         $qc_results = [];
-        foreach($captured_results as $c_result){
+        foreach ($captured_results as $c_result) {
             // $analyte_processed = QCProcessedResults::where('analyte_id',$c_result->analyte_id)->where('analysis_type_id',$c_result->analysis_type_id)->where('sample_type_id',$batch->sample_type_id)->where('method_id',$c_result->method_id)->where('standard_id',$c_result->sample->main_standard)->first();
-             $analyte_processed = QCProcessedResults::where('analyte_id',$c_result->analyte_id)->where('analysis_type_id',$c_result->analysis_type_id)->where('sample_type_id',$batch->sample_type_id)->where('method_id',$c_result->method_id)->first();
-            if(!isset($analyte_processed->id)){
+            $analyte_processed = QCProcessedResults::where('analyte_id', $c_result->analyte_id)->where('analysis_type_id', $c_result->analysis_type_id)->where('sample_type_id', $batch->sample_type_id)->where('method_id', $c_result->method_id)->first();
+            if (!isset($analyte_processed->id)) {
                 $analyte_processed = QCProcessedResults::create([
-                    'method_id'=>$c_result->method_id,
+                    'method_id' => $c_result->method_id,
                     "analyte_id" => $c_result->analyte_id,
                     "analysis_type_id" => $c_result->analysis_type_id,
                     "sample_type_id" => $batch->sample_type_id,
@@ -5201,9 +5214,9 @@ class SampleWorkFlowController extends Controller
                 "analyte_id" => $c_result->analyte_id,
                 "analyte_code" => $c_result->analyte_code,
                 "result" => $c_result->result,
-                "analysis_type_id" =>$c_result->analysis_type_id,
+                "analysis_type_id" => $c_result->analysis_type_id,
                 "remarks" => $c_result->remark,
-                "analyte_status_contracted"=>$c_result->analyte_status_contracted,
+                "analyte_status_contracted" => $c_result->analyte_status_contracted,
                 "analyte_accredited" => $c_result->analyte_accredited,
                 "qc_scheme_id" => $batch->qc_scheme_id,
                 "qc_type_id" => $batch->qc_type_id,
@@ -5333,25 +5346,25 @@ class SampleWorkFlowController extends Controller
     {
         try {
             $captureResults = $request->input('capture_results', []);
-            
+
             if (empty($captureResults)) {
                 return response()->json(['error' => 'No results to save'], 400);
             }
 
             foreach ($captureResults as $resultData) {
                 $capturedResult = CapturedResult::find($resultData['parameter_id']);
-                
+
                 if ($capturedResult) {
                     $capturedResult->result = $resultData['result'];
                     $capturedResult->result_reporting_symbol = $resultData['reporting_symbol'] ?? '';
-                    
+
                     // Validate result against standard and set remark
                     $remark = $this->validateResultAgainstStandard(
-                        $resultData['result'], 
+                        $resultData['result'],
                         $resultData['standard_limit'] ?? '',
                         $capturedResult->analyte_id
                     );
-                    
+
                     $capturedResult->remark = $remark;
                     $capturedResult->save();
                 }
@@ -5367,7 +5380,7 @@ class SampleWorkFlowController extends Controller
     {
         // Implement the same validation logic as in the existing system
         // This is a simplified version - you may need to adjust based on your specific validation rules
-        
+
         if (!is_numeric($result) || !is_numeric($standardLimit)) {
             return 'N/A';
         }
@@ -5392,10 +5405,10 @@ class SampleWorkFlowController extends Controller
             $resultId = $request->input('result_id');
             $sampleCode = $request->input('sample_code');
             $analyte = $request->input('analyte');
-            
+
             // Find or create the captured result
             $capturedResult = null;
-            
+
             if ($resultId) {
                 $capturedResult = CapturedResult::find($resultId);
             } else {
@@ -5404,13 +5417,13 @@ class SampleWorkFlowController extends Controller
                 if (!$sample) {
                     return response()->json(['success' => false, 'message' => 'Sample not found'], 404);
                 }
-                
+
                 // Find analyte
                 $analyteRecord = Analyte::where('code', $analyte)->first();
                 if (!$analyteRecord) {
                     return response()->json(['success' => false, 'message' => 'Analyte not found'], 404);
                 }
-                
+
                 $capturedResult = new CapturedResult();
                 $capturedResult->sample_detail_id = $sample->id;
                 $capturedResult->sample_header_id = $sample->sample_header_id;
@@ -5418,7 +5431,7 @@ class SampleWorkFlowController extends Controller
                 $capturedResult->analysis_type_id = 1; // Default - adjust as needed
                 $capturedResult->analyte_code = $analyte;
             }
-            
+
             // Update the captured result with new settings
             $capturedResult->reporting_unit_id = $request->input('reporting_unit', $capturedResult->reporting_unit_id);
             $capturedResult->method_id = $request->input('method_id', $capturedResult->method_id);
@@ -5426,15 +5439,15 @@ class SampleWorkFlowController extends Controller
             $capturedResult->operator_id = $request->input('analyst_id', $capturedResult->operator_id);
             $capturedResult->analyte_accredited = $request->input('accredited', 0);
             $capturedResult->analyte_status_contracted = $request->input('subcontracted', 0);
-            
+
             $capturedResult->save();
-            
+
             return response()->json([
                 'success' => true,
                 'message' => 'Parameter settings updated successfully',
                 'result_id' => $capturedResult->id
             ]);
-            
+
         } catch (\Exception $e) {
             return response()->json([
                 'success' => false,
@@ -5442,7 +5455,7 @@ class SampleWorkFlowController extends Controller
             ], 500);
         }
     }
-    
+
     /**
      * Update standard limit via AJAX
      */
@@ -5454,10 +5467,10 @@ class SampleWorkFlowController extends Controller
             $analyte = $request->input('analyte');
             $standardValue = $request->input('standard_value');
             $limitType = $request->input('limit_type');
-            
+
             // Find or create the captured result
             $capturedResult = null;
-            
+
             if ($resultId) {
                 $capturedResult = CapturedResult::find($resultId);
             } else {
@@ -5466,12 +5479,12 @@ class SampleWorkFlowController extends Controller
                 if (!$sample) {
                     return response()->json(['success' => false, 'message' => 'Sample not found'], 404);
                 }
-                
+
                 $analyteRecord = Analyte::where('code', $analyte)->first();
                 if (!$analyteRecord) {
                     return response()->json(['success' => false, 'message' => 'Analyte not found'], 404);
                 }
-                
+
                 $capturedResult = new CapturedResult();
                 $capturedResult->sample_detail_id = $sample->id;
                 $capturedResult->sample_header_id = $sample->sample_header_id;
@@ -5479,20 +5492,20 @@ class SampleWorkFlowController extends Controller
                 $capturedResult->analysis_type_id = 1; // Default - adjust as needed
                 $capturedResult->analyte_code = $analyte;
             }
-            
+
             // Update standard values
             $capturedResult->main_value = $standardValue;
             $capturedResult->standard_limit_value = $limitType;
-            
+
             $capturedResult->save();
-            
+
             return response()->json([
                 'success' => true,
                 'message' => 'Standard limit updated successfully',
                 'result_id' => $capturedResult->id,
                 'standard_limit' => $standardValue . ' ' . strtolower($limitType)
             ]);
-            
+
         } catch (\Exception $e) {
             return response()->json([
                 'success' => false,
@@ -5500,7 +5513,7 @@ class SampleWorkFlowController extends Controller
             ], 500);
         }
     }
-    
+
     /**
      * Update result value via AJAX
      */
@@ -5511,10 +5524,10 @@ class SampleWorkFlowController extends Controller
             $sampleCode = $request->input('sample_code');
             $analyte = $request->input('analyte');
             $result = $request->input('result');
-            
+
             // Find or create the captured result
             $capturedResult = null;
-            
+
             if ($resultId) {
                 $capturedResult = CapturedResult::find($resultId);
             } else {
@@ -5523,12 +5536,12 @@ class SampleWorkFlowController extends Controller
                 if (!$sample) {
                     return response()->json(['success' => false, 'message' => 'Sample not found'], 404);
                 }
-                
+
                 $analyteRecord = Analyte::where('code', $analyte)->first();
                 if (!$analyteRecord) {
                     return response()->json(['success' => false, 'message' => 'Analyte not found'], 404);
                 }
-                
+
                 $capturedResult = new CapturedResult();
                 $capturedResult->sample_detail_id = $sample->id;
                 $capturedResult->sample_header_id = $sample->sample_header_id;
@@ -5536,19 +5549,19 @@ class SampleWorkFlowController extends Controller
                 $capturedResult->analysis_type_id = 1; // Default - adjust as needed
                 $capturedResult->analyte_code = $analyte;
             }
-            
+
             // Update result
             $capturedResult->result = $result;
-            
+
             // Perform validation against standards if result exists
             $validationResult = null;
             if ($result && $capturedResult->main_value) {
                 $validationResult = $this->validateResultAgainstStandard($result, $capturedResult->main_value, $capturedResult->analyte_id);
                 $capturedResult->remark = $validationResult;
             }
-            
+
             $capturedResult->save();
-            
+
             return response()->json([
                 'success' => true,
                 'message' => 'Result updated successfully',
@@ -5556,7 +5569,7 @@ class SampleWorkFlowController extends Controller
                 'validation_result' => $validationResult,
                 'standard_limit' => $capturedResult->main_value ? $capturedResult->main_value . ' ' . strtolower($capturedResult->standard_limit_value) : null
             ]);
-            
+
         } catch (\Exception $e) {
             return response()->json([
                 'success' => false,
@@ -5564,7 +5577,7 @@ class SampleWorkFlowController extends Controller
             ], 500);
         }
     }
-    
+
     /**
      * Get parameter settings for a result
      */
@@ -5572,11 +5585,11 @@ class SampleWorkFlowController extends Controller
     {
         try {
             $capturedResult = CapturedResult::find($resultId);
-            
+
             if (!$capturedResult) {
                 return response()->json(['success' => false, 'message' => 'Result not found'], 404);
             }
-            
+
             return response()->json([
                 'success' => true,
                 'data' => [
@@ -5588,7 +5601,7 @@ class SampleWorkFlowController extends Controller
                     'subcontracted' => $capturedResult->analyte_status_contracted
                 ]
             ]);
-            
+
         } catch (\Exception $e) {
             return response()->json([
                 'success' => false,
@@ -5596,7 +5609,7 @@ class SampleWorkFlowController extends Controller
             ], 500);
         }
     }
-    
+
     /**
      * Get standard settings for a result
      */
@@ -5604,11 +5617,11 @@ class SampleWorkFlowController extends Controller
     {
         try {
             $capturedResult = CapturedResult::find($resultId);
-            
+
             if (!$capturedResult) {
                 return response()->json(['success' => false, 'message' => 'Result not found'], 404);
             }
-            
+
             return response()->json([
                 'success' => true,
                 'data' => [
@@ -5616,7 +5629,7 @@ class SampleWorkFlowController extends Controller
                     'limit_type' => $capturedResult->standard_limit_value
                 ]
             ]);
-            
+
         } catch (\Exception $e) {
             return response()->json([
                 'success' => false,
@@ -5644,42 +5657,42 @@ class SampleWorkFlowController extends Controller
         try {
             $sampleIds = $request->input('sample_ids');
             $batchId = $request->input('batch_id');
-            
+
             // Build update data array - only include non-empty values
             $updateData = [];
-            
+
             if ($request->filled('main_standard')) {
                 $updateData['main_standard'] = $request->input('main_standard');
             }
-            
+
             if ($request->filled('secondary_standard')) {
                 $updateData['secondary_standard'] = $request->input('secondary_standard');
             }
-            
+
             if ($request->filled('store_id')) {
                 $updateData['store_id'] = $request->input('store_id');
             }
-            
+
             if ($request->filled('store_slot_id')) {
                 $updateData['store_slot_id'] = $request->input('store_slot_id');
             }
-            
+
             if ($request->filled('disposal_date')) {
                 $updateData['disposal_date'] = $request->input('disposal_date');
             }
-            
+
             // Only proceed if there's data to update
             if (empty($updateData)) {
                 return redirect()->back()->with('error', 'No fields were provided for update.');
             }
-            
+
             // Update selected samples
             \App\SampleDetails::whereIn('id', $sampleIds)
                 ->where('sample_header_id', $batchId)
                 ->update($updateData);
-            
+
             $updatedCount = count($sampleIds);
-            
+
             // Recalculate Batch Target Date
             $sampleHeader = \App\SampleHeader::find($batchId);
             if ($sampleHeader) {
@@ -5693,22 +5706,22 @@ class SampleWorkFlowController extends Controller
                     // Calculate max reporting time
                     $analysisMaxReportingTime = \App\AnalysisType::whereIn('id', $batchAnalysisTypeIds)->max('reporting_time') ?? 0;
                     $elementsMaxReportingTime = \App\AnalysisElements::whereIn('analysis_type_id', $batchAnalysisTypeIds)->max('reporting_time') ?? 0;
-                    
+
                     $maxReportingTime = max($analysisMaxReportingTime, $elementsMaxReportingTime);
-                    
+
                     // Update Target Date
                     $targetDateStr = 'Target Date';
                     $targetDate = \App\SampleDate::where('sample_header_id', $batchId)
                         ->where('name', $targetDateStr)
                         ->first() ?? new \App\SampleDate();
-                    
+
                     $targetDate->name = $targetDateStr;
                     $targetDate->sample_header_id = $batchId;
                     // Use receipt_date or fallback to now
                     $baseDate = $sampleHeader->receipt_date ? \Carbon\Carbon::parse($sampleHeader->receipt_date) : now();
                     $targetDate->date = $baseDate->addDays($maxReportingTime);
                     $targetDate->save();
-                    
+
                     \Log::info('Recalculated Target Date for batch after bulk update', [
                         'batch_id' => $batchId,
                         'max_reporting_time' => $maxReportingTime,
@@ -5718,15 +5731,15 @@ class SampleWorkFlowController extends Controller
             }
 
             $updatedFields = implode(', ', array_keys($updateData));
-            
+
             return redirect()->back()->with('success', "Successfully updated {$updatedCount} sample(s). Updated fields: {$updatedFields}");
-            
+
         } catch (\Exception $e) {
             \Log::error('Bulk update sample data error', [
                 'error' => $e->getMessage(),
                 'request' => $request->all()
             ]);
-            
+
             return redirect()->back()->with('error', 'Error updating samples: ' . $e->getMessage());
         }
     }
@@ -5737,13 +5750,13 @@ class SampleWorkFlowController extends Controller
             'value' => 'required|string',
         ]);
 
-        if(SystemConfiguration::where('key', 'attachment_type')->where('value', $request->value)->exists()){
-             return response()->json(['success'=>false, 'message'=>'Attachment Type already exists']);
+        if (SystemConfiguration::where('key', 'attachment_type')->where('value', $request->value)->exists()) {
+            return response()->json(['success' => false, 'message' => 'Attachment Type already exists']);
         }
 
         $config_type = SystemConfiguration::where('key', 'attachment_type_config_id')->first();
-        if(!isset($config_type->id)){
-            return response()->json(['success'=>false, 'message'=>'Attachment Type Config not found']);
+        if (!isset($config_type->id)) {
+            return response()->json(['success' => false, 'message' => 'Attachment Type Config not found']);
         }
 
         $config = new SystemConfiguration();
@@ -5766,15 +5779,15 @@ class SampleWorkFlowController extends Controller
     public function showAnnotationPage($id)
     {
         $attachment = BatchAttachment::findOrFail($id);
-        
+
         // Verify attachment is a PDF
         if (!str_ends_with(strtolower($attachment->attachment_url), '.pdf')) {
             return redirect()->back()->with('error', 'Only PDF files can be annotated.');
         }
-        
+
         return view('layouts.lab.sample-workflow.pdf-annotate', compact('attachment'));
     }
-    
+
     /**
      * Get annotations for a PDF attachment
      */
@@ -5785,7 +5798,7 @@ class SampleWorkFlowController extends Controller
                 ->orderBy('page_number')
                 ->orderBy('created_at')
                 ->get();
-            
+
             return response()->json([
                 'success' => true,
                 'annotations' => $annotations
@@ -5797,7 +5810,7 @@ class SampleWorkFlowController extends Controller
             ], 500);
         }
     }
-    
+
     /**
      * Delete selected annotations
      */
@@ -5808,21 +5821,21 @@ class SampleWorkFlowController extends Controller
                 'annotation_ids' => 'required|array',
                 'annotation_ids.*' => 'required|integer|exists:batch_attachment_annotations,id'
             ]);
-            
+
             // Verify attachment exists
             $attachment = BatchAttachment::findOrFail($id);
-            
+
             // Delete annotations
             $deletedCount = \App\Models\BatchAttachmentAnnotation::where('batch_attachment_id', $id)
                 ->whereIn('id', $request->annotation_ids)
                 ->delete();
-            
+
             return response()->json([
                 'success' => true,
                 'message' => "Successfully deleted {$deletedCount} annotation(s).",
                 'deleted_count' => $deletedCount
             ]);
-            
+
         } catch (\Exception $e) {
             \Log::error('Annotation deletion error: ' . $e->getMessage());
             return response()->json([
@@ -5831,7 +5844,7 @@ class SampleWorkFlowController extends Controller
             ], 500);
         }
     }
-    
+
     /**
      * Save annotated PDF
      */
@@ -5841,70 +5854,111 @@ class SampleWorkFlowController extends Controller
             $request->validate([
                 'attachment_id' => 'required|exists:batch_attachments,id',
                 'annotations_data' => 'required|json',
-                'pdf_pages_data' => 'required|json'
             ]);
-            
+
             $attachment = BatchAttachment::findOrFail($request->attachment_id);
             $annotationsData = json_decode($request->annotations_data, true);
-            $pdfPagesData = json_decode($request->pdf_pages_data, true);
-            
-            // Rename old PDF (backup)
-            $oldPath = public_path($attachment->attachment_url);
-            $backupPath = str_replace('.pdf', '_backup_' . time() . '.pdf', $oldPath);
-            if (file_exists($oldPath)) {
-                rename($oldPath, $backupPath);
+
+            // Resolve file path
+            $relativePath = urldecode($attachment->attachment_url);
+            $filePath = public_path($relativePath);
+
+            if (!file_exists($filePath)) {
+                $cleanPath = ltrim($relativePath, '/');
+                if (strpos($cleanPath, 'storage/') === 0) {
+                    $storageInternalPath = substr($cleanPath, 8);
+                    $fallbackPath = storage_path('app/' . $storageInternalPath);
+                    if (file_exists($fallbackPath)) {
+                        $filePath = $fallbackPath;
+                    }
+                }
             }
-            
-            // Generate new annotated PDF using TCPDF
-            $pdf = new \TCPDF('P', 'mm', 'A4', true, 'UTF-8');
+
+            if (!file_exists($filePath)) {
+                throw new \Exception("Source PDF file not found at: " . $filePath);
+            }
+
+            // Backup old PDF
+            $backupPath = str_replace('.pdf', '_backup_' . time() . '.pdf', $filePath);
+            @copy($filePath, $backupPath);
+
+            // Create new PDF using TcpdfFpdi (preserves quality)
+            $pdf = new TcpdfFpdi('P', 'mm', 'A4', true, 'UTF-8', false);
             $pdf->SetCreator('FIVET LIMS');
             $pdf->SetAuthor(auth()->user()->name);
             $pdf->SetTitle($attachment->title . ' (Annotated)');
             $pdf->setPrintHeader(false);
             $pdf->setPrintFooter(false);
-            
-            // Add each page as image
-            foreach ($pdfPagesData as $pageData) {
-                $pdf->AddPage();
-                
-                // Decode base64 image data
-                $imageData = explode(',', $pageData['image_data'])[1];
-                $decodedImage = base64_decode($imageData);
-                
-                // Save temporary image
-                $tempImagePath = storage_path('app/temp_page_' . $pageData['page_number'] . '.jpg');
-                file_put_contents($tempImagePath, $decodedImage);
-                
-                // Add image to PDF (fill page)
-                $pdf->Image($tempImagePath, 0, 0, 210, 297, 'JPG', '', '', false, 300, '', false, false, 0);
-                
-                // Clean up temp image
-                unlink($tempImagePath);
+            $pdf->SetMargins(0, 0, 0);
+            $pdf->SetAutoPageBreak(false);
+
+            // Import existing PDF as template
+            $pageCount = $pdf->setSourceFile($filePath);
+
+            // PDF.js scale 1.5 calculations
+            // scale 1.0 = 72 DPI (72 pts per inch)
+            // 1 inch = 25.4 mm
+            // scale 1.5 means 1.5 * 72 pixels per inch
+            $scale = 1.5;
+            $ppi = $scale * 72;
+            $pxToMm = 25.4 / $ppi;
+
+            for ($pageNo = 1; $pageNo <= $pageCount; $pageNo++) {
+                $templateId = $pdf->importPage($pageNo);
+                $size = $pdf->getTemplateSize($templateId);
+
+                $pdf->AddPage($size['orientation'], array($size['width'], $size['height']));
+                $pdf->useTemplate($templateId);
+
+                // Filter annotations for this page
+                $pageAnnotations = array_filter($annotationsData, function ($ann) use ($pageNo) {
+                    return $ann['page_number'] == $pageNo;
+                });
+
+                foreach ($pageAnnotations as $ann) {
+                    // Convert pixel coordinates to mm
+                    $x = $ann['x_position'] * $pxToMm;
+                    $y = $ann['y_position'] * $pxToMm;
+                    $w = ($ann['width'] ?? 200) * $pxToMm;
+                    $h = ($ann['height'] ?? 30) * $pxToMm;
+
+                    if ($ann['annotation_type'] == 'text') {
+                        $html = $ann['htmlContent'] ?? $ann['content'];
+
+                        // Issue 2: Add black thin border (1 in writeHTMLCell adds border)
+                        // Background is transparent (last arg false)
+                        $pdf->SetFillColor(255, 255, 255);
+                        $pdf->writeHTMLCell($w, $h, $x, $y, $html, 1, 1, false, true, 'L', true);
+                    } elseif ($ann['annotation_type'] == 'image') {
+                        $imgData = $ann['content'];
+                        if (str_contains($imgData, 'base64,')) {
+                            $imgParts = explode(',', $imgData);
+                            $rawData = base64_decode($imgParts[1]);
+                            $pdf->Image('@' . $rawData, $x, $y, $w, $h);
+                        }
+                    }
+                }
             }
-            
-            // Save new PDF
-            $newPdfPath = $oldPath;
-            $pdf->Output($newPdfPath, 'F');
-            
-            // Save annotations to database
-            \App\Models\BatchAttachmentAnnotation::where('batch_attachment_id', $attachment->id)->delete();
-            
+
+            // Save new PDF (overwriting original)
+            $pdf->Output($filePath, 'F');
+
+            // Save annotations to database for future editing
+            BatchAttachmentAnnotation::where('batch_attachment_id', $attachment->id)->delete();
+
             foreach ($annotationsData as $annData) {
-                // Store HTML content if available, otherwise use plain text
                 $content = $annData['htmlContent'] ?? $annData['content'] ?? '';
-                
-                // Store plain text in style_data for search/fallback
                 $styleData = $annData['style_data'] ?? [];
                 if (!is_array($styleData)) {
                     $styleData = [];
                 }
                 $styleData['plainText'] = strip_tags($content);
-                
-                \App\Models\BatchAttachmentAnnotation::create([
+
+                BatchAttachmentAnnotation::create([
                     'batch_attachment_id' => $attachment->id,
                     'page_number' => $annData['page_number'],
                     'annotation_type' => $annData['annotation_type'],
-                    'content' => $content, // Store HTML content
+                    'content' => $content,
                     'x_position' => $annData['x_position'],
                     'y_position' => $annData['y_position'],
                     'width' => $annData['width'] ?? null,
@@ -5912,20 +5966,22 @@ class SampleWorkFlowController extends Controller
                     'style_data' => $styleData
                 ]);
             }
-            
+
             return redirect()->back()->with('success', 'PDF annotated and saved successfully!');
-            
+
         } catch (\Exception $e) {
-            \Log::error('PDF annotation save error: ' . $e->getMessage());
+            Log::error('PDF annotation save error: ' . $e->getMessage());
+            Log::error($e->getTraceAsString());
             return redirect()->back()->with('error', 'Failed to save annotated PDF: ' . $e->getMessage());
         }
     }
+
 
     public function updateStagingDetail(Request $request, $id)
     {
         $staging = \App\Models\SampleDetailStaging::find($id);
         if (!$staging) {
-             return redirect()->back()->with('error', 'Staging record not found.');
+            return redirect()->back()->with('error', 'Staging record not found.');
         }
 
         $data = $staging->data_json;

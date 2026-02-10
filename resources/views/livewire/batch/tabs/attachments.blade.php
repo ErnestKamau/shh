@@ -4,11 +4,9 @@
             <h5 class="card-tile mb-0">
                 <i class="mdi mdi-attachment"></i> Attachments
                 <div class="float-right mb-2" wire:ignore>
-                    <button type="button" 
-                            class="btn btn-outline-primary btn-sm mr-1" 
-                            id="merge-attachments-btn" 
-                            disabled>
-                        <i class="mdi mdi-file-document-box-multiple"></i> Merge Selected 
+                    <button type="button" class="btn btn-outline-primary btn-sm mr-1" id="merge-attachments-btn"
+                        disabled>
+                        <i class="mdi mdi-file-document-box-multiple"></i> Merge Selected
                         <span class="badge badge-primary" id="merge-count">0</span>
                     </button>
                     <span class="btn btn-outline-info btn-sm" data-target="#add-attachment-batch" data-toggle="modal">
@@ -20,10 +18,8 @@
         <div class="card-body">
             <!-- Search Input -->
             <div class="mb-3">
-                <input type="text" 
-                       wire:model.live.debounce.300ms="search" 
-                       class="form-control" 
-                       placeholder="Search attachments by filename, type, or uploader...">
+                <input type="text" wire:model.live.debounce.300ms="search" class="form-control"
+                    placeholder="Search attachments by filename, type, or uploader...">
             </div>
 
             <div class="table-responsive" id="attachments-container">
@@ -48,25 +44,21 @@
                                     @if($a->is_internal == 0)
                                         <tr>
                                             <td>
-                                                <input type="checkbox" 
-                                                       class="attachment-checkbox" 
-                                                       value="{{$a->id}}" 
-                                                       data-title="{{$a->title ?? 'N/a'}}" 
-                                                       data-type="{{$a->attachtypename ?? 'General'}}">
+                                                <input type="checkbox" class="attachment-checkbox" value="{{$a->id}}"
+                                                    data-title="{{$a->title ?? 'N/a'}}" data-type="{{$a->attachtypename ?? 'General'}}">
                                             </td>
                                             <td>{{ $a->attachtypename}}</td>
                                             <td>{{$a->title ?? 'N/a'}}</td>
-                                            <td>{{date('Y-m-d',strtotime($a->created_at))}}</td>
+                                            <td>{{date('Y-m-d', strtotime($a->created_at))}}</td>
                                             <td>{{$a->uploaduser}}</td>
                                             <td class="text-center">
-                                                <a href="{{$a->attachment_url}}" target="_blank" data-toggle="tooltip" data-title="View Attachment" class="btn-sm btn btn-outline-dark">
+                                                <a href="{{$a->attachment_url}}" target="_blank" data-toggle="tooltip"
+                                                    data-title="View Attachment" class="btn-sm btn btn-outline-dark">
                                                     <i class="mdi mdi-eye"></i>
                                                 </a>
                                                 @if(strtolower($a->file_type) == 'pdf')
-                                                    <a href="{{ route('show-pdf-annotation-page', $a->id) }}" 
-                                                       class="btn-sm btn btn-outline-info ml-1" 
-                                                       data-toggle="tooltip" 
-                                                       title="Annotate PDF">
+                                                    <a href="{{ route('show-pdf-annotation-page', $a->id) }}"
+                                                        class="btn-sm btn btn-outline-info ml-1" data-toggle="tooltip" title="Annotate PDF">
                                                         <i class="mdi mdi-comment-text"></i>
                                                         @if($a->annotations && $a->annotations->count() > 0)
                                                             <span class="badge badge-primary">{{ $a->annotations->count() }}</span>
@@ -75,11 +67,9 @@
                                                 @endif
                                             </td>
                                             <td>
-                                                <button type="button" 
-                                                    wire:click="deleteAttachment({{$a->id}})"
+                                                <button type="button" wire:click="deleteAttachment({{$a->id}})"
                                                     onclick="return confirm('Are you sure you want to delete attachment: {{$a->title}}?')"
-                                                    class="btn btn-sm btn-outline-danger" 
-                                                    data-toggle="tooltip" 
+                                                    class="btn btn-sm btn-outline-danger" data-toggle="tooltip"
                                                     title="Delete Attachment">
                                                     <i class="mdi mdi-delete-empty"></i>
                                                 </button>
@@ -90,20 +80,20 @@
                             @else
                                 @foreach($attachments as $a)
                                     <tr>
-                                        <td><input type="checkbox" class="attachment-checkbox" value="{{$a->id}}" data-title="{{$a->title}}" data-type="{{$a->attachtypename}}"></td>
+                                        <td><input type="checkbox" class="attachment-checkbox" value="{{$a->id}}"
+                                                data-title="{{$a->title}}" data-type="{{$a->attachtypename}}"></td>
                                         <td>{{ $a->attachtypename}}</td>
                                         <td>{{$a->title ?? 'N/a'}}</td>
-                                        <td>{{date('Y-m-d',strtotime($a->created_at))}}</td>
+                                        <td>{{date('Y-m-d', strtotime($a->created_at))}}</td>
                                         <td>{{$a->uploaduser}}</td>
                                         <td class="text-center">
-                                            <a href="{{$a->attachment_url}}" target="_blank" data-toggle="tooltip" data-title="View Attachment" class="btn-sm btn btn-outline-dark">
+                                            <a href="{{$a->attachment_url}}" target="_blank" data-toggle="tooltip"
+                                                data-title="View Attachment" class="btn-sm btn btn-outline-dark">
                                                 <i class="mdi mdi-eye"></i>
                                             </a>
                                             @if(strtolower($a->file_type) == 'pdf')
-                                                <a href="{{ route('show-pdf-annotation-page', $a->id) }}" 
-                                                   class="btn-sm btn btn-outline-info ml-1" 
-                                                   data-toggle="tooltip" 
-                                                   title="Annotate PDF">
+                                                <a href="{{ route('show-pdf-annotation-page', $a->id) }}"
+                                                    class="btn-sm btn btn-outline-info ml-1" data-toggle="tooltip" title="Annotate PDF">
                                                     <i class="mdi mdi-comment-text"></i>
                                                     @if($a->annotations && $a->annotations->count() > 0)
                                                         <span class="badge badge-primary">{{ $a->annotations->count() }}</span>
@@ -112,13 +102,12 @@
                                             @endif
                                         </td>
                                         <td>
-                                            <span class="btn btn-sm btn-outline-danger delete-attachment-btn" 
-                                                data-id="{{$a->id}}" 
-                                                data-title="{{$a->title}}" 
-                                                data-toggle="tooltip" 
+                                            <button type="button" wire:click="deleteAttachment({{$a->id}})"
+                                                onclick="return confirm('Are you sure you want to delete attachment: {{$a->title}}?')"
+                                                class="btn btn-sm btn-outline-danger" data-toggle="tooltip"
                                                 title="Delete Attachment">
                                                 <i class="mdi mdi-delete-empty"></i>
-                                            </span>
+                                            </button>
                                         </td>
                                     </tr>
                                 @endforeach
@@ -129,12 +118,12 @@
                                     <i class="mdi mdi-paperclip text-muted" style="font-size: 48px;"></i>
                                     <h6 class="mt-3 text-muted">No Attachments Found</h6>
                                     <p class="text-muted mb-0"><small>
-                                        @if($search)
-                                            No attachments match your search criteria
-                                        @else
-                                            There are no batch attachments to display
-                                        @endif
-                                    </small></p>
+                                            @if($search)
+                                                No attachments match your search criteria
+                                            @else
+                                                There are no batch attachments to display
+                                            @endif
+                                        </small></p>
                                 </td>
                             </tr>
                         @endif
@@ -157,24 +146,28 @@
                         <div class="alert alert-info p-2 mb-3">
                             <i class="mdi mdi-information"></i> Drag and drop items to reorder the report sections.
                         </div>
-                        
+
                         <div class="form-group mb-3">
                             <label class="control-label font-weight-bold text-muted text-uppercase small">Title</label>
-                            <input type="text" name="title" class="form-control form-control-lg" required placeholder="Merged Report Title" style="border-radius: 8px;">
+                            <input type="text" name="title" class="form-control form-control-lg" required
+                                placeholder="Merged Report Title" style="border-radius: 8px;">
                         </div>
 
                         <div class="form-group mb-4">
-                            <label class="control-label font-weight-bold text-muted text-uppercase small">Attachment Type</label>
-                            <select name="attachment_type" class="form-control form-control-lg" required style="border-radius: 8px;">
+                            <label class="control-label font-weight-bold text-muted text-uppercase small">Attachment
+                                Type</label>
+                            <select name="attachment_type" class="form-control form-control-lg" required
+                                style="border-radius: 8px;">
                                 <option value="">Choose Attachment Type ...</option>
                                 @foreach($attachmentTypes as $aType)
-                                <option value="{{$aType->id}}">{{$aType->value}}</option>
+                                    <option value="{{$aType->id}}">{{$aType->value}}</option>
                                 @endforeach
                             </select>
                         </div>
 
                         <div class="form-group">
-                            <label class="control-label font-weight-bold text-muted text-uppercase small">Selected Files (Order Matters)</label>
+                            <label class="control-label font-weight-bold text-muted text-uppercase small">Selected Files
+                                (Order Matters)</label>
                             <ul id="sortable-attachments" class="list-group">
                                 <!-- Populated by JS -->
                             </ul>
@@ -183,7 +176,8 @@
                         <input type="hidden" name="batch_id" value="{{$batch->id}}">
                     </div>
                     <div class="modal-footer">
-                        <button type="submit" class="btn btn-success btn-sm"><i class="mdi mdi-check"></i> Merge & Save</button>
+                        <button type="submit" class="btn btn-success btn-sm"><i class="mdi mdi-check"></i> Merge &
+                            Save</button>
                         <button type="button" class="btn btn-default btn-sm" data-dismiss="modal">Close</button>
                     </div>
                 </form>
@@ -194,42 +188,53 @@
     <!-- Add Attachment Modal -->
     <div class="modal fade" id="add-attachment-batch" role="dialog">
         <div class="modal-dialog">
-            <form action="{{route('add_batch_attachment')}}" method="post" enctype="multipart/form-data" class="modal-content">
-                @csrf 
+            <form action="{{route('add_batch_attachment')}}" method="post" enctype="multipart/form-data"
+                class="modal-content">
+                @csrf
                 <div class="modal-header">
                     <h5 class="modal-title">Add Attachment For {{$batch->batch_code}}</h5>
                 </div>
                 <div class="modal-body p-4">
                     <div class="form-group mb-4">
                         <label class="control-label font-weight-bold text-muted text-uppercase small">Title</label>
-                        <input type="text" name="title" id="" class="form-control form-control-lg" placeholder="e.g. Lab Report, Invoice..." required style="border-radius: 8px;">
+                        <input type="text" name="title" id="" class="form-control form-control-lg"
+                            placeholder="e.g. Lab Report, Invoice..." required style="border-radius: 8px;">
                     </div>
                     <div class="form-group mb-4">
                         <div class="d-flex justify-content-between align-items-center">
-                            <label class="control-label font-weight-bold text-muted text-uppercase small mb-2">Attachment Type</label>
-                            <span class="btn btn-xs btn-info mb-2" style="cursor: pointer; padding: 2px 6px; font-size: 10px; border-radius: 4px;" data-toggle="modal" data-target="#add-attachment-type-modal" title="Add New Attachment Type">
+                            <label
+                                class="control-label font-weight-bold text-muted text-uppercase small mb-2">Attachment
+                                Type</label>
+                            <span class="btn btn-xs btn-info mb-2"
+                                style="cursor: pointer; padding: 2px 6px; font-size: 10px; border-radius: 4px;"
+                                data-toggle="modal" data-target="#add-attachment-type-modal"
+                                title="Add New Attachment Type">
                                 <i class="mdi mdi-plus"></i> ADD NEW
                             </span>
                         </div>
-                        <select name="attachment_type" id="attachment_type_select" class="form-control form-control-lg" style="border-radius: 8px;">
+                        <select name="attachment_type" id="attachment_type_select" class="form-control form-control-lg"
+                            style="border-radius: 8px;">
                             <option value="">Choose Attachment Type ...</option>
                             @foreach($attachmentTypes as $aType)
-                            <option value="{{$aType->id}}">{{$aType->value}}</option>
+                                <option value="{{$aType->id}}">{{$aType->value}}</option>
                             @endforeach
                         </select>
                     </div>
                     <div class="form-group mb-4">
-                        <label class="control-label font-weight-bold text-muted text-uppercase small">Upload File</label>
+                        <label class="control-label font-weight-bold text-muted text-uppercase small">Upload
+                            File</label>
                         <div class="custom-file">
                             <input type="file" class="custom-file-input" id="customFile" name="attachment" required>
-                            <label class="custom-file-label" for="customFile" style="border-radius: 8px;">Choose file...</label>
+                            <label class="custom-file-label" for="customFile" style="border-radius: 8px;">Choose
+                                file...</label>
                         </div>
                     </div>
-                    
+
                     <div class="form-group mb-2">
                         <div class="custom-control custom-checkbox">
                             <input type="checkbox" class="custom-control-input" id="internalUse" name="is_internal">
-                            <label class="custom-control-label font-weight-bold text-muted small" for="internalUse">For Internal Use Only</label>
+                            <label class="custom-control-label font-weight-bold text-muted small" for="internalUse">For
+                                Internal Use Only</label>
                         </div>
                     </div>
                     <input type="hidden" name="batch_id" value="{{$batch->id}}">
@@ -254,12 +259,15 @@
                 </div>
                 <div class="modal-body">
                     <div class="form-group">
-                        <input type="text" class="form-control" id="new_attachment_type_name" placeholder="Type Name..." style="border-radius: 8px; background-color: #f8f9fa; border: 1px solid #e9ecef;">
+                        <input type="text" class="form-control" id="new_attachment_type_name" placeholder="Type Name..."
+                            style="border-radius: 8px; background-color: #f8f9fa; border: 1px solid #e9ecef;">
                     </div>
                 </div>
                 <div class="modal-footer border-0 pt-0">
-                    <button type="button" class="btn btn-light btn-sm rounded-pill px-3" data-dismiss="modal">Cancel</button>
-                    <button type="button" class="btn btn-primary btn-sm rounded-pill px-4" onclick="saveAttachmentType()">Save</button>
+                    <button type="button" class="btn btn-light btn-sm rounded-pill px-3"
+                        data-dismiss="modal">Cancel</button>
+                    <button type="button" class="btn btn-primary btn-sm rounded-pill px-4"
+                        onclick="saveAttachmentType()">Save</button>
                 </div>
             </div>
         </div>
@@ -267,9 +275,22 @@
 
 
     <style>
-        #sortable-attachments { list-style-type: none; margin: 0; padding: 0; }
-        #sortable-attachments li { cursor: move; border: 1px solid #ddd; background: #fff; border-radius: 4px; }
-        #sortable-attachments li:hover { background-color: #f8f9fa; }
+        #sortable-attachments {
+            list-style-type: none;
+            margin: 0;
+            padding: 0;
+        }
+
+        #sortable-attachments li {
+            cursor: move;
+            border: 1px solid #ddd;
+            background: #fff;
+            border-radius: 4px;
+        }
+
+        #sortable-attachments li:hover {
+            background-color: #f8f9fa;
+        }
     </style>
 
     <script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.0/Sortable.min.js"></script>
@@ -449,6 +470,18 @@
         
         // Form Submit handler and file input handler (jQuery)
         (function($) {
+            // Vanilla JS fallback for file input labels
+            document.addEventListener('change', function(e) {
+                if (e.target && e.target.classList.contains('custom-file-input')) {
+                    var fileName = e.target.value.split("\\").pop();
+                    var label = e.target.nextElementSibling;
+                    if (label && label.classList.contains('custom-file-label')) {
+                        label.classList.add("selected");
+                        label.innerHTML = fileName;
+                    }
+                }
+            });
+
             if ($) {
                 $(document).on('submit', '#merge-attachments-modal form', function() {
                     var ids = [];
