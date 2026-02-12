@@ -94,8 +94,10 @@
                             <table class="table table-hover">
                                 <thead style="background-color: rgba(0, 0, 0, .03);">
                                     <tr>
+                                        <th>Actions</th>
                                         <th>Code</th>
                                         <th>Name</th>
+                                        <th>Procedure</th>
                                         <th>Lab Section</th>
                                         <th>Elements</th>
                                         <th>Level</th>
@@ -103,12 +105,31 @@
                                         <th>No Result</th>
                                         <th>Reporting Time</th>
                                         <th>Status</th>
-                                        <th>Actions</th>
                                     </tr>
                                 </thead>
                                 <tbody>
                                     @foreach($this->analysisTypes as $analysisType)
                                         <tr>
+                                            <td>
+                                                <div class="btn-group" role="group">
+                                                    <a href="{{ route('livewire.elements', ['analysisTypeId' => $analysisType->id]) }}" 
+                                                       class="btn btn-sm btn-outline-primary mr-1" 
+                                                       title="View Elements">
+                                                        <i class="mdi mdi-eye"></i>
+                                                    </a>
+                                                    <button wire:click="showEditAnalysisTypeModal({{ $analysisType->id }})" 
+                                                            class="btn btn-sm btn-outline-warning mr-1" 
+                                                            title="Edit">
+                                                        <i class="mdi mdi-pencil"></i>
+                                                    </button>
+                                                    <button wire:click="deleteAnalysisType({{ $analysisType->id }})" 
+                                                            class="btn btn-sm btn-outline-danger mr-1" 
+                                                            title="Delete"
+                                                            onclick="return confirm('Are you sure you want to delete this analysis type? This will also delete all associated elements.')">
+                                                        <i class="mdi mdi-delete"></i>
+                                                    </button>
+                                                </div>
+                                            </td>
                                             <td>
                                                 <span class="">{{ $analysisType->code }}</span>
                                                 
@@ -117,6 +138,13 @@
                                                 <strong>{{ $analysisType->name }}</strong>
                                                 @if($analysisType->description)
                                                     <br><small class="text-muted">{{ $analysisType->description }}</small>
+                                                @endif
+                                            </td>
+                                            <td>
+                                                @if($analysisType->procedureWorksheet)
+                                                    <span class="badge bg-light text-dark p-2 border">{{ $analysisType->procedureWorksheet->name }}</span>
+                                                @else
+                                                    <span class="text-muted">-</span>
                                                 @endif
                                             </td>
                                             <td>
@@ -157,26 +185,6 @@
                                                 <span class="badge p-2 bg-{{ $analysisType->active ? 'success' : 'danger' }}">
                                                     {{ $analysisType->active ? 'Active' : 'Inactive' }}
                                                 </span>
-                                            </td>
-                                            <td>
-                                                <div class="btn-group" role="group">
-                                                    <a href="{{ route('livewire.elements', ['analysisTypeId' => $analysisType->id]) }}" 
-                                                       class="btn btn-sm btn-outline-primary mr-1" 
-                                                       title="View Elements">
-                                                        <i class="mdi mdi-eye"></i>
-                                                    </a>
-                                                    <button wire:click="showEditAnalysisTypeModal({{ $analysisType->id }})" 
-                                                            class="btn btn-sm btn-outline-warning mr-1" 
-                                                            title="Edit">
-                                                        <i class="mdi mdi-pencil"></i>
-                                                    </button>
-                                                    <button wire:click="deleteAnalysisType({{ $analysisType->id }})" 
-                                                            class="btn btn-sm btn-outline-danger mr-1" 
-                                                            title="Delete"
-                                                            onclick="return confirm('Are you sure you want to delete this analysis type? This will also delete all associated elements.')">
-                                                        <i class="mdi mdi-delete"></i>
-                                                    </button>
-                                                </div>
                                             </td>
                                         </tr>
                                     @endforeach

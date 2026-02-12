@@ -64,6 +64,18 @@
                                     <span class="badge badge-info">{{ $methodSequences->count() }}</span>
                                 @endif
                             </a>
+                        <li class="nav-item">
+                            <a class="nav-link {{ $activeTab === 'functions' ? 'active' : '' }}" 
+                               href="#" 
+                               wire:click.prevent="switchTab('functions')"
+                               wire:loading.class="disabled"
+                               role="tab"
+                               style="{{ $activeTab === 'functions' ? 'background: linear-gradient(135deg, rgba(0, 123, 255, 0.08) 0%, rgba(74, 144, 226, 0.05) 100%); color: black;' : '' }}">
+                                <i class="mdi mdi-flask-outline"></i> Procedure Worksheets
+                                <span class="badge badge-light ml-1 d-none" wire:loading.class.remove="d-none" wire:target="switchTab">
+                                    <i class="mdi mdi-loading mdi-spin"></i>
+                                </span>
+                            </a>
                         </li>
                     </ul>
                 </div>
@@ -174,6 +186,13 @@
                                     No method sequences found for this batch. Captured results must have method sequence configurations.
                                 </div>
                             @endif
+                        </div>
+                    @endif
+
+                    <!-- Procedure Worksheets Tab -->
+                    @if($activeTab === 'functions')
+                        <div class="tab-pane fade show active">
+                            @livewire('worksheets.procedure-worksheet-manager', ['batchId' => $batch->id], 'procedure-manager-'.$batch->id)
                         </div>
                     @endif
                 </div>

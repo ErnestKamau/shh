@@ -38,6 +38,12 @@ class CapturedObserver
                 $captured->method_sequence_id = $analysisElement->method_sequence_id;
             }
 
+            // Set procedure_worksheet_id if it exists
+            if ($analysisElement->procedure_worksheet_id) {
+                $captured->procedure_worksheet_id = $analysisElement->procedure_worksheet_id;
+                $captured->has_procedure_worksheet = true;
+            }
+
             // Save the updated captured result (without triggering observers again)
             $captured->saveQuietly();
         }

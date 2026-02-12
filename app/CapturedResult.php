@@ -121,4 +121,9 @@ class CapturedResult extends Model implements Auditable
 		return $this->belongsTo(\App\Models\MethodSequences\MethodSequence::class, 'method_sequence_id');
 	}
 
+	public function procedureWorksheet()
+	{
+		return $this->belongsTo(\App\Models\Procedures\ProcedureWorksheet::class, 'procedure_worksheet_id');
+	}
+
 }

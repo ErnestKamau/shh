@@ -142,7 +142,7 @@ class AnalysisTypeManager extends Component
         $query = AnalysisType::with(['analysis_elements' => function($q) {
             $q->with(['analyte', 'mmethod', 'ltmethod', 'equipment', 'operator'])
               ->orderBy('level', 'asc');
-        }, 'lab']);
+        }, 'lab', 'procedureWorksheet']);
 
         // Filter by sample type if provided
         if ($this->sampleTypeId) {

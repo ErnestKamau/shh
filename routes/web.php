@@ -1496,7 +1496,7 @@ Route::middleware(['auth'])->prefix('dms')->name('dms.')->group(function () {
     Route::get('/documents/{documentId}/versions/{versionId}/download', 'DMSController@downloadVersion')->name('download-version');
 });
 
-Route::get('/ser-worksheet-steps', 'LivewireControllers\SerWorksheetStepsController@index')->name('ser-worksheet-steps');
+
 
 
 
