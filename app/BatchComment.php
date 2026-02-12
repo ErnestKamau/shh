@@ -4,17 +4,33 @@ namespace App;
 
 use Illuminate\Database\Eloquent\Model;
 use OwenIt\Auditing\Contracts\Auditable;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 class BatchComment extends Model implements Auditable
 {
 	use \OwenIt\Auditing\Auditable;
-	public $with = ['creator'];
-  public function creator(){
-    return $this->belongsTo('App\User', 'created_by');
+
+	public $with = ['creator', 'reminderRecipient'];
+
+    public function creator(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'created_by');
 	}
 
-  public function reminder_for(){
-    return User::find($this->reminder_for);
+    /**
+     * User this note is addressed TO.
+     */
+    public function reminderRecipient(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'reminder_for');
+	}
+
+    /**
+     * Backwards-compatible accessor for legacy code calling reminder_for().
+     */
+    public function reminder_for()
+    {
+        return $this->reminderRecipient;
 	}
 
   public function people_to_cc(){

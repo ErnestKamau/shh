@@ -2583,9 +2583,20 @@ class SampleWorkFlowController extends Controller
         if ($internal) {
             return $header;
         }
+
         $include_pesticide = isset($request->add_pesticide) ? 1 : 0;
-        // return response()->json($report_format);
-        return redirect()->route('process-pdf-report', ['batch_id' => $batch_id, 'report_format' => $report_format, 'include_pesticide' => $include_pesticide]);
+
+        // Optional attachment merge parameters
+        $merge_with_attachments = $request->boolean('merge_with_attachments');
+        $attachment_ids = $request->input('attachment_ids', '');
+
+        return redirect()->route('process-pdf-report', [
+            'batch_id' => $batch_id,
+            'report_format' => $report_format,
+            'include_pesticide' => $include_pesticide,
+            'merge_with_attachments' => $merge_with_attachments ? 1 : 0,
+            'attachment_ids' => $attachment_ids,
+        ]);
     }
 
     public function remove_analyte_from_captured_result(Request $request)
@@ -3153,9 +3164,11 @@ class SampleWorkFlowController extends Controller
             $new->uploaded_by = auth()->user()->id;
             $new->title = $request->title;
             $new->attachment_type = $request->attachment_type;
-            if (isset($request->is_internal)) {
+            if (isset($request->is_internal) || isset($request->internal_use)) {
                 $new->is_internal = 1;
             }
+            // Flag whether this attachment should be included when merging into the COA
+            $new->show_on_coa = isset($request->show_on_coa) ? 1 : 0;
             $path = $request->attachment->path();
             $file = Storage::putFile('batch-attachments', new File($path));
             $file = explode('/', $file);
@@ -3253,13 +3266,43 @@ class SampleWorkFlowController extends Controller
                     $pdf->AddPage($size['orientation'], array($size['width'], $size['height']));
                     $pdf->useTemplate($templateId);
 
-                    // Add "Page X of Y" numbering at the bottom
-                    $pdf->SetFont('helvetica', '', 10);
-                    $pdf->SetTextColor(0, 0, 0);
-                    $text = "Page $currentPageGlobal of $totalPageCount";
+                    // Set white fill color for covering original page numbers
+                    $pdf->SetFillColor(255, 255, 255); // White
+                    $pdf->SetDrawColor(255, 255, 255);
+                    
+                    // Cover common page number positions with comprehensive areas
+                    // Use larger coverage to account for different font sizes, positions, and variations
+                    $coverageWidth = 90; // Generous width for "Page 999 of 9999" in various font sizes
+                    $coverageHeight = 22; // Generous height for page numbers in various font sizes
+                    
+                    // 1. Bottom-right position (most common)
+                    // Cover multiple variations to catch all possible positions
+                    $pdf->Rect($size['width'] - 95, $size['height'] - 28, $coverageWidth, $coverageHeight, 'F');
+                    $pdf->Rect($size['width'] - 85, $size['height'] - 23, 80, 20, 'F');
+                    $pdf->Rect($size['width'] - 75, $size['height'] - 18, 70, 18, 'F');
+                    
+                    // 2. Top-right position (covers "Page 1 of 6" etc.)
+                    // Cover multiple variations in top-right corner
+                    $pdf->Rect($size['width'] - 95, 0, $coverageWidth, $coverageHeight, 'F');
+                    $pdf->Rect($size['width'] - 85, 0, 80, 28, 'F');
+                    $pdf->Rect($size['width'] - 75, 0, 70, 22, 'F');
+                    
+                    // 3. Bottom-center position (some reports use this)
+                    $bottomCenterX = ($size['width'] / 2) - ($coverageWidth / 2);
+                    $pdf->Rect($bottomCenterX, $size['height'] - 28, $coverageWidth, $coverageHeight, 'F');
+                    $pdf->Rect(($size['width'] / 2) - 45, $size['height'] - 23, 90, 20, 'F');
+                    
+                    // 4. Top-center position (less common but some documents use it)
+                    $topCenterX = ($size['width'] / 2) - ($coverageWidth / 2);
+                    $pdf->Rect($topCenterX, 0, $coverageWidth, $coverageHeight, 'F');
 
-                    // Position: bottom center
-                    $pdf->Text($size['width'] / 2 - 15, $size['height'] - 10, $text);
+                    // Now add "Page X of Y" numbering at the bottom center
+                    $pdf->SetFont('helvetica', '', 10);
+                    $text = "Page $currentPageGlobal of $totalPageCount";
+                    $xTextPos = $size['width'] / 2 - 15; // Where text will be drawn
+                    $yTextPos = $size['height'] - 10; // Where text will be drawn
+                    $pdf->SetTextColor(0, 0, 0);
+                    $pdf->Text($xTextPos, $yTextPos, $text);
 
                     $currentPageGlobal++;
                 }
@@ -4156,17 +4199,40 @@ class SampleWorkFlowController extends Controller
 
     public function getClientDetailsAjax($id)
     {
-        $customer = CrmCustomer::with('units', 'contacts')->find($id);
+        $customer = CrmCustomer::with(['units' => function ($q) {
+            $q->where('active', 1);
+        }, 'contacts'])->find($id);
 
-        $res = [
+        if (! $customer) {
+            return response()->json([
+                'units' => [],
+                'unit_name' => 'Company Section',
+                'sample_point_name' => 'Sample Point',
+                'contacts' => [],
+                'customer' => null,
+            ]);
+        }
+
+        // Prefer the configurable "unit" label from CRM.
+        // If not set, default to "Company Section" as requested.
+        $unitName = trim((string) ($customer->unit_configurable_name ?? ''));
+        if ($unitName === '') {
+            $unitName = 'Company Section';
+        }
+
+        // Prefer configurable sample point label, with a sensible default.
+        $samplePointName = trim((string) ($customer->sample_point_configurable_name ?? ''));
+        if ($samplePointName === '') {
+            $samplePointName = 'Sample Point';
+        }
+
+        return response()->json([
             'units' => $customer->units,
-            'unit_name' => 'Company Units',
-            'sample_point_name' => 'Sample Point',
+            'unit_name' => $unitName,
+            'sample_point_name' => $samplePointName,
             'contacts' => $customer->contacts,
-            'customer' => $customer
-        ];
-
-        return response()->json($res);
+            'customer' => $customer,
+        ]);
     }
 
     public function searchClients(Request $request): JsonResponse

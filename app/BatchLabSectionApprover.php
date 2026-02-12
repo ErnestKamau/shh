@@ -4,6 +4,7 @@ namespace App;
 
 use Illuminate\Database\Eloquent\Model;
 use App\User;
+use App\SampleAnalysisStage;
 
 class BatchLabSectionApprover extends Model
 {
@@ -14,10 +15,28 @@ class BatchLabSectionApprover extends Model
     public function getApproverNameAttribute(){
         return User::find($this->user_id)->name ?? '-';
     }
+
     public function getLabSectionNamesAttribute(){
-        $stages = SampleAnalysisStage::whereIn('id',explode(',',$this->lab_section_ids))->get();
-        return implode(', ',$stages->pluck('namecode')->toArray());
+        $stages = SampleAnalysisStage::whereIn('id', explode(',', $this->lab_section_ids))->get();
+        return implode(', ', $stages->pluck('namecode')->toArray());
     }
+
+    /**
+     * Pseudo-relationship accessor exposing the lab sections collection.
+     *
+     * This is used by the approvals UI as `$approver->lab_sections`.
+     */
+    public function getLabSectionsAttribute()
+    {
+        if (!$this->lab_section_ids) {
+            return collect();
+        }
+
+        $ids = array_filter(explode(',', $this->lab_section_ids));
+
+        return SampleAnalysisStage::whereIn('id', $ids)->get();
+    }
+
     public function getApproverDetails(){
         return User::find($this->user_id);
     }

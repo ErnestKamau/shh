@@ -1649,7 +1649,7 @@
 									<tr>
 										<td>{{ $loop->iteration }}</td>
 										<td>{{ $item->creator->name ?? '-' }}</td>
-										<td>{{ $item->reminder_for()->name ?? '-' }}</td>
+												<td>{{ $item->reminder_for->name ?? '-' }}</td>
 										<td>{{ $item->comment_type }}</td>
 										<td>
 											@foreach ($item->people_to_cc()['names'] as $p)
@@ -2982,7 +2982,18 @@ document.addEventListener('DOMContentLoaded', function() {
 					<div class="form-group mb-2">
 						<div class="custom-control custom-checkbox">
 							<input type="checkbox" class="custom-control-input" id="internalUse" name="internal_use">
-							<label class="custom-control-label font-weight-bold text-muted small" for="internalUse">For Internal Use Only</label>
+							<label class="custom-control-label font-weight-bold text-muted small" for="internalUse">
+								For Internal Use Only
+							</label>
+						</div>
+					</div>
+
+					<div class="form-group mb-2">
+						<div class="custom-control custom-checkbox">
+							<input type="checkbox" class="custom-control-input" id="includeInCoa" name="show_on_coa">
+							<label class="custom-control-label font-weight-bold text-muted small" for="includeInCoa">
+								Include in COA (append this file after the report)
+							</label>
 						</div>
 					</div>
 					<input type="hidden" name="batch_id" value="{{$batch->id}}">
@@ -3153,6 +3164,30 @@ document.addEventListener('DOMContentLoaded', function() {
 									<option value="1">Microbiology Report</option>
 									<option value="2">Hygiene Swabs Report</option>
 								</select>
+							</div>
+							<div class="form-group mt-2">
+								<div class="custom-control custom-checkbox">
+									<input type="checkbox" class="custom-control-input" id="merge_with_attachments">
+									<label class="custom-control-label" for="merge_with_attachments">
+										Merge with attachments (append selected files to this COA)
+									</label>
+								</div>
+							</div>
+							<div class="form-group attachment-selection hidden" id="attachment-selection-group">
+								<label for="attachment_ids" class="control-label">Select attachments to append</label>
+								<select name="attachment_ids[]" id="attachment_ids" class="form-control select2" multiple="multiple" style="width: 100%;">
+									@foreach($batch->batch_attachments as $attachment)
+										<option value="{{ $attachment->id }}" {{ $attachment->show_on_coa ? 'selected' : '' }}>
+											{{ $attachment->title ?? 'Attachment #'.$attachment->id }}
+											@if(isset($attachment->attachtypename))
+												({{ $attachment->attachtypename }})
+											@endif
+										</option>
+									@endforeach
+								</select>
+								<p class="help-block">
+									<small>Order of selection will determine the order after the COA in the final PDF.</small>
+								</p>
 							</div>
 							<div class="proccesing-point hidden">
 								<center>
@@ -5019,35 +5054,65 @@ document.addEventListener('DOMContentLoaded', function() {
 		});
 
 		$('#process-results-modal').on('show.bs.modal',function(){
-			var batch = $(this).data('batch');
-			$('#process-results-modal').find('.proccesing-point').addClass('hidden');
-			$('#process-results-modal').find('#initiate-process').prop('disabled', false).removeClass('disabled');
-			$('#process-results-modal').find('#report_format').val('');
-			
-			$include_pesticide = $('#process-results-modal').find('add_pesticide').is(':checked') ? 1 : 0;
-			$('#process-results-modal').find('#initiate-process').off('click').on('click',function(){
-				var selectedFormat = $('#process-results-modal').find('#report_format').val();
+			var $modal = $('#process-results-modal');
+			var batch = $modal.data('batch');
+
+			$modal.find('.proccesing-point').addClass('hidden');
+			$modal.find('#initiate-process').prop('disabled', false).removeClass('disabled').html('<i class="mdi mdi-cogs"></i> Generate Report');
+			$modal.find('#report_format').val('');
+
+			// Reset merge with attachments UI
+			$modal.find('#merge_with_attachments').prop('checked', false);
+			$modal.find('#attachment-selection-group').addClass('hidden');
+
+			// Initialize Select2 for attachments if available
+			if ($.fn.select2) {
+				$modal.find('#attachment_ids').select2({
+					width: '100%',
+					dropdownParent: $modal
+				});
+			}
+
+			$modal.find('#merge_with_attachments').off('change').on('change', function () {
+				if (this.checked) {
+					$modal.find('#attachment-selection-group').removeClass('hidden');
+				} else {
+					$modal.find('#attachment-selection-group').addClass('hidden');
+				}
+			});
+
+			$modal.find('#initiate-process').off('click').on('click',function(){
+				var selectedFormat = $modal.find('#report_format').val();
 				
 				// Validate that a report format has been selected
 				if (!selectedFormat) {
 					alert('Please select a report format before generating the report.');
 					return;
 				}
+
+				var include_pesticide = $modal.find('input[name="add_pesticide"]').is(':checked') ? 1 : 0;
+				var merge_with_attachments = $modal.find('#merge_with_attachments').is(':checked') ? 1 : 0;
+				var attachment_ids = [];
+				if (merge_with_attachments) {
+					attachment_ids = $modal.find('#attachment_ids').val() || [];
+				}
 				
 				// Disable the button to prevent double-clicks
 				$(this).prop('disabled', true).addClass('disabled').html('<i class="mdi mdi-loading mdi-spin"></i> Generating...');
-				$('#process-results-modal').find('.proccesing-point').removeClass('hidden');
+				$modal.find('.proccesing-point').removeClass('hidden');
 				
 				$.ajax({
 					url:"{{ route('process-raw-results', ['batch_id'=> isset($batch->id) ? $batch->id : 0]) }}",	
 					data:{
 						report_format : selectedFormat,
-						include_pesticide :$include_pesticide
+						include_pesticide : include_pesticide,
+						merge_with_attachments: merge_with_attachments,
+						attachment_ids: attachment_ids.join(',')
 					},
 					method:'GET',
 					success: function(data){
 						console.log(data);
-						$('#process-results-modal').find('.modal-body').empty();
+						$modal.find('.modal-body').empty();
 						var success_tag = $(`
 							<div class="alert alert-success p-2">
 							<i class="mdi mdi-information pull-left"></i>
@@ -5057,14 +5122,14 @@ document.addEventListener('DOMContentLoaded', function() {
 							<img src="/images/suc.gif" height="250px" width="auto" alt="">
 							</center>
 						`).clone();
-						$('#process-results-modal').find('.modal-body').append(success_tag);
+						$modal.find('.modal-body').append(success_tag);
 	
 					},
 					error: function(data){
 						console.log(data);
 						// Re-enable the button on error
-						$('#process-results-modal').find('#initiate-process').prop('disabled', false).removeClass('disabled').html('<i class="mdi mdi-cogs"></i> Generate Report');
-						$('#process-results-modal').find('.proccesing-point').addClass('hidden');
+						$modal.find('#initiate-process').prop('disabled', false).removeClass('disabled').html('<i class="mdi mdi-cogs"></i> Generate Report');
+						$modal.find('.proccesing-point').addClass('hidden');
 						alert('An error occurred while processing the report. Please try again.');
 					}
 				})

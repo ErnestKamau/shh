@@ -5,7 +5,7 @@
             <div class="d-flex align-items-center">
                 <button type="button" 
                         class="btn btn-primary btn-sm text-nowrap" 
-                        data-target="#add-batch-note" 
+                        data-target="#add-sample-notes" 
                         data-toggle="modal"
                         style="box-shadow: rgba(0, 0, 0, 0.24) 0px 3px 8px; margin-right: 15px;">
                     <i class="mdi mdi-message-plus"></i> Add Note
@@ -40,7 +40,6 @@
                                 <th>To</th>
                                 <th>Type</th>
                                 <th>Message</th>
-                                <th>Status</th>
                             </tr>
                         </thead>
                         <tbody>
@@ -48,20 +47,17 @@
                                 <tr>
                                     <td>{{ $comment->created_at->format('Y-m-d H:i') }}</td>
                                     <td>{{ $comment->creator->name ?? 'N/A' }}</td>
-                                    <td>{{ $comment->reminder_for->name ?? 'N/A' }}</td>
+                                    <td>{{ $comment->reminderRecipient->name ?? 'N/A' }}</td>
                                     <td>{{ $comment->comment_type }}</td>
                                     <td>
                                         <span class="show-hoverable">
-                                            <span class="partial">{{ substr($comment->comments, 0, 75) }}{{ strlen($comment->comments) > 75 ? '...' : '' }}</span>
-                                            <span class="complete">{{ $comment->comments }}</span>
+                                            <span class="partial">
+                                                {{ \Illuminate\Support\Str::limit(strip_tags($comment->comments), 75) }}
+                                            </span>
+                                            <span class="complete">
+                                                {{ strip_tags($comment->comments) }}
+                                            </span>
                                         </span>
-                                    </td>
-                                    <td>
-                                        @if($comment->completed_at == "")
-                                            <span class="badge badge-warning"><i class="mdi mdi-timer-sand"></i> Pending</span>
-                                        @else
-                                            <span class="badge badge-success"><i class="mdi mdi-check-circle"></i> Completed</span>
-                                        @endif
                                     </td>
                                 </tr>
                             @endforeach
@@ -90,7 +86,6 @@
                                 <th>To</th>
                                 <th>Type</th>
                                 <th>Message</th>
-                                <th>Status</th>
                             </tr>
                         </thead>
                         <tbody>

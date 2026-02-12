@@ -233,8 +233,18 @@
                     <div class="form-group mb-2">
                         <div class="custom-control custom-checkbox">
                             <input type="checkbox" class="custom-control-input" id="internalUse" name="is_internal">
-                            <label class="custom-control-label font-weight-bold text-muted small" for="internalUse">For
-                                Internal Use Only</label>
+                            <label class="custom-control-label font-weight-bold text-muted small" for="internalUse">
+                                For Internal Use Only
+                            </label>
+                        </div>
+                    </div>
+
+                    <div class="form-group mb-2">
+                        <div class="custom-control custom-checkbox">
+                            <input type="checkbox" class="custom-control-input" id="includeInCoa" name="show_on_coa">
+                            <label class="custom-control-label font-weight-bold text-muted small" for="includeInCoa">
+                                Include in COA (append this file after the report)
+                            </label>
                         </div>
                     </div>
                     <input type="hidden" name="batch_id" value="{{$batch->id}}">
