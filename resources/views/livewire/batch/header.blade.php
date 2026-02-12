@@ -77,7 +77,7 @@
                         
                         @if( $batch->prelim_report_status != 0 && $status == 'Sample Verification')
                         <li>
-                            <span class="btn btn-sm dropdown-item" data-toggle="modal" data-target="#send-for-approval-modal">
+                            <span class="btn btn-sm dropdown-item" wire:click="$set('showApprovalModal', true)" style="cursor: pointer;">
                                 <i class="mdi mdi-subdirectory-arrow-right mr-2"></i> Send for Approval
                             </span>
                         </li>
@@ -113,7 +113,7 @@
                             @endif
                             @if(auth()->user()->checkVerifyLabSampleRole() && $batch->prelim_batch_status == "Sample Verification" && $batch->prelim_report_status == 1 && $status == 'Sample Verification')
                             <li>
-                                <span class="btn btn-sm dropdown-item" data-toggle="modal" data-target="#send-for-approval-modal">
+                                <span class="btn btn-sm dropdown-item" wire:click="$set('showApprovalModal', true)" style="cursor: pointer;">
                                     <i class="mdi mdi-subdirectory-arrow-right mr-2"></i> Send for Approval 
                                 </span>
                             </li>
@@ -152,7 +152,7 @@
                                         <span class="dropdown-item"><hr/></span>
                                     </li>
                                     <li>
-                                        <span class="btn btn-sm dropdown-item" data-toggle="modal" data-target="#send-for-approval-modal">
+                                        <span class="btn btn-sm dropdown-item" wire:click="$set('showApprovalModal', true)" style="cursor: pointer;">
                                             <i class="mdi mdi-subdirectory-arrow-right mr-2"></i> Send for Approval
                                         </span>
                                     </li>
@@ -565,6 +565,101 @@
             <div class="modal-footer modal-footer-modern">
                 <button type="button" class="btn btn-secondary-modern btn-sm" wire:click="$set('showVerificationModal', false)">Close</button>
                 <button type="button" class="btn btn-primary-modern btn-sm" wire:click="moveToVerification">Submit</button>
+            </div>
+        </div>
+    </div>
+</div>
+@endif
+
+{{-- Send for Approval Modal --}}
+@if($showApprovalModal)
+<div class="modal fade show" tabindex="-1" role="dialog" style="display: block; background-color: rgba(0,0,0,0.5); z-index: 1050;">
+    <div class="modal-dialog modal-md" role="document">
+        <div class="modal-content modal-content-modern">
+            <div class="modal-header modal-header-modern">
+                <h5 class="modal-title modal-title-modern">
+                    <i class="mdi mdi-check-decagram"></i> Send for Approval
+                </h5>
+                <button type="button" class="close" wire:click="$set('showApprovalModal', false)">
+                    <span>&times;</span>
+                </button>
+            </div>
+            <div class="modal-body modal-body-modern">
+                @if($this->verificationApprovalStatus > 0)
+                <div class="alert alert-danger p-2 d-flex mt-1">
+                    <i class="mdi mdi-decagram" style="font-size: 30px"></i>
+                    <span class="p-2">Confirm all approvers have approved before sending the report for approval</span>
+                </div>
+                @endif
+                
+                <div class="alert alert-primary p-2 d-flex">
+                    <i class="mdi mdi-decagram" style="font-size: 30px"></i>
+                    <span class="p-2">Confirm you want to send this {{ $batch->batch_code }} batch for approval</span>
+                </div>
+
+                <div class="form-group">
+                    <label class="text-muted font-weight-bold small modal-label-small">Title</label>
+                    <input type="text" 
+                           class="form-control form-control-modern" 
+                           wire:model="approvalData.title" 
+                           placeholder="Approver Title">
+                    @error('approvalData.title') <span class="text-danger small">{{ $message }}</span> @enderror
+                </div>
+
+                <div class="form-group">
+                    <label class="text-muted font-weight-bold small modal-label-small">Approver</label>
+                    <select class="form-control form-control-modern" wire:model="approvalData.user_id">
+                        <option value="">Select Approver</option>
+                        @foreach($users as $user)
+                            @if(!in_array($user->id, $this->approversUserIds))
+                                <option value="{{ $user->id }}">{{ $user->name }}</option>
+                            @endif
+                        @endforeach
+                    </select>
+                    @error('approvalData.user_id') <span class="text-danger small">{{ $message }}</span> @enderror
+                </div>
+
+                <div class="form-group">
+                    <label class="text-muted font-weight-bold small modal-label-small">Remarks</label>
+                    <textarea class="form-control form-control-modern" 
+                              wire:model="approvalData.comments" 
+                              placeholder="Comments..." 
+                              rows="3"></textarea>
+                </div>
+
+                <div class="form-check">
+                    <input class="form-check-input" 
+                           type="checkbox" 
+                           wire:model="approvalData.notification" 
+                           id="approval-notification">
+                    <label class="form-check-label" for="approval-notification">
+                        Send Email Notification
+                    </label>
+                </div>
+
+                <div class="form-check mt-2">
+                    <input class="form-check-input" 
+                           type="checkbox" 
+                           wire:model="approvalData.send_message" 
+                           id="approval-sms">
+                    <label class="form-check-label" for="approval-sms">
+                        Send SMS
+                    </label>
+                </div>
+            </div>
+            <div class="modal-footer modal-footer-modern">
+                @if($this->verificationApprovalStatus == 0)
+                <button type="button" 
+                        class="btn btn-primary-modern btn-sm" 
+                        wire:click="sendForApproval">
+                    <i class="mdi mdi-thumb-up"></i> Yes Proceed
+                </button>
+                @endif
+                <button type="button" 
+                        class="btn btn-secondary-modern btn-sm" 
+                        wire:click="$set('showApprovalModal', false)">
+                    Close
+                </button>
             </div>
         </div>
     </div>

@@ -222,8 +222,8 @@ class Samples extends Component
             $this->unitsOfMeasure = \App\ReportingUnit::select('id', 'name')->get()->toArray();
 
             // Load sub-units for current client
-            if ($this->batch->client_id) {
-                $this->subUnits = \App\Models\CRM\CRMCompanySubUnit::where('crm_customer_id', $this->batch->client_id)
+            if ($this->batch->crm_customer_id) {
+                $this->subUnits = \App\Models\CRM\CRMCompanySubUnit::where('crm_customer_id', $this->batch->crm_customer_id)
                     ->select('id', 'name')->get()->toArray();
             }
 
@@ -848,6 +848,25 @@ class Samples extends Component
         }
     }
 
+    /**
+     * Open add modal for staging record
+     */
+    public function addStaging()
+    {
+        $this->editingStagingId = null;
+        $this->stagingForm = [
+            'company_sub_unit_id' => '',
+            'company_sub_unit_name' => '',
+            'sample_type_id' => '',
+            'sample_type_name' => '',
+            'analysis_type_ids' => [],
+            'analysis_type_names' => '',
+            'quantity' => 1,
+        ];
+
+        $this->showEditModal = true;
+    }
+
     public function openAddModal($field, $index)
     {
         $this->activeField = $field;
@@ -1025,7 +1044,7 @@ class Samples extends Component
     }
 
     /**
-     * Update staging record
+     * Update or create staging record
      */
     public function updateStaging()
     {
@@ -1036,9 +1055,15 @@ class Samples extends Component
         ]);
 
         try {
-            $staging = SampleDetailStaging::findOrFail($this->editingStagingId);
+            if ($this->editingStagingId) {
+                $staging = SampleDetailStaging::findOrFail($this->editingStagingId);
+            } else {
+                $staging = new SampleDetailStaging();
+                $staging->sample_header_id = $this->batch->id;
+                $staging->is_processed = 0;
+            }
 
-            $dataJson = $staging->data_json;
+            $dataJson = $staging->data_json ?: [];
             $dataJson['company_sub_unit_id'] = $this->stagingForm['company_sub_unit_id'];
             $dataJson['company_sub_unit_name'] = $this->stagingForm['company_sub_unit_name'];
             $dataJson['analysis_type_ids'] = implode(',', $this->stagingForm['analysis_type_ids']);
@@ -1048,23 +1073,21 @@ class Samples extends Component
             $staging->data_json = $dataJson;
             $staging->save();
 
-            // Also update sample header sample_type if changed? 
-            // Usually staging records for a batch share the same header, 
-            // so updating sample_type_id on the header might affect others.
-            if ($this->stagingForm['sample_type_id'] != $staging->sampleHeader->sample_type_id) {
-                $staging->sampleHeader->sample_type_id = $this->stagingForm['sample_type_id'];
-                $staging->sampleHeader->save();
+            // Also update sample header sample_type if changed
+            if ($this->stagingForm['sample_type_id'] != $this->batch->sample_type_id) {
+                $this->batch->sample_type_id = $this->stagingForm['sample_type_id'];
+                $this->batch->save();
             }
 
             $this->showEditModal = false;
             $this->reset('editingStagingId', 'stagingForm');
 
             $this->dispatch('samplesUpdated');
-            session()->flash('success', 'Staging data updated successfully!');
+            session()->flash('success', $this->editingStagingId ? 'Staging data updated successfully!' : 'Staging record created successfully!');
 
         } catch (\Exception $e) {
-            Log::error('Error updating staging: ' . $e->getMessage());
-            session()->flash('error', 'Failed to update staging data: ' . $e->getMessage());
+            Log::error('Error saving staging: ' . $e->getMessage());
+            session()->flash('error', 'Failed to save staging data: ' . $e->getMessage());
         }
     }
 
@@ -1994,7 +2017,7 @@ class Samples extends Component
             // Also update the parametersForm used for editing if needed, 
             // but viewParameters should rebuild it.
         }
-        
+
         $this->showEditStandardModal = false;
         $this->reset('editingStandardData');
 
@@ -2003,7 +2026,7 @@ class Samples extends Component
         //  The legacy code does not seem to trigger a full re-evaluation of ALL results, 
         //  but the user might expect the "Remark" to update if they change the limit.
         //  Legacy JS performs an ajax call to /fetch/results-remark. We should do similar.)
-        
+
         $this->evaluateResult($data['captured_result_id']);
     }
 
@@ -2097,10 +2120,10 @@ class Samples extends Component
                     $displayValue = $rawValue;
                 }
             }
-            
+
             // If we failed to calculate anything, fallback
             if ($displayValue == '') {
-                 $displayValue = 'NS';
+                $displayValue = 'NS';
             }
 
             return [

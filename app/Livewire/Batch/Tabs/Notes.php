@@ -30,7 +30,7 @@ class Notes extends Component
     public function getCommentsProperty()
     {
         return $this->batch->comments()
-            ->with(['creator', 'reminder_for'])
+            ->with(['creator', 'reminderRecipient'])
             ->when($this->search, function($query) {
                 $query->where(function($q) {
                     $q->where('comments', 'like', '%' . $this->search . '%')
@@ -38,7 +38,7 @@ class Notes extends Component
                       ->orWhereHas('creator', function($creator) {
                           $creator->where('name', 'like', '%' . $this->search . '%');
                       })
-                      ->orWhereHas('reminder_for', function($reminder) {
+                      ->orWhereHas('reminderRecipient', function($reminder) {
                           $reminder->where('name', 'like', '%' . $this->search . '%');
                       });
                 });

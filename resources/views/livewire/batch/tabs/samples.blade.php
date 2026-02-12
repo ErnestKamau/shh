@@ -19,10 +19,14 @@
     @endif
 
     {{-- Unprocessed Staging Data Section --}}
-    @if(isset($batch->sample_detail_processed) && $batch->sample_detail_processed == 0 && isset($batch->stagingDetails) && $batch->stagingDetails->count() > 0)
+    @if(isset($batch->sample_detail_processed) && $batch->sample_detail_processed == 0)
         <div class="card mb-4">
-            <div class="card-header" style="background: linear-gradient(135deg, #fff3cd, #ffeaa7);">
+            <div class="card-header d-flex justify-content-between align-items-center"
+                style="background: linear-gradient(135deg, #fff3cd, #ffeaa7);">
                 <h5 class="mb-0"><i class="mdi mdi-clipboard-alert"></i> Unprocessed Staging Data</h5>
+                <button type="button" wire:click="addStaging" class="btn btn-success btn-sm">
+                    <i class="mdi mdi-plus"></i> Add Staging Record
+                </button>
             </div>
             <div class="card-body">
                 <div class="table-responsive">
@@ -37,7 +41,7 @@
                             </tr>
                         </thead>
                         <tbody>
-                            @foreach($batch->stagingDetails as $staging)
+                            @forelse($batch->stagingDetails as $staging)
                                 @if(!$staging->is_processed)
                                     <tr>
                                         <td>
@@ -68,7 +72,12 @@
                                         <td>{{ $staging->data_json['quantity'] ?? 1 }}</td>
                                     </tr>
                                 @endif
-                            @endforeach
+                            @empty
+                                <tr>
+                                    <td colspan="5" class="text-center text-muted">No staging records found. Click "Add Staging
+                                        Record" to create one.</td>
+                                </tr>
+                            @endforelse
                         </tbody>
                     </table>
                 </div>
@@ -533,7 +542,7 @@
                 <div class="modal-content">
                     <form wire:submit.prevent="updateStaging">
                         <div class="modal-header">
-                            <h5 class="modal-title">Edit Staging Detail</h5>
+                            <h5 class="modal-title">{{ $editingStagingId ? 'Edit' : 'Add' }} Staging Detail</h5>
                             <button type="button" class="close" wire:click="cancelEdit">
                                 <span>&times;</span>
                             </button>
@@ -775,18 +784,18 @@
                                                     <input type="text" class="form-control form-control-sm"
                                                         wire:model.lazy="parametersForm.{{ $id }}.result" x-data
                                                         x-on:change="
-                                                                                                                                                                                                                                                    let val = $el.value;
-                                                                                                                                                                                                                                                    if(val) {
-                                                                                                                                                                                                                                                        setTimeout(() => {
-                                                                                                                                                                                                                                                            let conf = prompt('Please confirm result for {{ $param['analyte_code'] }}:');
-                                                                                                                                                                                                                                                            if(conf != val) {
-                                                                                                                                                                                                                                                                alert('Result mismatch! Please re-enter.');
-                                                                                                                                                                                                                                                                $el.value = '';
-                                                                                                                                                                                                                                                                $el.dispatchEvent(new Event('change'));
-                                                                                                                                                                                                                                                            }
-                                                                                                                                                                                                                                                        }, 50);
-                                                                                                                                                                                                                                                    }
-                                                                                                                                                                                                                                               "
+                                                                                                                                                                                                                                                                            let val = $el.value;
+                                                                                                                                                                                                                                                                            if(val) {
+                                                                                                                                                                                                                                                                                setTimeout(() => {
+                                                                                                                                                                                                                                                                                    let conf = prompt('Please confirm result for {{ $param['analyte_code'] }}:');
+                                                                                                                                                                                                                                                                                    if(conf != val) {
+                                                                                                                                                                                                                                                                                        alert('Result mismatch! Please re-enter.');
+                                                                                                                                                                                                                                                                                        $el.value = '';
+                                                                                                                                                                                                                                                                                        $el.dispatchEvent(new Event('change'));
+                                                                                                                                                                                                                                                                                    }
+                                                                                                                                                                                                                                                                                }, 50);
+                                                                                                                                                                                                                                                                            }
+                                                                                                                                                                                                                                                                       "
                                                         placeholder="Result">
                                                 </td>
                                                 @if($uncertaintyRequired)
@@ -1726,7 +1735,7 @@
 {{-- JavaScript for Sample Duplication --}}
 <script>
     // Function to handle duplicate button click
-  function duplicateSelected() {
+    function duplicateSelected() {
         const count = prompt("Enter number of duplicates", 1);
         if (count !== null && count > 0) {
             @this.call('duplicateSelectedSamples', parseInt(count));
@@ -1742,7 +1751,7 @@
                 checkboxes.forEach(checkbox => {
                     checkbox.click(); // Trigger Livewire event
                 });
-            }) ;
+            });
         }
     });
 </script>

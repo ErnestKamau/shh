@@ -29,7 +29,6 @@ class Approvals extends Component
     public function getApproversProperty()
     {
         return $this->batch->approvers()
-            ->with(['lab_sections'])
             ->when($this->search, function($query) {
                 $query->where(function($q) {
                     $q->where('approvername', 'like', '%' . $this->search . '%')

@@ -30,10 +30,18 @@ class Header extends Component
     public $showPaymentReminderModal = false;
     public $showBulkUpdateModal = false;
     public $showVerificationModal = false;
+    public $showApprovalModal = false;
 
     // Form Data
     public $selectedContact;
     public $emailBody;
+    public $approvalData = [
+        'user_id' => '',
+        'title' => 'Authorized by',
+        'comments' => '',
+        'notification' => false,
+        'send_message' => false,
+    ];
     public $bulkData = [
         'main_standard' => '',
         'secondary_standard' => '',
@@ -462,5 +470,93 @@ class Header extends Component
         // "Samples In Lab" -> "Sample Verification". 
         // The view might depend on status. 
         return redirect()->route('sample-workflow', ['status' => 'Samples In Lab']);
+    }
+
+    public function sendForApproval()
+    {
+        $this->validate([
+            'approvalData.user_id' => 'required',
+            'approvalData.title' => 'required',
+        ]);
+
+        $batch = $this->batch;
+
+        if (empty($batch->lab_section_ids)) {
+            session()->flash('error', 'Kindly provide the lab sections associated with the sample at batch information section');
+            return;
+        }
+
+        // Check if user is already an approver
+        $approvers_user_ids = \App\BatchLabSectionApprover::where('batch_id', $batch->id)
+            ->pluck('user_id')
+            ->toArray();
+
+        if (in_array($this->approvalData['user_id'], $approvers_user_ids)) {
+            session()->flash('error', 'System cannot assign the specified user as an approver since the user is already an approver');
+            return;
+        }
+
+        // Delete any existing approvers with lab_section_ids = 0 (general approvers)
+        \App\BatchLabSectionApprover::where('batch_id', $batch->id)
+            ->where('lab_section_ids', 0)
+            ->delete();
+
+        // Create new approver
+        $approver = new \App\BatchLabSectionApprover();
+        $approver->status = 0; // Pending approval
+        $approver->user_id = $this->approvalData['user_id'];
+        $approver->title = $this->approvalData['title'];
+        $approver->lab_section_ids = 0; // General approver (not section-specific)
+        $approver->batch_id = $batch->id;
+        $approver->batch_status = 'Sample Approval';
+        $approver->show_report = 1;
+        $approver->save();
+
+        // Update batch status
+        $batch->status = 'Sample Approval';
+        $batch->save();
+
+        // Send notifications if requested
+        $user = \App\User::find($this->approvalData['user_id']);
+        
+        if ($this->approvalData['notification'] && $user && $user->email) {
+            $message = 'Hi ' . $user->name . ', <br>' . $batch->batch_code . ' COA needs your approval at ' . $batch->status . '. <br> Comments : ' . ($this->approvalData['comments'] ?? '');
+            notify_user($message, $user->email, '[FIVET LIMS] ' . $batch->batch_code . ' Batch Approval Notification');
+        }
+
+        if ($this->approvalData['send_message'] && $user && $user->phone) {
+            $sms_message = 'Hi ' . $user->name . ', ' . $batch->batch_code . ' COA needs your approval at ' . $batch->status . '. Comments : ' . ($this->approvalData['comments'] ?? '');
+            if (function_exists('sendTextMessage')) {
+                sendTextMessage($user->phone, $sms_message);
+            }
+        }
+
+        // Reset form
+        $this->approvalData = [
+            'user_id' => '',
+            'title' => 'Authorized by',
+            'comments' => '',
+            'notification' => false,
+            'send_message' => false,
+        ];
+
+        $this->showApprovalModal = false;
+        session()->flash('success', 'Batch sent for approval successfully');
+        $this->dispatch('batchUpdated');
+    }
+
+    public function getApproversUserIdsProperty()
+    {
+        return \App\BatchLabSectionApprover::where('batch_id', $this->batch->id)
+            ->pluck('user_id')
+            ->toArray();
+    }
+
+    public function getVerificationApprovalStatusProperty()
+    {
+        return \App\BatchLabSectionApprover::where('batch_id', $this->batch->id)
+            ->where('batch_status', 'Sample Verification')
+            ->whereIn('status', [2, 0])
+            ->count();
     }
 }

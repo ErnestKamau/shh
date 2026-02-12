@@ -849,7 +849,7 @@
 												<tr>
 													<td>{{ $loop->iteration }}</td>
 													<td>{{ $item->creator->name ?? '-' }}</td>
-													<td>{{ $item->reminder_for()->name ?? '-' }}</td>
+													<td>{{ $item->reminder_for->name ?? '-' }}</td>
 													<td>{{ $item->comment_type }}</td>
 													<td>
 														@foreach ($item->people_to_cc()['names'] as $p)

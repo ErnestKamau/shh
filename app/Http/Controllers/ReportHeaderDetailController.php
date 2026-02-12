@@ -27,10 +27,12 @@ use App\Company;
 use App\CapturedResult;
 use App\SamplesCategory;
 use App\BatchLabSectionApprover;
+use App\BatchAttachment;
 use App\User;
 use App\SampleAnalysisDates;
 use App\BatchAmmendment;
 use SimpleSoftwareIO\QrCode\Facades\QrCode;
+use setasign\Fpdi\TcpdfFpdi;
 
 
 class ReportHeaderDetailController extends Controller
@@ -166,6 +168,11 @@ class ReportHeaderDetailController extends Controller
 			$filename = $customer_name . '-' . $batch_code . '-' . date("d-M-Y-H-i-s") . '.pdf';
 		}
 		$filename = urlencode($filename);
+
+		// Attachments merging options (passed via query parameters)
+		$mergeWithAttachments = request()->boolean('merge_with_attachments');
+		$attachmentIdsParam = (string) request('attachment_ids', '');
+		$attachmentIds = array_values(array_filter(array_map('intval', explode(',', $attachmentIdsParam))));
 
 		$qr_url = url('/storage/reports/' . $customer_name . '/' . $filename);
 		$qrcode = base64_encode(QrCode::format('svg')->size(50)->errorCorrection('H')->generate($qr_url));
@@ -344,6 +351,15 @@ class ReportHeaderDetailController extends Controller
 
 			$batch->batch_report_url = '/reports/' . $customer_name . '/' . $filename;
 			$batch->save();
+
+			if ($mergeWithAttachments && !empty($attachmentIds)) {
+				$coaPath = storage_path() . '/app/reports/' . $customer_name . '/' . $filename;
+				$mergedContent = $this->mergeCoaWithAttachments($coaPath, $batch, $attachmentIds, $customer_name, $filename);
+
+				return response($mergedContent, 200, [
+					'Content-Type' => 'application/pdf',
+				]);
+			}
 			
 			return $pdf->stream($filename);
 		}
@@ -501,6 +517,15 @@ class ReportHeaderDetailController extends Controller
 
 			$batch->batch_report_url = '/reports/' . $customer_name . '/' . $filename;
 			$batch->save();
+
+			if ($mergeWithAttachments && !empty($attachmentIds)) {
+				$coaPath = storage_path() . '/app/reports/' . $customer_name . '/' . $filename;
+				$mergedContent = $this->mergeCoaWithAttachments($coaPath, $batch, $attachmentIds, $customer_name, $filename);
+
+				return response($mergedContent, 200, [
+					'Content-Type' => 'application/pdf',
+				]);
+			}
 			
 			return $pdf->stream($filename);
 		}
@@ -636,6 +661,15 @@ class ReportHeaderDetailController extends Controller
 
 			$batch->batch_report_url = '/reports/' . $customer_name . '/' . $filename;
 			$batch->save();
+
+			if ($mergeWithAttachments && !empty($attachmentIds)) {
+				$coaPath = storage_path() . '/app/reports/' . $customer_name . '/' . $filename;
+				$mergedContent = $this->mergeCoaWithAttachments($coaPath, $batch, $attachmentIds, $customer_name, $filename);
+
+				return response($mergedContent, 200, [
+					'Content-Type' => 'application/pdf',
+				]);
+			}
 			
 			return $pdf->stream($filename);
 		}
@@ -668,7 +702,9 @@ class ReportHeaderDetailController extends Controller
 
 		$batch->batch_report_url = '/reports/' . $customer_name . '/' . $filename;
 		$batch->save();
-		
+
+		// For water_report we currently just return a JSON response.
+		// Attachment merging is not applied in this legacy flow.
 		return response()->json(['success' => true, 'message' => 'PDF successfully saved to FTP!']);
 	}
 	public function moveFTP($ftpPath, $localPath)
@@ -679,6 +715,158 @@ class ReportHeaderDetailController extends Controller
 		} else {
 			return redirect()->back()->with('error', 'Failed to upload PDF to FTP server');
 		}
+	}
+
+	/**
+	 * Merge a generated COA PDF with selected batch attachments.
+	 *
+	 * @param  string       $coaPath       Absolute path to the main COA PDF.
+	 * @param  SampleHeader $batch         Batch whose attachments should be merged.
+	 * @param  array        $attachmentIds Attachment IDs (from batch_attachments) to append.
+	 * @param  string       $customerName  Sanitized customer name used in report paths.
+	 * @param  string       $filename      Target filename for the merged PDF.
+	 * @return string                      The merged PDF binary content.
+	 */
+	private function mergeCoaWithAttachments(string $coaPath, SampleHeader $batch, array $attachmentIds, string $customerName, string $filename): string
+	{
+		$pdf = new TcpdfFpdi();
+		$pdf->setPrintHeader(false);
+		$pdf->setPrintFooter(false);
+		$pdf->SetMargins(0, 0, 0);
+		$pdf->SetAutoPageBreak(false);
+
+		$validFiles = [];
+		$totalPageCount = 0;
+
+		// First, add the main COA as the leading document if it exists
+		if (file_exists($coaPath)) {
+			try {
+				$tempPdf = new TcpdfFpdi();
+				$pageCount = $tempPdf->setSourceFile($coaPath);
+				$totalPageCount += $pageCount;
+				$validFiles[] = ['path' => $coaPath, 'count' => $pageCount, 'title' => 'COA'];
+			} catch (\Exception $e) {
+				\Log::warning("Could not read COA PDF for merging: " . $e->getMessage());
+			}
+		}
+
+		// Fetch attachments belonging to the batch
+		if (!empty($attachmentIds)) {
+			$attachments = BatchAttachment::where('batch_id', $batch->id)
+				->whereIn('id', $attachmentIds)
+				->get();
+
+			// Preserve user-selected order
+			foreach ($attachmentIds as $id) {
+				$attachment = $attachments->firstWhere('id', $id);
+				if (!$attachment) {
+					continue;
+				}
+
+				$relativePath = urldecode($attachment->attachment_url);
+				$relativePath = ltrim($relativePath, '/');
+				$filePath = public_path($relativePath);
+
+				if (!file_exists($filePath)) {
+					$cleanPath = ltrim($relativePath, '/');
+					if (strpos($cleanPath, 'storage/') === 0) {
+						$storageInternalPath = substr($cleanPath, 8);
+						$fallbackPath = storage_path('app/' . $storageInternalPath);
+						if (file_exists($fallbackPath)) {
+							$filePath = $fallbackPath;
+						}
+					}
+				}
+
+				// Only attempt to merge PDFs
+				if (!file_exists($filePath) || strtolower(pathinfo($filePath, PATHINFO_EXTENSION)) !== 'pdf') {
+					continue;
+				}
+
+				try {
+					$tempPdf = new TcpdfFpdi();
+					$pageCount = $tempPdf->setSourceFile($filePath);
+					$totalPageCount += $pageCount;
+					$validFiles[] = [
+						'path' => $filePath,
+						'count' => $pageCount,
+						'title' => $attachment->title ?? 'Attachment'
+					];
+				} catch (\Exception $e) {
+					\Log::warning("Could not pre-scan attachment PDF {$attachment->title}: " . $e->getMessage());
+				}
+			}
+		}
+
+		if (count($validFiles) === 0) {
+			// Fallback: just return the original COA if no attachments could be merged
+			return file_exists($coaPath) ? file_get_contents($coaPath) : '';
+		}
+
+		$currentPageGlobal = 1;
+		foreach ($validFiles as $fileInfo) {
+			try {
+				$pdf->setSourceFile($fileInfo['path']);
+				for ($pageNo = 1; $pageNo <= $fileInfo['count']; $pageNo++) {
+					$templateId = $pdf->importPage($pageNo);
+					$size = $pdf->getTemplateSize($templateId);
+
+					$pdf->AddPage($size['orientation'], [$size['width'], $size['height']]);
+					$pdf->useTemplate($templateId);
+
+					// Set white fill color for covering original page numbers
+					$pdf->SetFillColor(255, 255, 255); // White
+					$pdf->SetDrawColor(255, 255, 255);
+					
+					// Cover common page number positions with comprehensive areas
+					// Use larger coverage to account for different font sizes, positions, and variations
+					$coverageWidth = 80; // Generous width for "Page 999 of 9999" in various font sizes
+					$coverageHeight = 20; // Generous height for page numbers in various font sizes
+					
+					// 1. Bottom-right position (most common - covers "Page 1 of 2", "Page 1 of 9", etc.)
+					// Cover multiple variations to catch all possible positions
+					$pdf->Rect($size['width'] - 85, $size['height'] - 25, $coverageWidth, $coverageHeight, 'F');
+					$pdf->Rect($size['width'] - 75, $size['height'] - 20, 70, 18, 'F');
+					$pdf->Rect($size['width'] - 65, $size['height'] - 15, 60, 15, 'F');
+					
+					// 2. Top-right position (covers "Page 1 of 6", "Page 1 of 14" etc.)
+					// Cover multiple variations in top-right corner
+					$pdf->Rect($size['width'] - 85, 0, $coverageWidth, $coverageHeight, 'F');
+					$pdf->Rect($size['width'] - 75, 0, 70, 25, 'F');
+					$pdf->Rect($size['width'] - 65, 0, 60, 20, 'F');
+					
+					// 3. Bottom-center position (some reports use this)
+					$bottomCenterX = ($size['width'] / 2) - ($coverageWidth / 2);
+					$pdf->Rect($bottomCenterX, $size['height'] - 25, $coverageWidth, $coverageHeight, 'F');
+					$pdf->Rect(($size['width'] / 2) - 40, $size['height'] - 20, 80, 18, 'F');
+					
+					// 4. Top-center position (less common but some documents use it)
+					$topCenterX = ($size['width'] / 2) - ($coverageWidth / 2);
+					$pdf->Rect($topCenterX, 0, $coverageWidth, $coverageHeight, 'F');
+
+					// Now add new global page numbering at bottom-right
+					$pdf->SetFont('helvetica', '', 8);
+					$text = "Page {$currentPageGlobal} of {$totalPageCount}";
+					$xTextPos = $size['width'] - 35; // Where text will be drawn
+					$yTextPos = $size['height'] - 10; // Where text will be drawn
+					$pdf->SetTextColor(0, 0, 0);
+					$pdf->Text($xTextPos, $yTextPos, $text);
+
+					$currentPageGlobal++;
+				}
+			} catch (\Exception $e) {
+				\Log::error("Error merging PDF segment {$fileInfo['title']}: " . $e->getMessage());
+			}
+		}
+
+		// Get merged binary content
+		$mergedContent = $pdf->Output($filename, 'S');
+
+		// Persist merged file over the original COA path so links remain valid
+		$storageRelativePath = 'reports/' . $customerName . '/' . $filename;
+		Storage::put($storageRelativePath, $mergedContent);
+
+		return $mergedContent;
 	}
 
 	/**
