@@ -41,7 +41,8 @@ class AnalysisTypeManager extends Component
         'reporting_time' => null,
         'include_hygiene_score' => false,
         'include_sanitizer_efficiency' => false,
-        'invoicable_item_id' => null
+        'invoicable_item_id' => null,
+        'procedure_worksheet_id' => null
     ];
 
     // Elements Management
@@ -220,7 +221,8 @@ class AnalysisTypeManager extends Component
             'reporting_time' => $analysisType->reporting_time,
             'include_hygiene_score' => (bool) $analysisType->include_hygiene_score,
             'include_sanitizer_efficiency' => (bool) $analysisType->include_sanitizer_efficiency,
-            'invoicable_item_id' => $invoicableItemId
+            'invoicable_item_id' => $invoicableItemId,
+            'procedure_worksheet_id' => $analysisType->procedure_worksheet_id
         ];
         $this->editingAnalysisType = $id;
         $this->showAnalysisTypeModal = true;
@@ -251,8 +253,16 @@ class AnalysisTypeManager extends Component
                     'reporting_time' => $this->analysisTypeForm['reporting_time'],
                     'include_hygiene_score' => $this->analysisTypeForm['include_hygiene_score'] ?? false,
                     'include_sanitizer_efficiency' => $this->analysisTypeForm['include_sanitizer_efficiency'] ?? false,
+                    'procedure_worksheet_id' => $this->analysisTypeForm['procedure_worksheet_id'] ?? null,
                 ]);
                 
+                // Cascade update to elements if "Has No Result Captured" and worksheet is set
+                if (($this->analysisTypeForm['has_no_result'] ?? false) && !empty($this->analysisTypeForm['procedure_worksheet_id'])) {
+                    $analysisType->analysis_elements()->update([
+                        'procedure_worksheet_id' => $this->analysisTypeForm['procedure_worksheet_id']
+                    ]);
+                }
+
                 // Update invoicable item mapping
                 $this->updateInvoicableItemMapping($analysisType);
                 
@@ -272,6 +282,7 @@ class AnalysisTypeManager extends Component
                     'include_hygiene_score' => $this->analysisTypeForm['include_hygiene_score'] ?? false,
                     'include_sanitizer_efficiency' => $this->analysisTypeForm['include_sanitizer_efficiency'] ?? false,
                     'company_id' => getUserCompany(),
+                    'procedure_worksheet_id' => $this->analysisTypeForm['procedure_worksheet_id'] ?? null,
                 ]);
                 
                 // Create invoicable item mapping
@@ -340,7 +351,8 @@ class AnalysisTypeManager extends Component
             'reporting_time' => null,
             'include_hygiene_score' => false,
             'include_sanitizer_efficiency' => false,
-            'invoicable_item_id' => null
+            'invoicable_item_id' => null,
+            'procedure_worksheet_id' => null
         ];
         $this->editingAnalysisType = null;
         $this->labSearch = '';
@@ -349,6 +361,8 @@ class AnalysisTypeManager extends Component
         $this->showLabSectionDropdown = false;
         $this->invoicableItemSearch = '';
         $this->showInvoicableItemDropdown = false;
+        $this->procedureWorksheetSearch = '';
+        $this->showProcedureWorksheetDropdown = false;
     }
 
     /**
@@ -484,9 +498,11 @@ class AnalysisTypeManager extends Component
                 ]);
                 $this->message = 'Analysis element updated successfully!';
             } else {
+                $analysisType = AnalysisType::find($this->selectedAnalysisType);
                 AnalysisElements::create([
                     'analyte_id' => $this->elementForm['analyte_id'],
                     'analysis_type_id' => $this->selectedAnalysisType,
+                    'procedure_worksheet_id' => $analysisType->procedure_worksheet_id ?? null,
                     'method' => $this->elementForm['method'],
                     'equipment_id' => $this->elementForm['equipment_id'],
                     'operator_id' => $this->elementForm['operator_id'],
@@ -646,6 +662,46 @@ class AnalysisTypeManager extends Component
         }
         
         return \App\SampleAnalysisStage::find($this->analysisTypeForm['lab_section_id']);
+    }
+
+    // Procedure Worksheet Searchable Dropdown
+    public $procedureWorksheetSearch = '';
+    public $showProcedureWorksheetDropdown = false;
+
+    public function updatedProcedureWorksheetSearch()
+    {
+        $this->showProcedureWorksheetDropdown = !empty($this->procedureWorksheetSearch);
+    }
+
+    public function selectProcedureWorksheet($id)
+    {
+        $this->analysisTypeForm['procedure_worksheet_id'] = $id;
+        $this->procedureWorksheetSearch = '';
+        $this->showProcedureWorksheetDropdown = false;
+    }
+
+    public function getFilteredProcedureWorksheetsProperty()
+    {
+        if (empty($this->procedureWorksheetSearch)) {
+            return [];
+        }
+
+        return \App\Models\Procedures\ProcedureWorksheet::where('is_active', 1)
+            ->where(function($q) {
+                $q->where('name', 'like', '%' . $this->procedureWorksheetSearch . '%')
+                  ->orWhere('description', 'like', '%' . $this->procedureWorksheetSearch . '%');
+            })
+            ->limit(10)
+            ->get();
+    }
+
+    public function getSelectedProcedureWorksheetProperty()
+    {
+        if (empty($this->analysisTypeForm['procedure_worksheet_id'])) {
+            return null;
+        }
+
+        return \App\Models\Procedures\ProcedureWorksheet::find($this->analysisTypeForm['procedure_worksheet_id']);
     }
 
     public function render()

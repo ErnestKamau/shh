@@ -189,7 +189,8 @@ class ElementManager extends Component
             'remedyHeader', 
             'formular',
             'methodSequence.activeVersion',
-            'methodSequence.latestVersion'
+            'methodSequence.latestVersion',
+            'procedureWorksheet'
         ])->where('analysis_type_id', $this->analysisTypeId);
 
         if ($this->search) {
@@ -295,7 +296,8 @@ class ElementManager extends Component
 
         try {
             $data = array_merge($this->elementForm, [
-                'analysis_type_id' => $this->analysisTypeId
+                'analysis_type_id' => $this->analysisTypeId,
+                'procedure_worksheet_id' => $this->analysisType->procedure_worksheet_id ?? null,
             ]);
 
             if ($this->editingElement) {

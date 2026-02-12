@@ -370,12 +370,54 @@
                                         </div>
                                         <div class="col-md-6 mb-2">
                                             <div class="form-check form-switch">
-                                                <input type="checkbox" wire:model="analysisTypeForm.has_no_result" class="form-check-input" id="has_no_result" role="switch">
+                                    <input type="checkbox" wire:model.live="analysisTypeForm.has_no_result" class="form-check-input" id="has_no_result" role="switch">
                                                 <label class="form-check-label" for="has_no_result">
                                                     <i class="mdi mdi-flask-empty-off-outline text-warning"></i> Has No Result Captured
                                                 </label>
                                             </div>
                                         </div>
+                                        
+                                        <!-- Conditional Procedure Worksheet Dropdown -->
+                                        @if($analysisTypeForm['has_no_result'] ?? false)
+                                            <div class="col-md-12 mb-2">
+                                                <div class="form-group mb-3">
+                                                    <label class="form-label">
+                                                        <i class="mdi mdi-file-document-outline text-primary"></i> Procedure Worksheet <span class="text-danger">*</span>
+                                                    </label>
+                                                    <div class="tag-select-container" wire:click="$set('showProcedureWorksheetDropdown', true)" wire:click.outside="$set('showProcedureWorksheetDropdown', false)">
+                                                        <div class="tag-select-input">
+                                                            @if($this->selectedProcedureWorksheet)
+                                                                <span class="tag-badge">
+                                                                    {{ $this->selectedProcedureWorksheet->name }}
+                                                                    <i class="mdi mdi-close-circle" wire:click.stop="$set('analysisTypeForm.procedure_worksheet_id', null)"></i>
+                                                                </span>
+                                                            @endif
+                                                            
+                                                            <input type="text" 
+                                                                   wire:model.live="procedureWorksheetSearch" 
+                                                                   class="tag-input" 
+                                                                   placeholder="{{ $this->selectedProcedureWorksheet ? '' : 'Search procedure worksheets...' }}"
+                                                                   autocomplete="off">
+                                                        </div>
+                                                        
+                                                        @if($showProcedureWorksheetDropdown && count($this->filteredProcedureWorksheets) > 0)
+                                                            <div class="tag-dropdown">
+                                                                @foreach($this->filteredProcedureWorksheets as $worksheet)
+                                                                    <div class="tag-dropdown-item" wire:click.stop="selectProcedureWorksheet({{ $worksheet->id }})">
+                                                                        <strong>{{ $worksheet->name }}</strong>
+                                                                        @if($worksheet->description)
+                                                                            <br><small class="text-muted">{{ Str::limit($worksheet->description, 50) }}</small>
+                                                                        @endif
+                                                                    </div>
+                                                                @endforeach
+                                                            </div>
+                                                        @endif
+                                                    </div>
+                                                    <small class="form-text text-muted">Select the procedure worksheet for this analysis type</small>
+                                                    @error('analysisTypeForm.procedure_worksheet_id') <span class="text-danger">{{ $message }}</span> @enderror
+                                                </div>
+                                            </div>
+                                        @endif
                                         <div class="col-md-6 mb-2">
                                             <div class="form-check form-switch">
                                                 <input type="checkbox" wire:model="analysisTypeForm.include_hygiene_score" class="form-check-input" id="include_hygiene_score" role="switch">

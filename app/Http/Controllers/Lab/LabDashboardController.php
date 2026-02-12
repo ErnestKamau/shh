@@ -55,7 +55,7 @@ class LabDashboardController extends Controller
             $months = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
             $loop = 1;
             foreach ($months as $month) {
-                $results[$month] = SampleHeader::whereMonth('created_at', $loop)->where('isactive', 1)->whereYear('created_at', $request->year)->get()->count();
+                $results[$month] = SampleHeader::whereMonth('receipt_date', $loop)->where('isactive', 1)->whereYear('receipt_date', $request->year)->count();
                 ++$loop;
             }
         } else {
@@ -63,7 +63,7 @@ class LabDashboardController extends Controller
             $months = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
             $loop = 1;
             foreach ($months as $month) {
-                $results[$month] = SampleHeader::whereMonth('created_at', $loop)->whereYear('created_at', $currentY)->where('isactive', 1)->get()->count();
+                $results[$month] = SampleHeader::whereMonth('receipt_date', $loop)->whereYear('receipt_date', $currentY)->where('isactive', 1)->count();
                 ++$loop;
             }
         }

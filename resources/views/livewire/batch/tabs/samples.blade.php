@@ -1463,7 +1463,7 @@
                                     <div class="col-md-4">
                                         <div class="form-group">
                                             <label class="form-label"><strong>Sample Area</strong></label>
-                                            <select wire:model="assignNewAreaId" class="form-control">
+                                            <select wire:model.live="assignNewAreaId" class="form-control">
                                                 <option value="">-- Select Area --</option>
                                                 @foreach($assignAvailableAreas as $area)
                                                     <option value="{{ $area['id'] }}">{{ $area['name'] }}</option>
@@ -1474,7 +1474,7 @@
                                     <div class="col-md-4">
                                         <div class="form-group">
                                             <label class="form-label"><strong>Sample Point</strong></label>
-                                            <select wire:model="assignNewPointId" class="form-control">
+                                            <select wire:model.live="assignNewPointId" class="form-control">
                                                 <option value="">-- Select Sample Point --</option>
                                                 @foreach($assignAvailablePoints as $point)
                                                     <option value="{{ $point['id'] }}">{{ $point['name'] }}</option>

@@ -37,7 +37,8 @@ class AnalysisElements extends Model implements Auditable
     'result_is_calculated', 
     'formular_id',
     'has_method_sequence',
-    'method_sequence_id'
+    'method_sequence_id',
+    'procedure_worksheet_id'
   ];
   
   protected $casts = [
@@ -94,5 +95,10 @@ class AnalysisElements extends Model implements Auditable
 
   public function formular(){
     return $this->belongsTo('App\Models\Formulars\Formula', 'formular_id');
+  }
+
+  public function procedureWorksheet()
+  {
+      return $this->belongsTo(\App\Models\Procedures\ProcedureWorksheet::class, 'procedure_worksheet_id');
   }
 }

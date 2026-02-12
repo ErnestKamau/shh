@@ -242,6 +242,21 @@
                     </div>
                     <div class="modal-body" style="max-height: 70vh; overflow-y: auto;">
                         <form wire:submit.prevent="saveElement">
+                            @if($this->analysisType->procedureWorksheet)
+                                <div class="row mb-3">
+                                    <div class="col-12">
+                                         <div class="alert alert-info border-info">
+                                             <div class="d-flex align-items-center">
+                                                 <i class="mdi mdi-file-document-outline fs-4 me-2"></i>
+                                                 <div>
+                                                     <h6 class="mb-0">Procedure Worksheet Assigned</h6>
+                                                     <small>Elements will be linked to <strong>{{ $this->analysisType->procedureWorksheet->name }}</strong></small>
+                                                 </div>
+                                             </div>
+                                         </div>
+                                    </div>
+                                </div>
+                            @endif
                             <div class="row">
                                 <div class="col-md-6">
                                     <div class="form-group mb-3">

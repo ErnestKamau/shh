@@ -375,21 +375,37 @@ class Samples extends Component
         })->toArray();
 
         // Also load available areas for the "Add New" dropdowns
-        // Load areas using the correct Area model
-        // Note: Ideally we should filter by sample type or customer if that logic exists, 
-        // but for now we follow the general availability logic or fetch all.
-        // Legacy: "available-areas-points" route fetches Areas filtered by sample type.
-        // We will fetch all areas for now to ensure we find what we need since we don't have sample type ID handy easily without query.
-        $this->assignAvailableAreas = \App\Models\Area::select('id', 'name')
+        // Filter by sample type if available
+        $sampleTypeId = $this->assignSampleTypeId;
+        
+        if ($sampleTypeId) {
+            $this->assignAvailableAreas = \App\Models\Area::whereHas('sampleTypes', function ($q) use ($sampleTypeId) {
+                $q->where('sample_types.id', $sampleTypeId);
+            })
+            ->select('id', 'name')
             ->orderBy('name')
             ->get()
             ->toArray();
 
-        // Load all defined sample points (Master list)
-        $this->assignAvailablePoints = \App\Models\SamplePoint::select('id', 'name')
+            $this->assignAvailablePoints = \App\Models\SamplePoint::whereHas('sampleTypes', function ($q) use ($sampleTypeId) {
+                $q->where('sample_types.id', $sampleTypeId);
+            })
+            ->select('id', 'name')
             ->orderBy('name')
             ->get()
             ->toArray();
+        } else {
+            // Fallback (though sample type should always be there for a batch)
+            $this->assignAvailableAreas = \App\Models\Area::select('id', 'name')
+                ->orderBy('name')
+                ->get()
+                ->toArray();
+
+            $this->assignAvailablePoints = \App\Models\SamplePoint::select('id', 'name')
+                ->orderBy('name')
+                ->get()
+                ->toArray();
+        }
     }
 
     public function addCustomerSamplePoint()
@@ -399,7 +415,7 @@ class Samples extends Component
             'assignNewPointId' => 'required|exists:crm_sample_points,id',
         ]);
 
-        $customerId = $this->batch->client_id;
+        $customerId = $this->batch->crm_customer_id;
         $staging = SampleDetailStaging::find($this->assignStagingId);
         $subUnitId = $staging->data_json['company_sub_unit_id'] ?? null;
 

@@ -28,7 +28,8 @@ class AnalysisType extends Model implements Auditable
     'result_expo',
     'include_hygiene_score',
     'include_sanitizer_efficiency',
-    'invoicable_item_id'
+    'invoicable_item_id',
+    'procedure_worksheet_id'
   ];
 
   protected $casts = [
@@ -93,6 +94,11 @@ class AnalysisType extends Model implements Auditable
   public function defaultInvoicableItem()
   {
     return $this->belongsTo(InvoicableItem::class, 'invoicable_item_id');
+  }
+
+  public function procedureWorksheet()
+  {
+      return $this->belongsTo(\App\Models\Procedures\ProcedureWorksheet::class, 'procedure_worksheet_id');
   }
 
 }

@@ -20,4 +20,14 @@ class ProcedureWorksheet extends Model
     {
         return $this->hasMany(ProcedureWorksheetStep::class);
     }
+
+    public function analysisTypes()
+    {
+        return $this->hasMany(\App\AnalysisType::class, 'procedure_worksheet_id');
+    }
+
+    public function analysisElements()
+    {
+        return $this->hasMany(\App\AnalysisElements::class, 'procedure_worksheet_id');
+    }
 }
