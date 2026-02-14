@@ -10,6 +10,11 @@ use App\Standards;
 use App\SampleCondition;
 use App\SampleDate;
 use App\Lab;
+use App\SampleAnalysisStage;
+use App\SampleAnalysisDates;
+use App\CapturedResult;
+use App\Result;
+use App\AnalysisElements;
 use Livewire\Component;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
@@ -108,6 +113,12 @@ class Samples extends Component
     public $showParametersModal = false;
     public $selectedSampleCode = null;
     public $sampleParameters = [];
+    /** Lab section dropdown options for Parameters modal (SampleAnalysisStage) */
+    public $modalLabSections = [];
+    /** Date of analysis per lab section for the current sample: [ section_id => 'Y-m-d' ] */
+    public $dateOfAnalysisBySection = [];
+    /** Unique lab sections in current parameters (for Date of Analysis row): [ id => name ] */
+    public $parameterLabSections = [];
 
     // Assign Samples Modal Data
     public $showAssignSamplesModal = false;
@@ -1735,6 +1746,9 @@ class Samples extends Component
                 // Get equipment
                 $equipment = \App\Models\Equipments\Equipment::find($result->equipment_id);
 
+                // Lab section (for Parameters modal column and change section)
+                $labSection = SampleAnalysisStage::find($result->lab_section_id);
+
                 // Get analyte for reporting unit
                 $analyte = \App\Analyte::find($result->analyte_id);
 
@@ -1797,6 +1811,8 @@ class Samples extends Component
                     'ltm_method_id' => $result->ltm_method_id,
                     'equipment_name' => $equipment->name ?? '-',
                     'equipment_id' => $result->equipment_id,
+                    'lab_section_id' => $result->lab_section_id,
+                    'lab_section_name' => $labSection ? ($labSection->name . ' - ' . $labSection->code) : '-',
                     'subcontracted' => $result->analyte_status_contracted,
                     'accredited' => $result->analyte_accredited,
                     'result_confirmation' => $result->result, // Initialize with same value
@@ -1805,6 +1821,61 @@ class Samples extends Component
                     'limit_high' => $limitHigh,
                     'standard_editable' => false,
                 ];
+            }
+
+            // Unique lab sections for Date of Analysis row: from parameters, or fall back to batch's lab sections
+            $uniqueSectionIds = collect($parameters)->pluck('lab_section_id')->filter()->unique()->values();
+            $this->parameterLabSections = [];
+            foreach ($uniqueSectionIds as $sid) {
+                $stage = SampleAnalysisStage::find($sid);
+                if ($stage) {
+                    $this->parameterLabSections[$sid] = $stage->name . ' - ' . $stage->code;
+                }
+            }
+            // If no sections from parameters (e.g. not yet assigned), use batch's lab sections so Date row still shows
+            if (empty($this->parameterLabSections) && !empty($this->batch->lab_section_ids)) {
+                $batchSectionIds = array_filter(explode(',', $this->batch->lab_section_ids));
+                foreach ($batchSectionIds as $sid) {
+                    $stage = SampleAnalysisStage::find($sid);
+                    if ($stage) {
+                        $this->parameterLabSections[$sid] = $stage->name . ' - ' . $stage->code;
+                    }
+                }
+            }
+
+            // Load analysis dates for this sample (start_analysis_date per section)
+            $this->dateOfAnalysisBySection = [];
+            $analysisDateRecord = SampleAnalysisDates::where('sample_header_id', $this->batch->id)
+                ->where('sample_detail_id', $sample->id)
+                ->first();
+            if ($analysisDateRecord && $analysisDateRecord->analysis_dates) {
+                $decoded = json_decode($analysisDateRecord->analysis_dates, true);
+                if (is_array($decoded)) {
+                    foreach ($decoded as $secId => $dateVal) {
+                        $this->dateOfAnalysisBySection[$secId] = $dateVal ? \Carbon\Carbon::parse($dateVal)->format('Y-m-d') : '';
+                    }
+                }
+            }
+            // Ensure every parameter section has an entry
+            foreach (array_keys($this->parameterLabSections) as $sid) {
+                if (!isset($this->dateOfAnalysisBySection[$sid])) {
+                    $this->dateOfAnalysisBySection[$sid] = '';
+                }
+            }
+
+            // Lab sections for dropdown (Parameters modal)
+            $this->modalLabSections = SampleAnalysisStage::where('active', 1)->where('is_system', 0)->orderBy('name')->get();
+
+            // If still no sections (batch has none), use all active sections so Date of Analysis row is always visible
+            if (empty($this->parameterLabSections) && $this->modalLabSections->isNotEmpty()) {
+                foreach ($this->modalLabSections as $stage) {
+                    $this->parameterLabSections[$stage->id] = $stage->name . ' - ' . $stage->code;
+                }
+                foreach (array_keys($this->parameterLabSections) as $sid) {
+                    if (!isset($this->dateOfAnalysisBySection[$sid])) {
+                        $this->dateOfAnalysisBySection[$sid] = '';
+                    }
+                }
             }
 
             // Populate form data for editing
@@ -2045,10 +2116,10 @@ class Samples extends Component
                     'operator_id' => $data['operator_id'],
                     'method_id' => $data['method_id'],
                     'equipment_id' => $data['equipment_id'],
+                    'lab_section_id' => $data['lab_section_id'] ?? null,
                     'analyte_status_contracted' => $data['subcontracted'] ? 1 : 0,
                     'analyte_accredited' => $data['accredited'] ? 1 : 0,
                     'updated_at' => now(),
-                    // Mark manual remark if changed? For now just save.
                 ];
 
                 DB::table('captured_results')
@@ -2137,6 +2208,150 @@ class Samples extends Component
     }
 
     /**
+     * Save start of analysis date for a lab section (Parameters modal).
+     * Uses same logic as SampleWorkFlowController::saveSampleAnalysisDate.
+     */
+    public function saveStartAnalysisDate($sectionId)
+    {
+        $date = $this->dateOfAnalysisBySection[$sectionId] ?? '';
+        if (!$date) {
+            session()->flash('error', 'Please select a date for this section.');
+            return;
+        }
+
+        $sample = SampleDetails::where('sample_code', $this->selectedSampleCode)
+            ->where('sample_header_id', $this->batch->id)
+            ->first();
+        if (!$sample) {
+            session()->flash('error', 'Sample not found.');
+            return;
+        }
+
+        try {
+            $analysis_date = SampleAnalysisDates::where('sample_header_id', $this->batch->id)
+                ->where('sample_detail_id', $sample->id)
+                ->first();
+
+            if (!$analysis_date) {
+                $analysis_date = new SampleAnalysisDates();
+            }
+
+            $prev_dates = [];
+            if ($analysis_date->analysis_dates) {
+                $decoded = json_decode($analysis_date->analysis_dates, true);
+                $prev_dates = is_array($decoded) ? $decoded : [];
+            }
+
+            $prev_dates[$sectionId] = $date;
+
+            $start_date = '';
+            foreach ($prev_dates as $val) {
+                if ($start_date === '') {
+                    $start_date = $val;
+                } else {
+                    $start_date = $val > $start_date ? $start_date : $val;
+                }
+            }
+
+            $analysis_date->sample_header_id = $this->batch->id;
+            $analysis_date->sample_detail_id = $sample->id;
+            $analysis_date->start_analysis_date = $start_date;
+            $analysis_date->analysis_dates = json_encode($prev_dates);
+            $analysis_date->save();
+
+            session()->flash('message', 'Date of analysis saved successfully.');
+            $this->dateOfAnalysisBySection[$sectionId] = $date;
+        } catch (\Exception $e) {
+            Log::error('Save analysis date: ' . $e->getMessage());
+            session()->flash('error', 'Failed to save date.');
+        }
+    }
+
+    /** Change Section (Parameters modal): show/hide panel */
+    public $showChangeSectionPanel = false;
+    /** Selected lab section id when changing section */
+    public $changeSectionLabSectionId = '';
+    /** Affect this batch only? (update all rows in this batch with same analysis_type + analyte) */
+    public $changeSectionAffectBatch = false;
+    /** Affect all parameter configurations? (update analysis_elements and all captured/results globally) */
+    public $changeSectionAffectAll = true;
+
+    public function toggleChangeSectionPanel()
+    {
+        $this->showChangeSectionPanel = !$this->showChangeSectionPanel;
+        if (!$this->showChangeSectionPanel) {
+            $this->changeSectionLabSectionId = '';
+        }
+    }
+
+    /**
+     * Change lab section (full feature matching legacy Analysis Parameters modal).
+     * Options: Affect this batch only? | Affect all parameter configurations?
+     */
+    public function saveChangeSection()
+    {
+        if (!$this->changeSectionLabSectionId) {
+            session()->flash('error', 'Please select a lab section.');
+            return;
+        }
+
+        $capturedIds = array_keys($this->parametersForm);
+        if (empty($capturedIds)) {
+            session()->flash('error', 'No parameters to update.');
+            return;
+        }
+
+        if (!$this->changeSectionAffectBatch && !$this->changeSectionAffectAll) {
+            session()->flash('error', 'Please choose whether to affect this batch only or all parameter configurations.');
+            return;
+        }
+
+        try {
+            $capturedResults = CapturedResult::whereIn('id', $capturedIds)->get();
+
+            foreach ($capturedResults as $cr) {
+                if ($this->changeSectionAffectBatch) {
+                    CapturedResult::where('sample_header_id', $cr->sample_header_id)
+                        ->where('analysis_type_id', $cr->analysis_type_id)
+                        ->where('analyte_id', $cr->analyte_id)
+                        ->update(['lab_section_id' => $this->changeSectionLabSectionId]);
+                    Result::where('sample_header_id', $cr->sample_header_id)
+                        ->where('analysis_type_id', $cr->analysis_type_id)
+                        ->where('analyte_id', $cr->analyte_id)
+                        ->update(['lab_section_id' => $this->changeSectionLabSectionId]);
+                }
+                if ($this->changeSectionAffectAll) {
+                    CapturedResult::where('analysis_type_id', $cr->analysis_type_id)
+                        ->where('analyte_id', $cr->analyte_id)
+                        ->update(['lab_section_id' => $this->changeSectionLabSectionId]);
+                    Result::where('analysis_type_id', $cr->analysis_type_id)
+                        ->where('analyte_id', $cr->analyte_id)
+                        ->update(['lab_section_id' => $this->changeSectionLabSectionId]);
+                    AnalysisElements::where('analysis_type_id', $cr->analysis_type_id)
+                        ->where('analyte_id', $cr->analyte_id)
+                        ->update(['lab_section_id' => $this->changeSectionLabSectionId]);
+                }
+            }
+
+            // Refresh form so current sample's parameters show new section
+            foreach ($capturedIds as $id) {
+                if (isset($this->parametersForm[$id])) {
+                    $this->parametersForm[$id]['lab_section_id'] = $this->changeSectionLabSectionId;
+                    $stage = SampleAnalysisStage::find($this->changeSectionLabSectionId);
+                    $this->parametersForm[$id]['lab_section_name'] = $stage ? ($stage->name . ' - ' . $stage->code) : '-';
+                }
+            }
+
+            $this->showChangeSectionPanel = false;
+            $this->changeSectionLabSectionId = '';
+            session()->flash('message', 'Lab section updated successfully.');
+        } catch (\Exception $e) {
+            Log::error('Change section: ' . $e->getMessage());
+            session()->flash('error', 'Failed to update lab section.');
+        }
+    }
+
+    /**
      * Close view parameters modal
      */
     public function cancelViewParameters()
@@ -2144,6 +2359,12 @@ class Samples extends Component
         $this->showParametersModal = false;
         $this->selectedSampleCode = null;
         $this->sampleParameters = [];
+        $this->dateOfAnalysisBySection = [];
+        $this->parameterLabSections = [];
+        $this->showChangeSectionPanel = false;
+        $this->changeSectionLabSectionId = '';
+        $this->changeSectionAffectBatch = false;
+        $this->changeSectionAffectAll = true;
     }
 
     // ========== Comments & Interpretations Feature ==========

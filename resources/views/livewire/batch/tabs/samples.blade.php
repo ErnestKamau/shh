@@ -746,6 +746,46 @@
                     <div wire:loading.remove wire:target="viewParameters" class="modal-body"
                         style="max-height: 75vh; overflow-y: auto;">
                         @if(!empty($sampleParameters))
+                            {{-- Change Section (like qplus / Analysis Parameters modal) --}}
+                            <div class="mb-3">
+                                <button type="button" class="btn btn-sm btn-outline-dark"
+                                    wire:click="toggleChangeSectionPanel">
+                                    <i class="mdi mdi-compare-vertical"></i> Change Section
+                                </button>
+                                @if($showChangeSectionPanel)
+                                    <div class="alert alert-primary py-3 mt-2 mb-0 row align-items-center">
+                                        <div class="col-md-3">
+                                            <label class="control-label small font-weight-bold">Sections</label>
+                                            <select class="form-control form-control-sm" wire:model.defer="changeSectionLabSectionId">
+                                                <option value="">Select Lab Section</option>
+                                                @foreach($modalLabSections as $section)
+                                                    <option value="{{ $section->id }}">{{ $section->name }} - {{ $section->code }}</option>
+                                                @endforeach
+                                            </select>
+                                        </div>
+                                        <div class="col-md-3 d-flex flex-column justify-content-end">
+                                            <label class="d-flex align-items-center mb-0 mt-2 mt-md-0">
+                                                <input type="checkbox" class="mr-2" wire:model.defer="changeSectionAffectBatch">
+                                                <span class="small">Affect this batch only?</span>
+                                            </label>
+                                        </div>
+                                        <div class="col-md-3 d-flex flex-column justify-content-end">
+                                            <label class="d-flex align-items-center mb-0 mt-2 mt-md-0">
+                                                <input type="checkbox" class="mr-2" wire:model.defer="changeSectionAffectAll">
+                                                <span class="small">Affect all parameter configurations?</span>
+                                            </label>
+                                        </div>
+                                        <div class="col-md-3 d-flex align-items-end justify-content-end mt-2 mt-md-0">
+                                            <button type="button" class="btn btn-sm btn-primary"
+                                                wire:click="saveChangeSection"
+                                                wire:loading.attr="disabled">
+                                                <span wire:loading.remove wire:target="saveChangeSection"><i class="mdi mdi-content-save"></i> Save Sections</span>
+                                                <span wire:loading wire:target="saveChangeSection"><i class="mdi mdi-loading mdi-spin"></i> Saving...</span>
+                                            </button>
+                                        </div>
+                                    </div>
+                                @endif
+                            </div>
                             <div class="table-responsive">
                                 <table class="table table-sm table-bordered table-striped table-hover"
                                     style="font-size: 0.85rem;">
@@ -761,6 +801,7 @@
                                             @endif
                                             <th style="min-width: 150px;">Standard</th>
                                             <th style="min-width: 100px;">Remark</th>
+                                            <th style="min-width: 120px;">Lab Section</th>
                                             <th style="min-width: 100px;">Unit</th>
                                             <th style="min-width: 120px;">Operator</th>
                                             <th style="min-width: 120px;">Method</th>
@@ -771,6 +812,37 @@
                                         </tr>
                                     </thead>
                                     <tbody>
+                                        {{-- Start of analysis date row (one per lab section in this sample) --}}
+                                        @if(!empty($parameterLabSections))
+                                            <tr class="table-info">
+                                                <td colspan="4" class="align-middle"></td>
+                                                <td colspan="{{ $uncertaintyRequired ? 12 : 11 }}" style="padding: 16px 20px 16px 6px;">
+                                                    @foreach($parameterLabSections as $sectionId => $sectionName)
+                                                        <div class="d-inline-block align-middle" style="min-width: 360px; margin-right: 32px; margin-bottom: 8px;">
+                                                            <strong class="d-inline-block" style="min-width: 120px; margin-right: 24px;">{{ $sectionName }}</strong>
+                                                            <span class="small d-inline-block" style="min-width: 120px; margin-right: 16px;">Date of Analysis</span>
+                                                            <input type="date"
+                                                                class="form-control form-control-sm d-inline-block"
+                                                                style="width: 160px; margin-right: 20px;"
+                                                                wire:model.defer="dateOfAnalysisBySection.{{ $sectionId }}"
+                                                                min="{{ $batch->receipt_date ? \Carbon\Carbon::parse($batch->receipt_date)->format('Y-m-d') : date('Y-m-d') }}">
+                                                            <button type="button"
+                                                                class="btn btn-sm btn-success"
+                                                                style="margin-left: 4px;"
+                                                                wire:click="saveStartAnalysisDate({{ $sectionId }})"
+                                                                wire:loading.attr="disabled">
+                                                                <span wire:loading.remove wire:target="saveStartAnalysisDate({{ $sectionId }})">
+                                                                    <i class="mdi mdi-sync"></i> Click to Save Date
+                                                                </span>
+                                                                <span wire:loading wire:target="saveStartAnalysisDate({{ $sectionId }})">
+                                                                    <i class="mdi mdi-loading mdi-spin"></i> Saving...
+                                                                </span>
+                                                            </button>
+                                                        </div>
+                                                    @endforeach
+                                                </td>
+                                            </tr>
+                                        @endif
                                         @foreach($parametersForm as $id => $param)
                                             <tr wire:key="param-{{ $id }}">
                                                 <td><strong>{{ $param['sample_code'] }}</strong></td>
@@ -839,11 +911,20 @@
                                                 </td>
                                                 <td style="min-width: 110px;">
                                                     <select class="form-control form-control-sm"
-                                                        wire:model.defer="parametersForm.{{ $id }}.remark"
-                                                        style="pointer-events: none; background-color: #e9ecef;">
+                                                        wire:model.defer="parametersForm.{{ $id }}.remark">
                                                         <option value="">- Select -</option>
-                                                        <option value="PASS">PASS</option>
-                                                        <option value="FAIL">FAIL</option>
+                                                        <option value="PASS">Pass</option>
+                                                        <option value="FAIL">Fail</option>
+                                                        <option value="-">-</option>
+                                                    </select>
+                                                </td>
+                                                <td style="min-width: 120px;">
+                                                    <select class="form-control form-control-sm"
+                                                        wire:model.defer="parametersForm.{{ $id }}.lab_section_id">
+                                                        <option value="">- Select -</option>
+                                                        @foreach($modalLabSections as $section)
+                                                            <option value="{{ $section->id }}">{{ $section->name }} - {{ $section->code }}</option>
+                                                        @endforeach
                                                     </select>
                                                 </td>
                                                 <td style="min-width: 120px;">

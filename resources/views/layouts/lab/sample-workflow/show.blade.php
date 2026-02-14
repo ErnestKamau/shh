@@ -3976,6 +3976,7 @@ document.addEventListener('DOMContentLoaded', function() {
 											<option value="">Choose Remark</option>
 											<option value="PASS">PASS</option>
 											<option value="PASS">FAIL</option>
+											<option value="-">-</option>
 										</select>
 									</div>
 								</div>
@@ -6657,9 +6658,11 @@ document.addEventListener('DOMContentLoaded', function() {
 					<input id="${data.sample_detail_code}-${data.id}" style="min-width: 150px" type="text" 
 					class="form-control disabled ${data.remark_is_manual == 0 ? 'first-remark' : 'hidden'} ${data.pesticide == 1 ? 'pest-remark': '' }" readonly="true" value="${data.remark ?? ''}" name="remark[${data.id}]" placeholder="Remark..." />
 					<div class="form-group is-manual ${data.remark_is_manual == 0 ? "hidden" : ""} ${data.pesticide == 1 ? 'pest-remark': '' }">
-						<select name="remarkmanual[${data.id}]" id="" class="form-control remarkmanual">
+						<select name="remarkmanual[${data.id}]" id="" class="form-control remarkmanual no-select2">
+							<option value="" ${!data.remark || data.remark === '' ? 'selected' : ''}>- Select -</option>
 							<option value="PASS" ${data.remark == 'PASS' ? 'selected' : ''}>Pass</option>
 							<option value="FAIL" ${data.remark == 'FAIL' ? 'selected' : ''}>Fail</option>
+							<option value="-" ${data.remark == '-' ? 'selected' : ''}>-</option>
 						</select>
 					</div>
 				</td>
@@ -6712,7 +6715,7 @@ document.addEventListener('DOMContentLoaded', function() {
 		
 
 		data.reporting_unit_id == '' ? $($row).find('.sample-reporting-unit').val(data.my_analyte.reporting_unit) :$($row).find('.sample-reporting-unit').val(data.reporting_unit_id) ;
-		$($row).find('.sample-reporting-unit').select2();
+		$($row).find('.sample-reporting-unit').select2({ dropdownParent: $('#show-sample-analysis-analytes') });
 		
 		$row.on('keypress','.first-result',function(e){
 			if (e.which == 13) {
@@ -6805,9 +6808,10 @@ document.addEventListener('DOMContentLoaded', function() {
 		$.each(OPS, function(o,p){
 			$row.find('select.item-operators').append(`<option value="${p.id}">${p.name}</option>`)
 		});
-		$row.find('select.method-id').select2();
-		$row.find('select.item-operators').select2();
-		$row.find('select.remarkmanual').select2();
+		var $paramsModal = $('#show-sample-analysis-analytes');
+		$row.find('select.method-id').select2({ dropdownParent: $paramsModal });
+		$row.find('select.item-operators').select2({ dropdownParent: $paramsModal });
+		// REMARK: use native select (no-select2) so dropdown works reliably inside modal
 		if(selectedOperator){
 			$row.find('select.item-operators').val(selectedOperator).trigger('change');
 		}
@@ -7698,10 +7702,10 @@ document.addEventListener('DOMContentLoaded', function() {
 		if (remark === 'PASS') return 'bg-success-light';
 		if (remark === 'FAIL') return 'bg-danger-light';
 		return 'bg-secondary-light';
-	}
+	}*/
 
 	function getParameterRowBackgroundClass(result, remark) {
-		if (!result || !remark) return '';
+		if (!result || !remark || remark === '-') return '';
 		
 		if (remark === 'PASS') return 'table-success';
 		if (remark === 'FAIL') return 'table-danger';
