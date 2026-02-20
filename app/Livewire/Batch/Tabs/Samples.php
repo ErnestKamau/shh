@@ -141,6 +141,7 @@ class Samples extends Component
     public $assignNewPointId = '';
     public $assignAvailableAreas = [];
     public $assignAvailablePoints = [];
+    public $assignQuantities = []; 
 
     // Add New UoM Data
     public $newUomName = '';
@@ -374,37 +375,23 @@ class Samples extends Component
             ];
         })->toArray();
 
-        // Also load available areas for the "Add New" dropdowns
-        // Filter by sample type if available
-        $sampleTypeId = $this->assignSampleTypeId;
-        
-        if ($sampleTypeId) {
-            $this->assignAvailableAreas = \App\Models\Area::whereHas('sampleTypes', function ($q) use ($sampleTypeId) {
-                $q->where('sample_types.id', $sampleTypeId);
-            })
-            ->select('id', 'name')
+        // Show all areas and points in the system, removing the sample type filter
+        $this->assignAvailableAreas = \App\Models\Area::select('id', 'name')
             ->orderBy('name')
             ->get()
             ->toArray();
 
-            $this->assignAvailablePoints = \App\Models\SamplePoint::whereHas('sampleTypes', function ($q) use ($sampleTypeId) {
-                $q->where('sample_types.id', $sampleTypeId);
-            })
-            ->select('id', 'name')
+        $this->assignAvailablePoints = \App\Models\SamplePoint::select('id', 'name')
             ->orderBy('name')
             ->get()
             ->toArray();
-        } else {
-            // Fallback (though sample type should always be there for a batch)
-            $this->assignAvailableAreas = \App\Models\Area::select('id', 'name')
-                ->orderBy('name')
-                ->get()
-                ->toArray();
 
-            $this->assignAvailablePoints = \App\Models\SamplePoint::select('id', 'name')
-                ->orderBy('name')
-                ->get()
-                ->toArray();
+        // Initialize quantities
+        $this->assignQuantities = [];
+        foreach ($this->assignAreas as $area) {
+            foreach ($area['sample_points'] as $point) {
+                $this->assignQuantities[$point['id']] = 1;
+            }
         }
     }
 
@@ -479,6 +466,22 @@ class Samples extends Component
                     'crm_company_sub_unit_id' => $subUnitId,
                     'active' => true
                 ]);
+            }
+
+            // Link to the Sample Type of the batch
+            $sampleTypeId = $this->batch->sample_type_id;
+            if ($sampleTypeId) {
+                // Link Area to Sample Type
+                $area = \App\Models\Area::find($this->assignNewAreaId);
+                if ($area) {
+                    $area->sampleTypes()->syncWithoutDetaching([$sampleTypeId]);
+                }
+
+                // Link Sample Point to Sample Type
+                $samplePoint = \App\Models\SamplePoint::find($this->assignNewPointId);
+                if ($samplePoint) {
+                    $samplePoint->sampleTypes()->syncWithoutDetaching([$sampleTypeId]);
+                }
             }
 
             DB::commit();
@@ -617,13 +620,16 @@ class Samples extends Component
     {
         // Filter out unticked or zero quantity (though frontend should handle this)
         $selections = [];
-        foreach ($this->assignSelectedPoints as $pointId => $qty) {
-            // In the array check, we might want boolean check or quantity check
-            // Assuming frontend sends ['point_id' => quantity] if selected
-            if ($qty > 0) {
+        foreach ($this->assignSelectedPoints as $pointId => $isSelected) {
+            // Check if selected
+            if ($isSelected) {
+                $qty = isset($this->assignQuantities[$pointId]) && $this->assignQuantities[$pointId] > 0 
+                    ? $this->assignQuantities[$pointId] 
+                    : 1;
+
                 $selections[] = [
                     'sample_point_id' => $pointId,
-                    'quantity' => $qty // Logic says quantity doesn't affect creation count, but we keep it
+                    'quantity' => $qty
                 ];
             }
         }
@@ -655,7 +661,8 @@ class Samples extends Component
                     $staging,
                     $samplePointId,
                     $sampleIndex,
-                    $totalSamples
+                    $totalSamples,
+                    $selection['quantity']
                 );
 
                 $createdSamples[] = $sampleDetail;
@@ -694,9 +701,11 @@ class Samples extends Component
     }
 
     // Support methods for assignment (Simplification of Controller methods)
-    private function createSampleDetailsFromStagingLivewire($sampleHeader, $staging, $samplePointId, $index, $totalSamples)
+    private function createSampleDetailsFromStagingLivewire($sampleHeader, $staging, $samplePointId, $index, $totalSamples, $quantity = 1)
     {
         $dataJson = $staging->data_json;
+        // Inject quantity into dataJson for creation
+        $dataJson['force_quantity'] = $quantity;
 
         // Generate code
         // Simple generation for now, ideally matched with controller logic
@@ -733,6 +742,13 @@ class Samples extends Component
             'company_product_id' => $companyProductId,
             'sample_condition_id' => $sampleConditionId,
             'lab_id' => $dataJson['lab_id'] ?? 1,
+            'barcode' => $sampleHeader->date_collected ? date('H:i:s', strtotime($sampleHeader->date_collected)) : null,
+            'sample_point_id' => $samplePointId,
+            'analysis_type_id' => $dataJson['analysis_type_ids'] ?? '',
+            'company_product_id' => $companyProductId,
+            'sample_condition_id' => $sampleConditionId,
+            'lab_id' => $dataJson['lab_id'] ?? 1,
+            'quantity' => $dataJson['force_quantity'] ?? 1,
             'barcode' => $sampleHeader->date_collected ? date('H:i:s', strtotime($sampleHeader->date_collected)) : null,
             'disposal_date' => $disposal_date,
         ]);

@@ -84,11 +84,14 @@ class SubmissionFormController extends Controller
     {
         $validated = $request->validate([
             'name' => ['required', 'string', 'max:255', 'unique:submission_forms,name'],
+            'document_code' => ['required', 'string', 'max:50'],
             'description' => ['nullable', 'string', 'max:1000'],
             'naming_convention_prefix' => ['required', 'string', 'max:50'],
             'naming_convention_format' => ['required', 'string', 'max:100'],
             'is_active' => ['boolean'],
             'start_submission_number' => ['nullable', 'integer', 'min:1'],
+            'version' => ['required', 'string', 'max:50'],
+            'issue_date' => ['required', 'date'],
             'print_template_name' => ['nullable', 'string', 'max:255'],
             'sample_analysis_stage_ids' => ['nullable', 'array'],
             'sample_analysis_stage_ids.*' => ['exists:sample_analysis_stages,id']
@@ -159,11 +162,14 @@ class SubmissionFormController extends Controller
                 'max:255', 
                 Rule::unique('submission_forms', 'name')->ignore($submissionForm->id)
             ],
+            'document_code' => ['required', 'string', 'max:50'],
             'description' => ['nullable', 'string', 'max:1000'],
             'naming_convention_prefix' => ['required', 'string', 'max:50'],
             'naming_convention_format' => ['required', 'string', 'max:100'],
             'is_active' => ['boolean'],
             'start_submission_number' => ['nullable', 'integer', 'min:1'],
+            'version' => ['required', 'string', 'max:50'],
+            'issue_date' => ['required', 'date'],
             'print_template_name' => ['nullable', 'string', 'max:255'],
             'sample_analysis_stage_ids' => ['nullable', 'array'],
             'sample_analysis_stage_ids.*' => ['exists:sample_analysis_stages,id']

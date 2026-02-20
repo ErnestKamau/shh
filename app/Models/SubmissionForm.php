@@ -12,6 +12,7 @@ class SubmissionForm extends Model
 {
     protected $fillable = [
         'name',
+        'document_code',
         'description',
         'naming_convention_prefix',
         'naming_convention_format',
@@ -19,13 +20,15 @@ class SubmissionForm extends Model
         'is_active',
         'start_submission_number',
         'version',
+        'issue_date',
         'print_template_name',
         'created_by'
     ];
 
     protected $casts = [
         'is_published' => 'boolean',
-        'is_active' => 'boolean'
+        'is_active' => 'boolean',
+        'issue_date' => 'date'
     ];
 
     /**

@@ -604,6 +604,29 @@ class SubmissionFormInstance extends Model
     }
 
     /**
+     * Get the total number of tests (analyses) requested across all samples
+     */
+    public function getTestsCountAttribute(): int
+    {
+        $count = 0;
+        
+        // Eager load batches and their samples to avoid N+1 if not already loaded
+        $batches = $this->batches()->with('samples')->get();
+
+        foreach ($batches as $batch) {
+            foreach ($batch->samples as $sample) {
+                if (!empty($sample->analysis_type_id)) {
+                    // Count exploded IDs, filtering out empty strings
+                    $analysisIds = array_filter(explode(',', $sample->analysis_type_id));
+                    $count += count($analysisIds);
+                }
+            }
+        }
+
+        return $count;
+    }
+
+    /**
      * Get structured form data for display with enhanced metadata
      * Returns data optimized for frontend consumption with dependency information
      */

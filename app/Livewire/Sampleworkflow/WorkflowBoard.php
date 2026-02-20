@@ -11,11 +11,14 @@ use App\SampleHeader;
 use App\SampleType;
 use App\Models\System\SystemConfiguration;
 use App\User;
+use App\Models\SubmissionFormInstance;
 use Illuminate\Support\Collection;
 use Livewire\Component;
+use Livewire\WithPagination;
 
 class WorkflowBoard extends Component
 {
+    use WithPagination;
     /**
      * Current workflow status tab.
      */
@@ -44,6 +47,13 @@ class WorkflowBoard extends Component
     public ?string $receiptDateTo = null;
     public ?int $customerFilter = null;
     public ?int $sampleTypeFilter = null;
+    
+    /**
+     * Submission form filters (for Samples Reception).
+     */
+    public string $submissionFormsSearch = '';
+    public string $submissionFormsStatus = '';
+    public string $submissionFormsPriority = '';
     
     /**
      * Customer dropdown state.
@@ -86,6 +96,24 @@ class WorkflowBoard extends Component
         
         // Mark initial load as complete after a short delay
         $this->dispatch('initial-load-complete');
+    }
+
+    /**
+     * Reset pagination when submission form filters are updated.
+     */
+    public function updatingSubmissionFormsSearch(): void
+    {
+        $this->resetPage('forms_page');
+    }
+
+    public function updatingSubmissionFormsStatus(): void
+    {
+        $this->resetPage('forms_page');
+    }
+
+    public function updatingSubmissionFormsPriority(): void
+    {
+        $this->resetPage('forms_page');
     }
     
     /**
@@ -197,6 +225,53 @@ class WorkflowBoard extends Component
             'All Samples' => $this->getAllSampleBatches(),
             default => $this->getStatusBatches(),
         };
+    }
+
+    /**
+     * Computed list of submission form instances for the Samples Reception tab.
+     */
+    public function getSubmissionFormsProperty()
+    {
+        $query = SubmissionFormInstance::with(['submissionForm', 'submittedBy', 'batches'])
+            ->latest();
+
+        if ($this->status === 'Samples Reception' && $this->submissionFormsStatus) {
+            $query->where('status', $this->submissionFormsStatus);
+        }
+
+        if ($this->submissionFormsPriority) {
+            $query->withPriority($this->submissionFormsPriority);
+        }
+
+        if ($this->submissionFormsSearch) {
+            $search = $this->submissionFormsSearch;
+            $query->where(function ($q) use ($search) {
+                $q->where('form_number', 'like', "%{$search}%")
+                    ->orWhere('title', 'like', "%{$search}%")
+                    ->orWhereHas('submissionForm', function ($q) use ($search) {
+                        $q->where('name', 'like', "%{$search}%");
+                    });
+            });
+        }
+
+        return $query->paginate(10, ['*'], 'forms_page');
+    }
+
+    /**
+     * Delete a submission form instance.
+     */
+    public function deleteSubmissionForm(int $id): void
+    {
+        $instance = SubmissionFormInstance::findOrFail($id);
+        
+        // Only allow deleting drafts
+        if ($instance->status !== 'draft') {
+            session()->flash('error', 'Only draft submissions can be deleted.');
+            return;
+        }
+
+        $instance->delete();
+        session()->flash('message', 'Draft submission deleted successfully.');
     }
 
     protected function baseBatchQuery()
@@ -359,6 +434,9 @@ class WorkflowBoard extends Component
         $this->customerSearch = '';
         $this->showCustomerDropdown = false;
         $this->customerPage = 1;
+        $this->submissionFormsSearch = '';
+        $this->submissionFormsStatus = '';
+        $this->submissionFormsPriority = '';
     }
     
     /**

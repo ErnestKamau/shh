@@ -60,9 +60,62 @@
                   @error('name')
                     <div class="invalid-feedback">{{ $message }}</div>
                   @enderror
-                  <small class="form-text text-muted">
-                    This will be displayed to users when they access the form.
-                  </small>
+                </div>
+
+                <div class="col-12 mt-3 mb-1 px-0">
+                  <h6 class="text-primary font-weight-bold small text-uppercase">
+                    <i class="mdi mdi-certificate mr-1"></i> Form Quality Control Metadata
+                  </h6>
+                  <p class="text-muted small mb-3">To get started, please provide the standard identification details for this form. These include the Document Control Number, Revision Number, and the official Issue Date which explain and identify this form.</p>
+                </div>
+
+                <div class="row">
+                  <div class="col-md-4">
+                    <div class="form-group">
+                      <label for="document_code" class="required">Document Control Number</label>
+                      <input type="text" 
+                             class="form-control @error('document_code') is-invalid @enderror" 
+                             id="document_code" 
+                             name="document_code" 
+                             value="{{ old('document_code') }}" 
+                             required
+                             maxlength="50"
+                             placeholder="e.g. FM/QA/047">
+                      @error('document_code')
+                        <div class="invalid-feedback">{{ $message }}</div>
+                      @enderror
+                    </div>
+                  </div>
+                  <div class="col-md-4">
+                    <div class="form-group">
+                      <label for="version" class="required">Revision Number</label>
+                      <input type="text" 
+                             class="form-control @error('version') is-invalid @enderror" 
+                             id="version" 
+                             name="version" 
+                             value="{{ old('version') }}" 
+                             required 
+                             maxlength="50"
+                             placeholder="e.g. 01">
+                      @error('version')
+                        <div class="invalid-feedback">{{ $message }}</div>
+                      @enderror
+                    </div>
+                  </div>
+                  <div class="col-md-4">
+                    <div class="form-group">
+                      <label for="issue_date" class="required">Issue Date</label>
+                      <input type="date" 
+                             class="form-control @error('issue_date') is-invalid @enderror" 
+                             id="issue_date" 
+                             name="issue_date" 
+                             value="{{ old('issue_date') }}"
+                             required>
+                      @error('issue_date')
+                        <div class="invalid-feedback">{{ $message }}</div>
+                      @enderror
+                    </div>
+                  </div>
                 </div>
 
                 <div class="form-group">

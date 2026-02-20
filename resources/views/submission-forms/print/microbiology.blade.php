@@ -402,9 +402,9 @@ $samplePointNames = \App\Models\CRM\SamplePoint::whereIn('id', $samplePoints)->s
                     style="height:80px; object-fit:contain; margin:0 auto 10px; display:block;">
             </td>
             <td class="document-info">
-                <div><strong>FM/QA/072</strong></div>
-                <div><strong>Revision 04</strong></div>
-                <div><strong>Issue Date:</strong> 11/09/2023</div>
+                <div><strong>{{ $submissionForm->document_code ?? 'FM/QA/072' }}</strong></div>
+                <div><strong>Revision Number {{ $submissionForm->version }}</strong></div>
+                <div><strong>Issue Date:</strong> {{ $submissionForm->issue_date ? $submissionForm->issue_date->format('d/m/Y') : '11/09/2023' }}</div>
             </td>
         </tr>
     </table>

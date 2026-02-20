@@ -44,6 +44,7 @@ class SampleTypeManager extends Component
         'default_product_id' => null,
         'disposal_count' => 0,
         'active' => true,
+        'is_results_attachable' => false,
         'sample_analysis_stage_ids' => []
     ];
 
@@ -254,9 +255,10 @@ class SampleTypeManager extends Component
             'rating_header_id' => $sampleType->rating_header_id,
             'report_format_id' => $sampleType->report_format_id,
             'default_product_id' => $sampleType->default_product_id,
-            'disposal_count' => $sampleType->disposal_count ?? 0,
-            'active' => $sampleType->active,
-            'sample_analysis_stage_ids' => $sampleType->sampleAnalysisStages()->pluck('sample_analysis_stages.id')->toArray()
+            'disposal_count' => $sampleType->disposal_count,
+            'active' => (bool)$sampleType->active,
+            'is_results_attachable' => (bool)$sampleType->is_results_attachable,
+            'sample_analysis_stage_ids' => $sampleType->sampleAnalysisStages->pluck('id')->toArray(),
         ];
         $this->editingSampleType = $id;
         $this->showSampleTypeModal = true;
@@ -291,8 +293,13 @@ class SampleTypeManager extends Component
                     'default_product_id' => $this->sampleTypeForm['default_product_id'],
                     'disposal_count' => $this->sampleTypeForm['disposal_count'] ?? 0,
                     'active' => $this->sampleTypeForm['active'],
+                    'is_results_attachable' => $this->sampleTypeForm['is_results_attachable'],
                     'company_id' => getUserCompany(),
                 ]);
+
+                // Sync with analysis types
+                $sampleType->analysis_types()->update(['has_no_result' => $this->sampleTypeForm['is_results_attachable']]);
+
                 $sampleType->sampleAnalysisStages()->sync($this->sampleTypeForm['sample_analysis_stage_ids'] ?? []);
                 $this->message = 'Sample type updated successfully!';
             } else {
@@ -306,6 +313,7 @@ class SampleTypeManager extends Component
                     'default_product_id' => $this->sampleTypeForm['default_product_id'],
                     'disposal_count' => $this->sampleTypeForm['disposal_count'] ?? 0,
                     'active' => $this->sampleTypeForm['active'],
+                    'is_results_attachable' => $this->sampleTypeForm['is_results_attachable'],
                     'company_id' => getUserCompany(),
                 ]);
                 $sampleType->sampleAnalysisStages()->sync($this->sampleTypeForm['sample_analysis_stage_ids'] ?? []);
@@ -358,6 +366,7 @@ class SampleTypeManager extends Component
             $newSampleType = $originalSampleType->replicate();
             $newSampleType->name = $originalSampleType->name . ' (Copy)';
             $newSampleType->code = $originalSampleType->code . '_copy';
+            $newSampleType->is_results_attachable = $originalSampleType->is_results_attachable;
             $newSampleType->save();
 
             // Clone analysis types and elements
@@ -409,6 +418,7 @@ class SampleTypeManager extends Component
             'default_product_id' => null,
             'disposal_count' => 0,
             'active' => true,
+            'is_results_attachable' => false,
             'sample_analysis_stage_ids' => []
         ];
         $this->editingSampleType = null;

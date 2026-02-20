@@ -1546,7 +1546,7 @@
                                                             <div class="custom-control custom-checkbox">
                                                                 <input type="checkbox" class="custom-control-input"
                                                                     id="assign_point_{{ $point['id'] }}"
-                                                                    wire:model.defer="assignSelectedPoints.{{ $point['id'] }}"
+                                                                    wire:model.live="assignSelectedPoints.{{ $point['id'] }}"
                                                                     value="1">
                                                                 <label class="custom-control-label"
                                                                     for="assign_point_{{ $point['id'] }}"></label>
@@ -1555,8 +1555,9 @@
                                                         <td>{{ $point['name'] }}</td>
                                                         <td>
                                                             <input type="number" class="form-control form-control-sm"
-                                                                style="width: 80px;" value="1" disabled>
-                                                            <!-- Quantity logic can be expanded here if needed, currently fixed to 1 per selection logic -->
+                                                                wire:model="assignQuantities.{{ $point['id'] }}"
+                                                                style="width: 80px;" min="1"
+                                                                {{ empty($assignSelectedPoints[$point['id']]) ? 'disabled' : '' }}>
                                                         </td>
                                                         <td>
                                                             <span class="badge badge-success">Active</span>
