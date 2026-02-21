@@ -338,9 +338,13 @@ class FormInstanceController extends Controller
             $templateName = 'submission-forms.print.default';
         }
 
-        // return json_encode($existingValues);
+        $logoUrl = '';
+        $company = getActiveCompany();
+        if ($company && ! empty($company->logo)) {
+            $logoUrl = str_starts_with($company->logo, 'http') ? $company->logo : url($company->logo);
+        }
 
-        return view($templateName, compact('submissionForm', 'instance', 'existingValues'));
+        return view($templateName, compact('submissionForm', 'instance', 'existingValues', 'logoUrl'));
     }
 
     /**
@@ -1269,10 +1273,14 @@ class FormInstanceController extends Controller
 
         // If a custom template exists, use it with the appropriate data format
         if ($templateName !== 'submission-forms.print.default' && view()->exists($templateName)) {
-            // Prepare data in the format expected by custom templates (e.g., serology)
+            // Prepare data in the format expected by custom templates (e.g., microbiology, serology)
             $existingValues = $instance->getSubmittedFormData();
-            
-            return view($templateName, compact('submissionForm', 'instance', 'existingValues'));
+            $processedSampleData = app(\App\Services\SubmissionFormPdfService::class)->buildProcessedSampleData($instance);
+            $logoUrl = '';
+            if ($company && ! empty($company->logo)) {
+                $logoUrl = str_starts_with($company->logo, 'http') ? $company->logo : url($company->logo);
+            }
+            return view($templateName, compact('submissionForm', 'instance', 'existingValues', 'processedSampleData', 'logoUrl'));
         }
 
         // Otherwise, use the default batch view print template

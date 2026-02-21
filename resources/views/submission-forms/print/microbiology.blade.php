@@ -360,8 +360,11 @@ $headerDetails['submission_date'] = $headerDetails['submission_date'] ?? $header
                 <div>Zimbabwe</div>
             </td>
             <td class="logo-section">
-                <img src="{{ $active->logo }}" alt="Fivet Logo"
+                @php $logoSrc = $logoSrc ?? $logoUrl ?? $active->logo ?? ''; @endphp
+                @if($logoSrc)
+                <img src="{{ $logoSrc }}" alt="Fivet Logo"
                     style="height:80px; object-fit:contain; margin:0 auto 10px; display:block;">
+                @endif
             </td>
             <td class="document-info">
                 <div><strong>{{ $submissionForm->document_code ?? 'FM/QA/072' }}</strong></div>
@@ -514,19 +517,49 @@ $headerDetails['submission_date'] = $headerDetails['submission_date'] ?? $header
     </table>
     <br>
     <br>
+    @if(!empty($processedSampleData))
+    <strong>Tests Required</strong><br>
+    <table style="width: 100%; border-collapse: collapse; border: 1px solid #000; margin-top: 4px;">
+        <thead>
+            <tr style="background-color: #e6eef7;">
+                <th style="text-align: left; padding: 8px; border: 1px solid #000; font-weight: bold; color: #4682B4; background-color: #e6eef7;">Test Required</th>
+                <th style="text-align: center; padding: 8px; border: 1px solid #000; font-weight: bold; color: #4682B4; background-color: #e6eef7;">No of Samples</th>
+                <th style="text-align: left; padding: 8px; border: 1px solid #000; font-weight: bold; color: #4682B4; background-color: #e6eef7;">Lab No</th>
+                <th style="text-align: left; padding: 8px; border: 1px solid #000; font-weight: bold; color: #4682B4; background-color: #e6eef7;">Reported By &amp; Date</th>
+                <th style="text-align: left; padding: 8px; border: 1px solid #000; font-weight: bold; color: #4682B4; background-color: #e6eef7;">Sent By &amp; Date</th>
+            </tr>
+        </thead>
+        <tbody>
+            @foreach($processedSampleData as $sampleTypeGroup)
+                @foreach($sampleTypeGroup['analyses'] as $analysisData)
+                <tr>
+                    <td style="padding: 6px 8px; border: 1px solid #000;">{{ $analysisData['analysis_type_name'] }}</td>
+                    <td style="text-align: center; padding: 6px 8px; border: 1px solid #000;">{{ $analysisData['sample_count'] }}</td>
+                    <td style="padding: 6px 8px; border: 1px solid #000;">{{ $analysisData['code_range'] }}</td>
+                    <td style="padding: 6px 8px; border: 1px solid #000;">{{ $analysisData['reported_info'] }}</td>
+                    <td style="padding: 6px 8px; border: 1px solid #000;">{{ $analysisData['sent_info'] }}</td>
+                </tr>
+                @endforeach
+            @endforeach
+        </tbody>
+    </table>
+    @else
     <table style="width: 100%; border-collapse: collapse; border: 1px solid #000;">
         <tr>
             <th colspan="66.67" style="text-align: left; padding: 10px; border: 1px solid #000; font-weight: bold; font-weight: 600; text-decoration: underline; padding: 3px 4px">Tests Required</th>
             <th colspan="33.33"style="text-align: center; padding: 10px; border: 1px solid #000; font-weight: bold;; font-weight: 600; text-decoration: underline;  padding: 3px 4px">Tick Appropriate</th>
         </tr>
         @foreach($sampleDetails as $detail)
-        @php($analysisType = \App\AnalysisType::find($detail['analysis_type_id']))
+        @php($analysisType = \App\AnalysisType::find($detail['analysis_type_id'] ?? null))
+        @if($analysisType)
         <tr>
-            <th colspan="66.67" style="text-align: left; padding: 10px; border: 1px solid #000; font-weight: bold; padding: 5px">{{$analysisType->name}}</th>
+            <th colspan="66.67" style="text-align: left; padding: 10px; border: 1px solid #000; font-weight: bold; padding: 5px">{{ $analysisType->name }}</th>
             <th colspan="33.33"style="text-align: center; padding: 10px; border: 1px solid #000; font-weight: bold; padding: 5px">✔</th>
         </tr>
+        @endif
         @endforeach
     </table>
+    @endif
 </body>
 
 </html>

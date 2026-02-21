@@ -405,8 +405,11 @@ $samplePointNames = !empty($samplePoints) ? \App\Models\CRM\SamplePoint::whereIn
                 <div>Zimbabwe</div>
             </td>
             <td class="logo-section">
-                <img src="{{$active->logo}}" alt="Fivet Logo"
+                @php $logoSrc = $logoSrc ?? $logoUrl ?? $active->logo ?? ''; @endphp
+                @if($logoSrc)
+                <img src="{{ $logoSrc }}" alt="Fivet Logo"
                     style="height:80px; object-fit:contain; margin:0 auto 10px; display:block;">
+                @endif
             </td>
             <td class="document-info">
                 <div><strong>{{ $submissionForm->document_code ?? 'FM/QA/072' }}</strong></div>
