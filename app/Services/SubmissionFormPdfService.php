@@ -7,6 +7,7 @@ use App\Models\SubmissionFormInstance;
 use App\SampleHeader;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
+use SimpleSoftwareIO\QrCode\Facades\QrCode;
 
 class SubmissionFormPdfService
 {
@@ -53,13 +54,27 @@ class SubmissionFormPdfService
                 ? $this->buildProcessedSampleData($instance)
                 : [];
 
-            $pdf = app('dompdf.wrapper');
-            $pdf->getDomPDF()->set_option('isHtml5ParserEnabled', true);
-            $pdf->loadView($templateName, compact('submissionForm', 'instance', 'existingValues', 'logoSrc', 'processedSampleData'));
-            $pdfContent = $pdf->output();
-
+            // Footer: QR code pointing to this PDF's URL (for custom templates only)
             $safeBatchCode = preg_replace('/[^a-zA-Z0-9_-]/', '_', $sampleHeader->batch_code);
             $filename = 'submission-form-' . $instance->id . '-batch-' . $safeBatchCode . '.pdf';
+            $footerQrcode = '';
+            if (in_array($templateName, $customTemplates, true)) {
+                $pdfFileUrl = url('/storage/batch-attachments/' . $filename);
+                $footerQrcode = base64_encode(
+                    QrCode::format('svg')->size(96)->errorCorrection('H')->generate($pdfFileUrl)
+                );
+            }
+
+            $viewData = array_merge(
+                compact('submissionForm', 'instance', 'existingValues', 'logoSrc', 'processedSampleData'),
+                ['footerQrcode' => $footerQrcode]
+            );
+
+            $pdf = app('dompdf.wrapper');
+            $pdf->getDomPDF()->set_option('isHtml5ParserEnabled', true);
+            $pdf->loadView($templateName, $viewData);
+            $pdfContent = $pdf->output();
+
             Storage::put('batch-attachments/' . $filename, $pdfContent);
 
             $attachmentUrl = '/storage/batch-attachments/' . urlencode($filename);

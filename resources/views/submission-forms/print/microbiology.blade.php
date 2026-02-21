@@ -37,6 +37,7 @@ $headerDetails['submission_date'] = $headerDetails['submission_date'] ?? $header
     <style>
         @page {
             margin: 20px;
+            margin-bottom: 54px;
             size: A4;
         }
 
@@ -345,6 +346,55 @@ $headerDetails['submission_date'] = $headerDetails['submission_date'] ?? $header
         .isolate-block {
             page-break-inside: avoid;
         }
+
+        .print-footer {
+            position: fixed;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            z-index: 1000;
+            font-size: 9px;
+            color: #4682B4;
+            background: #fff;
+            width: 100%;
+        }
+        .print-footer-table {
+            width: 100%;
+            border: none;
+            border-collapse: collapse;
+            border-spacing: 0;
+            margin: 0;
+            padding: 0;
+            table-layout: fixed;
+        }
+        .print-footer-table tr {
+            height: 48px;
+        }
+        .print-footer-table td {
+            vertical-align: middle;
+            border: none;
+            padding: 0 12px;
+            line-height: 1;
+        }
+        .print-footer-table .footer-qr-cell {
+            width: 90px;
+            text-align: left;
+        }
+        .print-footer-table .footer-qr-cell img {
+            height: 70px;
+            width: 70px;
+            vertical-align: middle;
+        }
+        .print-footer-table .scan-note {
+            font-size: 8px;
+            color: #4682B4;
+            font-style: italic;
+            vertical-align: middle;
+        }
+        .print-footer-table .footer-page-cell {
+            text-align: right;
+            width: auto;
+        }
     </style>
 </head>
 
@@ -537,7 +587,7 @@ $headerDetails['submission_date'] = $headerDetails['submission_date'] ?? $header
                     <td style="text-align: center; padding: 6px 8px; border: 1px solid #000;">{{ $analysisData['sample_count'] }}</td>
                     <td style="padding: 6px 8px; border: 1px solid #000;">{{ $analysisData['code_range'] }}</td>
                     <td style="padding: 6px 8px; border: 1px solid #000;">{{ $analysisData['reported_info'] }}</td>
-                    <td style="padding: 6px 8px; border: 1px solid #000;">{{ $analysisData['sent_info'] }}</td>
+                    <td style="padding: 6px 8px; border: 1px solid #000;">Pending</td>
                 </tr>
                 @endforeach
             @endforeach
@@ -560,6 +610,32 @@ $headerDetails['submission_date'] = $headerDetails['submission_date'] ?? $header
         @endforeach
     </table>
     @endif
+
+    {{-- Footer: one row, two cells (QR left, page number right) on same center line --}}
+    <div class="print-footer">
+        <table class="print-footer-table" cellpadding="0" cellspacing="0">
+            <tr>
+                <td class="footer-qr-cell">
+                    @if(!empty($footerQrcode))
+                    <img src="data:image/svg+xml;base64,{{ $footerQrcode }}" alt="QR Code">
+                    @endif
+                </td>
+                <td class="footer-page-cell">&nbsp;</td>
+            </tr>
+        </table>
+    </div>
+
+    <script type="text/php">
+        if (isset($pdf)) {
+            $text = "Page {PAGE_NUM} of {PAGE_COUNT}";
+            $size = 9;
+            $font = $fontMetrics->getFont("Times New Roman");
+            $width = $fontMetrics->get_text_width($text, $font, $size) / 2;
+            $x = $pdf->get_width() - $width - 12;
+            $y = $pdf->get_height() - 24;
+            $pdf->page_text($x, $y, $text, $font, $size);
+        }
+    </script>
 </body>
 
 </html>
