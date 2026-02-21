@@ -44,6 +44,14 @@
                             <li>
                                 <a target="_blank" href="{{route('generateCustomerFocusIndex',['batch_id'=>$batch->id])}}" class="btn btn-sm dropdown-item"><i class="mdi mdi-eye mr-2"></i> View Sample Submission Form</a>
                             </li>
+                            @if($batch->hasSubmissionForm())
+                            <li>
+                                <form action="{{ route('regenerate-submission-form', ['batch' => $batch->id]) }}" method="POST" class="d-inline">
+                                    @csrf
+                                    <button type="submit" class="btn btn-sm dropdown-item"><i class="mdi mdi-refresh mr-2"></i> Regenerate Submission Form</button>
+                                </form>
+                            </li>
+                            @endif
                             @if($batch->schedule_analysis_sent == '')
                             <li>
                                 <span class="btn btn-sm dropdown-item" wire:click="$set('showSendScheduleModal', true)" style="cursor: pointer;">

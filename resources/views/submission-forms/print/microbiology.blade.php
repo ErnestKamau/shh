@@ -3,60 +3,66 @@
 <?php
 $active = getActiveCompany();
 
-$headerDetails = $existingValues['sample_header'];
-$sampleDetails = $existingValues['sample_details'];
+$headerDetails = $existingValues['sample_header'] ?? [];
+$sampleDetails = $existingValues['sample_details'] ?? [];
 
-$companyDetails = \App\Models\CRM\CRMCustomer::find($headerDetails['crm_customer_id']);
-$companyUnitDetails = \App\Models\CRM\CRMCompanyUnit::find($headerDetails['crm_unit_id']);
-$sampleTypeDetails = \App\SampleType::find($headerDetails['sample_type_id']);
+$companyDetails = isset($headerDetails['crm_customer_id']) ? \App\Models\CRM\CRMCustomer::find($headerDetails['crm_customer_id']) : null;
+$companyUnitId = $headerDetails['crm_unit_name'] ?? $headerDetails['crm_unit_id'] ?? null;
+$companyUnitDetails = $companyUnitId ? \App\Models\CRM\CRMCompanyUnit::find($companyUnitId) : null;
+$sampleTypeDetails = isset($headerDetails['sample_type_id']) ? \App\SampleType::find($headerDetails['sample_type_id']) : null;
 
 $samplePoints = [];
 
 foreach ($sampleDetails as $sample) {
-    $samplePoints = array_merge($samplePoints, explode(",", $sample['sample_point_id']));
+    $samplePointField = $sample['company_sub_unit_id'] ?? $sample['sample_point_id'] ?? null;
+    if ($samplePointField) {
+        $samplePoints = array_merge($samplePoints, is_array($samplePointField) ? $samplePointField : explode(",", (string) $samplePointField));
+    }
 }
 
-// dd($samplePoints);
+$samplePoints = array_unique(array_filter($samplePoints));
+$samplePointNames = !empty($samplePoints) ? \App\Models\CRM\SamplePoint::whereIn('id', $samplePoints)->get()->pluck('name')->toArray() : [];
 
-$samplePointNames = \App\Models\CRM\SamplePoint::whereIn('id', $samplePoints)->select('name')->pluck('name')->toArray();
+// Defaults for optional form fields so the template does not break when keys are missing
+$headerDetails['description'] = $headerDetails['description'] ?? '';
+$headerDetails['date_time_sampling'] = $headerDetails['date_time_sampling'] ?? $headerDetails['date_collected'] ?? null;
+$headerDetails['sampled_by'] = $headerDetails['sampled_by'] ?? $headerDetails['sampling_officer_name'] ?? '';
+$headerDetails['submission_date'] = $headerDetails['submission_date'] ?? $headerDetails['receipt_date'] ?? $headerDetails['date_collected'] ?? null;
 ?>
 <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8">
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Serology Laboratory Report</title>
+    <title>Microbiology Laboratory Submission Form</title>
     <style>
         @page {
-            margin: 5mm 5mm 5mm 5mm;
+            margin: 20px;
             size: A4;
+        }
 
-            @bottom-right {
-                content: "Page " counter(page);
-                font-family: Arial, sans-serif;
-                font-size: 11px;
-                color: #2c5aa0;
-            }
+        * {
+            font-family: "Times New Roman", "Arial Unicode MS", Times, serif;
+            font-size: 10px;
         }
 
         body {
-            font-family: Arial, sans-serif;
-            font-size: 11px;
+            margin: 0;
+            padding: 0;
             line-height: 1.4;
             color: #333;
-            margin: 0 auto;
-            padding: 0;
         }
 
         .header {
             text-align: left;
             margin-bottom: 20px;
             padding-bottom: 15px;
-            border-bottom: 2px solid #2c5aa0;
+            border-bottom: 2px solid #4682B4;
         }
 
         .company-name {
-            font-size: 18px;
+            font-size: 12px;
             font-weight: bold;
-            color: #2c5aa0;
+            color: #4682B4;
             margin-bottom: 5px;
         }
 
@@ -71,6 +77,7 @@ $samplePointNames = \App\Models\CRM\SamplePoint::whereIn('id', $samplePoints)->s
             display: table;
             width: 100%;
             margin-top: 15px;
+            font-size: 9px;
         }
 
         .header-left,
@@ -81,145 +88,140 @@ $samplePointNames = \App\Models\CRM\SamplePoint::whereIn('id', $samplePoints)->s
             padding: 0 10px;
         }
 
-        .report-info {
-            display: table;
-            width: 100%;
-            margin-bottom: 20px;
-        }
-
-        .report-single-col {
-            width: 100%;
-            margin-bottom: 20px;
-        }
-
-        .report-left,
-        .report-right {
-            display: table-cell;
-            width: 50%;
-            vertical-align: top;
-            padding: 0 10px;
+        .info-section {
+            font-size: 10px;
+            border: 2px solid #4682B4;
+            padding: 10px;
+            margin: 15px 0;
         }
 
         .info-row {
-            margin-bottom: 8px;
+            display: table;
+            width: 100%;
+            margin: 5px 0;
         }
 
         .info-label {
+            display: table-cell;
+            width: 35%;
             font-weight: bold;
-            display: inline-block;
-            width: 140px;
+            vertical-align: top;
+            padding-right: 10px;
+            white-space: nowrap;
+        }
+
+        .info-value {
+            display: table-cell;
+            width: 65%;
+            border-bottom: 1px dotted #000;
+            padding-bottom: 2px;
         }
 
         .report-title {
-            font-size: 16px;
-            font-weight: bold;
             text-align: center;
-            margin: 20px 0;
-            color: #2c5aa0;
-            text-transform: capitalize;
+            font-size: 14px;
+            font-weight: bold;
+            margin: 15px 0 20px 0;
             text-decoration: underline;
+            color: #333;
         }
 
         .section-title {
-            font-size: 14px;
             font-weight: bold;
-            margin: 20px 0 10px 0;
-            color: #2c5aa0;
-            border-bottom: 1px solid #ddd;
-            padding-bottom: 3px;
+            text-decoration: underline;
+            margin: 15px 0 10px 0;
+            font-size: 11px;
+            color: #333;
         }
 
         .results-table {
             width: 100%;
             border-collapse: collapse;
-            margin-bottom: 0;
+            margin: 15px 0;
+            font-size: 9px;
         }
 
         .results-table th,
         .results-table td {
-            border: 1px solid #ccc;
-            padding: 8px;
+            border: 1px solid #000;
+            padding: 6px;
             text-align: left;
+            vertical-align: middle;
         }
 
         .results-table th {
-            background-color: #f5f5f5;
+            background-color: #f0f0f0;
             font-weight: bold;
-            font-size: 10px;
-        }
-
-        .results-table td {
-            font-size: 10px;
         }
 
         .sensitivity-table {
             width: 100%;
             border-collapse: collapse;
             margin-bottom: 15px;
+            font-size: 9px;
         }
 
         .sensitivity-table th,
         .sensitivity-table td {
-            border: 1px solid #ccc;
+            border: 1px solid #000;
             padding: 6px;
             text-align: center;
         }
 
         .sensitivity-table th {
-            background-color: #e8f0fe;
+            background-color: #f0f0f0;
             font-weight: bold;
-            font-size: 10px;
-        }
-
-        .sensitivity-table td {
-            font-size: 10px;
         }
 
         .isolate-title {
             font-weight: bold;
             margin: 15px 0 5px 0;
-            color: #2c5aa0;
-            font-size: 12px;
+            font-size: 11px;
+            text-decoration: underline;
         }
 
         .sensitive {
-            color: #28a745;
+            color: green;
             font-weight: bold;
         }
 
         .resistant {
-            color: #dc3545;
-            font-weight: bold;
+            color: red !important;
+            font-weight: bold !important;
         }
 
         .intermediate {
-            color: #ffc107;
+            color: #666;
             font-weight: bold;
         }
 
         .interpretations {
             margin-top: 20px;
-            padding: 15px;
-            background-color: #f8f9fa;
-            border-left: 4px solid #2c5aa0;
+            font-size: 10px;
+            border: 2px solid #4682B4;
+            padding: 10px;
+            min-height: 40px;
         }
 
         .interpretations h3 {
             margin-top: 0;
-            color: #2c5aa0;
-            font-size: 12px;
+            font-size: 11px;
+            font-weight: bold;
+            text-decoration: underline;
         }
 
         .disclaimers {
             margin-top: 20px;
-            font-size: 9px;
-            color: #666;
+            font-size: 8px;
+            text-align: justify;
+            line-height: 1.2;
+            border: 2px solid #4682B4;
+            padding: 10px;
         }
 
         .disclaimers h4 {
-            font-size: 10px;
+            font-size: 9px;
             margin-bottom: 5px;
-            color: #333;
         }
 
         .disclaimers ul {
@@ -242,45 +244,36 @@ $samplePointNames = \App\Models\CRM\SamplePoint::whereIn('id', $samplePoints)->s
             display: table-cell;
             width: 50%;
             text-align: center;
-            padding: 0 20px;
+            vertical-align: top;
+            padding: 0 10px;
         }
 
         .signature-line {
-            border-top: 1px solid #333;
-            margin-top: 40px;
-            padding-top: 5px;
-            font-size: 10px;
+            border-bottom: 1px solid #000;
+            height: 50px;
+            margin: 20px 0 10px 0;
+            font-size: 9px;
         }
 
         .page-break {
             page-break-before: always;
         }
 
-        /* Header for page 2 */
         .header-page2 {
             text-align: left;
             margin-bottom: 20px;
             padding-bottom: 15px;
-            border-bottom: 2px solid #2c5aa0;
+            border-bottom: 2px solid #4682B4;
         }
 
-        /* Print optimization */
         @media print {
             body {
                 -webkit-print-color-adjust: exact;
-                counter-reset: page;
             }
 
             .page-number {
-                position: fixed;
-                right: 15mm;
-                bottom: 5mm;
-                font-size: 11px;
-                color: #2c5aa0;
-            }
-
-            .page-number:after {
-                content: "Page " counter(page);
+                font-size: 8px;
+                color: #4682B4;
             }
         }
 
@@ -321,43 +314,16 @@ $samplePointNames = \App\Models\CRM\SamplePoint::whereIn('id', $samplePoints)->s
 
         .header-underline {
             width: 100%;
-            border-bottom: 5px solid #2c5aa0;
+            border-bottom: 2px solid #4682B4;
             margin-bottom: 18px;
             position: relative;
         }
 
-        .header-underline:after {
-            content: "";
-            display: block;
-            width: 100%;
-            border-bottom: 1.5px solid #b3c6e0;
-            margin-top: 3px;
-        }
-
         .bordered-section {
-            border: 4px solid #2c5aa0;
-            /* border-radius: 8px; */
-            padding: 28px 20px 12px 20px;
+            border: 2px solid #4682B4;
+            padding: 10px;
             margin-bottom: 24px;
-            background: #fafdff;
-            box-shadow: 0 2px 8px 0 rgba(44, 90, 160, 0.04);
             position: relative;
-            overflow: hidden;
-        }
-
-        .bordered-section::before {
-            content: "";
-            display: block;
-            width: calc(100% - 16px);
-            height: 0;
-            border-bottom: 1.5px solid #b3c6e0;
-            position: absolute;
-            top: 4px;
-            left: 8px;
-            right: 8px;
-            z-index: 1;
-            border-radius: 4px;
-            pointer-events: none;
         }
 
         table {
@@ -374,10 +340,6 @@ $samplePointNames = \App\Models\CRM\SamplePoint::whereIn('id', $samplePoints)->s
         .results-table thead,
         .sensitivity-table thead {
             display: table-header-group;
-        }
-
-        .bordered-section {
-            page-break-inside: auto;
         }
 
         .isolate-block {
@@ -398,7 +360,7 @@ $samplePointNames = \App\Models\CRM\SamplePoint::whereIn('id', $samplePoints)->s
                 <div>Zimbabwe</div>
             </td>
             <td class="logo-section">
-                <img src="{{$active->logo}}" alt="Fivet Logo"
+                <img src="{{ $active->logo }}" alt="Fivet Logo"
                     style="height:80px; object-fit:contain; margin:0 auto 10px; display:block;">
             </td>
             <td class="document-info">
@@ -416,50 +378,59 @@ $samplePointNames = \App\Models\CRM\SamplePoint::whereIn('id', $samplePoints)->s
     <table style="width: 100%; border-collapse: collapse; border: 1px solid #000;">
         <tr>
             <th style="text-align: left; padding: 10px; border: 1px solid #000; font-weight: bold;">OWNER/COMPANY NAME</th>
-            <td style="text-align: left; padding: 10px; border: 1px solid #000;">{{ $companyDetails->name }}</td>
+            <td style="text-align: left; padding: 10px; border: 1px solid #000;">{{ optional($companyDetails)->name }}</td>
         </tr>
         <tr>
             <th style="text-align: left; padding: 10px; border: 1px solid #000; font-weight: bold;">ADDRESS</th>
-            <td style="text-align: left; padding: 10px; border: 1px solid #000;">{{ $companyDetails->physical_address }}</td>
+            <td style="text-align: left; padding: 10px; border: 1px solid #000;">{{ optional($companyDetails)->physical_address }}</td>
         </tr>
         <tr>
             <th style="text-align: left; padding: 10px; border: 1px solid #000; font-weight: bold;">TELEPHONE</th>
-            <td style="text-align: left; padding: 10px; border: 1px solid #000;">{{ $companyDetails->telephone1 }}</td>
+            <td style="text-align: left; padding: 10px; border: 1px solid #000;">{{ optional($companyDetails)->telephone1 }}</td>
         </tr>
         <tr>
             <th style="text-align: left; padding: 10px; border: 1px solid #000; font-weight: bold;">EMAIL</th>
-            <td style="text-align: left; padding: 10px; border: 1px solid #000;">{{ $companyDetails->email }}</td>
+            <td style="text-align: left; padding: 10px; border: 1px solid #000;">{{ optional($companyDetails)->email }}</td>
         </tr>
     </table>
     <br>
     <strong>SAMPLING AND SUBMISSION DETAILS</strong><br>
-    <table style="width: 100%; border-collapse: collapse; border: 1px solid #000;">
+    <table style="width: 100%; border-collapse: collapse; border: 1px solid #000; table-layout: fixed;">
+        <colgroup>
+            <col style="width: 33.33%;">
+            <col style="width: 33.33%;">
+            <col style="width: 33.34%;">
+        </colgroup>
         <tr>
-            <td style="text-align: left; padding: 10px; border: 1px solid #000; font-weight: bold;" colspan="50%">
+            <td style="text-align: left; padding: 10px; border: 1px solid #000; font-weight: bold;">
                 <div style="display: flex; width: 100%;">
                     <div style="width: 50%; padding-right: 10px;">
                         Specimen Type:<span style="font-weight: 400; border-bottom: 1px dotted #000; display: inline-block; width: 80px; margin-left: 5px;">{{$headerDetails['description']}}</span>
                     </div>
                 </div>
             </td>
-            <td style="text-align: left; padding: 10px; border: 1px solid #000;" colspan="50%">
-                Sample Collection Point/Site: <span style="border-bottom: 1px dotted #000; display: inline-block; min-width: 200px; margin-left: 5px;">{{$companyUnitDetails->name}}</span>
+            <td colspan="2" style="text-align: left; padding: 10px; border: 1px solid #000;">
+                Sample Collection Point/Site: <span style="border-bottom: 1px dotted #000; display: inline-block; min-width: 200px; margin-left: 5px;">{{ optional($companyUnitDetails)->name ?? '-' }}</span>
             </td>
         </tr>
         <tr>
-            <td style="text-align: left; padding: 10px; border: 1px solid #000; font-weight: bold;" colspan="33%">
+            <td style="text-align: left; padding: 10px; border: 1px solid #000; font-weight: bold;">
                 Date of Sampling
                 <span style="font-weight: 400; border-bottom: 1px dotted #000; margin-left: 5px; margin-right:20px">
                     {{ \Carbon\Carbon::parse($headerDetails['date_collected'])->format("d/m/Y") }}
                 </span>
             </td>
-            <td style="text-align: left; padding: 10px; border: 1px solid #000;" colspan="33%">
+            <td style="text-align: left; padding: 10px; border: 1px solid #000;">
                 Time of Sampling
                 <span style="font-weight: 400; border-bottom: 1px dotted #000; margin-left: 5px; margin-right:20px">
-                    {{ \Carbon\Carbon::parse($headerDetails['date_time_sampling'])->format("H:i") }}
+                    @if(!empty($headerDetails['date_time_sampling']))
+                        {{ \Carbon\Carbon::parse($headerDetails['date_time_sampling'])->format("H:i") }}
+                    @else
+                        -
+                    @endif
                 </span>
             </td>
-            <td style="text-align: left; padding: 10px; border: 1px solid #000; font-weight: bold;" colspan="33%">
+            <td style="text-align: left; padding: 10px; border: 1px solid #000; font-weight: bold;">
                 Sampled By 
                 <span style="font-weight: 400; border-bottom: 1px dotted #000; margin-left: 5px; margin-right:20px">
                     {{ $headerDetails['sampled_by'] }}
@@ -474,19 +445,27 @@ $samplePointNames = \App\Models\CRM\SamplePoint::whereIn('id', $samplePoints)->s
             </td>
         </tr>
         <tr>
-            <td style="text-align: left; padding: 10px; border: 1px solid #000; font-weight: bold;" colspan="33%">
+            <td style="text-align: left; padding: 10px; border: 1px solid #000; font-weight: bold;">
                 Date of Submission
                 <span style="font-weight: 400; border-bottom: 1px dotted #000; margin-left: 5px; margin-right:20px">
-                    {{ \Carbon\Carbon::parse($headerDetails['submission_date'])->format("d/m/Y") }}
+                    @if(!empty($headerDetails['submission_date']))
+                        {{ \Carbon\Carbon::parse($headerDetails['submission_date'])->format("d/m/Y") }}
+                    @else
+                        -
+                    @endif
                 </span>
             </td>
-            <td style="text-align: left; padding: 10px; border: 1px solid #000;" colspan="33%">
+            <td style="text-align: left; padding: 10px; border: 1px solid #000;">
                 Time of Submission
                 <span style="font-weight: 400; border-bottom: 1px dotted #000; margin-left: 5px; margin-right:20px">
-                    {{ \Carbon\Carbon::parse($headerDetails['submission_date'])->format("H:i") }}
+                    @if(!empty($headerDetails['submission_date']))
+                        {{ \Carbon\Carbon::parse($headerDetails['submission_date'])->format("H:i") }}
+                    @else
+                        -
+                    @endif
                 </span>
             </td>
-            <td style="text-align: left; padding: 10px; border: 1px solid #000; font-weight: bold;" colspan="33%">
+            <td style="text-align: left; padding: 10px; border: 1px solid #000; font-weight: bold;">
                 Submitted By 
                 <span style="font-weight: 400; border-bottom: 1px dotted #000; margin-left: 5px; margin-right:20px">
                     {{ $headerDetails['submit_by'] }}
@@ -500,20 +479,20 @@ $samplePointNames = \App\Models\CRM\SamplePoint::whereIn('id', $samplePoints)->s
                 @endif
             </td>
         </tr>
-        <tr>
-            <td style="text-align: left; padding: 10px; border: 1px solid #000; font-weight: bold;" colspan="33%">
+        <tr style="background-color: #e6eef7;">
+            <td style="text-align: left; padding: 10px; border: 1px solid #000; font-weight: bold; background-color: #e6eef7;">
                 Date of Reception
                 <span style="font-weight: 400; border-bottom: 1px dotted #000; margin-left: 5px; margin-right:20px">
                     {{ \Carbon\Carbon::parse($headerDetails['receipt_date'])->format("d/m/Y") }}
                 </span>
             </td>
-            <td style="text-align: left; padding: 10px; border: 1px solid #000;" colspan="33%">
+            <td style="text-align: left; padding: 10px; border: 1px solid #000; background-color: #e6eef7;">
                 Time of Reception
                 <span style="font-weight: 400; border-bottom: 1px dotted #000; margin-left: 5px; margin-right:20px">
                     {{ \Carbon\Carbon::parse($headerDetails['receipt_date'])->format("H:i") }}
                 </span>
             </td>
-            <td style="text-align: left; padding: 10px; border: 1px solid #000; font-weight: bold;" colspan="33%">
+            <td style="text-align: left; padding: 10px; border: 1px solid #000; font-weight: bold; background-color: #e6eef7;">
                 Received By 
                 <span style="font-weight: 400; border-bottom: 1px dotted #000; margin-left: 5px; margin-right:20px">
                     {{ $headerDetails['submit_by'] }}
@@ -527,15 +506,9 @@ $samplePointNames = \App\Models\CRM\SamplePoint::whereIn('id', $samplePoints)->s
                 @endif
             </td>
         </tr>
-        <tr>
-            <td colspan="100%" style="padding: 4px 10px">
+        <tr style="background-color: #e6eef7;">
+            <td colspan="3" style="padding: 4px 10px; background-color: #e6eef7; border: 1px solid #000;">
                 NB: By signing and submitting this submission form, the client acknowledges and accepts the test methods to be used. turnaround and fces for the analysis requested. By receiving the samples, the laboratory confirms that it has understood the customer requirenients and has the capability and resources to meet these requirements.
-            </td>
-        </tr>
-        <tr>
-            <td colspan="100%" style="padding: 4px 10px">
-               <strong>LABORATORY NUMBER:</strong> 
-               <span style="font-weight: 400; border-bottom: 1px dotted #000; margin-left: 5px; margin-right:20px"></span>
             </td>
         </tr>
     </table>

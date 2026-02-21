@@ -160,13 +160,32 @@ class SubmissionForm extends Model
     }
 
     /**
-     * Get the print template name for this form
-     * 
+     * Get the print template name for this form.
+     * Uses print_template_name if set; otherwise resolves by form name (e.g. "Microbiology Submission Form" -> microbiology).
+     *
      * @return string
      */
     public function getPrintTemplateName(): string
     {
-        return $this->print_template_name ?? 'submission-forms.print.default';
+        if (! empty($this->print_template_name) && view()->exists($this->print_template_name)) {
+            return $this->print_template_name;
+        }
+
+        $name = (string) $this->name;
+        $nameLower = strtolower($name);
+
+        $nameToTemplate = [
+            'microbiology' => 'submission-forms.print.microbiology',
+            'serology'     => 'submission-forms.print.serology',
+        ];
+
+        foreach ($nameToTemplate as $keyword => $templateName) {
+            if (str_contains($nameLower, $keyword) && view()->exists($templateName)) {
+                return $templateName;
+            }
+        }
+
+        return 'submission-forms.print.default';
     }
 
     /**

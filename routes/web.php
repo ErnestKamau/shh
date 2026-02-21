@@ -474,6 +474,7 @@ Route::post('/lab/delete/batch', 'SampleWorkFlowController@delete_batch')->name(
 Route::post('/sample-interpretations/{sample_id}', 'ReportHeaderDetailController@sample_interpretations')->name('sample-interpretations');
 
 Route::post('/add_batch_attachment', 'SampleWorkFlowController@add_batch_attachment')->name('add_batch_attachment');
+Route::post('/sample-workflow/batch/{batch}/regenerate-submission-form', 'SampleWorkFlowController@regenerateSubmissionForm')->name('regenerate-submission-form');
 Route::post('/store-attachment-type', 'SampleWorkFlowController@store_attachment_type')->name('store-attachment-type');
 Route::post('/delete_batch_attachmment', 'SampleWorkFlowController@delete_batch_attachmment')->name('delete_batch_attachmment');
 Route::post('/merge-attachments', 'SampleWorkFlowController@merge_attachments')->name('merge-attachments');
