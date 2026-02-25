@@ -580,6 +580,14 @@
 					<h5 class="card-title mb-0">
 						<i class="mdi mdi-file-document-edit"></i> Batches
 					</h5>
+					<div class="d-flex align-items-center">
+						<span class="mr-2 text-muted" style="font-size: 0.85rem;">Per page:</span>
+						<select wire:model.live="batchesPerPage" class="form-control form-control-sm" style="width: auto;">
+							@foreach($batchesPerPageOptions as $size)
+								<option value="{{ $size }}">{{ $size }}</option>
+							@endforeach
+						</select>
+					</div>
 				</div>
 				<div class="card-body">
 					@if($status == 'Finished Sample')
@@ -795,6 +803,14 @@
 				@endforeach
 								</tbody>
 							</table>
+							</div>
+							<div class="mt-3 d-flex justify-content-between align-items-center">
+								<div class="text-muted" style="font-size: 0.85rem;">
+									Showing {{ $batches->firstItem() }}–{{ $batches->lastItem() }} of {{ $batches->total() }} batches
+								</div>
+								<div>
+									{{ $batches->links() }}
+								</div>
 							</div>
 						</div>
 					@else

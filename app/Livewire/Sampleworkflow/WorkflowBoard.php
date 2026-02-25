@@ -40,6 +40,13 @@ class WorkflowBoard extends Component
     public array $finishedFilter = [];
 
     /**
+     * Pagination settings for the batches table.
+     */
+    public int $batchesPerPage = 10;
+
+    public array $batchesPerPageOptions = [10, 20, 50, 100, 200, 500];
+
+    /**
      * Livewire search and filters for all statuses.
      */
     public string $search = '';
@@ -191,6 +198,21 @@ class WorkflowBoard extends Component
         );
     }
 
+    /**
+     * Reset batches pagination when per-page value changes.
+     */
+    public function updatedBatchesPerPage($value): void
+    {
+        $value = (int) $value;
+
+        if (! in_array($value, $this->batchesPerPageOptions, true)) {
+            $value = 10;
+        }
+
+        $this->batchesPerPage = $value;
+        $this->resetPage('batches_page');
+    }
+
     protected function defaultAllSamplesFilter(): array
     {
         return [
@@ -330,7 +352,7 @@ class WorkflowBoard extends Component
             $query->where('schedule_analysis_sent', 0);
         }
 
-        return $query->get();
+        return $query->paginate($this->batchesPerPage, ['*'], 'batches_page');
     }
 
     protected function getFinishedSampleBatches()
@@ -361,7 +383,7 @@ class WorkflowBoard extends Component
             $query->where('crm_customer_id', $this->finishedFilter['customer_id']);
         }
 
-        return $query->get();
+        return $query->paginate($this->batchesPerPage, ['*'], 'batches_page');
     }
 
     protected function getStatusBatches()
@@ -408,7 +430,7 @@ class WorkflowBoard extends Component
             $query->where('sample_type_id', $this->sampleTypeFilter);
         }
 
-        return $query->get();
+        return $query->paginate($this->batchesPerPage, ['*'], 'batches_page');
     }
 
     protected function normalizeSampleCodes(string $value): array
