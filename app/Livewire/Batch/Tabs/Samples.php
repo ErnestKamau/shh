@@ -119,6 +119,8 @@ class Samples extends Component
     public $assignAreas = []; // Structure: [['id' => 1, 'name' => 'Area', 'sample_points' => [['id' => 1, 'name' => 'Point', 'active' => false]]]]
     public $assignTotalQty = 0;
     public $assignSelectedPoints = []; // ['point_id' => quantity]
+    public $assignCurrentTotalQty = 0;
+    public $assignQtyError = '';
 
     // Assignment Edit Context
     public $assignSampleTypeId = '';
@@ -801,6 +803,16 @@ class Samples extends Component
             return;
         }
 
+        // Validate that the total assigned quantity does not exceed the original submission quantity
+        $totalAssignedQty = array_sum(array_column($selections, 'quantity'));
+        if ($this->assignTotalQty > 0 && $totalAssignedQty > $this->assignTotalQty) {
+            session()->flash(
+                'error',
+                'Assigned quantity (' . $totalAssignedQty . ') cannot exceed the total quantity of ' . $this->assignTotalQty . ' from the submission.'
+            );
+            return;
+        }
+
         DB::beginTransaction();
         try {
             $sampleHeader = $this->batch;
@@ -858,6 +870,39 @@ class Samples extends Component
             DB::rollBack();
             Log::error('Assignment error: ' . $e->getMessage());
             session()->flash('error', 'Error assigning samples: ' . $e->getMessage());
+        }
+    }
+
+    public function updatedAssignQuantities($value, $name): void
+    {
+        $this->recalculateAssignQuantitiesTotal();
+    }
+
+    public function updatedAssignSelectedPoints($value, $name): void
+    {
+        $this->recalculateAssignQuantitiesTotal();
+    }
+
+    protected function recalculateAssignQuantitiesTotal(): void
+    {
+        $total = 0;
+
+        foreach ($this->assignSelectedPoints as $pointId => $isSelected) {
+            if ($isSelected) {
+                $qty = isset($this->assignQuantities[$pointId]) && $this->assignQuantities[$pointId] > 0
+                    ? (int) $this->assignQuantities[$pointId]
+                    : 1;
+
+                $total += $qty;
+            }
+        }
+
+        $this->assignCurrentTotalQty = $total;
+
+        if ($this->assignTotalQty > 0 && $total > $this->assignTotalQty) {
+            $this->assignQtyError = 'Assigned quantity (' . $total . ') cannot exceed the total quantity of ' . $this->assignTotalQty . ' from the submission.';
+        } else {
+            $this->assignQtyError = '';
         }
     }
 

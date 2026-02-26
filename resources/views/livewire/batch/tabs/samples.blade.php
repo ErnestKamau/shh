@@ -1450,36 +1450,48 @@
                     </div>
                     @endif
 
-                    <!-- Batch Information Editing -->
+                    <!-- Batch & Customer Summary -->
                     <div class="card mb-3 shadow-sm border-0" style="border-radius: 15px;">
                         <div class="card-body p-4">
-                            <div class="row align-items-end">
-                                <div class="col-md-3">
-                                    <div class="form-group mb-0">
-                                        <label class="text-muted small fw-bold">Lab No</label>
-                                        <div class="fw-bold text-dark" style="font-size: 0.9rem;">{{ $assignBatchCode }}
-                                        </div>
+                            {{-- Primary header: Lab No. + Customer --}}
+                            <div class="d-flex flex-column flex-md-row justify-content-between align-items-md-center mb-2">
+                                <div class="mb-2 mb-md-0">
+                                    <div class="text-muted small fw-bold text-uppercase">Lab No.</div>
+                                    <div class="fw-bold text-dark" style="font-size: 1.1rem;">
+                                        {{ $assignBatchCode }}
                                     </div>
                                 </div>
-                                <div class="col-md-3 text-center border-right">
+                                <div class="text-md-right">
+                                    <div class="text-muted small fw-bold text-uppercase">Customer</div>
+                                    <div class="fw-bold text-dark" style="font-size: 1.1rem;">
+                                        {{ $assignCustomer }}
+                                    </div>
+                                </div>
+                            </div>
+
+                            <hr class="my-2">
+
+                            {{-- Secondary meta: Specimen, Sub Unit, Analysis --}}
+                            <div class="row text-center mt-3">
+                                <div class="col-md-4 mb-3 mb-md-0">
                                     <div class="form-group mb-0">
-                                        <label class="text-muted small fw-bold d-block">Specimen Type</label>
+                                        <div class="text-muted small fw-bold text-uppercase">Specimen Type</div>
                                         <div class="fw-bold text-dark" style="font-size: 0.9rem;">
                                             {{ $assignSampleTypeName }}
                                         </div>
                                     </div>
                                 </div>
-                                <div class="col-md-3 text-center border-right">
+                                <div class="col-md-4 mb-3 mb-md-0">
                                     <div class="form-group mb-0">
-                                        <label class="text-muted small fw-bold d-block">Company Sub Unit</label>
+                                        <div class="text-muted small fw-bold text-uppercase">Company Sub Unit</div>
                                         <div class="fw-bold text-dark" style="font-size: 0.9rem;">
                                             {{ $assignCompanySubUnitName }}
                                         </div>
                                     </div>
                                 </div>
-                                <div class="col-md-3 text-center">
+                                <div class="col-md-4">
                                     <div class="form-group mb-0">
-                                        <label class="text-muted small fw-bold d-block">Analysis Types</label>
+                                        <div class="text-muted small fw-bold text-uppercase">Analysis Types</div>
                                         <div class="fw-bold text-dark" style="font-size: 0.9rem;">
                                             {{ $assignAnalysisTypeNames }}
                                         </div>
@@ -1615,8 +1627,21 @@
                             </h6>
                             <div>
                                 <span class="badge badge-info mr-2">Total Qty: {{ $assignTotalQty }}</span>
+                                <span class="badge badge-secondary mr-2">Assigned: {{ $assignCurrentTotalQty }}</span>
+                                @if($assignTotalQty > 0)
+                                    @php
+                                        $remainingQty = max($assignTotalQty - $assignCurrentTotalQty, 0);
+                                        $remainingClass = $assignCurrentTotalQty > $assignTotalQty ? 'badge-danger' : 'badge-success';
+                                    @endphp
+                                    <span class="badge {{ $remainingClass }}">Remaining: {{ $remainingQty }}</span>
+                                @endif
                             </div>
                         </div>
+                        @if($assignQtyError)
+                            <div class="alert alert-danger mb-0">
+                                <i class="mdi mdi-alert-circle"></i> {{ $assignQtyError }}
+                            </div>
+                        @endif
                         <div class="card-body p-0">
                             <div class="table-responsive">
                                 <table class="table table-hover mb-0">
