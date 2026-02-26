@@ -90,6 +90,143 @@
                                             </tbody>
                                         </table>
                                     </div>
+
+                                    @if($configFields->count() > 0)
+                                        <div class="card mt-3">
+                                            <div class="card-header bg-light">
+                                                <h6 class="mb-0">
+                                                    <i class="mdi mdi-cog-outline text-primary"></i>
+                                                    Configurable Fields
+                                                </h6>
+                                            </div>
+                                            <div class="card-body">
+                                                <div class="row">
+                                                    @foreach($configFields as $field)
+                                                        <div class="col-md-4 mb-3">
+                                                            <label class="form-label">
+                                                                {{ $field->label }}
+                                                                @if($field->is_required)
+                                                                    <span class="text-danger">*</span>
+                                                                @endif
+                                                            </label>
+                                                            @if($field->help_text)
+                                                                <small class="text-muted d-block">{{ $field->help_text }}</small>
+                                                            @endif
+                                                            @foreach($this->analysisSamples as $result)
+                                                                @if(in_array($result->sample->id, $selectedSamples))
+                                                                    <div class="mb-1">
+                                                                        <small class="text-muted">{{ $result->sample->sample_code }}</small>
+                                                                        @php($type = $field->field_type)
+                                                                        @if($type === 'datetime')
+                                                                            <input type="datetime-local"
+                                                                                class="form-control form-control-sm"
+                                                                                wire:model.defer="configFieldValues.{{ $result->id }}.{{ $field->id }}">
+                                                                        @elseif($type === 'date')
+                                                                            <input type="date"
+                                                                                class="form-control form-control-sm"
+                                                                                wire:model.defer="configFieldValues.{{ $result->id }}.{{ $field->id }}">
+                                                                        @elseif($type === 'number')
+                                                                            <input type="number"
+                                                                                class="form-control form-control-sm"
+                                                                                wire:model.defer="configFieldValues.{{ $result->id }}.{{ $field->id }}">
+                                                                        @elseif($type === 'checkbox')
+                                                                            <div class="form-check">
+                                                                                <input type="checkbox"
+                                                                                       class="form-check-input"
+                                                                                       wire:model.defer="configFieldValues.{{ $result->id }}.{{ $field->id }}"
+                                                                                       value="1">
+                                                                            </div>
+                                                                        @elseif($type === 'textarea')
+                                                                            <textarea
+                                                                                class="form-control form-control-sm"
+                                                                                rows="2"
+                                                                                wire:model.defer="configFieldValues.{{ $result->id }}.{{ $field->id }}"></textarea>
+                                                                        @else
+                                                                            <input type="text"
+                                                                                class="form-control form-control-sm"
+                                                                                wire:model.defer="configFieldValues.{{ $result->id }}.{{ $field->id }}">
+                                                                        @endif
+                                                                    </div>
+                                                                @endif
+                                                            @endforeach
+                                                        </div>
+                                                    @endforeach
+                                                </div>
+                                            </div>
+                                        </div>
+                                    @endif
+
+                                    @if($testKitColumns->count() > 0)
+                                        <div class="card mt-3">
+                                            <div class="card-header bg-light">
+                                                <h6 class="mb-0">
+                                                    <i class="mdi mdi-table text-primary"></i>
+                                                    Test Kit Table
+                                                </h6>
+                                            </div>
+                                            <div class="card-body">
+                                                <div class="table-responsive">
+                                                    <table class="table table-bordered table-sm">
+                                                        <thead>
+                                                            <tr>
+                                                                <th>#</th>
+                                                                @foreach($testKitColumns as $column)
+                                                                    <th>
+                                                                        {{ $column->label }}
+                                                                        @if($column->help_text)
+                                                                            <br><small class="text-muted">{{ $column->help_text }}</small>
+                                                                        @endif
+                                                                    </th>
+                                                                @endforeach
+                                                            </tr>
+                                                        </thead>
+                                                        <tbody>
+                                                            @forelse($testKitRows as $rowId => $rowMeta)
+                                                                <tr>
+                                                                    <td class="font-weight-bold">
+                                                                        {{ $rowMeta['row_index'] ?? 1 }}
+                                                                    </td>
+                                                                    @foreach($testKitColumns as $column)
+                                                                        <td>
+                                                                            @php
+                                                                                $type = $column->type;
+                                                                            @endphp
+                                                                            @if($type === 'date')
+                                                                                <input type="date"
+                                                                                    class="form-control form-control-sm"
+                                                                                    wire:model.defer="testKitData.{{ $rowId }}.{{ $column->id }}">
+                                                                            @elseif($type === 'number')
+                                                                                <input type="number"
+                                                                                    class="form-control form-control-sm"
+                                                                                    wire:model.defer="testKitData.{{ $rowId }}.{{ $column->id }}">
+                                                                            @elseif($type === 'boolean')
+                                                                                <select class="form-control form-control-sm"
+                                                                                        wire:model.defer="testKitData.{{ $rowId }}.{{ $column->id }}">
+                                                                                    <option value=\"\">--</option>
+                                                                                    <option value=\"1\">Yes</option>
+                                                                                    <option value=\"0\">No</option>
+                                                                                </select>
+                                                                            @else
+                                                                                <input type="text"
+                                                                                    class="form-control form-control-sm"
+                                                                                    wire:model.defer="testKitData.{{ $rowId }}.{{ $column->id }}">
+                                                                            @endif
+                                                                        </td>
+                                                                    @endforeach
+                                                                </tr>
+                                                            @empty
+                                                                <tr>
+                                                                    <td colspan="{{ $testKitColumns->count() + 1 }}" class="text-center text-muted">
+                                                                        No test kit rows defined yet.
+                                                                    </td>
+                                                                </tr>
+                                                            @endforelse
+                                                        </tbody>
+                                                    </table>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    @endif
                                     
                                     <div class="mt-3 text-right">
                                         <button class="btn btn-primary" wire:click="save">

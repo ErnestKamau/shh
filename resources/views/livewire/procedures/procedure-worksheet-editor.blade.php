@@ -24,6 +24,17 @@
         </div>
     </div>
 
+    @if($toastMessage)
+        <div class="position-fixed" style="top: 80px; right: 20px; z-index: 2050;">
+            <div class="alert alert-{{ $toastType }} alert-dismissible fade show shadow-sm mb-2" role="alert">
+                <i class="mdi mdi-information-outline"></i> {{ $toastMessage }}
+                <button type="button" class="close" aria-label="Close" wire:click="$set('toastMessage', '')">
+                    <span aria-hidden="true">&times;</span>
+                </button>
+            </div>
+        </div>
+    @endif
+
     <!-- Message Alert -->
     @if(session()->has('message'))
         <div class="alert alert-success alert-dismissible fade show" role="alert">
@@ -37,89 +48,499 @@
         <div class="col-12">
             <div class="card" style="border-radius: 15px;">
                 <div class="card-body">
-                    <div class="d-flex justify-content-between align-items-center mb-3">
-                        <div class="col-md-4">
-                            <input type="text" wire:model.live="search" class="form-control" placeholder="Search steps...">
-                        </div>
-                        <div class="d-flex align-items-center">
-                            <label class="form-label mb-0 me-2 text-muted">Show:</label>
-                            <select wire:model.live="perPage" class="form-select form-select-sm" style="width: auto;">
-                                <option value="25">25</option>
-                                <option value="50">50</option>
-                                <option value="75">75</option>
-                                <option value="100">100</option>
-                            </select>
-                        </div>
-                    </div>
+                    <ul class="nav nav-tabs mb-3" role="tablist">
+                        <li class="nav-item">
+                            <a class="nav-link {{ $activeTab === 'steps' ? 'active' : '' }}"
+                               id="steps-tab"
+                               href="#"
+                               wire:click.prevent="$set('activeTab', 'steps')"
+                               role="tab"
+                               aria-controls="steps-tab-pane"
+                               aria-selected="{{ $activeTab === 'steps' ? 'true' : 'false' }}">
+                                Steps
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link {{ $activeTab === 'config' ? 'active' : '' }}"
+                               id="configurable-fields-tab"
+                               href="#"
+                               wire:click.prevent="$set('activeTab', 'config')"
+                               role="tab"
+                               aria-controls="configurable-fields-tab-pane"
+                               aria-selected="{{ $activeTab === 'config' ? 'true' : 'false' }}">
+                                Configurable Fields
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link {{ $activeTab === 'test_kit' ? 'active' : '' }}"
+                               id="test-kit-fields-tab"
+                               href="#"
+                               wire:click.prevent="$set('activeTab', 'test_kit')"
+                               role="tab"
+                               aria-controls="test-kit-fields-tab-pane"
+                               aria-selected="{{ $activeTab === 'test_kit' ? 'true' : 'false' }}">
+                                Test Kit Fields
+                            </a>
+                        </li>
+                    </ul>
 
-                    <div class="table-responsive">
-                        <table class="table table-striped table-hover">
-                            <thead style="background-color: rgba(0, 0, 0, .03);">
-                                <tr>
-                                    <th style="width: 50px;">Order</th>
-                                    <th>Step</th>
-                                    <th>Default Measurands</th>
-                                    <th>Default Equipment</th>
-                                    <th>Default Analyst</th>
-                                    <th>Status</th>
-                                    <th>Actions</th>
-                                </tr>
-                            </thead>
-                            <tbody id="sortable-steps">
-                                @forelse($steps as $stepItem)
-                                    <tr class="sortable-row" data-step-id="{{ $stepItem->id }}">
-                                        <td class="drag-handle text-center">
-                                            <i class="mdi mdi-drag-vertical text-muted" style="cursor: move; font-size: 18px;"></i>
-                                            <span class="text-muted small ms-1">{{ $stepItem->order }}</span>
-                                        </td>
-                                        <td>{{ $stepItem->step }}</td>
-                                        <td>
-                                            @if($stepItem->measurands && $stepItem->measurands->count() > 0)
-                                                <div class="d-flex flex-wrap">
-                                                    @foreach($stepItem->measurands as $measurand)
-                                                        <span class="badge badge-info p-2 mr-1 mb-1">{{ $measurand->name }}</span>
-                                                    @endforeach
-                                                </div>
-                                            @else
-                                                <span class="text-muted">-</span>
-                                            @endif
-                                        </td>
-                                        </td>
-                                        <td>{{ $stepItem->equipment->name ?? '-' }}</td>
-                                        <td>{{ $stepItem->analyst->name ?? '-' }}</td>
-                                        <td>
-                                            <span class="badge badge-{{ $stepItem->is_active ? 'success' : 'secondary' }}">
-                                                {{ $stepItem->is_active ? 'Active' : 'Inactive' }}
-                                            </span>
-                                        </td>
-                                        <td>
-                                            <div class="btn-group" role="group">
-                                                <button wire:click="edit({{ $stepItem->id }})" class="btn btn-sm btn-outline-primary mr-2" title="Edit">
-                                                    <i class="mdi mdi-pencil"></i>
-                                                </button>
-                                                <button wire:click="confirmDelete({{ $stepItem->id }})" class="btn btn-sm btn-outline-danger" title="Delete">
-                                                    <i class="mdi mdi-delete"></i>
-                                                </button>
-                                            </div>
-                                        </td>
-                                    </tr>
-                                @empty
-                                    <tr>
-                                        <td colspan="6" class="text-center py-4">No steps found. Add your first step!</td>
-                                    </tr>
-                                @endforelse
-                            </tbody>
-                        </table>
-                    </div>
-                    
-                    <div class="d-flex justify-content-between align-items-center mt-4">
-                        <div>
-                            <span class="text-muted">
-                                Showing {{ $steps->firstItem() ?? 0 }} to {{ $steps->lastItem() ?? 0 }} of {{ $steps->total() }} entries
-                            </span>
+                    <div class="tab-content">
+                        <div class="tab-pane fade {{ $activeTab === 'steps' ? 'show active' : '' }}" id="steps-tab-pane" role="tabpanel" aria-labelledby="steps-tab">
+                            <div class="d-flex justify-content-between align-items-center mb-3">
+                                <div class="col-md-4">
+                                    <input type="text" wire:model.live="search" class="form-control" placeholder="Search steps...">
+                                </div>
+                                <div class="d-flex align-items-center">
+                                    <label class="form-label mb-0 me-2 text-muted">Show:</label>
+                                    <select wire:model.live="perPage" class="form-select form-select-sm" style="width: auto;">
+                                        <option value="25">25</option>
+                                        <option value="50">50</option>
+                                        <option value="75">75</option>
+                                        <option value="100">100</option>
+                                    </select>
+                                </div>
+                            </div>
+
+                            <div class="table-responsive">
+                                <table class="table table-striped table-hover">
+                                    <thead style="background-color: rgba(0, 0, 0, .03);">
+                                        <tr>
+                                            <th style="width: 50px;">Order</th>
+                                            <th>Step</th>
+                                            <th>Default Measurands</th>
+                                            <th>Default Equipment</th>
+                                            <th>Default Analyst</th>
+                                            <th>Status</th>
+                                            <th>Actions</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="sortable-steps">
+                                        @forelse($steps as $stepItem)
+                                            <tr class="sortable-row" data-step-id="{{ $stepItem->id }}">
+                                                <td class="drag-handle text-center">
+                                                    <i class="mdi mdi-drag-vertical text-muted" style="cursor: move; font-size: 18px;"></i>
+                                                    <span class="text-muted small ms-1">{{ $stepItem->order }}</span>
+                                                </td>
+                                                <td>{{ $stepItem->step }}</td>
+                                                <td>
+                                                    @if($stepItem->measurands && $stepItem->measurands->count() > 0)
+                                                        <div class="d-flex flex-wrap">
+                                                            @foreach($stepItem->measurands as $measurand)
+                                                                <span class="badge badge-info p-2 mr-1 mb-1">{{ $measurand->name }}</span>
+                                                            @endforeach
+                                                        </div>
+                                                    @else
+                                                        <span class="text-muted">-</span>
+                                                    @endif
+                                                </td>
+                                                <td>{{ $stepItem->equipment->name ?? '-' }}</td>
+                                                <td>{{ $stepItem->analyst->name ?? '-' }}</td>
+                                                <td>
+                                                    <span class="badge badge-{{ $stepItem->is_active ? 'success' : 'secondary' }}">
+                                                        {{ $stepItem->is_active ? 'Active' : 'Inactive' }}
+                                                    </span>
+                                                </td>
+                                                <td>
+                                                    <div class="btn-group" role="group">
+                                                        <button wire:click="edit({{ $stepItem->id }})" class="btn btn-sm btn-outline-primary mr-2" title="Edit">
+                                                            <i class="mdi mdi-pencil"></i>
+                                                        </button>
+                                                        <button wire:click="confirmDelete({{ $stepItem->id }})" class="btn btn-sm btn-outline-danger" title="Delete">
+                                                            <i class="mdi mdi-delete"></i>
+                                                        </button>
+                                                    </div>
+                                                </td>
+                                            </tr>
+                                        @empty
+                                            <tr>
+                                                <td colspan="7" class="text-center py-4">No steps found. Add your first step!</td>
+                                            </tr>
+                                        @endforelse
+                                    </tbody>
+                                </table>
+                            </div>
+                            
+                            <div class="d-flex justify-content-between align-items-center mt-4">
+                                <div>
+                                    <span class="text-muted">
+                                        Showing {{ $steps->firstItem() ?? 0 }} to {{ $steps->lastItem() ?? 0 }} of {{ $steps->total() }} entries
+                                    </span>
+                                </div>
+                                <div>
+                                    {{ $steps->links() }}
+                                </div>
+                            </div>
                         </div>
-                        <div>
-                            {{ $steps->links() }}
+
+                        <div class="tab-pane fade {{ $activeTab === 'config' ? 'show active' : '' }}" id="configurable-fields-tab-pane" role="tabpanel" aria-labelledby="configurable-fields-tab">
+                            <div class="card shadow-sm border-0" style="border-radius: 15px;">
+                                <div class="card-header bg-light border-0" style="border-radius: 15px 15px 0 0;">
+                                    <div class="d-flex justify-content-between align-items-center">
+                                        <div>
+                                            <h5 class="mb-0">
+                                                <i class="mdi mdi-text-box-check text-primary"></i>
+                                                Configurable Procedure Fields
+                                            </h5>
+                                            <p class="text-muted small mb-0">Define dynamic fields like Date Recorded or Temperature for this procedure.</p>
+                                        </div>
+                                        <button wire:click="showCreateConfigFieldModalInit" class="btn btn-primary">
+                                            <i class="mdi mdi-plus"></i> Add Field
+                                        </button>
+                                    </div>
+                                </div>
+                                <div class="card-body p-4">
+                                    <div class="row mb-3">
+                                        <div class="col-md-10">
+                                            <input type="text" wire:model.live="configFieldSearch" class="form-control" placeholder="Search by label or value name...">
+                                        </div>
+                                        <div class="col-md-2">
+                                            <button wire:click="clearConfigFieldSearch" class="btn btn-outline-secondary w-100">
+                                                <i class="mdi mdi-refresh"></i> Clear
+                                            </button>
+                                        </div>
+                                    </div>
+
+                                    @if(count($configFields) > 0)
+                                        <div class="table-responsive">
+                                            <table class="table table-striped table-hover">
+                                                <thead style="background-color: rgba(0, 0, 0, .03);">
+                                                    <tr>
+                                                        <th style="width: 40px;">
+                                                            <i class="mdi mdi-drag text-muted"></i>
+                                                        </th>
+                                                        <th style="width: 60px;">Order</th>
+                                                        <th>Label</th>
+                                                        <th>Field Type</th>
+                                                        <th>Value Name</th>
+                                                        <th>Required</th>
+                                                        <th style="width: 200px;">Actions</th>
+                                                    </tr>
+                                                </thead>
+                                                <tbody id="sortable-config-fields">
+                                                    @foreach($configFields as $field)
+                                                        <tr class="sortable-row" data-config-field-id="{{ $field['id'] }}">
+                                                            <td class="drag-handle text-center">
+                                                                <i class="mdi mdi-drag-vertical text-muted" style="cursor: move; font-size: 18px;"></i>
+                                                            </td>
+                                                            <td>
+                                                                <span class="badge badge-secondary">{{ $field['order'] }}</span>
+                                                            </td>
+                                                            <td>
+                                                                <strong>{{ $field['label'] }}</strong>
+                                                                @if($field['help_text'])
+                                                                    <br><small class="text-muted">{{ \Illuminate\Support\Str::limit($field['help_text'], 50) }}</small>
+                                                                @endif
+                                                            </td>
+                                                            <td>
+                                                                <span class="badge badge-info">{{ ucfirst($field['field_type']) }}</span>
+                                                            </td>
+                                                            <td>
+                                                                <code>{{ $field['field_value_name'] }}</code>
+                                                            </td>
+                                                            <td>
+                                                                @if($field['is_required'])
+                                                                    <span class="badge badge-danger">Required</span>
+                                                                @else
+                                                                    <span class="badge badge-secondary">Optional</span>
+                                                                @endif
+                                                            </td>
+                                                            <td>
+                                                                <div class="btn-group" role="group">
+                                                                    <button wire:click="showEditConfigFieldModalInit({{ $field['id'] }})"
+                                                                            class="btn btn-sm btn-outline-primary" title="Edit">
+                                                                        <i class="mdi mdi-pencil"></i>
+                                                                    </button>
+                                                                    <button wire:click="showDeleteConfigFieldModal({{ $field['id'] }})"
+                                                                            class="btn btn-sm btn-outline-danger"
+                                                                            title="Delete">
+                                                                        <i class="mdi mdi-delete"></i>
+                                                                    </button>
+                                                                </div>
+                                                            </td>
+                                                        </tr>
+                                                    @endforeach
+                                                </tbody>
+                                            </table>
+                                        </div>
+                                    @else
+                                        <div class="text-center py-5">
+                                            <i class="mdi mdi-text-box-check fa-3x text-muted mb-3"></i>
+                                            <h5 class="text-muted">No configurable fields defined</h5>
+                                            <p class="text-muted">Add fields like Date Recorded or Temperature to capture additional metadata.</p>
+                                            <button wire:click="showCreateConfigFieldModalInit" class="btn btn-primary">
+                                                <i class="mdi mdi-plus"></i> Add First Field
+                                            </button>
+                                        </div>
+                                    @endif
+                                </div>
+                            </div>
+
+                            @if($showCreateConfigFieldModal || $showEditConfigFieldModal)
+                                <div class="modal fade show d-block" tabindex="-1" style="background-color: rgba(0,0,0,0.5);">
+                                    <div class="modal-dialog">
+                                        <div class="modal-content">
+                                            <div class="modal-header">
+                                                <h5 class="modal-title">
+                                                    {{ $showEditConfigFieldModal ? 'Edit Configurable Field' : 'Add Configurable Field' }}
+                                                </h5>
+                                                <button type="button" class="btn-close" wire:click="closeConfigFieldModal"></button>
+                                            </div>
+                                            <div class="modal-body">
+                                                <form wire:submit.prevent="{{ $showEditConfigFieldModal ? 'updateConfigField' : 'createConfigField' }}">
+                                                    <div class="mb-3">
+                                                        <label class="form-label">Label <span class="text-danger">*</span></label>
+                                                        <input type="text" wire:model="configFieldLabel" class="form-control">
+                                                        @error('configFieldLabel') <span class="text-danger">{{ $message }}</span> @enderror
+                                                    </div>
+                                                    <div class="mb-3">
+                                                        <label class="form-label">Value Name (key) <span class="text-danger">*</span></label>
+                                                        <input type="text" wire:model="configFieldValueName" class="form-control">
+                                                        @error('configFieldValueName') <span class="text-danger">{{ $message }}</span> @enderror
+                                                    </div>
+                                                    <div class="mb-3">
+                                                        <label class="form-label">Field Type <span class="text-danger">*</span></label>
+                                                        <select wire:model="configFieldType" class="form-control modern-select">
+                                                            <option value="input">Text</option>
+                                                            <option value="number">Number</option>
+                                                            <option value="checkbox">Checkbox</option>
+                                                            <option value="textarea">Textarea</option>
+                                                            <option value="date">Date</option>
+                                                            <option value="datetime">Date &amp; Time</option>
+                                                        </select>
+                                                        @error('configFieldType') <span class="text-danger">{{ $message }}</span> @enderror
+                                                    </div>
+                                                    <div class="mb-3">
+                                                        <label class="form-label">Order</label>
+                                                        <input type="number" wire:model="configFieldOrder" class="form-control" min="1">
+                                                    </div>
+                                                    <div class="mb-3">
+                                                        <label class="form-label">Help Text</label>
+                                                        <textarea wire:model="configFieldHelpText" class="form-control" rows="2"></textarea>
+                                                    </div>
+                                                    <div class="mb-3">
+                                                        <div class="form-check">
+                                                            <input type="checkbox" wire:model="configFieldIsRequired" class="form-check-input" id="configFieldIsRequired">
+                                                            <label class="form-check-label" for="configFieldIsRequired">Required</label>
+                                                        </div>
+                                                    </div>
+                                                    <div class="text-right">
+                                                        <button type="button" class="btn btn-secondary mr-2" wire:click="closeConfigFieldModal">Cancel</button>
+                                                        <button type="submit" class="btn btn-primary">
+                                                            {{ $showEditConfigFieldModal ? 'Save Changes' : 'Add Field' }}
+                                                        </button>
+                                                    </div>
+                                                </form>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            @endif
+
+                            @if($showDeleteConfigFieldModal)
+                                <div class="modal fade show d-block" tabindex="-1" style="background-color: rgba(0,0,0,0.5);">
+                                    <div class="modal-dialog">
+                                        <div class="modal-content">
+                                            <div class="modal-header">
+                                                <h5 class="modal-title">Delete Configurable Field</h5>
+                                                <button type="button" class="btn-close" wire:click="$set('showDeleteConfigFieldModal', false)"></button>
+                                            </div>
+                                            <div class="modal-body">
+                                                Are you sure you want to delete this configurable field? This action cannot be undone.
+                                            </div>
+                                            <div class="modal-footer">
+                                                <button type="button" class="btn btn-secondary" wire:click="$set('showDeleteConfigFieldModal', false)">Cancel</button>
+                                                <button type="button" class="btn btn-danger" wire:click="deleteConfigField">Delete</button>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            @endif
+                        </div>
+
+                        <div class="tab-pane fade {{ $activeTab === 'test_kit' ? 'show active' : '' }}" id="test-kit-fields-tab-pane" role="tabpanel" aria-labelledby="test-kit-fields-tab">
+                            <div class="card shadow-sm border-0" style="border-radius: 15px;">
+                                <div class="card-header bg-light border-0" style="border-radius: 15px 15px 0 0;">
+                                    <div class="d-flex justify-content-between align-items-center">
+                                        <div>
+                                            <h5 class="mb-0">
+                                                <i class="mdi mdi-table text-primary"></i>
+                                                Test Kit Table Columns
+                                            </h5>
+                                            <p class="text-muted small mb-0">Define columns for the test kit table for this procedure.</p>
+                                        </div>
+                                        <button wire:click="showCreateTestKitColumnModalInit" class="btn btn-primary">
+                                            <i class="mdi mdi-plus"></i> Add Column
+                                        </button>
+                                    </div>
+                                </div>
+                                <div class="card-body p-4">
+                                    <div class="row mb-3">
+                                        <div class="col-md-10">
+                                            <input type="text" wire:model.live="testKitColumnSearch" class="form-control" placeholder="Search by label, key, or help text...">
+                                        </div>
+                                        <div class="col-md-2">
+                                            <button wire:click="clearTestKitColumnSearch" class="btn btn-outline-secondary w-100">
+                                                <i class="mdi mdi-refresh"></i> Clear
+                                            </button>
+                                        </div>
+                                    </div>
+
+                                    @if(count($testKitColumns) > 0)
+                                        <div class="table-responsive">
+                                            <table class="table table-striped table-hover">
+                                                <thead style="background-color: rgba(0, 0, 0, .03);">
+                                                    <tr>
+                                                        <th style="width: 40px;">
+                                                            <i class="mdi mdi-drag text-muted"></i>
+                                                        </th>
+                                                        <th style="width: 60px;">Order</th>
+                                                        <th>Label</th>
+                                                        <th>Key</th>
+                                                        <th>Type</th>
+                                                        <th>Required</th>
+                                                        <th style="width: 200px;">Actions</th>
+                                                    </tr>
+                                                </thead>
+                                                <tbody id="sortable-test-kit-columns">
+                                                    @foreach($testKitColumns as $column)
+                                                        <tr class="sortable-row" data-test-kit-column-id="{{ $column['id'] }}">
+                                                            <td class="drag-handle text-center">
+                                                                <i class="mdi mdi-drag-vertical text-muted" style="cursor: move; font-size: 18px;"></i>
+                                                            </td>
+                                                            <td>
+                                                                <span class="badge badge-secondary">{{ $column['order'] }}</span>
+                                                            </td>
+                                                            <td>
+                                                                <strong>{{ $column['label'] }}</strong>
+                                                                @if($column['help_text'])
+                                                                    <br><small class="text-muted">{{ \Illuminate\Support\Str::limit($column['help_text'], 50) }}</small>
+                                                                @endif
+                                                            </td>
+                                                            <td>
+                                                                <code>{{ $column['key'] }}</code>
+                                                            </td>
+                                                            <td>
+                                                                <span class="badge badge-info">{{ ucfirst($column['type']) }}</span>
+                                                            </td>
+                                                            <td>
+                                                                @if($column['is_required'])
+                                                                    <span class="badge badge-danger">Required</span>
+                                                                @else
+                                                                    <span class="badge badge-secondary">Optional</span>
+                                                                @endif
+                                                            </td>
+                                                            <td>
+                                                                <div class="btn-group" role="group">
+                                                                    <button wire:click="showEditTestKitColumnModalInit({{ $column['id'] }})"
+                                                                            class="btn btn-sm btn-outline-primary" title="Edit">
+                                                                        <i class="mdi mdi-pencil"></i>
+                                                                    </button>
+                                                                    <button wire:click="showDeleteTestKitColumnModal({{ $column['id'] }})"
+                                                                            class="btn btn-sm btn-outline-danger"
+                                                                            title="Delete">
+                                                                        <i class="mdi mdi-delete"></i>
+                                                                    </button>
+                                                                </div>
+                                                            </td>
+                                                        </tr>
+                                                    @endforeach
+                                                </tbody>
+                                            </table>
+                                        </div>
+                                    @else
+                                        <div class="text-center py-5">
+                                            <i class="mdi mdi-table-large fa-3x text-muted mb-3"></i>
+                                            <h5 class="text-muted">No test kit columns defined</h5>
+                                            <p class="text-muted">Add columns to structure your test kit data for this procedure.</p>
+                                            <button wire:click="showCreateTestKitColumnModalInit" class="btn btn-primary">
+                                                <i class="mdi mdi-plus"></i> Add First Column
+                                            </button>
+                                        </div>
+                                    @endif
+                                </div>
+                            </div>
+
+                            @if($showCreateTestKitColumnModal || $showEditTestKitColumnModal)
+                                <div class="modal fade show d-block"
+                                     tabindex="-1"
+                                     style="background-color: rgba(0,0,0,0.5);"
+                                     wire:click.self="closeTestKitColumnModal">
+                                    <div class="modal-dialog">
+                                        <div class="modal-content">
+                                            <div class="modal-header">
+                                                <h5 class="modal-title">
+                                                    {{ $showEditTestKitColumnModal ? 'Edit Test Kit Column' : 'Add Test Kit Column' }}
+                                                </h5>
+                                                <button type="button" class="btn-close" wire:click="closeTestKitColumnModal"></button>
+                                            </div>
+                                            <div class="modal-body">
+                                                <form wire:submit.prevent="{{ $showEditTestKitColumnModal ? 'updateTestKitColumn' : 'createTestKitColumn' }}">
+                                                    <div class="mb-3">
+                                                        <label class="form-label">Label <span class="text-danger">*</span></label>
+                                                        <input type="text" wire:model="testKitColumnLabel" class="form-control">
+                                                        @error('testKitColumnLabel') <span class="text-danger">{{ $message }}</span> @enderror
+                                                    </div>
+                                                    <div class="mb-3">
+                                                        <label class="form-label">Key <span class="text-danger">*</span></label>
+                                                        <input type="text" wire:model="testKitColumnKey" class="form-control">
+                                                        @error('testKitColumnKey') <span class="text-danger">{{ $message }}</span> @enderror
+                                                    </div>
+                                                    <div class="mb-3">
+                                                        <label class="form-label">Type <span class="text-danger">*</span></label>
+                                                        <select wire:model="testKitColumnType" class="form-control modern-select">
+                                                            <option value="string">Text</option>
+                                                            <option value="number">Number</option>
+                                                            <option value="date">Date</option>
+                                                            <option value="boolean">Yes/No</option>
+                                                        </select>
+                                                        @error('testKitColumnType') <span class="text-danger">{{ $message }}</span> @enderror
+                                                    </div>
+                                                    <div class="mb-3">
+                                                        <label class="form-label">Order</label>
+                                                        <input type="number" wire:model="testKitColumnOrder" class="form-control" min="1">
+                                                    </div>
+                                                    <div class="mb-3">
+                                                        <label class="form-label">Help Text</label>
+                                                        <textarea wire:model="testKitColumnHelpText" class="form-control" rows="2"></textarea>
+                                                    </div>
+                                                    <div class="mb-3">
+                                                        <div class="form-check">
+                                                            <input type="checkbox" wire:model="testKitColumnIsRequired" class="form-check-input" id="testKitColumnIsRequired">
+                                                            <label class="form-check-label" for="testKitColumnIsRequired">Required</label>
+                                                        </div>
+                                                    </div>
+                                                    <div class="text-right">
+                                                        <button type="button" class="btn btn-secondary mr-2" wire:click="closeTestKitColumnModal">Cancel</button>
+                                                        <button type="submit" class="btn btn-primary">
+                                                            {{ $showEditTestKitColumnModal ? 'Save Changes' : 'Add Column' }}
+                                                        </button>
+                                                    </div>
+                                                </form>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            @endif
+
+                            @if($showDeleteTestKitColumnModal)
+                                <div class="modal fade show d-block" tabindex="-1" style="background-color: rgba(0,0,0,0.5);">
+                                    <div class="modal-dialog">
+                                        <div class="modal-content">
+                                            <div class="modal-header">
+                                                <h5 class="modal-title">Delete Test Kit Column</h5>
+                                                <button type="button" class="btn-close" wire:click="$set('showDeleteTestKitColumnModal', false)"></button>
+                                            </div>
+                                            <div class="modal-body">
+                                                Are you sure you want to delete this test kit column? This action cannot be undone.
+                                            </div>
+                                            <div class="modal-footer">
+                                                <button type="button" class="btn btn-secondary" wire:click="$set('showDeleteTestKitColumnModal', false)">Cancel</button>
+                                                <button type="button" class="btn btn-danger" wire:click="deleteTestKitColumn">Delete</button>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            @endif
                         </div>
                     </div>
                 </div>
@@ -270,14 +691,16 @@
     <script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.0/Sortable.min.js"></script>
     <script>
         document.addEventListener('livewire:init', () => {
-            initializeSortable();
+            initializeStepSortable();
+            initializeConfigFieldSortable();
         });
 
         document.addEventListener('livewire:updated', () => {
-            initializeSortable();
+            initializeStepSortable();
+            initializeConfigFieldSortable();
         });
 
-        function initializeSortable() {
+        function initializeStepSortable() {
             const sortableElement = document.getElementById('sortable-steps');
             if (sortableElement && typeof Sortable !== 'undefined') {
                 if (sortableElement.sortableInstance) {
@@ -291,10 +714,43 @@
                     chosenClass: 'sortable-chosen',
                     dragClass: 'sortable-drag',
                     onEnd: function(evt) {
-                        const stepIds = Array.from(sortableElement.children).map(row => {
+                        var stepIds = Array.from(sortableElement.children).map(function (row) {
                             return parseInt(row.getAttribute('data-step-id'));
                         });
-                        @this.call('updateStepOrder', stepIds);
+                        if (window.livewire && window.livewire.find) {
+                            var component = window.livewire.find(sortableElement.getAttribute('wire:id'));
+                            if (component) {
+                                component.call('updateStepOrder', stepIds);
+                            }
+                        }
+                    }
+                });
+            }
+        }
+
+        function initializeConfigFieldSortable() {
+            const sortableFieldsElement = document.getElementById('sortable-config-fields');
+            if (sortableFieldsElement && typeof Sortable !== 'undefined') {
+                if (sortableFieldsElement.sortableInstance) {
+                    sortableFieldsElement.sortableInstance.destroy();
+                }
+
+                sortableFieldsElement.sortableInstance = Sortable.create(sortableFieldsElement, {
+                    handle: '.drag-handle',
+                    animation: 150,
+                    ghostClass: 'sortable-ghost',
+                    chosenClass: 'sortable-chosen',
+                    dragClass: 'sortable-drag',
+                    onEnd: function(evt) {
+                        var fieldIds = Array.from(sortableFieldsElement.children).map(function (row) {
+                            return parseInt(row.getAttribute('data-config-field-id'));
+                        });
+                        if (window.livewire && window.livewire.find) {
+                            var component = window.livewire.find(sortableFieldsElement.getAttribute('wire:id'));
+                            if (component) {
+                                component.call('updateConfigFieldOrder', fieldIds);
+                            }
+                        }
                     }
                 });
             }

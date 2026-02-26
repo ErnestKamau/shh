@@ -30,4 +30,14 @@ class ProcedureWorksheet extends Model
     {
         return $this->hasMany(\App\AnalysisElements::class, 'procedure_worksheet_id');
     }
+
+    public function configFields()
+    {
+        return $this->hasMany(ProcedureConfigField::class)->orderBy('order');
+    }
+
+    public function testKitColumns()
+    {
+        return $this->hasMany(ProcedureTestKitColumn::class)->orderBy('order');
+    }
 }

@@ -5,6 +5,8 @@ namespace App\Livewire\Procedures;
 use Livewire\Component;
 use App\Models\Procedures\ProcedureWorksheet;
 use App\Models\Procedures\ProcedureWorksheetStep;
+use App\Models\Procedures\ProcedureConfigField;
+use App\Models\Procedures\ProcedureTestKitColumn;
 use App\Models\Equipments\Equipment;
 use App\ReportingUnit;
 use App\User;
@@ -17,6 +19,7 @@ class ProcedureWorksheetEditor extends Component
     public $worksheetId;
     public $search = '';
     public $perPage = 25;
+    public $activeTab = 'steps';
     
     // Modal properties
     public $showModal = false;
@@ -41,6 +44,44 @@ class ProcedureWorksheetEditor extends Component
     public $showAnalystDropdown = false;
     public $showMeasurandDropdown = false;
 
+    // Configurable Fields state
+    public $configFields = [];
+    public $configFieldSearch = '';
+    public $showCreateConfigFieldModal = false;
+    public $showEditConfigFieldModal = false;
+    public $showDeleteConfigFieldModal = false;
+    public $editingConfigField = null;
+    public $deletingConfigField = null;
+
+    // Configurable Field form properties
+    public $configFieldLabel = '';
+    public $configFieldType = 'input';
+    public $configFieldOrder = 1;
+    public $configFieldHelpText = '';
+    public $configFieldIsRequired = true;
+    public $configFieldValueName = '';
+
+    // Test Kit Columns state
+    public $testKitColumns = [];
+    public $testKitColumnSearch = '';
+    public $showCreateTestKitColumnModal = false;
+    public $showEditTestKitColumnModal = false;
+    public $showDeleteTestKitColumnModal = false;
+    public $editingTestKitColumn = null;
+    public $deletingTestKitColumn = null;
+
+    // Test Kit Column form properties
+    public $testKitColumnLabel = '';
+    public $testKitColumnKey = '';
+    public $testKitColumnType = 'string';
+    public $testKitColumnOrder = 1;
+    public $testKitColumnIsRequired = false;
+    public $testKitColumnHelpText = '';
+
+    // Toast state
+    public $toastMessage = '';
+    public $toastType = 'success';
+
     protected $rules = [
         'step' => 'required|string|max:255',
         'default_equipment_id' => 'nullable|exists:equipment,id',
@@ -49,9 +90,33 @@ class ProcedureWorksheetEditor extends Component
         'is_active' => 'boolean',
     ];
 
+    protected function configFieldRules(): array
+    {
+        return [
+            'configFieldLabel' => 'required|string|max:255',
+            'configFieldType' => 'required|in:input,datetime,date,number,checkbox,textarea',
+            'configFieldValueName' => 'required|string|max:255',
+            'configFieldHelpText' => 'nullable|string',
+            'configFieldIsRequired' => 'boolean',
+        ];
+    }
+
+    protected function testKitColumnRules(): array
+    {
+        return [
+            'testKitColumnLabel' => 'required|string|max:255',
+            'testKitColumnKey' => 'required|string|max:255',
+            'testKitColumnType' => 'required|in:string,number,date,boolean',
+            'testKitColumnHelpText' => 'nullable|string',
+            'testKitColumnIsRequired' => 'boolean',
+        ];
+    }
+
     public function mount($procedureWorksheet)
     {
         $this->worksheetId = $procedureWorksheet->id;
+        $this->loadConfigFields();
+        $this->loadTestKitColumns();
     }
 
     public function render()
@@ -100,6 +165,8 @@ class ProcedureWorksheetEditor extends Component
             'selectedEquipment' => $selectedEquipment,
             'selectedAnalyst' => $selectedAnalyst,
             'selectedMeasurands' => $selectedMeasurands,
+            'configFields' => $this->configFields,
+            'testKitColumns' => $this->testKitColumns,
         ]);
     }
 
@@ -228,5 +295,289 @@ class ProcedureWorksheetEditor extends Component
                 $step->save();
             }
         }
+    }
+
+    // ==================== Configurable Fields Methods ====================
+
+    public function loadConfigFields(): void
+    {
+        $query = ProcedureConfigField::where('procedure_worksheet_id', $this->worksheetId)
+            ->orderBy('order');
+
+        if ($this->configFieldSearch) {
+            $query->where(function ($q) {
+                $q->where('label', 'like', '%' . $this->configFieldSearch . '%')
+                    ->orWhere('field_value_name', 'like', '%' . $this->configFieldSearch . '%')
+                    ->orWhere('help_text', 'like', '%' . $this->configFieldSearch . '%');
+            });
+        }
+
+        $this->configFields = $query->get()->toArray();
+    }
+
+    public function showCreateConfigFieldModalInit(): void
+    {
+        $this->resetConfigFieldForm();
+        $this->configFieldOrder = count($this->configFields) + 1;
+        $this->activeTab = 'config';
+        $this->showCreateConfigFieldModal = true;
+    }
+
+    public function showEditConfigFieldModalInit(int $fieldId): void
+    {
+        $field = ProcedureConfigField::where('procedure_worksheet_id', $this->worksheetId)->findOrFail($fieldId);
+
+        $this->editingConfigField = $field;
+        $this->configFieldLabel = $field->label;
+        $this->configFieldType = $field->field_type;
+        $this->configFieldOrder = $field->order;
+        $this->configFieldHelpText = $field->help_text ?? '';
+        $this->configFieldIsRequired = $field->is_required;
+        $this->configFieldValueName = $field->field_value_name;
+
+        $this->activeTab = 'config';
+        $this->showEditConfigFieldModal = true;
+    }
+
+    public function createConfigField(): void
+    {
+        $this->validate($this->configFieldRules());
+
+        ProcedureConfigField::create([
+            'procedure_worksheet_id' => $this->worksheetId,
+            'label' => $this->configFieldLabel,
+            'field_type' => $this->configFieldType,
+            'order' => $this->configFieldOrder,
+            'help_text' => $this->configFieldHelpText,
+            'is_required' => $this->configFieldIsRequired,
+            'field_value_name' => $this->configFieldValueName,
+        ]);
+
+        $this->showCreateConfigFieldModal = false;
+        $this->resetConfigFieldForm();
+        $this->loadConfigFields();
+        $this->toastType = 'success';
+        $this->toastMessage = 'Configurable field saved successfully.';
+    }
+
+    public function updateConfigField(): void
+    {
+        $this->validate($this->configFieldRules());
+
+        if (!$this->editingConfigField) {
+            return;
+        }
+
+        $this->editingConfigField->update([
+            'label' => $this->configFieldLabel,
+            'field_type' => $this->configFieldType,
+            'order' => $this->configFieldOrder,
+            'help_text' => $this->configFieldHelpText,
+            'is_required' => $this->configFieldIsRequired,
+            'field_value_name' => $this->configFieldValueName,
+        ]);
+
+        $this->showEditConfigFieldModal = false;
+        $this->resetConfigFieldForm();
+        $this->loadConfigFields();
+        $this->toastType = 'success';
+        $this->toastMessage = 'Configurable field updated successfully.';
+    }
+
+    public function showDeleteConfigFieldModal(int $fieldId): void
+    {
+        $this->deletingConfigField = ProcedureConfigField::where('procedure_worksheet_id', $this->worksheetId)->findOrFail($fieldId);
+        $this->showDeleteConfigFieldModal = true;
+    }
+
+    public function deleteConfigField(): void
+    {
+        if ($this->deletingConfigField) {
+            $this->deletingConfigField->delete();
+        }
+
+        $this->showDeleteConfigFieldModal = false;
+        $this->deletingConfigField = null;
+        $this->loadConfigFields();
+    }
+
+    public function updateConfigFieldOrder(array $fieldIds): void
+    {
+        ProcedureConfigField::where('procedure_worksheet_id', $this->worksheetId)
+            ->update(['order' => 9999]);
+
+        foreach ($fieldIds as $index => $fieldId) {
+            ProcedureConfigField::where('procedure_worksheet_id', $this->worksheetId)
+                ->where('id', $fieldId)
+                ->update(['order' => $index + 1]);
+        }
+
+        $this->loadConfigFields();
+    }
+
+    public function clearConfigFieldSearch(): void
+    {
+        $this->configFieldSearch = '';
+        $this->loadConfigFields();
+    }
+
+    protected function resetConfigFieldForm(): void
+    {
+        $this->configFieldLabel = '';
+        $this->configFieldType = 'input';
+        $this->configFieldOrder = 1;
+        $this->configFieldHelpText = '';
+        $this->configFieldIsRequired = true;
+        $this->configFieldValueName = '';
+        $this->editingConfigField = null;
+    }
+
+    public function closeConfigFieldModal(): void
+    {
+        $this->showCreateConfigFieldModal = false;
+        $this->showEditConfigFieldModal = false;
+        $this->resetConfigFieldForm();
+    }
+
+    // ==================== Test Kit Columns Methods ====================
+
+    public function loadTestKitColumns(): void
+    {
+        $query = ProcedureTestKitColumn::where('procedure_worksheet_id', $this->worksheetId)
+            ->orderBy('order');
+
+        if ($this->testKitColumnSearch) {
+            $query->where(function ($q) {
+                $q->where('label', 'like', '%' . $this->testKitColumnSearch . '%')
+                    ->orWhere('key', 'like', '%' . $this->testKitColumnSearch . '%')
+                    ->orWhere('help_text', 'like', '%' . $this->testKitColumnSearch . '%');
+            });
+        }
+
+        $this->testKitColumns = $query->get()->toArray();
+    }
+
+    public function showCreateTestKitColumnModalInit(): void
+    {
+        $this->resetTestKitColumnForm();
+        $this->testKitColumnOrder = count($this->testKitColumns) + 1;
+        $this->activeTab = 'test_kit';
+        $this->showCreateTestKitColumnModal = true;
+    }
+
+    public function showEditTestKitColumnModalInit(int $columnId): void
+    {
+        $column = ProcedureTestKitColumn::where('procedure_worksheet_id', $this->worksheetId)->findOrFail($columnId);
+
+        $this->editingTestKitColumn = $column;
+        $this->testKitColumnLabel = $column->label;
+        $this->testKitColumnKey = $column->key;
+        $this->testKitColumnType = $column->type;
+        $this->testKitColumnOrder = $column->order;
+        $this->testKitColumnIsRequired = $column->is_required;
+        $this->testKitColumnHelpText = $column->help_text ?? '';
+
+        $this->activeTab = 'test_kit';
+        $this->showEditTestKitColumnModal = true;
+    }
+
+    public function createTestKitColumn(): void
+    {
+        $this->validate($this->testKitColumnRules());
+
+        ProcedureTestKitColumn::create([
+            'procedure_worksheet_id' => $this->worksheetId,
+            'label' => $this->testKitColumnLabel,
+            'key' => $this->testKitColumnKey,
+            'type' => $this->testKitColumnType,
+            'order' => $this->testKitColumnOrder,
+            'is_required' => $this->testKitColumnIsRequired,
+            'help_text' => $this->testKitColumnHelpText,
+        ]);
+
+        $this->showCreateTestKitColumnModal = false;
+        $this->resetTestKitColumnForm();
+        $this->loadTestKitColumns();
+        $this->toastType = 'success';
+        $this->toastMessage = 'Test kit column saved successfully.';
+    }
+
+    public function updateTestKitColumn(): void
+    {
+        $this->validate($this->testKitColumnRules());
+
+        if (!$this->editingTestKitColumn) {
+            return;
+        }
+
+        $this->editingTestKitColumn->update([
+            'label' => $this->testKitColumnLabel,
+            'key' => $this->testKitColumnKey,
+            'type' => $this->testKitColumnType,
+            'order' => $this->testKitColumnOrder,
+            'is_required' => $this->testKitColumnIsRequired,
+            'help_text' => $this->testKitColumnHelpText,
+        ]);
+
+        $this->showEditTestKitColumnModal = false;
+        $this->resetTestKitColumnForm();
+        $this->loadTestKitColumns();
+        $this->toastType = 'success';
+        $this->toastMessage = 'Test kit column updated successfully.';
+    }
+
+    public function showDeleteTestKitColumnModal(int $columnId): void
+    {
+        $this->deletingTestKitColumn = ProcedureTestKitColumn::where('procedure_worksheet_id', $this->worksheetId)->findOrFail($columnId);
+        $this->showDeleteTestKitColumnModal = true;
+    }
+
+    public function deleteTestKitColumn(): void
+    {
+        if ($this->deletingTestKitColumn) {
+            $this->deletingTestKitColumn->delete();
+        }
+
+        $this->showDeleteTestKitColumnModal = false;
+        $this->deletingTestKitColumn = null;
+        $this->loadTestKitColumns();
+    }
+
+    public function updateTestKitColumnOrder(array $columnIds): void
+    {
+        ProcedureTestKitColumn::where('procedure_worksheet_id', $this->worksheetId)
+            ->update(['order' => 9999]);
+
+        foreach ($columnIds as $index => $columnId) {
+            ProcedureTestKitColumn::where('procedure_worksheet_id', $this->worksheetId)
+                ->where('id', $columnId)
+                ->update(['order' => $index + 1]);
+        }
+
+        $this->loadTestKitColumns();
+    }
+
+    public function clearTestKitColumnSearch(): void
+    {
+        $this->testKitColumnSearch = '';
+        $this->loadTestKitColumns();
+    }
+
+    protected function resetTestKitColumnForm(): void
+    {
+        $this->testKitColumnLabel = '';
+        $this->testKitColumnKey = '';
+        $this->testKitColumnType = 'string';
+        $this->testKitColumnOrder = 1;
+        $this->testKitColumnIsRequired = false;
+        $this->testKitColumnHelpText = '';
+        $this->editingTestKitColumn = null;
+    }
+
+    public function closeTestKitColumnModal(): void
+    {
+        $this->showCreateTestKitColumnModal = false;
+        $this->showEditTestKitColumnModal = false;
+        $this->resetTestKitColumnForm();
     }
 }
