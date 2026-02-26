@@ -1557,23 +1557,41 @@
                                             @foreach($assignAvailablePoints as $point)
                                                 @php
                                                     $matches = !$assignPointSearch || str_contains(strtolower($point['name']), strtolower($assignPointSearch));
+                                                    $isSelected = in_array($point['id'], $assignNewPointIds ?? [], true);
                                                 @endphp
                                                 @if($matches)
-                                                    <div class="dropdown-item"
+                                                    <div class="dropdown-item d-flex justify-content-between align-items-center"
                                                         wire:click="selectAssignPoint({{ $point['id'] }})"
                                                         style="cursor: pointer; padding: 8px 12px; border-bottom: 1px solid #eee;">
-                                                        {{ $point['name'] }}
+                                                        <span>{{ $point['name'] }}</span>
+                                                        @if($isSelected)
+                                                            <i class="mdi mdi-check text-primary"></i>
+                                                        @endif
                                                     </div>
                                                 @endif
                                             @endforeach
                                         </div>
+                                        @if(!empty($assignNewPointIds))
+                                            <div class="selected-items mt-2">
+                                                @foreach($assignAvailablePoints as $point)
+                                                    @if(in_array($point['id'], $assignNewPointIds ?? [], true))
+                                                        <span class="badge bg-info me-1 mb-1">
+                                                            {{ $point['name'] }}
+                                                            <i class="mdi mdi-close-circle ms-1"
+                                                               wire:click="removeAssignPoint({{ $point['id'] }})"
+                                                               style="cursor: pointer;"></i>
+                                                        </span>
+                                                    @endif
+                                                @endforeach
+                                            </div>
+                                        @endif
                                     </div>
                                 </div>
                                 <div class="col-md-4">
                                     <div class="form-group">
                                         <label class="form-label">&nbsp;</label>
                                         <button wire:click="addCustomerSamplePoint" class="btn btn-primary btn-block"
-                                            @if(!$assignNewAreaId || !$assignNewPointId) disabled @endif
+                                            @if(!$assignNewAreaId || empty($assignNewPointIds)) disabled @endif
                                             wire:loading.attr="disabled" wire:target="addCustomerSamplePoint">
                                             <i class="mdi mdi-plus"></i> Add to Customer
                                         </button>

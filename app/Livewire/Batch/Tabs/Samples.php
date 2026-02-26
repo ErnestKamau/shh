@@ -139,6 +139,7 @@ class Samples extends Component
     // Add New Sample Point properties
     public $assignNewAreaId = '';
     public $assignNewPointId = '';
+    public $assignNewPointIds = [];
     public $assignAvailableAreas = [];
     public $assignAvailablePoints = [];
     public $assignQuantities = [];
@@ -358,6 +359,11 @@ class Samples extends Component
 
             // Reset selections
             $this->assignSelectedPoints = [];
+            $this->assignNewAreaId = '';
+            $this->assignNewPointId = '';
+            $this->assignNewPointIds = [];
+            $this->assignAreaSearch = '';
+            $this->assignPointSearch = '';
 
             // Load available areas/points for "Add New Query" (if needed later)
             // For now we just focus on assignment
@@ -380,11 +386,30 @@ class Samples extends Component
 
     public function selectAssignPoint(int $id): void
     {
-        $this->assignNewPointId = $id;
-        $this->showAssignPointDropdown = false;
+        if (!in_array($id, $this->assignNewPointIds, true)) {
+            $this->assignNewPointIds[] = $id;
+        }
 
-        $point = collect($this->assignAvailablePoints)->firstWhere('id', $id);
-        $this->assignPointSearch = $point['name'] ?? '';
+        $this->assignNewPointId = $id;
+
+        $this->assignPointSearch = '';
+        $this->showAssignPointDropdown = false;
+    }
+
+    public function removeAssignPoint(int $id): void
+    {
+        $this->assignNewPointIds = array_values(array_filter(
+            $this->assignNewPointIds,
+            static function ($existingId) use ($id) {
+                return (int) $existingId !== (int) $id;
+            }
+        ));
+
+        if (empty($this->assignNewPointIds)) {
+            $this->assignNewPointId = '';
+        } else {
+            $this->assignNewPointId = $this->assignNewPointIds[0];
+        }
     }
 
     /**
@@ -542,7 +567,8 @@ class Samples extends Component
     {
         $this->validate([
             'assignNewAreaId' => 'required|exists:crm_areas,id',
-            'assignNewPointId' => 'required|exists:crm_sample_points,id',
+            'assignNewPointIds' => 'required|array|min:1',
+            'assignNewPointIds.*' => 'required|integer|exists:crm_sample_points,id',
         ]);
 
         $customerId = $this->batch->crm_customer_id;
@@ -581,49 +607,38 @@ class Samples extends Component
                 ]);
             }
 
-            // Check if CRM\SamplePoint exists for this customer + sample_point + area
-            $crmSamplePoint = \App\Models\CRM\SamplePoint::where('crm_customer_id', $customerId)
-                ->where('crm_sample_point_id', $this->assignNewPointId)
-                ->where('crm_area_id', $this->assignNewAreaId)
-                ->first(); // Note: Legacy checked crm_sample_point table, but here we are using the pivot table or similar?
-            // Wait, \App\Models\CRM\SamplePoint is usually the definition of best practice sample points?
-            // The legacy code used: \App\Models\CRM\SamplePoint::create(...)
-            // But wait, the standard table is `crm_sample_points` (plural?). 
-            // Let's assume the model `\App\Models\CRM\SamplePoint` maps to a pivot/relation or the point itself.
-            // Actually, looking at legacy code:
-            // $crmSamplePoint = \App\Models\CRM\SamplePoint::where('crm_customer_id', ...)->where('crm_sample_point_id', $validated['sample_point_id'])...
-            // This implies `\App\Models\CRM\SamplePoint` is a LINKING table (maybe `crm_customer_sample_points`?).
-            // AND `crm_sample_point_id` refers to the "Master" sample point ID.
+            $sampleTypeId = $this->batch->sample_type_id;
 
-            // Let's double check this model name correspondence.
-            // Using the exact logic from controller:
+            foreach ($this->assignNewPointIds as $pointId) {
+                $crmSamplePoint = \App\Models\CRM\SamplePoint::where('crm_customer_id', $customerId)
+                    ->where('crm_sample_point_id', $pointId)
+                    ->where('crm_area_id', $this->assignNewAreaId)
+                    ->first();
 
-            if (!$crmSamplePoint) {
-                // Create new CRM\SamplePoint (Link)
-                $crmSamplePoint = \App\Models\CRM\SamplePoint::create([
-                    'crm_customer_id' => $customerId,
-                    'crm_sample_point_id' => $this->assignNewPointId,
-                    'crm_area_id' => $this->assignNewAreaId,
-                    'sample_point_area_id' => $samplePointArea->id,
-                    'crm_company_unit_id' => $companyUnitId,
-                    'crm_company_sub_unit_id' => $subUnitId,
-                    'active' => true
-                ]);
+                if (!$crmSamplePoint) {
+                    $crmSamplePoint = \App\Models\CRM\SamplePoint::create([
+                        'crm_customer_id' => $customerId,
+                        'crm_sample_point_id' => $pointId,
+                        'crm_area_id' => $this->assignNewAreaId,
+                        'sample_point_area_id' => $samplePointArea->id,
+                        'crm_company_unit_id' => $companyUnitId,
+                        'crm_company_sub_unit_id' => $subUnitId,
+                        'active' => true,
+                    ]);
+                }
+
+                if ($sampleTypeId) {
+                    $samplePoint = \App\Models\SamplePoint::find($pointId);
+                    if ($samplePoint) {
+                        $samplePoint->sampleTypes()->syncWithoutDetaching([$sampleTypeId]);
+                    }
+                }
             }
 
-            // Link to the Sample Type of the batch
-            $sampleTypeId = $this->batch->sample_type_id;
             if ($sampleTypeId) {
-                // Link Area to Sample Type
                 $area = \App\Models\Area::find($this->assignNewAreaId);
                 if ($area) {
                     $area->sampleTypes()->syncWithoutDetaching([$sampleTypeId]);
-                }
-
-                // Link Sample Point to Sample Type
-                $samplePoint = \App\Models\SamplePoint::find($this->assignNewPointId);
-                if ($samplePoint) {
-                    $samplePoint->sampleTypes()->syncWithoutDetaching([$sampleTypeId]);
                 }
             }
 
@@ -635,9 +650,12 @@ class Samples extends Component
             // Clear selection
             $this->assignNewAreaId = '';
             $this->assignNewPointId = '';
+            $this->assignNewPointIds = [];
+            $this->assignAreaSearch = '';
+            $this->assignPointSearch = '';
 
             $this->toastType = 'success';
-            $this->toastMessage = 'Sample point added to customer successfully.';
+            $this->toastMessage = 'Sample point(s) added to customer successfully.';
         } catch (\Exception $e) {
             DB::rollBack();
             Log::error('Error adding customer sample point: ' . $e->getMessage());
