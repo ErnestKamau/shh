@@ -1534,16 +1534,34 @@
                                             @foreach($assignAvailableAreas as $area)
                                                 @php
                                                     $matches = !$assignAreaSearch || str_contains(strtolower($area['name']), strtolower($assignAreaSearch));
+                                                    $isSelectedArea = in_array($area['id'], $assignNewAreaIds ?? [], true);
                                                 @endphp
                                                 @if($matches)
-                                                    <div class="dropdown-item"
+                                                    <div class="dropdown-item d-flex justify-content-between align-items-center"
                                                         wire:click="selectAssignArea({{ $area['id'] }})"
                                                         style="cursor: pointer; padding: 8px 12px; border-bottom: 1px solid #eee;">
-                                                        {{ $area['name'] }}
+                                                        <span>{{ $area['name'] }}</span>
+                                                        @if($isSelectedArea)
+                                                            <i class="mdi mdi-check text-primary"></i>
+                                                        @endif
                                                     </div>
                                                 @endif
                                             @endforeach
                                         </div>
+                                        @if(!empty($assignNewAreaIds))
+                                            <div class="selected-items mt-2">
+                                                @foreach($assignAvailableAreas as $area)
+                                                    @if(in_array($area['id'], $assignNewAreaIds ?? [], true))
+                                                        <span class="badge bg-info me-1 mb-1">
+                                                            {{ $area['name'] }}
+                                                            <i class="mdi mdi-close-circle ms-1"
+                                                               wire:click="removeAssignArea({{ $area['id'] }})"
+                                                               style="cursor: pointer;"></i>
+                                                        </span>
+                                                    @endif
+                                                @endforeach
+                                            </div>
+                                        @endif
                                     </div>
                                 </div>
                                 <div class="col-md-4">
@@ -1603,7 +1621,7 @@
                                     <div class="form-group">
                                         <label class="form-label">&nbsp;</label>
                                         <button wire:click="addCustomerSamplePoint" class="btn btn-primary btn-block"
-                                            @if(!$assignNewAreaId || empty($assignNewPointIds)) disabled @endif
+                                            @if(empty($assignNewAreaIds) || empty($assignNewPointIds)) disabled @endif
                                             wire:loading.attr="disabled" wire:target="addCustomerSamplePoint">
                                             <i class="mdi mdi-plus"></i> Add to Customer
                                         </button>

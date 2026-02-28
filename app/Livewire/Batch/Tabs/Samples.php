@@ -140,6 +140,7 @@ class Samples extends Component
 
     // Add New Sample Point properties
     public $assignNewAreaId = '';
+    public $assignNewAreaIds = [];
     public $assignNewPointId = '';
     public $assignNewPointIds = [];
     public $assignAvailableAreas = [];
@@ -362,6 +363,7 @@ class Samples extends Component
             // Reset selections
             $this->assignSelectedPoints = [];
             $this->assignNewAreaId = '';
+            $this->assignNewAreaIds = [];
             $this->assignNewPointId = '';
             $this->assignNewPointIds = [];
             $this->assignAreaSearch = '';
@@ -379,11 +381,30 @@ class Samples extends Component
 
     public function selectAssignArea(int $id): void
     {
-        $this->assignNewAreaId = $id;
-        $this->showAssignAreaDropdown = false;
+        if (!in_array($id, $this->assignNewAreaIds, true)) {
+            $this->assignNewAreaIds[] = $id;
+        }
 
-        $area = collect($this->assignAvailableAreas)->firstWhere('id', $id);
-        $this->assignAreaSearch = $area['name'] ?? '';
+        $this->assignNewAreaId = $id;
+
+        $this->assignAreaSearch = '';
+        $this->showAssignAreaDropdown = false;
+    }
+
+    public function removeAssignArea(int $id): void
+    {
+        $this->assignNewAreaIds = array_values(array_filter(
+            $this->assignNewAreaIds,
+            static function ($existingId) use ($id) {
+                return (int) $existingId !== (int) $id;
+            }
+        ));
+
+        if (empty($this->assignNewAreaIds)) {
+            $this->assignNewAreaId = '';
+        } else {
+            $this->assignNewAreaId = $this->assignNewAreaIds[0];
+        }
     }
 
     public function selectAssignPoint(int $id): void
@@ -464,9 +485,12 @@ class Samples extends Component
                 ->get()
                 ->toArray();
 
-            // 5. Make it the selected area in the Assign modal
+            // 5. Make it the selected area in the Assign modal (multi-select aware)
+            if (!in_array($area->id, $this->assignNewAreaIds, true)) {
+                $this->assignNewAreaIds[] = $area->id;
+            }
             $this->assignNewAreaId        = $area->id;
-            $this->assignAreaSearch       = $area->name;
+            $this->assignAreaSearch       = '';
             $this->showAssignAreaDropdown = false;
 
             // Refresh grouped areas/points for table if we know the sub-unit
@@ -568,7 +592,8 @@ class Samples extends Component
     public function addCustomerSamplePoint()
     {
         $this->validate([
-            'assignNewAreaId' => 'required|exists:crm_areas,id',
+            'assignNewAreaIds' => 'required|array|min:1',
+            'assignNewAreaIds.*' => 'required|integer|exists:crm_areas,id',
             'assignNewPointIds' => 'required|array|min:1',
             'assignNewPointIds.*' => 'required|integer|exists:crm_sample_points,id',
         ]);
@@ -586,61 +611,63 @@ class Samples extends Component
 
         DB::beginTransaction();
         try {
-            $samplePointArea = \App\Models\SamplePointArea::where('crm_customer_id', $customerId)
-                ->where('crm_area_id', $this->assignNewAreaId)
-                ->where('crm_company_sub_unit_id', $subUnitId)
-                ->first();
-
-            if (!$samplePointArea) {
-                // Get area details for name
-                $area = \App\Models\Area::find($this->assignNewAreaId);
-                $areaName = $area ? $area->name : 'Unknown Area';
-
-                // Create new SamplePointArea
-                $samplePointArea = \App\Models\SamplePointArea::create([
-                    'crm_customer_id' => $customerId,
-                    'crm_area_id' => $this->assignNewAreaId,
-                    'crm_company_unit_id' => $companyUnitId,
-                    'crm_company_sub_unit_id' => $subUnitId,
-                    'name' => $areaName,
-                    'code' => 'SPA-' . strtoupper(uniqid()),
-                    'description' => 'Auto-created from sample assignment',
-                    'active' => true
-                ]);
-            }
-
             $sampleTypeId = $this->batch->sample_type_id;
 
-            foreach ($this->assignNewPointIds as $pointId) {
-                $crmSamplePoint = \App\Models\CRM\SamplePoint::where('crm_customer_id', $customerId)
-                    ->where('crm_sample_point_id', $pointId)
-                    ->where('crm_area_id', $this->assignNewAreaId)
+            foreach ($this->assignNewAreaIds as $areaId) {
+                $samplePointArea = \App\Models\SamplePointArea::where('crm_customer_id', $customerId)
+                    ->where('crm_area_id', $areaId)
+                    ->where('crm_company_sub_unit_id', $subUnitId)
                     ->first();
 
-                if (!$crmSamplePoint) {
-                    $crmSamplePoint = \App\Models\CRM\SamplePoint::create([
+                if (!$samplePointArea) {
+                    // Get area details for name
+                    $areaModel = \App\Models\Area::find($areaId);
+                    $areaName = $areaModel ? $areaModel->name : 'Unknown Area';
+
+                    // Create new SamplePointArea
+                    $samplePointArea = \App\Models\SamplePointArea::create([
                         'crm_customer_id' => $customerId,
-                        'crm_sample_point_id' => $pointId,
-                        'crm_area_id' => $this->assignNewAreaId,
-                        'sample_point_area_id' => $samplePointArea->id,
+                        'crm_area_id' => $areaId,
                         'crm_company_unit_id' => $companyUnitId,
                         'crm_company_sub_unit_id' => $subUnitId,
+                        'name' => $areaName,
+                        'code' => 'SPA-' . strtoupper(uniqid()),
+                        'description' => 'Auto-created from sample assignment',
                         'active' => true,
                     ]);
                 }
 
-                if ($sampleTypeId) {
-                    $samplePoint = \App\Models\SamplePoint::find($pointId);
-                    if ($samplePoint) {
-                        $samplePoint->sampleTypes()->syncWithoutDetaching([$sampleTypeId]);
+                foreach ($this->assignNewPointIds as $pointId) {
+                    $crmSamplePoint = \App\Models\CRM\SamplePoint::where('crm_customer_id', $customerId)
+                        ->where('crm_sample_point_id', $pointId)
+                        ->where('crm_area_id', $areaId)
+                        ->first();
+
+                    if (!$crmSamplePoint) {
+                        $crmSamplePoint = \App\Models\CRM\SamplePoint::create([
+                            'crm_customer_id' => $customerId,
+                            'crm_sample_point_id' => $pointId,
+                            'crm_area_id' => $areaId,
+                            'sample_point_area_id' => $samplePointArea->id,
+                            'crm_company_unit_id' => $companyUnitId,
+                            'crm_company_sub_unit_id' => $subUnitId,
+                            'active' => true,
+                        ]);
+                    }
+
+                    if ($sampleTypeId) {
+                        $samplePoint = \App\Models\SamplePoint::find($pointId);
+                        if ($samplePoint) {
+                            $samplePoint->sampleTypes()->syncWithoutDetaching([$sampleTypeId]);
+                        }
                     }
                 }
-            }
 
-            if ($sampleTypeId) {
-                $area = \App\Models\Area::find($this->assignNewAreaId);
-                if ($area) {
-                    $area->sampleTypes()->syncWithoutDetaching([$sampleTypeId]);
+                if ($sampleTypeId) {
+                    $areaModel = \App\Models\Area::find($areaId);
+                    if ($areaModel) {
+                        $areaModel->sampleTypes()->syncWithoutDetaching([$sampleTypeId]);
+                    }
                 }
             }
 
@@ -651,6 +678,7 @@ class Samples extends Component
 
             // Clear selection
             $this->assignNewAreaId = '';
+            $this->assignNewAreaIds = [];
             $this->assignNewPointId = '';
             $this->assignNewPointIds = [];
             $this->assignAreaSearch = '';
