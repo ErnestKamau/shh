@@ -3223,6 +3223,26 @@ class SampleWorkFlowController extends Controller
             $new->attachment_url = (string) $fName;
             $new->save();
 
+            // Link captured results to this attachment if the type is "Result Report"
+            if ($request->filled('selected_captured_result_ids')) {
+                $ids = array_filter(
+                    array_map('intval', explode(',', $request->selected_captured_result_ids))
+                );
+
+                if (!empty($ids)) {
+                    // Safety: only update results that truly belong to this batch
+                    CapturedResult::whereIn('id', $ids)
+                        ->where('sample_header_id', $batch->id)
+                        ->update(['batch_attachment_id' => $new->id]);
+
+                    \Log::info('add_batch_attachment: linked captured results', [
+                        'batch_id'          => $batch->id,
+                        'attachment_id'     => $new->id,
+                        'captured_ids'      => $ids,
+                    ]);
+                }
+            }
+
             return redirect()->back()->with('success', 'Attachment Added Successfully');
         } else {
             return redirect()->back()->with('error', 'No batch with the specified ID');
