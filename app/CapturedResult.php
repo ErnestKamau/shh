@@ -4,6 +4,7 @@ namespace App;
 
 use App\Models\System\SystemConfiguration;
 use App\Observers\CapturedObserver;
+use App\BatchAttachment;
 use Illuminate\Database\Eloquent\Model;
 use OwenIt\Auditing\Contracts\Auditable;
 use Illuminate\Database\Eloquent\Attributes\ObservedBy;
@@ -125,5 +126,17 @@ class CapturedResult extends Model implements Auditable
 	{
 		return $this->belongsTo(\App\Models\Procedures\ProcedureWorksheet::class, 'procedure_worksheet_id');
 	}
+
+    public function batchAttachments()
+    {
+        return $this->belongsToMany(
+            BatchAttachment::class,
+            'analysis_element_attachments',
+            'analysis_element_id',
+            'batch_attachment_id',
+            'analysis_element_id',
+            'id'
+        );
+    }
 
 }

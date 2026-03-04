@@ -39,93 +39,93 @@
                     </thead>
                     <tbody>
                         @if($attachments->count() > 0)
-                            @if(Auth::user()->is_client == 1)
-                                @foreach($attachments as $a)
-                                    @if($a->is_internal == 0)
-                                        <tr>
-                                            <td>
-                                                <input type="checkbox" class="attachment-checkbox" value="{{$a->id}}"
-                                                    data-title="{{$a->title ?? 'N/a'}}" data-type="{{$a->attachtypename ?? 'General'}}">
-                                            </td>
-                                            <td>{{ $a->attachtypename}}</td>
-                                            <td>{{$a->title ?? 'N/a'}}</td>
-                                            <td>{{date('Y-m-d', strtotime($a->created_at))}}</td>
-                                            <td>{{$a->uploaduser}}</td>
-                                            <td class="text-center">
-                                                <a href="{{$a->attachment_url}}" target="_blank" data-toggle="tooltip"
-                                                    data-title="View Attachment" class="btn-sm btn btn-outline-dark">
-                                                    <i class="mdi mdi-eye"></i>
-                                                </a>
-                                                @if(strtolower($a->file_type) == 'pdf')
-                                                    <a href="{{ route('show-pdf-annotation-page', $a->id) }}"
-                                                        class="btn-sm btn btn-outline-info ml-1" data-toggle="tooltip" title="Annotate PDF">
-                                                        <i class="mdi mdi-comment-text"></i>
-                                                        @if($a->annotations && $a->annotations->count() > 0)
-                                                            <span class="badge badge-primary">{{ $a->annotations->count() }}</span>
-                                                        @endif
-                                                    </a>
-                                                @endif
-                                            </td>
-                                            <td>
-                                                <button type="button" wire:click="deleteAttachment({{$a->id}})"
-                                                    wire:confirm="Are you sure you want to delete attachment: {{$a->title}}?"
-                                                    class="btn btn-sm btn-outline-danger" data-toggle="tooltip"
-                                                    title="Delete Attachment">
-                                                    <i class="mdi mdi-delete-empty"></i>
-                                                </button>
-                                            </td>
-                                        </tr>
+                        @if(Auth::user()->is_client == 1)
+                        @foreach($attachments as $a)
+                        @if($a->is_internal == 0)
+                        <tr>
+                            <td>
+                                <input type="checkbox" class="attachment-checkbox" value="{{$a->id}}"
+                                    data-title="{{$a->title ?? 'N/a'}}" data-type="{{$a->attachtypename ?? 'General'}}">
+                            </td>
+                            <td>{{ $a->attachtypename}}</td>
+                            <td>{{$a->title ?? 'N/a'}}</td>
+                            <td>{{date('Y-m-d', strtotime($a->created_at))}}</td>
+                            <td>{{$a->uploaduser}}</td>
+                            <td class="text-center">
+                                <a href="{{$a->attachment_url}}" target="_blank" data-toggle="tooltip"
+                                    data-title="View Attachment" class="btn-sm btn btn-outline-dark">
+                                    <i class="mdi mdi-eye"></i>
+                                </a>
+                                @if(strtolower($a->file_type) == 'pdf')
+                                <a href="{{ route('show-pdf-annotation-page', $a->id) }}"
+                                    class="btn-sm btn btn-outline-info ml-1" data-toggle="tooltip" title="Annotate PDF">
+                                    <i class="mdi mdi-comment-text"></i>
+                                    @if($a->annotations && $a->annotations->count() > 0)
+                                    <span class="badge badge-primary">{{ $a->annotations->count() }}</span>
                                     @endif
-                                @endforeach
-                            @else
-                                @foreach($attachments as $a)
-                                    <tr>
-                                        <td><input type="checkbox" class="attachment-checkbox" value="{{$a->id}}"
-                                                data-title="{{$a->title}}" data-type="{{$a->attachtypename}}"></td>
-                                        <td>{{ $a->attachtypename}}</td>
-                                        <td>{{$a->title ?? 'N/a'}}</td>
-                                        <td>{{date('Y-m-d', strtotime($a->created_at))}}</td>
-                                        <td>{{$a->uploaduser}}</td>
-                                        <td class="text-center">
-                                            <a href="{{$a->attachment_url}}" target="_blank" data-toggle="tooltip"
-                                                data-title="View Attachment" class="btn-sm btn btn-outline-dark">
-                                                <i class="mdi mdi-eye"></i>
-                                            </a>
-                                            @if(strtolower($a->file_type) == 'pdf')
-                                                <a href="{{ route('show-pdf-annotation-page', $a->id) }}"
-                                                    class="btn-sm btn btn-outline-info ml-1" data-toggle="tooltip" title="Annotate PDF">
-                                                    <i class="mdi mdi-comment-text"></i>
-                                                    @if($a->annotations && $a->annotations->count() > 0)
-                                                        <span class="badge badge-primary">{{ $a->annotations->count() }}</span>
-                                                    @endif
-                                                </a>
-                                            @endif
-                                        </td>
-                                        <td>
-                                            <button type="button" wire:click="deleteAttachment({{$a->id}})"
-                                                wire:confirm="Are you sure you want to delete attachment: {{$a->title}}?"
-                                                class="btn btn-sm btn-outline-danger" data-toggle="tooltip"
-                                                title="Delete Attachment">
-                                                <i class="mdi mdi-delete-empty"></i>
-                                            </button>
-                                        </td>
-                                    </tr>
-                                @endforeach
-                            @endif
+                                </a>
+                                @endif
+                            </td>
+                            <td>
+                                <button type="button" wire:click="deleteAttachment({{$a->id}})"
+                                    wire:confirm="Are you sure you want to delete attachment: {{$a->title}}?"
+                                    class="btn btn-sm btn-outline-danger" data-toggle="tooltip"
+                                    title="Delete Attachment">
+                                    <i class="mdi mdi-delete-empty"></i>
+                                </button>
+                            </td>
+                        </tr>
+                        @endif
+                        @endforeach
                         @else
-                            <tr>
-                                <td colspan="7" class="text-center py-5">
-                                    <i class="mdi mdi-paperclip text-muted" style="font-size: 48px;"></i>
-                                    <h6 class="mt-3 text-muted">No Attachments Found</h6>
-                                    <p class="text-muted mb-0"><small>
-                                            @if($search)
-                                                No attachments match your search criteria
-                                            @else
-                                                There are no batch attachments to display
-                                            @endif
-                                        </small></p>
-                                </td>
-                            </tr>
+                        @foreach($attachments as $a)
+                        <tr>
+                            <td><input type="checkbox" class="attachment-checkbox" value="{{$a->id}}"
+                                    data-title="{{$a->title}}" data-type="{{$a->attachtypename}}"></td>
+                            <td>{{ $a->attachtypename}}</td>
+                            <td>{{$a->title ?? 'N/a'}}</td>
+                            <td>{{date('Y-m-d', strtotime($a->created_at))}}</td>
+                            <td>{{$a->uploaduser}}</td>
+                            <td class="text-center">
+                                <a href="{{$a->attachment_url}}" target="_blank" data-toggle="tooltip"
+                                    data-title="View Attachment" class="btn-sm btn btn-outline-dark">
+                                    <i class="mdi mdi-eye"></i>
+                                </a>
+                                @if(strtolower($a->file_type) == 'pdf')
+                                <a href="{{ route('show-pdf-annotation-page', $a->id) }}"
+                                    class="btn-sm btn btn-outline-info ml-1" data-toggle="tooltip" title="Annotate PDF">
+                                    <i class="mdi mdi-comment-text"></i>
+                                    @if($a->annotations && $a->annotations->count() > 0)
+                                    <span class="badge badge-primary">{{ $a->annotations->count() }}</span>
+                                    @endif
+                                </a>
+                                @endif
+                            </td>
+                            <td>
+                                <button type="button" wire:click="deleteAttachment({{$a->id}})"
+                                    wire:confirm="Are you sure you want to delete attachment: {{$a->title}}?"
+                                    class="btn btn-sm btn-outline-danger" data-toggle="tooltip"
+                                    title="Delete Attachment">
+                                    <i class="mdi mdi-delete-empty"></i>
+                                </button>
+                            </td>
+                        </tr>
+                        @endforeach
+                        @endif
+                        @else
+                        <tr>
+                            <td colspan="7" class="text-center py-5">
+                                <i class="mdi mdi-paperclip text-muted" style="font-size: 48px;"></i>
+                                <h6 class="mt-3 text-muted">No Attachments Found</h6>
+                                <p class="text-muted mb-0"><small>
+                                        @if($search)
+                                        No attachments match your search criteria
+                                        @else
+                                        There are no batch attachments to display
+                                        @endif
+                                    </small></p>
+                            </td>
+                        </tr>
                         @endif
                     </tbody>
                 </table>
@@ -160,7 +160,7 @@
                                 style="border-radius: 8px;">
                                 <option value="">Choose Attachment Type ...</option>
                                 @foreach($attachmentTypes as $aType)
-                                    <option value="{{$aType->id}}">{{$aType->value}}</option>
+                                <option value="{{$aType->id}}">{{$aType->value}}</option>
                                 @endforeach
                             </select>
                         </div>
@@ -216,7 +216,7 @@
                             style="border-radius: 8px;">
                             <option value="">Choose Attachment Type ...</option>
                             @foreach($attachmentTypes as $aType)
-                                <option value="{{$aType->id}}">{{$aType->value}}</option>
+                            <option value="{{$aType->id}}">{{$aType->value}}</option>
                             @endforeach
                         </select>
                     </div>
@@ -305,7 +305,7 @@
 
     <script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.0/Sortable.min.js"></script>
     <script>
-        (function () {
+        (function() {
             'use strict';
 
             function updateMergeButtonState() {
@@ -380,7 +380,7 @@
                 var table = document.getElementById('attachments-table');
                 if (table) {
                     var isChecked = e.target.checked;
-                    table.querySelectorAll('.attachment-checkbox').forEach(function (cb) {
+                    table.querySelectorAll('.attachment-checkbox').forEach(function(cb) {
                         cb.checked = isChecked;
                     });
                     updateMergeButtonState();
@@ -404,7 +404,7 @@
                 if (sortableList) {
                     sortableList.innerHTML = '';
 
-                    checkedBoxes.forEach(function (cb) {
+                    checkedBoxes.forEach(function(cb) {
                         var id = cb.value;
                         var title = cb.getAttribute('data-title') || 'N/a';
                         var type = cb.getAttribute('data-type') || 'General';
@@ -430,9 +430,9 @@
 
                         sortableList.sortableInstance = window.Sortable.create(sortableList, {
                             animation: 150,
-                            onEnd: function () {
+                            onEnd: function() {
                                 var ids = [];
-                                sortableList.querySelectorAll('li').forEach(function (li) {
+                                sortableList.querySelectorAll('li').forEach(function(li) {
                                     ids.push(li.getAttribute('data-id'));
                                 });
                                 var hiddenInput = document.getElementById('ordered-attachment-ids');
@@ -444,7 +444,7 @@
 
                         // Initial update
                         var ids = [];
-                        sortableList.querySelectorAll('li').forEach(function (li) {
+                        sortableList.querySelectorAll('li').forEach(function(li) {
                             ids.push(li.getAttribute('data-id'));
                         });
                         var hiddenInput = document.getElementById('ordered-attachment-ids');
@@ -467,21 +467,21 @@
             if (typeof Livewire !== 'undefined') {
                 document.addEventListener('livewire:load', initializeHandlers);
 
-                Livewire.hook('message.processed', function () {
+                Livewire.hook('message.processed', function() {
                     setTimeout(initializeHandlers, 50);
                 });
             }
 
             // Also listen for Livewire component updates
-            document.addEventListener('livewire:update', function () {
+            document.addEventListener('livewire:update', function() {
                 setTimeout(initializeHandlers, 50);
             });
         })();
 
         // Form Submit handler and file input handler (jQuery)
-        (function ($) {
+        (function($) {
             // Vanilla JS fallback for file input labels
-            document.addEventListener('change', function (e) {
+            document.addEventListener('change', function(e) {
                 if (e.target && e.target.classList.contains('custom-file-input')) {
                     var fileName = e.target.value.split("\\").pop();
                     var label = e.target.nextElementSibling;
@@ -493,15 +493,15 @@
             });
 
             if ($) {
-                $(document).on('submit', '#merge-attachments-modal form', function () {
+                $(document).on('submit', '#merge-attachments-modal form', function() {
                     var ids = [];
-                    $('#sortable-attachments li').each(function () {
+                    $('#sortable-attachments li').each(function() {
                         ids.push($(this).data('id'));
                     });
                     $('#ordered-attachment-ids').val(ids.join(','));
                 });
 
-                $(document).on('change', '.custom-file-input', function () {
+                $(document).on('change', '.custom-file-input', function() {
                     var fileName = $(this).val().split("\\").pop();
                     $(this).siblings(".custom-file-label").addClass("selected").html(fileName);
                 });
@@ -522,7 +522,7 @@
                     _token: "{{ csrf_token() }}",
                     value: name
                 },
-                success: function (response) {
+                success: function(response) {
                     if (response.success) {
                         var newOption = new Option(response.value, response.id, true, true);
                         $('#attachment_type_select').append(newOption).trigger('change');
@@ -534,7 +534,7 @@
                         alert('Error adding attachment type: ' + response.message);
                     }
                 },
-                error: function (xhr) {
+                error: function(xhr) {
                     alert('Error adding attachment type. Please try again.');
                 }
             });

@@ -34,22 +34,22 @@ class Attachments extends Component
     {
         $query = BatchAttachment::where('batch_id', $this->batch->id)
             ->with('annotations'); // Eager load annotations for performance
-        
+
         // Filter for clients: only show non-internal attachments
         if (Auth::user()->is_client == 1) {
             $query->where('is_internal', 0);
         }
-        
+
         // Search functionality
         if ($this->search) {
-            $query->where(function($q) {
+            $query->where(function ($q) {
                 $q->where('title', 'like', '%' . $this->search . '%')
-                  ->orWhereHas('uploader', function($uploader) {
-                      $uploader->where('name', 'like', '%' . $this->search . '%');
-                  });
+                    ->orWhereHas('uploader', function ($uploader) {
+                        $uploader->where('name', 'like', '%' . $this->search . '%');
+                    });
             });
         }
-        
+
         return $query->orderBy('created_at', 'desc')->get();
     }
 
@@ -65,15 +65,15 @@ class Attachments extends Component
             // Delete the physical file
             $relativePath = urldecode($attachment->attachment_url);
             $filePath = public_path($relativePath);
-            
+
             if (!file_exists($filePath)) {
                 $cleanPath = ltrim($relativePath, '/');
                 if (strpos($cleanPath, 'storage/') === 0) {
-                   $storageInternalPath = substr($cleanPath, 8);
-                   $fallbackPath = storage_path('app/' . $storageInternalPath);
-                   if (file_exists($fallbackPath)) {
-                       $filePath = $fallbackPath;
-                   }
+                    $storageInternalPath = substr($cleanPath, 8);
+                    $fallbackPath = storage_path('app/' . $storageInternalPath);
+                    if (file_exists($fallbackPath)) {
+                        $filePath = $fallbackPath;
+                    }
                 }
             }
 

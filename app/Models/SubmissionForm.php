@@ -167,8 +167,15 @@ class SubmissionForm extends Model
      */
     public function getPrintTemplateName(): string
     {
-        if (! empty($this->print_template_name) && view()->exists($this->print_template_name)) {
-            return $this->print_template_name;
+        if (! empty($this->print_template_name)) {
+            // Treat legacy "serology" template selection as using the microbiology-style layout for consistency
+            if ($this->print_template_name === 'submission-forms.print.serology') {
+                return 'submission-forms.print.microbiology';
+            }
+
+            if (view()->exists($this->print_template_name)) {
+                return $this->print_template_name;
+            }
         }
 
         $name = (string) $this->name;
@@ -176,7 +183,7 @@ class SubmissionForm extends Model
 
         $nameToTemplate = [
             'microbiology' => 'submission-forms.print.microbiology',
-            'serology'     => 'submission-forms.print.serology',
+            'serology'     => 'submission-forms.print.microbiology',
         ];
 
         foreach ($nameToTemplate as $keyword => $templateName) {

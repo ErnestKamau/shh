@@ -33,7 +33,7 @@ $headerDetails['submission_date'] = $headerDetails['submission_date'] ?? $header
     <meta http-equiv="Content-Type" content="text/html; charset=utf-8">
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Microbiology Laboratory Submission Form</title>
+    <title>{{ $submissionForm->name ?? 'Submission Form' }}</title>
     <style>
         @page {
             margin: 20px;
@@ -425,7 +425,9 @@ $headerDetails['submission_date'] = $headerDetails['submission_date'] ?? $header
     </table>
     <div class="header-underline"></div>
 
-    <div class="report-title">MICROBIOLOGY LABORATORY SUBMISSION FORM</div>
+    <div class="report-title">
+        {{ strtoupper($submissionForm->name ?? 'Submission Form') }}
+    </div>
 
     <strong>CLIENT DETAILS</strong><br>
     <table style="width: 100%; border-collapse: collapse; border: 1px solid #000;">

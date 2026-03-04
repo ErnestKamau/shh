@@ -6,11 +6,25 @@ $active = getActiveCompany();
 $headerDetails = $existingValues['sample_header'] ?? [];
 $sampleDetails = $existingValues['sample_details'] ?? [];
 
-$companyDetails = isset($headerDetails['crm_customer_id']) ? \App\Models\CRM\CRMCustomer::find($headerDetails['crm_customer_id']) : null;
-// Fix: Look for company unit using the correct field name stored in the form
+// Normalize possible array IDs coming from dynamic form mapping
+$crmCustomerIdRaw = $headerDetails['crm_customer_id'] ?? null;
+if (is_array($crmCustomerIdRaw)) {
+    $crmCustomerIdRaw = reset($crmCustomerIdRaw) ?: null;
+}
+$companyDetails = $crmCustomerIdRaw ? \App\Models\CRM\CRMCustomer::find($crmCustomerIdRaw) : null;
+
+// Fix: Look for company unit using the correct field name stored in the form and normalize arrays
 $companyUnitId = $headerDetails['crm_unit_name'] ?? $headerDetails['crm_unit_id'] ?? null;
+if (is_array($companyUnitId)) {
+    $companyUnitId = reset($companyUnitId) ?: null;
+}
 $companyUnitDetails = $companyUnitId ? \App\Models\CRM\CRMCompanyUnit::find($companyUnitId) : null;
-$sampleTypeDetails = isset($headerDetails['sample_type_id']) ? \App\SampleType::find($headerDetails['sample_type_id']) : null;
+
+$sampleTypeId = $headerDetails['sample_type_id'] ?? null;
+if (is_array($sampleTypeId)) {
+    $sampleTypeId = reset($sampleTypeId) ?: null;
+}
+$sampleTypeDetails = $sampleTypeId ? \App\SampleType::find($sampleTypeId) : null;
 
 $samplePoints = [];
 
@@ -18,13 +32,22 @@ $samplePoints = [];
 foreach ($sampleDetails as $sample) {
     $samplePointField = $sample['company_sub_unit_id'] ?? $sample['sample_point_id'] ?? null;
     if ($samplePointField) {
-        $samplePoints = array_merge($samplePoints, explode(",", $samplePointField));
+        $samplePoints = array_merge(
+            $samplePoints,
+            is_array($samplePointField) ? $samplePointField : explode(",", (string) $samplePointField)
+        );
     }
 }
 
 // Remove duplicates and get names
 $samplePoints = array_unique(array_filter($samplePoints));
-$samplePointNames = !empty($samplePoints) ? \App\Models\CRM\SamplePoint::whereIn('id', $samplePoints)->select('name')->pluck('name')->toArray() : [];
+$samplePointNames = !empty($samplePoints)
+    ? \App\Models\CRM\SamplePoint::with('crmSamplePoint')
+        ->whereIn('id', $samplePoints)
+        ->get()
+        ->pluck('name')
+        ->toArray()
+    : [];
 ?>
 
 <head>
@@ -427,7 +450,7 @@ $samplePointNames = !empty($samplePoints) ? \App\Models\CRM\SamplePoint::whereIn
         <tr>
             <th style="text-align: left; padding: 10px; border: 1px solid #000; font-weight: bold;">OWNER/COMPANY NAME
             </th>
-            <td style="text-align: left; padding: 10px; border: 1px solid #000;">{{ $companyDetails->name }}</td>
+            <td style="text-align: left; padding: 10px; border: 1px solid #000;">{{ optional($companyDetails)->name }}</td>
         </tr>
         <tr>
             <th style="text-align: left; padding: 10px; border: 1px solid #000; font-weight: bold;">ADDRESS</th>
@@ -449,7 +472,7 @@ $samplePointNames = !empty($samplePoints) ? \App\Models\CRM\SamplePoint::whereIn
         <tr>
             <td style="text-align: left; padding: 10px; border: 1px solid #000; font-weight: bold;" colspan="33%">
                 Specimen Type:<span
-                    style="font-weight: 400; border-bottom: 1px dotted #000; display: inline-block; min-width: 80px; margin-left: 5px;">{{$sampleTypeDetails->name}}</span>
+                    style="font-weight: 400; border-bottom: 1px dotted #000; display: inline-block; min-width: 80px; margin-left: 5px;">{{ optional($sampleTypeDetails)->name }}</span>
             </td>
             <td style="text-align: left; padding: 10px; border: 1px solid #000; font-weight: bold;" colspan="33%">
                 Animal: <span
@@ -457,7 +480,7 @@ $samplePointNames = !empty($samplePoints) ? \App\Models\CRM\SamplePoint::whereIn
             </td>
             <td style="text-align: left; padding: 10px; border: 1px solid #000;" colspan="34%">
                 Sample Collection Point/Site: <span
-                    style="border-bottom: 1px dotted #000; display: inline-block; min-width: 150px; margin-left: 5px;">{{$companyUnitDetails->name}}</span>
+                    style="border-bottom: 1px dotted #000; display: inline-block; min-width: 150px; margin-left: 5px;">{{ optional($companyUnitDetails)->name }}</span>
             </td>
         </tr>
         <tr>
@@ -583,16 +606,18 @@ $samplePointNames = !empty($samplePoints) ? \App\Models\CRM\SamplePoint::whereIn
                 Tick Appropriate</th>
         </tr>
         @foreach($sampleDetails as $detail)
-        @php($analysisType = \App\AnalysisType::find($detail['analysis_type_id']))
-        <tr>
-            <th colspan="66.67"
-                style="text-align: left; padding: 10px; border: 1px solid #000; font-weight: bold; padding: 5px">
-                {{$analysisType->name}}
-            </th>
-            <th colspan="33.33"
-                style="text-align: center; padding: 10px; border: 1px solid #000; font-weight: bold; padding: 5px">✔
-            </th>
-        </tr>
+        @php($analysisType = \App\AnalysisType::find($detail['analysis_type_id'] ?? null))
+        @if($analysisType)
+            <tr>
+                <th colspan="66.67"
+                    style="text-align: left; padding: 10px; border: 1px solid #000; font-weight: bold; padding: 5px">
+                    {{ $analysisType->name }}
+                </th>
+                <th colspan="33.33"
+                    style="text-align: center; padding: 10px; border: 1px solid #000; font-weight: bold; padding: 5px">✔
+                </th>
+            </tr>
+        @endif
         @endforeach
     </table>
 </body>
