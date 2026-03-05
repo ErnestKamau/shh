@@ -36,10 +36,13 @@
             overflow: auto;
             background: #ecf0f1;
             position: relative;
+            display: flex;
+            justify-content: center;
+            align-items: flex-start;
         }
 
         #pdf-canvas-wrapper {
-            margin: 20px auto;
+            margin: 20px;
             position: relative;
             display: inline-block;
             box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
@@ -147,6 +150,13 @@
                 <h5 class="mb-0">
                     <i class="mdi mdi-file-pdf"></i> {{ $attachment->title ?? 'PDF Document' }}
                 </h5>
+                @if(isset($batch))
+                    <div class="small text-muted mt-1">
+                        <a href="{{ route('view-batch-details', ['batch' => $batch->id]) }}" class="text-light">
+                            <i class="mdi mdi-chevron-left"></i> Back to Batch {{ $batch->batch_code ?? $batch->id }}
+                        </a>
+                    </div>
+                @endif
             </div>
 
             <div class="d-flex align-items-center">

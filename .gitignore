@@ -30,3 +30,5 @@ tests/Unit/AutoRunCreationServiceTest.php
 .mcp.json
 CLAUDE.md
 boost.json
+docs/
+scripts/

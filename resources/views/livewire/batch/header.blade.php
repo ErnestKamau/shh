@@ -531,6 +531,16 @@
                 <div class="alert alert-secondary" style="background-color: #e2e6ea; border-color: #d6d8db; color: #383d41;">
                    <small><i class="mdi mdi-information-outline"></i> Select the approvers for each lab section below.</small>
                 </div>
+
+                @if(session('error'))
+                    <div class="alert alert-danger alert-dismissible fade show mt-2" role="alert" style="font-size: 0.875rem; font-weight: 400;">
+                        <i class="mdi mdi-alert-circle"></i>
+                        <span>{{ session('error') }}</span>
+                        <button type="button" class="close" data-dismiss="alert">
+                            <span>&times;</span>
+                        </button>
+                    </div>
+                @endif
                 <div class="table-responsive">
                     <table class="table table-bordered table-sm">
                         <thead class="thead-light">

@@ -178,8 +178,6 @@ class SampleWorkFlowController extends Controller
             // return response()->json($labels,200);
             $batch->sample_tracking_stage = $stage->id;
             $batch->save();
-
-
         }
 
         // return response()->json($labels, 200);
@@ -525,7 +523,6 @@ class SampleWorkFlowController extends Controller
                         CapturedResult::where('sample_detail_id', $detail->id)->where('analysis_type_id', $ca)->delete();
 
                         Result::where('sample_detail_id', $detail->id)->where('analysis_type_id', $ca)->delete();
-
                     }
                 }
             }
@@ -1402,10 +1399,10 @@ class SampleWorkFlowController extends Controller
     {
         \App\ChainOfCustody::where('sample_header_id', $data['batch_id'])
             ->whereNull('moved_out_date')->update([
-                    'moved_out_date' => \Carbon\Carbon::now(),
-                    'moved_out_by' => \Auth::user()->id,
-                    'comments' => $data['comments'],
-                ]);
+                'moved_out_date' => \Carbon\Carbon::now(),
+                'moved_out_by' => \Auth::user()->id,
+                'comments' => $data['comments'],
+            ]);
 
         $custody = new \App\ChainOfCustody();
         $custody->workflow_stage = $data['target']['status'];
@@ -3039,7 +3036,6 @@ class SampleWorkFlowController extends Controller
                     $details_arr[$a_type->zoho_item_code]['quantity'] += 1;
                     $details_arr[$a_type->zoho_item_code]['total'] = $details_arr[$a_type->zoho_item_code]['quantity'] * $unit_price;
                 }
-
             }
             InvoiceDetails::where('invoice_id', $invoice->id)->delete();
             $details = array_values($details_arr);
@@ -3227,6 +3223,26 @@ class SampleWorkFlowController extends Controller
             $new->attachment_url = (string) $fName;
             $new->save();
 
+            // Link captured results to this attachment if the type is "Result Report"
+            if ($request->filled('selected_captured_result_ids')) {
+                $ids = array_filter(
+                    array_map('intval', explode(',', $request->selected_captured_result_ids))
+                );
+
+                if (!empty($ids)) {
+                    // Safety: only update results that truly belong to this batch
+                    CapturedResult::whereIn('id', $ids)
+                        ->where('sample_header_id', $batch->id)
+                        ->update(['batch_attachment_id' => $new->id]);
+
+                    \Log::info('add_batch_attachment: linked captured results', [
+                        'batch_id'          => $batch->id,
+                        'attachment_id'     => $new->id,
+                        'captured_ids'      => $ids,
+                    ]);
+                }
+            }
+
             return redirect()->back()->with('success', 'Attachment Added Successfully');
         } else {
             return redirect()->back()->with('error', 'No batch with the specified ID');
@@ -3318,29 +3334,29 @@ class SampleWorkFlowController extends Controller
                     // Set white fill color for covering original page numbers
                     $pdf->SetFillColor(255, 255, 255); // White
                     $pdf->SetDrawColor(255, 255, 255);
-                    
+
                     // Cover common page number positions with comprehensive areas
                     // Use larger coverage to account for different font sizes, positions, and variations
                     $coverageWidth = 90; // Generous width for "Page 999 of 9999" in various font sizes
                     $coverageHeight = 22; // Generous height for page numbers in various font sizes
-                    
+
                     // 1. Bottom-right position (most common)
                     // Cover multiple variations to catch all possible positions
                     $pdf->Rect($size['width'] - 95, $size['height'] - 28, $coverageWidth, $coverageHeight, 'F');
                     $pdf->Rect($size['width'] - 85, $size['height'] - 23, 80, 20, 'F');
                     $pdf->Rect($size['width'] - 75, $size['height'] - 18, 70, 18, 'F');
-                    
+
                     // 2. Top-right position (covers "Page 1 of 6" etc.)
                     // Cover multiple variations in top-right corner
                     $pdf->Rect($size['width'] - 95, 0, $coverageWidth, $coverageHeight, 'F');
                     $pdf->Rect($size['width'] - 85, 0, 80, 28, 'F');
                     $pdf->Rect($size['width'] - 75, 0, 70, 22, 'F');
-                    
+
                     // 3. Bottom-center position (some reports use this)
                     $bottomCenterX = ($size['width'] / 2) - ($coverageWidth / 2);
                     $pdf->Rect($bottomCenterX, $size['height'] - 28, $coverageWidth, $coverageHeight, 'F');
                     $pdf->Rect(($size['width'] / 2) - 45, $size['height'] - 23, 90, 20, 'F');
-                    
+
                     // 4. Top-center position (less common but some documents use it)
                     $topCenterX = ($size['width'] / 2) - ($coverageWidth / 2);
                     $pdf->Rect($topCenterX, 0, $coverageWidth, $coverageHeight, 'F');
@@ -3941,7 +3957,6 @@ class SampleWorkFlowController extends Controller
                 <td style="padding: 8px; border: 1px solid #ddd;">' . htmlspecialchars(implode(',', $sample->analyteNames())) . '</td>
                 <td style="padding: 8px; border: 1px solid #ddd;">' . htmlspecialchars($target_date) . '</td>  
             </tr>';
-
         }
 
         // $customer = CrmCustomer::find($batch->crm_customer_id);
@@ -4876,7 +4891,6 @@ class SampleWorkFlowController extends Controller
                 <td style="padding: 8px; border: 1px solid #ddd;">' . htmlspecialchars(implode(',', $sample->analyteNames())) . '</td>
                 <td style="padding: 8px; border: 1px solid #ddd;">' . htmlspecialchars($target_date) . '</td>
             </tr>';
-
         }
 
 
@@ -5053,7 +5067,6 @@ class SampleWorkFlowController extends Controller
         SampleHeader::where('invoice_id', $id)->update(['invoice_id' => 0]);
         Invoice::find($id)->delete();
         return response()->json(['status' => "success", "message" => "Sales order deleted successfully!"]);
-
     }
     public function matchCrmCurrency()
     {
@@ -5156,7 +5169,6 @@ class SampleWorkFlowController extends Controller
                         <td style="padding: 8px; border: 1px solid #ddd;">' . htmlspecialchars($sample) . '</td>
                         <td style="padding: 8px; border: 1px solid #ddd;">' . htmlspecialchars($target_date) . '</td>
                     </tr>';
-
                     }
                 }
                 $scheduleDateStr = 'Schedule of Analysis Sendoff Date';
@@ -5245,7 +5257,6 @@ class SampleWorkFlowController extends Controller
                         "address" => $address[0] ?? '',
                         "relation" => $address[1] ?? ''
                     ];
-
                 }
             }
             $contact['refine_address'] = $r_address;
@@ -5440,7 +5451,6 @@ class SampleWorkFlowController extends Controller
                 'message' => 'Form instance created successfully',
                 'redirect_url' => route('submission-forms.instances.fill', [$submissionForm, $instance])
             ]);
-
         } catch (\Illuminate\Validation\ValidationException $e) {
             return response()->json([
                 'success' => false,
@@ -5572,7 +5582,6 @@ class SampleWorkFlowController extends Controller
                 'message' => 'Parameter settings updated successfully',
                 'result_id' => $capturedResult->id
             ]);
-
         } catch (\Exception $e) {
             return response()->json([
                 'success' => false,
@@ -5630,7 +5639,6 @@ class SampleWorkFlowController extends Controller
                 'result_id' => $capturedResult->id,
                 'standard_limit' => $standardValue . ' ' . strtolower($limitType)
             ]);
-
         } catch (\Exception $e) {
             return response()->json([
                 'success' => false,
@@ -5694,7 +5702,6 @@ class SampleWorkFlowController extends Controller
                 'validation_result' => $validationResult,
                 'standard_limit' => $capturedResult->main_value ? $capturedResult->main_value . ' ' . strtolower($capturedResult->standard_limit_value) : null
             ]);
-
         } catch (\Exception $e) {
             return response()->json([
                 'success' => false,
@@ -5726,7 +5733,6 @@ class SampleWorkFlowController extends Controller
                     'subcontracted' => $capturedResult->analyte_status_contracted
                 ]
             ]);
-
         } catch (\Exception $e) {
             return response()->json([
                 'success' => false,
@@ -5754,7 +5760,6 @@ class SampleWorkFlowController extends Controller
                     'limit_type' => $capturedResult->standard_limit_value
                 ]
             ]);
-
         } catch (\Exception $e) {
             return response()->json([
                 'success' => false,
@@ -5858,7 +5863,6 @@ class SampleWorkFlowController extends Controller
             $updatedFields = implode(', ', array_keys($updateData));
 
             return redirect()->back()->with('success', "Successfully updated {$updatedCount} sample(s). Updated fields: {$updatedFields}");
-
         } catch (\Exception $e) {
             \Log::error('Bulk update sample data error', [
                 'error' => $e->getMessage(),
@@ -5910,7 +5914,12 @@ class SampleWorkFlowController extends Controller
             return redirect()->back()->with('error', 'Only PDF files can be annotated.');
         }
 
-        return view('layouts.lab.sample-workflow.pdf-annotate', compact('attachment'));
+        $batch = \App\SampleHeader::find($attachment->batch_id);
+
+        return view('layouts.lab.sample-workflow.pdf-annotate', [
+            'attachment' => $attachment,
+            'batch' => $batch,
+        ]);
     }
 
     /**
@@ -5960,7 +5969,6 @@ class SampleWorkFlowController extends Controller
                 'message' => "Successfully deleted {$deletedCount} annotation(s).",
                 'deleted_count' => $deletedCount
             ]);
-
         } catch (\Exception $e) {
             \Log::error('Annotation deletion error: ' . $e->getMessage());
             return response()->json([
@@ -5995,7 +6003,6 @@ class SampleWorkFlowController extends Controller
             $location = url(Storage::url($path));
 
             return response()->json(['location' => $location]);
-
         } catch (\Exception $e) {
             Log::error('TinyMCE upload error: ' . $e->getMessage());
             return response()->json(['error' => 'Upload failed: ' . $e->getMessage()], 500);
@@ -6107,7 +6114,6 @@ class SampleWorkFlowController extends Controller
             BatchAttachmentAnnotation::where('batch_attachment_id', $attachment->id)->delete();
 
             return redirect()->back()->with('success', 'PDF annotated and saved successfully!');
-
         } catch (\Exception $e) {
             Log::error('PDF annotation save error: ' . $e->getMessage());
             Log::error($e->getTraceAsString());

@@ -364,6 +364,26 @@ class Header extends Component
              return;
         }
         
+        // Ensure all attachment-based results are truly linked to an attachment
+        $incompleteAttachmentResults = CapturedResult::where('sample_header_id', $batch->id)
+            ->where('result', 'has attachment')
+            ->where(function ($query) {
+                $query->whereNull('batch_attachment_id')
+                      ->orWhereDoesntHave('batchAttachment');
+            })
+            ->get();
+
+        if ($incompleteAttachmentResults->isNotEmpty()) {
+            $count = $incompleteAttachmentResults->count();
+            session()->flash(
+                'error',
+                $count . ' captured result' . ($count > 1 ? 's are' : ' is') .
+                ' marked as having attachments, but no result attachment is linked. ' .
+                'Please go to the Attachments tab, upload/link the result report(s), then try moving this batch to verification again.'
+            );
+            return;
+        }
+        
         // Populate analysts based on Captured Results logic
         // The legacy controller logic does this:
         $users = [];

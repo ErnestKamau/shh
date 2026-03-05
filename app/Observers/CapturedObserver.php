@@ -42,6 +42,12 @@ class CapturedObserver
             if ($analysisElement->procedure_worksheet_id) {
                 $captured->procedure_worksheet_id = $analysisElement->procedure_worksheet_id;
                 $captured->has_procedure_worksheet = true;
+
+                // If no explicit result was set during creation, mark that this
+                // captured result has an attachment-related worksheet.
+                if (is_null($captured->result) || $captured->result === '') {
+                    $captured->result = 'has attachment';
+                }
             }
 
             // Save the updated captured result (without triggering observers again)
