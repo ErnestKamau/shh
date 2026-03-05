@@ -222,9 +222,10 @@ class ProcedureWorksheetManager extends Component
     public function getStepsProperty()
     {
         if (!$this->selectedWorksheetId) return collect();
-        
+
         return ProcedureWorksheetStep::where('procedure_worksheet_id', $this->selectedWorksheetId)
             ->orderBy('order')
+            ->orderBy('id')
             ->get();
     }
 

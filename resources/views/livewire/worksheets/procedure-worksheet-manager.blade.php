@@ -133,7 +133,7 @@
                                                 <tr>
                                                     <th>Parameter / Step</th>
                                                     @foreach($this->getStepsProperty() as $step)
-                                                        <th>{{ $step->name }} ({{ $step->unit ?? '-' }})</th>
+                                                        <th>{{ $step->step }}</th>
                                                     @endforeach
                                                 </tr>
                                             </thead>
