@@ -2,9 +2,12 @@
 
 namespace App\Http\Controllers;
 
+use App\BatchAttachment;
 use App\Models\SubmissionFormInstance;
+use App\Models\System\SystemConfiguration;
 use App\SampleHeader;
 use App\Services\SampleCreationService;
+use App\Services\SubmissionFormPdfService;
 use App\SampleDate;
 use App\AnalysisType;
 use App\AnalysisElements;
@@ -14,19 +17,23 @@ use App\ReportingUnit;
 use App\StandardAnalytes;
 use App\SampleAnalysisTypeRelation;
 use App\SampleDetails;
-use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Log;
-use Illuminate\Support\Facades\DB;
 use Carbon\Carbon;
+use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Storage;
 
 class SampleCreationController extends Controller
 {
     protected $sampleCreationService;
 
-    public function __construct(SampleCreationService $sampleCreationService)
+    protected SubmissionFormPdfService $submissionFormPdfService;
+
+    public function __construct(SampleCreationService $sampleCreationService, SubmissionFormPdfService $submissionFormPdfService)
     {
         $this->middleware('auth');
         $this->sampleCreationService = $sampleCreationService;
+        $this->submissionFormPdfService = $submissionFormPdfService;
     }
 
     /**
@@ -55,6 +62,22 @@ class SampleCreationController extends Controller
                     'message' => 'No sample data found in the form instance'
                 ], 400);
             }
+
+            // Resolve "Submission Form" attachment type for PDF attachment; fallback to first attachment_type so PDF still attaches
+            $submissionFormAttachmentTypeId = SystemConfiguration::where('key', 'attachment_type')
+                ->where('value', 'Submission Form')
+                ->value('id');
+
+            if ($submissionFormAttachmentTypeId === null) {
+                $submissionFormAttachmentTypeId = SystemConfiguration::where('key', 'attachment_type')->value('id');
+                if ($submissionFormAttachmentTypeId === null) {
+                    Log::warning('No attachment_type found in system_configurations; PDF will not be attached to batches.');
+                } else {
+                    Log::info('Using fallback attachment_type for submission form PDF (Submission Form config not found).');
+                }
+            }
+
+            $instance->load('submissionForm');
 
             $createdBatches = [];
 
@@ -94,6 +117,9 @@ class SampleCreationController extends Controller
                     'staged' => true
                 ];
 
+                if ($submissionFormAttachmentTypeId !== null) {
+                    $this->submissionFormPdfService->attachSubmissionFormPdfToBatch($instance, $sampleHeader, $submissionFormAttachmentTypeId);
+                }
             }
 
             return response()->json([

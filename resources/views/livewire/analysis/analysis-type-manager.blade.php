@@ -102,7 +102,7 @@
                                         <th>Elements</th>
                                         <th>Level</th>
                                         <th>Calculations</th>
-                                        <th>No Result</th>
+                                        <th>Has Attachable Result</th>
                                         <th>Reporting Time</th>
                                         <th>Status</th>
                                     </tr>
@@ -380,7 +380,7 @@
                                             <div class="form-check form-switch">
                                     <input type="checkbox" wire:model.live="analysisTypeForm.has_no_result" class="form-check-input" id="has_no_result" role="switch">
                                                 <label class="form-check-label" for="has_no_result">
-                                                    <i class="mdi mdi-flask-empty-off-outline text-warning"></i> Has No Result Captured
+                                                    <i class="mdi mdi-flask-empty-off-outline text-warning"></i> Has Attachable Result
                                                 </label>
                                             </div>
                                         </div>

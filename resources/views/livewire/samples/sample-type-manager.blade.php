@@ -108,6 +108,7 @@
                                         <th>Report Format</th>
                                         <th>Lab Sections</th>
                                         <th>Analysis Types</th>
+                                        <th>Has Attachable Result</th>
                                         <th>Status</th>
                                         <th>Actions</th>
                                     </tr>
@@ -147,6 +148,13 @@
                                             </td>
                                             <td>
                                                 <span class="badge bg-info" style="color: white;">{{ $sampleType->analysis_types->count() }}</span>
+                                            </td>
+                                            <td>
+                                                @if($sampleType->is_results_attachable)
+                                                    <span class="badge bg-warning p-2" style="color: black;">Yes</span>
+                                                @else
+                                                    <span class="text-muted">No</span>
+                                                @endif
                                             </td>
                                             <td>
                                                 <span class="badge p-2 bg-{{ $sampleType->active ? 'success' : 'danger' }}" style="color: white;">
@@ -486,11 +494,32 @@
                                         @error('sampleTypeForm.disposal_count') <span class="text-danger">{{ $message }}</span> @enderror
                                     </div>
                                 </div>
-                                <div class="col-md-6">
-                                    <div class="form-group mb-3">
-                                        <div class="form-check mt-4">
-                                            <input type="checkbox" wire:model="sampleTypeForm.active" class="form-check-input" id="active">
-                                            <label class="form-check-label" for="active">Active</label>
+                            </div>
+                            <!-- Sample Type Options Section -->
+                            <div class="card bg-light mb-3">
+                                <div class="card-header">
+                                    <h6 class="mb-0 text-muted">
+                                        <i class="mdi mdi-cog"></i> Sample Type Options
+                                    </h6>
+                                    <small class="text-muted">Configure sample type settings and features</small>
+                                </div>
+                                <div class="card-body">
+                                    <div class="row">
+                                        <div class="col-md-6 mb-2">
+                                            <div class="form-check form-switch">
+                                                <input type="checkbox" wire:model="sampleTypeForm.active" class="form-check-input" id="active" role="switch">
+                                                <label class="form-check-label" for="active">
+                                                    <i class="mdi mdi-check-circle text-success"></i> Active
+                                                </label>
+                                            </div>
+                                        </div>
+                                        <div class="col-md-6 mb-2">
+                                            <div class="form-check form-switch">
+                                                <input type="checkbox" wire:model="sampleTypeForm.is_results_attachable" class="form-check-input" id="is_results_attachable" role="switch">
+                                                <label class="form-check-label" for="is_results_attachable">
+                                                    <i class="mdi mdi-flask-empty-off-outline text-warning"></i> Results Attachable
+                                                </label>
+                                            </div>
                                         </div>
                                     </div>
                                 </div>

@@ -130,6 +130,8 @@ class Samples extends Component
     public $assignAreas = []; // Structure: [['id' => 1, 'name' => 'Area', 'sample_points' => [['id' => 1, 'name' => 'Point', 'active' => false]]]]
     public $assignTotalQty = 0;
     public $assignSelectedPoints = []; // ['point_id' => quantity]
+    public $assignCurrentTotalQty = 0;
+    public $assignQtyError = '';
 
     // Assignment Edit Context
     public $assignSampleTypeId = '';
@@ -149,19 +151,33 @@ class Samples extends Component
 
     // Add New Sample Point properties
     public $assignNewAreaId = '';
+    public $assignNewAreaIds = [];
     public $assignNewPointId = '';
+    public $assignNewPointIds = [];
     public $assignAvailableAreas = [];
     public $assignAvailablePoints = [];
+    public $assignQuantities = [];
+
+    // Custom searchable dropdown state for Add New Sample Point
+    public $assignAreaSearch = '';
+    public $assignPointSearch = '';
+    public $showAssignAreaDropdown = false;
+    public $showAssignPointDropdown = false;
 
     // Add New UoM Data
     public $newUomName = '';
     public $showAddUomModal = false;
 
     // On-the-fly addition modals
+    public $showAddAreaModal = false;
     public $showAddPointModal = false;
     public $showAddProductModal = false;
     public $showAddStorageModal = false;
 
+    public $newAreaCode = '';
+    public $newAreaName = '';
+    public $newAreaDescription = '';
+    public $newPointCode = '';
     public $newPointName = '';
     public $newPointAreaId = '';
     public $newProductName = '';
@@ -170,6 +186,10 @@ class Samples extends Component
     public $activeRowIndex = null;
     public $activeField = null; // 'sample_point_id', 'company_product_id', etc.
     public $areas = [];
+
+    // Modal-level toast message
+    public $toastMessage = '';
+    public $toastType = 'success'; // 'success' or 'danger'
 
     protected $listeners = ['samplesUpdated' => '$refresh', 'refreshSamples' => '$refresh'];
 
@@ -247,7 +267,6 @@ class Samples extends Component
 
             // Load Areas for point creation
             $this->areas = \App\Models\Area::select('id', 'name')->orderBy('name')->get()->toArray();
-
         } catch (\Exception $e) {
             Log::error('Error loading dropdown data: ' . $e->getMessage());
         }
@@ -283,11 +302,20 @@ class Samples extends Component
             }
 
             $this->samples = $samples;
-
         } catch (\Exception $e) {
             Log::error('Error loading samples: ' . $e->getMessage());
             $this->sampleForms = [];
         }
+    }
+
+    public function updatedAssignAreaSearch(): void
+    {
+        $this->showAssignAreaDropdown = true;
+    }
+
+    public function updatedAssignPointSearch(): void
+    {
+        $this->showAssignPointDropdown = true;
     }
 
     /**
@@ -345,15 +373,156 @@ class Samples extends Component
 
             // Reset selections
             $this->assignSelectedPoints = [];
+            $this->assignNewAreaId = '';
+            $this->assignNewAreaIds = [];
+            $this->assignNewPointId = '';
+            $this->assignNewPointIds = [];
+            $this->assignAreaSearch = '';
+            $this->assignPointSearch = '';
 
             // Load available areas/points for "Add New Query" (if needed later)
             // For now we just focus on assignment
 
             $this->showAssignSamplesModal = true;
-
         } catch (\Exception $e) {
             Log::error('Error opening assign modal: ' . $e->getMessage());
             session()->flash('error', 'Failed to load assignment data.');
+        }
+    }
+
+    public function selectAssignArea(int $id): void
+    {
+        if (!in_array($id, $this->assignNewAreaIds, true)) {
+            $this->assignNewAreaIds[] = $id;
+        }
+
+        $this->assignNewAreaId = $id;
+
+        $this->assignAreaSearch = '';
+        $this->showAssignAreaDropdown = false;
+    }
+
+    public function removeAssignArea(int $id): void
+    {
+        $this->assignNewAreaIds = array_values(array_filter(
+            $this->assignNewAreaIds,
+            static function ($existingId) use ($id) {
+                return (int) $existingId !== (int) $id;
+            }
+        ));
+
+        if (empty($this->assignNewAreaIds)) {
+            $this->assignNewAreaId = '';
+        } else {
+            $this->assignNewAreaId = $this->assignNewAreaIds[0];
+        }
+    }
+
+    public function selectAssignPoint(int $id): void
+    {
+        if (!in_array($id, $this->assignNewPointIds, true)) {
+            $this->assignNewPointIds[] = $id;
+        }
+
+        $this->assignNewPointId = $id;
+
+        $this->assignPointSearch = '';
+        $this->showAssignPointDropdown = false;
+    }
+
+    public function removeAssignPoint(int $id): void
+    {
+        $this->assignNewPointIds = array_values(array_filter(
+            $this->assignNewPointIds,
+            static function ($existingId) use ($id) {
+                return (int) $existingId !== (int) $id;
+            }
+        ));
+
+        if (empty($this->assignNewPointIds)) {
+            $this->assignNewPointId = '';
+        } else {
+            $this->assignNewPointId = $this->assignNewPointIds[0];
+        }
+    }
+
+    /**
+     * Save a new Sample Area from the "Add New Sample Area" modal.
+     */
+    public function saveNewArea(): void
+    {
+        $this->validate([
+            'newAreaCode' => 'required|string|max:50',
+            'newAreaName' => 'required|string|max:255',
+        ]);
+
+        DB::beginTransaction();
+        try {
+            // 1. Create global Area (crm_areas)
+            $area = \App\Models\Area::create([
+                'code'       => $this->newAreaCode,
+                'name'       => $this->newAreaName,
+                'created_by' => auth()->id(),
+            ]);
+
+            // 2. Create SamplePointArea for this customer + sub-unit
+            $staging   = SampleDetailStaging::find($this->assignStagingId);
+            $subUnitId = $staging->data_json['company_sub_unit_id'] ?? null;
+
+            $companyUnitId = null;
+            if ($subUnitId) {
+                $subUnit       = \App\Models\CRM\CRMCompanySubUnit::find($subUnitId);
+                $companyUnitId = $subUnit ? $subUnit->crm_company_unit_id : null;
+            }
+
+            \App\Models\SamplePointArea::create([
+                'crm_customer_id'         => $this->batch->crm_customer_id,
+                'crm_area_id'             => $area->id,
+                'crm_company_unit_id'     => $companyUnitId,
+                'crm_company_sub_unit_id' => $subUnitId,
+                'description'             => $this->newAreaDescription ?: 'Created from batch assignment',
+                'active'                  => true,
+            ]);
+
+            // 3. Link Area to this batch's sample type (for workflow filters)
+            $sampleTypeId = $this->batch->sample_type_id;
+            if ($sampleTypeId) {
+                $area->sampleTypes()->syncWithoutDetaching([$sampleTypeId]);
+            }
+
+            // 4. Refresh Assign dropdowns
+            $this->assignAvailableAreas = \App\Models\Area::select('id', 'name')
+                ->orderBy('name')
+                ->get()
+                ->toArray();
+
+            // 5. Make it the selected area in the Assign modal (multi-select aware)
+            if (!in_array($area->id, $this->assignNewAreaIds, true)) {
+                $this->assignNewAreaIds[] = $area->id;
+            }
+            $this->assignNewAreaId        = $area->id;
+            $this->assignAreaSearch       = '';
+            $this->showAssignAreaDropdown = false;
+
+            // Refresh grouped areas/points for table if we know the sub-unit
+            if ($subUnitId) {
+                $this->loadAssignAreasAndPoints($subUnitId);
+            }
+
+            // 6. Close modal and reset
+            $this->showAddAreaModal   = false;
+            $this->newAreaCode        = '';
+            $this->newAreaName        = '';
+            $this->newAreaDescription = '';
+
+            DB::commit();
+            $this->toastType = 'success';
+            $this->toastMessage = 'Sample area created successfully.';
+        } catch (\Exception $e) {
+            DB::rollBack();
+            Log::error('Error saving new area from Assign modal: ' . $e->getMessage());
+            $this->toastType = 'danger';
+            $this->toastMessage = 'Failed to create sample area.';
         }
     }
 
@@ -362,14 +531,33 @@ class Samples extends Component
      */
     protected function loadAssignAreasAndPoints($subUnitId)
     {
+        $sampleTypeId = $this->batch->sample_type_id ?? null;
+
+        // If there is no sample type on the batch, do not load any assignment points
+        if (!$sampleTypeId) {
+            $this->assignAreas = [];
+            $this->assignAvailableAreas = [];
+            $this->assignAvailablePoints = [];
+            $this->assignQuantities = [];
+
+            return;
+        }
+
         $areas = \App\Models\SamplePointArea::with([
             'crmArea',
-            'samplePoints' => function ($q) {
-                $q->where('active', 1)->with('crmSamplePoint');
-            }
+            'samplePoints' => function ($q) use ($sampleTypeId) {
+                $q->where('active', 1)
+                    ->whereHas('crmSamplePoint.sampleTypes', function ($qq) use ($sampleTypeId) {
+                        $qq->where('sample_type_id', $sampleTypeId);
+                    })
+                    ->with('crmSamplePoint');
+            },
         ])
             ->where('crm_company_sub_unit_id', $subUnitId)
             ->where('active', 1)
+            ->whereHas('crmArea.sampleTypes', function ($q) use ($sampleTypeId) {
+                $q->where('sample_type_id', $sampleTypeId);
+            })
             ->get();
 
         $this->assignAreas = $areas->map(function ($area) {
@@ -381,49 +569,44 @@ class Samples extends Component
                         'id' => $point->id,
                         'name' => $point->crmSamplePoint->name ?? $point->name,
                     ];
-                })->toArray()
+                })->toArray(),
             ];
-        })->toArray();
-
-        // Also load available areas for the "Add New" dropdowns
-        // Filter by sample type if available
-        $sampleTypeId = $this->assignSampleTypeId;
-        
-        if ($sampleTypeId) {
-            $this->assignAvailableAreas = \App\Models\Area::whereHas('sampleTypes', function ($q) use ($sampleTypeId) {
-                $q->where('sample_types.id', $sampleTypeId);
+        })
+            // Only keep areas that still have at least one point after filtering
+            ->filter(function ($area) {
+                return count($area['sample_points']) > 0;
             })
-            ->select('id', 'name')
+            ->values()
+            ->toArray();
+
+        // Show all areas and points in the system for "Add to Customer" UI
+        $this->assignAvailableAreas = \App\Models\Area::select('id', 'name')
             ->orderBy('name')
             ->get()
             ->toArray();
 
-            $this->assignAvailablePoints = \App\Models\SamplePoint::whereHas('sampleTypes', function ($q) use ($sampleTypeId) {
-                $q->where('sample_types.id', $sampleTypeId);
-            })
-            ->select('id', 'name')
+        $this->assignAvailablePoints = \App\Models\SamplePoint::select('id', 'name')
             ->orderBy('name')
             ->get()
             ->toArray();
-        } else {
-            // Fallback (though sample type should always be there for a batch)
-            $this->assignAvailableAreas = \App\Models\Area::select('id', 'name')
-                ->orderBy('name')
-                ->get()
-                ->toArray();
 
-            $this->assignAvailablePoints = \App\Models\SamplePoint::select('id', 'name')
-                ->orderBy('name')
-                ->get()
-                ->toArray();
+        // Initialize quantities for the visible points
+        $this->assignQuantities = [];
+        foreach ($this->assignAreas as $area) {
+            foreach ($area['sample_points'] as $point) {
+                $this->assignQuantities[$point['id']] = 1;
+            }
         }
     }
+
 
     public function addCustomerSamplePoint()
     {
         $this->validate([
-            'assignNewAreaId' => 'required|exists:crm_areas,id',
-            'assignNewPointId' => 'required|exists:crm_sample_points,id',
+            'assignNewAreaIds' => 'required|array|min:1',
+            'assignNewAreaIds.*' => 'required|integer|exists:crm_areas,id',
+            'assignNewPointIds' => 'required|array|min:1',
+            'assignNewPointIds.*' => 'required|integer|exists:crm_sample_points,id',
         ]);
 
         $customerId = $this->batch->crm_customer_id;
@@ -439,57 +622,64 @@ class Samples extends Component
 
         DB::beginTransaction();
         try {
-            $samplePointArea = \App\Models\SamplePointArea::where('crm_customer_id', $customerId)
-                ->where('crm_area_id', $this->assignNewAreaId)
-                ->where('crm_company_sub_unit_id', $subUnitId)
-                ->first();
+            $sampleTypeId = $this->batch->sample_type_id;
 
-            if (!$samplePointArea) {
-                // Get area details for name
-                $area = \App\Models\Area::find($this->assignNewAreaId);
-                $areaName = $area ? $area->name : 'Unknown Area';
+            foreach ($this->assignNewAreaIds as $areaId) {
+                $samplePointArea = \App\Models\SamplePointArea::where('crm_customer_id', $customerId)
+                    ->where('crm_area_id', $areaId)
+                    ->where('crm_company_sub_unit_id', $subUnitId)
+                    ->first();
 
-                // Create new SamplePointArea
-                $samplePointArea = \App\Models\SamplePointArea::create([
-                    'crm_customer_id' => $customerId,
-                    'crm_area_id' => $this->assignNewAreaId,
-                    'crm_company_unit_id' => $companyUnitId,
-                    'crm_company_sub_unit_id' => $subUnitId,
-                    'name' => $areaName,
-                    'code' => 'SPA-' . strtoupper(uniqid()),
-                    'description' => 'Auto-created from sample assignment',
-                    'active' => true
-                ]);
-            }
+                if (!$samplePointArea) {
+                    // Get area details for name
+                    $areaModel = \App\Models\Area::find($areaId);
+                    $areaName = $areaModel ? $areaModel->name : 'Unknown Area';
 
-            // Check if CRM\SamplePoint exists for this customer + sample_point + area
-            $crmSamplePoint = \App\Models\CRM\SamplePoint::where('crm_customer_id', $customerId)
-                ->where('crm_sample_point_id', $this->assignNewPointId)
-                ->where('crm_area_id', $this->assignNewAreaId)
-                ->first(); // Note: Legacy checked crm_sample_point table, but here we are using the pivot table or similar?
-            // Wait, \App\Models\CRM\SamplePoint is usually the definition of best practice sample points?
-            // The legacy code used: \App\Models\CRM\SamplePoint::create(...)
-            // But wait, the standard table is `crm_sample_points` (plural?). 
-            // Let's assume the model `\App\Models\CRM\SamplePoint` maps to a pivot/relation or the point itself.
-            // Actually, looking at legacy code:
-            // $crmSamplePoint = \App\Models\CRM\SamplePoint::where('crm_customer_id', ...)->where('crm_sample_point_id', $validated['sample_point_id'])...
-            // This implies `\App\Models\CRM\SamplePoint` is a LINKING table (maybe `crm_customer_sample_points`?).
-            // AND `crm_sample_point_id` refers to the "Master" sample point ID.
+                    // Create new SamplePointArea
+                    $samplePointArea = \App\Models\SamplePointArea::create([
+                        'crm_customer_id' => $customerId,
+                        'crm_area_id' => $areaId,
+                        'crm_company_unit_id' => $companyUnitId,
+                        'crm_company_sub_unit_id' => $subUnitId,
+                        'name' => $areaName,
+                        'code' => 'SPA-' . strtoupper(uniqid()),
+                        'description' => 'Auto-created from sample assignment',
+                        'active' => true,
+                    ]);
+                }
 
-            // Let's double check this model name correspondence.
-            // Using the exact logic from controller:
+                foreach ($this->assignNewPointIds as $pointId) {
+                    $crmSamplePoint = \App\Models\CRM\SamplePoint::where('crm_customer_id', $customerId)
+                        ->where('crm_sample_point_id', $pointId)
+                        ->where('crm_area_id', $areaId)
+                        ->first();
 
-            if (!$crmSamplePoint) {
-                // Create new CRM\SamplePoint (Link)
-                $crmSamplePoint = \App\Models\CRM\SamplePoint::create([
-                    'crm_customer_id' => $customerId,
-                    'crm_sample_point_id' => $this->assignNewPointId,
-                    'crm_area_id' => $this->assignNewAreaId,
-                    'sample_point_area_id' => $samplePointArea->id,
-                    'crm_company_unit_id' => $companyUnitId,
-                    'crm_company_sub_unit_id' => $subUnitId,
-                    'active' => true
-                ]);
+                    if (!$crmSamplePoint) {
+                        $crmSamplePoint = \App\Models\CRM\SamplePoint::create([
+                            'crm_customer_id' => $customerId,
+                            'crm_sample_point_id' => $pointId,
+                            'crm_area_id' => $areaId,
+                            'sample_point_area_id' => $samplePointArea->id,
+                            'crm_company_unit_id' => $companyUnitId,
+                            'crm_company_sub_unit_id' => $subUnitId,
+                            'active' => true,
+                        ]);
+                    }
+
+                    if ($sampleTypeId) {
+                        $samplePoint = \App\Models\SamplePoint::find($pointId);
+                        if ($samplePoint) {
+                            $samplePoint->sampleTypes()->syncWithoutDetaching([$sampleTypeId]);
+                        }
+                    }
+                }
+
+                if ($sampleTypeId) {
+                    $areaModel = \App\Models\Area::find($areaId);
+                    if ($areaModel) {
+                        $areaModel->sampleTypes()->syncWithoutDetaching([$sampleTypeId]);
+                    }
+                }
             }
 
             DB::commit();
@@ -499,14 +689,19 @@ class Samples extends Component
 
             // Clear selection
             $this->assignNewAreaId = '';
+            $this->assignNewAreaIds = [];
             $this->assignNewPointId = '';
+            $this->assignNewPointIds = [];
+            $this->assignAreaSearch = '';
+            $this->assignPointSearch = '';
 
-            session()->flash('success', 'Sample point added to customer successfully');
-
+            $this->toastType = 'success';
+            $this->toastMessage = 'Sample point(s) added to customer successfully.';
         } catch (\Exception $e) {
             DB::rollBack();
             Log::error('Error adding customer sample point: ' . $e->getMessage());
-            session()->flash('error', 'Failed to add sample point: ' . $e->getMessage());
+            $this->toastType = 'danger';
+            $this->toastMessage = 'Failed to add sample point: ' . $e->getMessage();
         }
     }
 
@@ -628,19 +823,32 @@ class Samples extends Component
     {
         // Filter out unticked or zero quantity (though frontend should handle this)
         $selections = [];
-        foreach ($this->assignSelectedPoints as $pointId => $qty) {
-            // In the array check, we might want boolean check or quantity check
-            // Assuming frontend sends ['point_id' => quantity] if selected
-            if ($qty > 0) {
+        foreach ($this->assignSelectedPoints as $pointId => $isSelected) {
+            // Check if selected
+            if ($isSelected) {
+                $qty = isset($this->assignQuantities[$pointId]) && $this->assignQuantities[$pointId] > 0
+                    ? $this->assignQuantities[$pointId]
+                    : 1;
+
                 $selections[] = [
                     'sample_point_id' => $pointId,
-                    'quantity' => $qty // Logic says quantity doesn't affect creation count, but we keep it
+                    'quantity' => $qty
                 ];
             }
         }
 
         if (empty($selections)) {
             session()->flash('error', 'Please select at least one sample point.');
+            return;
+        }
+
+        // Validate that the total assigned quantity does not exceed the original submission quantity
+        $totalAssignedQty = array_sum(array_column($selections, 'quantity'));
+        if ($this->assignTotalQty > 0 && $totalAssignedQty > $this->assignTotalQty) {
+            session()->flash(
+                'error',
+                'Assigned quantity (' . $totalAssignedQty . ') cannot exceed the total quantity of ' . $this->assignTotalQty . ' from the submission.'
+            );
             return;
         }
 
@@ -666,7 +874,8 @@ class Samples extends Component
                     $staging,
                     $samplePointId,
                     $sampleIndex,
-                    $totalSamples
+                    $totalSamples,
+                    $selection['quantity']
                 );
 
                 $createdSamples[] = $sampleDetail;
@@ -696,7 +905,6 @@ class Samples extends Component
             $this->loadSamples();
 
             session()->flash('success', count($createdSamples) . ' samples assigned successfully!');
-
         } catch (\Exception $e) {
             DB::rollBack();
             Log::error('Assignment error: ' . $e->getMessage());
@@ -704,10 +912,45 @@ class Samples extends Component
         }
     }
 
+    public function updatedAssignQuantities($value, $name): void
+    {
+        $this->recalculateAssignQuantitiesTotal();
+    }
+
+    public function updatedAssignSelectedPoints($value, $name): void
+    {
+        $this->recalculateAssignQuantitiesTotal();
+    }
+
+    protected function recalculateAssignQuantitiesTotal(): void
+    {
+        $total = 0;
+
+        foreach ($this->assignSelectedPoints as $pointId => $isSelected) {
+            if ($isSelected) {
+                $qty = isset($this->assignQuantities[$pointId]) && $this->assignQuantities[$pointId] > 0
+                    ? (int) $this->assignQuantities[$pointId]
+                    : 1;
+
+                $total += $qty;
+            }
+        }
+
+        $this->assignCurrentTotalQty = $total;
+
+        if ($this->assignTotalQty > 0 && $total > $this->assignTotalQty) {
+            $this->assignQtyError = 'Assigned quantity (' . $total . ') cannot exceed the total quantity of ' . $this->assignTotalQty . ' from the submission.';
+        } else {
+            $this->assignQtyError = '';
+        }
+    }
+
     // Support methods for assignment (Simplification of Controller methods)
-    private function createSampleDetailsFromStagingLivewire($sampleHeader, $staging, $samplePointId, $index, $totalSamples)
+    private function createSampleDetailsFromStagingLivewire($sampleHeader, $staging, $samplePointId, $index, $totalSamples, $quantity = 1)
     {
         $dataJson = $staging->data_json;
+        // Inject quantity into dataJson for creation
+        $dataJson['force_quantity'] = $quantity;
 
         // Generate code
         // Simple generation for now, ideally matched with controller logic
@@ -744,6 +987,13 @@ class Samples extends Component
             'company_product_id' => $companyProductId,
             'sample_condition_id' => $sampleConditionId,
             'lab_id' => $dataJson['lab_id'] ?? 1,
+            'barcode' => $sampleHeader->date_collected ? date('H:i:s', strtotime($sampleHeader->date_collected)) : null,
+            'sample_point_id' => $samplePointId,
+            'analysis_type_id' => $dataJson['analysis_type_ids'] ?? '',
+            'company_product_id' => $companyProductId,
+            'sample_condition_id' => $sampleConditionId,
+            'lab_id' => $dataJson['lab_id'] ?? 1,
+            'quantity' => $dataJson['force_quantity'] ?? 1,
             'barcode' => $sampleHeader->date_collected ? date('H:i:s', strtotime($sampleHeader->date_collected)) : null,
             'disposal_date' => $disposal_date,
         ]);
@@ -852,7 +1102,6 @@ class Samples extends Component
             ];
 
             $this->showEditModal = true;
-
         } catch (\Exception $e) {
             Log::error('Error loading staging for edit: ' . $e->getMessage());
             session()->flash('error', 'Failed to load staging data');
@@ -902,50 +1151,58 @@ class Samples extends Component
     public function saveNewPoint()
     {
         $this->validate([
+            'newPointCode' => 'required|string|max:50',
             'newPointName' => 'required|string|max:255',
-            'newPointAreaId' => 'required|exists:crm_areas,id',
         ]);
 
         DB::beginTransaction();
         try {
-            // 1. Create Master Sample Point
+            // 1. Create Master Sample Point (global crm_sample_points)
             $masterPoint = \App\Models\SamplePoint::create([
-                'name' => $this->newPointName,
-                'code' => 'SP-' . strtoupper(uniqid()),
+                'name'       => $this->newPointName,
+                'code'       => $this->newPointCode,
                 'created_by' => auth()->id(),
             ]);
 
-            // 2. Link to Customer
+            // 2. Link master point to this batch's sample type (specimen type)
+            $sampleTypeId = $this->batch->sample_type_id;
+            if ($sampleTypeId) {
+                $masterPoint->sampleTypes()->syncWithoutDetaching([$sampleTypeId]);
+            }
+
+            // 3. Create a basic CRM\SamplePoint link for this customer/unit (area will be assigned later)
             $crmSamplePoint = \App\Models\CRM\SamplePoint::create([
-                'crm_customer_id' => $this->batch->crm_customer_id,
+                'crm_customer_id'     => $this->batch->crm_customer_id,
                 'crm_company_unit_id' => $this->batch->crm_unit_id,
                 'crm_sample_point_id' => $masterPoint->id,
-                'crm_area_id' => $this->newPointAreaId,
-                'active' => true
+                'active'              => true,
             ]);
 
             DB::commit();
 
-            // Refresh Sample Points
+            // 4. Refresh Sample Points list used elsewhere in this component
             $this->samplePoints = \App\Models\CRM\SamplePoint::where('crm_customer_id', $this->batch->crm_customer_id)
                 ->get()->map(function ($point) {
                     return [
-                        'id' => $point->id,
-                        'name' => $point->name
+                        'id'   => $point->id,
+                        'name' => $point->name,
                     ];
                 })->toArray();
 
-            // Assign to row if opened from a specific row
+            // 5. If this was opened from a specific row in the samples table, assign it there
             if ($this->activeRowIndex !== null && isset($this->sampleForms[$this->activeRowIndex])) {
                 $this->sampleForms[$this->activeRowIndex]['sample_point_id'] = $crmSamplePoint->id;
             }
 
             $this->showAddPointModal = false;
-            session()->flash('success', 'Sample point added successfully.');
+            $this->newPointCode      = '';
+            $this->toastType = 'success';
+            $this->toastMessage = 'Sample point added successfully.';
         } catch (\Exception $e) {
             DB::rollBack();
             Log::error('Error saving new point: ' . $e->getMessage());
-            session()->flash('error', 'Error saving new point.');
+            $this->toastType = 'danger';
+            $this->toastMessage = 'Error saving new point.';
         }
     }
 
@@ -1095,7 +1352,6 @@ class Samples extends Component
 
             $this->dispatch('samplesUpdated');
             session()->flash('success', $this->editingStagingId ? 'Staging data updated successfully!' : 'Staging record created successfully!');
-
         } catch (\Exception $e) {
             Log::error('Error saving staging: ' . $e->getMessage());
             session()->flash('error', 'Failed to save staging data: ' . $e->getMessage());
@@ -1215,7 +1471,6 @@ class Samples extends Component
 
             $this->dispatch('samplesUpdated');
             session()->flash('success', 'Staging record deleted successfully!');
-
         } catch (\Exception $e) {
             Log::error('Error deleting staging: ' . $e->getMessage());
             session()->flash('error', 'Failed to delete staging record: ' . $e->getMessage());
@@ -1686,7 +1941,6 @@ class Samples extends Component
                 // No labs found, keep all labs available
                 $this->labSections = Lab::select('id', 'name', 'code')->get()->toArray();
             }
-
         } catch (\Exception $e) {
             Log::error('Error filtering labs: ' . $e->getMessage());
             // On error, show all labs
@@ -1896,7 +2150,6 @@ class Samples extends Component
 
             $this->sampleParameters = $parameters;
             $this->showParametersModal = true;
-
         } catch (\Exception $e) {
             Log::error('Error loading sample parameters: ' . $e->getMessage());
             session()->flash('error', 'Failed to load parameters: ' . $e->getMessage());
@@ -2129,7 +2382,6 @@ class Samples extends Component
 
             session()->flash('message', 'Parameters saved successfully.');
             $this->showParametersModal = false;
-
         } catch (\Exception $e) {
             Log::error('Error saving parameters: ' . $e->getMessage());
             session()->flash('error', 'Failed to save parameters: ' . $e->getMessage());
@@ -2201,7 +2453,6 @@ class Samples extends Component
                 'display' => $displayValue,
                 'value' => $rawValue // This might be used for edits
             ];
-
         } catch (\Exception $e) {
             return ['display' => $capturedValue ?: '-', 'value' => $capturedValue];
         }
@@ -2395,7 +2646,6 @@ class Samples extends Component
             ];
 
             $this->showCommentsModal = true;
-
         } catch (\Exception $e) {
             Log::error('Error loading comments: ' . $e->getMessage());
             session()->flash('error', 'Failed to load sample comments');
@@ -2419,7 +2669,6 @@ class Samples extends Component
             $this->reset('editingCommentsSampleId', 'commentsForm');
 
             session()->flash('success', 'Sample Comments and Interpretations have been saved');
-
         } catch (\Exception $e) {
             Log::error('Error saving comments: ' . $e->getMessage());
             session()->flash('error', 'Failed to save comments: ' . $e->getMessage());
@@ -2471,7 +2720,6 @@ class Samples extends Component
             ];
 
             $this->showInterlabModal = true;
-
         } catch (\Exception $e) {
             Log::error('Error loading interlab modal: ' . $e->getMessage());
             session()->flash('error', 'Failed to open interlab transfer modal');
@@ -2526,7 +2774,6 @@ class Samples extends Component
             $this->dispatch('interlabLogsUpdated');
 
             session()->flash('success', 'Inter laboratory Log created successfully');
-
         } catch (\Exception $e) {
             DB::rollBack();
             Log::error('Error saving interlab log: ' . $e->getMessage());

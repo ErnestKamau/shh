@@ -337,9 +337,9 @@
           <div class="col-4">
             <div class="form-info-box">
 
-              <p class="mb-2">FM/QA/047</p>
-              <p class="mb-2">Reveion : 05</p>
-              <p class="mb-4">Issue Date: 11/09/2023</p>
+              <p class="mb-2">{{ $instance->submissionForm->document_code ?? 'FM/QA/047' }}</p>
+              <p class="mb-2">Revision Number: {{ $instance->submissionForm->version }}</p>
+              <p class="mb-4">Issue Date: {{ $instance->submissionForm->issue_date ? $instance->submissionForm->issue_date->format('d/m/Y') : '11/09/2023' }}</p>
 
             </div>
           </div>

@@ -35,7 +35,9 @@ use App\Models\Lab\TatCapturedView;
 use App\Models\QcModule\Configurations\QcSchemes;
 use App\Models\QcModule\Configurations\QcTypes;
 use App\Models\QcModule\QCProcessedResults;
+use App\Models\SubmissionFormInstance;
 use App\Models\System\SystemConfiguration;
+use App\Services\SubmissionFormPdfService;
 use App\ModulePreConfigs;
 use App\Pricelist;
 use App\PricelistCustomer;
@@ -3153,6 +3155,53 @@ class SampleWorkFlowController extends Controller
         }
 
         return redirect()->back()->with('success', 'Batches approved to begin process successfully');
+    }
+
+    /**
+     * Regenerate the submission form PDF for a batch and replace any existing Submission Form attachment.
+     * Batch must have a submission_form_instance_id. Uses latest instance data for PDF generation.
+     */
+    public function regenerateSubmissionForm(Request $request, $batch): \Illuminate\Http\RedirectResponse
+    {
+        $sampleHeader = SampleHeader::find($batch);
+        if (! $sampleHeader || ! $sampleHeader->hasSubmissionForm()) {
+            return redirect()->back()->with('error', 'This batch has no linked submission form.');
+        }
+
+        $instance = $sampleHeader->submissionFormInstance;
+        if (! $instance) {
+            return redirect()->back()->with('error', 'Submission form instance not found.');
+        }
+
+        $submissionFormAttachmentTypeId = SystemConfiguration::where('key', 'attachment_type')
+            ->where('value', 'Submission Form')
+            ->value('id');
+        if ($submissionFormAttachmentTypeId === null) {
+            $submissionFormAttachmentTypeId = SystemConfiguration::where('key', 'attachment_type')->value('id');
+        }
+        if ($submissionFormAttachmentTypeId === null) {
+            return redirect()->back()->with('error', 'Submission Form attachment type is not configured.');
+        }
+
+        $existing = BatchAttachment::where('batch_id', $sampleHeader->id)
+            ->where('attachment_type', $submissionFormAttachmentTypeId)
+            ->get();
+        foreach ($existing as $att) {
+            $url = $att->attachment_url;
+            if ($url && str_starts_with($url, '/storage/batch-attachments/')) {
+                $filename = basename(urldecode(parse_url($url, PHP_URL_PATH)));
+                Storage::delete('batch-attachments/' . $filename);
+            }
+            $att->delete();
+        }
+
+        app(SubmissionFormPdfService::class)->attachSubmissionFormPdfToBatch(
+            $instance,
+            $sampleHeader,
+            $submissionFormAttachmentTypeId
+        );
+
+        return redirect()->back()->with('success', 'Submission form PDF regenerated and attached.');
     }
 
     public function add_batch_attachment(Request $request)

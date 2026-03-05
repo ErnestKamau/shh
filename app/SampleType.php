@@ -16,6 +16,7 @@ class SampleType extends Model implements Auditable
 		'description',
 		'company_id',
 		'active',
+		'is_results_attachable',
 		'sample_type_category',
 		'rating_header_id',
 		'report_template_id',
@@ -24,6 +25,11 @@ class SampleType extends Model implements Auditable
 		'disposal_count'
 	];
 	
+	protected $casts = [
+		'active' => 'boolean',
+		'is_results_attachable' => 'boolean',
+	];
+
   public $with =['analysis_types', 'sample_condition'];
   public function analysis_types(){
     return $this->hasMany('App\AnalysisType')->orderBy('level','asc');

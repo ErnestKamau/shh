@@ -237,6 +237,7 @@
 	
 	@if($status != 'All Samples' && $status != 'Finished Sample')
 		<!-- Livewire Filters -->
+		@if($status != 'Samples Reception')
 		<div class="row mb-4 mt-4">
 			<div class="col-12">
 				<div class="card shadow-sm border-0" style="border-radius: 15px;">
@@ -389,9 +390,189 @@
 				</div>
 			</div>
 		</div>
+		@endif
 	@endif
 	
+	<!-- Submission Forms for Reception -->
+	@if($status == 'Samples Reception')
+		<div class="row mb-4 mt-5">
+			<div class="col-12">
+				<div class="card shadow-sm border-0" style="border-radius: 15px;">
+					<div class="card-header bg-light border-0 d-flex justify-content-between align-items-center" style="border-radius: 15px 15px 0 0;">
+						<h5 class="card-title mb-0">
+							<i class="mdi mdi-file-document-multiple"></i> Samples Received
+						</h5>
+					</div>
+					<div class="card-body">
+						<!-- Forms Search and Filter -->
+						<div class="row mb-3">
+							<div class="col-md-4">
+								<div class="form-group mb-2">
+									<label class="form-label small fw-bold">Search Forms</label>
+									<input type="text" wire:model.live.debounce.300ms="submissionFormsSearch" class="form-control form-control-sm" placeholder="Form #, Title, or Form Name...">
+								</div>
+							</div>
+							<div class="col-md-3">
+								<div class="form-group mb-2">
+									<label class="form-label small fw-bold">Status</label>
+									<select wire:model.live="submissionFormsStatus" class="form-control form-control-sm">
+										<option value="">All Statuses</option>
+										<option value="draft">Draft</option>
+										<option value="submitted">Submitted</option>
+										<option value="in_review">In Review</option>
+										<option value="approved">Approved</option>
+										<option value="rejected">Rejected</option>
+									</select>
+								</div>
+							</div>
+							<div class="col-md-3">
+								<div class="form-group mb-2">
+									<label class="form-label small fw-bold">Priority</label>
+									<select wire:model.live="submissionFormsPriority" class="form-control form-control-sm">
+										<option value="">All Priorities</option>
+										<option value="low">Low</option>
+										<option value="normal">Normal</option>
+										<option value="high">High</option>
+										<option value="urgent">Urgent</option>
+									</select>
+								</div>
+							</div>
+							<div class="col-md-2 d-flex align-items-end">
+								<button wire:click="$set('submissionFormsSearch', ''); $set('submissionFormsStatus', 'submitted'); $set('submissionFormsPriority', '')" class="btn btn-outline-secondary btn-sm mb-2 w-100">
+									<i class="mdi mdi-refresh"></i> Reset
+								</button>
+							</div>
+						</div>
+
+						@if($this->submissionForms->count() > 0)
+							<div class="table-responsive">
+								<table class="table table-hover">
+									<thead style="background-color: rgba(0, 0, 0, .03);">
+										<tr>
+											<th>Actions</th>
+											<th>Form Number</th>
+											<th>Form Name</th>
+											<th>Title</th>
+											<th>Batch Status</th>
+											<th>Sample Type</th>
+											<th>Tests Required</th>
+											<th>Status</th>
+											<th>Submitted</th>
+											<th>Due Date</th>
+										</tr>
+									</thead>
+									<tbody>
+										@foreach($this->submissionForms as $instance)
+											@php
+												$hasBatch = $instance->batches->count() > 0;
+												$sampleTypes = array_filter($instance->getUniqueSampleTypes());
+												$typeNames = [];
+												foreach($sampleTypes as $tid) {
+													$st = \App\SampleType::find($tid);
+													if($st) $typeNames[] = $st->name;
+												}
+												$sampleCount = count($instance->getAllSampleDetails());
+											@endphp
+											<tr>
+												<td nowrap>
+													<div class="d-flex align-items-center" style="gap: 8px;">
+														@if($instance->isDraft())
+															<a href="{{ route('submission-forms.instances.fill', [$instance->submissionForm, $instance]) }}" 
+															   class="btn btn-sm btn-outline-primary" title="Edit">
+																<i class="mdi mdi-pencil"></i>
+															</a>
+															<button wire:click="deleteSubmissionForm({{ $instance->id }})" 
+																	wire:confirm="Are you sure you want to delete this draft?"
+																	class="btn btn-sm btn-outline-danger" title="Delete Draft">
+																<i class="mdi mdi-delete"></i>
+															</button>
+														@else
+															<a href="{{ route('submission-forms.instances.show', [$instance->submissionForm, $instance]) }}" 
+															   class="btn btn-sm btn-outline-info" title="View Details">
+																<i class="mdi mdi-eye"></i>
+															</a>
+														@endif
+													</div>
+												</td>
+												<td>
+													{!! in_array($instance->priority, ['high', 'urgent']) ? '<i class="mdi mdi-star text-danger" title="'.ucfirst($instance->priority).' Priority"></i>' : '' !!}
+													<a href="{{ route('submission-forms.instances.show', [$instance->submissionForm, $instance]) }}">
+														<strong>{{ $instance->form_number ?? 'Draft' }}</strong>
+													</a>
+												</td>
+												<td>{{ $instance->submissionForm->name }}</td>
+												<td>{{ $instance->title ?: 'Untitled' }}</td>
+												<td>
+													@if($hasBatch)
+														<div class="d-inline-block rounded" style="background-color: #f8f9fa; padding: 6px 12px 6px 16px; box-shadow: inset 4px 0 0 0 #28a745; font-weight: 500; color: #495057; font-size: 0.85rem;">
+															{{ $instance->batches->count() }} Batch{{ $instance->batches->count() > 1 ? 'es' : '' }} Created
+														</div>
+													@else
+														<div class="d-inline-block rounded" style="background-color: #f8f9fa; padding: 6px 12px 6px 16px; box-shadow: inset 4px 0 0 0 #dc3545; font-weight: 500; color: #495057; font-size: 0.85rem;">
+															Not Created
+														</div>
+													@endif
+												</td>
+												<td nowrap>{{ implode(', ', $typeNames) ?: 'N/A' }}</td>
+												<td class="text-center">
+													<span class="font-weight-bold">{{ $instance->tests_count }}</span>
+												</td>
+												<td>
+													@php
+														$color = match($instance->getStatusBadgeColor()) {
+															'success' => '#28a745',
+															'warning' => '#ffc107',
+															'danger' => '#dc3545',
+															'info' => '#17a2b8',
+															'secondary' => '#6c757d',
+															default => '#6c757d'
+														};
+														$statusText = ucfirst(str_replace('_', ' ', $instance->status));
+													@endphp
+													<div class="d-inline-block rounded" style="background-color: #f8f9fa; padding: 6px 12px 6px 16px; box-shadow: inset 4px 0 0 0 {{ $color }}; font-weight: 500; color: #495057; font-size: 0.85rem;">
+														{{ $statusText }}
+													</div>
+												</td>
+												<td nowrap>
+													@if($instance->submitted_at)
+														{{ $instance->submitted_at->format('Y-m-d H:i') }}
+													@else
+														<span class="text-muted small">Not submitted</span>
+													@endif
+												</td>
+												<td nowrap>
+													@if($instance->due_date)
+														{{ $instance->due_date->format('Y-m-d') }}
+														@if($instance->isOverdue())
+															<i class="mdi mdi-alert text-danger" title="Overdue"></i>
+														@endif
+													@else
+														<span class="text-muted small">No due date</span>
+													@endif
+												</td>
+
+											</tr>
+										@endforeach
+									</tbody>
+								</table>
+							</div>
+							<div class="mt-2">
+								{{ $this->submissionForms->links() }}
+							</div>
+						@else
+							<div class="text-center py-4">
+								<i class="mdi mdi-file-document-outline text-muted" style="font-size: 2rem;"></i>
+								<p class="text-muted mb-0">No submission forms found matching filters.</p>
+							</div>
+						@endif
+					</div>
+				</div>
+			</div>
+		</div>
+	@endif
+
 	<!-- Batches Table -->
+	@if($status != 'Samples Reception')
 	<div class="row">
 		<div class="col-12">
 			<div class="card shadow-sm border-0" style="border-radius: 15px;">
@@ -399,6 +580,14 @@
 					<h5 class="card-title mb-0">
 						<i class="mdi mdi-file-document-edit"></i> Batches
 					</h5>
+					<div class="d-flex align-items-center">
+						<span class="mr-2 text-muted" style="font-size: 0.85rem;">Per page:</span>
+						<select wire:model.live="batchesPerPage" class="form-control form-control-sm" style="width: auto;">
+							@foreach($batchesPerPageOptions as $size)
+								<option value="{{ $size }}">{{ $size }}</option>
+							@endforeach
+						</select>
+					</div>
 				</div>
 				<div class="card-body">
 					@if($status == 'Finished Sample')
@@ -615,6 +804,14 @@
 								</tbody>
 							</table>
 							</div>
+							<div class="mt-3 d-flex justify-content-between align-items-center">
+								<div class="text-muted" style="font-size: 0.85rem;">
+									Showing {{ $batches->firstItem() }}–{{ $batches->lastItem() }} of {{ $batches->total() }} batches
+								</div>
+								<div>
+									{{ $batches->links() }}
+								</div>
+							</div>
 						</div>
 					@else
 						<div class="text-center py-5">
@@ -645,6 +842,7 @@
 			</div>
 		</div>
 	</div>
+	@endif
 
 	@push('script2')
 		<div class="modal fade" id="get-batch-tat" role="dialog">
