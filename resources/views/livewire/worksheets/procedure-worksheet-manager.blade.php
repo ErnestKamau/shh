@@ -133,7 +133,9 @@
                                                 <tr>
                                                     <th>Parameter / Step</th>
                                                     @foreach($this->getStepsProperty() as $step)
-                                                        <th>{{ $step->step }}</th>
+                                                        <th>
+                                                            <span class="font-weight-bold">{{ $step->step }}</span>@if($step->measurands->isNotEmpty()) <span class="font-weight-normal text-dark">({{ $step->measurands->pluck('name')->implode(', ') }})</span>@endif
+                                                        </th>
                                                     @endforeach
                                                 </tr>
                                             </thead>
