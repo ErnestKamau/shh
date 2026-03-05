@@ -452,8 +452,8 @@
 											<th>Actions</th>
 											<th>Form Number</th>
 											<th>Form Name</th>
-											<th>Title</th>
 											<th>Batch Status</th>
+											<th>Batches</th>
 											<th>Sample Type</th>
 											<th>Tests Required</th>
 											<th>Status</th>
@@ -501,7 +501,6 @@
 													</a>
 												</td>
 												<td>{{ $instance->submissionForm->name }}</td>
-												<td>{{ $instance->title ?: 'Untitled' }}</td>
 												<td>
 													@if($hasBatch)
 														<div class="d-inline-block rounded" style="background-color: #f8f9fa; padding: 6px 12px 6px 16px; box-shadow: inset 4px 0 0 0 #28a745; font-weight: 500; color: #495057; font-size: 0.85rem;">
@@ -511,6 +510,17 @@
 														<div class="d-inline-block rounded" style="background-color: #f8f9fa; padding: 6px 12px 6px 16px; box-shadow: inset 4px 0 0 0 #dc3545; font-weight: 500; color: #495057; font-size: 0.85rem;">
 															Not Created
 														</div>
+													@endif
+												</td>
+												<td nowrap>
+													@if($hasBatch)
+														@foreach($instance->batches as $batch)
+															<a href="{{ route('view-batch-details', ['batch' => $batch->id, 'client' => 0, 'portal' => 0, 'status' => $status]) }}">
+																{{ $batch->batch_code }}
+															</a>@if(!$loop->last) @endif
+														@endforeach
+													@else
+														<span class="text-muted small">—</span>
 													@endif
 												</td>
 												<td nowrap>{{ implode(', ', $typeNames) ?: 'N/A' }}</td>
