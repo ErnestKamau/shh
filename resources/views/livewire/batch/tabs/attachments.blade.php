@@ -298,7 +298,8 @@
                                                             class="captured-result-checkbox"
                                                             data-sample="{{ $sample['id'] }}"
                                                             data-ids="{{ implode(',', $analyte['captured_result_ids']) }}"
-                                                            onchange="syncCapturedResultIds()">
+                                                            onchange="syncCapturedResultIds()"
+                                                            @if($allLinked) disabled title="Already linked to another attachment" @endif>
                                                     </td>
                                                     <td class="align-middle">
                                                         <span class="font-weight-bold">{{ $analyte['analyte_code'] }}</span>
