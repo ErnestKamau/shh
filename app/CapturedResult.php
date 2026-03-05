@@ -126,7 +126,7 @@ class CapturedResult extends Model implements Auditable
 	{
 		return $this->belongsTo(\App\Models\Procedures\ProcedureWorksheet::class, 'procedure_worksheet_id');
 	}
-
+	
     public function batchAttachments()
     {
         return $this->belongsToMany(
@@ -137,6 +137,11 @@ class CapturedResult extends Model implements Auditable
             'analysis_element_id',
             'id'
         );
+    }
+
+    public function batchAttachment()
+    {
+        return $this->belongsTo(BatchAttachment::class, 'batch_attachment_id');
     }
 
 }
