@@ -472,6 +472,20 @@ class ProcedureWorksheetManager extends Component
             }
         }
 
+        $this->generateWorksheetPdf();
+
         session()->flash('message', 'Worksheet values saved successfully.');
+    }
+
+    protected function generateWorksheetPdf(): void
+    {
+        if (!$this->batchId || !$this->selectedWorksheetId) {
+            return;
+        }
+        $batch = SampleHeader::find($this->batchId);
+        $worksheet = ProcedureWorksheet::find($this->selectedWorksheetId);
+        if ($batch && $worksheet) {
+            app(\App\Services\ProcedureWorksheetPdfService::class)->generateAndAttach($batch, $worksheet);
+        }
     }
 }

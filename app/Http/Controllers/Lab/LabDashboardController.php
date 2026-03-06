@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Lab;
 
 use App\SampleHeader;
 use App\SampleDetails;
+use App\SampleAnalysisStage;
 use App\Models\CRM\SamplePoint;
 use App\Models\CRM\Complaint;
 
@@ -156,6 +157,69 @@ class LabDashboardController extends Controller
             }
         }
 
+
+        return response()->json($results);
+    }
+
+    /**
+     * Get sample (batch) count grouped by lab section for dashboard chart.
+     *
+     * @return \Illuminate\Http\JsonResponse
+     */
+    public function getSamplesByLabSection(Request $request): \Illuminate\Http\JsonResponse
+    {
+        $year = $request->get('year') ?? date('Y');
+        $baseQuery = SampleHeader::query()
+            ->where('isactive', 1)
+            ->whereYear('created_at', $year)
+            ->where('status', '!=', 'Completed');
+
+        $sections = SampleAnalysisStage::query()
+            ->where('active', 1)
+            ->orderBy('name')
+            ->get();
+
+        $results = [];
+        foreach ($sections as $section) {
+            $count = (clone $baseQuery)
+                ->whereNotNull('lab_section_ids')
+                ->where('lab_section_ids', '!=', '')
+                ->whereRaw('FIND_IN_SET(?, lab_section_ids) > 0', [$section->id])
+                ->count();
+            if ($count > 0) {
+                $results[$section->name] = $count;
+            }
+        }
+
+        return response()->json($results);
+    }
+
+    /**
+     * Get sample (batch) count by workflow status for dashboard chart.
+     *
+     * @return \Illuminate\Http\JsonResponse
+     */
+    public function getSamplesByStatus(Request $request): \Illuminate\Http\JsonResponse
+    {
+        $year = $request->get('year') ?? date('Y');
+        $statuses = [
+            'Samples Reception' => 'Samples Reception',
+            'Samples In Lab' => 'Samples In Lab',
+            'Sample Verification' => 'Sample Verification',
+            'Sample Approval' => 'Sample Approval',
+        ];
+
+        $results = [];
+        foreach ($statuses as $label => $status) {
+            $query = SampleHeader::query()
+                ->where('isactive', 1)
+                ->whereYear('created_at', $year)
+                ->where('status', $status);
+            if ($status === 'Samples Reception') {
+                $query->where('isactive', 1);
+            }
+            $results[$label] = $query->count();
+        }
 
         return response()->json($results);
     }

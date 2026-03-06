@@ -184,6 +184,42 @@
                 </div>
             </div>
         </div>
+        <div class="row mb-3">
+            <div class="col-xl-6 col-sm-12">
+                <div class="card bg-default no-overflow">
+                    <div class="card-head-sm p-3 border-bottom">
+                        <h5>
+                            <i class="fas fa-flask"></i> Sample Count by Lab Section
+                            <form class="float-right text-info">
+                                <div class="input-group">
+                                    <input type="number" name="year" value="" max="2100" min="2000" style="border:0px solid;border-bottom:1px solid" class="form-control" id="yearSubmitFormLabSection" data-url="getSamplesByLabSection" data-divid="sample-lab-section-graph" placeholder="Year">
+                                </div>
+                            </form>
+                        </h5>
+                    </div>
+                    <div class="card-body">
+                        <canvas id="sample-lab-section-graph" style="width: 100%;height:300px"></canvas>
+                    </div>
+                </div>
+            </div>
+            <div class="col-xl-6 col-sm-12">
+                <div class="card bg-default no-overflow">
+                    <div class="card-head-sm p-3 border-bottom">
+                        <h5>
+                            <i class="fas fa-tasks"></i> Samples by Workflow Status
+                            <form class="float-right text-info">
+                                <div class="input-group">
+                                    <input type="number" name="year" value="" max="2100" min="2000" style="border:0px solid;border-bottom:1px solid" class="form-control" id="yearSubmitFormStatus" data-url="getSamplesByStatus" data-divid="sample-status-graph" placeholder="Year">
+                                </div>
+                            </form>
+                        </h5>
+                    </div>
+                    <div class="card-body">
+                        <canvas id="sample-status-graph" style="width: 100%;height:300px"></canvas>
+                    </div>
+                </div>
+            </div>
+        </div>
     
         <div class="card tab-card">
             <div class="card-header tab-card-header">
@@ -398,6 +434,78 @@
         // console.log(result);
 
 
+        var labSectionGraph = function(data, chartCtx) {
+            var labels = Object.keys(data);
+            var values = Object.values(data);
+            if (window.chartLabSection) {
+                window.chartLabSection.destroy();
+            }
+            window.chartLabSection = new Chart(chartCtx, {
+                type: 'bar',
+                data: {
+                    labels: labels,
+                    datasets: [{
+                        label: 'Batches',
+                        data: values,
+                        backgroundColor: poolColors(values.length),
+                        borderColor: poolColors(values.length),
+                        hoverBorderWidth: 1,
+                        hoverBorderColor: '#000',
+                    }]
+                },
+                options: {
+                    title: {
+                        display: true,
+                        text: 'Sample count by lab section',
+                        fontSize: 15,
+                        fontColor: '#000'
+                    },
+                    legend: { display: false },
+                    scales: {
+                        yAxes: [{
+                            ticks: { beginAtZero: true }
+                        }]
+                    }
+                }
+            });
+        };
+
+        var statusGraphColors = ['rgba(40,167,69,0.8)', 'rgba(23,162,184,0.8)', 'rgba(220,53,69,0.8)', 'rgba(33,37,41,0.8)'];
+        var labStatusGraph = function(data, chartCtx) {
+            var labels = Object.keys(data);
+            var values = Object.values(data);
+            if (window.chartStatus) {
+                window.chartStatus.destroy();
+            }
+            window.chartStatus = new Chart(chartCtx, {
+                type: 'doughnut',
+                data: {
+                    labels: labels,
+                    datasets: [{
+                        label: 'Batches',
+                        data: values,
+                        backgroundColor: statusGraphColors.slice(0, labels.length),
+                        borderColor: '#fff',
+                        borderWidth: 1,
+                        hoverBorderWidth: 2,
+                        hoverBorderColor: '#000',
+                    }]
+                },
+                options: {
+                    title: {
+                        display: true,
+                        text: 'Samples by workflow status',
+                        fontSize: 15,
+                        fontColor: '#000'
+                    },
+                    legend: {
+                        display: true,
+                        position: 'right',
+                    },
+                }
+            });
+        };
+
         var CrmGraph = function(data, mychart3) {
 
             var unit_names = Object.keys(data);
@@ -441,7 +549,27 @@
         let mychart = document.getElementById('myChart').getContext('2d');
         let mychart2 = document.getElementById('sample-graph').getContext('2d');
         let mychart3 = document.getElementById('sample-crm-graph').getContext('2d');
+        let mychart4 = document.getElementById('sample-lab-section-graph').getContext('2d');
+        let mychart5 = document.getElementById('sample-status-graph').getContext('2d');
 
+        $.ajax({
+            url: "/getSamplesByLabSection",
+            success: function(data) {
+                labSectionGraph(data, mychart4);
+            },
+            error: function(xhr) {
+                console.log('Lab section chart:', xhr);
+            }
+        });
+        $.ajax({
+            url: "/getSamplesByStatus",
+            success: function(data) {
+                labStatusGraph(data, mychart5);
+            },
+            error: function(xhr) {
+                console.log('Status chart:', xhr);
+            }
+        });
         $.ajax({
             url: "/getSamplesByCustomer",
             success: function(data) {
@@ -546,6 +674,34 @@
                     console.log(data);
                 }
             })
+        });
+        $('#yearSubmitFormLabSection').on('change', function(e) {
+            var year = $(this).val();
+            $.ajax({
+                url: "/getSamplesByLabSection",
+                data: { year: year },
+                type: "GET",
+                success: function(data) {
+                    labSectionGraph(data, mychart4);
+                },
+                error: function(xhr) {
+                    console.log('Lab section chart:', xhr);
+                }
+            });
+        });
+        $('#yearSubmitFormStatus').on('change', function(e) {
+            var year = $(this).val();
+            $.ajax({
+                url: "/getSamplesByStatus",
+                data: { year: year },
+                type: "GET",
+                success: function(data) {
+                    labStatusGraph(data, mychart5);
+                },
+                error: function(xhr) {
+                    console.log('Status chart:', xhr);
+                }
+            });
         });
 
     });

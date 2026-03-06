@@ -152,6 +152,8 @@ Route::get('/getSamplesByCustomer/{year?}', 'Lab\LabDashboardController@getSampl
 Route::get('/getSamplesByGps/{year?}', 'Lab\LabDashboardController@getSamplesByGps')->name('getSamplesByGps');
 Route::get('/getSamplesByMonth/{year?}', 'Lab\LabDashboardController@getSamplesByMonth')->name('getSamplesByMonth');
 Route::get('/getsamplesBySampletype/{year?}', 'Lab\LabDashboardController@getsamplesBySampletype')->name('getsamplesBySampletype');
+Route::get('/getSamplesByLabSection', 'Lab\LabDashboardController@getSamplesByLabSection')->name('getSamplesByLabSection');
+Route::get('/getSamplesByStatus', 'Lab\LabDashboardController@getSamplesByStatus')->name('getSamplesByStatus');
 
 //######################################dashboard Ajax###############################################
 
