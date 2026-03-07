@@ -254,9 +254,15 @@
                         <label for="" class="control-label">Report Format</label>
                         <select name="report_format" id="report_format" class="form-control">
                             <option value="">Choose Report Format</option>
-                            <option value="0">Aspergillus Report</option>
-                            <option value="1">Microbiology Report</option>
-                            <option value="2">Hygiene Swabs Report</option>
+                            @if(isset($report_formats) && $report_formats->isNotEmpty())
+                                @foreach($report_formats as $format)
+                                <option value="{{ $format->id }}" {{ isset($format->is_default) && $format->is_default ? 'selected' : '' }}>
+                                    {{ $format->report_name }}@if($format->report_code) ({{ $format->report_code }})@endif
+                                </option>
+                                @endforeach
+                            @else
+                                <option value="" disabled>No report formats configured for this batch's lab section</option>
+                            @endif
                         </select>
                     </div>
                     <div class="form-group mt-2">

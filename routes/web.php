@@ -1,5 +1,8 @@
 <?php
 
+use Illuminate\Support\Facades\Route;
+use Illuminate\Support\Facades\Auth;
+
 /*
 |--------------------------------------------------------------------------
 | Web Routes
@@ -223,6 +226,11 @@ Route::get('/livewire/standard-analytes/{standardId}', [StandardsController::cla
 // Livewire Report Formats Management
 Route::get('/livewire/report-formats', [LabAppController::class, 'reportFormats'])
     ->name('livewire.report-formats')
+    ->middleware('haspermission:Laboratory.components.Sample-Types.View');
+
+// Livewire Dedicated Report Format Builder
+Route::get('/livewire/report-formats/builder/{id}', [LabAppController::class, 'reportFormatBuilder'])
+    ->name('livewire.report-formats.builder')
     ->middleware('haspermission:Laboratory.components.Sample-Types.View');
 
 // Livewire Standard Manager
@@ -842,8 +850,7 @@ Route::post('/accept-order-items/{order_id}', 'InventoryOrderItemToInventoryItem
 Route::get('/crm-home', 'CRM\CRMCustomerController@index')->name('customers-list')->middleware('haspermission:CRM.permission');
 Route::post('/fetch-client-quotes', 'CRM\CRMCustomerController@fetch_client_quote')->name('fetch-client-qoutes');
 Route::get('/crm-home-config', 'CRM\CRMCustomerController@checkConfig')->name('add-config-customer')->middleware('haspermission:CRM.permission');
-Route::post('/customers', 'CRM\CRMCustomerController@add')->name('add-customers')->middleware('haspermission:CRM.components.Customer-List.Add')
-;
+Route::post('/customers', 'CRM\CRMCustomerController@add')->name('add-customers')->middleware('haspermission:CRM.components.Customer-List.Add');
 Route::get('/customer/{id}', 'CRM\CRMCustomerController@show')->name('show-customer')->middleware('haspermission:CRM.components.Customer-List.View');
 Route::post('/customer/{id}', 'CRM\CRMCustomerController@edit')->name('edit-customer')->middleware('haspermission:CRM.components.Customer-List.Edit');
 Route::post('/customer/{id}/label', 'CRM\CRMCustomerController@edit_label')->name('change-client-label-name')->middleware('haspermission:CRM.components.Customer-List.Edit');
@@ -1496,8 +1503,3 @@ Route::middleware(['auth'])->prefix('dms')->name('dms.')->group(function () {
     Route::get('/documents/{id}/preview', 'DMSController@preview')->name('preview');
     Route::get('/documents/{documentId}/versions/{versionId}/download', 'DMSController@downloadVersion')->name('download-version');
 });
-
-
-
-
-

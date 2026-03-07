@@ -1114,8 +1114,27 @@ class SampleWorkFlowController extends Controller
             }
             $workflowstages = getWorkflowStage_Stages($batch->status);
             if (in_array($batch->status, ['Sample Verification', 'Sample Approval'])) {
-                $report_format_config = SystemConfiguration::where('key', 'coa_report_format')->first();
-                $report_formats = SystemConfiguration::where('configuration_type_id', $report_format_config->value)->get();
+                // Fetch report formats configured for this batch's lab sections (report_format_sample_analysis_stage)
+                $labSectionIds = array_filter(explode(',', $batch->lab_section_ids ?? ''));
+
+                if (!empty($labSectionIds)) {
+                    $configuredFormatIds = \App\Models\LabSectionReportConfig::whereIn('sample_analysis_stage_id', $labSectionIds)
+                        ->select('report_format_id', 'is_default', 'sample_analysis_stage_id')
+                        ->get();
+
+                    if ($configuredFormatIds->isNotEmpty()) {
+                        $formatIds = $configuredFormatIds->pluck('report_format_id')->unique()->toArray();
+                        $report_formats = \App\ReportFormat::whereIn('id', $formatIds)->where('is_active', true)->get();
+
+                        foreach ($report_formats as $format) {
+                            $format->is_default = $configuredFormatIds->where('report_format_id', $format->id)->where('is_default', true)->isNotEmpty();
+                        }
+                    } else {
+                        $report_formats = \App\ReportFormat::active()->get();
+                    }
+                } else {
+                    $report_formats = \App\ReportFormat::active()->get();
+                }
             }
             $disposal_date = \Carbon\Carbon::parse($batch->receipt_date)->addDays(14)->format('Y-m-d');
             // return response()->json($disposal_date);
@@ -2525,6 +2544,13 @@ class SampleWorkFlowController extends Controller
     public function process_results(Request $request, $batch_id, $internal = false)
     {
         $report_format = $request->report_format;
+        \Log::info('process_results called', [
+            'batch_id' => $batch_id,
+            'report_format' => $report_format,
+            'include_pesticide' => isset($request->add_pesticide) ? 1 : 0,
+            'merge_with_attachments' => $request->boolean('merge_with_attachments'),
+            'attachment_ids' => $request->input('attachment_ids', ''),
+        ]);
         $resultsData = Result::where('sample_header_id', $batch_id)->get();
         foreach ($resultsData as $data) {
             $checkCaptured = CapturedResult::find($data->captured_result_id);
@@ -4467,8 +4493,32 @@ class SampleWorkFlowController extends Controller
         if (isset($batch->id)) {
             $workflowstages = getWorkflowStage_Stages($batch->status);
             if (in_array($batch->status, ['Sample Verification', 'Sample Approval'])) {
-                $report_format_config = SystemConfiguration::where('key', 'coa_report_format')->first();
-                $report_formats = SystemConfiguration::where('configuration_type_id', $report_format_config->value)->get();
+                // Fetch report formats configured specifically for this batch's lab sections
+                $labSectionIds = array_filter(explode(',', $batch->lab_section_ids));
+
+                if (!empty($labSectionIds)) {
+                    $configuredFormatIds = \App\Models\LabSectionReportConfig::whereIn('sample_analysis_stage_id', $labSectionIds)
+                        ->select('report_format_id', 'is_default', 'sample_analysis_stage_id')
+                        ->get();
+
+                    if ($configuredFormatIds->count() > 0) {
+                        // Get the unique report format IDs
+                        $formatIds = $configuredFormatIds->pluck('report_format_id')->unique()->toArray();
+
+                        // Fetch the actual ReportFormat models
+                        $report_formats = \App\ReportFormat::whereIn('id', $formatIds)->where('is_active', true)->get();
+
+                        // Inject is_default flag into the formats for the view
+                        foreach ($report_formats as $format) {
+                            $format->is_default = $configuredFormatIds->where('report_format_id', $format->id)->where('is_default', true)->isNotEmpty();
+                        }
+                    } else {
+                        // Fallback completely to all report formats if no configs exist
+                        $report_formats = \App\ReportFormat::active()->get();
+                    }
+                } else {
+                    $report_formats = \App\ReportFormat::active()->get();
+                }
             }
             $disposal_date = \Carbon\Carbon::parse($batch->receipt_date)->addMonths(3)->format('Y-m-d');
             // return response()->json($disposal_date);

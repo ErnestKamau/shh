@@ -92,18 +92,7 @@
                         <li>
                             <span class="btn btn-sm dropdown-item"  data-target="#process-results-modal" data-toggle="modal" title="Process Results"><i class="mdi mdi-subdirectory-arrow-right mr-2"></i> Process Results</span>
                         </li>
-                        <?php $reportpath = '/storage'.$batch->batch_report_url; ?>
-                            @if($batch->invoice_number != '')
-                            <li>
-                                <a target="_blank" href="{{$reportpath}}" class="dropdown-item"><i class="mdi mdi-download mr-2"></i> Download
-                                    COA</a>
-                            </li>
-                            @else
-                            <li>
-                                <span class="dropdown-item btn btn-sm" data-target="#download-coa-invoice-exception" data-toggle="modal"><i
-                                        class="mdi mdi-download mr-2"></i> Download COA</span>
-                            </li>
-                            @endif
+                        {{-- Download COA disabled: use "View Report" instead --}}
                             @if($batch->invoice_number == '' )
                                 <li>
                                     <span class="dropdown-item btn btn-sm" data-target="#add-batch-invoice" data-toggle="modal"><i class="mdi mdi-cash-plus mr-2"></i> Add Invoice Details</span>
@@ -126,25 +115,21 @@
                                 </span>
                             </li>
                             @endif
-                            <li>
-                                <span class="btn btn-sm dropdown-item"  data-target="#view-coa-report" data-toggle="modal" title="View Sample(s) COA"><i class="mdi mdi-subdirectory-arrow-right mr-2"></i> View Report</span>
-                                
-                            </li>
+                    <li>
+                        @if($batch->batch_report_url)
+                            <?php $reportpath = '/storage'.$batch->batch_report_url; ?>
+                            <a class="btn btn-sm dropdown-item"
+                               target="_blank"
+                               href="{{ $reportpath }}"
+                               title="View Sample(s) COA">
+                                <i class="mdi mdi-subdirectory-arrow-right mr-2"></i> View Report
+                            </a>
+                        @endif
+                    </li>
 
                         @endif
                         @if(isset($batch->status) && $batch->status == 'Samples In Lab' && $batch->prelim_report_status == 2)
-                        <?php $reportpath = '/storage'.$batch->batch_report_url; ?>
-                            @if($batch->invoice_number != '')
-                            <li>
-                                <a target="_blank" href="{{$reportpath}}" class="dropdown-item"><i class="mdi mdi-download mr-2"></i> Download
-                                    COA</a>
-                            </li>
-                            @else
-                            <li>
-                                <span class="dropdown-item btn btn-sm" data-target="#download-coa-invoice-exception" data-toggle="modal"><i
-                                        class="mdi mdi-download mr-2"></i> Download COA</span>
-                            </li>
-                            @endif
+                        {{-- Download COA disabled: use "View Report" instead --}}
                             @if($batch->invoice_number == '' )
                                 <li>
                                     <span class="dropdown-item btn btn-sm" data-target="#add-batch-invoice" data-toggle="modal"><i class="mdi mdi-cash-plus mr-2"></i> Add Invoice Details</span>
@@ -166,12 +151,27 @@
                                     </li>
                                     @endif
                                     <li class="hidden">
-                                        <span class="btn btn-sm dropdown-item"  data-target="#view-coa-report" data-toggle="modal" title="View Sample(s) COA"><i class="mdi mdi-subdirectory-arrow-right mr-2"></i> View Report</span>
-                                        
+                                        @if($batch->batch_report_url)
+                                            <?php $reportpath = '/storage'.$batch->batch_report_url; ?>
+                                            <a class="btn btn-sm dropdown-item"
+                                               target="_blank"
+                                               href="{{ $reportpath }}"
+                                               title="View Sample(s) COA">
+                                                <i class="mdi mdi-subdirectory-arrow-right mr-2"></i> View Report
+                                            </a>
+                                        @endif
                                     </li>
                                 @else
                                     <li class="hidden">
-                                        <span class="btn btn-sm dropdown-item"  data-target="#view-coa-report" data-toggle="modal" title="View Sample(s) COA"><i class="mdi mdi-subdirectory-arrow-right mr-2"></i> View Report {{$notCaptured->count()}}</span>
+                                        @if($batch->batch_report_url)
+                                            <?php $reportpath = '/storage'.$batch->batch_report_url; ?>
+                                            <a class="btn btn-sm dropdown-item"
+                                               target="_blank"
+                                               href="{{ $reportpath }}"
+                                               title="View Sample(s) COA">
+                                                <i class="mdi mdi-subdirectory-arrow-right mr-2"></i> View Report {{ $notCaptured->count() }}
+                                            </a>
+                                        @endif
                                     </li>
                                 @endif
                                 @if(in_array($batch->status,["Sample Approval","Reports for Collection","Reports In Payment"]))
@@ -183,18 +183,7 @@
                             @endif
                             
                             @if(in_array($batch->status,["Sample Approval","Reports for Collection","Reports In Payment"]) && $batch->batch_report_url != '')
-                                <?php $reportpath = '/storage'.$batch->batch_report_url; ?>
-                                @if($batch->invoice_number != '')
-                                <li>
-                                    <a target="_blank" href="{{$reportpath}}" class="dropdown-item"><i class="mdi mdi-download mr-2"></i> Download
-                                        COA</a>
-                                </li>
-                                @else
-                                <li>
-                                    <span class="dropdown-item btn btn-sm" data-target="#download-coa-invoice-exception" data-toggle="modal"><i
-                                            class="mdi mdi-download mr-2"></i> Download COA</span>
-                                </li>
-                                @endif
+                                {{-- Download COA disabled: use "View Report" instead --}}
                                 @if($batch->invoice_number == '' )
                                 <li>
                                     <span class="dropdown-item btn btn-sm" data-target="#add-batch-invoice" data-toggle="modal"><i class="mdi mdi-cash-plus mr-2"></i> Add Invoice Details</span>
@@ -204,7 +193,15 @@
                             @endif 
                             @if($batch->status == "Sample Approval")
                                 <li>
-                                    <span class="btn btn-sm dropdown-item"  data-target="#view-coa-report" data-toggle="modal" title="View Sample(s) COA"><i class="mdi mdi-subdirectory-arrow-right mr-2"></i> View Report</span>
+                                    @if($batch->batch_report_url)
+                                        <?php $reportpath = '/storage'.$batch->batch_report_url; ?>
+                                        <a class="btn btn-sm dropdown-item"
+                                           target="_blank"
+                                           href="{{ $reportpath }}"
+                                           title="View Sample(s) COA">
+                                            <i class="mdi mdi-subdirectory-arrow-right mr-2"></i> View Report
+                                        </a>
+                                    @endif
                                 </li>
                                 
                                 @if(in_array($batch->status,["Sample Approval","Reports for Collection","Reports In Payment"]))
@@ -249,7 +246,15 @@
                             @endif
                             @if($batch->status == 'Reports In Payment' || $batch->status == 'Reports for Collection')
                                 <li>
-                                    <span class="btn btn-sm dropdown-item"  data-target="#view-coa-report" data-toggle="modal" title="View Sample(s) COA"><i class="mdi mdi-subdirectory-arrow-right mr-2"></i> View Report</span>
+                                    @if($batch->batch_report_url)
+                                        <?php $reportpath = '/storage'.$batch->batch_report_url; ?>
+                                        <a class="btn btn-sm dropdown-item"
+                                           target="_blank"
+                                           href="{{ $reportpath }}"
+                                           title="View Sample(s) COA">
+                                            <i class="mdi mdi-subdirectory-arrow-right mr-2"></i> View Report
+                                        </a>
+                                    @endif
                                 </li>
                             @endif
                         @endif
