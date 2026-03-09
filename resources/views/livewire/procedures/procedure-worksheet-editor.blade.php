@@ -72,6 +72,17 @@
                             </a>
                         </li>
                         <li class="nav-item">
+                            <a class="nav-link {{ $activeTab === 'document_control' ? 'active' : '' }}"
+                               id="document-control-tab"
+                               href="#"
+                               wire:click.prevent="$set('activeTab', 'document_control')"
+                               role="tab"
+                               aria-controls="document-control-tab-pane"
+                               aria-selected="{{ $activeTab === 'document_control' ? 'true' : 'false' }}">
+                                Document Control
+                            </a>
+                        </li>
+                        <li class="nav-item">
                             <a class="nav-link {{ $activeTab === 'test_kit' ? 'active' : '' }}"
                                id="test-kit-fields-tab"
                                href="#"
@@ -233,6 +244,9 @@
                                                             </td>
                                                             <td>
                                                                 <span class="badge badge-info">{{ ucfirst($field['field_type']) }}</span>
+                                                                @if(in_array($field['field_type'] ?? '', ['dataset', 'dataset_multiselect']) && !empty($field['model_tied_to']))
+                                                                    <br><small class="text-muted">{{ \App\Models\Procedures\ProcedureConfigField::getDatasetModels()[$field['model_tied_to']] ?? $field['model_tied_to'] }}</small>
+                                                                @endif
                                                             </td>
                                                             <td>
                                                                 <code>{{ $field['field_value_name'] }}</code>
@@ -299,16 +313,30 @@
                                                     </div>
                                                     <div class="mb-3">
                                                         <label class="form-label">Field Type <span class="text-danger">*</span></label>
-                                                        <select wire:model="configFieldType" class="form-control modern-select">
+                                                        <select wire:model.live="configFieldType" class="form-control modern-select">
                                                             <option value="input">Text</option>
                                                             <option value="number">Number</option>
                                                             <option value="checkbox">Checkbox</option>
                                                             <option value="textarea">Textarea</option>
                                                             <option value="date">Date</option>
                                                             <option value="datetime">Date &amp; Time</option>
+                                                            <option value="dataset">Dataset (select from list)</option>
+                                                            <option value="dataset_multiselect">Dataset (multi-select)</option>
                                                         </select>
                                                         @error('configFieldType') <span class="text-danger">{{ $message }}</span> @enderror
                                                     </div>
+                                                    @if($configFieldType === 'dataset' || $configFieldType === 'dataset_multiselect')
+                                                    <div class="mb-3">
+                                                        <label class="form-label">Dataset source <span class="text-danger">*</span></label>
+                                                        <select wire:model="configFieldModelTiedTo" class="form-control modern-select">
+                                                            <option value="">Select...</option>
+                                                            @foreach(\App\Models\Procedures\ProcedureConfigField::getDatasetModels() as $value => $label)
+                                                                <option value="{{ $value }}">{{ $label }}</option>
+                                                            @endforeach
+                                                        </select>
+                                                        @error('configFieldModelTiedTo') <span class="text-danger">{{ $message }}</span> @enderror
+                                                    </div>
+                                                    @endif
                                                     <div class="mb-3">
                                                         <label class="form-label">Order</label>
                                                         <input type="number" wire:model="configFieldOrder" class="form-control" min="1">
@@ -355,6 +383,44 @@
                                     </div>
                                 </div>
                             @endif
+                        </div>
+
+                        <div class="tab-pane fade {{ $activeTab === 'document_control' ? 'show active' : '' }}" id="document-control-tab-pane" role="tabpanel" aria-labelledby="document-control-tab">
+                            <div class="card shadow-sm border-0" style="border-radius: 15px;">
+                                <div class="card-header bg-light border-0" style="border-radius: 15px 15px 0 0;">
+                                    <h5 class="mb-0">
+                                        <i class="mdi mdi-file-document-outline text-primary"></i>
+                                        Document Control
+                                    </h5>
+                                    <p class="text-muted small mb-0">Worksheet-level document control (e.g. for reports and compliance).</p>
+                                </div>
+                                <div class="card-body p-4">
+                                    <form wire:submit.prevent="saveDocumentControl">
+                                        <div class="row">
+                                            <div class="col-md-4 mb-3">
+                                                <label class="form-label">Document Control No</label>
+                                                <input type="text" wire:model="documentControlNo" class="form-control" placeholder="e.g. DOC-001">
+                                                @error('documentControlNo') <span class="text-danger">{{ $message }}</span> @enderror
+                                            </div>
+                                            <div class="col-md-4 mb-3">
+                                                <label class="form-label">Revision</label>
+                                                <input type="text" wire:model="revision" class="form-control" placeholder="e.g. 1.0">
+                                                @error('revision') <span class="text-danger">{{ $message }}</span> @enderror
+                                            </div>
+                                            <div class="col-md-4 mb-3">
+                                                <label class="form-label">Issue Date</label>
+                                                <input type="date" wire:model="issueDate" class="form-control">
+                                                @error('issueDate') <span class="text-danger">{{ $message }}</span> @enderror
+                                            </div>
+                                        </div>
+                                        <div class="mt-3">
+                                            <button type="submit" class="btn btn-primary">
+                                                <i class="mdi mdi-content-save"></i> Save Document Control
+                                            </button>
+                                        </div>
+                                    </form>
+                                </div>
+                            </div>
                         </div>
 
                         <div class="tab-pane fade {{ $activeTab === 'test_kit' ? 'show active' : '' }}" id="test-kit-fields-tab-pane" role="tabpanel" aria-labelledby="test-kit-fields-tab">
