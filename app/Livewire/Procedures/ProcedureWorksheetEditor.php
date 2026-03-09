@@ -56,6 +56,7 @@ class ProcedureWorksheetEditor extends Component
     // Configurable Field form properties
     public $configFieldLabel = '';
     public $configFieldType = 'input';
+    public $configFieldModelTiedTo = '';
     public $configFieldOrder = 1;
     public $configFieldHelpText = '';
     public $configFieldIsRequired = true;
@@ -82,6 +83,11 @@ class ProcedureWorksheetEditor extends Component
     public $toastMessage = '';
     public $toastType = 'success';
 
+    // Document Control (worksheet-level)
+    public $documentControlNo = '';
+    public $revision = '';
+    public $issueDate = '';
+
     protected $rules = [
         'step' => 'required|string|max:255',
         'default_equipment_id' => 'nullable|exists:equipment,id',
@@ -94,10 +100,11 @@ class ProcedureWorksheetEditor extends Component
     {
         return [
             'configFieldLabel' => 'required|string|max:255',
-            'configFieldType' => 'required|in:input,datetime,date,number,checkbox,textarea',
+            'configFieldType' => 'required|in:input,datetime,date,number,checkbox,textarea,dataset,dataset_multiselect',
             'configFieldValueName' => 'required|string|max:255',
             'configFieldHelpText' => 'nullable|string',
             'configFieldIsRequired' => 'boolean',
+            'configFieldModelTiedTo' => 'nullable|required_if:configFieldType,dataset|required_if:configFieldType,dataset_multiselect|in:users,sample_details,sample_types,methods,captured_results,report_formats',
         ];
     }
 
@@ -117,6 +124,7 @@ class ProcedureWorksheetEditor extends Component
         $this->worksheetId = $procedureWorksheet->id;
         $this->loadConfigFields();
         $this->loadTestKitColumns();
+        $this->loadDocumentControl();
     }
 
     public function render()
@@ -334,6 +342,7 @@ class ProcedureWorksheetEditor extends Component
         $this->configFieldHelpText = $field->help_text ?? '';
         $this->configFieldIsRequired = $field->is_required;
         $this->configFieldValueName = $field->field_value_name;
+        $this->configFieldModelTiedTo = $field->model_tied_to ?? '';
 
         $this->activeTab = 'config';
         $this->showEditConfigFieldModal = true;
@@ -351,6 +360,7 @@ class ProcedureWorksheetEditor extends Component
             'help_text' => $this->configFieldHelpText,
             'is_required' => $this->configFieldIsRequired,
             'field_value_name' => $this->configFieldValueName,
+            'model_tied_to' => in_array($this->configFieldType, ['dataset', 'dataset_multiselect']) ? $this->configFieldModelTiedTo : null,
         ]);
 
         $this->showCreateConfigFieldModal = false;
@@ -375,6 +385,7 @@ class ProcedureWorksheetEditor extends Component
             'help_text' => $this->configFieldHelpText,
             'is_required' => $this->configFieldIsRequired,
             'field_value_name' => $this->configFieldValueName,
+            'model_tied_to' => in_array($this->configFieldType, ['dataset', 'dataset_multiselect']) ? $this->configFieldModelTiedTo : null,
         ]);
 
         $this->showEditConfigFieldModal = false;
@@ -425,6 +436,7 @@ class ProcedureWorksheetEditor extends Component
     {
         $this->configFieldLabel = '';
         $this->configFieldType = 'input';
+        $this->configFieldModelTiedTo = '';
         $this->configFieldOrder = 1;
         $this->configFieldHelpText = '';
         $this->configFieldIsRequired = true;
@@ -437,6 +449,41 @@ class ProcedureWorksheetEditor extends Component
         $this->showCreateConfigFieldModal = false;
         $this->showEditConfigFieldModal = false;
         $this->resetConfigFieldForm();
+    }
+
+    public function updatedConfigFieldType(): void
+    {
+        if ($this->configFieldType !== 'dataset' && $this->configFieldType !== 'dataset_multiselect') {
+            $this->configFieldModelTiedTo = '';
+        }
+    }
+
+    public function loadDocumentControl(): void
+    {
+        $worksheet = ProcedureWorksheet::find($this->worksheetId);
+        if ($worksheet) {
+            $this->documentControlNo = $worksheet->document_control_no ?? '';
+            $this->revision = $worksheet->revision ?? '';
+            $this->issueDate = $worksheet->issue_date ? $worksheet->issue_date->format('Y-m-d') : '';
+        }
+    }
+
+    public function saveDocumentControl(): void
+    {
+        $this->validate([
+            'documentControlNo' => 'nullable|string|max:255',
+            'revision' => 'nullable|string|max:255',
+            'issueDate' => 'nullable|date',
+        ]);
+
+        ProcedureWorksheet::where('id', $this->worksheetId)->update([
+            'document_control_no' => $this->documentControlNo ?: null,
+            'revision' => $this->revision ?: null,
+            'issue_date' => $this->issueDate ?: null,
+        ]);
+
+        $this->toastType = 'success';
+        $this->toastMessage = 'Document control saved successfully.';
     }
 
     // ==================== Test Kit Columns Methods ====================

@@ -47,6 +47,7 @@ class ReportFormatBuilder extends Component
         'sections.*.is_visible' => 'boolean',
         'sections.*.custom_title' => 'nullable|string|max:255',
         'sections.*.order' => 'required|integer',
+        'sections.*.settings' => 'nullable|array',
     ];
 
     public function mount($reportFormatId)
@@ -71,18 +72,22 @@ class ReportFormatBuilder extends Component
 
         $order = 0;
         foreach ($this->availableSections as $name => $label) {
+            $defaultSettings = $this->getDefaultSettingsForSection($name);
+
             if ($existingSections->has($name)) {
                 $section = $existingSections->get($name);
                 $this->sections[$name] = [
                     'is_visible' => $section->is_visible,
                     'custom_title' => $section->custom_title,
                     'order' => $section->order,
+                    'settings' => $section->settings ?? $defaultSettings,
                 ];
             } else {
                 $this->sections[$name] = [
                     'is_visible' => true,
                     'custom_title' => null,
                     'order' => $order,
+                    'settings' => $defaultSettings,
                 ];
             }
             $order++;
@@ -133,6 +138,35 @@ class ReportFormatBuilder extends Component
         });
     }
 
+    private function getDefaultSettingsForSection($sectionName)
+    {
+        switch ($sectionName) {
+            case 'SampleInfo':
+                return [
+                    'show_sample_desc' => true,
+                    'show_report_number' => true,
+                    'show_customer_reference' => true,
+                    'show_receiving_date' => true,
+                    'show_date_tested' => true,
+                    'show_date_sampling' => true,
+                    'show_date_report' => true,
+                ];
+            case 'TestMethods':
+                return [
+                    'show_tests_required' => true,
+                    'show_methods_used' => true,
+                    'show_deviation' => false,
+                    'show_deviation_reason' => false,
+                ];
+            case 'Signatures':
+                return [
+                    'required_roles' => []
+                ];
+            default:
+                return [];
+        }
+    }
+
     public function saveConfiguration()
     {
         $this->validate();
@@ -166,7 +200,8 @@ class ReportFormatBuilder extends Component
                     [
                         'order' => $data['order'],
                         'is_visible' => $data['is_visible'],
-                        'custom_title' => $data['custom_title']
+                        'custom_title' => $data['custom_title'],
+                        'settings' => $data['settings'] ?? []
                     ]
                 );
             }

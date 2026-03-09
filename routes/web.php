@@ -373,7 +373,9 @@ Route::get('/sample-workflow/{status?}', 'SampleWorkFlowController@index')->name
 //   Route::get('/sample-workflow/{status?}/stage', 'SampleWorkFlowController@index')->name('sample-workflow')->middleware('haspermission:Laboratory.components.status.View');
 Route::get('/sample-workflow/{status?}/stage', 'SampleWorkFlowController@index')->name('sample-workflow-stage');
 Route::get('/sample-workflow/batch/{batch}/details/{client?}/{portal?}/{status?}', 'SampleWorkFlowController@show')->name('view-batch-details');
-Route::get('/sample-workflow/batch/{batch}/worksheets', 'WorksheetsController@index')->name('batch-worksheets');
+Route::get('/sample-workflow/batch/{batch}/worksheets', 'WorksheetsController@index')
+    ->name('batch-worksheets')
+    ->middleware('auth');
 Route::post('/add-batch-info/{batch}', 'SampleWorkFlowController@add_batch_info')->name('add-batch-info');
 Route::post('/add-batch-samples/{batch}', 'SampleWorkFlowController@add_batch_samples')->name('add-batch-samples');
 Route::post('/add-new-samples', 'SampleWorkFlowController@add_batch_samples')->name('add-new-samples');

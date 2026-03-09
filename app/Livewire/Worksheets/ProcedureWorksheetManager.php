@@ -4,6 +4,8 @@ namespace App\Livewire\Worksheets;
 
 use Livewire\Component;
 use App\CapturedResult;
+use App\Analyte;
+use App\BatchAttachment;
 use App\Models\Procedures\ProcedureWorksheet;
 use App\Models\Procedures\ProcedureWorksheetStep;
 use App\Models\Procedures\CapturedProcedureValue;
@@ -13,11 +15,25 @@ use App\Models\Procedures\ProcedureTestKitColumn;
 use App\Models\Procedures\ProcedureTestKitRow;
 use App\Models\Procedures\ProcedureTestKitValue;
 use App\SampleHeader;
-use Illuminate\Support\Facades\DB;
+use App\User;
+use App\SampleDetails;
+use App\SampleType;
+use App\AnalysisMethod;
+use App\ReportFormat;
+use App\Services\ProcedureWorksheetPdfService;
 use Illuminate\Support\Collection;
+use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Storage;
+use App\Models\System\SystemConfiguration;
 
 class ProcedureWorksheetManager extends Component
 {
+    protected $listeners = [
+        // Triggered by the parent WorksheetManager "Post Results" button.
+        'triggerPostResults' => 'postResults',
+    ];
     public $batchId;
     public $activeTab = null; // This will hold the active Analyte ID
     public $selectedWorksheetId = null;
@@ -26,6 +42,10 @@ class ProcedureWorksheetManager extends Component
     public $configFieldValues = []; // [captured_result_id => [config_field_id => value]]
     public $testKitRows = []; // [row_id => ['row_index' => n]]
     public $testKitData = []; // [row_id => [column_id => value]]
+
+    /** Simple in-component flash messaging for Livewire actions. */
+    public ?string $flashMessage = null;
+    public ?string $flashType = null; // success|error|warning|null
 
     /**
      * External samples support (from other batches).
@@ -110,6 +130,20 @@ class ProcedureWorksheetManager extends Component
         $this->loadSamples();
     }
 
+    public function updatedSelectedWorksheetId($value)
+    {
+        if (!$value) {
+            return;
+        }
+        $this->externalCapturedResultIds = [];
+        $this->externalSearchResults = [];
+        $this->externalSelectionItems = [];
+        $this->externalSearch = '';
+        $this->showExternalPanel = false;
+        $this->showExternalDropdown = false;
+        $this->loadSamples();
+    }
+
     public function loadSamples()
     {
         if (!$this->activeTab || !$this->selectedWorksheetId) {
@@ -143,9 +177,17 @@ class ProcedureWorksheetManager extends Component
             ->unique()
             ->values()
             ->toArray();
-            
-        // Default select all
-        $this->selectedSamples = $samples;
+
+        // Default select all only when nothing is selected yet.
+        // Otherwise, preserve the current selection but keep it within the available samples.
+        if (empty($this->selectedSamples)) {
+            $this->selectedSamples = $samples;
+        } else {
+            $this->selectedSamples = array_values(array_intersect($this->selectedSamples, $samples));
+            if (empty($this->selectedSamples)) {
+                $this->selectedSamples = $samples;
+            }
+        }
 
         // Load existing values for all included captured results
         $capturedResultIds = $capturedResults->pluck('id');
@@ -177,7 +219,12 @@ class ProcedureWorksheetManager extends Component
         foreach ($capturedResults as $cr) {
             foreach ($configFields as $field) {
                 if (! isset($this->configFieldValues[$cr->id][$field->id])) {
-                    $this->configFieldValues[$cr->id][$field->id] = '';
+                    $this->configFieldValues[$cr->id][$field->id] = $field->field_type === 'dataset_multiselect' ? [] : '';
+                } elseif ($field->field_type === 'dataset_multiselect') {
+                    $val = $this->configFieldValues[$cr->id][$field->id];
+                    $this->configFieldValues[$cr->id][$field->id] = is_array($val)
+                        ? $val
+                        : array_values(array_filter(explode(',', (string) $val)));
                 }
             }
         }
@@ -196,6 +243,17 @@ class ProcedureWorksheetManager extends Component
         $this->testKitData = [];
         foreach ($values as $val) {
             $this->testKitData[$val->procedure_test_kit_row_id][$val->procedure_test_kit_column_id] = $val->value;
+        }
+        $columns = ProcedureTestKitColumn::where('procedure_worksheet_id', $this->selectedWorksheetId)->orderBy('order')->get();
+        foreach ($rows as $row) {
+            if (! isset($this->testKitData[$row->id])) {
+                $this->testKitData[$row->id] = [];
+            }
+            foreach ($columns as $col) {
+                if (! array_key_exists($col->id, $this->testKitData[$row->id])) {
+                    $this->testKitData[$row->id][$col->id] = '';
+                }
+            }
         }
     }
 
@@ -218,12 +276,26 @@ class ProcedureWorksheetManager extends Component
 
         return $query->with(['sample', 'procedureWorksheet'])->get();
     }
-    
+
+    /**
+     * Captured result IDs for the currently selected samples (for shared-value spread on save).
+     *
+     * @return array<int>
+     */
+    public function getSelectedCapturedResultIds(): array
+    {
+        $samples = $this->analysisSamples;
+        $selected = $samples->filter(fn($r) => $r->sample && in_array($r->sample->id, $this->selectedSamples));
+
+        return $selected->pluck('id')->values()->all();
+    }
+
     public function getStepsProperty()
     {
         if (!$this->selectedWorksheetId) return collect();
 
         return ProcedureWorksheetStep::where('procedure_worksheet_id', $this->selectedWorksheetId)
+            ->with('equipment')
             ->orderBy('order')
             ->orderBy('id')
             ->get();
@@ -249,6 +321,164 @@ class ProcedureWorksheetManager extends Component
         return ProcedureTestKitColumn::where('procedure_worksheet_id', $this->selectedWorksheetId)
             ->orderBy('order')
             ->get();
+    }
+
+    /**
+     * Test kit rows in row_index order for display.
+     *
+     * @return array<int, array{id: int, row_index: int}>
+     */
+    public function getOrderedTestKitRowsProperty(): array
+    {
+        if (empty($this->testKitRows)) {
+            return [];
+        }
+        $out = [];
+        foreach ($this->testKitRows as $id => $meta) {
+            $out[] = ['id' => (int) $id, 'row_index' => (int) ($meta['row_index'] ?? 0)];
+        }
+        usort($out, fn($a, $b) => $a['row_index'] <=> $b['row_index']);
+
+        return $out;
+    }
+
+    public function addTestKitRow(): void
+    {
+        if (!$this->selectedWorksheetId) {
+            return;
+        }
+        $maxIndex = ProcedureTestKitRow::where('procedure_worksheet_id', $this->selectedWorksheetId)->max('row_index') ?? 0;
+        $newRow = ProcedureTestKitRow::create([
+            'procedure_worksheet_id' => $this->selectedWorksheetId,
+            'row_index' => $maxIndex + 1,
+        ]);
+        $this->testKitRows[$newRow->id] = ['row_index' => $newRow->row_index];
+        $columns = $this->getTestKitColumnsProperty();
+        $this->testKitData[$newRow->id] = [];
+        foreach ($columns as $col) {
+            $this->testKitData[$newRow->id][$col->id] = '';
+        }
+    }
+
+    public function removeTestKitRow(int $rowId): void
+    {
+        unset($this->testKitRows[$rowId], $this->testKitData[$rowId]);
+        ProcedureTestKitValue::where('procedure_test_kit_row_id', $rowId)->delete();
+        ProcedureTestKitRow::where('id', $rowId)->delete();
+    }
+
+    /**
+     * Get options for dataset-type config fields. Returns a collection of objects with id and label.
+     * Sample types are limited to the batch's sample type; methods to those used in selected samples' captured results.
+     */
+    public function getDatasetOptions(string $modelTiedTo, ?ProcedureConfigField $field = null): Collection
+    {
+        $samples = $this->analysisSamples;
+        $selectedSamplesFilter = $this->selectedSamples;
+        $filteredSamples = $samples->filter(fn($r) => $r->sample && in_array($r->sample->id, $selectedSamplesFilter))->values();
+        if ($filteredSamples->isEmpty()) {
+            $filteredSamples = $samples;
+        }
+
+        return match ($modelTiedTo) {
+            'users' => User::where('active', 1)
+                ->orderBy('name')
+                ->get()
+                ->map(fn($u) => (object) ['id' => (string) $u->id, 'label' => $u->name ?: $u->email]),
+            'sample_details' => $this->getSampleDetailsDatasetOptions($samples),
+            'sample_types' => $this->getSampleTypesDatasetOptionsForBatch(),
+            'methods' => $this->getMethodsDatasetOptionsForSelectedSamples($filteredSamples),
+            'captured_results' => $this->getCapturedResultsDatasetOptions($samples),
+            'report_formats' => ReportFormat::active()
+                ->orderBy('report_name')
+                ->get()
+                ->map(fn($r) => (object) ['id' => (string) $r->id, 'label' => $r->report_name ?: $r->report_code]),
+            default => collect(),
+        };
+    }
+
+    /**
+     * Sample types used in this batch (batch has one sample type; return that one so the list is short).
+     */
+    protected function getSampleTypesDatasetOptionsForBatch(): Collection
+    {
+        $header = SampleHeader::find($this->batchId);
+        if (! $header || ! $header->sample_type_id) {
+            return collect();
+        }
+        $type = SampleType::find($header->sample_type_id);
+
+        return $type ? collect([(object) ['id' => (string) $type->id, 'label' => $type->name]]) : collect();
+    }
+
+    /**
+     * Methods used in the captured results for the (selected) samples.
+     */
+    protected function getMethodsDatasetOptionsForSelectedSamples(Collection $samples): Collection
+    {
+        // Derive methods via analytes, since analytes carry method IDs (possibly comma-separated).
+        $analyteIds = $samples->pluck('analyte_id')->filter()->unique()->values();
+        if ($analyteIds->isEmpty()) {
+            return collect();
+        }
+
+        $analytes = Analyte::whereIn('id', $analyteIds)->get(['id', 'method']);
+
+        $methodIds = collect();
+        foreach ($analytes as $analyte) {
+            if (! $analyte->method) {
+                continue;
+            }
+
+            $ids = collect(explode(',', (string) $analyte->method))
+                ->map(fn($v) => trim($v))
+                ->filter(fn($v) => $v !== '');
+
+            $methodIds = $methodIds->merge($ids);
+        }
+
+        $methodIds = $methodIds->unique()->values();
+
+        if ($methodIds->isEmpty()) {
+            return collect();
+        }
+
+        return AnalysisMethod::whereIn('id', $methodIds)
+            ->orderBy('name')
+            ->get()
+            ->map(fn($m) => (object) ['id' => (string) $m->id, 'label' => $m->name]);
+    }
+
+    protected function getSampleDetailsDatasetOptions(Collection $analysisSamples): Collection
+    {
+        $sampleDetailIds = $analysisSamples->pluck('sample_detail_id')->filter()->unique()->values();
+        if ($sampleDetailIds->isEmpty()) {
+            return collect();
+        }
+        return SampleDetails::whereIn('id', $sampleDetailIds)
+            ->orderBy('sample_code')
+            ->get()
+            ->map(fn($s) => (object) ['id' => (string) $s->id, 'label' => $s->sample_code ?? (string) $s->id]);
+    }
+
+    protected function getCapturedResultsDatasetOptions(Collection $analysisSamples): Collection
+    {
+        return $analysisSamples->map(function ($cr) {
+            $sampleCode = $cr->sample ? $cr->sample->sample_code : '—';
+            $analyteName = $cr->my_analyte ? $cr->my_analyte->name : '—';
+            return (object) ['id' => (string) $cr->id, 'label' => $sampleCode . ' – ' . $analyteName];
+        })->values();
+    }
+
+    /**
+     * Get the current worksheet model for document control display.
+     */
+    public function getSelectedWorksheetProperty(): ?ProcedureWorksheet
+    {
+        if (!$this->selectedWorksheetId) {
+            return null;
+        }
+        return ProcedureWorksheet::find($this->selectedWorksheetId);
     }
 
     /**
@@ -362,7 +592,7 @@ class ProcedureWorksheetManager extends Component
         $id = (int) $id;
         $this->externalSelectionItems = array_values(array_filter(
             $this->externalSelectionItems,
-            fn ($item) => (int) $item['id'] !== $id
+            fn($item) => (int) $item['id'] !== $id
         ));
     }
 
@@ -375,7 +605,7 @@ class ProcedureWorksheetManager extends Component
             return;
         }
 
-        $ids = array_map(fn ($item) => (int) $item['id'], $this->externalSelectionItems);
+        $ids = array_map(fn($item) => (int) $item['id'], $this->externalSelectionItems);
         $this->externalCapturedResultIds = array_values(array_unique(array_merge(
             $this->externalCapturedResultIds,
             $ids
@@ -395,14 +625,46 @@ class ProcedureWorksheetManager extends Component
             'testKitColumns' => $this->getTestKitColumnsProperty(),
         ]);
     }
-    
+
     public function save()
     {
         $this->validate([
             'inputValues.*.*' => 'nullable|string',
-            'configFieldValues.*.*' => 'nullable|string',
+            'configFieldValues.*.*' => 'nullable', // string or array (for dataset_multiselect)
             'testKitData.*.*' => 'nullable|string',
         ]);
+
+        // When multiple samples are selected, one shared value applies to all: copy first result's values to the rest
+        $selectedIds = $this->getSelectedCapturedResultIds();
+        if (count($selectedIds) > 1) {
+            $firstId = (int) $selectedIds[0];
+            foreach ($this->getStepsProperty() as $step) {
+                $value = $this->inputValues[$firstId][$step->id] ?? '';
+                foreach ($selectedIds as $id) {
+                    $id = (int) $id;
+                    if ($id === $firstId) {
+                        continue;
+                    }
+                    if (! isset($this->inputValues[$id])) {
+                        $this->inputValues[$id] = [];
+                    }
+                    $this->inputValues[$id][$step->id] = $value;
+                }
+            }
+            foreach ($this->getConfigFieldsProperty() as $field) {
+                $value = $this->configFieldValues[$firstId][$field->id] ?? '';
+                foreach ($selectedIds as $id) {
+                    $id = (int) $id;
+                    if ($id === $firstId) {
+                        continue;
+                    }
+                    if (! isset($this->configFieldValues[$id])) {
+                        $this->configFieldValues[$id] = [];
+                    }
+                    $this->configFieldValues[$id][$field->id] = $value;
+                }
+            }
+        }
 
         foreach ($this->inputValues as $capturedResultId => $steps) {
             if (! is_array($steps)) {
@@ -430,6 +692,7 @@ class ProcedureWorksheetManager extends Component
             $capturedResultId = (int) $capturedResultId;
             foreach ($fields as $fieldId => $value) {
                 $fieldId = (int) $fieldId;
+                $valueToStore = is_array($value) ? implode(',', $value) : ($value ?? '');
                 CapturedProcedureConfigValue::updateOrCreate(
                     [
                         'captured_result_id' => $capturedResultId,
@@ -437,7 +700,7 @@ class ProcedureWorksheetManager extends Component
                         'procedure_config_field_id' => $fieldId,
                     ],
                     [
-                        'value' => $value ?? '',
+                        'value' => $valueToStore,
                     ]
                 );
             }
@@ -472,6 +735,136 @@ class ProcedureWorksheetManager extends Component
             }
         }
 
-        session()->flash('message', 'Worksheet values saved successfully.');
+        $this->flashType = 'success';
+        $this->flashMessage = 'Worksheet values saved successfully.';
+    }
+
+    /**
+     * Post results for the current procedure worksheet:
+     * - Set analyst (operator) and method on captured results from shared config fields.
+     * - Persist captured results (which triggers TAT creation/updates via CapturedObserver).
+     * - Generate a Procedure Worksheet PDF and store it as a batch attachment.
+     */
+    public function postResults(): void
+    {
+        if (! $this->activeTab || ! $this->selectedWorksheetId) {
+            $this->flashType = 'warning';
+            $this->flashMessage = 'Select a parameter and procedure worksheet before posting results.';
+            return;
+        }
+
+        $selectedIds = $this->getSelectedCapturedResultIds();
+        if (empty($selectedIds)) {
+            $this->flashType = 'warning';
+            $this->flashMessage = 'Select at least one sample before posting results.';
+            return;
+        }
+
+        $configFields = $this->getConfigFieldsProperty();
+        $firstId = (int) $selectedIds[0];
+
+        // Resolve analyst and method config fields (if configured on this worksheet)
+        $analystField = $configFields->first(function (ProcedureConfigField $field) {
+            return $field->model_tied_to === 'users';
+        });
+
+        $methodField = $configFields->first(function (ProcedureConfigField $field) {
+            return $field->model_tied_to === 'methods';
+        });
+
+        $analystId = null;
+        if ($analystField) {
+            $analystValue = $this->configFieldValues[$firstId][$analystField->id] ?? null;
+            // Dataset fields store a single scalar value; multiselect would store array.
+            if (is_array($analystValue)) {
+                $analystId = count($analystValue) > 0 ? (int) $analystValue[0] : null;
+            } elseif ($analystValue !== null && $analystValue !== '') {
+                $analystId = (int) $analystValue;
+            }
+        }
+
+        $methodId = null;
+        if ($methodField) {
+            $methodValue = $this->configFieldValues[$firstId][$methodField->id] ?? null;
+            if (is_array($methodValue)) {
+                $methodId = count($methodValue) > 0 ? (int) $methodValue[0] : null;
+            } elseif ($methodValue !== null && $methodValue !== '') {
+                $methodId = (int) $methodValue;
+            }
+        }
+
+        if (! $analystId && ! $methodId) {
+            // Nothing to update; avoid touching captured results.
+            $this->flashType = 'warning';
+            $this->flashMessage = 'No analyst or method selected for this procedure worksheet.';
+            return;
+        }
+
+        DB::beginTransaction();
+
+        try {
+            // Update captured results for the selected samples / analyte / worksheet.
+            $capturedResults = CapturedResult::whereIn('id', $selectedIds)->get();
+
+            foreach ($capturedResults as $captured) {
+                if ($analystId) {
+                    $captured->operator_id = $analystId;
+                }
+
+                if ($methodId) {
+                    $captured->method_id = $methodId;
+                }
+
+                // Saving will trigger CapturedObserver::updated(), which handles TAT.
+                $captured->save();
+            }
+
+            // Attach Procedure Worksheet PDF to the batch, if possible.
+            $batch = SampleHeader::find($this->batchId);
+            $worksheet = $this->getSelectedWorksheetProperty();
+
+            if ($batch && $worksheet) {
+                $attachmentTypeId = SystemConfiguration::where('key', 'attachment_type')
+                    ->whereRaw('LOWER(value) = ?', ['procedure worksheet'])
+                    ->value('id');
+
+                if ($attachmentTypeId) {
+                    /** @var ProcedureWorksheetPdfService $service */
+                    $service = app(ProcedureWorksheetPdfService::class);
+
+                    $service->attachProcedureWorksheetPdfToBatch(
+                        $worksheet,
+                        $batch,
+                        $capturedResults,
+                        $this->getStepsProperty(),
+                        $this->getConfigFieldsProperty(),
+                        $this->inputValues,
+                        $this->configFieldValues,
+                        (int) $attachmentTypeId
+                    );
+                } else {
+                    Log::warning('ProcedureWorksheet: attachment type "Procedure Worksheet" not found; skipping PDF attachment.', [
+                        'batch_id' => $this->batchId,
+                        'worksheet_id' => $this->selectedWorksheetId,
+                    ]);
+                }
+            }
+
+            DB::commit();
+
+            $this->flashType = 'success';
+            $this->flashMessage = 'Procedure worksheet results posted successfully.';
+        } catch (\Throwable $e) {
+            DB::rollBack();
+
+            Log::error('Error posting procedure worksheet results', [
+                'batch_id' => $this->batchId,
+                'worksheet_id' => $this->selectedWorksheetId,
+                'error' => $e->getMessage(),
+            ]);
+
+            $this->flashType = 'error';
+            $this->flashMessage = 'Error posting procedure worksheet results: ' . $e->getMessage();
+        }
     }
 }

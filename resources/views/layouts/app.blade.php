@@ -10,7 +10,7 @@
     <meta name="csrf-token" content="{{ csrf_token() }}">
 
     @yield('title')
-    
+
     @livewireStyles
 
     <!-- Scripts -->
@@ -436,8 +436,10 @@
 
         /* Adjust main content for fixed sidebar */
         #main-container-body {
-            margin-left: 265px; /* Sidebar width when expanded */
-            width: calc(100% - 265px); /* Calculate remaining width */
+            margin-left: 265px;
+            /* Sidebar width when expanded */
+            width: calc(100% - 265px);
+            /* Calculate remaining width */
             transition: margin-left 0.3s ease, width 0.3s ease;
             overflow-x: hidden;
         }
@@ -453,8 +455,8 @@
         #sidebar-container {
             position: fixed;
             top: 56px;
-			min-width: 265px;
-			max-width: 265px;
+            min-width: 265px;
+            max-width: 265px;
             left: 0;
             height: calc(100vh - 56px);
             /* 56px is the navbar height */
@@ -587,25 +589,25 @@
             }
         }
 
-         /* Submenu item - Enhanced Modern Styling */
-         #sidebar-container .list-group .sidebar-submenu a {
-             height: 42px;
-             margin: 2px 0 2px 20px;
-             border-radius: 12px;
-             background: linear-gradient(135deg, rgba(255, 255, 255, 0.08) 0%, rgba(255, 255, 255, 0.03) 100%);
-             border: 1px solid rgba(255, 255, 255, 0.1);
-             box-shadow: inset 0 1px 2px rgba(255, 255, 255, 0.05),
-                 inset 0 -1px 2px rgba(0, 0, 0, 0.1),
-                 0 2px 4px rgba(0, 0, 0, 0.1);
-             transition: all 0.3s ease;
-             position: relative;
-             overflow: hidden;
-             backdrop-filter: blur(5px);
-             -webkit-backdrop-filter: blur(5px);
-             display: flex;
-             align-items: center;
-             justify-content: space-between;
-         }
+        /* Submenu item - Enhanced Modern Styling */
+        #sidebar-container .list-group .sidebar-submenu a {
+            height: 42px;
+            margin: 2px 0 2px 20px;
+            border-radius: 12px;
+            background: linear-gradient(135deg, rgba(255, 255, 255, 0.08) 0%, rgba(255, 255, 255, 0.03) 100%);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            box-shadow: inset 0 1px 2px rgba(255, 255, 255, 0.05),
+                inset 0 -1px 2px rgba(0, 0, 0, 0.1),
+                0 2px 4px rgba(0, 0, 0, 0.1);
+            transition: all 0.3s ease;
+            position: relative;
+            overflow: hidden;
+            backdrop-filter: blur(5px);
+            -webkit-backdrop-filter: blur(5px);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
 
         #sidebar-container .list-group .sidebar-submenu a::before {
             content: '';
@@ -631,24 +633,24 @@
             transition: all 0.3s ease;
         }
 
-         #sidebar-container .list-group .sidebar-submenu a:hover {
-             background: linear-gradient(135deg, rgba(74, 144, 226, 0.06) 0%, rgba(80, 227, 194, 0.03) 100%);
-             transform: translateX(1px);
-             box-shadow: inset 0 1px 2px rgba(255, 255, 255, 0.06),
-                 inset 0 -1px 2px rgba(0, 0, 0, 0.06),
-                 0 1px 3px rgba(74, 144, 226, 0.1);
-             border-color: rgba(74, 144, 226, 0.15);
-         }
+        #sidebar-container .list-group .sidebar-submenu a:hover {
+            background: linear-gradient(135deg, rgba(74, 144, 226, 0.06) 0%, rgba(80, 227, 194, 0.03) 100%);
+            transform: translateX(1px);
+            box-shadow: inset 0 1px 2px rgba(255, 255, 255, 0.06),
+                inset 0 -1px 2px rgba(0, 0, 0, 0.06),
+                0 1px 3px rgba(74, 144, 226, 0.1);
+            border-color: rgba(74, 144, 226, 0.15);
+        }
 
         #sidebar-container .list-group .sidebar-submenu a:hover::before {
             left: 100%;
         }
 
-         #sidebar-container .list-group .sidebar-submenu a:hover::after {
-             height: 30%;
-             background: linear-gradient(135deg, #4a90e2, #50e3c2);
-             box-shadow: 0 0 2px rgba(74, 144, 226, 0.2);
-         }
+        #sidebar-container .list-group .sidebar-submenu a:hover::after {
+            height: 30%;
+            background: linear-gradient(135deg, #4a90e2, #50e3c2);
+            box-shadow: 0 0 2px rgba(74, 144, 226, 0.2);
+        }
 
         #sidebar-container .list-group .sidebar-submenu a.active {
             background: linear-gradient(135deg, rgba(74, 144, 226, 0.18) 0%, rgba(80, 227, 194, 0.12) 100%);
@@ -685,12 +687,12 @@
             box-shadow: 0 0 12px rgba(74, 144, 226, 0.6);
         }
 
-         #sidebar-container .list-group .sidebar-submenu a:hover .mdi {
-             transform: scale(1.02);
-             opacity: 1;
-             text-shadow: 0 0 3px rgba(74, 144, 226, 0.2);
-             color: #4a90e2;
-         }
+        #sidebar-container .list-group .sidebar-submenu a:hover .mdi {
+            transform: scale(1.02);
+            opacity: 1;
+            text-shadow: 0 0 3px rgba(74, 144, 226, 0.2);
+            color: #4a90e2;
+        }
 
         #sidebar-container .list-group .sidebar-submenu a.active .mdi {
             transform: scale(1.2) rotate(0deg);
@@ -699,11 +701,11 @@
             color: #4a90e2;
         }
 
-         #sidebar-container .list-group .sidebar-submenu a:hover span {
-             text-shadow: 0 0 2px rgba(74, 144, 226, 0.1);
-             color: #4a90e2;
-             font-weight: 500;
-         }
+        #sidebar-container .list-group .sidebar-submenu a:hover span {
+            text-shadow: 0 0 2px rgba(74, 144, 226, 0.1);
+            color: #4a90e2;
+            font-weight: 500;
+        }
 
         #sidebar-container .list-group .sidebar-submenu a.active span {
             text-shadow: 0 0 10px rgba(74, 144, 226, 0.5);
@@ -716,22 +718,22 @@
             margin: 4px 0;
         }
 
-         /* Badge styling for submenu items - Right-aligned element */
-         #sidebar-container .list-group .sidebar-submenu a .badge,
-         #sidebar-container .list-group .sidebar-submenu a .floating-badge {
-             margin-left: auto;
-             margin-right: 15px;
-             flex-shrink: 0;
-             font-size: 0.7rem;
-             padding: 2px 6px;
-             border-radius: 10px;
-             font-weight: 500;
-             display: flex;
-             align-items: center;
-             justify-content: center;
-             min-width: 20px;
-             height: 18px;
-         }
+        /* Badge styling for submenu items - Right-aligned element */
+        #sidebar-container .list-group .sidebar-submenu a .badge,
+        #sidebar-container .list-group .sidebar-submenu a .floating-badge {
+            margin-left: auto;
+            margin-right: 15px;
+            flex-shrink: 0;
+            font-size: 0.7rem;
+            padding: 2px 6px;
+            border-radius: 10px;
+            font-weight: 500;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            min-width: 20px;
+            height: 18px;
+        }
 
         .form-control {
             font-size: 0.8rem !important;
@@ -1657,23 +1659,23 @@
     </style>
 
     @if (isset($dataTable))
-        {{-- <link rel="stylesheet" type="text/css" href="https://cdn.datatables.net/v/dt/dt-1.10.23/datatables.min.css"/> --}}
-        <link rel="stylesheet" href="/assets/css/datatable/datatable.min.css">
+    {{-- <link rel="stylesheet" type="text/css" href="https://cdn.datatables.net/v/dt/dt-1.10.23/datatables.min.css"/> --}}
+    <link rel="stylesheet" href="/assets/css/datatable/datatable.min.css">
 
-        {{-- <link href="https://cdn.datatables.net/buttons/1.2.4/css/buttons.dataTables.min.css" rel="stylesheet"> --}}
-        <link rel="stylesheet" href="/assets/css/datatable/button.datatable1.2.4.min.css">
+    {{-- <link href="https://cdn.datatables.net/buttons/1.2.4/css/buttons.dataTables.min.css" rel="stylesheet"> --}}
+    <link rel="stylesheet" href="/assets/css/datatable/button.datatable1.2.4.min.css">
     @endif
     @if (isset($select2))
-        <link type="text/css" rel="stylesheet" href="/select2/select2.min.css" />
+    <link type="text/css" rel="stylesheet" href="/select2/select2.min.css" />
     @endif
     @if (isset($datePicker))
-        {{-- <link type="text/css" rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/bootstrap-datepicker/1.9.0/css/bootstrap-datepicker.css" /> --}}
-        <link rel="stylesheet" href="/assets/css/bootstrap-datepicker/bootstrap-datepicker.min.css">
+    {{-- <link type="text/css" rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/bootstrap-datepicker/1.9.0/css/bootstrap-datepicker.css" /> --}}
+    <link rel="stylesheet" href="/assets/css/bootstrap-datepicker/bootstrap-datepicker.min.css">
     @endif
     <?php
-    
+
     use Illuminate\Support\Facades\Auth;
-    
+
     $thePath = request()->path();
     $PageAttachments = getPageAttachments($thePath);
     $current = Auth::user()->id;
@@ -1719,76 +1721,76 @@
                 <ul class="navbar-nav ml-auto">
                     <!-- Authentication Links -->
                     @guest
-                        <li class="nav-item">
-                            <a class="nav-link" href="{{ route('login') }}">{{ __('Login') }}</a>
-                        </li>
-                        @if (Route::has('register'))
-                            <li class="nav-item">
-                                <a class="nav-link" href="{{ route('register') }}">{{ __('Register') }}</a>
-                            </li>
-                        @endif
+                    <li class="nav-item">
+                        <a class="nav-link" href="{{ route('login') }}">{{ __('Login') }}</a>
+                    </li>
+                    @if (Route::has('register'))
+                    <li class="nav-item">
+                        <a class="nav-link" href="{{ route('register') }}">{{ __('Register') }}</a>
+                    </li>
+                    @endif
                     @else
-                        @yield('alerts')
-                        <li class="nav-item dropdown">
-                            <a id="navbarDropdown" class="nav-link dropdown-toggle" href="#" role="button"
-                                data-toggle="dropdown" aria-haspopup="true" aria-expanded="false" v-pre>
-                                <img src="https://ui-avatars.com/api/?name={{ urlencode(Auth::user()->name) }}&color=7F9CF5&background=EBF4FF"
-                                    alt="{{ Auth::user()->name }}" class="user-avatar">
-                                {{ Auth::user()->name }} <span class="caret"></span>
+                    @yield('alerts')
+                    <li class="nav-item dropdown">
+                        <a id="navbarDropdown" class="nav-link dropdown-toggle" href="#" role="button"
+                            data-toggle="dropdown" aria-haspopup="true" aria-expanded="false" v-pre>
+                            <img src="https://ui-avatars.com/api/?name={{ urlencode(Auth::user()->name) }}&color=7F9CF5&background=EBF4FF"
+                                alt="{{ Auth::user()->name }}" class="user-avatar">
+                            {{ Auth::user()->name }} <span class="caret"></span>
+                        </a>
+                        <div class="dropdown-menu dropdown-menu-right" aria-labelledby="dropdownMenuButton"
+                            style="width: 230px">
+                            @if (Auth::user()->is_client == 0 && Auth::user()->supplier_id == 0)
+                            <a class="dropdown-item" href="{{ route('user_profile') }}"><i
+                                    class="mdi mdi-account-details text-primary"></i> &nbsp;&nbsp;My Profile</a>
+                            @endif
+                            @if (isset(Auth::user()->company_id) && Auth::user()->company_id == 0)
+                            <a class="dropdown-item" href="#" data-target="#select-default-company"
+                                data-toggle="modal"><i class="mdi mdi-domain text-info"></i> &nbsp;&nbsp;Select
+                                Default Company</a>
+                            @endif
+                            <a class="dropdown-item" href="http://127.0.0.1:8000/logout"
+                                onclick="event.preventDefault(); document.getElementById('logout-form').submit();">
+                                <i class="text-danger mdi mdi-power"></i> &nbsp;&nbsp;Sign-Out
                             </a>
-                            <div class="dropdown-menu dropdown-menu-right" aria-labelledby="dropdownMenuButton"
-                                style="width: 230px">
-                                @if (Auth::user()->is_client == 0 && Auth::user()->supplier_id == 0)
-                                    <a class="dropdown-item" href="{{ route('user_profile') }}"><i
-                                            class="mdi mdi-account-details text-primary"></i> &nbsp;&nbsp;My Profile</a>
+                            <form id="logout-form" action="{{ route('mylogout') }}" method="POST"
+                                style="display: none;">
+                                @csrf
+                            </form>
+                        </div>
+                    </li>
+                    <li class="nav-item">
+                        <span data-target="#attachments-on-this-page-modal" data-toggle="modal" class="nav-link"
+                            href="#page-attachments"
+                            style="cursor:pointer; font-size: 22px; margin-top: -4px !important">
+                            <b class="has-floating-badge">
+                                <i class="mdi mdi-paperclip fa-1x"></i>
+                                @if ($PageAttachments->count() > 0)
+                                <small class="floating-badge">{{ $PageAttachments->count() }}</small>
                                 @endif
-                                @if (isset(Auth::user()->company_id) && Auth::user()->company_id == 0)
-                                    <a class="dropdown-item" href="#" data-target="#select-default-company"
-                                        data-toggle="modal"><i class="mdi mdi-domain text-info"></i> &nbsp;&nbsp;Select
-                                        Default Company</a>
-                                @endif
-                                <a class="dropdown-item" href="http://127.0.0.1:8000/logout"
-                                    onclick="event.preventDefault(); document.getElementById('logout-form').submit();">
-                                    <i class="text-danger mdi mdi-power"></i> &nbsp;&nbsp;Sign-Out
-                                </a>
-                                <form id="logout-form" action="{{ route('mylogout') }}" method="POST"
-                                    style="display: none;">
-                                    @csrf
-                                </form>
-                            </div>
-                        </li>
-                        <li class="nav-item">
-                            <span data-target="#attachments-on-this-page-modal" data-toggle="modal" class="nav-link"
-                                href="#page-attachments"
-                                style="cursor:pointer; font-size: 22px; margin-top: -4px !important">
-                                <b class="has-floating-badge">
-                                    <i class="mdi mdi-paperclip fa-1x"></i>
-                                    @if ($PageAttachments->count() > 0)
-                                        <small class="floating-badge">{{ $PageAttachments->count() }}</small>
-                                    @endif
-                                </b>
-                            </span>
-                        </li>
-                        @if (Auth::user()->is_client == 0)
-                            <li class="nav-item">
-                                <a class="nav-link" href="{{ route('full-calendar') }}"
-                                    style="cursor:pointer; font-size: 22px; margin-top: -4px !important">
-                                    <i class="mdi mdi-calendar text-primary"></i>
-                                </a>
-                            </li>
-                            {{-- <li class="nav-item">
+                            </b>
+                        </span>
+                    </li>
+                    @if (Auth::user()->is_client == 0)
+                    <li class="nav-item">
+                        <a class="nav-link" href="{{ route('full-calendar') }}"
+                            style="cursor:pointer; font-size: 22px; margin-top: -4px !important">
+                            <i class="mdi mdi-calendar text-primary"></i>
+                        </a>
+                    </li>
+                    {{-- <li class="nav-item">
 							<span data-target="#chat-system" data-toggle="modal" class="nav-link" href="#chat-system" style="cursor:pointer; font-size: 22px; margin-top: -4px !important">
 								<b class="has-floating-badge">
 									<i class="mdi mdi-chat fa-1x text-success"></i>
 										<?php
-          $chat_count = getUserChats();
-          ?>
+                                        $chat_count = getUserChats();
+                                        ?>
 										<small class="floating-badge">{{$chat_count->count()}}</small>
 
-								</b>
-							</span>
-						</li> --}}
-                        @endif
+                    </b>
+                    </span>
+                    </li> --}}
+                    @endif
 
                     @endguest
                 </ul>
@@ -1807,11 +1809,11 @@
                                     <i class="mdi mdi-message-bulleted"
                                         style="font-size: 15px;font-weight:600;color:turquoise"> Imara System</i>
                                     @if (Auth::user()->photo == '')
-                                        <img src="/images/l.jpeg" class="float-right"
-                                            style="border-radius: 50%; height:50px;width:50px" alt="">
+                                    <img src="/images/l.jpeg" class="float-right"
+                                        style="border-radius: 50%; height:50px;width:50px" alt="">
                                     @else
-                                        <img src="{{ Auth::user()->photo }}" class="float-right"
-                                            style="border-radius: 50%; height:50px;width:50px" alt="">
+                                    <img src="{{ Auth::user()->photo }}" class="float-right"
+                                        style="border-radius: 50%; height:50px;width:50px" alt="">
                                     @endif
                                 </h4>
                             </div>
@@ -1823,28 +1825,28 @@
                                     <table class="table table-condensed my-small-text table-hover table-sm">
                                         <tbody>
                                             @foreach ($users as $user)
-                                                <tr>
-                                                    <td class="user-chat" id="{{ $user }}">
-                                                        @if ($user->photo == '')
-                                                            <img src="/images/l.jpeg"
-                                                                style="border-radius: 50%;height:40px;width:40px"
-                                                                alt="">
-                                                        @else
-                                                            <img src="{{ $user->photo }}"
-                                                                style="border-radius: 50%;height:40px;width:40px"
-                                                                alt="">
+                                            <tr>
+                                                <td class="user-chat" id="{{ $user }}">
+                                                    @if ($user->photo == '')
+                                                    <img src="/images/l.jpeg"
+                                                        style="border-radius: 50%;height:40px;width:40px"
+                                                        alt="">
+                                                    @else
+                                                    <img src="{{ $user->photo }}"
+                                                        style="border-radius: 50%;height:40px;width:40px"
+                                                        alt="">
+                                                    @endif
+                                                    {{ $user->name }}
+                                                    <span
+                                                        class="text-small float-right mr-3 has-floating-badge">{!! $user->is_online == 1 ? '<i class="mdi mdi-circle-medium text-success"></i>' : '' !!}
+                                                        @if ($user->chats > 0)
+                                                        <small id="user-chat-count-{{ $user->id }}"
+                                                            class="floating-badge"
+                                                            style="background-color: turquoise;">{{ $user->chats }}</small>
                                                         @endif
-                                                        {{ $user->name }}
-                                                        <span
-                                                            class="text-small float-right mr-3 has-floating-badge">{!! $user->is_online == 1 ? '<i class="mdi mdi-circle-medium text-success"></i>' : '' !!}
-                                                            @if ($user->chats > 0)
-                                                                <small id="user-chat-count-{{ $user->id }}"
-                                                                    class="floating-badge"
-                                                                    style="background-color: turquoise;">{{ $user->chats }}</small>
-                                                            @endif
-                                                        </span>
-                                                    </td>
-                                                </tr>
+                                                    </span>
+                                                </td>
+                                            </tr>
                                             @endforeach
                                         </tbody>
                                     </table>
@@ -1919,33 +1921,33 @@
                             <table
                                 class="table table-sm mt-3 table-condensed table-banded table-hover table-borderless">
                                 @foreach ($PageAttachments as $doc)
-                                    <tr data-href="{{ $doc->file }}" data-toggle="tooltip"
-                                        title="{{ $doc->description }}" class="download-the-document"
-                                        style="cursor: pointer">
-                                        <td class="p-2 text-primary"><i class="mdi mdi-download"></i>
-                                            <small class="text-muted">
-                                                @if (intval($doc->size) > 1000)
-                                                    {{ number_format(intval($doc->size) / 1000, 2) }} KB
-                                                @elseif(intval($doc->size) > 1000000)
-                                                    {{ number_format(intval($doc->size) / 1000000, 2) }} MB
-                                                @else
-                                                    {{ $doc->size }} bytes
-                                                @endif
-                                            </small>
-                                        </td>
-                                        <td class="p-2">{{ $doc->title }}</td>
-                                        <td class="p-2">{{ $doc->mime }}</td>
-                                        <td class="p-2" style="width: 25px">
-                                            <form
-                                                action="{{ route('remove-page-attachment', ['docID' => $doc->id]) }}"
-                                                method="POST">
-                                                @csrf
-                                                <button class="btn-sm btn btn-transparent text-danger">
-                                                    <i class="mdi mdi-delete"></i>
-                                                </button>
-                                            </form>
-                                        </td>
-                                    </tr>
+                                <tr data-href="{{ $doc->file }}" data-toggle="tooltip"
+                                    title="{{ $doc->description }}" class="download-the-document"
+                                    style="cursor: pointer">
+                                    <td class="p-2 text-primary"><i class="mdi mdi-download"></i>
+                                        <small class="text-muted">
+                                            @if (intval($doc->size) > 1000)
+                                            {{ number_format(intval($doc->size) / 1000, 2) }} KB
+                                            @elseif(intval($doc->size) > 1000000)
+                                            {{ number_format(intval($doc->size) / 1000000, 2) }} MB
+                                            @else
+                                            {{ $doc->size }} bytes
+                                            @endif
+                                        </small>
+                                    </td>
+                                    <td class="p-2">{{ $doc->title }}</td>
+                                    <td class="p-2">{{ $doc->mime }}</td>
+                                    <td class="p-2" style="width: 25px">
+                                        <form
+                                            action="{{ route('remove-page-attachment', ['docID' => $doc->id]) }}"
+                                            method="POST">
+                                            @csrf
+                                            <button class="btn-sm btn btn-transparent text-danger">
+                                                <i class="mdi mdi-delete"></i>
+                                            </button>
+                                        </form>
+                                    </td>
+                                </tr>
                                 @endforeach
                             </table>
                         </div>
@@ -2007,18 +2009,18 @@
     }
 </style>
 @if (isset($dataTable) && $dataTable === true)
-    <script src="/assets/js/libs/DataTables/jquery.dataTables.min.js"></script>
-    <script src="/assets/js/libs/DataTables/data.datatables.min.js"></script>
-    <script src="/assets/js/libs/DataTables/datatable.buttons.min.js"></script>
-    <script src="/assets/js/libs/DataTables/button.flash.min.js"></script>
-    <script src="/assets/js/libs/DataTables/jszip.min.js"></script>
-    <script src="/assets/js/libs/DataTables/pdfmake.min.js"></script>
-    <script src="/assets/js/libs/DataTables/vsf_fonts.min.js"></script>
-    <script src="/assets/js/libs/DataTables/buttons.html5.min.js"></script>
-    <script src="/assets/js/libs/DataTables/buttons.print.min.js"></script>
+<script src="/assets/js/libs/DataTables/jquery.dataTables.min.js"></script>
+<script src="/assets/js/libs/DataTables/data.datatables.min.js"></script>
+<script src="/assets/js/libs/DataTables/datatable.buttons.min.js"></script>
+<script src="/assets/js/libs/DataTables/button.flash.min.js"></script>
+<script src="/assets/js/libs/DataTables/jszip.min.js"></script>
+<script src="/assets/js/libs/DataTables/pdfmake.min.js"></script>
+<script src="/assets/js/libs/DataTables/vsf_fonts.min.js"></script>
+<script src="/assets/js/libs/DataTables/buttons.html5.min.js"></script>
+<script src="/assets/js/libs/DataTables/buttons.print.min.js"></script>
 
 
-    {{-- <script type="text/javascript" src="https://cdn.datatables.net/v/dt/dt-1.10.23/datatables.min.js"></script>
+{{-- <script type="text/javascript" src="https://cdn.datatables.net/v/dt/dt-1.10.23/datatables.min.js"></script>
   <script type="text/javascript" src="https://cdn.datatables.net/buttons/1.2.4/js/dataTables.buttons.min.js"></script>
   <script type="text/javascript" src="https://cdn.datatables.net/buttons/1.2.4/js/buttons.flash.min.js"></script>
   <script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/jszip/2.5.0/jszip.min.js"></script>
@@ -2029,12 +2031,12 @@
   <script type="text/javascript" src="https://cdn.datatables.net/buttons/1.2.4/js/buttons.print.min.js"></script> --}}
 @endif
 @if (isset($select2))
-    <script src="/select2/select2.min.js"></script>
+<script src="/select2/select2.min.js"></script>
 @endif
 @if (isset($datePicker))
-    {{-- <script src="https://cdnjs.cloudflare.com/ajax/libs/bootstrap-datepicker/1.9.0/js/bootstrap-datepicker.min.js"></script> --}}
-    <script src="/assets/js/libs/bootstrap-datepicker/datepicker1.9.0.min.js"></script>
-    {{-- <script src="https://cdn.datatables.net/fixedcolumns/4.3.0/js/dataTables.fixedColumns.min.js"></script> --}}
+{{-- <script src="https://cdnjs.cloudflare.com/ajax/libs/bootstrap-datepicker/1.9.0/js/bootstrap-datepicker.min.js"></script> --}}
+<script src="/assets/js/libs/bootstrap-datepicker/datepicker1.9.0.min.js"></script>
+{{-- <script src="https://cdn.datatables.net/fixedcolumns/4.3.0/js/dataTables.fixedColumns.min.js"></script> --}}
 @endif
 <script>
     function userChats(item) {
@@ -2160,13 +2162,22 @@
 
         if ($(window).width() < 760) {
             $('#sidebar-container').addClass('hidden');
-            $('#main-container-body').css({'margin-left': '0', 'width': '100%'});
+            $('#main-container-body').css({
+                'margin-left': '0',
+                'width': '100%'
+            });
         } else {
             // Set initial margin based on sidebar state
             if ($('#sidebar-container').hasClass('sidebar-collapsed')) {
-                $('#main-container-body').css({'margin-left': '0', 'width': '100%'});
+                $('#main-container-body').css({
+                    'margin-left': '0',
+                    'width': '100%'
+                });
             } else {
-                $('#main-container-body').css({'margin-left': '265px', 'width': 'calc(100% - 265px)'});
+                $('#main-container-body').css({
+                    'margin-left': '265px',
+                    'width': 'calc(100% - 265px)'
+                });
             }
         }
 
@@ -2175,20 +2186,32 @@
             if ($('#sidebar-container').hasClass('hidden')) {
                 $('#sidebar-container').removeClass('floating-sidebar');
                 // Remove margin when sidebar is hidden - full width
-                $('#main-container-body').css({'margin-left': '0', 'width': '100%'});
+                $('#main-container-body').css({
+                    'margin-left': '0',
+                    'width': '100%'
+                });
             } else {
                 if ($(window).width() < 760) {
                     $('#sidebar-container').addClass('floating-sidebar').removeClass('d-none');
                     // Remove margin for mobile floating sidebar - sidebar overlays content
-                    $('#main-container-body').css({'margin-left': '0', 'width': '100%'});
+                    $('#main-container-body').css({
+                        'margin-left': '0',
+                        'width': '100%'
+                    });
                 } else {
                     $('#sidebar-container').removeClass('floating-sidebar');
                     // Add margin when sidebar is visible on desktop
                     // Check if sidebar is collapsed or expanded
                     if ($('#sidebar-container').hasClass('sidebar-collapsed')) {
-                        $('#main-container-body').css({'margin-left': '60px', 'width': 'calc(100% - 60px)'});
+                        $('#main-container-body').css({
+                            'margin-left': '60px',
+                            'width': 'calc(100% - 60px)'
+                        });
                     } else {
-                        $('#main-container-body').css({'margin-left': '265px', 'width': 'calc(100% - 265px)'});
+                        $('#main-container-body').css({
+                            'margin-left': '265px',
+                            'width': 'calc(100% - 265px)'
+                        });
                     }
                 }
             }
@@ -2197,15 +2220,27 @@
         // Handle window resize to adjust margin
         $(window).on('resize', function() {
             if ($(window).width() < 760) {
-                $('#main-container-body').css({'margin-left': '0', 'width': '100%'});
+                $('#main-container-body').css({
+                    'margin-left': '0',
+                    'width': '100%'
+                });
             } else {
                 // Set margin based on sidebar state
                 if ($('#sidebar-container').hasClass('hidden')) {
-                    $('#main-container-body').css({'margin-left': '0', 'width': '100%'});
+                    $('#main-container-body').css({
+                        'margin-left': '0',
+                        'width': '100%'
+                    });
                 } else if ($('#sidebar-container').hasClass('sidebar-collapsed')) {
-                    $('#main-container-body').css({'margin-left': '60px', 'width': 'calc(100% - 60px)'});
+                    $('#main-container-body').css({
+                        'margin-left': '60px',
+                        'width': 'calc(100% - 60px)'
+                    });
                 } else {
-                    $('#main-container-body').css({'margin-left': '265px', 'width': 'calc(100% - 265px)'});
+                    $('#main-container-body').css({
+                        'margin-left': '265px',
+                        'width': 'calc(100% - 265px)'
+                    });
                 }
             }
         });
@@ -2242,10 +2277,16 @@
             // Adjust main content margin based on sidebar state
             if ($('#sidebar-container').hasClass('sidebar-collapsed')) {
                 // Sidebar is collapsed (60px) - adjust margin and width
-                $('#main-container-body').css({'margin-left': '60px', 'width': 'calc(100% - 60px)'});
+                $('#main-container-body').css({
+                    'margin-left': '60px',
+                    'width': 'calc(100% - 60px)'
+                });
             } else {
                 // Sidebar is expanded (265px) - add margin and adjust width
-                $('#main-container-body').css({'margin-left': '265px', 'width': 'calc(100% - 265px)'});
+                $('#main-container-body').css({
+                    'margin-left': '265px',
+                    'width': 'calc(100% - 265px)'
+                });
             }
 
             // Treating d-flex/d-none on separators with title
@@ -2268,34 +2309,34 @@
             $("#main-sidebar").addClass('close');
         }
 
-        @if (isset($select2))
-            $('select').not('.hidden').each(function(i, e) {
-                if (!$(e).hasClass('no-select2')) {
-                    $(e).select2({
-                        placeHolder: $(e).attr('placeholder') || $(e).data('placeholder')
-                    });
-
-                    $(e).attr('style', 'width: 100%');
-                }
-            })
-        @endif
-
-        @if (isset($datePicker))
-            $('.datepicker').each(function() {
-                var dF = $(this);
-                var hasMax = $.trim($(this).attr('max')) == "" ? "0" : "";
-                dF.datepicker({
-                    clearBtn: true,
-                    maxDate: $.now(),
-                    format: "yyyy-mm-dd"
+        @if(isset($select2))
+        $('select').not('.hidden').each(function(i, e) {
+            if (!$(e).hasClass('no-select2')) {
+                $(e).select2({
+                    placeHolder: $(e).attr('placeholder') || $(e).data('placeholder')
                 });
-            });
+
+                $(e).attr('style', 'width: 100%');
+            }
+        })
         @endif
 
-        @if (\Session::has('success') || \Session::has('error'))
-            setTimeout(() => {
-                $('#message-section').slideUp(600);
-            }, 10000);
+        @if(isset($datePicker))
+        $('.datepicker').each(function() {
+            var dF = $(this);
+            var hasMax = $.trim($(this).attr('max')) == "" ? "0" : "";
+            dF.datepicker({
+                clearBtn: true,
+                maxDate: $.now(),
+                format: "yyyy-mm-dd"
+            });
+        });
+        @endif
+
+        @if(\Session::has('success') || \Session::has('error'))
+        setTimeout(() => {
+            $('#message-section').slideUp(600);
+        }, 10000);
         @endif
 
         $('#main-body-content').on('click', '#main-sidebar-toggler', function() {
@@ -2309,52 +2350,52 @@
             });
         }
 
-        @if (isset($dataTable) && $dataTable === true)
-            $('.table-responsive .table.table-condensed.table-sm').not('.server-side').not('.livewire-table').each(function(i, e) {
-                var lengthMenu = $(e).data('menutext') ?? [10, 25, 50, 75, 100];
-                var pageTitle = $(document).find('title').text();
-                var fileName = $(e).data('filename') ?? pageTitle;
+        @if(isset($dataTable) && $dataTable === true)
+        $('.table-responsive .table.table-condensed.table-sm').not('.server-side').not('.livewire-table').each(function(i, e) {
+            var lengthMenu = $(e).data('menutext') ?? [10, 25, 50, 75, 100];
+            var pageTitle = $(document).find('title').text();
+            var fileName = $(e).data('filename') ?? pageTitle;
 
-                fileName += '-D{{ getRandomHex() }}';
+            fileName += '-D{{ getRandomHex() }}';
 
-                buttonConfigs = ['copy', {
-                    extend: 'csv',
-                    filename: fileName
-                }, {
-                    extend: 'excelHtml5',
-                    footer: true,
-                    filename: fileName
-                }, {
-                    extend: 'pdf',
-                    filename: fileName
-                }, 'print'];
+            buttonConfigs = ['copy', {
+                extend: 'csv',
+                filename: fileName
+            }, {
+                extend: 'excelHtml5',
+                footer: true,
+                filename: fileName
+            }, {
+                extend: 'pdf',
+                filename: fileName
+            }, 'print'];
 
-                var fixedCols = $(e).data('fixedcls');
-                var $fCOps = {
-                    dom: 'Blfrtip',
-                    buttons: buttonConfigs,
-                    "order": [],
-                    "language": {
-                        // "lengthMenu": lengthMenu,
-                        "search": '<i class="fa fa-search"></i>',
-                        "paginate": {
-                            "previous": '<i class="fa fa-angle-left"></i>',
-                            "next": '<i class="fa fa-angle-right"></i>'
-                        }
+            var fixedCols = $(e).data('fixedcls');
+            var $fCOps = {
+                dom: 'Blfrtip',
+                buttons: buttonConfigs,
+                "order": [],
+                "language": {
+                    // "lengthMenu": lengthMenu,
+                    "search": '<i class="fa fa-search"></i>',
+                    "paginate": {
+                        "previous": '<i class="fa fa-angle-left"></i>',
+                        "next": '<i class="fa fa-angle-right"></i>'
                     }
-                };
-                if (fixedCols == "true" || fixedCols == true) {
-                    //   $fCOps['scrollY'] = 200;
-                    //   $fCOps['scrollX'] = true;
-                    //   $fCOps['scrollCollapse'] = true;
-                    //   $fCOps['scroller'] = true;
-                    //   $fCOps['fixedColumns'] = {
-                    //    left: 2
-                    //   }
-                    // console.log($fCOps);
                 }
-                $(e).DataTable($fCOps);
-            });
+            };
+            if (fixedCols == "true" || fixedCols == true) {
+                //   $fCOps['scrollY'] = 200;
+                //   $fCOps['scrollX'] = true;
+                //   $fCOps['scrollCollapse'] = true;
+                //   $fCOps['scroller'] = true;
+                //   $fCOps['fixedColumns'] = {
+                //    left: 2
+                //   }
+                // console.log($fCOps);
+            }
+            $(e).DataTable($fCOps);
+        });
         @endif
 
         // if($("#main-sidebar").length > 0){
@@ -2366,33 +2407,33 @@
 @yield('script')
 @livewireScripts
 @if (isset(Auth::user()->company_id) && Auth::user()->company_id == 0)
-    <div id="select-default-company" class="modal fade" role="dialog">
-        <div class="modal-dialog">
-            <!-- Modal content-->
-            <form class="modal-content" method="POST" action="{{ route('set-default-company') }}"
-                enctype="multipart/form-data">
-                @csrf
-                <div class="modal-header">
-                    <h4 class="modal-title"><i class="mdi mdi-domain"></i> View System As:</h4>
+<div id="select-default-company" class="modal fade" role="dialog">
+    <div class="modal-dialog">
+        <!-- Modal content-->
+        <form class="modal-content" method="POST" action="{{ route('set-default-company') }}"
+            enctype="multipart/form-data">
+            @csrf
+            <div class="modal-header">
+                <h4 class="modal-title"><i class="mdi mdi-domain"></i> View System As:</h4>
+            </div>
+            <div class="modal-body">
+                <div class="form-group">
+                    <label class="control-label">Select Company</label>
+                    <select class="form-control" name="company_id" required>
+                        <option value="0">As Administrator</option>
+                        @foreach (getCompanies() as $company)
+                        <option value="{{ $company->id }}">{{ $company->name }}</option>
+                        @endforeach
+                    </select>
                 </div>
-                <div class="modal-body">
-                    <div class="form-group">
-                        <label class="control-label">Select Company</label>
-                        <select class="form-control" name="company_id" required>
-                            <option value="0">As Administrator</option>
-                            @foreach (getCompanies() as $company)
-                                <option value="{{ $company->id }}">{{ $company->name }}</option>
-                            @endforeach
-                        </select>
-                    </div>
-                </div>
-                <div class="modal-footer">
-                    <button type="submit" class="btn btn-primary"><i class="mdi mdi-content-save"></i> Save</button>
-                    <button type="button" class="btn btn-default" data-dismiss="modal">Close</button>
-                </div>
-            </form>
-        </div>
+            </div>
+            <div class="modal-footer">
+                <button type="submit" class="btn btn-primary"><i class="mdi mdi-content-save"></i> Save</button>
+                <button type="button" class="btn btn-default" data-dismiss="modal">Close</button>
+            </div>
+        </form>
     </div>
+</div>
 @endif
 
 </html>

@@ -10,10 +10,14 @@ class ProcedureWorksheet extends Model
         'name',
         'description',
         'is_active',
+        'document_control_no',
+        'revision',
+        'issue_date',
     ];
 
     protected $casts = [
         'is_active' => 'boolean',
+        'issue_date' => 'date',
     ];
 
     public function steps()

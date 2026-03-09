@@ -14,11 +14,13 @@ class ReportFormatSection extends Model
         'order',
         'is_visible',
         'custom_title',
+        'settings'
     ];
 
     protected $casts = [
         'is_visible' => 'boolean',
         'order' => 'integer',
+        'settings' => 'array',
     ];
 
     /**

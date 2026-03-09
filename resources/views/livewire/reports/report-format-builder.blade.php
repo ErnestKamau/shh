@@ -107,6 +107,89 @@
                                     <div>
                                         <input type="text" wire:model="sections.{{ $name }}.custom_title" class="form-control form-control-sm" placeholder="Custom Title (Optional)" style="border-radius: 8px;">
                                     </div>
+
+                                    <!-- Dynamic Settings Accordion -->
+                                    @if(in_array($name, ['SampleInfo', 'TestMethods', 'Results', 'Signatures']))
+                                    <div class="mt-3 border rounded p-3 bg-light" style="border-radius: 10px !important;">
+                                        <h6 class="text-muted mb-3"><i class="mdi mdi-cogs"></i> Section Settings</h6>
+
+                                        @if($name == 'SampleInfo')
+                                        <div class="row g-3">
+                                            <div class="col-md-6 mb-2">
+                                                <div class="form-check">
+                                                    <input class="form-check-input" type="checkbox" id="setting_desc_{{ $name }}" wire:model="sections.{{ $name }}.settings.show_sample_desc">
+                                                    <label class="form-check-label small" for="setting_desc_{{ $name }}">Show Sample Description</label>
+                                                </div>
+                                            </div>
+                                            <div class="col-md-6 mb-2">
+                                                <div class="form-check">
+                                                    <input class="form-check-input" type="checkbox" id="setting_report_no_{{ $name }}" wire:model="sections.{{ $name }}.settings.show_report_number">
+                                                    <label class="form-check-label small" for="setting_report_no_{{ $name }}">Show Report Number</label>
+                                                </div>
+                                            </div>
+                                            <div class="col-md-6 mb-2">
+                                                <div class="form-check">
+                                                    <input class="form-check-input" type="checkbox" id="setting_customer_ref_{{ $name }}" wire:model="sections.{{ $name }}.settings.show_customer_reference">
+                                                    <label class="form-check-label small" for="setting_customer_ref_{{ $name }}">Show Customer Reference</label>
+                                                </div>
+                                            </div>
+                                            <div class="col-md-6 mb-2">
+                                                <div class="form-check">
+                                                    <input class="form-check-input" type="checkbox" id="setting_receive_date_{{ $name }}" wire:model="sections.{{ $name }}.settings.show_receiving_date">
+                                                    <label class="form-check-label small" for="setting_receive_date_{{ $name }}">Show Receiving Date</label>
+                                                </div>
+                                            </div>
+                                            <div class="col-md-6 mb-2">
+                                                <div class="form-check">
+                                                    <input class="form-check-input" type="checkbox" id="setting_date_tested_{{ $name }}" wire:model="sections.{{ $name }}.settings.show_date_tested">
+                                                    <label class="form-check-label small" for="setting_date_tested_{{ $name }}">Show Date Tested</label>
+                                                </div>
+                                            </div>
+                                            <div class="col-md-6 mb-2">
+                                                <div class="form-check">
+                                                    <input class="form-check-input" type="checkbox" id="setting_date_sampling_{{ $name }}" wire:model="sections.{{ $name }}.settings.show_date_sampling">
+                                                    <label class="form-check-label small" for="setting_date_sampling_{{ $name }}">Show Date of Sampling</label>
+                                                </div>
+                                            </div>
+                                            <div class="col-md-6 mb-2">
+                                                <div class="form-check">
+                                                    <input class="form-check-input" type="checkbox" id="setting_date_report_{{ $name }}" wire:model="sections.{{ $name }}.settings.show_date_report">
+                                                    <label class="form-check-label small" for="setting_date_report_{{ $name }}">Show Date of Report</label>
+                                                </div>
+                                            </div>
+                                        </div>
+                                        @elseif($name == 'TestMethods')
+                                        <div class="row g-3">
+                                            <div class="col-md-6 mb-2">
+                                                <div class="form-check">
+                                                    <input class="form-check-input" type="checkbox" id="setting_req_tests_{{ $name }}" wire:model="sections.{{ $name }}.settings.show_tests_required">
+                                                    <label class="form-check-label small" for="setting_req_tests_{{ $name }}">Show Tests Required</label>
+                                                </div>
+                                            </div>
+                                            <div class="col-md-6 mb-2">
+                                                <div class="form-check">
+                                                    <input class="form-check-input" type="checkbox" id="setting_methods_{{ $name }}" wire:model="sections.{{ $name }}.settings.show_methods_used">
+                                                    <label class="form-check-label small" for="setting_methods_{{ $name }}">Show Methods Used</label>
+                                                </div>
+                                            </div>
+                                            <div class="col-md-6 mb-2 opacity-50">
+                                                <div class="form-check">
+                                                    <input class="form-check-input" type="checkbox" id="setting_dev_{{ $name }}" wire:model="sections.{{ $name }}.settings.show_deviation" disabled>
+                                                    <label class="form-check-label small" for="setting_dev_{{ $name }}">Show Deviation (Coming Soon)</label>
+                                                </div>
+                                            </div>
+                                        </div>
+                                        @elseif($name == 'Signatures')
+                                        <div class="alert alert-info py-2 small mb-0">
+                                            <i class="mdi mdi-information"></i> Signatories control is currently managed automatically via Workflow Approvals. Check back for format-specific overrides.
+                                        </div>
+                                        @elseif($name == 'Results')
+                                        <div class="alert alert-info py-2 small mb-0">
+                                            <i class="mdi mdi-information"></i> Controlled by the "Results Display Type" Global Option.
+                                        </div>
+                                        @endif
+                                    </div>
+                                    @endif
                                 </div>
                             </div>
                         </li>

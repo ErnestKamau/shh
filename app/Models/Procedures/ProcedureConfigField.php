@@ -41,7 +41,25 @@ class ProcedureConfigField extends Model
             'textarea' => 'Textarea',
             'datetime' => 'Date & Time',
             'date' => 'Date',
+            'dataset' => 'Dataset (select from list)',
+            'dataset_multiselect' => 'Dataset (multi-select)',
+        ];
+    }
+
+    /**
+     * Get the dataset model options for fields of type dataset or dataset_multiselect.
+     *
+     * @return array<string, string>
+     */
+    public static function getDatasetModels(): array
+    {
+        return [
+            'users' => 'Lab Analysts',
+            'sample_details' => 'Sample No.',
+            'sample_types' => 'Sample Types',
+            'methods' => 'Methods',
+            'captured_results' => 'Tests',
+            'report_formats' => 'Report Formats',
         ];
     }
 }
-
