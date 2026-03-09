@@ -59,7 +59,7 @@ class LabAppController extends Controller
     public function remedyDetails($remedyHeaderId)
     {
         $remedyHeader = RemedyHeader::findOrFail($remedyHeaderId);
-        
+
         return view('livewire.layout.lab-app', [
             'componentType' => 'remedy-details',
             'pageTitle' => 'Remedy Details - ' . $remedyHeader->name,
@@ -74,7 +74,7 @@ class LabAppController extends Controller
     public function analysisTypes($sampleTypeId)
     {
         $sampleType = SampleType::findOrFail($sampleTypeId);
-        
+
         return view('livewire.layout.lab-app', [
             'componentType' => 'analysis-types',
             'pageTitle' => 'Analysis Types - ' . $sampleType->name,
@@ -88,7 +88,7 @@ class LabAppController extends Controller
     public function elements($analysisTypeId)
     {
         $analysisType = AnalysisType::with('sample_type')->findOrFail($analysisTypeId);
-        
+
         return view('livewire.layout.lab-app', [
             'componentType' => 'elements',
             'pageTitle' => 'Analysis Elements - ' . $analysisType->name,
@@ -113,7 +113,7 @@ class LabAppController extends Controller
     public function ratingDetails($ratingHeaderId)
     {
         $ratingHeader = RatingHeader::findOrFail($ratingHeaderId);
-        
+
         return view('livewire.layout.lab-app', [
             'componentType' => 'rating-details',
             'pageTitle' => 'Rating Hub - ' . $ratingHeader->name . ' Details',
@@ -141,6 +141,20 @@ class LabAppController extends Controller
         return view('livewire.layout.lab-app', [
             'componentType' => 'standard-manager',
             'pageTitle' => 'Standard Manager'
+        ]);
+    }
+
+    /**
+     * Display the dedicated Report Formats Builder page.
+     */
+    public function reportFormatBuilder($reportFormatId)
+    {
+        $reportFormat = \App\ReportFormat::findOrFail($reportFormatId);
+
+        return view('livewire.layout.lab-app', [
+            'componentType' => 'report-format-builder',
+            'pageTitle' => 'Report Format Builder - ' . $reportFormat->report_name,
+            'reportFormatId' => $reportFormatId
         ]);
     }
 }

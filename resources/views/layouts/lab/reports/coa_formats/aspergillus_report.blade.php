@@ -1,12 +1,13 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
     <meta http-equiv="Content-Type" content="text/html; charset=utf-8">
     <meta charset="UTF-8">
     <title>Microbiology Laboratory Report - Aspergillus</title>
     <style>
         @page {
-            margin-top: 200px;
+            margin-top: 240px;
             margin-bottom: 90px;
             margin-left: 20px;
             margin-right: 20px;
@@ -24,14 +25,13 @@
 
         .header {
             position: fixed;
-            top: -180px;
+            top: -220px;
             left: 0;
             right: 0;
-            height: 160px;
+            height: 215px;
             z-index: 1000;
             background-color: white;
-           
-            padding-bottom: 10px;
+            padding-bottom: 5px;
         }
 
         .footer {
@@ -48,7 +48,7 @@
         .header-info {
             display: table;
             width: 100%;
-            margin: 10px 0;
+            margin: 5px 0;
             font-size: 9px;
         }
 
@@ -71,7 +71,7 @@
             display: table-cell;
             width: 30%;
             vertical-align: top;
-            text-align: left;
+            text-align: right;
             padding-left: 10px;
         }
 
@@ -86,7 +86,7 @@
         }
 
         .company-logo {
-            height: 120px;
+            height: 100px;
             max-width: 100%;
         }
 
@@ -106,7 +106,7 @@
         }
 
         .info-section {
-            
+
             font-size: 10px;
             border: 2px solid #4682B4;
             padding: 10px;
@@ -340,7 +340,7 @@
 
 <body>
     <!-- Header -->
-    <div class="header">        
+    <div class="header">
         <div class="header-info">
             <div class="header-left" style="line-height: 1.5;">
                 <strong>{{ $company->name ?? 'Laboratory Name' }}</strong><br>
@@ -355,19 +355,19 @@
             <div class="header-center">
                 <img src="{{ $report_logo }}" alt="Company Logo" class="company-logo">
             </div>
-            <div class="header-right" style="text-align: right;line-height: 1.2;">
-                <span>FM/QA/051</span><br>
-                <span>Revision 5</span><br>
-                <span>Issue Date: 16/03/2023</span><br><br>
+            <div class="header-right" style="line-height: 1.4;">
+                <span>{{ $document_code ?? 'FM/QA/051' }}</span><br>
+                <span>Revision {{ $revision_number ?? '5' }}</span><br>
+                <span>Issue Date: {{ $issue_date ? date('d/m/Y', strtotime($issue_date)) : '16/03/2023' }}</span><br>
                 <span>Report No: </span> {{ $batch->batch_code }}<br>
                 <span>Customer: </span> {{ $customer->name }}<br>
                 <span>Address: </span> {{ $customer->address ?? 'N/A' }}<br>
                 <span>P.O BOX: </span> {{ $customer->postal_address ?? 'N/A' }}<br>
                 <span>Cell : </span> {{ $customer->telephone1 ?? 'N/A' }}<br>
-                <span>Email: </span> {{ $customer->email ?? 'N/A' }}<br>
+                <span>Email: </span> {{ $customer->email ?? 'N/A' }}
             </div>
         </div>
-        
+
         <div class="report-title">MICROBIOLOGY LABORATORY REPORT - ASPERGILLUS</div>
     </div>
 
@@ -385,14 +385,14 @@
                     </center>
                 </div>
             </div>
-            
-           
+
+
         </div>
     </div>
 
     <!-- Main Content -->
     <div class="main-content" style="margin-top: 0;border-top: 1px solid #4682B4; min-height: calc(100vh - 320px);">
-        
+
         <!-- Sample Information Section -->
         <div class="info-section">
             <div class="three-column">
@@ -401,15 +401,15 @@
                         <div class="info-label">Sample Description:</div>
                         <div class="info-value">
                             @php
-                                $sampleTypeName = 'Feed Sample';
-                                if (isset($samples[0]['sample'])) {
-                                    $firstSample = $samples[0]['sample'];
-                                    if (isset($firstSample->sample_type_name)) {
-                                        $sampleTypeName = $firstSample->sample_type_name;
-                                    } elseif (method_exists($firstSample, 'sampleType') && $firstSample->sampleType) {
-                                        $sampleTypeName = $firstSample->sampleType->name;
-                                    }
-                                }
+                            $sampleTypeName = 'Feed Sample';
+                            if (isset($samples[0]['sample'])) {
+                            $firstSample = $samples[0]['sample'];
+                            if (isset($firstSample->sample_type_name)) {
+                            $sampleTypeName = $firstSample->sample_type_name;
+                            } elseif (method_exists($firstSample, 'sampleType') && $firstSample->sampleType) {
+                            $sampleTypeName = $firstSample->sampleType->name;
+                            }
+                            }
                             @endphp
                             {{ $sampleTypeName }} x {{ count($samples) }}*
                         </div>
@@ -438,10 +438,10 @@
                         <div class="info-label">Date of Reporting:</div>
                         <div class="info-value">{{ $date }}</div>
                     </div>
-                   
+
                 </div>
             </div>
-           
+
         </div>
 
         <!-- Test Method Section -->
@@ -495,66 +495,66 @@
                         <th rowspan="2">Sample ID</th>
                         <th rowspan="2">Areas</th>
                         @foreach($parameters as $parameter)
-                            <th>{{ $parameter->analyte_name ?? $parameter->analyte_code }}</th>
+                        <th>{{ $parameter->analyte_name ?? $parameter->analyte_code }}</th>
                         @endforeach
                         {{-- <th rowspan="2">Reporting Unit</th> --}}
                         <th rowspan="2">Intensity</th>
                     </tr>
                     <tr>
                         @foreach($parameters as $parameter)
-                            <th>({{ $parameter->reporting_unit_id ?? 'CFU/g' }})</th>
+                        <th>({{ $parameter->reporting_unit_id ?? 'CFU/g' }})</th>
                         @endforeach
                     </tr>
                 </thead>
                 <tbody>
                     {{-- Display grouped samples by area --}}
                     @foreach($grouped_samples as $areaName => $areaSamples)
-                        {{-- Area header row --}}
-                        <tr>
-                            <td class="sample-area-header" colspan="{{ 4 + count($parameters) }}">
-                                {{ $areaName }}
-                            </td>
-                        </tr>
-                        
-                        {{-- Samples in this area --}}
-                        @foreach($areaSamples as $sampleData)
-                            <tr>
-                                <td class="sample-id">{{ $sampleData['sample']->sample_code }}</td>
-                                <td class="sample-id">{{ $sampleData['sample']->sample_point ?? 'Sample Point' }}</td>
-                                @foreach($parameters as $parameter)
-                                    @php
-                                        $resultData = $sampleData['results'][$parameter->analyte_code] ?? null;
-                                        $value = $resultData['value'] ?? 'N/A';
-                                        $isPositive = stripos($value, 'positive') !== false || 
-                                                     stripos($value, '+') !== false || 
-                                                     (is_numeric($value) && floatval($value) > 0);
-                                    @endphp
-                                    <td class="{{ $isPositive ? 'failed-result' : '' }}">{{ $value }}</td>
-                                @endforeach
-                                {{-- <td>{{ $parameters->first()->reporting_unit_id ?? 'CFU/g' }}</td> --}}
-                                <td>{{ $sampleData['intensity'] }}</td>
-                            </tr>
+                    {{-- Area header row --}}
+                    <tr>
+                        <td class="sample-area-header" colspan="{{ 4 + count($parameters) }}">
+                            {{ $areaName }}
+                        </td>
+                    </tr>
+
+                    {{-- Samples in this area --}}
+                    @foreach($areaSamples as $sampleData)
+                    <tr>
+                        <td class="sample-id">{{ $sampleData['sample']->sample_code }}</td>
+                        <td class="sample-id">{{ $sampleData['sample']->sample_point ?? 'Sample Point' }}</td>
+                        @foreach($parameters as $parameter)
+                        @php
+                        $resultData = $sampleData['results'][$parameter->analyte_code] ?? null;
+                        $value = $resultData['value'] ?? 'N/A';
+                        $isPositive = stripos($value, 'positive') !== false ||
+                        stripos($value, '+') !== false ||
+                        (is_numeric($value) && floatval($value) > 0);
+                        @endphp
+                        <td class="{{ $isPositive ? 'failed-result' : '' }}">{{ $value }}</td>
                         @endforeach
+                        {{-- <td>{{ $parameters->first()->reporting_unit_id ?? 'CFU/g' }}</td> --}}
+                        <td>{{ $sampleData['intensity'] }}</td>
+                    </tr>
+                    @endforeach
                     @endforeach
 
                     {{-- Display ungrouped samples (no area) --}}
                     @foreach($ungrouped_samples as $sampleData)
-                        <tr>
-                            <td class="sample-id">{{ $sampleData['sample']->sample_code }}</td>
-                            <td class="sample-id">{{ $sampleData['sample']->sample_point_name ?? 'Sample Point' }}</td>
-                            @foreach($parameters as $parameter)
-                                @php
-                                    $resultData = $sampleData['results'][$parameter->analyte_code] ?? null;
-                                    $value = $resultData['value'] ?? 'N/A';
-                                    $isPositive = stripos($value, 'positive') !== false || 
-                                                 stripos($value, '+') !== false || 
-                                                 (is_numeric($value) && floatval($value) > 0);
-                                @endphp
-                                <td class="{{ $isPositive ? 'failed-result' : '' }}">{{ $value }}</td>
-                            @endforeach
-                            {{-- <td>{{ $parameters->first()->reporting_unit_id ?? 'CFU/g' }}</td> --}}
-                            <td>{{ $sampleData['intensity'] }}</td>
-                        </tr>
+                    <tr>
+                        <td class="sample-id">{{ $sampleData['sample']->sample_code }}</td>
+                        <td class="sample-id">{{ $sampleData['sample']->sample_point_name ?? 'Sample Point' }}</td>
+                        @foreach($parameters as $parameter)
+                        @php
+                        $resultData = $sampleData['results'][$parameter->analyte_code] ?? null;
+                        $value = $resultData['value'] ?? 'N/A';
+                        $isPositive = stripos($value, 'positive') !== false ||
+                        stripos($value, '+') !== false ||
+                        (is_numeric($value) && floatval($value) > 0);
+                        @endphp
+                        <td class="{{ $isPositive ? 'failed-result' : '' }}">{{ $value }}</td>
+                        @endforeach
+                        {{-- <td>{{ $parameters->first()->reporting_unit_id ?? 'CFU/g' }}</td> --}}
+                        <td>{{ $sampleData['intensity'] }}</td>
+                    </tr>
                     @endforeach
                 </tbody>
             </table>
@@ -572,7 +572,7 @@
                 <div class="key-description">Moderate intensity growth</div>
             </div>
             <div class="key-item">
-                <div class="key-symbol">+++ :  </div>
+                <div class="key-symbol">+++ : </div>
                 <div class="key-description">High intensity growth</div>
             </div>
             <div class="key-item">
@@ -585,10 +585,10 @@
         <div class="section-title">Interpretation and Comments</div>
         <div class="interpretation-section">
             @if($report_type)
-                <p><strong>Report Type:</strong> {{ $report_type }}</p>
+            <p><strong>Report Type:</strong> {{ $report_type }}</p>
             @endif
             @if($ammendment)
-                <p><strong>Amendment Reason:</strong> {{ $ammendment->reason }}</p>
+            <p><strong>Amendment Reason:</strong> {{ $ammendment->reason }}</p>
             @endif
             <p>This certificate relates only to the samples tested. Results are valid at the time of testing. Samples were analyzed under controlled laboratory conditions.</p>
             <br>
@@ -608,30 +608,30 @@
         @if($batch_approvers->count() > 0)
         <div class="signatures-section">
             @php
-                $approversCount = $batch_approvers->count();
-                $signatureWidth = $approversCount == 1 ? '100%' : '50%';
+            $approversCount = $batch_approvers->count();
+            $signatureWidth = $approversCount == 1 ? '100%' : '50%';
             @endphp
             @foreach($batch_approvers as $index => $approver)
-                <div class="signature-block" style="width: {{ $signatureWidth }};">
-                    <div class="signature-line">
-                        @if($approver->getApproverDetails() && $approver->getApproverDetails()->electronic_sig)
-                            <img src="{{ getCoaApproverSignature($approver->getApproverDetails()->electronic_sig) }}" alt="signature">
-                        @endif
-                    </div>
-                    <div class="signature-title">
-                        @if($index == 0)
-                            Authorised By
-                        @else
-                            Veterinarian
-                        @endif
-                    </div>
+            <div class="signature-block" style="width: {{ $signatureWidth }};">
+                <div class="signature-line">
                     @if($approver->getApproverDetails() && $approver->getApproverDetails()->electronic_sig)
-                        <div class="signature-name">{{ $approver->approvershortname ?? $approver->approvername }}</div>
-                    @else
-                        <div class="signature-name">{{ $approver->approvershortname ?? $approver->approvername }} – Signature</div>
+                    <img src="{{ getCoaApproverSignature($approver->getApproverDetails()->electronic_sig) }}" alt="signature">
                     @endif
-                    <div class="signature-date">{{ date('d/m/Y') }}</div>
                 </div>
+                <div class="signature-title">
+                    @if($index == 0)
+                    Authorised By
+                    @else
+                    Veterinarian
+                    @endif
+                </div>
+                @if($approver->getApproverDetails() && $approver->getApproverDetails()->electronic_sig)
+                <div class="signature-name">{{ $approver->approvershortname ?? $approver->approvername }}</div>
+                @else
+                <div class="signature-name">{{ $approver->approvershortname ?? $approver->approvername }} – Signature</div>
+                @endif
+                <div class="signature-date">{{ date('d/m/Y') }}</div>
+            </div>
             @endforeach
         </div>
         @endif
@@ -657,5 +657,7 @@
         }
     </script>
 </body>
-</html> 
-</html> 
+
+</html>
+
+</html>

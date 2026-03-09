@@ -8,8 +8,8 @@ use App\User;
 
 class SampleAnalysisStage extends Model implements Auditable
 {
-	use \OwenIt\Auditing\Auditable;
-	protected $table = 'sample_analysis_stages';
+  use \OwenIt\Auditing\Auditable;
+  protected $table = 'sample_analysis_stages';
   protected $appends = ['namecode'];
 
   protected $fillable = [
@@ -26,17 +26,21 @@ class SampleAnalysisStage extends Model implements Auditable
     'title',
   ];
 
-  public function sample_analysis_stage(){
+  public function sample_analysis_stage()
+  {
     return $this->hasMany('App\SampleToSampleAnalysisStage');
   }
-  public function getSectionHead(){
+  public function getSectionHead()
+  {
     return User::find($this->section_head_id);
   }
-  public function getLabDetails(){
+  public function getLabDetails()
+  {
     return Lab::find($this->lab_id);
   }
-  public function getNameCodeAttribute(){
-    return $this->code.'-'.$this->name;
+  public function getNameCodeAttribute()
+  {
+    return $this->code . '-' . $this->name;
   }
 
   /**
@@ -46,6 +50,16 @@ class SampleAnalysisStage extends Model implements Auditable
    */
   public function submissionForms()
   {
-      return $this->belongsToMany(Models\SubmissionForm::class, 'submission_form_sample_analysis_stage');
+    return $this->belongsToMany(Models\SubmissionForm::class, 'submission_form_sample_analysis_stage');
+  }
+
+  /**
+   * Get the report format configurations for this lab section.
+   *
+   * @return \Illuminate\Database\Eloquent\Relations\HasMany
+   */
+  public function reportConfigurations()
+  {
+    return $this->hasMany(Models\LabSectionReportConfig::class, 'sample_analysis_stage_id');
   }
 }
