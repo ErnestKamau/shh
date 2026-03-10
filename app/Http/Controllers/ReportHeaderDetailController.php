@@ -32,6 +32,7 @@ use App\User;
 use App\SampleAnalysisDates;
 use App\BatchAmmendment;
 use App\ReportFormat;
+use App\Models\LabSectionReportConfig;
 use SimpleSoftwareIO\QrCode\Facades\QrCode;
 use setasign\Fpdi\TcpdfFpdi;
 use Illuminate\Support\Facades\Log;
@@ -146,6 +147,8 @@ class ReportHeaderDetailController extends Controller
 		$report_logo = $this->resolveImageAsDataUri($this->resolveCompanyLogoPath());
 		$sadc_logo   = $this->resolveImageAsDataUri(public_path('images/sadcas_logo.png'));
 		$ilac_logo   = $this->resolveImageAsDataUri(public_path('images/ilac-logo.png'));
+		// Use the same base64 data URI approach as the main report logo.
+		$accreditation_logo = $this->resolveImageAsDataUri(public_path('images/sadc-ilac.jpeg'));
 		$stamp       = $this->resolveImageAsDataUri(public_path('images/company_logo.png'));
 
 		$batch = SampleHeader::with(['customer'])->find($batch_id);
@@ -189,765 +192,35 @@ class ReportHeaderDetailController extends Controller
 
 		$tempFiles = [];
 
-		// Resolve report format: support legacy 0-3 / water_report or ReportFormat ID (from report_format_sample_analysis_stage)
+		// Resolve report format: First try by ID, then fallback to report_code for legacy support
+		$formatModel = null;
 		$reportCode = null;
-		$legacyMap = [
-			'0' => 'aspergillus_report',
-			0 => 'aspergillus_report',
-			'1' => 'microbiology_report',
-			1 => 'microbiology_report',
-			'2' => 'hygiene_swabs_report',
-			2 => 'hygiene_swabs_report',
-			'3' => 'serology_report',
-			3 => 'serology_report',
-		];
-		if (isset($legacyMap[$report_format])) {
-			$reportCode = $legacyMap[$report_format];
-		} elseif ($report_format === 'water_report' || (string) $report_format === 'water_report') {
+
+		if ($report_format === 'water_report' || (string) $report_format === 'water_report') {
 			$reportCode = 'water_report';
-		} elseif (is_numeric($report_format) && (int) $report_format > 3) {
+		} else {
 			$formatModel = ReportFormat::find((int) $report_format);
-			if (! $formatModel || ! $formatModel->is_active) {
+
+			if (!$formatModel) {
+				// Legacy hardcoded params passed '0', '1', '2', '3' which match these report_codes or specific formats
+				$legacyToCodeMap = [
+					'0' => '0', // Aspergillus
+					'1' => '1', // Microbiology
+					'2' => '2', // Hygiene Swabs
+					'3' => 'SER-COA', // Serology
+				];
+				$searchCode = $legacyToCodeMap[(string)$report_format] ?? (string)$report_format;
+				$formatModel = ReportFormat::where('report_code', $searchCode)->first();
+			}
+
+			if (!$formatModel || !$formatModel->is_active) {
 				abort(404, 'Report format not found or inactive.');
 			}
 			$reportCode = $formatModel->report_code;
-		} else {
-			abort(404, 'Invalid report format.');
 		}
 
-		if ($reportCode === 'aspergillus_report') {
-			// Aspergillus Report format (MB 821/25-3) - Optimized
-
-			// Eager load samples with their sample point area relationship
-			$samples = SamplesCategory::where('sample_header_id', $batch->id)
-				->with('samplePointArea')
-				->get();
-
-			// Get all captured results in one query with joins for efficiency
-			$allCapturedResults = CapturedResult::where('captured_results.sample_header_id', $batch->id)
-				->join('sample_details as sd', 'sd.id', '=', 'captured_results.sample_detail_id')
-				->leftJoin('analysis_methods as am', 'am.id', '=', 'captured_results.method_id')
-				->select(
-					'captured_results.*',
-					'sd.main_standard',
-					'am.name as method_name',
-					'am.code as method_code'
-				)
-				->get();
-
-			$allCapturedResultsCount = $allCapturedResults->count();
-			$isAccreditedCount = $allCapturedResults->where('analyte_accredited', 1)->count();
-
-			// Extract unique parameters efficiently
-			$parameters = $allCapturedResults->unique(function ($item) {
-				return $item->analyte_id;
-			})->map(function ($result) {
-				return (object) [
-					'id' => $result->id,
-					'analyte_id' => $result->analyte_id,
-					'analyte_code' => $result->analyte_code,
-					'analyte_name' => $result->analyte_code, // You may want to add analyte_name to the query
-					'reporting_unit_id' => $result->reporting_unit_id,
-					'main_value' => $result->main_value,
-					'main_standard' => $result->main_standard,
-					'method_id' => $result->method_id,
-					'method_name' => $result->method_name,
-					'method_code' => $result->method_code
-				];
-			})->sortBy('analyte_code')->values();
-
-			// Pre-calculate standards
-			$standards = $parameters->filter(function ($param) {
-				return $param->main_value && $param->main_value !== 'NS';
-			})->pluck('main_value', 'analyte_code')->toArray();
-
-			// Pre-calculate analyte names and methods for method section
-			$analyteNames = $parameters->pluck('analyte_code')->unique()->implode(', ') ?: 'Aspergillus Analysis';
-			$methodNames = $parameters->pluck('method_name')->filter()->unique()->implode(', ') ?:
-				$parameters->pluck('method_code')->filter()->unique()->implode(', ') ?: 'SOP MB 12';
-
-			// Group results by sample for efficient lookup
-			$resultsBySample = $allCapturedResults->groupBy('sample_detail_id');
-
-			// Pre-calculate intensity values using a lookup function
-			$calculateIntensity = function ($value) {
-				if (stripos($value, '+++') !== false || (is_numeric($value) && floatval($value) > 100)) {
-					return '+++';
-				} elseif (stripos($value, '++') !== false || (is_numeric($value) && floatval($value) > 50)) {
-					return '++';
-				} elseif (stripos($value, '+') !== false || (is_numeric($value) && floatval($value) > 0)) {
-					return '+';
-				}
-				return '';
-			};
-
-			// Process samples with optimized loops
-			$samplesData = $samples->map(function ($sample) use ($parameters, $resultsBySample, $calculateIntensity) {
-				$sampleResults = [];
-				$samplePasses = 0;
-				$sampleTotal = 0;
-				$intensity = '';
-
-				$sampleCapturedResults = $resultsBySample->get($sample->id, collect());
-				$resultsByAnalyte = $sampleCapturedResults->keyBy('analyte_id');
-
-				foreach ($parameters as $parameter) {
-					$result = $resultsByAnalyte->get($parameter->analyte_id);
-
-					if ($result) {
-						$value = $result->result;
-						$remark = $result->remark ?? 'Pass';
-
-						$sampleResults[$parameter->analyte_code] = [
-							'value' => $value,
-							'unit' => $result->reporting_unit_id,
-							'remark' => $remark
-						];
-
-						$sampleTotal++;
-						if (strtolower($remark) === 'pass') {
-							$samplePasses++;
-						}
-
-						// Calculate intensity once per sample (not per parameter)
-						if (!$intensity) {
-							$intensity = $calculateIntensity($value);
-						}
-					} else {
-						$sampleResults[$parameter->analyte_code] = [
-							'value' => 'N/A',
-							'unit' => '',
-							'remark' => 'N/A'
-						];
-					}
-				}
-
-				$conformity = ($sampleTotal > 0 && $samplePasses === $sampleTotal) ? 'Pass' : 'Fail';
-
-				return [
-					'sample' => $sample,
-					'results' => $sampleResults,
-					'conformity' => $conformity,
-					'intensity' => $intensity
-				];
-			});
-
-			// Group samples by sample point area efficiently
-			$groupedSamples = $samplesData->filter(function ($sampleData) {
-				return isset($sampleData['sample']->samplePointArea) && $sampleData['sample']->samplePointArea;
-			})->groupBy(function ($sampleData) {
-				return $sampleData['sample']->samplePointArea->name;
-			});
-
-			$ungroupedSamples = $samplesData->filter(function ($sampleData) {
-				return !isset($sampleData['sample']->samplePointArea) || !$sampleData['sample']->samplePointArea;
-			});
-
-			$data = [
-				'batch' => $batch,
-				'customer' => $customer,
-				'company' => $company,
-				'samples' => $samplesData,
-				'parameters' => $parameters,
-				'standards' => $standards,
-				'grouped_samples' => $groupedSamples,
-				'ungrouped_samples' => $ungroupedSamples,
-				'analyte_names' => $analyteNames,
-				'method_names' => $methodNames,
-				'batch_approvers' => $batch_approvers,
-				'analysis_date' => $analysis_date,
-				'report_type' => $report_type,
-				'ammendment' => $ammendment,
-				'disclaimer' => $disclaimer,
-				'qrcode' => $qrcode,
-				'report_logo' => $report_logo,
-				'sadc_logo' => $sadc_logo,
-				'ilac_logo' => $ilac_logo,
-				'stamp' => $stamp,
-				'is_stamp' => $is_stamp,
-				'date' => $date
-			];
-
-			ini_set('max_execution_time', 300); //300 seconds = 5 minutes 
-			$pdf = app('dompdf.wrapper');
-			$pdf->getDomPDF()->set_option("enable_php", true);
-			$pdf->getDomPDF()->set_option("isHtml5ParserEnabled", true);
-			$pdf->getDomPDF()->set_option("isFontSubsettingEnabled", true);
-
-			$pdf = PDF::loadView('layouts.lab.reports.coa_formats.aspergillus_report', $data);
-
-			// Primary storage path (internal reports directory)
-			$tempFile = storage_path() . '/app/reports/' . $customer_name . '/' . $filename;
-			if (!is_dir(storage_path() . '/app/reports/' . $customer_name)) {
-				$path = storage_path() . '/app/reports/' . $customer_name;
-				mkdir($path, 0755, true);
-			}
-			$pdf->save($tempFile);
-			$tempFiles[] = $tempFile;
-
-			// Public storage path for web access via /storage + batch_report_url
-			$batch->batch_report_url = '/reports/' . $customer_name . '/' . $filename;
-			$publicReportPath = storage_path('app/public' . $batch->batch_report_url);
-			$publicDir = dirname($publicReportPath);
-			if (!is_dir($publicDir)) {
-				mkdir($publicDir, 0755, true);
-			}
-			$pdf->save($publicReportPath);
-
-			$batch->save();
-
-			if ($mergeWithAttachments && !empty($attachmentIds)) {
-				$coaPath = storage_path() . '/app/reports/' . $customer_name . '/' . $filename;
-				$mergedContent = $this->mergeCoaWithAttachments($coaPath, $batch, $attachmentIds, $customer_name, $filename);
-
-				// Overwrite internal and public copies with merged content
-				@file_put_contents($coaPath, $mergedContent);
-				$publicPath = storage_path('app/public' . $batch->batch_report_url);
-				if (!is_dir(dirname($publicPath))) {
-					mkdir(dirname($publicPath), 0755, true);
-				}
-				@file_put_contents($publicPath, $mergedContent);
-
-				return response($mergedContent, 200, [
-					'Content-Type' => 'application/pdf',
-				]);
-			}
-
-			return $pdf->stream($filename);
-		}
-
-		if ($reportCode === 'microbiology_report') {
-			// MB826/25 Microbiology Laboratory Report format
-			$samples = SamplesCategory::where('sample_header_id', $batch->id)
-				->with('samplePointArea') // Load the sample point area relationship if it exists
-				->get();
-
-			$standard_codes = implode(',', $samples->pluck('main_standard_code')->unique()->toArray());
-
-			// Get all captured results for this batch
-			$allCapturedResults = CapturedResult::where('sample_header_id', $batch->id)->get();
-			$allCapturedResultsCount = $allCapturedResults->count();
-			$isAccreditedCount = CapturedResult::where('sample_header_id', $batch->id)->where('analyte_accredited', 1)->count();
-
-			// Get unique parameters (analytes) for dynamic column headers
-			$parameters = CapturedResult::where('captured_results.sample_header_id', $batch->id)
-				->select('captured_results.id', 'captured_results.analyte_id', 'captured_results.analyte_code', 'captured_results.reporting_unit_id', 'captured_results.main_value', 'sd.main_standard', 'captured_results.method_id', 'am.name as method_name', 'am.code as method_code')
-				->join('sample_details as sd', 'sd.id', '=', 'captured_results.sample_detail_id')
-				->leftJoin('analysis_methods as am', 'am.id', '=', 'captured_results.method_id')
-				->distinct()
-				->orderBy('analyte_code')
-				->get();
-
-			// Build standards array with optimized logic
-			$standards = [];
-			foreach ($parameters as $parameter) {
-				$standardValue = $this->getParameterStandardValue($parameter);
-				if ($standardValue !== 'NS') {
-					$standards[$parameter->analyte_code] = $standardValue;
-				}
-			}
-
-			// Get all results in a single optimized query
-			$allResults = CapturedResult::where('captured_results.sample_header_id', $batch->id)
-				->select('captured_results.*')
-				->get()
-				->groupBy('sample_detail_id');
-
-			// Process samples with grouped results and sample point areas
-			$groupedSamples = [];
-			$ungroupedSamples = [];
-
-			foreach ($samples as $sample) {
-				$sampleResults = [];
-				$samplePasses = 0;
-				$sampleTotal = 0;
-
-				// Get all results for this sample
-				$sampleResultsData = $allResults->get($sample->id, collect());
-				$resultsByAnalyte = $sampleResultsData->keyBy('analyte_id');
-
-				foreach ($parameters as $parameter) {
-					$result = $resultsByAnalyte->get($parameter->analyte_id);
-
-					if ($result) {
-						$sampleResults[$parameter->analyte_code] = [
-							'value' => $result->result,
-							'unit' => $result->reporting_unit_id,
-							'remark' => $result->remark ?? 'Pass'
-						];
-
-						$sampleTotal++;
-						if (strtolower($result->remark ?? 'pass') === 'pass') {
-							$samplePasses++;
-						}
-					} else {
-						$sampleResults[$parameter->analyte_code] = [
-							'value' => 'N/A',
-							'unit' => '',
-							'remark' => 'N/A'
-						];
-					}
-				}
-
-				// Determine overall conformity for the sample
-				$conformity = ($sampleTotal > 0 && $samplePasses === $sampleTotal) ? 'Pass' : 'Fail';
-
-				$sampleData = [
-					'sample' => $sample,
-					'results' => $sampleResults,
-					'conformity' => $conformity
-				];
-
-				// Group by sample point area
-				$areaId = $sample->sample_point_area_id ?? null;
-				if ($areaId) {
-					$areaName = $sample->samplePointArea->name ?? 'Area ' . $areaId;
-					if (!isset($groupedSamples[$areaName])) {
-						$groupedSamples[$areaName] = [];
-					}
-					$groupedSamples[$areaName][] = $sampleData;
-				} else {
-					$ungroupedSamples[] = $sampleData;
-				}
-			}
-
-			// Get sample type name for the batch
-			$sampleTypeName = 'Water Sample'; // Default
-			if ($samples->count() > 0) {
-				$firstSample = $samples->first();
-				if (isset($firstSample->sample_type_name)) {
-					$sampleTypeName = $firstSample->sample_type_name;
-				} else {
-					// Try to get from sample header relationship
-					$sampleType = \App\SampleType::find($batch->sample_type_id);
-					if ($sampleType) {
-						$sampleTypeName = $sampleType->name;
-					}
-				}
-			}
-
-			$data = [
-				'batch' => $batch,
-				'customer' => $customer,
-				'company' => $company,
-				'grouped_samples' => $groupedSamples,
-				'ungrouped_samples' => $ungroupedSamples,
-				'parameters' => $parameters,
-				'batch_approvers' => $batch_approvers,
-				'analysis_date' => $analysis_date,
-				'report_type' => $report_type,
-				'ammendment' => $ammendment,
-				'disclaimer' => $disclaimer,
-				'qrcode' => $qrcode,
-				'report_logo' => $report_logo,
-				'sadc_logo' => $sadc_logo,
-				'ilac_logo' => $ilac_logo,
-				'stamp' => $stamp,
-				'is_stamp' => $is_stamp,
-				'date' => $date,
-				'standards' => $standards,
-				'standard_codes' => $standard_codes,
-				'sample_type_name' => $sampleTypeName
-			];
-
-			ini_set('max_execution_time', 300); //300 seconds = 5 minutes 
-			$pdf = app('dompdf.wrapper');
-			$pdf->getDomPDF()->set_option("enable_php", true);
-			$pdf->getDomPDF()->set_option("isHtml5ParserEnabled", true);
-			$pdf->getDomPDF()->set_option("isFontSubsettingEnabled", true);
-
-			$pdf = PDF::loadView('layouts.lab.reports.coa_formats.microbiology_report', $data);
-
-			// Primary storage path (internal reports directory)
-			$tempFile = storage_path() . '/app/reports/' . $customer_name . '/' . $filename;
-			if (!is_dir(storage_path() . '/app/reports/' . $customer_name)) {
-				$path = storage_path() . '/app/reports/' . $customer_name;
-				mkdir($path, 0755, true);
-			}
-			$pdf->save($tempFile);
-			$tempFiles[] = $tempFile;
-
-			// Public storage path for web access via /storage + batch_report_url
-			$batch->batch_report_url = '/reports/' . $customer_name . '/' . $filename;
-			$publicReportPath = storage_path('app/public' . $batch->batch_report_url);
-			$publicDir = dirname($publicReportPath);
-			if (!is_dir($publicDir)) {
-				mkdir($publicDir, 0755, true);
-			}
-			$pdf->save($publicReportPath);
-
-			$batch->save();
-
-			if ($mergeWithAttachments && !empty($attachmentIds)) {
-				$coaPath = storage_path() . '/app/reports/' . $customer_name . '/' . $filename;
-				$mergedContent = $this->mergeCoaWithAttachments($coaPath, $batch, $attachmentIds, $customer_name, $filename);
-
-				// Overwrite internal and public copies with merged content
-				@file_put_contents($coaPath, $mergedContent);
-				$publicPath = storage_path('app/public' . $batch->batch_report_url);
-				if (!is_dir(dirname($publicPath))) {
-					mkdir(dirname($publicPath), 0755, true);
-				}
-				@file_put_contents($publicPath, $mergedContent);
-
-				return response($mergedContent, 200, [
-					'Content-Type' => 'application/pdf',
-				]);
-			}
-
-			return $pdf->stream($filename);
-		}
-
-		if ($reportCode === 'hygiene_swabs_report') {
-			// Hygiene Swabs Report format (MB 756/25-2)
-			$samples = SamplesCategory::where('sample_header_id', $batch->id)
-				->with('samplePointArea') // Load the sample point area relationship if it exists
-				->get();
-
-			$standard_codes = implode(',', $samples->pluck('main_standard_code')->unique()->toArray());
-
-			// Get all captured results for this batch
-			$allCapturedResults = CapturedResult::where('sample_header_id', $batch->id)->get();
-			$allCapturedResultsCount = $allCapturedResults->count();
-			$isAccreditedCount = CapturedResult::where('sample_header_id', $batch->id)->where('analyte_accredited', 1)->count();
-
-			// Get unique parameters (analytes) for dynamic column headers
-			$parameters = CapturedResult::where('captured_results.sample_header_id', $batch->id)
-				->select('captured_results.id', 'captured_results.analyte_id', 'captured_results.analyte_code', 'captured_results.reporting_unit_id', 'captured_results.main_value', 'sd.main_standard', 'captured_results.method_id', 'am.name as method_name', 'am.code as method_code')
-				->join('sample_details as sd', 'sd.id', '=', 'captured_results.sample_detail_id')
-				->leftJoin('analysis_methods as am', 'am.id', '=', 'captured_results.method_id')
-				->distinct()
-				->orderBy('analyte_code')
-				->get();
-
-			$standards = [];
-			foreach ($parameters as $parameter) {
-				if ($parameter->main_value && $parameter->main_value !== 'NS') {
-					$standards[$parameter->analyte_code] =  (getStandardLimitValue($parameter->id, $parameter->main_standard, 1) ?? '') .
-						($parameter->main_value == 'NS' ? '--' : ($parameter->main_value ?? '')) . ' ' .
-						(getStandardLimitValue($parameter->id, $parameter->main_standard) ?? '');
-				}
-			}
-
-			// Prepare samples with their results for each parameter
-			$samplesData = [];
-			foreach ($samples as $sample) {
-				$sampleResults = [];
-				$samplePasses = 0;
-				$sampleTotal = 0;
-
-				foreach ($parameters as $parameter) {
-					$result = CapturedResult::where('sample_header_id', $batch->id)
-						->where('sample_detail_id', $sample->id)
-						->where('analyte_id', $parameter->analyte_id)
-						->first();
-
-					if ($result) {
-						$sampleResults[$parameter->analyte_code] = [
-							'value' => $result->result,
-							'unit' => $result->reporting_unit_id,
-							'remark' => $result->remark ?? 'Pass'
-						];
-
-						$sampleTotal++;
-						if (strtolower($result->remark ?? 'pass') === 'pass') {
-							$samplePasses++;
-						}
-					} else {
-						$sampleResults[$parameter->analyte_code] = [
-							'value' => 'N/A',
-							'unit' => '',
-							'remark' => 'N/A'
-						];
-					}
-				}
-
-				// Determine overall conformity for the sample
-				$conformity = ($sampleTotal > 0 && $samplePasses === $sampleTotal) ? 'Pass' : 'Fail';
-
-				$samplesData[] = [
-					'sample' => $sample,
-					'results' => $sampleResults,
-					'conformity' => $conformity
-				];
-			}
-
-			// Get sample type name for the batch
-			$sampleTypeName = 'Hygiene Swabs'; // Default
-			if ($samples->count() > 0) {
-				$firstSample = $samples->first();
-				if (isset($firstSample->sample_type_name)) {
-					$sampleTypeName = $firstSample->sample_type_name;
-				} else {
-					// Try to get from sample header relationship
-					$sampleType = \App\SampleType::find($batch->sample_type_id);
-					if ($sampleType) {
-						$sampleTypeName = $sampleType->name;
-					}
-				}
-			}
-
-			$data = [
-				'batch' => $batch,
-				'customer' => $customer,
-				'company' => $company,
-				'samples' => $samplesData,
-				'parameters' => $parameters,
-				'batch_approvers' => $batch_approvers,
-				'analysis_date' => $analysis_date,
-				'report_type' => $report_type,
-				'ammendment' => $ammendment,
-				'disclaimer' => $disclaimer,
-				'qrcode' => $qrcode,
-				'report_logo' => $report_logo,
-				'sadc_logo' => $sadc_logo,
-				'ilac_logo' => $ilac_logo,
-				'stamp' => $stamp,
-				'is_stamp' => $is_stamp,
-				'date' => $date,
-				'standards' => $standards,
-				'standard_codes' => $standard_codes,
-				'sample_type_name' => $sampleTypeName
-			];
-
-			ini_set('max_execution_time', 300); //300 seconds = 5 minutes 
-			$pdf = app('dompdf.wrapper');
-			$pdf->getDomPDF()->set_option("enable_php", true);
-			$pdf->getDomPDF()->set_option("isHtml5ParserEnabled", true);
-			$pdf->getDomPDF()->set_option("isFontSubsettingEnabled", true);
-
-			$pdf = PDF::loadView('layouts.lab.reports.coa_formats.hygiene_swabs_report', $data);
-
-			// Primary storage path (internal reports directory)
-			$tempFile = storage_path() . '/app/reports/' . $customer_name . '/' . $filename;
-			if (!is_dir(storage_path() . '/app/reports/' . $customer_name)) {
-				$path = storage_path() . '/app/reports/' . $customer_name;
-				mkdir($path, 0755, true);
-			}
-			$pdf->save($tempFile);
-			$tempFiles[] = $tempFile;
-
-			// Public storage path for web access via /storage + batch_report_url
-			$batch->batch_report_url = '/reports/' . $customer_name . '/' . $filename;
-			$publicReportPath = storage_path('app/public' . $batch->batch_report_url);
-			$publicDir = dirname($publicReportPath);
-			if (!is_dir($publicDir)) {
-				mkdir($publicDir, 0755, true);
-			}
-			$pdf->save($publicReportPath);
-
-			$batch->save();
-
-			if ($mergeWithAttachments && !empty($attachmentIds)) {
-				$coaPath = storage_path() . '/app/reports/' . $customer_name . '/' . $filename;
-				$mergedContent = $this->mergeCoaWithAttachments($coaPath, $batch, $attachmentIds, $customer_name, $filename);
-
-				// Overwrite internal and public copies with merged content
-				@file_put_contents($coaPath, $mergedContent);
-				$publicPath = storage_path('app/public' . $batch->batch_report_url);
-				if (!is_dir(dirname($publicPath))) {
-					mkdir(dirname($publicPath), 0755, true);
-				}
-				@file_put_contents($publicPath, $mergedContent);
-
-				return response($mergedContent, 200, [
-					'Content-Type' => 'application/pdf',
-				]);
-			}
-
-			return $pdf->stream($filename);
-		}
-
-		if ($reportCode === 'serology_report') {
-			// Serology Report format - mirrors microbiology structure but uses serology blade
-			$samples = SamplesCategory::where('sample_header_id', $batch->id)
-				->with('samplePointArea')
-				->get();
-
-			$standard_codes = implode(',', $samples->pluck('main_standard_code')->unique()->toArray());
-
-			// Get unique parameters (analytes) for dynamic column headers
-			$parameters = CapturedResult::where('captured_results.sample_header_id', $batch->id)
-				->select(
-					'captured_results.id',
-					'captured_results.analyte_id',
-					'captured_results.analyte_code',
-					'captured_results.reporting_unit_id',
-					'captured_results.main_value',
-					'sd.main_standard',
-					'captured_results.method_id',
-					'am.name as method_name',
-					'am.code as method_code'
-				)
-				->join('sample_details as sd', 'sd.id', '=', 'captured_results.sample_detail_id')
-				->leftJoin('analysis_methods as am', 'am.id', '=', 'captured_results.method_id')
-				->distinct()
-				->orderBy('analyte_code')
-				->get();
-
-			// Build standards array using existing helper
-			$standards = [];
-			foreach ($parameters as $parameter) {
-				$standardValue = $this->getParameterStandardValue($parameter);
-				if ($standardValue !== 'NS') {
-					$standards[$parameter->analyte_code] = $standardValue;
-				}
-			}
-
-			// Get all results in a single optimized query and group by sample
-			$allResults = CapturedResult::where('captured_results.sample_header_id', $batch->id)
-				->select('captured_results.*')
-				->get()
-				->groupBy('sample_detail_id');
-
-			// Build a high-level summary of which samples/parameters are covered
-			// by which attached result documents (serology result sheets).
-			$groupedSamples = [];
-			$ungroupedSamples = [];
-
-			foreach ($samples as $sample) {
-				$sampleResultsData = $allResults->get($sample->id, collect());
-				$resultsByAnalyte = $sampleResultsData->keyBy('analyte_id');
-
-				$sampleData = [
-					'sample' => $sample,
-					'results' => $resultsByAnalyte,
-				];
-
-				$areaId = $sample->sample_point_area_id ?? null;
-				if ($areaId) {
-					$areaName = $sample->samplePointArea->name ?? 'Area ' . $areaId;
-					if (!isset($groupedSamples[$areaName])) {
-						$groupedSamples[$areaName] = [];
-					}
-					$groupedSamples[$areaName][] = $sampleData;
-				} else {
-					$ungroupedSamples[] = $sampleData;
-				}
-			}
-
-			// Build serology attachment summaries: which samples/parameters each
-			// attachment (result sheet) contains.
-			$serologySummaries = [];
-			$attachmentIdsForBatch = BatchAttachment::where('batch_id', $batch->id)
-				->whereHas('capturedResults', function ($q) use ($batch) {
-					$q->where('sample_header_id', $batch->id);
-				})
-				->with(['capturedResults.sample'])
-				->get();
-
-			foreach ($attachmentIdsForBatch as $attachment) {
-				$sampleCodes = $attachment->capturedResults
-					->map(function (CapturedResult $cr) {
-						return optional($cr->sample)->sample_code;
-					})
-					->filter()
-					->unique()
-					->values()
-					->all();
-
-				$parameterCodes = $attachment->capturedResults
-					->pluck('analyte_code')
-					->filter()
-					->unique()
-					->values()
-					->all();
-
-				$serologySummaries[] = [
-					'title' => $attachment->title ?? ($attachment->file_name ?? ('Attachment #' . $attachment->id)),
-					'file_name' => $attachment->file_name,
-					'samples' => $sampleCodes,
-					'parameters' => $parameterCodes,
-				];
-			}
-
-			// Get sample type name for the batch
-			$sampleTypeName = 'Serology Sample';
-			if ($samples->count() > 0) {
-				$firstSample = $samples->first();
-				if (isset($firstSample->sample_type_name)) {
-					$sampleTypeName = $firstSample->sample_type_name;
-				} else {
-					$sampleType = \App\SampleType::find($batch->sample_type_id);
-					if ($sampleType) {
-						$sampleTypeName = $sampleType->name;
-					}
-				}
-			}
-
-			$data = [
-				'batch' => $batch,
-				'customer' => $customer,
-				'company' => $company,
-				'grouped_samples' => $groupedSamples,
-				'ungrouped_samples' => $ungroupedSamples,
-				'parameters' => $parameters,
-				'batch_approvers' => $batch_approvers,
-				'analysis_date' => $analysis_date,
-				'report_type' => $report_type,
-				'ammendment' => $ammendment,
-				'disclaimer' => $disclaimer,
-				'qrcode' => $qrcode,
-				'report_logo' => $report_logo,
-				'sadc_logo' => $sadc_logo,
-				'ilac_logo' => $ilac_logo,
-				'stamp' => $stamp,
-				'is_stamp' => $is_stamp,
-				'date' => $date,
-				'standards' => $standards,
-				'standard_codes' => $standard_codes,
-				'serology_summaries' => $serologySummaries,
-				'sample_type_name' => $sampleTypeName
-			];
-
-			ini_set('max_execution_time', 300);
-			$pdf = app('dompdf.wrapper');
-			$pdf->getDomPDF()->set_option("enable_php", true);
-			$pdf->getDomPDF()->set_option("isHtml5ParserEnabled", true);
-			$pdf->getDomPDF()->set_option("isFontSubsettingEnabled", true);
-
-			$pdf = PDF::loadView('layouts.lab.reports.coa_formats.serology_report', $data);
-
-			// Primary storage path (internal reports directory)
-			$tempFile = storage_path() . '/app/reports/' . $customer_name . '/' . $filename;
-			if (!is_dir(storage_path() . '/app/reports/' . $customer_name)) {
-				$path = storage_path() . '/app/reports/' . $customer_name;
-				mkdir($path, 0755, true);
-			}
-			$pdf->save($tempFile);
-			$tempFiles[] = $tempFile;
-
-			// Public storage path for web access via /storage + batch_report_url
-			$batch->batch_report_url = '/reports/' . $customer_name . '/' . $filename;
-			$publicReportPath = storage_path('app/public' . $batch->batch_report_url);
-			$publicDir = dirname($publicReportPath);
-			if (!is_dir($publicDir)) {
-				mkdir($publicDir, 0755, true);
-			}
-			// Save a copy into public storage so "Download COA" works
-			$pdf->save($publicReportPath);
-
-			$batch->save();
-
-			if ($mergeWithAttachments && !empty($attachmentIds)) {
-				$coaPath = storage_path() . '/app/reports/' . $customer_name . '/' . $filename;
-				$mergedContent = $this->mergeCoaWithAttachments($coaPath, $batch, $attachmentIds, $customer_name, $filename);
-
-				// Overwrite internal and public copies with merged content
-				@file_put_contents($coaPath, $mergedContent);
-				$publicPath = storage_path('app/public' . $batch->batch_report_url);
-				if (!is_dir(dirname($publicPath))) {
-					mkdir(dirname($publicPath), 0755, true);
-				}
-				@file_put_contents($publicPath, $mergedContent);
-
-				return response($mergedContent, 200, [
-					'Content-Type' => 'application/pdf',
-				]);
-			}
-
-			return $pdf->stream($filename);
-		} elseif ($reportCode !== 'water_report' && isset($formatModel)) {
+		// Legacy water report fallback
+		if ($reportCode !== 'water_report' && isset($formatModel)) {
 			return $this->processDynamicReport(
 				$batch,
 				$formatModel,
@@ -956,6 +229,7 @@ class ReportHeaderDetailController extends Controller
 				$report_logo,
 				$sadc_logo,
 				$ilac_logo,
+				$accreditation_logo,
 				$stamp,
 				$is_stamp,
 				$qrcode,
@@ -1127,20 +401,10 @@ class ReportHeaderDetailController extends Controller
 					$pdf->Rect($size['width'] - 75, $size['height'] - 20, 70, 18, 'F');
 					$pdf->Rect($size['width'] - 65, $size['height'] - 15, 60, 15, 'F');
 
-					// 2. Top-right position (covers "Page 1 of 6", "Page 1 of 14" etc.)
-					// Cover multiple variations in top-right corner
-					$pdf->Rect($size['width'] - 85, 0, $coverageWidth, $coverageHeight, 'F');
-					$pdf->Rect($size['width'] - 75, 0, 70, 25, 'F');
-					$pdf->Rect($size['width'] - 65, 0, 60, 20, 'F');
-
-					// 3. Bottom-center position (some reports use this)
+					// 2. Bottom-center position (some reports use this)
 					$bottomCenterX = ($size['width'] / 2) - ($coverageWidth / 2);
 					$pdf->Rect($bottomCenterX, $size['height'] - 25, $coverageWidth, $coverageHeight, 'F');
 					$pdf->Rect(($size['width'] / 2) - 40, $size['height'] - 20, 80, 18, 'F');
-
-					// 4. Top-center position (less common but some documents use it)
-					$topCenterX = ($size['width'] / 2) - ($coverageWidth / 2);
-					$pdf->Rect($topCenterX, 0, $coverageWidth, $coverageHeight, 'F');
 
 					// Now add new global page numbering at bottom-right
 					$pdf->SetFont('helvetica', '', 8);
@@ -1282,18 +546,32 @@ class ReportHeaderDetailController extends Controller
 		return 'data:' . $mime . ';base64,' . base64_encode($contents);
 	}
 
-	private function processDynamicReport($batch, $reportFormatModel, $customer, $company, $report_logo, $sadc_logo, $ilac_logo, $stamp, $is_stamp, $qrcode, $filename, $customer_name, $mergeWithAttachments, $attachmentIds, $batch_approvers, $analysis_date, $report_type, $ammendment, $disclaimer, $date)
+	private function processDynamicReport($batch, $reportFormatModel, $customer, $company, $report_logo, $sadc_logo, $ilac_logo, $accreditation_logo, $stamp, $is_stamp, $qrcode, $filename, $customer_name, $mergeWithAttachments, $attachmentIds, $batch_approvers, $analysis_date, $report_type, $ammendment, $disclaimer, $date)
 	{
-		$samples = SamplesCategory::where('sample_header_id', $batch->id)->with('samplePointArea')->get();
+		$samples = SamplesCategory::where('sample_header_id', $batch->id)->with('samplePointArea.companyUnit', 'samplePointArea.subUnit', 'samplePointArea.crmArea')->get();
 		$standard_codes = implode(',', $samples->pluck('main_standard_code')->unique()->toArray());
 
 		$allCapturedResults = CapturedResult::where('sample_header_id', $batch->id)->get();
 
 		$parameters = CapturedResult::where('captured_results.sample_header_id', $batch->id)
-			->select('captured_results.id', 'captured_results.analyte_id', 'captured_results.analyte_code', 'captured_results.reporting_unit_id', 'captured_results.main_value', 'sd.main_standard', 'captured_results.method_id', 'am.name as method_name', 'am.code as method_code', 'ru.name as reporting_unit_name')
+			->select(
+				'captured_results.id',
+				'captured_results.analyte_id',
+				'captured_results.analyte_code',
+				'captured_results.analyte_accredited',
+				'captured_results.reporting_unit_id',
+				'captured_results.main_value',
+				'sd.main_standard',
+				'captured_results.method_id',
+				'am.name as method_name',
+				'am.code as method_code',
+				'ru.name as reporting_unit_name',
+				'a.name as analyte_name'
+			)
 			->join('sample_details as sd', 'sd.id', '=', 'captured_results.sample_detail_id')
 			->leftJoin('analysis_methods as am', 'am.id', '=', 'captured_results.method_id')
-			->leftJoin('metric_units as ru', 'ru.id', '=', 'captured_results.reporting_unit_id')
+			->leftJoin('reporting_units as ru', 'ru.id', '=', 'captured_results.reporting_unit_id')
+			->leftJoin('analytes as a', 'a.id', '=', 'captured_results.analyte_id')
 			->distinct()
 			->orderBy('analyte_code')
 			->get();
@@ -1305,6 +583,24 @@ class ReportHeaderDetailController extends Controller
 				$standards[$parameter->analyte_code] = $standardValue;
 			}
 		}
+
+		// Build Tests Required label from captured analytes, marking accredited ones with an asterisk
+		$testsRequiredParts = [];
+		foreach ($parameters as $parameter) {
+			$label = $parameter->analyte_name ?? $parameter->analyte_code;
+			if (! $label) {
+				continue;
+			}
+
+			// If analyte is accredited, surround with an asterisk as requested
+			if ((int) ($parameter->analyte_accredited ?? 0) === 1) {
+				$label = '*' . $label . '*';
+			}
+
+			$testsRequiredParts[] = $label;
+		}
+		$testsRequiredParts = array_values(array_unique($testsRequiredParts));
+		$testsRequired = ! empty($testsRequiredParts) ? implode(', ', $testsRequiredParts) : null;
 
 		$allResults = CapturedResult::where('captured_results.sample_header_id', $batch->id)
 			->select('captured_results.*')
@@ -1344,7 +640,24 @@ class ReportHeaderDetailController extends Controller
 			}
 
 			$conformity = ($sampleTotal > 0 && $samplePasses === $sampleTotal) ? 'Pass' : 'Fail';
-			$sampleData = ['sample' => $sample, 'results' => $sampleResults, 'conformity' => $conformity];
+			// Resolve sample code and sampling point for display in results tables
+			$sampleDetail = \App\SampleDetails::with('sample_point')->find($sample->id);
+			$sampleCode = $sampleDetail->sample_code ?? ($sample->sample_code ?? null);
+
+			$samplePointName = null;
+			if ($sampleDetail && $sampleDetail->sample_point) {
+				$samplePointName = $sampleDetail->sample_point->name;
+			} elseif ($sample->samplePointArea) {
+				$samplePointName = $sample->samplePointArea->description ?? $sample->samplePointArea->name;
+			}
+
+			$sampleData = [
+				'sample' => $sampleDetail ?: $sample,
+				'sample_code' => $sampleCode,
+				'sample_point_name' => $samplePointName,
+				'results' => $sampleResults,
+				'conformity' => $conformity,
+			];
 
 			if ($sample->samplePointArea) {
 				$areaName = $sample->samplePointArea->name;
@@ -1354,9 +667,189 @@ class ReportHeaderDetailController extends Controller
 			}
 		}
 
-		$sampleTypeName = $samples->first()->sampleType->name ?? '';
+		// Determine sample type name for this batch
+		$sampleTypeName = $batch->sample_type?->name ?? '';
 
-		$data = compact('batch', 'customer', 'company', 'groupedSamples', 'ungroupedSamples', 'parameters', 'batch_approvers', 'analysis_date', 'report_type', 'ammendment', 'disclaimer', 'qrcode', 'report_logo', 'sadc_logo', 'ilac_logo', 'stamp', 'is_stamp', 'date', 'standards', 'standard_codes', 'sampleTypeName', 'reportFormatModel');
+		// Resolve lab section display name(s) for this batch (for "Test Section")
+		$testSectionName = null;
+		if (! empty($batch->lab_section_ids)) {
+			$labSectionIds = array_filter(explode(',', $batch->lab_section_ids));
+			if (! empty($labSectionIds)) {
+				// Use collection pluck so we can access the accessor "namecode"
+				$sections = \App\SampleAnalysisStage::whereIn('id', $labSectionIds)
+					->get()
+					->pluck('namecode')
+					->toArray();
+
+				if (! empty($sections)) {
+					$testSectionName = implode(', ', $sections);
+				}
+			}
+		}
+
+		// Build rich customer reference from company hierarchy & sampling location
+		$customerReference = null;
+		try {
+			// Prefer CRM SamplePoint from the first concrete sample detail for this batch
+			$primaryDetail = $batch->all_samples()->first();
+			$locationParts = [];
+
+			if ($primaryDetail && $primaryDetail->sample_point_id) {
+				$samplePoint = \App\Models\CRM\SamplePoint::with(['subUnit', 'unit', 'area.crmArea', 'crmSamplePoint'])->find($primaryDetail->sample_point_id);
+
+				if ($samplePoint) {
+					$companySection = optional($samplePoint->subUnit)->name;
+					$companyUnit = optional($samplePoint->unit)->name;
+					$sampleArea = optional(optional($samplePoint->area)->crmArea)->name ?: optional($samplePoint->area)->description;
+					$samplePointName = $samplePoint->name;
+
+					if ($companySection) {
+						$locationParts[] = $companySection;
+					}
+					if ($companyUnit) {
+						$locationParts[] = $companyUnit;
+					}
+					if ($sampleArea) {
+						$locationParts[] = $sampleArea;
+					}
+					if ($samplePointName) {
+						$locationParts[] = $samplePointName;
+					}
+				}
+			}
+
+			// Fallback: derive from first SamplesCategory's SamplePointArea hierarchy if needed
+			if (empty($locationParts) && $samples->isNotEmpty() && $samples->first()->samplePointArea) {
+				$spa = $samples->first()->samplePointArea;
+				$companySection = optional($spa->subUnit)->name;
+				$companyUnit = optional($spa->companyUnit)->name;
+				$sampleArea = optional($spa->crmArea)->name ?: $spa->description;
+
+				if ($companySection) {
+					$locationParts[] = $companySection;
+				}
+				if ($companyUnit) {
+					$locationParts[] = $companyUnit;
+				}
+				if ($sampleArea) {
+					$locationParts[] = $sampleArea;
+				}
+			}
+
+			if (!empty($locationParts)) {
+				$customerReference = implode(' > ', $locationParts);
+			}
+		} catch (\Throwable $e) {
+			// In case of any unexpected issues, gracefully fall back in the view.
+			$customerReference = null;
+		}
+
+		// Resolve document control metadata (document code, revision number, issue date)
+		$document_code = null;
+		$revision_number = null;
+		$issue_date = null;
+
+		if ($batch->lab_section_ids && $reportFormatModel) {
+			$labSectionIds = array_filter(explode(',', $batch->lab_section_ids));
+
+			if (!empty($labSectionIds)) {
+				$reportConfig = LabSectionReportConfig::whereIn('sample_analysis_stage_id', $labSectionIds)
+					->where('report_format_id', $reportFormatModel->id)
+					->orderByDesc('is_default')
+					->orderByDesc('id')
+					->first();
+
+				if ($reportConfig) {
+					$document_code = $reportConfig->document_code ?: null;
+					$revision_number = $reportConfig->revision_number ?: null;
+					$issue_date = $reportConfig->issue_date ? $reportConfig->issue_date->format('Y-m-d') : null;
+				}
+			}
+		}
+
+		// When a dynamic report format is configured to use attachment-based
+		// results (e.g. serology), pre-load the batch attachments so the
+		// dynamic report view can render an attachment summary instead of
+		// a parameter grid/list.
+		$attachments = collect();
+		$serologySummaries = [];
+		if ($reportFormatModel && ($reportFormatModel->results_display_type ?? 'grid') === 'attachment_summary') {
+			$attachments = BatchAttachment::where('batch_id', $batch->id)
+				->whereHas('capturedResults', function ($q) use ($batch) {
+					$q->where('sample_header_id', $batch->id);
+				})
+				->with(['capturedResults.sample', 'annotations'])
+				->orderBy('id')
+				->get();
+
+			foreach ($attachments as $attachment) {
+				$sampleCodes = $attachment->capturedResults
+					->map(function ($cr) {
+						return optional($cr->sample)->sample_code;
+					})
+					->filter()
+					->unique()
+					->values()
+					->all();
+
+				$parameterCodes = $attachment->capturedResults
+					->pluck('analyte_code')
+					->filter()
+					->unique()
+					->values()
+					->all();
+
+				$pageFrom = null;
+				$pageTo = null;
+				if ($attachment->annotations && $attachment->annotations->count() > 0) {
+					$pageFrom = $attachment->annotations->min('page_number');
+					$pageTo = $attachment->annotations->max('page_number');
+				}
+
+				$serologySummaries[] = [
+					'title' => $attachment->title ?? ($attachment->file_name ?? ('Attachment #' . $attachment->id)),
+					'file_name' => $attachment->file_name,
+					'samples' => $sampleCodes,
+					'parameters' => $parameterCodes,
+					'page_from' => $pageFrom,
+					'page_to' => $pageTo,
+				];
+			}
+		}
+
+		$data = compact(
+			'batch',
+			'customer',
+			'company',
+			'groupedSamples',
+			'ungroupedSamples',
+			'parameters',
+			'batch_approvers',
+			'analysis_date',
+			'report_type',
+			'ammendment',
+			'disclaimer',
+			'qrcode',
+			'report_logo',
+			'sadc_logo',
+			'ilac_logo',
+			'accreditation_logo',
+			'stamp',
+			'is_stamp',
+			'date',
+			'standards',
+			'standard_codes',
+			'sampleTypeName',
+			'reportFormatModel',
+			'testsRequired',
+			'attachments',
+			'serologySummaries',
+			'document_code',
+			'revision_number',
+			'issue_date',
+			'testSectionName',
+			'customerReference'
+		);
 		$data['reportFormat'] = $reportFormatModel;
 		$data['grouped_samples'] = $groupedSamples;
 		$data['ungrouped_samples'] = $ungroupedSamples;

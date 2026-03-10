@@ -20,6 +20,36 @@
                style="box-shadow: rgba(0, 0, 0, 0.15) 1.95px 1.95px 2.6px;">
                 <i class="mdi mdi-clipboard-text"></i> Worksheets
             </a>
+
+            @if(!$defaultClient)
+            <div class="btn-group float-right mr-2">
+                <button type="button"
+                        class="btn btn-sm btn-white dropdown-toggle"
+                        style="box-shadow: rgba(0, 0, 0, 0.15) 1.95px 1.95px 2.6px;"
+                        id="moveWorkflowDropdown"
+                        data-toggle="dropdown"
+                        aria-haspopup="true"
+                        aria-expanded="false">
+                    <i class="mdi mdi-swap-vertical"></i> Move To Workflow
+                </button>
+                <div class="dropdown-menu dropdown-menu-right" aria-labelledby="moveWorkflowDropdown">
+                    @foreach($workflows as $item)
+                        <form class="dropdown-item p-0" method="POST"
+                              action="{{ route('move-to-workflow', ['status' => $item, 'batch_id' => $batch->id]) }}">
+                            @csrf
+                            <button type="submit"
+                                    class="btn btn-link btn-sm text-left w-100"
+                                    style="text-decoration: none; color: inherit;">
+                                <small class="text-muted">
+                                    <i class="mdi mdi-subdirectory-arrow-right"></i>
+                                </small>
+                                {{ $item }}
+                            </button>
+                        </form>
+                    @endforeach
+                </div>
+            </div>
+            @endif
             @endif
             
             <div class="btn-group float-right">
@@ -583,6 +613,29 @@
                         <option value="1">Preliminary Report</option>
                         <option value="2">Draft Report</option>
                     </select>
+                </div>
+
+                <div class="form-group mt-3">
+                    <div class="form-check">
+                        <input
+                            class="form-check-input"
+                            type="checkbox"
+                            id="has_method_deviation_livewire"
+                            wire:model="verificationData.has_method_deviation"
+                            onchange="document.getElementById('method_deviation_reason_livewire_group').style.display = this.checked ? 'block' : 'none';"
+                        >
+                        <label class="form-check-label text-muted small" for="has_method_deviation_livewire" style="font-size: 0.85rem;">
+                            Deviations from method
+                        </label>
+                    </div>
+                </div>
+
+                <div class="form-group" id="method_deviation_reason_livewire_group" style="display:none;">
+                    <label class="text-muted font-weight-bold small modal-label-small">Reason for Deviation</label>
+                    <textarea
+                        class="form-control form-control-modern"
+                        wire:model="verificationData.method_deviation_reason"
+                        placeholder="Describe the deviation from method..."></textarea>
                 </div>
             </div>
             <div class="modal-footer modal-footer-modern">

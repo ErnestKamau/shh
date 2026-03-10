@@ -1,24 +1,57 @@
 @if(isset($batch_approvers) && $batch_approvers->count() > 0)
-<div class="section-title">{{ $custom_title ?? 'Signatures & Approvals' }}</div>
 <div class="signatures-section">
-    @foreach($batch_approvers as $approver)
-    <div class="signature-block">
-        <div class="signature-line">
-            @if($approver->getApproverDetails() && $approver->getApproverDetails()->electronic_sig)
-            <center>
-                <img src="{{ getCoaApproverSignature($approver->getApproverDetails()->electronic_sig) }}" style="height:48px;z-index:-10;position:relative;" alt="signature">
-            </center>
-            @endif
+    @php
+        // Attempt to find an analyst approver (title contains 'Analyst') and a final approver
+        $analyst = $batch_approvers->first(function($a) {
+            return stripos((string)($a->title ?? ''), 'analyst') !== false;
+        }) ?? $batch_approvers->first();
+
+        $finalApprover = $batch_approvers->first(function($a) {
+            return stripos((string)($a->title ?? ''), 'author') !== false
+                || stripos((string)($a->title ?? ''), 'approv') !== false
+                || stripos((string)($a->title ?? ''), 'signatory') !== false;
+        }) ?? $batch_approvers->last();
+    @endphp
+
+    {{-- Analyst (left) --}}
+    @if($analyst)
+    <div class="signature-block" style="text-align: left;">
+        <div class="signature-name" style="font-weight: bold;">
+            {{ $analyst->approvername }}
         </div>
-        <div class="signature-title">{{ $approver->title ?? 'Analyst' }}</div>
-        @if($approver->getApproverDetails() && $approver->getApproverDetails()->electronic_sig)
-        <div class="signature-name">{{ $approver->approvershortname ?? $approver->approvername }}</div>
-        @else
-        <div class="signature-name">{{ $approver->approvershortname ?? $approver->approvername }} – Signature</div>
+        <div class="signature-title">Analyst</div>
+        @if($analyst->getApproverDetails() && $analyst->getApproverDetails()->electronic_sig)
+            <div class="signature-line" style="border-bottom: none; height: auto; margin: 8px 0 4px 0; justify-content: flex-start;">
+                <img src="{{ getCoaApproverSignature($analyst->getApproverDetails()->electronic_sig) }}"
+                     style="height:48px;z-index:-10;position:relative;" alt="Analyst signature">
+            </div>
         @endif
-        <div class="signature-date">{{ date('d/m/Y', strtotime($approver->approved_on ?? date('Y-m-d'))) }}</div>
+        <div class="signature-date" style="font-size: 9px;">
+            {{ date('d/m/Y', strtotime($analyst->approved_on ?? date('Y-m-d'))) }}
+        </div>
     </div>
-    @endforeach
+    @endif
+
+    {{-- Final Approver (right) --}}
+    @if($finalApprover)
+    <div class="signature-block" style="text-align: right;">
+        <div class="signature-name" style="font-weight: bold;">
+            {{ $finalApprover->approvername }}
+        </div>
+        <div class="signature-title">
+            {{ $finalApprover->title ?? 'Approver' }}
+        </div>
+        @if($finalApprover->getApproverDetails() && $finalApprover->getApproverDetails()->electronic_sig)
+            <div class="signature-line" style="border-bottom: none; height: auto; margin: 8px 0 4px 0; justify-content: flex-end;">
+                <img src="{{ getCoaApproverSignature($finalApprover->getApproverDetails()->electronic_sig) }}"
+                     style="height:48px;z-index:-10;position:relative;" alt="Approver signature">
+            </div>
+        @endif
+        <div class="signature-date" style="font-size: 9px;">
+            {{ date('d/m/Y', strtotime($finalApprover->approved_on ?? date('Y-m-d'))) }}
+        </div>
+    </div>
+    @endif
 </div>
 @endif
 

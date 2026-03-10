@@ -1,5 +1,4 @@
 <div class="results-section">
-    <div class="section-title">{{ $custom_title ?? 'Results :' }}</div>
     <div class="table-responsive">
         @foreach($grouped_samples ?? [] as $sampleCode => $group)
         <div class="mb-4">

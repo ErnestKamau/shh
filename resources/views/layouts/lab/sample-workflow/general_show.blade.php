@@ -1811,6 +1811,16 @@
 									<label class="control-label">Verification Notes/Comments</label>
 									<textarea class="form-control" name="comments" placeholder="Comments..."></textarea>
 								</div>
+								<div class="form-check mt-2">
+									<input class="form-check-input" type="checkbox" name="has_method_deviation" id="has_method_deviation">
+									<label class="form-check-label" for="has_method_deviation">
+										Deviations from method
+									</label>
+								</div>
+								<div class="form-group mt-2" id="method_deviation_reason_group" style="display:none;">
+									<label class="control-label">Reason for Deviation</label>
+									<textarea class="form-control" name="method_deviation_reason" placeholder="Describe the deviation from method..."></textarea>
+								</div>
 								<div class="form-check">
 									<input class="form-check-input" type="checkbox" class="form-control" name="notification" />
 									<label class="form-check-label">
@@ -1832,6 +1842,21 @@
 						</form>
 					</div>
 				</div>
+		@endif
+		@if(isset($batch->status) && $batch->status=="Samples In Lab")
+			@push('scripts')
+			<script>
+				document.addEventListener('DOMContentLoaded', function () {
+					var checkbox = document.getElementById('has_method_deviation');
+					var reasonGroup = document.getElementById('method_deviation_reason_group');
+					if (checkbox && reasonGroup) {
+						checkbox.addEventListener('change', function () {
+							reasonGroup.style.display = this.checked ? 'block' : 'none';
+						});
+					}
+				});
+			</script>
+			@endpush
 		@endif
 		@if(isset($batch->status) && $batch->status=="Samples Request Review")
 			<div id="dispatch-to-labs-modal" class="modal fade" role="dialog">

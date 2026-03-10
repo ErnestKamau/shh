@@ -175,3 +175,29 @@
     @endif
 </main>
 @endsection
+
+@section('script2')
+@if(isset($componentType) && $componentType === 'report-format-builder')
+{{-- Summernote assets for Report Format Builder only --}}
+<link rel="stylesheet" href="{{ asset('assets/js/libs/summernote/summernote.css') }}">
+<script src="{{ asset('assets/js/libs/summernote/summernote.js') }}"></script>
+
+<script>
+    $(document).ready(function() {
+        if (!$.isFunction($.fn.summernote)) {
+            return;
+        }
+
+        $('.summernote-editor').summernote({
+            height: 150,
+            toolbar: [
+                ['style', ['bold', 'italic', 'underline', 'clear']],
+                ['para', ['ul', 'ol', 'paragraph']],
+                ['insert', ['link']],
+                ['view', ['codeview']]
+            ]
+        });
+    });
+</script>
+@endif
+@endsection

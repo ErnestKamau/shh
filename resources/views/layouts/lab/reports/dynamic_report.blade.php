@@ -4,13 +4,11 @@
 <head>
     <meta http-equiv="Content-Type" content="text/html; charset=utf-8">
     <meta charset="UTF-8">
-    <title>Report</title>
+    <title>{{ ($customer->name ?? 'Customer') }} Report</title>
     <style>
         @page {
-            margin-top: 240px;
-            margin-bottom: 90px;
-            margin-left: 20px;
-            margin-right: 20px;
+            margin: 15px 20px 37px 20px;
+            size: A4;
         }
 
         * {
@@ -23,59 +21,23 @@
             padding: 0;
         }
 
-        .header {
-            position: fixed;
-            top: -220px;
-            left: 0;
-            right: 0;
-            height: 215px;
-            z-index: 1000;
-            background-color: white;
-            padding-bottom: 5px;
-        }
-
         .footer {
             position: fixed;
-            bottom: -105px;
+            bottom: 35px;
             left: 0;
             right: 0;
             height: 100px;
-            z-index: 1000;
+            z-index: -1000;
             background-color: white;
             font-size: 8px;
-        }
-
-        .header-info {
-            display: table;
-            width: 100%;
-            margin: 5px 0;
-            font-size: 9px;
-        }
-
-        .header-left,
-        .header-right {
-            width: 30%;
-            display: table-cell;
-            vertical-align: top;
-        }
-
-        .header-center {
-            width: 40%;
-            display: table-cell;
-            vertical-align: top;
-            text-align: center;
-        }
-
-        .company-logo {
-            height: 100px;
-            max-width: 100%;
         }
 
         .report-title {
             text-align: center;
             font-size: 14px;
             font-weight: bold;
-            margin: 15px 0;
+            margin: 0 0 18px 0;
+            /* slightly larger gap below title */
             text-decoration: underline;
             text-transform: uppercase;
         }
@@ -87,7 +49,7 @@
             font-size: 10px;
             border: 2px solid #4682B4;
             padding: 10px;
-            margin: 15px 0;
+            margin: 15px 0 18px 0;
         }
 
         .info-row {
@@ -231,14 +193,66 @@
 <body>
 
     @if($reportFormat->isSectionVisible('Header') ?? true)
-    @include('layouts.lab.reports.partials.header')
+    <div style="position: fixed; left: 0; right: 0;  background-color: #fff; z-index: 1000;">
+        <table width="100%" style="border-collapse: collapse; margin-top: 15px;">
+            <tr>
+                {{-- Left: Company Info --}}
+                <td style="width: 33%;">
+                    <div>{{ $company->name ?? 'Fivet Laboratory Services' }}</div>
+                    <div>{{ $company->street ?? '2 Telford Road' }}</div>
+                    <div>P.O. Box {{ $company->address ?? '3450' }}</div>
+                    <div>{{ $company->location ?? 'Graniteside, Harare' }}</div>
+                    <div>{{ $company->country->name ?? 'Zimbabwe' }}</div>
+                </td>
+
+                {{-- Center: Logo --}}
+                <td style="width: 34%; text-align: center;">
+                    @if(!empty($report_logo))
+                    <img src="{{ $report_logo }}" alt="Company Logo" height="80">
+                    @endif
+                </td>
+
+                {{-- Right: Document Control & Client Info --}}
+                <td style="width: 33%; vertical-align: top; text-align: right; font-size: 11px; color: #333;">
+                    <div style="font-weight: bold; line-height: 1.4;">
+                        <div>{{ $document_code ?? 'FM/QA/047' }}</div>
+                        <div>Revision Number {{ $revision_number ?? '5.0 TRIAL' }}</div>
+                        <div>Issue Date:
+                            @if(isset($issue_date) && $issue_date)
+                            {{ date('d/m/Y', strtotime($issue_date)) }}
+                            @elseif(isset($date) && $date)
+                            {{ date('d/m/Y', strtotime($date)) }}
+                            @else
+                            03/11/2023
+                            @endif
+                        </div>
+                    </div>
+
+                    <div style="line-height: 1.4; margin-top: 6px;">
+                        <div><strong>Report Number:</strong> {{ $batch->batch_code ?? 'N/A' }}</div>
+                    </div>
+
+                    <div style="line-height: 1.4; margin-top: 8px;">
+                        <div><strong>Client:</strong> {{ $customer->name ?? 'N/A' }}</div>
+                        <div><strong>Address:</strong> {{ $customer->address ?? 'N/A' }}</div>
+                        <div><strong>P.O BOX:</strong> {{ $customer->postal_address ?? 'N/A' }}</div>
+                        <div><strong>Cell:</strong> {{ $customer->telephone1 ?? 'N/A' }}</div>
+                        <div><strong>Email:</strong> {{ $customer->email ?? 'N/A' }}</div>
+                    </div>
+                </td>
+            </tr>
+        </table>
+
+        {{-- Blue underline rule --}}
+        <div style="width: 100%; border-bottom: 2px solid #4682B4; margin-top: 15px;"></div>
+    </div>
     @endif
 
     @if($reportFormat->isSectionVisible('Footer') ?? true)
     @include('layouts.lab.reports.partials.footer')
     @endif
 
-    <div class="main-content" style="border-top: 1px solid #ddd; min-height: calc(100vh - 320px);">
+    <div class="main-content" style="border-top: 1px solid #ddd; padding-top: 185px; min-height: calc(100vh - 320px);">
         @php
         // Fallback sections if none configured
         $activeSections = $reportFormat->sections->where('is_visible', true)->sortBy('section_order');
@@ -248,6 +262,10 @@
         ];
         } else {
         $defaultSections = $activeSections->pluck('section_name')->toArray();
+        // Always ensure the configurable ReportTitle section is present first
+        if (!in_array('ReportTitle', $defaultSections, true)) {
+        array_unshift($defaultSections, 'ReportTitle');
+        }
         }
         @endphp
 
@@ -268,10 +286,16 @@
         @include('layouts.lab.reports.partials.test_methods')
         @break
         @case('Results')
-        @if(($reportFormat->results_display_type ?? 'grid') == 'grid')
+        <div class="section-title">{{ $custom_title ?? 'Interpretation and Comments' }}</div>
+        @php
+        $displayType = $reportFormat->results_display_type ?? 'grid';
+        @endphp
+        @if($displayType === 'grid')
         @include('layouts.lab.reports.partials.results_grid', ['custom_title' => $customTitle])
-        @elseif(($reportFormat->results_display_type ?? 'grid') == 'list')
+        @elseif($displayType === 'list')
         @include('layouts.lab.reports.partials.results_list', ['custom_title' => $customTitle])
+        @elseif($displayType === 'attachment_summary')
+        @include('layouts.lab.reports.partials.results_attachment_summary', ['custom_title' => $customTitle])
         @endif
         @break
         @case('Methodology')
