@@ -4,6 +4,10 @@ namespace App\Services;
 
 use App\BatchAttachment;
 use App\CapturedResult;
+use App\SampleDetails;
+use App\SampleType;
+use App\AnalysisMethod;
+use App\ReportFormat;
 use App\Models\Procedures\CapturedProcedureConfigValue;
 use App\Models\Procedures\CapturedProcedureValue;
 use App\Models\Procedures\ProcedureConfigField;
@@ -15,6 +19,8 @@ use App\Models\System\SystemConfiguration;
 use App\SampleHeader;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Str;
+use App\User;
 
 class ProcedureWorksheetPdfService
 {
@@ -75,6 +81,31 @@ class ProcedureWorksheetPdfService
                 ];
             }
 
+            // Build a simple header mapping from configurable fields (using first captured result),
+            // so the PDF header can render dynamic fields like Analyst, Method, Lab No, etc.
+            $headerConfig = $this->buildHeaderConfigFromFirstResult(
+                $configFields,
+                $configValues,
+                $crIds
+            );
+
+            $analystValue = $headerConfig['analyst'] ?? '';
+            $analystName = is_numeric($analystValue) ? (User::find($analystValue)?->name ?? $analystValue) : $analystValue;
+
+            // High-level worksheet header values used by the Blade template.
+            $worksheetHeader = [
+                'laboratory_number' => $headerConfig['lab_no'] ?? $batch->batch_code,
+                'analyst' => $analystName,
+                'date_received' => $this->formatDateValue($batch->receipt_date ?? null),
+                'tests' => $analysisTypeName,
+                'room_temperature' => $headerConfig['room_temperature'] ?? ($headerConfig['temperature_under_25'] ?? ''),
+                'sample_type' => $sampleTypeName,
+                'dilution_used' => $headerConfig['dilution_used'] ?? '',
+                'date_tested' => $headerConfig['date_tested'] ?? '',
+                'method_used' => $headerConfig['method'] ?? '',
+                'start_time' => $headerConfig['start_time'] ?? '',
+            ];
+
             $testKitRows = [];
             $rows = ProcedureTestKitRow::where('procedure_worksheet_id', $worksheet->id)->orderBy('row_index')->get();
             $tkValues = ProcedureTestKitValue::whereIn('procedure_test_kit_row_id', $rows->pluck('id'))->get()->groupBy('procedure_test_kit_row_id');
@@ -88,9 +119,20 @@ class ProcedureWorksheetPdfService
             $company = getActiveCompany();
 
             $viewData = compact(
-                'batch', 'steps', 'configFields', 'testKitColumns',
-                'sampleRows', 'testKitRows', 'logoSrc', 'printedAt',
-                'samplesForWorksheet', 'sampleTypeName', 'analysisTypeName', 'company'
+                'batch',
+                'steps',
+                'configFields',
+                'testKitColumns',
+                'sampleRows',
+                'testKitRows',
+                'logoSrc',
+                'printedAt',
+                'samplesForWorksheet',
+                'sampleTypeName',
+                'analysisTypeName',
+                'company',
+                'worksheetHeader',
+                'headerConfig'
             );
             $viewData['procedure'] = $worksheet;
             $viewData['testKitRows'] = collect($testKitRows);
@@ -201,6 +243,102 @@ class ProcedureWorksheetPdfService
             'svg' => 'image/svg+xml',
             default => 'image/png',
         };
+    }
+
+    /**
+     * Build a simple key/value map of configurable field values taken from the
+     * first captured result for this worksheet. Keys are normalized from
+     * field_value_name (or label) so the Blade template can reference them.
+     *
+     * @param \Illuminate\Support\Collection<int,\App\Models\Procedures\ProcedureConfigField> $configFields
+     * @param \Illuminate\Support\Collection<int,\Illuminate\Support\Collection> $groupedConfigValues
+     * @param \Illuminate\Support\Collection<int,int> $capturedResultIds
+     * @return array<string,string>
+     */
+    private function buildHeaderConfigFromFirstResult($configFields, $groupedConfigValues, $capturedResultIds): array
+    {
+        if ($capturedResultIds->isEmpty()) {
+            return [];
+        }
+
+        $firstId = (int) $capturedResultIds->first();
+        $valuesForFirst = ($groupedConfigValues->get($firstId) ?? collect())
+            ->pluck('value', 'procedure_config_field_id');
+
+        $header = [];
+
+        /** @var \App\Models\Procedures\ProcedureConfigField $field */
+        foreach ($configFields as $field) {
+            $raw = $valuesForFirst->get($field->id);
+            if ($raw === null || $raw === '') {
+                continue;
+            }
+
+            $key = $field->field_value_name ?: Str::slug($field->label, '_');
+
+            // For dataset-backed fields (any field tied to a dataset model),
+            // resolve IDs into human readable labels.
+            if ($field->model_tied_to && $field->model_tied_to !== '') {
+                $isMulti = $field->field_type === 'dataset_multiselect';
+                $header[$key] = $this->resolveDatasetLabels($field->model_tied_to, (string) $raw, $isMulti);
+            } else {
+                $header[$key] = (string) $raw;
+            }
+        }
+
+        return $header;
+    }
+
+    /**
+     * Resolve dataset config values (stored as IDs) into display labels.
+     */
+    private function resolveDatasetLabels(string $modelTiedTo, string $rawValue, bool $isMulti): string
+    {
+        $ids = $isMulti ? array_filter(explode(',', $rawValue)) : [$rawValue];
+        $ids = array_values(array_unique(array_map('intval', $ids)));
+
+        if (empty($ids)) {
+            return '';
+        }
+
+        return match ($modelTiedTo) {
+            'users' => User::whereIn('id', $ids)->pluck('name')->implode(', '),
+            'sample_details' => SampleDetails::whereIn('id', $ids)->pluck('sample_code')->implode(', '),
+            'sample_types' => SampleType::whereIn('id', $ids)->pluck('name')->implode(', '),
+            'methods' => AnalysisMethod::whereIn('id', $ids)->pluck('name')->implode(', '),
+            'captured_results' => CapturedResult::whereIn('id', $ids)
+                ->with(['sample', 'analysis_type'])
+                ->get()
+                ->map(function (CapturedResult $cr): string {
+                    $sampleCode = $cr->sample ? ($cr->sample->sample_code ?? '—') : '—';
+                    $analysisName = $cr->analysis_type ? $cr->analysis_type->name : '';
+                    return trim($sampleCode . ' ' . $analysisName);
+                })
+                ->implode(', '),
+            'report_formats' => ReportFormat::whereIn('id', $ids)->pluck('report_name')->implode(', '),
+            default => implode(', ', array_map('strval', $ids)),
+        };
+    }
+
+    /**
+     * Format a date-ish value for display, accepting strings or DateTime.
+     */
+    private function formatDateValue($value): string
+    {
+        if (! $value) {
+            return '';
+        }
+
+        if ($value instanceof \DateTimeInterface) {
+            return $value->format('d/m/Y');
+        }
+
+        $timestamp = strtotime((string) $value);
+        if ($timestamp === false) {
+            return (string) $value;
+        }
+
+        return date('d/m/Y', $timestamp);
     }
 }
 

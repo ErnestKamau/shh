@@ -364,19 +364,19 @@
                                 </div>
                             @endif
 
-                            @if($showDeleteConfigFieldModal)
+                            @if($showDeleteConfigFieldModalOpen)
                                 <div class="modal fade show d-block" tabindex="-1" style="background-color: rgba(0,0,0,0.5);">
                                     <div class="modal-dialog">
                                         <div class="modal-content">
                                             <div class="modal-header">
                                                 <h5 class="modal-title">Delete Configurable Field</h5>
-                                                <button type="button" class="btn-close" wire:click="$set('showDeleteConfigFieldModal', false)"></button>
+                                                <button type="button" class="btn-close" wire:click="$set('showDeleteConfigFieldModalOpen', false)"></button>
                                             </div>
                                             <div class="modal-body">
                                                 Are you sure you want to delete this configurable field? This action cannot be undone.
                                             </div>
                                             <div class="modal-footer">
-                                                <button type="button" class="btn btn-secondary" wire:click="$set('showDeleteConfigFieldModal', false)">Cancel</button>
+                                                <button type="button" class="btn btn-secondary" wire:click="$set('showDeleteConfigFieldModalOpen', false)">Cancel</button>
                                                 <button type="button" class="btn btn-danger" wire:click="deleteConfigField">Delete</button>
                                             </div>
                                         </div>
@@ -588,19 +588,19 @@
                                 </div>
                             @endif
 
-                            @if($showDeleteTestKitColumnModal)
+                            @if($showDeleteTestKitColumnModalOpen)
                                 <div class="modal fade show d-block" tabindex="-1" style="background-color: rgba(0,0,0,0.5);">
                                     <div class="modal-dialog">
                                         <div class="modal-content">
                                             <div class="modal-header">
                                                 <h5 class="modal-title">Delete Test Kit Column</h5>
-                                                <button type="button" class="btn-close" wire:click="$set('showDeleteTestKitColumnModal', false)"></button>
+                                                <button type="button" class="btn-close" wire:click="$set('showDeleteTestKitColumnModalOpen', false)"></button>
                                             </div>
                                             <div class="modal-body">
                                                 Are you sure you want to delete this test kit column? This action cannot be undone.
                                             </div>
                                             <div class="modal-footer">
-                                                <button type="button" class="btn btn-secondary" wire:click="$set('showDeleteTestKitColumnModal', false)">Cancel</button>
+                                                <button type="button" class="btn btn-secondary" wire:click="$set('showDeleteTestKitColumnModalOpen', false)">Cancel</button>
                                                 <button type="button" class="btn btn-danger" wire:click="deleteTestKitColumn">Delete</button>
                                             </div>
                                         </div>

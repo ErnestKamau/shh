@@ -308,7 +308,7 @@
                         </div>
                         <div class="card-body p-4">
                             <div class="row g-4">
-                                @foreach($configFields as $field)
+                                        @foreach($configFields as $field)
                                 <div class="col-xl-4 col-lg-6 mb-0">
                                     <div class="config-field-block">
                                         <label class="form-label fw-medium">
@@ -325,7 +325,13 @@
                                             @if($selectedResults->count() > 1)
                                             <small class="text-muted d-block mb-1">Same value for {{ $selectedResults->count() }} selected samples</small>
                                             @endif
-                                            @php($type = $field->field_type)
+                                            @php(
+                                                $type = $field->field_type ?: (
+                                                    in_array($field->model_tied_to ?? '', ['users','sample_details','sample_types','methods','captured_results','report_formats'])
+                                                    ? 'dataset'
+                                                    : 'input'
+                                                )
+                                            )
                                             @if($type === 'datetime')
                                             <input type="datetime-local"
                                                 class="form-control"
@@ -350,6 +356,10 @@
                                                 class="form-control"
                                                 rows="2"
                                                 wire:model.defer="configFieldValues.{{ $selectedResults->first()->id }}.{{ $field->id }}"></textarea>
+                                            @elseif($type === 'input' || $type === '' || $type === null)
+                                            <input type="text"
+                                                class="form-control"
+                                                wire:model.defer="configFieldValues.{{ $selectedResults->first()->id }}.{{ $field->id }}">
                                             @elseif($type === 'dataset')
                                             <div wire:ignore x-data="{
                                                 init() {

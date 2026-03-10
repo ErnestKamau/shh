@@ -49,7 +49,7 @@ class ProcedureWorksheetEditor extends Component
     public $configFieldSearch = '';
     public $showCreateConfigFieldModal = false;
     public $showEditConfigFieldModal = false;
-    public $showDeleteConfigFieldModal = false;
+    public $showDeleteConfigFieldModalOpen = false;
     public $editingConfigField = null;
     public $deletingConfigField = null;
 
@@ -67,7 +67,7 @@ class ProcedureWorksheetEditor extends Component
     public $testKitColumnSearch = '';
     public $showCreateTestKitColumnModal = false;
     public $showEditTestKitColumnModal = false;
-    public $showDeleteTestKitColumnModal = false;
+    public $showDeleteTestKitColumnModalOpen = false;
     public $editingTestKitColumn = null;
     public $deletingTestKitColumn = null;
 
@@ -398,7 +398,7 @@ class ProcedureWorksheetEditor extends Component
     public function showDeleteConfigFieldModal(int $fieldId): void
     {
         $this->deletingConfigField = ProcedureConfigField::where('procedure_worksheet_id', $this->worksheetId)->findOrFail($fieldId);
-        $this->showDeleteConfigFieldModal = true;
+        $this->showDeleteConfigFieldModalOpen = true;
     }
 
     public function deleteConfigField(): void
@@ -407,7 +407,7 @@ class ProcedureWorksheetEditor extends Component
             $this->deletingConfigField->delete();
         }
 
-        $this->showDeleteConfigFieldModal = false;
+        $this->showDeleteConfigFieldModalOpen = false;
         $this->deletingConfigField = null;
         $this->loadConfigFields();
     }
@@ -576,7 +576,7 @@ class ProcedureWorksheetEditor extends Component
     public function showDeleteTestKitColumnModal(int $columnId): void
     {
         $this->deletingTestKitColumn = ProcedureTestKitColumn::where('procedure_worksheet_id', $this->worksheetId)->findOrFail($columnId);
-        $this->showDeleteTestKitColumnModal = true;
+        $this->showDeleteTestKitColumnModalOpen = true;
     }
 
     public function deleteTestKitColumn(): void
@@ -585,7 +585,7 @@ class ProcedureWorksheetEditor extends Component
             $this->deletingTestKitColumn->delete();
         }
 
-        $this->showDeleteTestKitColumnModal = false;
+        $this->showDeleteTestKitColumnModalOpen = false;
         $this->deletingTestKitColumn = null;
         $this->loadTestKitColumns();
     }
