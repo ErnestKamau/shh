@@ -471,13 +471,21 @@
                 <div class="column">
                     <div class="info-row">
                         <div class="info-label">Deviations from method:</div>
-                        <div class="info-value">No</div>
+                        <div class="info-value">
+                            {{ ($batch->has_method_deviation ?? false) ? 'Yes' : 'No' }}
+                        </div>
                     </div>
                 </div>
                 <div class="column">
                     <div class="info-row">
                         <div class="info-label">Reason for Deviation:</div>
-                        <div class="info-value">N/A</div>
+                        <div class="info-value">
+                            @if($batch->has_method_deviation ?? false)
+                                {{ $batch->method_deviation_reason ?: 'N/A' }}
+                            @else
+                                N/A
+                            @endif
+                        </div>
                     </div>
                 </div>
                 <div class="column">

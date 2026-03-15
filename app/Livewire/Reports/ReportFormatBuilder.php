@@ -19,7 +19,7 @@ class ReportFormatBuilder extends Component
     // Details
     public $details = [];
     public $availableDetailsKeys = [
-        'header_disclaimer' => 'Header Disclaimer',
+        // 'header_disclaimer' => 'Header Disclaimer', // Deprecated: header disclaimer removed from builder UI
         'methodology_statement' => 'Methodology Statement',
         'footer_disclaimer' => 'Footer Disclaimer'
     ];

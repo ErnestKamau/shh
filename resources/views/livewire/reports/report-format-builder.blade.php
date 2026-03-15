@@ -66,7 +66,26 @@
                     @foreach($availableDetailsKeys as $key => $label)
                     <div class="form-group mb-3">
                         <label for="detail_{{ $key }}" class="form-label fw-bold">{{ $label }}</label>
-                        <textarea wire:model="details.{{ $key }}" class="form-control" id="detail_{{ $key }}" rows="3" placeholder="Enter {{ strtolower($label) }}..." style="border-radius: 10px;"></textarea>
+
+                        @if(in_array($key, ['methodology_statement', 'footer_disclaimer']))
+                        {{-- WYSIWYG editor-backed textarea; Summernote will enhance anything with .summernote-editor --}}
+                        <textarea
+                            wire:model.defer="details.{{ $key }}"
+                            id="detail_{{ $key }}"
+                            class="form-control summernote-editor"
+                            rows="5"
+                            placeholder="Enter {{ strtolower($label) }}..."
+                            style="border-radius: 10px;">{{ $details[$key] ?? '' }}</textarea>
+                        @else
+                        {{-- Plain textarea for any other detail keys --}}
+                        <textarea
+                            wire:model.defer="details.{{ $key }}"
+                            class="form-control"
+                            id="detail_{{ $key }}"
+                            rows="3"
+                            placeholder="Enter {{ strtolower($label) }}..."
+                            style="border-radius: 10px;"></textarea>
+                        @endif
                     </div>
                     @endforeach
                 </div>

@@ -1,5 +1,4 @@
 <div class="results-section">
-    <div class="section-title">{{ $custom_title ?? 'Results :' }}</div>
     <table class="results-table">
         <thead>
             <tr>
@@ -25,8 +24,12 @@
             </tr>
             @foreach($areaSamples as $sampleData)
             <tr>
-                <td class="sample-id">{{ $sampleData['sample']->sample_code }}</td>
-                <td class="sample-id">{!! $sampleData['sample']->sample_point ?? 'Sample' !!}</td>
+                <td class="sample-id">
+                    {{ $sampleData['sample_code'] ?? ($sampleData['sample']->sample_code ?? 'N/A') }}
+                </td>
+                <td class="sample-id">
+                    {{ $sampleData['sample_point_name'] ?? (optional($sampleData['sample']->sample_point)->name ?? 'Sample') }}
+                </td>
                 @foreach($parameters as $parameter)
                 @php
                 $analyteCode = $parameter->analyte_code ?? $parameter->name;
@@ -48,8 +51,12 @@
 
             @foreach($ungrouped_samples ?? [] as $sampleData)
             <tr>
-                <td class="sample-id">{{ $sampleData['sample']->sample_code }}</td>
-                <td class="sample-id">{!! $sampleData['sample']->sample_point ?? 'Sample' !!}</td>
+                <td class="sample-id">
+                    {{ $sampleData['sample_code'] ?? ($sampleData['sample']->sample_code ?? 'N/A') }}
+                </td>
+                <td class="sample-id">
+                    {{ $sampleData['sample_point_name'] ?? (optional($sampleData['sample']->sample_point)->name ?? 'Sample') }}
+                </td>
                 @foreach($parameters as $parameter)
                 @php
                 $analyteCode = $parameter->analyte_code ?? $parameter->name;

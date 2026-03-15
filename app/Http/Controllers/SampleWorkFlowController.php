@@ -1769,6 +1769,38 @@ class SampleWorkFlowController extends Controller
         // return response()->json('test');
         $previousWorkflow = $batch->status;
 
+        // Ensure we always have a valid tracking_stage_id when updating chain of custody
+        $targetTrackingStage = $batch->sample_tracking_stage;
+
+        if (!$targetTrackingStage) {
+            // Try to derive from batch stages for the target workflow (legacy behavior)
+            if (method_exists($batch, 'stages')) {
+                $stages = $batch->stages($status);
+                if (isset($stages[0]->id)) {
+                    $targetTrackingStage = $stages[0]->id;
+                }
+            }
+
+            // Fallback: use the first defined SampleAnalysisStage for the target workflow
+            if (!$targetTrackingStage) {
+                $stage = SampleAnalysisStage::where('sample_workflow', $status)
+                    ->orderBy('level', 'asc')
+                    ->first();
+
+                if (isset($stage->id)) {
+                    $targetTrackingStage = $stage->id;
+                }
+            }
+
+            // If we still don't have a tracking stage, prevent a broken custody record
+            if (!$targetTrackingStage) {
+                return redirect()->back()->with(
+                    'error',
+                    'Kindly add Sample Analysis Stage to the sample type'
+                );
+            }
+        }
+
         $custodyDetails = [
             'batch_id' => $batch_id,
             'comments' => $request->comments ?? '',
@@ -1778,12 +1810,22 @@ class SampleWorkFlowController extends Controller
             ],
             'target' => [
                 'status' => $status,
-                'tracking_stage' => $batch->sample_tracking_stage,
+                'tracking_stage' => $targetTrackingStage,
             ],
         ];
 
         $this->updateChainofCustody($custodyDetails);
+
+        // Keep batch tracking stage in sync with the target workflow stage
+        $batch->sample_tracking_stage = $targetTrackingStage;
+
         if ($batch->status == 'Samples In Lab' && $status == 'Sample Verification') {
+            // Persist method deviation details at batch level when moving to verification
+            $batch->has_method_deviation = $request->boolean('has_method_deviation');
+            $batch->method_deviation_reason = $batch->has_method_deviation
+                ? ($request->input('method_deviation_reason') ?? '')
+                : null;
+
             if (isset($request->approver_id)) {
                 $batch->verify_user_id = $request->approver_id;
             }

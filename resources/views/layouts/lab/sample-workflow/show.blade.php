@@ -3515,6 +3515,16 @@
 					<label class="control-label">Verification Notes/Comments</label>
 					<textarea class="form-control" name="comments" placeholder="Comments..."></textarea>
 				</div>
+				<div class="form-check mt-2">
+					<input class="form-check-input" type="checkbox" name="has_method_deviation" id="has_method_deviation">
+					<label class="form-check-label" for="has_method_deviation">
+						Deviations from method
+					</label>
+				</div>
+				<div class="form-group mt-2" id="method_deviation_reason_group" style="display:none;">
+					<label class="control-label">Reason for Deviation</label>
+					<textarea class="form-control" name="method_deviation_reason" placeholder="Describe the deviation from method..."></textarea>
+				</div>
 
 				<div class="form-check">
 					<input class="form-check-input" type="checkbox" class="form-control" name="notification" />
@@ -3537,6 +3547,22 @@
 		</form>
 	</div>
 </div>
+@endif
+
+@if(isset($batch->status) && $batch->status=="Samples In Lab")
+@push('scripts')
+<script>
+	document.addEventListener('DOMContentLoaded', function() {
+		var checkbox = document.getElementById('has_method_deviation');
+		var reasonGroup = document.getElementById('method_deviation_reason_group');
+		if (checkbox && reasonGroup) {
+			checkbox.addEventListener('change', function() {
+				reasonGroup.style.display = this.checked ? 'block' : 'none';
+			});
+		}
+	});
+</script>
+@endpush
 @endif
 @if(isset($batch->status) && $batch->status=="Samples Request Review")
 <div id="dispatch-to-labs-modal" class="modal fade" role="dialog">
@@ -6742,7 +6768,9 @@
 		var $row = $oGRow.clone();
 
 		data.reporting_unit_id == '' ? $($row).find('.sample-reporting-unit').val(data.my_analyte.reporting_unit) : $($row).find('.sample-reporting-unit').val(data.reporting_unit_id);
-		$($row).find('.sample-reporting-unit').select2({ dropdownParent: $('#show-sample-analysis-analytes') });
+		$($row).find('.sample-reporting-unit').select2({
+			dropdownParent: $('#show-sample-analysis-analytes')
+		});
 
 		$row.on('keypress', '.first-result', function(e) {
 			if (e.which == 13) {
@@ -6835,9 +6863,15 @@
 			$row.find('select.item-operators').append(`<option value="${p.id}">${p.name}</option>`)
 		});
 		var $paramsModal = $('#show-sample-analysis-analytes');
-		$row.find('select.method-id').select2({ dropdownParent: $paramsModal });
-		$row.find('select.item-operators').select2({ dropdownParent: $paramsModal });
-		$row.find('select.remarkmanual').select2({ dropdownParent: $paramsModal });
+		$row.find('select.method-id').select2({
+			dropdownParent: $paramsModal
+		});
+		$row.find('select.item-operators').select2({
+			dropdownParent: $paramsModal
+		});
+		$row.find('select.remarkmanual').select2({
+			dropdownParent: $paramsModal
+		});
 		if (selectedOperator) {
 			$row.find('select.item-operators').val(selectedOperator).trigger('change');
 		}
@@ -7730,7 +7764,7 @@
 
 	function getParameterRowBackgroundClass(result, remark) {
 		if (!result || !remark || remark === '-') return '';
-		
+
 		if (remark === 'PASS') return 'table-success';
 		if (remark === 'FAIL') return 'table-danger';
 		return 'table-secondary';

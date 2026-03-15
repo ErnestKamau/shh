@@ -305,24 +305,7 @@
             margin: 5px 0;
         }
 
-        .stamp-area {
-            position: fixed;
-            bottom: 120px;
-            right: 30px;
-            z-index: 1100;
-        }
-
-        .stamp-area img {
-            height: 80px;
-        }
-
-        .stamp-date {
-            color: red;
-            font-weight: bold;
-            text-align: center;
-            margin-top: 5px;
-            font-size: 10px;
-        }
+        
 
         .method-section {
             margin: 15px 0;
@@ -849,14 +832,6 @@
                 <div class="signature-date">{{ date('d/m/Y') }}</div>
             </div>
             @endforeach
-        </div>
-        @endif
-
-        <!-- Stamp if required -->
-        @if($is_stamp)
-        <div class="stamp-area">
-            <img src="{{ $stamp }}" alt="Official Stamp">
-            <div class="stamp-date">{{ date('d M Y') }}</div>
         </div>
         @endif
 

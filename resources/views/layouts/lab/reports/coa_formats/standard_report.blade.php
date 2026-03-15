@@ -92,12 +92,7 @@
         font-weight: bolder !important;
     }
 
-    .stamp-section {
-        position: fixed;
-        bottom: 145px;
-        right: -4px !important;
-        z-index: 1100 !important;
-    }
+    
 
     .markings-comments p {
         margin: 0 !important;
@@ -405,16 +400,6 @@ $printed_pos = [];
                             <!-- <td style="width:10%"></td> -->
                             @foreach ($batch_approvers as $approver)
                                 <td style="font-size: 8px !important;width:23%; position: relative">
-                                    @if($loop->last)
-                                        @if (isset($is_stamp->id))
-                                            <div class="stamp-section" style="position: absolute; top:-80px; left:240px; z-index: 10">
-                                                <img src="{{ $stamp }}" style="height:200px; z-index:1000;position: relative;" alt="">
-                                            </div>
-                                            <div
-                                                style="position:absolute; z-index: 10000;background-color:white !important;font-weight:800;top:3px; left:310px;font-size:13px;width: 90px;color:red">
-                                                {{ date('d M Y') }}</div>
-                                        @endif
-                                    @endif
                                     @if (in_array($approver->lab_section_ids, $sample['lab_sect_ids_arr']))
                                         <div class="dotted-lined text-align:center" style="text-align:center;">
                                             <img src="{{ getCoaApproverSignature($approver->getApproverDetails()->electronic_sig) }}"
