@@ -1,5 +1,5 @@
 <div class="procedure-worksheet-manager">
-    <div wire:loading wire:target="activeTab, selectedWorksheetId, save">
+    <div wire:loading wire:target="activeTabs, selectedWorksheetId, save">
         <div class="d-flex justify-content-center align-items-center" style="position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(255, 255, 255, 0.7); z-index: 9999;">
             <div class="spinner-border text-primary" role="status">
                 <span class="sr-only">Loading...</span>
@@ -26,7 +26,7 @@
     </div>
     @else
     <div class="col-12">
-        @if($activeTab && $this->selectedWorksheet)
+        @if(!empty($activeTabs) && $this->selectedWorksheet)
         <div class="alert alert-light border mb-4 procedure-info-banner">
             <div class="d-flex align-items-center justify-content-between flex-wrap gap-3">
                 <div class="d-flex align-items-center">
@@ -44,21 +44,32 @@
         @endif
 
         <div class="card procedure-worksheet-card mb-0">
+            {{-- Workflow guidance hint --}}
+            <div class="alert alert-info alert-sm py-2 px-3 mb-0 rounded-0 border-0 border-bottom" style="font-size:0.85rem;">
+                <i class="mdi mdi-information-outline mr-1"></i>
+                <strong>Tip:</strong> Select all the <strong>parameters</strong> you want to fill at once (click to toggle), then add any samples from other batches. Your single set of entries will be saved across all selected parameters.
+                @if(!empty($externalCapturedResultIds))
+                <span class="badge badge-success ml-2"><i class="mdi mdi-check"></i> {{ count($externalCapturedResultIds) }} external sample(s) added &mdash; will persist across tab changes</span>
+                @endif
+            </div>
             {{-- Tabs: one per parameter; worksheet from element below --}}
             <div class="procedure-selector-bar">
                 <ul class="nav nav-tabs procedure-tabs border-0" role="tablist">
                     @foreach($this->paramsWithWorksheets as $param)
                     <li class="nav-item" role="presentation">
                         <button type="button"
-                            class="nav-link procedure-tab {{ $activeTab == $param->id ? 'active' : '' }}"
-                            wire:click="$set('activeTab', {{ $param->id }})"
+                            class="nav-link procedure-tab {{ in_array($param->id, $activeTabs) ? 'active' : '' }}"
+                            wire:click="toggleActiveTab({{ $param->id }})"
                             role="tab">
+                            @if(in_array($param->id, $activeTabs))
+                                <i class="mdi mdi-check-circle-outline mr-1"></i>
+                            @endif
                             {{ $param->name }}
                         </button>
                     </li>
                     @endforeach
                 </ul>
-                @if($activeTab)
+                @if(!empty($activeTabs))
                 <div class="procedure-tab-worksheet">
                     @if($this->worksheetsForParam->count() === 1)
                     <span class="procedure-worksheet-name">{{ $this->worksheetsForParam->first()->name }}</span>
@@ -75,7 +86,7 @@
             </div>
 
             <div class="card-body p-4">
-                @if($activeTab)
+                @if(!empty($activeTabs))
                 @if($selectedWorksheetId)
                 <section class="procedure-section mb-4">
                     <div class="card procedure-section-card">

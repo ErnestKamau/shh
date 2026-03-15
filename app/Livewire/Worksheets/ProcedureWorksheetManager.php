@@ -35,7 +35,7 @@ class ProcedureWorksheetManager extends Component
         'triggerPostResults' => 'postResults',
     ];
     public $batchId;
-    public $activeTab = null; // This will hold the active Analyte ID
+    public $activeTabs = []; // This will hold an array of active Analyte IDs
     public $selectedWorksheetId = null;
     public $selectedSamples = []; // Array of sample_detail_ids
     public $inputValues = []; // [captured_result_id => [step_id => value]]
@@ -70,8 +70,9 @@ class ProcedureWorksheetManager extends Component
     public function initActiveTab()
     {
         $params = $this->paramsWithWorksheets;
-        if ($params->isNotEmpty() && !$this->activeTab) {
-            $this->activeTab = $params->first()->id;
+        if ($params->isNotEmpty() && empty($this->activeTabs)) {
+            $this->activeTabs = [$params->first()->id];
+            $this->updatedActiveTabs();
         }
     }
 
@@ -89,11 +90,11 @@ class ProcedureWorksheetManager extends Component
 
     public function getWorksheetsForParamProperty()
     {
-        if (!$this->activeTab) return collect();
+        if (empty($this->activeTabs)) return collect();
 
-        // Get unique procedure worksheets for the selected analyte in this batch
+        // Get unique procedure worksheets for the selected analytes in this batch
         $worksheetIds = CapturedResult::where('sample_header_id', $this->batchId)
-            ->where('analyte_id', $this->activeTab)
+            ->whereIn('analyte_id', $this->activeTabs)
             ->whereNotNull('procedure_worksheet_id')
             ->pluck('procedure_worksheet_id')
             ->unique();
@@ -101,16 +102,33 @@ class ProcedureWorksheetManager extends Component
         return ProcedureWorksheet::whereIn('id', $worksheetIds)->get();
     }
 
-    public function updatedActiveTab()
+    public function toggleActiveTab($tabId)
+    {
+        if (in_array($tabId, $this->activeTabs)) {
+            $this->activeTabs = array_filter($this->activeTabs, fn($t) => $t != $tabId);
+        } else {
+            $this->activeTabs[] = $tabId;
+        }
+        $this->activeTabs = array_values($this->activeTabs);
+        $this->updatedActiveTabs();
+    }
+
+    public function updatedActiveTabs()
     {
         $this->selectedWorksheetId = null;
         $this->selectedSamples = [];
-        $this->externalCapturedResultIds = [];
+        // Preserve $externalCapturedResultIds so user-added external samples aren't lost when toggling tabs
         $this->externalSearchResults = [];
         $this->externalSelectionItems = [];
         $this->externalSearch = '';
         $this->showExternalPanel = false;
         $this->showExternalDropdown = false;
+        
+        // Clear cached input values to prevent cross-tab saves
+        $this->inputValues = [];
+        $this->configFieldValues = [];
+        $this->testKitData = [];
+        $this->testKitRows = [];
         // Auto-select first worksheet ?
         $worksheets = $this->worksheetsForParam;
         if ($worksheets->count() > 0) {
@@ -121,7 +139,7 @@ class ProcedureWorksheetManager extends Component
     public function selectWorksheet($worksheetId)
     {
         $this->selectedWorksheetId = $worksheetId;
-        $this->externalCapturedResultIds = [];
+        // Preserve $externalCapturedResultIds so user-added external samples aren't lost when switching worksheets
         $this->externalSearchResults = [];
         $this->externalSelectionItems = [];
         $this->externalSearch = '';
@@ -135,27 +153,33 @@ class ProcedureWorksheetManager extends Component
         if (!$value) {
             return;
         }
-        $this->externalCapturedResultIds = [];
+        // Preserve $externalCapturedResultIds so user-added external samples aren't lost when switching worksheets
         $this->externalSearchResults = [];
         $this->externalSelectionItems = [];
         $this->externalSearch = '';
         $this->showExternalPanel = false;
         $this->showExternalDropdown = false;
+        
+        // Clear cached input values to prevent cross-worksheet saves
+        $this->inputValues = [];
+        $this->configFieldValues = [];
+        $this->testKitData = [];
+        $this->testKitRows = [];
         $this->loadSamples();
     }
 
     public function loadSamples()
     {
-        if (!$this->activeTab || !$this->selectedWorksheetId) {
+        if (empty($this->activeTabs) || !$this->selectedWorksheetId) {
             $this->selectedSamples = [];
             $this->testKitRows = [];
             $this->testKitData = [];
             return;
         }
 
-        // Base query for captured results for this analyte and worksheet
+        // Base query for captured results for these analytes and worksheet
         $query = CapturedResult::query()
-            ->where('analyte_id', $this->activeTab)
+            ->whereIn('analyte_id', $this->activeTabs)
             ->where('procedure_worksheet_id', $this->selectedWorksheetId);
 
         // Always include current batch, optionally include explicitly selected external captured_results
@@ -259,10 +283,10 @@ class ProcedureWorksheetManager extends Component
 
     public function getAnalysisSamplesProperty()
     {
-        if (!$this->activeTab || !$this->selectedWorksheetId) return collect();
+        if (empty($this->activeTabs) || !$this->selectedWorksheetId) return collect();
 
         $query = CapturedResult::query()
-            ->where('analyte_id', $this->activeTab)
+            ->whereIn('analyte_id', $this->activeTabs)
             ->where('procedure_worksheet_id', $this->selectedWorksheetId);
 
         if (! empty($this->externalCapturedResultIds)) {
@@ -515,7 +539,7 @@ class ProcedureWorksheetManager extends Component
     {
         $this->externalSearchResults = [];
 
-        if (! $this->activeTab || ! $this->selectedWorksheetId) {
+        if (empty($this->activeTabs) || ! $this->selectedWorksheetId) {
             return;
         }
 
@@ -529,7 +553,7 @@ class ProcedureWorksheetManager extends Component
         $query = DB::table('captured_results as cr')
             ->join('sample_details as sd', 'sd.id', '=', 'cr.sample_detail_id')
             ->join('sample_headers as sh', 'sh.id', '=', 'cr.sample_header_id')
-            ->where('cr.analyte_id', $this->activeTab)
+            ->whereIn('cr.analyte_id', $this->activeTabs)
             ->where('cr.procedure_worksheet_id', $this->selectedWorksheetId)
             ->where('cr.sample_header_id', '!=', $this->batchId)
             ->when(! empty($alreadySelectedIds), function ($q) use ($alreadySelectedIds) {
@@ -667,10 +691,10 @@ class ProcedureWorksheetManager extends Component
         }
 
         foreach ($this->inputValues as $capturedResultId => $steps) {
-            if (! is_array($steps)) {
+            $capturedResultId = (int) $capturedResultId;
+            if (! in_array($capturedResultId, $selectedIds) || ! is_array($steps)) {
                 continue;
             }
-            $capturedResultId = (int) $capturedResultId;
             foreach ($steps as $stepId => $value) {
                 $stepId = (int) $stepId;
                 CapturedProcedureValue::updateOrCreate(
@@ -686,10 +710,10 @@ class ProcedureWorksheetManager extends Component
         }
 
         foreach ($this->configFieldValues as $capturedResultId => $fields) {
-            if (! is_array($fields)) {
+            $capturedResultId = (int) $capturedResultId;
+            if (! in_array($capturedResultId, $selectedIds) || ! is_array($fields)) {
                 continue;
             }
-            $capturedResultId = (int) $capturedResultId;
             foreach ($fields as $fieldId => $value) {
                 $fieldId = (int) $fieldId;
                 $valueToStore = is_array($value) ? implode(',', $value) : ($value ?? '');
@@ -747,9 +771,9 @@ class ProcedureWorksheetManager extends Component
      */
     public function postResults(): void
     {
-        if (! $this->activeTab || ! $this->selectedWorksheetId) {
+        if (empty($this->activeTabs) || ! $this->selectedWorksheetId) {
             $this->flashType = 'warning';
-            $this->flashMessage = 'Select a parameter and procedure worksheet before posting results.';
+            $this->flashMessage = 'Select at least one parameter and a procedure worksheet before posting results.';
             return;
         }
 
