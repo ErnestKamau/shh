@@ -244,20 +244,59 @@ class ProcedureWorksheetManager extends Component
         }
 
         // Ensure every displayed captured_result has configFieldValues keys for each config field
-        // and pre-fill from the captured_result's own operator_id / method_id when nothing is saved yet.
+        // and pre-fill dynamically from the underlying entities when nothing is saved yet.
+        $batchHeader = SampleHeader::find($this->batchId);
+
         foreach ($capturedResults as $cr) {
             foreach ($configFields as $field) {
                 $existing = $this->configFieldValues[$cr->id][$field->id] ?? null;
                 $isEmpty = $existing === null || $existing === '' || $existing === [];
 
                 if ($isEmpty) {
-                    // Try to seed from the captured result's fields
-                    if ($field->model_tied_to === 'users' && $cr->operator_id) {
-                        $this->configFieldValues[$cr->id][$field->id] = (string) $cr->operator_id;
-                    } elseif ($field->model_tied_to === 'methods' && $cr->method_id) {
-                        $this->configFieldValues[$cr->id][$field->id] = (string) $cr->method_id;
+                    $value = null;
+
+                    switch ($field->model_tied_to) {
+                        case 'users':
+                            // Default to the captured result's operator if available.
+                            $value = $cr->operator_id ? (string) $cr->operator_id : null;
+                            break;
+
+                        case 'methods':
+                            // Default to the captured result's method if available.
+                            $value = $cr->method_id ? (string) $cr->method_id : null;
+                            break;
+
+                        case 'sample_types':
+                            // Default to the batch's sample type.
+                            $value = $batchHeader && $batchHeader->sample_type_id
+                                ? (string) $batchHeader->sample_type_id
+                                : null;
+                            break;
+
+                        case 'sample_details':
+                            // Default to this captured result's sample_detail_id when present.
+                            $value = $cr->sample_detail_id ? (string) $cr->sample_detail_id : null;
+                            break;
+
+                        case 'captured_results':
+                            // Default to this captured result itself (tests linked to this CR).
+                            $value = (string) $cr->id;
+                            break;
+
+                        case 'report_formats':
+                            // No generic default for report formats; leave empty unless explicitly set.
+                            $value = null;
+                            break;
+
+                        default:
+                            $value = null;
+                    }
+
+                    if ($field->field_type === 'dataset_multiselect') {
+                        // For multiselect, always use an array of strings.
+                        $this->configFieldValues[$cr->id][$field->id] = $value !== null ? [(string) $value] : [];
                     } else {
-                        $this->configFieldValues[$cr->id][$field->id] = $field->field_type === 'dataset_multiselect' ? [] : '';
+                        $this->configFieldValues[$cr->id][$field->id] = $value !== null ? (string) $value : '';
                     }
                 } elseif ($field->field_type === 'dataset_multiselect') {
                     $val = $this->configFieldValues[$cr->id][$field->id];
@@ -450,7 +489,7 @@ class ProcedureWorksheetManager extends Component
             'sample_details' => $this->getSampleDetailsDatasetOptions($samples),
             'sample_types' => $this->getSampleTypesDatasetOptionsForBatch(),
             'methods' => $this->getMethodsDatasetOptionsForSelectedSamples($filteredSamples),
-            'captured_results' => $this->getCapturedResultsDatasetOptions($filteredSamples),
+            'captured_results' => $this->getCapturedResultsDatasetOptions($samples),
             'report_formats' => ReportFormat::active()
                 ->orderBy('report_name')
                 ->get()
