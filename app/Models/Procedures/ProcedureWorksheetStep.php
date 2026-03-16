@@ -35,6 +35,19 @@ class ProcedureWorksheetStep extends Model
             return collect([]);
         }
 
+        // Backwards-compatible: handle legacy JSON or comma-separated formats
+        if (is_string($id)) {
+            $trimmed = trim($id);
+            if ($trimmed !== '' && $trimmed[0] === '[') {
+                $decoded = json_decode($trimmed, true);
+                if (is_array($decoded)) {
+                    $id = $decoded;
+                }
+            } elseif (str_contains($trimmed, ',')) {
+                $id = array_map('trim', explode(',', $trimmed));
+            }
+        }
+
         $ids = is_array($id) ? $id : [(int) $id];
 
         return Equipment::whereIn('id', $ids)->get();
@@ -45,6 +58,19 @@ class ProcedureWorksheetStep extends Model
         $id = $this->default_analyst_id;
         if ($id === null || $id === '' || $id === 0) {
             return collect([]);
+        }
+
+        // Backwards-compatible: handle legacy JSON or comma-separated formats
+        if (is_string($id)) {
+            $trimmed = trim($id);
+            if ($trimmed !== '' && $trimmed[0] === '[') {
+                $decoded = json_decode($trimmed, true);
+                if (is_array($decoded)) {
+                    $id = $decoded;
+                }
+            } elseif (str_contains($trimmed, ',')) {
+                $id = array_map('trim', explode(',', $trimmed));
+            }
         }
 
         $ids = is_array($id) ? $id : [(int) $id];

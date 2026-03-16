@@ -339,6 +339,19 @@ class ProcedureWorksheetManager extends Component
         foreach ($steps as $step) {
             if (! isset($this->stepEquipmentOverrides[$step->id])) {
                 $rawEq = $step->default_equipment_id;
+
+                if (is_string($rawEq)) {
+                    $trimmed = trim($rawEq);
+                    if ($trimmed !== '' && $trimmed[0] === '[') {
+                        $decoded = json_decode($trimmed, true);
+                        if (is_array($decoded)) {
+                            $rawEq = $decoded;
+                        }
+                    } elseif (str_contains($trimmed, ',')) {
+                        $rawEq = array_map('trim', explode(',', $trimmed));
+                    }
+                }
+
                 $eqIds = $rawEq === null || $rawEq === '' || $rawEq === 0
                     ? []
                     : (is_array($rawEq) ? $rawEq : [(string) $rawEq]);
@@ -351,6 +364,19 @@ class ProcedureWorksheetManager extends Component
             }
             if (! isset($this->stepAnalystOverrides[$step->id])) {
                 $rawAn = $step->default_analyst_id;
+
+                if (is_string($rawAn)) {
+                    $trimmed = trim($rawAn);
+                    if ($trimmed !== '' && $trimmed[0] === '[') {
+                        $decoded = json_decode($trimmed, true);
+                        if (is_array($decoded)) {
+                            $rawAn = $decoded;
+                        }
+                    } elseif (str_contains($trimmed, ',')) {
+                        $rawAn = array_map('trim', explode(',', $trimmed));
+                    }
+                }
+
                 $anIds = $rawAn === null || $rawAn === '' || $rawAn === 0
                     ? []
                     : (is_array($rawAn) ? $rawAn : [(string) $rawAn]);
