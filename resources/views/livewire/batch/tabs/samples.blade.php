@@ -800,10 +800,11 @@
                                         <small class="text-muted">{{ $param['analyte_name'] }}</small>
                                     </td>
                                     <td>{{ $param['result_reporting_symbol'] ?? '-' }}</td>
-                                    <td style="min-width: 120px;">
-                                        <input type="text" class="form-control form-control-sm"
-                                            wire:model.lazy="parametersForm.{{ $id }}.result" x-data
-                                            x-on:change="
+                                    <td style="min-width: 160px;">
+                                        <div class="input-group input-group-sm">
+                                            <input type="text" class="form-control form-control-sm"
+                                                wire:model.lazy="parametersForm.{{ $id }}.result" x-data
+                                                x-on:change="
                                                                                                                                                                                                                                                                             let val = $el.value;
                                                                                                                                                                                                                                                                             if(val) {
                                                                                                                                                                                                                                                                                 setTimeout(() => {
@@ -816,7 +817,18 @@
                                                                                                                                                                                                                                                                                 }, 50);
                                                                                                                                                                                                                                                                             }
                                                                                                                                                                                                                                                                        "
-                                            placeholder="Result">
+                                                placeholder="Result">
+                                            @if(!empty($param['batch_attachment_url']) && strcasecmp($param['result'] ?? '', 'as attached') === 0)
+                                            <div class="input-group-append">
+                                                <a href="{{ $param['batch_attachment_url'] }}" target="_blank"
+                                                    class="btn btn-outline-dark btn-sm"
+                                                    data-toggle="tooltip"
+                                                    title="View attached result">
+                                                    <i class="mdi mdi-eye"></i>
+                                                </a>
+                                            </div>
+                                            @endif
+                                        </div>
                                     </td>
                                     @if($uncertaintyRequired)
                                     <td style="min-width: 80px;">

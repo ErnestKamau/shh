@@ -368,9 +368,10 @@ class Header extends Component
             return;
         }
 
-        // Ensure all attachment-based results are truly linked to an attachment
+        // Ensure all attachment-based results (those that expect a procedure worksheet)
+        // are truly linked to an attachment before moving on in the workflow.
         $incompleteAttachmentResults = CapturedResult::where('sample_header_id', $batch->id)
-            ->where('result', 'has attachment')
+            ->where('has_procedure_worksheet', true)
             ->where(function ($query) {
                 $query->whereNull('batch_attachment_id')
                     ->orWhereDoesntHave('batchAttachment');
@@ -382,7 +383,7 @@ class Header extends Component
             session()->flash(
                 'error',
                 $count . ' captured result' . ($count > 1 ? 's are' : ' is') .
-                    ' marked as having attachments, but no result attachment is linked. ' .
+                    ' that require an attachment do not yet have a linked result attachment. ' .
                     'Please go to the Attachments tab, upload/link the result report(s), then try moving this batch to verification again.'
             );
             return;

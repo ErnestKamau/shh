@@ -3291,7 +3291,7 @@ class SampleWorkFlowController extends Controller
             $new->attachment_url = (string) $fName;
             $new->save();
 
-            // Link captured results to this attachment if the type is "Result Report"
+            // Link captured results to this attachment (when provided)
             if ($request->filled('selected_captured_result_ids')) {
                 $ids = array_filter(
                     array_map('intval', explode(',', $request->selected_captured_result_ids))
@@ -3302,6 +3302,13 @@ class SampleWorkFlowController extends Controller
                     CapturedResult::whereIn('id', $ids)
                         ->where('sample_header_id', $batch->id)
                         ->update(['batch_attachment_id' => $new->id]);
+
+                    // For any attachment-based placeholder results, flip the
+                    // textual result to "as attached" now that an attachment exists.
+                    CapturedResult::whereIn('id', $ids)
+                        ->where('sample_header_id', $batch->id)
+                        ->whereIn('result', ['has attachment', 'No attachment', 'no attachment'])
+                        ->update(['result' => 'as attached']);
 
                     \Log::info('add_batch_attachment: linked captured results', [
                         'batch_id'          => $batch->id,

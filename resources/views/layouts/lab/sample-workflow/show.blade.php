@@ -1288,8 +1288,28 @@
 										<!-- Result Input Field -->
 										<div class="result-input-container mb-2">
 											<div class="input-group input-group-sm">
+												@php
+												$resultText = strtolower((string) $result->result);
+												$hasAttachment = !is_null($result->batch_attachment_id ?? null);
+												$borderClass = $result->remark == 'FAIL'
+												? 'border-danger'
+												: ($result->remark == 'PASS' ? 'border-success' : 'border-secondary');
+
+												// If this analyte uses an attachment-based worksheet and
+												// currently has no linked attachment, emphasize in red.
+												if (($result->has_procedure_worksheet ?? false)
+												&& in_array($resultText, ['no attachment', 'has attachment'])) {
+												$borderClass = 'border-danger';
+												}
+
+												// If it's marked as attached or actually linked to a batch
+												// attachment, make it green.
+												if ($resultText === 'as attached' || $hasAttachment) {
+												$borderClass = 'border-success';
+												}
+												@endphp
 												<input type="text"
-													class="form-control result-input {{ $result->remark == 'FAIL' ? 'border-danger' : ($result->remark == 'PASS' ? 'border-success' : 'border-secondary') }}"
+													class="form-control result-input {{ $borderClass }}"
 													value="{{ $result->result }}"
 													data-result-id="{{ $result->id }}"
 													data-sample-code="{{ $sampleCode }}"

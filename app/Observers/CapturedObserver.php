@@ -43,10 +43,12 @@ class CapturedObserver
                 $captured->procedure_worksheet_id = $analysisElement->procedure_worksheet_id;
                 $captured->has_procedure_worksheet = true;
 
-                // If no explicit result was set during creation, mark that this
-                // captured result has an attachment-related worksheet.
+                // If no explicit result was set during creation and the analyte
+                // expects an attachment-based worksheet, mark it as having
+                // no attachment yet. This will later be flipped to "as attached"
+                // once a batch attachment is linked.
                 if (is_null($captured->result) || $captured->result === '') {
-                    $captured->result = 'has attachment';
+                    $captured->result = 'No attachment';
                 }
             }
 
