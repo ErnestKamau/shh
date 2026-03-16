@@ -646,12 +646,19 @@
                                     <label class="form-label">Default Equipment</label>
                                     <div class="position-relative" wire:click.outside="$set('showEquipmentDropdown', false)">
                                         @if($selectedEquipment)
+                                            @php
+                                                $equipmentModel = $selectedEquipment instanceof \Illuminate\Support\Collection
+                                                    ? $selectedEquipment->first()
+                                                    : $selectedEquipment;
+                                            @endphp
+                                            @if($equipmentModel)
                                             <div class="position-relative">
-                                                <input type="text" class="form-control" value="{{ $selectedEquipment->name }} ({{ $selectedEquipment->equipment_number }})" readonly style="padding-right: 30px;">
+                                                <input type="text" class="form-control" value="{{ $equipmentModel->name }} ({{ $equipmentModel->equipment_number }})" readonly style="padding-right: 30px;">
                                                 <i class="mdi mdi-close text-danger cursor-pointer" 
                                                    wire:click="$set('default_equipment_id', null)"
                                                    style="position: absolute; top: 10px; right: 10px; z-index: 10;"></i>
                                             </div>
+                                            @endif
                                         @else
                                             <input type="text" wire:model.live="equipmentSearch" wire:focus="$set('showEquipmentDropdown', true)" class="form-control" placeholder="Search equipment...">
                                             @if($showEquipmentDropdown && count($equipments) > 0)
