@@ -257,8 +257,15 @@ class ProcedureWorksheetManager extends Component
 
                     switch ($field->model_tied_to) {
                         case 'users':
-                            // Default to the captured result's operator if available.
-                            $value = $cr->operator_id ? (string) $cr->operator_id : null;
+                            // Default to the currently logged in user, falling back to the captured result's operator.
+                            $currentUserId = Auth::id();
+                            if ($currentUserId) {
+                                $value = (string) $currentUserId;
+                            } elseif ($cr->operator_id) {
+                                $value = (string) $cr->operator_id;
+                            } else {
+                                $value = null;
+                            }
                             break;
 
                         case 'methods':
