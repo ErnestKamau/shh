@@ -47,7 +47,7 @@
             {{-- Workflow guidance hint --}}
             <div class="alert alert-info alert-sm py-2 px-3 mb-0 rounded-0 border-0 border-bottom" style="font-size:0.85rem;">
                 <i class="mdi mdi-information-outline mr-1"></i>
-                <strong>Tip:</strong> Select all the <strong>parameters</strong> you want to fill at once (click to toggle), then add any samples from other batches. Your single set of entries will be saved across all selected parameters.
+                <strong>Tip:</strong> Select a <strong>parameter</strong> to enter its procedure data.
                 @if(!empty($externalCapturedResultIds))
                 <span class="badge badge-success ml-2"><i class="mdi mdi-check"></i> {{ count($externalCapturedResultIds) }} external sample(s) added &mdash; will persist across tab changes</span>
                 @endif
@@ -59,11 +59,8 @@
                     <li class="nav-item" role="presentation">
                         <button type="button"
                             class="nav-link procedure-tab {{ in_array($param->id, $activeTabs) ? 'active' : '' }}"
-                            wire:click="toggleActiveTab({{ $param->id }})"
+                            wire:click="setActiveTab({{ $param->id }})"
                             role="tab">
-                            @if(in_array($param->id, $activeTabs))
-                                <i class="mdi mdi-check-circle-outline mr-1"></i>
-                            @endif
                             {{ $param->name }}
                         </button>
                     </li>
@@ -208,8 +205,9 @@
                                     <thead>
                                         <tr>
                                             <th class="step-header-cell">Step</th>
-                                            <th class="step-header-cell">Measurand</th>
+                                            <th class="step-header-cell">Measurand(s)</th>
                                             <th class="step-header-cell">Equipment</th>
+                                            <th class="step-header-cell">Analyst</th>
                                             <th class="step-header-cell">Value</th>
                                         </tr>
                                     </thead>
@@ -217,8 +215,66 @@
                                         @foreach($this->getStepsProperty() as $step)
                                         <tr>
                                             <td class="step-info-cell">{{ $step->step }}</td>
-                                            <td class="step-info-cell">{{ $step->measurands->pluck('name')->implode(', ') ?: '—' }}</td>
-                                            <td class="step-info-cell">{{ $step->equipment?->name ?? '—' }}</td>
+                                            <td>
+                                                {{-- Measurand multiselect (Select2) --}}
+                                                <div wire:ignore x-data="{
+                                                    init() {
+                                                        let el = $(this.$refs.select);
+                                                        el.select2({ width: '100%', placeholder: 'Select measurand(s)...', allowClear: true })
+                                                          .on('change', () => {
+                                                              @this.set('stepMeasurandOverrides.{{ $step->id }}', el.val() || []);
+                                                          });
+                                                        let initial = @js($stepMeasurandOverrides[$step->id] ?? []);
+                                                        if (initial.length) { el.val(initial).trigger('change'); }
+                                                    }
+                                                }">
+                                                    <select x-ref="select" class="form-control form-control-sm" multiple="multiple">
+                                                        @foreach($this->measurandOptions as $opt)
+                                                        <option value="{{ $opt->id }}">{{ $opt->label }}</option>
+                                                        @endforeach
+                                                    </select>
+                                                </div>
+                                            </td>
+                                            <td>
+                                                {{-- Equipment multiselect (Select2) --}}
+                                                <div wire:ignore x-data="{
+                                                    init() {
+                                                        let el = $(this.$refs.select);
+                                                        el.select2({ width: '100%', placeholder: 'Select equipment...', allowClear: true })
+                                                          .on('change', () => {
+                                                              @this.set('stepEquipmentOverrides.{{ $step->id }}', el.val() || []);
+                                                          });
+                                                        let initial = @js($stepEquipmentOverrides[$step->id] ?? []);
+                                                        if (initial.length) { el.val(initial).trigger('change'); }
+                                                    }
+                                                }">
+                                                    <select x-ref="select" class="form-control form-control-sm" multiple="multiple">
+                                                        @foreach($this->equipmentOptions as $opt)
+                                                        <option value="{{ $opt->id }}">{{ $opt->label }}</option>
+                                                        @endforeach
+                                                    </select>
+                                                </div>
+                                            </td>
+                                            <td>
+                                                {{-- Analyst multiselect (Select2) --}}
+                                                <div wire:ignore x-data="{
+                                                    init() {
+                                                        let el = $(this.$refs.select);
+                                                        el.select2({ width: '100%', placeholder: 'Select analyst(s)...', allowClear: true })
+                                                          .on('change', () => {
+                                                              @this.set('stepAnalystOverrides.{{ $step->id }}', el.val() || []);
+                                                          });
+                                                        let initial = @js($stepAnalystOverrides[$step->id] ?? []);
+                                                        if (initial.length) { el.val(initial).trigger('change'); }
+                                                    }
+                                                }">
+                                                    <select x-ref="select" class="form-control form-control-sm" multiple="multiple">
+                                                        @foreach($this->analystOptions as $opt)
+                                                        <option value="{{ $opt->id }}">{{ $opt->label }}</option>
+                                                        @endforeach
+                                                    </select>
+                                                </div>
+                                            </td>
                                             <td>
                                                 <input type="text" class="form-control"
                                                     wire:model.defer="inputValues.{{ $selectedResults->first()->id }}.{{ $step->id }}">
@@ -382,6 +438,9 @@
                                                     }).on('change', () => {
                                                         @this.set('configFieldValues.{{ $selectedResults->first()->id }}.{{ $field->id }}', el.val());
                                                     });
+                                                    // Pre-select the value already seeded by the server
+                                                    let preselected = el.find('option[selected]').val();
+                                                    if (preselected) { el.val(preselected).trigger('change.select2'); }
                                                 }
                                             }">
                                                 <select x-ref="select" class="form-control" data-placeholder="Select...">
@@ -402,6 +461,9 @@
                                                     }).on('change', () => {
                                                         @this.set('configFieldValues.{{ $selectedResults->first()->id }}.{{ $field->id }}', el.val() || []);
                                                     });
+                                                    // Pre-select values already seeded by the server
+                                                    let preselected = el.find('option[selected]').map(function(){ return $(this).val(); }).get();
+                                                    if (preselected.length) { el.val(preselected).trigger('change.select2'); }
                                                 }
                                             }">
                                                 <select x-ref="select" class="form-control" multiple="multiple" data-placeholder="Select...">

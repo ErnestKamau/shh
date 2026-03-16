@@ -21,6 +21,8 @@ class ProcedureWorksheetStep extends Model
     protected $casts = [
         'is_active' => 'boolean',
         'default_measurand_ids' => 'array',
+        'default_equipment_id' => 'array',
+        'default_analyst_id' => 'array',
     ];
 
     public function worksheet()
@@ -28,14 +30,22 @@ class ProcedureWorksheetStep extends Model
         return $this->belongsTo(ProcedureWorksheet::class, 'procedure_worksheet_id');
     }
 
-    public function equipment()
+    public function getEquipmentAttribute()
     {
-        return $this->belongsTo(Equipment::class, 'default_equipment_id');
+        $ids = is_array($this->default_equipment_id) ? $this->default_equipment_id : [];
+        if (empty($ids)) {
+            return collect([]);
+        }
+        return Equipment::whereIn('id', $ids)->get();
     }
 
-    public function analyst()
+    public function getAnalystsAttribute()
     {
-        return $this->belongsTo(User::class, 'default_analyst_id');
+        $ids = is_array($this->default_analyst_id) ? $this->default_analyst_id : [];
+        if (empty($ids)) {
+            return collect([]);
+        }
+        return User::whereIn('id', $ids)->get();
     }
 
     public function getMeasurandsAttribute()

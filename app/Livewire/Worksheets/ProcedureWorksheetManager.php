@@ -42,6 +42,9 @@ class ProcedureWorksheetManager extends Component
     public $configFieldValues = []; // [captured_result_id => [config_field_id => value]]
     public $testKitRows = []; // [row_id => ['row_index' => n]]
     public $testKitData = []; // [row_id => [column_id => value]]
+    public array $stepEquipmentOverrides = []; // [step_id => [equipment_id, ...]]
+    public array $stepMeasurandOverrides = []; // [step_id => [measurand_id, ...]]
+    public array $stepAnalystOverrides = []; // [step_id => [user_id, ...]]
 
     /** Simple in-component flash messaging for Livewire actions. */
     public ?string $flashMessage = null;
@@ -102,14 +105,9 @@ class ProcedureWorksheetManager extends Component
         return ProcedureWorksheet::whereIn('id', $worksheetIds)->get();
     }
 
-    public function toggleActiveTab($tabId)
+    public function setActiveTab($tabId)
     {
-        if (in_array($tabId, $this->activeTabs)) {
-            $this->activeTabs = array_filter($this->activeTabs, fn($t) => $t != $tabId);
-        } else {
-            $this->activeTabs[] = $tabId;
-        }
-        $this->activeTabs = array_values($this->activeTabs);
+        $this->activeTabs = [$tabId];
         $this->updatedActiveTabs();
     }
 
@@ -129,6 +127,9 @@ class ProcedureWorksheetManager extends Component
         $this->configFieldValues = [];
         $this->testKitData = [];
         $this->testKitRows = [];
+        $this->stepEquipmentOverrides = [];
+        $this->stepMeasurandOverrides = [];
+        $this->stepAnalystOverrides = [];
         // Auto-select first worksheet ?
         $worksheets = $this->worksheetsForParam;
         if ($worksheets->count() > 0) {
@@ -165,6 +166,9 @@ class ProcedureWorksheetManager extends Component
         $this->configFieldValues = [];
         $this->testKitData = [];
         $this->testKitRows = [];
+        $this->stepEquipmentOverrides = [];
+        $this->stepMeasurandOverrides = [];
+        $this->stepAnalystOverrides = [];
         $this->loadSamples();
     }
 
@@ -240,10 +244,21 @@ class ProcedureWorksheetManager extends Component
         }
 
         // Ensure every displayed captured_result has configFieldValues keys for each config field
+        // and pre-fill from the captured_result's own operator_id / method_id when nothing is saved yet.
         foreach ($capturedResults as $cr) {
             foreach ($configFields as $field) {
-                if (! isset($this->configFieldValues[$cr->id][$field->id])) {
-                    $this->configFieldValues[$cr->id][$field->id] = $field->field_type === 'dataset_multiselect' ? [] : '';
+                $existing = $this->configFieldValues[$cr->id][$field->id] ?? null;
+                $isEmpty = $existing === null || $existing === '' || $existing === [];
+
+                if ($isEmpty) {
+                    // Try to seed from the captured result's fields
+                    if ($field->model_tied_to === 'users' && $cr->operator_id) {
+                        $this->configFieldValues[$cr->id][$field->id] = (string) $cr->operator_id;
+                    } elseif ($field->model_tied_to === 'methods' && $cr->method_id) {
+                        $this->configFieldValues[$cr->id][$field->id] = (string) $cr->method_id;
+                    } else {
+                        $this->configFieldValues[$cr->id][$field->id] = $field->field_type === 'dataset_multiselect' ? [] : '';
+                    }
                 } elseif ($field->field_type === 'dataset_multiselect') {
                     $val = $this->configFieldValues[$cr->id][$field->id];
                     $this->configFieldValues[$cr->id][$field->id] = is_array($val)
@@ -277,6 +292,24 @@ class ProcedureWorksheetManager extends Component
                 if (! array_key_exists($col->id, $this->testKitData[$row->id])) {
                     $this->testKitData[$row->id][$col->id] = '';
                 }
+            }
+        }
+
+        // Load default step equipment/measurand/analyst overrides (editable per-render)
+        $steps = ProcedureWorksheetStep::where('procedure_worksheet_id', $this->selectedWorksheetId)->orderBy('order')->get();
+        foreach ($steps as $step) {
+            if (! isset($this->stepEquipmentOverrides[$step->id])) {
+                $eqIds = is_array($step->default_equipment_id) ? $step->default_equipment_id : [];
+                $this->stepEquipmentOverrides[$step->id] = array_map('strval', $eqIds);
+            }
+            if (! isset($this->stepMeasurandOverrides[$step->id])) {
+                $this->stepMeasurandOverrides[$step->id] = is_array($step->default_measurand_ids)
+                    ? array_map('strval', $step->default_measurand_ids)
+                    : [];
+            }
+            if (! isset($this->stepAnalystOverrides[$step->id])) {
+                $anIds = is_array($step->default_analyst_id) ? $step->default_analyst_id : [];
+                $this->stepAnalystOverrides[$step->id] = array_map('strval', $anIds);
             }
         }
     }
@@ -319,7 +352,6 @@ class ProcedureWorksheetManager extends Component
         if (!$this->selectedWorksheetId) return collect();
 
         return ProcedureWorksheetStep::where('procedure_worksheet_id', $this->selectedWorksheetId)
-            ->with('equipment')
             ->orderBy('order')
             ->orderBy('id')
             ->get();
@@ -759,6 +791,31 @@ class ProcedureWorksheetManager extends Component
             }
         }
 
+        // Save step overrides (measurands, equipment, analyst) back to the template
+        $steps = ProcedureWorksheetStep::where('procedure_worksheet_id', $this->selectedWorksheetId)->get();
+        foreach ($steps as $step) {
+            $changed = false;
+
+            if (isset($this->stepEquipmentOverrides[$step->id])) {
+                $step->default_equipment_id = $this->stepEquipmentOverrides[$step->id];
+                $changed = true;
+            }
+
+            if (isset($this->stepMeasurandOverrides[$step->id])) {
+                $step->default_measurand_ids = $this->stepMeasurandOverrides[$step->id];
+                $changed = true;
+            }
+
+            if (isset($this->stepAnalystOverrides[$step->id])) {
+                $step->default_analyst_id = $this->stepAnalystOverrides[$step->id];
+                $changed = true;
+            }
+
+            if ($changed) {
+                $step->save();
+            }
+        }
+
         $this->flashType = 'success';
         $this->flashMessage = 'Worksheet values saved successfully.';
     }
@@ -843,9 +900,6 @@ class ProcedureWorksheetManager extends Component
                 $captured->save();
             }
 
-            // Attach Procedure Worksheet PDF to the batch
-            $this->generateWorksheetPdf();
-
             DB::commit();
 
             $this->flashType = 'success';
@@ -864,15 +918,34 @@ class ProcedureWorksheetManager extends Component
         }
     }
 
-    protected function generateWorksheetPdf(): void
+    /**
+     * All active equipment for step equipment dropdowns.
+     */
+    public function getEquipmentOptionsProperty(): \Illuminate\Support\Collection
     {
-        if (!$this->batchId || !$this->selectedWorksheetId) {
-            return;
-        }
-        $batch = SampleHeader::find($this->batchId);
-        $worksheet = ProcedureWorksheet::find($this->selectedWorksheetId);
-        if ($batch && $worksheet) {
-            app(\App\Services\ProcedureWorksheetPdfService::class)->generateAndAttach($batch, $worksheet);
-        }
+        return \App\Models\Equipments\Equipment::orderBy('name')
+            ->get()
+            ->map(fn($e) => (object) ['id' => (string) $e->id, 'label' => $e->name]);
+    }
+
+    /**
+     * All reporting units (measurands) for the step measurand dropdowns.
+     */
+    public function getMeasurandOptionsProperty(): \Illuminate\Support\Collection
+    {
+        return \App\ReportingUnit::orderBy('name')
+            ->get()
+            ->map(fn($r) => (object) ['id' => (string) $r->id, 'label' => $r->name]);
+    }
+
+    /**
+     * Active users for per-step analyst dropdowns.
+     */
+    public function getAnalystOptionsProperty(): \Illuminate\Support\Collection
+    {
+        return User::where('active', 1)
+            ->orderBy('name')
+            ->get()
+            ->map(fn($u) => (object) ['id' => (string) $u->id, 'label' => $u->name ?: $u->email]);
     }
 }
