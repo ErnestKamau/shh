@@ -87,12 +87,7 @@
                     <tr>
                         <td>{{ $step->step }}</td>
                         <td class="small">{{ $step->measurands->pluck('name')->implode(', ') ?: '—' }}</td>
-                        <td class="small">
-                            @php
-                                $equipmentNames = $step->equipment?->pluck('name')->implode(', ') ?? '';
-                            @endphp
-                            {{ $equipmentNames !== '' ? $equipmentNames : '—' }}
-                        </td>
+                        <td class="small">{{ $step->equipment?->name ?? '—' }}</td>
                         @php
                             $val = $firstId ? ($inputValues[$firstId][$step->id] ?? '') : '';
                         @endphp

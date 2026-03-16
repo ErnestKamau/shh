@@ -299,7 +299,10 @@ class ProcedureWorksheetManager extends Component
         $steps = ProcedureWorksheetStep::where('procedure_worksheet_id', $this->selectedWorksheetId)->orderBy('order')->get();
         foreach ($steps as $step) {
             if (! isset($this->stepEquipmentOverrides[$step->id])) {
-                $eqIds = is_array($step->default_equipment_id) ? $step->default_equipment_id : [];
+                $rawEq = $step->default_equipment_id;
+                $eqIds = $rawEq === null || $rawEq === '' || $rawEq === 0
+                    ? []
+                    : (is_array($rawEq) ? $rawEq : [(string) $rawEq]);
                 $this->stepEquipmentOverrides[$step->id] = array_map('strval', $eqIds);
             }
             if (! isset($this->stepMeasurandOverrides[$step->id])) {
@@ -308,7 +311,10 @@ class ProcedureWorksheetManager extends Component
                     : [];
             }
             if (! isset($this->stepAnalystOverrides[$step->id])) {
-                $anIds = is_array($step->default_analyst_id) ? $step->default_analyst_id : [];
+                $rawAn = $step->default_analyst_id;
+                $anIds = $rawAn === null || $rawAn === '' || $rawAn === 0
+                    ? []
+                    : (is_array($rawAn) ? $rawAn : [(string) $rawAn]);
                 $this->stepAnalystOverrides[$step->id] = array_map('strval', $anIds);
             }
         }

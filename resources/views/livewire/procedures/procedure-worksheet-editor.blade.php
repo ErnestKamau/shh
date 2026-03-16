@@ -144,8 +144,18 @@
                                                         <span class="text-muted">-</span>
                                                     @endif
                                                 </td>
-                                                <td>{{ $stepItem->equipment->name ?? '-' }}</td>
-                                                <td>{{ $stepItem->analyst->name ?? '-' }}</td>
+                                                <td>
+                                                    @php
+                                                        $equipmentNames = $stepItem->equipment?->pluck('name')->filter()->join(', ');
+                                                    @endphp
+                                                    {{ $equipmentNames !== '' ? $equipmentNames : '-' }}
+                                                </td>
+                                                <td>
+                                                    @php
+                                                        $analystNames = $stepItem->analysts?->pluck('name')->filter()->join(', ');
+                                                    @endphp
+                                                    {{ $analystNames !== '' ? $analystNames : '-' }}
+                                                </td>
                                                 <td>
                                                     <span class="badge badge-{{ $stepItem->is_active ? 'success' : 'secondary' }}">
                                                         {{ $stepItem->is_active ? 'Active' : 'Inactive' }}

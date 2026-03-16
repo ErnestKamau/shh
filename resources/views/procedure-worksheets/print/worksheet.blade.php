@@ -320,12 +320,7 @@
                                 &nbsp;
                             @endif
                         </td>
-                        <td>
-                            @php
-                                $equipmentNames = $step->equipment?->pluck('name')->implode(', ') ?? '';
-                            @endphp
-                            {{ $equipmentNames }}
-                        </td>
+                        <td>{{ optional($step->equipment)->name ?? '' }}</td>
                         <td>{{ $worksheetHeader['analyst'] ?? '' }}</td>
                     </tr>
                 @endforeach
