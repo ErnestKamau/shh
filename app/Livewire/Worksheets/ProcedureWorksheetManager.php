@@ -450,7 +450,7 @@ class ProcedureWorksheetManager extends Component
             'sample_details' => $this->getSampleDetailsDatasetOptions($samples),
             'sample_types' => $this->getSampleTypesDatasetOptionsForBatch(),
             'methods' => $this->getMethodsDatasetOptionsForSelectedSamples($filteredSamples),
-            'captured_results' => $this->getCapturedResultsDatasetOptions($samples),
+            'captured_results' => $this->getCapturedResultsDatasetOptions($filteredSamples),
             'report_formats' => ReportFormat::active()
                 ->orderBy('report_name')
                 ->get()
