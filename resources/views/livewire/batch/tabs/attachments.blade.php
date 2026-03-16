@@ -307,7 +307,20 @@
                                                     </td>
                                                     <td class="align-middle">
                                                         @foreach($analyte['results'] as $r)
-                                                        <span class="badge badge-light border" style="font-size:11px;">{{ $r['result'] }}</span>
+                                                        @php
+                                                            $isNoAttachment = in_array(
+                                                                strtolower((string) $r['result']),
+                                                                ['no attachment', 'has attachment']
+                                                            );
+                                                            $isAttached = strtolower((string) $r['result']) === 'as attached'
+                                                                || !empty($r['batch_attachment_id']);
+                                                        @endphp
+                                                        <span
+                                                            class="badge {{ $isAttached ? 'badge-success' : ($isNoAttachment ? 'badge-danger' : 'badge-light border') }}"
+                                                            style="font-size:11px;"
+                                                        >
+                                                            {{ $r['result'] }}
+                                                        </span>
                                                         @endforeach
                                                     </td>
                                                     <td class="align-middle">

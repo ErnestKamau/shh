@@ -1972,9 +1972,11 @@ class Samples extends Component
             $capturedResults = DB::table('captured_results')
                 ->where('sample_detail_code', $sampleCode)
                 ->where('sample_header_id', $this->batch->id)
+            ->leftJoin('batch_attachments', 'batch_attachments.id', '=', 'captured_results.batch_attachment_id')
                 ->orderBy('analysis_type_order')
                 ->orderBy('parameters_order')
-                ->get();
+            ->selectRaw('captured_results.*, batch_attachments.attachment_url as batch_attachment_url')
+            ->get();
 
             if ($capturedResults->isEmpty()) {
                 $this->sampleParameters = [];
@@ -2074,6 +2076,8 @@ class Samples extends Component
                     'limit_low' => $limitLow,
                     'limit_high' => $limitHigh,
                     'standard_editable' => false,
+                    'batch_attachment_id' => $result->batch_attachment_id,
+                    'batch_attachment_url' => $result->batch_attachment_url,
                 ];
             }
 
