@@ -21,6 +21,8 @@ class ProcedureWorksheetStep extends Model
     protected $casts = [
         'is_active' => 'boolean',
         'default_measurand_ids' => 'array',
+        'default_equipment_id' => 'array',
+        'default_analyst_id' => 'array',
     ];
 
     public function worksheet()
