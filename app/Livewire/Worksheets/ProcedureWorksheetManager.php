@@ -14,6 +14,7 @@ use App\Models\Procedures\CapturedProcedureConfigValue;
 use App\Models\Procedures\ProcedureTestKitColumn;
 use App\Models\Procedures\ProcedureTestKitRow;
 use App\Models\Procedures\ProcedureTestKitValue;
+use App\Models\Procedures\ProcedureWorksheetStepAnalyst;
 use App\SampleHeader;
 use App\User;
 use App\SampleDetails;
@@ -27,6 +28,7 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
 use App\Models\System\SystemConfiguration;
+use Illuminate\Support\Str;
 
 class ProcedureWorksheetManager extends Component
 {
@@ -45,6 +47,12 @@ class ProcedureWorksheetManager extends Component
     public array $stepEquipmentOverrides = []; // [step_id => [equipment_id, ...]]
     public array $stepMeasurandOverrides = []; // [step_id => [measurand_id, ...]]
     public array $stepAnalystOverrides = []; // [step_id => [user_id, ...]]
+    public ?int $lastLoadedWorksheetId = null;
+    /**
+     * Hash used in Blade wire:key attributes to force step rows
+     * to be re-rendered when importing data from another analyte.
+     */
+    public string $importHash = '';
 
     /** Simple in-component flash messaging for Livewire actions. */
     public ?string $flashMessage = null;
@@ -67,6 +75,7 @@ class ProcedureWorksheetManager extends Component
     public function mount($batchId)
     {
         $this->batchId = $batchId;
+        $this->importHash = Str::random(8);
         $this->initActiveTab();
     }
 
@@ -121,7 +130,7 @@ class ProcedureWorksheetManager extends Component
         $this->externalSearch = '';
         $this->showExternalPanel = false;
         $this->showExternalDropdown = false;
-        
+
         // Clear cached input values to prevent cross-tab saves
         $this->inputValues = [];
         $this->configFieldValues = [];
@@ -160,7 +169,7 @@ class ProcedureWorksheetManager extends Component
         $this->externalSearch = '';
         $this->showExternalPanel = false;
         $this->showExternalDropdown = false;
-        
+
         // Clear cached input values to prevent cross-worksheet saves
         $this->inputValues = [];
         $this->configFieldValues = [];
@@ -181,6 +190,26 @@ class ProcedureWorksheetManager extends Component
             return;
         }
 
+        // When switching to a different worksheet tab, always start from a clean
+        // in-memory slate and then repopulate only from persisted data for that
+        // specific worksheet.
+        if ($this->lastLoadedWorksheetId !== (int) $this->selectedWorksheetId) {
+            Log::info('ProcedureWorksheetManager worksheet switch detected, resetting in-memory state', [
+                'batch_id' => $this->batchId,
+                'from_worksheet_id' => $this->lastLoadedWorksheetId,
+                'to_worksheet_id' => (int) $this->selectedWorksheetId,
+                'active_tabs' => $this->activeTabs,
+            ]);
+
+            $this->inputValues = [];
+            $this->configFieldValues = [];
+            $this->testKitRows = [];
+            $this->testKitData = [];
+            $this->stepEquipmentOverrides = [];
+            $this->stepMeasurandOverrides = [];
+            $this->stepAnalystOverrides = [];
+        }
+
         // Base query for captured results for these analytes and worksheet
         $query = CapturedResult::query()
             ->whereIn('analyte_id', $this->activeTabs)
@@ -198,6 +227,8 @@ class ProcedureWorksheetManager extends Component
 
         $capturedResults = $query->with('sample')->get();
 
+        $this->lastLoadedWorksheetId = (int) $this->selectedWorksheetId;
+
         // Get samples for this analyte and worksheet (current + external)
         $samples = $capturedResults
             ->pluck('sample.id')
@@ -206,13 +237,20 @@ class ProcedureWorksheetManager extends Component
             ->values()
             ->toArray();
 
-        // Default select all only when nothing is selected yet.
-        // Otherwise, preserve the current selection but keep it within the available samples.
-        if (empty($this->selectedSamples)) {
+        $activeAnalyteId = count($this->activeTabs) > 0 ? $this->activeTabs[0] : null;
+        $cacheKey = $activeAnalyteId ? "worksheet_selection_{$this->batchId}_{$this->selectedWorksheetId}_{$activeAnalyteId}_" . \Illuminate\Support\Facades\Auth::id() : null;
+        
+        $cachedSelection = $cacheKey ? \Illuminate\Support\Facades\Cache::get($cacheKey) : null;
+
+        // Default select all only when nothing is selected yet and no cache exists.
+        // Otherwise, preserve the current selection (or cache) but keep it within the available samples.
+        if (empty($this->selectedSamples) && $cachedSelection === null) {
             $this->selectedSamples = $samples;
         } else {
-            $this->selectedSamples = array_values(array_intersect($this->selectedSamples, $samples));
-            if (empty($this->selectedSamples)) {
+            $baseSelection = $cachedSelection !== null ? $cachedSelection : $this->selectedSamples;
+            $this->selectedSamples = array_values(array_intersect($baseSelection, $samples));
+            // Avoid artificially re-selecting everything if cache itself is intentionally empty
+            if (empty($this->selectedSamples) && $cachedSelection === null) {
                 $this->selectedSamples = $samples;
             }
         }
@@ -222,19 +260,26 @@ class ProcedureWorksheetManager extends Component
         $steps = ProcedureWorksheetStep::where('procedure_worksheet_id', $this->selectedWorksheetId)->orderBy('order')->get();
         $configFields = ProcedureConfigField::where('procedure_worksheet_id', $this->selectedWorksheetId)->orderBy('order')->get();
 
-        $values = CapturedProcedureValue::whereIn('captured_result_id', $capturedResultIds)->get();
+        // Step values (per captured_result/step) including associated overrides (equipment/measurand/analyst IDs)
+        $stepValues = CapturedProcedureValue::whereIn('captured_result_id', $capturedResultIds)->get();
 
-        foreach ($values as $val) {
-            $this->inputValues[$val->captured_result_id][$val->procedure_worksheet_step_id] = $val->value;
-        }
+        foreach ($stepValues as $val) {
+            $stored = $val->value;
 
-        // Ensure every displayed captured_result has inputValues keys for each step (so Livewire binds and sends on save)
-        foreach ($capturedResults as $cr) {
-            foreach ($steps as $step) {
-                if (! isset($this->inputValues[$cr->id][$step->id])) {
-                    $this->inputValues[$cr->id][$step->id] = '';
+            // Support both legacy string values and new JSON-encoded
+            // per-measurand value maps.
+            $decoded = null;
+            if (is_string($stored)) {
+                $trimmed = trim($stored);
+                if ($trimmed !== '' && $trimmed[0] === '{') {
+                    $maybe = json_decode($trimmed, true);
+                    if (json_last_error() === JSON_ERROR_NONE && is_array($maybe)) {
+                        $decoded = $maybe;
+                    }
                 }
             }
+
+            $this->inputValues[$val->captured_result_id][$val->procedure_worksheet_step_id] = $decoded ?? $stored;
         }
 
         $configValues = CapturedProcedureConfigValue::whereIn('captured_result_id', $capturedResultIds)->get();
@@ -257,34 +302,28 @@ class ProcedureWorksheetManager extends Component
 
                     switch ($field->model_tied_to) {
                         case 'users':
-                            // Default to the captured result's operator if available.
                             $value = $cr->operator_id ? (string) $cr->operator_id : null;
                             break;
 
                         case 'methods':
-                            // Default to the captured result's method if available.
                             $value = $cr->method_id ? (string) $cr->method_id : null;
                             break;
 
                         case 'sample_types':
-                            // Default to the batch's sample type.
                             $value = $batchHeader && $batchHeader->sample_type_id
                                 ? (string) $batchHeader->sample_type_id
                                 : null;
                             break;
 
                         case 'sample_details':
-                            // Default to this captured result's sample_detail_id when present.
                             $value = $cr->sample_detail_id ? (string) $cr->sample_detail_id : null;
                             break;
 
                         case 'captured_results':
-                            // Default to this captured result itself (tests linked to this CR).
-                            $value = (string) $cr->id;
+                            $value = $cr->analyte_id ? (string) $cr->analyte_id : null;
                             break;
 
                         case 'report_formats':
-                            // No generic default for report formats; leave empty unless explicitly set.
                             $value = null;
                             break;
 
@@ -292,8 +331,29 @@ class ProcedureWorksheetManager extends Component
                             $value = null;
                     }
 
+                    // Special-case: "Date Received" field should default from the batch header's receipt date.
+                    if (
+                        $value === null
+                        && $batchHeader
+                        && $batchHeader->receipt_date
+                        && in_array(
+                            strtolower((string) $field->field_value_name),
+                            ['date_received', 'date_recieved'],
+                            true
+                        )
+                        && $field->field_type === 'date'
+                    ) {
+                        // Normalize to HTML5 date input format (Y-m-d) so the
+                        // value actually renders in the browser control.
+                        $raw = (string) $batchHeader->receipt_date;
+                        try {
+                            $value = \Carbon\Carbon::parse($raw)->format('Y-m-d');
+                        } catch (\Throwable $e) {
+                            $value = substr($raw, 0, 10);
+                        }
+                    }
+
                     if ($field->field_type === 'dataset_multiselect') {
-                        // For multiselect, always use an array of strings.
                         $this->configFieldValues[$cr->id][$field->id] = $value !== null ? [(string) $value] : [];
                     } else {
                         $this->configFieldValues[$cr->id][$field->id] = $value !== null ? (string) $value : '';
@@ -307,6 +367,10 @@ class ProcedureWorksheetManager extends Component
             }
         }
 
+        // Ensure "Lab No." (sample_details) dropdowns stay in sync with the
+        // currently selected samples in the UI.
+        $this->syncLabNoConfigFieldToSelectedSamples($capturedResults, $configFields);
+
         // Load test kit rows and values for this worksheet (per procedure scope)
         $rows = ProcedureTestKitRow::where('procedure_worksheet_id', $this->selectedWorksheetId)
             ->orderBy('row_index')
@@ -316,10 +380,10 @@ class ProcedureWorksheetManager extends Component
             return [$row->id => ['row_index' => $row->row_index]];
         })->toArray();
 
-        $values = ProcedureTestKitValue::whereIn('procedure_test_kit_row_id', $rows->pluck('id'))->get();
+        $tkValues = ProcedureTestKitValue::whereIn('procedure_test_kit_row_id', $rows->pluck('id'))->get();
 
         $this->testKitData = [];
-        foreach ($values as $val) {
+        foreach ($tkValues as $val) {
             $this->testKitData[$val->procedure_test_kit_row_id][$val->procedure_test_kit_column_id] = $val->value;
         }
         $columns = ProcedureTestKitColumn::where('procedure_worksheet_id', $this->selectedWorksheetId)->orderBy('order')->get();
@@ -334,59 +398,323 @@ class ProcedureWorksheetManager extends Component
             }
         }
 
-        // Load default step equipment/measurand/analyst overrides (editable per-render)
-        $steps = ProcedureWorksheetStep::where('procedure_worksheet_id', $this->selectedWorksheetId)->orderBy('order')->get();
+        // Load default step equipment/measurand overrides (editable per-render)
+        $selectedResultIds = $this->getSelectedCapturedResultIds();
+        $selectedValues = $stepValues
+            ->filter(fn($v) => in_array($v->captured_result_id, $selectedResultIds))
+            ->groupBy('procedure_worksheet_step_id');
+
+        // Derive current analyte from the captured results actually in play for this
+        // worksheet, instead of relying on activeTabs ordering. If more than one
+        // analyte is present, skip loading analysts to avoid cross-element bleed.
+        $currentAnalyteIds = $capturedResults->pluck('analyte_id')->filter()->unique()->values();
+        $activeAnalyteId = $currentAnalyteIds->count() === 1 ? $currentAnalyteIds->first() : null;
+
+        // Load per-step analysts from dedicated table (one analyst set per step per
+        // batch + analyte + worksheet), independent of individual samples.
+        $stepAnalystRows = $activeAnalyteId && $this->selectedWorksheetId
+            ? ProcedureWorksheetStepAnalyst::where('batch_id', $this->batchId)
+            ->where('analyte_id', $activeAnalyteId)
+            ->where('procedure_worksheet_id', $this->selectedWorksheetId)
+            ->get()
+            ->keyBy('procedure_worksheet_step_id')
+            : collect();
+
         foreach ($steps as $step) {
+            $capturedValObj = $selectedValues->get($step->id)?->first();
+
             if (! isset($this->stepEquipmentOverrides[$step->id])) {
-                $rawEq = $step->default_equipment_id;
+                if ($capturedValObj && $capturedValObj->equipment_ids !== null) {
+                    $this->stepEquipmentOverrides[$step->id] = is_array($capturedValObj->equipment_ids) ? array_map('strval', $capturedValObj->equipment_ids) : [];
+                } else {
+                    $rawEq = $step->default_equipment_id;
 
-                if (is_string($rawEq)) {
-                    $trimmed = trim($rawEq);
-                    if ($trimmed !== '' && $trimmed[0] === '[') {
-                        $decoded = json_decode($trimmed, true);
-                        if (is_array($decoded)) {
-                            $rawEq = $decoded;
+                    if (is_string($rawEq)) {
+                        $trimmed = trim($rawEq);
+                        if ($trimmed !== '' && $trimmed[0] === '{' || $trimmed !== '' && $trimmed[0] === '[') {
+                            $decoded = json_decode($trimmed, true);
+                            if (is_array($decoded)) {
+                                $rawEq = $decoded;
+                            }
+                        } elseif (str_contains($trimmed, ',')) {
+                            $rawEq = array_map('trim', explode(',', $trimmed));
                         }
-                    } elseif (str_contains($trimmed, ',')) {
-                        $rawEq = array_map('trim', explode(',', $trimmed));
                     }
-                }
 
-                $eqIds = $rawEq === null || $rawEq === '' || $rawEq === 0
-                    ? []
-                    : (is_array($rawEq) ? $rawEq : [(string) $rawEq]);
-                $this->stepEquipmentOverrides[$step->id] = array_map('strval', $eqIds);
+                    $eqIds = $rawEq === null || $rawEq === '' || $rawEq === 0
+                        ? []
+                        : (is_array($rawEq) ? $rawEq : [(string) $rawEq]);
+                    $this->stepEquipmentOverrides[$step->id] = array_map('strval', $eqIds);
+                }
             }
+
             if (! isset($this->stepMeasurandOverrides[$step->id])) {
-                $this->stepMeasurandOverrides[$step->id] = is_array($step->default_measurand_ids)
-                    ? array_map('strval', $step->default_measurand_ids)
+                if ($capturedValObj && $capturedValObj->measurand_ids !== null) {
+                    $this->stepMeasurandOverrides[$step->id] = is_array($capturedValObj->measurand_ids) ? array_map('strval', $capturedValObj->measurand_ids) : [];
+                } else {
+                    $this->stepMeasurandOverrides[$step->id] = is_array($step->default_measurand_ids)
+                        ? array_map('strval', $step->default_measurand_ids)
+                        : [];
+                }
+            }
+
+            if (! isset($this->stepAnalystOverrides[$step->id])) {
+                $analystRow = $stepAnalystRows->get($step->id);
+                $this->stepAnalystOverrides[$step->id] = $analystRow && is_array($analystRow->analyst_ids)
+                    ? array_map('strval', $analystRow->analyst_ids)
                     : [];
             }
-            if (! isset($this->stepAnalystOverrides[$step->id])) {
-                $rawAn = $step->default_analyst_id;
+        }
+    }
 
-                if (is_string($rawAn)) {
-                    $trimmed = trim($rawAn);
-                    if ($trimmed !== '' && $trimmed[0] === '[') {
-                        $decoded = json_decode($trimmed, true);
-                        if (is_array($decoded)) {
-                            $rawAn = $decoded;
-                        }
-                    } elseif (str_contains($trimmed, ',')) {
-                        $rawAn = array_map('trim', explode(',', $trimmed));
-                    }
+    /**
+     * Autosave a single step's value for all selected samples and assign analyst
+     * (logged-in user) to the step when first saved.
+     */
+    public function updatedInputValues($value, $key)
+    {
+        $parts = explode('.', (string) $key);
+        if (count($parts) >= 2) {
+            $stepId = (int) $parts[1];
+            $this->autosaveStepValue($stepId);
+        }
+    }
+
+    public function autosaveStepValue(int $stepId): void
+    {
+        if (empty($this->activeTabs) || ! $this->selectedWorksheetId) {
+            return;
+        }
+
+        $selectedIds = $this->getSelectedCapturedResultIds();
+        if (count($selectedIds) === 0) {
+            return;
+        }
+
+        $firstId = (int) $selectedIds[0];
+        if (! isset($this->inputValues[$firstId][$stepId])) {
+            return;
+        }
+
+        Log::info('ProcedureWorksheetManager autosaveStepValue called', [
+            'batch_id' => $this->batchId,
+            'selected_ids' => $selectedIds,
+            'first_id' => $firstId,
+            'step_id' => $stepId,
+            'value_snapshot' => $this->inputValues[$firstId][$stepId] ?? null,
+        ]);
+
+        $value = $this->inputValues[$firstId][$stepId];
+
+        // Mirror existing "shared value" behaviour: copy first sample's value to the rest.
+        if (count($selectedIds) > 1) {
+            foreach ($selectedIds as $id) {
+                $id = (int) $id;
+                if ($id === $firstId) {
+                    continue;
                 }
-
-                $anIds = $rawAn === null || $rawAn === '' || $rawAn === 0
-                    ? []
-                    : (is_array($rawAn) ? $rawAn : [(string) $rawAn]);
-
-                // If no default analyst is defined on the step, default to the current user.
-                if (empty($anIds) && Auth::id()) {
-                    $anIds = [(string) Auth::id()];
+                if (! isset($this->inputValues[$id])) {
+                    $this->inputValues[$id] = [];
                 }
+                $this->inputValues[$id][$stepId] = $value;
+            }
+        }
 
-                $this->stepAnalystOverrides[$step->id] = array_map('strval', $anIds);
+        // Persist the value only for the selected captured results for this single step.
+        foreach ($selectedIds as $capturedResultId) {
+            $capturedResultId = (int) $capturedResultId;
+            $val = $this->inputValues[$capturedResultId][$stepId] ?? '';
+            $valueToStore = is_array($val) ? json_encode($val) : ($val ?? '');
+
+            CapturedProcedureValue::updateOrCreate(
+                [
+                    'captured_result_id' => $capturedResultId,
+                    'procedure_worksheet_step_id' => $stepId,
+                ],
+                [
+                    'value' => $valueToStore,
+                ]
+            );
+        }
+
+        // When this step is first saved, optionally assign the analyst as the logged-in user
+        // for this worksheet step (shared across all selected samples).
+        $userId = Auth::id();
+
+        // Derive current analyte from the analysis samples to avoid relying on activeTabs order.
+        $analysisSamples = $this->analysisSamples;
+        $currentAnalyteIds = $analysisSamples->pluck('analyte_id')->filter()->unique()->values();
+        $activeAnalyteId = $currentAnalyteIds->count() === 1 ? $currentAnalyteIds->first() : null;
+
+        if ($userId && $activeAnalyteId && $this->selectedWorksheetId) {
+            $current = $this->stepAnalystOverrides[$stepId] ?? [];
+            if (! is_array($current)) {
+                $current = $current !== null && $current !== '' ? [(string) $current] : [];
+            }
+
+            if (empty($current)) {
+                $newAnalysts = [(string) $userId];
+
+                ProcedureWorksheetStepAnalyst::updateOrCreate(
+                    [
+                        'batch_id' => $this->batchId,
+                        'analyte_id' => $activeAnalyteId,
+                        'procedure_worksheet_id' => $this->selectedWorksheetId,
+                        'procedure_worksheet_step_id' => $stepId,
+                    ],
+                    [
+                        'analyst_ids' => $newAnalysts,
+                    ]
+                );
+
+                $this->stepAnalystOverrides[$stepId] = $newAnalysts;
+                $this->dispatch('syncStepAnalystSelect', stepId: $stepId, analystIds: $newAnalysts);
+            }
+        }
+    }
+
+    /**
+     * Autosave a single configurable field's value for all selected samples.
+     */
+    public function updatedConfigFieldValues($value, $key)
+    {
+        $parts = explode('.', (string) $key);
+        if (count($parts) >= 2) {
+            $fieldId = (int) $parts[1];
+            $this->autosaveConfigField($fieldId);
+        }
+    }
+
+    public function autosaveConfigField(int $fieldId): void
+    {
+        if (empty($this->activeTabs) || ! $this->selectedWorksheetId) {
+            return;
+        }
+
+        $selectedIds = $this->getSelectedCapturedResultIds();
+        if (count($selectedIds) === 0) {
+            return;
+        }
+
+        $firstId = (int) $selectedIds[0];
+        if (! isset($this->configFieldValues[$firstId][$fieldId])) {
+            return;
+        }
+
+        Log::info('ProcedureWorksheetManager autosaveConfigField called', [
+            'batch_id' => $this->batchId,
+            'selected_ids' => $selectedIds,
+            'first_id' => $firstId,
+            'field_id' => $fieldId,
+            'value_snapshot' => $this->configFieldValues[$firstId][$fieldId] ?? null,
+        ]);
+
+        $value = $this->configFieldValues[$firstId][$fieldId];
+
+        // Mirror existing "shared value" behaviour for config fields.
+        if (count($selectedIds) > 1) {
+            foreach ($selectedIds as $id) {
+                $id = (int) $id;
+                if ($id === $firstId) {
+                    continue;
+                }
+                if (! isset($this->configFieldValues[$id])) {
+                    $this->configFieldValues[$id] = [];
+                }
+                $this->configFieldValues[$id][$fieldId] = $value;
+            }
+        }
+
+        foreach ($selectedIds as $capturedResultId) {
+            $capturedResultId = (int) $capturedResultId;
+            $val = $this->configFieldValues[$capturedResultId][$fieldId] ?? '';
+            $valueToStore = is_array($val) ? implode(',', $val) : ($val ?? '');
+
+            CapturedProcedureConfigValue::updateOrCreate(
+                [
+                    'captured_result_id' => $capturedResultId,
+                    'procedure_worksheet_id' => $this->selectedWorksheetId,
+                    'procedure_config_field_id' => $fieldId,
+                ],
+                [
+                    'value' => $valueToStore,
+                ]
+            );
+        }
+    }
+
+    public function updatedSelectedSamples(): void
+    {
+        if (empty($this->activeTabs) || ! $this->selectedWorksheetId) {
+            return;
+        }
+        
+        $activeAnalyteId = count($this->activeTabs) > 0 ? $this->activeTabs[0] : null;
+        if ($activeAnalyteId) {
+            $cacheKey = "worksheet_selection_{$this->batchId}_{$this->selectedWorksheetId}_{$activeAnalyteId}_" . \Illuminate\Support\Facades\Auth::id();
+            \Illuminate\Support\Facades\Cache::put($cacheKey, array_map('intval', $this->selectedSamples), now()->addDays(7));
+        }
+
+        // Only sync when there are selected samples; otherwise do nothing and let the UI warn.
+        if (empty($this->selectedSamples)) {
+            return;
+        }
+
+        // Re-load the relevant captured results + config fields for the active worksheet.
+        $capturedResults = CapturedResult::query()
+            ->whereIn('analyte_id', $this->activeTabs)
+            ->where('procedure_worksheet_id', $this->selectedWorksheetId)
+            ->where(function ($q) {
+                $q->where('sample_header_id', $this->batchId)
+                    ->orWhereIn('id', $this->externalCapturedResultIds);
+            })
+            ->get();
+
+        $configFields = ProcedureConfigField::where('procedure_worksheet_id', $this->selectedWorksheetId)
+            ->orderBy('order')
+            ->get();
+
+        $this->syncLabNoConfigFieldToSelectedSamples($capturedResults, $configFields);
+    }
+
+    private function syncLabNoConfigFieldToSelectedSamples(Collection $capturedResults, Collection $configFields): void
+    {
+        // In the UI, config fields are bound to the first selected captured_result_id.
+        $selectedCr = $capturedResults
+            ->filter(fn($r) => $r->sample && in_array($r->sample->id, $this->selectedSamples))
+            ->first();
+
+        if (! $selectedCr) {
+            return;
+        }
+
+        $labNoFields = $configFields->filter(function (ProcedureConfigField $field) {
+            $label = strtolower((string) $field->label);
+            $valueName = strtolower((string) $field->field_value_name);
+
+            return $field->model_tied_to === 'sample_details'
+                && (
+                    $valueName === 'lab_no' ||
+                    str_contains($label, 'lab no') ||
+                    str_contains($label, 'lab no.')
+                );
+        });
+
+        if ($labNoFields->isEmpty()) {
+            return;
+        }
+
+        $selectedSampleIds = array_map('strval', $this->selectedSamples);
+
+        foreach ($labNoFields as $field) {
+            if ($field->field_type === 'dataset_multiselect') {
+                $this->configFieldValues[$selectedCr->id][$field->id] = $selectedSampleIds;
+                $this->dispatch('syncConfigFieldSelect', capturedResultId: $selectedCr->id, fieldId: $field->id, values: $selectedSampleIds);
+            } else {
+                // Single select: if multiple samples are selected, pick the first.
+                $value = $selectedSampleIds[0] ?? '';
+                $this->configFieldValues[$selectedCr->id][$field->id] = $value;
+                $this->dispatch('syncConfigFieldSelect', capturedResultId: $selectedCr->id, fieldId: $field->id, values: [$value]);
             }
         }
     }
@@ -409,6 +737,52 @@ class ProcedureWorksheetManager extends Component
         }
 
         return $query->with(['sample', 'procedureWorksheet'])->get();
+    }
+
+    /**
+     * Other worksheet/element combinations in this batch that have step values to import.
+     */
+    public function getImportableSourcesProperty(): Collection
+    {
+        if (empty($this->activeTabs) || ! $this->selectedWorksheetId) {
+            return collect();
+        }
+
+        $currentAnalyteIds = $this->analysisSamples->pluck('analyte_id')->filter()->unique()->values();
+        if ($currentAnalyteIds->count() !== 1) {
+            return collect();
+        }
+
+        $activeAnalyteId = (int) $currentAnalyteIds->first();
+
+        // Get all other captured results in same batch that have a worksheet assigned,
+        // grouping by worksheet + analyte combination
+        $sources = CapturedResult::query()
+            ->where('sample_header_id', $this->batchId)
+            ->whereNotNull('procedure_worksheet_id')
+            ->where(function ($q) use ($activeAnalyteId) {
+                $q->where('analyte_id', '!=', $activeAnalyteId)
+                  ->orWhere('procedure_worksheet_id', '!=', $this->selectedWorksheetId);
+            })
+            ->with(['my_analyte', 'procedureWorksheet'])
+            ->get();
+
+        // Filter and uniquely group by worksheet_id + analyte_id
+        $uniqueSources = [];
+        foreach ($sources as $source) {
+            if (!$source->procedureWorksheet || !$source->my_analyte) continue;
+            $key = $source->procedure_worksheet_id . '-' . $source->analyte_id;
+            if (!isset($uniqueSources[$key])) {
+                $uniqueSources[$key] = [
+                    'worksheet_id' => $source->procedure_worksheet_id,
+                    'analyte_id' => $source->analyte_id,
+                    'worksheet_name' => $source->procedureWorksheet->name,
+                    'analyte_name' => $source->my_analyte->name,
+                ];
+            }
+        }
+
+        return collect(array_values($uniqueSources));
     }
 
     /**
@@ -596,11 +970,17 @@ class ProcedureWorksheetManager extends Component
 
     protected function getCapturedResultsDatasetOptions(Collection $analysisSamples): Collection
     {
-        return $analysisSamples->map(function ($cr) {
-            $sampleCode = $cr->sample ? $cr->sample->sample_code : '—';
-            $analyteName = $cr->my_analyte ? $cr->my_analyte->name : '—';
-            return (object) ['id' => (string) $cr->id, 'label' => $sampleCode . ' – ' . $analyteName];
-        })->values();
+        return CapturedResult::with('my_analyte')
+            ->where('sample_header_id', $this->batchId)
+            ->get()
+            ->map(function ($cr) {
+                $name = $cr->my_analyte ? $cr->my_analyte->name : '—';
+                $id = $cr->analyte_id ? (string) $cr->analyte_id : '';
+                return (object) ['id' => $id, 'label' => $name];
+            })
+            ->filter(fn($obj) => $obj->id !== '')
+            ->unique('id')
+            ->values();
     }
 
     /**
@@ -759,10 +1139,72 @@ class ProcedureWorksheetManager extends Component
         ]);
     }
 
+    /**
+     * Clear all saved analysts for the current worksheet in this batch.
+     * This wipes analyst_ids on CapturedProcedureValue for the relevant captured results
+     * and resets the in-memory overrides, but leaves step values and other overrides intact.
+     */
+    public function clearAnalystsForWorksheet(): void
+    {
+        if (empty($this->activeTabs) || ! $this->selectedWorksheetId) {
+            return;
+        }
+
+        $query = CapturedResult::query()
+            ->whereIn('analyte_id', $this->activeTabs)
+            ->where('procedure_worksheet_id', $this->selectedWorksheetId);
+
+        // Restrict to this batch plus any explicitly-added external results
+        if (! empty($this->externalCapturedResultIds)) {
+            $query->where(function ($inner) {
+                $inner->where('sample_header_id', $this->batchId)
+                    ->orWhereIn('id', $this->externalCapturedResultIds);
+            });
+        } else {
+            $query->where('sample_header_id', $this->batchId);
+        }
+
+        $capturedResultIds = $query->pluck('id');
+
+        if ($capturedResultIds->isEmpty()) {
+            $this->flashType = 'info';
+            $this->flashMessage = 'No analysts to clear for this worksheet.';
+            return;
+        }
+
+        // Determine which analytes are actually present for this worksheet+batch.
+        $analyteIds = CapturedResult::whereIn('id', $capturedResultIds)
+            ->pluck('analyte_id')
+            ->filter()
+            ->unique()
+            ->values();
+
+        // Delete worksheet-step level analysts only for those analytes, keeping other
+        // elements' worksheets intact.
+        ProcedureWorksheetStepAnalyst::where('batch_id', $this->batchId)
+            ->whereIn('analyte_id', $analyteIds)
+            ->where('procedure_worksheet_id', $this->selectedWorksheetId)
+            ->delete();
+
+        $this->stepAnalystOverrides = [];
+
+        $this->flashType = 'success';
+        $this->flashMessage = 'All analysts for this worksheet have been cleared.';
+
+        // Reload samples/overrides so the UI immediately reflects the cleared analysts.
+        $this->loadSamples();
+
+        // Also force all analyst Select2 widgets to clear their selection (wire:ignore prevents
+        // automatic DOM updates when we change the underlying state).
+        foreach ($this->getStepsProperty() as $step) {
+            $this->dispatch('syncStepAnalystSelect', stepId: $step->id, analystIds: []);
+        }
+    }
+
     public function save()
     {
         $this->validate([
-            'inputValues.*.*' => 'nullable|string',
+            'inputValues.*.*' => 'nullable', // string or array (per-measurand map)
             'configFieldValues.*.*' => 'nullable', // string or array (for dataset_multiselect)
             'testKitData.*.*' => 'nullable|string',
         ]);
@@ -806,13 +1248,14 @@ class ProcedureWorksheetManager extends Component
             }
             foreach ($steps as $stepId => $value) {
                 $stepId = (int) $stepId;
+                $valueToStore = is_array($value) ? json_encode($value) : ($value ?? '');
                 CapturedProcedureValue::updateOrCreate(
                     [
                         'captured_result_id' => $capturedResultId,
                         'procedure_worksheet_step_id' => $stepId,
                     ],
                     [
-                        'value' => $value ?? '',
+                        'value' => $valueToStore,
                     ]
                 );
             }
@@ -868,7 +1311,9 @@ class ProcedureWorksheetManager extends Component
             }
         }
 
-        // Save step overrides (measurands, equipment, analyst) back to the template
+        // Save step overrides (measurands, equipment) back to the template.
+        // Analysts stay per-worksheet/per-run only (via CapturedProcedureValue), so we
+        // intentionally do NOT write analyst overrides back to the step defaults here.
         $steps = ProcedureWorksheetStep::where('procedure_worksheet_id', $this->selectedWorksheetId)->get();
         foreach ($steps as $step) {
             $changed = false;
@@ -883,11 +1328,6 @@ class ProcedureWorksheetManager extends Component
                 $changed = true;
             }
 
-            if (isset($this->stepAnalystOverrides[$step->id])) {
-                $step->default_analyst_id = $this->stepAnalystOverrides[$step->id];
-                $changed = true;
-            }
-
             if ($changed) {
                 $step->save();
             }
@@ -895,6 +1335,218 @@ class ProcedureWorksheetManager extends Component
 
         $this->flashType = 'success';
         $this->flashMessage = 'Worksheet values saved successfully.';
+    }
+
+    public function autosaveStepOverride(int $stepId): void
+    {
+        if (empty($this->activeTabs) || ! $this->selectedWorksheetId) {
+            return;
+        }
+
+        $selectedIds = $this->getSelectedCapturedResultIds();
+        if (count($selectedIds) === 0) {
+            return;
+        }
+
+        $equipments = $this->stepEquipmentOverrides[$stepId] ?? null;
+        $measurands = $this->stepMeasurandOverrides[$stepId] ?? null;
+        $analysts = $this->stepAnalystOverrides[$stepId] ?? null;
+
+        foreach ($selectedIds as $capturedResultId) {
+            $val = CapturedProcedureValue::firstOrNew([
+                'captured_result_id' => $capturedResultId,
+                'procedure_worksheet_step_id' => $stepId,
+            ]);
+            if ($equipments !== null) {
+                $val->equipment_ids = $equipments;
+            }
+            if ($measurands !== null) {
+                $val->measurand_ids = $measurands;
+            }
+            $val->save();
+        }
+
+        // Persist analysts at the worksheet-step level (shared across all selected samples).
+        $analysisSamples = $this->analysisSamples;
+        $currentAnalyteIds = $analysisSamples->pluck('analyte_id')->filter()->unique()->values();
+        $activeAnalyteId = $currentAnalyteIds->count() === 1 ? $currentAnalyteIds->first() : null;
+
+        if ($analysts !== null && $activeAnalyteId && $this->selectedWorksheetId) {
+            ProcedureWorksheetStepAnalyst::updateOrCreate(
+                [
+                    'batch_id' => $this->batchId,
+                    'analyte_id' => $activeAnalyteId,
+                    'procedure_worksheet_id' => $this->selectedWorksheetId,
+                    'procedure_worksheet_step_id' => $stepId,
+                ],
+                [
+                    'analyst_ids' => $analysts,
+                ]
+            );
+        }
+    }
+
+    /**
+     * Import step values from another analyte that uses the same
+     * procedure worksheet for the currently selected samples.
+     *
+     * Only step values are imported; config fields and overrides
+     * remain as configured for the current analyte.
+     */
+    /**
+     * Import mapped data from another Worksheet/Analyte combo across the same batch samples.
+     */
+    public function importDataFromSource(int $sourceWorksheetId, int $fromAnalyteId): void
+    {
+        if (empty($this->activeTabs) || ! $this->selectedWorksheetId) {
+            $this->flashType = 'warning';
+            $this->flashMessage = 'Select a parameter and worksheet before importing data.';
+            return;
+        }
+
+        if (empty($this->selectedSamples)) {
+            $this->flashType = 'warning';
+            $this->flashMessage = 'Select at least one sample before importing data.';
+            return;
+        }
+
+        $currentAnalyteIds = $this->analysisSamples->pluck('analyte_id')->filter()->unique()->values();
+        if ($currentAnalyteIds->count() !== 1) {
+            $this->flashType = 'warning';
+            $this->flashMessage = 'Import is only available when a single parameter is active.';
+            return;
+        }
+
+        $activeAnalyteId = (int) $currentAnalyteIds->first();
+        $sourceWorksheetId = (int) $sourceWorksheetId;
+        $fromAnalyteId = (int) $fromAnalyteId;
+
+        if ($fromAnalyteId === $activeAnalyteId && $sourceWorksheetId === (int)$this->selectedWorksheetId) {
+            $this->flashType = 'info';
+            $this->flashMessage = 'Selected parameter and worksheet is already active; nothing to import.';
+            return;
+        }
+
+        $samples = $this->analysisSamples;
+        $selectedSampleIds = array_map('intval', $this->selectedSamples);
+
+        $targetBySample = $samples
+            ->filter(fn($r) => $r->sample && (int) $r->analyte_id === $activeAnalyteId && in_array((int) $r->sample->id, $selectedSampleIds, true))
+            ->keyBy(fn($r) => (int) $r->sample->id);
+
+        if ($targetBySample->isEmpty()) {
+            $this->flashType = 'warning';
+            $this->flashMessage = 'No samples found for the active parameter to receive imported data.';
+            return;
+        }
+
+        $sourceResults = CapturedResult::query()
+            ->where('sample_header_id', $this->batchId)
+            ->where('procedure_worksheet_id', $sourceWorksheetId)
+            ->where('analyte_id', $fromAnalyteId)
+            ->with('sample')
+            ->get();
+
+        if ($sourceResults->isEmpty()) {
+            $this->flashType = 'warning';
+            $this->flashMessage = 'No existing data found to import from the selected source.';
+            return;
+        }
+
+        $sourceBySample = $sourceResults
+            ->filter(fn($r) => $r->sample)
+            ->keyBy(fn($r) => (int) $r->sample->id);
+
+        $targetSteps = ProcedureWorksheetStep::where('procedure_worksheet_id', $this->selectedWorksheetId)->get();
+        if ($targetSteps->isEmpty()) {
+            $this->flashType = 'warning';
+            $this->flashMessage = 'No steps defined for this worksheet to receive imported data.';
+            return;
+        }
+
+        $sourceStepIds = ProcedureWorksheetStep::where('procedure_worksheet_id', $sourceWorksheetId)->pluck('id');
+        $sourceSteps = ProcedureWorksheetStep::whereIn('id', $sourceStepIds)->get()->keyBy('id');
+
+        $importedCount = 0;
+        $importedStepIds = [];
+
+        foreach ($selectedSampleIds as $sampleId) {
+            $sampleId = (int) $sampleId;
+            // Fallback to first source sample if not exactly matched by sample ID
+            $sourceCr = $sourceBySample->get($sampleId) ?? $sourceResults->first();
+            $targetCr = $targetBySample->get($sampleId);
+
+            if (! $sourceCr || ! $targetCr) continue;
+
+            $sourceValues = CapturedProcedureValue::where('captured_result_id', $sourceCr->id)->get();
+            
+            foreach ($sourceValues as $srcVal) {
+                $sourceStepInfo = $sourceSteps->get($srcVal->procedure_worksheet_step_id);
+                if (!$sourceStepInfo) continue;
+
+                $matchedTarget = $targetSteps->firstWhere('step', $sourceStepInfo->step);
+                if (!$matchedTarget && $this->selectedWorksheetId == $sourceWorksheetId) {
+                    $matchedTarget = $targetSteps->firstWhere('id', $srcVal->procedure_worksheet_step_id);
+                }
+
+                if ($matchedTarget) {
+                    $valueToStore = $srcVal->value;
+                    CapturedProcedureValue::updateOrCreate(
+                        [
+                            'captured_result_id' => $targetCr->id,
+                            'procedure_worksheet_step_id' => $matchedTarget->id,
+                        ],
+                        [
+                            'value' => $valueToStore,
+                        ]
+                    );
+
+                    $decoded = null;
+                    if (is_string($valueToStore)) {
+                        $trimmed = trim($valueToStore);
+                        if ($trimmed !== '' && $trimmed[0] === '{') {
+                            $maybe = json_decode($trimmed, true);
+                            if (json_last_error() === JSON_ERROR_NONE && is_array($maybe)) $decoded = $maybe;
+                        }
+                    }
+
+                    if (! isset($this->inputValues[$targetCr->id])) $this->inputValues[$targetCr->id] = [];
+                    $this->inputValues[$targetCr->id][$matchedTarget->id] = $decoded ?? $valueToStore;
+                    $importedCount++;
+                    $importedStepIds[$matchedTarget->id] = true;
+                }
+            }
+        }
+        
+        $userId = Auth::id();
+        if ($userId && !empty($importedStepIds)) {
+            $newAnalysts = [(string) $userId];
+            foreach(array_keys($importedStepIds) as $stepId) {
+                ProcedureWorksheetStepAnalyst::updateOrCreate(
+                    [
+                        'batch_id' => $this->batchId,
+                        'analyte_id' => $activeAnalyteId,
+                        'procedure_worksheet_id' => $this->selectedWorksheetId,
+                        'procedure_worksheet_step_id' => $stepId,
+                    ],
+                    [
+                        'analyst_ids' => $newAnalysts,
+                    ]
+                );
+                $this->stepAnalystOverrides[$stepId] = $newAnalysts;
+                $this->dispatch('syncStepAnalystSelect', stepId: $stepId, analystIds: $newAnalysts);
+            }
+        }
+        
+        $this->loadSamples();
+        $this->importHash = Str::random(8);
+
+        $this->flashType = 'success';
+        if ($importedCount > 0) {
+            $this->flashMessage = 'Imported step values successfully mapped for ' . $importedCount . ' step(s).';
+        } else {
+            $this->flashMessage = 'Action completed, but no matching steps were found to import values into.';
+        }
     }
 
     /**

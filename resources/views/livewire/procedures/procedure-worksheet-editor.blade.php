@@ -13,7 +13,9 @@
                             <p class="text-muted mb-0">{{ $worksheet->description }}</p>
                         </div>
                         <div>
-
+                            <button wire:click="showImportModalInit" class="btn btn-outline-primary mr-2">
+                                <i class="mdi mdi-download"></i> Import Data
+                            </button>
                             <button wire:click="create" class="btn btn-primary">
                                 <i class="mdi mdi-plus"></i> Add Step
                             </button>
@@ -97,6 +99,10 @@
 
                     <div class="tab-content">
                         <div class="tab-pane fade {{ $activeTab === 'steps' ? 'show active' : '' }}" id="steps-tab-pane" role="tabpanel" aria-labelledby="steps-tab">
+                            <div class="alert alert-info py-2 px-3 mb-3 rounded" style="font-size:0.85rem;">
+                                <i class="mdi mdi-information-outline mr-1"></i>
+                                <strong>Tip:</strong> When entering or importing step values in the active worksheet, the system will automatically save the logged-in user as the analyst for those steps.
+                            </div>
                             <div class="d-flex justify-content-between align-items-center mb-3">
                                 <div class="col-md-4">
                                     <input type="text" wire:model.live="search" class="form-control" placeholder="Search steps...">
@@ -623,6 +629,92 @@
             </div>
         </div>
     </div>
+
+    <!-- Import Modal -->
+    @if($showImportModal)
+        <div class="modal fade show d-block" tabindex="-1" style="background-color: rgba(0,0,0,0.5);">
+            <div class="modal-dialog">
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <h5 class="modal-title">Import Worksheet Data</h5>
+                        <button type="button" class="btn-close" wire:click="cancelImport"></button>
+                    </div>
+                    <div class="modal-body">
+                        <form wire:submit.prevent="importData">
+                            <div class="mb-4">
+                                <label class="form-label">Source Worksheet <span class="text-danger">*</span></label>
+                                @if($selectedImportWorksheetId && $selectedImportWorksheet = App\Models\Procedures\ProcedureWorksheet::find($selectedImportWorksheetId))
+                                    <div class="position-relative">
+                                        <input type="text" class="form-control" value="{{ $selectedImportWorksheet->name }}" readonly style="padding-right: 30px;">
+                                        <i class="mdi mdi-close text-danger cursor-pointer" 
+                                           wire:click="$set('selectedImportWorksheetId', null)"
+                                           style="position: absolute; top: 10px; right: 10px; z-index: 10;"></i>
+                                    </div>
+                                @else
+                                    <div class="position-relative">
+                                        <input type="text" wire:model.live.debounce.300ms="importWorksheetSearch" class="form-control" placeholder="Search worksheet by name...">
+                                        @if(strlen($importWorksheetSearch) > 1 && count($importableWorksheets) > 0)
+                                            <div class="position-absolute w-100 bg-white border shadow rounded mt-1" style="z-index: 1000; max-height: 200px; overflow-y: auto;">
+                                                @foreach($importableWorksheets as $ws)
+                                                    <div class="p-2 border-bottom cursor-pointer hover-bg-light" wire:click="$set('selectedImportWorksheetId', {{ $ws->id }})">
+                                                        {{ $ws->name }}
+                                                    </div>
+                                                @endforeach
+                                            </div>
+                                        @elseif(strlen($importWorksheetSearch) > 1)
+                                            <div class="position-absolute w-100 bg-white border shadow rounded mt-1 p-2 text-muted" style="z-index: 1000;">
+                                                No worksheets found matching "{{ $importWorksheetSearch }}".
+                                            </div>
+                                        @endif
+                                    </div>
+                                @endif
+                                @error('selectedImportWorksheetId') <div class="text-danger small mt-1">{{ $message }}</div> @enderror
+                            </div>
+
+                            <div class="mb-3">
+                                <label class="form-label d-block text-muted text-uppercase small font-weight-bold">Select Data to Import</label>
+                                
+                                <div class="form-check mb-3">
+                                    <input class="form-check-input" type="checkbox" wire:model="importTypeSteps" id="importTypeSteps">
+                                    <label class="form-check-label font-weight-bold" for="importTypeSteps">
+                                        Procedure Steps
+                                    </label>
+                                    <div class="text-muted small">Imports all procedure steps including measurands, equipment, and analyst defaults.</div>
+                                </div>
+                                
+                                <div class="form-check mb-3">
+                                    <input class="form-check-input" type="checkbox" wire:model="importTypeConfig" id="importTypeConfig">
+                                    <label class="form-check-label font-weight-bold" for="importTypeConfig">
+                                        Configurable Fields
+                                    </label>
+                                    <div class="text-muted small">Imports dynamic fields like Date Recorded or Temperature.</div>
+                                </div>
+                                
+                                <div class="form-check mb-3">
+                                    <input class="form-check-input" type="checkbox" wire:model="importTypeTestKit" id="importTypeTestKit">
+                                    <label class="form-check-label font-weight-bold" for="importTypeTestKit">
+                                        Test Kit Columns
+                                    </label>
+                                    <div class="text-muted small">Imports configuration for the test kit table.</div>
+                                </div>
+                            </div>
+                            
+                            <div class="alert alert-info py-2 mb-0" style="font-size: 0.85rem;">
+                                <i class="mdi mdi-information-outline mr-1"></i> Imported data will be appended.
+                            </div>
+
+                            <div class="text-right mt-4">
+                                <button type="button" class="btn btn-secondary mr-2" wire:click="cancelImport">Cancel</button>
+                                <button type="submit" class="btn btn-primary" {{ !$selectedImportWorksheetId ? 'disabled' : '' }}>
+                                    <i class="mdi mdi-download mr-1"></i> Import Data
+                                </button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            </div>
+        </div>
+    @endif
 
     <!-- Create/Edit Modal -->
     @if($showModal)

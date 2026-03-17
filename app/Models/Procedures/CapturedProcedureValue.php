@@ -13,6 +13,15 @@ class CapturedProcedureValue extends Model
         'captured_result_id',
         'procedure_worksheet_step_id',
         'value',
+        'equipment_ids',
+        'measurand_ids',
+        'analyst_ids',
+    ];
+
+    protected $casts = [
+        'equipment_ids' => 'array',
+        'measurand_ids' => 'array',
+        'analyst_ids'   => 'array',
     ];
 
     public function capturedResult()

@@ -6015,9 +6015,20 @@ class SampleWorkFlowController extends Controller
 
         $batch = \App\SampleHeader::find($attachment->batch_id);
 
+        $user = auth()->user();
+        $signatureUrl = null;
+        if ($user && $user->electronic_sig) {
+            $signatureUrl = $user->electronic_sig;
+            if (!filter_var($signatureUrl, FILTER_VALIDATE_URL)) {
+                $signatureUrl = asset($signatureUrl);
+            }
+        }
+
         return view('layouts.lab.sample-workflow.pdf-annotate', [
             'attachment' => $attachment,
             'batch' => $batch,
+            'user' => $user,
+            'signatureUrl' => $signatureUrl,
         ]);
     }
 

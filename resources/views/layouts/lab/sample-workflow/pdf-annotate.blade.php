@@ -224,9 +224,52 @@
 
             <!-- Annotations Sidebar -->
             <div id="annotations-sidebar">
-                <h6 class="mb-3"><i class="mdi mdi-format-list-bulleted"></i> Annotations</h6>
+                <h6 class="mb-3"><i class="mdi mdi-auto-fix"></i> Smart-Assist Annotation</h6>
+                <div class="form-group mb-3">
+                    <label>Report Type</label>
+                    <select class="form-control form-control-sm" id="report-type-select">
+                        <option value="">Select Type</option>
+                        <option value="table">Table Report (Default)</option>
+                        <option value="graph">Graph Report</option>
+                    </select>
+                </div>
+
+                <div id="smart-annotation-form" style="display: none;">
+                    <div class="form-group mb-2">
+                        <label class="small text-muted font-weight-bold">Vet Remarks</label>
+                        <textarea class="form-control form-control-sm" id="smart-vet-remarks" rows="3" placeholder="Enter remarks..."></textarea>
+                    </div>
+                    <div class="form-group mb-2">
+                        <label class="small text-muted font-weight-bold">Owner Name</label>
+                        <input type="text" class="form-control form-control-sm bg-light" value="{{ $user->name ?? '' }}" readonly>
+                    </div>
+                    <div class="form-group mb-2">
+                        <label class="small text-muted font-weight-bold">Date</label>
+                        <input type="text" class="form-control form-control-sm bg-light" value="{{ date('Y-m-d') }}" readonly>
+                    </div>
+                    <div class="form-group mb-3">
+                        <label class="small text-muted font-weight-bold">Signature</label>
+                        @if(isset($signatureUrl))
+                            <div class="border p-1 bg-light text-center">
+                                <img src="{{ $signatureUrl }}" alt="Signature" id="smart-signature-img" style="max-height: 40px; max-width: 100%;">
+                            </div>
+                            <input type="hidden" id="smart-signature-url" value="{{ $signatureUrl }}">
+                        @else
+                            <div class="alert alert-warning p-1 small mb-0">No signature found in your profile.</div>
+                        @endif
+                    </div>
+                    
+                    <button type="button" class="btn btn-primary btn-block btn-sm" id="apply-smart-annotation-btn">
+                        Apply to PDF
+                    </button>
+                    <small class="text-muted d-block mt-1" style="font-size: 0.75rem;">After applying, you can drag the block to adjust.</small>
+                </div>
+
+                <hr>
+
+                <h6 class="mb-3 mt-3"><i class="mdi mdi-format-list-bulleted"></i> Manual Annotations</h6>
                 <div id="annotations-list">
-                    <p class="text-muted">Click "Text" or "Image" to add annotations to the PDF.</p>
+                    <p class="text-muted small">Click "Text" or "Image" above to add manual annotations.</p>
                 </div>
             </div>
         </div>
@@ -267,6 +310,9 @@
 
     <!-- html2canvas for capturing HTML overlays -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+
+    <!-- interact.js for draggable elements -->
+    <script src="https://cdn.jsdelivr.net/npm/interactjs/dist/interact.min.js"></script>
 
     <!-- PDF.js CDN -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
@@ -372,6 +418,196 @@
             setTimeout(function () {
                 initAnnotationEditor();
             }, 500);
+
+            // Setup Smart Annotation UI logic
+            const reportTypeSelect = document.getElementById('report-type-select');
+            const smartForm = document.getElementById('smart-annotation-form');
+            const applyBtn = document.getElementById('apply-smart-annotation-btn');
+            const wrapper = document.getElementById('pdf-canvas-wrapper');
+
+            let smartBlockOverlay = null;
+
+            reportTypeSelect.addEventListener('change', function() {
+                if (this.value === 'table') {
+                    smartForm.style.display = 'block';
+                } else {
+                    smartForm.style.display = 'none';
+                    if (smartBlockOverlay) {
+                        smartBlockOverlay.remove();
+                        smartBlockOverlay = null;
+                    }
+                }
+            });
+
+            applyBtn.addEventListener('click', function() {
+                const remarks = document.getElementById('smart-vet-remarks').value;
+                const signatureUrl = document.getElementById('smart-signature-url') ? document.getElementById('smart-signature-url').value : null;
+                const ownerName = "{{ $user->name ?? '' }}";
+                const dateVal = "{{ date('Y-m-d') }}";
+
+                if (smartBlockOverlay) {
+                    smartBlockOverlay.remove();
+                }
+
+                // Create the draggable overlay block
+                smartBlockOverlay = document.createElement('div');
+                smartBlockOverlay.id = 'smart-annotation-block';
+                smartBlockOverlay.className = 'smart-annotation-block';
+                smartBlockOverlay.style.position = 'absolute';
+                smartBlockOverlay.style.left = '50px';
+                smartBlockOverlay.style.top = '700px';
+                smartBlockOverlay.style.width = '500px';
+                smartBlockOverlay.style.border = '2px dashed #3498db';
+                smartBlockOverlay.style.backgroundColor = 'rgba(255,255,255,0.9)';
+                smartBlockOverlay.style.padding = '10px';
+                smartBlockOverlay.style.zIndex = '100';
+                smartBlockOverlay.style.cursor = 'move';
+                smartBlockOverlay.style.fontFamily = 'Arial, sans-serif';
+                smartBlockOverlay.style.fontSize = '12px';
+
+                // Store data in dataset for extraction later
+                smartBlockOverlay.dataset.remarks = remarks;
+                smartBlockOverlay.dataset.owner = ownerName;
+                smartBlockOverlay.dataset.date = dateVal;
+                smartBlockOverlay.dataset.signatureUrl = signatureUrl;
+
+                let sigHtml = signatureUrl ? `<img src="${signatureUrl}" style="max-height: 40px;">` : ``;
+
+                smartBlockOverlay.innerHTML = `
+                    <div style="margin-bottom: 20px;">
+                        <strong>Comments:</strong><br>
+                        ${remarks.replace(/\n/g, '<br>')}
+                    </div>
+                    <table style="width: 100%; border: none;">
+                        <tr>
+                            <td style="width: 50%; vertical-align: bottom;">${ownerName}</td>
+                            <td style="width: 50%; vertical-align: bottom;">
+                                <strong>Signature:</strong> ${sigHtml}<br>
+                                <strong>Date:</strong> ${dateVal}
+                            </td>
+                        </tr>
+                    </table>
+                `;
+
+                wrapper.appendChild(smartBlockOverlay);
+
+                // Make draggable
+                interact(smartBlockOverlay).draggable({
+                    listeners: {
+                        move(event) {
+                            const target = event.target;
+                            // keep the dragged position in the data-x/data-y attributes
+                            const x = (parseFloat(target.dataset.x) || 0) + event.dx;
+                            const y = (parseFloat(target.dataset.y) || 0) + event.dy;
+
+                            // translate the element
+                            target.style.transform = `translate(${x}px, ${y}px)`;
+
+                            // update the posiion attributes
+                            target.dataset.x = x;
+                            target.dataset.y = y;
+                        }
+                    }
+                });
+            });
+
+            // Intercept Save Button to convert smart block to actual FPDF annotations
+            const originalSaveBtn = document.getElementById('save-annotations-btn');
+            originalSaveBtn.addEventListener('click', function(e) {
+                if (smartBlockOverlay) {
+                    // Calculate final X and Y
+                    const rect = smartBlockOverlay.getBoundingClientRect();
+                    const wrapperRect = wrapper.getBoundingClientRect();
+                    
+                    const finalX = rect.left - wrapperRect.left;
+                    const finalY = rect.top - wrapperRect.top;
+
+                    const remarks = smartBlockOverlay.dataset.remarks;
+                    const owner = smartBlockOverlay.dataset.owner;
+                    const date = smartBlockOverlay.dataset.date;
+                    const sigUrl = smartBlockOverlay.dataset.signatureUrl;
+
+                    // Ensure page array exists
+                    if (!pdfAnnotator.annotations[pdfAnnotator.currentPage]) {
+                        pdfAnnotator.annotations[pdfAnnotator.currentPage] = [];
+                    }
+
+                    // Add Remarks Text
+                    pdfAnnotator.annotations[pdfAnnotator.currentPage].push({
+                        uniqueId: 'new_smart_remarks',
+                        page_number: pdfAnnotator.currentPage,
+                        annotation_type: 'text',
+                        content: `<strong>Comments:</strong><br>${remarks.replace(/\n/g, '<br>')}`,
+                        htmlContent: `<strong>Comments:</strong><br>${remarks.replace(/\n/g, '<br>')}`,
+                        x_position: finalX + 10,
+                        y_position: finalY + 10,
+                        width: 480,
+                        height: 40,
+                        style_data: { fontSize: 12, color: '#000' }
+                    });
+
+                    // Add Owner Text
+                    pdfAnnotator.annotations[pdfAnnotator.currentPage].push({
+                        uniqueId: 'new_smart_owner',
+                        page_number: pdfAnnotator.currentPage,
+                        annotation_type: 'text',
+                        content: owner,
+                        htmlContent: owner,
+                        x_position: finalX + 10,
+                        y_position: finalY + 60,
+                        width: 200,
+                        height: 20,
+                        style_data: { fontSize: 12, color: '#000' }
+                    });
+
+                    // Add Signature Image (if exists)
+                    if (sigUrl) {
+                        pdfAnnotator.annotations[pdfAnnotator.currentPage].push({
+                            uniqueId: 'new_smart_sig',
+                            page_number: pdfAnnotator.currentPage,
+                            annotation_type: 'image',
+                            imageData: sigUrl,
+                            x_position: finalX + 260 + 55, // 50% width + offset to 'Signature:' label
+                            y_position: finalY + 45,
+                            width: 80,
+                            height: 40
+                        });
+                    }
+
+                    // Add Date & Label Text
+                    pdfAnnotator.annotations[pdfAnnotator.currentPage].push({
+                        uniqueId: 'new_smart_date',
+                        page_number: pdfAnnotator.currentPage,
+                        annotation_type: 'text',
+                        content: `<strong>Signature:</strong><br><strong>Date:</strong> ${date}`,
+                        htmlContent: `<strong>Signature:</strong><br><strong>Date:</strong> ${date}`,
+                        x_position: finalX + 260,
+                        y_position: finalY + 60,
+                        width: 200,
+                        height: 40,
+                        style_data: { fontSize: 12, color: '#000' }
+                    });
+
+                    // Remove the DOM element so it doesn't get captured by html2canvas if pdfAnnotator starts using it globally later
+                    smartBlockOverlay.remove();
+                    smartBlockOverlay = null;
+                }
+                
+                // Note: we don't prevent default, we just injected the annotations
+                // right before pdfAnnotator's save logic executes (since we added another event listener on the same button, wait, pdfAnnotator sets its click listener in setupEventListeners). 
+                // Wait! If pdfAnnotator sets its listener *during* init(), and our DOMContentLoaded fires *after* its setup, our event listener might fire AFTER pdfAnnotator's! 
+                // Standard addEventListener fires in the order they are attached. 
+                // To guarantee we fire first, we can override pdfAnnotator.saveAnnotations.
+            });
+
+            // Override pdfAnnotator save method
+            const originalSave = pdfAnnotator.saveAnnotations;
+            pdfAnnotator.saveAnnotations = function() {
+                if (smartBlockOverlay) {
+                    originalSaveBtn.click(); // Trigger our conversion logic above (actually wait, better to just call it)
+                }
+                originalSave.apply(pdfAnnotator);
+            };
 
             // Initialize modal event handlers (using vanilla JS or jQuery if available)
             const modal = document.getElementById('textAnnotationModal');

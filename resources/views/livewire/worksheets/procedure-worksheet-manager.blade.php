@@ -193,13 +193,42 @@
                 @endphp
                 <section class="procedure-section mb-4">
                     <div class="card procedure-section-card">
-                        <div class="card-header procedure-section-header">
+                        <div class="card-header procedure-section-header d-flex justify-content-between align-items-center flex-wrap gap-2">
                             <h6 class="mb-0">
                                 <i class="mdi mdi-timeline text-primary"></i>
                                 Steps &amp; Measurands
                             </h6>
+                            <div class="d-flex align-items-center gap-2">
+                                @if(count($this->importableSources) > 0)
+                                <div wire:ignore.self class="dropdown">
+                                    <button class="btn btn-sm btn-outline-secondary dropdown-toggle" type="button" id="importDataDropdown" data-toggle="dropdown" aria-expanded="false">
+                                        <i class="mdi mdi-import"></i> Import Data
+                                    </button>
+                                    <ul class="dropdown-menu dropdown-menu-right shadow-sm" aria-labelledby="importDataDropdown">
+                                        <li><h6 class="dropdown-header">From Worksheet:</h6></li>
+                                        @foreach($this->importableSources as $source)
+                                            <li>
+                                                <a class="dropdown-item" href="#" wire:click.prevent="importDataFromSource({{ $source['worksheet_id'] }}, {{ $source['analyte_id'] }})">
+                                                    {{ $source['worksheet_name'] }} - {{ $source['analyte_name'] }}
+                                                </a>
+                                            </li>
+                                        @endforeach
+                                    </ul>
+                                </div>
+                                @endif
+                                <button type="button"
+                                    class="btn btn-sm btn-outline-danger"
+                                    wire:click="clearAnalystsForWorksheet">
+                                    <i class="mdi mdi-account-off-outline"></i>
+                                    Clear analysts for this worksheet
+                                </button>
+                            </div>
                         </div>
                         <div class="card-body p-0">
+                            <div class="alert alert-info rounded-0 border-0 border-bottom mb-0 py-2 px-3" style="font-size: 0.85rem;">
+                                <i class="mdi mdi-information-outline mr-1"></i>
+                                <strong>Tip:</strong> The system automatically records you as the <strong>Analyst</strong> for the steps you type values into or import data for.
+                            </div>
                             <div class="table-responsive procedure-steps-table-wrap">
                                 <table class="table table-bordered procedure-steps-table mb-0">
                                     <thead>
@@ -213,19 +242,20 @@
                                     </thead>
                                     <tbody>
                                         @foreach($this->getStepsProperty() as $step)
-                                        <tr>
+                                        <tr wire:key="step-{{ $step->id }}-ws-{{ $this->selectedWorksheetId }}-tab-{{ implode('-', $activeTabs) }}-hash-{{ $this->importHash }}">
                                             <td class="step-info-cell">{{ $step->step }}</td>
                                             <td>
                                                 {{-- Measurand multiselect (Select2) --}}
                                                 <div wire:ignore x-data="{
                                                     init() {
                                                         let el = $(this.$refs.select);
-                                                        el.select2({ width: '100%', placeholder: 'Select measurand(s)...', allowClear: true })
-                                                          .on('change', () => {
-                                                              @this.set('stepMeasurandOverrides.{{ $step->id }}', el.val() || []);
-                                                          });
+                                                        el.select2({ width: '100%', placeholder: 'Select measurand(s)...', allowClear: true });
                                                         let initial = @js($stepMeasurandOverrides[$step->id] ?? []);
                                                         if (initial.length) { el.val(initial).trigger('change'); }
+                                                        el.on('change', () => {
+                                                              @this.set('stepMeasurandOverrides.{{ $step->id }}', el.val() || []);
+                                                              @this.call('autosaveStepOverride', {{ $step->id }});
+                                                        });
                                                     }
                                                 }">
                                                     <select x-ref="select" class="form-control form-control-sm" multiple="multiple">
@@ -240,12 +270,13 @@
                                                 <div wire:ignore x-data="{
                                                     init() {
                                                         let el = $(this.$refs.select);
-                                                        el.select2({ width: '100%', placeholder: 'Select equipment...', allowClear: true })
-                                                          .on('change', () => {
-                                                              @this.set('stepEquipmentOverrides.{{ $step->id }}', el.val() || []);
-                                                          });
+                                                        el.select2({ width: '100%', placeholder: 'Select equipment...', allowClear: true });
                                                         let initial = @js($stepEquipmentOverrides[$step->id] ?? []);
                                                         if (initial.length) { el.val(initial).trigger('change'); }
+                                                        el.on('change', () => {
+                                                              @this.set('stepEquipmentOverrides.{{ $step->id }}', el.val() || []);
+                                                              @this.call('autosaveStepOverride', {{ $step->id }});
+                                                        });
                                                     }
                                                 }">
                                                     <select x-ref="select" class="form-control form-control-sm" multiple="multiple">
@@ -260,12 +291,22 @@
                                                 <div wire:ignore x-data="{
                                                     init() {
                                                         let el = $(this.$refs.select);
-                                                        el.select2({ width: '100%', placeholder: 'Select analyst(s)...', allowClear: true })
-                                                          .on('change', () => {
-                                                              @this.set('stepAnalystOverrides.{{ $step->id }}', el.val() || []);
-                                                          });
+                                                        el.select2({ width: '100%', placeholder: 'Select analyst(s)...', allowClear: true });
                                                         let initial = @js($stepAnalystOverrides[$step->id] ?? []);
                                                         if (initial.length) { el.val(initial).trigger('change'); }
+                                                        el.on('change', () => {
+                                                              @this.set('stepAnalystOverrides.{{ $step->id }}', el.val() || []);
+                                                              @this.call('autosaveStepOverride', {{ $step->id }});
+                                                        });
+
+                                                        // Keep analyst Select2 in sync when Livewire assigns the current user on autosave.
+                                                        document.addEventListener('syncStepAnalystSelect', (e) => {
+                                                            if (!e.detail) return;
+                                                            if (String(e.detail.stepId) !== String({{ $step->id }})) return;
+                                                            let ids = e.detail.analystIds || [];
+                                                            el.val(ids).trigger('change.select2');
+                                                        });
+
                                                     }
                                                 }">
                                                     <select x-ref="select" class="form-control form-control-sm" multiple="multiple">
@@ -276,8 +317,32 @@
                                                 </div>
                                             </td>
                                             <td>
+                                                @php
+                                                $selectedMeasurandIds = $stepMeasurandOverrides[$step->id] ?? [];
+                                                $measurandLookup = collect($this->measurandOptions ?? [])
+                                                ->keyBy('id');
+                                                @endphp
+
+                                                @if(!empty($selectedMeasurandIds))
+                                                @foreach($selectedMeasurandIds as $mId)
+                                                @php
+                                                $label = optional($measurandLookup->get($mId))->label ?? $mId;
+                                                @endphp
+                                                <div class="d-flex align-items-center mb-1">
+                                                    <span class="badge badge-light border mr-2" style="min-width: 80px;">
+                                                        {{ $label }}
+                                                    </span>
+                                                    <input type="text" class="form-control form-control-sm"
+                                                        wire:model.live.debounce.1000ms="inputValues.{{ $selectedResults->first()->id }}.{{ $step->id }}.{{ $mId }}"
+                                                        wire:blur="autosaveStepValue({{ $step->id }})">
+                                                </div>
+                                                @endforeach
+                                                @else
+                                                {{-- Fallback: single value field when no measurands selected --}}
                                                 <input type="text" class="form-control"
-                                                    wire:model.defer="inputValues.{{ $selectedResults->first()->id }}.{{ $step->id }}">
+                                                    wire:model.live.debounce.1000ms="inputValues.{{ $selectedResults->first()->id }}.{{ $step->id }}"
+                                                    wire:blur="autosaveStepValue({{ $step->id }})">
+                                                @endif
                                             </td>
                                         </tr>
                                         @endforeach
@@ -315,7 +380,7 @@
                                     </thead>
                                     <tbody>
                                         @foreach($this->getOrderedTestKitRowsProperty() as $rowMeta)
-                                        <tr>
+                                        <tr wire:key="tkrow-{{ $rowMeta['id'] }}-ws-{{ $this->selectedWorksheetId }}">
                                             <td class="testkit-row-index">{{ $rowMeta['row_index'] }}</td>
                                             @foreach($this->getTestKitColumnsProperty() as $col)
                                             <td>
@@ -375,8 +440,8 @@
                         </div>
                         <div class="card-body p-4">
                             <div class="row g-4">
-                                        @foreach($configFields as $field)
-                                <div class="col-xl-4 col-lg-6 mb-0">
+                                @foreach($configFields as $field)
+                                <div class="col-xl-4 col-lg-6 mb-0" wire:key="cfg-{{ $field->id }}-ws-{{ $this->selectedWorksheetId }}-cr-{{ $selectedResults->isNotEmpty() ? $selectedResults->first()->id : 'none' }}">
                                     <div class="config-field-block">
                                         <label class="form-label fw-medium">
                                             {{ $field->label }}
@@ -393,40 +458,46 @@
                                             <small class="text-muted d-block mb-1">Same value for {{ $selectedResults->count() }} selected samples</small>
                                             @endif
                                             @php(
-                                                $type = $field->field_type ?: (
-                                                    in_array($field->model_tied_to ?? '', ['users','sample_details','sample_types','methods','captured_results','report_formats'])
-                                                    ? 'dataset'
-                                                    : 'input'
-                                                )
+                                            $type = $field->field_type ?: (
+                                            in_array($field->model_tied_to ?? '', ['users','sample_details','sample_types','methods','captured_results','report_formats'])
+                                            ? 'dataset'
+                                            : 'input'
+                                            )
                                             )
                                             @if($type === 'datetime')
                                             <input type="datetime-local"
                                                 class="form-control"
-                                                wire:model.defer="configFieldValues.{{ $selectedResults->first()->id }}.{{ $field->id }}">
+                                                wire:model.live.debounce.1000ms="configFieldValues.{{ $selectedResults->first()->id }}.{{ $field->id }}"
+                                                wire:blur="autosaveConfigField({{ $field->id }})">
                                             @elseif($type === 'date')
                                             <input type="date"
                                                 class="form-control"
-                                                wire:model.defer="configFieldValues.{{ $selectedResults->first()->id }}.{{ $field->id }}">
+                                                wire:model.live.debounce.1000ms="configFieldValues.{{ $selectedResults->first()->id }}.{{ $field->id }}"
+                                                wire:blur="autosaveConfigField({{ $field->id }})">
                                             @elseif($type === 'number')
                                             <input type="number"
                                                 class="form-control"
-                                                wire:model.defer="configFieldValues.{{ $selectedResults->first()->id }}.{{ $field->id }}">
+                                                wire:model.live.debounce.1000ms="configFieldValues.{{ $selectedResults->first()->id }}.{{ $field->id }}"
+                                                wire:blur="autosaveConfigField({{ $field->id }})">
                                             @elseif($type === 'checkbox')
                                             <div class="form-check">
                                                 <input type="checkbox"
                                                     class="form-check-input"
-                                                    wire:model.defer="configFieldValues.{{ $selectedResults->first()->id }}.{{ $field->id }}"
-                                                    value="1">
+                                                    wire:model.live="configFieldValues.{{ $selectedResults->first()->id }}.{{ $field->id }}"
+                                                    value="1"
+                                                    wire:blur="autosaveConfigField({{ $field->id }})">
                                             </div>
                                             @elseif($type === 'textarea')
                                             <textarea
                                                 class="form-control"
                                                 rows="2"
-                                                wire:model.defer="configFieldValues.{{ $selectedResults->first()->id }}.{{ $field->id }}"></textarea>
+                                                wire:model.live.debounce.1000ms="configFieldValues.{{ $selectedResults->first()->id }}.{{ $field->id }}"
+                                                wire:blur="autosaveConfigField({{ $field->id }})"></textarea>
                                             @elseif($type === 'input' || $type === '' || $type === null)
                                             <input type="text"
                                                 class="form-control"
-                                                wire:model.defer="configFieldValues.{{ $selectedResults->first()->id }}.{{ $field->id }}">
+                                                wire:model.live.debounce.1000ms="configFieldValues.{{ $selectedResults->first()->id }}.{{ $field->id }}"
+                                                wire:blur="autosaveConfigField({{ $field->id }})">
                                             @elseif($type === 'dataset')
                                             <div wire:ignore x-data="{
                                                 init() {
@@ -437,6 +508,7 @@
                                                         allowClear: true
                                                     }).on('change', () => {
                                                         @this.set('configFieldValues.{{ $selectedResults->first()->id }}.{{ $field->id }}', el.val());
+                                                        @this.call('autosaveConfigField', {{ $field->id }});
                                                     });
                                                     // Pre-select the value already seeded by the server
                                                     let preselected = el.find('option[selected]').val();
@@ -460,10 +532,22 @@
                                                         allowClear: true
                                                     }).on('change', () => {
                                                         @this.set('configFieldValues.{{ $selectedResults->first()->id }}.{{ $field->id }}', el.val() || []);
+                                                        @this.call('autosaveConfigField', {{ $field->id }});
                                                     });
+
                                                     // Pre-select values already seeded by the server
                                                     let preselected = el.find('option[selected]').map(function(){ return $(this).val(); }).get();
                                                     if (preselected.length) { el.val(preselected).trigger('change.select2'); }
+
+                                                    // Keep Select2 in sync when Livewire updates the underlying values (wire:ignore)
+                                                    document.addEventListener('syncConfigFieldSelect', (e) => {
+                                                        if (!e.detail) return;
+                                                        if (String(e.detail.capturedResultId) !== String({{ $selectedResults->first()->id }})) return;
+                                                        if (String(e.detail.fieldId) !== String({{ $field->id }})) return;
+
+                                                        let vals = e.detail.values || [];
+                                                        el.val(vals).trigger('change.select2');
+                                                    });
                                                 }
                                             }">
                                                 <select x-ref="select" class="form-control" multiple="multiple" data-placeholder="Select...">
@@ -484,11 +568,7 @@
                 </section>
                 @endif
 
-                <div class="mt-4 pt-3 border-top procedure-save-footer">
-                    <button class="btn btn-primary" wire:click="save">
-                        <i class="mdi mdi-content-save"></i> Save Worksheet
-                    </button>
-                </div>
+                {{-- Autosave is enabled per step and per config field; no manual Save button needed. --}}
                 @endif
                 @else
                 <div class="alert alert-info mb-0">Select a worksheet to proceed.</div>

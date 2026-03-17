@@ -26,6 +26,15 @@ class ProcedureWorksheetEditor extends Component
     public $editingStepId = null;
     public $showDeleteModal = false;
     public $stepIdToDelete = null;
+    
+    // Import properties
+    public $showImportModal = false;
+    public $importWorksheetSearch = '';
+    public $selectedImportWorksheetId = null;
+    public $importableWorksheets = [];
+    public $importTypeSteps = true;
+    public $importTypeConfig = false;
+    public $importTypeTestKit = false;
 
     // Form properties
     public $step = '';
@@ -127,6 +136,21 @@ class ProcedureWorksheetEditor extends Component
         $this->loadDocumentControl();
     }
 
+    public function updatedWorksheetId($value): void
+    {
+        $this->resetPage();
+        $this->resetForm();
+
+        $this->configFieldSearch = '';
+        $this->testKitColumnSearch = '';
+
+        $this->loadConfigFields();
+        $this->loadTestKitColumns();
+        $this->loadDocumentControl();
+
+        $this->activeTab = 'steps';
+    }
+
     public function render()
     {
         $worksheet = ProcedureWorksheet::findOrFail($this->worksheetId);
@@ -160,8 +184,17 @@ class ProcedureWorksheetEditor extends Component
                 ->limit(10)->get();
         }
 
-        $selectedEquipment = $this->default_equipment_id ? Equipment::find($this->default_equipment_id) : null;
-        $selectedAnalyst = $this->default_analyst_id ? User::find($this->default_analyst_id) : null;
+        // Normalize potential JSON/array IDs (from json columns) to a single scalar ID
+        $equipmentId = is_array($this->default_equipment_id)
+            ? (reset($this->default_equipment_id) ?: null)
+            : $this->default_equipment_id;
+
+        $analystId = is_array($this->default_analyst_id)
+            ? (reset($this->default_analyst_id) ?: null)
+            : $this->default_analyst_id;
+
+        $selectedEquipment = $equipmentId ? Equipment::find($equipmentId) : null;
+        $selectedAnalyst = $analystId ? User::find($analystId) : null;
         $selectedMeasurands = ReportingUnit::whereIn('id', $this->default_measurand_ids)->get();
 
         return view('livewire.procedures.procedure-worksheet-editor', [
@@ -273,6 +306,114 @@ class ProcedureWorksheetEditor extends Component
     {
         $this->default_equipment_id = $id;
         $this->showEquipmentDropdown = false;
+    }
+
+    public function showImportModalInit()
+    {
+        $this->importWorksheetSearch = '';
+        $this->selectedImportWorksheetId = null;
+        $this->importableWorksheets = [];
+        $this->importTypeSteps = true;
+        $this->importTypeConfig = false;
+        $this->importTypeTestKit = false;
+        $this->showImportModal = true;
+    }
+
+    public function updatedImportWorksheetSearch()
+    {
+        if (strlen($this->importWorksheetSearch) > 1) {
+            $this->importableWorksheets = ProcedureWorksheet::where('name', 'like', '%' . $this->importWorksheetSearch . '%')
+                ->where('id', '!=', $this->worksheetId)
+                ->limit(10)
+                ->get();
+        } else {
+            $this->importableWorksheets = [];
+        }
+    }
+
+    public function importData()
+    {
+        $this->validate([
+            'selectedImportWorksheetId' => 'required|exists:procedure_worksheets,id'
+        ], [
+            'selectedImportWorksheetId.required' => 'Please select a source worksheet to import from.'
+        ]);
+
+        $sourceWorksheet = ProcedureWorksheet::find($this->selectedImportWorksheetId);
+        if (!$sourceWorksheet) return;
+
+        $importedSomething = false;
+
+        if ($this->importTypeSteps) {
+            $sourceSteps = $sourceWorksheet->steps()->orderBy('order', 'asc')->get();
+            $currentMaxOrder = ProcedureWorksheetStep::where('procedure_worksheet_id', $this->worksheetId)->max('order') ?? 0;
+            foreach ($sourceSteps as $step) {
+                $currentMaxOrder++;
+                ProcedureWorksheetStep::create([
+                    'procedure_worksheet_id' => $this->worksheetId,
+                    'step' => $step->step,
+                    'is_active' => $step->is_active,
+                    'default_equipment_id' => $step->default_equipment_id,
+                    'default_analyst_id' => $step->default_analyst_id,
+                    'default_measurand_ids' => $step->default_measurand_ids,
+                    'order' => $currentMaxOrder,
+                ]);
+            }
+            if ($sourceSteps->count() > 0) $importedSomething = true;
+        }
+
+        if ($this->importTypeConfig) {
+            $sourceConfigs = ProcedureConfigField::where('procedure_worksheet_id', $this->selectedImportWorksheetId)->orderBy('order', 'asc')->get();
+            $currentMaxOrder = ProcedureConfigField::where('procedure_worksheet_id', $this->worksheetId)->max('order') ?? 0;
+            foreach ($sourceConfigs as $config) {
+                $currentMaxOrder++;
+                ProcedureConfigField::create([
+                    'procedure_worksheet_id' => $this->worksheetId,
+                    'label' => $config->label,
+                    'field_type' => $config->field_type,
+                    'model_tied_to' => $config->model_tied_to,
+                    'order' => $currentMaxOrder,
+                    'help_text' => $config->help_text,
+                    'is_required' => $config->is_required,
+                    'field_value_name' => $config->field_value_name,
+                ]);
+            }
+            if ($sourceConfigs->count() > 0) $importedSomething = true;
+        }
+
+        if ($this->importTypeTestKit) {
+            $sourceColumns = ProcedureTestKitColumn::where('procedure_worksheet_id', $this->selectedImportWorksheetId)->orderBy('order', 'asc')->get();
+            $currentMaxOrder = ProcedureTestKitColumn::where('procedure_worksheet_id', $this->worksheetId)->max('order') ?? 0;
+            foreach ($sourceColumns as $column) {
+                $currentMaxOrder++;
+                ProcedureTestKitColumn::create([
+                    'procedure_worksheet_id' => $this->worksheetId,
+                    'label' => $column->label,
+                    'key' => $column->key,
+                    'type' => $column->type,
+                    'order' => $currentMaxOrder,
+                    'is_required' => $column->is_required,
+                    'help_text' => $column->help_text,
+                ]);
+            }
+            if ($sourceColumns->count() > 0) $importedSomething = true;
+        }
+
+        $this->showImportModal = false;
+        $this->selectedImportWorksheetId = null;
+        $this->loadConfigFields();
+        $this->loadTestKitColumns();
+        $this->resetPage();
+        
+        $this->toastType = $importedSomething ? 'success' : 'info';
+        $this->toastMessage = $importedSomething ? 'Worksheet data imported successfully.' : 'No data was found to import.';
+    }
+
+    public function cancelImport()
+    {
+        $this->showImportModal = false;
+        $this->selectedImportWorksheetId = null;
+        $this->importWorksheetSearch = '';
     }
 
     public function selectAnalyst($id)
