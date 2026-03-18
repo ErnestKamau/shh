@@ -8,7 +8,7 @@
     <style>
         @page {
             size: A4 landscape;
-            margin-top: 130px;
+            margin-top: 100px;
             margin-bottom: 80px;
             margin-left: 20px;
             margin-right: 20px;
@@ -26,13 +26,13 @@
 
         .header {
             position: fixed;
-            top: -110px;
+            top: -100px;
             left: 0;
             right: 0;
-            height: 110px;
+            height: 100px;
             z-index: 1000;
             background-color: white;
-            padding-bottom: 5px;
+            padding-bottom: 2px;
         }
 
         .footer {
@@ -84,7 +84,7 @@
             text-align: center;
             font-size: 15px;
             font-weight: bold;
-            margin: 12px 0;
+            margin: 4px 0 20px 0;
             text-decoration: underline;
         }
 
@@ -103,16 +103,16 @@
 
         .info-label {
             display: table-cell;
-            width: 40%;
+            width: 22%;
             font-weight: bold;
             vertical-align: top;
-            padding-right: 6px;
+            padding-right: 2px;
             white-space: nowrap;
         }
 
         .info-value {
             display: table-cell;
-            width: 60%;
+            width: 78%;
             border-bottom: 1px dotted #000;
             padding-bottom: 1px;
         }
@@ -127,7 +127,7 @@
             display: table-cell;
             width: 50%;
             vertical-align: top;
-            padding-right: 10px;
+            padding-right: 20px;
         }
 
         .section-title {
@@ -301,27 +301,105 @@
             <thead>
                 <tr>
                     <th>Step</th>
-                    <th>Measurand</th>
+                    <th>Measurand / Value</th>
                     <th>Equipment ID</th>
                     <th>Analyst</th>
                 </tr>
             </thead>
             <tbody>
-                @php
-                    $firstRow = $sampleRows[0] ?? null;
-                @endphp
                 @foreach($steps as $step)
+                    @php
+                        $measurandNames = $step->measurands?->pluck('name', 'id') ?? collect();
+
+                        // Build structured entries so we can underline only the value part.
+                        // When multiple samples are selected, aggregate values across them.
+                        $entries = [];
+                        $hasAnyValues = false;
+
+                        foreach ($sampleRows as $sampleRow) {
+                            $detail = $sampleRow['steps'][$step->id] ?? null;
+
+                            if ($detail && is_array($detail['measurand_map'] ?? null)) {
+                                foreach ($detail['measurand_map'] as $mid => $val) {
+                                    $label = $measurandNames[$mid] ?? $mid;
+                                    $entries[] = [
+                                        'value' => (string) $val,
+                                        'label' => (string) $label,
+                                    ];
+                                    $hasAnyValues = true;
+                                }
+                            } elseif ($detail && !empty($detail['raw_value'])) {
+                                // Fallback when we only have a single raw value
+                                $label = $step->measurands && $step->measurands->isNotEmpty()
+                                    ? $step->measurands->pluck('name')->implode(', ')
+                                    : '';
+                                $entries[] = [
+                                    'value' => (string) $detail['raw_value'],
+                                    'label' => (string) $label,
+                                ];
+                                $hasAnyValues = true;
+                            }
+                        }
+
+                        // If nothing has values yet, show just the measurand labels.
+                        if (! $hasAnyValues && $step->measurands && $step->measurands->isNotEmpty()) {
+                            $entries[] = [
+                                'value' => '',
+                                'label' => (string) $step->measurands->pluck('name')->implode(', '),
+                            ];
+                        }
+
+                        // De-duplicate identical value+label pairs while preserving first appearance order.
+                        if (!empty($entries)) {
+                            $entries = collect($entries)
+                                ->unique(fn ($e) => ($e['value'] ?? '') . '|' . ($e['label'] ?? ''))
+                                ->values()
+                                ->all();
+                        }
+
+                        // Resolve per-step analysts when available from precomputed map, otherwise fall back to header analyst.
+                        $analystNames = $stepAnalystMap[$step->id] ?? ($worksheetHeader['analyst'] ?? '');
+                    @endphp
+                    @php
+                        $equipmentDisplay = '';
+                        $eqCollection = $step->equipment ?? collect();
+                        if ($eqCollection instanceof \Illuminate\Support\Collection && $eqCollection->isNotEmpty()) {
+                            $equipmentDisplay = $eqCollection->map(function ($e) {
+                                $number = $e->equipment_number ?? null;
+                                return $number
+                                    ? $e->name . ' (' . $number . ')'
+                                    : $e->name;
+                            })->implode(', ');
+                        }
+                    @endphp
                     <tr>
                         <td>{{ $step->step }}</td>
                         <td>
-                            @if($step->measurands && $step->measurands->isNotEmpty())
-                                {{ $step->measurands->pluck('name')->implode(', ') }}
+                            @if(!empty($entries))
+                                @foreach($entries as $idx => $entry)
+                                    @php
+                                        $hasValue = trim($entry['value']) !== '';
+                                    @endphp
+                                    @if($hasValue)
+                                        <span style="border-bottom: 1px dashed #000;">
+                                            {{ $entry['value'] }}
+                                        </span>
+                                        @if(trim($entry['label']) !== '')
+                                            {{ ' ' . $entry['label'] }}
+                                        @endif
+                                    @else
+                                        {{ $entry['label'] }}
+                                    @endif
+                                    @if($idx < count($entries) - 1)
+                                        , 
+                                    @endif
+                                @endforeach
                             @else
                                 &nbsp;
                             @endif
                         </td>
-                        <td>{{ optional($step->equipment)->name ?? '' }}</td>
-                        <td>{{ $worksheetHeader['analyst'] ?? '' }}</td>
+                        <td>{{ $equipmentDisplay !== '' ? $equipmentDisplay : ' ' }}</td>
+                        <td>{{ $analystNames !== '' ? $analystNames : ' ' }}</td>
                     </tr>
                 @endforeach
             </tbody>

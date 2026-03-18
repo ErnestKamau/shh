@@ -378,6 +378,11 @@ Route::get('/sample-workflow/batch/{batch}/details/{client?}/{portal?}/{status?}
 Route::get('/sample-workflow/batch/{batch}/worksheets', 'WorksheetsController@index')
     ->name('batch-worksheets')
     ->middleware('auth');
+// Temporary design route for procedure worksheet PDF template preview.
+Route::get(
+    '/sample-workflow/batch/{batch}/worksheets/{worksheet}/procedure-preview',
+    'WorksheetsController@previewProcedureWorksheetPdf'
+)->name('batch-worksheets.procedure-preview')->middleware('auth');
 Route::post('/add-batch-info/{batch}', 'SampleWorkFlowController@add_batch_info')->name('add-batch-info');
 Route::post('/add-batch-samples/{batch}', 'SampleWorkFlowController@add_batch_samples')->name('add-batch-samples');
 Route::post('/add-new-samples', 'SampleWorkFlowController@add_batch_samples')->name('add-new-samples');

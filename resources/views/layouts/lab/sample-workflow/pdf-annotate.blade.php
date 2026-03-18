@@ -408,7 +408,8 @@
 
         // Initialize on page load (only once)
         let initialized = false;
-        document.addEventListener('DOMContentLoaded', function () {
+
+        function setupPdfAnnotatorPage() {
             if (!initialized) {
                 pdfAnnotator.init();
                 initialized = true;
@@ -425,7 +426,20 @@
             const applyBtn = document.getElementById('apply-smart-annotation-btn');
             const wrapper = document.getElementById('pdf-canvas-wrapper');
 
+            // Default to "table" if nothing selected
+            if (reportTypeSelect && !reportTypeSelect.value) {
+                reportTypeSelect.value = 'table';
+            }
+            if (smartForm) {
+                smartForm.style.display = 'block';
+            }
+
             let smartBlockOverlay = null;
+            const SMART_FONT_SIZE = 8; // small bump for readability
+            const SMART_LINE_HEIGHT = 1.35;
+            const SMART_PADDING = 6;
+            const SMART_SIDE_MARGIN = 20;
+            const SMART_SECTION_GAP_PX = 28;
 
             reportTypeSelect.addEventListener('change', function() {
                 if (this.value === 'table') {
@@ -444,6 +458,7 @@
                 const signatureUrl = document.getElementById('smart-signature-url') ? document.getElementById('smart-signature-url').value : null;
                 const ownerName = "{{ $user->name ?? '' }}";
                 const dateVal = "{{ date('Y-m-d') }}";
+                const reportType = reportTypeSelect ? reportTypeSelect.value : 'table';
 
                 if (smartBlockOverlay) {
                     smartBlockOverlay.remove();
@@ -454,36 +469,46 @@
                 smartBlockOverlay.id = 'smart-annotation-block';
                 smartBlockOverlay.className = 'smart-annotation-block';
                 smartBlockOverlay.style.position = 'absolute';
-                smartBlockOverlay.style.left = '50px';
+                // Use (almost) full width of the PDF canvas wrapper
+                const wrapperWidth = wrapper ? wrapper.clientWidth : 540;
+                const fullWidth = Math.max(280, wrapperWidth - (SMART_SIDE_MARGIN * 2));
+                const blockWidth = reportType === 'graph'
+                    ? Math.max(220, Math.floor(fullWidth / 3.5))
+                    : fullWidth;
+                smartBlockOverlay.style.left = `${SMART_SIDE_MARGIN}px`;
                 smartBlockOverlay.style.top = '700px';
-                smartBlockOverlay.style.width = '500px';
+                smartBlockOverlay.style.width = `${blockWidth}px`;
                 smartBlockOverlay.style.border = '2px dashed #3498db';
                 smartBlockOverlay.style.backgroundColor = 'rgba(255,255,255,0.9)';
-                smartBlockOverlay.style.padding = '10px';
+                smartBlockOverlay.style.padding = `${SMART_PADDING}px`;
                 smartBlockOverlay.style.zIndex = '100';
                 smartBlockOverlay.style.cursor = 'move';
                 smartBlockOverlay.style.fontFamily = 'Arial, sans-serif';
-                smartBlockOverlay.style.fontSize = '12px';
+                smartBlockOverlay.style.fontSize = `${SMART_FONT_SIZE}px`;
+                smartBlockOverlay.style.lineHeight = `${SMART_LINE_HEIGHT}`;
 
                 // Store data in dataset for extraction later
                 smartBlockOverlay.dataset.remarks = remarks;
                 smartBlockOverlay.dataset.owner = ownerName;
                 smartBlockOverlay.dataset.date = dateVal;
                 smartBlockOverlay.dataset.signatureUrl = signatureUrl;
+                smartBlockOverlay.dataset.reportType = reportType;
 
                 let sigHtml = signatureUrl ? `<img src="${signatureUrl}" style="max-height: 40px;">` : ``;
 
                 smartBlockOverlay.innerHTML = `
-                    <div style="margin-bottom: 20px;">
-                        <strong>Comments:</strong><br>
+                    <div class="smart-comments" style="font-size: ${SMART_FONT_SIZE}pt; line-height: ${SMART_LINE_HEIGHT}; margin-bottom: ${SMART_SECTION_GAP_PX}px;">
+                        <strong>Comments by vet:</strong><br>
                         ${remarks.replace(/\n/g, '<br>')}
                     </div>
-                    <table style="width: 100%; border: none;">
+                    <table class="smart-footer" style="width: 100%; border: none; font-size: ${SMART_FONT_SIZE}pt; line-height: ${SMART_LINE_HEIGHT};">
                         <tr>
                             <td style="width: 50%; vertical-align: bottom;">${ownerName}</td>
                             <td style="width: 50%; vertical-align: bottom;">
-                                <strong>Signature:</strong> ${sigHtml}<br>
-                                <strong>Date:</strong> ${dateVal}
+                                <div>
+                                    <strong>Signature:</strong> ${sigHtml}<br>
+                                    <strong>Date:</strong> ${dateVal}
+                                </div>
                             </td>
                         </tr>
                     </table>
@@ -521,15 +546,41 @@
                     
                     const finalX = rect.left - wrapperRect.left;
                     const finalY = rect.top - wrapperRect.top;
+                    const finalW = rect.width;
+                    const finalH = rect.height;
+
+                    // Compute dynamic layout so long comments don't overlap footer
+                    const commentsEl = smartBlockOverlay.querySelector('.smart-comments');
+                    const footerEl = smartBlockOverlay.querySelector('.smart-footer');
+                    const commentsH = commentsEl ? commentsEl.getBoundingClientRect().height : 0;
+                    const footerH = footerEl ? footerEl.getBoundingClientRect().height : 0;
+                    const gap = SMART_SECTION_GAP_PX;
 
                     const remarks = smartBlockOverlay.dataset.remarks;
                     const owner = smartBlockOverlay.dataset.owner;
                     const date = smartBlockOverlay.dataset.date;
                     const sigUrl = smartBlockOverlay.dataset.signatureUrl;
+                    const reportType = smartBlockOverlay.dataset.reportType || 'table';
 
                     // Ensure page array exists
                     if (!pdfAnnotator.annotations[pdfAnnotator.currentPage]) {
                         pdfAnnotator.annotations[pdfAnnotator.currentPage] = [];
+                    }
+
+                    // Add a faint border around the whole smart block only for Graph reports (baked PDF)
+                    if (reportType === 'graph') {
+                        pdfAnnotator.annotations[pdfAnnotator.currentPage].push({
+                            uniqueId: 'new_smart_border',
+                            page_number: pdfAnnotator.currentPage,
+                            annotation_type: 'text',
+                            content: '',
+                            htmlContent: '',
+                            x_position: finalX,
+                            y_position: finalY,
+                            width: Math.max(50, finalW),
+                            height: Math.max(30, finalH),
+                            style_data: { borderOnly: true }
+                        });
                     }
 
                     // Add Remarks Text
@@ -537,13 +588,13 @@
                         uniqueId: 'new_smart_remarks',
                         page_number: pdfAnnotator.currentPage,
                         annotation_type: 'text',
-                        content: `<strong>Comments:</strong><br>${remarks.replace(/\n/g, '<br>')}`,
-                        htmlContent: `<strong>Comments:</strong><br>${remarks.replace(/\n/g, '<br>')}`,
-                        x_position: finalX + 10,
-                        y_position: finalY + 10,
-                        width: 480,
-                        height: 40,
-                        style_data: { fontSize: 12, color: '#000' }
+                        content: `<div style="font-size: ${SMART_FONT_SIZE}pt; line-height: ${SMART_LINE_HEIGHT};"><strong>Comments by vet:</strong><br>${remarks.replace(/\n/g, '<br>')}</div>`,
+                        htmlContent: `<div style="font-size: ${SMART_FONT_SIZE}pt; line-height: ${SMART_LINE_HEIGHT};"><strong>Comments by vet:</strong><br>${remarks.replace(/\n/g, '<br>')}</div>`,
+                        x_position: finalX + SMART_PADDING,
+                        y_position: finalY + SMART_PADDING,
+                        width: Math.max(100, finalW - (SMART_PADDING * 2)),
+                        height: Math.max(30, commentsH),
+                        style_data: { fontSize: SMART_FONT_SIZE, color: '#000', noBorder: true }
                     });
 
                     // Add Owner Text
@@ -551,13 +602,13 @@
                         uniqueId: 'new_smart_owner',
                         page_number: pdfAnnotator.currentPage,
                         annotation_type: 'text',
-                        content: owner,
-                        htmlContent: owner,
-                        x_position: finalX + 10,
-                        y_position: finalY + 60,
-                        width: 200,
-                        height: 20,
-                        style_data: { fontSize: 12, color: '#000' }
+                        content: `<div style="font-size: ${SMART_FONT_SIZE}pt; line-height: ${SMART_LINE_HEIGHT};">${owner}</div>`,
+                        htmlContent: `<div style="font-size: ${SMART_FONT_SIZE}pt; line-height: ${SMART_LINE_HEIGHT};">${owner}</div>`,
+                        x_position: finalX + SMART_PADDING,
+                        y_position: finalY + SMART_PADDING + commentsH + gap,
+                        width: Math.max(80, (finalW / 2) - SMART_PADDING),
+                        height: Math.max(18, footerH),
+                        style_data: { fontSize: SMART_FONT_SIZE, color: '#000', noBorder: true }
                     });
 
                     // Add Signature Image (if exists)
@@ -567,10 +618,11 @@
                             page_number: pdfAnnotator.currentPage,
                             annotation_type: 'image',
                             imageData: sigUrl,
-                            x_position: finalX + 260 + 55, // 50% width + offset to 'Signature:' label
-                            y_position: finalY + 45,
-                            width: 80,
-                            height: 40
+                            content: sigUrl,
+                            x_position: finalX + (finalW / 2) + 65,
+                            y_position: finalY + SMART_PADDING + commentsH + gap - 2,
+                            width: 70,
+                            height: 30
                         });
                     }
 
@@ -579,13 +631,13 @@
                         uniqueId: 'new_smart_date',
                         page_number: pdfAnnotator.currentPage,
                         annotation_type: 'text',
-                        content: `<strong>Signature:</strong><br><strong>Date:</strong> ${date}`,
-                        htmlContent: `<strong>Signature:</strong><br><strong>Date:</strong> ${date}`,
-                        x_position: finalX + 260,
-                        y_position: finalY + 60,
-                        width: 200,
-                        height: 40,
-                        style_data: { fontSize: 12, color: '#000' }
+                        content: `<div style="font-size: ${SMART_FONT_SIZE}pt; line-height: ${SMART_LINE_HEIGHT};"><strong>Signature:</strong><br><strong>Date:</strong> ${date}</div>`,
+                        htmlContent: `<div style="font-size: ${SMART_FONT_SIZE}pt; line-height: ${SMART_LINE_HEIGHT};"><strong>Signature:</strong><br><strong>Date:</strong> ${date}</div>`,
+                        x_position: finalX + (finalW / 2),
+                        y_position: finalY + SMART_PADDING + commentsH + gap,
+                        width: Math.max(80, (finalW / 2) - SMART_PADDING),
+                        height: Math.max(18, footerH),
+                        style_data: { fontSize: SMART_FONT_SIZE, color: '#000', noBorder: true }
                     });
 
                     // Remove the DOM element so it doesn't get captured by html2canvas if pdfAnnotator starts using it globally later
@@ -662,6 +714,13 @@
                     }
                 });
             }
-        });
+        }
+
+        // Run setup immediately if DOM is already ready, otherwise wait
+        if (document.readyState === 'loading') {
+            document.addEventListener('DOMContentLoaded', setupPdfAnnotatorPage);
+        } else {
+            setupPdfAnnotatorPage();
+        }
     </script>
 @endsection

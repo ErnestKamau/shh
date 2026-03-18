@@ -152,9 +152,19 @@
                                                 </td>
                                                 <td>
                                                     @php
-                                                        $equipmentNames = $stepItem->equipment?->pluck('name')->filter()->join(', ');
+                                                        $equipmentDisplay = $stepItem->equipment
+                                                            ? $stepItem->equipment
+                                                                ->map(function ($equipment) {
+                                                                    $number = $equipment->equipment_number ?? null;
+                                                                    return $number
+                                                                        ? "{$equipment->name} ({$number})"
+                                                                        : $equipment->name;
+                                                                })
+                                                                ->filter()
+                                                                ->join(', ')
+                                                            : '';
                                                     @endphp
-                                                    {{ $equipmentNames !== '' ? $equipmentNames : '-' }}
+                                                    {{ $equipmentDisplay !== '' ? $equipmentDisplay : '-' }}
                                                 </td>
                                                 <td>
                                                     @php

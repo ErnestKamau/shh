@@ -194,9 +194,37 @@
                 <section class="procedure-section mb-4">
                     <div class="card procedure-section-card">
                         <div class="card-header procedure-section-header d-flex justify-content-between align-items-center flex-wrap gap-2">
-                            <h6 class="mb-0">
-                                <i class="mdi mdi-timeline text-primary"></i>
-                                Steps &amp; Measurands
+                            <h6 class="mb-0 d-flex align-items-center gap-2">
+                                <span>
+                                    <i class="mdi mdi-timeline text-primary"></i>
+                                    Steps &amp; Measurands
+                                </span>
+                                @if($this->selectedWorksheetId)
+                                    @php
+                                        // Pass currently selected sample IDs so the PDF reflects
+                                        // the same subset shown in the UI.
+                                        $sampleQuery = !empty($selectedSamples)
+                                            ? implode(',', array_map('intval', $selectedSamples))
+                                            : '';
+                                        $analyteQuery = !empty($activeTabs)
+                                            ? implode(',', array_map('intval', $activeTabs))
+                                            : '';
+                                    @endphp
+                                    <span
+                                        wire:key="procedure-preview-{{ $batchId }}-{{ $this->selectedWorksheetId }}-{{ md5($sampleQuery) }}-{{ md5($analyteQuery) }}">
+                                        <a href="{{ route('batch-worksheets.procedure-preview', [
+                                                'batch' => $batchId,
+                                                'worksheet' => $this->selectedWorksheetId,
+                                                'samples' => $sampleQuery,
+                                                'analytes' => $analyteQuery,
+                                            ]) }}"
+                                           target="_blank"
+                                           class="badge bg-light text-primary border"
+                                           title="Preview the currently selected worksheet PDF in a new tab">
+                                            <i class="mdi mdi-file-eye"></i> Preview PDF
+                                        </a>
+                                    </span>
+                                @endif
                             </h6>
                             <div class="d-flex align-items-center gap-2">
                                 @if(count($this->importableSources) > 0)
@@ -387,19 +415,19 @@
                                                 @php($type = $col->type ?? 'string')
                                                 @if($type === 'number')
                                                 <input type="number" class="form-control form-control-sm"
-                                                    wire:model.defer="testKitData.{{ $rowMeta['id'] }}.{{ $col->id }}">
+                                                    wire:model.live.debounce.800ms="testKitData.{{ $rowMeta['id'] }}.{{ $col->id }}">
                                                 @elseif($type === 'date')
                                                 <input type="date" class="form-control form-control-sm"
-                                                    wire:model.defer="testKitData.{{ $rowMeta['id'] }}.{{ $col->id }}">
+                                                    wire:model.live.debounce.800ms="testKitData.{{ $rowMeta['id'] }}.{{ $col->id }}">
                                                 @elseif($type === 'boolean')
                                                 <div class="form-check form-check-inline mb-0">
                                                     <input type="checkbox" class="form-check-input"
-                                                        wire:model.defer="testKitData.{{ $rowMeta['id'] }}.{{ $col->id }}"
+                                                        wire:model.live="testKitData.{{ $rowMeta['id'] }}.{{ $col->id }}"
                                                         value="1">
                                                 </div>
                                                 @else
                                                 <input type="text" class="form-control form-control-sm"
-                                                    wire:model.defer="testKitData.{{ $rowMeta['id'] }}.{{ $col->id }}">
+                                                    wire:model.live.debounce.800ms="testKitData.{{ $rowMeta['id'] }}.{{ $col->id }}">
                                                 @endif
                                             </td>
                                             @endforeach

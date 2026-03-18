@@ -1308,6 +1308,7 @@ class PDFAnnotator {
                             page_number: parseInt(pageNum),
                             annotation_type: ann.annotation_type,
                             content: ann.content,
+                            imageData: ann.imageData || null,
                             htmlContent: ann.htmlContent || ann.content,
                             x_position: parseFloat(ann.x_position),
                             y_position: parseFloat(ann.y_position),

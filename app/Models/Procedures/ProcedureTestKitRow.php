@@ -13,16 +13,20 @@ class ProcedureTestKitRow extends Model
 
     protected $fillable = [
         'procedure_worksheet_id',
+        'captured_result_id',
         'row_index',
     ];
 
-    protected $casts = [
-        'row_index' => 'integer',
-    ];
+    protected $casts = ['row_index' => 'integer'];
 
     public function worksheet(): BelongsTo
     {
         return $this->belongsTo(ProcedureWorksheet::class, 'procedure_worksheet_id');
+    }
+
+    public function capturedResult(): BelongsTo
+    {
+        return $this->belongsTo(\App\CapturedResult::class, 'captured_result_id');
     }
 
     public function values(): HasMany

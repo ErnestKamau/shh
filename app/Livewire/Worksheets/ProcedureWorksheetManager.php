@@ -371,30 +371,97 @@ class ProcedureWorksheetManager extends Component
         // currently selected samples in the UI.
         $this->syncLabNoConfigFieldToSelectedSamples($capturedResults, $configFields);
 
-        // Load test kit rows and values for this worksheet (per procedure scope)
-        $rows = ProcedureTestKitRow::where('procedure_worksheet_id', $this->selectedWorksheetId)
-            ->orderBy('row_index')
+        // Kit columns are worksheet-scoped.
+        // Kit rows + values are instance-scoped by captured_result_id (sample/analyte instance).
+        $columns = ProcedureTestKitColumn::where('procedure_worksheet_id', $this->selectedWorksheetId)
+            ->orderBy('order')
             ->get();
 
-        $this->testKitRows = $rows->mapWithKeys(function ($row) {
-            return [$row->id => ['row_index' => $row->row_index]];
-        })->toArray();
+        $selectedCapturedResultIds = $capturedResults
+            ->filter(fn ($r) => $r->sample && in_array($r->sample->id, $this->selectedSamples, true))
+            ->pluck('id')
+            ->values()
+            ->all();
 
-        $tkValues = ProcedureTestKitValue::whereIn('procedure_test_kit_row_id', $rows->pluck('id'))->get();
+        $firstCapturedResultId = $selectedCapturedResultIds[0] ?? null;
 
-        $this->testKitData = [];
-        foreach ($tkValues as $val) {
-            $this->testKitData[$val->procedure_test_kit_row_id][$val->procedure_test_kit_column_id] = $val->value;
+        // Load rows for the UI instance:
+        // - instance rows (captured_result_id = firstCapturedResultId)
+        // - or legacy shared rows (captured_result_id IS NULL) *only if* they
+        //   have at least one non-empty value for the UI instance.
+        $rowsQuery = ProcedureTestKitRow::where('procedure_worksheet_id', $this->selectedWorksheetId);
+        if ($firstCapturedResultId !== null) {
+            $rowsQuery->where(function ($q) use ($firstCapturedResultId) {
+                $q->where('captured_result_id', $firstCapturedResultId)
+                    ->orWhereNull('captured_result_id');
+            });
+        } else {
+            $rowsQuery->whereNull('captured_result_id');
         }
-        $columns = ProcedureTestKitColumn::where('procedure_worksheet_id', $this->selectedWorksheetId)->orderBy('order')->get();
-        foreach ($rows as $row) {
-            if (! isset($this->testKitData[$row->id])) {
-                $this->testKitData[$row->id] = [];
-            }
-            foreach ($columns as $col) {
-                if (! array_key_exists($col->id, $this->testKitData[$row->id])) {
-                    $this->testKitData[$row->id][$col->id] = '';
+
+        $rows = $rowsQuery->orderBy('row_index')->get();
+        $rowIds = $rows->pluck('id')->values()->all();
+
+        $tkValuesQuery = ProcedureTestKitValue::whereIn('procedure_test_kit_row_id', $rowIds)
+            ->where(function ($q) use ($firstCapturedResultId) {
+                if ($firstCapturedResultId !== null) {
+                    $q->where('captured_result_id', $firstCapturedResultId)
+                        ->orWhereNull('captured_result_id');
+                } else {
+                    $q->whereNull('captured_result_id');
                 }
+            });
+
+        $tkValues = $tkValuesQuery->get();
+
+        // Default values come from captured_result_id = NULL.
+        // Instance values come from captured_result_id = first selected sample.
+        $defaultsByCell = [];
+        $instanceByCell = [];
+
+        foreach ($tkValues as $val) {
+            $rowId = (int) $val->procedure_test_kit_row_id;
+            $colId = (int) $val->procedure_test_kit_column_id;
+
+            if ($val->captured_result_id === null) {
+                $defaultsByCell[$rowId][$colId] = $val->value;
+                continue;
+            }
+
+            if ($firstCapturedResultId !== null && (int) $val->captured_result_id === (int) $firstCapturedResultId) {
+                $instanceByCell[$rowId][$colId] = $val->value;
+            }
+        }
+
+        // Populate UI grid values, then hide rows that are completely blank
+        // for the UI instance (fixes "blank rows when switching instances").
+        $this->testKitRows = [];
+        $this->testKitData = [];
+
+        foreach ($rows as $row) {
+            $rowId = (int) $row->id;
+            $hasAnyNonEmptyValue = false;
+
+            foreach ($columns as $col) {
+                $colId = (int) $col->id;
+
+                $val = '';
+                if (array_key_exists($rowId, $instanceByCell) && array_key_exists($colId, $instanceByCell[$rowId] ?? [])) {
+                    $val = $instanceByCell[$rowId][$colId] ?? '';
+                } else {
+                    $val = $defaultsByCell[$rowId][$colId] ?? '';
+                }
+
+                $valStr = $val === null ? '' : (string) $val;
+                if (trim($valStr) !== '') {
+                    $hasAnyNonEmptyValue = true;
+                }
+
+                $this->testKitData[$rowId][$colId] = $valStr;
+            }
+
+            if ($hasAnyNonEmptyValue) {
+                $this->testKitRows[$rowId] = ['row_index' => (int) $row->row_index];
             }
         }
 
@@ -675,6 +742,12 @@ class ProcedureWorksheetManager extends Component
             ->get();
 
         $this->syncLabNoConfigFieldToSelectedSamples($capturedResults, $configFields);
+
+        // Re-load the full worksheet samples + kit state.
+        // This ensures test-kit rows/values are correctly re-scoped to the new
+        // selected captured_result_id and avoids showing blank rows.
+        $this->loadSamples();
+        return;
     }
 
     private function syncLabNoConfigFieldToSelectedSamples(Collection $capturedResults, Collection $configFields): void
@@ -854,24 +927,161 @@ class ProcedureWorksheetManager extends Component
         if (!$this->selectedWorksheetId) {
             return;
         }
-        $maxIndex = ProcedureTestKitRow::where('procedure_worksheet_id', $this->selectedWorksheetId)->max('row_index') ?? 0;
-        $newRow = ProcedureTestKitRow::create([
-            'procedure_worksheet_id' => $this->selectedWorksheetId,
-            'row_index' => $maxIndex + 1,
-        ]);
-        $this->testKitRows[$newRow->id] = ['row_index' => $newRow->row_index];
+
+        $selectedCapturedResultIds = $this->getSelectedCapturedResultIds();
+        if (empty($selectedCapturedResultIds)) {
+            return;
+        }
+
+        $firstCapturedResultId = (int) $selectedCapturedResultIds[0];
+
+        $maxIndex = 0;
+        foreach ($this->testKitRows as $meta) {
+            $maxIndex = max($maxIndex, (int) ($meta['row_index'] ?? 0));
+        }
+
+        $newRowIndex = $maxIndex + 1;
+
         $columns = $this->getTestKitColumnsProperty();
-        $this->testKitData[$newRow->id] = [];
+
+        $displayRow = null;
+        foreach ($selectedCapturedResultIds as $capturedResultId) {
+            $capturedResultId = (int) $capturedResultId;
+
+            $instanceRow = ProcedureTestKitRow::firstOrCreate(
+                [
+                    'procedure_worksheet_id' => $this->selectedWorksheetId,
+                    'captured_result_id' => $capturedResultId,
+                    'row_index' => $newRowIndex,
+                ],
+                [
+                    'row_index' => $newRowIndex,
+                ]
+            );
+
+            if ($capturedResultId === $firstCapturedResultId) {
+                $displayRow = $instanceRow;
+            }
+        }
+
+        if (! $displayRow) {
+            return;
+        }
+
+        $this->testKitRows[$displayRow->id] = ['row_index' => $displayRow->row_index];
+        $this->testKitData[$displayRow->id] = [];
         foreach ($columns as $col) {
-            $this->testKitData[$newRow->id][$col->id] = '';
+            $this->testKitData[$displayRow->id][$col->id] = '';
+        }
+    }
+
+    public function updatedTestKitData($value, $key): void
+    {
+        // $key comes in as "rowId.columnId"
+        $parts = explode('.', (string) $key);
+        if (count($parts) !== 2) {
+            return;
+        }
+        $rowId = (int) $parts[0];
+        $this->autosaveTestKitRow($rowId);
+    }
+
+    protected function autosaveTestKitRow(int $rowId): void
+    {
+        if (! $this->selectedWorksheetId) {
+            return;
+        }
+
+        if (! isset($this->testKitRows[$rowId]) || ! isset($this->testKitData[$rowId])) {
+            return;
+        }
+
+        // Prevent stale updates from moving test-kit rows across worksheets.
+        // The UI should only ever autosave rows that already belong to the
+        // currently selected worksheet.
+        $rowBelongsToWorksheet = ProcedureTestKitRow::where('id', $rowId)
+            ->where('procedure_worksheet_id', $this->selectedWorksheetId)
+            ->exists();
+
+        if (! $rowBelongsToWorksheet) {
+            return;
+        }
+
+        // Ensure the row exists with the correct worksheet and index.
+        $meta = $this->testKitRows[$rowId];
+
+        // Apply the typed value to all currently selected sample instances.
+        $selectedCapturedResultIds = $this->getSelectedCapturedResultIds();
+        if (empty($selectedCapturedResultIds)) {
+            return;
+        }
+
+        $rowIndex = (int) ($meta['row_index'] ?? 0);
+
+        foreach ($selectedCapturedResultIds as $capturedResultId) {
+            $capturedResultId = (int) $capturedResultId;
+
+            // Ensure the row exists for this instance.
+            $instanceRow = ProcedureTestKitRow::firstOrCreate(
+                [
+                    'procedure_worksheet_id' => $this->selectedWorksheetId,
+                    'captured_result_id' => $capturedResultId,
+                    'row_index' => $rowIndex,
+                ],
+                [
+                    'row_index' => $rowIndex,
+                ]
+            );
+
+            foreach ($this->testKitData[$rowId] as $columnId => $val) {
+                ProcedureTestKitValue::updateOrCreate(
+                    [
+                        'captured_result_id' => $capturedResultId,
+                        'procedure_test_kit_row_id' => $instanceRow->id,
+                        'procedure_test_kit_column_id' => (int) $columnId,
+                    ],
+                    [
+                        'value' => $val,
+                    ]
+                );
+            }
         }
     }
 
     public function removeTestKitRow(int $rowId): void
     {
+        $rowMeta = $this->testKitRows[$rowId] ?? null;
+        $rowIndex = $rowMeta['row_index'] ?? null;
+
+        $selectedCapturedResultIds = $this->getSelectedCapturedResultIds();
+        if (empty($selectedCapturedResultIds)) {
+            $selectedCapturedResultIds = [];
+        }
+
+        // Remove values for selected instances.
+        if (! empty($selectedCapturedResultIds)) {
+            ProcedureTestKitValue::where('procedure_test_kit_row_id', $rowId)
+                ->whereIn('captured_result_id', array_map('intval', $selectedCapturedResultIds))
+                ->delete();
+        }
+
+        // Also remove instance rows if they were created for selected captured results.
+        if ($rowIndex !== null) {
+            foreach ($selectedCapturedResultIds as $capturedResultId) {
+                $capturedResultId = (int) $capturedResultId;
+                $instanceRow = ProcedureTestKitRow::where('procedure_worksheet_id', $this->selectedWorksheetId)
+                    ->where('captured_result_id', $capturedResultId)
+                    ->where('row_index', (int) $rowIndex)
+                    ->first();
+
+                if ($instanceRow) {
+                    ProcedureTestKitValue::where('procedure_test_kit_row_id', $instanceRow->id)->delete();
+                    $instanceRow->delete();
+                }
+            }
+        }
+
         unset($this->testKitRows[$rowId], $this->testKitData[$rowId]);
-        ProcedureTestKitValue::where('procedure_test_kit_row_id', $rowId)->delete();
-        ProcedureTestKitRow::where('id', $rowId)->delete();
     }
 
     /**
@@ -1140,6 +1350,26 @@ class ProcedureWorksheetManager extends Component
     }
 
     /**
+     * Open the PDF preview for the currently selected worksheet in a new tab.
+     *
+     * We generate the URL at click-time (server-side) to avoid stale hrefs
+     * when switching parameter/worksheet tabs.
+     */
+    public function previewProcedureWorksheetPdf(): void
+    {
+        if (empty($this->selectedWorksheetId)) {
+            return;
+        }
+
+        $url = route('batch-worksheets.procedure-preview', [
+            'batch' => $this->batchId,
+            'worksheet' => $this->selectedWorksheetId,
+        ]);
+
+        $this->dispatch('openProcedureWorksheetPreview', url: $url);
+    }
+
+    /**
      * Clear all saved analysts for the current worksheet in this batch.
      * This wipes analyst_ids on CapturedProcedureValue for the relevant captured results
      * and resets the in-memory overrides, but leaves step values and other overrides intact.
@@ -1282,32 +1512,49 @@ class ProcedureWorksheetManager extends Component
             }
         }
 
-        // Save test kit values (per procedure, shared across batches)
-        foreach ($this->testKitRows as $rowId => $rowMeta) {
-            $row = ProcedureTestKitRow::updateOrCreate(
-                [
-                    'id' => $rowId,
-                ],
-                [
-                    'procedure_worksheet_id' => $this->selectedWorksheetId,
-                    'row_index' => $rowMeta['row_index'] ?? 1,
-                ]
-            );
+        // Save test kit values (per sample instances selected in this UI).
+        $selectedIds = $this->getSelectedCapturedResultIds();
+        if (empty($selectedIds)) {
+            $selectedIds = [];
+        }
 
-            if (!isset($this->testKitData[$row->id])) {
+        foreach ($this->testKitRows as $rowId => $rowMeta) {
+            if (! isset($this->testKitData[$rowId])) {
                 continue;
             }
 
-            foreach ($this->testKitData[$row->id] as $columnId => $value) {
-                ProcedureTestKitValue::updateOrCreate(
+            if (empty($selectedIds)) {
+                // No selected samples: do not persist kit values.
+                continue;
+            }
+
+            $rowIndex = (int) ($rowMeta['row_index'] ?? 0);
+
+            foreach ($selectedIds as $capturedResultId) {
+                $capturedResultId = (int) $capturedResultId;
+                $instanceRow = ProcedureTestKitRow::firstOrCreate(
                     [
-                        'procedure_test_kit_row_id' => $row->id,
-                        'procedure_test_kit_column_id' => $columnId,
+                        'procedure_worksheet_id' => $this->selectedWorksheetId,
+                        'captured_result_id' => $capturedResultId,
+                        'row_index' => $rowIndex,
                     ],
                     [
-                        'value' => $value,
+                        'row_index' => $rowIndex,
                     ]
                 );
+
+                foreach ($this->testKitData[$rowId] as $columnId => $value) {
+                    ProcedureTestKitValue::updateOrCreate(
+                        [
+                            'captured_result_id' => $capturedResultId,
+                            'procedure_test_kit_row_id' => $instanceRow->id,
+                            'procedure_test_kit_column_id' => (int) $columnId,
+                        ],
+                        [
+                            'value' => $value,
+                        ]
+                    );
+                }
             }
         }
 
@@ -1654,7 +1901,17 @@ class ProcedureWorksheetManager extends Component
     {
         return \App\Models\Equipments\Equipment::orderBy('name')
             ->get()
-            ->map(fn($e) => (object) ['id' => (string) $e->id, 'label' => $e->name]);
+            ->map(function ($e) {
+                $number = $e->equipment_number ?? null;
+                $label = $number
+                    ? sprintf('%s (%s)', $e->name, $number)
+                    : $e->name;
+
+                return (object) [
+                    'id' => (string) $e->id,
+                    'label' => $label,
+                ];
+            });
     }
 
     /**

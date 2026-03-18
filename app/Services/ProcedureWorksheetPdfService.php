@@ -15,128 +15,354 @@ use App\Models\Procedures\ProcedureTestKitColumn;
 use App\Models\Procedures\ProcedureTestKitRow;
 use App\Models\Procedures\ProcedureTestKitValue;
 use App\Models\Procedures\ProcedureWorksheet;
+use App\Models\Procedures\ProcedureWorksheetStepAnalyst;
 use App\Models\System\SystemConfiguration;
 use App\SampleHeader;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 use App\User;
 
 class ProcedureWorksheetPdfService
 {
+    /**
+     * Prepare the full view data array used by the worksheet PDF Blade template.
+     * This is extracted so we can both attach PDFs and stream previews without
+     * duplicating the data-building logic.
+     */
+    public function prepareViewDataForPreview(
+        SampleHeader $batch,
+        ProcedureWorksheet $worksheet,
+        array $sampleIds = [],
+        array $analyteIds = []
+    ): array
+    {
+        $worksheet->load([
+            'steps' => fn ($q) => $q->orderBy('order')->orderBy('id'),
+            'configFields' => fn ($q) => $q->orderBy('order'),
+            'testKitColumns' => fn ($q) => $q->orderBy('order'),
+        ]);
+        $steps = $worksheet->steps;
+        $configFields = $worksheet->configFields;
+        $testKitColumns = $worksheet->testKitColumns;
+
+        $batch->load('sample_type');
+
+        $capturedQuery = CapturedResult::where('sample_header_id', $batch->id)
+            ->where('procedure_worksheet_id', $worksheet->id);
+
+        if (!empty($sampleIds)) {
+            // Restrict to the same samples currently selected in the worksheet UI
+            $capturedQuery->whereIn('sample_detail_id', $sampleIds);
+        }
+
+        if (!empty($analyteIds)) {
+            // Restrict to the currently selected parameter/analyte tab
+            $capturedQuery->whereIn('analyte_id', $analyteIds);
+        }
+
+        $capturedResults = $capturedQuery
+            ->with(['sample', 'analysis_type'])
+            ->get();
+
+        $crIds = $capturedResults->pluck('id');
+        $stepValues = CapturedProcedureValue::whereIn('captured_result_id', $crIds)->get()->groupBy('captured_result_id');
+        $configValues = CapturedProcedureConfigValue::whereIn('captured_result_id', $crIds)->get()->groupBy('captured_result_id');
+
+        $sampleTypeName = $batch->sample_type ? $batch->sample_type->name : '—';
+        $analysisTypeName = $capturedResults->isNotEmpty() && $capturedResults->first()->analysis_type
+            ? $capturedResults->first()->analysis_type->name
+            : $worksheet->name;
+
+        $samplesForWorksheet = [];
+        $seen = [];
+        foreach ($capturedResults as $cr) {
+            $sample = $cr->sample;
+            if (!$sample || isset($seen[$sample->id])) {
+                continue;
+            }
+            $seen[$sample->id] = true;
+            $samplesForWorksheet[] = [
+                'sample_code' => $sample->sample_code ?? '—',
+                'batch_code' => $batch->batch_code,
+                'sample_type_name' => $sampleTypeName,
+            ];
+        }
+
+        $sampleRows = [];
+        foreach ($capturedResults as $cr) {
+            $sample = $cr->sample;
+            $analysisType = $cr->analysis_type;
+            $valuesForCr = $stepValues->get($cr->id) ?? collect();
+
+            // Build per-step detail including decoded measurand map and equipment/analyst IDs.
+            $stepDetails = [];
+            foreach ($valuesForCr as $val) {
+                /** @var \App\Models\Procedures\CapturedProcedureValue $val */
+                $rawValue = $val->value;
+                $decodedMap = null;
+                if (is_string($rawValue)) {
+                    $trimmed = trim($rawValue);
+                    if ($trimmed !== '' && $trimmed[0] === '{') {
+                        $maybe = json_decode($trimmed, true);
+                        if (json_last_error() === JSON_ERROR_NONE && is_array($maybe)) {
+                            $decodedMap = $maybe;
+                        }
+                    }
+                }
+
+                $stepDetails[$val->procedure_worksheet_step_id] = [
+                    'raw_value' => $rawValue,
+                    'measurand_map' => $decodedMap,
+                    'equipment_ids' => $val->equipment_ids ?? [],
+                    'analyst_ids' => $val->analyst_ids ?? [],
+                ];
+            }
+
+            $sampleRows[] = [
+                'sample_code' => $sample ? ($sample->sample_code ?? '—') : '—',
+                'batch_code' => $batch->batch_code,
+                'sample_type_name' => $sampleTypeName,
+                'analysis_type_name' => $analysisType ? $analysisType->name : $worksheet->name,
+                'steps' => $stepDetails,
+                'config_values' => ($configValues->get($cr->id) ?? collect())->pluck('value', 'procedure_config_field_id')->toArray(),
+            ];
+        }
+
+        // Resolve per-step analysts via dedicated table (same logic as the Livewire manager).
+        $stepAnalystMap = [];
+        $analyteIds = $capturedResults->pluck('analyte_id')->filter()->unique()->values();
+        if ($analyteIds->count() === 1) {
+            $activeAnalyteId = (int) $analyteIds->first();
+            $stepAnalystRows = ProcedureWorksheetStepAnalyst::where('batch_id', $batch->id)
+                ->where('analyte_id', $activeAnalyteId)
+                ->where('procedure_worksheet_id', $worksheet->id)
+                ->get();
+
+            // Collect all analyst IDs to minimise queries.
+            $allAnalystIds = $stepAnalystRows->pluck('analyst_ids')->filter()->flatten()->unique()->values();
+            $analystLookup = $allAnalystIds->isNotEmpty()
+                ? User::whereIn('id', $allAnalystIds)->get()->keyBy('id')
+                : collect();
+
+            foreach ($stepAnalystRows as $row) {
+                $ids = is_array($row->analyst_ids) ? $row->analyst_ids : [];
+                $names = collect($ids)
+                    ->map(function ($id) use ($analystLookup) {
+                        $user = $analystLookup->get((int) $id);
+                        return $user ? ($user->name ?? null) : null;
+                    })
+                    ->filter()
+                    ->implode(', ');
+
+                if ($names !== '') {
+                    $stepAnalystMap[$row->procedure_worksheet_step_id] = $names;
+                }
+            }
+        }
+
+        $headerConfig = $this->buildHeaderConfigFromFirstResult(
+            $configFields,
+            $configValues,
+            $crIds
+        );
+
+        // Override / backfill key header fields so they always have sensible defaults
+        // even when no explicit CapturedProcedureConfigValue rows exist yet.
+
+        // Laboratory number: show all sample codes (comma-separated)
+        $labNumbers = collect($samplesForWorksheet)
+            ->pluck('sample_code')
+            ->filter()
+            ->unique()
+            ->implode(', ');
+        if ($labNumbers !== '') {
+            $headerConfig['lab_no'] = $labNumbers;
+            $headerConfig['laboratory_number'] = $labNumbers;
+        }
+
+        // Sample type: fall back to the batch sample type name
+        if (!array_key_exists('sample_type', $headerConfig) || $headerConfig['sample_type'] === '') {
+            $headerConfig['sample_type'] = $sampleTypeName;
+        }
+
+        // Date received: fall back to the batch receipt_date
+        if (
+            (!array_key_exists('date_received', $headerConfig) || $headerConfig['date_received'] === '') &&
+            (!array_key_exists('date_recieved', $headerConfig) || $headerConfig['date_recieved'] === '')
+        ) {
+            $headerConfig['date_received'] = $this->formatDateValue($batch->receipt_date ?? null);
+        }
+
+        // Tests: fall back to the resolved analysis type / worksheet name
+        if (!array_key_exists('tests', $headerConfig) || $headerConfig['tests'] === '') {
+            $headerConfig['tests'] = $analysisTypeName;
+        }
+
+        $analystValue = $headerConfig['analyst'] ?? '';
+        $analystName = is_numeric($analystValue) ? (User::find($analystValue)?->name ?? $analystValue) : $analystValue;
+
+        $worksheetHeader = [
+            'laboratory_number' => $labNumbers !== '' ? $labNumbers : ($headerConfig['lab_no'] ?? $batch->batch_code),
+            'analyst' => $analystName,
+            'date_received' => $this->formatDateValue($batch->receipt_date ?? null),
+            'tests' => $analysisTypeName,
+            'room_temperature' => $headerConfig['room_temperature'] ?? ($headerConfig['temperature_under_25'] ?? ''),
+            'sample_type' => $sampleTypeName,
+            'dilution_used' => $headerConfig['dilution_used'] ?? '',
+            'date_tested' => $headerConfig['date_tested'] ?? '',
+            'method_used' => $headerConfig['method'] ?? '',
+            'start_time' => $headerConfig['start_time'] ?? '',
+        ];
+
+        $capturedResultIds = $capturedResults->pluck('id')->values()->all();
+        $testKitRows = [];
+
+        // Candidate rows are either:
+        // - instance rows for the selected captured results
+        // - or legacy shared rows (captured_result_id IS NULL)
+        $rowsQuery = ProcedureTestKitRow::where('procedure_worksheet_id', $worksheet->id);
+        if (!empty($capturedResultIds)) {
+            $rowsQuery->where(function ($q) use ($capturedResultIds) {
+                $q->whereIn('captured_result_id', $capturedResultIds)
+                    ->orWhereNull('captured_result_id');
+            });
+        } else {
+            $rowsQuery->whereNull('captured_result_id');
+        }
+
+        $rows = $rowsQuery->get();
+        $rowIds = $rows->pluck('id')->values()->all();
+
+        // Render a single table: the row set is the union of row_index values.
+        $rowIndexSet = $rows->pluck('row_index')->unique()->sort()->values()->all();
+
+        $rowIndexByRowId = [];
+        foreach ($rows as $row) {
+            $rowIndexByRowId[(int) $row->id] = (int) $row->row_index;
+        }
+
+        $columnIds = $testKitColumns->pluck('id')->values()->all();
+
+        $tkValuesQuery = ProcedureTestKitValue::whereIn('procedure_test_kit_row_id', $rowIds)
+            ->whereIn('procedure_test_kit_column_id', $columnIds)
+            ->where(function ($q) use ($capturedResultIds) {
+                if (!empty($capturedResultIds)) {
+                    $q->whereIn('captured_result_id', $capturedResultIds)
+                        ->orWhereNull('captured_result_id');
+                } else {
+                    $q->whereNull('captured_result_id');
+                }
+            });
+
+        $tkValues = $tkValuesQuery->get();
+
+        // Build maps keyed by (row_index, column_id).
+        $defaultsByRowIndexCell = [];
+        $instanceByCapturedIdRowIndexCell = [];
+
+        foreach ($tkValues as $val) {
+            $rowId = (int) $val->procedure_test_kit_row_id;
+            $rowIndex = $rowIndexByRowId[$rowId] ?? null;
+            if ($rowIndex === null) continue;
+
+            $colId = (int) $val->procedure_test_kit_column_id;
+
+            if ($val->captured_result_id === null) {
+                $defaultsByRowIndexCell[$rowIndex][$colId] = $val->value;
+                continue;
+            }
+
+            $capturedId = (int) $val->captured_result_id;
+            $instanceByCapturedIdRowIndexCell[$capturedId][$rowIndex][$colId] = $val->value;
+        }
+
+        foreach ($rowIndexSet as $rowIndex) {
+            $vals = [];
+            $rowHasAnyNonEmptyValue = false;
+
+            foreach ($testKitColumns as $col) {
+                $colId = (int) $col->id;
+                $merged = [];
+
+                foreach ($capturedResultIds as $capturedId) {
+                    $capturedId = (int) $capturedId;
+
+                    $v = $instanceByCapturedIdRowIndexCell[$capturedId][$rowIndex][$colId] ?? null;
+                    if ($v !== null) {
+                        $vStr = (string) $v;
+                        if (trim($vStr) !== '') {
+                            $merged[] = $vStr;
+                            continue;
+                        }
+                    }
+
+                    $dv = $defaultsByRowIndexCell[$rowIndex][$colId] ?? null;
+                    if ($dv !== null) {
+                        $dvStr = (string) $dv;
+                        if (trim($dvStr) !== '') {
+                            $merged[] = $dvStr;
+                        }
+                    }
+                }
+
+                // If there are no captured results selected, still show defaults.
+                if (empty($capturedResultIds) && isset($defaultsByRowIndexCell[$rowIndex][$colId])) {
+                    $dvStr = (string) ($defaultsByRowIndexCell[$rowIndex][$colId] ?? '');
+                    if (trim($dvStr) !== '') {
+                        $merged[] = $dvStr;
+                    }
+                }
+
+                $merged = array_values(array_unique($merged));
+                $cell = implode(', ', $merged);
+                $vals[$colId] = $cell;
+
+                if (trim($cell) !== '') {
+                    $rowHasAnyNonEmptyValue = true;
+                }
+            }
+
+            if ($rowHasAnyNonEmptyValue) {
+                $testKitRows[] = ['values' => $vals];
+            }
+        }
+
+        $logoSrc = $this->resolveLogoAsDataUri();
+        $printedAt = now()->format('d M Y H:i');
+        $company = getActiveCompany();
+
+        $viewData = compact(
+            'batch',
+            'steps',
+            'configFields',
+            'testKitColumns',
+            'sampleRows',
+            'testKitRows',
+            'logoSrc',
+            'printedAt',
+            'samplesForWorksheet',
+            'sampleTypeName',
+            'analysisTypeName',
+            'company',
+            'worksheetHeader',
+            'headerConfig',
+            'stepAnalystMap'
+        );
+        $viewData['procedure'] = $worksheet;
+        $viewData['testKitRows'] = collect($testKitRows);
+        $viewData['testKitColumns'] = $testKitColumns;
+
+        return $viewData;
+    }
+
     public function generateAndAttach(SampleHeader $batch, ProcedureWorksheet $worksheet): void
     {
         try {
-            $worksheet->load([
-                'steps' => fn ($q) => $q->orderBy('order')->orderBy('id'),
-                'configFields' => fn ($q) => $q->orderBy('order'),
-                'testKitColumns' => fn ($q) => $q->orderBy('order'),
-            ]);
-            $steps = $worksheet->steps;
-            $configFields = $worksheet->configFields;
-            $testKitColumns = $worksheet->testKitColumns;
-
-            $batch->load('sample_type');
-
-            $capturedResults = CapturedResult::where('sample_header_id', $batch->id)
-                ->where('procedure_worksheet_id', $worksheet->id)
-                ->with(['sample', 'analysis_type'])
-                ->get();
-
-            $crIds = $capturedResults->pluck('id');
-            $stepValues = CapturedProcedureValue::whereIn('captured_result_id', $crIds)->get()->groupBy('captured_result_id');
-            $configValues = CapturedProcedureConfigValue::whereIn('captured_result_id', $crIds)->get()->groupBy('captured_result_id');
-
-            $sampleTypeName = $batch->sample_type ? $batch->sample_type->name : '—';
-            $analysisTypeName = $capturedResults->isNotEmpty() && $capturedResults->first()->analysis_type
-                ? $capturedResults->first()->analysis_type->name
-                : $worksheet->name;
-
-            $samplesForWorksheet = [];
-            $seen = [];
-            foreach ($capturedResults as $cr) {
-                $sample = $cr->sample;
-                if (!$sample || isset($seen[$sample->id])) {
-                    continue;
-                }
-                $seen[$sample->id] = true;
-                $samplesForWorksheet[] = [
-                    'sample_code' => $sample->sample_code ?? '—',
-                    'batch_code' => $batch->batch_code,
-                    'sample_type_name' => $sampleTypeName,
-                ];
-            }
-
-            $sampleRows = [];
-            foreach ($capturedResults as $cr) {
-                $sample = $cr->sample;
-                $analysisType = $cr->analysis_type;
-                $sampleRows[] = [
-                    'sample_code' => $sample ? ($sample->sample_code ?? '—') : '—',
-                    'batch_code' => $batch->batch_code,
-                    'sample_type_name' => $sampleTypeName,
-                    'analysis_type_name' => $analysisType ? $analysisType->name : $worksheet->name,
-                    'step_values' => ($stepValues->get($cr->id) ?? collect())->pluck('value', 'procedure_worksheet_step_id')->toArray(),
-                    'config_values' => ($configValues->get($cr->id) ?? collect())->pluck('value', 'procedure_config_field_id')->toArray(),
-                ];
-            }
-
-            // Build a simple header mapping from configurable fields (using first captured result),
-            // so the PDF header can render dynamic fields like Analyst, Method, Lab No, etc.
-            $headerConfig = $this->buildHeaderConfigFromFirstResult(
-                $configFields,
-                $configValues,
-                $crIds
-            );
-
-            $analystValue = $headerConfig['analyst'] ?? '';
-            $analystName = is_numeric($analystValue) ? (User::find($analystValue)?->name ?? $analystValue) : $analystValue;
-
-            // High-level worksheet header values used by the Blade template.
-            $worksheetHeader = [
-                'laboratory_number' => $headerConfig['lab_no'] ?? $batch->batch_code,
-                'analyst' => $analystName,
-                'date_received' => $this->formatDateValue($batch->receipt_date ?? null),
-                'tests' => $analysisTypeName,
-                'room_temperature' => $headerConfig['room_temperature'] ?? ($headerConfig['temperature_under_25'] ?? ''),
-                'sample_type' => $sampleTypeName,
-                'dilution_used' => $headerConfig['dilution_used'] ?? '',
-                'date_tested' => $headerConfig['date_tested'] ?? '',
-                'method_used' => $headerConfig['method'] ?? '',
-                'start_time' => $headerConfig['start_time'] ?? '',
-            ];
-
-            $testKitRows = [];
-            $rows = ProcedureTestKitRow::where('procedure_worksheet_id', $worksheet->id)->orderBy('row_index')->get();
-            $tkValues = ProcedureTestKitValue::whereIn('procedure_test_kit_row_id', $rows->pluck('id'))->get()->groupBy('procedure_test_kit_row_id');
-            foreach ($rows as $row) {
-                $vals = ($tkValues->get($row->id) ?? collect())->pluck('value', 'procedure_test_kit_column_id')->toArray();
-                $testKitRows[] = ['values' => $vals];
-            }
-
-            $logoSrc = $this->resolveLogoAsDataUri();
-            $printedAt = now()->format('d M Y H:i');
-            $company = getActiveCompany();
-
-            $viewData = compact(
-                'batch',
-                'steps',
-                'configFields',
-                'testKitColumns',
-                'sampleRows',
-                'testKitRows',
-                'logoSrc',
-                'printedAt',
-                'samplesForWorksheet',
-                'sampleTypeName',
-                'analysisTypeName',
-                'company',
-                'worksheetHeader',
-                'headerConfig'
-            );
-            $viewData['procedure'] = $worksheet;
-            $viewData['testKitRows'] = collect($testKitRows);
-            $viewData['testKitColumns'] = $testKitColumns;
+            // For attachments we still include all samples for this batch+worksheet;
+            // sample filtering is only applied for interactive previews.
+            $viewData = $this->prepareViewDataForPreview($batch, $worksheet, [], []);
 
             $pdf = app('dompdf.wrapper');
             $pdf->getDomPDF()->set_option('isHtml5ParserEnabled', true);
@@ -167,7 +393,7 @@ class ProcedureWorksheetPdfService
                 } else {
                     $attachment = new BatchAttachment();
                     $attachment->batch_id = $batch->id;
-                    $attachment->uploaded_by = auth()->id();
+                    $attachment->uploaded_by = Auth::id();
                     $attachment->title = $title;
                     $attachment->attachment_type = $attachmentTypeId;
                     $attachment->attachment_url = $attachmentUrl;

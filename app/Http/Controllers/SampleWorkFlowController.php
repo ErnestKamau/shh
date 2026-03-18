@@ -6190,6 +6190,9 @@ class SampleWorkFlowController extends Controller
                     return $ann['page_number'] == $pageNo;
                 });
 
+                // Draw border-only boxes last so they appear on top.
+                $borderOnlyBoxes = [];
+
                 foreach ($pageAnnotations as $ann) {
                     // Convert pixel coordinates to mm
                     $x = $ann['x_position'] * $pxToMm;
@@ -6198,19 +6201,131 @@ class SampleWorkFlowController extends Controller
                     $h = ($ann['height'] ?? 30) * $pxToMm;
 
                     if ($ann['annotation_type'] == 'text') {
-                        $html = $ann['htmlContent'] ?? $ann['content'];
+                        $html = $ann['htmlContent'] ?? ($ann['content'] ?? '');
 
                         // Issue 2: Add black thin border (1 in writeHTMLCell adds border)
                         // Background is transparent (last arg false)
+                        $fontSize = 8;
+                        if (isset($ann['style_data']) && is_array($ann['style_data']) && isset($ann['style_data']['fontSize'])) {
+                            $fontSize = (int) $ann['style_data']['fontSize'];
+                        }
+                        $pdf->SetFont('helvetica', '', $fontSize);
                         $pdf->SetFillColor(255, 255, 255);
-                        $pdf->writeHTMLCell($w, $h, $x, $y, $html, 1, 1, false, true, 'L', true);
+
+                        $border = 1;
+                        if (isset($ann['style_data']) && is_array($ann['style_data']) && !empty($ann['style_data']['noBorder'])) {
+                            $border = 0;
+                        }
+
+                        // Special case: draw a solid border box only (used for smart annotation block)
+                        if (isset($ann['style_data']) && is_array($ann['style_data']) && !empty($ann['style_data']['borderOnly'])) {
+                            $borderOnlyBoxes[] = compact('x', 'y', 'w', 'h');
+                            continue;
+                        }
+
+                        $pdf->writeHTMLCell($w, $h, $x, $y, $html, $border, 1, false, true, 'L', true);
                     } elseif ($ann['annotation_type'] == 'image') {
-                        $imgData = $ann['content'];
+                        // Support both legacy 'content' key and newer 'imageData' key
+                        $imgData = $ann['imageData'] ?? ($ann['content'] ?? null);
+                        if (!$imgData) {
+                            continue;
+                        }
                         if (str_contains($imgData, 'base64,')) {
                             $imgParts = explode(',', $imgData);
                             $rawData = base64_decode($imgParts[1]);
                             $pdf->Image('@' . $rawData, $x, $y, $w, $h);
+                        } else {
+                            // If we received a URL/path (e.g. /storage/...png), resolve it to a local file path.
+                            $imgPath = $imgData;
+
+                            // Convert absolute URL to path component
+                            if (filter_var($imgPath, FILTER_VALIDATE_URL)) {
+                                $parsed = parse_url($imgPath);
+                                $imgPath = $parsed['path'] ?? $imgPath;
+                            }
+
+                            // Try public path first (covers /storage symlink)
+                            $localPath = public_path(ltrim($imgPath, '/'));
+                            if (!file_exists($localPath) && str_starts_with($imgPath, '/storage/')) {
+                                // Fallback to storage/app/public
+                                $localPath = storage_path('app/public/' . ltrim(substr($imgPath, strlen('/storage/')), '/'));
+                            }
+
+                            if (file_exists($localPath)) {
+                                try {
+                                    $type = strtoupper((string) pathinfo($localPath, PATHINFO_EXTENSION));
+                                    $pdf->Image($localPath, $x, $y, $w, $h, $type ?: null);
+                                } catch (\Throwable $e) {
+                                    Log::warning('PDF annotation image embed failed', [
+                                        'imageData' => $imgData,
+                                        'localPath' => $localPath,
+                                        'type' => $type ?? null,
+                                        'error' => $e->getMessage(),
+                                    ]);
+                                }
+                                continue;
+                            }
+
+                            // Additional fallbacks: storage/app/... (non-public) and public_path with decoded URL
+                            $decodedPath = urldecode($imgPath);
+                            $altLocalPaths = [
+                                // Signatures/photos are stored outside "public" in this app
+                                str_starts_with($decodedPath, '/storage/personnel-signature/')
+                                    ? storage_path('app/personnel-signature/' . ltrim(substr($decodedPath, strlen('/storage/personnel-signature/')), '/'))
+                                    : null,
+                                str_starts_with($decodedPath, '/storage/personnel/')
+                                    ? storage_path('app/personnel/' . ltrim(substr($decodedPath, strlen('/storage/personnel/')), '/'))
+                                    : null,
+                                storage_path('app/' . ltrim($decodedPath, '/')),
+                                public_path(ltrim($decodedPath, '/')),
+                            ];
+                            $altLocalPaths = array_values(array_filter($altLocalPaths));
+
+                            foreach ($altLocalPaths as $altPath) {
+                                if (file_exists($altPath)) {
+                                    try {
+                                        $type = strtoupper((string) pathinfo($altPath, PATHINFO_EXTENSION));
+                                        $pdf->Image($altPath, $x, $y, $w, $h, $type ?: null);
+                                    } catch (\Throwable $e) {
+                                        Log::warning('PDF annotation image embed failed', [
+                                            'imageData' => $imgData,
+                                            'localPath' => $altPath,
+                                            'type' => $type ?? null,
+                                            'error' => $e->getMessage(),
+                                        ]);
+                                    }
+                                    continue 2;
+                                }
+                            }
+
+                            // Final fallback: if it's a URL, fetch bytes and embed directly.
+                            if (filter_var($imgData, FILTER_VALIDATE_URL)) {
+                                try {
+                                    $raw = @file_get_contents($imgData);
+                                    if ($raw !== false && $raw !== '') {
+                                        $pdf->Image('@' . $raw, $x, $y, $w, $h);
+                                        continue;
+                                    }
+                                } catch (\Throwable $e) {
+                                    // ignore and log below
+                                }
+                            }
+
+                            Log::warning('PDF annotation image not found', [
+                                'imageData' => $imgData,
+                                'resolved_path' => $localPath,
+                                'alt_paths' => $altLocalPaths ?? [],
+                            ]);
                         }
+                    }
+                }
+
+                if (!empty($borderOnlyBoxes)) {
+                    // Faint thin blue border
+                    $pdf->SetDrawColor(110, 125, 200);
+                    $pdf->SetLineWidth(0.1);
+                    foreach ($borderOnlyBoxes as $box) {
+                        $pdf->Rect($box['x'], $box['y'], $box['w'], $box['h']);
                     }
                 }
             }
