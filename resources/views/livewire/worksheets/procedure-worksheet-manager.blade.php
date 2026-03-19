@@ -199,6 +199,11 @@
                                     <i class="mdi mdi-timeline text-primary"></i>
                                     Steps &amp; Measurands
                                 </span>
+                                @if($worksheetAlreadyPosted)
+                                    <span class="badge badge-success">
+                                        <i class="mdi mdi-check-circle-outline"></i> Posted
+                                    </span>
+                                @endif
                                 @if($this->selectedWorksheetId)
                                     @php
                                         // Pass currently selected sample IDs so the PDF reflects
@@ -252,6 +257,12 @@
                                 </button>
                             </div>
                         </div>
+                        @if($worksheetAlreadyPosted)
+                            <div class="alert alert-success rounded-0 border-0 mb-0 py-2 px-3" style="font-size: 0.85rem;">
+                                <i class="mdi mdi-check-circle-outline mr-1"></i>
+                                Worksheet results for this parameter have already been posted. You can re-post if you make changes.
+                            </div>
+                        @endif
                         <div class="card-body p-0">
                             <div class="alert alert-info rounded-0 border-0 border-bottom mb-0 py-2 px-3" style="font-size: 0.85rem;">
                                 <i class="mdi mdi-information-outline mr-1"></i>

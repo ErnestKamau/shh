@@ -13,16 +13,37 @@
             <!-- Center Accreditation Logo -->
             <td style="width: 50%; text-align: center; vertical-align: bottom; padding: 0;">
                 @php
+                    // Show accreditation logo only when at least one parameter/test is accredited.
+                    $hasAccreditedParameter = false;
+
+                    if (isset($parameters) && $parameters) {
+                        $hasAccreditedParameter = collect($parameters)
+                            ->contains(function ($p) {
+                                return (int) ($p->analyte_accredited ?? 0) === 1;
+                            });
+                    }
+
+                    // If nothing is accredited, ensure we never fall back to a default logo file.
+                    if (! $hasAccreditedParameter) {
+                        $accreditation_logo = null;
+                    }
+                @endphp
+                @php
                 // Try variable from controller (already base64), then local file fallback
                 $finalAccreditationLogo = (!empty($accreditation_logo) && str_starts_with($accreditation_logo, 'data:'))
                 ? $accreditation_logo
                 : null;
 
                 if (!$finalAccreditationLogo) {
-                $imagePath = public_path('images/sadc-ilac.jpeg');
-                if (file_exists($imagePath)) {
-                $finalAccreditationLogo = 'data:image/jpeg;base64,' . base64_encode(file_get_contents($imagePath));
-                }
+                    // Only fallback when we already decided accreditation applies.
+                    if (! $hasAccreditedParameter) {
+                        $finalAccreditationLogo = null;
+                    } else {
+                        $imagePath = public_path('images/sadc-ilac.jpeg');
+                        if (file_exists($imagePath)) {
+                            $finalAccreditationLogo = 'data:image/jpeg;base64,' . base64_encode(file_get_contents($imagePath));
+                        }
+                    }
                 }
                 @endphp
                 @if($finalAccreditationLogo)

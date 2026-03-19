@@ -72,6 +72,8 @@ use Illuminate\Support\Facades\Storage;
 use App\Models\BatchAttachmentAnnotation;
 use setasign\Fpdi\TcpdfFpdi;
 use Illuminate\Support\Facades\Log;
+use App\Models\Procedures\ProcedureWorksheet;
+use App\Services\ProcedureWorksheetPdfService;
 
 class SampleWorkFlowController extends Controller
 {
@@ -2647,6 +2649,76 @@ class SampleWorkFlowController extends Controller
         }
         $header = SampleHeader::find($batch_id);
         $header->set_date('Processing Date', \Carbon\Carbon::now(), true);
+
+        // When processing results at Sample Approval stage, generate Procedure Worksheet PDFs
+        // and attach them to the batch as "Procedure Worksheet" attachments.
+        if (! $internal && $header && $header->status === 'Sample Approval') {
+            // Keep the procedure-worksheet "Checked By" aligned with the COA's final approver.
+            // COA templates use: show_report=1 and status=1 (no strict batch_status filter),
+            // then pick a final approver by title keywords.
+            $batchApprovers = BatchLabSectionApprover::where('batch_id', $header->id)
+                ->where('show_report', 1)
+                ->where('status', 1)
+                ->get();
+
+            $checker = $batchApprovers->first(function (BatchLabSectionApprover $a) {
+                $title = (string) ($a->title ?? '');
+
+                return stripos($title, 'author') !== false
+                    || stripos($title, 'approv') !== false
+                    || stripos($title, 'signatory') !== false;
+            }) ?? $batchApprovers->last();
+
+            // Fallback for legacy data where show_report/status might not be populated consistently.
+            if (! $checker) {
+                $checker = BatchLabSectionApprover::where('batch_id', $header->id)
+                    ->where('batch_status', 'Sample Approval')
+                    ->where('status', 1)
+                    ->orderByDesc('approval_date')
+                    ->first();
+            }
+
+            // One worksheet PDF per (worksheet, analyte) combination in this batch.
+            $combos = CapturedResult::where('sample_header_id', $header->id)
+                ->whereNotNull('procedure_worksheet_id')
+                ->whereNotNull('analyte_id')
+                ->get(['procedure_worksheet_id', 'analyte_id'])
+                ->unique(function ($row) {
+                    return $row->procedure_worksheet_id . '-' . $row->analyte_id;
+                });
+
+            if ($combos->isNotEmpty()) {
+                $pdfService = app(ProcedureWorksheetPdfService::class);
+
+                foreach ($combos as $combo) {
+                    $worksheet = ProcedureWorksheet::find($combo->procedure_worksheet_id);
+                    if (! $worksheet) {
+                        continue;
+                    }
+
+                    $analyteId = (int) $combo->analyte_id;
+
+                    // Optionally scope to samples that have this analyte + worksheet in this batch.
+                    $sampleIds = CapturedResult::where('sample_header_id', $header->id)
+                        ->where('procedure_worksheet_id', $combo->procedure_worksheet_id)
+                        ->where('analyte_id', $analyteId)
+                        ->pluck('sample_detail_id')
+                        ->filter()
+                        ->unique()
+                        ->values()
+                        ->all();
+
+                    $pdfService->generateAndAttach(
+                        $header,
+                        $worksheet,
+                        $checker,
+                        [$analyteId],
+                        $sampleIds
+                    );
+                }
+            }
+        }
+
         if ($internal) {
             return $header;
         }

@@ -117,8 +117,13 @@ class FormInstanceController extends Controller
      */
     public function fill(SubmissionForm $submissionForm, SubmissionFormInstance $instance)
     {
-        // Check if user owns this instance
-        if ($instance->submitted_by !== auth()->id()) {
+        $user = auth()->user();
+
+        // Allow access if user has Sample Reception role or is admin
+        if (
+            !$user->hasRole('Sample Reception') &&
+            !$user->hasRole('admin')
+        ) {
             abort(403, 'You are not authorized to access this form instance.');
         }
 
@@ -158,8 +163,13 @@ class FormInstanceController extends Controller
      */
     public function fillSample(SubmissionForm $submissionForm, SubmissionFormInstance $instance)
     {
-        // Check if user owns this instance
-        if ($instance->submitted_by !== auth()->id()) {
+        $user = auth()->user();
+
+        // Allow access if user has Sample Reception role or is admin
+        if (
+            !$user->hasRole('Sample Reception') &&
+            !$user->hasRole('admin')
+        ) {
             abort(403, 'You are not authorized to access this form instance.');
         }
 
@@ -196,8 +206,13 @@ class FormInstanceController extends Controller
      */
     public function update(Request $request, SubmissionForm $submissionForm, SubmissionFormInstance $instance)
     {
-        // Check if user owns this instance
-        if ($instance->submitted_by !== auth()->id()) {
+        $user = auth()->user();
+
+        // Allow update if user has Sample Reception role or is admin
+        if (
+            !$user->hasRole('Sample Reception') &&
+            !$user->hasRole('admin')
+        ) {
             abort(403, 'You are not authorized to update this form instance.');
         }
 
@@ -275,8 +290,13 @@ class FormInstanceController extends Controller
      */
     public function show(SubmissionForm $submissionForm, SubmissionFormInstance $instance)
     {
-        // Check if user can view this instance
-        if ($instance->submitted_by !== auth()->id() && !auth()->user()->hasRole('admin')) {
+        $user = auth()->user();
+
+        // Allow view if user has Sample Reception role or is admin
+        if (
+            !$user->hasRole('Sample Reception') &&
+            !$user->hasRole('admin')
+        ) {
             abort(403, 'You are not authorized to view this form instance.');
         }
 
@@ -308,8 +328,13 @@ class FormInstanceController extends Controller
      */
     public function print(SubmissionForm $submissionForm, SubmissionFormInstance $instance)
     {
-        // Check if user can view this instance
-        if ($instance->submitted_by !== auth()->id() && !auth()->user()->hasRole('admin')) {
+        $user = auth()->user();
+
+        // Allow print if user has Sample Reception role or is admin
+        if (
+            !$user->hasRole('Sample Reception') &&
+            !$user->hasRole('admin')
+        ) {
             abort(403, 'You are not authorized to print this form instance.');
         }
 
@@ -352,8 +377,13 @@ class FormInstanceController extends Controller
      */
     public function edit(SubmissionForm $submissionForm, SubmissionFormInstance $instance)
     {
-        // Check if user owns this instance
-        if ($instance->submitted_by !== auth()->id()) {
+        $user = auth()->user();
+
+        // Allow edit if user has Sample Reception role or is admin
+        if (
+            !$user->hasRole('Sample Reception') &&
+            !$user->hasRole('admin')
+        ) {
             abort(403, 'You are not authorized to edit this form instance.');
         }
 

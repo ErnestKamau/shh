@@ -4,7 +4,7 @@
 <head>
     <meta http-equiv="Content-Type" content="text/html; charset=utf-8">
     <meta charset="UTF-8">
-    <title>{{ $procedure->name }} – Procedure Worksheet</title>
+    <title>Procedure Worksheet for {{ $analysisTypeName ?? $procedure->name }}</title>
     <style>
         @page {
             size: A4 landscape;
@@ -172,9 +172,9 @@
 
         .signature-col {
             display: table-cell;
-            width: 50%;
+            width: 33.33%;
             vertical-align: top;
-            padding-right: 20px;
+            padding-right: 10px;
         }
 
         .signature-label {
@@ -243,11 +243,36 @@
         <div class="signature-row">
             <div class="signature-col">
                 <span class="signature-label">Checked By:</span>
-                <span class="signature-line"></span>
+                @if(!empty($checker_name))
+                    <br>
+                    <span style="font-size: 9px;">{{ $checker_name }}</span>
+                @else
+                    <br>
+                    <span class="signature-line"></span>
+                @endif
             </div>
             <div class="signature-col">
+                <span class="signature-label">Signature:</span>
+                <br>
+                @if(!empty($checker_signature))
+                    <span>
+                        <img src="{{ getCoaApproverSignature($checker_signature) }}" alt="Checker signature" style="height:40px; position:relative; top:8px;">
+                    </span>
+                @else
+                    <span class="signature-line"></span>
+                @endif
+            </div>
+            <div class="signature-col" style="padding-right: 0;">
                 <span class="signature-label">Date:</span>
-                <span class="signature-line"></span>
+                @if(!empty($checker_signed_at))
+                    <br>
+                    <span style="border-bottom: 1px solid #000; padding: 0 4px; min-width: 60px; display: inline-block;">
+                        {{ $checker_signed_at }}
+                    </span>
+                @else
+                    <br>
+                    <span class="signature-line"></span>
+                @endif
             </div>
         </div>
         <div class="page-number">
@@ -258,7 +283,7 @@
     {{-- Main content --}}
     <div class="main-content">
         <div class="report-title">
-            {{ strtoupper($procedure->name) }} WORKSHEET
+            PROCEDURE WORKSHEET FOR {{ strtoupper($analysisTypeName ?? $procedure->name) }}
         </div>
 
         {{-- Header information block (configurable fields mapped here) --}}

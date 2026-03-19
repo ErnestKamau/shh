@@ -48,6 +48,7 @@ class ProcedureWorksheetManager extends Component
     public array $stepMeasurandOverrides = []; // [step_id => [measurand_id, ...]]
     public array $stepAnalystOverrides = []; // [step_id => [user_id, ...]]
     public ?int $lastLoadedWorksheetId = null;
+    public bool $worksheetAlreadyPosted = false;
     /**
      * Hash used in Blade wire:key attributes to force step rows
      * to be re-rendered when importing data from another analyte.
@@ -370,6 +371,11 @@ class ProcedureWorksheetManager extends Component
         // Ensure "Lab No." (sample_details) dropdowns stay in sync with the
         // currently selected samples in the UI.
         $this->syncLabNoConfigFieldToSelectedSamples($capturedResults, $configFields);
+
+        // Mark worksheet as "already posted" when any captured result in this
+        // batch + worksheet + active analyte has the worksheet_posted flag set.
+        $this->worksheetAlreadyPosted = $capturedResults
+            ->contains(fn ($cr) => (bool) ($cr->worksheet_posted ?? false));
 
         // Kit columns are worksheet-scoped.
         // Kit rows + values are instance-scoped by captured_result_id (sample/analyte instance).
@@ -1046,6 +1052,10 @@ class ProcedureWorksheetManager extends Component
                 );
             }
         }
+
+        // At least one worksheet value now exists for this worksheet/parameter,
+        // so flag it as "posted" for the UI.
+        $this->worksheetAlreadyPosted = true;
     }
 
     public function removeTestKitRow(int $rowId): void
@@ -1876,8 +1886,13 @@ class ProcedureWorksheetManager extends Component
                 $captured->save();
             }
 
+            // Flag these captured results as having their worksheet posted.
+            CapturedResult::whereIn('id', $selectedIds)
+                ->update(['worksheet_posted' => true]);
+
             DB::commit();
 
+            $this->worksheetAlreadyPosted = true;
             $this->flashType = 'success';
             $this->flashMessage = 'Procedure worksheet results posted successfully.';
         } catch (\Throwable $e) {

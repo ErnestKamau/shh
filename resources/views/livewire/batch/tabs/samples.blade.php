@@ -18,6 +18,46 @@
     </div>
     @endif
 
+    {{-- Missing Worksheet Results Alert (for parameters with worksheets but no worksheet data) --}}
+    @if(!empty($missingWorksheetParameters) && is_array($missingWorksheetParameters))
+        <div class="alert alert-warning alert-dismissible fade show m-3" role="alert">
+            <i class="mdi mdi-alert-decagram"></i>
+            <strong>Missing worksheet results detected:</strong>
+            <ul class="mb-0 mt-1">
+                @foreach($missingWorksheetParameters as $item)
+                    <li>
+                        {{ $item['worksheet_name'] ?? 'Worksheet' }} &mdash;
+                        {{ $item['parameter_name'] ?? 'Parameter' }}
+                    </li>
+                @endforeach
+            </ul>
+            <button type="button" class="close" data-dismiss="alert">
+                <span>&times;</span>
+            </button>
+        </div>
+    @endif
+
+    {{-- Incomplete Captured Results Alert (no numeric/text result or "No attachment") --}}
+    @if(!empty($incompleteCapturedResults) && is_array($incompleteCapturedResults))
+        <div class="alert alert-danger alert-dismissible fade show m-3" role="alert">
+            <i class="mdi mdi-alert"></i>
+            <strong>Unfinished / missing results detected:</strong>
+            <ul class="mb-0 mt-1">
+                @foreach($incompleteCapturedResults as $item)
+                    <li>
+                        Sample {{ $item['sample_code'] ?? 'N/A' }} &mdash;
+                        {{ $item['analysis_type'] ?? 'Analysis' }} /
+                        {{ $item['parameter'] ?? 'Parameter' }}
+                        ({{ $item['status'] ?? 'incomplete' }})
+                    </li>
+                @endforeach
+            </ul>
+            <button type="button" class="close" data-dismiss="alert">
+                <span>&times;</span>
+            </button>
+        </div>
+    @endif
+
     {{-- Unprocessed Staging Data Section --}}
     @if(isset($batch->sample_detail_processed) && $batch->sample_detail_processed == 0)
     <div class="card mb-4">

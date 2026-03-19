@@ -3,6 +3,7 @@
 namespace App\Services;
 
 use App\BatchAttachment;
+use App\BatchLabSectionApprover;
 use App\CapturedResult;
 use App\SampleDetails;
 use App\SampleType;
@@ -23,6 +24,7 @@ use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 use App\User;
+use Carbon\Carbon;
 
 class ProcedureWorksheetPdfService
 {
@@ -357,19 +359,45 @@ class ProcedureWorksheetPdfService
         return $viewData;
     }
 
-    public function generateAndAttach(SampleHeader $batch, ProcedureWorksheet $worksheet): void
+    public function generateAndAttach(
+        SampleHeader $batch,
+        ProcedureWorksheet $worksheet,
+        ?BatchLabSectionApprover $checker = null,
+        array $analyteIds = [],
+        array $sampleIds = []
+    ): void
     {
         try {
             // For attachments we still include all samples for this batch+worksheet;
-            // sample filtering is only applied for interactive previews.
-            $viewData = $this->prepareViewDataForPreview($batch, $worksheet, [], []);
+            // sample / analyte filtering is applied per-parameter when provided.
+            $viewData = $this->prepareViewDataForPreview($batch, $worksheet, $sampleIds, $analyteIds);
+
+            if ($checker) {
+                $viewData['checker_name'] = optional($checker->getApproverDetails())->name ?? '';
+                // When the worksheet is generated (COA "Process Results" step), approval_date
+                // may not be populated yet. Fallback to "now" (worksheet/PDF creation time).
+                $viewData['checker_signed_at'] = $checker->approval_date
+                    ? Carbon::parse($checker->approval_date)->format('d/m/Y')
+                    : now()->format('d/m/Y');
+                $viewData['checker_signature'] = optional($checker->getApproverDetails())->electronic_sig ?? null;
+            } else {
+                $viewData['checker_name'] = '';
+                $viewData['checker_signed_at'] = '';
+                $viewData['checker_signature'] = null;
+            }
 
             $pdf = app('dompdf.wrapper');
             $pdf->getDomPDF()->set_option('isHtml5ParserEnabled', true);
             $pdf->loadView('procedure-worksheets.print.worksheet', $viewData);
             $pdfContent = $pdf->output();
 
-            $filename = 'procedure-worksheet-' . $worksheet->id . '-batch-' . $batch->id . '.pdf';
+            // Ensure each (worksheet, analyte) combination gets its own file
+            $analyteSuffix = '';
+            if (! empty($analyteIds)) {
+                $analyteSuffix = '-analyte-' . implode('_', array_map('intval', $analyteIds));
+            }
+
+            $filename = 'procedure-worksheet-' . $worksheet->id . '-batch-' . $batch->id . $analyteSuffix . '.pdf';
             Storage::disk('public')->put('batch-attachments/' . $filename, $pdfContent);
             $attachmentUrl = '/storage/batch-attachments/' . urlencode($filename);
 
@@ -381,7 +409,8 @@ class ProcedureWorksheetPdfService
             }
 
             if ($attachmentTypeId !== null) {
-                $title = $worksheet->name . ' - ' . $batch->batch_code;
+                $parameterName = $viewData['analysisTypeName'] ?? $worksheet->name;
+                $title = 'Procedure Worksheet for ' . $parameterName;
                 $existing = BatchAttachment::where('batch_id', $batch->id)
                     ->where('title', $title)
                     ->first();

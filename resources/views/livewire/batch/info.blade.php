@@ -1,14 +1,14 @@
 <div class="card" style="box-shadow: rgba(149, 157, 165, 0.2) 0px 8px 24px; border-radius: 15px;">
 	<div class="card-body">
 		<h5 class="card-title">
-			<span class="btn btn-default batch-info-trigger open"
+			<span class="btn btn-default batch-info-trigger"
 				style="box-shadow: rgba(33, 35, 38, 0.1) 0px 10px 20px -10px;">
-				<i class="mdi mdi-chevron-double-up"></i> Batch Info
+				<i class="mdi mdi-chevron-double-down"></i> Batch Info
 			</span>
 		</h5>
 		<hr>
 
-		<form class="" action="{{ route('add-batch-info', ['batch' => $batchID]) }}" class="row" id="batch-detail-form"
+		<form class="{{ $batchID ? 'hidden' : '' }}" action="{{ route('add-batch-info', ['batch' => $batchID]) }}" class="row" id="batch-detail-form"
 			method="POST" autocomplete="off">
 			<?php $maxDate = getTodayDate(); ?>
 			@csrf

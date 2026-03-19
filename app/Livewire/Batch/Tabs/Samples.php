@@ -15,6 +15,10 @@ use App\SampleAnalysisDates;
 use App\CapturedResult;
 use App\Result;
 use App\AnalysisElements;
+use App\Analyte;
+use App\Models\Procedures\ProcedureTestKitRow;
+use App\Models\Procedures\ProcedureTestKitValue;
+use App\Models\Procedures\ProcedureWorksheet;
 use Livewire\Component;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
@@ -24,6 +28,8 @@ class Samples extends Component
     public $batchId;
     public SampleHeader $batch;
     public $not_captured = [];
+    public $missingWorksheetParameters = [];
+    public $incompleteCapturedResults = [];
 
     // Staging edit form
     public $editingStagingId = null;
@@ -198,6 +204,8 @@ class Samples extends Component
         $this->batch = $batch;
         $this->batchId = $batch->id;
         $this->loadNotCaptured();
+        $this->loadMissingWorksheetParameters();
+        $this->loadIncompleteCapturedResults();
         $this->loadDropdownData();
         $this->loadSamples();
     }
@@ -215,6 +223,105 @@ class Samples extends Component
         } catch (\Exception $e) {
             Log::error('Error loading not captured samples: ' . $e->getMessage());
             $this->not_captured = [];
+        }
+    }
+
+    /**
+     * Detect captured results in this batch that have no result value
+     * or are explicitly marked as "No attachment" (unfinished / missing results).
+     */
+    protected function loadIncompleteCapturedResults(): void
+    {
+        try {
+            $rows = CapturedResult::where('sample_header_id', $this->batchId)
+                ->where(function ($q) {
+                    $q->whereNull('result')
+                        ->orWhere('result', '=', '')
+                        ->orWhereIn('result', ['No attachment', 'no attachment']);
+                })
+                ->with(['sample', 'analysis_type', 'my_analyte'])
+                ->get();
+
+            $items = [];
+            foreach ($rows as $cr) {
+                $items[] = [
+                    'sample_code' => optional($cr->sample)->sample_code ?? 'N/A',
+                    'analysis_type' => optional($cr->analysis_type)->name ?? 'N/A',
+                    'parameter' => optional($cr->my_analyte)->name ?? 'N/A',
+                    'status' => $cr->result === null || $cr->result === ''
+                        ? 'No result captured'
+                        : (string) $cr->result,
+                ];
+            }
+
+            $this->incompleteCapturedResults = $items;
+        } catch (\Exception $e) {
+            Log::error('Error loading incomplete captured results for batch ' . $this->batchId . ': ' . $e->getMessage());
+            $this->incompleteCapturedResults = [];
+        }
+    }
+
+    /**
+     * Detect parameters in this batch that have a procedure worksheet configured
+     * but no worksheet values captured yet (missing worksheet results).
+     */
+    protected function loadMissingWorksheetParameters(): void
+    {
+        try {
+            $combos = CapturedResult::where('sample_header_id', $this->batchId)
+                ->whereNotNull('procedure_worksheet_id')
+                ->whereNotNull('analyte_id')
+                ->get(['id', 'procedure_worksheet_id', 'analyte_id', 'worksheet_posted'])
+                ->groupBy(function ($row) {
+                    return $row->procedure_worksheet_id . '-' . $row->analyte_id;
+                });
+
+            $missing = [];
+
+            foreach ($combos as $group) {
+                $first = $group->first();
+                $worksheetId = (int) $first->procedure_worksheet_id;
+                $analyteId = (int) $first->analyte_id;
+                $capturedIds = $group->pluck('id')->map(fn ($v) => (int) $v)->values()->all();
+
+                // If any captured result in this group has worksheet_posted = true,
+                // treat this worksheet/parameter as already posted and skip warning.
+                $anyPosted = $group->contains(fn ($cr) => (bool) ($cr->worksheet_posted ?? false));
+                if ($anyPosted) {
+                    continue;
+                }
+
+                // Check if there is any test kit value for this (worksheet, analyte, batch) combo
+                $rowIds = ProcedureTestKitRow::where('procedure_worksheet_id', $worksheetId)
+                    ->pluck('id')
+                    ->map(fn ($v) => (int) $v)
+                    ->values()
+                    ->all();
+
+                $hasValues = false;
+                if (! empty($rowIds) && ! empty($capturedIds)) {
+                    $hasValues = ProcedureTestKitValue::whereIn('procedure_test_kit_row_id', $rowIds)
+                        ->whereIn('captured_result_id', $capturedIds)
+                        ->whereNotNull('value')
+                        ->where('value', '!=', '')
+                        ->exists();
+                }
+
+                if (! $hasValues) {
+                    $worksheet = ProcedureWorksheet::find($worksheetId);
+                    $analyte = Analyte::find($analyteId);
+
+                    $missing[] = [
+                        'worksheet_name' => $worksheet->name ?? ('Worksheet #' . $worksheetId),
+                        'parameter_name' => $analyte->name ?? ('Analyte #' . $analyteId),
+                    ];
+                }
+            }
+
+            $this->missingWorksheetParameters = $missing;
+        } catch (\Exception $e) {
+            Log::error('Error loading missing worksheet parameters for batch ' . $this->batchId . ': ' . $e->getMessage());
+            $this->missingWorksheetParameters = [];
         }
     }
 
