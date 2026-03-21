@@ -1,714 +1,608 @@
 @extends('layouts.lab.layout.app', ['dataTable'=>true, 'select2'=>true])
 @section('title2')
-<title>Dashboard | Lab </title>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/2.9.3/Chart.min.js" integrity="sha512-s+xg36jbIujB2S2VKfpGmlC3T5V2TF3lY48DX7u2r9XzGzgPsa6wTpOQA7J9iffvdeBN0q9tKzRxVxw1JviZPg==" crossorigin="anonymous"></script>
+<title>Dashboard | Lab</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/2.9.3/Chart.min.js"></script>
 <style type="text/css">
-    .my-card {
-        position: absolute;
-        left: 40%;
-        top: -20px;
-        border-radius: 50%;
+    :root {
+        --primary-glass: #ffffff;
+        --accent-blue: #0ea5e9;
+        --accent-green: #10b981;
+        --accent-red: #ef4444;
+        --accent-orange: #f59e0b;
+        --bg-color: #f8fafc;
+        --card-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05), 0 2px 4px -1px rgba(0, 0, 0, 0.03);
+    }
+    body { background-color: var(--bg-color); }
+    .bento-card {
+        background: var(--primary-glass);
+        border-radius: 12px;
+        border: 1px solid rgba(0,0,0,0.06);
+        box-shadow: var(--card-shadow);
+        transition: transform 0.2s ease, box-shadow 0.2s ease;
+        overflow: hidden;
+    }
+    .bento-card:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.05), 0 4px 6px -2px rgba(0, 0, 0, 0.025);
+    }
+    .pipeline-card { padding: 24px; text-align: center; position: relative; cursor: pointer; }
+    .pipeline-arrow { 
+        position: absolute; right: -15px; top: 50%; transform: translateY(-50%);
+        font-size: 24px; color: #e2e8f0; z-index: 10;
+    }
+    .stat-value { font-size: 2.5rem; font-weight: 700; line-height: 1; margin: 10px 0; color: #1e293b; }
+    .stat-label { font-size: 0.875rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em; color: #64748b; }
+    .stat-subtext { font-size: 0.75rem; color: #94a3b8; margin-top: 5px; }
+
+    .pulse-dot {
+        height: 10px; width: 10px; border-radius: 50%; display: inline-block;
+        animation: pulse 2.5s infinite;
+    }
+    .pulse-red { background-color: var(--accent-red); box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.4); }
+    .pulse-yellow { background-color: var(--accent-orange); box-shadow: 0 0 0 0 rgba(245, 158, 11, 0.4); }
+    .pulse-green { background-color: var(--accent-green); box-shadow: 0 0 0 0 rgba(16, 185, 129, 0.4); }
+
+    @keyframes pulse {
+        0% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(var(--box-color), 0.5); }
+        70% { transform: scale(1); box-shadow: 0 0 0 8px rgba(var(--box-color), 0); }
+        100% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(var(--box-color), 0); }
     }
 
-    #activity-graph {
-        height: 250px;
-    }
+    .section-header { padding: 16px 20px; border-bottom: 1px solid #f8fafc; font-weight: 600; color: #334155; display: flex; align-items: center; justify-content: space-between;}
+    .section-body { padding: 20px; }
+    
+    .method-list-item { display: flex; align-items: center; justify-content: space-between; padding: 12px 0; border-bottom: 1px solid #f1f5f9; }
+    .method-list-item:last-child { border-bottom: none; }
+    .method-name { font-weight: 500; color: #475569; font-size: 0.875rem; }
+    .method-bar-bg { height: 6px; background: #e2e8f0; border-radius: 3px; width: 100px; overflow: hidden; }
+    .method-bar-fill { height: 100%; border-radius: 3px; background-color: var(--accent-blue); }
+
+    .nav-tabs.modern-tabs { border-bottom: 2px solid #e2e8f0; }
+    .nav-tabs.modern-tabs .nav-link { border: none; color: #64748b; font-weight: 600; padding: 12px 24px; position: relative; background: transparent; }
+    .nav-tabs.modern-tabs .nav-link.active { color: var(--accent-blue); background: transparent; }
+    .nav-tabs.modern-tabs .nav-link.active::after { content: ''; position: absolute; bottom: -2px; left: 0; right: 0; height: 2px; background: var(--accent-blue); }
+
+    .smart-table th { background: #f8fafc; font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.05em; color: #64748b; border-top: none; }
+    .smart-table td { vertical-align: middle; font-weight: 500; color: #334155; border-color: #f1f5f9; }
+    .priority-Urgent, .priority-High { color: var(--accent-red); font-weight: 600; }
+    .priority-Normal { color: #64748b; }
 </style>
 @endsection
+
 @section('content2')
 <main>
-
     <?php
     $items = array(
-        array(
-            'link' => null,
-            'name' => 'Configurations',
-            'icon' => null
-        )
+        array('link' => null, 'name' => 'Dashboard', 'icon' => null)
     );
     ?>
     <x-bread-crumb :items="$items"></x-bread-crumb>
-    <div class="p-3">
+    
+    <div class="p-4">
+        <!-- HEADER -->
+        <div class="d-flex justify-content-between align-items-center mb-4">
+            <div>
+                <h3 class="mb-1" style="font-weight: 700; color: #1e293b;">Laboratory Dashboard</h3>
+                <p class="text-muted mb-0">Overview of physical and digital lab operations.</p>
+            </div>
+            <div class="d-flex align-items-center gap-3">
+                <div class="bento-card px-3 py-2 mr-2 d-flex align-items-center">
+                    <span class="pulse-dot pulse-red mr-2" style="--box-color: 239, 68, 68;"></span>
+                    <span class="font-weight-bold text-muted text-sm" style="font-size: 0.85rem;">3 TAT Warnings</span>
+                </div>
+                <div class="bento-card px-3 py-2 d-flex align-items-center">
+                    <span class="pulse-dot pulse-green mr-2" style="--box-color: 16, 185, 129;"></span>
+                    <span class="font-weight-bold text-muted text-sm" style="font-size: 0.85rem;">Operations Healthy</span>
+                </div>
+            </div>
+        </div>
 
-        <h2 class="p-1">
-            <i class="mdi mdi-desktop-mac-dashboard"></i> Dashboard | Laboratory
-            <div class="dropleft float-right">
-    
-                <span style="font-size:15px;border-radius: 3em;border-color: white;background-color:white;position: 0 0;size: 100%;" class="float-right mr-5 mt-3  p-2 btn dropdown-toggle" data-toggle="dropdown" aria-haspopup="true" aria-expanded="true">Notifications
-                    <small class="float-right badge badge-pill badge-primary mt-1 ml-1">{{$notifications->count()}}</small></span>
-    
-                <div class="dropdown-menu p-2" style="max-height: 70vh; overflow:auto" aria-labelledby="dropdownMenuButton">
-                    @foreach($notifications as $note)
-                    <a class="dropdown-item card mb-2" style="box-shadow: 2px 2px 2px 2px;" href="{{route('view-batch-details',['batch'=>$note->batch_id])}}">
-                        <div class="card-bodys">
-                            {{$note->notification}}
-                            <br>
-                            <span class="float-right mb-0 mt-3">{{$note->created_at}}</span>
-                        </div>
-                    </a>
-    
-                    @endforeach
-    
+        <!-- HERO PIPELINE -->
+        <div class="row mb-4">
+            <!-- Intake -->
+            <div class="col-md-3">
+                <div class="bento-card pipeline-card h-100" onclick="loadGrid('intake')">
+                    <div class="stat-label text-info"><i class="fas fa-inbox"></i> Samples Reception</div>
+                    <div class="stat-value">{{ $draft_forms ?? 0 }} <span style="font-size: 1.25rem; color: #94a3b8; font-weight: 500;">/ {{ $pending_submission_forms ?? 0 }}</span></div>
+                    <div class="stat-subtext">Drafts / Total Pending Forms</div>
+                    <i class="fas fa-chevron-right pipeline-arrow d-none d-md-block"></i>
                 </div>
             </div>
-        </h2><br>
-    
-        <div class="row mb-3">
-            <div class="col-xl-3 col-sm-6 ">
-                <a href="/sample-workflow/Samples Reception/stage" class="card  bg-success text-white text-center  no-overflow" style="height:100%">
-                    <div class="card-body bg-success">
-                        <div class="rotate">
-                            <i class="mdi mdi-test-tube fa-4x"></i>
-                        </div>
-                        <h6 class="text-uppercase">Samples In Reception</h6>
-                        <br><br>
-                        <h1 class="display-4">{{ $samples_reception }}</h1>
-                    </div>
-                </a>
+            <!-- Prep -->
+            <div class="col-md-3">
+                <div class="bento-card pipeline-card h-100" onclick="loadGrid('prep')">
+                    <div class="stat-label text-warning"><i class="fas fa-barcode"></i> Sample Verification</div>
+                    <div class="stat-value">{{ $samples_verification ?? 0 }}</div>
+                    <div class="stat-subtext">Awaiting Verification</div>
+                    <i class="fas fa-chevron-right pipeline-arrow d-none d-md-block"></i>
+                </div>
             </div>
-    
-    
-            <div class="col-xl-3 col-sm-6">
-                <a href="/sample-workflow/Sample Verification/stage" class="card bg-danger text-white text-center h-100 no-overflow">
-                    <div class="card-body bg-danger">
-                        <div class="rotate">
-                            <i class="fas fa-list fa-4x"></i>
-                        </div>
-                        <h6 class="text-uppercase">Samples In Verification</h6>
-                        <br><br>
-                        <h1 class="display-4">{{ $samples_verification }}</h1>
-                    </div>
-                </a>
+            <!-- Lab -->
+            <div class="col-md-3">
+                <div class="bento-card pipeline-card h-100" onclick="loadGrid('my_tasks')">
+                    <div class="stat-label text-primary"><i class="fas fa-flask"></i> Samples In Lab</div>
+                    <div class="stat-value">{{ $samples_lab ?? 0 }}</div>
+                    <div class="stat-subtext">Active Tests in Lab</div>
+                    <i class="fas fa-chevron-right pipeline-arrow d-none d-md-block"></i>
+                </div>
             </div>
-    
-    
-            <div class="col-xl-3 col-sm-6">
-                <a href="/sample-workflow/Samples In Lab/stage" class="card bg-info text-white text-center h-100 no-overflow">
-                    <div class="card-body bg-info">
-                        <div class="rotate">
-                            <i class="mdi mdi-test-tube fa-4x"></i>
-                        </div>
-                        <h6 class="text-uppercase">Samples In Lab</h6>
-                        <br><br>
-                        <h1 class="display-4">{{$samples_lab }}</h1>
-                    </div>
-                </a>
-            </div>
-    
-    
-            <div class="col-xl-3 col-sm-6 ">
-                <a href="/sample-workflow/Sample Approval" class="card bg-dark text-white h-100  text-center no-overflow">
-                    <div class="card-body bg-dark">
-                        <div class="rotate">
-                            <i class="fas fa-list fa-4x"></i>
-                        </div>
-                        <h6 class="text-uppercase">Samples In Approval</h6>
-                        <br><br>
-                        <h1 class="display-4">{{$samples_approval }}</h1>
-                    </div>
-                </a>
+            <!-- Approval -->
+            <div class="col-md-3">
+                <div class="bento-card pipeline-card h-100" onclick="loadGrid('approvals')">
+                    <div class="stat-label text-success"><i class="fas fa-check-double"></i> Sample Approval</div>
+                    <div class="stat-value">{{ $samples_approval ?? 0 }}</div>
+                    <div class="stat-subtext">Awaiting Sign-off</div>
+                </div>
             </div>
         </div>
-        <div class="row mb-3">
-            <div class="col-xl-6 col-sm-12">
-                <div class="card bg-default no-overflow">
-                    <div class="card-head-sm p-3 border-bottom">
-                        <h5>
-                            <i class="mdi mdi-map-marker"></i> Location Map
-                            <small class="float-right text-info"><i class="fas fa-calendar"></i></small>
-                        </h5>
+
+        <!-- GEOGRAPHY & LAB SECTIONS -->
+        <div class="row mb-4">
+            <!-- Geographic Pulse Map -->
+            <div class="col-lg-7 mb-3 mb-lg-0">
+                <div class="bento-card h-100">
+                    <div class="section-header">
+                        <span><i class="fas fa-map-marked-alt text-muted mr-2"></i> Geographic Origins</span>
+                        <div class="badge badge-light">GPS Tracking</div>
                     </div>
-                    <div class="card-body">
-                        <div id="sample-maps" style="width: 100%;height:300px"></div>
+                    <div class="section-body p-0">
+                        <div id="sample-maps" style="width: 100%; height: 350px;"></div>
                     </div>
                 </div>
             </div>
-            <div class="col-xl-6 col-sm-12 " ">
-                <div class=" card bg-default no-overflow">
-                <div class="card-head-sm p-3 border-bottom">
-                    <h5>
-                        <i class="fas fa-line-chart"></i> Samples By Client
-                        <form class="float-right text-info">
-                            <div class="input-group">
-                                <input type="number" max="2100" name="unit" value="" min="2000" style="border:0px solid;border-bottom:1px solid" id="yearSubmitFormClient" data-url="getSamplesByCustomer" data-chart="mychart3" data-graphfunction="Crmgraph" class=" form-control" data-divid="sample-crm-graph" placeholder="Search by Year">
-    
+            
+            <!-- Lab Sections Bar Chart -->
+            <div class="col-lg-5">
+                <div class="bento-card h-100">
+                    <div class="section-header">
+                        <span><i class="fas fa-layer-group text-muted mr-2"></i> Samples by Lab Section</span>
+                    </div>
+                    <div class="section-body p-4 d-flex justify-content-center align-items-center" style="height: 350px;">
+                        <canvas id="lab-section-chart" style="width: 100%; height: 100%;"></canvas>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- TRENDS TIER -->
+        <div class="row mb-4">
+            <!-- Monthly Trends -->
+            <div class="col-lg-6 mb-3 mb-lg-0">
+                <div class="bento-card h-100">
+                    <div class="section-header">
+                        <span><i class="fas fa-chart-area text-muted mr-2"></i> Monthly Intake Volume</span>
+                        <select id="trendYearSelector" class="form-control form-control-sm w-auto border-0 bg-light"><option value="2026">2026</option><option value="2025">2025</option></select>
+                    </div>
+                    <div class="section-body">
+                        <canvas id="monthly-trend-chart" style="width:100%; height:200px;"></canvas>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Active Methods Leaderboard -->
+            <div class="col-lg-6">
+                <div class="bento-card h-100">
+                    <div class="section-header">
+                        <span><i class="fas fa-microscope text-muted mr-2"></i> Active Methods Workload</span>
+                    </div>
+                    <div class="section-body p-3" id="active-methods-container">
+                        <div class="text-center text-muted py-4"><i class="fas fa-spinner fa-spin mr-2"></i> Loading methods...</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- BUSINESS INTELLIGENCE TIER -->
+        <div class="row mb-4">
+            <!-- Popular Sample Types -->
+            <div class="col-lg-4 mb-3 mb-lg-0">
+                <div class="bento-card h-100">
+                    <div class="section-header">
+                        <span><i class="fas fa-vials text-muted mr-2"></i> Popular Sample Types</span>
+                    </div>
+                    <div class="section-body p-3" id="popular-samples-container">
+                        <div class="text-center text-muted py-4"><i class="fas fa-spinner fa-spin mr-2"></i> Loading...</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Popular Clients -->
+            <div class="col-lg-4 mb-3 mb-lg-0">
+                <div class="bento-card h-100">
+                    <div class="section-header">
+                        <span><i class="fas fa-users text-muted mr-2"></i> Top Volume Clients</span>
+                    </div>
+                    <div class="section-body p-3" id="popular-clients-container">
+                        <div class="text-center text-muted py-4"><i class="fas fa-spinner fa-spin mr-2"></i> Loading...</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Billing & Invoicing -->
+            <div class="col-lg-4">
+                <div class="bento-card h-100 p-4 d-flex flex-column justify-content-center">
+                    <div class="text-muted font-weight-bold text-uppercase mb-3 text-sm" style="letter-spacing: 0.05em;">{{ date('F Y') }} Billing Basic Stats</div>
+                    <div class="d-flex align-items-center mb-4">
+                        <div class="rounded p-3 mr-3" style="background-color: rgba(14, 165, 233, 0.1);"><i class="fas fa-file-invoice-dollar text-primary fa-lg"></i></div>
+                        <div>
+                            <div class="h3 mb-0 font-weight-bold" style="color:#1e293b;">{{ \App\Invoice::whereMonth('created_at', date('m'))->whereYear('created_at', date('Y'))->count() }}</div>
+                            <div class="small text-muted font-weight-bold">Invoices Generated</div>
+                        </div>
+                    </div>
+                    <div class="d-flex align-items-center mb-4">
+                        <div class="rounded p-3 mr-3" style="background-color: rgba(16, 185, 129, 0.1);"><i class="fas fa-money-check-alt text-success fa-lg"></i></div>
+                        <div>
+                            <div class="h3 mb-0 font-weight-bold" style="color:#1e293b;">{{ \App\InvoicePaymentDetail::whereMonth('created_at', date('m'))->whereYear('created_at', date('Y'))->count() }}</div>
+                            <div class="small text-muted font-weight-bold">Payments Received</div>
+                        </div>
+                    </div>
+                    <div class="mt-auto pt-2">
+                        <a href="/billing/invoices" class="btn btn-sm btn-outline-primary btn-block rounded-pill font-weight-bold py-2"><i class="fas fa-external-link-alt mr-1"></i> Open Billing Center</a>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- CLIENT ANALYSIS TIER -->
+        <div class="row mb-4">
+            <div class="col-12">
+                <div class="bento-card">
+                    <div class="section-header">
+                        <span><i class="fas fa-chart-bar text-muted mr-2"></i> Client Intake by Sample Type</span>
+                    </div>
+                    <div class="section-body p-4" style="height: 350px;">
+                        <canvas id="customer-sample-type-chart" style="width:100%; height:100%;"></canvas>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- SMART ACTION GRID -->
+        <div class="row">
+            <div class="col-12">
+                <div class="bento-card">
+                    <div class="d-flex justify-content-between align-items-center border-bottom px-4 pt-3 pb-0">
+                        <h5 class="font-weight-bold mb-0" style="color:#1e293b; font-size: 1.1rem;">Workspace</h5>
+                        <ul class="nav nav-tabs modern-tabs" id="actionGridTabs" role="tablist">
+                            <li class="nav-item">
+                                <a class="nav-link active" id="tab-my_tasks" data-toggle="tab" href="#grid-pane" role="tab" onclick="loadGrid('my_tasks')">🎯 My Tasks</a>
+                            </li>
+                            <li class="nav-item">
+                                <a class="nav-link text-danger" id="tab-urgent" data-toggle="tab" href="#grid-pane" role="tab" onclick="loadGrid('urgent')">🔴 Urgent Queue</a>
+                            </li>
+                            <li class="nav-item">
+                                <a class="nav-link" id="tab-approvals" data-toggle="tab" href="#grid-pane" role="tab" onclick="loadGrid('approvals')">📝 Pending Approvals</a>
+                            </li>
+                        </ul>
+                    </div>
+                    <div class="section-body p-0">
+                        <div class="tab-content">
+                            <div class="tab-pane fade show active p-0" id="grid-pane" role="tabpanel">
+                                <div class="table-responsive">
+                                    <table class="table smart-table table-hover mb-0">
+                                        <thead>
+                                            <tr>
+                                                <th class="pl-4">Priority</th>
+                                                <th>Batch Ref</th>
+                                                <th>Client</th>
+                                                <th>Sample Type</th>
+                                                <th>Status</th>
+                                                <th>Target Date</th>
+                                                <th class="text-right pr-4">Action</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody id="smart-grid-body">
+                                            <tr><td colspan="7" class="text-center py-4 text-muted"><i class="fas fa-spinner fa-spin mr-2"></i> Loading tasks...</td></tr>
+                                        </tbody>
+                                    </table>
+                                </div>
                             </div>
-                        </form>
-                    </h5>
-                </div>
-                <div class="card-body">
-                    <canvas id="sample-crm-graph" style="width: 100%;height:300px"> </canvas>
-                </div>
-            </div>
-        </div>
-    
-    
-        </div>
-        <div class="row mb-3">
-            <div class="col-xl-6 col-sm-12 ">
-                <div class="card bg-default no-overflow">
-                    <div class="card-head-sm p-3 border-bottom">
-                        <h5>
-                            <i class="fas fa-line-chart"></i> Samples By Month.
-                            <form class="float-right text-info">
-                                <div class="input-group">
-                                    <input type="number" name="month" value="" max="2100" min="2000" style="border:0px solid;border-bottom:1px solid" class="form-control" id="yearSubmitFormMonth" data-url="getSamplesByMonth" data-chart="mychart2" data-graphfunction="SamplesGraph" data-divid="sample-graph" placeholder="Search by Year">
-    
-                                </div>
-                            </form>
-                        </h5>
-                    </div>
-                    <div class="card-body">
-                        <canvas id="sample-graph" style="width: 100%;height:300px"></canvas>
+                        </div>
                     </div>
                 </div>
-            </div>
-            <!-- </div> -->
-            <!-- <div class="row mb-5"> -->
-            <div class="col-xl-6 col-sm-12">
-                <div class="card bg-default no-overflow">
-                    <div class="card-head-sm p-3 border-bottom">
-                        <h5>
-                            <i class="fas fa-line-chart"></i> Sample Types
-                            <form class="float-right text-info">
-                                <div class="input-group">
-                                    <input type="number" name="sample_type" value="" max="2100" min="2000" style="border:0px solid;border-bottom:1px solid" class="form-control" id="yearSubmitForm" data-url="getsamplesBySampletype" data-chart="'mychart" data-divid="myChart" data data-graphfunction="SampletypeGraph" placeholder="Search by Year">
-    
-                                </div>
-                            </form>
-                        </h5>
-                    </div>
-                    <div class="card-body">
-                        <canvas id="myChart" style="width: 100%;height:300px"></canvas>
-                    </div>
-                </div>
-            </div>
-        </div>
-        <div class="row mb-3">
-            <div class="col-xl-6 col-sm-12">
-                <div class="card bg-default no-overflow">
-                    <div class="card-head-sm p-3 border-bottom">
-                        <h5>
-                            <i class="fas fa-flask"></i> Sample Count by Lab Section
-                            <form class="float-right text-info">
-                                <div class="input-group">
-                                    <input type="number" name="year" value="" max="2100" min="2000" style="border:0px solid;border-bottom:1px solid" class="form-control" id="yearSubmitFormLabSection" data-url="getSamplesByLabSection" data-divid="sample-lab-section-graph" placeholder="Year">
-                                </div>
-                            </form>
-                        </h5>
-                    </div>
-                    <div class="card-body">
-                        <canvas id="sample-lab-section-graph" style="width: 100%;height:300px"></canvas>
-                    </div>
-                </div>
-            </div>
-            <div class="col-xl-6 col-sm-12">
-                <div class="card bg-default no-overflow">
-                    <div class="card-head-sm p-3 border-bottom">
-                        <h5>
-                            <i class="fas fa-tasks"></i> Samples by Workflow Status
-                            <form class="float-right text-info">
-                                <div class="input-group">
-                                    <input type="number" name="year" value="" max="2100" min="2000" style="border:0px solid;border-bottom:1px solid" class="form-control" id="yearSubmitFormStatus" data-url="getSamplesByStatus" data-divid="sample-status-graph" placeholder="Year">
-                                </div>
-                            </form>
-                        </h5>
-                    </div>
-                    <div class="card-body">
-                        <canvas id="sample-status-graph" style="width: 100%;height:300px"></canvas>
-                    </div>
-                </div>
-            </div>
-        </div>
-    
-        <div class="card tab-card">
-            <div class="card-header tab-card-header">
-                <ul class="nav nav-tabs card-header-tabs" id="equipment-tab" role="tablist">
-                    <li class="nav-item">
-                        <a class="nav-link active" id="samples" data-toggle="tab" href="#samples-tab" role="tab" aria-controls="samples" aria-selected="true"><i class="mdi mdi-test-tube"></i> Batch (es) </a>
-    
-                </ul>
-            </div>
-            <div class="table-responsive bg-light p-4">
-                <u>
-                    <small class="text-danger" style="font-weight:900">*First 100 batches*</small>
-    
-                </u>
-    
-                <table class="table table-condensed my-small-text table-bordered table-sm">
-                    <thead>
-                        <th></th>
-                        <th>Priority</th>
-                        <th>Batch Code</th>
-                        <th nowrap>Receipt Date</th>
-                        <th nowrap>Date Collected</th>
-                        <th nowrap>Target Date</th>
-                        <th nowrap>Status Days</th>
-                        <th>Samples</th>
-                        <th>Client</th>
-                        <th>Client Unit</th>
-                        <th>Lab</th>
-                        <th nowrap>Sample Type</th>
-                        <th>Ref No</th>
-                        <th nowrap>Tracking Stage</th>
-                        <th>Routine</th>
-                        <th>Routine Frequency</th>
-    
-                    </thead>
-                    <tbody>
-                        @foreach ($samples as $item)
-                        <?php
-    
-                        $a = $item->get_date('Target Date');
-                        if (isset($a->id)) {
-    
-                            $target_date = $item ? date('Y-m-d', strtotime($a['date'])) : '';
-    
-                            $target_date = Carbon\Carbon::parse($target_date);
-    
-                            $now = Carbon\Carbon::now();
-                            $diff = $now->diffInDays($target_date);
-    
-                            if ($target_date->greaterThan($now)) {
-                                $diff = 0 - $diff;
-                            }
-                        }
-    
-                        ?>
-                        <tr class="batch-row ">
-                            <td>{{$loop->iteration}}</td>
-                            <td nowrap>{!! $item->priority != "Normal" ? '<i class="mdi mdi-star text-danger"></i>' : '' !!} {{ $item->priority }}</td>
-                            <td><a href="{{ route('view-batch-details', ['batch'=>$item->id]) }}">{{ $item->batch_code }}</a></td>
-                            <td nowrap>{{ $item->receipt_date ? date('Y-m-d', strtotime($item->receipt_date)) : 'NOT SET' }}</td>
-                            <td nowrap>{{ $item->date_collected ? date('Y-m-d', strtotime($item->date_collected)) : 'NOT SET' }}</td>
-                            <td nowrap>{{ date('Y-m-d', strtotime($target_date ?? '')) }}</td>
-                            <td nowrap>{{ number_format($diff ?? 0, 0) }} Day(s)</td>
-                            <td>{{ $item->samples->count() }}</td>
-                            <td nowrap>{{ $item->client->name ?? 'NOT SET' }}</td>
-                            <td nowrap>{{ $item->unit_name }}</td>
-                            <td nowrap>{{ implode(", ", $item->labs(true)) }}</td>
-                            <td nowrap>{{ $item->sample_type->name ?? '' }}</td>
-                            <td nowrap>{{ $item->reference_number ?? 'n/a' }}</td>
-                            <td nowrap>{{ $item->tracking_stage()->name ?? 'n/a' }}</td>
-                            <td>{{ $item->is_routine == 1 ? 'Yes' : 'No' }}</td>
-                            <td>{{ $item->is_routine == 1 ? number_format($item->routine_frequency,0).' days' : 'n/a' }}</td>
-                            
-                        </tr>
-                        
-                        @endforeach
-                    </tbody>
-                </table>
             </div>
         </div>
     </div>
-
 </main>
 
 <script src="https://maps.googleapis.com/maps/api/js?v=3.exp&key=AIzaSyBqS4AEZ-gVeXjG794Rh0eTd6yvdfMKTjg&sensor=false" type="text/javascript"></script>
 <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.5.1/jquery.min.js"></script>
 <script>
-    $(function() {
+    // Softer color palette for simpler UI
+    const CHART_COLOR_BLUE = 'rgba(14, 165, 233, 0.8)';
+    const CHART_COLOR_BLUE_BG = 'rgba(14, 165, 233, 0.15)';
 
-        function dynamicColors() {
-            var r = Math.floor(Math.random() * 255);
-            var g = Math.floor(Math.random() * 255);
-            var b = Math.floor(Math.random() * 255);
-            return "rgba(" + r + "," + g + "," + b + ")";
+    function loadGrid(tabName) {
+        if(tabName == 'intake' || tabName == 'prep'){
+            tabName = (tabName == 'intake') ? 'my_tasks' : 'urgent';
         }
-
-        function poolColors(a) {
-            var pool = [];
-            for (i = 0; i < a; i++) {
-                pool.push(dynamicColors());
+        
+        $('#smart-grid-body').html('<tr><td colspan="7" class="text-center py-4 text-muted"><i class="fas fa-spinner fa-spin mr-2"></i> Syncing queue...</td></tr>');
+        
+        $.get('/getSmartGridTasks', { tab: tabName }, function(data) {
+            if(data.length === 0) {
+                $('#smart-grid-body').html('<tr><td colspan="7" class="text-center py-4 text-muted">Queue is clear! <i class="fas fa-check-circle text-success ml-1"></i></td></tr>');
+                return;
             }
-            return pool;
-        }
+            
+            let html = '';
+            data.forEach(item => {
+                let prioClass = `priority-${item.priority}`;
+                let prioIcon = item.priority === 'Urgent' ? '<i class="fas fa-exclamation-circle mr-1"></i>' : '';
+                
+                html += `<tr style="cursor:pointer;" onclick="window.location.href='/sample-workflow/batch/${item.id}/details'">
+                    <td class="pl-4 ${prioClass}">${prioIcon}${item.priority}</td>
+                    <td class="font-weight-bold text-primary">${item.batch_code}</td>
+                    <td>${item.client_name}</td>
+                    <td><span class="badge badge-light px-2 py-1 text-secondary border">${item.sample_type}</span></td>
+                    <td><span class="badge ${item.status == 'Sample Approval' ? 'badge-success' : 'badge-info'} px-2 py-1 text-white">${item.status}</span></td>
+                    <td>${item.target_date}</td>
+                    <td class="text-right pr-4"><button class="btn btn-sm btn-outline-primary rounded px-3">View</button></td>
+                </tr>`;
+            });
+            $('#smart-grid-body').html(html);
+        }).fail(function() {
+            $('#smart-grid-body').html('<tr><td colspan="7" class="text-center py-4 text-danger">Failed to load datagrid.</td></tr>');
+        });
+    }
 
+    function loadActiveMethods() {
+        $.get('/getActiveMethods', function(data) {
+            let html = '';
+            if(data.length === 0){ html = '<div class="text-muted text-center py-4">No active methods workload.</div>'; }
+            else {
+                let maxTotal = data[0].total || 1;
+                data.forEach((item) => {
+                    let percent = (item.total / maxTotal) * 100;
+                    
+                    html += `
+                    <div class="method-list-item">
+                        <div>
+                            <div class="method-name">${item.name}</div>
+                            <small class="text-muted">${item.total} tests pending</small>
+                        </div>
+                        <div class="method-bar-bg">
+                            <div class="method-bar-fill" style="width: ${percent}%;"></div>
+                        </div>
+                    </div>`;
+                });
+            }
+            $('#active-methods-container').html(html);
+        });
+    }
 
-
-        var sampletypeGraph = function(data, mychart) {
-            var total = Object.values(data);
-            var namearr = Object.keys(data);
-            let massPopchart = new Chart(mychart, {
-                type: 'bar',
+    function loadMonthlyTrend() {
+        $.get('/getSamplesByMonth', { year: $('#trendYearSelector').val() }, function(data) {
+            let ctx = document.getElementById('monthly-trend-chart').getContext('2d');
+            let labels = Object.keys(data);
+            let values = Object.values(data);
+            
+            if(window.trendChart) window.trendChart.destroy();
+            
+            window.trendChart = new Chart(ctx, {
+                type: 'line',
                 data: {
-                    labels: namearr,
+                    labels: labels,
                     datasets: [{
-                        label: 'Batch (es)',
-                        data: total,
-                        backgroundColor: poolColors(total.length),
-                        borderColor: poolColors(total.length),
-                        hoverBorderWidth: 1,
-                        hoverBorderColor: '#000',
-                        // backgr
+                        label: 'Batches Intake',
+                        data: values,
+                        borderColor: '#0ea5e9',
+                        backgroundColor: CHART_COLOR_BLUE_BG,
+                        borderWidth: 2,
+                        pointBackgroundColor: '#ffffff',
+                        pointBorderColor: '#0ea5e9',
+                        pointBorderWidth: 2,
+                        pointRadius: 3,
+                        lineTension: 0.3
                     }]
                 },
                 options: {
-                    title: {
-                        display: true,
-                        text: 'Samples Types',
-                        fontSize: 15,
-                        fontColor: '#000'
-                    },
-                    legend: {
-                        display: false,
-                    },
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    legend: { display: false },
                     scales: {
-                        yAxes: [{
-                            ticks: {
-                                beginAtZero: true
-                            }
+                        xAxes: [{ gridLines: { display: false }, ticks:{fontSize: 10, fontColor: '#64748b'} }],
+                        yAxes: [{ gridLines: { borderDash: [4, 4], color: '#f1f5f9' }, ticks:{beginAtZero: true, fontSize:10, fontColor: '#64748b'} }]
+                    }
+                }
+            });
+        });
+    }
+
+    function loadLabSectionChart() {
+        $.get('/getSamplesByLabSection', function(data) {
+            let labels = Object.keys(data);
+            let values = Object.values(data);
+            
+            let ctx = document.getElementById('lab-section-chart').getContext('2d');
+            if(window.sectionChart) window.sectionChart.destroy();
+            
+            window.sectionChart = new Chart(ctx, {
+                type: 'horizontalBar',
+                data: {
+                    labels: labels,
+                    datasets: [{
+                        label: 'Samples',
+                        data: values,
+                        backgroundColor: CHART_COLOR_BLUE,
+                        borderRadius: 4,
+                        barThickness: 'flex',
+                        maxBarThickness: 25
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    legend: { display: false },
+                    scales: {
+                        xAxes: [{ 
+                            gridLines: { borderDash: [4, 4], color: '#f1f5f9' }, 
+                            ticks:{beginAtZero: true, fontColor: '#64748b'} 
+                        }],
+                        yAxes: [{ 
+                            gridLines: { display: false }, 
+                            ticks: {fontSize: 11, fontColor:'#334155'} 
                         }]
                     }
                 }
             });
+        });
+    }
 
-        }
-
-
-        var samplesGraph = function(samples, chart2) {
-            var results = Object.values(samples);
-
-            let massPop = new Chart(chart2, {
-                type: 'bar',
-                data: {
-                    labels: ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'],
-                    datasets: [{
-                        label: 'Batch (es)',
-                        data: results,
-                        backgroundColor: 'rgba(54,162,235,0.6)',
-                        hoverBorderWidth: 1,
-                        hoverBorderColor: '#000',
-                    }]
-                },
-                options: {
-                    title: {
-                        display: true,
-                        text: 'Samples by month',
-                        fontSize: 15,
-                        fontColor: '#000'
-                    },
-                    legend: {
-                        display: false,
-
-                    },
-                    scales: {
-                        yAxes: [{
-                            ticks: {
-                                beginAtZero: true
-                            }
-                        }]
-                    }
-                }
-            })
-
-        }
-
-
-        var mapsGraph = function(gps) {
+    function loadMaps() {
+        $.get('/getSamplesByGps', function(gps) {
             var mapProp = {
                 center: new google.maps.LatLng(-19.015, 29.156),
                 zoom: 5.5,
+                styles: [
+                    { "elementType": "geometry", "stylers": [{"color": "#f8fafc"}] },
+                    { "elementType": "labels.icon", "stylers": [{"visibility": "off"}] },
+                    { "elementType": "labels.text.fill", "stylers": [{"color": "#64748b"}] },
+                    { "elementType": "labels.text.stroke", "stylers": [{"color": "#f8fafc"}] },
+                    { "featureType": "water", "elementType": "geometry", "stylers": [{"color": "#e2e8f0"}] }
+                ]
             };
-            map = new google.maps.Map(document.getElementById('sample-maps'), mapProp);
-            var lat = Object.keys(gps);
-            console.log(lat);
-            for (var i = 0; i < lat.length; i++) {
+            var map = new google.maps.Map(document.getElementById('sample-maps'), mapProp);
+            var latArr = Object.keys(gps);
+            
+            for (var i = 0; i < latArr.length; i++) {
+                var coords = latArr[i].split(',');
+                var lat = parseFloat(coords[1]);
+                var lng = parseFloat(coords[0]);
+                
+                if (!isNaN(lat) && !isNaN(lng)) {
+                    new google.maps.Circle({
+                        strokeColor: "#ef4444",
+                        strokeOpacity: 0.6,
+                        strokeWeight: 1,
+                        fillColor: "#ef4444",
+                        fillOpacity: 0.25,
+                        map,
+                        center: { lat: lat, lng: lng },
+                        radius: 8000 + (gps[latArr[i]] * 1500)
+                    });
+                }
+            }
+        });
+    }
 
-
-                var lati = lat[i].split(',');
-                // console.log(latit);
-
-                var latitude = parseFloat(lati[1]);
-                var longitude = parseFloat(lati[0]);
-
-                // console.log(gps[lat[i]]);
-                var marker = new google.maps.Marker({
-                    position: new google.maps.LatLng(latitude, longitude),
-                    title: `Total samples ${gps[lat[i]]}`,
+    function loadSampleTypesList() {
+        $.get('/getsamplesBySampletype', { year: $('#trendYearSelector').val() }, function(data) {
+            let sorted = Object.entries(data).sort((a,b) => b[1] - a[1]).slice(0,5);
+            let html = '';
+            if(sorted.length === 0){ html = '<div class="text-muted text-center py-4">No data.</div>'; }
+            else {
+                let maxTotal = sorted[0][1] || 1;
+                sorted.forEach((item) => {
+                    let percent = (item[1] / maxTotal) * 100;
+                    html += `
+                    <div class="method-list-item">
+                        <div>
+                            <div class="method-name" style="max-width: 150px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${item[0]}</div>
+                            <small class="text-muted">${item[1]} batches</small>
+                        </div>
+                        <div class="method-bar-bg" style="width: 80px;">
+                            <div class="method-bar-fill" style="width: ${percent}%; background-color:#10b981;"></div>
+                        </div>
+                    </div>`;
                 });
-                marker.setMap(map)
             }
+            $('#popular-samples-container').html(html);
+        });
+    }
 
-        }
-        // console.log(result);
-
-
-        var labSectionGraph = function(data, chartCtx) {
-            var labels = Object.keys(data);
-            var values = Object.values(data);
-            if (window.chartLabSection) {
-                window.chartLabSection.destroy();
+    function loadClientsList() {
+        $.get('/getSamplesByCustomer', function(data) {
+            let sorted = Object.entries(data).sort((a,b) => b[1] - a[1]).slice(0,5);
+            let html = '';
+            if(sorted.length === 0){ html = '<div class="text-muted text-center py-4">No data.</div>'; }
+            else {
+                let maxTotal = sorted[0][1] || 1;
+                sorted.forEach((item) => {
+                    let percent = (item[1] / maxTotal) * 100;
+                    html += `
+                    <div class="method-list-item">
+                        <div>
+                            <div class="method-name" style="max-width: 150px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;" title="${item[0]}">${item[0]}</div>
+                            <small class="text-muted">${item[1]} batches</small>
+                        </div>
+                        <div class="method-bar-bg" style="width: 80px;">
+                            <div class="method-bar-fill" style="width: ${percent}%; background-color:#f59e0b;"></div>
+                        </div>
+                    </div>`;
+                });
             }
-            window.chartLabSection = new Chart(chartCtx, {
+            $('#popular-clients-container').html(html);
+        });
+    }
+
+    function loadCustomerSampleTypesChart() {
+        $.get('/getCustomerSampleTypes', function(response) {
+            let ctx = document.getElementById('customer-sample-type-chart').getContext('2d');
+            if(window.customerSampleChart) window.customerSampleChart.destroy();
+            
+            let datasets = [];
+            const STACK_PALETTE = ['#0ea5e9', '#10b981', '#f59e0b', '#8b5cf6', '#ec4899', '#14b8a6', '#f43f5e', '#64748b', '#06b6d4', '#84cc16'];
+            
+            response.types.forEach((type, index) => {
+                let dataPoints = [];
+                response.clients.forEach(client => {
+                    dataPoints.push(response.data[client][type] || 0);
+                });
+                
+                datasets.push({
+                    label: type,
+                    data: dataPoints,
+                    backgroundColor: STACK_PALETTE[index % STACK_PALETTE.length],
+                    maxBarThickness: 45
+                });
+            });
+
+            window.customerSampleChart = new Chart(ctx, {
                 type: 'bar',
                 data: {
-                    labels: labels,
-                    datasets: [{
-                        label: 'Batches',
-                        data: values,
-                        backgroundColor: poolColors(values.length),
-                        borderColor: poolColors(values.length),
-                        hoverBorderWidth: 1,
-                        hoverBorderColor: '#000',
-                    }]
+                    labels: response.clients,
+                    datasets: datasets
                 },
                 options: {
-                    title: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    legend: { 
                         display: true,
-                        text: 'Sample count by lab section',
-                        fontSize: 15,
-                        fontColor: '#000'
+                        position: 'top',
+                        labels: { boxWidth: 12, fontSize: 11, fontColor: '#64748b' }
                     },
-                    legend: { display: false },
                     scales: {
-                        yAxes: [{
-                            ticks: { beginAtZero: true }
+                        xAxes: [{ 
+                            stacked: true,
+                            gridLines: { display: false }, 
+                            ticks: { fontSize: 11, fontColor: '#334155' } 
+                        }],
+                        yAxes: [{ 
+                            stacked: true,
+                            gridLines: { borderDash: [4, 4], color: '#f1f5f9' }, 
+                            ticks: { beginAtZero: true, fontColor: '#64748b' } 
                         }]
                     }
                 }
             });
-        };
-
-        var statusGraphColors = ['rgba(40,167,69,0.8)', 'rgba(23,162,184,0.8)', 'rgba(220,53,69,0.8)', 'rgba(33,37,41,0.8)'];
-        var labStatusGraph = function(data, chartCtx) {
-            var labels = Object.keys(data);
-            var values = Object.values(data);
-            if (window.chartStatus) {
-                window.chartStatus.destroy();
-            }
-            window.chartStatus = new Chart(chartCtx, {
-                type: 'doughnut',
-                data: {
-                    labels: labels,
-                    datasets: [{
-                        label: 'Batches',
-                        data: values,
-                        backgroundColor: statusGraphColors.slice(0, labels.length),
-                        borderColor: '#fff',
-                        borderWidth: 1,
-                        hoverBorderWidth: 2,
-                        hoverBorderColor: '#000',
-                    }]
-                },
-                options: {
-                    title: {
-                        display: true,
-                        text: 'Samples by workflow status',
-                        fontSize: 15,
-                        fontColor: '#000'
-                    },
-                    legend: {
-                        display: true,
-                        position: 'right',
-                    },
-                }
-            });
-        };
-
-        var CrmGraph = function(data, mychart3) {
-
-            var unit_names = Object.keys(data);
-            var unit_values = Object.values(data);
-
-            // console.log(unit_names)
-            let masspop2 = new Chart(mychart3, {
-                type: 'bar',
-                data: {
-                    labels: unit_names,
-                    datasets: [{
-                        label: 'Samples',
-                        data: unit_values,
-                        backgroundColor: poolColors(unit_values.length),
-                        borderColor: poolColors(unit_values.length),
-                        hoverBorderWidth: 1,
-                        hoverBorderColor: '#000',
-                    }]
-
-                },
-                options: {
-                    title: {
-                        display: true,
-                        text: 'Samples by client',
-                        fontSize: 15,
-                        fontColor: '#000'
-                    },
-                    legend: {
-                        display: false,
-                    },
-                    scales: {
-                        yAxes: [{
-                            ticks: {
-                                beginAtZero: true
-                            }
-                        }]
-                    }
-                }
-            })
-        }
-        let mychart = document.getElementById('myChart').getContext('2d');
-        let mychart2 = document.getElementById('sample-graph').getContext('2d');
-        let mychart3 = document.getElementById('sample-crm-graph').getContext('2d');
-        let mychart4 = document.getElementById('sample-lab-section-graph').getContext('2d');
-        let mychart5 = document.getElementById('sample-status-graph').getContext('2d');
-
-        $.ajax({
-            url: "/getSamplesByLabSection",
-            success: function(data) {
-                labSectionGraph(data, mychart4);
-            },
-            error: function(xhr) {
-                console.log('Lab section chart:', xhr);
-            }
         });
-        $.ajax({
-            url: "/getSamplesByStatus",
-            success: function(data) {
-                labStatusGraph(data, mychart5);
-            },
-            error: function(xhr) {
-                console.log('Status chart:', xhr);
-            }
+    }
+
+    $(document).ready(function() {
+        loadGrid('my_tasks');
+        loadActiveMethods();
+        loadMonthlyTrend();
+        loadLabSectionChart();
+        loadSampleTypesList();
+        loadClientsList();
+        loadCustomerSampleTypesChart();
+        setTimeout(loadMaps, 1000); 
+        
+        $('#trendYearSelector').on('change', function() {
+            loadMonthlyTrend();
+            loadSampleTypesList();
         });
-        $.ajax({
-            url: "/getSamplesByCustomer",
-            success: function(data) {
-                // console.log(data);
-                CrmGraph(data, mychart3)
-
-            },
-            error: function(data) {
-                console.log(data);
-            }
-        })
-        $.ajax({
-            url: "/getSamplesByGps",
-            success: function(data) {
-                // console.log(data);
-                mapsGraph(data)
-
-            },
-            error: function(data) {
-                console.log(data);
-            }
-        })
-        $.ajax({
-            url: "/getSamplesByMonth",
-            success: function(data) {
-                // console.log(data);
-                samplesGraph(data, mychart2)
-
-            },
-            error: function(data) {
-                console.log(data);
-            }
-        })
-        $.ajax({
-            url: "/getsamplesBySampletype",
-            success: function(data) {
-                console.log('Sampletypes');
-                console.log(data);
-                sampletypeGraph(data, mychart)
-
-            },
-            error: function(data) {
-                console.log(data);
-            }
-        })
-        $('#yearSubmitForm').on('change', function(e) {
-            console.log('testing hard')
-            var year = $(this).val();
-
-            $.ajax({
-                url: "/getsamplesBySampletype",
-                data: {
-                    year : year
-                },
-                type: "GET",
-                success: function(data) {
-                    $('myChart').empty();
-                    sampletypeGraph(data, mychart)
-
-                },
-                error: function(data) {
-                    console.log(data);
-                }
-            })
-        });
-        $('#yearSubmitFormClient').on('change', function(e) {
-            console.log('testing hard')
-            var year = $(this).val();
-
-            $.ajax({
-                url: "/getSamplesByCustomer",
-                data: {
-                    year : year
-                },
-                type: "GET",
-                success: function(data) {
-                    $('#sample-crm-graph').empty();
-                    CrmGraph(data, mychart3);
-
-                },
-                error: function(data) {
-                    console.log(data);
-                }
-            })
-        });
-        $('#yearSubmitFormMonth').on('change', function(e) {
-            console.log('testing hard')
-            var year = $(this).val();
-
-            $.ajax({
-                url: '/getSamplesByMonth',
-                data: {
-                    year : year
-                },
-                type: "GET",
-                success: function(data) {
-                    $('#sample-graph').empty();
-                    samplesGraph(data, mychart2)
-
-                },
-                error: function(data) {
-                    console.log(data);
-                }
-            })
-        });
-        $('#yearSubmitFormLabSection').on('change', function(e) {
-            var year = $(this).val();
-            $.ajax({
-                url: "/getSamplesByLabSection",
-                data: { year: year },
-                type: "GET",
-                success: function(data) {
-                    labSectionGraph(data, mychart4);
-                },
-                error: function(xhr) {
-                    console.log('Lab section chart:', xhr);
-                }
-            });
-        });
-        $('#yearSubmitFormStatus').on('change', function(e) {
-            var year = $(this).val();
-            $.ajax({
-                url: "/getSamplesByStatus",
-                data: { year: year },
-                type: "GET",
-                success: function(data) {
-                    labStatusGraph(data, mychart5);
-                },
-                error: function(xhr) {
-                    console.log('Status chart:', xhr);
-                }
-            });
-        });
-
     });
-
-
-
-
-    // console.log(lat.length);
 </script>
 @endsection

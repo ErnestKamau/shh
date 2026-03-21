@@ -157,6 +157,10 @@ Route::get('/getSamplesByMonth/{year?}', 'Lab\LabDashboardController@getSamplesB
 Route::get('/getsamplesBySampletype/{year?}', 'Lab\LabDashboardController@getsamplesBySampletype')->name('getsamplesBySampletype');
 Route::get('/getSamplesByLabSection', 'Lab\LabDashboardController@getSamplesByLabSection')->name('getSamplesByLabSection');
 Route::get('/getSamplesByStatus', 'Lab\LabDashboardController@getSamplesByStatus')->name('getSamplesByStatus');
+Route::get('/getTestingMatrix', 'Lab\LabDashboardController@getTestingMatrix')->name('getTestingMatrix');
+Route::get('/getActiveMethods', 'Lab\LabDashboardController@getActiveMethods')->name('getActiveMethods');
+Route::get('/getSmartGridTasks', 'Lab\LabDashboardController@getSmartGridTasks')->name('getSmartGridTasks');
+Route::get('/getCustomerSampleTypes', 'Lab\LabDashboardController@getCustomerSampleTypes')->name('getCustomerSampleTypes');
 
 //######################################dashboard Ajax###############################################
 

@@ -13,6 +13,9 @@ use App\SampleType;
 use Illuminate\Http\Request;
 use App\Models\CRM\CRMCompanyUnit;
 use App\Result;
+use App\Models\SubmissionFormInstance;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Auth;
 
 class LabDashboardController extends Controller
 {
@@ -224,14 +227,188 @@ class LabDashboardController extends Controller
         return response()->json($results);
     }
 
+    /**
+     * Get data for the Sunburst Testing Matrix (Sample Type -> Lab Section)
+     */
+    public function getTestingMatrix(Request $request): \Illuminate\Http\JsonResponse
+    {
+        $year = $request->get('year') ?? date('Y');
+        
+        // Simplified version: Group by Sample Type, then count. 
+        // In a real scenario, this would group by SampleType -> LabSection -> Analyte.
+        // For the UI demonstration, we will group by Sample Type and Lab Section.
+        $matrix = [];
+        
+        $samples = SampleHeader::where('isactive', 1)
+            ->whereYear('created_at', $year)
+            ->where('status', '!=', 'Completed')
+            ->with(['sample_type'])
+            ->get();
+            
+        $sections = SampleAnalysisStage::where('active', 1)->get()->keyBy('id');
+        
+        foreach ($samples as $sample) {
+            $typeName = $sample->sample_type ? $sample->sample_type->name : 'Unknown';
+            if (!isset($matrix[$typeName])) {
+                $matrix[$typeName] = [];
+            }
+            
+            if ($sample->lab_section_ids) {
+                $sectionIds = explode(',', $sample->lab_section_ids);
+                foreach ($sectionIds as $secId) {
+                    if (isset($sections[$secId])) {
+                        $secName = $sections[$secId]->name;
+                        if (!isset($matrix[$typeName][$secName])) {
+                            $matrix[$typeName][$secName] = 0;
+                        }
+                        $matrix[$typeName][$secName]++;
+                    }
+                }
+            } else {
+                if (!isset($matrix[$typeName]['Unassigned'])) {
+                    $matrix[$typeName]['Unassigned'] = 0;
+                }
+                $matrix[$typeName]['Unassigned']++;
+            }
+        }
+        
+        // Format for hierarchical charts like sunburst or treemap
+        $formatted = [];
+        foreach ($matrix as $type => $sectionsArray) {
+            $children = [];
+            foreach ($sectionsArray as $sec => $count) {
+                $children[] = ['name' => $sec, 'value' => $count];
+            }
+            $formatted[] = [
+                'name' => $type,
+                'children' => $children
+            ];
+        }
+
+        return response()->json($formatted);
+    }
+
+    /**
+     * Get data for Active Methods / Instruments Leaderboard
+     */
+    public function getActiveMethods(Request $request): \Illuminate\Http\JsonResponse
+    {
+        // Mocked or derived from Analysis Types/Equipment for the dashboard
+        // We will sum active parameters that belong to active batches.
+        $methods = DB::table('sample_details')
+            ->join('sample_headers', 'sample_headers.id', '=', 'sample_details.sample_header_id')
+            ->join('analysis_types', 'analysis_types.id', '=', 'sample_details.analysis_type_id')
+            ->where('sample_headers.status', 'Samples In Lab')
+            ->where('sample_headers.isactive', 1)
+            ->select('analysis_types.name', DB::raw('count(*) as total'))
+            ->groupBy('analysis_types.name')
+            ->orderByDesc('total')
+            ->limit(5)
+            ->get();
+            
+        return response()->json($methods);
+    }
+
+    /**
+     * Get datatable items for the Smart Action Grid (My Tasks, Urgent, Approvals)
+     */
+    public function getCustomerSampleTypes(Request $request): \Illuminate\Http\JsonResponse
+    {
+        // Get the top 10 customers by active batches
+        $topClientIds = \App\SampleHeader::where('isactive', 1)
+            ->where('status', '!=', 'Completed')
+            ->whereNotNull('crm_customer_id')
+            ->select('crm_customer_id', DB::raw('count(*) as total'))
+            ->groupBy('crm_customer_id')
+            ->orderByDesc('total')
+            ->limit(10)
+            ->pluck('crm_customer_id');
+            
+        $samples = \App\SampleHeader::where('isactive', 1)
+            ->where('status', '!=', 'Completed')
+            ->whereIn('crm_customer_id', $topClientIds)
+            ->with(['client', 'sample_type'])
+            ->get();
+            
+        $data = [];
+        $sampleTypes = [];
+        
+        foreach ($samples as $sample) {
+            $clientName = $sample->client ? $sample->client->name : 'Unknown';
+            $typeName = $sample->sample_type ? $sample->sample_type->name : 'Unknown';
+            
+            // Shorten client name for the chart labels
+            if (strlen($clientName) > 20) {
+                $clientName = substr($clientName, 0, 20) . '...';
+            }
+            
+            if (!isset($data[$clientName])) {
+                $data[$clientName] = [];
+            }
+            if (!isset($data[$clientName][$typeName])) {
+                $data[$clientName][$typeName] = 0;
+            }
+            $data[$clientName][$typeName]++;
+            $sampleTypes[$typeName] = true;
+        }
+        
+        return response()->json([
+            'clients' => array_keys($data),
+            'types' => array_keys($sampleTypes),
+            'data' => $data
+        ]);
+    }
+
+    public function getSmartGridTasks(Request $request): \Illuminate\Http\JsonResponse
+    {
+        $tab = $request->get('tab', 'my_tasks'); // my_tasks, urgent, approvals
+        
+        $query = SampleHeader::with(['client', 'sample_type'])->where('isactive', 1)->where('status', '!=', 'Completed');
+        
+        if ($tab === 'urgent') {
+            // Priority or high urgency, or close to target date
+            $query->where(function($q) {
+                $q->where('priority', 'Urgent')
+                  ->orWhere('priority', 'High');
+            })->orderBy('id', 'desc');
+        } elseif ($tab === 'approvals') {
+            $query->where('status', 'Sample Approval')->orderBy('id', 'desc');
+        } else {
+            // Default to My Tasks or 'Samples In Lab'
+            $query->where('status', 'Samples In Lab')->orderBy('id', 'desc');
+        }
+        
+        $batches = $query->limit(50)->get()->map(function($item) {
+            $targetDate = $item->get_date('Target Date');
+            $dateFormatted = $targetDate ? date('Y-m-d', strtotime($targetDate->date)) : 'N/A';
+            return [
+                'id' => $item->id,
+                'priority' => $item->priority,
+                'batch_code' => $item->batch_code,
+                'client_name' => $item->client ? $item->client->name : 'N/A',
+                'sample_type' => $item->sample_type ? $item->sample_type->name : 'N/A',
+                'status' => $item->status,
+                'target_date' => $dateFormatted,
+                'sample_count' => $item->samples()->count()
+            ];
+        });
+        
+        return response()->json($batches);
+    }
+
     public function index(Request $request)
     {
 
-        $samples = SampleHeader::where('isactive', 1)->where('status', '!=', 'Completed')->orderBy('id', 'desc')->limit(100)->get();;
+        $samples = SampleHeader::where('isactive', 1)->where('status', '!=', 'Completed')->orderBy('id', 'desc')->limit(100)->get();
         // return response($samples->count(),200);
         $samples_lab = SampleHeader::where('status', 'Samples In Lab')->get()->count();
         $samples_approval = SampleHeader::where('status', 'Sample Approval')->get()->count();
         $samples_verification = SampleHeader::where('status', 'Sample Verification')->get()->count();
+        
+        // Count Pending Submission Forms instead of Samples in Reception
+        $pending_submission_forms = SubmissionFormInstance::whereNotIn('status', ['approved', 'rejected', 'cancelled'])->count();
+        $submitted_forms = SubmissionFormInstance::where('status', 'submitted')->count();
+        $draft_forms = SubmissionFormInstance::where('status', 'draft')->count();
         $samples_reception = SampleHeader::where('status', 'Samples Reception')->where('isactive', 1)->get()->count();
         $complaint = Complaint::where('complaint_workflow', '!=', 5)->get();
         $notification = getBatchNotificationUser();
@@ -244,6 +421,6 @@ class LabDashboardController extends Controller
         $notifications = getBatchNotificationUser();
 
 
-        return view('layouts.lab.dashboard', compact('samples', 'samples_reception', 'samples_lab', 'complaint', 'samples_approval', 'samples_verification', 'notifications'));
+        return view('layouts.lab.dashboard', compact('samples', 'samples_reception', 'samples_lab', 'complaint', 'samples_approval', 'samples_verification', 'notifications', 'pending_submission_forms', 'submitted_forms', 'draft_forms'));
     }
 }
