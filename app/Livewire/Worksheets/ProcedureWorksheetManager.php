@@ -77,7 +77,74 @@ class ProcedureWorksheetManager extends Component
     {
         $this->batchId = $batchId;
         $this->importHash = Str::random(8);
+        $this->syncCapturedResultsProcedureWorksheetIds();
         $this->initActiveTab();
+    }
+
+    private function syncCapturedResultsProcedureWorksheetIds(): void
+    {
+        // If a procedure worksheet gets deleted/replaced, existing captured_results rows can keep
+        // pointing to the old worksheet id. That results in an empty worksheet dropdown because
+        // ProcedureWorksheet::find(oldId) returns nothing.
+        //
+        // Reconcile captured_results.procedure_worksheet_id to the currently configured ACTIVE
+        // analysis_elements.procedure_worksheet_id for this batch, but only when the current
+        // captured worksheet is missing or inactive.
+        $rows = CapturedResult::query()
+            ->where('captured_results.sample_header_id', $this->batchId)
+            ->whereNotNull('captured_results.analysis_element_id')
+            ->leftJoin('analysis_elements', 'analysis_elements.id', '=', 'captured_results.analysis_element_id')
+            ->leftJoin('procedure_worksheets as current_pw', 'current_pw.id', '=', 'captured_results.procedure_worksheet_id')
+            ->leftJoin('procedure_worksheets as target_pw', 'target_pw.id', '=', 'analysis_elements.procedure_worksheet_id')
+            ->whereNotNull('analysis_elements.procedure_worksheet_id')
+            ->where('target_pw.is_active', true)
+            ->select([
+                'captured_results.id as captured_result_id',
+                'captured_results.procedure_worksheet_id as current_procedure_worksheet_id',
+                'current_pw.id as current_pw_id',
+                'current_pw.is_active as current_pw_is_active',
+                'analysis_elements.procedure_worksheet_id as target_procedure_worksheet_id',
+            ])
+            ->get();
+
+        if ($rows->isEmpty()) {
+            return;
+        }
+
+        /** @var array<int, array<int, int>> $idsByTargetWorksheetId */
+        $idsByTargetWorksheetId = [];
+
+        foreach ($rows as $row) {
+            $targetWorksheetId = (int) $row->target_procedure_worksheet_id;
+            $currentWorksheetId = $row->current_procedure_worksheet_id !== null ? (int) $row->current_procedure_worksheet_id : null;
+
+            $currentPwId = $row->current_pw_id !== null ? (int) $row->current_pw_id : null;
+            $currentPwIsActive = $row->current_pw_is_active !== null ? (bool) $row->current_pw_is_active : null;
+
+            // Update only if the currently referenced worksheet is missing or inactive.
+            $needsUpdate = $currentWorksheetId === null
+                || $currentPwId === null
+                || ($currentPwIsActive !== null && $currentPwIsActive === false);
+
+            if (! $needsUpdate) {
+                continue;
+            }
+
+            $idsByTargetWorksheetId[$targetWorksheetId][] = (int) $row->captured_result_id;
+        }
+
+        foreach ($idsByTargetWorksheetId as $targetWorksheetId => $ids) {
+            if (empty($ids)) {
+                continue;
+            }
+
+            CapturedResult::query()
+                ->whereIn('id', $ids)
+                ->update([
+                    'procedure_worksheet_id' => $targetWorksheetId,
+                    'has_procedure_worksheet' => true,
+                ]);
+        }
     }
 
     public function initActiveTab()
@@ -91,9 +158,12 @@ class ProcedureWorksheetManager extends Component
 
     public function getParamsWithWorksheetsProperty()
     {
-        // Get analytes that have captured results with check for procedure_worksheet_id
-        return CapturedResult::where('sample_header_id', $this->batchId)
-            ->whereNotNull('procedure_worksheet_id')
+        // Get analytes that have captured results tied to an ACTIVE procedure worksheet.
+        // (Works even if captured_results still contain a stale/deleted worksheet id,
+        // because mount() reconciles them to the current active configuration.)
+        return CapturedResult::query()
+            ->where('captured_results.sample_header_id', $this->batchId)
+            ->whereHas('procedureWorksheet', fn ($q) => $q->where('is_active', true))
             ->with('my_analyte')
             ->get()
             ->pluck('my_analyte')
@@ -112,7 +182,9 @@ class ProcedureWorksheetManager extends Component
             ->pluck('procedure_worksheet_id')
             ->unique();
 
-        return ProcedureWorksheet::whereIn('id', $worksheetIds)->get();
+        return ProcedureWorksheet::whereIn('id', $worksheetIds)
+            ->where('is_active', true)
+            ->get();
     }
 
     public function setActiveTab($tabId)
