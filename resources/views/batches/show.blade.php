@@ -2,6 +2,7 @@
 
 @section('title2')
   <title> {{ isset($batch->batch_code) ? $batch->batch_code." | Batch Info" : "New Batch" }}</title>
+  @include('layouts.lab.partials.lab-panel-theme-styles')
   {{-- Include all CSS from original show.blade.php lines 5-431 --}}
   <style>
 		body{
@@ -99,34 +100,41 @@
           ];
       }
     ?>
+    <div class="px-4 lab-panel-theme">
+    {{-- breadcrumb margin override so it aligns flush with header/cards --}}
+    <style>.breadcrumb-container { margin-left: 0 !important; margin-right: 0 !important; margin-top: 12px; margin-bottom: 12px; }</style>
     <x-bread-crumb :items="$items"></x-bread-crumb>
     
+    <div class="batch-show-alerts">
     @if(session('success'))
-        <div class="alert alert-success alert-dismissible fade show m-3" role="alert">
+        <div class="alert alert-success alert-dismissible fade show mb-3" role="alert">
             <i class="mdi mdi-check-circle"></i> {{ session('success') }}
             <button type="button" class="close" data-dismiss="alert"><span>&times;</span></button>
         </div>
     @endif
 
     @if(session('error'))
-        <div class="alert alert-danger alert-dismissible fade show m-3" role="alert">
+        <div class="alert alert-danger alert-dismissible fade show mb-3" role="alert">
             <i class="mdi mdi-alert-circle"></i> {{ session('error') }}
             <button type="button" class="close" data-dismiss="alert"><span>&times;</span></button>
         </div>
     @endif
 
     @if(!$batch || !isset($batch->id))
-        <div class="alert alert-warning alert-dismissible fade show m-3" role="alert">
+        <div class="alert alert-warning alert-dismissible fade show mb-3" role="alert">
             <i class="mdi mdi-alert-circle"></i> Batch not found. It may have been deleted.
             <button type="button" class="close" data-dismiss="alert"><span>&times;</span></button>
         </div>
-        <div class="text-center m-3">
-            <a href="{{ route('sample-workflow', ['status' => 'Samples Reception']) }}" class="btn btn-primary">
+        <div class="text-center mb-3">
+            <a href="{{ route('sample-workflow', ['status' => 'Samples Reception']) }}" class="btn btn-sm btn-primary">
                 <i class="mdi mdi-arrow-left mr-2"></i> Back to Samples Reception
             </a>
         </div>
-    @else
-    <div class="container-fluid">
+    @endif
+    </div> {{-- batch-show-alerts --}}
+
+    @if($batch && isset($batch->id))
+    <div class="pb-4">
       {{-- Livewire Components --}}
       @livewire('batch.header', [
         'batch' => $batch,
@@ -137,43 +145,38 @@
         'clientPortal' => $client_portal ?? false
       ], 'header-'.$batch->id)
       
-      <div class="row no-gutters">
-        <div class="col-sm-12 p-2">
-          @livewire('batch.info', [
-            'batch' => $batch,
-            'batchID' => $batchID,
-            'clients' => $clients,
-            'sample_types' => $sample_types,
-            'labsections' => $labsections,
-            'samplingmethods' => $samplingmethods,
-            'recieving_users' => $recieving_users,
-            'qc_schemes' => $qc_schemes,
-            'qc_types' => $qc_types,
-            'batch_scope' => $batch_scope,
-            'customer_survey' => $customer_survey,
-            'active_company' => $active_company,
-            'defaultClient' => $defaultClient,
-            'clientPageSize' => $clientPageSize
-          ], 'info-'.$batch->id)
-        </div>
-        
-        <span id="operators-list" data-operators='{{ json_encode($analysts) }}'></span>
-        
-        <div class="col-sm-12 p-2">
-          @livewire('batch.dates', ['batch' => $batch], 'dates-'.$batch->id)
-          @livewire('batch.related', ['batch' => $batch], 'related-'.$batch->id)
-        </div>
-        
-        <div class="col-sm-12 p-2">
-          @livewire('batch.tabs', [
-            'batch' => $batch,
-            'not_captured' => $not_captured,
-            'status' => $status
-          ], 'tabs-'.$batch->id)
-        </div>
+      <div class="mt-3">
+        @livewire('batch.info', [
+          'batch' => $batch,
+          'batchID' => $batchID,
+          'clients' => $clients,
+          'sample_types' => $sample_types,
+          'labsections' => $labsections,
+          'samplingmethods' => $samplingmethods,
+          'recieving_users' => $recieving_users,
+          'qc_schemes' => $qc_schemes,
+          'qc_types' => $qc_types,
+          'batch_scope' => $batch_scope,
+          'customer_survey' => $customer_survey,
+          'active_company' => $active_company,
+          'defaultClient' => $defaultClient,
+          'clientPageSize' => $clientPageSize
+        ], 'info-'.$batch->id)
+      </div>
+      
+      <span id="operators-list" data-operators='{{ json_encode($analysts) }}'></span>
+      
+      <div class="mt-4">
+        @livewire('batch.tabs', [
+          'batch' => $batch,
+          'not_captured' => $not_captured,
+          'status' => $status
+        ], 'tabs-'.$batch->id)
       </div>
     </div>
     @endif
+    </div> {{-- close outer px-4 lab-panel-theme --}}
+
     
     {{-- Add Sample Notes Modal (migrated from legacy sample-workflow show view) --}}
     <div id="add-sample-notes" class="modal fade" role="dialog">
@@ -372,11 +375,11 @@
 		$('.batch-info-trigger').on('click', function(){
 			$(this).toggleClass('open');
 			if($(this).hasClass('open')){
-				$(this).html(`<i class="mdi mdi-chevron-double-up"></i> Batch Info`);
+				$(this).html(`<i class="mdi mdi-chevron-double-up"></i> Batch info`);
 				$('#batch-detail-form').removeClass('hidden');
 			}
 			else{
-				$(this).html(`<i class="mdi mdi-chevron-double-down"></i> Batch Info`);
+				$(this).html(`<i class="mdi mdi-chevron-double-down"></i> Batch info`);
 				$('#batch-detail-form').addClass('hidden');
 			}
 		});

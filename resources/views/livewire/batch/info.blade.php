@@ -1,14 +1,15 @@
-<div class="card" style="box-shadow: rgba(149, 157, 165, 0.2) 0px 8px 24px; border-radius: 15px;">
-	<div class="card-body">
-		<h5 class="card-title">
-			<span class="btn btn-default batch-info-trigger"
-				style="box-shadow: rgba(33, 35, 38, 0.1) 0px 10px 20px -10px;">
-				<i class="mdi mdi-chevron-double-down"></i> Batch Info
-			</span>
+<div class="workflow-board-panel">
+	<div class="workflow-board-panel-header">
+		<h5>
+			<i class="mdi mdi-information-outline"></i>
+			Batch details
 		</h5>
-		<hr>
-
-		<form class="{{ $batchID ? 'hidden' : '' }}" action="{{ route('add-batch-info', ['batch' => $batchID]) }}" class="row" id="batch-detail-form"
+		<button type="button" class="btn btn-sm btn-outline-secondary btn-action-sm batch-info-trigger">
+			<i class="mdi mdi-chevron-double-down"></i> Batch info
+		</button>
+	</div>
+	<div class="workflow-board-panel-body flush-top">
+		<form action="{{ route('add-batch-info', ['batch' => $batchID]) }}" class="row {{ $batchID ? 'hidden' : '' }}" id="batch-detail-form"
 			method="POST" autocomplete="off">
 			<?php $maxDate = getTodayDate(); ?>
 			@csrf
@@ -248,8 +249,9 @@
 
 			<div class="row p-2 mt-1 qc-params {{ $batch && $batch->is_qc_batch == 1 ? '' : 'hidden' }}">
 				<div class="col-md-12 mb-2">
-					<div class="alert alert-default bg-light p-2">
-						<h6><i class="mdi mdi-chevron-right"></i> Qc Configurations</h6>
+					<div class="workflow-board-section-label mb-2">
+						<i class="mdi mdi-flask-outline"></i>
+						QC configurations
 					</div>
 				</div>
 				<div class="form-group col-md-4">
@@ -281,8 +283,8 @@
 			</div>
 
 
-			<div id="more-fields" class="hidden p-2">
-				<div class="row p-2 bg-light m-3">
+			<div id="more-fields" class="hidden">
+				<div class="row workflow-board-filter-nested mx-0 mb-3">
 					<div class="form-group col-md-6 btn-group-sm">
 						<label class="control-label">Use of Goods</label>
 						<textarea class="form-control" name="use_of_goods"
@@ -292,11 +294,11 @@
 
 			</div>
 
-			<div class="form-group col-md-12 text-center">
+			<div class="form-group col-md-12 text-center pt-2 border-top" style="border-color: #f1f5f9 !important;">
 				@if(Auth::user()->is_client == 1 && isset($batch->status) && $batch->status != 'Samples En-Route')
 				@else
 					{{-- Allow save for all active stages as per user request --}}
-					<button class="btn btn-primary btn-sm" style="width:60%" id="save-headers">
+					<button type="submit" class="btn btn-primary btn-sm btn-action-sm" style="width:60%; height:auto; min-height:36px;" id="save-headers">
 						<i class="mdi mdi-content-save"></i> Save
 					</button>
 				@endif

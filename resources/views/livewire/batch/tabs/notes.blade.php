@@ -1,18 +1,17 @@
 <div>
-    <div class="card">
-        <div class="card-header d-flex justify-content-between align-items-center">
-            <h5 class="mb-0"><i class="mdi mdi-android-messages"></i> Notes & Reminders</h5>
-            <div class="d-flex align-items-center">
-                <button type="button" 
-                        class="btn btn-primary btn-sm text-nowrap" 
-                        data-target="#add-sample-notes" 
-                        data-toggle="modal"
-                        style="box-shadow: rgba(0, 0, 0, 0.24) 0px 3px 8px; margin-right: 15px;">
-                    <i class="mdi mdi-message-plus"></i> Add Note
+    <div class="workflow-board-panel">
+        <div class="workflow-board-panel-header">
+            <h5><i class="mdi mdi-comment-text-outline"></i> Notes & reminders</h5>
+            <div class="d-flex align-items-center flex-wrap" style="gap: 10px;">
+                <button type="button"
+                        class="btn btn-primary btn-sm btn-action-sm text-nowrap"
+                        data-target="#add-sample-notes"
+                        data-toggle="modal">
+                    <i class="mdi mdi-message-plus"></i> Add note
                 </button>
-                <div class="d-flex align-items-center ml-2 border-left pl-3">
-                    <label for="perPage" class="form-label mb-0 mr-2 text-muted small text-nowrap">Show:</label>
-                    <select wire:model.live="perPage" id="perPage" class="form-control form-control-sm d-inline-block" style="width: 70px;">
+                <div class="d-flex align-items-center border-left pl-3 ml-1">
+                    <label for="perPage" class="form-label mb-0 mr-2 text-muted small text-nowrap">Show</label>
+                    <select wire:model.live="perPage" id="perPage" class="form-control form-control-sm d-inline-block" style="width: 70px; border-radius: 6px;">
                         <option value="10">10</option>
                         <option value="25">25</option>
                         <option value="50">50</option>
@@ -21,7 +20,7 @@
                 </div>
             </div>
         </div>
-        <div class="card-body">
+        <div class="workflow-board-panel-body flush-top">
             <!-- Search Input -->
             <div class="mb-3">
                 <input type="text" 
@@ -32,8 +31,8 @@
 
             @if($comments->count() > 0)
                 <div class="table-responsive">
-                    <table class="table table-hover">
-                        <thead style="background-color: rgba(0, 0, 0, .03);">
+                    <table class="table table-hover workflow-table">
+                        <thead>
                             <tr>
                                 <th>Date</th>
                                 <th>From</th>
@@ -78,8 +77,8 @@
                 </div>
             @else
                 <div class="table-responsive">
-                    <table class="table table-hover">
-                        <thead style="background-color: rgba(0, 0, 0, .03);">
+                    <table class="table table-hover workflow-table">
+                        <thead>
                             <tr>
                                 <th>Date</th>
                                 <th>From</th>
@@ -90,7 +89,7 @@
                         </thead>
                         <tbody>
                             <tr>
-                                <td colspan="6" class="text-center py-5">
+                                <td colspan="5" class="text-center py-5 workflow-empty-state">
                                     <i class="mdi mdi-comment-text-outline text-muted" style="font-size: 48px;"></i>
                                     <h6 class="mt-3 text-muted">No Notes Found</h6>
                                     <p class="text-muted mb-0"><small>

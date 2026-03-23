@@ -1,18 +1,18 @@
 <div>
-    <h5 class="p-2">
-        <i class="mdi mdi-sync-alert"></i> Raw Results
-        <span class="btn btn-sm bg-light float-right" 
-              data-toggle="modal" 
-              data-target="#process-raw-results" 
-              style="box-shadow: rgba(0, 0, 0, 0.24) 0px 3px 8px;">
-            <i class="mdi mdi-cog"></i> Process Results
-        </span>
-    </h5>
-    
-    <!-- Modern Captured Results Table -->
+    <div class="workflow-board-panel">
+        <div class="workflow-board-panel-header">
+            <h5><i class="mdi mdi-sync-alert"></i> Raw results</h5>
+            <button type="button"
+                    class="btn btn-sm btn-outline-secondary btn-action-sm"
+                    data-toggle="modal"
+                    data-target="#process-raw-results">
+                <i class="mdi mdi-cog"></i> Process results
+            </button>
+        </div>
+        <div class="workflow-board-panel-body flush-top p-0">
     <div class="table-responsive">
-        <table class="table table-hover" id="captured-results-table">
-            <thead style="background-color: rgba(0, 0, 0, .03);">
+        <table class="table table-hover workflow-table mb-0" id="captured-results-table">
+            <thead>
                 <tr>
                     <th class="text-center" style="width: 120px;">Sample Code</th>
                     @if(isset($rawResults) && count($rawResults) > 0)
@@ -140,5 +140,7 @@
                 @endif
             </tbody>
         </table>
+    </div>
+        </div>
     </div>
 </div>

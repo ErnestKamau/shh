@@ -373,14 +373,44 @@ class LabDashboardController extends Controller
             })->orderBy('id', 'desc');
         } elseif ($tab === 'approvals') {
             $query->where('status', 'Sample Approval')->orderBy('id', 'desc');
+        } elseif ($tab === 'tat_awareness') {
+            // Batches where Target Date is within 3 days or past
+            $query->whereHas('get_target_date', function($q) {
+                $q->where('date', '<=', \Carbon\Carbon::now()->addDays(3)->format('Y-m-d'));
+            })->orderBy('id', 'desc');
         } else {
-            // Default to My Tasks or 'Samples In Lab'
-            $query->where('status', 'Samples In Lab')->orderBy('id', 'desc');
+            // Default to My Tasks
+            $query->where(function ($q) {
+                $q->where('status', 'Samples In Lab')
+                  ->orWhere(function ($sub) {
+                      $sub->where('status', 'Sample Verification')
+                          ->whereHas('approvers', function ($approverQuery) {
+                              $approverQuery->where('user_id', Auth::id())
+                                            ->whereIn('status', [0, 2]); 
+                          });
+                  });
+            })->orderBy('id', 'desc');
         }
         
         $batches = $query->limit(50)->get()->map(function($item) {
             $targetDate = $item->get_date('Target Date');
             $dateFormatted = $targetDate ? date('Y-m-d', strtotime($targetDate->date)) : 'N/A';
+            
+            $tatStatus = '';
+            if ($targetDate) {
+                $target = \Carbon\Carbon::parse($targetDate->date);
+                $now = \Carbon\Carbon::now()->startOfDay();
+                $diff = $now->diffInDays($target, false); // Negative if past
+                
+                if ($diff < 0) {
+                    $tatStatus = abs((int)$diff) . ' Days Overdue';
+                } elseif ($diff == 0) {
+                    $tatStatus = 'Due Today';
+                } else {
+                    $tatStatus = (int)$diff . ' Days Left';
+                }
+            }
+
             return [
                 'id' => $item->id,
                 'priority' => $item->priority,
@@ -389,6 +419,7 @@ class LabDashboardController extends Controller
                 'sample_type' => $item->sample_type ? $item->sample_type->name : 'N/A',
                 'status' => $item->status,
                 'target_date' => $dateFormatted,
+                'tat_status' => $tatStatus,
                 'sample_count' => $item->samples()->count()
             ];
         });
@@ -420,7 +451,13 @@ class LabDashboardController extends Controller
         }
         $notifications = getBatchNotificationUser();
 
+        // Calculate TAT Warnings (Target date <= today + 3 days)
+        $tat_warnings_count = SampleHeader::where('isactive', 1)
+            ->where('status', '!=', 'Completed')
+            ->whereHas('get_target_date', function($q) {
+                $q->where('date', '<=', \Carbon\Carbon::now()->addDays(3)->format('Y-m-d'));
+            })->count();
 
-        return view('layouts.lab.dashboard', compact('samples', 'samples_reception', 'samples_lab', 'complaint', 'samples_approval', 'samples_verification', 'notifications', 'pending_submission_forms', 'submitted_forms', 'draft_forms'));
+        return view('layouts.lab.dashboard', compact('samples', 'samples_reception', 'samples_lab', 'complaint', 'samples_approval', 'samples_verification', 'notifications', 'pending_submission_forms', 'submitted_forms', 'draft_forms', 'tat_warnings_count'));
     }
 }

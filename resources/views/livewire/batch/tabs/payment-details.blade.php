@@ -1,21 +1,20 @@
 <div>
-    <div class="card">
-        <div class="card-header d-flex justify-content-between align-items-center">
-            <h5 class="mb-0">
-                <i class="mdi mdi-account-cash-outline"></i> Payment Details
+    <div class="workflow-board-panel">
+        <div class="workflow-board-panel-header">
+            <h5>
+                <i class="mdi mdi-account-cash-outline"></i> Payment details
             </h5>
-            <div class="d-flex align-items-center">
-                <button type="button" 
-                        class="btn btn-primary btn-sm text-nowrap" 
-                        data-action="add" 
-                        data-target="#add-payment-details" 
-                        data-toggle="modal"
-                        style="box-shadow: rgba(0, 0, 0, 0.24) 0px 3px 8px; margin-right: 15px;">
-                    <i class="mdi mdi-plus"></i> Add Payment
+            <div class="d-flex align-items-center flex-wrap" style="gap: 10px;">
+                <button type="button"
+                        class="btn btn-primary btn-sm btn-action-sm text-nowrap"
+                        data-action="add"
+                        data-target="#add-payment-details"
+                        data-toggle="modal">
+                    <i class="mdi mdi-plus"></i> Add payment
                 </button>
-                <div class="d-flex align-items-center ml-2 border-left pl-3">
-                    <label for="perPage" class="form-label mb-0 mr-2 text-muted small text-nowrap">Show:</label>
-                    <select wire:model.live="perPage" id="perPage" class="form-control form-control-sm d-inline-block" style="width: 70px;">
+                <div class="d-flex align-items-center border-left pl-3 ml-1">
+                    <label for="perPage" class="form-label mb-0 mr-2 text-muted small text-nowrap">Show</label>
+                    <select wire:model.live="perPage" id="perPage" class="form-control form-control-sm d-inline-block" style="width: 70px; border-radius: 6px;">
                         <option value="10">10</option>
                         <option value="25">25</option>
                         <option value="50">50</option>
@@ -24,7 +23,7 @@
                 </div>
             </div>
         </div>
-        <div class="card-body">
+        <div class="workflow-board-panel-body flush-top">
             <!-- Search Input -->
             <div class="mb-3">
                 <input type="text" 
@@ -35,8 +34,8 @@
 
             @if($paymentDetails->count() > 0)
                 <div class="table-responsive">
-                    <table class="table table-hover" style="width: 100%;">
-                        <thead style="background-color: rgba(0, 0, 0, .03);" class="p-2">
+                    <table class="table table-hover workflow-table" style="width: 100%;">
+                        <thead>
                             <tr>
                                 <th>#</th>
                                 <th nowrap>Payment Method</th>
@@ -78,8 +77,8 @@
                 </div>
             @else
                 <div class="table-responsive">
-                    <table class="table table-hover">
-                        <thead style="background-color: rgba(0, 0, 0, .03);">
+                    <table class="table table-hover workflow-table">
+                        <thead>
                             <tr>
                                 <th>#</th>
                                 <th nowrap>Payment Method</th>
@@ -93,7 +92,7 @@
                         </thead>
                         <tbody>
                             <tr>
-                                <td colspan="8" class="text-center py-5">
+                                <td colspan="8" class="text-center py-5 workflow-empty-state">
                                     <i class="mdi mdi-cash-multiple text-muted" style="font-size: 48px;"></i>
                                     <h6 class="mt-3 text-muted">No Payment Details Found</h6>
                                     <p class="text-muted mb-0"><small>

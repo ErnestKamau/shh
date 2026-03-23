@@ -1,36 +1,162 @@
-<div class="card shadow-sm border-0" style="border-radius: 15px;">
-    <div class="card-body">
-        <h4 class="p-2 mb-0">
-            <span class="float-left">
-                <i class="mdi mdi-layers-triple"></i>
-                @if(isset($batch->id) && $batch->prelim_report_status == 1)
-                    <span class="badge badge-info p-2" style="box-shadow: rgba(0, 0, 0, 0.35) 0px 5px 15px;">Prelim</span>
-                @elseif(isset($batch->id) && $batch->prelim_report_status == 2)
-                    <span class="badge badge-info p-2" style="box-shadow: rgba(0, 0, 0, 0.35) 0px 5px 15px;">Draft</span>
-                @else
-                    <span class="badge badge-pill bg-white pt-2 pb-2 pr-3 pl-3" style="font-weight: 400!important">{!! isset($batch->priority) && $batch->priority != "Normal" ? '<i class="mdi mdi-star text-danger"></i>' : '' !!} {{ $batch->priority ?? '' }}</span>
+<div>
+<style>
+    .batch-header-bar {
+        background: #fff;
+        border: 1px solid #e9ecef;
+        border-radius: 10px;
+        padding: 14px 20px 0 20px;
+        margin-bottom: 0;
+    }
+    .batch-header-top {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        flex-wrap: wrap;
+        gap: 8px;
+        padding-bottom: 12px;
+    }
+    .batch-title-group {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        flex-wrap: wrap;
+    }
+    .batch-code-label {
+        font-size: 1.15rem;
+        font-weight: 700;
+        color: #1e293b;
+        letter-spacing: 0.01em;
+    }
+    .batch-stage-pill {
+        background: #f0f4ff;
+        color: #3b5fc0;
+        border-radius: 20px;
+        padding: 3px 12px;
+        font-size: 0.78rem;
+        font-weight: 600;
+        border: 1px solid #c7d7fc;
+    }
+    .batch-priority-pill {
+        border-radius: 20px;
+        padding: 3px 12px;
+        font-size: 0.78rem;
+        font-weight: 600;
+    }
+    .batch-meta-bar {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        flex-wrap: wrap;
+        border-top: 1px solid #f1f5f9;
+        padding: 8px 0;
+        margin-top: 2px;
+    }
+    .batch-date-pill {
+        display: inline-flex;
+        align-items: center;
+        gap: 4px;
+        background: #f8f9fa;
+        border: 1px solid #e9ecef;
+        border-radius: 20px;
+        padding: 3px 10px;
+        font-size: 0.77rem;
+        color: #495057;
+    }
+    .batch-date-pill .pill-label {
+        color: #94a3b8;
+        font-weight: 600;
+        text-transform: uppercase;
+        font-size: 0.67rem;
+        letter-spacing: 0.04em;
+    }
+    .batch-date-pill .pill-val {
+        font-weight: 600;
+        color: #334155;
+    }
+    .batch-related-pill {
+        display: inline-flex;
+        align-items: center;
+        gap: 4px;
+        background: #f0fdf4;
+        border: 1px solid #bbf7d0;
+        border-radius: 20px;
+        padding: 3px 10px;
+        font-size: 0.77rem;
+        color: #166534;
+        text-decoration: none;
+        font-weight: 600;
+        transition: background 0.2s;
+    }
+    .batch-related-pill:hover {
+        background: #dcfce7;
+        color: #14532d;
+        text-decoration: none;
+    }
+    .meta-divider {
+        color: #cbd5e1;
+        font-size: 0.8rem;
+        margin: 0 2px;
+    }
+    .btn-action-sm {
+        height: 32px;
+        padding: 0 14px;
+        font-size: 0.82rem;
+        border-radius: 6px;
+        display: inline-flex;
+        align-items: center;
+        gap: 5px;
+        font-weight: 500;
+    }
+</style>
+
+<div class="batch-header-bar">
+    <div class="batch-header-top">
+        {{-- Title & badges --}}
+        <div class="batch-title-group">
+            <i class="mdi mdi-layers-triple" style="font-size:1.2rem; color:#64748b;"></i>
+
+            @if(isset($batch->id) && $batch->prelim_report_status == 1)
+                <span class="badge badge-info batch-priority-pill">Prelim</span>
+            @elseif(isset($batch->id) && $batch->prelim_report_status == 2)
+                <span class="badge badge-secondary batch-priority-pill">Draft</span>
+            @else
+                @if(isset($batch->priority) && $batch->priority != "Normal")
+                    <span class="batch-priority-pill" style="background:#fff5f5; color:#dc2626; border:1px solid #fecaca;">
+                        <i class="mdi mdi-star" style="font-size:0.75rem;"></i> {{ $batch->priority }}
+                    </span>
                 @endif
-               {{ isset($batch->batch_code) ? $batch->batch_code.' Batch Info' : 'New Batch' }} 
-                <small class="text-muted">{!! isset($batch->batch_code) ? '<i class="mdi mdi-sitemap"></i> '.$batch->tracking_stage()->name : '' !!}</small>
+            @endif
+
+            <span class="batch-code-label">
+                {{ isset($batch->batch_code) ? $batch->batch_code : 'New Batch' }}
             </span>
-            
-            @if(isset($batch->id))
-            <a href="{{ route('batch-worksheets', ['batch' => $batch->id]) }}" 
-               class="btn btn-sm ml-2 btn-info float-right mr-2" 
-               style="box-shadow: rgba(0, 0, 0, 0.15) 1.95px 1.95px 2.6px;">
+
+            @if(isset($batch->batch_code))
+                <span class="batch-stage-pill">
+                    <i class="mdi mdi-sitemap" style="font-size:0.75rem;"></i>
+                    {{ $batch->tracking_stage()->name }}
+                </span>
+            @endif
+        </div>
+
+        {{-- Action Buttons --}}
+        @if(isset($batch->id))
+        <div class="d-flex align-items-center flex-wrap" style="gap: 6px;">
+
+            <a href="{{ route('batch-worksheets', ['batch' => $batch->id]) }}"
+               class="btn btn-sm btn-outline-info btn-action-sm">
                 <i class="mdi mdi-clipboard-text"></i> Worksheets
             </a>
 
             @if(!$defaultClient)
-            <div class="btn-group float-right mr-2">
+            <div class="btn-group">
                 <button type="button"
-                        class="btn btn-sm btn-white dropdown-toggle"
-                        style="box-shadow: rgba(0, 0, 0, 0.15) 1.95px 1.95px 2.6px;"
+                        class="btn btn-sm btn-outline-secondary btn-action-sm dropdown-toggle"
                         id="moveWorkflowDropdown"
                         data-toggle="dropdown"
                         aria-haspopup="true"
                         aria-expanded="false">
-                    <i class="mdi mdi-swap-vertical"></i> Move To Workflow
+                    <i class="mdi mdi-swap-vertical"></i> Move Workflow
                 </button>
                 <div class="dropdown-menu dropdown-menu-right" aria-labelledby="moveWorkflowDropdown">
                     @foreach($workflows as $item)
@@ -40,9 +166,7 @@
                             <button type="submit"
                                     class="btn btn-link btn-sm text-left w-100"
                                     style="text-decoration: none; color: inherit;">
-                                <small class="text-muted">
-                                    <i class="mdi mdi-subdirectory-arrow-right"></i>
-                                </small>
+                                <small class="text-muted"><i class="mdi mdi-subdirectory-arrow-right"></i></small>
                                 {{ $item }}
                             </button>
                         </form>
@@ -50,25 +174,21 @@
                 </div>
             </div>
             @endif
-            @endif
-            
-            <div class="btn-group float-right">
-                <button type="button" class="btn btn-sm btn-white dropdown-toggle" 
-                        style="box-shadow: rgba(0, 0, 0, 0.15) 1.95px 1.95px 2.6px;" 
-                        type="button" id="dropdownMenuButton" 
+
+            <div class="btn-group">
+                <button type="button" class="btn btn-sm btn-outline-secondary btn-action-sm dropdown-toggle"
+                        id="dropdownMenuButton"
                         data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
-                    Actions
+                    <i class="mdi mdi-dots-horizontal"></i> Actions
                 </button>
                 <div class="dropdown-menu dropdown-menu-right">
+            
                     @if(isset($batch->id))
                         @if($batch->status == 'Finished Sample')
                         <?php $reportpath = '/storage'.$batch->batch_report_url; ?>
-                        
                         <li>
-                            <a target="_blank" href="{{$reportpath}}" class="dropdown-item"><i class="mdi mdi-download mr-2"></i> Download
-                                COA</a>
+                            <a target="_blank" href="{{$reportpath}}" class="dropdown-item"><i class="mdi mdi-download mr-2"></i> Download COA</a>
                         </li>
-                        
                         @endif
                         @if(!in_array($batch->status,array("Completed")))
                             <li>
@@ -94,203 +214,123 @@
                                     <i class="mdi mdi-email-send mr-2"></i> Send Payment Reminder
                                 </span>
                             </li>
-                            @endif
                         @endif
-                    
-                    @if(isset($batch->status) && $batch->status=="Samples In Lab" && Auth::user()->is_client == 0 && $status == 'Samples In Lab')
-                    <li>
-                        <span class="btn btn-sm dropdown-item" wire:click="$set('showBulkUpdateModal', true)" style="cursor: pointer;">
-                            <i class="mdi mdi-database-edit mr-2"></i> Update Sample Data
-                        </span>
-                    </li>
-                    <li>
-                        <span class="btn btn-sm dropdown-item" wire:click="$set('showVerificationModal', true)" style="cursor: pointer;">
-                        <i class="mdi mdi-subdirectory-arrow-right mr-2"></i> Send for Verification
-                        </span>
-                    </li>
-                        <li class="">
-                        <span class="btn btn-sm dropdown-item"  data-target="#view-coa-report" data-toggle="modal" title="View Sample(s) COA"><i class="mdi mdi-subdirectory-arrow-right mr-2"></i> View Report</span>
-                        
-                        </li>
-                        
-                        @if( $batch->prelim_report_status != 0 && $status == 'Sample Verification')
-                        <li>
-                            <span class="btn btn-sm dropdown-item" wire:click="$set('showApprovalModal', true)" style="cursor: pointer;">
-                                <i class="mdi mdi-subdirectory-arrow-right mr-2"></i> Send for Approval
-                            </span>
-                        </li>
-                        <li>
-                            <span class="btn btn-sm dropdown-item"  data-target="#process-results-modal" data-toggle="modal" title="Process Results"><i class="mdi mdi-subdirectory-arrow-right mr-2"></i> Process Results</span>
-                        </li>
-                        {{-- Download COA disabled: use "View Report" instead --}}
-                            @if($batch->invoice_number == '' )
-                                <li>
-                                    <span class="dropdown-item btn btn-sm" data-target="#add-batch-invoice" data-toggle="modal"><i class="mdi mdi-cash-plus mr-2"></i> Add Invoice Details</span>
-                                </li>
-                            @endif
-                        @endif                        
+
+                        @if(isset($batch->status) && $batch->status=="Samples In Lab" && Auth::user()->is_client == 0 && $status == 'Samples In Lab')
+                        <li><span class="btn btn-sm dropdown-item" wire:click="$set('showBulkUpdateModal', true)" style="cursor: pointer;"><i class="mdi mdi-database-edit mr-2"></i> Update Sample Data</span></li>
+                        <li><span class="btn btn-sm dropdown-item" wire:click="$set('showVerificationModal', true)" style="cursor: pointer;"><i class="mdi mdi-subdirectory-arrow-right mr-2"></i> Send for Verification</span></li>
+                        <li><span class="btn btn-sm dropdown-item" data-target="#view-coa-report" data-toggle="modal"><i class="mdi mdi-subdirectory-arrow-right mr-2"></i> View Report</span></li>
+                        @if($batch->prelim_report_status != 0 && $status == 'Sample Verification')
+                        <li><span class="btn btn-sm dropdown-item" wire:click="$set('showApprovalModal', true)" style="cursor: pointer;"><i class="mdi mdi-subdirectory-arrow-right mr-2"></i> Send for Approval</span></li>
+                        <li><span class="btn btn-sm dropdown-item" data-target="#process-results-modal" data-toggle="modal"><i class="mdi mdi-subdirectory-arrow-right mr-2"></i> Process Results</span></li>
+                        @if($batch->invoice_number == '')
+                        <li><span class="dropdown-item btn btn-sm" data-target="#add-batch-invoice" data-toggle="modal"><i class="mdi mdi-cash-plus mr-2"></i> Add Invoice Details</span></li>
                         @endif
-                        
-                        @if(isset($batch->status) && in_array($batch->status, array("Samples In Lab","Sample Verification","Sample Approval")) && Auth::user()->is_client == 0 && $batch->prelim_report_status != 0)
-                            
+                        @endif
+                        @endif
+
+                        @if(isset($batch->status) && in_array($batch->status, ["Samples In Lab","Sample Verification","Sample Approval"]) && Auth::user()->is_client == 0 && $batch->prelim_report_status != 0)
                             @if(auth()->user()->checkVerifyLabSampleRole() && $batch->prelim_batch_status == "Sample Verification" && $batch->prelim_report_status == 2 && $status == 'Sample Verification')
-                            <li>
-                                <span class="btn btn-sm dropdown-item"  data-target="#process-results-modal" data-toggle="modal" title="Process Results"><i class="mdi mdi-subdirectory-arrow-right mr-2"></i> Process Results</span>
-                            </li>
+                            <li><span class="btn btn-sm dropdown-item" data-target="#process-results-modal" data-toggle="modal"><i class="mdi mdi-subdirectory-arrow-right mr-2"></i> Process Results</span></li>
                             @endif
                             @if(auth()->user()->checkVerifyLabSampleRole() && $batch->prelim_batch_status == "Sample Verification" && $batch->prelim_report_status == 1 && $status == 'Sample Verification')
-                            <li>
-                                <span class="btn btn-sm dropdown-item" wire:click="$set('showApprovalModal', true)" style="cursor: pointer;">
-                                    <i class="mdi mdi-subdirectory-arrow-right mr-2"></i> Send for Approval 
-                                </span>
-                            </li>
+                            <li><span class="btn btn-sm dropdown-item" wire:click="$set('showApprovalModal', true)" style="cursor: pointer;"><i class="mdi mdi-subdirectory-arrow-right mr-2"></i> Send for Approval</span></li>
                             @endif
-                    <li>
-                        @if($batch->batch_report_url)
+                            @if($batch->batch_report_url)
                             <?php $reportpath = '/storage'.$batch->batch_report_url; ?>
-                            <a class="btn btn-sm dropdown-item"
-                               target="_blank"
-                               href="{{ $reportpath }}"
-                               title="View Sample(s) COA">
-                                <i class="mdi mdi-subdirectory-arrow-right mr-2"></i> View Report
-                            </a>
-                        @endif
-                    </li>
-
-                        @endif
-                        @if(isset($batch->status) && $batch->status == 'Samples In Lab' && $batch->prelim_report_status == 2)
-                        {{-- Download COA disabled: use "View Report" instead --}}
-                            @if($batch->invoice_number == '' )
-                                <li>
-                                    <span class="dropdown-item btn btn-sm" data-target="#add-batch-invoice" data-toggle="modal"><i class="mdi mdi-cash-plus mr-2"></i> Add Invoice Details</span>
-                                </li>
+                            <li><a class="btn btn-sm dropdown-item" target="_blank" href="{{ $reportpath }}"><i class="mdi mdi-subdirectory-arrow-right mr-2"></i> View Report</a></li>
                             @endif
                         @endif
-                        @if(isset($batch->status) && in_array($batch->status, array("Sample Verification","Sample Approval","Reports for Collection","Reports In Payment")) && Auth::user()->is_client == 0)
-                        
+                        @if(isset($batch->status) && $batch->status == 'Samples In Lab' && $batch->prelim_report_status == 2 && $batch->invoice_number == '')
+                            <li><span class="dropdown-item btn btn-sm" data-target="#add-batch-invoice" data-toggle="modal"><i class="mdi mdi-cash-plus mr-2"></i> Add Invoice Details</span></li>
+                        @endif
+                        @if(isset($batch->status) && in_array($batch->status, ["Sample Verification","Sample Approval","Reports for Collection","Reports In Payment"]) && Auth::user()->is_client == 0)
                             @if($batch->status == "Sample Verification")
                                 @if($notCaptured->count() == 0)
                                     @if(auth()->user()->checkVerifyLabSampleRole())
-                                    <li>
-                                        <span class="dropdown-item"><hr/></span>
-                                    </li>
-                                    <li>
-                                        <span class="btn btn-sm dropdown-item" wire:click="$set('showApprovalModal', true)" style="cursor: pointer;">
-                                            <i class="mdi mdi-subdirectory-arrow-right mr-2"></i> Send for Approval
-                                        </span>
-                                    </li>
+                                    <li><span class="dropdown-item"><hr/></span></li>
+                                    <li><span class="btn btn-sm dropdown-item" wire:click="$set('showApprovalModal', true)" style="cursor: pointer;"><i class="mdi mdi-subdirectory-arrow-right mr-2"></i> Send for Approval</span></li>
                                     @endif
-                                    <li class="hidden">
-                                        @if($batch->batch_report_url)
-                                            <?php $reportpath = '/storage'.$batch->batch_report_url; ?>
-                                            <a class="btn btn-sm dropdown-item"
-                                               target="_blank"
-                                               href="{{ $reportpath }}"
-                                               title="View Sample(s) COA">
-                                                <i class="mdi mdi-subdirectory-arrow-right mr-2"></i> View Report
-                                            </a>
-                                        @endif
-                                    </li>
-                                @else
-                                    <li class="hidden">
-                                        @if($batch->batch_report_url)
-                                            <?php $reportpath = '/storage'.$batch->batch_report_url; ?>
-                                            <a class="btn btn-sm dropdown-item"
-                                               target="_blank"
-                                               href="{{ $reportpath }}"
-                                               title="View Sample(s) COA">
-                                                <i class="mdi mdi-subdirectory-arrow-right mr-2"></i> View Report {{ $notCaptured->count() }}
-                                            </a>
-                                        @endif
-                                    </li>
-                                @endif
-                                @if(in_array($batch->status,["Sample Approval","Reports for Collection","Reports In Payment"]))
-                                <li>
-                                    <span class="btn btn-sm dropdown-item"  data-target="#process-results-modal" data-toggle="modal" title="Process Results"><i class="mdi mdi-subdirectory-arrow-right mr-2"></i> Process Results</span>
-                                </li>
-                                
                                 @endif
                             @endif
-                            
                             @if(in_array($batch->status,["Sample Approval","Reports for Collection","Reports In Payment"]) && $batch->batch_report_url != '')
-                                {{-- Download COA disabled: use "View Report" instead --}}
-                                @if($batch->invoice_number == '' )
-                                <li>
-                                    <span class="dropdown-item btn btn-sm" data-target="#add-batch-invoice" data-toggle="modal"><i class="mdi mdi-cash-plus mr-2"></i> Add Invoice Details</span>
-                                </li>
+                                @if($batch->invoice_number == '')
+                                <li><span class="dropdown-item btn btn-sm" data-target="#add-batch-invoice" data-toggle="modal"><i class="mdi mdi-cash-plus mr-2"></i> Add Invoice Details</span></li>
                                 @endif
-                            
-                            @endif 
-                            @if($batch->status == "Sample Approval")
-                                <li>
-                                    @if($batch->batch_report_url)
-                                        <?php $reportpath = '/storage'.$batch->batch_report_url; ?>
-                                        <a class="btn btn-sm dropdown-item"
-                                           target="_blank"
-                                           href="{{ $reportpath }}"
-                                           title="View Sample(s) COA">
-                                            <i class="mdi mdi-subdirectory-arrow-right mr-2"></i> View Report
-                                        </a>
-                                    @endif
-                                </li>
-                                
-                                @if(in_array($batch->status,["Sample Approval","Reports for Collection","Reports In Payment"]))
-                                <li>
-                                    <span class="btn btn-sm dropdown-item" data-target="#process-results-modal" data-toggle="modal" title="Process Results"><i class="mdi mdi-subdirectory-arrow-right mr-2"></i> Process Results</span>
-                                </li>
-                                @endif
-
-                                @if ($batch->batch_report_url != '' )
-                                    @if($batch->is_qc_batch == 0)
-                                        <li>
-                                            <span class="dropdown-item"><hr/></span>
-                                        </li>
-                                        <li>
-                                            <span class="btn btn-sm dropdown-item" data-target="#send-to-payments-modal" data-toggle="modal" title="Send for  Payment"><i class="mdi mdi-subdirectory-arrow-right mr-2"></i> Send for Payment</span>
-                                        </li>
-                                        <li>
-                                            <span class="btn btn-sm dropdown-item" data-target="#send-to-email-modal" data-toggle="modal" title="Send for Collection"><i class="mdi mdi-email mr-2"></i> Send for Collection</span>
-                                        </li>
-
-                                    @else
-                                        <li>
-                                            <span class="dropdown-item"><hr/></span>
-                                        </li>
-                                        <li>
-                                            <span class="btn btn-sm dropdown-item" data-target="#mark-complete" data-toggle="modal" title="Send for  Payment"><i class="mdi mdi-subdirectory-arrow-right mr-2"></i> Mark as Complete</span>
-                                        </li>
-                                    @endif
-
-                                    
-                                @endif
-                                
-                                
-                                
-                                
-
                             @endif
-                            @if(isset($batch->status) && $batch->status == 'Reports In Payment')
-                                <li>
-                                    <span class="btn btn-sm dropdown-item" data-target="#send-to-email-modal" data-toggle="modal" title="Send for Collection"><i class="mdi mdi-email mr-2"></i> Send for Collection</span>
-                                </li>
+                            @if($batch->status == "Sample Approval")
+                                @if($batch->batch_report_url)
+                                <?php $reportpath = '/storage'.$batch->batch_report_url; ?>
+                                <li><a class="btn btn-sm dropdown-item" target="_blank" href="{{ $reportpath }}"><i class="mdi mdi-subdirectory-arrow-right mr-2"></i> View Report</a></li>
+                                @endif
+                                @if(in_array($batch->status,["Sample Approval","Reports for Collection","Reports In Payment"]))
+                                <li><span class="btn btn-sm dropdown-item" data-target="#process-results-modal" data-toggle="modal"><i class="mdi mdi-subdirectory-arrow-right mr-2"></i> Process Results</span></li>
+                                @endif
+                                @if($batch->batch_report_url != '')
+                                    @if($batch->is_qc_batch == 0)
+                                    <li><span class="dropdown-item"><hr/></span></li>
+                                    <li><span class="btn btn-sm dropdown-item" data-target="#send-to-payments-modal" data-toggle="modal"><i class="mdi mdi-subdirectory-arrow-right mr-2"></i> Send for Payment</span></li>
+                                    <li><span class="btn btn-sm dropdown-item" data-target="#send-to-email-modal" data-toggle="modal"><i class="mdi mdi-email mr-2"></i> Send for Collection</span></li>
+                                    @else
+                                    <li><span class="dropdown-item"><hr/></span></li>
+                                    <li><span class="btn btn-sm dropdown-item" data-target="#mark-complete" data-toggle="modal"><i class="mdi mdi-subdirectory-arrow-right mr-2"></i> Mark as Complete</span></li>
+                                    @endif
+                                @endif
+                            @endif
+                            @if($batch->status == 'Reports In Payment')
+                                <li><span class="btn btn-sm dropdown-item" data-target="#send-to-email-modal" data-toggle="modal"><i class="mdi mdi-email mr-2"></i> Send for Collection</span></li>
                             @endif
                             @if($batch->status == 'Reports In Payment' || $batch->status == 'Reports for Collection')
-                                <li>
-                                    @if($batch->batch_report_url)
-                                        <?php $reportpath = '/storage'.$batch->batch_report_url; ?>
-                                        <a class="btn btn-sm dropdown-item"
-                                           target="_blank"
-                                           href="{{ $reportpath }}"
-                                           title="View Sample(s) COA">
-                                            <i class="mdi mdi-subdirectory-arrow-right mr-2"></i> View Report
-                                        </a>
-                                    @endif
-                                </li>
+                                @if($batch->batch_report_url)
+                                <?php $reportpath = '/storage'.$batch->batch_report_url; ?>
+                                <li><a class="btn btn-sm dropdown-item" target="_blank" href="{{ $reportpath }}"><i class="mdi mdi-subdirectory-arrow-right mr-2"></i> View Report</a></li>
+                                @endif
                             @endif
                         @endif
+                    @endif
                 </div>
             </div>
+        </div> {{-- end action buttons --}}
+        @endif
+    </div> {{-- end batch-header-top --}}
 
+    {{-- META BAR: Dates + Related Batches --}}
+    @if(isset($batch->id))
+    <div class="batch-meta-bar">
+        {{-- Key Dates --}}
+        @foreach (getSampleDateTypes() as $date)
+            @if($date == 'Login Date' || $date == 'Target Date' || $date == 'Processing Date')
+                @php $dateVal = $batch->get_date($date); @endphp
+                <span class="batch-date-pill">
+                    <span class="pill-label">{{ $date }}</span>
+                    <span class="pill-val">{{ $dateVal ? date('d M Y', strtotime($dateVal['date'])) : '—' }}</span>
+                </span>
+            @endif
+        @endforeach
+
+        {{-- Related Batches --}}
+        @if($batch->hasSubmissionForm())
+            @php
+                $relatedBatches = $batch->submissionFormInstance
+                    ? $batch->submissionFormInstance->batches->where('id', '!=', $batch->id)
+                    : collect();
+            @endphp
+            @if($relatedBatches->count() > 0)
+                <span class="meta-divider">|</span>
+                <small class="text-muted" style="font-size:0.7rem; font-weight:600; text-transform:uppercase;">Related:</small>
+                @foreach($relatedBatches as $rb)
+                    <a href="{{ route('view-batch-details', ['batch' => $rb->id, 'client' => 0, 'portal' => 0, 'status' => $rb->status]) }}"
+                       class="batch-related-pill">
+                        <i class="mdi mdi-flask-outline" style="font-size:0.75rem;"></i>
+                        {{ $rb->batch_code }}
+                    </a>
+                @endforeach
+            @endif
+        @endif
+    </div>
+    @endif
+
+</div>
 {{-- MODALS --}}
 
 <style>
@@ -741,7 +781,5 @@
     </div>
 </div>
 @endif
-            
-        </h4>
-    </div>
+{{-- [modals end] --}}
 </div>

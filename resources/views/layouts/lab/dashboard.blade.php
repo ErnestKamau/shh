@@ -82,17 +82,30 @@
         <!-- HEADER -->
         <div class="d-flex justify-content-between align-items-center mb-4">
             <div>
-                <h3 class="mb-1" style="font-weight: 700; color: #1e293b;">Laboratory Dashboard</h3>
-                <p class="text-muted mb-0">Overview of physical and digital lab operations.</p>
+                <h3 class="mb-1" style="font-weight: 700; color: #1e293b;">Welcome back, {{ explode(' ', Auth::user()->name)[0] }} 👋</h3>
+                <p class="text-muted mb-0">{{ \Carbon\Carbon::now()->format('l, jS F Y') }} &mdash; Overview of physical and digital lab operations.</p>
             </div>
             <div class="d-flex align-items-center gap-3">
-                <div class="bento-card px-3 py-2 mr-2 d-flex align-items-center">
+                @if(isset($complaint) && count($complaint) > 0)
+                <div class="bento-card px-3 py-2 mr-2 d-flex align-items-center cursor-pointer" onclick="$('#tab-complaints-link').click()">
                     <span class="pulse-dot pulse-red mr-2" style="--box-color: 239, 68, 68;"></span>
-                    <span class="font-weight-bold text-muted text-sm" style="font-size: 0.85rem;">3 TAT Warnings</span>
+                    <span class="font-weight-bold text-danger text-sm" style="font-size: 0.85rem;">{{ count($complaint) }} Active Complaints</span>
                 </div>
-                <div class="bento-card px-3 py-2 d-flex align-items-center">
+                @else
+                <div class="bento-card px-3 py-2 mr-2 d-flex align-items-center">
                     <span class="pulse-dot pulse-green mr-2" style="--box-color: 16, 185, 129;"></span>
-                    <span class="font-weight-bold text-muted text-sm" style="font-size: 0.85rem;">Operations Healthy</span>
+                    <span class="font-weight-bold text-success text-sm" style="font-size: 0.85rem;">Zero Complaints</span>
+                </div>
+                @endif
+                
+                <div class="bento-card px-3 py-2 mr-2 d-flex align-items-center cursor-pointer" onclick="$('#tab-tat-link').click()">
+                    <span class="pulse-dot mr-2" style="background-color: var(--accent-orange); --box-color: 245, 158, 11;"></span>
+                    <span class="font-weight-bold text-sm" style="font-size: 0.85rem; color: #f59e0b;">{{ $tat_warnings_count ?? 0 }} TAT Warnings</span>
+                </div>
+
+                <div class="bento-card px-3 py-2 d-flex align-items-center">
+                    <span class="pulse-dot mr-2" style="background-color: var(--accent-blue); box-shadow: 0 0 0 0 rgba(14, 165, 233, 0.4); --box-color: 14, 165, 233;"></span>
+                    <span class="font-weight-bold text-muted text-sm" style="font-size: 0.85rem;">{{ isset($notifications) ? count($notifications) : 0 }} Notifications</span>
                 </div>
             </div>
         </div>
@@ -273,10 +286,17 @@
                             <li class="nav-item">
                                 <a class="nav-link" id="tab-approvals" data-toggle="tab" href="#grid-pane" role="tab" onclick="loadGrid('approvals')">📝 Pending Approvals</a>
                             </li>
+                            <li class="nav-item">
+                                <a class="nav-link text-warning" id="tab-tat-link" data-toggle="tab" href="#grid-pane" role="tab" onclick="loadGrid('tat_awareness')">⏳ TAT Watchlist</a>
+                            </li>
+                            <li class="nav-item border-left ml-2 pl-2">
+                                <a class="nav-link text-danger" id="tab-complaints-link" data-toggle="tab" href="#complaints-pane" role="tab">⚠️ Active Complaints</a>
+                            </li>
                         </ul>
                     </div>
                     <div class="section-body p-0">
                         <div class="tab-content">
+                            <!-- Main Smart Grid -->
                             <div class="tab-pane fade show active p-0" id="grid-pane" role="tabpanel">
                                 <div class="table-responsive">
                                     <table class="table smart-table table-hover mb-0">
@@ -293,6 +313,33 @@
                                         </thead>
                                         <tbody id="smart-grid-body">
                                             <tr><td colspan="7" class="text-center py-4 text-muted"><i class="fas fa-spinner fa-spin mr-2"></i> Loading tasks...</td></tr>
+                                        </tbody>
+                                    </table>
+                                </div>
+                            </div>
+                            <!-- Complaints Grid -->
+                            <div class="tab-pane fade p-0" id="complaints-pane" role="tabpanel">
+                                <div class="table-responsive">
+                                    <table class="table smart-table table-hover mb-0">
+                                        <thead>
+                                            <tr>
+                                                <th class="pl-4">Reference</th>
+                                                <th>Detail</th>
+                                                <th class="text-right pr-4">Action</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            @if(isset($complaint) && count($complaint) > 0)
+                                                @foreach($complaint as $c)
+                                                <tr>
+                                                    <td class="pl-4 font-weight-bold text-danger">Complaint ID #{{ $c->id }}</td>
+                                                    <td>Requires attention in the CRM Quality module.</td>
+                                                    <td class="text-right pr-4"><a href="/crm/complaints-manager" class="btn btn-sm btn-outline-danger rounded px-3">Review</a></td>
+                                                </tr>
+                                                @endforeach
+                                            @else
+                                                <tr><td colspan="3" class="text-center py-4 text-muted">Zero active complaints! <i class="fas fa-glass-cheers text-success ml-1"></i></td></tr>
+                                            @endif
                                         </tbody>
                                     </table>
                                 </div>
@@ -330,13 +377,19 @@
                 let prioClass = `priority-${item.priority}`;
                 let prioIcon = item.priority === 'Urgent' ? '<i class="fas fa-exclamation-circle mr-1"></i>' : '';
                 
+                let tatDisplay = item.target_date;
+                if (tabName === 'tat_awareness' && item.tat_status) {
+                    let badgeColor = item.tat_status.includes('Overdue') ? 'badge-danger' : (item.tat_status.includes('Today') ? 'badge-warning' : 'badge-info');
+                    tatDisplay = `${item.target_date} <br><small class="badge ${badgeColor} mt-1">${item.tat_status}</small>`;
+                }
+                
                 html += `<tr style="cursor:pointer;" onclick="window.location.href='/sample-workflow/batch/${item.id}/details'">
                     <td class="pl-4 ${prioClass}">${prioIcon}${item.priority}</td>
                     <td class="font-weight-bold text-primary">${item.batch_code}</td>
                     <td>${item.client_name}</td>
                     <td><span class="badge badge-light px-2 py-1 text-secondary border">${item.sample_type}</span></td>
                     <td><span class="badge ${item.status == 'Sample Approval' ? 'badge-success' : 'badge-info'} px-2 py-1 text-white">${item.status}</span></td>
-                    <td>${item.target_date}</td>
+                    <td>${tatDisplay}</td>
                     <td class="text-right pr-4"><button class="btn btn-sm btn-outline-primary rounded px-3">View</button></td>
                 </tr>`;
             });

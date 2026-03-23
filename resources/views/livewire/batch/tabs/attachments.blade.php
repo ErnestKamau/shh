@@ -1,21 +1,19 @@
 <div>
-    <div class="card">
-        <div class="card-header">
-            <h5 class="card-tile mb-0">
-                <i class="mdi mdi-attachment"></i> Attachments
-                <div class="float-right mb-2" wire:ignore>
-                    <button type="button" class="btn btn-outline-primary btn-sm mr-1" id="merge-attachments-btn"
-                        disabled>
-                        <i class="mdi mdi-file-document-box-multiple"></i> Merge Selected
-                        <span class="badge badge-primary" id="merge-count">0</span>
-                    </button>
-                    <span class="btn btn-outline-info btn-sm" data-target="#add-attachment-batch" data-toggle="modal">
-                        <i class="mdi mdi-plus"></i> Add
-                    </span>
-                </div>
-            </h5>
+    <div class="workflow-board-panel">
+        <div class="workflow-board-panel-header">
+            <h5><i class="mdi mdi-paperclip"></i> Attachments</h5>
+            <div class="d-flex align-items-center flex-wrap" style="gap: 8px;" wire:ignore>
+                <button type="button" class="btn btn-outline-primary btn-sm btn-action-sm" id="merge-attachments-btn"
+                    disabled>
+                    <i class="mdi mdi-file-document-box-multiple"></i> Merge selected
+                    <span class="badge badge-primary ml-1" id="merge-count">0</span>
+                </button>
+                <button type="button" class="btn btn-outline-secondary btn-sm btn-action-sm" data-target="#add-attachment-batch" data-toggle="modal">
+                    <i class="mdi mdi-plus"></i> Add
+                </button>
+            </div>
         </div>
-        <div class="card-body">
+        <div class="workflow-board-panel-body flush-top">
             <!-- Search Input -->
             <div class="mb-3">
                 <input type="text" wire:model.live.debounce.300ms="search" class="form-control"
@@ -23,8 +21,8 @@
             </div>
 
             <div class="table-responsive" id="attachments-container">
-                <table class="table table-bordered mb-0" id="attachments-table">
-                    <thead class="bg-light p-2">
+                <table class="table table-bordered table-hover workflow-table mb-0" id="attachments-table">
+                    <thead>
                         <tr>
                             <th style="width: 30px;">
                                 <input type="checkbox" id="check-all-attachments">

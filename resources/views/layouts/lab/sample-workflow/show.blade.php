@@ -434,8 +434,37 @@
 		background-color: white !important;
 	}
 
-	li.nav-item {
-		margin-top: 1.5%;
+	.bg-white {
+		background-color: white !important;
+	}
+
+	/* Compact, centered tabs */
+	#analyte-tabs {
+		justify-content: center;
+		border-bottom: none;
+		gap: 6px;
+	}
+	#analyte-tabs .nav-item {
+		margin-top: 5px !important;
+		margin-bottom: 5px;
+	}
+	#analyte-tabs .nav-link {
+		font-size: 0.8rem;
+		padding: 6px 14px;
+		border-radius: 30px;
+		border: 1px solid #e2e8f0;
+		color: #64748b;
+		background: #f8fafc;
+		transition: all 0.2s;
+	}
+	#analyte-tabs .nav-link.active {
+		background: #0ea5e9;
+		color: white;
+		border-color: #0ea5e9;
+		font-weight: 600;
+	}
+	#analyte-tabs .nav-link:hover:not(.active) {
+		background: #e2e8f0;
 	}
 </style>
 @endsection
@@ -510,8 +539,9 @@
 	?>
 	<x-bread-crumb :items="$items"></x-bread-crumb>
 
+    <div class="px-4">
 	@if(session('success'))
-	<div class="alert alert-success alert-dismissible fade show m-3" role="alert">
+	<div class="alert alert-success alert-dismissible fade show my-3" role="alert">
 		<i class="mdi mdi-check-circle"></i> {{ session('success') }}
 		<button type="button" class="close" data-dismiss="alert">
 			<span>&times;</span>
@@ -520,7 +550,7 @@
 	@endif
 
 	@if(session('error'))
-	<div class="alert alert-danger alert-dismissible fade show m-3" role="alert">
+	<div class="alert alert-danger alert-dismissible fade show my-3" role="alert">
 		<i class="mdi mdi-alert-circle"></i> {{ session('error') }}
 		<button type="button" class="close" data-dismiss="alert">
 			<span>&times;</span>
@@ -529,7 +559,7 @@
 	@endif
 
 	@if(isset($samplesWithNoResultCapture) && count($samplesWithNoResultCapture) > 0)
-	<div class="alert alert-warning alert-dismissible fade show m-3" role="alert">
+	<div class="alert alert-warning alert-dismissible fade show my-3" role="alert">
 		<i class="mdi mdi-alert"></i>
 		<strong>No Result Capture Needed:</strong> The following samples are marked as having no result capture required:
 		{{ implode(', ', $samplesWithNoResultCapture) }}
@@ -539,7 +569,7 @@
 	</div>
 	@endif
 
-	<h4 class="pt-4 pr-4 pl-4 pb-3">
+	<h4 class="pt-3 pb-3">
 		<i class="mdi mdi-layers-triple"></i>
 		@if(isset($batch->id) && $batch->prelim_report_status == 1)
 		<span class="badge badge-info p-2" style="box-shadow: rgba(0, 0, 0, 0.35) 0px 5px 15px;">Prelim</span>
@@ -803,7 +833,7 @@
 
 	</h4>
 	<div class="row no-gutters">
-		<div class="col-sm-12 p-2">
+		<div class="col-sm-12 pb-2">
 			<div class="card" style="box-shadow: rgba(149, 157, 165, 0.2) 0px 8px 24px;">
 				<div class="card-body">
 					<h5 class="card-title">
@@ -2241,7 +2271,7 @@
 				</div>
 			</div>
 		</div>
-
+	</div>
 	</div>
 </main>
 <!-- Edit Staging Modal -->

@@ -1,7 +1,7 @@
 <div>
     {{-- Flash Messages --}}
     @if (session()->has('success'))
-    <div class="alert alert-success alert-dismissible fade show m-3" role="alert">
+    <div class="alert alert-success alert-dismissible fade show mb-3" role="alert">
         <i class="mdi mdi-check-circle"></i> {{ session('success') }}
         <button type="button" class="close" data-dismiss="alert">
             <span>&times;</span>
@@ -10,7 +10,7 @@
     @endif
 
     @if (session()->has('error'))
-    <div class="alert alert-danger alert-dismissible fade show m-3" role="alert">
+    <div class="alert alert-danger alert-dismissible fade show mb-3" role="alert">
         <i class="mdi mdi-alert-circle"></i> {{ session('error') }}
         <button type="button" class="close" data-dismiss="alert">
             <span>&times;</span>
@@ -20,7 +20,7 @@
 
     {{-- Missing Worksheet Results Alert (for parameters with worksheets but no worksheet data) --}}
     @if(!empty($missingWorksheetParameters) && is_array($missingWorksheetParameters))
-        <div class="alert alert-warning alert-dismissible fade show m-3" role="alert">
+        <div class="alert alert-warning alert-dismissible fade show mb-3" role="alert">
             <i class="mdi mdi-alert-decagram"></i>
             <strong>Missing worksheet results detected:</strong>
             <ul class="mb-0 mt-1">
@@ -39,13 +39,13 @@
 
     {{-- Incomplete Captured Results Alert (no numeric/text result or "No attachment") --}}
     @if(!empty($incompleteCapturedResults) && is_array($incompleteCapturedResults))
-        <div class="alert alert-danger alert-dismissible fade show m-3" role="alert">
+        <div class="alert alert-danger alert-dismissible fade show mb-3" role="alert">
             <i class="mdi mdi-alert"></i>
             <strong>Unfinished / missing results detected:</strong>
             <ul class="mb-0 mt-1">
                 @foreach($incompleteCapturedResults as $item)
                     <li>
-                        Sample {{ $item['sample_code'] ?? 'N/A' }} &mdash;
+                        Item {{ $item['sample_code'] ?? 'N/A' }} &mdash;
                         {{ $item['analysis_type'] ?? 'Analysis' }} /
                         {{ $item['parameter'] ?? 'Parameter' }}
                         ({{ $item['status'] ?? 'incomplete' }})
@@ -60,18 +60,18 @@
 
     {{-- Unprocessed Staging Data Section --}}
     @if(isset($batch->sample_detail_processed) && $batch->sample_detail_processed == 0)
-    <div class="card mb-4">
-        <div class="card-header d-flex justify-content-between align-items-center"
-            style="background: linear-gradient(135deg, #fff3cd, #ffeaa7);">
-            <h5 class="mb-0"><i class="mdi mdi-clipboard-alert"></i> Unprocessed Staging Data</h5>
-            <button type="button" wire:click="addStaging" class="btn btn-success btn-sm">
-                <i class="mdi mdi-plus"></i> Add Staging Record
+    <div class="workflow-board-panel mb-4">
+        <div class="workflow-board-panel-header"
+            style="background: linear-gradient(180deg, #fffbeb 0%, #fef3c7 100%); border-bottom: 1px solid #fcd34d;">
+            <h5><i class="mdi mdi-clipboard-alert"></i> Unprocessed staging data</h5>
+            <button type="button" wire:click="addStaging" class="btn btn-success btn-sm btn-action-sm">
+                <i class="mdi mdi-plus"></i> Add staging record
             </button>
         </div>
-        <div class="card-body">
+        <div class="workflow-board-panel-body flush-top">
             <div class="table-responsive">
-                <table class="table table-sm">
-                    <thead class="bg-light">
+                <table class="table table-sm workflow-table">
+                    <thead>
                         <tr>
                             <th>Actions</th>
                             <th>Specimen Type</th>
@@ -127,34 +127,33 @@
 
     {{-- Sample Configuration Form (Livewire-driven) --}}
     @if(!isset($batch->sample_detail_processed) || $batch->sample_detail_processed == 1)
-    <div class="card-body">
-        <div class="d-flex justify-content-between align-items-center mb-3">
-            <div class="d-flex align-items-center">
-                <h5 class="mb-0 mr-3">Samples Configuration</h5>
-                <button type="button" wire:click="saveSamples" class="btn btn-danger btn-sm text-white"
-                    wire:loading.attr="disabled">
+    <div class="workflow-board-panel">
+        <div class="workflow-board-panel-header">
+            <div class="d-flex align-items-center flex-wrap" style="gap: 10px;">
+                <h5><i class="mdi mdi-flask-outline"></i> Samples configuration</h5>
+                <button type="button" wire:click="saveSamples" class="btn btn-danger btn-sm btn-action-sm text-white"
+                    wire:loading.attr="disabled" style="height: auto; min-height: 32px;">
                     <span wire:loading.remove><i class="mdi mdi-content-save"></i> Save</span>
                     <span wire:loading><i class="mdi mdi-loading mdi-spin"></i> Saving...</span>
                 </button>
             </div>
-
-            <div>
+            <div class="d-flex align-items-center flex-wrap" style="gap: 6px;">
                 @if(in_array($batch->status ?? '', ['Samples Reception', 'Samples En-Route']))
-                <button type="button" wire:click="addSample" class="btn btn-success btn-sm"
+                <button type="button" wire:click="addSample" class="btn btn-success btn-sm btn-action-sm"
                     wire:loading.attr="disabled">
                     <i class="mdi mdi-plus"></i> Add
                 </button>
                 @endif
-                <button type="button" onclick="duplicateSelected()" class="btn btn-primary btn-sm ml-1"
+                <button type="button" onclick="duplicateSelected()" class="btn btn-primary btn-sm btn-action-sm"
                     wire:loading.attr="disabled">
                     <i class="mdi mdi-content-duplicate"></i> Duplicate
                 </button>
             </div>
         </div>
-
+        <div class="workflow-board-panel-body flush-top" style="overflow-x: auto;">
         <div class="table-responsive">
-            <table class="table table-bordered table-sm" style="font-size: 13px;">
-                <thead class="bg-light">
+            <table class="table table-bordered table-sm workflow-table" style="font-size: 13px;">
+                <thead>
                     <tr>
                         <th style="width: 40px; text-align: center;">
                             <input type="checkbox" id="select-all-samples" title="Select All">
@@ -534,13 +533,14 @@
                     @empty
                     <tr>
                         <td colspan="18" class="text-center text-muted py-4">
-                            <i class="mdi mdi-information-outline"></i> No samples configured yet. Click "Add" to create
-                            samples.
+                            <i class="mdi mdi-information-outline"></i> No items configured yet. Click "Add" to create
+                            entries.
                         </td>
                     </tr>
                     @endforelse
                 </tbody>
             </table>
+        </div>
         </div>
     </div>
     @endif
@@ -1503,8 +1503,8 @@
                     @endif
 
                     <!-- Batch & Customer Summary -->
-                    <div class="card mb-3 shadow-sm border-0" style="border-radius: 15px;">
-                        <div class="card-body p-4">
+                    <div class="workflow-board-filter-nested mb-3">
+                        <div class="p-1">
                             {{-- Primary header: Lab No. + Customer --}}
                             <div class="d-flex flex-column flex-md-row justify-content-between align-items-md-center mb-2">
                                 <div class="mb-2 mb-md-0">
@@ -1555,13 +1555,13 @@
 
 
                     <!-- Add New Sample Point Section -->
-                    <div class="card mb-3 shadow-sm border-0" style="border-radius: 15px;">
-                        <div class="card-header bg-light border-0" style="border-radius: 15px 15px 0 0;">
-                            <h6 class="mb-0 text-muted">
-                                <i class="mdi mdi-plus-circle"></i> Add New Sample Point
+                    <div class="workflow-board-panel mb-3">
+                        <div class="workflow-board-panel-header py-2">
+                            <h6 class="mb-0" style="font-size: 0.9rem; font-weight: 600; color: #334155; display: flex; align-items: center; gap: 8px;">
+                                <i class="mdi mdi-plus-circle text-muted"></i> Add new sample point
                             </h6>
                         </div>
-                        <div class="card-body">
+                        <div class="workflow-board-panel-body flush-top">
                             <div class="row">
                                 <div class="col-md-4">
                                     <div class="form-group">
@@ -1689,11 +1689,10 @@
                     </div>
 
                     <!-- Sample Information Table -->
-                    <div class="card shadow-sm border-0" style="border-radius: 15px;">
-                        <div class="card-header bg-light border-0 d-flex justify-content-between align-items-center"
-                            style="border-radius: 15px 15px 0 0;">
-                            <h6 class="mb-0 text-muted">
-                                <i class="mdi mdi-map-marker-multiple"></i> Sample Points Assignment
+                    <div class="workflow-board-panel mb-0">
+                        <div class="workflow-board-panel-header py-2 d-flex justify-content-between align-items-center flex-wrap" style="gap: 10px;">
+                            <h6 class="mb-0" style="font-size: 0.9rem; font-weight: 600; color: #334155;">
+                                <i class="mdi mdi-map-marker-multiple text-muted"></i> Sample points assignment
                             </h6>
                             <div>
                                 <span class="badge badge-info mr-2">Total Qty: {{ $assignTotalQty }}</span>
@@ -1712,10 +1711,10 @@
                                 <i class="mdi mdi-alert-circle"></i> {{ $assignQtyError }}
                             </div>
                         @endif
-                        <div class="card-body p-0">
+                        <div class="workflow-board-panel-body p-0">
                             <div class="table-responsive">
-                                <table class="table table-hover mb-0">
-                                    <thead class="bg-light">
+                                <table class="table table-hover workflow-table mb-0">
+                                    <thead>
                                         <tr>
                                             <th style="width: 50px;" class="text-center">Select</th>
                                             <th>Sample Point</th>

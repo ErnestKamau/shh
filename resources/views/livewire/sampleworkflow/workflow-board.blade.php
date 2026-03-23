@@ -1,16 +1,99 @@
-<div class="container-fluid">
-	<div class="row">
+<div class="container-fluid workflow-board-page lab-panel-theme">
+@include('layouts.lab.partials.lab-panel-theme-styles')
+<style>
+	.workflow-board-header .batch-header-bar {
+		background: #fff;
+		border: 1px solid #e9ecef;
+		border-radius: 10px;
+		padding: 14px 20px 0 20px;
+		margin-bottom: 0;
+	}
+	.workflow-board-header .batch-header-top {
+		display: flex;
+		align-items: center;
+		justify-content: space-between;
+		flex-wrap: wrap;
+		gap: 8px;
+		padding-bottom: 12px;
+	}
+	.workflow-board-header .batch-title-group {
+		display: flex;
+		align-items: center;
+		gap: 10px;
+		flex-wrap: wrap;
+	}
+	.workflow-board-header .batch-code-label {
+		font-size: 1.15rem;
+		font-weight: 700;
+		color: #1e293b;
+		letter-spacing: 0.01em;
+	}
+	.workflow-board-header .batch-stage-pill {
+		background: #f0f4ff;
+		color: #3b5fc0;
+		border-radius: 20px;
+		padding: 3px 12px;
+		font-size: 0.78rem;
+		font-weight: 600;
+		border: 1px solid #c7d7fc;
+	}
+	.workflow-board-header .btn-action-sm {
+		height: 32px;
+		padding: 0 14px;
+		font-size: 0.82rem;
+		border-radius: 6px;
+		display: inline-flex;
+		align-items: center;
+		gap: 5px;
+		font-weight: 500;
+	}
+	.workflow-board-header .workflow-header-actions .btn-group .btn-action-sm {
+		height: 32px;
+	}
+</style>
+	<div class="row workflow-board-header mb-3">
 		<div class="col-12">
-			<div class="card shadow-sm border-0" style="border-radius: 15px;">
-				<div class="card-body">
-					<h4 class="p-2 mb-0">
-						<span class="float-left"><i class="mdi mdi-file-document-edit"></i> Sample Workflow</span>
-						<small> <i class="mdi mdi-circle-medium"></i> {{ $status }}</small>
-						<div class="btn-group float-right">
-							<button type="button" class="btn btn-sm btn-white dropdown-toggle"
-								style="box-shadow: rgba(0, 0, 0, 0.15) 1.95px 1.95px 2.6px;" type="button" id="dropdownMenuButton"
+			<div class="batch-header-bar">
+				<div class="batch-header-top">
+					<div class="batch-title-group">
+						<i class="mdi mdi-file-document-edit" style="font-size:1.2rem; color:#64748b;"></i>
+						<span class="batch-code-label">Sample Workflow</span>
+						<span class="batch-stage-pill">
+							<i class="mdi mdi-sitemap" style="font-size:0.75rem;"></i>
+							{{ $status }}
+						</span>
+					</div>
+					<div class="d-flex align-items-center flex-wrap workflow-header-actions" style="gap: 6px;">
+						@if(in_array($status, ['Sample Approval', 'Sample Verification']))
+							<span class="btn btn-sm btn-outline-danger btn-action-sm"
+								data-status="{{ $status }}" data-toggle="modal" data-target="#awaiting-approval-modal"><i
+									class="mdi mdi-account-check-outline"></i> Batch(es) Awaiting Approval <span
+									class="badge badge-danger badge-pill pt-1" id="approval-counter"></span></span>
+						@endif
+						<span class="btn btn-sm btn-danger btn-action-sm" data-toggle="modal"
+							data-target="#get-batch-tat"><i class="mdi mdi-clock-outline"></i> TAT Today Batches <span
+								class="badge badge-light badge-pill pt-1" id="tat-counter">0</span></span>
+						<div class="btn-group" role="group">
+							<button type="button" class="btn btn-sm btn-primary btn-action-sm dropdown-toggle" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
+								<i class="mdi mdi-form-select"></i> Sample Submissions
+							</button>
+							<div class="dropdown-menu dropdown-menu-right">
+								@if ($status == "Samples Reception")
+									<button class="dropdown-item" type="button" data-toggle="modal" data-target="#add-submission-form-modal">
+										<i class="mdi mdi-plus mr-2"></i> Capture Samples
+									</button>
+									<div class="dropdown-divider"></div>
+								@endif
+								<a class="dropdown-item" href="{{ route('sample-workflow.saved-forms') }}">
+									<i class="mdi mdi-file-document-multiple mr-2"></i> View Submissions
+								</a>
+							</div>
+						</div>
+						<div class="btn-group">
+							<button type="button" class="btn btn-sm btn-outline-secondary btn-action-sm dropdown-toggle"
+								id="dropdownMenuButton"
 								data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
-								Actions
+								<i class="mdi mdi-dots-horizontal"></i> Actions
 							</button>
 							<div class="dropdown-menu dropdown-menu-right">
 								@if(isset($status) && in_array($status, array("Samples En-Route", "Samples Request Review", "Samples Reception", "Samples In Lab")))
@@ -95,7 +178,7 @@
 											Approve Request</span>
 									</li>
 									<li>
-										` <span class="btn btn-sm dropdown-item" disabled
+										<span class="btn btn-sm dropdown-item" disabled
 											data-target="#dispatch-to-labs-modal-review-reject" data-toggle="modal" title="Request Request">
 											<i class="mdi mdi-clipboard-arrow-right mr-2"></i> Reject Request
 										</span>
@@ -124,51 +207,31 @@
 								@endif
 								@if($status == 'Finished Sample')
 									<li>
-										<sppan class="btn btn-sm dropdown-item" disabled data-target="#move-sample-approval"
+										<span class="btn btn-sm dropdown-item" disabled data-target="#move-sample-approval"
 											data-toggle="modal">
 											<i class="mdi mdi-subdirectory-arrow-right mr-2"></i> Return to Approval
-										</sppan>
+										</span>
 									</li>
 								@endif
 							</div>
 						</div>
-
-						<!-- Form Submission Actions - Available for all statuses -->
-						<div class="btn-group float-right mr-2" role="group">
-							<button type="button" class="btn btn-sm btn-primary dropdown-toggle" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
-								<i class="mdi mdi-form-select mr-2"></i> Sample Submissions
-							</button>
-							<div class="dropdown-menu dropdown-menu-right">
-								@if ($status == "Samples Reception")
-									<button class="dropdown-item" data-toggle="modal" data-target="#add-submission-form-modal">
-										<i class="mdi mdi-plus mr-2"></i> Capture Samples
-									</button>
-									<div class="dropdown-divider"></div>
-								@endif
-								<a class="dropdown-item" href="{{ route('sample-workflow.saved-forms') }}">
-									<i class="mdi mdi-file-document-multiple mr-2"></i> View Submissions
-								</a>
-							</div>
-						</div>
-						<span class="btn btn-sm btn-danger float-right mr-2" style="border-radius:25px" data-toggle="modal"
-							data-target="#get-batch-tat"><i class="mdi mdi-clock-outline"></i> TAT Today Batches <span
-								class="badge badge-light badge-pill pt-1" id="tat-counter">0</span> </span>
-						@if(in_array($status, ['Sample Approval', 'Sample Verification']))
-							<span class="btn btn-sm btn-outline-danger float-right mr-2" style="border-radius:25px"
-								data-status="{{$status}}" data-toggle="modal" data-target="#awaiting-approval-modal"><i
-									class="mdi mdi-account-check-outline"></i> Batch(es) Awaiting Approval <span
-									class="badge badge-danger badge-pill pt-1" id="approval-counter"></span> </span>
-						@endif
-					</h4>
+					</div>
 				</div>
 			</div>
 		</div>
 	</div>
 	@if($status == 'All Samples')
-		<b>Apply Filter ?</b>
-
-
-		<form style="background-color:white" class="p-3" action="{{route('sample-workflow', ['status' => $status])}}"
+		<div class="row">
+			<div class="col-12">
+				<div class="workflow-board-panel">
+					<div class="workflow-board-panel-header">
+						<h6>
+							<i class="mdi mdi-filter-variant"></i>
+							Apply filters
+						</h6>
+					</div>
+					<div class="workflow-board-panel-body">
+		<form action="{{route('sample-workflow', ['status' => $status])}}"
 			method="get">
 			<div class="row">
 				<div class="col-md-3">
@@ -228,11 +291,15 @@
 					</div>
 				</div>
 				<div class="col-md-12">
-					<button class="btn btn-sm btn-outline-primary float-right"><i class="mdi mdi-filter-outline"></i>
+					<button type="submit" class="btn btn-sm btn-outline-primary float-right btn-action-sm"><i class="mdi mdi-filter-outline"></i>
 						Apply</button>
 				</div>
 			</div>
 		</form>
+					</div>
+				</div>
+			</div>
+		</div>
 	@endif
 	
 	@if($status != 'All Samples' && $status != 'Finished Sample')
@@ -240,13 +307,14 @@
 		@if($status != 'Samples Reception')
 		<div class="row mb-4 mt-4">
 			<div class="col-12">
-				<div class="card shadow-sm border-0" style="border-radius: 15px;">
-					<div class="card-header bg-light border-0" style="border-radius: 15px 15px 0 0;">
-						<h6 class="mb-0 text-muted">
-							<i class="mdi mdi-filter-variant"></i> Filter Options
+				<div class="workflow-board-panel">
+					<div class="workflow-board-panel-header">
+						<h6>
+							<i class="mdi mdi-filter-variant"></i>
+							Filter options
 						</h6>
 					</div>
-					<div class="card-body p-4">
+					<div class="workflow-board-panel-body">
 						<div class="row">
 							<div class="col-md-4">
 								<div class="form-group mb-3">
@@ -395,15 +463,16 @@
 	
 	<!-- Submission Forms for Reception -->
 	@if($status == 'Samples Reception')
-		<div class="row mb-4 mt-5">
+		<div class="row mb-4 mt-4">
 			<div class="col-12">
-				<div class="card shadow-sm border-0" style="border-radius: 15px;">
-					<div class="card-header bg-light border-0 d-flex justify-content-between align-items-center" style="border-radius: 15px 15px 0 0;">
-						<h5 class="card-title mb-0">
-							<i class="mdi mdi-file-document-multiple"></i> Samples Received
+				<div class="workflow-board-panel">
+					<div class="workflow-board-panel-header">
+						<h5>
+							<i class="mdi mdi-file-document-multiple"></i>
+							Samples received
 						</h5>
 					</div>
-					<div class="card-body">
+					<div class="workflow-board-panel-body flush-top">
 						<!-- Forms Search and Filter -->
 						<div class="row mb-3">
 							<div class="col-md-4">
@@ -438,7 +507,7 @@
 								</div>
 							</div>
 							<div class="col-md-2 d-flex align-items-end">
-								<button wire:click="$set('submissionFormsSearch', ''); $set('submissionFormsStatus', 'submitted'); $set('submissionFormsPriority', '')" class="btn btn-outline-secondary btn-sm mb-2 w-100">
+								<button type="button" wire:click="$set('submissionFormsSearch', ''); $set('submissionFormsStatus', 'submitted'); $set('submissionFormsPriority', '')" class="btn btn-outline-secondary btn-sm mb-2 w-100">
 									<i class="mdi mdi-refresh"></i> Reset
 								</button>
 							</div>
@@ -446,8 +515,8 @@
 
 						@if($this->submissionForms->count() > 0)
 							<div class="table-responsive">
-								<table class="table table-hover">
-									<thead style="background-color: rgba(0, 0, 0, .03);">
+								<table class="table table-hover workflow-table">
+									<thead>
 										<tr>
 											<th>Actions</th>
 											<th>Form Number</th>
@@ -503,13 +572,13 @@
 												<td>{{ $instance->submissionForm->name }}</td>
 												<td>
 													@if($hasBatch)
-														<div class="d-inline-block rounded" style="background-color: #f8f9fa; padding: 6px 12px 6px 16px; box-shadow: inset 4px 0 0 0 #28a745; font-weight: 500; color: #495057; font-size: 0.85rem;">
-															{{ $instance->batches->count() }} Batch{{ $instance->batches->count() > 1 ? 'es' : '' }} Created
-														</div>
+														<span class="workflow-status-chip" style="--chip-accent: #28a745;">
+															{{ $instance->batches->count() }} Batch{{ $instance->batches->count() > 1 ? 'es' : '' }} created
+														</span>
 													@else
-														<div class="d-inline-block rounded" style="background-color: #f8f9fa; padding: 6px 12px 6px 16px; box-shadow: inset 4px 0 0 0 #dc3545; font-weight: 500; color: #495057; font-size: 0.85rem;">
-															Not Created
-														</div>
+														<span class="workflow-status-chip" style="--chip-accent: #dc3545;">
+															Not created
+														</span>
 													@endif
 												</td>
 												<td nowrap>
@@ -539,9 +608,9 @@
 														};
 														$statusText = ucfirst(str_replace('_', ' ', $instance->status));
 													@endphp
-													<div class="d-inline-block rounded" style="background-color: #f8f9fa; padding: 6px 12px 6px 16px; box-shadow: inset 4px 0 0 0 {{ $color }}; font-weight: 500; color: #495057; font-size: 0.85rem;">
+													<span class="workflow-status-chip" style="--chip-accent: {{ $color }};">
 														{{ $statusText }}
-													</div>
+													</span>
 												</td>
 												<td nowrap>
 													@if($instance->submitted_at)
@@ -570,9 +639,9 @@
 								{{ $this->submissionForms->links() }}
 							</div>
 						@else
-							<div class="text-center py-4">
-								<i class="mdi mdi-file-document-outline text-muted" style="font-size: 2rem;"></i>
-								<p class="text-muted mb-0">No submission forms found matching filters.</p>
+							<div class="text-center py-4 workflow-empty-state">
+								<i class="mdi mdi-file-document-outline" style="font-size: 2rem;"></i>
+								<p class="mb-0 mt-2">No submission forms found matching filters.</p>
 							</div>
 						@endif
 					</div>
@@ -585,26 +654,31 @@
 	@if($status != 'Samples Reception')
 	<div class="row">
 		<div class="col-12">
-			<div class="card shadow-sm border-0" style="border-radius: 15px;">
-				<div class="card-header bg-light border-0 d-flex justify-content-between align-items-center" style="border-radius: 15px 15px 0 0;">
-					<h5 class="card-title mb-0">
-						<i class="mdi mdi-file-document-edit"></i> Batches
+			<div class="workflow-board-panel">
+				<div class="workflow-board-panel-header">
+					<h5>
+						<i class="mdi mdi-file-document-edit"></i>
+						Batches
 					</h5>
 					<div class="d-flex align-items-center">
-						<span class="mr-2 text-muted" style="font-size: 0.85rem;">Per page:</span>
-						<select wire:model.live="batchesPerPage" class="form-control form-control-sm" style="width: auto;">
+						<span class="mr-2 text-muted" style="font-size: 0.85rem;">Per page</span>
+						<select wire:model.live="batchesPerPage" class="form-control form-control-sm" style="width: auto; min-width: 4.5rem; border-radius: 6px;">
 							@foreach($batchesPerPageOptions as $size)
 								<option value="{{ $size }}">{{ $size }}</option>
 							@endforeach
 						</select>
 					</div>
 				</div>
-				<div class="card-body">
+				<div class="workflow-board-panel-body">
 					@if($status == 'Finished Sample')
 						<div class="mb-4">
-							<b><u>Apply Filters?</u></b>
-							<form action="{{ route('sample-workflow', ['status' => 'Finished Sample']) }}" class="mt-3" method="get">
-								<div class="row mt-2 p-2 bg-white">
+							<div class="workflow-board-section-label">
+								<i class="mdi mdi-filter-outline"></i>
+								Apply filters
+							</div>
+							<form action="{{ route('sample-workflow', ['status' => 'Finished Sample']) }}" method="get">
+								<div class="workflow-board-filter-nested">
+								<div class="row">
 									<div class="col-md-4">
 										<div class="form-group">
 											<label for="" class="control-label">Receipt Date From</label>
@@ -640,9 +714,10 @@
 									</div>
 									<input type="hidden" name="has_filter" value="1">
 									<div class="col-md-12">
-										<button type="submit" class="btn btn-sm btn-outline-primary float-right"><i
+										<button type="submit" class="btn btn-sm btn-outline-primary float-right btn-action-sm"><i
 												class="mdi mdi-filter"></i> Apply</button>
 									</div>
+								</div>
 								</div>
 							</form>
 						</div>
@@ -654,15 +729,15 @@
 							<div wire:loading.delay
 								 wire:target="search,receiptDateFrom,receiptDateTo,customerFilter,sampleTypeFilter,selectCustomer,clearFilters" 
 								 class="position-absolute w-100 h-100 d-flex align-items-center justify-content-center table-filter-loading" 
-								 style="background-color: rgba(255, 255, 255, 0.9); z-index: 10; top: 0; left: 0; border-radius: 15px; min-height: 200px;">
+								 style="background-color: rgba(255, 255, 255, 0.92); z-index: 10; top: 0; left: 0; border-radius: 10px; min-height: 200px;">
 								<div class="text-center">
 									<span class="spinner-border spinner-border-lg text-primary" role="status" aria-hidden="true"></span>
 									<p class="mt-2 text-muted mb-0">Filtering batches...</p>
 								</div>
 							</div>
 							<div class="table-responsive">
-								<table class="table table-hover" data-fixedcls="{{json_encode(["left" => 3])}}">
-								<thead style="background-color: rgba(0, 0, 0, .03);">
+								<table class="table table-hover workflow-table" data-fixedcls="{{json_encode(["left" => 3])}}">
+								<thead>
 									<tr>
 										<th></th>
 										<th>Priority</th>
@@ -824,16 +899,16 @@
 							</div>
 						</div>
 					@else
-						<div class="text-center py-5">
-							<i class="mdi mdi-file-document-outline text-muted" style="font-size: 3rem;"></i>
-							<h5 class="text-muted mt-3">No batches found</h5>
-							<p class="text-muted">No batches match your current filters.</p>
+						<div class="text-center py-5 workflow-empty-state">
+							<i class="mdi mdi-file-document-outline" style="font-size: 3rem;"></i>
+							<h5 class="mt-3">No batches found</h5>
+							<p class="mb-0">No batches match your current filters.</p>
 						</div>
 					@endif
 					
 					<!-- Legend -->
-					<div class="mt-3 pt-3 border-top">
-						<div class="d-flex flex-wrap gap-3">
+					<div class="workflow-board-legend">
+						<div class="d-flex flex-wrap" style="gap: 1rem;">
 							<div class="d-flex align-items-center">
 								<div class="btn overdue-bg-color btn-sm mr-2"></div>
 								<span class="text-muted">Account Holder(Overdue)</span>
@@ -1898,13 +1973,13 @@
 			color: black;
 		}
 	
-		/* Tag-based Dropdown Styling */
-		.tag-select-container {
+		/* Tag-based Dropdown Styling (sample workflow theme) */
+		.workflow-board-page .tag-select-container {
 			position: relative;
 			cursor: text;
 		}
 	
-		.tag-select-input {
+		.workflow-board-page .tag-select-input {
 			display: flex;
 			flex-wrap: wrap;
 			align-items: center;
@@ -1912,27 +1987,27 @@
 			min-height: 42px;
 			padding: 6px 12px;
 			background: #fff;
-			border: 2px solid #e0e0e0;
-			border-radius: 8px;
-			transition: all 0.3s ease;
+			border: 1px solid #e9ecef;
+			border-radius: 6px;
+			transition: border-color 0.2s ease, box-shadow 0.2s ease;
 		}
 	
-		.tag-select-input:hover {
-			border-color: #007bff;
+		.workflow-board-page .tag-select-input:hover {
+			border-color: #c7d7fc;
 		}
 	
-		.tag-select-input:focus-within {
-			border-color: #007bff;
-			box-shadow: 0 0 0 0.2rem rgba(0, 123, 255, 0.25);
+		.workflow-board-page .tag-select-input:focus-within {
+			border-color: #3b5fc0;
+			box-shadow: 0 0 0 0.2rem rgba(59, 95, 192, 0.12);
 			outline: none;
 		}
 	
-		.tag-badge {
+		.workflow-board-page .tag-badge {
 			display: inline-flex;
 			align-items: center;
 			gap: 4px;
 			padding: 4px 10px;
-			background-color: #007bff;
+			background-color: #3b5fc0;
 			color: white;
 			border-radius: 16px;
 			font-size: 0.875rem;
@@ -1940,18 +2015,18 @@
 			white-space: nowrap;
 		}
 	
-		.tag-badge i {
+		.workflow-board-page .tag-badge i {
 			cursor: pointer;
 			font-size: 1rem;
 			opacity: 0.8;
 			transition: opacity 0.2s;
 		}
 	
-		.tag-badge i:hover {
+		.workflow-board-page .tag-badge i:hover {
 			opacity: 1;
 		}
 	
-		.tag-input {
+		.workflow-board-page .tag-input {
 			flex: 1;
 			min-width: 120px;
 			border: none;
@@ -1960,38 +2035,38 @@
 			font-size: 0.9rem;
 		}
 	
-		.tag-dropdown {
+		.workflow-board-page .tag-dropdown {
 			position: absolute;
 			top: 100%;
 			left: 0;
 			right: 0;
 			background: white;
-			border: 2px solid #007bff;
+			border: 1px solid #c7d7fc;
 			border-top: none;
-			border-radius: 0 0 8px 8px;
+			border-radius: 0 0 6px 6px;
 			max-height: 250px;
 			overflow-y: auto;
 			z-index: 1050;
-			box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
-			margin-top: -2px;
+			box-shadow: 0 4px 12px rgba(15, 23, 42, 0.08);
+			margin-top: -1px;
 		}
 	
-		.tag-dropdown-item {
+		.workflow-board-page .tag-dropdown-item {
 			padding: 10px 16px;
 			cursor: pointer;
 			transition: background-color 0.2s;
-			border-bottom: 1px solid #f0f0f0;
+			border-bottom: 1px solid #f1f5f9;
 		}
 	
-		.tag-dropdown-item:hover {
-			background-color: #f8f9fa;
+		.workflow-board-page .tag-dropdown-item:hover {
+			background-color: #f8fafc;
 		}
 	
-		.tag-dropdown-item:last-child {
+		.workflow-board-page .tag-dropdown-item:last-child {
 			border-bottom: none;
 		}
 	
-		.tag-dropdown-item.text-muted {
+		.workflow-board-page .tag-dropdown-item.text-muted {
 			cursor: default;
 		}
 	</style>
