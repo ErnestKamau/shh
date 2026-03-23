@@ -117,7 +117,7 @@
         }
 
         .pdf-annotation-overlay {
-            font-family: Arial, sans-serif;
+            font-family: "Times New Roman", Times, serif;
             font-size: 14px;
             line-height: 1.4;
             overflow: visible !important;
@@ -353,7 +353,7 @@
                         'insertdatetime media table paste code help wordcount'
                     ],
                     toolbar: 'undo redo | formatselect | bold italic backcolor | alignleft aligncenter alignright alignjustify | bullist numlist outdent indent | removeformat | image | help',
-                    content_style: 'body { font-family: Arial, sans-serif; font-size: 14px; }',
+                    content_style: 'body { font-family: "Times New Roman", Times, serif; font-size: 14px; }',
                     images_upload_handler: function (blobInfo, success, failure, progress) {
                         var xhr, formData;
 
@@ -434,7 +434,24 @@
                 smartForm.style.display = 'block';
             }
 
-            let smartBlockOverlay = null;
+            // Store smart blocks per page so users can place them on multiple pages
+            // and save them as one PDF "collection" in a single operation.
+            const smartBlocksByPage = {}; // { [pageNumber: number]: HTMLDivElement[] }
+            let smartBlockIdCounter = 0;
+            let lastVisibleSmartPage = pdfAnnotator.currentPage || 1;
+
+            const clamp = (value, min, max) => Math.max(min, Math.min(max, value));
+
+            const updateSmartBlockVisibility = function(pageNum) {
+                Object.keys(smartBlocksByPage).forEach(pageKey => {
+                    const pn = parseInt(pageKey, 10);
+                    (smartBlocksByPage[pn] || []).forEach(blockEl => {
+                        blockEl.style.display = (pn === pageNum) ? 'block' : 'none';
+                    });
+                });
+                lastVisibleSmartPage = pageNum;
+            };
+
             const SMART_FONT_SIZE = 8; // small bump for readability
             const SMART_LINE_HEIGHT = 1.35;
             const SMART_PADDING = 6;
@@ -446,10 +463,7 @@
                     smartForm.style.display = 'block';
                 } else {
                     smartForm.style.display = 'none';
-                    if (smartBlockOverlay) {
-                        smartBlockOverlay.remove();
-                        smartBlockOverlay = null;
-                    }
+                    // Keep existing smart blocks: report type affects how new blocks are created.
                 }
             });
 
@@ -460,44 +474,56 @@
                 const dateVal = "{{ date('Y-m-d') }}";
                 const reportType = reportTypeSelect ? reportTypeSelect.value : 'table';
 
-                if (smartBlockOverlay) {
-                    smartBlockOverlay.remove();
-                }
+                const currentPageNumber = pdfAnnotator.currentPage || 1;
 
-                // Create the draggable overlay block
-                smartBlockOverlay = document.createElement('div');
-                smartBlockOverlay.id = 'smart-annotation-block';
+                // Create the draggable overlay block (one per click, per page)
+                smartBlockIdCounter++;
+                const smartInstanceId = `new_smart_${smartBlockIdCounter}`;
+
+                const smartBlockOverlay = document.createElement('div');
+                smartBlockOverlay.id = `smart-annotation-block-${smartBlockIdCounter}`;
                 smartBlockOverlay.className = 'smart-annotation-block';
                 smartBlockOverlay.style.position = 'absolute';
                 // Use (almost) full width of the PDF canvas wrapper
                 const wrapperWidth = wrapper ? wrapper.clientWidth : 540;
                 const fullWidth = Math.max(280, wrapperWidth - (SMART_SIDE_MARGIN * 2));
-                const blockWidth = reportType === 'graph'
-                    ? Math.max(220, Math.floor(fullWidth / 3.5))
-                    : fullWidth;
+                // For graph reports we widen the visible smart-annotation-box by +50%
+                // so long comments wrap instead of overlapping.
+                const graphBaseWidth = Math.max(220, Math.floor(fullWidth / 3.5));
+                const blockWidth = reportType === 'graph' ? (graphBaseWidth * 1.5) : fullWidth;
+                const wrapperHeight = wrapper ? wrapper.clientHeight : 800;
+                // Default to the top half so annotations don't land where the template table is.
+                const initialTopPx = Math.round(clamp(wrapperHeight * 0.15, 50, wrapperHeight * 0.45));
+
                 smartBlockOverlay.style.left = `${SMART_SIDE_MARGIN}px`;
-                smartBlockOverlay.style.top = '700px';
+                smartBlockOverlay.style.top = `${initialTopPx}px`;
                 smartBlockOverlay.style.width = `${blockWidth}px`;
                 smartBlockOverlay.style.border = '2px dashed #3498db';
                 smartBlockOverlay.style.backgroundColor = 'rgba(255,255,255,0.9)';
                 smartBlockOverlay.style.padding = `${SMART_PADDING}px`;
                 smartBlockOverlay.style.zIndex = '100';
                 smartBlockOverlay.style.cursor = 'move';
-                smartBlockOverlay.style.fontFamily = 'Arial, sans-serif';
+                smartBlockOverlay.style.fontFamily = '"Times New Roman", Times, serif';
                 smartBlockOverlay.style.fontSize = `${SMART_FONT_SIZE}px`;
                 smartBlockOverlay.style.lineHeight = `${SMART_LINE_HEIGHT}`;
+                smartBlockOverlay.style.display = (currentPageNumber === pdfAnnotator.currentPage) ? 'block' : 'none';
 
                 // Store data in dataset for extraction later
+                smartBlockOverlay.dataset.smartInstanceId = smartInstanceId;
+                smartBlockOverlay.dataset.pageNumber = String(currentPageNumber);
                 smartBlockOverlay.dataset.remarks = remarks;
                 smartBlockOverlay.dataset.owner = ownerName;
                 smartBlockOverlay.dataset.date = dateVal;
                 smartBlockOverlay.dataset.signatureUrl = signatureUrl;
                 smartBlockOverlay.dataset.reportType = reportType;
+                smartBlockOverlay.dataset.x = '0';
+                smartBlockOverlay.dataset.y = '0';
+                smartBlockOverlay.style.transform = 'translate(0px, 0px)';
 
                 let sigHtml = signatureUrl ? `<img src="${signatureUrl}" style="max-height: 40px;">` : ``;
 
                 smartBlockOverlay.innerHTML = `
-                    <div class="smart-comments" style="font-size: ${SMART_FONT_SIZE}pt; line-height: ${SMART_LINE_HEIGHT}; margin-bottom: ${SMART_SECTION_GAP_PX}px;">
+                    <div class="smart-comments" style="font-size: ${SMART_FONT_SIZE}pt; line-height: ${SMART_LINE_HEIGHT}; margin-bottom: ${SMART_SECTION_GAP_PX}px; word-break: break-word; overflow-wrap: break-word;">
                         <strong>Comments by vet:</strong><br>
                         ${remarks.replace(/\n/g, '<br>')}
                     </div>
@@ -506,7 +532,7 @@
                             <td style="width: 50%; vertical-align: bottom;">${ownerName}</td>
                             <td style="width: 50%; vertical-align: bottom;">
                                 <div>
-                                    <strong>Signature:</strong> ${sigHtml}<br>
+                                    <strong>Signature:</strong> ${sigHtml}<br><br>
                                     <strong>Date:</strong> ${dateVal}
                                 </div>
                             </td>
@@ -515,6 +541,22 @@
                 `;
 
                 wrapper.appendChild(smartBlockOverlay);
+
+                // Measure internal layout once at creation time.
+                // This avoids relying on getBoundingClientRect later when blocks are hidden on other pages.
+                const commentsEl = smartBlockOverlay.querySelector('.smart-comments');
+                const footerEl = smartBlockOverlay.querySelector('.smart-footer');
+                const commentsH = commentsEl ? commentsEl.getBoundingClientRect().height : 0;
+                const footerH = footerEl ? footerEl.getBoundingClientRect().height : 0;
+                const blockH = smartBlockOverlay.getBoundingClientRect().height;
+                smartBlockOverlay.dataset.commentsH = String(commentsH);
+                smartBlockOverlay.dataset.footerH = String(footerH);
+                smartBlockOverlay.dataset.blockH = String(blockH);
+
+                if (!smartBlocksByPage[currentPageNumber]) {
+                    smartBlocksByPage[currentPageNumber] = [];
+                }
+                smartBlocksByPage[currentPageNumber].push(smartBlockOverlay);
 
                 // Make draggable
                 interact(smartBlockOverlay).draggable({
@@ -534,132 +576,147 @@
                         }
                     }
                 });
+
+                updateSmartBlockVisibility(pdfAnnotator.currentPage);
             });
 
-            // Intercept Save Button to convert smart block to actual FPDF annotations
-            const originalSaveBtn = document.getElementById('save-annotations-btn');
-            originalSaveBtn.addEventListener('click', function(e) {
-                if (smartBlockOverlay) {
-                    // Calculate final X and Y
-                    const rect = smartBlockOverlay.getBoundingClientRect();
-                    const wrapperRect = wrapper.getBoundingClientRect();
-                    
-                    const finalX = rect.left - wrapperRect.left;
-                    const finalY = rect.top - wrapperRect.top;
-                    const finalW = rect.width;
-                    const finalH = rect.height;
+            // Convert all smart blocks into pdfAnnotator annotations before saving.
+            // This ensures multi-page "collection" works even if blocks are on pages not currently visible.
+            const convertSmartBlocksToAnnotations = function() {
+                Object.keys(smartBlocksByPage).forEach(pageKey => {
+                    const pageNum = parseInt(pageKey, 10);
+                    const blocks = smartBlocksByPage[pageNum] || [];
+                    if (!blocks.length) return;
 
-                    // Compute dynamic layout so long comments don't overlap footer
-                    const commentsEl = smartBlockOverlay.querySelector('.smart-comments');
-                    const footerEl = smartBlockOverlay.querySelector('.smart-footer');
-                    const commentsH = commentsEl ? commentsEl.getBoundingClientRect().height : 0;
-                    const footerH = footerEl ? footerEl.getBoundingClientRect().height : 0;
-                    const gap = SMART_SECTION_GAP_PX;
-
-                    const remarks = smartBlockOverlay.dataset.remarks;
-                    const owner = smartBlockOverlay.dataset.owner;
-                    const date = smartBlockOverlay.dataset.date;
-                    const sigUrl = smartBlockOverlay.dataset.signatureUrl;
-                    const reportType = smartBlockOverlay.dataset.reportType || 'table';
-
-                    // Ensure page array exists
-                    if (!pdfAnnotator.annotations[pdfAnnotator.currentPage]) {
-                        pdfAnnotator.annotations[pdfAnnotator.currentPage] = [];
+                    if (!pdfAnnotator.annotations[pageNum]) {
+                        pdfAnnotator.annotations[pageNum] = [];
                     }
 
-                    // Add a faint border around the whole smart block only for Graph reports (baked PDF)
-                    if (reportType === 'graph') {
-                        pdfAnnotator.annotations[pdfAnnotator.currentPage].push({
-                            uniqueId: 'new_smart_border',
-                            page_number: pdfAnnotator.currentPage,
+                    blocks.forEach(blockEl => {
+                        const finalX = parseFloat(blockEl.style.left) + (parseFloat(blockEl.dataset.x) || 0);
+                        const finalY = parseFloat(blockEl.style.top) + (parseFloat(blockEl.dataset.y) || 0);
+                        const finalW = parseFloat(blockEl.style.width) || (blockEl.offsetWidth || 200);
+                        const finalH = parseFloat(blockEl.dataset.blockH) || (blockEl.offsetHeight || 30);
+
+                        const commentsH = parseFloat(blockEl.dataset.commentsH) || 0;
+                        const footerH = parseFloat(blockEl.dataset.footerH) || 0;
+                        const gap = SMART_SECTION_GAP_PX;
+
+                        const remarks = blockEl.dataset.remarks || '';
+                        const owner = blockEl.dataset.owner || '';
+                        const date = blockEl.dataset.date || '';
+                        const sigUrl = blockEl.dataset.signatureUrl || null;
+                        const reportType = blockEl.dataset.reportType || 'table';
+
+                        const smartInstanceId = blockEl.dataset.smartInstanceId || 'new_smart';
+                        const uidBase = smartInstanceId;
+
+                        // Add a faint border around the whole smart block only for Graph reports (baked PDF).
+                        // Expand width to ensure the signature fits inside the border.
+                        if (reportType === 'graph') {
+                            const signatureX = finalX + (finalW / 2) + 65;
+                            const signatureW = 70;
+                            const signatureRight = signatureX + signatureW;
+                            // Keep the border rectangle wide enough for the signature.
+                            // The visible smart-annotation-box width is already widened above for graph.
+                            const neededBorderW = Math.max(finalW, signatureRight - finalX);
+
+                            pdfAnnotator.annotations[pageNum].push({
+                                uniqueId: `${uidBase}_border`,
+                                page_number: pageNum,
+                                annotation_type: 'text',
+                                content: '',
+                                htmlContent: '',
+                                x_position: finalX,
+                                y_position: finalY,
+                                width: Math.max(50, neededBorderW),
+                                height: Math.max(30, finalH),
+                                style_data: { borderOnly: true }
+                            });
+                        }
+
+                        pdfAnnotator.annotations[pageNum].push({
+                            uniqueId: `${uidBase}_remarks`,
+                            page_number: pageNum,
                             annotation_type: 'text',
-                            content: '',
-                            htmlContent: '',
-                            x_position: finalX,
-                            y_position: finalY,
-                            width: Math.max(50, finalW),
-                            height: Math.max(30, finalH),
-                            style_data: { borderOnly: true }
+                            content: `<div style="font-size: ${SMART_FONT_SIZE}pt; line-height: ${SMART_LINE_HEIGHT}; word-break: break-word; overflow-wrap: break-word;"><strong>Comments by vet:</strong><br>${remarks.replace(/\n/g, '<br>')}</div>`,
+                            htmlContent: `<div style="font-size: ${SMART_FONT_SIZE}pt; line-height: ${SMART_LINE_HEIGHT}; word-break: break-word; overflow-wrap: break-word;"><strong>Comments by vet:</strong><br>${remarks.replace(/\n/g, '<br>')}</div>`,
+                            x_position: finalX + SMART_PADDING,
+                            y_position: finalY + SMART_PADDING,
+                            width: Math.max(100, finalW - (SMART_PADDING * 2)),
+                            height: Math.max(30, commentsH),
+                            style_data: { fontSize: SMART_FONT_SIZE, color: '#000', noBorder: true }
                         });
-                    }
 
-                    // Add Remarks Text
-                    pdfAnnotator.annotations[pdfAnnotator.currentPage].push({
-                        uniqueId: 'new_smart_remarks',
-                        page_number: pdfAnnotator.currentPage,
-                        annotation_type: 'text',
-                        content: `<div style="font-size: ${SMART_FONT_SIZE}pt; line-height: ${SMART_LINE_HEIGHT};"><strong>Comments by vet:</strong><br>${remarks.replace(/\n/g, '<br>')}</div>`,
-                        htmlContent: `<div style="font-size: ${SMART_FONT_SIZE}pt; line-height: ${SMART_LINE_HEIGHT};"><strong>Comments by vet:</strong><br>${remarks.replace(/\n/g, '<br>')}</div>`,
-                        x_position: finalX + SMART_PADDING,
-                        y_position: finalY + SMART_PADDING,
-                        width: Math.max(100, finalW - (SMART_PADDING * 2)),
-                        height: Math.max(30, commentsH),
-                        style_data: { fontSize: SMART_FONT_SIZE, color: '#000', noBorder: true }
-                    });
-
-                    // Add Owner Text
-                    pdfAnnotator.annotations[pdfAnnotator.currentPage].push({
-                        uniqueId: 'new_smart_owner',
-                        page_number: pdfAnnotator.currentPage,
-                        annotation_type: 'text',
-                        content: `<div style="font-size: ${SMART_FONT_SIZE}pt; line-height: ${SMART_LINE_HEIGHT};">${owner}</div>`,
-                        htmlContent: `<div style="font-size: ${SMART_FONT_SIZE}pt; line-height: ${SMART_LINE_HEIGHT};">${owner}</div>`,
-                        x_position: finalX + SMART_PADDING,
-                        y_position: finalY + SMART_PADDING + commentsH + gap,
-                        width: Math.max(80, (finalW / 2) - SMART_PADDING),
-                        height: Math.max(18, footerH),
-                        style_data: { fontSize: SMART_FONT_SIZE, color: '#000', noBorder: true }
-                    });
-
-                    // Add Signature Image (if exists)
-                    if (sigUrl) {
-                        pdfAnnotator.annotations[pdfAnnotator.currentPage].push({
-                            uniqueId: 'new_smart_sig',
-                            page_number: pdfAnnotator.currentPage,
-                            annotation_type: 'image',
-                            imageData: sigUrl,
-                            content: sigUrl,
-                            x_position: finalX + (finalW / 2) + 65,
-                            y_position: finalY + SMART_PADDING + commentsH + gap - 2,
-                            width: 70,
-                            height: 30
+                        pdfAnnotator.annotations[pageNum].push({
+                            uniqueId: `${uidBase}_owner`,
+                            page_number: pageNum,
+                            annotation_type: 'text',
+                            content: `<div style="font-size: ${SMART_FONT_SIZE}pt; line-height: ${SMART_LINE_HEIGHT};">${owner}</div>`,
+                            htmlContent: `<div style="font-size: ${SMART_FONT_SIZE}pt; line-height: ${SMART_LINE_HEIGHT};">${owner}</div>`,
+                            x_position: finalX + SMART_PADDING,
+                            y_position: finalY + SMART_PADDING + commentsH + gap,
+                            width: Math.max(80, (finalW / 2) - SMART_PADDING),
+                            height: Math.max(18, footerH),
+                            style_data: { fontSize: SMART_FONT_SIZE, color: '#000', noBorder: true }
                         });
-                    }
 
-                    // Add Date & Label Text
-                    pdfAnnotator.annotations[pdfAnnotator.currentPage].push({
-                        uniqueId: 'new_smart_date',
-                        page_number: pdfAnnotator.currentPage,
-                        annotation_type: 'text',
-                        content: `<div style="font-size: ${SMART_FONT_SIZE}pt; line-height: ${SMART_LINE_HEIGHT};"><strong>Signature:</strong><br><strong>Date:</strong> ${date}</div>`,
-                        htmlContent: `<div style="font-size: ${SMART_FONT_SIZE}pt; line-height: ${SMART_LINE_HEIGHT};"><strong>Signature:</strong><br><strong>Date:</strong> ${date}</div>`,
-                        x_position: finalX + (finalW / 2),
-                        y_position: finalY + SMART_PADDING + commentsH + gap,
-                        width: Math.max(80, (finalW / 2) - SMART_PADDING),
-                        height: Math.max(18, footerH),
-                        style_data: { fontSize: SMART_FONT_SIZE, color: '#000', noBorder: true }
+                        if (sigUrl) {
+                            pdfAnnotator.annotations[pageNum].push({
+                                uniqueId: `${uidBase}_sig`,
+                                page_number: pageNum,
+                                annotation_type: 'image',
+                                imageData: sigUrl,
+                                content: sigUrl,
+                                x_position: finalX + (finalW / 2) + 65,
+                                y_position: finalY + SMART_PADDING + commentsH + gap - 2,
+                                width: 70,
+                                height: 30
+                            });
+                        }
+
+                        pdfAnnotator.annotations[pageNum].push({
+                            uniqueId: `${uidBase}_date`,
+                            page_number: pageNum,
+                            annotation_type: 'text',
+                            content: `<div style="font-size: ${SMART_FONT_SIZE}pt; line-height: ${SMART_LINE_HEIGHT};"><strong>Signature:</strong><br><br><strong>Date:</strong> ${date}</div>`,
+                            htmlContent: `<div style="font-size: ${SMART_FONT_SIZE}pt; line-height: ${SMART_LINE_HEIGHT};"><strong>Signature:</strong><br><br><strong>Date:</strong> ${date}</div>`,
+                            x_position: finalX + (finalW / 2),
+                            y_position: finalY + SMART_PADDING + commentsH + gap,
+                            width: Math.max(80, (finalW / 2) - SMART_PADDING),
+                            height: Math.max(18, footerH),
+                            style_data: { fontSize: SMART_FONT_SIZE, color: '#000', noBorder: true }
+                        });
+
+                        // Remove DOM element after conversion.
+                        blockEl.remove();
                     });
+                });
 
-                    // Remove the DOM element so it doesn't get captured by html2canvas if pdfAnnotator starts using it globally later
-                    smartBlockOverlay.remove();
-                    smartBlockOverlay = null;
-                }
-                
-                // Note: we don't prevent default, we just injected the annotations
-                // right before pdfAnnotator's save logic executes (since we added another event listener on the same button, wait, pdfAnnotator sets its click listener in setupEventListeners). 
-                // Wait! If pdfAnnotator sets its listener *during* init(), and our DOMContentLoaded fires *after* its setup, our event listener might fire AFTER pdfAnnotator's! 
-                // Standard addEventListener fires in the order they are attached. 
-                // To guarantee we fire first, we can override pdfAnnotator.saveAnnotations.
-            });
+                // Reset blocks.
+                Object.keys(smartBlocksByPage).forEach(pageKey => {
+                    smartBlocksByPage[pageKey] = [];
+                });
+            };
 
-            // Override pdfAnnotator save method
+            // Override pdfAnnotator save method so conversion happens before annotation serialization.
             const originalSave = pdfAnnotator.saveAnnotations;
             pdfAnnotator.saveAnnotations = function() {
-                if (smartBlockOverlay) {
-                    originalSaveBtn.click(); // Trigger our conversion logic above (actually wait, better to just call it)
+                if (Object.keys(smartBlocksByPage).some(pageKey => (smartBlocksByPage[pageKey] || []).length > 0)) {
+                    convertSmartBlocksToAnnotations();
                 }
                 originalSave.apply(pdfAnnotator);
             };
+
+            // Override page rendering to toggle smart blocks per page.
+            const originalRenderPage = pdfAnnotator.renderPage;
+            pdfAnnotator.renderPage = async function(pageNum) {
+                await originalRenderPage.apply(pdfAnnotator, arguments);
+                updateSmartBlockVisibility(pageNum);
+            };
+
+            // Initial visibility.
+            updateSmartBlockVisibility(pdfAnnotator.currentPage || 1);
 
             // Initialize modal event handlers (using vanilla JS or jQuery if available)
             const modal = document.getElementById('textAnnotationModal');

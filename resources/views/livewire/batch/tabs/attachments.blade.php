@@ -56,7 +56,7 @@
                                 </a>
                                 @if(strtolower($a->file_type) == 'pdf')
                                 <a href="{{ route('show-pdf-annotation-page', $a->id) }}"
-                                    class="btn-sm btn btn-outline-info ml-1" data-toggle="tooltip" title="Annotate PDF">
+                                    class="btn-sm btn btn-outline-info ml-1" data-toggle="tooltip" title="Comment on PDF">
                                     <i class="mdi mdi-comment-text"></i>
                                     @if($a->annotations && $a->annotations->count() > 0)
                                     <span class="badge badge-primary">{{ $a->annotations->count() }}</span>
@@ -91,7 +91,7 @@
                                 </a>
                                 @if(strtolower($a->file_type) == 'pdf')
                                 <a href="{{ route('show-pdf-annotation-page', $a->id) }}"
-                                    class="btn-sm btn btn-outline-info ml-1" data-toggle="tooltip" title="Annotate PDF">
+                                    class="btn-sm btn btn-outline-info ml-1" data-toggle="tooltip" title="Comment on PDF">
                                     <i class="mdi mdi-comment-text"></i>
                                     @if($a->annotations && $a->annotations->count() > 0)
                                     <span class="badge badge-primary">{{ $a->annotations->count() }}</span>

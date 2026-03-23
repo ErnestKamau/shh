@@ -6250,6 +6250,39 @@ class SampleWorkFlowController extends Controller
             $ppi = $scale * 72;
             $pxToMm = 25.4 / $ppi;
 
+            // Smart-annotation font setup.
+            // If an exact Times New Roman TTF is available on the server, we try to embed it.
+            // Otherwise we fall back to TCPDF's built-in `times` font so annotation saving never breaks.
+            $smartFontFamily = 'times';
+            $tnrFontFile = null;
+            $tnrFontCandidates = [
+                public_path('fonts/TimesNewRoman.ttf'),
+                public_path('assets/fonts/TimesNewRoman.ttf'),
+                storage_path('app/fonts/TimesNewRoman.ttf'),
+                storage_path('app/public/fonts/TimesNewRoman.ttf'),
+            ];
+
+            foreach ($tnrFontCandidates as $candidate) {
+                if (is_string($candidate) && file_exists($candidate)) {
+                    $tnrFontFile = $candidate;
+                    break;
+                }
+            }
+
+            if (is_string($tnrFontFile) && $tnrFontFile !== '') {
+                try {
+                    $loadedFontName = \TCPDF_FONTS::addTTFfont($tnrFontFile, 'TrueTypeUnicode', '', 96);
+                    if (is_string($loadedFontName) && $loadedFontName !== '') {
+                        $smartFontFamily = $loadedFontName;
+                    }
+                } catch (\Throwable $e) {
+                    Log::warning('Failed to embed Times New Roman TTF, falling back to TCPDF times', [
+                        'tnrFontFile' => $tnrFontFile,
+                        'error' => $e->getMessage(),
+                    ]);
+                }
+            }
+
             for ($pageNo = 1; $pageNo <= $pageCount; $pageNo++) {
                 $templateId = $pdf->importPage($pageNo);
                 $size = $pdf->getTemplateSize($templateId);
@@ -6281,7 +6314,7 @@ class SampleWorkFlowController extends Controller
                         if (isset($ann['style_data']) && is_array($ann['style_data']) && isset($ann['style_data']['fontSize'])) {
                             $fontSize = (int) $ann['style_data']['fontSize'];
                         }
-                        $pdf->SetFont('helvetica', '', $fontSize);
+                        $pdf->SetFont($smartFontFamily, '', $fontSize);
                         $pdf->SetFillColor(255, 255, 255);
 
                         $border = 1;

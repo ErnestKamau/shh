@@ -278,7 +278,7 @@ class PDFAnnotator {
         tempDiv.style.top = '-9999px';
         tempDiv.style.left = '-9999px';
         tempDiv.style.fontSize = '14px';
-        tempDiv.style.fontFamily = 'Arial, sans-serif';
+        tempDiv.style.fontFamily = '"Times New Roman", Times, serif';
         tempDiv.style.lineHeight = '1.4';
         tempDiv.style.padding = '5px';
         tempDiv.style.width = 'auto';
@@ -821,7 +821,7 @@ class PDFAnnotator {
                 measureDiv.style.position = 'absolute';
                 measureDiv.style.visibility = 'hidden';
                 measureDiv.style.fontSize = '14px';
-                measureDiv.style.fontFamily = 'Arial, sans-serif';
+                measureDiv.style.fontFamily = '"Times New Roman", Times, serif';
                 measureDiv.style.lineHeight = '1.4';
                 measureDiv.style.padding = padding + 'px';
                 measureDiv.style.width = 'auto';
@@ -849,7 +849,7 @@ class PDFAnnotator {
 
                 // Draw text
                 ctx.fillStyle = '#000';
-                ctx.font = '14px Arial';
+                ctx.font = '14px "Times New Roman"';
                 ctx.textBaseline = 'top';
                 ctx.textAlign = 'left';
 
@@ -858,11 +858,11 @@ class PDFAnnotator {
                 const hasItalic = /<em>|<i>/i.test(htmlContent);
 
                 if (hasBold && hasItalic) {
-                    ctx.font = 'bold italic 14px Arial';
+                    ctx.font = 'bold italic 14px "Times New Roman"';
                 } else if (hasBold) {
-                    ctx.font = 'bold 14px Arial';
+                    ctx.font = 'bold 14px "Times New Roman"';
                 } else if (hasItalic) {
-                    ctx.font = 'italic 14px Arial';
+                    ctx.font = 'italic 14px "Times New Roman"';
                 }
 
                 // Render text with proper word wrapping
