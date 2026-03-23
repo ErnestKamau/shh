@@ -11,10 +11,13 @@ class ProcedureWorksheetStep extends Model
     protected $fillable = [
         'procedure_worksheet_id',
         'step',
+        'value_type',
         'is_active',
         'default_equipment_id',
         'default_analyst_id',
         'default_measurand_ids',
+        'default_value',
+        'default_measurand_values',
         'order',
     ];
 
@@ -23,6 +26,7 @@ class ProcedureWorksheetStep extends Model
         'default_measurand_ids' => 'array',
         'default_equipment_id' => 'array',
         'default_analyst_id' => 'array',
+        'default_measurand_values' => 'array',
     ];
 
     public function worksheet()

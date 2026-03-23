@@ -8,6 +8,7 @@ use App\Models\Procedures\ProcedureWorksheetStep;
 use App\Models\Procedures\ProcedureConfigField;
 use App\Models\Procedures\ProcedureTestKitColumn;
 use App\Models\Equipments\Equipment;
+use Carbon\Carbon;
 use App\ReportingUnit;
 use App\User;
 use Livewire\WithPagination;
@@ -42,6 +43,9 @@ class ProcedureWorksheetEditor extends Component
     public $default_equipment_id = null;
     public $default_analyst_id = null;
     public $default_measurand_ids = [];
+    public $value_type = 'text';
+    public $default_value = '';
+    public $default_measurand_values = [];
     
     // Search properties for dropdowns
     public $equipmentSearch = '';
@@ -99,11 +103,92 @@ class ProcedureWorksheetEditor extends Component
 
     protected $rules = [
         'step' => 'required|string|max:255',
+        'value_type' => 'required|in:text,number,time,datetime,date',
+        'default_value' => 'nullable|string|max:255',
+        'default_measurand_values' => 'nullable|array',
+        'default_measurand_values.*' => 'nullable|string|max:255',
         'default_equipment_id' => 'nullable|exists:equipment,id',
         'default_analyst_id' => 'nullable|exists:users,id',
         'default_measurand_ids' => 'nullable|array',
         'is_active' => 'boolean',
     ];
+
+    /**
+     * Normalize the default value to a canonical format compatible with the
+     * browser input types we will render in the worksheet.
+     */
+    protected function normalizeDefaultValue(?string $raw, string $valueType): ?string
+    {
+        if ($raw === null) {
+            return null;
+        }
+
+        $value = trim($raw);
+        if ($value === '') {
+            return null;
+        }
+
+        return match ($valueType) {
+            'date' => $this->normalizeDateValue($value),
+            'time' => $this->normalizeTimeValue($value),
+            'datetime' => $this->normalizeDateTimeValue($value),
+            'number', 'text' => $value,
+            default => $value,
+        };
+    }
+
+    protected function normalizeDateValue(string $value): string
+    {
+        if (\preg_match('/^\d{4}-\d{2}-\d{2}$/', $value) === 1) {
+            return $value;
+        }
+
+        try {
+            return Carbon::parse($value)->format('Y-m-d');
+        } catch (\Throwable) {
+            return $value;
+        }
+    }
+
+    protected function normalizeTimeValue(string $value): string
+    {
+        if (\preg_match('/^\d{2}:\d{2}$/', $value) === 1) {
+            return $value;
+        }
+        if (\preg_match('/^\d{2}:\d{2}:\d{2}$/', $value) === 1) {
+            try {
+                return Carbon::parse($value)->format('H:i');
+            } catch (\Throwable) {
+                return $value;
+            }
+        }
+
+        try {
+            return Carbon::parse($value)->format('H:i');
+        } catch (\Throwable) {
+            return $value;
+        }
+    }
+
+    protected function normalizeDateTimeValue(string $value): string
+    {
+        if (\preg_match('/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}$/', $value) === 1) {
+            return $value;
+        }
+        if (\preg_match('/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}$/', $value) === 1) {
+            try {
+                return Carbon::parse($value)->format('Y-m-d\TH:i');
+            } catch (\Throwable) {
+                return $value;
+            }
+        }
+
+        try {
+            return Carbon::parse($value)->format('Y-m-d\TH:i');
+        } catch (\Throwable) {
+            return $value;
+        }
+    }
 
     protected function configFieldRules(): array
     {
@@ -227,12 +312,42 @@ class ProcedureWorksheetEditor extends Component
         $this->default_equipment_id = $step->default_equipment_id;
         $this->default_analyst_id = $step->default_analyst_id;
         $this->default_measurand_ids = $step->default_measurand_ids ?? [];
+        $this->value_type = $step->value_type ?: 'text';
+        $this->default_value = $step->default_value ?? '';
+        $this->default_measurand_values = $step->default_measurand_values ?? [];
         $this->showModal = true;
     }
 
     public function save()
     {
         $this->validate();
+
+        $normalizedDefault = $this->normalizeDefaultValue(
+            $this->default_value,
+            (string) $this->value_type
+        );
+
+        $allowedMeasurandIds = array_map('strval', $this->default_measurand_ids ?? []);
+        $normalizedMeasurandDefaults = [];
+        if (is_array($this->default_measurand_values)) {
+            foreach ($this->default_measurand_values as $measurandId => $rawValue) {
+                $mid = (string) $measurandId;
+                if (! in_array($mid, $allowedMeasurandIds, true)) {
+                    continue;
+                }
+
+                $normalized = $this->normalizeDefaultValue(
+                    is_string($rawValue) ? $rawValue : (string) $rawValue,
+                    (string) $this->value_type
+                );
+
+                if ($normalized === null || trim((string) $normalized) === '') {
+                    continue;
+                }
+
+                $normalizedMeasurandDefaults[$mid] = $normalized;
+            }
+        }
 
         ProcedureWorksheetStep::updateOrCreate(
             ['id' => $this->editingStepId],
@@ -243,6 +358,9 @@ class ProcedureWorksheetEditor extends Component
                 'default_equipment_id' => $this->default_equipment_id,
                 'default_analyst_id' => $this->default_analyst_id,
                 'default_measurand_ids' => $this->default_measurand_ids,
+                'value_type' => $this->value_type,
+                'default_value' => $normalizedDefault,
+                'default_measurand_values' => $normalizedMeasurandDefaults,
             ]
         );
 
@@ -297,6 +415,9 @@ class ProcedureWorksheetEditor extends Component
         $this->default_equipment_id = null;
         $this->default_analyst_id = null;
         $this->default_measurand_ids = [];
+        $this->value_type = 'text';
+        $this->default_value = '';
+        $this->default_measurand_values = [];
         $this->equipmentSearch = '';
         $this->analystSearch = '';
         $this->measurandSearch = '';
@@ -356,6 +477,9 @@ class ProcedureWorksheetEditor extends Component
                     'default_equipment_id' => $step->default_equipment_id,
                     'default_analyst_id' => $step->default_analyst_id,
                     'default_measurand_ids' => $step->default_measurand_ids,
+                    'value_type' => $step->value_type ?: 'text',
+                    'default_value' => $step->default_value,
+                    'default_measurand_values' => $step->default_measurand_values,
                     'order' => $currentMaxOrder,
                 ]);
             }

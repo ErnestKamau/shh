@@ -360,6 +360,14 @@
                                                 $selectedMeasurandIds = $stepMeasurandOverrides[$step->id] ?? [];
                                                 $measurandLookup = collect($this->measurandOptions ?? [])
                                                 ->keyBy('id');
+                                                $valueType = $step->value_type ?: 'text';
+                                                $stepInputType = match ($valueType) {
+                                                    'number' => 'number',
+                                                    'time' => 'time',
+                                                    'datetime' => 'datetime-local',
+                                                    'date' => 'date',
+                                                    default => 'text',
+                                                };
                                                 @endphp
 
                                                 @if(!empty($selectedMeasurandIds))
@@ -371,14 +379,14 @@
                                                     <span class="badge badge-light border mr-2" style="min-width: 80px;">
                                                         {{ $label }}
                                                     </span>
-                                                    <input type="text" class="form-control form-control-sm"
+                                                    <input type="{{ $stepInputType }}" class="form-control form-control-sm"
                                                         wire:model.live.debounce.1000ms="inputValues.{{ $selectedResults->first()->id }}.{{ $step->id }}.{{ $mId }}"
                                                         wire:blur="autosaveStepValue({{ $step->id }})">
                                                 </div>
                                                 @endforeach
                                                 @else
                                                 {{-- Fallback: single value field when no measurands selected --}}
-                                                <input type="text" class="form-control"
+                                            <input type="{{ $stepInputType }}" class="form-control"
                                                     wire:model.live.debounce.1000ms="inputValues.{{ $selectedResults->first()->id }}.{{ $step->id }}"
                                                     wire:blur="autosaveStepValue({{ $step->id }})">
                                                 @endif

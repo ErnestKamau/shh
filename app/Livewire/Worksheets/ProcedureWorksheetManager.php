@@ -538,6 +538,10 @@ class ProcedureWorksheetManager extends Component
                     : [];
             }
         }
+
+        // Seed configured per-step default values into inputValues (and
+        // persist them immediately) for the currently selected samples.
+        $this->seedDefaultStepValuesForSelectedResults($steps, $selectedResultIds);
     }
 
     /**
@@ -1641,6 +1645,10 @@ class ProcedureWorksheetManager extends Component
                 ]
             );
         }
+
+        // Ensure any newly selected measurands receive configured default
+        // values immediately (and are persisted for PDF output).
+        $this->seedDefaultStepValuesForStepId($stepId, $selectedIds);
     }
 
     /**
@@ -1906,6 +1914,285 @@ class ProcedureWorksheetManager extends Component
 
             $this->flashType = 'error';
             $this->flashMessage = 'Error posting procedure worksheet results: ' . $e->getMessage();
+        }
+    }
+
+    private function seedDefaultStepValuesForSelectedResults(\Illuminate\Support\Collection $steps, array $selectedResultIds): void
+    {
+        if (empty($selectedResultIds)) {
+            return;
+        }
+
+        foreach ($steps as $step) {
+            if ($step instanceof ProcedureWorksheetStep) {
+                $this->seedDefaultStepValuesForStepModel($step, $selectedResultIds);
+            }
+        }
+    }
+
+    private function seedDefaultStepValuesForStepId(int $stepId, array $selectedResultIds): void
+    {
+        if (empty($selectedResultIds)) {
+            return;
+        }
+
+        $step = ProcedureWorksheetStep::find($stepId);
+        if (! $step) {
+            return;
+        }
+
+        $this->seedDefaultStepValuesForStepModel($step, $selectedResultIds);
+    }
+
+    private function seedDefaultStepValuesForStepModel(ProcedureWorksheetStep $step, array $selectedResultIds): void
+    {
+        $stepId = (int) $step->id;
+        $valueType = (string) ($step->value_type ?: 'text');
+
+        $stepDefaultNormalized = $this->normalizeStepValueForInput(
+            is_string($step->default_value ?? null) ? (string) $step->default_value : null,
+            $valueType
+        );
+
+        $perMeasurandDefaultsRaw = is_array($step->default_measurand_values ?? null)
+            ? $step->default_measurand_values
+            : [];
+
+        $perMeasurandDefaults = [];
+        foreach ($perMeasurandDefaultsRaw as $measurandId => $rawValue) {
+            $perMeasurandDefaults[(string) $measurandId] = $rawValue;
+        }
+
+        $hasAnyPerMeasurandDefaults = false;
+        foreach ($perMeasurandDefaults as $rawValue) {
+            $normalized = $this->normalizeStepValueForInput(
+                is_string($rawValue) ? $rawValue : (string) $rawValue,
+                $valueType
+            );
+            if ($normalized !== null && trim((string) $normalized) !== '') {
+                $hasAnyPerMeasurandDefaults = true;
+                break;
+            }
+        }
+
+        if (
+            ($stepDefaultNormalized === null || trim((string) $stepDefaultNormalized) === '')
+            && ! $hasAnyPerMeasurandDefaults
+        ) {
+            return;
+        }
+
+        $measurandIds = $this->stepMeasurandOverrides[$stepId] ?? [];
+
+        foreach ($selectedResultIds as $capturedResultId) {
+            $capturedResultId = (int) $capturedResultId;
+
+            $current = $this->inputValues[$capturedResultId][$stepId] ?? null;
+            $changed = false;
+
+            if (!empty($measurandIds)) {
+                // UI expects a per-measurand value map when measurands are selected.
+                if (is_array($current)) {
+                    foreach ($measurandIds as $mId) {
+                        $mId = (string) $mId;
+                        $existing = $current[$mId] ?? null;
+
+                        if ($existing === null || trim((string) ($existing ?? '')) === '') {
+                            $perRaw = $perMeasurandDefaults[$mId] ?? null;
+                            $perNormalized = $this->normalizeStepValueForInput(
+                                $perRaw === null ? null : (is_string($perRaw) ? $perRaw : (string) $perRaw),
+                                $valueType
+                            );
+
+                            $shouldUseStepDefault = $stepDefaultNormalized !== null
+                                && trim((string) $stepDefaultNormalized) !== '';
+
+                            if ($perNormalized !== null && trim((string) $perNormalized) !== '') {
+                                $current[$mId] = $perNormalized;
+                                $changed = true;
+                                continue;
+                            }
+
+                            if ($shouldUseStepDefault) {
+                                $current[$mId] = $stepDefaultNormalized;
+                                $changed = true;
+                            }
+
+                            // Else: leave it empty (means "keep blank" for this measurand).
+                        }
+
+                        $normalized = $this->normalizeStepValueForInput((string) $existing, $valueType);
+                        if ($normalized !== null && $normalized !== (string) $existing) {
+                            $current[$mId] = $normalized;
+                        }
+                    }
+                } else {
+                    // If current value is scalar (legacy/mismatch), preserve it if non-empty.
+                    $scalarStr = $current === null ? '' : (string) $current;
+                    $scalarStrTrim = trim($scalarStr);
+
+                    $map = [];
+
+                    if ($scalarStrTrim !== '') {
+                        $mapValue = $this->normalizeStepValueForInput($scalarStrTrim, $valueType) ?? $scalarStrTrim;
+                        foreach ($measurandIds as $mId) {
+                            $map[(string) $mId] = $mapValue;
+                        }
+                        $changed = true;
+                    } else {
+                        $shouldUseStepDefault = $stepDefaultNormalized !== null
+                            && trim((string) $stepDefaultNormalized) !== '';
+
+                        foreach ($measurandIds as $mId) {
+                            $mId = (string) $mId;
+                            $perRaw = $perMeasurandDefaults[$mId] ?? null;
+                            $perNormalized = $this->normalizeStepValueForInput(
+                                $perRaw === null ? null : (is_string($perRaw) ? $perRaw : (string) $perRaw),
+                                $valueType
+                            );
+
+                            if ($perNormalized !== null && trim((string) $perNormalized) !== '') {
+                                $map[$mId] = $perNormalized;
+                                $changed = true;
+                                continue;
+                            }
+
+                            if ($shouldUseStepDefault) {
+                                $map[$mId] = $stepDefaultNormalized;
+                                $changed = true;
+                            }
+                        }
+                    }
+
+                    $current = $map;
+                }
+            } else {
+                // UI expects a scalar when no measurands are selected.
+                if (is_array($current)) {
+                    $firstNonEmpty = '';
+                    foreach ($current as $v) {
+                        $vStr = $v === null ? '' : (string) $v;
+                        if (trim($vStr) !== '') {
+                            $firstNonEmpty = $vStr;
+                            break;
+                        }
+                    }
+
+                    $current = $firstNonEmpty;
+                    $changed = $firstNonEmpty !== '';
+                }
+
+                $currentStr = $current === null ? '' : (string) $current;
+
+                if (trim($currentStr) === '') {
+                    $current = $stepDefaultNormalized;
+                    $changed = true;
+                } else {
+                    $normalizedScalar = $this->normalizeStepValueForInput($currentStr, $valueType);
+                    if ($normalizedScalar !== null && $normalizedScalar !== $currentStr) {
+                        $current = $normalizedScalar;
+                    }
+                }
+            }
+
+            if (! isset($this->inputValues[$capturedResultId])) {
+                $this->inputValues[$capturedResultId] = [];
+            }
+
+            $this->inputValues[$capturedResultId][$stepId] = $current;
+
+            if ($changed) {
+                $valueToStore = is_array($current) ? json_encode($current) : ($current ?? '');
+
+                CapturedProcedureValue::updateOrCreate(
+                    [
+                        'captured_result_id' => $capturedResultId,
+                        'procedure_worksheet_step_id' => $stepId,
+                    ],
+                    [
+                        'value' => $valueToStore,
+                    ]
+                );
+            }
+        }
+    }
+
+    /**
+     * Normalize a stored step value into the canonical format expected by the
+     * HTML input controls we render for that step type.
+     */
+    private function normalizeStepValueForInput(?string $value, string $valueType): ?string
+    {
+        if ($value === null) {
+            return null;
+        }
+
+        $value = trim($value);
+        if ($value === '') {
+            return '';
+        }
+
+        return match ($valueType) {
+            'date' => $this->normalizeDateValueForInput($value),
+            'time' => $this->normalizeTimeValueForInput($value),
+            'datetime' => $this->normalizeDateTimeValueForInput($value),
+            'number', 'text' => $value,
+            default => $value,
+        };
+    }
+
+    private function normalizeDateValueForInput(string $value): string
+    {
+        if (\preg_match('/^\d{4}-\d{2}-\d{2}$/', $value) === 1) {
+            return $value;
+        }
+
+        try {
+            return \Carbon\Carbon::parse($value)->format('Y-m-d');
+        } catch (\Throwable) {
+            return $value;
+        }
+    }
+
+    private function normalizeTimeValueForInput(string $value): string
+    {
+        if (\preg_match('/^\d{2}:\d{2}$/', $value) === 1) {
+            return $value;
+        }
+
+        if (\preg_match('/^\d{2}:\d{2}:\d{2}$/', $value) === 1) {
+            try {
+                return \Carbon\Carbon::parse($value)->format('H:i');
+            } catch (\Throwable) {
+                return $value;
+            }
+        }
+
+        try {
+            return \Carbon\Carbon::parse($value)->format('H:i');
+        } catch (\Throwable) {
+            return $value;
+        }
+    }
+
+    private function normalizeDateTimeValueForInput(string $value): string
+    {
+        if (\preg_match('/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}$/', $value) === 1) {
+            return $value;
+        }
+
+        if (\preg_match('/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}$/', $value) === 1) {
+            try {
+                return \Carbon\Carbon::parse($value)->format('Y-m-d\TH:i');
+            } catch (\Throwable) {
+                return $value;
+            }
+        }
+
+        try {
+            return \Carbon\Carbon::parse($value)->format('Y-m-d\TH:i');
+        } catch (\Throwable) {
+            return $value;
         }
     }
 

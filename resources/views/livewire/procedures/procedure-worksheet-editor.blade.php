@@ -745,6 +745,41 @@
 
                             <div class="row">
                                 <div class="col-md-6 mb-3">
+                                    <label class="form-label">
+                                        Value Type <span class="text-danger">*</span>
+                                    </label>
+                                    <select wire:model.live="value_type" class="form-control modern-select">
+                                        <option value="text">Text</option>
+                                        <option value="number">Number</option>
+                                        <option value="time">Time</option>
+                                        <option value="datetime">Date &amp; Time</option>
+                                        <option value="date">Date</option>
+                                    </select>
+                                    @error('value_type') <span class="text-danger">{{ $message }}</span> @enderror
+                                </div>
+
+                                <div class="col-md-6 mb-3">
+                                    @php
+                                        $defaultInputType = match($value_type) {
+                                            'number' => 'number',
+                                            'date' => 'date',
+                                            'time' => 'time',
+                                            'datetime' => 'datetime-local',
+                                            default => 'text',
+                                        };
+                                    @endphp
+                                    <label class="form-label">Default Value</label>
+                                    <input type="{{ $defaultInputType }}"
+                                           wire:model="default_value"
+                                           class="form-control"
+                                           @if($value_type === 'number') step="any" @endif
+                                    >
+                                    @error('default_value') <span class="text-danger">{{ $message }}</span> @enderror
+                                </div>
+                            </div>
+
+                            <div class="row">
+                                <div class="col-md-6 mb-3">
                                     <label class="form-label">Default Equipment</label>
                                     <div class="position-relative" wire:click.outside="$set('showEquipmentDropdown', false)">
                                         @if($selectedEquipment)
@@ -829,6 +864,39 @@
                                     @endif
                                 </div>
                             </div>
+
+                            @if(count($selectedMeasurands) > 0)
+                                <div class="mb-3">
+                                    @php
+                                        $perMeasInputType = match($value_type) {
+                                            'number' => 'number',
+                                            'date' => 'date',
+                                            'time' => 'time',
+                                            'datetime' => 'datetime-local',
+                                            default => 'text',
+                                        };
+                                    @endphp
+                                    <label class="form-label">
+                                        Default Values (per measurand)
+                                        <span class="text-muted" style="font-size: 0.85em;">
+                                            (leave blank to keep it empty)
+                                        </span>
+                                    </label>
+                                    <div class="row g-2">
+                                        @foreach($selectedMeasurands as $m)
+                                            <div class="col-md-6">
+                                                <label class="form-label small mb-1">{{ $m->name }}</label>
+                                                <input
+                                                    type="{{ $perMeasInputType }}"
+                                                    wire:model="default_measurand_values.{{ $m->id }}"
+                                                    class="form-control"
+                                                    @if($value_type === 'number') step="any" @endif
+                                                >
+                                            </div>
+                                        @endforeach
+                                    </div>
+                                </div>
+                            @endif
 
                             <div class="mb-3">
                                 <div class="form-check">

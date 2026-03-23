@@ -335,6 +335,45 @@
                 @foreach($steps as $step)
                     @php
                         $measurandNames = $step->measurands?->pluck('name', 'id') ?? collect();
+                        $valueType = $step->value_type ?: 'text';
+
+                        $formatStepValue = function ($raw) use ($valueType): string {
+                            if ($raw === null) {
+                                return '';
+                            }
+                            $value = trim((string) $raw);
+                            if ($value === '') {
+                                return '';
+                            }
+
+                            return match ($valueType) {
+                                'date' => (function () use ($value): string {
+                                    try {
+                                        return \Carbon\Carbon::parse($value)->format('d/m/Y');
+                                    } catch (\Throwable) {
+                                        return $value;
+                                    }
+                                })(),
+                                'time' => (function () use ($value): string {
+                                    try {
+                                        if (\preg_match('/^\d{2}:\d{2}$/', $value) === 1) {
+                                            return $value;
+                                        }
+                                        return \Carbon\Carbon::parse($value)->format('H:i');
+                                    } catch (\Throwable) {
+                                        return $value;
+                                    }
+                                })(),
+                                'datetime' => (function () use ($value): string {
+                                    try {
+                                        return \Carbon\Carbon::parse($value)->format('d/m/Y H:i');
+                                    } catch (\Throwable) {
+                                        return $value;
+                                    }
+                                })(),
+                                default => $value,
+                            };
+                        };
 
                         // Build structured entries so we can underline only the value part.
                         // When multiple samples are selected, aggregate values across them.
@@ -348,8 +387,9 @@
                                 foreach ($detail['measurand_map'] as $mid => $val) {
                                     $label = $measurandNames[$mid] ?? $mid;
                                     $entries[] = [
-                                        'value' => (string) $val,
+                                        'value' => $formatStepValue($val),
                                         'label' => (string) $label,
+                                        'mid' => (string) $mid,
                                     ];
                                     $hasAnyValues = true;
                                 }
@@ -359,7 +399,7 @@
                                     ? $step->measurands->pluck('name')->implode(', ')
                                     : '';
                                 $entries[] = [
-                                    'value' => (string) $detail['raw_value'],
+                                    'value' => $formatStepValue($detail['raw_value']),
                                     'label' => (string) $label,
                                 ];
                                 $hasAnyValues = true;
@@ -377,9 +417,39 @@
                         // De-duplicate identical value+label pairs while preserving first appearance order.
                         if (!empty($entries)) {
                             $entries = collect($entries)
-                                ->unique(fn ($e) => ($e['value'] ?? '') . '|' . ($e['label'] ?? ''))
+                                ->unique(fn ($e) => (string) ($e['mid'] ?? '') . '|' . ($e['value'] ?? '') . '|' . ($e['label'] ?? ''))
                                 ->values()
                                 ->all();
+                        }
+
+                        // If we have measurand-specific value entries (measurand_map) but the
+                        // map is partial, ensure we still render labels for measurands that
+                        // have no recorded value (so blank inputs show up on the PDF).
+                        if (! empty($entries) && $step->measurands && $step->measurands->isNotEmpty()) {
+                            $hasMidEntries = collect($entries)->pluck('mid')->filter()->isNotEmpty();
+                            if ($hasMidEntries) {
+                                $expectedMids = $step->measurands->pluck('id')->map(fn ($id) => (string) $id)->values()->all();
+                                $existingMids = collect($entries)
+                                    ->pluck('mid')
+                                    ->filter(fn ($m) => $m !== null && $m !== '')
+                                    ->map(fn ($m) => (string) $m)
+                                    ->unique()
+                                    ->values()
+                                    ->all();
+
+                                foreach ($expectedMids as $expectedMid) {
+                                    if (in_array($expectedMid, $existingMids, true)) {
+                                        continue;
+                                    }
+
+                                    $label = $measurandNames[$expectedMid] ?? $measurandNames[(int) $expectedMid] ?? $expectedMid;
+                                    $entries[] = [
+                                        'value' => '',
+                                        'label' => (string) $label,
+                                        'mid' => (string) $expectedMid,
+                                    ];
+                                }
+                            }
                         }
 
                         // Resolve per-step analysts when available from precomputed map, otherwise fall back to header analyst.
