@@ -1255,17 +1255,12 @@ class FormInstanceController extends Controller
                 $reportDate = $results->max('updated_at');
                 $reportedInfo = $reporters ? $reporters . ($reportDate ? " (" . $reportDate->format('d/m/Y') . ")" : "") : 'Pending';
 
-                // Sent info (use form submission info)
-                $sentBy = $instance->submittedBy ? $instance->submittedBy->name : 'N/A';
-                $sentDate = $instance->submitted_at ? $instance->submitted_at->format('d/m/Y') : 'N/A';
-                $sentInfo = "{$sentBy} ({$sentDate})";
-
                 $processedAnalyses[] = [
                     'analysis_type_name' => $analysisData['name'],
                     'sample_count' => $samples->count(),
                     'code_range' => $codeRange,
                     'reported_info' => $reportedInfo,
-                    'sent_info' => $sentInfo
+                    'sent_info' => 'Pending',
                 ];
             }
 
@@ -1324,18 +1319,12 @@ class FormInstanceController extends Controller
                         ?: $instance->resolveDisplayValueByName('analysis_type_id')
                         ?: 'General Analysis';
 
-                    // Sent info
-                    $sentBy = $instance->submittedBy ? $instance->submittedBy->name : 'N/A';
-                    $sentBy = empty($sentBy) ? 'N/A' : $sentBy;
-                    $sentDate = $instance->submitted_at ? $instance->submitted_at->format('d/m/Y') : 'N/A';
-                    $sentInfo = "{$sentBy} ({$sentDate})";
-
                     $processedAnalyses[] = [
                         'analysis_type_name' => strip_tags($testsRequired),
                         'sample_count' => $sampleCount,
                         'code_range' => $codeRange,
                         'reported_info' => 'Pending',
-                        'sent_info' => $sentInfo
+                        'sent_info' => 'Pending',
                     ];
                 }
             }
@@ -1346,11 +1335,14 @@ class FormInstanceController extends Controller
             ];
         }
 
+        $testsRequiredTableGroups = app(\App\Services\SubmissionFormPdfService::class)->buildTestsRequiredTableGroups($instance);
+
         return view('submission-forms.instances.batch-view', compact(
             'instance',
             'company',
             'batches',
-            'processedSampleData'
+            'processedSampleData',
+            'testsRequiredTableGroups'
         ));
     }
 
@@ -1377,12 +1369,15 @@ class FormInstanceController extends Controller
         if ($templateName !== 'submission-forms.print.default' && view()->exists($templateName)) {
             // Prepare data in the format expected by custom templates (e.g., microbiology, serology)
             $existingValues = $instance->getSubmittedFormData();
-            $processedSampleData = app(\App\Services\SubmissionFormPdfService::class)->buildProcessedSampleData($instance);
+            $pdfService = app(\App\Services\SubmissionFormPdfService::class);
+            $existingValues['sample_header'] = $pdfService->prepareSampleHeaderForPdf($existingValues['sample_header'] ?? [], $instance);
+            $processedSampleData = $pdfService->buildProcessedSampleData($instance);
+            $testsRequiredTableGroups = $pdfService->buildTestsRequiredTableGroups($instance);
             $logoUrl = '';
             if ($company && ! empty($company->logo)) {
                 $logoUrl = str_starts_with($company->logo, 'http') ? $company->logo : url($company->logo);
             }
-            return view($templateName, compact('submissionForm', 'instance', 'existingValues', 'processedSampleData', 'logoUrl'));
+            return view($templateName, compact('submissionForm', 'instance', 'existingValues', 'processedSampleData', 'testsRequiredTableGroups', 'logoUrl'));
         }
 
         // Otherwise, use the default batch view print template
@@ -1460,17 +1455,12 @@ class FormInstanceController extends Controller
                 $reportDate = $results->max('updated_at');
                 $reportedInfo = $reporters ? $reporters . ($reportDate ? " (" . $reportDate->format('d/m/Y') . ")" : "") : 'Pending';
 
-                // Sent info (use form submission info)
-                $sentBy = $instance->submittedBy ? $instance->submittedBy->name : 'N/A';
-                $sentDate = $instance->submitted_at ? $instance->submitted_at->format('d/m/Y') : 'N/A';
-                $sentInfo = "{$sentBy} ({$sentDate})";
-
                 $processedAnalyses[] = [
                     'analysis_type_name' => $analysisData['name'],
                     'sample_count' => $samples->count(),
                     'code_range' => $codeRange,
                     'reported_info' => $reportedInfo,
-                    'sent_info' => $sentInfo
+                    'sent_info' => 'Pending',
                 ];
             }
 
@@ -1504,18 +1494,12 @@ class FormInstanceController extends Controller
                         ?: $instance->resolveDisplayValueByName('analysis_type_id')
                         ?: 'General Analysis';
 
-                    // Sent info
-                    $sentBy = $instance->submittedBy ? $instance->submittedBy->name : 'N/A';
-                    $sentBy = empty($sentBy) ? 'N/A' : $sentBy;
-                    $sentDate = $instance->submitted_at ? $instance->submitted_at->format('d/m/Y') : 'N/A';
-                    $sentInfo = "{$sentBy} ({$sentDate})";
-
                     $processedAnalyses[] = [
                         'analysis_type_name' => strip_tags($testsRequired),
                         'sample_count' => $sampleCount,
                         'code_range' => $codeRange,
                         'reported_info' => 'Pending',
-                        'sent_info' => $sentInfo
+                        'sent_info' => 'Pending',
                     ];
                 }
             }
@@ -1526,11 +1510,14 @@ class FormInstanceController extends Controller
             ];
         }
 
+        $testsRequiredTableGroups = app(\App\Services\SubmissionFormPdfService::class)->buildTestsRequiredTableGroups($instance);
+
         return view('submission-forms.instances.batch-view-print', compact(
             'instance',
             'company',
             'batches',
-            'processedSampleData'
+            'processedSampleData',
+            'testsRequiredTableGroups'
         ));
     }
 }

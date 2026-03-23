@@ -4,6 +4,33 @@
 $active = getActiveCompany();
 
 $headerDetails = $existingValues['sample_header'] ?? [];
+$headerDetails = app(\App\Services\SubmissionFormPdfService::class)->prepareSampleHeaderForPdf(
+    is_array($headerDetails) ? $headerDetails : [],
+    $instance ?? null
+);
+
+$resolvePersonDisplay = function ($raw): string {
+    if ($raw === null || $raw === '') {
+        return '';
+    }
+    if (is_int($raw) && $raw > 0) {
+        return optional(\App\User::find($raw))->name ?? '';
+    }
+    if (is_string($raw)) {
+        $t = trim($raw);
+        if ($t === '') {
+            return '';
+        }
+        if (ctype_digit($t)) {
+            return optional(\App\User::find((int) $t))->name ?? $t;
+        }
+
+        return $t;
+    }
+
+    return '';
+};
+
 $sampleDetails = $existingValues['sample_details'] ?? [];
 
 $companyDetails = isset($headerDetails['crm_customer_id']) ? \App\Models\CRM\CRMCustomer::find($headerDetails['crm_customer_id']) : null;
@@ -28,6 +55,43 @@ $headerDetails['description'] = $headerDetails['description'] ?? '';
 $headerDetails['date_time_sampling'] = $headerDetails['date_time_sampling'] ?? $headerDetails['date_collected'] ?? null;
 $headerDetails['sampled_by'] = $headerDetails['sampled_by'] ?? $headerDetails['sampling_officer_name'] ?? '';
 $headerDetails['submission_date'] = $headerDetails['submission_date'] ?? $headerDetails['receipt_date'] ?? $headerDetails['date_collected'] ?? null;
+
+$receivedByDisplay = $resolvePersonDisplay($headerDetails['receiving_officer_name'] ?? null);
+if ($receivedByDisplay === '') {
+    $receivedByDisplay = $resolvePersonDisplay($headerDetails['receiving_officer'] ?? null);
+}
+if ($receivedByDisplay === '') {
+    $receivedByDisplay = $resolvePersonDisplay($headerDetails['receive_by'] ?? null);
+}
+if ($receivedByDisplay === '') {
+    $receivedByDisplay = $resolvePersonDisplay($headerDetails['received_by'] ?? null);
+}
+if ($receivedByDisplay === '') {
+    $receivedByDisplay = $resolvePersonDisplay($headerDetails['submit_by'] ?? null);
+}
+if ($receivedByDisplay === '') {
+    $receivedByDisplay = '—';
+}
+
+$sampledByDisplay = $resolvePersonDisplay($headerDetails['sampled_by'] ?? null);
+if ($sampledByDisplay === '') {
+    $sampledByDisplay = $resolvePersonDisplay($headerDetails['sampling_officer_name'] ?? null);
+}
+if ($sampledByDisplay === '') {
+    $sampledByDisplay = $resolvePersonDisplay($headerDetails['sampling_officer'] ?? null);
+}
+if ($sampledByDisplay === '') {
+    $sampledByDisplay = '—';
+}
+
+$submittedByDisplay = $resolvePersonDisplay($headerDetails['submit_by'] ?? null);
+if ($submittedByDisplay === '') {
+    $submittedByDisplay = '—';
+}
+
+$sampledSigForPdf = trim((string) ($headerDetails['signature_sampling'] ?? $headerDetails['signature'] ?? ''));
+
+$testsTableGroups = $testsRequiredTableGroups ?? [];
 ?>
 <head>
     <meta http-equiv="Content-Type" content="text/html; charset=utf-8">
@@ -395,6 +459,51 @@ $headerDetails['submission_date'] = $headerDetails['submission_date'] ?? $header
             text-align: right;
             width: auto;
         }
+
+        /* Signatures: one compact dotted line when no image; small block only when img renders */
+        .by-label {
+            font-weight: bold;
+        }
+
+        .by-name-line {
+            font-weight: 400;
+            border-bottom: 1px dotted #000;
+            display: inline-block;
+            min-width: 55%;
+            margin-top: 3px;
+            padding-bottom: 1px;
+        }
+
+        .sig-inline-row {
+            font-size: 9px;
+            font-weight: bold;
+            margin-top: 3px;
+            line-height: 1.15;
+        }
+
+        .sig-inline-row .sig-line {
+            display: inline-block;
+            min-width: 58%;
+            border-bottom: 1px dotted #000;
+            margin-left: 4px;
+            height: 0.9em;
+            vertical-align: bottom;
+        }
+
+        .sig-with-image {
+            margin-top: 2px;
+        }
+
+        .sig-with-image .sig-label {
+            font-size: 9px;
+            font-weight: bold;
+        }
+
+        .sig-with-image img {
+            display: block;
+            max-height: 30px;
+            margin-top: 2px;
+        }
     </style>
 </head>
 
@@ -485,17 +594,16 @@ $headerDetails['submission_date'] = $headerDetails['submission_date'] ?? $header
                     @endif
                 </span>
             </td>
-            <td style="text-align: left; padding: 10px; border: 1px solid #000; font-weight: bold;">
-                Sampled By 
-                <span style="font-weight: 400; border-bottom: 1px dotted #000; margin-left: 5px; margin-right:20px">
-                    {{ $headerDetails['sampled_by'] }}
-                </span>
-                @if(isset($headerDetails['signature']))
-                <br>
-                Signature 
-                <span style="font-weight: 400; border-bottom: 1px dotted #000; margin-left: 5px; margin-right:20px">
-                    <img src="{{ $headerDetails['signature'] }}" style="height: 30px; margin: 3px 5px" />
-                </span>
+            <td style="text-align: left; padding: 10px; border: 1px solid #000; vertical-align: top;">
+                <div class="by-label">Sampled By</div>
+                <div><span class="by-name-line">{{ $sampledByDisplay }}</span></div>
+                @if($sampledSigForPdf !== '')
+                <div class="sig-with-image">
+                    <span class="sig-label">Signature</span>
+                    <img src="{{ $sampledSigForPdf }}" alt="">
+                </div>
+                @else
+                <div class="sig-inline-row">Signature <span class="sig-line"></span></div>
                 @endif
             </td>
         </tr>
@@ -520,17 +628,16 @@ $headerDetails['submission_date'] = $headerDetails['submission_date'] ?? $header
                     @endif
                 </span>
             </td>
-            <td style="text-align: left; padding: 10px; border: 1px solid #000; font-weight: bold;">
-                Submitted By 
-                <span style="font-weight: 400; border-bottom: 1px dotted #000; margin-left: 5px; margin-right:20px">
-                    {{ $headerDetails['submit_by'] }}
-                </span>
-                @if(isset($headerDetails['signature_submission']))
-                <br>
-                Signature 
-                <span style="font-weight: 400; border-bottom: 1px dotted #000; margin-left: 5px; margin-right:20px">
-                    <img src="{{ $headerDetails['signature_submission'] }}" style="height: 30px; margin: 3px 5px" />
-                </span>
+            <td style="text-align: left; padding: 10px; border: 1px solid #000; vertical-align: top;">
+                <div class="by-label">Submitted By</div>
+                <div><span class="by-name-line">{{ $submittedByDisplay }}</span></div>
+                @if(!empty($headerDetails['signature_submission']))
+                <div class="sig-with-image">
+                    <span class="sig-label">Signature</span>
+                    <img src="{{ $headerDetails['signature_submission'] }}" alt="">
+                </div>
+                @else
+                <div class="sig-inline-row">Signature <span class="sig-line"></span></div>
                 @endif
             </td>
         </tr>
@@ -547,17 +654,16 @@ $headerDetails['submission_date'] = $headerDetails['submission_date'] ?? $header
                     {{ \Carbon\Carbon::parse($headerDetails['receipt_date'])->format("H:i") }}
                 </span>
             </td>
-            <td style="text-align: left; padding: 10px; border: 1px solid #000; font-weight: bold; background-color: #e6eef7;">
-                Received By 
-                <span style="font-weight: 400; border-bottom: 1px dotted #000; margin-left: 5px; margin-right:20px">
-                    {{ $headerDetails['submit_by'] }}
-                </span>
-                @if(isset($headerDetails['signature_reception']))
-                <br>
-                Signature 
-                <span style="font-weight: 400; border-bottom: 1px dotted #000; margin-left: 5px; margin-right:20px">
-                    <img src="{{ $headerDetails['signature_reception'] }}" style="height: 30px; margin: 3px 5px" />
-                </span>
+            <td style="text-align: left; padding: 10px; border: 1px solid #000; background-color: #e6eef7; vertical-align: top;">
+                <div class="by-label">Received By</div>
+                <div><span class="by-name-line">{{ $receivedByDisplay }}</span></div>
+                @if(!empty($headerDetails['signature_reception']))
+                <div class="sig-with-image">
+                    <span class="sig-label">Signature</span>
+                    <img src="{{ $headerDetails['signature_reception'] }}" alt="">
+                </div>
+                @else
+                <div class="sig-inline-row">Signature <span class="sig-line"></span></div>
                 @endif
             </td>
         </tr>
@@ -569,11 +675,20 @@ $headerDetails['submission_date'] = $headerDetails['submission_date'] ?? $header
     </table>
     <br>
     <br>
-    @if(!empty($processedSampleData))
     <strong>Tests Required</strong><br>
-    <table style="width: 100%; border-collapse: collapse; border: 1px solid #000; margin-top: 4px;">
+    @if(!empty($testsTableGroups))
+    <table class="tests-required-table" style="width: 100%; border-collapse: collapse; border: 1px solid #000; margin-top: 4px; table-layout: fixed;">
+        <colgroup>
+            <col style="width: 17%;">
+            <col style="width: 33%;">
+            <col style="width: 9%;">
+            <col style="width: 21%;">
+            <col style="width: 10%;">
+            <col style="width: 10%;">
+        </colgroup>
         <thead>
             <tr style="background-color: #e6eef7;">
+                <th style="text-align: left; padding: 8px; border: 1px solid #000; font-weight: bold; color: #4682B4; background-color: #e6eef7;">Sample Type</th>
                 <th style="text-align: left; padding: 8px; border: 1px solid #000; font-weight: bold; color: #4682B4; background-color: #e6eef7;">Test Required</th>
                 <th style="text-align: center; padding: 8px; border: 1px solid #000; font-weight: bold; color: #4682B4; background-color: #e6eef7;">No of Samples</th>
                 <th style="text-align: left; padding: 8px; border: 1px solid #000; font-weight: bold; color: #4682B4; background-color: #e6eef7;">Lab No</th>
@@ -582,35 +697,37 @@ $headerDetails['submission_date'] = $headerDetails['submission_date'] ?? $header
             </tr>
         </thead>
         <tbody>
-            @foreach($processedSampleData as $sampleTypeGroup)
-                @foreach($sampleTypeGroup['analyses'] as $analysisData)
+            @foreach($testsTableGroups as $group)
+                @php
+                    $testsRows = $group['tests'] ?? [];
+                    $rowspan = (int) ($group['rowspan'] ?? count($testsRows));
+                    if ($rowspan < 1) {
+                        $rowspan = max(1, count($testsRows));
+                    }
+                    $typeLabel = trim((string) ($group['sample_type_name'] ?? ''));
+                    if ($typeLabel === '') {
+                        $typeLabel = '—';
+                    }
+                @endphp
+                @foreach($testsRows as $i => $test)
                 <tr>
-                    <td style="padding: 6px 8px; border: 1px solid #000;">{{ $analysisData['analysis_type_name'] }}</td>
-                    <td style="text-align: center; padding: 6px 8px; border: 1px solid #000;">{{ $analysisData['sample_count'] }}</td>
-                    <td style="padding: 6px 8px; border: 1px solid #000;">{{ $analysisData['code_range'] }}</td>
-                    <td style="padding: 6px 8px; border: 1px solid #000;">{{ $analysisData['reported_info'] }}</td>
-                    <td style="padding: 6px 8px; border: 1px solid #000;">Pending</td>
+                    @if($i === 0)
+                    <td rowspan="{{ $rowspan }}" style="padding: 6px 8px; border: 1px solid #000; background-color: #f7fafc; font-weight: 600; vertical-align: middle; text-align: left;">{{ $typeLabel }}</td>
+                    @endif
+                    <td style="padding: 6px 8px; border: 1px solid #000; vertical-align: top;">{{ $test['name'] ?? '—' }}</td>
+                    @if($i === 0)
+                    <td rowspan="{{ $rowspan }}" style="text-align: center; padding: 6px 8px; border: 1px solid #000; vertical-align: middle;">{{ $group['shared_sample_count'] ?? '—' }}</td>
+                    <td rowspan="{{ $rowspan }}" style="padding: 6px 8px; border: 1px solid #000; vertical-align: middle;">{{ $group['shared_code_range'] ?? '—' }}</td>
+                    <td rowspan="{{ $rowspan }}" style="padding: 6px 8px; border: 1px solid #000; vertical-align: middle;">{{ $group['shared_reported_info'] ?? 'Pending' }}</td>
+                    <td rowspan="{{ $rowspan }}" style="padding: 6px 8px; border: 1px solid #000; vertical-align: middle;">{{ $group['shared_sent_info'] ?? 'Pending' }}</td>
+                    @endif
                 </tr>
                 @endforeach
             @endforeach
         </tbody>
     </table>
     @else
-    <table style="width: 100%; border-collapse: collapse; border: 1px solid #000;">
-        <tr>
-            <th colspan="66.67" style="text-align: left; padding: 10px; border: 1px solid #000; font-weight: bold; font-weight: 600; text-decoration: underline; padding: 3px 4px">Tests Required</th>
-            <th colspan="33.33"style="text-align: center; padding: 10px; border: 1px solid #000; font-weight: bold;; font-weight: 600; text-decoration: underline;  padding: 3px 4px">Tick Appropriate</th>
-        </tr>
-        @foreach($sampleDetails as $detail)
-        @php($analysisType = \App\AnalysisType::find($detail['analysis_type_id'] ?? null))
-        @if($analysisType)
-        <tr>
-            <th colspan="66.67" style="text-align: left; padding: 10px; border: 1px solid #000; font-weight: bold; padding: 5px">{{ $analysisType->name }}</th>
-            <th colspan="33.33"style="text-align: center; padding: 10px; border: 1px solid #000; font-weight: bold; padding: 5px">✔</th>
-        </tr>
-        @endif
-        @endforeach
-    </table>
+    <p style="font-size: 10px; color: #666; margin-top: 6px;">No tests could be listed from this submission (no analyses on linked batches or form rows).</p>
     @endif
 
     {{-- Footer: one row, two cells (QR left, page number right) on same center line --}}

@@ -527,11 +527,57 @@
           <i class="mdi mdi-flask-outline"></i> Tests Required
         </h4>
 
-        @if(count($processedSampleData) > 0)
+        @php($testsTableGroups = $testsRequiredTableGroups ?? [])
+        @if(count($testsTableGroups) > 0)
           <div class="table-responsive">
             <table class="test-required-table table table-bordered">
               <thead>
                 <tr>
+                  <th>Sample Type</th>
+                  <th>Test Required</th>
+                  <th class="text-center">No of Samples</th>
+                  <th>Lab No</th>
+                  <th>Reported By & Date</th>
+                  <th>Sent By & Date</th>
+                </tr>
+              </thead>
+              <tbody>
+                @foreach($testsTableGroups as $group)
+                  @php
+                    $testsRows = $group['tests'] ?? [];
+                    $rowspan = (int) ($group['rowspan'] ?? count($testsRows));
+                    if ($rowspan < 1) {
+                        $rowspan = max(1, count($testsRows));
+                    }
+                    $typeLabel = trim((string) ($group['sample_type_name'] ?? ''));
+                    if ($typeLabel === '') {
+                        $typeLabel = '—';
+                    }
+                  @endphp
+                  @foreach($testsRows as $i => $test)
+                    <tr class="analysis-type-row">
+                      @if($i === 0)
+                        <td class="align-middle font-weight-bold bg-light" rowspan="{{ $rowspan }}">{{ $typeLabel }}</td>
+                      @endif
+                      <td>{{ $test['name'] ?? '—' }}</td>
+                      @if($i === 0)
+                        <td class="text-center align-middle" rowspan="{{ $rowspan }}">{{ $group['shared_sample_count'] ?? '—' }}</td>
+                        <td class="align-middle" rowspan="{{ $rowspan }}">{{ $group['shared_code_range'] ?? '—' }}</td>
+                        <td class="align-middle" rowspan="{{ $rowspan }}">{{ $group['shared_reported_info'] ?? 'Pending' }}</td>
+                        <td class="align-middle" rowspan="{{ $rowspan }}">{{ $group['shared_sent_info'] ?? 'Pending' }}</td>
+                      @endif
+                    </tr>
+                  @endforeach
+                @endforeach
+              </tbody>
+            </table>
+          </div>
+        @elseif(count($processedSampleData) > 0)
+          <div class="table-responsive">
+            <table class="test-required-table table table-bordered">
+              <thead>
+                <tr>
+                  <th>Sample Type</th>
                   <th>Test Required</th>
                   <th>No of Samples</th>
                   <th>Lab No</th>
@@ -541,10 +587,19 @@
               </thead>
               <tbody>
                 @foreach($processedSampleData as $sampleTypeGroup)
-
-                  <!-- Analysis Type Rows -->
-                  @foreach($sampleTypeGroup['analyses'] as $analysisData)
+                  @php
+                    $analyses = $sampleTypeGroup['analyses'] ?? [];
+                    $analysisRowspan = max(1, count($analyses));
+                    $stLabel = trim((string) ($sampleTypeGroup['sample_type_name'] ?? ''));
+                    if ($stLabel === '') {
+                        $stLabel = '—';
+                    }
+                  @endphp
+                  @foreach($analyses as $ai => $analysisData)
                     <tr class="analysis-type-row">
+                      @if($ai === 0)
+                        <td class="align-middle font-weight-bold bg-light" rowspan="{{ $analysisRowspan }}">{{ $stLabel }}</td>
+                      @endif
                       <td>{{ $analysisData['analysis_type_name'] }}</td>
                       <td class="text-center">{{ $analysisData['sample_count'] }}</td>
                       <td>{{ $analysisData['code_range'] }}</td>
