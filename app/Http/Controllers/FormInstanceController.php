@@ -8,6 +8,7 @@ use App\Models\SubmissionFormInstanceValue;
 use App\Models\SubmissionFormElement;
 use App\SampleHeader;
 use App\SampleDetails;
+use App\Services\SubmissionFormBatchSyncService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Validator;
@@ -286,6 +287,59 @@ class FormInstanceController extends Controller
     }
 
     /**
+     * Push current submission form field values onto all linked sample headers and unprocessed staging rows.
+     */
+    public function applyToBatches(int $instance, SubmissionFormBatchSyncService $syncService): \Illuminate\Http\RedirectResponse
+    {
+        $user = auth()->user();
+
+        if (! $user->hasRole('Sample Reception') && ! $user->hasRole('admin')) {
+            abort(403, 'You are not allowed to update linked batches from this form.');
+        }
+
+        $instanceModel = SubmissionFormInstance::query()->findOrFail($instance);
+
+        if (! $instanceModel->batches()->exists()) {
+            return redirect()->back()->with('error', 'No lab batches are linked to this submission yet.');
+        }
+
+        $result = [
+            'updated' => 0,
+            'skipped' => 0,
+            'messages' => ['success' => [], 'warning' => [], 'error' => []],
+        ];
+
+        try {
+            DB::transaction(function () use ($syncService, $instanceModel, &$result): void {
+                $result = $syncService->sync($instanceModel);
+            });
+        } catch (\Throwable $e) {
+            Log::error('applyToBatches failed', [
+                'instance_id' => $instance,
+                'message' => $e->getMessage(),
+                'trace' => $e->getTraceAsString(),
+            ]);
+
+            return redirect()->back()->with('error', 'Could not update batches from the form. Please try again or contact IT.');
+        }
+
+        $flashParts = [sprintf('%d linked batch(es) were updated from the submission form.', $result['updated'])];
+        if ($result['skipped'] > 0) {
+            $flashParts[] = sprintf('%d batch(es) were not changed (the form could not be matched to them).', $result['skipped']);
+        }
+        $flash = implode(' ', $flashParts);
+
+        if ($result['messages']['error'] !== []) {
+            return redirect()->back()
+                ->with('error', implode(' ', $result['messages']['error']));
+        }
+
+        return redirect()->back()
+            ->with('success', $flash)
+            ->with('apply_batches_warnings', $result['messages']['warning']);
+    }
+
+    /**
      * Display the specified form instance
      */
     public function show(SubmissionForm $submissionForm, SubmissionFormInstance $instance)
@@ -315,12 +369,30 @@ class FormInstanceController extends Controller
         // Load audit trail
         $auditLogs = $instance->auditLogs()->with('user')->latest()->get();
 
-        // Check if user is on tablet
-        if (auth()->user()->is_tablet == 1) {
-            return view('submission-forms.instances.show-tablet', compact('submissionForm', 'instance', 'existingValues', 'auditLogs'));
+        $linkedBatchesOutOfSyncWithForm = false;
+        if ($instance->batches()->exists()) {
+            $linkedBatchesOutOfSyncWithForm = app(SubmissionFormBatchSyncService::class)
+                ->linkedBatchesOutOfSyncWithForm($instance);
         }
 
-        return view('submission-forms.instances.show', compact('submissionForm', 'instance', 'existingValues', 'auditLogs'));
+        // Check if user is on tablet
+        if (auth()->user()->is_tablet == 1) {
+            return view('submission-forms.instances.show-tablet', compact(
+                'submissionForm',
+                'instance',
+                'existingValues',
+                'auditLogs',
+                'linkedBatchesOutOfSyncWithForm'
+            ));
+        }
+
+        return view('submission-forms.instances.show', compact(
+            'submissionForm',
+            'instance',
+            'existingValues',
+            'auditLogs',
+            'linkedBatchesOutOfSyncWithForm'
+        ));
     }
 
     /**

@@ -25,6 +25,17 @@
       );
     ?>
     <x-bread-crumb :items="$items"></x-bread-crumb>
+
+    @if(is_array(session('apply_batches_warnings')) && count(session('apply_batches_warnings')) > 0)
+      <div class="alert alert-warning mx-3 mx-md-4 mt-3 mb-0">
+        <strong>Please note:</strong>
+        <ul class="mb-0 pl-3 mt-2">
+          @foreach(session('apply_batches_warnings') as $w)
+            <li>{{ $w }}</li>
+          @endforeach
+        </ul>
+      </div>
+    @endif
     
     <div class="p-3 p-md-4">
       <div class="d-flex justify-content-between align-items-center mb-3">
@@ -218,6 +229,27 @@
                         <p class="mb-0 mt-2">{{ $sampleStatus['message'] }}</p>
                       </div>
                     @endif
+                  </div>
+                </div>
+              @endif
+
+              @if($instance->batches()->exists() && ($linkedBatchesOutOfSyncWithForm ?? false))
+                <div class="card mt-3 border-warning">
+                  <div class="card-header bg-warning text-dark">
+                    <h6 class="mb-0">
+                      <i class="mdi mdi-alert-decagram"></i> Linked batches — out of sync
+                    </h6>
+                  </div>
+                  <div class="card-body">
+                    <p class="text-muted small mb-2">
+                      Saved form data no longer matches your linked batches or unprocessed staging. Apply to refresh customer, unit, and sub-unit from this form.
+                    </p>
+                    <form method="POST" action="{{ route('submission-forms.instances.apply-to-batches', $instance->id) }}" onsubmit="return confirm('Update all linked batches from the current saved form data? Customer, company unit, and unprocessed staging will be refreshed.');">
+                      @csrf
+                      <button type="submit" class="btn btn-warning btn-sm">
+                        <i class="mdi mdi-sync"></i> Apply form to linked batches
+                      </button>
+                    </form>
                   </div>
                 </div>
               @endif

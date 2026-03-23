@@ -37,6 +37,17 @@
         $sampleStatus = app(\App\Services\SampleCreationService::class)->getSampleCreationStatus($instance);
     @endphp
     <x-bread-crumb :items="$items"></x-bread-crumb>
+
+    @if(is_array(session('apply_batches_warnings')) && count(session('apply_batches_warnings')) > 0)
+      <div class="alert alert-warning mx-4 mt-3 mb-0">
+        <strong>Please note:</strong>
+        <ul class="mb-0 pl-3 mt-2">
+          @foreach(session('apply_batches_warnings') as $w)
+            <li>{{ $w }}</li>
+          @endforeach
+        </ul>
+      </div>
+    @endif
     
     <div class="card border-0 shadow-sm mx-4 mt-4 mb-0">
       <div class="card-body p-4">
@@ -85,6 +96,15 @@
                             <a href="#" class="dropdown-item create-samples-btn" data-instance-id="{{ $instance->id }}">
                                 <i class="mdi mdi-flask mr-2"></i> Create Batch
                             </a>
+                        @endif
+
+                        @if($instance->batches()->exists() && ($linkedBatchesOutOfSyncWithForm ?? false))
+                            <form method="POST" action="{{ route('submission-forms.instances.apply-to-batches', $instance->id) }}" class="d-inline w-100" onsubmit="return confirm('Update all linked batches from the current saved form data? Customer, company unit, and unprocessed staging will be refreshed.');">
+                                @csrf
+                                <button type="submit" class="dropdown-item">
+                                    <i class="mdi mdi-sync mr-2"></i> Apply form to linked batches
+                                </button>
+                            </form>
                         @endif
                     @endunless
 
@@ -218,7 +238,7 @@
               @include('submission-forms.partials.simple-form-display', ['instance' => $instance, 'formData' => $formData])
 
               <!-- Sample Creation Actions -->
-              @include('submission-forms.partials.sample-creation-actions', ['instance' => $instance])
+              @include('submission-forms.partials.sample-creation-actions', ['instance' => $instance, 'linkedBatchesOutOfSyncWithForm' => $linkedBatchesOutOfSyncWithForm ?? false])
 
                     <!-- Review Information (if applicable) -->
                     @if($instance->reviewed_at)

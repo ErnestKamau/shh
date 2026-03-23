@@ -635,6 +635,12 @@ Route::prefix('submission-forms')->name('submission-forms.')->middleware('auth')
         Route::get('/{submissionForm}/create', 'FormInstanceController@create')->name('create');
         Route::post('/{submissionForm}', 'FormInstanceController@store')->name('store');
 
+        // Sample creation / sync (numeric {instance} only; register before generic /{submissionForm}/{instance} routes)
+        Route::post('/{instance}/apply-to-batches', 'FormInstanceController@applyToBatches')->name('apply-to-batches')->where('instance', '[0-9]+');
+        Route::post('/{instance}/create-samples', 'SampleCreationController@createFromForm')->name('create-samples');
+        Route::get('/{instance}/sample-status', 'SampleCreationController@getStatus')->name('sample-status');
+        Route::post('/bulk-create-samples', 'SampleCreationController@bulkCreate')->name('bulk-create-samples');
+
         // Instance-specific routes
         Route::get('/{submissionForm}/{instance}/fill', 'FormInstanceController@fill')->name('fill');
         Route::get('/{submissionForm}/{instance}/fill-sample', 'FormInstanceController@fillSample')->name('fill-sample');
@@ -643,11 +649,6 @@ Route::prefix('submission-forms')->name('submission-forms.')->middleware('auth')
         Route::get('/{submissionForm}/{instance}/edit', 'FormInstanceController@edit')->name('edit');
         Route::get('/{submissionForm}/{instance}/print', 'FormInstanceController@print')->name('print');
         Route::delete('/{submissionForm}/{instance}', 'FormInstanceController@destroy')->name('destroy');
-
-        // Sample Creation Routes
-        Route::post('/{instance}/create-samples', 'SampleCreationController@createFromForm')->name('create-samples');
-        Route::get('/{instance}/sample-status', 'SampleCreationController@getStatus')->name('sample-status');
-        Route::post('/bulk-create-samples', 'SampleCreationController@bulkCreate')->name('bulk-create-samples');
     });
 });
 

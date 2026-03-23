@@ -69,6 +69,30 @@
         </div>
     </div>
 
+@endif
+
+@if($instance->batches()->exists() && ($linkedBatchesOutOfSyncWithForm ?? false))
+    <div class="card mt-3 border-warning">
+        <div class="card-header bg-warning text-dark">
+            <h6 class="mb-0">
+                <i class="mdi mdi-alert-decagram"></i> Linked batches — out of sync
+            </h6>
+        </div>
+        <div class="card-body">
+            <p class="text-muted small mb-2">
+                Saved form data no longer matches your linked sample batch headers (or unprocessed staging). Apply to push customer, company unit, and sub-unit fields from this form.
+            </p>
+            <form method="POST" action="{{ route('submission-forms.instances.apply-to-batches', $instance->id) }}" onsubmit="return confirm('Update all linked batches from the current saved form data? Customer, company unit, and unprocessed staging will be refreshed.');">
+                @csrf
+                <button type="submit" class="btn btn-warning btn-sm">
+                    <i class="mdi mdi-sync"></i> Apply form to linked batches
+                </button>
+            </form>
+        </div>
+    </div>
+@endif
+
+@if($canCreateSamples)
     @section('script2')
     <script>
     $(document).ready(function() {
