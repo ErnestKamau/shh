@@ -1,4 +1,4 @@
-<div class="procedure-worksheet-manager">
+<div class="procedure-worksheet-manager lab-panel-theme">
     <div wire:loading wire:target="activeTabs, selectedWorksheetId, save">
         <div class="d-flex justify-content-center align-items-center" style="position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(255, 255, 255, 0.7); z-index: 9999;">
             <div class="spinner-border text-primary" role="status">
@@ -43,7 +43,7 @@
         </div>
         @endif
 
-        <div class="card procedure-worksheet-card mb-0">
+        <div class="workflow-board-panel procedure-worksheet-card mb-0">
             {{-- Workflow guidance hint --}}
             <div class="alert alert-info alert-sm py-2 px-3 mb-0 rounded-0 border-0 border-bottom" style="font-size:0.85rem;">
                 <i class="mdi mdi-information-outline mr-1"></i>
@@ -54,7 +54,7 @@
             </div>
             {{-- Tabs: one per parameter; worksheet from element below --}}
             <div class="procedure-selector-bar">
-                <ul class="nav nav-tabs procedure-tabs border-0" role="tablist">
+                <ul class="nav batch-nav-tabs mb-0" role="tablist">
                     @foreach($this->paramsWithWorksheets as $param)
                     <li class="nav-item" role="presentation">
                         <button type="button"
@@ -82,24 +82,24 @@
                 @endif
             </div>
 
-            <div class="card-body p-4">
+            <div class="workflow-board-panel-body">
                 @if(!empty($activeTabs))
                 @if($selectedWorksheetId)
                 <section class="procedure-section mb-4">
-                    <div class="card procedure-section-card">
-                        <div class="card-header procedure-section-header d-flex justify-content-between align-items-center flex-wrap gap-2">
+                    <div class="workflow-board-panel procedure-section-card">
+                        <div class="workflow-board-panel-header procedure-section-header d-flex justify-content-between align-items-center flex-wrap gap-2">
                             <h6 class="mb-0">
                                 <i class="mdi mdi-flask-outline text-primary"></i>
                                 Select Samples
                             </h6>
-                            <button type="button" class="btn btn-sm btn-primary" wire:click="toggleExternalPanel">
+                            <button type="button" class="btn btn-sm btn-primary btn-action-sm" wire:click="toggleExternalPanel">
                                 <i class="mdi mdi-plus"></i> Add Samples from Other Batches
                             </button>
                         </div>
-                        <div class="card-body">
+                        <div class="workflow-board-panel-body">
                             @if($showExternalPanel)
-                            <div class="card mb-3 procedure-inner-card">
-                                <div class="card-body p-3">
+                            <div class="workflow-board-panel mb-3 procedure-inner-card">
+                                <div class="workflow-board-panel-body">
                                     <label class="form-label small text-muted fw-bold">Add samples from other batches</label>
                                     <p class="text-muted small mb-2">Search and select samples, then click Add Selected.</p>
 
@@ -192,43 +192,43 @@
                 $selectedResults = $this->analysisSamples->filter(fn($r) => $r->sample && in_array($r->sample->id, $selectedSamples))->values();
                 @endphp
                 <section class="procedure-section mb-4">
-                    <div class="card procedure-section-card">
-                        <div class="card-header procedure-section-header d-flex justify-content-between align-items-center flex-wrap gap-2">
+                    <div class="workflow-board-panel procedure-section-card">
+                        <div class="workflow-board-panel-header procedure-section-header d-flex justify-content-between align-items-center flex-wrap gap-2">
                             <h6 class="mb-0 d-flex align-items-center gap-2">
                                 <span>
                                     <i class="mdi mdi-timeline text-primary"></i>
                                     Steps &amp; Measurands
                                 </span>
                                 @if($worksheetAlreadyPosted)
-                                    <span class="badge badge-success">
-                                        <i class="mdi mdi-check-circle-outline"></i> Posted
-                                    </span>
+                                <span class="badge badge-success">
+                                    <i class="mdi mdi-check-circle-outline"></i> Posted
+                                </span>
                                 @endif
                                 @if($this->selectedWorksheetId)
-                                    @php
-                                        // Pass currently selected sample IDs so the PDF reflects
-                                        // the same subset shown in the UI.
-                                        $sampleQuery = !empty($selectedSamples)
-                                            ? implode(',', array_map('intval', $selectedSamples))
-                                            : '';
-                                        $analyteQuery = !empty($activeTabs)
-                                            ? implode(',', array_map('intval', $activeTabs))
-                                            : '';
-                                    @endphp
-                                    <span
-                                        wire:key="procedure-preview-{{ $batchId }}-{{ $this->selectedWorksheetId }}-{{ md5($sampleQuery) }}-{{ md5($analyteQuery) }}">
-                                        <a href="{{ route('batch-worksheets.procedure-preview', [
+                                @php
+                                // Pass currently selected sample IDs so the PDF reflects
+                                // the same subset shown in the UI.
+                                $sampleQuery = !empty($selectedSamples)
+                                ? implode(',', array_map('intval', $selectedSamples))
+                                : '';
+                                $analyteQuery = !empty($activeTabs)
+                                ? implode(',', array_map('intval', $activeTabs))
+                                : '';
+                                @endphp
+                                <span
+                                    wire:key="procedure-preview-{{ $batchId }}-{{ $this->selectedWorksheetId }}-{{ md5($sampleQuery) }}-{{ md5($analyteQuery) }}">
+                                    <a href="{{ route('batch-worksheets.procedure-preview', [
                                                 'batch' => $batchId,
                                                 'worksheet' => $this->selectedWorksheetId,
                                                 'samples' => $sampleQuery,
                                                 'analytes' => $analyteQuery,
                                             ]) }}"
-                                           target="_blank"
-                                           class="badge bg-light text-primary border"
-                                           title="Preview the currently selected worksheet PDF in a new tab">
-                                            <i class="mdi mdi-file-eye"></i> Preview PDF
-                                        </a>
-                                    </span>
+                                        target="_blank"
+                                        class="badge bg-light text-primary border"
+                                        title="Preview the currently selected worksheet PDF in a new tab">
+                                        <i class="mdi mdi-file-eye"></i> Preview PDF
+                                    </a>
+                                </span>
                                 @endif
                             </h6>
                             <div class="d-flex align-items-center gap-2">
@@ -238,13 +238,15 @@
                                         <i class="mdi mdi-import"></i> Import Data
                                     </button>
                                     <ul class="dropdown-menu dropdown-menu-right shadow-sm" aria-labelledby="importDataDropdown">
-                                        <li><h6 class="dropdown-header">From Worksheet:</h6></li>
+                                        <li>
+                                            <h6 class="dropdown-header">From Worksheet:</h6>
+                                        </li>
                                         @foreach($this->importableSources as $source)
-                                            <li>
-                                                <a class="dropdown-item" href="#" wire:click.prevent="importDataFromSource({{ $source['worksheet_id'] }}, {{ $source['analyte_id'] }})">
-                                                    {{ $source['worksheet_name'] }} - {{ $source['analyte_name'] }}
-                                                </a>
-                                            </li>
+                                        <li>
+                                            <a class="dropdown-item" href="#" wire:click.prevent="importDataFromSource({{ $source['worksheet_id'] }}, {{ $source['analyte_id'] }})">
+                                                {{ $source['worksheet_name'] }} - {{ $source['analyte_name'] }}
+                                            </a>
+                                        </li>
                                         @endforeach
                                     </ul>
                                 </div>
@@ -258,18 +260,18 @@
                             </div>
                         </div>
                         @if($worksheetAlreadyPosted)
-                            <div class="alert alert-success rounded-0 border-0 mb-0 py-2 px-3" style="font-size: 0.85rem;">
-                                <i class="mdi mdi-check-circle-outline mr-1"></i>
-                                Worksheet results for this parameter have already been posted. You can re-post if you make changes.
-                            </div>
+                        <div class="alert alert-success rounded-0 border-0 mb-0 py-2 px-3" style="font-size: 0.85rem;">
+                            <i class="mdi mdi-check-circle-outline mr-1"></i>
+                            Worksheet results for this parameter have already been posted. You can re-post if you make changes.
+                        </div>
                         @endif
-                        <div class="card-body p-0">
+                        <div class="workflow-board-panel-body p-0">
                             <div class="alert alert-info rounded-0 border-0 border-bottom mb-0 py-2 px-3" style="font-size: 0.85rem;">
                                 <i class="mdi mdi-information-outline mr-1"></i>
                                 <strong>Tip:</strong> The system automatically records you as the <strong>Analyst</strong> for the steps you type values into or import data for.
                             </div>
                             <div class="table-responsive procedure-steps-table-wrap">
-                                <table class="table table-bordered procedure-steps-table mb-0">
+                                <table class="table table-bordered procedure-steps-table mb-0 workflow-table">
                                     <thead>
                                         <tr>
                                             <th class="step-header-cell">Step</th>
@@ -362,11 +364,11 @@
                                                 ->keyBy('id');
                                                 $valueType = $step->value_type ?: 'text';
                                                 $stepInputType = match ($valueType) {
-                                                    'number' => 'number',
-                                                    'time' => 'time',
-                                                    'datetime' => 'datetime-local',
-                                                    'date' => 'date',
-                                                    default => 'text',
+                                                'number' => 'number',
+                                                'time' => 'time',
+                                                'datetime' => 'datetime-local',
+                                                'date' => 'date',
+                                                default => 'text',
                                                 };
                                                 @endphp
 
@@ -386,7 +388,7 @@
                                                 @endforeach
                                                 @else
                                                 {{-- Fallback: single value field when no measurands selected --}}
-                                            <input type="{{ $stepInputType }}" class="form-control"
+                                                <input type="{{ $stepInputType }}" class="form-control"
                                                     wire:model.live.debounce.1000ms="inputValues.{{ $selectedResults->first()->id }}.{{ $step->id }}"
                                                     wire:blur="autosaveStepValue({{ $step->id }})">
                                                 @endif
@@ -402,8 +404,8 @@
 
                 @if($this->getTestKitColumnsProperty()->isNotEmpty())
                 <section class="procedure-section mb-4">
-                    <div class="card procedure-section-card">
-                        <div class="card-header procedure-section-header d-flex justify-content-between align-items-center flex-wrap gap-2">
+                    <div class="workflow-board-panel procedure-section-card">
+                        <div class="workflow-board-panel-header procedure-section-header d-flex justify-content-between align-items-center flex-wrap gap-2">
                             <h6 class="mb-0">
                                 <i class="mdi mdi-table text-primary"></i>
                                 Test Kit
@@ -412,10 +414,10 @@
                                 <i class="mdi mdi-plus"></i> Add row
                             </button>
                         </div>
-                        <div class="card-body p-0">
+                        <div class="workflow-board-panel-body p-0">
                             @if(!empty($this->getOrderedTestKitRowsProperty()))
                             <div class="table-responsive">
-                                <table class="table table-bordered procedure-testkit-table mb-0">
+                                <table class="table table-bordered procedure-testkit-table mb-0 workflow-table">
                                     <thead>
                                         <tr>
                                             <th class="testkit-row-header">#</th>
@@ -478,14 +480,14 @@
 
                 @if($configFields->count() > 0)
                 <section class="procedure-section mb-4">
-                    <div class="card procedure-section-card">
-                        <div class="card-header procedure-section-header">
+                    <div class="workflow-board-panel procedure-section-card">
+                        <div class="workflow-board-panel-header procedure-section-header">
                             <h6 class="mb-0">
                                 <i class="mdi mdi-cog-outline text-primary"></i>
                                 Configurable Fields
                             </h6>
                         </div>
-                        <div class="card-body p-4">
+                        <div class="workflow-board-panel-body">
                             <div class="row g-4">
                                 @foreach($configFields as $field)
                                 <div class="col-xl-4 col-lg-6 mb-0" wire:key="cfg-{{ $field->id }}-ws-{{ $this->selectedWorksheetId }}-cr-{{ $selectedResults->isNotEmpty() ? $selectedResults->first()->id : 'none' }}">

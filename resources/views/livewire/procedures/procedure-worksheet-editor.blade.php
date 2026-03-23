@@ -1,26 +1,24 @@
-<div class="container-fluid">
+<div class="container-fluid lab-panel-theme workflow-board-page">
     <!-- Header -->
     <div class="row mb-4">
         <div class="col-12">
-            <div class="card shadow-sm border-0" style="border-radius: 15px;">
-                <div class="card-body p-4">
-                    <div class="d-flex justify-content-between align-items-center">
-                        <div>
-                            <h2 class="mb-0">
-                                <i class="mdi mdi-format-list-numbered text-primary"></i>
-                                Procedure Steps: {{ $worksheet->name }}
-                            </h2>
-                            <p class="text-muted mb-0">{{ $worksheet->description }}</p>
-                        </div>
-                        <div>
-                            <button wire:click="showImportModalInit" class="btn btn-outline-primary mr-2">
-                                <i class="mdi mdi-download"></i> Import Data
-                            </button>
-                            <button wire:click="create" class="btn btn-primary">
-                                <i class="mdi mdi-plus"></i> Add Step
-                            </button>
-                        </div>
+            <div class="workflow-board-panel">
+                <div class="workflow-board-panel-header">
+                    <h5>
+                        <i class="mdi mdi-format-list-numbered text-primary"></i>
+                        Procedure Steps: {{ $worksheet->name }}
+                    </h5>
+                    <div class="d-flex align-items-center gap-2">
+                        <button wire:click="showImportModalInit" class="btn btn-sm btn-outline-primary btn-action-sm">
+                            <i class="mdi mdi-download"></i> Import Data
+                        </button>
+                        <button wire:click="create" class="btn btn-sm btn-primary btn-action-sm">
+                            <i class="mdi mdi-plus"></i> Add Step
+                        </button>
                     </div>
+                </div>
+                <div class="workflow-board-panel-body flush-top">
+                    <p class="text-muted mb-0">{{ $worksheet->description }}</p>
                 </div>
             </div>
         </div>
@@ -48,9 +46,9 @@
     <!-- Content -->
     <div class="row">
         <div class="col-12">
-            <div class="card" style="border-radius: 15px;">
-                <div class="card-body">
-                    <ul class="nav nav-tabs mb-3" role="tablist">
+            <div class="workflow-board-panel">
+                <div class="workflow-board-panel-body flush-top">
+                    <ul class="nav batch-nav-tabs mb-0" role="tablist">
                         <li class="nav-item">
                             <a class="nav-link {{ $activeTab === 'steps' ? 'active' : '' }}"
                                id="steps-tab"
@@ -119,7 +117,7 @@
                             </div>
 
                             <div class="table-responsive">
-                                <table class="table table-striped table-hover">
+                                <table class="table table-striped table-hover workflow-table">
                                     <thead style="background-color: rgba(0, 0, 0, .03);">
                                         <tr>
                                             <th style="width: 50px;">Order</th>
@@ -225,7 +223,7 @@
                                         </button>
                                     </div>
                                 </div>
-                                <div class="card-body p-4">
+                <div class="workflow-board-panel-body p-4">
                                     <div class="row mb-3">
                                         <div class="col-md-10">
                                             <input type="text" wire:model.live="configFieldSearch" class="form-control" placeholder="Search by label or value name...">
@@ -239,7 +237,7 @@
 
                                     @if(count($configFields) > 0)
                                         <div class="table-responsive">
-                                            <table class="table table-striped table-hover">
+                                            <table class="table table-striped table-hover workflow-table">
                                                 <thead style="background-color: rgba(0, 0, 0, .03);">
                                                     <tr>
                                                         <th style="width: 40px;">
@@ -479,7 +477,7 @@
 
                                     @if(count($testKitColumns) > 0)
                                         <div class="table-responsive">
-                                            <table class="table table-striped table-hover">
+                                                <table class="table table-striped table-hover workflow-table">
                                                 <thead style="background-color: rgba(0, 0, 0, .03);">
                                                     <tr>
                                                         <th style="width: 40px;">

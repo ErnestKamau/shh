@@ -240,7 +240,7 @@ class ProcedureWorksheetManager extends Component
 
         $activeAnalyteId = count($this->activeTabs) > 0 ? $this->activeTabs[0] : null;
         $cacheKey = $activeAnalyteId ? "worksheet_selection_{$this->batchId}_{$this->selectedWorksheetId}_{$activeAnalyteId}_" . \Illuminate\Support\Facades\Auth::id() : null;
-        
+
         $cachedSelection = $cacheKey ? \Illuminate\Support\Facades\Cache::get($cacheKey) : null;
 
         // Default select all only when nothing is selected yet and no cache exists.
@@ -375,7 +375,7 @@ class ProcedureWorksheetManager extends Component
         // Mark worksheet as "already posted" when any captured result in this
         // batch + worksheet + active analyte has the worksheet_posted flag set.
         $this->worksheetAlreadyPosted = $capturedResults
-            ->contains(fn ($cr) => (bool) ($cr->worksheet_posted ?? false));
+            ->contains(fn($cr) => (bool) ($cr->worksheet_posted ?? false));
 
         // Kit columns are worksheet-scoped.
         // Kit rows + values are instance-scoped by captured_result_id (sample/analyte instance).
@@ -384,7 +384,7 @@ class ProcedureWorksheetManager extends Component
             ->get();
 
         $selectedCapturedResultIds = $capturedResults
-            ->filter(fn ($r) => $r->sample && in_array($r->sample->id, $this->selectedSamples, true))
+            ->filter(fn($r) => $r->sample && in_array($r->sample->id, $this->selectedSamples, true))
             ->pluck('id')
             ->values()
             ->all();
@@ -725,7 +725,7 @@ class ProcedureWorksheetManager extends Component
         if (empty($this->activeTabs) || ! $this->selectedWorksheetId) {
             return;
         }
-        
+
         $activeAnalyteId = count($this->activeTabs) > 0 ? $this->activeTabs[0] : null;
         if ($activeAnalyteId) {
             $cacheKey = "worksheet_selection_{$this->batchId}_{$this->selectedWorksheetId}_{$activeAnalyteId}_" . \Illuminate\Support\Facades\Auth::id();
@@ -845,7 +845,7 @@ class ProcedureWorksheetManager extends Component
             ->whereNotNull('procedure_worksheet_id')
             ->where(function ($q) use ($activeAnalyteId) {
                 $q->where('analyte_id', '!=', $activeAnalyteId)
-                  ->orWhere('procedure_worksheet_id', '!=', $this->selectedWorksheetId);
+                    ->orWhere('procedure_worksheet_id', '!=', $this->selectedWorksheetId);
             })
             ->with(['my_analyte', 'procedureWorksheet'])
             ->get();
@@ -1744,7 +1744,7 @@ class ProcedureWorksheetManager extends Component
             if (! $sourceCr || ! $targetCr) continue;
 
             $sourceValues = CapturedProcedureValue::where('captured_result_id', $sourceCr->id)->get();
-            
+
             foreach ($sourceValues as $srcVal) {
                 $sourceStepInfo = $sourceSteps->get($srcVal->procedure_worksheet_step_id);
                 if (!$sourceStepInfo) continue;
@@ -1782,11 +1782,11 @@ class ProcedureWorksheetManager extends Component
                 }
             }
         }
-        
+
         $userId = Auth::id();
         if ($userId && !empty($importedStepIds)) {
             $newAnalysts = [(string) $userId];
-            foreach(array_keys($importedStepIds) as $stepId) {
+            foreach (array_keys($importedStepIds) as $stepId) {
                 ProcedureWorksheetStepAnalyst::updateOrCreate(
                     [
                         'batch_id' => $this->batchId,
@@ -1802,7 +1802,7 @@ class ProcedureWorksheetManager extends Component
                 $this->dispatch('syncStepAnalystSelect', stepId: $stepId, analystIds: $newAnalysts);
             }
         }
-        
+
         $this->loadSamples();
         $this->importHash = Str::random(8);
 

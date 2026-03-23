@@ -2,10 +2,11 @@
 
 @section('title2')
 <title>Edit Procedure Steps | Lab Management</title>
+@include('layouts.lab.partials.lab-panel-theme-styles')
 @endsection
 
 @section('content2')
-<main>
+<main class="lab-panel-theme">
     <?php
     $items = [
         [
