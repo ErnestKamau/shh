@@ -361,7 +361,53 @@ class LabDashboardController extends Controller
 
     public function getSmartGridTasks(Request $request): \Illuminate\Http\JsonResponse
     {
-        $tab = $request->get('tab', 'my_tasks'); // my_tasks, urgent, approvals
+        $tab = $request->get('tab', 'my_tasks'); // my_tasks, urgent, approvals, tat_awareness, pending_submissions
+
+        if ($tab === 'pending_submissions') {
+            $forms = SubmissionFormInstance::query()
+                ->with(['submissionForm', 'submittedBy'])
+                ->whereNotIn('status', ['approved', 'rejected', 'cancelled'])
+                ->latest()
+                ->limit(50)
+                ->get()
+                ->map(function ($instance) {
+                    $priority = match (strtolower((string) $instance->status)) {
+                        'submitted' => 'High',
+                        'draft' => 'Normal',
+                        default => 'Normal',
+                    };
+
+                    $statusLabel = ucwords(str_replace('_', ' ', (string) $instance->status));
+                    $targetDate = $instance->created_at
+                        ? $instance->created_at->format('Y-m-d')
+                        : 'N/A';
+
+                    $detailUrl = null;
+                    if ((int) $instance->batches()->count() > 0) {
+                        $detailUrl = route('submission-forms.instances.batch-view', $instance->id);
+                    } elseif ($instance->submission_form_id) {
+                        $detailUrl = route('submission-forms.instances.show', [
+                            $instance->submission_form_id,
+                            $instance->id,
+                        ]);
+                    }
+
+                    return [
+                        'id' => $instance->id,
+                        'priority' => $priority,
+                        'batch_code' => $instance->form_number ?: ('Form #' . $instance->id),
+                        'client_name' => $instance->submissionForm->name ?? 'Submission Form',
+                        'sample_type' => $instance->submittedBy->name ?? 'Unassigned',
+                        'status' => $statusLabel,
+                        'target_date' => $targetDate,
+                        'tat_status' => null,
+                        'sample_count' => 0,
+                        'detail_url' => $detailUrl,
+                    ];
+                });
+
+            return response()->json($forms);
+        }
         
         $query = SampleHeader::with(['client', 'sample_type'])->where('isactive', 1)->where('status', '!=', 'Completed');
         

@@ -114,7 +114,7 @@
         <div class="row mb-4">
             <!-- Intake -->
             <div class="col-md-3">
-                <div class="bento-card pipeline-card h-100" onclick="loadGrid('intake')">
+                <div class="bento-card pipeline-card h-100" onclick="window.location.href='/sample-workflow/Samples%20Reception'">
                     <div class="stat-label text-info"><i class="fas fa-inbox"></i> Samples Reception</div>
                     <div class="stat-value">{{ $draft_forms ?? 0 }} <span style="font-size: 1.25rem; color: #94a3b8; font-weight: 500;">/ {{ $pending_submission_forms ?? 0 }}</span></div>
                     <div class="stat-subtext">Drafts / Total Pending Forms</div>
@@ -123,7 +123,7 @@
             </div>
             <!-- Prep -->
             <div class="col-md-3">
-                <div class="bento-card pipeline-card h-100" onclick="loadGrid('prep')">
+                <div class="bento-card pipeline-card h-100" onclick="window.location.href='/sample-workflow/Sample%20Verification'">
                     <div class="stat-label text-warning"><i class="fas fa-barcode"></i> Sample Verification</div>
                     <div class="stat-value">{{ $samples_verification ?? 0 }}</div>
                     <div class="stat-subtext">Awaiting Verification</div>
@@ -132,7 +132,7 @@
             </div>
             <!-- Lab -->
             <div class="col-md-3">
-                <div class="bento-card pipeline-card h-100" onclick="loadGrid('my_tasks')">
+                <div class="bento-card pipeline-card h-100" onclick="window.location.href='/sample-workflow/Samples%20In%20Lab'">
                     <div class="stat-label text-primary"><i class="fas fa-flask"></i> Samples In Lab</div>
                     <div class="stat-value">{{ $samples_lab ?? 0 }}</div>
                     <div class="stat-subtext">Active Tests in Lab</div>
@@ -141,7 +141,7 @@
             </div>
             <!-- Approval -->
             <div class="col-md-3">
-                <div class="bento-card pipeline-card h-100" onclick="loadGrid('approvals')">
+                <div class="bento-card pipeline-card h-100" onclick="window.location.href='/sample-workflow/Sample%20Approval'">
                     <div class="stat-label text-success"><i class="fas fa-check-double"></i> Sample Approval</div>
                     <div class="stat-value">{{ $samples_approval ?? 0 }}</div>
                     <div class="stat-subtext">Awaiting Sign-off</div>
@@ -287,6 +287,9 @@
                                 <a class="nav-link" id="tab-approvals" data-toggle="tab" href="#grid-pane" role="tab" onclick="loadGrid('approvals')">📝 Pending Approvals</a>
                             </li>
                             <li class="nav-item">
+                                <a class="nav-link" id="tab-pending-submissions" data-toggle="tab" href="#grid-pane" role="tab" onclick="loadGrid('pending_submissions')">📄 Pending Submission Forms</a>
+                            </li>
+                            <li class="nav-item">
                                 <a class="nav-link text-warning" id="tab-tat-link" data-toggle="tab" href="#grid-pane" role="tab" onclick="loadGrid('tat_awareness')">⏳ TAT Watchlist</a>
                             </li>
                             <li class="nav-item border-left ml-2 pl-2">
@@ -383,12 +386,20 @@
                     tatDisplay = `${item.target_date} <br><small class="badge ${badgeColor} mt-1">${item.tat_status}</small>`;
                 }
                 
-                html += `<tr style="cursor:pointer;" onclick="window.location.href='/sample-workflow/batch/${item.id}/details'">
+                const detailUrl = item.detail_url ? item.detail_url : `/sample-workflow/batch/${item.id}/details`;
+                const isSubmissionItem = tabName === 'pending_submissions';
+                const sampleTypeLabel = isSubmissionItem ? 'Submitted By' : 'Sample Type';
+                let statusClass = item.status == 'Sample Approval' ? 'badge-success' : 'badge-info';
+                if (isSubmissionItem) {
+                    statusClass = item.status.toLowerCase().includes('draft') ? 'badge-warning' : 'badge-primary';
+                }
+
+                html += `<tr style="cursor:pointer;" onclick="window.location.href='${detailUrl}'">
                     <td class="pl-4 ${prioClass}">${prioIcon}${item.priority}</td>
                     <td class="font-weight-bold text-primary">${item.batch_code}</td>
                     <td>${item.client_name}</td>
-                    <td><span class="badge badge-light px-2 py-1 text-secondary border">${item.sample_type}</span></td>
-                    <td><span class="badge ${item.status == 'Sample Approval' ? 'badge-success' : 'badge-info'} px-2 py-1 text-white">${item.status}</span></td>
+                    <td><span class="badge badge-light px-2 py-1 text-secondary border" title="${sampleTypeLabel}">${item.sample_type}</span></td>
+                    <td><span class="badge ${statusClass} px-2 py-1 text-white">${item.status}</span></td>
                     <td>${tatDisplay}</td>
                     <td class="text-right pr-4"><button class="btn btn-sm btn-outline-primary rounded px-3">View</button></td>
                 </tr>`;
