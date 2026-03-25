@@ -299,6 +299,17 @@
                         @php
                             $key = $field->field_value_name ?: \Illuminate\Support\Str::slug($field->label, '_');
                             $val = $headerConfig[$key] ?? '';
+                            $labelLower = \Illuminate\Support\Str::lower((string) ($field->label ?? ''));
+                            $keyLower = \Illuminate\Support\Str::lower((string) $key);
+                            $isTemperature = str_contains($labelLower, 'temperature') || str_contains($labelLower, 'temp')
+                                || str_contains($keyLower, 'temperature') || str_contains($keyLower, 'temp');
+                            if ($isTemperature && is_string($val)) {
+                                $trimmed = trim($val);
+                                $alreadyHasUnit = str_contains($trimmed, '°') || preg_match('/\b(c|degc|celsius)\b/i', $trimmed) === 1;
+                                if ($trimmed !== '' && ! $alreadyHasUnit) {
+                                    $val = $trimmed . ' °C';
+                                }
+                            }
                         @endphp
                         <div class="info-row">
                             <div class="info-label">{{ $field->label }}:</div>
@@ -311,6 +322,17 @@
                         @php
                             $key = $field->field_value_name ?: \Illuminate\Support\Str::slug($field->label, '_');
                             $val = $headerConfig[$key] ?? '';
+                            $labelLower = \Illuminate\Support\Str::lower((string) ($field->label ?? ''));
+                            $keyLower = \Illuminate\Support\Str::lower((string) $key);
+                            $isTemperature = str_contains($labelLower, 'temperature') || str_contains($labelLower, 'temp')
+                                || str_contains($keyLower, 'temperature') || str_contains($keyLower, 'temp');
+                            if ($isTemperature && is_string($val)) {
+                                $trimmed = trim($val);
+                                $alreadyHasUnit = str_contains($trimmed, '°') || preg_match('/\b(c|degc|celsius)\b/i', $trimmed) === 1;
+                                if ($trimmed !== '' && ! $alreadyHasUnit) {
+                                    $val = $trimmed . ' °C';
+                                }
+                            }
                         @endphp
                         <div class="info-row">
                             <div class="info-label">{{ $field->label }}:</div>
@@ -534,8 +556,9 @@
             $text = "Page {PAGE_NUM} of {PAGE_COUNT}";
             $size = 8;
             $font = $fontMetrics->getFont("Verdana");
-            $width = $fontMetrics->get_text_width($text, $font, $size) / 2;
-            $x = ($pdf->get_width() - $width) / 2;
+            $textWidth = $fontMetrics->get_text_width($text, $font, $size);
+            $rightMargin = 20;
+            $x = $pdf->get_width() - $textWidth - $rightMargin;
             $y = $pdf->get_height() - 35;
             $pdf->page_text($x, $y, $text, $font, $size);
         }
