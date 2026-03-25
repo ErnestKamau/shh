@@ -18,7 +18,7 @@
                 <input type="text" 
                        wire:model.live="search" 
                        class="form-control" 
-                       placeholder="Search by purpose or user...">
+                       placeholder="Search by workflow stage, tracking stage, user, or comments...">
             </div>
 
             @if($custodyRecords->count() > 0)
@@ -26,24 +26,34 @@
                     <table class="table table-hover">
                         <thead style="background-color: rgba(0, 0, 0, .03);">
                             <tr>
-                                <th>Date</th>
-                                <th>From</th>
-                                <th>To</th>
-                                <th>Purpose</th>
-                                <th>Status</th>
+                                <th>No.</th>
+                                <th>Workflow Stage</th>
+                                <th>Tracking Stage</th>
+                                <th>Started By</th>
+                                <th>Start Date</th>
+                                <th>Completed By</th>
+                                <th>Complete Date</th>
                             </tr>
                         </thead>
                         <tbody>
                             @foreach($custodyRecords as $custody)
                                 <tr>
-                                    <td>{{ $custody->created_at->format('Y-m-d H:i') }}</td>
-                                    <td>{{ $custody->started_by->name ?? 'N/A' }}</td>
-                                    <td>{{ $custody->completed_by->name ?? 'N/A' }}</td>
-                                    <td>{{ $custody->purpose ?? '-' }}</td>
-                                    <td>
-                                        <span class="badge badge-{{ $custody->status == 'completed' ? 'success' : 'warning' }}">
-                                            {{ ucfirst($custody->status) }}
-                                        </span>
+                                    <td class="text-nowrap">{{ ($custodyRecords->firstItem() ?? 0) + $loop->index }}</td>
+                                    <td class="text-nowrap">{{ $custody->workflow_stage ?? '-' }}</td>
+                                    <td class="text-nowrap">{{ $custody->tracking_stage->name ?? '-' }}</td>
+                                    <td class="text-nowrap">{{ $custody->started_by->name ?? '-' }}</td>
+                                    <td class="text-nowrap">
+                                        {{ optional($custody->created_at)->format('Y-m-d H:i') ?? '-' }}
+                                    </td>
+                                    <td class="text-nowrap">
+                                        {!! $custody->completed_by->name ?? '<i class="mdi mdi-timer-sand text-warning" style="font-size: 16px!important"></i>' !!}
+                                    </td>
+                                    <td class="text-nowrap">
+                                        @if(!empty($custody->moved_out_date))
+                                            {{ $custody->moved_out_date }}
+                                        @else
+                                            <i class="mdi mdi-timer-sand text-warning" style="font-size: 16px!important"></i>
+                                        @endif
                                     </td>
                                 </tr>
                             @endforeach
@@ -67,16 +77,18 @@
                     <table class="table table-hover workflow-table">
                         <thead>
                             <tr>
-                                <th>Date</th>
-                                <th>From</th>
-                                <th>To</th>
-                                <th>Purpose</th>
-                                <th>Status</th>
+                                <th>No.</th>
+                                <th>Workflow Stage</th>
+                                <th>Tracking Stage</th>
+                                <th>Started By</th>
+                                <th>Start Date</th>
+                                <th>Completed By</th>
+                                <th>Complete Date</th>
                             </tr>
                         </thead>
                         <tbody>
                             <tr>
-                                <td colspan="5" class="text-center py-5 workflow-empty-state">
+                                <td colspan="7" class="text-center py-5 workflow-empty-state">
                                     <i class="mdi mdi-link-variant-off text-muted" style="font-size: 48px;"></i>
                                     <h6 class="mt-3 text-muted">No Chain of Custody Records</h6>
                                     <p class="text-muted mb-0"><small>

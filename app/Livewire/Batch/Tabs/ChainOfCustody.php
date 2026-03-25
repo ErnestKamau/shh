@@ -30,15 +30,19 @@ class ChainOfCustody extends Component
     public function getCustodyRecordsProperty()
     {
         return $this->batch->custody()
-            ->with(['started_by', 'completed_by'])
+            ->with(['started_by', 'completed_by', 'tracking_stage'])
             ->when($this->search, function($query) {
                 $query->where(function($q) {
-                    $q->where('purpose', 'like', '%' . $this->search . '%')
+                    $q->where('workflow_stage', 'like', '%' . $this->search . '%')
+                      ->orWhere('comments', 'like', '%' . $this->search . '%')
                       ->orWhereHas('started_by', function($user) {
                           $user->where('name', 'like', '%'  . $this->search . '%');
                       })
                       ->orWhereHas('completed_by', function($user) {
                           $user->where('name', 'like', '%' . $this->search . '%');
+                      })
+                      ->orWhereHas('tracking_stage', function($stage) {
+                          $stage->where('name', 'like', '%' . $this->search . '%');
                       });
                 });
             })

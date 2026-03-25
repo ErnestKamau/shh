@@ -383,9 +383,7 @@ class LabDashboardController extends Controller
                         : 'N/A';
 
                     $detailUrl = null;
-                    if ((int) $instance->batches()->count() > 0) {
-                        $detailUrl = route('submission-forms.instances.batch-view', $instance->id);
-                    } elseif ($instance->submission_form_id) {
+                    if ($instance->submission_form_id) {
                         $detailUrl = route('submission-forms.instances.show', [
                             $instance->submission_form_id,
                             $instance->id,

@@ -191,9 +191,6 @@
                         </li>
                         @endif
                         @if(!in_array($batch->status,array("Completed")))
-                            <li>
-                                <a target="_blank" href="{{route('generateCustomerFocusIndex',['batch_id'=>$batch->id])}}" class="btn btn-sm dropdown-item"><i class="mdi mdi-eye mr-2"></i> View Sample Submission Form</a>
-                            </li>
                             @if($batch->hasSubmissionForm())
                             <li>
                                 <form action="{{ route('regenerate-submission-form', ['batch' => $batch->id]) }}" method="POST" class="d-inline">

@@ -623,7 +623,9 @@ Route::prefix('submission-forms')->name('submission-forms.')->middleware('auth')
         Route::get('/', 'FormInstanceController@index')->name('index');
 
         // Batch View - Display form instance with all linked batches and samples (safe route pattern)
-        Route::get('/batch/{instance}/view', 'FormInstanceController@batchView')->name('batch-view')->where('instance', '[0-9]+');
+        Route::get('/batch/{instance}/view', function () {
+            abort(404);
+        })->name('batch-view')->where('instance', '[0-9]+');
 
         // Batch View Print - Print version of batch view
         Route::get('/batch/{instance}/print', 'FormInstanceController@batchViewPrint')->name('batch-view-print')->where('instance', '[0-9]+');

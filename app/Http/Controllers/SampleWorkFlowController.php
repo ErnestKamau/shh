@@ -4032,7 +4032,12 @@ class SampleWorkFlowController extends Controller
 
         // Check if batch has a submission form instance linked
         if ($batch->hasSubmissionForm()) {
-            return redirect()->route('submission-forms.instances.batch-view', $batch->submissionFormInstance);
+            $instance = $batch->submissionFormInstance;
+
+            return redirect()->route('submission-forms.instances.show', [
+                $instance->submission_form_id,
+                $instance->id,
+            ]);
         }
 
         // No submission form instance - redirect back with error message
