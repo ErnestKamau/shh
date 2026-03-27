@@ -51,12 +51,19 @@ class ProcedureWorksheetPdfService
 
         $batch->load('sample_type');
 
-        $capturedQuery = CapturedResult::where('sample_header_id', $batch->id)
-            ->where('procedure_worksheet_id', $worksheet->id);
+        // Build the captured_results query for this worksheet.
+        //
+        // Key detail: when $sampleIds is provided, they may include samples coming
+        // from other batches (external sample additions). In that case we must
+        // NOT restrict by `sample_header_id = $batch->id`, otherwise those external
+        // captured results would be excluded and the PDF would miss them.
+        $capturedQuery = CapturedResult::where('procedure_worksheet_id', $worksheet->id);
 
         if (!empty($sampleIds)) {
-            // Restrict to the same samples currently selected in the worksheet UI
             $capturedQuery->whereIn('sample_detail_id', $sampleIds);
+        } else {
+            // Default (no explicit sample filter): only include the current batch.
+            $capturedQuery->where('sample_header_id', $batch->id);
         }
 
         if (!empty($analyteIds)) {
@@ -67,6 +74,12 @@ class ProcedureWorksheetPdfService
         $capturedResults = $capturedQuery
             ->with(['sample', 'analysis_type'])
             ->get();
+
+        // Resolve batch_code per captured result sample_header_id.
+        $sampleHeaderIds = $capturedResults->pluck('sample_header_id')->filter()->unique()->values()->all();
+        $batchCodeByHeaderId = !empty($sampleHeaderIds)
+            ? SampleHeader::whereIn('id', $sampleHeaderIds)->pluck('batch_code', 'id')
+            : collect();
 
         $crIds = $capturedResults->pluck('id');
         $stepValues = CapturedProcedureValue::whereIn('captured_result_id', $crIds)->get()->groupBy('captured_result_id');
@@ -87,7 +100,7 @@ class ProcedureWorksheetPdfService
             $seen[$sample->id] = true;
             $samplesForWorksheet[] = [
                 'sample_code' => $sample->sample_code ?? '—',
-                'batch_code' => $batch->batch_code,
+                'batch_code' => $batchCodeByHeaderId->get($cr->sample_header_id) ?? $batch->batch_code,
                 'sample_type_name' => $sampleTypeName,
             ];
         }
@@ -124,7 +137,7 @@ class ProcedureWorksheetPdfService
 
             $sampleRows[] = [
                 'sample_code' => $sample ? ($sample->sample_code ?? '—') : '—',
-                'batch_code' => $batch->batch_code,
+                'batch_code' => $batchCodeByHeaderId->get($cr->sample_header_id) ?? $batch->batch_code,
                 'sample_type_name' => $sampleTypeName,
                 'analysis_type_name' => $analysisType ? $analysisType->name : $worksheet->name,
                 'steps' => $stepDetails,

@@ -370,6 +370,7 @@
                                                 'date' => 'date',
                                                 default => 'text',
                                                 };
+                                                $requiresDoubleEntry = in_array($stepInputType, ['text', 'number'], true);
                                                 @endphp
 
                                                 @if(!empty($selectedMeasurandIds))
@@ -382,6 +383,10 @@
                                                         {{ $label }}
                                                     </span>
                                                     <input type="{{ $stepInputType }}" class="form-control form-control-sm"
+                                                        @if($requiresDoubleEntry)
+                                                        data-double-entry-confirm="1"
+                                                        data-confirm-label="{{ $step->step }} - {{ $label }}"
+                                                        @endif
                                                         wire:model.live.debounce.1000ms="inputValues.{{ $selectedResults->first()->id }}.{{ $step->id }}.{{ $mId }}"
                                                         wire:blur="autosaveStepValue({{ $step->id }})">
                                                 </div>
@@ -389,6 +394,10 @@
                                                 @else
                                                 {{-- Fallback: single value field when no measurands selected --}}
                                                 <input type="{{ $stepInputType }}" class="form-control"
+                                                    @if($requiresDoubleEntry)
+                                                    data-double-entry-confirm="1"
+                                                    data-confirm-label="{{ $step->step }}"
+                                                    @endif
                                                     wire:model.live.debounce.1000ms="inputValues.{{ $selectedResults->first()->id }}.{{ $step->id }}"
                                                     wire:blur="autosaveStepValue({{ $step->id }})">
                                                 @endif
@@ -901,4 +910,49 @@
             border-bottom: none;
         }
     </style>
+    <script>
+        (function () {
+            // Track value at focus time so we only prompt when the value actually changed.
+            document.addEventListener('focusin', function (event) {
+                var input = event.target;
+                if (!input || input.getAttribute('data-double-entry-confirm') !== '1') {
+                    return;
+                }
+                input.dataset.initialValueOnFocus = input.value || '';
+            });
+
+            // Capture-phase blur runs before Livewire's blur handler, so we can block autosave on mismatch.
+            document.addEventListener('blur', function (event) {
+                var input = event.target;
+                if (!input || input.getAttribute('data-double-entry-confirm') !== '1') {
+                    return;
+                }
+
+                var currentValue = (input.value || '').trim();
+                var initialValue = (input.dataset.initialValueOnFocus || '').trim();
+
+                if (currentValue === '' || currentValue === initialValue) {
+                    return;
+                }
+
+                var contextLabel = input.getAttribute('data-confirm-label') || 'this step value';
+                var confirmation = window.prompt('Please re-enter value for ' + contextLabel + ':');
+
+                if (confirmation !== currentValue) {
+                    event.preventDefault();
+                    event.stopImmediatePropagation();
+
+                    window.alert('Value mismatch. Please enter the value again.');
+                    input.value = '';
+                    input.dataset.initialValueOnFocus = '';
+                    input.dispatchEvent(new Event('input', { bubbles: true }));
+                    input.focus();
+                    return;
+                }
+
+                // Mark as confirmed for this blur cycle; autosave can proceed normally.
+                input.dataset.initialValueOnFocus = currentValue;
+            }, true);
+        })();
+    </script>
 </div>

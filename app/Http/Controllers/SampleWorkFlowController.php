@@ -3342,6 +3342,14 @@ class SampleWorkFlowController extends Controller
 
     public function add_batch_attachment(Request $request)
     {
+        $request->validate([
+            'batch_id' => 'required|integer|exists:sample_headers,id',
+            'title' => 'required|string|max:255',
+            'attachment_type' => 'required|integer',
+            'attachment' => 'required|file',
+            'selected_captured_result_ids' => 'nullable|string',
+        ]);
+
         $batch = SampleHeader::find($request->batch_id);
         if (isset($batch->id)) {
             $new = new BatchAttachment();
@@ -3370,9 +3378,20 @@ class SampleWorkFlowController extends Controller
                 );
 
                 if (!empty($ids)) {
-                    // Safety: only update results that truly belong to this batch
-                    CapturedResult::whereIn('id', $ids)
-                        ->where('sample_header_id', $batch->id)
+                    // Safety: only update results that truly belong to this batch.
+                    // This also enables explicit re-upload (replacement) when they are already linked.
+                    $baseQuery = CapturedResult::whereIn('id', $ids)
+                        ->where('sample_header_id', $batch->id);
+
+                    $existingAttachmentIds = (clone $baseQuery)
+                        ->whereNotNull('batch_attachment_id')
+                        ->pluck('batch_attachment_id')
+                        ->filter()
+                        ->unique()
+                        ->values()
+                        ->toArray();
+
+                    $baseQuery
                         ->update(['batch_attachment_id' => $new->id]);
 
                     // For any attachment-based placeholder results, flip the
@@ -3386,7 +3405,43 @@ class SampleWorkFlowController extends Controller
                         'batch_id'          => $batch->id,
                         'attachment_id'     => $new->id,
                         'captured_ids'      => $ids,
+                        'replaced_attachment_ids' => $existingAttachmentIds,
                     ]);
+
+                    // Cleanup: if we replaced links from prior attachments, remove any old
+                    // attachment records that are now orphaned (no captured results still point to them).
+                    foreach ($existingAttachmentIds as $oldAttachmentId) {
+                        if ((int) $oldAttachmentId === (int) $new->id) {
+                            continue;
+                        }
+
+                        $stillLinked = CapturedResult::where('sample_header_id', $batch->id)
+                            ->where('batch_attachment_id', (int) $oldAttachmentId)
+                            ->exists();
+
+                        if ($stillLinked) {
+                            continue;
+                        }
+
+                        $old = BatchAttachment::where('batch_id', $batch->id)
+                            ->where('id', (int) $oldAttachmentId)
+                            ->first();
+
+                        if (! $old) {
+                            continue;
+                        }
+
+                        // Delete stored file (only for the local batch-attachments disk path format)
+                        $url = $old->attachment_url;
+                        if ($url && str_starts_with($url, '/storage/batch-attachments/')) {
+                            $filename = basename(urldecode(parse_url($url, PHP_URL_PATH)));
+                            Storage::delete('batch-attachments/' . $filename);
+                        }
+
+                        // Delete annotations (if any) then the attachment record itself
+                        \App\Models\BatchAttachmentAnnotation::where('batch_attachment_id', $old->id)->delete();
+                        $old->delete();
+                    }
                 }
             }
 

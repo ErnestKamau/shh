@@ -186,7 +186,7 @@
     <!-- Add Attachment Modal -->
     <div class="modal fade" id="add-attachment-batch" role="dialog">
         <div class="modal-dialog modal-lg">
-            <form action="{{ route('add_batch_attachment') }}" method="post" enctype="multipart/form-data" class="modal-content shadow-sm" style="border-radius: 20px; border: none; background: #fafbfc;">
+            <form id="add-attachment-form" action="{{ route('add_batch_attachment') }}" method="post" enctype="multipart/form-data" class="modal-content shadow-sm" style="border-radius: 20px; border: none; background: #fafbfc;">
                 @csrf
                 <div class="modal-header" style="border-bottom: 1.5px solid #e7eaf0; background: #f3f4f7; border-radius: 20px 20px 0 0;">
                     <div class="w-100 d-flex flex-column justify-content-center align-items-start py-2">
@@ -296,8 +296,9 @@
                                                             class="captured-result-checkbox"
                                                             data-sample="{{ $sample['id'] }}"
                                                             data-ids="{{ implode(',', $analyte['captured_result_ids']) }}"
+                                                            data-has-linked="{{ $someLinked ? 1 : 0 }}"
                                                             onchange="syncCapturedResultIds()"
-                                                            @if($allLinked) disabled title="Already linked to another attachment" @endif>
+                                                            title="{{ $someLinked ? 'Selecting this will replace existing linked attachment(s).' : 'Select analyte results to link.' }}">
                                                     </td>
                                                     <td class="align-middle">
                                                         <span class="font-weight-bold">{{ $analyte['analyte_code'] }}</span>
@@ -726,5 +727,28 @@
                 });
             }
         })(window.jQuery);
+
+        // Confirm when replacing already linked captured results
+        document.addEventListener('submit', function(e) {
+            if (!e.target || e.target.id !== 'add-attachment-form') {
+                return;
+            }
+
+            var linkedSelectedCount = 0;
+            document.querySelectorAll('.captured-result-checkbox:checked').forEach(function(cb) {
+                if (cb.getAttribute('data-has-linked') === '1') {
+                    linkedSelectedCount++;
+                }
+            });
+
+            if (linkedSelectedCount > 0) {
+                var ok = window.confirm(
+                    'Some selected results are already linked to another attachment. Continue and replace those links?'
+                );
+                if (!ok) {
+                    e.preventDefault();
+                }
+            }
+        });
     </script>
 </div>

@@ -72,6 +72,8 @@ class ProcedureWorksheetManager extends Component
     public string $externalSearch = '';
     public bool $showExternalPanel = false;
     public bool $showExternalDropdown = false;
+    /** Tracks which external-selection cache key has been loaded into memory. */
+    public ?string $externalSelectionCacheKeyLoaded = null;
 
     public function mount($batchId)
     {
@@ -261,6 +263,20 @@ class ProcedureWorksheetManager extends Component
             $this->testKitRows = [];
             $this->testKitData = [];
             return;
+        }
+
+        // Persist external samples per (batch, worksheet, analyte, user) so they survive reloads.
+        $activeAnalyteIdForExternal = count($this->activeTabs) > 0 ? (int) $this->activeTabs[0] : null;
+        $externalCacheKey = $activeAnalyteIdForExternal
+            ? "worksheet_external_cr_{$this->batchId}_{$this->selectedWorksheetId}_{$activeAnalyteIdForExternal}_" . \Illuminate\Support\Facades\Auth::id()
+            : null;
+
+        if ($externalCacheKey && $this->externalSelectionCacheKeyLoaded !== $externalCacheKey) {
+            $cachedExternal = \Illuminate\Support\Facades\Cache::get($externalCacheKey);
+            $cachedExternalIds = is_array($cachedExternal) ? array_values(array_filter(array_map('intval', $cachedExternal))) : [];
+
+            $this->externalCapturedResultIds = $cachedExternalIds;
+            $this->externalSelectionCacheKeyLoaded = $externalCacheKey;
         }
 
         // When switching to a different worksheet tab, always start from a clean
@@ -1419,6 +1435,34 @@ class ProcedureWorksheetManager extends Component
             $this->externalCapturedResultIds,
             $ids
         )));
+
+        // Also auto-select the corresponding external sample_details so:
+        // 1) the UI checkboxes show them as included,
+        // 2) `selectedSamples` is updated (so PDF sample filtering includes them),
+        // 3) the selection cache is updated for this worksheet/analyte tab.
+        $additionalSampleIds = CapturedResult::query()
+            ->whereIn('id', $ids)
+            ->pluck('sample_detail_id')
+            ->filter()
+            ->unique()
+            ->values()
+            ->toArray();
+
+        $this->selectedSamples = array_values(array_unique(array_merge(
+            $this->selectedSamples,
+            $additionalSampleIds
+        )));
+
+        $activeAnalyteId = count($this->activeTabs) > 0 ? (int) $this->activeTabs[0] : null;
+        if ($activeAnalyteId && $this->selectedWorksheetId) {
+            $cacheKey = "worksheet_selection_{$this->batchId}_{$this->selectedWorksheetId}_{$activeAnalyteId}_" . \Illuminate\Support\Facades\Auth::id();
+            \Illuminate\Support\Facades\Cache::put($cacheKey, array_map('intval', $this->selectedSamples), now()->addDays(7));
+
+            // Persist external captured results selection too (so it survives reload).
+            $externalKey = "worksheet_external_cr_{$this->batchId}_{$this->selectedWorksheetId}_{$activeAnalyteId}_" . \Illuminate\Support\Facades\Auth::id();
+            \Illuminate\Support\Facades\Cache::put($externalKey, array_map('intval', $this->externalCapturedResultIds), now()->addDays(7));
+            $this->externalSelectionCacheKeyLoaded = $externalKey;
+        }
 
         $this->externalSelectionItems = [];
         $this->performExternalSearch();

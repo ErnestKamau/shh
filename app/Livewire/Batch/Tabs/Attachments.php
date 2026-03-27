@@ -196,6 +196,24 @@ class Attachments extends Component
     {
         $attachment = BatchAttachment::find($attachmentId);
         if ($attachment) {
+            $linkedCapturedIds = CapturedResult::where('batch_attachment_id', $attachment->id)
+                ->pluck('id')
+                ->toArray();
+
+            // Detach captured results linked to this attachment to avoid stale foreign references.
+            if (!empty($linkedCapturedIds)) {
+                CapturedResult::whereIn('id', $linkedCapturedIds)
+                    ->update(['batch_attachment_id' => null]);
+            }
+
+            // Keep attachment-based placeholders consistent once detached.
+            if (!empty($linkedCapturedIds)) {
+                CapturedResult::whereIn('id', $linkedCapturedIds)
+                    ->whereNull('batch_attachment_id')
+                    ->where('result', 'as attached')
+                    ->update(['result' => 'No attachment']);
+            }
+
             $relativePath = urldecode($attachment->attachment_url);
             $filePath = public_path($relativePath);
 
