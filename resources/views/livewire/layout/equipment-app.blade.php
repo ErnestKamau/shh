@@ -24,6 +24,14 @@
             'icon' => null
         ];
     }
+
+    if (isset($componentType) && $componentType === 'equipment-dashboard') {
+        $breadcrumbItems[] = [
+            'link' => route('equipment-dashboard'),
+            'name' => 'Equipment Dashboard',
+            'icon' => null
+        ];
+    }
     
     // Add Equipment Detail if we're in equipment detail section
     if (isset($componentType) && $componentType === 'equipment-detail') {
@@ -71,6 +79,8 @@
     <!-- Dynamic Livewire Component -->
     @if($componentType === 'equipment-manager')
         @livewire('equipment.equipment-manager')
+    @elseif($componentType === 'equipment-dashboard')
+        @livewire('equipment.equipment-dashboard')
     @elseif($componentType === 'equipment-detail')
         @livewire('equipment.equipment-detail', ['equipmentId' => $equipmentId])
     @elseif($componentType === 'disposal-manager')

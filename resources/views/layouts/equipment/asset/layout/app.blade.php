@@ -2,7 +2,7 @@
 
 @section('module-name')
 <li class="nav-item">
-  <a class="nav-link module-name" href="{{ route('lab-home') }}"><i class="mdi mdi-tools"></i> Equipment Management</a>
+  <a class="nav-link module-name" href="{{ route('equipment-dashboard') }}"><i class="mdi mdi-tools"></i> Equipment Management</a>
 </li>
 @endsection
 

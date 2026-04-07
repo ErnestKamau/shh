@@ -493,7 +493,7 @@
             <h3 class="app-title">Inventory</h3>
         </a>
 
-        <a class="app-card equipment" href="/equipment-home" data-app="equipment">
+        <a class="app-card equipment" href="{{ route('equipment-dashboard') }}" data-app="equipment">
             <div class="app-icon" style="background: linear-gradient(135deg, #795548, #5D4037);">
                 <i class="mdi mdi-tools"></i>
             </div>

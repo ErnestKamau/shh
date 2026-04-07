@@ -27,6 +27,17 @@ class EquipmentAppController extends Controller
     }
 
     /**
+     * Display the equipment dashboard page.
+     */
+    public function equipmentDashboard()
+    {
+        return view('livewire.layout.equipment-app', [
+            'componentType' => 'equipment-dashboard',
+            'pageTitle' => 'Equipment Dashboard'
+        ]);
+    }
+
+    /**
      * Display the equipment detail page.
      */
     public function equipmentDetail($equipmentId)

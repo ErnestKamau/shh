@@ -791,6 +791,7 @@ Route::get('/equipment/asset-locations', [EquipmentAppController::class, 'assetL
 
 //############################################EQUIPMENT##########################################################
 Route::get('/equipment-home', [EquipmentAppController::class, 'equipmentManager'])->name('equipment-home')->middleware('haspermission:Equipment.permission');
+Route::get('/equipment-dashboard', [EquipmentAppController::class, 'equipmentDashboard'])->name('equipment-dashboard')->middleware('haspermission:Equipment.permission');
 Route::post('/equipment', 'Equipment\EquipmentController@add')->name('add-equipment')->middleware('haspermission:Equipment.components.Equipment-List.Add');
 Route::get('/equipment/{equipmentId}', [EquipmentAppController::class, 'equipmentDetail'])->name('view-equipment')->middleware('haspermission:Equipment.components.Equipment-List.View');
 Route::post('/equipment/{id}', 'Equipment\EquipmentController@edit')->name('edit-equipment')->middleware('haspermission:Equipment.components.Equipment-List.Edit');
@@ -1518,4 +1519,59 @@ Route::middleware(['auth'])->prefix('dms')->name('dms.')->group(function () {
     Route::get('/documents/{id}/download', 'DMSController@download')->name('download');
     Route::get('/documents/{id}/preview', 'DMSController@preview')->name('preview');
     Route::get('/documents/{documentId}/versions/{versionId}/download', 'DMSController@downloadVersion')->name('download-version');
+});
+
+// Documents Module
+Route::prefix('documents')->name('documents.')->group(function () {
+    // Dashboard
+    Route::get('/dashboard', 'Documents\DocumentController@dashboard')->name('dashboard');
+
+    // Document Types
+    Route::prefix('types')->name('types.')->group(function () {
+        Route::get('/', 'Documents\DocumentTypeController@index')->name('index');
+        Route::get('/create', 'Documents\DocumentTypeController@create')->name('create')->middleware('haspermission:Documents.components.Document Types.Add');
+        Route::post('/', 'Documents\DocumentTypeController@store')->name('store')->middleware('haspermission:Documents.components.Document Types.Add');
+        Route::get('/{id}', 'Documents\DocumentTypeController@show')->name('show');
+        Route::get('/{id}/edit', 'Documents\DocumentTypeController@edit')->name('edit')->middleware('haspermission:Documents.components.Document Types.Edit');
+        Route::put('/{id}', 'Documents\DocumentTypeController@update')->name('update')->middleware('haspermission:Documents.components.Document Types.Edit');
+        Route::delete('/{id}', 'Documents\DocumentTypeController@destroy')->name('destroy')->middleware('haspermission:Documents.components.Document Types.Delete');
+    });
+
+    // Notification Frequencies
+    Route::prefix('notification-frequencies')->name('notification-frequencies.')->group(function () {
+        Route::get('/', 'Documents\NotificationFrequencyController@index')->name('index');
+        Route::get('/create', 'Documents\NotificationFrequencyController@create')->name('create')->middleware('haspermission:Documents.components.Document Types.Add');
+        Route::post('/', 'Documents\NotificationFrequencyController@store')->name('store')->middleware('haspermission:Documents.components.Document Types.Add');
+        Route::get('/{id}', 'Documents\NotificationFrequencyController@show')->name('show');
+        Route::get('/{id}/edit', 'Documents\NotificationFrequencyController@edit')->name('edit')->middleware('haspermission:Documents.components.Document Types.Edit');
+        Route::put('/{id}', 'Documents\NotificationFrequencyController@update')->name('update')->middleware('haspermission:Documents.components.Document Types.Edit');
+        Route::delete('/{id}', 'Documents\NotificationFrequencyController@destroy')->name('destroy')->middleware('haspermission:Documents.components.Document Types.Delete');
+    });
+
+    // Document Management
+    Route::get('/', 'Documents\DocumentController@index')->name('index');
+    Route::get('/unpublished', 'Documents\DocumentController@unpublished')->name('unpublished');
+    Route::get('/expired', 'Documents\DocumentController@expired')->name('expired');
+    Route::get('/create', 'Documents\DocumentController@create')->name('create')->middleware('haspermission:Documents.components.Document Management.Add');
+    Route::post('/', 'Documents\DocumentController@store')->name('store')->middleware('haspermission:Documents.components.Document Management.Add');
+    Route::post('/bulk-store', 'Documents\DocumentController@bulkStore')->name('bulk-store')->middleware('haspermission:Documents.components.Document Management.Add');
+    Route::get('/{id}/edit', 'Documents\DocumentController@edit')->name('edit')->middleware('haspermission:Documents.components.Document Management.Edit');
+    Route::put('/{id}', 'Documents\DocumentController@update')->name('update')->middleware('haspermission:Documents.components.Document Management.Edit');
+    Route::delete('/{id}', 'Documents\DocumentController@destroy')->name('destroy')->middleware('haspermission:Documents.components.Document Management.Delete');
+
+    // Publishing
+    Route::get('/{id}/publish', 'Documents\DocumentController@publish')->name('publish')->middleware('haspermission:Documents.components.Document Publishing.Add');
+    Route::post('/{id}/publish', 'Documents\DocumentController@storePublish')->name('store-publish')->middleware('haspermission:Documents.components.Document Publishing.Add');
+    Route::post('/{id}/unpublish', 'Documents\DocumentController@unpublish')->name('unpublish')->middleware('haspermission:Documents.components.Document Publishing.Edit');
+
+    // Downloads and attachments
+    Route::get('/{id}/download', 'Documents\DocumentController@download')->name('download');
+    Route::get('/attachments/{id}/download', 'Documents\DocumentController@downloadAttachment')->name('attachments.download');
+    Route::delete('/attachments/{id}', 'Documents\DocumentController@deleteAttachment')->name('attachments.delete')->middleware('haspermission:Documents.components.Document Management.Delete');
+
+    // Validation
+    Route::post('/check-duplicate', 'Documents\DocumentController@checkDuplicate')->name('check-duplicate');
+
+    // Show document (keep last)
+    Route::get('/{id}', 'Documents\DocumentController@show')->name('show');
 });

@@ -2,7 +2,7 @@
 
 @section('module-name')
 <li class="nav-item">
-  <a class="nav-link module-name" href="{{ route('equipment-home') }}"><i class="mdi mdi-tools"></i> Equipment Management</a>
+  <a class="nav-link module-name" href="{{ route('equipment-dashboard') }}"><i class="mdi mdi-tools"></i> Equipment Management</a>
 </li>
 @endsection
 
@@ -28,6 +28,12 @@
 			</li> --}}
 			<!-- /END Separator -->
 			<!-- Menu with submenu -->
+			<a href="{{ route('equipment-dashboard') }}" class="bg-dark list-group-item list-group-item-action">
+				<div class="d-flex w-100 justify-content-start align-items-center">
+					<span class="mdi mdi-view-dashboard fa-fw mr-3"></span>
+					<span class="menu-collapsed">Equipment Dashboard</span>
+				</div>
+			</a>
 			<a href="{{ route('equipment-home') }}" class="bg-dark list-group-item list-group-item-action">
 				<div class="d-flex w-100 justify-content-start align-items-center">
 					<span class="mdi mdi-tools fa-fw mr-3"></span>
