@@ -31,38 +31,15 @@ class PersonnelController extends Controller
 
   public function index()
   {
+		$license_count = $this->users_by_license();
+		$stages = SampleAnalysisStage::where('active', 1)->get();
 
-
-		$users = User::join('inventory_departments as d', 'd.id', '=', 'users.department_id')
-		->leftJoin('module_pre_configs as de', function($join){
-			$tp = "Designation";
-			$join->on('de.id', '=', 'users.designation');
-			$join->where('de.type', '=', $tp);
-		})
-		->leftJoin('module_pre_configs as e', function($join){
-			$tp = "Educational Levels";
-			$join->on('e.id', '=', 'users.education_level');
-			$join->where('e.type', '=', $tp);
-		})
-		->leftJoin('module_pre_configs as p', function($join){
-			$tp = "Job Description";
-			$join->on('p.id', '=', 'users.position');
-			$join->where('p.type', '=', $tp);
-		})
-		->selectRaw('users.*,  d.name as department_name, p.name as position, e.name as education, de.name as designation')
-		->where('users.company_id', getUserCompany())->get();
-
-		$license_count = array();
-		$stages = SampleAnalysisStage::where('active',1)->get();
-		foreach($users as $u){
-			if(!isset($license_count[$u->license_type])){
-				$license_count[$u->license_type] = 0;
-			}
-
-			$license_count[$u->license_type]++;
-		}
-
-		return view('layouts.personnel.users.index', compact('users', 'license_count','stages'));
+		return view('livewire.layout.personnel-app', [
+			'componentType' => 'personnel-dashboard',
+			'pageTitle' => 'Personnel Dashboard',
+			'license_count' => $license_count,
+			'stages' => $stages,
+		]);
 	}
 
 	public function users_by_license(){
