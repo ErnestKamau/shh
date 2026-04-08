@@ -106,14 +106,10 @@ class PersonnelController extends Controller
 
 	public function departments()
 	{
-		$user = Auth::user();
-		$module = "organizational";
-		$departments = InventoryDepartment::where('company_id', getUserCompany())
-			->where('module', $module)
-			->where('location_id', getCurrentUserLocation()->id)
-			->orderBy('name', 'asc')->get();
-
-		return view('layouts.personnel.departments.index', compact('departments'));
+		return view('livewire.layout.personnel-app', [
+			'componentType' => 'organizational-departments',
+			'pageTitle' => 'Organizational Departments',
+		]);
 	}
 	public function reset_personnel_password(Request $request, $id){
 		$user = getUserById($id);

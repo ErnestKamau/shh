@@ -1,4 +1,13 @@
 <div class="container-fluid">
+    @if($message)
+        <div class="alert alert-{{ $messageType === 'success' ? 'success' : 'danger' }} alert-dismissible fade show" role="alert">
+            {{ $message }}
+            <button type="button" class="close" wire:click="dismissMessage">
+                <span>&times;</span>
+            </button>
+        </div>
+    @endif
+
     <div class="card tab-card">
         <div class="card-header tab-card-header d-flex justify-content-between align-items-center">
             <ul class="nav nav-tabs card-header-tabs" role="tablist">
@@ -13,7 +22,7 @@
                     </button>
                 </li>
             </ul>
-            <button class="btn btn-primary btn-sm" data-toggle="modal" data-target="#add-personnel">
+            <button class="btn btn-primary btn-sm" type="button" wire:click="openAddPersonnelModal">
                 <i class="mdi mdi-plus"></i> Add
             </button>
         </div>
@@ -106,19 +115,19 @@
                                 <td>{{ $this->personnel->firstItem() + $loop->index }}</td>
                                 <td nowrap style="width: 130px;">
                                     <div class="d-flex">
-                                        <a class="btn btn-success btn-sm mr-1" href="{{ route('view-personnel', ['id' => $item->id]) }}" title="View">
+                                        <a class="btn btn-outline-success btn-sm mr-1" href="{{ route('view-personnel', ['id' => $item->id]) }}" title="View">
                                             <i class="mdi mdi-eye-outline"></i>
                                         </a>
 
                                         @if(auth()->user()->CheckDeactivatePersonnel())
-                                            <span class="btn btn-danger btn-sm mr-1" data-toggle="modal" data-target="#lock-user-{{ $item->id }}" title="{{ $activeTab === 'active' ? 'Deactivate' : 'Activate' }} Personnel">
+                                            <button type="button" class="btn btn-outline-danger btn-sm mr-1" wire:click="openStateModal({{ $item->id }})" title="{{ $activeTab === 'active' ? 'Deactivate' : 'Activate' }} Personnel">
                                                 <i class="mdi {{ $activeTab === 'active' ? 'mdi-account-lock' : 'mdi-lock-open-variant' }}"></i>
-                                            </span>
+                                            </button>
                                         @endif
 
-                                        <span class="btn btn-info btn-sm" data-toggle="modal" data-target="#reset-password-{{ $item->id }}" title="Reset Password">
+                                        <button type="button" class="btn btn-outline-info btn-sm" wire:click="openResetPasswordModal({{ $item->id }})" title="Reset Password">
                                             <i class="mdi mdi-key-change"></i>
-                                        </span>
+                                        </button>
                                     </div>
                                 </td>
                                 <td>{{ $item->designation }}</td>
@@ -151,59 +160,370 @@
         </div>
     </div>
 
-    @foreach($this->personnel as $item)
-        <div id="lock-user-{{ $item->id }}" class="modal fade" role="dialog">
-            <div class="modal-dialog">
-                <form class="modal-content" method="POST" action="{{ route('personnel-state', ['id' => $item->id]) }}">
-                    @csrf
+    @if($showAddPersonnelModal)
+        <div class="modal fade show d-block" tabindex="-1" style="background-color: rgba(0,0,0,0.5); overflow-y: auto;">
+            <div class="modal-dialog modal-lg modal-dialog-scrollable">
+                <div class="modal-content">
                     <div class="modal-header">
-                        <h3 class="modal-title">
-                            <i class="mdi mdi-account-lock"></i>
-                            {{ $item->active == 1 ? 'Deactivate' : 'Activate' }} {{ $item->first_name }} {{ $item->last_name }}
-                        </h3>
+                        <h4 class="modal-title"><i class="mdi mdi-plus"></i> Add Personnel</h4>
+                        <button type="button" class="close" wire:click="closeAddPersonnelModal"><span>&times;</span></button>
+                    </div>
+                    <div class="modal-body">
+                        <form wire:submit.prevent="savePersonnel">
+                            <div class="row">
+                                <div class="col-sm-6">
+                                    <div class="form-group">
+                                        <label class="control-label">Designation <span class="text-danger">*</span></label>
+                                        <div class="tag-select-container" wire:click="$set('showDesignationDropdown', true)">
+                                            <div class="tag-select-input">
+                                                @if($personnelForm['designation'] !== '')
+                                                    @php($selectedDesignation = collect($designations)->firstWhere('id', (int) $personnelForm['designation']))
+                                                    <span class="tag-badge">
+                                                        {{ $selectedDesignation['name'] ?? '' }}
+                                                        <i class="mdi mdi-close-circle" wire:click.stop="clearDesignation"></i>
+                                                    </span>
+                                                @endif
+                                                <input type="text" wire:model.live="designationSearch" wire:keyup="searchDesignations" class="tag-input" placeholder="{{ $personnelForm['designation'] !== '' ? '' : 'Search designation...' }}" autocomplete="off">
+                                            </div>
+                                            @if($showDesignationDropdown && count($filteredDesignations) > 0)
+                                                <div class="tag-dropdown">
+                                                    @foreach($filteredDesignations as $item)
+                                                        <div class="tag-dropdown-item" wire:click.stop="selectDesignation({{ $item['id'] }})">
+                                                            {{ $item['name'] }}
+                                                        </div>
+                                                    @endforeach
+                                                </div>
+                                            @endif
+                                        </div>
+                                    </div>
+                                    <div class="form-group">
+                                        <label class="control-label">First Name <span class="text-danger">*</span></label>
+                                        <input type="text" class="form-control" wire:model="personnelForm.first_name" placeholder="First Name..." />
+                                    </div>
+                                    <div class="form-group">
+                                        <label class="control-label">Middle Name</label>
+                                        <input type="text" class="form-control" wire:model="personnelForm.middle_name" placeholder="Middle Name..." />
+                                    </div>
+                                    <div class="form-group">
+                                        <label class="control-label">Last Name</label>
+                                        <input type="text" class="form-control" wire:model="personnelForm.last_name" placeholder="Last Name..." />
+                                    </div>
+                                    <div class="form-group">
+                                        <label class="control-label">Email <span class="text-danger">*</span></label>
+                                        <input type="email" class="form-control" wire:model="personnelForm.email" placeholder="Email..." />
+                                    </div>
+                                    <div class="form-group">
+                                        <label class="control-label">Phone</label>
+                                        <input type="text" class="form-control" wire:model="personnelForm.phone" placeholder="Phone..." />
+                                    </div>
+                                    <div class="form-group">
+                                        <label class="control-label">ID Number/Passport No <span class="text-danger">*</span></label>
+                                        <input type="text" class="form-control" wire:model="personnelForm.id_number" placeholder="ID Number..." />
+                                    </div>
+                                </div>
+                                <div class="col-sm-6">
+                                    <div class="form-group">
+                                        <label class="control-label">Employment Date</label>
+                                        <input type="date" class="form-control" wire:model="personnelForm.employment_date" />
+                                    </div>
+                                    <div class="form-group">
+                                        <label class="control-label">Education Level</label>
+                                        <div class="tag-select-container" wire:click="$set('showEducationLevelDropdown', true)">
+                                            <div class="tag-select-input">
+                                                @if($personnelForm['educational_level'] !== '')
+                                                    @php($selectedEducation = collect($educationLevels)->firstWhere('id', (int) $personnelForm['educational_level']))
+                                                    <span class="tag-badge">
+                                                        {{ $selectedEducation['name'] ?? '' }}
+                                                        <i class="mdi mdi-close-circle" wire:click.stop="clearEducationLevel"></i>
+                                                    </span>
+                                                @endif
+                                                <input type="text" wire:model.live="educationLevelSearch" wire:keyup="searchEducationLevels" class="tag-input" placeholder="{{ $personnelForm['educational_level'] !== '' ? '' : 'Search education level...' }}" autocomplete="off">
+                                            </div>
+                                            @if($showEducationLevelDropdown && count($filteredEducationLevels) > 0)
+                                                <div class="tag-dropdown">
+                                                    @foreach($filteredEducationLevels as $item)
+                                                        <div class="tag-dropdown-item" wire:click.stop="selectEducationLevel({{ $item['id'] }})">
+                                                            {{ $item['name'] }}
+                                                        </div>
+                                                    @endforeach
+                                                </div>
+                                            @endif
+                                        </div>
+                                    </div>
+                                    <div class="form-group">
+                                        <label class="control-label">Position <span class="text-danger">*</span></label>
+                                        <div class="tag-select-container" wire:click="$set('showPositionDropdown', true)">
+                                            <div class="tag-select-input">
+                                                @if($personnelForm['position'] !== '')
+                                                    @php($selectedPosition = collect($positions)->firstWhere('id', (int) $personnelForm['position']))
+                                                    <span class="tag-badge">
+                                                        {{ $selectedPosition['name'] ?? '' }}
+                                                        <i class="mdi mdi-close-circle" wire:click.stop="clearPosition"></i>
+                                                    </span>
+                                                @endif
+                                                <input type="text" wire:model.live="positionSearch" wire:keyup="searchPositions" class="tag-input" placeholder="{{ $personnelForm['position'] !== '' ? '' : 'Search position...' }}" autocomplete="off">
+                                            </div>
+                                            @if($showPositionDropdown && count($filteredPositions) > 0)
+                                                <div class="tag-dropdown">
+                                                    @foreach($filteredPositions as $item)
+                                                        <div class="tag-dropdown-item" wire:click.stop="selectPosition({{ $item['id'] }})">
+                                                            {{ $item['name'] }}
+                                                        </div>
+                                                    @endforeach
+                                                </div>
+                                            @endif
+                                        </div>
+                                    </div>
+                                    <div class="form-group">
+                                        <label class="control-label">Department <span class="text-danger">*</span></label>
+                                        <div class="tag-select-container" wire:click="$set('showDepartmentDropdown', true)">
+                                            <div class="tag-select-input">
+                                                @if($personnelForm['department'] !== '')
+                                                    @php($selectedDepartment = collect($departments)->firstWhere('id', (int) $personnelForm['department']))
+                                                    <span class="tag-badge">
+                                                        {{ $selectedDepartment['name'] ?? '' }}
+                                                        <i class="mdi mdi-close-circle" wire:click.stop="clearDepartmentInput"></i>
+                                                    </span>
+                                                @endif
+                                                <input type="text" wire:model.live="departmentSearchInput" wire:keyup="searchDepartmentsInput" class="tag-input" placeholder="{{ $personnelForm['department'] !== '' ? '' : 'Search department...' }}" autocomplete="off">
+                                            </div>
+                                            @if($showDepartmentDropdown && count($filteredDepartments) > 0)
+                                                <div class="tag-dropdown">
+                                                    @foreach($filteredDepartments as $item)
+                                                        <div class="tag-dropdown-item" wire:click.stop="selectDepartmentInput({{ $item['id'] }})">
+                                                            {{ $item['name'] }}
+                                                        </div>
+                                                    @endforeach
+                                                </div>
+                                            @endif
+                                        </div>
+                                    </div>
+                                    <div class="form-group">
+                                        <label class="control-label">Lab Section</label>
+                                        <div class="tag-select-container" wire:click="$set('showLabSectionDropdown', true)">
+                                            <div class="tag-select-input">
+                                                @foreach(($personnelForm['lab_section_id'] ?? []) as $selectedStageId)
+                                                    @php($selectedStage = collect($stages)->firstWhere('id', (int) $selectedStageId))
+                                                    @if($selectedStage)
+                                                        <span class="tag-badge">
+                                                            {{ $selectedStage['name'] }}
+                                                            <i class="mdi mdi-close-circle" wire:click.stop="removeLabSectionSelection({{ (int) $selectedStageId }})"></i>
+                                                        </span>
+                                                    @endif
+                                                @endforeach
+                                                <input type="text" wire:model.live="labSectionSearch" wire:keyup="searchLabSections" class="tag-input" placeholder="Search and select lab sections..." autocomplete="off">
+                                            </div>
+                                            @if($showLabSectionDropdown && count($filteredLabSections) > 0)
+                                                <div class="tag-dropdown">
+                                                    @foreach($filteredLabSections as $stage)
+                                                        <div class="tag-dropdown-item d-flex justify-content-between align-items-center" wire:click.stop="toggleLabSectionSelection({{ $stage['id'] }})">
+                                                            <span>{{ $stage['name'] }}</span>
+                                                            @if(in_array($stage['id'], $personnelForm['lab_section_id'] ?? [], true))
+                                                                <i class="mdi mdi-check text-success"></i>
+                                                            @endif
+                                                        </div>
+                                                    @endforeach
+                                                </div>
+                                            @endif
+                                        </div>
+                                    </div>
+                                    <div class="form-group">
+                                        <label class="control-label">User License <span class="text-danger">*</span></label>
+                                        <div class="tag-select-container" wire:click="$set('showLicenseDropdown', true)">
+                                            <div class="tag-select-input">
+                                                @if($personnelForm['user_license'] !== '')
+                                                    @php($selectedLicenseName = $licenses[$personnelForm['user_license']] ?? '')
+                                                    <span class="tag-badge">
+                                                        {{ $selectedLicenseName }}
+                                                        <i class="mdi mdi-close-circle" wire:click.stop="clearLicense"></i>
+                                                    </span>
+                                                @endif
+                                                <input type="text" wire:model.live="licenseSearch" wire:keyup="searchLicenses" class="tag-input" placeholder="{{ $personnelForm['user_license'] !== '' ? '' : 'Search license...' }}" autocomplete="off">
+                                            </div>
+                                            @if($showLicenseDropdown && count($filteredLicenses) > 0)
+                                                <div class="tag-dropdown">
+                                                    @foreach($filteredLicenses as $license)
+                                                        <div class="tag-dropdown-item d-flex justify-content-between align-items-center {{ $license['disabled'] ? 'text-muted' : '' }}" @if(!$license['disabled']) wire:click.stop="selectLicense('{{ $license['key'] }}')" @endif>
+                                                            <span>{{ $license['name'] }}</span>
+                                                            <small>{{ $license['count'] }}/{{ $license['limit'] }}</small>
+                                                        </div>
+                                                    @endforeach
+                                                </div>
+                                            @endif
+                                        </div>
+                                    </div>
+                                    <div class="form-group">
+                                        <label class="control-label">
+                                            <input type="checkbox" wire:model="personnelForm.active" /> Active
+                                        </label>
+                                    </div>
+                                </div>
+                            </div>
+                        </form>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-primary" wire:click="savePersonnel"><i class="mdi mdi-content-save"></i> Save</button>
+                        <button type="button" class="btn btn-default" wire:click="closeAddPersonnelModal">Close</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    @endif
+
+    @if($showStateModal)
+        <div class="modal fade show d-block" tabindex="-1" style="background-color: rgba(0,0,0,0.5);">
+            <div class="modal-dialog">
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <h3 class="modal-title"><i class="mdi mdi-account-lock"></i> Update {{ $selectedPersonnelName }} State</h3>
+                        <button type="button" class="close" wire:click="closeStateModal"><span>&times;</span></button>
                     </div>
                     <div class="modal-body">
                         <div class="form-group">
                             <label class="control-label">State</label>
-                            <select name="state" class="form-control">
-                                <option value="active" {{ $item->active == 1 ? 'selected' : '' }}>Activate</option>
-                                <option value="deactive" {{ $item->active == 0 ? 'selected' : '' }}>Deactivate</option>
+                            <select class="form-control" wire:model="stateAction">
+                                <option value="active">Activate</option>
+                                <option value="deactive">Deactivate</option>
                             </select>
                         </div>
                     </div>
                     <div class="modal-footer">
-                        <button type="submit" class="btn btn-primary"><i class="mdi mdi-content-save"></i> Save</button>
-                        <button type="button" class="btn btn-default" data-dismiss="modal">Close</button>
+                        <button type="button" class="btn btn-primary" wire:click="savePersonnelState"><i class="mdi mdi-content-save"></i> Save</button>
+                        <button type="button" class="btn btn-default" wire:click="closeStateModal">Close</button>
                     </div>
-                </form>
+                </div>
             </div>
         </div>
+    @endif
 
-        <div id="reset-password-{{ $item->id }}" class="modal fade" role="dialog">
+    @if($showResetPasswordModal)
+        <div class="modal fade show d-block" tabindex="-1" style="background-color: rgba(0,0,0,0.5);">
             <div class="modal-dialog">
-                <form action="{{ route('reset-personnel', ['id' => $item->id]) }}" method="POST" class="modal-content">
-                    @csrf
+                <div class="modal-content">
                     <div class="modal-header">
-                        <h3 class="modal-title">
-                            <i class="mdi mdi-key-change"></i> Reset {{ $item->first_name }} {{ $item->last_name }} Password
-                        </h3>
+                        <h3 class="modal-title"><i class="mdi mdi-key-change"></i> Reset {{ $selectedPersonnelName }} Password</h3>
+                        <button type="button" class="close" wire:click="closeResetPasswordModal"><span>&times;</span></button>
                     </div>
                     <div class="modal-body">
                         <div class="form-group">
                             <label class="control-label">Password</label>
-                            <input type="password" class="form-control" required name="password">
+                            <input type="password" class="form-control" wire:model="newPassword">
                         </div>
                         <div class="form-group">
                             <label class="control-label">Confirm Password</label>
-                            <input type="password" class="form-control" required name="con_password">
+                            <input type="password" class="form-control" wire:model="confirmPassword">
                         </div>
                     </div>
                     <div class="modal-footer">
-                        <button type="submit" class="btn btn-primary"><i class="mdi mdi-content-save"></i> Save</button>
-                        <button type="button" class="btn btn-default" data-dismiss="modal">Close</button>
+                        <button type="button" class="btn btn-primary" wire:click="resetPersonnelPassword"><i class="mdi mdi-content-save"></i> Save</button>
+                        <button type="button" class="btn btn-default" wire:click="closeResetPasswordModal">Close</button>
                     </div>
-                </form>
+                </div>
             </div>
         </div>
-    @endforeach
+    @endif
+
+    <style>
+        .tag-select-container {
+            position: relative;
+            cursor: text;
+        }
+
+        .tag-select-input {
+            display: flex;
+            flex-wrap: wrap;
+            align-items: center;
+            gap: 6px;
+            min-height: 42px;
+            padding: 6px 12px;
+            background: #fff;
+            border: 2px solid #e0e0e0;
+            border-radius: 8px;
+            transition: all 0.3s ease;
+        }
+
+        .tag-select-input:hover {
+            border-color: #007bff;
+        }
+
+        .tag-select-input:focus-within {
+            border-color: #007bff;
+            box-shadow: 0 0 0 0.2rem rgba(0, 123, 255, 0.25);
+            outline: none;
+        }
+
+        .tag-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
+            padding: 4px 10px;
+            background-color: #007bff;
+            color: #fff;
+            border-radius: 16px;
+            font-size: 0.875rem;
+            font-weight: 500;
+            white-space: nowrap;
+        }
+
+        .tag-badge i {
+            cursor: pointer;
+            font-size: 1rem;
+            opacity: 0.8;
+            transition: opacity 0.2s;
+        }
+
+        .tag-badge i:hover {
+            opacity: 1;
+        }
+
+        .tag-input {
+            flex: 1;
+            min-width: 140px;
+            border: none;
+            outline: none;
+            padding: 4px;
+            font-size: 0.9rem;
+        }
+
+        .tag-dropdown {
+            position: absolute;
+            top: 100%;
+            left: 0;
+            right: 0;
+            background: #fff;
+            border: 2px solid #007bff;
+            border-top: none;
+            border-radius: 0 0 8px 8px;
+            max-height: 260px;
+            overflow-y: auto;
+            z-index: 1060;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+            margin-top: -2px;
+        }
+
+        .tag-dropdown-item {
+            padding: 10px 16px;
+            cursor: pointer;
+            transition: background-color 0.2s;
+            border-bottom: 1px solid #f0f0f0;
+        }
+
+        .tag-dropdown-item:hover {
+            background-color: #f8f9fa;
+        }
+
+        .tag-dropdown-item:last-child {
+            border-bottom: none;
+        }
+    </style>
+
+    @script
+    <script>
+        document.addEventListener('click', function (event) {
+            if (!event.target.closest('.tag-select-container')) {
+                $wire.closeAddModalDropdowns();
+            }
+        });
+    </script>
+    @endscript
 </div>

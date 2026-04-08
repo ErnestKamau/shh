@@ -87,7 +87,7 @@
                     <div class="col-md-4">
                         <div class="chart-container h-100">
                             <h5 class="mb-3"><i class="mdi mdi-lightning-bolt"></i> Quick Actions</h5>
-                            <button type="button" class="btn btn-sm btn-outline-primary quick-action-btn w-100 mb-2" data-toggle="modal" data-target="#add-personnel">
+                            <button type="button" class="btn btn-sm btn-outline-primary quick-action-btn w-100 mb-2" wire:click="$dispatchTo('personnel.personnel-table-manager', 'personnel-open-add-modal')">
                                 <i class="mdi mdi-plus"></i> Add Personnel
                             </button>
                             <a href="{{ route('organizational-roles') }}" class="btn btn-sm btn-outline-primary quick-action-btn w-100 mb-2">
@@ -185,7 +185,7 @@
     </style>
 
     <div id="personnel-list" class="mt-4">
-        @livewire('personnel.personnel-table-manager')
+        @livewire('personnel.personnel-table-manager', ['embedded' => true])
     </div>
 
 </div>

@@ -16,8 +16,10 @@ class RoleController extends Controller
   }
 
 	public function index(){
-		$roles = Role::orderBy('name', 'asc')->where('company_id', getUserCompany())->get();
-		return view('layouts.personnel.roles.index', compact('roles'));
+		return view('livewire.layout.personnel-app', [
+			'componentType' => 'organizational-roles',
+			'pageTitle' => 'Organizational Roles',
+		]);
 	}
 
 	public function add(Request $request){
