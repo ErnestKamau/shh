@@ -14,7 +14,7 @@
 @section('content')
 <div class="row" id="body-row">
 	<!-- Sidebar -->
-	<div id="sidebar-container" class="sidebar-expanded d-none d-md-block col-sm-4 col-md-3 col-lg-2">
+	<div id="sidebar-container" class="sidebar-expanded d-none d-md-block">
 		<!-- d-* hiddens the Sidebar in smaller devices. Its itens can be kept on the Navbar 'Menu' -->
 		<!-- Bootstrap List Group -->
 		<ul class="list-group">
@@ -30,10 +30,16 @@
 			<!-- Menu with submenu -->
 
 
-			<a href="/personnel-home" class="bg-dark list-group-item list-group-item-action">
+			<a href="{{ route('personnel-home') }}" class="bg-dark list-group-item list-group-item-action">
 				<div class="d-flex w-100 justify-content-start align-items-center">
-					<span class="mdi mdi-account-group-outline fa-fw mr-3"></span>
-					<span class="menu-collapsed">Personnel</span>
+					<span class="mdi mdi-view-dashboard fa-fw mr-3"></span>
+					<span class="menu-collapsed">Dashboard</span>
+				</div>
+			</a>
+			<a href="{{ route('personnel-list') }}" class="bg-dark list-group-item list-group-item-action">
+				<div class="d-flex w-100 justify-content-start align-items-center">
+					<span class="mdi mdi-format-list-bulleted fa-fw mr-3"></span>
+					<span class="menu-collapsed">Personnel List</span>
 				</div>
 			</a>
 			<a href="/organizational-departments" class="bg-dark list-group-item list-group-item-action">
@@ -80,7 +86,7 @@
 					<span class="menu-collapsed"><i class="mdi mdi-circle-medium"></i>Certifications</span>
 					</a>
 			</div>
-			<div class="list-group-item copyright-lims p-4 text-center text-white" style="position: fixed; bottom:0">
+			<div class="list-group-item copyright-lims p-4 text-center text-white" style="bottom:0">
 				Copyright {{ date('Y') }} <span class="text-red">Imara LIMS</span>
 			</div>
 			<!-- Submenu content -->
@@ -91,7 +97,7 @@
 	<!-- sidebar-container END -->
 
 	<!-- MAIN -->
-	<div class="col-sm-8 col-md-9 col-lg-10 py-3" id="main-container-body">
+	<div class="py-3" id="main-container-body">
 		<div id="message-section" style="padding: 10px 10px 0px 10px !important">
 			@if ($errors->any())
 				<div class="alert alert-danger">

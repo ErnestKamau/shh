@@ -2,6 +2,8 @@
 
 namespace App\Livewire\Personnel;
 
+use App\InventoryDepartment;
+use App\ModulePreConfigs;
 use App\User;
 use Livewire\Component;
 use Livewire\WithPagination;
@@ -12,13 +14,71 @@ class PersonnelTableManager extends Component
 
     public string $search = '';
     public string $activeTab = 'active';
+    public string $departmentFilter = '';
+    public string $designationFilter = '';
+    public string $licenseFilter = '';
+    public string $employmentDateFrom = '';
+    public string $employmentDateTo = '';
     public int $perPage = 25;
     /** @var array<int, int> */
     public array $perPageOptions = [10, 25, 50, 100];
+    public bool $showAdvancedFilters = false;
+
+    /** @var array<int, array{id:int,name:string}> */
+    public array $departments = [];
+    /** @var array<int, array{id:int,name:string}> */
+    public array $designations = [];
+    /** @var array<string,string> */
+    public array $licenses = [];
 
     protected $paginationTheme = 'bootstrap';
 
+    public function mount(): void
+    {
+        $this->departments = InventoryDepartment::query()
+            ->where('company_id', getUserCompany())
+            ->where('module', 'organizational')
+            ->orderBy('name')
+            ->get(['id', 'name'])
+            ->map(fn ($item): array => ['id' => (int) $item->id, 'name' => (string) $item->name])
+            ->toArray();
+
+        $this->designations = ModulePreConfigs::query()
+            ->where('type', 'Designation')
+            ->orderBy('name')
+            ->get(['id', 'name'])
+            ->map(fn ($item): array => ['id' => (int) $item->id, 'name' => (string) $item->name])
+            ->toArray();
+
+        $this->licenses = getUserLicenses();
+    }
+
     public function updatingSearch(): void
+    {
+        $this->resetPage();
+    }
+
+    public function updatingDepartmentFilter(): void
+    {
+        $this->resetPage();
+    }
+
+    public function updatingDesignationFilter(): void
+    {
+        $this->resetPage();
+    }
+
+    public function updatingLicenseFilter(): void
+    {
+        $this->resetPage();
+    }
+
+    public function updatingEmploymentDateFrom(): void
+    {
+        $this->resetPage();
+    }
+
+    public function updatingEmploymentDateTo(): void
     {
         $this->resetPage();
     }
@@ -31,6 +91,22 @@ class PersonnelTableManager extends Component
     public function setActiveTab(string $tab): void
     {
         $this->activeTab = in_array($tab, ['active', 'deactive'], true) ? $tab : 'active';
+        $this->resetPage();
+    }
+
+    public function toggleAdvancedFilters(): void
+    {
+        $this->showAdvancedFilters = !$this->showAdvancedFilters;
+    }
+
+    public function clearFilters(): void
+    {
+        $this->search = '';
+        $this->departmentFilter = '';
+        $this->designationFilter = '';
+        $this->licenseFilter = '';
+        $this->employmentDateFrom = '';
+        $this->employmentDateTo = '';
         $this->resetPage();
     }
 
@@ -71,6 +147,26 @@ class PersonnelTableManager extends Component
                     ->orWhere('p.name', 'like', $searchText)
                     ->orWhere('de.name', 'like', $searchText);
             });
+        }
+
+        if ($this->departmentFilter !== '') {
+            $query->where('users.department_id', (int) $this->departmentFilter);
+        }
+
+        if ($this->designationFilter !== '') {
+            $query->where('users.designation', (int) $this->designationFilter);
+        }
+
+        if ($this->licenseFilter !== '') {
+            $query->where('users.license_type', $this->licenseFilter);
+        }
+
+        if ($this->employmentDateFrom !== '') {
+            $query->whereDate('users.employment_date', '>=', $this->employmentDateFrom);
+        }
+
+        if ($this->employmentDateTo !== '') {
+            $query->whereDate('users.employment_date', '<=', $this->employmentDateTo);
         }
 
         return $query->orderBy('users.name')->paginate($this->perPage);

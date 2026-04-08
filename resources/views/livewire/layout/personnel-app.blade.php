@@ -22,11 +22,21 @@
             'icon' => null,
         ];
     }
+
+    if (isset($componentType) && $componentType === 'personnel-list') {
+        $breadcrumbItems[] = [
+            'link' => route('personnel-list'),
+            'name' => 'Personnel List',
+            'icon' => null,
+        ];
+    }
     ?>
     <x-bread-crumb :items="$breadcrumbItems"></x-bread-crumb>
 
     @if($componentType === 'personnel-dashboard')
         @livewire('personnel.personnel-dashboard')
+    @elseif($componentType === 'personnel-list')
+        @livewire('personnel.personnel-table-manager')
     @endif
 </main>
 @endsection

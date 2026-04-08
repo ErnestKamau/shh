@@ -42,6 +42,19 @@ class PersonnelController extends Controller
 		]);
 	}
 
+	public function personnel_list()
+	{
+		$license_count = $this->users_by_license();
+		$stages = SampleAnalysisStage::where('active', 1)->get();
+
+		return view('livewire.layout.personnel-app', [
+			'componentType' => 'personnel-list',
+			'pageTitle' => 'Personnel List',
+			'license_count' => $license_count,
+			'stages' => $stages,
+		]);
+	}
+
 	public function users_by_license(){
 		$users = User::where('company_id', getUserCompany())->get();
 

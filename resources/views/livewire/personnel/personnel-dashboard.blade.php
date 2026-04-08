@@ -1,4 +1,4 @@
-<div>
+<div class="container-fluid">
     <div class="lab-dashboard-subtitle mb-4">
         <div class="row align-items-center">
             <div class="col-md-8">
@@ -184,5 +184,8 @@
         .quick-action-btn:hover { color: white !important; background-color: #0d6efd; border-color: #0d6efd; }
     </style>
 
-    @livewire('personnel.personnel-table-manager')
+    <div id="personnel-list" class="mt-4">
+        @livewire('personnel.personnel-table-manager')
+    </div>
+
 </div>

@@ -1003,6 +1003,7 @@ Route::get('/my-approvals', 'HomeController@my_approvals')->name('my-approvals')
 
 //###################################PERSONNEL LINKS#######################################
 Route::get('/personnel-home', 'PersonnelController@index')->name('personnel-home');
+Route::get('/personnel-list', 'PersonnelController@personnel_list')->name('personnel-list');
 Route::post('/add-personnel/{id}', 'PersonnelController@add')->name('add-personnel');
 Route::get('/view-personnel/{id}', 'PersonnelController@show_personnel')->name('view-personnel');
 
