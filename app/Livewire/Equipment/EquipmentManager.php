@@ -5,6 +5,7 @@ namespace App\Livewire\Equipment;
 use Livewire\Component;
 use Livewire\WithPagination;
 use Livewire\WithFileUploads;
+use Livewire\Attributes\On;
 use App\Models\Equipments\Equipment;
 use App\Models\Equipments\MaintainanceCalibrationLog;
 use App\User;
@@ -21,6 +22,8 @@ use App\Imports\EquipmentImport;
 class EquipmentManager extends Component
 {
     use WithPagination, WithFileUploads;
+
+    public bool $embedded = false;
 
     // Search and Filters
     public $search = '';
@@ -133,8 +136,9 @@ class EquipmentManager extends Component
         return $rules;
     }
 
-    public function mount(): void
+    public function mount(bool $embedded = false): void
     {
+        $this->embedded = $embedded;
         $this->loadInitialData();
     }
 
@@ -200,6 +204,7 @@ class EquipmentManager extends Component
         $this->resetPage();
     }
 
+    #[On('equipment-open-create-modal')]
     public function showCreateEquipmentModal(): void
     {
         $this->resetEquipmentForm();
@@ -486,6 +491,7 @@ class EquipmentManager extends Component
     }
 
     // Bulk Upload Methods
+    #[On('equipment-open-bulk-upload-modal')]
     public function openBulkUploadModal(): void
     {
         $this->showBulkUploadModal = true;

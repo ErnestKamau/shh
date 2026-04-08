@@ -125,12 +125,12 @@
                             <h5 class="mb-3"><i class="mdi mdi-lightning-bolt"></i> Quick Actions</h5>
                             <div class="row">
                                 <div class="col-md-3">
-                                    <button type="button" class="btn btn-sm btn-outline-primary quick-action-btn w-100" data-toggle="modal" data-target="#add-equipment">
+                                    <button type="button" wire:click="$dispatchTo('equipment.equipment-manager', 'equipment-open-create-modal')" class="btn btn-sm btn-outline-primary quick-action-btn w-100">
                                         <i class="mdi mdi-plus"></i> Add Equipment
                                     </button>
                                 </div>
                                 <div class="col-md-3">
-                                    <button type="button" class="btn btn-sm btn-outline-primary quick-action-btn w-100" data-toggle="modal" data-target="#bulkImportModal">
+                                    <button type="button" wire:click="$dispatchTo('equipment.equipment-manager', 'equipment-open-bulk-upload-modal')" class="btn btn-sm btn-outline-primary quick-action-btn w-100">
                                         <i class="mdi mdi-file-upload"></i> Import Equipment
                                     </button>
                                 </div>
@@ -275,4 +275,6 @@
             setTimeout(initializeEquipmentDashboardCharts, 150);
         });
     </script>
+
+    <livewire:equipment.equipment-manager :embedded="true" />
 </div>

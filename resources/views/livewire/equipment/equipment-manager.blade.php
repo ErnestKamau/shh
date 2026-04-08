@@ -1,4 +1,5 @@
 <div class="container-fluid">
+    @if(!$embedded)
     <!-- Header -->
     <div class="row mb-4">
         <div class="col-12">
@@ -231,6 +232,8 @@
             </div>
         </div>
     </div>
+
+    @endif
 
     <!-- Equipment Modal -->
     @if($showEquipmentModal)
