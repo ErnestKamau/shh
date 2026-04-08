@@ -35,12 +35,11 @@ class RoleController extends Controller
 	}
 
 	public function show(Request $request, $id){
-
-		$role = Role::find($id);
-		$certifications = RoleCertification::where('role_id',$id)->get();
-		$certifications_list = Qualification::where('module_code',1)->get();
-		$permissions = json_decode($role->permissions, true);
-		return view('layouts.personnel.roles.show', compact('role', 'permissions','certifications_list','certifications'));
+		return view('livewire.layout.personnel-app', [
+			'componentType' => 'organizational-role-detail',
+			'pageTitle' => 'Role Details',
+			'roleId' => (int) $id,
+		]);
 	}
 
 	public function save_roles(Request $request, $id){

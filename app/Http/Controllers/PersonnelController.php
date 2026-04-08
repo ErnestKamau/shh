@@ -73,34 +73,11 @@ class PersonnelController extends Controller
 
   public function show_personnel($id)
   {
-		$user = User::find($id);
-		$certification_list = PersonelCertification::where('personnel_id',$user->id)->get();
-		$results = array();
-		$stages = SampleAnalysisStage::where('active',1)->get();
-
-		foreach($user->roles as $item){
-
-			$test = RoleCertification::where('role_id',$item->role->id)->get();
-			if(sizeof($test)!= 0){
-
-				array_push($results,$test);
-			}
-		}
-		$certifications = array();
-		foreach($results as $result){
-			if(sizeof($result)>0){
-				foreach($result as $item){
-					array_push($certifications,$item);
-				}
-			}
-		}
-		$test = getPersonnelcertification($user->id,81);
-
-		// return json_encode($test);
-
-		$license_count = $this->users_by_license();
-
-		return view('layouts.personnel.users.show', compact('user','certifications','certification_list','license_count','stages'));
+		return view('livewire.layout.personnel-app', [
+			'componentType' => 'personnel-detail',
+			'pageTitle' => 'Personnel Profile',
+			'userId' => (int) $id,
+		]);
 
 	}
 

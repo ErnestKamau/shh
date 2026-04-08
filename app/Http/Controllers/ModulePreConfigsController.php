@@ -18,6 +18,15 @@ class ModulePreConfigsController extends Controller
 	}
 
 	public function index(Request $request, $config, $module){
+		if ($module === 'Personnel-Management') {
+			return view('livewire.layout.personnel-app', [
+				'componentType' => 'personnel-configurations',
+				'pageTitle' => $config . ' Configurations',
+				'config' => $config,
+				'module' => $module,
+			]);
+		}
+
 		$config_items = ModulePreConfigs::where('type', $config)->where('module', $module)
 			->where('inventory_location_id', getCurrentUserLocation()->id)->orderBy('name', 'asc')->get();
 		// return response()->json($items, 200);
@@ -128,27 +137,11 @@ class ModulePreConfigsController extends Controller
 		return redirect()->back()->with('success','Job responsibility edited successfully!');
 	}
 	public function showResponsibility($id){
-		$designation = ModulePreConfigs::find($id);
-		$responsibility = JobDescription::where('job_id',$designation->id)->get();
-		foreach($responsibility as $res){
-			if($res->edited_by > 0){
-
-				$user = getUserById($res->edited_by);
-				$res['edited'] = $user->name;
-			}
-		}
-		$config_type = SystemConfigurationsType::where('configuration_type','Job Designation Responsibilities')->get();
-		if(isset($config_type[0]->id)){
-			$configs = SystemConfiguration::where('configuration_type_id',$config_type[0]->id)->get();
-		}else{
-			return redirect()->back()->with('error','Set the (Job Designation Responsibilities) configuration ');
-		}
-
-
-
-		// return response()->json($responsibility,200);
-
-		return view('layouts.personnel.configs.job_responsibility',compact('designation','responsibility','configs'));
+		return view('livewire.layout.personnel-app', [
+			'componentType' => 'job-responsibility',
+			'pageTitle' => 'Job Responsibilities',
+			'designationId' => (int) $id,
+		]);
 	}
 
 }

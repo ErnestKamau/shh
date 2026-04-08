@@ -17,9 +17,10 @@ class CertificationController extends Controller
         $this->middleware('auth');
     }
     public function index(){
-        $qualifications = Qualification::where('module_code',1)->orderBy('name','asc')->get();
-
-        return view('layouts.personnel.certification.index',compact('qualifications'));
+        return view('livewire.layout.personnel-app', [
+            'componentType' => 'personnel-certifications',
+            'pageTitle' => 'Personnel Certifications',
+        ]);
     }
 
     public function add_role_certification(Request $request,$id){
