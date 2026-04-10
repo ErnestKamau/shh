@@ -432,6 +432,8 @@
     .app-card.calendar { background: linear-gradient(135deg, rgba(255, 193, 7, 0.2), rgba(255, 193, 7, 0.1)); }
     .app-card.matrix { background: linear-gradient(135deg, rgba(158, 158, 158, 0.2), rgba(158, 158, 158, 0.1)); }
     .app-card.ai { background: linear-gradient(135deg, rgba(255, 152, 0, 0.2), rgba(255, 152, 0, 0.1)); }
+    .app-card.audit { background: linear-gradient(135deg, rgba(156, 39, 176, 0.2), rgba(156, 39, 176, 0.1)); }
+    .app-card.risk { background: linear-gradient(135deg, rgba(244, 67, 54, 0.2), rgba(244, 67, 54, 0.1)); }
     .app-card.settings { background: linear-gradient(135deg, rgba(0, 0, 0, 0.2), rgba(0, 0, 0, 0.1)); }
     .app-card.dms { background: linear-gradient(135deg, rgba(103, 58, 183, 0.2), rgba(103, 58, 183, 0.1)); }
 </style>
@@ -542,6 +544,27 @@
                 <i class="mdi mdi-chip"></i>
             </div>
             <h3 class="app-title">Imara AI</h3>
+        </a>
+
+        <a class="app-card risk" href="{{ route('risk.dashboard') }}" data-app="risk">
+            <div class="app-icon" style="background: linear-gradient(135deg, #F44336, #D32F2F);">
+                <i class="mdi mdi-alert-octagon-outline"></i>
+            </div>
+            <h3 class="app-title">Risk Management</h3>
+        </a>
+
+        <a class="app-card audit" href="{{ route('audit.dashboard') }}" data-app="audit">
+            <div class="app-icon" style="background: linear-gradient(135deg, #9C27B0, #7B1FA2);">
+                <i class="mdi mdi-clipboard-check-outline"></i>
+            </div>
+            <h3 class="app-title">Audit</h3>
+        </a>
+
+        <a class="app-card tickets" href="{{ route('tickets.dashboard') }}" data-app="tickets">
+            <div class="app-icon" style="background: linear-gradient(135deg, #E91E63, #C2185B);">
+                <i class="mdi mdi-ticket"></i>
+            </div>
+            <h3 class="app-title">Help Desk</h3>
         </a>
         
         @if(auth()->user()->is_support_staff)

@@ -953,6 +953,194 @@ Route::get('/server-side-audit_logs/{user_id?}', 'AuditController@server_side')-
 Route::get('/server-side-audit_log/{id}/details', 'AuditController@server_side_details')->name('server-side-audit_logs-details');
 //###################################AUDIT TRAIL#######################################
 
+//###################################RISK MANAGEMENT#######################################
+Route::prefix('risk')->name('risk.')->middleware(['auth'])->group(function () {
+  Route::get('/', 'RiskManagement\RiskDashboardController@index')->name('dashboard')->middleware('haspermission:Risk-Management.components.Risk Dashboard.View');
+
+  Route::prefix('risks')->name('risks.')->group(function () {
+    Route::get('/', 'RiskManagement\RiskManagementController@index')->name('index')->middleware('haspermission:Risk-Management.components.Risks.View');
+    Route::get('/create', 'RiskManagement\RiskManagementController@create')->name('create')->middleware('haspermission:Risk-Management.components.Risks.Add');
+    Route::post('/', 'RiskManagement\RiskManagementController@store')->name('store')->middleware('haspermission:Risk-Management.components.Risks.Add');
+    Route::get('/{id}', 'RiskManagement\RiskManagementController@show')->name('show')->middleware('haspermission:Risk-Management.components.Risks.View');
+    Route::get('/{id}/edit', 'RiskManagement\RiskManagementController@edit')->name('edit')->middleware('haspermission:Risk-Management.components.Risks.Edit');
+    Route::put('/{id}', 'RiskManagement\RiskManagementController@update')->name('update')->middleware('haspermission:Risk-Management.components.Risks.Edit');
+    Route::delete('/{id}', 'RiskManagement\RiskManagementController@destroy')->name('destroy')->middleware('haspermission:Risk-Management.components.Risks.Delete');
+    Route::post('/{id}/change-status', 'RiskManagement\RiskManagementController@changeStatus')->name('change-status')->middleware('haspermission:Risk-Management.components.Risks.Edit');
+    Route::post('/{id}/approve-next-step', 'RiskManagement\RiskManagementController@approveToNextStep')->name('approve-next-step')->middleware('haspermission:Risk-Management.components.Risks.Edit');
+    Route::post('/{id}/assessment', 'RiskManagement\RiskManagementController@storeAssessment')->name('assessment.store')->middleware('haspermission:Risk-Management.components.Risks.Edit');
+    Route::post('/{id}/evaluation', 'RiskManagement\RiskManagementController@storeEvaluation')->name('evaluation.store')->middleware('haspermission:Risk-Management.components.Risks.Edit');
+    Route::post('/{id}/treatment-plan', 'RiskManagement\RiskManagementController@storeTreatmentPlan')->name('treatment-plan.store')->middleware('haspermission:Risk-Management.components.Risks.Edit');
+    Route::get('/{riskId}/treatment-plan/{treatmentPlanId}', 'RiskManagement\RiskManagementController@showTreatmentPlan')->name('treatment-plan.show')->middleware('haspermission:Risk-Management.components.Risks.View');
+    Route::put('/{riskId}/treatment-plan/{treatmentPlanId}', 'RiskManagement\RiskManagementController@updateTreatmentPlan')->name('treatment-plan.update')->middleware('haspermission:Risk-Management.components.Risks.Edit');
+    Route::post('/{riskId}/treatment-plan/{treatmentPlanId}/attachments/upload', 'RiskManagement\RiskManagementController@uploadTreatmentPlanAttachment')->name('treatment-plan.attachments.upload')->middleware('haspermission:Risk-Management.components.Risks.Edit');
+    Route::delete('/treatment-plan/attachments/{attachmentId}', 'RiskManagement\RiskManagementController@deleteTreatmentPlanAttachment')->name('treatment-plan.attachments.delete')->middleware('haspermission:Risk-Management.components.Risks.Edit');
+    Route::post('/{id}/review', 'RiskManagement\RiskManagementController@storeReview')->name('review.store')->middleware('haspermission:Risk-Management.components.Risks.Edit');
+    Route::put('/{riskId}/review/{reviewId}', 'RiskManagement\RiskManagementController@updateReview')->name('review.update')->middleware('haspermission:Risk-Management.components.Risks.Edit');
+    Route::put('/{id}/closure-justification', 'RiskManagement\RiskManagementController@updateClosureJustification')->name('closure-justification.update')->middleware('haspermission:Risk-Management.components.Risks.Edit');
+    Route::post('/{id}/close', 'RiskManagement\RiskManagementController@closeRisk')->name('close')->middleware('haspermission:Risk-Management.components.Risks.Edit');
+    Route::post('/{id}/attachments/upload', 'RiskManagement\RiskManagementController@uploadAttachment')->name('attachments.upload')->middleware('haspermission:Risk-Management.components.Risks.Edit');
+    Route::get('/attachments/{attachmentId}/download', 'RiskManagement\RiskManagementController@downloadAttachment')->name('attachments.download')->middleware('haspermission:Risk-Management.components.Risks.View');
+    Route::delete('/attachments/{attachmentId}', 'RiskManagement\RiskManagementController@deleteAttachment')->name('attachments.delete')->middleware('haspermission:Risk-Management.components.Risks.Delete');
+    Route::get('/server-side', 'RiskManagement\RiskManagementController@serverSide')->name('server-side')->middleware('haspermission:Risk-Management.components.Risks.View');
+    Route::post('/{id}/process-links', 'RiskManagement\RiskManagementController@storeProcessLink')->name('process-links.store')->middleware('haspermission:Risk-Management.components.Risks.Edit');
+    Route::put('/process-links/{id}', 'RiskManagement\RiskManagementController@updateProcessLink')->name('process-links.update')->middleware('haspermission:Risk-Management.components.Risks.Edit');
+    Route::delete('/process-links/{id}', 'RiskManagement\RiskManagementController@destroyProcessLink')->name('process-links.destroy')->middleware('haspermission:Risk-Management.components.Risks.Edit');
+  });
+});
+//###################################RISK MANAGEMENT#######################################
+
+//###################################AUDIT MANAGEMENT#######################################
+Route::prefix('audit')->name('audit.')->middleware(['auth'])->group(function () {
+    Route::get('/', 'AuditModule\AuditDashboardController@index')->name('dashboard');
+
+    // Audit Management
+    Route::prefix('audits')->name('audits.')->group(function () {
+        Route::get('/', 'AuditModule\AuditManagementController@index')->name('index')->middleware('haspermission:Audit.components.Audits.View');
+        Route::get('/create', 'AuditModule\AuditManagementController@create')->name('create');
+        Route::post('/', 'AuditModule\AuditManagementController@store')->name('store');
+        Route::get('/{id}', 'AuditModule\AuditManagementController@show')->name('show');
+        Route::get('/{id}/edit', 'AuditModule\AuditManagementController@edit')->name('edit');
+        Route::put('/{id}', 'AuditModule\AuditManagementController@update')->name('update');
+        Route::delete('/{id}', 'AuditModule\AuditManagementController@destroy')->name('destroy');
+        Route::post('/{id}/change-status', 'AuditModule\AuditManagementController@changeStatus')->name('change-status');
+        Route::post('/{id}/approve-next-step', 'AuditModule\AuditManagementController@approveToNextStep')->name('approve-next-step');
+        Route::get('/{id}/pdf', 'AuditModule\AuditManagementController@generatePdf')->name('pdf');
+        Route::post('/{id}/attachments/upload', 'AuditModule\AuditManagementController@uploadAttachment')->name('attachments.upload');
+        Route::get('/attachments/{attachmentId}/download', 'AuditModule\AuditManagementController@downloadAttachment')->name('attachments.download');
+        Route::delete('/attachments/{attachmentId}', 'AuditModule\AuditManagementController@deleteAttachment')->name('attachments.delete');
+        Route::post('/{id}/team-members', 'AuditModule\AuditManagementController@addTeamMember')->name('team-members.store');
+        Route::put('/team-members/{teamMemberId}', 'AuditModule\AuditManagementController@updateTeamMember')->name('team-members.update');
+        Route::delete('/team-members/{teamMemberId}', 'AuditModule\AuditManagementController@removeTeamMember')->name('team-members.destroy');
+        Route::post('/{id}/findings', 'AuditModule\AuditManagementController@storeFinding')->name('findings.store');
+        Route::put('/{id}/findings/{findingId}', 'AuditModule\AuditManagementController@updateFinding')->name('findings.update');
+    });
+
+    // Non-Conformance Management
+    Route::prefix('non-conformances')->name('nc.')->group(function () {
+        Route::get('/', 'AuditModule\NonConformanceController@index')->name('index');
+        Route::get('/create', 'AuditModule\NonConformanceController@create')->name('create');
+        Route::post('/', 'AuditModule\NonConformanceController@store')->name('store');
+        Route::get('/{id}', 'AuditModule\NonConformanceController@show')->name('show');
+        Route::get('/{id}/edit', 'AuditModule\NonConformanceController@edit')->name('edit');
+        Route::put('/{id}', 'AuditModule\NonConformanceController@update')->name('update');
+        Route::delete('/{id}', 'AuditModule\NonConformanceController@destroy')->name('destroy');
+        Route::post('/{id}/change-status', 'AuditModule\NonConformanceController@changeStatus')->name('change-status');
+        Route::get('/{id}/pdf', 'AuditModule\NonConformanceController@generatePdf')->name('pdf');
+        Route::post('/{id}/attachments/upload', 'AuditModule\NonConformanceController@uploadAttachment')->name('attachments.upload');
+        Route::get('/attachments/{attachmentId}/download', 'AuditModule\NonConformanceController@downloadAttachment')->name('attachments.download');
+        Route::delete('/attachments/{attachmentId}', 'AuditModule\NonConformanceController@deleteAttachment')->name('attachments.delete');
+        Route::post('/{id}/rca', 'AuditModule\NonConformanceController@storeRca')->name('rca.store');
+        Route::get('/rca/{rcaId}/edit', 'AuditModule\NonConformanceController@editRca')->name('rca.edit');
+        Route::put('/rca/{rcaId}', 'AuditModule\NonConformanceController@updateRca')->name('rca.update');
+        Route::delete('/rca/{rcaId}', 'AuditModule\NonConformanceController@deleteRca')->name('rca.delete');
+        Route::post('/{id}/capa', 'AuditModule\NonConformanceController@storeCapa')->name('capa.store');
+        Route::get('/search/samples', 'AuditModule\NonConformanceController@searchSamples')->name('search.samples');
+        Route::get('/search/equipment', 'AuditModule\NonConformanceController@searchEquipment')->name('search.equipment');
+        Route::get('/search/methods', 'AuditModule\NonConformanceController@searchMethods')->name('search.methods');
+    });
+
+    // Corrective Actions
+    Route::prefix('corrective-actions')->name('corrective-actions.')->group(function () {
+        Route::get('/', 'AuditModule\CorrectiveActionController@index')->name('index');
+        Route::get('/create', 'AuditModule\CorrectiveActionController@create')->name('create');
+        Route::post('/', 'AuditModule\CorrectiveActionController@store')->name('store');
+        Route::get('/{id}', 'AuditModule\CorrectiveActionController@show')->name('show');
+        Route::get('/{id}/edit', 'AuditModule\CorrectiveActionController@edit')->name('edit');
+        Route::put('/{id}', 'AuditModule\CorrectiveActionController@update')->name('update');
+        Route::delete('/{id}', 'AuditModule\CorrectiveActionController@destroy')->name('destroy');
+        Route::post('/{id}/change-status', 'AuditModule\CorrectiveActionController@changeStatus')->name('change-status');
+        Route::post('/{id}/implement', 'AuditModule\CorrectiveActionController@implement')->name('implement');
+        Route::post('/{id}/verify', 'AuditModule\CorrectiveActionController@verify')->name('verify');
+        Route::post('/{id}/attachments/upload', 'AuditModule\CorrectiveActionController@uploadAttachment')->name('attachments.upload');
+        Route::get('/attachments/{attachmentId}/download', 'AuditModule\CorrectiveActionController@downloadAttachment')->name('attachments.download');
+        Route::delete('/attachments/{attachmentId}', 'AuditModule\CorrectiveActionController@deleteAttachment')->name('attachments.delete');
+    });
+
+    // CAPA alias routes
+    Route::prefix('capa')->name('capa.')->group(function () {
+        Route::get('/', 'AuditModule\CorrectiveActionController@index')->name('index');
+        Route::get('/create', 'AuditModule\CorrectiveActionController@create')->name('create');
+        Route::post('/', 'AuditModule\CorrectiveActionController@store')->name('store');
+        Route::get('/{id}', 'AuditModule\CorrectiveActionController@show')->name('show');
+        Route::get('/{id}/edit', 'AuditModule\CorrectiveActionController@edit')->name('edit');
+        Route::put('/{id}', 'AuditModule\CorrectiveActionController@update')->name('update');
+        Route::delete('/{id}', 'AuditModule\CorrectiveActionController@destroy')->name('destroy');
+        Route::post('/{id}/change-status', 'AuditModule\CorrectiveActionController@changeStatus')->name('change-status');
+        Route::post('/{id}/implement', 'AuditModule\CorrectiveActionController@implement')->name('implement');
+        Route::post('/{id}/verify', 'AuditModule\CorrectiveActionController@verify')->name('verify');
+        Route::post('/{id}/attachments/upload', 'AuditModule\CorrectiveActionController@uploadAttachment')->name('attachments.upload');
+        Route::get('/attachments/{attachmentId}/download', 'AuditModule\CorrectiveActionController@downloadAttachment')->name('attachments.download');
+        Route::delete('/attachments/{attachmentId}', 'AuditModule\CorrectiveActionController@deleteAttachment')->name('attachments.delete');
+    });
+
+    // Reports
+    Route::prefix('reports')->name('reports.')->group(function () {
+        Route::get('/', 'AuditModule\AuditReportController@index')->name('index');
+        Route::get('/audit-summary', 'AuditModule\AuditReportController@auditSummary')->name('audit-summary');
+        Route::get('/nc-register', 'AuditModule\AuditReportController@ncRegister')->name('nc-register');
+        Route::get('/capa-status', 'AuditModule\AuditReportController@capaStatus')->name('capa-status');
+        Route::get('/advanced-statistics', 'AuditModule\AuditReportController@advancedStatistics')->name('advanced-statistics');
+        Route::get('/export/{type}', 'AuditModule\AuditReportController@export')->name('export');
+    });
+
+    // Configuration
+    Route::prefix('config')->name('config.')->group(function () {
+        Route::get('/approval-config', function () {
+            return view('layouts.audit.config.approval-config');
+        })->name('approval-config');
+
+        Route::get('/verification-results', 'AuditModule\AuditConfigController@verificationResults')->name('verification-results');
+        Route::post('/verification-results', 'AuditModule\AuditConfigController@storeVerificationResult')->name('verification-results.store');
+        Route::get('/verification-results/{id}', 'AuditModule\AuditConfigController@getVerificationResult')->name('verification-results.get');
+        Route::put('/verification-results/{id}', 'AuditModule\AuditConfigController@updateVerificationResult')->name('verification-results.update');
+
+        Route::get('/audit-types', 'AuditModule\AuditConfigController@auditTypes')->name('audit-types');
+        Route::get('/audit-statuses', 'AuditModule\AuditConfigController@auditStatuses')->name('audit-statuses');
+        Route::get('/workflow-actions', 'AuditModule\AuditConfigController@workflowActions')->name('workflow-actions');
+        Route::get('/workflow-action-rules', 'AuditModule\AuditConfigController@workflowActionRules')->name('workflow-action-rules');
+        Route::get('/finding-categories', 'AuditModule\AuditConfigController@findingCategories')->name('finding-categories');
+        Route::get('/risk-levels', 'AuditModule\AuditConfigController@riskLevels')->name('risk-levels');
+        Route::get('/severity-scales', 'AuditModule\AuditConfigController@severityScales')->name('severity-scales');
+        Route::get('/likelihood-scales', 'AuditModule\AuditConfigController@likelihoodScales')->name('likelihood-scales');
+        Route::get('/rca-methods', 'AuditModule\AuditConfigController@rcaMethods')->name('rca-methods');
+        Route::get('/capa-categories', 'AuditModule\AuditConfigController@capaCategories')->name('capa-categories');
+        Route::get('/compliance-statuses', 'AuditModule\AuditConfigController@complianceStatuses')->name('compliance-statuses');
+
+        Route::prefix('email-templates')->name('email-templates.')->group(function () {
+            Route::get('/', 'AuditModule\AuditEmailTemplateController@index')->name('index');
+            Route::get('/create', 'AuditModule\AuditEmailTemplateController@create')->name('create');
+            Route::post('/', 'AuditModule\AuditEmailTemplateController@store')->name('store');
+            Route::get('/{id}/edit', 'AuditModule\AuditEmailTemplateController@edit')->name('edit');
+            Route::put('/{id}', 'AuditModule\AuditEmailTemplateController@update')->name('update');
+            Route::delete('/{id}', 'AuditModule\AuditEmailTemplateController@destroy')->name('destroy');
+            Route::get('/{id}/preview', 'AuditModule\AuditEmailTemplateController@preview')->name('preview');
+            Route::post('/{id}/test', 'AuditModule\AuditEmailTemplateController@test')->name('test');
+        });
+    });
+});
+//###################################AUDIT MANAGEMENT#######################################
+
+//###################################HELP DESK#######################################
+Route::prefix('tickets')->name('tickets.')->middleware('auth')->group(function () {
+    Route::get('/dashboard', 'Ticket\TicketController@dashboard')->name('dashboard');
+    Route::get('/categories/list', 'Ticket\TicketController@listCategories')->name('categories.list');
+    Route::get('/categories', 'Ticket\TicketController@categories')->name('categories');
+    Route::post('/categories', 'Ticket\TicketController@storeCategory')->name('categories.store');
+    Route::put('/categories/{id}', 'Ticket\TicketController@updateCategory')->name('categories.update');
+    Route::post('/categories/{id}/toggle-status', 'Ticket\TicketController@toggleCategoryStatus')->name('categories.toggle-status');
+    Route::get('/deleted', 'Ticket\TicketController@deleted')->name('deleted');
+    Route::get('/', 'Ticket\TicketController@myTickets')->name('index');
+    Route::get('/create', 'Ticket\TicketController@create')->name('create');
+    Route::post('/', 'Ticket\TicketController@store')->name('store');
+    Route::get('/{id}', 'Ticket\TicketController@show')->name('show');
+    Route::delete('/{id}', 'Ticket\TicketController@destroy')->name('destroy');
+    Route::post('/{id}/upload', 'Ticket\TicketController@uploadFiles')->name('upload');
+    Route::get('/{id}/chat', 'Ticket\TicketController@chat')->name('chat');
+    Route::post('/{id}/chat', 'Ticket\TicketController@sendChatMessage')->name('chat.send');
+    Route::get('/{id}/chat/messages', 'Ticket\TicketController@getChatMessages')->name('chat.messages');
+});
+//###################################HELP DESK#######################################
+
 //###################################REQUISITION TRAIL#######################################
 Route::get('/req/{stage}', 'RequisitionController@open_stage')->name('go_to_stage')->middleware('haspermission:Inventory.components.stage.View');
 Route::get('/get_req_enitites_server_side/{stage}/{type}', 'RequestEntityController@get_entities_server_side')->name('get_req_enitites_server_side');

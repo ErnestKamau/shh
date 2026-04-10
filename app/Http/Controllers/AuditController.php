@@ -24,10 +24,7 @@ class AuditController extends Controller
 
   public function index()
   {
-		return view('livewire.layout.personnel-app', [
-			'componentType' => 'audit-logs',
-			'pageTitle' => 'Audit Logs',
-		]);
+		return view('layouts.personnel.audit.index');
 	}
 
 	public function server_side_details(Request $request, $id){

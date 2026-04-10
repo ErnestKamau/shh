@@ -10,6 +10,8 @@ use App\Observers\PurchaseOrderObserver;
 use App\Observers\SupplierObserver;
 use App\RequestEntity;
 use App\Supplier;
+use App\Models\CRM\Complaint;
+use App\Observers\TicketObserver;
 use Illuminate\Support\ServiceProvider;
 use Illuminate\Support\Facades\URL;
 
@@ -46,5 +48,6 @@ class AppServiceProvider extends ServiceProvider
         Supplier::observe(SupplierObserver::class);
         InventorySubCategories::observe(ItemObserver::class);
         RequestEntity::observe(PurchaseOrderObserver::class);
+        Complaint::observe(TicketObserver::class);
     }
 }

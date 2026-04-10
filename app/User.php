@@ -2,8 +2,10 @@
 
 namespace App;
 
+use App\Models\CRM\TicketPermission;
 use App\Models\System\SystemConfiguration;
 use Illuminate\Contracts\Auth\MustVerifyEmail;
+use Illuminate\Database\Eloquent\Relations\HasOne;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 use Illuminate\Support\Facades\Log;
@@ -217,6 +219,41 @@ class User extends Authenticatable
 			}
 		}
 		return false;
+	}
+
+	/**
+	 * @return HasOne<TicketPermission, $this>
+	 */
+	public function ticketPermission(): HasOne
+	{
+		return $this->hasOne(TicketPermission::class);
+	}
+
+	/**
+	 * Whether the user has a granular help-desk permission stored in ticket_permissions.permissions (JSON).
+	 * When no row exists, view_tickets defaults to true so existing support staff retain full visibility until configured.
+	 */
+	public function hasTicketPermission(string $permission): bool
+	{
+		$record = $this->ticketPermission;
+
+		if ($record === null) {
+			return $permission === 'view_tickets';
+		}
+
+		$permissions = $record->permissions;
+
+		if (! is_array($permissions)) {
+			return false;
+		}
+
+		if (array_is_list($permissions)) {
+			return in_array($permission, $permissions, true);
+		}
+
+		$value = $permissions[$permission] ?? false;
+
+		return filter_var($value, FILTER_VALIDATE_BOOLEAN);
 	}
 
 }

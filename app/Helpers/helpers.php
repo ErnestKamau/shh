@@ -1098,6 +1098,14 @@ function getModulePermissions()
 		"Sampling-Planner" => array(
 			"permission" => false,
 			"components" => array("All Events")
+		),
+		"Audit" => array(
+			"permission" => false,
+			"components" => array("Audits", "Non-Conformances", "Corrective Actions", "Reports", "Configuration")
+		),
+		"Risk-Management" => array(
+			"permission" => false,
+			"components" => array("Risk Dashboard", "Risks", "Risk Settings")
 		)
 	);
 }
@@ -2138,4 +2146,77 @@ function getTemplateProcesses()
 		'document_management' => 'Document Management',
 		'quality_control' => 'Quality Control',
 	];
+}
+
+function getAuditWorkflowSteps()
+{
+	return [
+		1 => 'Scheduled',
+		2 => 'In Progress',
+		3 => 'Record Findings & NC',
+		4 => 'Findings Review',
+		5 => 'Root Cause Analysis',
+		6 => 'CAPA Assigned',
+		7 => 'CAPA In Progress',
+		8 => 'CAPA Verification',
+		9 => 'Pending Closure',
+		10 => 'Closed',
+	];
+}
+
+function getAuditWorkflowTotals()
+{
+	$companyId = getUserCompany() ?? 0;
+	$workflowSteps = getAuditWorkflowSteps();
+	$totals = [];
+
+	foreach ($workflowSteps as $stepNum => $stepName) {
+		$totals[$stepNum] = App\Models\AuditModule\Audit::where('company_id', $companyId)
+			->where('status_name', $stepName)
+			->count();
+	}
+
+	return $totals;
+}
+
+function getNCHotspotsByDepartment()
+{
+	$companyId = getUserCompany() ?? 0;
+
+	return App\Models\AuditModule\NonConformance::where('company_id', $companyId)
+		->whereNotNull('department')
+		->selectRaw('department as label, count(*) as count')
+		->groupBy('department')
+		->orderByDesc('count')
+		->limit(10)
+		->pluck('count', 'label')
+		->toArray();
+}
+
+function getNCHotspotsByOrigin()
+{
+	$companyId = getUserCompany() ?? 0;
+
+	return App\Models\AuditModule\NonConformance::where('company_id', $companyId)
+		->whereNotNull('origin_name')
+		->selectRaw('origin_name as label, count(*) as count')
+		->groupBy('origin_name')
+		->orderByDesc('count')
+		->limit(10)
+		->pluck('count', 'label')
+		->toArray();
+}
+
+function getNCHotspotsByRiskLevel()
+{
+	$companyId = getUserCompany() ?? 0;
+
+	return App\Models\AuditModule\NonConformance::where('company_id', $companyId)
+		->whereNotNull('risk_level_name')
+		->selectRaw('risk_level_name as label, count(*) as count')
+		->groupBy('risk_level_name')
+		->orderByDesc('count')
+		->limit(10)
+		->pluck('count', 'label')
+		->toArray();
 }
