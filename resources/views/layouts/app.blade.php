@@ -1989,7 +1989,6 @@
             </div>
         </div>
     </div>
-</body>
 <script src="/assets/js/libs/jquery/jquery-3.5.1.min.js"></script>
 <script src="/assets/js/libs/jquery/popper.min.js"></script>
 <script src="/assets/js/libs/bootstrap/bootstrap-4.4.1.min.js"></script>
@@ -2436,4 +2435,5 @@
 </div>
 @endif
 
+</body>
 </html>

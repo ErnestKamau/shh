@@ -957,6 +957,36 @@ Route::get('/server-side-audit_log/{id}/details', 'AuditController@server_side_d
 Route::prefix('risk')->name('risk.')->middleware(['auth'])->group(function () {
   Route::get('/', 'RiskManagement\RiskDashboardController@index')->name('dashboard')->middleware('haspermission:Risk-Management.components.Risk Dashboard.View');
 
+  Route::prefix('config')->name('config.')->middleware('haspermission:Risk-Management.components.Risks.View')->group(function () {
+    Route::get('/risk-categories', 'RiskManagement\RiskConfigController@riskCategories')->name('risk-categories');
+    Route::get('/risk-sources', 'RiskManagement\RiskConfigController@riskSources')->name('risk-sources');
+    Route::get('/risk-statuses', 'RiskManagement\RiskConfigController@riskStatuses')->name('risk-statuses');
+    Route::get('/treatment-types', 'RiskManagement\RiskConfigController@treatmentTypes')->name('treatment-types');
+    Route::get('/workflow-approvers', 'RiskManagement\RiskConfigController@workflowApprovers')->name('workflow-approvers');
+  });
+
+  Route::prefix('assessment')->name('assessment.')->middleware('haspermission:Risk-Management.components.Risks.View')->group(function () {
+    Route::get('/likelihood-scales', 'RiskManagement\RiskAssessmentConfigController@likelihoodScales')->name('likelihood-scales');
+    Route::get('/severity-scales', 'RiskManagement\RiskAssessmentConfigController@severityScales')->name('severity-scales');
+    Route::post('/likelihood-scales', 'RiskManagement\RiskAssessmentConfigController@storeLikelihoodScale')->name('likelihood-scales.store');
+    Route::post('/severity-scales', 'RiskManagement\RiskAssessmentConfigController@storeSeverityScale')->name('severity-scales.store');
+    Route::put('/likelihood-scales/{id}', 'RiskManagement\RiskAssessmentConfigController@updateLikelihoodScale')->name('likelihood-scales.update');
+    Route::put('/severity-scales/{id}', 'RiskManagement\RiskAssessmentConfigController@updateSeverityScale')->name('severity-scales.update');
+    Route::delete('/likelihood-scales/{id}', 'RiskManagement\RiskAssessmentConfigController@destroyLikelihoodScale')->name('likelihood-scales.destroy');
+    Route::delete('/severity-scales/{id}', 'RiskManagement\RiskAssessmentConfigController@destroySeverityScale')->name('severity-scales.destroy');
+    Route::post('/likelihood-scales/{id}/toggle', 'RiskManagement\RiskAssessmentConfigController@toggleLikelihoodScale')->name('likelihood-scales.toggle');
+    Route::post('/severity-scales/{id}/toggle', 'RiskManagement\RiskAssessmentConfigController@toggleSeverityScale')->name('severity-scales.toggle');
+  });
+
+  Route::prefix('settings')->name('settings.')->middleware('haspermission:Risk-Management.components.Risks.View')->group(function () {
+    Route::get('/', 'RiskManagement\RiskConfigurationController@index')->name('index');
+    Route::post('/', 'RiskManagement\RiskConfigurationController@store')->name('store');
+    Route::post('/reorder', 'RiskManagement\RiskConfigurationController@reorder')->name('reorder');
+    Route::get('/{optionType}', 'RiskManagement\RiskConfigurationController@show')->where('optionType', '[a-zA-Z0-9_-]+')->name('show');
+    Route::put('/options/{id}', 'RiskManagement\RiskConfigurationController@update')->name('update');
+    Route::delete('/options/{id}', 'RiskManagement\RiskConfigurationController@destroy')->name('destroy');
+  });
+
   Route::prefix('risks')->name('risks.')->group(function () {
     Route::get('/', 'RiskManagement\RiskManagementController@index')->name('index')->middleware('haspermission:Risk-Management.components.Risks.View');
     Route::get('/create', 'RiskManagement\RiskManagementController@create')->name('create')->middleware('haspermission:Risk-Management.components.Risks.Add');

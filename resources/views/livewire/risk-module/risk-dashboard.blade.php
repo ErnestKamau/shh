@@ -228,7 +228,7 @@
                         </a>
                     </div>
                     <div class="col-md-3">
-                        <a href="{{ route('risk.risks.index', ['status' => 'Monitored']) }}" class="btn btn-sm btn-outline-info action-btn quick-action-btn" style="display: block; width: 100%; padding: 12px; text-align: center; font-weight: 500; color: black; border-radius: 8px;">
+                        <a href="{{ route('risk.risks.index', ['status' => 'Under Monitoring']) }}" class="btn btn-sm btn-outline-info action-btn quick-action-btn" style="display: block; width: 100%; padding: 12px; text-align: center; font-weight: 500; color: black; border-radius: 8px;">
                             <i class="mdi mdi-eye"></i> Risks Requiring Review
                         </a>
                     </div>

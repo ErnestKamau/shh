@@ -107,8 +107,9 @@ class RisksTable extends Component
             return;
         }
         
-        $this->currentWorkflowStep = $risk->getCurrentWorkflowStep() ?? 1;
-        $workflowSteps = getRiskWorkflowSteps();
+        $rawStep = (int) ($risk->workflow_step ?? $risk->getCurrentWorkflowStep() ?? 2);
+        $this->currentWorkflowStep = \mapRiskRecordWorkflowStepToStatusStep($rawStep) ?? 1;
+        $workflowSteps = \getRiskWorkflowSteps();
         
         $this->availableWorkflowSteps = [];
         
@@ -121,7 +122,7 @@ class RisksTable extends Component
             $nextStep = $this->currentWorkflowStep + 1;
             $this->availableWorkflowSteps[$nextStep] = $workflowSteps[$nextStep] ?? "Step $nextStep";
         }
-        
+
         $this->newStatus = $workflowSteps[$this->currentWorkflowStep] ?? 'Identified';
         $this->statusNotes = '';
         $this->showStatusModal = true;
@@ -138,23 +139,25 @@ class RisksTable extends Component
                 }
                 
                 $oldStatus = $risk->status_name;
-                $workflowSteps = getRiskWorkflowSteps();
+                $workflowSteps = \getRiskWorkflowSteps();
                 
                 $targetStepNum = array_search($this->newStatus, $workflowSteps);
-                
-                if (!$targetStepNum) {
+
+                if ($targetStepNum === false || $targetStepNum === 0) {
                     $this->dispatch('notify', ['type' => 'error', 'message' => 'Invalid workflow step selected.']);
                     return;
                 }
-                
+
+                $targetRiskStep = \mapRiskStatusWorkflowStepToRiskRecordStep((int) $targetStepNum);
+
                 // Validate workflow progression
                 if ($targetStepNum > $this->currentWorkflowStep) {
-                    if (!$risk->canProceedToStep($targetStepNum)) {
+                    if (! $risk->canProceedToStep($targetRiskStep)) {
                         $this->dispatch('notify', ['type' => 'error', 'message' => "Cannot proceed to '{$this->newStatus}'. Please complete the required steps in order."]);
                         return;
                     }
                 }
-                
+
                 // Get the status record
                 $targetStatus = \App\Models\RiskManagement\RiskStatus::where('name', $this->newStatus)
                     ->where(function($q) {
@@ -169,6 +172,8 @@ class RisksTable extends Component
                 } else {
                     $risk->status_name = $this->newStatus;
                 }
+
+                $risk->workflow_step = $targetRiskStep;
                 
                 if ($targetStepNum === 7) {
                     $risk->closure_date = now();
@@ -195,13 +200,12 @@ class RisksTable extends Component
         
         // Filter by status/workflow step - optimized to use database queries
         if ($this->status !== 'All Risks') {
-            $workflowSteps = getRiskWorkflowSteps();
-            $stepNum = array_search($this->status, $workflowSteps);
-            if ($stepNum) {
-                // Filter by workflow_step directly to match sidebar counts
-                $query->where('workflow_step', $stepNum);
+            $workflowSteps = \getRiskWorkflowSteps();
+            $stepNum = array_search($this->status, $workflowSteps, true);
+            if ($stepNum !== false && $stepNum !== 0) {
+                $riskStep = \mapRiskStatusWorkflowStepToRiskRecordStep((int) $stepNum);
+                $query->where('workflow_step', $riskStep);
             } else {
-                // Fallback: filter by status_name if step not found
                 $query->where('status_name', $this->status);
             }
         }

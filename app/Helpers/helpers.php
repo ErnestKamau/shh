@@ -2179,6 +2179,120 @@ function getAuditWorkflowTotals()
 	return $totals;
 }
 
+/**
+ * Map risk_statuses.workflow_step (1–7) to risks.workflow_step (2–8) used on the risk record.
+ */
+function mapRiskStatusWorkflowStepToRiskRecordStep(int $statusStep): int
+{
+	if ($statusStep >= 7) {
+		return 8;
+	}
+
+	return $statusStep + 1;
+}
+
+/**
+ * Map risks.workflow_step (1–8) to risk_statuses.workflow_step (1–7) for UI keys / sidebar.
+ */
+function mapRiskRecordWorkflowStepToStatusStep(?int $riskStep): ?int
+{
+	if ($riskStep === null || $riskStep < 1) {
+		return null;
+	}
+	if ($riskStep >= 8) {
+		return 7;
+	}
+	if ($riskStep <= 1) {
+		return 1;
+	}
+
+	return $riskStep - 1;
+}
+
+/**
+ * Risk workflow for navigation: key 0 = "All Risks" filter; keys 1–7 match risk_statuses.workflow_step
+ * (Step 1 = Identified, …, Step 7 = Closed). Counts/queries map to risks.workflow_step via
+ * mapRiskStatusWorkflowStepToRiskRecordStep().
+ *
+ * @return array<int, string>
+ */
+function getRiskWorkflowSteps(): array
+{
+	$allStatuses = App\Models\RiskManagement\RiskStatus::active()
+		->forCompany()
+		->get(['workflow_step', 'name', 'order_index']);
+
+	$statusesWithStep = $allStatuses->filter(function ($status) {
+		return ! is_null($status->workflow_step);
+	})->sortBy('workflow_step')->sortBy('order_index');
+
+	if ($statusesWithStep->isEmpty()) {
+		return [
+			0 => 'All Risks',
+			1 => 'Identified',
+			2 => 'Under Assessment',
+			3 => 'Under Evaluation',
+			4 => 'Treatment Planning',
+			5 => 'Treatment Implementation',
+			6 => 'Under Monitoring',
+			7 => 'Closed',
+		];
+	}
+
+	$steps = [0 => 'All Risks'];
+
+	foreach ($statusesWithStep as $status) {
+		$stepNum = (int) $status->workflow_step;
+		$stepName = trim($status->name);
+
+		if ($stepName === '') {
+			continue;
+		}
+
+		if (isset($steps[$stepNum])) {
+			$nextStep = $stepNum;
+			while (isset($steps[$nextStep])) {
+				$nextStep++;
+			}
+			$stepNum = $nextStep;
+		}
+
+		$steps[$stepNum] = $stepName;
+	}
+
+	ksort($steps);
+
+	return $steps;
+}
+
+/**
+ * Counts per sidebar workflow step. Key 0 = all risks; keys 1–7 use risks.workflow_step via mapping.
+ *
+ * @return array<int, int>
+ */
+function getRiskWorkflowTotals(): array
+{
+	$risksByStep = App\Models\RiskManagement\Risk::forCompany()
+		->selectRaw('workflow_step, COUNT(*) as count')
+		->groupBy('workflow_step')
+		->pluck('count', 'workflow_step')
+		->toArray();
+
+	$workflowSteps = getRiskWorkflowSteps();
+	$totals = [];
+
+	foreach ($workflowSteps as $stepNum => $_stepName) {
+		if ($stepNum === 0) {
+			$totals[0] = App\Models\RiskManagement\Risk::forCompany()->count();
+		} else {
+			$riskStep = mapRiskStatusWorkflowStepToRiskRecordStep($stepNum);
+			$totals[$stepNum] = $risksByStep[$riskStep] ?? 0;
+		}
+	}
+
+	return $totals;
+}
+
 function getNCHotspotsByDepartment()
 {
 	$companyId = getUserCompany() ?? 0;

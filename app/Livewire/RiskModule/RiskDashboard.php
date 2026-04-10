@@ -121,15 +121,16 @@ class RiskDashboard extends Component
             ->whereBetween('date_identified', [$startDateTime, $endDateTime]);
         
         // Get workflow steps mapping
-        $workflowSteps = getRiskWorkflowSteps();
+        $workflowSteps = \getRiskWorkflowSteps();
         
         // Initialize stats with workflow step counts
         $workflowStats = [];
         foreach ($workflowSteps as $stepNum => $stepName) {
-            if ($stepNum === 1) {
-                // Skip "All Risks" as it's the total
+            if ($stepNum === 0) {
                 continue;
             }
+
+            $riskWorkflowStep = \mapRiskStatusWorkflowStepToRiskRecordStep((int) $stepNum);
             
             // Create a key from step name (lowercase, spaces to underscores)
             $key = strtolower(str_replace(' ', '_', $stepName));
@@ -138,7 +139,7 @@ class RiskDashboard extends Component
             $aliases = $this->getWorkflowStepAliases($stepNum, $stepName);
             
             $count = Risk::where('company_id', $companyId)
-                ->where('workflow_step', $stepNum)
+                ->where('workflow_step', $riskWorkflowStep)
                 ->whereBetween('date_identified', [$startDateTime, $endDateTime])
                 ->count();
             
@@ -187,13 +188,13 @@ class RiskDashboard extends Component
         
         // Map common workflow step numbers to their traditional names
         $stepMapping = [
-            2 => ['identified'],
-            3 => ['assessed', 'under_assessment'],
-            4 => ['evaluated', 'under_evaluation'],
-            5 => ['treatment_planned', 'treatment_planning'],
-            6 => ['implemented', 'treatment_implementation'],
-            7 => ['monitored', 'risk_monitoring'],
-            8 => ['closed'],
+            1 => ['identified'],
+            2 => ['assessed', 'under_assessment'],
+            3 => ['evaluated', 'under_evaluation'],
+            4 => ['treatment_planned', 'treatment_planning'],
+            5 => ['implemented', 'treatment_implementation'],
+            6 => ['monitored', 'risk_monitoring', 'under_monitoring'],
+            7 => ['closed'],
         ];
         
         if (isset($stepMapping[$stepNum])) {
@@ -205,8 +206,8 @@ class RiskDashboard extends Component
 
     private function loadWorkflowTotals()
     {
-        $this->workflowTotals = getRiskWorkflowTotals();
-        $this->workflowSteps = getRiskWorkflowSteps();
+        $this->workflowTotals = \getRiskWorkflowTotals();
+        $this->workflowSteps = \getRiskWorkflowSteps();
     }
 
     private function loadRiskHotspots()
