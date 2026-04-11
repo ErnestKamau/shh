@@ -11,17 +11,28 @@
     
     // Always start with CRM Home
     $breadcrumbItems[] = [
-        'link' => route('livewire.customers'),
+        'link' => route('crm.dashboard'),
         'name' => 'CRM',
         'icon' => null
     ];
     
     // Add Customer List
-    $breadcrumbItems[] = [
-        'link' => route('livewire.customers'),
-        'name' => 'Customer List',
-        'icon' => null
-    ];
+    if ($componentType === 'customers') {
+        $breadcrumbItems[] = [
+            'link' => route('livewire.customers'),
+            'name' => 'Customer List',
+            'icon' => null
+        ];
+    }
+    
+    // Add Dashboard
+    if ($componentType === 'dashboard') {
+        $breadcrumbItems[] = [
+            'link' => route('crm.dashboard'),
+            'name' => 'Dashboard',
+            'icon' => null
+        ];
+    }
     
     // Add Customer Profile if we have a customer
     if (isset($customer) && $customer) {
@@ -44,7 +55,9 @@
     <x-bread-crumb :items="$breadcrumbItems"></x-bread-crumb>
     
     <!-- Dynamic Livewire Component -->
-    @if($componentType === 'customers')
+    @if($componentType === 'dashboard')
+        @livewire(\App\Livewire\CRM\Dashboard::class)
+    @elseif($componentType === 'customers')
         @livewire(\App\Livewire\CRM\CustomerManager::class)
     @elseif($componentType === 'customer-profile')
         @livewire(\App\Livewire\CRM\CustomerProfile::class, ['customerId' => $customerId])

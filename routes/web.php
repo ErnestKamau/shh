@@ -251,6 +251,10 @@ Route::get('/livewire-test', function () {
 
 
 // Livewire CRM Management Routes
+Route::get('/crm/dashboard', [CRMAppController::class, 'dashboard'])
+    ->name('crm.dashboard')
+    ->middleware('haspermission:CRM.components.Customer-List.View');
+
 Route::get('/livewire/customers', [CRMAppController::class, 'customers'])
     ->name('livewire.customers')
     ->middleware('haspermission:CRM.components.Customer-List.View');
