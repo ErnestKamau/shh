@@ -247,16 +247,16 @@
                         </h5>
                         <button type="button" class="btn-close btn-close-white" wire:click="closeEquipmentModal"></button>
                     </div>
-                    <div class="modal-body" style="max-height: 70vh; overflow-y: auto;">
-                        <form wire:submit.prevent="saveEquipment">
-                            <div class="border-bottom mb-3 pb-1">
-                                <small class="text-uppercase font-weight-bold text-muted" style="font-size:11px;letter-spacing:0.09em;"><i class="mdi mdi-information-outline mr-1"></i> Basic Information</small>
+                    <div class="modal-body px-4 py-3" style="max-height: 70vh; overflow-y: auto;">
+                        <form wire:submit.prevent="saveEquipment" class="eq-form">
+                            <div class="eq-section-header">
+                                <i class="mdi mdi-information-outline"></i> Basic Information
                             </div>
                             <div class="row">
                                 <div class="col-md-6">
                                     <div class="form-group mb-3">
                                         <label class="form-label">
-                                            <i class="mdi mdi-tag text-primary"></i> Name <span class="text-danger">*</span>
+                                            Name <span class="text-danger">*</span>
                                         </label>
                                         <input type="text" wire:model="equipmentForm.name" class="form-control" required>
                                         @error('equipmentForm.name') <span class="text-danger">{{ $message }}</span> @enderror
@@ -265,7 +265,7 @@
                                 <div class="col-md-6">
                                     <div class="form-group mb-3">
                                         <label class="form-label">
-                                            <i class="mdi mdi-identifier text-primary"></i> Equipment Number <span class="text-danger">*</span>
+                                            Equipment Number <span class="text-danger">*</span>
                                         </label>
                                         <input type="text" wire:model="equipmentForm.equipment_number" class="form-control" required>
                                         @error('equipmentForm.equipment_number') <span class="text-danger">{{ $message }}</span> @enderror
@@ -273,10 +273,21 @@
                                 </div>
                             </div>
                             <div class="row">
+                                <div class="col-md-12">
+                                    <div class="form-group mb-3">
+                                        <label class="form-label">
+                                            Description <span class="text-danger">*</span>
+                                        </label>
+                                        <textarea wire:model="equipmentForm.description" class="form-control" rows="2" required></textarea>
+                                        @error('equipmentForm.description') <span class="text-danger">{{ $message }}</span> @enderror
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="row">
                                 <div class="col-md-6">
                                     <div class="form-group mb-3">
                                         <label class="form-label">
-                                            <i class="mdi mdi-camera text-primary"></i> Photo
+                                            Photo
                                         </label>
                                         <input type="file" wire:model="photo" class="form-control" accept="image/*">
                                         @if($editingEquipment && $editingEquipment->picture)
@@ -285,24 +296,15 @@
                                         @error('photo') <span class="text-danger">{{ $message }}</span> @enderror
                                     </div>
                                 </div>
-                                <div class="col-md-6">
-                                    <div class="form-group mb-3">
-                                        <label class="form-label">
-                                            <i class="mdi mdi-text text-primary"></i> Description <span class="text-danger">*</span>
-                                        </label>
-                                        <textarea wire:model="equipmentForm.description" class="form-control" rows="3" required></textarea>
-                                        @error('equipmentForm.description') <span class="text-danger">{{ $message }}</span> @enderror
-                                    </div>
-                                </div>
                             </div>
-                            <div class="border-bottom mb-3 mt-4 pb-1">
-                                <small class="text-uppercase font-weight-bold text-muted" style="font-size:11px;letter-spacing:0.09em;"><i class="mdi mdi-cogs mr-1"></i> Specifications</small>
+                            <div class="eq-section-header mt-4">
+                                <i class="mdi mdi-cogs"></i> Specifications
                             </div>
                             <div class="row">
                                 <div class="col-md-6">
                                     <div class="form-group mb-3">
                                         <label class="form-label">
-                                            <i class="mdi mdi-wrench text-primary"></i> Make <span class="text-danger">*</span>
+                                            Make <span class="text-danger">*</span>
                                         </label>
                                         <input type="text" wire:model="equipmentForm.make" class="form-control" required>
                                         @error('equipmentForm.make') <span class="text-danger">{{ $message }}</span> @enderror
@@ -311,7 +313,7 @@
                                 <div class="col-md-6">
                                     <div class="form-group mb-3">
                                         <label class="form-label">
-                                            <i class="mdi mdi-cog text-primary"></i> Model <span class="text-danger">*</span>
+                                            Model <span class="text-danger">*</span>
                                         </label>
                                         <input type="text" wire:model="equipmentForm.model" class="form-control" required>
                                         @error('equipmentForm.model') <span class="text-danger">{{ $message }}</span> @enderror
@@ -319,21 +321,23 @@
                                 </div>
                             </div>
                             <div class="row">
-                                <div class="col-md-4">
+                                <div class="col-md-6">
                                     <div class="form-group mb-3">
                                         <label class="form-label">Serial Number</label>
                                         <input type="text" wire:model="equipmentForm.serial_number" class="form-control">
                                         @error('equipmentForm.serial_number') <span class="text-danger">{{ $message }}</span> @enderror
                                     </div>
                                 </div>
-                                <div class="col-md-4">
+                                <div class="col-md-6">
                                     <div class="form-group mb-3">
                                         <label class="form-label">Barcode Number</label>
                                         <input type="text" wire:model="equipmentForm.barcode_number" class="form-control">
                                         @error('equipmentForm.barcode_number') <span class="text-danger">{{ $message }}</span> @enderror
                                     </div>
                                 </div>
-                                <div class="col-md-4">
+                            </div>
+                            <div class="row">
+                                <div class="col-md-6">
                                     <div class="form-group mb-3">
                                         <label class="form-label">Manufacturer</label>
                                         <input type="text" wire:model="equipmentForm.manufacturer" class="form-control">
@@ -341,14 +345,14 @@
                                     </div>
                                 </div>
                             </div>
-                            <div class="border-bottom mb-3 mt-4 pb-1">
-                                <small class="text-uppercase font-weight-bold text-muted" style="font-size:11px;letter-spacing:0.09em;"><i class="mdi mdi-map-marker mr-1"></i> Assignment &amp; Location</small>
+                            <div class="eq-section-header mt-4">
+                                <i class="mdi mdi-map-marker"></i> Assignment &amp; Location
                             </div>
                             <div class="row">
-                                <div class="col-md-4">
+                                <div class="col-md-6">
                                     <div class="form-group mb-3">
                                         <label class="form-label">Status <span class="text-danger">*</span></label>
-                                        <select wire:model="equipmentForm.status" class="form-select" required>
+                                        <select wire:model="equipmentForm.status" class="form-control" required>
                                             @foreach($statuses as $status)
                                                 <option value="{{ $status }}">{{ $status }}</option>
                                             @endforeach
@@ -356,22 +360,13 @@
                                         @error('equipmentForm.status') <span class="text-danger">{{ $message }}</span> @enderror
                                     </div>
                                 </div>
-                                <div class="col-md-4">
+                                <div class="col-md-6">
                                     <div class="form-group mb-3">
                                         <label class="form-label">
-                                            <i class="mdi mdi-check-circle text-primary"></i> Condition <span class="text-danger">*</span>
+                                            Condition <span class="text-danger">*</span>
                                         </label>
                                         <input type="text" wire:model="equipmentForm.condition" class="form-control" required>
                                         @error('equipmentForm.condition') <span class="text-danger">{{ $message }}</span> @enderror
-                                    </div>
-                                </div>
-                                <div class="col-md-4">
-                                    <div class="form-group mb-3">
-                                        <label class="form-label">
-                                            <i class="mdi mdi-calendar text-primary"></i> Warranty Date <span class="text-danger">*</span>
-                                        </label>
-                                        <input type="date" wire:model="equipmentForm.warranty_date" class="form-control" required>
-                                        @error('equipmentForm.warranty_date') <span class="text-danger">{{ $message }}</span> @enderror
                                     </div>
                                 </div>
                             </div>
@@ -379,7 +374,27 @@
                                 <div class="col-md-6">
                                     <div class="form-group mb-3">
                                         <label class="form-label">
-                                            <i class="mdi mdi-office-building text-primary"></i> Department <span class="text-danger">*</span>
+                                            Warranty Date <span class="text-danger">*</span>
+                                        </label>
+                                        <input type="date" wire:model="equipmentForm.warranty_date" class="form-control" required>
+                                        @error('equipmentForm.warranty_date') <span class="text-danger">{{ $message }}</span> @enderror
+                                    </div>
+                                </div>
+                                <div class="col-md-6">
+                                    <div class="form-group mb-3">
+                                        <label class="form-label">
+                                            Date Purchased
+                                        </label>
+                                        <input type="date" wire:model="equipmentForm.date_purchased" class="form-control">
+                                        @error('equipmentForm.date_purchased') <span class="text-danger">{{ $message }}</span> @enderror
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="row">
+                                <div class="col-md-6">
+                                    <div class="form-group mb-3">
+                                        <label class="form-label">
+                                            Department <span class="text-danger">*</span>
                                         </label>
                                         <div class="tag-select-container" wire:click="$set('showDepartmentDropdown', true)">
                                             <div class="tag-select-input">
@@ -412,7 +427,7 @@
                                 <div class="col-md-6">
                                     <div class="form-group mb-3">
                                         <label class="form-label">
-                                            <i class="mdi mdi-account text-primary"></i> Assigned Employee
+                                            Assigned Employee
                                         </label>
                                         <div class="tag-select-container" wire:click="$set('showEmployeeDropdown', true)">
                                             <div class="tag-select-input">
@@ -510,31 +525,31 @@
                             <div class="row">
                                 <div class="col-md-6">
                                     <div class="form-group mb-3">
-                                        <label class="form-label">
-                                            <i class="mdi mdi-calendar text-primary"></i> Date Purchased
-                                        </label>
-                                        <input type="date" wire:model="equipmentForm.date_purchased" class="form-control">
-                                        @error('equipmentForm.date_purchased') <span class="text-danger">{{ $message }}</span> @enderror
+                                        <label class="form-label">Active</label>
+                                        <div class="d-flex align-items-center" style="height:38px;">
+                                            <div class="form-check">
+                                                <input type="checkbox" wire:model="equipmentForm.active" class="form-check-input" id="equipment_active_mgr">
+                                                <label class="form-check-label" for="equipment_active_mgr">Mark this equipment as active</label>
+                                            </div>
+                                        </div>
                                     </div>
                                 </div>
                                 <div class="col-md-6">
                                     <div class="form-group mb-3">
-                                        <div class="form-check mt-4">
-                                            <input type="checkbox" wire:model="equipmentForm.active" class="form-check-input" id="equipment_active_mgr">
-                                            <label class="form-check-label" for="equipment_active_mgr">Active</label>
-                                        </div>
-                                        <div class="form-check mt-2">
-                                            <input type="checkbox" wire:model.live="equipmentForm.requires_daily_log" class="form-check-input" id="equipment_rdl_mgr">
-                                            <label class="form-check-label" for="equipment_rdl_mgr">Requires Daily Log</label>
-                                            <small class="form-text text-muted d-block">When checked, this equipment will appear on the Equipment Daily Log page.</small>
+                                        <label class="form-label">Requires Daily Log</label>
+                                        <div class="d-flex align-items-center" style="height:38px;">
+                                            <div class="form-check">
+                                                <input type="checkbox" wire:model.live="equipmentForm.requires_daily_log" class="form-check-input" id="equipment_rdl_mgr">
+                                                <label class="form-check-label" for="equipment_rdl_mgr">Equipment appears on the Daily Log page</label>
+                                            </div>
                                         </div>
                                     </div>
                                 </div>
                             </div>
                             @if(!empty($equipmentForm['requires_daily_log']))
                             @php $dlType = $equipmentForm['daily_log_value_type'] ?? ''; $dlNature = $equipmentForm['daily_log_nature'] ?? ''; $dlFreq = intval($equipmentForm['daily_log_frequency'] ?? 1); @endphp
-                            <div class="border-bottom mb-3 mt-3 pb-1">
-                                <small class="text-uppercase font-weight-bold text-muted" style="font-size:11px;letter-spacing:0.09em;"><i class="mdi mdi-notebook-check-outline mr-1"></i> Daily Log Configuration</small>
+                            <div class="eq-section-header mt-4">
+                                <i class="mdi mdi-notebook-check-outline"></i> Daily Log Configuration
                             </div>
                             <div class="row">
                                 <div class="col-md-6">
@@ -625,21 +640,23 @@
                             {{-- Range + Quantitative: min, max and tolerance --}}
                             @if($dlType === 'range' && $dlNature === 'quantitative')
                             <div class="row">
-                                <div class="col-md-4">
+                                <div class="col-md-6">
                                     <div class="form-group mb-3">
                                         <label class="form-label">Minimum Value <span class="text-danger">*</span></label>
                                         <input type="number" wire:model="equipmentForm.daily_log_expected_min" class="form-control" step="any" placeholder="e.g. 6.5">
                                         @error('equipmentForm.daily_log_expected_min') <span class="text-danger">{{ $message }}</span> @enderror
                                     </div>
                                 </div>
-                                <div class="col-md-4">
+                                <div class="col-md-6">
                                     <div class="form-group mb-3">
                                         <label class="form-label">Maximum Value <span class="text-danger">*</span></label>
                                         <input type="number" wire:model="equipmentForm.daily_log_expected_max" class="form-control" step="any" placeholder="e.g. 7.5">
                                         @error('equipmentForm.daily_log_expected_max') <span class="text-danger">{{ $message }}</span> @enderror
                                     </div>
                                 </div>
-                                <div class="col-md-4">
+                            </div>
+                            <div class="row">
+                                <div class="col-md-6">
                                     <div class="form-group mb-3">
                                         <label class="form-label">Tolerance (&plusmn;) <span class="text-danger">*</span></label>
                                         <input type="number" wire:model="equipmentForm.daily_log_tolerance" class="form-control" min="1" max="100" placeholder="e.g. 2">
@@ -668,8 +685,8 @@
                             </div>
                             @endif
                             @endif
-                            <div class="border-bottom mb-3 mt-4 pb-1">
-                                <small class="text-uppercase font-weight-bold text-muted" style="font-size:11px;letter-spacing:0.09em;"><i class="mdi mdi-calendar-clock mr-1"></i> Maintenance &amp; Calibration Schedule</small>
+                            <div class="eq-section-header mt-4">
+                                <i class="mdi mdi-calendar-clock"></i> Maintenance &amp; Calibration Schedule
                             </div>
                             <div class="row">
                                 <div class="col-md-6">
@@ -798,6 +815,77 @@
         .modal-dialog-scrollable .modal-body {
             overflow-y: auto;
             max-height: calc(100vh - 200px);
+        }
+
+        /* ── Uniform form section headers ───────────────────── */
+        .eq-section-header {
+            background-color: #f4f6fb;
+            border-left: 3px solid #001a41;
+            padding: 7px 12px;
+            margin-bottom: 16px;
+            border-radius: 0 4px 4px 0;
+            font-size: 11px;
+            font-weight: 700;
+            letter-spacing: 0.08em;
+            text-transform: uppercase;
+            color: #344767;
+        }
+        .eq-section-header .mdi {
+            font-size: 13px;
+            color: #001a41;
+        }
+
+        /* ── Uniform label style ─────────────────────────────── */
+        .eq-form .form-label {
+            font-size: 0.78rem;
+            font-weight: 600;
+            color: #495057;
+            margin-bottom: 5px;
+            display: block;
+            text-transform: uppercase;
+            letter-spacing: 0.04em;
+        }
+
+        /* ── Uniform input / select / textarea height & style ─ */
+        .eq-form .form-control,
+        .eq-form .tag-select-input {
+            height: 38px;
+            border-radius: 6px;
+            border: 1px solid #d1d7e0;
+            font-size: 0.875rem;
+            color: #344767;
+            background-color: #fff;
+            transition: border-color 0.15s ease, box-shadow 0.15s ease;
+        }
+        .eq-form textarea.form-control {
+            height: auto;
+            min-height: 68px;
+            resize: vertical;
+        }
+        .eq-form .form-control:focus {
+            border-color: #001a41;
+            box-shadow: 0 0 0 0.15rem rgba(0, 26, 65, 0.15);
+            outline: none;
+        }
+
+        /* Helper text */
+        .eq-form .form-text {
+            font-size: 0.75rem;
+            color: #8898aa;
+            margin-top: 3px;
+        }
+
+        /* Checkbox label alignment */
+        .eq-form .form-check-label {
+            font-size: 0.875rem;
+            color: #344767;
+        }
+
+        /* Tag select inside eq-form */
+        .eq-form .tag-select-input {
+            padding: 4px 10px;
+            min-height: 38px;
+            height: auto;
         }
     
         /* Tag-based Dropdown Styling */
