@@ -8,6 +8,7 @@
         </div>
     @endif
 
+    @if(!$embedded)
     <div class="card tab-card">
         <div class="card-header tab-card-header d-flex justify-content-between align-items-center">
             <ul class="nav nav-tabs card-header-tabs" role="tablist">
@@ -159,6 +160,7 @@
             </div>
         </div>
     </div>
+    @endif
 
     @if($showAddPersonnelModal)
         <div class="modal fade show d-block" tabindex="-1" style="background-color: rgba(0,0,0,0.5); overflow-y: auto;">

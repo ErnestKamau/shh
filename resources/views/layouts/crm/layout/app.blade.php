@@ -73,6 +73,12 @@
 			</li> --}}
 			<!-- /END Separator -->
 			<!-- Menu with submenu -->
+			<a href="{{ route('crm.dashboard') }}" class="bg-dark list-group-item list-group-item-action">
+				<div class="d-flex w-100 justify-content-start align-items-center">
+					<span class="mdi mdi-view-dashboard fa-fw mr-3"></span>
+					<span class="menu-collapsed">Dashboard</span>
+				</div>
+			</a>
 			<a href="{{ route('livewire.customers') }}" class="bg-dark list-group-item list-group-item-action">
 				<div class="d-flex w-100 justify-content-start align-items-center">
 					<span class="mdi mdi-account-multiple fa-fw mr-3"></span>

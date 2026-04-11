@@ -82,5 +82,16 @@ class CRMAppController extends Controller
             'stage' => $stage
         ]);
     }
+
+    /**
+     * Display the CRM dashboard page.
+     */
+    public function dashboard()
+    {
+        return view('livewire.layout.crm-app', [
+            'componentType' => 'dashboard',
+            'pageTitle' => 'CRM Dashboard'
+        ]);
+    }
 }
 
