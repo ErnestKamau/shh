@@ -130,6 +130,7 @@ class EquipmentController extends Controller
 		$equipment->asset_type_id = $request->asset_type_id;
 		$equipment->asset_location_id = $request->location_id;
 		$equipment->active = $request->active ?? 0;
+		$equipment->requires_daily_log = $request->requires_daily_log ?? 0;
 
 		$equipment->save();
 

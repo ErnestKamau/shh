@@ -240,15 +240,18 @@
         <div class="modal fade show d-block" tabindex="-1" style="background-color: rgba(0,0,0,0.5); overflow-y: auto;">
             <div class="modal-dialog modal-xl modal-dialog-scrollable">
                 <div class="modal-content">
-                    <div class="modal-header">
-                        <h5 class="modal-title">
+                    <div class="modal-header text-white" style="background-color: #001a41;">
+                        <h5 class="modal-title text-white">
                             <i class="mdi mdi-{{ $editingEquipment ? 'pencil' : 'plus' }}"></i>
                             {{ $editingEquipment ? 'Edit' : 'Create' }} Equipment
                         </h5>
-                        <button type="button" class="btn-close" wire:click="closeEquipmentModal"></button>
+                        <button type="button" class="btn-close btn-close-white" wire:click="closeEquipmentModal"></button>
                     </div>
                     <div class="modal-body" style="max-height: 70vh; overflow-y: auto;">
                         <form wire:submit.prevent="saveEquipment">
+                            <div class="border-bottom mb-3 pb-1">
+                                <small class="text-uppercase font-weight-bold text-muted" style="font-size:11px;letter-spacing:0.09em;"><i class="mdi mdi-information-outline mr-1"></i> Basic Information</small>
+                            </div>
                             <div class="row">
                                 <div class="col-md-6">
                                     <div class="form-group mb-3">
@@ -292,6 +295,9 @@
                                     </div>
                                 </div>
                             </div>
+                            <div class="border-bottom mb-3 mt-4 pb-1">
+                                <small class="text-uppercase font-weight-bold text-muted" style="font-size:11px;letter-spacing:0.09em;"><i class="mdi mdi-cogs mr-1"></i> Specifications</small>
+                            </div>
                             <div class="row">
                                 <div class="col-md-6">
                                     <div class="form-group mb-3">
@@ -334,6 +340,9 @@
                                         @error('equipmentForm.manufacturer') <span class="text-danger">{{ $message }}</span> @enderror
                                     </div>
                                 </div>
+                            </div>
+                            <div class="border-bottom mb-3 mt-4 pb-1">
+                                <small class="text-uppercase font-weight-bold text-muted" style="font-size:11px;letter-spacing:0.09em;"><i class="mdi mdi-map-marker mr-1"></i> Assignment &amp; Location</small>
                             </div>
                             <div class="row">
                                 <div class="col-md-4">
@@ -511,11 +520,156 @@
                                 <div class="col-md-6">
                                     <div class="form-group mb-3">
                                         <div class="form-check mt-4">
-                                            <input type="checkbox" wire:model="equipmentForm.active" class="form-check-input" id="equipment_active">
-                                            <label class="form-check-label" for="equipment_active">Active</label>
+                                            <input type="checkbox" wire:model="equipmentForm.active" class="form-check-input" id="equipment_active_mgr">
+                                            <label class="form-check-label" for="equipment_active_mgr">Active</label>
+                                        </div>
+                                        <div class="form-check mt-2">
+                                            <input type="checkbox" wire:model.live="equipmentForm.requires_daily_log" class="form-check-input" id="equipment_rdl_mgr">
+                                            <label class="form-check-label" for="equipment_rdl_mgr">Requires Daily Log</label>
+                                            <small class="form-text text-muted d-block">When checked, this equipment will appear on the Equipment Daily Log page.</small>
                                         </div>
                                     </div>
                                 </div>
+                            </div>
+                            @if(!empty($equipmentForm['requires_daily_log']))
+                            @php $dlType = $equipmentForm['daily_log_value_type'] ?? ''; $dlNature = $equipmentForm['daily_log_nature'] ?? ''; $dlFreq = intval($equipmentForm['daily_log_frequency'] ?? 1); @endphp
+                            <div class="border-bottom mb-3 mt-3 pb-1">
+                                <small class="text-uppercase font-weight-bold text-muted" style="font-size:11px;letter-spacing:0.09em;"><i class="mdi mdi-notebook-check-outline mr-1"></i> Daily Log Configuration</small>
+                            </div>
+                            <div class="row">
+                                <div class="col-md-6">
+                                    <div class="form-group mb-3">
+                                        <label class="form-label">Logging Frequency <span class="text-danger">*</span></label>
+                                        <select wire:model.live="equipmentForm.daily_log_frequency" class="form-control">
+                                            <option value="1">Once a day</option>
+                                            <option value="2">Twice a day</option>
+                                            <option value="3">Three times a day</option>
+                                            <option value="4">Four times a day</option>
+                                            <option value="5">Five times a day</option>
+                                            <option value="6">Six times a day</option>
+                                        </select>
+                                        @error('equipmentForm.daily_log_frequency') <span class="text-danger">{{ $message }}</span> @enderror
+                                    </div>
+                                </div>
+                                @if($dlFreq >= 2)
+                                <div class="col-md-6">
+                                    <div class="form-group mb-3">
+                                        <label class="form-label">Time Interval (hours) <span class="text-danger">*</span></label>
+                                        <input type="number" wire:model="equipmentForm.daily_log_time_interval" class="form-control" min="1" placeholder="e.g. 4">
+                                        @error('equipmentForm.daily_log_time_interval') <span class="text-danger">{{ $message }}</span> @enderror
+                                        <small class="form-text text-muted">Number of hours between each reading.</small>
+                                    </div>
+                                </div>
+                                @endif
+                            </div>
+                            <div class="row">
+                                <div class="col-md-6">
+                                    <div class="form-group mb-3">
+                                        <label class="form-label">Value Type <span class="text-danger">*</span></label>
+                                        <select wire:model.live="equipmentForm.daily_log_value_type" class="form-control">
+                                            <option value="">-- Select --</option>
+                                            <option value="constant">Constant</option>
+                                            <option value="range">Range</option>
+                                        </select>
+                                        @error('equipmentForm.daily_log_value_type') <span class="text-danger">{{ $message }}</span> @enderror
+                                        <small class="form-text text-muted">Whether the expected value is a single constant or a range.</small>
+                                    </div>
+                                </div>
+                                <div class="col-md-6">
+                                    <div class="form-group mb-3">
+                                        <label class="form-label">Nature of Result <span class="text-danger">*</span></label>
+                                        <select wire:model.live="equipmentForm.daily_log_nature" class="form-control" {{ $dlType === 'range' ? 'disabled' : '' }}>
+                                            <option value="">-- Select --</option>
+                                            <option value="qualitative">Qualitative</option>
+                                            <option value="quantitative">Quantitative</option>
+                                        </select>
+                                        @error('equipmentForm.daily_log_nature') <span class="text-danger">{{ $message }}</span> @enderror
+                                        @if($dlType === 'range')
+                                            <small class="form-text text-muted"><i class="mdi mdi-information-outline"></i> Range values are always quantitative.</small>
+                                        @endif
+                                    </div>
+                                </div>
+                            </div>
+                            {{-- Constant + Qualitative: text expected value --}}
+                            @if($dlType === 'constant' && $dlNature === 'qualitative')
+                            <div class="row">
+                                <div class="col-md-6">
+                                    <div class="form-group mb-3">
+                                        <label class="form-label">Expected Value <span class="text-danger">*</span></label>
+                                        <input type="text" wire:model="equipmentForm.daily_log_expected_value" class="form-control" placeholder="e.g. Pass, Clear, Present">
+                                        @error('equipmentForm.daily_log_expected_value') <span class="text-danger">{{ $message }}</span> @enderror
+                                    </div>
+                                </div>
+                            </div>
+                            @endif
+                            {{-- Constant + Quantitative: numeric expected value + tolerance --}}
+                            @if($dlType === 'constant' && $dlNature === 'quantitative')
+                            <div class="row">
+                                <div class="col-md-6">
+                                    <div class="form-group mb-3">
+                                        <label class="form-label">Expected Value <span class="text-danger">*</span></label>
+                                        <input type="number" wire:model="equipmentForm.daily_log_expected_value" class="form-control" step="any" placeholder="e.g. 7.0">
+                                        @error('equipmentForm.daily_log_expected_value') <span class="text-danger">{{ $message }}</span> @enderror
+                                    </div>
+                                </div>
+                                <div class="col-md-6">
+                                    <div class="form-group mb-3">
+                                        <label class="form-label">Tolerance (&plusmn;) <span class="text-danger">*</span></label>
+                                        <input type="number" wire:model="equipmentForm.daily_log_tolerance" class="form-control" min="1" max="100" placeholder="e.g. 2">
+                                        @error('equipmentForm.daily_log_tolerance') <span class="text-danger">{{ $message }}</span> @enderror
+                                        <small class="form-text text-muted">Acceptable deviation from the expected value (e.g. &plusmn;2).</small>
+                                    </div>
+                                </div>
+                            </div>
+                            @endif
+                            {{-- Range + Quantitative: min, max and tolerance --}}
+                            @if($dlType === 'range' && $dlNature === 'quantitative')
+                            <div class="row">
+                                <div class="col-md-4">
+                                    <div class="form-group mb-3">
+                                        <label class="form-label">Minimum Value <span class="text-danger">*</span></label>
+                                        <input type="number" wire:model="equipmentForm.daily_log_expected_min" class="form-control" step="any" placeholder="e.g. 6.5">
+                                        @error('equipmentForm.daily_log_expected_min') <span class="text-danger">{{ $message }}</span> @enderror
+                                    </div>
+                                </div>
+                                <div class="col-md-4">
+                                    <div class="form-group mb-3">
+                                        <label class="form-label">Maximum Value <span class="text-danger">*</span></label>
+                                        <input type="number" wire:model="equipmentForm.daily_log_expected_max" class="form-control" step="any" placeholder="e.g. 7.5">
+                                        @error('equipmentForm.daily_log_expected_max') <span class="text-danger">{{ $message }}</span> @enderror
+                                    </div>
+                                </div>
+                                <div class="col-md-4">
+                                    <div class="form-group mb-3">
+                                        <label class="form-label">Tolerance (&plusmn;) <span class="text-danger">*</span></label>
+                                        <input type="number" wire:model="equipmentForm.daily_log_tolerance" class="form-control" min="1" max="100" placeholder="e.g. 2">
+                                        @error('equipmentForm.daily_log_tolerance') <span class="text-danger">{{ $message }}</span> @enderror
+                                        <small class="form-text text-muted">Acceptable deviation (&plusmn;).</small>
+                                    </div>
+                                </div>
+                            </div>
+                            @endif
+                            {{-- Reporting unit (shown whenever a value type is selected) --}}
+                            @if($dlType !== '')
+                            <div class="row">
+                                <div class="col-md-6">
+                                    <div class="form-group mb-3">
+                                        <label class="form-label">Reporting Unit</label>
+                                        <select wire:model="equipmentForm.daily_log_reporting_unit" class="form-control">
+                                            <option value="">-- Select Unit --</option>
+                                            @foreach($reportingUnits as $unit)
+                                                <option value="{{ $unit->name }}">{{ $unit->name }}</option>
+                                            @endforeach
+                                        </select>
+                                        @error('equipmentForm.daily_log_reporting_unit') <span class="text-danger">{{ $message }}</span> @enderror
+                                        <small class="form-text text-muted">Unit of measurement for the recorded value.</small>
+                                    </div>
+                                </div>
+                            </div>
+                            @endif
+                            @endif
+                            <div class="border-bottom mb-3 mt-4 pb-1">
+                                <small class="text-uppercase font-weight-bold text-muted" style="font-size:11px;letter-spacing:0.09em;"><i class="mdi mdi-calendar-clock mr-1"></i> Maintenance &amp; Calibration Schedule</small>
                             </div>
                             <div class="row">
                                 <div class="col-md-6">

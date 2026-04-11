@@ -11,14 +11,17 @@ use App\Models\Equipments\VerificationLog;
 use App\Models\Equipments\EquipmentOperator;
 use App\Models\Equipments\EquipmentNotifications;
 use App\Models\Equipments\PartsRepaired;
+use App\Models\Equipments\EquipmentDailyLogEntry;
 use App\EquipmentAttachment;
 use App\User;
 use App\Supplier;
 use App\InventoryDepartment;
 use App\Models\Assets\AssetType;
 use App\Models\Assets\AssetLocation;
+use App\ReportingUnit;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Http\File;
+use Maatwebsite\Excel\Facades\Excel;
 use Carbon\Carbon;
 
 class EquipmentDetail extends Component
@@ -117,6 +120,7 @@ class EquipmentDetail extends Component
     public $parts = [];
     public $assetTypes = [];
     public $assetLocations = [];
+    public $reportingUnits = [];
     
     // Search Properties    // Search
     public $maintenanceSearch = '';
@@ -155,9 +159,15 @@ class EquipmentDetail extends Component
     public $message = '';
     public $messageType = 'success';
 
-    public function mount($equipmentId): void
+    public $fromDailyLog = false;
+
+    public function mount($equipmentId, bool $fromDailyLog = false): void
     {
         $this->equipmentId = $equipmentId;
+        $this->fromDailyLog = $fromDailyLog;
+        if ($fromDailyLog) {
+            $this->activeTab = 'dailylog';
+        }
         $this->loadEquipment();
         $this->loadInitialData();
     }
@@ -176,6 +186,7 @@ class EquipmentDetail extends Component
         $this->parts = PartsRepaired::all();
         $this->assetTypes = AssetType::where('is_active', 1)->get();
         $this->assetLocations = AssetLocation::where('is_active', 1)->get();
+        $this->reportingUnits = ReportingUnit::orderBy('name')->get();
     }
 
     public function setActiveTab($tab): void
@@ -208,6 +219,16 @@ class EquipmentDetail extends Component
             'asset_type_id' => $this->equipment->asset_type_id,
             'asset_location_id' => $this->equipment->asset_location_id,
             'active' => $this->equipment->active ?? true,
+            'requires_daily_log' => $this->equipment->requires_daily_log ?? false,
+            'daily_log_value_type' => $this->equipment->daily_log_value_type ?? '',
+            'daily_log_nature' => $this->equipment->daily_log_nature ?? '',
+            'daily_log_tolerance' => $this->equipment->daily_log_tolerance ?? null,
+            'daily_log_expected_value' => $this->equipment->daily_log_expected_value ?? '',
+            'daily_log_expected_min' => $this->equipment->daily_log_expected_min ?? '',
+            'daily_log_expected_max' => $this->equipment->daily_log_expected_max ?? '',
+            'daily_log_reporting_unit' => $this->equipment->daily_log_reporting_unit ?? '',
+            'daily_log_frequency' => $this->equipment->daily_log_frequency ?? 1,
+            'daily_log_time_interval' => $this->equipment->daily_log_time_interval ?? '',
         ];
 
         // Set selected names for searchable selects
@@ -259,6 +280,37 @@ class EquipmentDetail extends Component
             'photo' => 'nullable|image|max:10240',
         ]);
 
+        // Conditional daily log validation
+        if (!empty($this->equipmentForm['requires_daily_log'])) {
+            $type   = $this->equipmentForm['daily_log_value_type'] ?? '';
+            $nature = $this->equipmentForm['daily_log_nature'] ?? '';
+
+            $this->validate([
+                'equipmentForm.daily_log_value_type' => 'required|in:constant,range',
+                'equipmentForm.daily_log_nature'     => 'required|in:qualitative,quantitative',
+            ]);
+
+            if ($type === 'constant') {
+                $this->validate(['equipmentForm.daily_log_expected_value' => 'required|string|max:255']);
+                if ($nature === 'quantitative') {
+                    $this->validate(['equipmentForm.daily_log_tolerance' => 'required|integer|min:1|max:100']);
+                }
+            }
+
+            if ($type === 'range') {
+                $this->validate([
+                    'equipmentForm.daily_log_expected_min' => 'required|numeric',
+                    'equipmentForm.daily_log_expected_max' => 'required|numeric',
+                    'equipmentForm.daily_log_tolerance'    => 'required|integer|min:1|max:100',
+                ]);
+            }
+
+            $this->validate(['equipmentForm.daily_log_frequency' => 'required|integer|min:1|max:6']);
+            if (($this->equipmentForm['daily_log_frequency'] ?? 1) > 1) {
+                $this->validate(['equipmentForm.daily_log_time_interval' => 'required|integer|min:1']);
+            }
+        }
+
         try {
             $data = $this->equipmentForm;
             $data['company_id'] = getUserCompany();
@@ -277,6 +329,52 @@ class EquipmentDetail extends Component
         } catch (\Exception $e) {
             $this->message = 'Error updating equipment: ' . $e->getMessage();
             $this->messageType = 'danger';
+        }
+    }
+
+    // Maintenance Log Management
+    public function updatedEquipmentFormRequiresDailyLog(): void
+    {
+        if (empty($this->equipmentForm['requires_daily_log'])) {
+            $this->equipmentForm['daily_log_value_type'] = '';
+            $this->equipmentForm['daily_log_nature'] = '';
+            $this->equipmentForm['daily_log_tolerance'] = null;
+            $this->equipmentForm['daily_log_expected_value'] = '';
+            $this->equipmentForm['daily_log_expected_min'] = '';
+            $this->equipmentForm['daily_log_expected_max'] = '';
+            $this->equipmentForm['daily_log_reporting_unit'] = '';
+            $this->equipmentForm['daily_log_frequency'] = 1;
+            $this->equipmentForm['daily_log_time_interval'] = '';
+        }
+    }
+
+    public function updatedEquipmentFormDailyLogFrequency(): void
+    {
+        if (($this->equipmentForm['daily_log_frequency'] ?? 1) <= 1) {
+            $this->equipmentForm['daily_log_time_interval'] = '';
+        }
+    }
+
+    public function updatedEquipmentFormDailyLogValueType(): void
+    {
+        if (($this->equipmentForm['daily_log_value_type'] ?? '') === 'range') {
+            $this->equipmentForm['daily_log_nature'] = 'quantitative';
+            $this->equipmentForm['daily_log_expected_value'] = '';
+            $this->equipmentForm['daily_log_tolerance'] = null;
+        } else {
+            $this->equipmentForm['daily_log_expected_min'] = '';
+            $this->equipmentForm['daily_log_expected_max'] = '';
+        }
+    }
+
+    public function updatedEquipmentFormDailyLogNature(): void
+    {
+        if (($this->equipmentForm['daily_log_nature'] ?? '') !== 'quantitative') {
+            $this->equipmentForm['daily_log_tolerance'] = null;
+            $this->equipmentForm['daily_log_expected_min'] = '';
+            $this->equipmentForm['daily_log_expected_max'] = '';
+        } else {
+            $this->equipmentForm['daily_log_expected_value'] = '';
         }
     }
 
@@ -897,6 +995,189 @@ class EquipmentDetail extends Component
     {
         return view('livewire.equipment.equipment-detail');
     }
+
+    // -------------------------------------------------------------------------
+    // Daily Log Analytics
+    // -------------------------------------------------------------------------
+
+    public function getDailyLogChartDataProperty(): array
+    {
+        if (!$this->equipment || !$this->equipment->requires_daily_log) {
+            return [];
+        }
+
+        $entries = EquipmentDailyLogEntry::where('equipment_id', $this->equipmentId)
+            ->where('log_date', '>=', now()->subDays(59)->toDateString())
+            ->orderBy('log_date')
+            ->orderBy('slot_number')
+            ->get();
+
+        if ($entries->isEmpty()) {
+            return [];
+        }
+
+        $freq   = (int) ($this->equipment->daily_log_frequency ?? 1);
+        $type   = $this->equipment->daily_log_value_type;
+        $labels = [];
+        $values = [];
+        $mins   = [];
+        $maxs   = [];
+        $means  = [];
+
+        foreach ($entries as $entry) {
+            $label    = $freq > 1
+                ? Carbon::parse($entry->log_date)->format('M j') . ' #' . $entry->slot_number
+                : Carbon::parse($entry->log_date)->format('M j');
+            $labels[] = $label;
+
+            if ($type === 'range') {
+                $parts   = array_map('trim', explode('–', $entry->recorded_value ?? ''));
+                $min     = is_numeric($parts[0] ?? null) ? (float) $parts[0] : null;
+                $max     = isset($parts[1]) && is_numeric($parts[1]) ? (float) $parts[1] : null;
+                $mean    = ($min !== null && $max !== null) ? round(($min + $max) / 2, 2) : null;
+                $mins[]  = $min;
+                $maxs[]  = $max;
+                $means[] = $mean;
+            } else {
+                $values[] = is_numeric($entry->recorded_value) ? (float) $entry->recorded_value : null;
+            }
+        }
+
+        $data = [
+            'type'   => $type,
+            'nature' => $this->equipment->daily_log_nature,
+            'unit'   => $this->equipment->daily_log_reporting_unit ?? '',
+            'labels' => $labels,
+        ];
+
+        if ($type === 'range') {
+            $data['mins']        = $mins;
+            $data['maxs']        = $maxs;
+            $data['means']       = $means;
+            $data['expectedMin'] = (float) $this->equipment->daily_log_expected_min;
+            $data['expectedMax'] = (float) $this->equipment->daily_log_expected_max;
+        } else {
+            $data['values']        = $values;
+            $data['expectedValue'] = $this->equipment->daily_log_expected_value;
+            $tol = (int) ($this->equipment->daily_log_tolerance ?? 0);
+            if ($this->equipment->daily_log_nature === 'quantitative'
+                && is_numeric($this->equipment->daily_log_expected_value)
+                && $tol > 0) {
+                $ev              = (float) $this->equipment->daily_log_expected_value;
+                $data['tolHigh'] = round($ev * (1 + $tol / 100), 4);
+                $data['tolLow']  = round($ev * (1 - $tol / 100), 4);
+            }
+        }
+
+        return $data;
+    }
+
+    public function getNonConformanceReportProperty(): array
+    {
+        if (!$this->equipment || !$this->equipment->requires_daily_log) {
+            return [];
+        }
+
+        $entries = EquipmentDailyLogEntry::where('equipment_id', $this->equipmentId)
+            ->whereNotNull('recorded_value')
+            ->where('recorded_value', '!=', '')
+            ->orderBy('log_date', 'desc')
+            ->orderBy('slot_number')
+            ->get();
+
+        $type   = $this->equipment->daily_log_value_type;
+        $nature = $this->equipment->daily_log_nature;
+        $tol    = (int) ($this->equipment->daily_log_tolerance ?? 0);
+        $rows   = [];
+
+        foreach ($entries as $entry) {
+            $fail   = false;
+            $reason = '';
+
+            if ($type === 'constant') {
+                if ($nature === 'qualitative') {
+                    $expected = $this->equipment->daily_log_expected_value;
+                    if (strtolower(trim($entry->recorded_value)) !== strtolower(trim($expected))) {
+                        $fail   = true;
+                        $reason = 'Does not match expected "' . $expected . '"';
+                    }
+                } elseif ($nature === 'quantitative' && is_numeric($entry->recorded_value)) {
+                    $ev  = (float) $this->equipment->daily_log_expected_value;
+                    $val = (float) $entry->recorded_value;
+                    if ($tol > 0) {
+                        $lo = $ev * (1 - $tol / 100);
+                        $hi = $ev * (1 + $tol / 100);
+                        if ($val < $lo || $val > $hi) {
+                            $fail   = true;
+                            $reason = 'Value ' . $val . ' outside tolerance ±' . $tol . '% of ' . $ev;
+                        }
+                    } else {
+                        if ($val != $ev) {
+                            $fail   = true;
+                            $reason = 'Recorded ' . $val . ', expected ' . $ev;
+                        }
+                    }
+                }
+            } elseif ($type === 'range') {
+                $parts = array_map('trim', explode('–', $entry->recorded_value));
+                $rMin  = is_numeric($parts[0] ?? null) ? (float) $parts[0] : null;
+                $rMax  = isset($parts[1]) && is_numeric($parts[1]) ? (float) $parts[1] : null;
+                $eMin  = (float) $this->equipment->daily_log_expected_min;
+                $eMax  = (float) $this->equipment->daily_log_expected_max;
+                $loLim = $tol > 0 ? $eMin * (1 - $tol / 100) : $eMin;
+                $hiLim = $tol > 0 ? $eMax * (1 + $tol / 100) : $eMax;
+
+                if ($rMin !== null && $rMax !== null && ($rMin < $loLim || $rMax > $hiLim)) {
+                    $fail   = true;
+                    $reason = 'Recorded ' . $rMin . '–' . $rMax . ' outside '
+                        . $eMin . '–' . $eMax
+                        . ($tol > 0 ? ' (±' . $tol . '% tol)' : '');
+                }
+            }
+
+            if ($fail) {
+                $rows[] = [
+                    'date'     => Carbon::parse($entry->log_date)->format('D, M j Y'),
+                    'slot'     => $entry->slot_number,
+                    'recorded' => $entry->recorded_value,
+                    'reason'   => $reason,
+                ];
+            }
+        }
+
+        return $rows;
+    }
+
+    public function exportNonConformanceReport()
+    {
+        $rows    = $this->nonConformanceReport;
+        $headers = ['Date', 'Slot #', 'Recorded Value', 'Reason'];
+        $data    = array_map(fn ($r) => [
+            $r['date'],
+            $r['slot'],
+            $r['recorded'],
+            $r['reason'],
+        ], $rows);
+
+        $name = $this->equipment->name ?? 'equipment';
+
+        return Excel::download(
+            new class($headers, $data) implements
+                \Maatwebsite\Excel\Concerns\FromArray,
+                \Maatwebsite\Excel\Concerns\WithHeadings
+            {
+                public function __construct(
+                    private array $headers,
+                    private array $data,
+                ) {}
+
+                public function headings(): array { return $this->headers; }
+                public function array(): array    { return $this->data; }
+            },
+            'non-conformance-' . \Str::slug($name) . '.xlsx'
+        );
+    }
+
     public function getMaintenanceLogsProperty()
     {
         return MaintainanceCalibrationLog::where('equipment_id', $this->equipmentId)

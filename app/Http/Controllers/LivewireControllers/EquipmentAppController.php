@@ -48,7 +48,8 @@ class EquipmentAppController extends Controller
             'componentType' => 'equipment-detail',
             'pageTitle' => 'Equipment Details - ' . $equipment->name,
             'equipment' => $equipment,
-            'equipmentId' => $equipmentId
+            'equipmentId' => $equipmentId,
+            'fromDailyLog' => request()->query('from') === 'daily-log',
         ]);
     }
 
@@ -118,6 +119,17 @@ class EquipmentAppController extends Controller
         return view('livewire.layout.equipment-app', [
             'componentType' => 'asset-location-manager',
             'pageTitle' => 'Asset Location Management'
+        ]);
+    }
+
+    /**
+     * Display the equipment daily log page.
+     */
+    public function dailyLogIndex()
+    {
+        return view('livewire.layout.equipment-app', [
+            'componentType' => 'daily-log',
+            'pageTitle' => 'Equipment Daily Log',
         ]);
     }
 }

@@ -170,6 +170,7 @@
             <div class="card shadow-sm border-0" style="border-radius: 15px;">
                 <div class="card-header bg-light border-0" style="border-radius: 15px 15px 0 0;">
                     <ul class="nav nav-tabs">
+                        @if(!$fromDailyLog)
                         <li class="nav-item">
                             <button class="nav-link {{ $activeTab === 'maintenance' ? 'active' : '' }}" 
                                     wire:click="setActiveTab('maintenance')" type="button">
@@ -206,6 +207,15 @@
                                 Notifications
                             </button>
                         </li>
+                        @endif
+                        @if($equipment->requires_daily_log)
+                        <li class="nav-item">
+                            <button class="nav-link {{ $activeTab === 'dailylog' ? 'active' : '' }}" 
+                                    wire:click="setActiveTab('dailylog')" type="button">
+                                <i class="mdi mdi-notebook-check-outline"></i> Daily Log Config
+                            </button>
+                        </li>
+                        @endif
                     </ul>
                 </div>
                 <div class="card-body">
@@ -666,6 +676,171 @@
                             </table>
                         </div>
                     @endif
+
+                    <!-- Daily Log Configuration Tab -->
+                    @if($activeTab === 'dailylog' && $equipment->requires_daily_log)
+                        <div class="d-flex justify-content-between align-items-center mb-3">
+                            <h5 class="mb-0"><i class="mdi mdi-notebook-check-outline"></i> Daily Log Configuration</h5>
+                            <button wire:click="showEditEquipmentModal" class="btn btn-primary btn-sm">
+                                <i class="mdi mdi-pencil"></i> Edit Configuration
+                            </button>
+                        </div>
+                        @php
+                            $dlNatureLabel = match($equipment->daily_log_nature) {
+                                'qualitative'  => 'Qualitative',
+                                'quantitative' => 'Quantitative',
+                                default        => '-',
+                            };
+                            $dlTypeLabel = match($equipment->daily_log_value_type) {
+                                'constant' => 'Constant',
+                                'range'    => 'Range',
+                                default    => '-',
+                            };
+                        @endphp
+                        <div class="row">
+                            <div class="col-md-6">
+                                <table class="table table-sm table-borderless">
+                                    <tr>
+                                        <th class="text-muted" style="width:50%">Value Type</th>
+                                        <td>
+                                            <span class="badge badge-info">{{ $dlTypeLabel }}</span>
+                                        </td>
+                                    </tr>
+                                    <tr>
+                                        <th class="text-muted">Nature of Results</th>
+                                        <td>
+                                            <span class="badge badge-secondary">{{ $dlNatureLabel }}</span>
+                                        </td>
+                                    </tr>
+                                    <tr>
+                                        <th class="text-muted">Reporting Unit</th>
+                                        <td>{{ $equipment->daily_log_reporting_unit ?: '-' }}</td>
+                                    </tr>
+                                    @php
+                                        $freqLabels = [1=>'Once a day',2=>'Twice a day',3=>'Three times a day',4=>'Four times a day',5=>'Five times a day',6=>'Six times a day'];
+                                        $equipFreq = $equipment->daily_log_frequency ?? 1;
+                                    @endphp
+                                    <tr>
+                                        <th class="text-muted">Logging Frequency</th>
+                                        <td>{{ $freqLabels[$equipFreq] ?? 'Once a day' }}</td>
+                                    </tr>
+                                    @if($equipFreq >= 2)
+                                    <tr>
+                                        <th class="text-muted">Time Interval</th>
+                                        <td>Every {{ $equipment->daily_log_time_interval }} hours</td>
+                                    </tr>
+                                    @endif
+                                    @if($equipment->daily_log_value_type === 'constant')
+                                    <tr>
+                                        <th class="text-muted">Expected Value</th>
+                                        <td>
+                                            {{ $equipment->daily_log_expected_value ?: '-' }}
+                                            @if($equipment->daily_log_reporting_unit)
+                                                <small class="text-muted"> {{ $equipment->daily_log_reporting_unit }}</small>
+                                            @endif
+                                        </td>
+                                    </tr>
+                                    @if($equipment->daily_log_nature === 'quantitative')
+                                    <tr>
+                                        <th class="text-muted">Tolerance</th>
+                                        <td>
+                                            @if($equipment->daily_log_tolerance)
+                                                &plusmn;{{ $equipment->daily_log_tolerance }}%
+                                            @else
+                                                -
+                                            @endif
+                                        </td>
+                                    </tr>
+                                    @endif
+                                    @endif
+                                    @if($equipment->daily_log_value_type === 'range')
+                                    <tr>
+                                        <th class="text-muted">Acceptable Range</th>
+                                        <td>
+                                            {{ $equipment->daily_log_expected_min }} &ndash; {{ $equipment->daily_log_expected_max }}
+                                            @if($equipment->daily_log_reporting_unit)
+                                                <small class="text-muted"> {{ $equipment->daily_log_reporting_unit }}</small>
+                                            @endif
+                                        </td>
+                                    </tr>
+                                    @endif
+                                </table>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="alert alert-info" style="border-left: 4px solid #17a2b8;">
+                                    <p class="mb-1"><strong><i class="mdi mdi-information-outline"></i> Summary</strong></p>
+                                    @if($equipment->daily_log_value_type === 'constant' && $equipment->daily_log_nature === 'qualitative')
+                                        <p class="mb-0 small">This equipment requires a <strong>qualitative</strong> daily check. The expected result is <strong>"{{ $equipment->daily_log_expected_value }}"</strong>.</p>
+                                    @elseif($equipment->daily_log_value_type === 'constant' && $equipment->daily_log_nature === 'quantitative')
+                                        <p class="mb-0 small">This equipment requires a <strong>quantitative</strong> daily reading. Expected value: <strong>{{ $equipment->daily_log_expected_value }}{{ $equipment->daily_log_reporting_unit ? ' ' . $equipment->daily_log_reporting_unit : '' }}</strong>
+                                        @if($equipment->daily_log_tolerance), with a tolerance of &plusmn;{{ $equipment->daily_log_tolerance }}%@endif.</p>
+                                    @elseif($equipment->daily_log_value_type === 'range')
+                                        <p class="mb-0 small">This equipment requires a daily reading within the range <strong>{{ $equipment->daily_log_expected_min }} &ndash; {{ $equipment->daily_log_expected_max }}{{ $equipment->daily_log_reporting_unit ? ' ' . $equipment->daily_log_reporting_unit : '' }}</strong>.</p>
+                                    @else
+                                        <p class="mb-0 small">Configuration is incomplete. Click <strong>Edit Configuration</strong> to set up daily log parameters.</p>
+                                    @endif
+                                </div>
+                            </div>
+                        </div>
+
+                        {{-- ── Performance Chart ──────────────────────────────────────────── --}}
+                        @if($equipment->daily_log_value_type === 'range' || $equipment->daily_log_nature === 'quantitative')
+                            <script id="dl-chart-data" type="application/json">@json($this->dailyLogChartData)</script>
+                            <hr>
+                            <h6 class="mt-3 mb-2"><i class="mdi mdi-chart-line"></i> Performance Over Time <small class="text-muted">(last 60 days)</small></h6>
+                            @if(empty(($this->dailyLogChartData)['labels'] ?? []))
+                                <div class="alert alert-light py-2 text-muted small">
+                                    <i class="mdi mdi-information-outline"></i> No data recorded yet — entries will appear here once readings are saved.
+                                </div>
+                            @else
+                                <div wire:ignore>
+                                    <canvas id="dl-perf-chart" height="80"></canvas>
+                                </div>
+                            @endif
+                        @endif
+
+                        {{-- ── Non-Conformance Report ──────────────────────────────────────── --}}
+                        <hr>
+                        <div class="d-flex justify-content-between align-items-center mt-3 mb-2">
+                            <h6 class="mb-0">
+                                <i class="mdi mdi-alert-circle-outline text-danger"></i> Non-Conformance Report
+                            </h6>
+                            @if(!empty($this->nonConformanceReport))
+                                <button wire:click="exportNonConformanceReport" class="btn btn-sm btn-outline-success">
+                                    <i class="mdi mdi-file-excel-outline"></i> Export to Excel
+                                </button>
+                            @endif
+                        </div>
+                        @if(empty($this->nonConformanceReport))
+                            <div class="alert alert-success py-2">
+                                <i class="mdi mdi-check-circle-outline"></i> No non-conformances recorded for this equipment.
+                            </div>
+                        @else
+                            <div class="table-responsive">
+                                <table class="table table-sm table-bordered table-hover">
+                                    <thead class="thead-light">
+                                        <tr>
+                                            <th>Date</th>
+                                            <th style="width:70px">Slot #</th>
+                                            <th>Recorded Value</th>
+                                            <th>Reason</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        @foreach($this->nonConformanceReport as $ncRow)
+                                        <tr>
+                                            <td>{{ $ncRow['date'] }}</td>
+                                            <td class="text-center">{{ $ncRow['slot'] }}</td>
+                                            <td><code>{{ $ncRow['recorded'] }}</code></td>
+                                            <td class="text-danger small">{{ $ncRow['reason'] }}</td>
+                                        </tr>
+                                        @endforeach
+                                    </tbody>
+                                </table>
+                            </div>
+                        @endif
+
+                    @endif
                 </div>
             </div>
         </div>
@@ -676,12 +851,15 @@
         <div class="modal fade show d-block" tabindex="-1" style="background-color: rgba(0,0,0,0.5); overflow-y: auto;">
             <div class="modal-dialog modal-xl modal-dialog-scrollable">
                 <div class="modal-content">
-                    <div class="modal-header">
-                        <h5 class="modal-title"><i class="mdi mdi-pencil"></i> Edit Equipment</h5>
-                        <button type="button" class="btn-close" wire:click="$set('showEditModal', false)"></button>
+                    <div class="modal-header text-white" style="background-color: #001a41;">
+                        <h5 class="modal-title text-white"><i class="mdi mdi-pencil"></i> Edit Equipment</h5>
+                        <button type="button" class="btn-close btn-close-white" wire:click="$set('showEditModal', false)"></button>
                     </div>
                     <div class="modal-body">
                         <form wire:submit.prevent="saveEquipment">
+                            <div class="border-bottom mb-3 pb-1">
+                                <small class="text-uppercase font-weight-bold text-muted" style="font-size:11px;letter-spacing:0.09em;"><i class="mdi mdi-information-outline mr-1"></i> Basic Information</small>
+                            </div>
                             <!-- Similar form fields as EquipmentManager but for editing -->
                             <div class="row">
                                 <div class="col-md-6">
@@ -719,6 +897,9 @@
                                 </div>
                             </div>
                             <!-- Add more fields similar to EquipmentManager -->
+                            <div class="border-bottom mb-3 mt-4 pb-1">
+                                <small class="text-uppercase font-weight-bold text-muted" style="font-size:11px;letter-spacing:0.09em;"><i class="mdi mdi-cogs mr-1"></i> Specifications</small>
+                            </div>
                             <div class="row">
                                 <div class="col-md-6">
                                     <div class="form-group mb-3">
@@ -752,6 +933,9 @@
                                         <input type="text" wire:model="equipmentForm.manufacturer" class="form-control">
                                     </div>
                                 </div>
+                            </div>
+                            <div class="border-bottom mb-3 mt-4 pb-1">
+                                <small class="text-uppercase font-weight-bold text-muted" style="font-size:11px;letter-spacing:0.09em;"><i class="mdi mdi-map-marker mr-1"></i> Assignment &amp; Location</small>
                             </div>
                             <div class="row">
                                 <div class="col-md-4">
@@ -814,8 +998,153 @@
                                             <input type="checkbox" wire:model="equipmentForm.active" class="form-check-input" id="equipment_active">
                                             <label class="form-check-label" for="equipment_active">Active</label>
                                         </div>
+                                        <div class="form-check mt-2">
+                                            <input type="checkbox" wire:model.live="equipmentForm.requires_daily_log" class="form-check-input" id="equipment_requires_daily_log">
+                                            <label class="form-check-label" for="equipment_requires_daily_log">Requires Daily Log</label>
+                                            <small class="form-text text-muted d-block">When checked, this equipment will appear on the Equipment Daily Log page.</small>
+                                        </div>
                                     </div>
                                 </div>
+                            </div>
+                            @if(!empty($equipmentForm['requires_daily_log']))
+                            @php $dlType = $equipmentForm['daily_log_value_type'] ?? ''; $dlNature = $equipmentForm['daily_log_nature'] ?? ''; $dlFreq = intval($equipmentForm['daily_log_frequency'] ?? 1); @endphp
+                            <div class="border-bottom mb-3 mt-3 pb-1">
+                                <small class="text-uppercase font-weight-bold text-muted" style="font-size:11px;letter-spacing:0.09em;"><i class="mdi mdi-notebook-check-outline mr-1"></i> Daily Log Configuration</small>
+                            </div>
+                            <div class="row">
+                                <div class="col-md-6">
+                                    <div class="form-group mb-3">
+                                        <label class="form-label">Logging Frequency <span class="text-danger">*</span></label>
+                                        <select wire:model.live="equipmentForm.daily_log_frequency" class="form-control">
+                                            <option value="1">Once a day</option>
+                                            <option value="2">Twice a day</option>
+                                            <option value="3">Three times a day</option>
+                                            <option value="4">Four times a day</option>
+                                            <option value="5">Five times a day</option>
+                                            <option value="6">Six times a day</option>
+                                        </select>
+                                        @error('equipmentForm.daily_log_frequency') <span class="text-danger">{{ $message }}</span> @enderror
+                                    </div>
+                                </div>
+                                @if($dlFreq >= 2)
+                                <div class="col-md-6">
+                                    <div class="form-group mb-3">
+                                        <label class="form-label">Time Interval (hours) <span class="text-danger">*</span></label>
+                                        <input type="number" wire:model="equipmentForm.daily_log_time_interval" class="form-control" min="1" placeholder="e.g. 4">
+                                        @error('equipmentForm.daily_log_time_interval') <span class="text-danger">{{ $message }}</span> @enderror
+                                        <small class="form-text text-muted">Number of hours between each reading.</small>
+                                    </div>
+                                </div>
+                                @endif
+                            </div>
+                            <div class="row">
+                                <div class="col-md-6">
+                                    <div class="form-group mb-3">
+                                        <label class="form-label">Value Type <span class="text-danger">*</span></label>
+                                        <select wire:model.live="equipmentForm.daily_log_value_type" class="form-control">
+                                            <option value="">-- Select --</option>
+                                            <option value="constant">Constant</option>
+                                            <option value="range">Range</option>
+                                        </select>
+                                        @error('equipmentForm.daily_log_value_type') <span class="text-danger">{{ $message }}</span> @enderror
+                                        <small class="form-text text-muted">Whether the expected value is a single constant or a range.</small>
+                                    </div>
+                                </div>
+                                <div class="col-md-6">
+                                    <div class="form-group mb-3">
+                                        <label class="form-label">Nature of Result <span class="text-danger">*</span></label>
+                                        <select wire:model.live="equipmentForm.daily_log_nature" class="form-control" {{ $dlType === 'range' ? 'disabled' : '' }}>
+                                            <option value="">-- Select --</option>
+                                            <option value="qualitative">Qualitative</option>
+                                            <option value="quantitative">Quantitative</option>
+                                        </select>
+                                        @error('equipmentForm.daily_log_nature') <span class="text-danger">{{ $message }}</span> @enderror
+                                        @if($dlType === 'range')
+                                            <small class="form-text text-muted"><i class="mdi mdi-information-outline"></i> Range values are always quantitative.</small>
+                                        @endif
+                                    </div>
+                                </div>
+                            </div>
+                            {{-- Constant + Qualitative: text expected value --}}
+                            @if($dlType === 'constant' && $dlNature === 'qualitative')
+                            <div class="row">
+                                <div class="col-md-6">
+                                    <div class="form-group mb-3">
+                                        <label class="form-label">Expected Value <span class="text-danger">*</span></label>
+                                        <input type="text" wire:model="equipmentForm.daily_log_expected_value" class="form-control" placeholder="e.g. Pass, Clear, Present">
+                                        @error('equipmentForm.daily_log_expected_value') <span class="text-danger">{{ $message }}</span> @enderror
+                                    </div>
+                                </div>
+                            </div>
+                            @endif
+                            {{-- Constant + Quantitative: numeric expected value + tolerance --}}
+                            @if($dlType === 'constant' && $dlNature === 'quantitative')
+                            <div class="row">
+                                <div class="col-md-6">
+                                    <div class="form-group mb-3">
+                                        <label class="form-label">Expected Value <span class="text-danger">*</span></label>
+                                        <input type="number" wire:model="equipmentForm.daily_log_expected_value" class="form-control" step="any" placeholder="e.g. 7.0">
+                                        @error('equipmentForm.daily_log_expected_value') <span class="text-danger">{{ $message }}</span> @enderror
+                                    </div>
+                                </div>
+                                <div class="col-md-6">
+                                    <div class="form-group mb-3">
+                                        <label class="form-label">Tolerance (&plusmn;) <span class="text-danger">*</span></label>
+                                        <input type="number" wire:model="equipmentForm.daily_log_tolerance" class="form-control" min="1" max="100" placeholder="e.g. 2">
+                                        @error('equipmentForm.daily_log_tolerance') <span class="text-danger">{{ $message }}</span> @enderror
+                                        <small class="form-text text-muted">Acceptable deviation from the expected value (e.g. &plusmn;2).</small>
+                                    </div>
+                                </div>
+                            </div>
+                            @endif
+                            {{-- Range + Quantitative: min, max and tolerance --}}
+                            @if($dlType === 'range' && $dlNature === 'quantitative')
+                            <div class="row">
+                                <div class="col-md-4">
+                                    <div class="form-group mb-3">
+                                        <label class="form-label">Minimum Value <span class="text-danger">*</span></label>
+                                        <input type="number" wire:model="equipmentForm.daily_log_expected_min" class="form-control" step="any" placeholder="e.g. 6.5">
+                                        @error('equipmentForm.daily_log_expected_min') <span class="text-danger">{{ $message }}</span> @enderror
+                                    </div>
+                                </div>
+                                <div class="col-md-4">
+                                    <div class="form-group mb-3">
+                                        <label class="form-label">Maximum Value <span class="text-danger">*</span></label>
+                                        <input type="number" wire:model="equipmentForm.daily_log_expected_max" class="form-control" step="any" placeholder="e.g. 7.5">
+                                        @error('equipmentForm.daily_log_expected_max') <span class="text-danger">{{ $message }}</span> @enderror
+                                    </div>
+                                </div>
+                                <div class="col-md-4">
+                                    <div class="form-group mb-3">
+                                        <label class="form-label">Tolerance (&plusmn;) <span class="text-danger">*</span></label>
+                                        <input type="number" wire:model="equipmentForm.daily_log_tolerance" class="form-control" min="1" max="100" placeholder="e.g. 2">
+                                        @error('equipmentForm.daily_log_tolerance') <span class="text-danger">{{ $message }}</span> @enderror
+                                        <small class="form-text text-muted">Acceptable deviation (&plusmn;).</small>
+                                    </div>
+                                </div>
+                            </div>
+                            @endif
+                            {{-- Reporting unit (shown whenever a value type is selected) --}}
+                            @if($dlType !== '')
+                            <div class="row">
+                                <div class="col-md-6">
+                                    <div class="form-group mb-3">
+                                        <label class="form-label">Reporting Unit</label>
+                                        <select wire:model="equipmentForm.daily_log_reporting_unit" class="form-control">
+                                            <option value="">-- Select Unit --</option>
+                                            @foreach($reportingUnits as $unit)
+                                                <option value="{{ $unit->name }}">{{ $unit->name }}</option>
+                                            @endforeach
+                                        </select>
+                                        @error('equipmentForm.daily_log_reporting_unit') <span class="text-danger">{{ $message }}</span> @enderror
+                                        <small class="form-text text-muted">Unit of measurement for the recorded value.</small>
+                                    </div>
+                                </div>
+                            </div>
+                            @endif
+                            @endif
+                            <div class="border-bottom mb-3 mt-4 pb-1">
+                                <small class="text-uppercase font-weight-bold text-muted" style="font-size:11px;letter-spacing:0.09em;"><i class="mdi mdi-calendar-clock mr-1"></i> Maintenance &amp; Calibration Schedule</small>
                             </div>
                             <div class="row">
                                 <div class="col-md-6">
@@ -1257,4 +1586,175 @@
         max-height: calc(100vh - 200px);
     }
     </style>
+
+    @script
+    <script>
+    (function () {
+        var chartDataEl = document.getElementById('dl-chart-data');
+        var canvas = document.getElementById('dl-perf-chart');
+        if (!chartDataEl || !canvas) return;
+
+        var chartData;
+        try { chartData = JSON.parse(chartDataEl.textContent || 'null'); } catch (e) { return; }
+        if (!chartData || !chartData.labels || chartData.labels.length === 0) return;
+
+        function buildChart() {
+            if (window._dlPerfChart) {
+                window._dlPerfChart.destroy();
+                window._dlPerfChart = null;
+            }
+
+            var unit = chartData.unit || '';
+            var n    = chartData.labels.length;
+            var datasets = [];
+
+            if (chartData.type === 'range') {
+                datasets = [
+                    {
+                        label: 'Acceptable Max',
+                        data: Array(n).fill(chartData.expectedMax),
+                        borderColor: 'rgba(40,167,69,0.7)',
+                        backgroundColor: 'rgba(40,167,69,0.12)',
+                        borderDash: [6, 4],
+                        borderWidth: 1.5,
+                        pointRadius: 0,
+                        fill: '+1',
+                        order: 1,
+                    },
+                    {
+                        label: 'Acceptable Min',
+                        data: Array(n).fill(chartData.expectedMin),
+                        borderColor: 'rgba(40,167,69,0.7)',
+                        backgroundColor: 'transparent',
+                        borderDash: [6, 4],
+                        borderWidth: 1.5,
+                        pointRadius: 0,
+                        fill: false,
+                        order: 1,
+                    },
+                    {
+                        label: 'Recorded High',
+                        data: chartData.maxs,
+                        borderColor: 'rgba(220,53,69,0.85)',
+                        backgroundColor: 'transparent',
+                        borderWidth: 2,
+                        pointRadius: 3,
+                        fill: false,
+                        tension: 0.3,
+                        order: 0,
+                    },
+                    {
+                        label: 'Recorded Mean',
+                        data: chartData.means,
+                        borderColor: 'rgba(0,123,255,0.85)',
+                        backgroundColor: 'transparent',
+                        borderWidth: 2,
+                        borderDash: [4, 4],
+                        pointRadius: 3,
+                        fill: false,
+                        tension: 0.3,
+                        order: 0,
+                    },
+                    {
+                        label: 'Recorded Low',
+                        data: chartData.mins,
+                        borderColor: 'rgba(255,152,0,0.85)',
+                        backgroundColor: 'transparent',
+                        borderWidth: 2,
+                        pointRadius: 3,
+                        fill: false,
+                        tension: 0.3,
+                        order: 0,
+                    },
+                ];
+            } else {
+                // constant + quantitative
+                datasets = [
+                    {
+                        label: 'Expected',
+                        data: Array(n).fill(parseFloat(chartData.expectedValue) || 0),
+                        borderColor: 'rgba(40,167,69,0.8)',
+                        backgroundColor: 'transparent',
+                        borderDash: [8, 4],
+                        borderWidth: 1.5,
+                        pointRadius: 0,
+                        fill: false,
+                        order: 1,
+                    },
+                    {
+                        label: 'Recorded Value',
+                        data: chartData.values,
+                        borderColor: 'rgba(0,123,255,0.85)',
+                        backgroundColor: 'rgba(0,123,255,0.08)',
+                        borderWidth: 2,
+                        pointRadius: 3,
+                        fill: 'origin',
+                        tension: 0.3,
+                        order: 0,
+                    },
+                ];
+                if (chartData.tolHigh !== undefined) {
+                    datasets.unshift({
+                        label: 'Tolerance High',
+                        data: Array(n).fill(chartData.tolHigh),
+                        borderColor: 'rgba(255,193,7,0.6)',
+                        backgroundColor: 'rgba(255,193,7,0.08)',
+                        borderDash: [4, 4],
+                        borderWidth: 1,
+                        pointRadius: 0,
+                        fill: '+1',
+                        order: 2,
+                    });
+                    datasets.splice(datasets.length - 1, 0, {
+                        label: 'Tolerance Low',
+                        data: Array(n).fill(chartData.tolLow),
+                        borderColor: 'rgba(255,193,7,0.6)',
+                        backgroundColor: 'transparent',
+                        borderDash: [4, 4],
+                        borderWidth: 1,
+                        pointRadius: 0,
+                        fill: false,
+                        order: 2,
+                    });
+                }
+            }
+
+            window._dlPerfChart = new Chart(canvas, {
+                type: 'line',
+                data: { labels: chartData.labels, datasets: datasets },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: true,
+                    interaction: { mode: 'index', intersect: false },
+                    plugins: {
+                        legend: { position: 'top' },
+                        tooltip: {
+                            callbacks: {
+                                label: function (ctx) {
+                                    if (ctx.parsed.y === null) return null;
+                                    return ctx.dataset.label + ': ' + ctx.parsed.y + (unit ? ' ' + unit : '');
+                                }
+                            }
+                        }
+                    },
+                    scales: {
+                        y: {
+                            title: { display: !!unit, text: unit }
+                        }
+                    }
+                }
+            });
+        }
+
+        if (typeof Chart !== 'undefined') {
+            buildChart();
+        } else {
+            var s = document.createElement('script');
+            s.src = 'https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.js';
+            s.onload = buildChart;
+            document.head.appendChild(s);
+        }
+    })();
+    </script>
+    @endscript
 </div>
