@@ -191,13 +191,22 @@
                         </li>
                         @endif
                         @if(!in_array($batch->status,array("Completed")))
-                            @if($batch->hasSubmissionForm())
-                            <li>
-                                <form action="{{ route('regenerate-submission-form', ['batch' => $batch->id]) }}" method="POST" class="d-inline">
-                                    @csrf
-                                    <button type="submit" class="btn btn-sm dropdown-item"><i class="mdi mdi-refresh mr-2"></i> Regenerate Submission Form</button>
-                                </form>
-                            </li>
+                            @if($batch->hasSubmissionForm() && $batch->samples()->exists())
+                                @if($batch->hasSubmissionFormAttachment())
+                                <li>
+                                    <form action="{{ route('regenerate-submission-form', ['batch' => $batch->id]) }}" method="POST" class="d-inline">
+                                        @csrf
+                                        <button type="submit" class="btn btn-sm dropdown-item"><i class="mdi mdi-refresh mr-2"></i> Regenerate Submission Form</button>
+                                    </form>
+                                </li>
+                                @else
+                                <li>
+                                    <form action="{{ route('regenerate-submission-form', ['batch' => $batch->id]) }}" method="POST" class="d-inline">
+                                        @csrf
+                                        <button type="submit" class="btn btn-sm dropdown-item"><i class="mdi mdi-file-pdf-box mr-2"></i> Generate Submission Form</button>
+                                    </form>
+                                </li>
+                                @endif
                             @endif
                             @if($batch->schedule_analysis_sent == '')
                             <li>

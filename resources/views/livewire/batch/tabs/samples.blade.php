@@ -1,4 +1,7 @@
 <div>
+    <div wire:ignore>
+        <script type="text/javascript" src="/tinymce/tinymce.min.js"></script>
+    </div>
     {{-- Flash Messages --}}
     @if (session()->has('success'))
     <div class="alert alert-success alert-dismissible fade show mb-3" role="alert">
@@ -426,9 +429,16 @@
 
                         {{-- Description --}}
                         <td>
-                            <input type="text" class="form-control form-control-sm modern-input"
-                                wire:model.defer="sampleForms.{{ $index }}.comments" placeholder="Comments..."
-                                @if($isReadOnly) readonly style="background: #f8f9fa;" @endif>
+                            @if($isReadOnly)
+                                <div class="p-2 border rounded" style="background: #f8f9fa; min-height: 31px; font-size: 0.875rem;">
+                                    {!! $sampleForm['comments'] ?? '' !!}
+                                </div>
+                            @else
+                                <textarea class="form-control form-control-sm modern-input"
+                                    wire:model.defer="sampleForms.{{ $index }}.comments" 
+                                    placeholder="Comments..."
+                                    rows="2"></textarea>
+                            @endif
                         </td>
 
                         {{-- Time Sampled --}}
@@ -1470,9 +1480,13 @@
     <!-- Assign Samples Modal -->
     <!-- Livewire Assign Samples Modal -->
     @if($showAssignSamplesModal)
+    <style>
+        .modal-xxl { max-width: 95%; }
+        .tox-tinymce { border-radius: 8px !important; }
+    </style>
     <div class="modal fade show" tabindex="-1" role="dialog"
         style="display: block; background-color: rgba(0,0,0,0.5); z-index: 1050; overflow-y: auto;">
-        <div class="modal-dialog modal-xl" role="document">
+        <div class="modal-dialog modal-xxl" role="document">
             <div class="modal-content" style="border-radius: 15px; border: none; position: relative;">
                 @if($toastMessage)
                     <div class="position-absolute" style="top: 10px; right: 10px; left: 10px; z-index: 2050;">
@@ -1712,20 +1726,55 @@
                             </div>
                         @endif
                         <div class="workflow-board-panel-body p-0">
-                            <div class="table-responsive">
+                            <div class="table-responsive" 
+                                x-data="{
+                                    initMCE() {
+                                        let tries = 0;
+                                        const runner = () => {
+                                            if (typeof tinymce !== 'undefined' && typeof tinymce.init === 'function') {
+                                                console.log('TinyMCE Found. Starting init...');
+                                                tinymce.remove('.assign-comment-editor');
+                                                tinymce.init({
+                                                    selector: '.assign-comment-editor',
+                                                    menubar: false,
+                                                    statusbar: false,
+                                                    height: 120,
+                                                    toolbar: 'bold italic underline | bullist numlist | forecolor',
+                                                    plugins: 'lists textcolor',
+                                                    setup: function (editor) {
+                                                        editor.on('change blur', function () {
+                                                            editor.save();
+                                                            var content = editor.getContent();
+                                                            var pointId = document.getElementById(editor.id).getAttribute('data-point-id');
+                                                            @this.set('assignComments.' + pointId, content);
+                                                        });
+                                                    }
+                                                });
+                                            } else {
+                                                tries++;
+                                                if(tries < 50) { // Try for 10 seconds
+                                                    setTimeout(runner, 200);
+                                                }
+                                            }
+                                        };
+                                        runner();
+                                    }
+                                }" 
+                                x-init="initMCE()">
                                 <table class="table table-hover workflow-table mb-0">
                                     <thead>
                                         <tr>
                                             <th style="width: 50px;" class="text-center">Select</th>
                                             <th>Sample Point</th>
-                                            <th style="width: 150px;">Quantity</th>
-                                            <th style="width: 150px;">Status</th>
+                                            <th style="width: 100px;">Quantity</th>
+                                            <th style="width: 600px;">Sample Comments</th>
+                                            <th style="width: 120px;">Status</th>
                                         </tr>
                                     </thead>
                                     <tbody>
                                         @forelse($assignAreas as $area)
                                         <tr>
-                                            <td colspan="4" class="bg-light font-weight-bold pl-4">
+                                            <td colspan="5" class="bg-light font-weight-bold pl-4">
                                                 <i class="mdi mdi-map-marker text-primary"></i> Area:
                                                 {{ $area['name'] }}
                                             </td>
@@ -1750,13 +1799,20 @@
                                                     {{ empty($assignSelectedPoints[$point['id']]) ? 'disabled' : '' }}>
                                             </td>
                                             <td>
+                                                <div wire:ignore>
+                                                    <textarea class="form-control form-control-sm assign-comment-editor" 
+                                                        id="assign_comment_{{ $point['id'] }}" 
+                                                        data-point-id="{{ $point['id'] }}"></textarea>
+                                                </div>
+                                            </td>
+                                            <td>
                                                 <span class="badge badge-success">Active</span>
                                             </td>
                                         </tr>
                                         @endforeach
                                         @empty
                                         <tr>
-                                            <td colspan="4" class="text-center py-4">No sample points available for this
+                                            <td colspan="5" class="text-center py-4">No sample points available for this
                                                 unit.</td>
                                         </tr>
                                         @endforelse
@@ -1779,6 +1835,7 @@
                 </div>
             </div>
         </div>
+    </div>
     </div>
     @endif
 
