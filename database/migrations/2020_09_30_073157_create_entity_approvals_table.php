@@ -22,7 +22,7 @@ class CreateEntityApprovalsTable extends Migration {
 			$table->integer('user_id')->nullable();
 			$table->dateTime('approved_at')->nullable();
 			$table->string('status')->default('Pending');
-			$table->timestamps(10);
+			$table->timestamps(6);
 			$table->string('description', 1024)->nullable();
 			$table->integer('inventory_location_id')->nullable();
 		});

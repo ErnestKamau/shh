@@ -21,7 +21,7 @@ class CreateEntityNotesTable extends Migration {
 			$table->string('model');
 			$table->integer('model_id');
 			$table->integer('created_by');
-			$table->timestamps(10);
+			$table->timestamps(6);
 		});
 	}
 

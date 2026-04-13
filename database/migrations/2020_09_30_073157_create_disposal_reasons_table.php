@@ -17,7 +17,7 @@ class CreateDisposalReasonsTable extends Migration {
 		{
 			$table->bigInteger('id', true);
 			$table->string('description');
-			$table->timestamps(10);
+			$table->timestamps(6);
 		});
 	}
 

@@ -26,7 +26,7 @@ class CreatePricelistItemsTable extends Migration {
 			$table->boolean('internal_use');
 			$table->boolean('external_view');
 			$table->boolean('active');
-			$table->timestamps(10);
+			$table->timestamps(6);
 			$table->integer('level')->nullable()->default(0);
 		});
 	}

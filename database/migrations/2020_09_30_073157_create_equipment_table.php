@@ -38,7 +38,7 @@ class CreateEquipmentTable extends Migration {
 			$table->string('market_value')->nullable();
 			$table->date('warranty_date')->nullable();
 			$table->integer('inventory_item_id')->nullable();
-			$table->timestamps(10);
+			$table->timestamps(6);
 			$table->string('asset_description')->nullable();
 			$table->string('serial_number')->nullable();
 			$table->string('status')->nullable();

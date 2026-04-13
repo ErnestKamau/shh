@@ -19,7 +19,7 @@ class CreateInventoryItemNotesTable extends Migration {
 			$table->integer('inventory_item_id');
 			$table->string('comments');
 			$table->string('document', 512)->nullable();
-			$table->timestamps(10);
+			$table->timestamps(6);
 		});
 	}
 

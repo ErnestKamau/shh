@@ -21,7 +21,7 @@ class CreateAnalysisMethodsTable extends Migration {
 			$table->integer('company_id');
 			$table->string('description')->nullable();
 			$table->boolean('active');
-			$table->timestamps(10);
+			$table->timestamps(6);
 		});
 	}
 

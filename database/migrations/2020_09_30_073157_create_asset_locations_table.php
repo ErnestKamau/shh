@@ -19,7 +19,7 @@ class CreateAssetLocationsTable extends Migration {
 			$table->string('location_code');
 			$table->string('name');
 			$table->boolean('is_active')->default(0);
-			$table->timestamps(10);
+			$table->timestamps(6);
 		});
 	}
 

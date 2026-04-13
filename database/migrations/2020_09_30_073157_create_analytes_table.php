@@ -29,7 +29,7 @@ class CreateAnalytesTable extends Migration {
 			$table->boolean('active');
 			$table->integer('company_id');
 			$table->boolean('show_on_report');
-			$table->timestamps(10);
+			$table->timestamps(6);
 			$table->string('equipment_id')->nullable()->default('0');
 		});
 	}

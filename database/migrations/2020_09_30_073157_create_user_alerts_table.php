@@ -25,7 +25,7 @@ class CreateUserAlertsTable extends Migration {
 			$table->string('model');
 			$table->integer('model_id');
 			$table->string('status');
-			$table->timestamps(10);
+			$table->timestamps(6);
 		});
 	}
 

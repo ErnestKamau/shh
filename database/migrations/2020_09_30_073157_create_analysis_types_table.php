@@ -23,7 +23,7 @@ class CreateAnalysisTypesTable extends Migration {
 			$table->integer('lab_id');
 			$table->integer('company_id');
 			$table->boolean('active')->default(1);
-			$table->timestamps(10);
+			$table->timestamps(6);
 			$table->string('short_name', 100)->nullable()->default('n/a');
 			$table->integer('reporting_time')->nullable()->default(0);
 		});

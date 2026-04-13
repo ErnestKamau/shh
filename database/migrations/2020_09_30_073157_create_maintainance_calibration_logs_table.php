@@ -31,7 +31,7 @@ class CreateMaintainanceCalibrationLogsTable extends Migration {
 			$table->string('maintenance_type')->nullable();
 			$table->integer('operator_id')->nullable();
 			$table->integer('supplier_id')->nullable();
-			$table->timestamps(10);
+			$table->timestamps(6);
 			$table->integer('employee_id')->nullable();
 			$table->string('maintainance_type')->default('Not assigned');
 		});

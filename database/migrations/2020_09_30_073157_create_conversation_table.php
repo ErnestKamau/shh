@@ -18,7 +18,7 @@ class CreateConversationTable extends Migration {
 			$table->integer('id', true);
 			$table->integer('from_user_id')->nullable();
 			$table->integer('to_user_id')->nullable();
-			$table->timestamps(10);
+			$table->timestamps(6);
 			$table->integer('company_id')->nullable();
 			$table->smallInteger('active')->default(1);
 		});

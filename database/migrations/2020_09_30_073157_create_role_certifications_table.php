@@ -16,7 +16,7 @@ class CreateRoleCertificationsTable extends Migration {
 		Schema::create('role_certifications', function(Blueprint $table)
 		{
 			$table->bigInteger('id', true)->unsigned();
-			$table->timestamps(10);
+			$table->timestamps(6);
 			$table->integer('certification_id');
 			$table->string('edited_by')->nullable();
 			$table->boolean('status')->default(0);

@@ -18,7 +18,7 @@ class CreateSupplierCategoriesTable extends Migration {
 			$table->bigInteger('id', true);
 			$table->integer('supplier_id');
 			$table->integer('inventory_sub_category_id');
-			$table->timestamps(10);
+			$table->timestamps(6);
 			$table->string('supplier_image', 100)->default('/images/no-logo.png');
 		});
 	}

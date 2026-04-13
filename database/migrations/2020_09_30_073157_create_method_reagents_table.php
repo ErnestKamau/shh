@@ -20,7 +20,7 @@ class CreateMethodReagentsTable extends Migration {
 			$table->integer('method_id');
 			$table->string('reporting_unit');
 			$table->float('quantity', 10, 0);
-			$table->timestamps(10);
+			$table->timestamps(6);
 		});
 	}
 

@@ -22,7 +22,7 @@ class CreateRequestEntityItemsTable extends Migration {
 			$table->integer('inventory_sub_category_id');
 			$table->decimal('quantity', 10, 0);
 			$table->decimal('net_value', 10, 0);
-			$table->timestamps(10);
+			$table->timestamps(6);
 			$table->string('action', 100)->default('normal');
 			$table->string('status', 100)->default('pending');
 			$table->date('gr_expiry')->default('2099-12-31');

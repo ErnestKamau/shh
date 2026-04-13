@@ -18,7 +18,7 @@ class CreateInventoryStoreSlotsTable extends Migration {
 			$table->bigInteger('id', true);
 			$table->string('name');
 			$table->integer('inventory_store_id');
-			$table->timestamps(10);
+			$table->timestamps(6);
 		});
 	}
 

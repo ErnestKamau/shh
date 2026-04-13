@@ -20,7 +20,7 @@ class CreateAnalysisMethodElementsTable extends Migration {
 			$table->integer('analyte_id');
 			$table->float('quantity', 10, 0);
 			$table->boolean('active');
-			$table->timestamps(10);
+			$table->timestamps(6);
 			$table->integer('company_id')->nullable();
 		});
 	}

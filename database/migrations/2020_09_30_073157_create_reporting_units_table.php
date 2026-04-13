@@ -18,7 +18,7 @@ class CreateReportingUnitsTable extends Migration {
 			$table->bigInteger('id', true);
 			$table->string('name');
 			$table->boolean('active');
-			$table->timestamps(10);
+			$table->timestamps(6);
 		});
 	}
 

@@ -18,7 +18,7 @@ class CreateRolesTable extends Migration {
 			$table->bigInteger('id', true);
 			$table->string('name');
 			$table->string('description');
-			$table->timestamps(10);
+			$table->timestamps(6);
 			$table->integer('company_id')->nullable();
 			$table->string('permissions', 8000)->nullable();
 			$table->boolean('active')->default(0);

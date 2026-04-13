@@ -16,7 +16,7 @@ class CreateInvoiceDetailsTable extends Migration {
 		Schema::create('invoice_details', function(Blueprint $table)
 		{
 			$table->bigInteger('id', true)->unsigned();
-			$table->timestamps(10);
+			$table->timestamps(6);
 			$table->integer('sample_header_id');
 			$table->integer('sample_detail_id');
 			$table->integer('invoice_id');

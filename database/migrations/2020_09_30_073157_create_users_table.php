@@ -22,7 +22,7 @@ class CreateUsersTable extends Migration {
 			$table->string('password')->nullable();
 			$table->integer('company_id')->default(0);
 			$table->string('remember_token', 100)->nullable();
-			$table->timestamps(10);
+			$table->timestamps(6);
 			$table->integer('active')->nullable()->default(1);
 			$table->integer('location_id')->default(0);
 			$table->integer('department_id')->nullable();

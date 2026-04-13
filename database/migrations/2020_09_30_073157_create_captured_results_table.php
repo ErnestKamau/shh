@@ -24,7 +24,7 @@ class CreateCapturedResultsTable extends Migration {
 			$table->integer('equipment_id')->default(0);
 			$table->float('result', 10, 0)->nullable();
 			$table->integer('user_id');
-			$table->timestamps(10);
+			$table->timestamps(6);
 			$table->integer('analysis_type_id')->nullable();
 			$table->integer('operator_id')->nullable();
 			$table->integer('method_id')->nullable();

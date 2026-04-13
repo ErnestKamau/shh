@@ -24,7 +24,7 @@ class CreateSuppliersTable extends Migration {
 			$table->string('street');
 			$table->string('town');
 			$table->string('address');
-			$table->timestamps(10);
+			$table->timestamps(6);
 			$table->integer('company_id')->nullable();
 			$table->smallInteger('active')->default(1);
 			$table->integer('inventory_location_id')->nullable()->default(0);

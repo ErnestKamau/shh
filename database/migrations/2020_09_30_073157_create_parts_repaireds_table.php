@@ -21,7 +21,7 @@ class CreatePartsRepairedsTable extends Migration {
 			$table->string('name');
 			$table->text('comment');
 			$table->boolean('is_delete')->default(0);
-			$table->timestamps(10);
+			$table->timestamps(6);
 		});
 	}
 

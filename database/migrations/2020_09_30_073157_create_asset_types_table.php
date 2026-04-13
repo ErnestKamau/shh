@@ -19,7 +19,7 @@ class CreateAssetTypesTable extends Migration {
 			$table->string('asset_code');
 			$table->string('descripton');
 			$table->boolean('is_active')->default(0);
-			$table->timestamps(10);
+			$table->timestamps(6);
 		});
 	}
 

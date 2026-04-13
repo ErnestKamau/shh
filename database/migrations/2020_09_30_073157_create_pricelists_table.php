@@ -23,7 +23,7 @@ class CreatePricelistsTable extends Migration {
 			$table->boolean('active')->default(0);
 			$table->string('document_no');
 			$table->string('revision_number');
-			$table->timestamps(10);
+			$table->timestamps(6);
 			$table->string('status', 100)->default('no-changes');
 			$table->date('valid_till')->nullable();
 			$table->string('pricelist_file')->nullable();

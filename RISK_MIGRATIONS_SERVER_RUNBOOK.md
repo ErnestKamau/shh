@@ -1,5 +1,7 @@
 # Risk Management Migration Runbook
 
+If `php artisan db:seed --class=...` fails with **Target class [Database\Seeders\...] does not exist**, run **`composer dump-autoload`** in the project root (the `database/seeders/` namespace must be autoloaded via `composer.json`).
+
 Run these commands on server in this exact order (all are specific `--path` commands).
 
 ## 1) Required dependency migrations

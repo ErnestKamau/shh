@@ -1,5 +1,11 @@
 # Audit Module Migration Runbook
 
+If `php artisan db:seed --class=AuditEmailTemplatesSeeder` fails with **Target class [Database\Seeders\...] does not exist**, run **`composer dump-autoload`** in the project root (see `composer.json` PSR-4 for `Database\Seeders\`).
+
+**MySQL / MariaDB:** Legacy migrations used `timestamps(10)`, which MySQL rejects (maximum fractional precision is **6**). The repo replaces these with `timestamps(6)`. Deploy the updated migration files, then re-run the failed `--path` migration.
+
+If `create_verification_logs` failed earlier, after fixing files run the same `migrate --path=...create_verification_logs_table.php` again. If the table exists from a bad attempt, drop it first: `DROP TABLE IF EXISTS verification_logs;` (only if you are sure it is empty / disposable).
+
 Run these commands on server in this exact order using explicit `--path`.
 
 > Note: This runbook intentionally excludes the package auditable `audits` table migration, as requested.

@@ -18,7 +18,7 @@ class CreateInventoryLocationUsersTable extends Migration {
 			$table->bigInteger('id', true);
 			$table->integer('user_id');
 			$table->integer('inventory_location_id');
-			$table->timestamps(10);
+			$table->timestamps(6);
 		});
 	}
 

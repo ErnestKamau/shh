@@ -16,7 +16,7 @@ class CreatePersonelCertificationsTable extends Migration {
 		Schema::create('personel_certifications', function(Blueprint $table)
 		{
 			$table->bigInteger('id', true)->unsigned();
-			$table->timestamps(10);
+			$table->timestamps(6);
 			$table->integer('personnel_id');
 			$table->integer('role_certification_id');
 			$table->boolean('status')->default(0);

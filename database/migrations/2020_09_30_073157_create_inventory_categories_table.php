@@ -19,7 +19,7 @@ class CreateInventoryCategoriesTable extends Migration {
 			$table->string('name');
 			$table->string('description');
 			$table->string('image')->default('no-logo.png');
-			$table->timestamps(10);
+			$table->timestamps(6);
 			$table->integer('company_id')->nullable();
 			$table->integer('inventory_location_id')->nullable()->default(0);
 			$table->string('category_type', 100)->default('normal');

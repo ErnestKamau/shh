@@ -18,7 +18,7 @@ class CreateSampleAnalysisStagesTable extends Migration {
 			$table->bigInteger('id', true);
 			$table->string('name');
 			$table->boolean('active');
-			$table->timestamps(10);
+			$table->timestamps(6);
 			$table->integer('company_id')->nullable();
 			$table->string('sample_workflow', 100)->nullable();
 			$table->integer('level')->nullable()->default(0);

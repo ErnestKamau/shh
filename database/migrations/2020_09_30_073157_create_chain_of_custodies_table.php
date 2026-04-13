@@ -23,7 +23,7 @@ class CreateChainOfCustodiesTable extends Migration {
 			$table->dateTime('moved_out_date')->nullable();
 			$table->integer('sample_header_id');
 			$table->string('comments', 1024)->nullable();
-			$table->timestamps(10);
+			$table->timestamps(6);
 		});
 	}
 

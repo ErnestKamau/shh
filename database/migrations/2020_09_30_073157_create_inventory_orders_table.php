@@ -20,7 +20,7 @@ class CreateInventoryOrdersTable extends Migration {
 			$table->string('supplier_id')->nullable();
 			$table->integer('created_by');
 			$table->string('status')->default('not_fulfilled');
-			$table->timestamps(10);
+			$table->timestamps(6);
 			$table->integer('company_id')->default(1);
 			$table->string('comments', 512)->nullable();
 		});

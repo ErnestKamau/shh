@@ -20,7 +20,7 @@ class CreateSupplierRFQSTable extends Migration {
 			$table->integer('request_id');
 			$table->boolean('rfq_sent')->default(0);
 			$table->boolean('quote_received')->default(0);
-			$table->timestamps(10);
+			$table->timestamps(6);
 		});
 	}
 

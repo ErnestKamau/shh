@@ -22,7 +22,7 @@ class CreateAnalysisGuidesTable extends Migration {
 			$table->float('value', 10, 0);
 			$table->string('comments', 1024)->nullable();
 			$table->string('recommendations', 1024)->nullable();
-			$table->timestamps(10);
+			$table->timestamps(6);
 		});
 	}
 

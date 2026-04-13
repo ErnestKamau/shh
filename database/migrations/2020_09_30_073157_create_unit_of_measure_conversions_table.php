@@ -19,7 +19,7 @@ class CreateUnitOfMeasureConversionsTable extends Migration {
 			$table->integer('uom1');
 			$table->integer('uom2');
 			$table->float('conversion', 10, 0);
-			$table->timestamps(10);
+			$table->timestamps(6);
 			$table->integer('material_type_id')->nullable();
 			$table->integer('location_id')->nullable();
 		});

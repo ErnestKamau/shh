@@ -16,7 +16,7 @@ class CreateSystemConfigurationTypesTable extends Migration {
 		Schema::create('system_configuration_types', function(Blueprint $table)
 		{
 			$table->bigInteger('id', true)->unsigned();
-			$table->timestamps(10);
+			$table->timestamps(6);
 			$table->string('configuration_type');
 			$table->text('description');
 			$table->boolean('status')->default(0);

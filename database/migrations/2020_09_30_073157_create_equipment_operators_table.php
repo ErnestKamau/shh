@@ -18,7 +18,7 @@ class CreateEquipmentOperatorsTable extends Migration {
 			$table->bigInteger('id', true);
 			$table->integer('user_id');
 			$table->integer('equipment_id');
-			$table->timestamps(10);
+			$table->timestamps(6);
 		});
 	}
 

@@ -22,7 +22,7 @@ class CreateCountriesTable extends Migration {
 			$table->string('address_format');
 			$table->smallInteger('postcode_required');
 			$table->smallInteger('status')->default(1);
-			$table->timestamps(10);
+			$table->timestamps(6);
 		});
 	}
 

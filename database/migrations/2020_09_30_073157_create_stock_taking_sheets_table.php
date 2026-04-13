@@ -25,7 +25,7 @@ class CreateStockTakingSheetsTable extends Migration {
 			$table->integer('slot_id');
 			$table->float('system_quantity', 10, 0);
 			$table->float('available_quantity', 10, 0)->nullable();
-			$table->timestamps(10);
+			$table->timestamps(6);
 			$table->text('comments')->nullable();
 			$table->integer('adjusted_inventory_item_id')->nullable();
 		});

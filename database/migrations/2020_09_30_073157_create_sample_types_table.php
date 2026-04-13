@@ -21,7 +21,7 @@ class CreateSampleTypesTable extends Migration {
 			$table->string('description')->nullable();
 			$table->integer('company_id');
 			$table->boolean('active')->default(0);
-			$table->timestamps(10);
+			$table->timestamps(6);
 		});
 	}
 

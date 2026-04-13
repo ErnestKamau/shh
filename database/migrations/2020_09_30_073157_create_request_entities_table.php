@@ -28,7 +28,7 @@ class CreateRequestEntitiesTable extends Migration {
 			$table->integer('required_approvals')->default(0);
 			$table->integer('created_by')->default(0);
 			$table->string('description', 1024)->nullable();
-			$table->timestamps(10);
+			$table->timestamps(6);
 			$table->decimal('net_value', 18, 0)->nullable();
 			$table->dateTime('submission_deadline')->nullable();
 			$table->integer('supplier_id')->nullable();

@@ -29,7 +29,7 @@ class CreateLabsTable extends Migration {
 			$table->string('phone2')->nullable();
 			$table->string('phone3')->nullable();
 			$table->boolean('active')->default(1);
-			$table->timestamps(10);
+			$table->timestamps(6);
 		});
 	}
 

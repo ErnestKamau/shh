@@ -18,7 +18,7 @@ class CreateRequestTypesTable extends Migration {
 			$table->bigInteger('id', true);
 			$table->string('name');
 			$table->boolean('visible');
-			$table->timestamps(10);
+			$table->timestamps(6);
 		});
 	}
 

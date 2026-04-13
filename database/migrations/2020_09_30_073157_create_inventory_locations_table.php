@@ -19,7 +19,7 @@ class CreateInventoryLocationsTable extends Migration {
 			$table->string('name');
 			$table->integer('level')->default(1);
 			$table->integer('inventory_location_id')->default(0);
-			$table->timestamps(10);
+			$table->timestamps(6);
 			$table->smallInteger('active')->nullable()->default(1);
 			$table->integer('company_id')->nullable();
 			$table->integer('currency')->nullable();

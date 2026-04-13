@@ -16,7 +16,7 @@ class CreateStockTransferItemsTable extends Migration {
 		Schema::create('stock_transfer_items', function(Blueprint $table)
 		{
 			$table->bigInteger('id', true)->unsigned();
-			$table->timestamps(10);
+			$table->timestamps(6);
 			$table->bigInteger('stock_transfer_id');
 			$table->bigInteger('local_item_id');
 			$table->bigInteger('local_store_id');

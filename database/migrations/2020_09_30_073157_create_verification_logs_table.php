@@ -25,7 +25,7 @@ class CreateVerificationLogsTable extends Migration {
 			$table->integer('edit_by')->nullable();
 			$table->boolean('is_delete')->default(0);
 			$table->integer('equipment_id')->nullable();
-			$table->timestamps(10);
+			$table->timestamps(6);
 		});
 	}
 

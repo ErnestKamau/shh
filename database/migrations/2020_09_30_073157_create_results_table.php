@@ -39,7 +39,7 @@ class CreateResultsTable extends Migration {
 			$table->string('initial_reporting_symbol')->nullable();
 			$table->decimal('very_low_guide', 8, 6)->nullable();
 			$table->decimal('very_high_guide', 8, 6)->nullable();
-			$table->timestamps(10);
+			$table->timestamps(6);
 			$table->integer('analysis_type_id')->nullable();
 		});
 	}

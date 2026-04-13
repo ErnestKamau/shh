@@ -17,7 +17,7 @@ class CreateInventoryDepartmentsTable extends Migration {
 		{
 			$table->bigInteger('id', true);
 			$table->string('name');
-			$table->timestamps(10);
+			$table->timestamps(6);
 			$table->integer('company_id')->nullable()->default(0);
 			$table->string('module', 100)->nullable();
 			$table->integer('active')->nullable()->default(1);

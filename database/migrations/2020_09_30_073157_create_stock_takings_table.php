@@ -25,7 +25,7 @@ class CreateStockTakingsTable extends Migration {
 			$table->string('store_names');
 			$table->integer('approved_by')->nullable();
 			$table->integer('inventory_location_id')->nullable()->default(0);
-			$table->timestamps(10);
+			$table->timestamps(6);
 			$table->string('code', 100)->nullable();
 			$table->smallInteger('stores_frozen')->default(0);
 		});

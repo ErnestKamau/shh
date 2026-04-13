@@ -19,7 +19,7 @@ class CreateInventoryStoresTable extends Migration {
 			$table->string('name');
 			$table->integer('company_id');
 			$table->integer('inventory_location_id');
-			$table->timestamps(10);
+			$table->timestamps(6);
 			$table->string('type_of_store', 100)->default('inventory_store');
 			$table->boolean('is_frozen')->default(0);
 		});

@@ -18,7 +18,7 @@ class CreateSampleToSampleAnalysisStagesTable extends Migration {
 			$table->bigInteger('id', true);
 			$table->integer('sample_type_id');
 			$table->integer('sample_analysis_stage_id');
-			$table->timestamps(10);
+			$table->timestamps(6);
 			$table->smallInteger('active')->nullable()->default(0);
 		});
 	}

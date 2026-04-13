@@ -19,7 +19,7 @@ class CreateInventoryOrderItemToInventoryItemsTable extends Migration {
 			$table->integer('inventory_order_id');
 			$table->integer('inventory_item_id');
 			$table->integer('inventory_order_item_id');
-			$table->timestamps(10);
+			$table->timestamps(6);
 		});
 	}
 

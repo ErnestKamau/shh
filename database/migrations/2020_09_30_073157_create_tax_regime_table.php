@@ -16,7 +16,7 @@ class CreateTaxRegimeTable extends Migration {
 		Schema::create('tax_regime', function(Blueprint $table)
 		{
 			$table->bigInteger('id', true)->unsigned();
-			$table->timestamps(10);
+			$table->timestamps(6);
 			$table->integer('registered_by')->nullable();
 			$table->integer('value');
 			$table->boolean('active')->default(0);

@@ -26,7 +26,7 @@ class CreateSampleHeadersTable extends Migration {
 			$table->string('status');
 			$table->boolean('is_routine');
 			$table->float('routine_frequency', 10, 0);
-			$table->timestamps(10);
+			$table->timestamps(6);
 			$table->integer('is_amendment')->nullable();
 			$table->smallInteger('schedule_sent')->nullable()->default(0);
 			$table->integer('sample_tracking_stage')->nullable();

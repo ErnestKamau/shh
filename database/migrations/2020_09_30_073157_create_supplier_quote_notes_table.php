@@ -22,7 +22,7 @@ class CreateSupplierQuoteNotesTable extends Migration {
 			$table->integer('quotation_id');
 			$table->integer('request_item_id');
 			$table->text('description');
-			$table->timestamps(10);
+			$table->timestamps(6);
 		});
 	}
 

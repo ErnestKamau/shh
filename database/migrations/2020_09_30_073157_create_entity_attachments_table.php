@@ -23,7 +23,7 @@ class CreateEntityAttachmentsTable extends Migration {
 			$table->string('model');
 			$table->integer('model_id');
 			$table->integer('created_by');
-			$table->timestamps(10);
+			$table->timestamps(6);
 			$table->string('mime', 100)->nullable();
 			$table->string('size', 100)->nullable();
 		});

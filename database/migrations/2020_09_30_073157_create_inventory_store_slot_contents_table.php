@@ -18,7 +18,7 @@ class CreateInventoryStoreSlotContentsTable extends Migration {
 			$table->bigInteger('id', true);
 			$table->integer('inventory_store_slot_id');
 			$table->integer('inventory_item_id');
-			$table->timestamps(10);
+			$table->timestamps(6);
 			$table->integer('inventory_sub_category_id')->nullable();
 		});
 	}

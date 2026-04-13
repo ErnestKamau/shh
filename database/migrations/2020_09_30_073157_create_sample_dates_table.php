@@ -18,7 +18,7 @@ class CreateSampleDatesTable extends Migration {
 			$table->bigInteger('id', true);
 			$table->string('name');
 			$table->dateTime('date');
-			$table->timestamps(10);
+			$table->timestamps(6);
 			$table->bigInteger('sample_header_id')->nullable();
 		});
 	}

@@ -29,7 +29,7 @@ class CreateReportHeaderDetailsTable extends Migration {
 			$table->integer('verified_by_id');
 			$table->string('model');
 			$table->integer('model_id');
-			$table->timestamps(10);
+			$table->timestamps(6);
 			$table->string('from')->nullable();
 			$table->string('outgoing_email_body', 2048)->nullable();
 		});

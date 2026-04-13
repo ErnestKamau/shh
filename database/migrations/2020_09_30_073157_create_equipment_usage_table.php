@@ -19,7 +19,7 @@ class CreateEquipmentUsageTable extends Migration {
 			$table->integer('operator');
 			$table->integer('sample_header');
 			$table->dateTime('end_date')->nullable();
-			$table->timestamps(10);
+			$table->timestamps(6);
 			$table->integer('equipment_id')->nullable();
 		});
 	}

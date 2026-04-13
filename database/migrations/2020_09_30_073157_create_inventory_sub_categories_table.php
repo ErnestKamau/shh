@@ -21,7 +21,7 @@ class CreateInventorySubCategoriesTable extends Migration {
 			$table->string('image')->default('');
 			$table->integer('inventory_category_id');
 			$table->string('manufacturer')->nullable();
-			$table->timestamps(10);
+			$table->timestamps(6);
 			$table->float('minimum_level', 10, 0)->nullable()->default(1);
 			$table->string('unit_type', 100)->nullable();
 			$table->float('unit_price', 10, 0)->nullable();

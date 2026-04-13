@@ -21,7 +21,7 @@ class CreateBatchCommentsTable extends Migration {
 			$table->integer('reminder_for');
 			$table->string('personnel_to_cc');
 			$table->date('completed_at')->nullable();
-			$table->timestamps(10);
+			$table->timestamps(6);
 			$table->integer('sample_header_id')->nullable();
 			$table->string('comment_type')->nullable();
 		});

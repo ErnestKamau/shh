@@ -22,7 +22,7 @@ class CreateInventorySupplierRatingsTable extends Migration {
 			$table->string('title');
 			$table->string('comments');
 			$table->integer('rating_by');
-			$table->timestamps(10);
+			$table->timestamps(6);
 		});
 	}
 

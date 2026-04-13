@@ -23,7 +23,7 @@ class CreateSampleDetailsTable extends Migration {
 			$table->string('comments')->nullable();
 			$table->string('gps')->nullable();
 			$table->string('photo_url', 512)->nullable();
-			$table->timestamps(10);
+			$table->timestamps(6);
 			$table->bigInteger('sample_header_id');
 			$table->integer('sample_point_id')->nullable();
 			$table->integer('company_product_id')->nullable();

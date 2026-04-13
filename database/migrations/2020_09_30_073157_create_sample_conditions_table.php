@@ -19,7 +19,7 @@ class CreateSampleConditionsTable extends Migration {
 			$table->string('name');
 			$table->boolean('active');
 			$table->integer('sample_type_id');
-			$table->timestamps(10);
+			$table->timestamps(6);
 			$table->string('short_name')->nullable();
 			$table->integer('reporting_time')->nullable()->default(0);
 		});

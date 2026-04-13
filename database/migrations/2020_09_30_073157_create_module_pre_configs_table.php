@@ -19,7 +19,7 @@ class CreateModulePreConfigsTable extends Migration {
 			$table->string('name');
 			$table->string('type');
 			$table->string('description', 1024)->nullable();
-			$table->timestamps(10);
+			$table->timestamps(6);
 			$table->string('module')->nullable();
 			$table->integer('inventory_location_id')->nullable();
 		});

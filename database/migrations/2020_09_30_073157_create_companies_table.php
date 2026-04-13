@@ -22,7 +22,7 @@ class CreateCompaniesTable extends Migration {
 			$table->string('address');
 			$table->integer('country_id');
 			$table->string('website');
-			$table->timestamps(10);
+			$table->timestamps(6);
 			$table->string('license_key', 512)->nullable();
 			$table->date('license_expiry')->nullable();
 			$table->boolean('active')->default(0);

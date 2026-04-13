@@ -25,7 +25,7 @@ class CreateInventoryItemsTable extends Migration {
 			$table->integer('inventory_department_id')->default(0);
 			$table->integer('edited_by')->default(0);
 			$table->string('status')->default('in_inventory');
-			$table->timestamps(10);
+			$table->timestamps(6);
 			$table->integer('test_score')->nullable();
 			$table->integer('inventory_location_id')->nullable()->default(0);
 			$table->string('batch_code')->nullable();

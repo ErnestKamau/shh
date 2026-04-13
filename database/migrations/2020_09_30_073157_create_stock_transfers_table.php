@@ -20,7 +20,7 @@ class CreateStockTransfersTable extends Migration {
 			$table->string('created_by');
 			$table->integer('location_id');
 			$table->integer('department_id');
-			$table->timestamps(10);
+			$table->timestamps(6);
 			$table->string('code')->nullable();
 			$table->integer('inventory_location_id')->default(0);
 			$table->string('status', 100)->default('Pending');

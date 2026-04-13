@@ -21,7 +21,7 @@ class CreateApprovalsTable extends Migration {
 			$table->string('stage');
 			$table->integer('role_id');
 			$table->integer('level');
-			$table->timestamps(10);
+			$table->timestamps(6);
 			$table->integer('inventory_location_id')->nullable();
 		});
 	}

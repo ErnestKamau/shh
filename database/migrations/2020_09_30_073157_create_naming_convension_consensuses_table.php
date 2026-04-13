@@ -19,7 +19,7 @@ class CreateNamingConvensionConsensusesTable extends Migration {
 			$table->string('string_part');
 			$table->string('integer_part');
 			$table->string('model');
-			$table->timestamps(10);
+			$table->timestamps(6);
 			$table->integer('company_id')->nullable();
 		});
 	}

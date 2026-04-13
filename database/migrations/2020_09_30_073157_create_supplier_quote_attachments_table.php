@@ -23,7 +23,7 @@ class CreateSupplierQuoteAttachmentsTable extends Migration {
 			$table->integer('request_item_id');
 			$table->text('description');
 			$table->string('attachment');
-			$table->timestamps(10);
+			$table->timestamps(6);
 		});
 	}
 

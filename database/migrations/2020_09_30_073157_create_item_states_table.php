@@ -19,7 +19,7 @@ class CreateItemStatesTable extends Migration {
 			$table->string('name');
 			$table->integer('uom');
 			$table->integer('material_type_id');
-			$table->timestamps(10);
+			$table->timestamps(6);
 			$table->string('location_id', 100)->nullable();
 			$table->integer('is_default')->default(0);
 		});

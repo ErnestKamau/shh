@@ -16,7 +16,7 @@ class CreateSampleTypeQualificationsTable extends Migration {
 		Schema::create('sample_type_qualifications', function(Blueprint $table)
 		{
 			$table->bigInteger('id', true)->unsigned();
-			$table->timestamps(10);
+			$table->timestamps(6);
 			$table->integer('sample_id');
 			$table->integer('qualification_id');
 			$table->string('edited_by')->nullable();

@@ -19,7 +19,7 @@ class CreateCurrencyConversionsTable extends Migration {
 			$table->integer('currency_1');
 			$table->integer('currency_2');
 			$table->float('ratio', 10, 0);
-			$table->timestamps(10);
+			$table->timestamps(6);
 			$table->integer('inventory_location_id')->nullable();
 		});
 	}

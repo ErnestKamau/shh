@@ -21,7 +21,7 @@ class CreateInventoryOrderItemsTable extends Migration {
 			$table->integer('inventory_sub_category_id');
 			$table->float('quantity', 10, 0);
 			$table->boolean('fulfilled')->default(0);
-			$table->timestamps(10);
+			$table->timestamps(6);
 		});
 	}
 

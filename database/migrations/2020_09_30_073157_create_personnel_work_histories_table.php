@@ -20,7 +20,7 @@ class CreatePersonnelWorkHistoriesTable extends Migration {
 			$table->integer('job_id');
 			$table->integer('user_id');
 			$table->date('end_date')->nullable();
-			$table->timestamps(10);
+			$table->timestamps(6);
 		});
 	}
 
