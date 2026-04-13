@@ -133,10 +133,10 @@ class CRMCustomerController extends Controller
 		->orderBy('name')
 		->get();
 	
-	// Get all sample points for filter dropdown
+	// Get all sample points for filter dropdown (avoid orderBy name: column may be absent on some DBs)
 	$sample_points = SamplePoint::where('active', 1)
-		->with(['unit.customer'])
-		->orderBy('name')
+		->with(['unit.customer', 'crmSamplePoint'])
+		->orderBy('id')
 		->get();
 	
 	return view('layouts.crm.crm_batch_report', compact('sample_types','customers', 'company_units', 'sample_points'));

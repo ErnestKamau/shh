@@ -6,6 +6,15 @@
 
 @section('content2')
 <main>
+    @php
+        $livewirePagesWithOwnBreadcrumb = in_array($componentType ?? '', [
+            'dashboard',
+            'customers',
+            'complaints',
+            'customer-profile',
+        ], true);
+    @endphp
+    @unless ($livewirePagesWithOwnBreadcrumb)
     <?php
     $breadcrumbItems = [];
     
@@ -53,6 +62,7 @@
     }
     ?>
     <x-bread-crumb :items="$breadcrumbItems"></x-bread-crumb>
+    @endunless
     
     <!-- Dynamic Livewire Component -->
     @if($componentType === 'dashboard')

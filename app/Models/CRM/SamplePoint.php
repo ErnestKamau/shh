@@ -13,6 +13,35 @@ class SamplePoint extends Model implements Auditable
 {
 	use \OwenIt\Auditing\Auditable;
 
+    /**
+     * Human-readable label for UIs when legacy `name` is absent on `sample_points`.
+     *
+     * @var list<string>
+     */
+    protected $appends = [
+        'display_name',
+    ];
+
+    public function getDisplayNameAttribute(): string
+    {
+        $name = $this->attributes['name'] ?? null;
+        if ($name !== null && $name !== '') {
+            return (string) $name;
+        }
+
+        $master = $this->crmSamplePoint;
+        if ($master !== null) {
+            if ($master->name !== null && $master->name !== '') {
+                return (string) $master->name;
+            }
+            if ($master->code !== null && $master->code !== '') {
+                return (string) $master->code;
+            }
+        }
+
+        return 'Sample point #'.$this->id;
+    }
+
     public function unit(): BelongsTo
     {
         return $this->belongsTo(CRMCompanyUnit::class, 'crm_company_unit_id');

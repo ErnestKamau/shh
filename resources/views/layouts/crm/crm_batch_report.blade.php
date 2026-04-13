@@ -515,7 +515,8 @@ $(document).ready(function() {
 			
 			// Populate sample points dropdown
 			filteredPoints.forEach(point => {
-				samplePointSelect.append(new Option(point.name, point.id));
+				const label = point.display_name || point.name || ('#' + point.id);
+				samplePointSelect.append(new Option(label, point.id));
 			});
 			
 			samplePointSelect.prop('disabled', false);
