@@ -16,7 +16,7 @@ class CreateCustomerfeedbacksTable extends Migration {
 		Schema::create('customerfeedbacks', function(Blueprint $table)
 		{
 			$table->bigInteger('id', true)->unsigned();
-			$table->timestamps(10);
+			$table->timestamps();
 			$table->text('feedback');
 			$table->string('received_from');
 			$table->string('registered_by');

@@ -9,13 +9,6 @@ class CRMCompanyUnit extends Model implements Auditable
 {
 	use \OwenIt\Auditing\Auditable;
 	protected $table = "crm_company_units";
-	
-	protected $fillable = [
-		'name',
-		'company_id',
-		'crm_customer_id',
-		'active'
-	];
 
   public function products(){
     return $this->hasMany('App\Models\CRM\CompanyProduct', 'crm_company_unit_id');
@@ -25,11 +18,12 @@ class CRMCompanyUnit extends Model implements Auditable
     return $this->hasMany('App\Models\CRM\SamplePoint', 'crm_company_unit_id');
   }
 
-  public function subUnits(){
-    return $this->hasMany('App\Models\CRM\CRMCompanySubUnit', 'crm_company_unit_id');
+  public function customer(){
+    return $this->belongsTo(CRMCustomer::class, 'crm_customer_id');
   }
 
-  public function crmCustomer(){
-    return $this->belongsTo('App\Models\CRM\CRMCustomer', 'crm_customer_id');
+  public function section()
+  {
+    return $this->belongsTo(CRMCompanySection::class, 'crm_company_section_id');
   }
 }

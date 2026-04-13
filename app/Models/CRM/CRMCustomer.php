@@ -3,7 +3,6 @@
 namespace App\Models\CRM;
 
 use App\ModulePreConfigs;
-use App\Models\Currency;
 use App\ZohoCustomers;
 use Illuminate\Database\Eloquent\Model;
 use OwenIt\Auditing\Contracts\Auditable;
@@ -12,38 +11,10 @@ class CRMCustomer extends Model implements Auditable
 {
 	use \OwenIt\Auditing\Auditable;
 	protected $table = "crm_customers";
-	
+
 	protected $casts = [
-		'zoho_customer_id' => 'array',
-	];
-	
-	protected $fillable = [
-		'name',
-		'code',
-		'email',
-		'telephone1',
-		'telephone2',
-		'postal_address',
-		'physical_address',
-		'fax',
-		'website',
-		'country_id',
-		'company_id',
-		'active',
-		'unit_configurable_name',
-		'sub_unit_configurable_name',
-		'area_configurable_name',
-		'sample_point_configurable_name',
-		'product_configurable_name',
-		'credit_days',
-		'account_status',
-		'lpos_required',
-		'vat_no',
-		'is_hidden',
-		'zoho_id',
-		'currency_id',
-		'zoho_customer_id',
-		'lab_id'
+		'report_columns_config' => 'array',
+		'is_internal' => 'boolean',
 	];
 
 	public function country(){
@@ -52,6 +23,11 @@ class CRMCustomer extends Model implements Auditable
 
   public function units(){
     return $this->hasMany('App\Models\CRM\CRMCompanyUnit', 'crm_customer_id');
+  }
+
+  public function sections()
+  {
+    return $this->hasMany(CRMCompanySection::class, 'crm_customer_id');
   }
 
   public function contacts(){
@@ -63,50 +39,77 @@ class CRMCustomer extends Model implements Auditable
   public function currencyinfo(){
     return $this->belongsTo(ModulePreConfigs::class,'currency_id');
   }
-  
-  public function currency(){
-    return $this->belongsTo(Currency::class,'currency_id');
-  }
-  
   public function zohocustomer(){
-    return $this->belongsTo(ZohoCustomers::class,'zoho_customer_id');
-  }
-  
-  /**
-   * Get all linked Zoho customers (for multiple relationships).
-   */
-  public function zohoCustomers()
-  {
-    $zohoIds = $this->zoho_customer_id ?? [];
-    if (empty($zohoIds)) {
-      return collect([]);
-    }
-    return ZohoCustomers::whereIn('id', $zohoIds)->get();
-  }
-  
-  /**
-   * Add a Zoho customer ID to this customer.
-   */
-  public function addZohoCustomerId(int $zohoCustomerId): void
-  {
-    $zohoIds = $this->zoho_customer_id ?? [];
-    if (!in_array($zohoCustomerId, $zohoIds)) {
-      $zohoIds[] = $zohoCustomerId;
-      $this->zoho_customer_id = $zohoIds;
-      $this->save();
-    }
-  }
-  
-  /**
-   * Check if this customer is linked to a Zoho customer.
-   */
-  public function hasZohoCustomer(int $zohoCustomerId): bool
-  {
-    $zohoIds = $this->zoho_customer_id ?? [];
-    return in_array($zohoCustomerId, $zohoIds);
+    return $this->belongsTo(ZohoCustomers::class,'zoho_id');
   }
 
-  public function subUnits(){
-    return $this->hasMany('App\Models\CRM\CRMCompanySubUnit', 'crm_customer_id');
+  public function zohoCustomers(): \Illuminate\Support\Collection
+  {
+    $zohoIds = [];
+
+    if (is_array($this->zoho_customer_id) && count($this->zoho_customer_id) > 0) {
+      $zohoIds = $this->zoho_customer_id;
+    } elseif (is_string($this->zoho_customer_id) && $this->zoho_customer_id !== '') {
+      $decodedIds = json_decode($this->zoho_customer_id, true);
+      if (is_array($decodedIds)) {
+        $zohoIds = $decodedIds;
+      }
+    }
+
+    $zohoIds = array_values(array_filter($zohoIds, static function ($id) {
+      return is_numeric($id);
+    }));
+
+    if (count($zohoIds) > 0) {
+      return ZohoCustomers::query()
+        ->whereIn('id', $zohoIds)
+        ->orderBy('name')
+        ->get();
+    }
+
+    if (!empty($this->zoho_id)) {
+      $legacyZohoCustomer = $this->zohocustomer;
+      if ($legacyZohoCustomer) {
+        return collect([$legacyZohoCustomer]);
+      }
+    }
+
+    return collect();
+  }
+
+  /**
+   * Custom field categories this customer is assigned to.
+   */
+  public function customFieldCategories(): \Illuminate\Database\Eloquent\Relations\BelongsToMany
+  {
+      return $this->belongsToMany(
+          \App\Models\CustomFieldCategory::class,
+          'custom_field_category_customers',
+          'crm_customer_id',
+          'custom_field_category_id'
+      )->withTimestamps();
+  }
+
+  /**
+   * Report info columns (extra fields to show in report info block).
+   */
+  public function reportInfoColumns()
+  {
+      return $this->hasMany(\App\Models\CRMCustomerReportInfoColumn::class, 'crm_customer_id')
+          ->orderBy('display_order')
+          ->orderBy('id');
+  }
+
+  /**
+   * Submission form columns (sample_details columns) for NAS submission form.
+   * source = 'sample_detail', source_key = column_name.
+   */
+  public function submissionFormColumns()
+  {
+      return $this->hasMany(\App\Models\CustomerSubmissionFormColumn::class, 'crm_customer_id')
+          ->where('source', 'sample_detail')
+          ->where('is_active', true)
+          ->orderBy('display_order')
+          ->orderBy('id');
   }
 }

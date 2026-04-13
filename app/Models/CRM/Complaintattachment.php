@@ -7,20 +7,31 @@ use OwenIt\Auditing\Contracts\Auditable;
 
 class Complaintattachment extends Model implements Auditable
 {
-	use \OwenIt\Auditing\Auditable;
-    
-    protected $connection = 'developer_code';
-    
+    use \OwenIt\Auditing\Auditable;
+
+    protected $table = 'complaintattachments';
+
     protected $fillable = [
-        'complaint_id',
         'title',
-        'upload_title',
         'type',
-        'file_type',
         'file_path',
-        'file_size',
         'description',
+        'complaint_id',
         'posted_by',
+        'is_public',
         'is_delete',
     ];
+
+    protected function casts(): array
+    {
+        return [
+            'is_public' => 'boolean',
+            'is_delete' => 'boolean',
+        ];
+    }
+
+    public function complaint()
+    {
+        return $this->belongsTo(Complaint::class);
+    }
 }

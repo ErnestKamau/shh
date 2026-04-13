@@ -198,11 +198,8 @@
 					</div>
 					<div class="form-group hidden">
 						<label class="control-label">Zoho Code <span class="text-danger">*</span></label>
-						<select name="zoho_code" id="zoho_code" class="form-control">
+						<select name="zoho_code" id="add-zoho_code" class="form-control zoho-customers-select">
 							<option value="">Select Zoho Customer</option>
-							@foreach($zoho_customers as $z_cust)
-								<option value="{{$z_cust->id}}">{{$z_cust->name}}</option>
-							@endforeach
 						</select>
 					</div>
 					<div class="form-group hidden">
@@ -306,6 +303,28 @@
 <script>
 
 	$(function() {
+		var zohoCustomersCache = null;
+		function loadZohoCustomersIntoSelect($select, selectedId, callback) {
+			if (zohoCustomersCache) {
+				$select.find('option:not(:first)').remove();
+				zohoCustomersCache.forEach(function(z) {
+					$select.append($('<option>', { value: z.id, text: z.name }));
+				});
+				if (selectedId) $select.val(selectedId);
+				if (typeof callback === 'function') callback();
+				return;
+			}
+			$.get('{{ route("crm.zoho-customers") }}', function(data) {
+				zohoCustomersCache = data;
+				$select.find('option:not(:first)').remove();
+				data.forEach(function(z) {
+					$select.append($('<option>', { value: z.id, text: z.name }));
+				});
+				if (selectedId) $select.val(selectedId);
+				if (typeof callback === 'function') callback();
+			});
+		}
+
 		var edit_body = function(customer){
 			var body_ = $(`
 				<div class="col-sm-6">
@@ -315,11 +334,8 @@
 					</div>
 					<div class="form-group hidden">
 						<label class="control-label">Zoho Customer <span class="text-danger">*</span></label>
-						<select name="zoho_code" id="zoho_code" class="form-control">
+						<select name="zoho_code" id="edit-zoho_code" class="form-control zoho-customers-select">
 							<option value="">Select Zoho Customer</option>
-							@foreach($zoho_customers as $z_cust)
-								<option value="{{$z_cust->id}}">{{$z_cust->name}}</option>
-							@endforeach
 						</select>
 					</div>
 					<div class="form-group hidden">
@@ -402,10 +418,11 @@
 
 				</div>
 			`).clone();
-			$(body_).find('#zoho_code').val(customer.zoho_id);
 			$(body_).find('#currency_id').val(customer.currency_id);
 			$(body_).find('#currency_id').select2();
-			$(body_).find('#zoho_code').select2();
+			loadZohoCustomersIntoSelect($(body_).find('#edit-zoho_code'), customer.zoho_id, function() {
+				$(body_).find('#edit-zoho_code').select2();
+			});
 			return body_
 		}
 		$('#edit-customer').on('show.bs.modal',function(e){
@@ -442,15 +459,15 @@
 			$(this).find('.modal-body').append(text_);
 			// console.log(customer);
 		});
-		$('#add-customer').on('show.bs.modal',(e)=>{
-			console.log('here1.....')
-			$('#add-customer').find('.name-check-trigger').on('change',(e)=>{
+		$('#add-customer').on('show.bs.modal', function(e) {
+			loadZohoCustomersIntoSelect($('#add-customer').find('#add-zoho_code'));
+			$('#add-customer').find('.name-check-trigger').on('change', function(e) {
 				console.log('here2.....')
 				$.each($('#add-customer').find('.form-control'),(i,obj)=>{
 					$(obj).attr('readonly',true)
 					$('.name-check-listener').removeClass('hidden');
 				});
-			})
+			});
 		});
 		let nameCheckTbodyData = (loop,data)=>{
 			var body=$(`

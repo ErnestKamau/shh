@@ -16,7 +16,7 @@ class CreateCustomerqualificationsTable extends Migration {
 		Schema::create('customerqualifications', function(Blueprint $table)
 		{
 			$table->bigInteger('id', true)->unsigned();
-			$table->timestamps(10);
+			$table->timestamps();
 			$table->integer('qualification_id');
 			$table->integer('customer_id');
 			$table->dateTime('certification_date');

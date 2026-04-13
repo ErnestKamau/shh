@@ -191,14 +191,14 @@
 					<th nowrap>Receipt Date</th>
 					<th nowrap>Date Collected</th>
 					<th nowrap>Target Date</th>
-					<th nowrap>Status Days</th>
+					{{-- <th nowrap>Status Days</th> --}}
 					<th>Samples</th>
 					<th>Client</th>
 					<th>Client Unit</th>
 					<th>Lab</th>
 					<th nowrap>Sample Type</th>
 					<th>Ref No</th>
-					<th nowrap>Tracking Stage</th>
+					{{-- <th nowrap>Tracking Stage</th> --}}
 					<th>Routine</th>
 					<th>Routine Frequency</th>
 					
@@ -227,18 +227,22 @@
 							data-class="{{ $item->client->id }}">
 							<td>{{$loop->iteration}}</td>
 							<td nowrap>{!! $item->priority != "Normal" ? '<i class="mdi mdi-star text-danger"></i>' : '' !!} {{ $item->priority }}</td>
-							<td><a href="{{ route('view-batch-details', ['batch'=>$item->id, 'client'=>$item->client->id]) }}">{{ $item->batch_code }}</a></td>
+							<td>{{ $item->batch_code }}</td>
 							<td nowrap>{{ date('Y-m-d', strtotime($item->receipt_date)) }}</td>
 							<td nowrap>{{ date('Y-m-d', strtotime($item->date_collected)) }}</td>
 							<td nowrap>{{ date('Y-m-d', strtotime($target_date ?? '')) }}</td>
-							<td nowrap>{{ number_format($diff ?? 0, 0) }} Day(s)</td>
+							{{-- <td nowrap>{{ number_format($diff ?? 0, 0) }} Day(s)</td> --}}
 							<td>{{ $item->samples->count() }}</td>
 							<td nowrap>{{ $item->client->name }}</td>
 							<td nowrap>{{ $item->unit_name }}</td>
 							<td nowrap>{{ implode(", ", $item->labs(true)) }}</td>
 							<td nowrap>{{ $item->sample_type->name ?? '' }}</td>
-							<td nowrap>{{ $item->reference_number ?? 'n/a' }}</td>
-							<td nowrap>{{ $item->status ?? 'n/a' }}</td>
+							@php
+								$ref = is_string($item->reference_number ?? null) ? trim((string) $item->reference_number) : '';
+								$refDisplay = ($ref !== '' && strtolower($ref) !== 'n/a') ? $ref : ($item->client->name ?? '—');
+							@endphp
+							<td nowrap>{{ $refDisplay }}</td>
+							{{-- <td nowrap>{{ $item->status ?? 'n/a' }}</td> --}}
 							<td>{{ $item->is_routine == 1 ? 'Yes' : 'No' }}</td>
 							<td>{{ $item->is_routine == 1 ? number_format($item->routine_frequency,0).' days' : 'n/a' }}</td>
 							

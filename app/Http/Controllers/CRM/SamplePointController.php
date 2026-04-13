@@ -28,6 +28,14 @@ class SamplePointController extends Controller
 
 		$product->save();
 
+		if ($request->wantsJson()) {
+			return response()->json([
+				'id' => $product->id,
+				'name' => $product->name,
+				'success' => 'Added successfully.'
+			]);
+		}
+
     return redirect()->back()->with('success', 'Added successfully.');
 	}
 

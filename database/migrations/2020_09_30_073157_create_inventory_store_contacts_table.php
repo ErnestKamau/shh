@@ -18,7 +18,7 @@ class CreateInventoryStoreContactsTable extends Migration {
 			$table->bigInteger('id', true);
 			$table->integer('user_id');
 			$table->integer('store');
-			$table->timestamps(10);
+			$table->timestamps();
 		});
 	}
 

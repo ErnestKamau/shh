@@ -580,6 +580,17 @@ class CustomerManager extends Component
         }
     }
 
+    public function openZohoCustomerDropdown()
+    {
+        if (empty($this->zohoCustomers)) {
+            $this->loadZohoCustomers();
+        }
+
+        $this->showZohoCustomerDropdown = true;
+        $this->showCountryDropdown = false;
+        $this->showAccountDropdown = false;
+    }
+
     public function selectCountry($countryId)
     {
         $this->customerForm['country_id'] = $countryId;

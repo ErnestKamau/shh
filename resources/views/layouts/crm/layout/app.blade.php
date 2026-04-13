@@ -7,6 +7,10 @@
 @endsection
 
 @section('title')
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:ital,opsz,wght@0,14..32,100..900;1,14..32,100..900&family=Outfit:wght@100..900&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="{{ asset('css/crm.css') }}">
 <style type="text/css">
 	.tab-card {
 		border: 1px solid #eee;
@@ -26,27 +30,7 @@
 		margin-right: 2px;
 	}
 
-	.tab-card-header>.nav-tabs>li>a {
-		border: 0;
-		border-bottom: 2px solid transparent;
-		margin-right: 0;
-		color: #737373;
-		padding: 2px 15px;
-	}
-
-	.tab-card-header>.nav-tabs>li>a.show {
-		border-bottom: 2px solid #007bff;
-		color: #007bff;
-	}
-
-	.tab-card-header>.nav-tabs>li>a:hover {
-		color: #007bff;
-	}
-
-	.tab-card .nav-link.active {
-		background-color: #dadccd !important;
-		border: 1px solid #cccebf !important;
-	}
+	/* Tab styles overridden by imara-lims.css for protocol compliance */
 
 	.tab-card-header>.tab-content {
 		padding-bottom: 0;
@@ -62,7 +46,7 @@
 	<div id="sidebar-container" class="sidebar-expanded d-none d-md-block">
 		<!-- d-* hiddens the Sidebar in smaller devices. Its itens can be kept on the Navbar 'Menu' -->
 		<!-- Bootstrap List Group -->
-		<ul class="list-group">
+		<ul class="list-group sticky-top sticky-offset">
 			<div class="list-group-item p-4 text-center text-white text-ultra-bold sidebar-module-div">
 				<i class="mdi mdi-account-group fa-3x"></i><br>
 				<span class="text-lg text-bold">CRM</span>
@@ -73,10 +57,28 @@
 			</li> --}}
 			<!-- /END Separator -->
 			<!-- Menu with submenu -->
-			<a href="{{ route('livewire.customers') }}" class="bg-dark list-group-item list-group-item-action">
+			<a href="{{ route('crm-dashboard') }}" class="bg-dark list-group-item list-group-item-action">
+				<div class="d-flex w-100 justify-content-start align-items-center">
+					<span class="mdi mdi-view-dashboard fa-fw mr-3"></span>
+					<span class="menu-collapsed">Dashboard</span>
+				</div>
+			</a>
+			<a href="/crm-home" class="bg-dark list-group-item list-group-item-action">
 				<div class="d-flex w-100 justify-content-start align-items-center">
 					<span class="mdi mdi-account-multiple fa-fw mr-3"></span>
 					<span class="menu-collapsed">Customer Register</span>
+				</div>
+			</a>
+			<a href="{{ route('crm.sample-points') }}" class="bg-dark list-group-item list-group-item-action">
+				<div class="d-flex w-100 justify-content-start align-items-center">
+					<span class="mdi mdi-map-marker-radius fa-fw mr-3"></span>
+					<span class="menu-collapsed">Sample Points</span>
+				</div>
+			</a>
+			<a href="{{ route('crm.areas') }}" class="bg-dark list-group-item list-group-item-action">
+				<div class="d-flex w-100 justify-content-start align-items-center">
+					<span class="mdi mdi-vector-square fa-fw mr-3"></span>
+					<span class="menu-collapsed">Areas</span>
 				</div>
 			</a>
 			<a href="#sample-workflow-menu" data-toggle="collapse" aria-expanded="false" class="bg-dark list-group-item list-group-item-action flex-column align-items-start">
@@ -95,40 +97,40 @@
 				// }
 				?>
 				@foreach (getComplaintWorkflowStages() as $item)
-				<a href="{{ route('crm.complaints-manager', ['stage' => $item]) }}" class="list-group-item list-group-item-action bg-dark text-white">
-					<div class="d-flex w-100 justify-content-between align-items-center">
-						<span class="menu-collapsed"><i class="mdi mdi-circle-medium"></i>{{ $item }}</span>
+				<a href="{{route('complaint-workflow',['stage'=>$item])}}" class="list-group-item list-group-item-action bg-dark text-white">
+					<span class="menu-collapsed"><i class="mdi mdi-circle-medium"></i>{{ $item }}
 						@if ($item == "All Complaints")
-						<small class="badge badge-pill {{ $item == "Samples Request Review" ? 'badge-danger' : 'badge-dark' }}">{{ getAllComplaints() }}</small>
+						<small class="float-right badge badge-pill {{ $item == "Samples Request Review" ? 'badge-danger' : 'badge-dark' }}">{{ getAllComplaints() }}</small>
 						@endif
 						@if($item != "All Complaints")
-						<small class="badge badge-pill {{ $item == "Samples Request Review" ? 'badge-danger' : 'badge-dark' }}">{{ getComplaintsInWorkflow($loop->iteration-1) ?? 0 }}</small>
+						<small class="float-right badge badge-pill {{ $item == "Samples Request Review" ? 'badge-danger' : 'badge-dark' }}">{{ getComplaintsInWorkflow($loop->iteration-1) ?? 0 }}</small>
 						@endif
-					</div>
+					</span>
 				</a>
 				@endforeach
 			</div>
+			<a href="{{ route('complaint-type-home') }}" class="bg-dark list-group-item list-group-item-action">
 				<div class="d-flex w-100 justify-content-start align-items-center">
 					<span class="mdi mdi-message-cog fa-fw mr-3"></span>
 					<span class="menu-collapsed">Complaint Type</span>
 				</div>
 			</a>
-			<a href="/customer-feedback/home" class="bg-dark list-group-item list-group-item-action">
+			<a href="{{ route('crm-batch-reports') }}" class="bg-dark list-group-item list-group-item-action">
+				<div class="d-flex w-100 justify-content-start align-items-center">
+					<span class="mdi mdi-file-chart fa-fw mr-3"></span>
+					<span class="menu-collapsed">Batch Reports</span>
+				</div>
+			</a>
+			<a href="{{ route('feedback-home') }}" class="bg-dark list-group-item list-group-item-action">
 				<div class="d-flex w-100 justify-content-start align-items-center">
 					<span class="mdi mdi-file-account fa-fw mr-3"></span>
 					<span class="menu-collapsed">Customer Feedback</span>
 				</div>
 			</a>
-			<a href="{{ route('crm.sample-points') }}" class="bg-dark list-group-item list-group-item-action">
+			<a href="{{ route('feedback-config') }}" class="bg-dark list-group-item list-group-item-action">
 				<div class="d-flex w-100 justify-content-start align-items-center">
-					<span class="mdi mdi-map-marker fa-fw mr-3"></span>
-					<span class="menu-collapsed">Sample Points</span>
-				</div>
-			</a>
-			<a href="{{ route('crm.areas') }}" class="bg-dark list-group-item list-group-item-action">
-				<div class="d-flex w-100 justify-content-start align-items-center">
-					<span class="mdi mdi-map fa-fw mr-3"></span>
-					<span class="menu-collapsed">Areas</span>
+					<span class="mdi mdi-cog-refresh-outline fa-fw mr-3"></span>
+					<span class="menu-collapsed">Feedback Configuration</span>
 				</div>
 			</a>
 
@@ -140,10 +142,10 @@
 
 		<!-- List Group END-->
 	</div>
-<!-- sidebar-container END -->
+	<!-- sidebar-container END -->
 
-<!-- MAIN -->
-<div class="py-3" id="main-container-body">
+	<!-- MAIN -->
+	<div class="py-3 crm-main-content" id="main-container-body">
 		<div id="message-section" style="padding: 10px 10px 0px 10px !important">
 
 

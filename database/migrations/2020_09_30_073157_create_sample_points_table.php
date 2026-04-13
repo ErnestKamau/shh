@@ -18,7 +18,7 @@ class CreateSamplePointsTable extends Migration {
 			$table->bigInteger('id', true);
 			$table->string('name');
 			$table->integer('crm_company_unit_id');
-			$table->timestamps(10);
+			$table->timestamps();
 			$table->smallInteger('active')->nullable();
 			$table->string('gps', 512);
 		});

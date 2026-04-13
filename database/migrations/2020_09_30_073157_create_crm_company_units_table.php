@@ -20,7 +20,7 @@ class CreateCrmCompanyUnitsTable extends Migration {
 			$table->integer('company_id');
 			$table->integer('crm_customer_id');
 			$table->integer('active');
-			$table->timestamps(10);
+			$table->timestamps();
 		});
 	}
 

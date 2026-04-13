@@ -481,35 +481,43 @@
     </div>
 
     <div class="apps-grid">
+        @if(isSystemModuleVisible('laboratory'))
         <a class="app-card lab" href="/lab-dashboard" data-app="laboratory">
             <div class="app-icon" style="background: linear-gradient(135deg, #4CAF50, #45a049);">
                 <i class="mdi mdi-flask"></i>
             </div>
             <h3 class="app-title">Laboratory</h3>
         </a>
+        @endif
 
-        <a class="app-card inventory hidden" href="/inventory-home" data-app="inventory">
+        @if(isSystemModuleVisible('inventory'))
+        <a class="app-card inventory" href="/inventory-home" data-app="inventory">
             <div class="app-icon" style="background: linear-gradient(135deg, #2196F3, #1976D2);">
                 <i class="mdi mdi-package-variant"></i>
             </div>
             <h3 class="app-title">Inventory</h3>
         </a>
+        @endif
 
+        @if(isSystemModuleVisible('equipment'))
         <a class="app-card equipment" href="{{ route('equipment-dashboard') }}" data-app="equipment">
             <div class="app-icon" style="background: linear-gradient(135deg, #795548, #5D4037);">
                 <i class="mdi mdi-tools"></i>
             </div>
             <h3 class="app-title">Equipment</h3>
         </a>
+        @endif
 
-        <a class="app-card crm" href="{{ route('livewire.customers') }}" data-app="crm">
+        @if(isSystemModuleVisible('crm'))
+        <a class="app-card crm" href="{{ route('crm-dashboard') }}" data-app="crm">
             <div class="app-icon" style="background: linear-gradient(135deg, #00BCD4, #0097A7);">
                 <i class="mdi mdi-account-multiple-outline"></i>
             </div>
             <h3 class="app-title">CRM</h3>
         </a>
+        @endif
 
-        @if(auth()->user()->is_support_staff || isset($user_personel_access->id))
+        @if((auth()->user()->is_support_staff || isset($user_personel_access->id)) && isSystemModuleVisible('personnel'))
         <a class="app-card personnel" href="/personnel-home" data-app="personnel">
             <div class="app-icon" style="background: linear-gradient(135deg, #F44336, #D32F2F);">
                 <i class="mdi mdi-account-group"></i>
@@ -518,56 +526,70 @@
         </a>
         @endif
 
+        @if(isSystemModuleVisible('dms'))
         <a class="app-card dms" href="{{ route('dms.dashboard') }}" data-app="dms">
             <div class="app-icon" style="background: linear-gradient(135deg, #673AB7, #512DA8);">
                 <i class="mdi mdi-file-document-multiple"></i>
             </div>
             <h3 class="app-title">Document Management</h3>
         </a>
+        @endif
 
-        <a class="app-card calendar hidden" href="/full-calendar/view" data-app="calendar">
+        @if(isSystemModuleVisible('calendar'))
+        <a class="app-card calendar" href="/full-calendar/view" data-app="calendar">
             <div class="app-icon" style="background: linear-gradient(135deg, #FFC107, #FF8F00);">
                 <i class="mdi mdi-calendar"></i>
             </div>
             <h3 class="app-title">System Planner</h3>
         </a>
+        @endif
 
-        <a class="app-card matrix hidden" href="{{route('matrix')}}" data-app="matrix">
+        @if(isSystemModuleVisible('matrix'))
+        <a class="app-card matrix" href="{{route('matrix')}}" data-app="matrix">
             <div class="app-icon" style="background: linear-gradient(135deg, #9E9E9E, #616161);">
                 <i class="mdi mdi-account-star-outline"></i>
             </div>
             <h3 class="app-title">Skills Matrix</h3>
         </a>
+        @endif
 
-        <a class="app-card ai hidden" href="{{route('imara-ai-index')}}" data-app="ai">
+        @if(isSystemModuleVisible('ai'))
+        <a class="app-card ai" href="{{route('imara-ai-index')}}" data-app="ai">
             <div class="app-icon" style="background: linear-gradient(135deg, #FF9800, #F57C00);">
                 <i class="mdi mdi-chip"></i>
             </div>
             <h3 class="app-title">Imara AI</h3>
         </a>
+        @endif
 
+        @if(isSystemModuleVisible('risk'))
         <a class="app-card risk" href="{{ route('risk.dashboard') }}" data-app="risk">
             <div class="app-icon" style="background: linear-gradient(135deg, #F44336, #D32F2F);">
                 <i class="mdi mdi-alert-octagon-outline"></i>
             </div>
             <h3 class="app-title">Risk Management</h3>
         </a>
+        @endif
 
+        @if(isSystemModuleVisible('audit'))
         <a class="app-card audit" href="{{ route('audit.dashboard') }}" data-app="audit">
             <div class="app-icon" style="background: linear-gradient(135deg, #9C27B0, #7B1FA2);">
                 <i class="mdi mdi-clipboard-check-outline"></i>
             </div>
             <h3 class="app-title">Audit</h3>
         </a>
+        @endif
 
+        @if(isSystemModuleVisible('tickets'))
         <a class="app-card tickets" href="{{ route('tickets.dashboard') }}" data-app="tickets">
             <div class="app-icon" style="background: linear-gradient(135deg, #E91E63, #C2185B);">
                 <i class="mdi mdi-ticket"></i>
             </div>
             <h3 class="app-title">Help Desk</h3>
         </a>
+        @endif
         
-        @if(auth()->user()->is_support_staff)
+        @if(auth()->user()->is_support_staff && isSystemModuleVisible('settings'))
         <a class="app-card settings" href="/system-settings" data-app="settings">
             <div class="app-icon" style="background: linear-gradient(135deg, #424242, #212121);">
                 <i class="fas fa-cogs"></i>

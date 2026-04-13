@@ -864,6 +864,32 @@ Route::post('/accept-order-items/{order_id}', 'InventoryOrderItemToInventoryItem
 //############################################ORDERS############################################################
 
 //############################################CUSTOMERS##########################################################
+Route::prefix('crm/v2')->middleware(['auth'])->name('crm.v2.')->group(function () {
+    Route::get('/', function () {
+        return view('layouts.crm.v2-home');
+    })->name('home');
+    Route::get('/customers', fn () => view('layouts.crm.v2-customers'))->name('customers');
+});
+
+Route::get('/crm/customer/{id}', function ($id) {
+    $customerId = (int) $id;
+    $customer = \App\Models\CRM\CRMCustomer::find($customerId);
+
+    if (!$customer) {
+        abort(404);
+    }
+
+    return view('layouts.crm.v2-customer-show', [
+        'customerId' => $customerId,
+        'customer' => $customer,
+    ]);
+})->middleware(['auth'])->name('crm.customer.show');
+
+Route::get('/crm-dashboard', '\\' . \App\Livewire\Crm\CrmDashboard::class)
+    ->name('crm-dashboard')
+    ->middleware('auth')
+    ->middleware('haspermission:CRM.permission');
+
 Route::get('/crm-home', 'CRM\CRMCustomerController@index')->name('customers-list')->middleware('haspermission:CRM.permission');
 Route::post('/fetch-client-quotes', 'CRM\CRMCustomerController@fetch_client_quote')->name('fetch-client-qoutes');
 Route::get('/crm-home-config', 'CRM\CRMCustomerController@checkConfig')->name('add-config-customer')->middleware('haspermission:CRM.permission');
@@ -901,6 +927,10 @@ Route::post('/edit/complaint-resolution/{id}', 'CRM\Complaint\ComplaintResolutio
 Route::get('/show/complaint/{id}', 'CRM\Complaint\ComplaintController@show_all')->name('complaint-show')->middleware('haspermission:CRM.components.Complaints.View');
 
 Route::get('/customer-feedback/home', 'CRM\CustomerFeedbackController@index')->name('feedback-home')->middleware('haspermission:CRM.components.Feedbacks.View');
+Route::get('/customer-feedback/configuration', '\\' . \App\Livewire\Crm\Feedback\EvaluationMetricManager::class)
+    ->name('feedback-config')
+    ->middleware('auth')
+    ->middleware('haspermission:CRM.components.Feedbacks.View');
 Route::post('/add/customer-feedback', 'CRM\CustomerFeedbackController@add')->name('add-feedback')->middleware('haspermission:CRM.components.Customer Feedback.View');
 Route::post('/add-feedback/customer', 'CRM\CustomerFeedbackController@customer_add')->name('customer-add-feedback');
 Route::post('/edit/customer-feedback/{id}', 'CRM\CustomerFeedbackController@edit')->name('edit-feedback')->middleware('haspermission:CRM.components.Feedbacks.Edit');
@@ -926,6 +956,9 @@ Route::get('/get/customer/ajax/{id}', 'CRM\CustomerContactController@getCustomer
 
 Route::get('/fetch-customer-contacts/{id}', 'CRM\CustomerContactController@get_customer_client')->name('get_customer_client');
 Route::get('/validate-Crm-Customer/Name/{name}/Ajax', 'CRM\CRMCustomerController@validateCrmCustomerNameAjax')->name('validateCrmCustomerNameAjax');
+Route::get('/crm-batch-reports', 'CRM\CRMCustomerController@batch_reports')->name('crm-batch-reports');
+Route::post('/crm-batch-report/data', 'CRM\CRMCustomerController@batch_report_data')->name('crm.batch-report.data');
+Route::post('/crm-batch-report/export', 'CRM\CRMCustomerController@batch_report_export')->name('crm.batch-report.export');
 //############################################SUPPLIER##########################################################
 
 //############################################## QUALIFICATIONS #############################################################

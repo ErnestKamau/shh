@@ -16,7 +16,7 @@ class CreateCustomerInvoiceTable extends Migration {
 		Schema::create('customer_invoice', function(Blueprint $table)
 		{
 			$table->bigInteger('id', true)->unsigned();
-			$table->timestamps(10);
+			$table->timestamps();
 			$table->float('total', 10, 0)->default(0);
 			$table->integer('sent_by')->default(0);
 			$table->string('invoice_number')->default('INV-0000')->unique();

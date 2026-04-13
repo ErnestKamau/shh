@@ -6,46 +6,9 @@
 
 @section('content2')
 <main>
-    <?php
-    $breadcrumbItems = [];
-    
-    // Always start with CRM Home
-    $breadcrumbItems[] = [
-        'link' => route('livewire.customers'),
-        'name' => 'CRM',
-        'icon' => null
-    ];
-    
-    // Add Customer List
-    $breadcrumbItems[] = [
-        'link' => route('livewire.customers'),
-        'name' => 'Customer List',
-        'icon' => null
-    ];
-    
-    // Add Customer Profile if we have a customer
-    if (isset($customer) && $customer) {
-        $breadcrumbItems[] = [
-            'link' => '#',
-            'name' => $customer->name,
-            'icon' => null
-        ];
-    }
-    
-    // Add Complaint Stage if viewing complaints
-    if ($componentType === 'complaints' && isset($stage) && $stage) {
-        $breadcrumbItems[] = [
-            'link' => route('crm.complaints-manager', ['stage' => $stage]),
-            'name' => $stage,
-            'icon' => null
-        ];
-    }
-    ?>
-    <x-bread-crumb :items="$breadcrumbItems"></x-bread-crumb>
-    
     <!-- Dynamic Livewire Component -->
     @if($componentType === 'customers')
-        @livewire(\App\Livewire\CRM\CustomerManager::class)
+        @livewire(\App\Livewire\Crm\Customer\CustomerList::class)
     @elseif($componentType === 'customer-profile')
         @livewire(\App\Livewire\CRM\CustomerProfile::class, ['customerId' => $customerId])
     @elseif($componentType === 'sample-points')
@@ -53,7 +16,7 @@
     @elseif($componentType === 'areas')
         @livewire(\App\Livewire\CRM\AreaManager::class)
     @elseif($componentType === 'complaints')
-        @livewire(\App\Livewire\CRM\Complaint\ComplaintManager::class, ['stage' => $stage ?? null])
+        @livewire(\App\Livewire\Crm\Complaint\ComplaintList::class, ['stage' => $stage ?? null])
     @endif
 </main>
 @endsection

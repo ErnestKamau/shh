@@ -63,7 +63,7 @@
                                         wire:click="setActiveTab('units')" 
                                         type="button">
                                     <i class="mdi mdi-sitemap me-2"></i>
-                                    <span class="fw-semibold">{{ $customer->unit_configurable_name ?: 'Company Units' }}</span>
+                                    <span class="fw-semibold">{{ trim($customer->unit_configurable_name ?? '') !== '' ? $customer->unit_configurable_name : 'Company Units' }}</span>
                                 </button>
                             </li>
                             <li class="nav-item" role="presentation">
@@ -71,7 +71,7 @@
                                         wire:click="setActiveTab('sub-units')" 
                                         type="button">
                                     <i class="mdi mdi-file-tree me-2"></i>
-                                    <span class="fw-semibold">{{ $customer->sub_unit_configurable_name ?: 'Company Sub Units' }}</span>
+                                    <span class="fw-semibold">{{ trim($customer->sub_unit_configurable_name ?? '') !== '' ? $customer->sub_unit_configurable_name : 'Company Sub-Units' }}</span>
                                 </button>
                             </li>
                             <li class="nav-item" role="presentation">
@@ -79,7 +79,7 @@
                                         wire:click="setActiveTab('areas')" 
                                         type="button">
                                     <i class="mdi mdi-map-marker-multiple me-2"></i>
-                                    <span class="fw-semibold">{{ $customer->area_configurable_name ?: 'Areas' }}</span>
+                                    <span class="fw-semibold">{{ trim($customer->area_configurable_name ?? '') !== '' ? $customer->area_configurable_name : 'Areas' }}</span>
                                 </button>
                             </li>
                             <li class="nav-item" role="presentation">
@@ -87,7 +87,7 @@
                                         wire:click="setActiveTab('sample-points')" 
                                         type="button">
                                     <i class="mdi mdi-map-marker me-2"></i>
-                                    <span class="fw-semibold">{{ $customer->sample_point_configurable_name ?: 'Sample Points' }}</span>
+                                    <span class="fw-semibold">{{ trim($customer->sample_point_configurable_name ?? '') !== '' ? $customer->sample_point_configurable_name : 'Sample Points' }}</span>
                                 </button>
                             </li>
                             <li class="nav-item" role="presentation">
@@ -734,7 +734,7 @@
                                        class="form-control" 
                                        placeholder="e.g., Sections, Departments, Branches (default: Company Units)">
                                 <small class="text-muted">
-                                    Current: <strong>{{ $customer->unit_configurable_name ?: 'Company Units' }}</strong>
+                                    Current: <strong>{{ trim($customer->unit_configurable_name ?? '') !== '' ? $customer->unit_configurable_name : 'Company Units' }}</strong>
                                 </small>
                                 @error('labelForm.unit_configurable_name') <div class="text-danger mt-1">{{ $message }}</div> @enderror
                             </div>
@@ -742,14 +742,14 @@
                             <div class="form-group mb-4">
                                 <label class="form-label fw-bold">
                                     <i class="mdi mdi-file-tree text-info"></i> 
-                                    Company Sub Units Tab Name
+                                    Company Sub-Units Tab Name
                                 </label>
                                 <input type="text" 
                                        wire:model="labelForm.sub_unit_configurable_name" 
                                        class="form-control" 
-                                       placeholder="e.g., Sub Sections, Sub Departments (default: Company Sub Units)">
+                                       placeholder="e.g., Sub Sections, Sub Departments (default: Company Sub-Units)">
                                 <small class="text-muted">
-                                    Current: <strong>{{ $customer->sub_unit_configurable_name ?: 'Company Sub Units' }}</strong>
+                                    Current: <strong>{{ trim($customer->sub_unit_configurable_name ?? '') !== '' ? $customer->sub_unit_configurable_name : 'Company Sub-Units' }}</strong>
                                 </small>
                                 @error('labelForm.sub_unit_configurable_name') <div class="text-danger mt-1">{{ $message }}</div> @enderror
                             </div>
@@ -764,7 +764,7 @@
                                        class="form-control" 
                                        placeholder="e.g., Zones, Regions, Locations (default: Areas)">
                                 <small class="text-muted">
-                                    Current: <strong>{{ $customer->area_configurable_name ?: 'Areas' }}</strong>
+                                    Current: <strong>{{ trim($customer->area_configurable_name ?? '') !== '' ? $customer->area_configurable_name : 'Areas' }}</strong>
                                 </small>
                                 @error('labelForm.area_configurable_name') <div class="text-danger mt-1">{{ $message }}</div> @enderror
                             </div>
@@ -779,7 +779,7 @@
                                        class="form-control" 
                                        placeholder="e.g., Locations, Sites, Testing Points (default: Sample Points)">
                                 <small class="text-muted">
-                                    Current: <strong>{{ $customer->sample_point_configurable_name ?: 'Sample Points' }}</strong>
+                                    Current: <strong>{{ trim($customer->sample_point_configurable_name ?? '') !== '' ? $customer->sample_point_configurable_name : 'Sample Points' }}</strong>
                                 </small>
                                 @error('labelForm.sample_point_configurable_name') <div class="text-danger mt-1">{{ $message }}</div> @enderror
                             </div>

@@ -762,6 +762,106 @@ function getSystemConfiguration($name)
 {
 	return App\Models\System\SystemConfiguration::where('key', $name)->get();
 }
+function getSystemModules()
+{
+	return array(
+		'laboratory' => array(
+			'name' => 'Laboratory',
+			'route' => '/lab-dashboard',
+			'default_visible' => true,
+		),
+		'inventory' => array(
+			'name' => 'Inventory',
+			'route' => '/inventory-home',
+			'default_visible' => false,
+		),
+		'equipment' => array(
+			'name' => 'Equipment',
+			'route' => '/equipment-dashboard',
+			'default_visible' => true,
+		),
+		'crm' => array(
+			'name' => 'CRM',
+			'route' => '/crm/dashboard',
+			'default_visible' => true,
+		),
+		'personnel' => array(
+			'name' => 'Personnel',
+			'route' => '/personnel-home',
+			'default_visible' => true,
+		),
+		'dms' => array(
+			'name' => 'Document Management',
+			'route' => '/dms/dashboard',
+			'default_visible' => true,
+		),
+		'calendar' => array(
+			'name' => 'System Planner',
+			'route' => '/full-calendar/view',
+			'default_visible' => false,
+		),
+		'matrix' => array(
+			'name' => 'Skills Matrix',
+			'route' => '/matrix',
+			'default_visible' => false,
+		),
+		'ai' => array(
+			'name' => 'Imara AI',
+			'route' => '/imara/ai/index',
+			'default_visible' => false,
+		),
+		'risk' => array(
+			'name' => 'Risk Management',
+			'route' => '/risk/dashboard',
+			'default_visible' => true,
+		),
+		'audit' => array(
+			'name' => 'Audit',
+			'route' => '/audit/dashboard',
+			'default_visible' => true,
+		),
+		'tickets' => array(
+			'name' => 'Help Desk',
+			'route' => '/tickets/dashboard',
+			'default_visible' => true,
+		),
+		'settings' => array(
+			'name' => 'System Settings',
+			'route' => '/system-settings',
+			'default_visible' => true,
+		),
+	);
+}
+function getSystemModuleVisibilityMap()
+{
+	$modules = getSystemModules();
+	$visibility = array();
+	foreach ($modules as $key => $module) {
+		$visibility[$key] = (bool) ($module['default_visible'] ?? true);
+	}
+
+	$configType = App\Models\System\SystemConfigurationsType::where('configuration_type', 'Module Visibility')->first();
+	if (!isset($configType->id)) {
+		return $visibility;
+	}
+
+	$configurations = App\Models\System\SystemConfiguration::where('configuration_type_id', $configType->id)
+		->where('key', 'system_module_visibility')
+		->get();
+
+	foreach ($configurations as $configuration) {
+		if (isset($visibility[$configuration->value])) {
+			$visibility[$configuration->value] = (bool) $configuration->status;
+		}
+	}
+
+	return $visibility;
+}
+function isSystemModuleVisible($moduleKey)
+{
+	$visibility = getSystemModuleVisibilityMap();
+	return isset($visibility[$moduleKey]) ? (bool) $visibility[$moduleKey] : true;
+}
 function getConfigTypeByName($name)
 {
 	return App\Models\System\SystemConfigurationsType::where('configuration_type', $name)->first();

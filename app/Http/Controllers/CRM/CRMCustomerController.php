@@ -6,20 +6,29 @@ use App\Country;
 use App\ModulePreConfigs;
 use App\User;
 use App\SampleHeader;
+use App\SampleDetails;
 use App\Models\CRM\CRMCustomer;
+use App\Models\CRM\CRMCompanyUnit;
+use App\Models\CRM\SamplePoint;
 use App\Models\CRM\CustomerContact;
 use App\Models\CRM\CustomerCertification;
 use App\Models\Lab\Qualification;
 use App\Models\CRM\Complaint;
 use App\Models\CRM\Complaint_Type;
 use App\Models\CRM\CustomerFeedback;
-
-
 use App\ZohoCustomers;
 use Illuminate\Http\Request;
-
 use App\Http\Controllers\Controller;
+use App\Models\CRMCustomerReportInfoColumn;
+use App\Models\CustomerSubmissionFormColumn;
+use App\Models\System\SystemConfiguration;
 use App\QuotationHeader;
+use App\SampleType;
+use App\Http\Requests\CRM\StoreCustomerRequest;
+use App\Http\Requests\CRM\UpdateCustomerRequest;
+use App\Http\Requests\CRM\UpdateCustomerConfigurationsRequest;
+use App\Http\Requests\CRM\UpdateCustomerLabelRequest;
+use App\Services\CRM\CRMCustomerService;
 
 class CRMCustomerController extends Controller
 {
@@ -34,152 +43,42 @@ class CRMCustomerController extends Controller
 	}
 	public function index()
 	{
-		$customers = CRMCustomer::where('company_id', getUserCompany())->with('currencyinfo')->where('active',1)->orderBy('name')->get();
-		$countries = Country::orderBy('name')->get();
-		$account_settings = getConfigTypeByName('Account Settings');
-		$zoho_customers = ZohoCustomers::all();
-		$currencies  = ModulePreConfigs::where('type','Currency')->get();
-		
-		if(isset($account_settings->id)){
-			$accounts = getconfigByID($account_settings->id);		
-		}else{
-
-			$accounts = array();
-		}
-		return view('layouts.crm.index', compact('customers', 'countries','accounts','account_settings','zoho_customers','currencies'));
+		return view('layouts.crm.customer-list');
 	}
 
-	public function add(Request $request)
-  {
-		// return response()->json($request->all(), 200);
-	$check = CRMCustomer::where('name',$request->name)->first();
-	if(isset($check->id)){
-		return redirect()->back()->with('error','Customer already exists');
-	}
-    $customer = new CRMCustomer;
-    $customer->code = getNamingConventionCode("Customers", $request->name);
-    $customer->name = $request->name;
-    $customer->physical_address = $request->physical_address;
-    $customer->postal_address = $request->postal_address;
-    $customer->company_id = getUserCompany();
-    $customer->website = $request->website == '' ? '' : $request->website;
-    $customer->email = $request->email;
-    $customer->fax = $request->fax;
-    $customer->telephone1 = $request->phone1;
-	$customer->telephone2 = $request->phone2;
-	$customer->credit_days = $request->credit_day;
-    $customer->country_id = $request->country_id;
-	$customer->active = $request->active ?? 0;
-	$customer->account_status = $request->account_id;
-	$customer->vat_no = $request->vat_no;
-	$customer->zoho_id = $request->zoho_code;
-	$customer->currency_id = $request->currency_id;
-	if(isset($request->lpos_required)){
-		$customer->lpos_required = 1;
+	public function add(StoreCustomerRequest $request, CRMCustomerService $service)
+	{
+		try {
+			$service->create($request->validated());
+			return redirect()->back()->with('success', 'Customer added.');
+		} catch (\RuntimeException $e) {
+			return redirect()->back()->with('error', $e->getMessage());
+		}
 	}
 
-    $customer->save();
-
-    return redirect()->back()->with('success', 'Customer added.');
+	public function show($id)
+	{
+		return view('layouts.crm.customer-show-wrapper', ['customerId' => (int) $id]);
 	}
 
-	public function show($id){
-    $customer = CRMCustomer::find($id);
-	$zoho_customers = ZohoCustomers::all();
-	$countries = Country::orderBy('name')->get();
-	$certifications = CustomerCertification::where('customer_id',$customer->id)->get();
-	$qualification_list = Qualification::all();
-    $complaints = Complaint::where('client_id',$customer->id)->orderBy('id','desc')->get();
-    $feedbacks = CustomerFeedback::where('client_id',$customer->id)->orderBy('id','desc')->get();
-	$quotes = QuotationHeader::where('crm_customer_id',$id)->get();
-    $complaint_types = Complaint_Type::all();
-		$samplesSel = SampleHeader::join('sample_types as st', 'st.id', 'sample_type_id')
-			->selectRaw('sample_headers.*, st.name as sample_type')->where('crm_customer_id', $id)
-			->where('sample_headers.status', ["Completed"])
-			->orderBy('id','desc')->get();
-
-		$ordersSel = SampleHeader::leftJoin('sample_details as sd', 'sample_headers.id', '=', 'sd.sample_header_id')
-			->join('sample_types as st', 'st.id', 'sample_headers.sample_type_id')
-			->selectRaw('sample_headers.id, sample_headers.batch_code, sample_headers.date_collected, sample_headers.reference_number, sample_headers.document_number, sample_headers.status, count(sd.id) as samples, st.name as sample_type')->where('crm_customer_id', $id)
-			->groupBy('sample_headers.id','sample_headers.batch_code', 'sample_headers.date_collected', 'sample_headers.reference_number', 'sample_headers.document_number', 'sample_headers.status', 'st.name')
-			->whereNotIn('status', ["Completed"])
-			->get();
-
-		$samples = array();
-
-		foreach($samplesSel as $s){
-			$reason_ids = explode(",", $s->reason_for_submission);
-
-			$reasons = \App\RequestType::whereIn('id', $reason_ids)->get()->pluck('name')->toArray();
-
-			$s->reasons = implode(", ", $reasons);
-
-			$samples[] = $s;
-		}
-		$account_settings = getConfigTypeByName('Account Settings');
-		if(isset($account_settings->id)){
-			$accounts = getconfigByID($account_settings->id);		
-		}else{
-
-			$accounts = array();
-		}
-
-		// return response()->json($samples, 200);
-
-		return view('layouts.crm.show', compact('customer', 'countries', 'samples','complaints','feedbacks','complaint_types','ordersSel','certifications','qualification_list','accounts','quotes','zoho_customers'));
-		
-	}
-
-  public function edit_label(Request $request, $id)
-  {
-		$customer = CRMCustomer::find($id);
-
-		if($request->column == "unit_configurable_name"){
-			$customer->unit_configurable_name = $request->name;
-		}
-
-		if($request->column == "sample_point_configurable_name"){
-			$customer->sample_point_configurable_name = $request->name;
-		}
-
-		if($request->column == "product_configurable_name"){
-			$customer->product_configurable_name = $request->name;
-		}
-
-		$customer->save();
-
+	public function edit_label(UpdateCustomerLabelRequest $request, $id, CRMCustomerService $service)
+	{
+		$service->updateLabel((int) $id, $request->validated('column'), $request->validated('name'));
 		return redirect()->back()->with('success', 'Configuration Saved.');
 	}
 
 
-  public function edit(Request $request, $id)
-  {
-    $customer = CRMCustomer::find($id);
-    $customer->name = $request->name;
-    $customer->physical_address = $request->physical_address;
-    $customer->postal_address = $request->postal_address;
-    $customer->company_id = getUserCompany();
-    $customer->website = $request->website;
-    $customer->email = $request->email;
-    $customer->fax = $request->fax;
-    $customer->telephone1 = $request->phone1;
-    $customer->telephone2 = $request->phone2;
-	$customer->country_id = $request->country_id;
-	$customer->credit_days = $request->credit_day;
-	$customer->active = $request->active ?? 0;
-	$customer->account_status = $request->account_id;
-	$customer->vat_no = $request->vat_no;
-	$customer->zoho_id = $request->zoho_code;
-	$customer->currency_id = $request->currency_id;
-	if(isset($request->lpos_required)){
-		$customer->lpos_required = 1;
-	}elseif(!isset($request->lpos_required) && $customer->lpos_required == 1){
-		$customer->lpos_required = 0;
+	public function edit(UpdateCustomerRequest $request, $id, CRMCustomerService $service)
+	{
+		$service->update((int) $id, $request->validated());
+		return redirect()->back()->with('success', 'Customer edited.');
 	}
-    $customer->save();
 
-    return redirect()->back()->with('success', 'Customer edited.');
-  }
+	public function editConfigurations(UpdateCustomerConfigurationsRequest $request, $id, CRMCustomerService $service)
+	{
+		$service->updateConfigurations((int) $id, $request->validated());
+		return redirect()->back()->with('success', 'Configurations saved.');
+	}
 
   public function add_to_users(){
 	  $all_clients = CustomerContact::all();
@@ -199,7 +98,7 @@ class CRMCustomerController extends Controller
 		return redirect()->route('home');
   }
   public function fetch_client_quote(Request $request){
-	  $client = CRMCustomer::find($request->client_id);
+  	  $client = CRMCustomer::find($request->client_id);
 	  if(isset($client->id)){
 		  $quotes = QuotationHeader::where('crm_customer_id',$client->id)->get();
 		  
@@ -208,37 +107,247 @@ class CRMCustomerController extends Controller
 		  return response()->json($request->client_id,200);
 	  }
   }
-  public function delete_customer(Request $request){
-	$customer = getCrmCustomerByID($request->customer_id);
-	if(!isset($customer->id)){
-		return redirect()->back()->with('error','No Crm customer with the specified ID!');
+	public function delete_customer(Request $request, CRMCustomerService $service)
+	{
+		try {
+			$service->softDelete((int) $request->customer_id);
+			return redirect()->back()->with('success', 'Crm Customer deleted successfully!');
+		} catch (\RuntimeException $e) {
+			return redirect()->back()->with('error', $e->getMessage());
+		}
 	}
-	$complaints = Complaint::where('client_id',$customer->id)->get();
-	$contacts = getCrmCustomerContacts($customer->id);
-	$users = User::where('client_id',$customer->id)->get();
-	foreach($users as $user){
-		$user->active = 0;
-		$user->save();
-	}
-	foreach($complaints as $complaint){
-		$complaint->rejected = 1;
-		$complaint->save();
-	}
-	foreach($contacts as $contact){
-		$contact->active = 0;
-		$contact->save();
-	}
-	$customer->active = 0;
-	$customer->save();
-	return redirect()->back()->with('success','Crm Customer deleted successfully!');
-
-
-  }
   public function validateCrmCustomerNameAjax($name){
 	$namearr = explode(' ',$name);
 	$tit = $namearr[0];
 	$customers = CRMCustomer::where('name','LIKE', "%".$tit."%")->get();
 	return response()->json($customers);
+  }
+
+  public function batch_reports(){
+	$sample_types = SampleType::where('active',1)->get();
+	$customers = CRMCustomer::where('active',1)->get();
+	
+	// Get all company units for filter dropdown
+	$company_units = CRMCompanyUnit::where('active', 1)
+		->with('customer')
+		->orderBy('name')
+		->get();
+	
+	// Get all sample points for filter dropdown
+	$sample_points = SamplePoint::where('active', 1)
+		->with(['unit.customer'])
+		->orderBy('name')
+		->get();
+	
+	return view('layouts.crm.crm_batch_report', compact('sample_types','customers', 'company_units', 'sample_points'));
+  }
+
+  public function batch_report_data(Request $request){
+	$query = SampleHeader::with(['client', 'sample_type', 'samples','crmunit'])
+		->select('sample_headers.*')
+		->where('sample_headers.status', 'Completed'); // Only show completed batches
+
+	// Apply date range filter
+	if ($request->filled('date_from')) {
+		$query->where('sample_headers.receipt_date', '>=', $request->date_from);
+	}
+	if ($request->filled('date_to')) {
+		$query->where('sample_headers.receipt_date', '<=', $request->date_to);
+	}
+
+	// Apply customer filter
+	if ($request->filled('customer_filter') && is_array($request->customer_filter)) {
+		$query->whereIn('sample_headers.crm_customer_id', $request->customer_filter);
+	}
+
+	// Apply sample type filter
+	if ($request->filled('sample_type_filter') && is_array($request->sample_type_filter)) {
+		$query->whereIn('sample_headers.sample_type_id', $request->sample_type_filter);
+	}
+
+	// Apply company unit filter
+	if ($request->filled('company_unit_filter') && is_array($request->company_unit_filter)) {
+		$query->whereIn('sample_headers.crm_unit_id', $request->company_unit_filter);
+	}
+
+	// Apply sample point filter - this requires joining with sample_details
+	if ($request->filled('sample_point_filter') && is_array($request->sample_point_filter)) {
+		$query->whereExists(function($q) use ($request) {
+			$q->select(\DB::raw(1))
+			  ->from('sample_details')
+			  ->whereRaw('sample_details.sample_header_id = sample_headers.id')
+			  ->whereIn('sample_details.sample_point_id', $request->sample_point_filter);
+		});
+	}
+
+	// Apply sample number filter
+	if ($request->filled('sample_number_filter')) {
+		$searchTerm = $request->sample_number_filter;
+		$query->where(function($q) use ($searchTerm) {
+			$q->where('sample_headers.batch_code', 'LIKE', "%{$searchTerm}%")
+			  ->orWhere('sample_headers.reference_number', 'LIKE', "%{$searchTerm}%")
+			  ->orWhere('sample_headers.document_number', 'LIKE', "%{$searchTerm}%");
+		});
+	}
+
+	$batches = $query->orderBy('sample_headers.receipt_date', 'desc')->get();
+
+	$formattedData = $batches->map(function($batch) {
+		// Get sample codes for this batch
+		$sampleCodes = $batch->samples->pluck('sample_code')->toArray();
+		$sampleCodesStr = implode(', ', array_unique($sampleCodes));
+		
+		// Get unique sample points for this batch
+		$samplePoints = $batch->samples()
+			->with('sample_point')
+			->whereNotNull('sample_point_id')
+			->get()
+			->pluck('sample_point.name')
+			->filter()
+			->unique()
+			->toArray();
+		$samplePointsStr = implode(', ', $samplePoints);
+		
+		return [
+			'id' => $batch->id,
+			'batch_code' => $batch->batch_code,
+			'customer_name' => $batch->client ? $batch->client->name : 'N/A',
+			'crm_unit_name' => $batch->crmunit ? $batch->crmunit->name : 'N/A',
+			'sample_type_name' => $batch->sample_type ? $batch->sample_type->name : 'N/A',
+			'receipt_date' => $batch->receipt_date ? date('M d, Y', strtotime($batch->receipt_date)) : 'N/A',
+			'date_collected' => $batch->date_collected ? date('M d, Y', strtotime($batch->date_collected)) : 'N/A',
+			'status' => $batch->status,
+			'reference_number' => $batch->reference_number,
+			'document_number' => $batch->document_number,
+			'batch_report_url' => $batch->batch_report_url,
+			'priority' => $batch->priority,
+			'description' => $batch->description,
+			'sample_codes' => $sampleCodesStr ?: 'N/A',
+			'sample_points' => $samplePointsStr ?: 'N/A'
+		];
+	});
+
+	return response()->json(['data' => $formattedData]);
+  }
+
+  public function batch_report_export(Request $request){
+	$query = SampleHeader::with(['client', 'sample_type', 'samples','crmunit'])
+		->select('sample_headers.*')
+		->where('sample_headers.status', 'Completed'); // Only export completed batches
+
+	// Apply the same filters as data method
+	if ($request->filled('date_from')) {
+		$query->where('sample_headers.receipt_date', '>=', $request->date_from);
+	}
+	if ($request->filled('date_to')) {
+		$query->where('sample_headers.receipt_date', '<=', $request->date_to);
+	}
+	if ($request->filled('customer_filter') && is_array($request->customer_filter)) {
+		$query->whereIn('sample_headers.crm_customer_id', $request->customer_filter);
+	}
+	if ($request->filled('sample_type_filter') && is_array($request->sample_type_filter)) {
+		$query->whereIn('sample_headers.sample_type_id', $request->sample_type_filter);
+	}
+	
+	// Apply company unit filter
+	if ($request->filled('company_unit_filter') && is_array($request->company_unit_filter)) {
+		$query->whereIn('sample_headers.crm_unit_id', $request->company_unit_filter);
+	}
+
+	// Apply sample point filter
+	if ($request->filled('sample_point_filter') && is_array($request->sample_point_filter)) {
+		$query->whereExists(function($q) use ($request) {
+			$q->select(\DB::raw(1))
+			  ->from('sample_details')
+			  ->whereRaw('sample_details.sample_header_id = sample_headers.id')
+			  ->whereIn('sample_details.sample_point_id', $request->sample_point_filter);
+		});
+	}
+	
+	if ($request->filled('sample_number_filter')) {
+		$searchTerm = $request->sample_number_filter;
+		$query->where(function($q) use ($searchTerm) {
+			$q->where('sample_headers.batch_code', 'LIKE', "%{$searchTerm}%")
+			  ->orWhere('sample_headers.reference_number', 'LIKE', "%{$searchTerm}%")
+			  ->orWhere('sample_headers.document_number', 'LIKE', "%{$searchTerm}%");
+		});
+	}
+
+	$batches = $query->orderBy('sample_headers.receipt_date', 'desc')->get();
+
+	// Generate Excel file
+	$fileName = 'batch_report_' . date('Y-m-d_H-i-s') . '.xlsx';
+	$filePath = storage_path('app/public/exports/' . $fileName);
+
+	// Ensure directory exists
+	if (!file_exists(dirname($filePath))) {
+		mkdir(dirname($filePath), 0755, true);
+	}
+
+	// Create Excel file using PhpSpreadsheet or similar library
+	// For now, we'll create a CSV file as a fallback
+	$csvData = [];
+	$csvData[] = [
+		'Batch Code',
+		'COA Report',
+		'Sample Code',
+		'Sample Type',
+		'Customer',
+		'Customer Company Unit',
+		'Sample Points',
+		'Receipt Date',
+		'Date Collected',
+		'Status',
+		'Reference Number',
+		'Document Number',
+		'Priority',
+		'Description'
+	];
+
+	foreach ($batches as $batch) {
+		// Get sample codes for this batch
+		$sampleCodes = $batch->samples->pluck('sample_code')->toArray();
+		$sampleCodesStr = implode(', ', array_unique($sampleCodes));
+		
+		// Get unique sample points for this batch
+		$samplePoints = $batch->samples()
+			->with('sample_point')
+			->whereNotNull('sample_point_id')
+			->get()
+			->pluck('sample_point.name')
+			->filter()
+			->unique()
+			->toArray();
+		$samplePointsStr = implode(', ', $samplePoints);
+		
+		$csvData[] = [
+			$batch->batch_code,
+			$batch->batch_report_url ?: 'N/A',
+			$sampleCodesStr ?: 'N/A',
+			$batch->sample_type ? $batch->sample_type->name : 'N/A',
+			$batch->client ? $batch->client->name : 'N/A',
+			$batch->crmunit ? $batch->crmunit->name : 'N/A',
+			$samplePointsStr ?: 'N/A',
+			$batch->receipt_date,
+			$batch->date_collected,
+			$batch->status,
+			$batch->reference_number,
+			$batch->document_number,
+			$batch->priority,
+			$batch->description
+		];
+	}
+
+	// Write CSV file
+	$file = fopen($filePath, 'w');
+	foreach ($csvData as $row) {
+		fputcsv($file, $row);
+	}
+	fclose($file);
+
+	// Return download URL
+	$downloadUrl = asset('storage/exports/' . $fileName);
+	return response()->json(['download_url' => $downloadUrl]);
   }
   
 }

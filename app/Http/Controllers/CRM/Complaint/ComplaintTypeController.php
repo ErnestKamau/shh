@@ -13,9 +13,9 @@ class ComplaintTypeController extends Controller
         $this->middleware('auth');
     }
 
-    public function index(){
-        $types = Complaint_Type::all();
-        return view('layouts.crm.complaints.complaint_type',compact('types'));
+    public function index()
+    {
+        return view('layouts.crm.complaint-type-list');
     }
 
     public function add(Request $request){

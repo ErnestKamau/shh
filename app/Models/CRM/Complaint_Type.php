@@ -7,6 +7,13 @@ use OwenIt\Auditing\Contracts\Auditable;
 
 class Complaint_Type extends Model implements Auditable
 {
-	use \OwenIt\Auditing\Auditable;
-  protected $table = 'complaint_type';
+    use \OwenIt\Auditing\Auditable;
+
+    protected $table = 'complaint_type';
+
+    protected $fillable = [
+        'name',
+        'description',
+        'status',
+    ];
 }

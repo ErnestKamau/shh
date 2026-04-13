@@ -210,7 +210,7 @@
 
     <!-- Area Modal -->
     @if($showAreaModal)
-        <div class="modal fade show d-block" tabindex="-1" role="dialog" style="background-color: rgba(0,0,0,0.5); position: fixed; top: 0; left: 0; width: 100%; height: 100%; z-index: 1050; overflow-y: auto;">
+        <div class="modal fade show d-block" tabindex="-1" role="dialog" style="background-color: rgba(0,0,0,0.5); position: fixed; top: 0 !important; left: 0; width: 100%; height: 100% !important; z-index: 3000 !important; overflow-y: auto; padding-top: 16px; box-sizing: border-box;">
             <div class="modal-dialog modal-lg modal-dialog-scrollable" style="margin: 1.75rem auto;">
                 <div class="modal-content">
                     <div class="modal-header">
@@ -437,7 +437,7 @@
 
     <!-- Clone Areas Modal -->
     @if($showCloneModal)
-        <div class="modal fade show d-block" tabindex="-1" role="dialog" style="background-color: rgba(0,0,0,0.5); position: fixed; top: 0; left: 0; width: 100%; height: 100%; z-index: 1050; overflow-y: auto;">
+        <div class="modal fade show d-block" tabindex="-1" role="dialog" style="background-color: rgba(0,0,0,0.5); position: fixed; top: 0 !important; left: 0; width: 100%; height: 100% !important; z-index: 3010 !important; overflow-y: auto; padding-top: 16px; box-sizing: border-box;">
             <div class="modal-dialog modal-lg modal-dialog-scrollable" style="margin: 1.75rem auto;">
                 <div class="modal-content">
                     <div class="modal-header">
@@ -581,7 +581,7 @@
 
     <!-- Delete Confirmation Modal -->
     @if($showDeleteConfirmModal && $areaToDelete)
-        <div class="modal fade show d-block" tabindex="-1" role="dialog" style="background-color: rgba(0,0,0,0.5); position: fixed; top: 0; left: 0; width: 100%; height: 100%; z-index: 1050; overflow-y: auto;">
+        <div class="modal fade show d-block" tabindex="-1" role="dialog" style="background-color: rgba(0,0,0,0.5); position: fixed; top: 0 !important; left: 0; width: 100%; height: 100% !important; z-index: 3010 !important; overflow-y: auto; padding-top: 16px; box-sizing: border-box;">
             <div class="modal-dialog modal-dialog-centered" style="margin: 1.75rem auto;">
                 <div class="modal-content">
                     <div class="modal-header bg-danger text-white">
@@ -633,7 +633,7 @@
 
     <!-- Individual Clone Modal -->
     @if($showIndividualCloneModal && $areaToClone)
-        <div class="modal fade show d-block" tabindex="-1" role="dialog" style="background-color: rgba(0,0,0,0.5); position: fixed; top: 0; left: 0; width: 100%; height: 100%; z-index: 1050; overflow-y: auto;">
+        <div class="modal fade show d-block" tabindex="-1" role="dialog" style="background-color: rgba(0,0,0,0.5); position: fixed; top: 0 !important; left: 0; width: 100%; height: 100% !important; z-index: 3010 !important; overflow-y: auto; padding-top: 16px; box-sizing: border-box;">
             <div class="modal-dialog modal-dialog-centered" style="margin: 1.75rem auto;">
                 <div class="modal-content">
                     <div class="modal-header bg-success text-white">
@@ -706,7 +706,7 @@
 
     <!-- Create New Area Modal -->
     @if($showCreateAreaModal)
-        <div class="modal fade show d-block" tabindex="-1" role="dialog" style="background-color: rgba(0,0,0,0.5); position: fixed; top: 0; left: 0; width: 100%; height: 100%; z-index: 1050; overflow-y: auto;">
+        <div class="modal fade show d-block" tabindex="-1" role="dialog" style="background-color: rgba(0,0,0,0.5); position: fixed; top: 0 !important; left: 0; width: 100%; height: 100% !important; z-index: 3010 !important; overflow-y: auto; padding-top: 16px; box-sizing: border-box;">
             <div class="modal-dialog modal-dialog-centered" style="margin: 1.75rem auto;">
                 <div class="modal-content">
                     <div class="modal-header bg-primary text-white">
@@ -751,7 +751,7 @@
 
     <!-- Create New Sample Point Modal -->
     @if($showCreateSamplePointModal)
-        <div class="modal fade show d-block" tabindex="-1" role="dialog" style="background-color: rgba(0,0,0,0.5); position: fixed; top: 0; left: 0; width: 100%; height: 100%; z-index: 1050; overflow-y: auto;">
+        <div class="modal fade show d-block" tabindex="-1" role="dialog" style="background-color: rgba(0,0,0,0.5); position: fixed; top: 0 !important; left: 0; width: 100%; height: 100% !important; z-index: 3010 !important; overflow-y: auto; padding-top: 16px; box-sizing: border-box;">
             <div class="modal-dialog modal-dialog-centered" style="margin: 1.75rem auto;">
                 <div class="modal-content">
                     <div class="modal-header bg-success text-white">

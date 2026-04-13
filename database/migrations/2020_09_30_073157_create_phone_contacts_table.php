@@ -20,7 +20,7 @@ class CreatePhoneContactsTable extends Migration {
 			$table->integer('company_id');
 			$table->integer('entity_id');
 			$table->string('entity_type');
-			$table->timestamps(10);
+			$table->timestamps();
 		});
 	}
 

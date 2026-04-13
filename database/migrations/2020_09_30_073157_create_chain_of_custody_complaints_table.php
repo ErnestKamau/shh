@@ -16,7 +16,7 @@ class CreateChainOfCustodyComplaintsTable extends Migration {
 		Schema::create('chain_of_custody_complaints', function(Blueprint $table)
 		{
 			$table->bigInteger('id', true)->unsigned();
-			$table->timestamps(10);
+			$table->timestamps();
 			$table->integer('complaint_id');
 			$table->string('action');
 			$table->integer('action_taker_id');

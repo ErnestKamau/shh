@@ -8,6 +8,7 @@ use Illuminate\Http\Request;
 
 use App\Http\Controllers\Controller;
 use App\Models\CRM\CRMCustomer;
+use App\Models\CRM\CRMCompanySection;
 
 class CustomerContactController extends Controller
 {
@@ -117,17 +118,8 @@ class CustomerContactController extends Controller
 		}elseif(isset($request->has_credentials) && $contact->can_login ==1){
 			$contact->can_login = 1;
 			$user = User::where('email',$email)->first();
-			if(!isset($user->id)){
-				$user = new User();
-				$user->name = $request->first_name." ".$request->middle_name." ".$request->last_name;
-				$user->password = bcrypt($request->main_password);
-				$user->email = $request->email;
-				$user->company_id = getUserCompany();
-				$user->is_client = 1;
-				$user->client_id = $cust_id;
-			}
 			$user->name = $request->first_name." ".$request->middle_name." ".$request->last_name;
-			$user->password = bcrypt($request->main_password);
+			$user->password = $request->main_password;
 			$user->email = $request->email;
 			$user->save();
 		}else{
@@ -186,8 +178,45 @@ class CustomerContactController extends Controller
 		return response()->json($contact);
 	}
 
-	public function getCustomerUnits($id){
-		return CRMCustomer::find($id)->units ?? [];
+	public function getCustomerUnits($id): \Illuminate\Http\JsonResponse
+	{
+		$customer = CRMCustomer::find($id);
+		$units = $customer
+			? $customer->units()->where('active', 1)->orderBy('name')->get(['id', 'name', 'crm_customer_id'])
+			: collect();
+
+		return response()->json($units);
+	}
+
+	public function getCustomerSections($id): \Illuminate\Http\JsonResponse
+	{
+		$sections = CRMCustomer::find($id)?->sections()->where('active', 1)->orderBy('name')->get() ?? [];
+		return response()->json($sections);
+	}
+
+	/**
+	 * Add a company section for a customer (used by capture form "+" button).
+	 */
+	public function addCustomerSection(Request $request, $cust_id): \Illuminate\Http\JsonResponse|\Illuminate\Http\RedirectResponse
+	{
+		$request->validate(['name' => 'required|string|max:255']);
+
+		$section = new CRMCompanySection();
+		$section->name = $request->name;
+		$section->company_id = getUserCompany();
+		$section->crm_customer_id = $cust_id;
+		$section->active = $request->boolean('active', true) ? 1 : 0;
+		$section->save();
+
+		if ($request->wantsJson()) {
+			return response()->json([
+				'id'      => $section->id,
+				'name'    => $section->name,
+				'success' => 'Company section added.',
+			]);
+		}
+
+		return redirect()->back()->with('success', 'Company section added.');
 	}
 }
 

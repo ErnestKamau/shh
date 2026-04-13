@@ -32,7 +32,7 @@ class ComplaintResolutionController extends Controller
             }
 
 
-            $new_resolution->action = $request->action;
+            $new_resolution->action_taken = $request->action;
             $new_resolution->officer_responsible = $request->officer_responsible;
             $new_resolution->registered_by = auth()->user()->name;
             $new_resolution->complaint_id = $complaint->id;
@@ -50,7 +50,7 @@ class ComplaintResolutionController extends Controller
     public function edit(Request $request,$id){
         $resolution = Complaintsresolutions::find($id);
         if (isset($resolution->car_no)){
-            $resolution->action = $request->action;
+            $resolution->action_taken = $request->action;
             $resolution->officer_responsible = $request->officer_responsible;
             $resolution->reject  = $request->status;
             $resolution->edited_by = auth()->user()->name;

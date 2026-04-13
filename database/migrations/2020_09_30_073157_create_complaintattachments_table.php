@@ -16,7 +16,7 @@ class CreateComplaintattachmentsTable extends Migration {
 		Schema::create('complaintattachments', function(Blueprint $table)
 		{
 			$table->bigInteger('id', true)->unsigned();
-			$table->timestamps(10);
+			$table->timestamps();
 			$table->string('title')->nullable();
 			$table->string('type');
 			$table->string('file_path');

@@ -27,13 +27,15 @@ class DashboardController extends Controller
     }
 
     public function index(Request $request){
+        dd("Testing");
         $samples = SampleHeader::where('crm_customer_id',auth()->user()->client_id)->join('sample_details','sample_details.sample_header_id','=','sample_headers.id')->selectRaw('sample_headers.*,sample_details.id as sample_detail_id')->get();
 
         $sample_batches = SampleHeader::where('crm_customer_id',auth()->user()->client_id)->get();
         // return response()->json($samples,200);
         $samples_submitted = SampleHeader::where('crm_customer_id',auth()->user()->client_id)->join('sample_details','sample_details.sample_header_id','=','sample_headers.id')->get()->count();
         
-        $samples_lab = getSampleLab(auth()->user()->client_id);
+        // $samples_lab = getSampleLab(auth()->user()->client_id);
+        $samples_lab = SampleHeader::where('isactive',1)->whereNotIn('status',['Completed','Finished Sample'])->get()->count();
         $samples_type_arr = SampleType::all();
         $sample_types = SampleType::all()->count();
         $names = array();
@@ -152,9 +154,7 @@ class DashboardController extends Controller
                 // array_push($gps,$sample_detail);
                 
                 $sample_point = SamplePoint::find($sample_detail->sample_point_id);
-                if(isset($sample_point->id)){
-                    array_push($gps,$sample_point->gps);
-                }
+                array_push($gps,$sample_point->gps);
                 
                 
             }

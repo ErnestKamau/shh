@@ -30,7 +30,7 @@ class CreateCrmCustomerContactsTable extends Migration {
 			$table->integer('company_id');
 			$table->integer('crm_customer_id');
 			$table->boolean('active');
-			$table->timestamps(10);
+			$table->timestamps();
 			$table->boolean('can_login')->default(0);
 		});
 	}

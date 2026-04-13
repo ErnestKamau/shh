@@ -8,6 +8,10 @@
 @endsection
 
 @section('title')
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:ital,opsz,wght@0,14..32,100..900;1,14..32,100..900&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="{{ asset('css/crm.css') }}">
   <style type="text/css">
     .tab-card {
       border:1px solid #eee;
@@ -61,7 +65,7 @@
 	<div id="sidebar-container" class="sidebar-expanded d-none d-md-block col-sm-3 col-lg-2">
 		<!-- d-* hiddens the Sidebar in smaller devices. Its itens can be kept on the Navbar 'Menu' -->
 		<!-- Bootstrap List Group -->
-		<ul class="list-group">
+		<ul class="list-group sticky-top sticky-offset">
 			<div class="list-group-item p-4 text-center text-white text-ultra-bold sidebar-module-div">
 				<i class="mdi mdi-account-group fa-3x"></i><br>
 				<span class="text-lg text-bold">CRM</span>
@@ -74,17 +78,30 @@
       <!-- Menu with submenu -->
       <a href="/dasboard/crm/client-home" class="bg-dark list-group-item list-group-item-action">
 				<div class="d-flex w-100 justify-content-start align-items-center">
-					<span class="mdi mdi-account-multiple fa-fw mr-3"></span>
+					<span class="mdi mdi-view-dashboard fa-fw mr-3"></span>
 					<span class="menu-collapsed">Dashboard</span>
 				</div>
 			</a>
 
             <a href="/dashboard/crm/client-details" class="bg-dark list-group-item list-group-item-action">
 				<div class="d-flex w-100 justify-content-start align-items-center">
-					<span class="mdi mdi-account-multiple fa-fw mr-3"></span>
+					<span class="mdi mdi-account-details fa-fw mr-3"></span>
 					<span class="menu-collapsed">Client details</span>
 				</div>
 			</a>
+			<a href="{{ route('crm-lab-book') }}" class="bg-dark list-group-item list-group-item-action">
+				<div class="d-flex w-100 justify-content-start align-items-center">
+					<span class="mdi mdi-notebook-edit-outline fa-fw mr-3"></span>
+					<span class="menu-collapsed">Lab Booking</span>
+				</div>
+			</a>
+			<a href="{{ route('crm-lab-reports') }}" class="bg-dark list-group-item list-group-item-action">
+				<div class="d-flex w-100 justify-content-start align-items-center">
+					<span class="mdi mdi-google-analytics fa-fw mr-3"></span>
+					<span class="menu-collapsed">Reports</span>
+				</div>
+			</a>
+
 			
 
 			<div class="list-group-item copyright-lims p-4 text-center text-white" style="bottom:0">

@@ -18,7 +18,7 @@ class CreatePricelistCustomersTable extends Migration {
 			$table->bigInteger('id', true);
 			$table->integer('pricelist_id');
 			$table->integer('customer_id');
-			$table->timestamps(10);
+			$table->timestamps();
 		});
 	}
 

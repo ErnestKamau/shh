@@ -28,7 +28,7 @@ class CreateCrmCustomersTable extends Migration {
 			$table->integer('country_id');
 			$table->integer('company_id');
 			$table->boolean('active');
-			$table->timestamps(10);
+			$table->timestamps();
 			$table->string('unit_configurable_name', 100)->nullable();
 			$table->string('sample_point_configurable_name', 100)->nullable();
 			$table->string('product_configurable_name', 100)->nullable();

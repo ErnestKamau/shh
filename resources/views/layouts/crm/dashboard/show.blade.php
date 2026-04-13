@@ -93,7 +93,7 @@
 								<a class="nav-link" id="Samples-tab" data-toggle="tab" href="#Orders" role="tab" aria-controls="Orders" aria-selected="true"><i class="mdi mdi-eyedropper-plus"></i> Orders</a>
 							</li>
 							<li class="nav-item">
-								<a class="nav-link" id="Samples-tab" data-toggle="tab" href="#Samples" role="tab" aria-controls="Samples" aria-selected="true"><i class="mdi mdi-test-tube"></i> Results</a>
+								<a class="nav-link" id="Samples-tab" data-toggle="tab" href="#Samples" role="tab" aria-controls="Samples" aria-selected="true"><i class="mdi mdi-test-tube"></i> Reports</a>
 							</li>
 							<li class="nav-item">
 								<a class="nav-link" id="Complaints-tab" data-toggle="tab" href="#Complaints" role="tab" aria-controls="Complaints" aria-selected="true"><i class="mdi mdi-comment-alert"></i> Complaint</a>
@@ -489,7 +489,7 @@
 						<div class="tab-pane fade p-3" id="Orders" role="tabpanel" aria-labelledby="one-tab">
 							<h5 class="card-title">
 								Orders
-								<a class="btn btn-outline-primary btn-sm float-right ml-sm-2" href="{{ route('view-batch-details', ['batch'=>time(), 'client'=>$customer->id,'portal'=>$customer->id]) }}" ><i class="mdi mdi-plus"></i> Order</a>
+								<a class="btn btn-outline-primary hidden btn-sm float-right ml-sm-2" href="{{ route('view-batch-details', ['batch'=>time(), 'client'=>$customer->id,'portal'=>$customer->id, 'status' => 'Samples Reception']) }}" ><i class="mdi mdi-plus"></i> Order</a>
 							</h5>
 							<hr>
 							<div class="table-responsive">
@@ -497,13 +497,13 @@
 									<thead class="bg-light p-2">
 										<tr>
 											<th>No</th>
-											<th>Batch Code</th>
+											<th>Report Number</th>
 											<th>Date Collected</th>
 											<th>Reference Number</th>
 											<th nowrap>Document Number</th>
 											<th nowrap>Sample Analysis</th>
 											<th>Samples</th>
-											<th>Status</th>
+											{{-- <th>Status</th> --}}
 											<th></th>
 										</tr>
 									</thead>
@@ -517,9 +517,9 @@
 												<td>{{ $order->document_number }}</td>
 												<td nowrap>{{ $order->sample_type }}</td>
 												<td>{{ $order->samples }}</td>
-												<td>{{ $order->status }}</td>
+												{{-- <td>{{ $order->status }}</td> --}}
 												<td>
-													<a href="{{ route('view-batch-details', ['batch'=>$order->id, 'client'=>$customer->id]) }}"><i class="mdi mdi-eye"></i></a>
+													<a href="{{ route('view-batch-details', ['batch'=>$order->id, 'client'=>$customer->id, 'portal' => $customer->id, 'status' => $order->status]) }}"><i class="mdi mdi-eye"></i></a>
 												</td>
 											</tr>
 										@endforeach
@@ -528,23 +528,22 @@
 							</div>
 						</div>
 						<div class="tab-pane fade p-3" id="Samples" role="tabpanel" aria-labelledby="one-tab">
-							<h5 class="card-title">Results</h5>
+							<h5 class="card-title">Reports</h5>
 							<div class="table-responsive">
 								<table class="table table-condensed my-small-text table-striped table-hover table-bordered table-sm">
 									<thead class="bg-light p-2">
 										<tr>
 											<th>No</th>
 											<th nowrap>Code</th>
+											<th>Sample Codes</th>
+											<th>Sample Type</th>
+											<th nowrap>Lab Receipt Date</th>
+											<th nowrap>Collected Date</th>
 											<th nowrap>{{ trim($customer->unit_configurable_name)!="" ? $customer->unit_configurable_name : 'Client Unit' }}</th>
 											<th nowrap>Ref. No.</th>
 											<th nowrap>Document Number</th>
-											<th nowrap>Sample Analysis</th>
 											<th nowrap>Reason</th>
-											<th nowrap>Lab Date</th>
-											<th nowrap>Collected Date</th>
 											<th nowrap>Description</th>
-											<th nowrap>Declared Amount <small class="text-muted">Kshs.</small></th>
-											<th nowrap>Final Declared Amount <small class="text-muted">Kshs.</small></th>
 											<th>Report</th>
 											<th></th>
 										</tr>
@@ -552,12 +551,23 @@
 									<tbody>
 										@foreach ($samples as $s)
 											<tr>
+												<?php 
+													$sample_codes = $s->samples->pluck('sample_code')->toArray();
+			
+													$sampleStart = $sample_codes[0] ?? '';
+							
+													$sample_count = count($sample_codes);
+													$sampleEnd = end($sample_codes) ?? '';
+												?>
 												<td>{{ $loop->iteration }}</td>
 												<td>{{ $s->batch_code }}</td>
+												<td>{{ $sampleStart.' - '.$sampleEnd }}</td>
+												<td>{{$s->sample_type ?? ''}}</td>
+												<td nowrap>{{ $s->receipt_date }}</td>
+												<td nowrap>{{ $s->date_collected }}</td>
 												<td>{{ $s->unit_name }}</td>
 												<td>{{ $s->reference_number }}</td>
 												<td>{{ $s->document_number }}</td>
-												<td nowrap>{{ $s->sample_type }}</td>
 												<td>
 													<span class="btn btn-sm btn-outline-dark mdi mdi-comment-text" data-target="#reason-{{$s->id}}" data-toggle="modal" data-toggle="tooltip" title="Batch Reason"></span>
 													<div class="modal fade" id="reason-{{$s->id}}" role="dialog">
@@ -577,12 +587,9 @@
 															</div>
 														</div>
 													</div>
-													</td>
-												<td nowrap>{{ $s->receipt_date }}</td>
-												<td nowrap>{{ $s->date_collected }}</td>
+												</td>
+												
 												<td>{{ $s->description }}</td>
-												<td>{{ number_format($s->declared_amount, 2) }}</td>
-												<td>{{ number_format($s->final_declared_amount, 2) }}</td>
 												@if($s->status != 'Completed')
 												<td class="text-center">N/a</td>
 												@else
@@ -591,7 +598,8 @@
 											</td>
 											<td class="text-center">
 												  @if($s->status == 'Completed')
-												  <span class="mdi mdi-file-document-edit btn btn-sm btn-outline-primary" data-toggle="modal" data-target="#ammendment-{{$s->id}}" data-toggle="tooltip" title="Raise Ammendment"></span>
+												  <!-- <span class="mdi mdi-file-document-edit btn btn-sm btn-outline-primary" data-toggle="modal" data-target="#ammendment-{{$s->id}}" data-toggle="tooltip" title="Raise Ammendment"></span> -->
+												   -
 												  @else
 												  -
 												  @endif

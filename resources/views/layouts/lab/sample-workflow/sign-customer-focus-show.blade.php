@@ -118,8 +118,8 @@
                     <table class="table table-sm table-bordered table-condensed">
                         <thead>
                             <tr>
-                                <th>Sample No</th>
-                                <th>Batch No</th>
+                                <th>Lab No</th>
+                                <th>Report Number</th>
                                 <th>Sample Type</th>
                                 <th>Test(s) Required</th>
                                 <th>Specification</th>

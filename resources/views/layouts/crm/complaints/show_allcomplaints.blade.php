@@ -142,9 +142,11 @@
                                 <td>{{$complaint->complaint_id}}</td>
                                 <td>
                                     <?php 
-                                        $stage_flows = getComplaintWorkflow()[$custody->workflow_stage];
+                                        $stage_flows = is_numeric($custody->workflow_stage)
+                                            ? (getComplaintWorkflow()[$custody->workflow_stage] ?? $custody->workflow_stage)
+                                            : $custody->workflow_stage;
                                     ?>
-                                    {{$stage_flows}}
+                                    {{ $stage_flows }}
                                 </td>
                                 <td>
                                     <?php 

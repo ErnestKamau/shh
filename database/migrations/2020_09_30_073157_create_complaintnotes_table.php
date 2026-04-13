@@ -16,7 +16,7 @@ class CreateComplaintnotesTable extends Migration {
 		Schema::create('complaintnotes', function(Blueprint $table)
 		{
 			$table->bigInteger('id', true)->unsigned();
-			$table->timestamps(10);
+			$table->timestamps();
 			$table->text('notes');
 			$table->string('created_by');
 			$table->integer('complaint_id');

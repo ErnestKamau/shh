@@ -37,18 +37,18 @@
     <x-bread-crumb :items="$items"></x-bread-crumb>
     <h3 class="p-4">
         <i class="mdi mdi-comment-alert"></i>{{$workflow_stage}}<br>
-        @if($workflow_stage == "Open Complaints")
+        @if($workflow_stage == "Log & Intake")
         <button class="btn btn-outline-secondary btn-sm float-right" data-toggle="modal" data-target="#request-complaint-approval"><i class="mdi mdi-comment-check"></i> Request Approval</button>
         @endif
-        @if($workflow_stage == "Complaints Approval")
+        @if($workflow_stage == "Active Investigations")
         <button class="btn btn-outline-success btn-sm float-right" style="margin-left:1rem" data-toggle="modal" data-target="#approve-complaint"><i class="mdi mdi-comment-check"></i> Approve Complaint</button>
         <button class="btn btn-outline-warning btn-sm float-right"style="margin-left:1rem" data-toggle="modal" data-target="#return-complaint"><i class="mdi mdi-comment-arrow-left"></i> Return Complaint</button>
         <button class="btn btn-outline-danger btn-sm float-right" style="margin-left:1rem" data-toggle="modal" data-target="#reject-complaint"><i class="mdi mdi-comment-remove"></i> Reject Complaint</button>
         @endif
-        @if($workflow_stage == "Complaints Resolution"  && $res_total>0)
+        @if($workflow_stage == "Verification Review & CAPA"  && $res_total>0)
         <button class="btn btn-outline-secondary btn-sm float-right" data-toggle="modal" data-target="#request-complaint-approval"><i class="mdi mdi-comment-check"></i> Request Resolution Approval</button>
         @endif
-        @if($workflow_stage == "Resolution Approval")
+        @if($workflow_stage == "Pending Closure")
         <button class="btn btn-outline-success btn-sm float-right" style="margin-left:1rem" data-toggle="modal" data-target="#approve-resolution"><i class="mdi mdi-comment-check"></i> Approve Resolutions</button>
         <button class="btn btn-outline-warning btn-sm float-right"style="margin-left:1rem" data-toggle="modal" data-target="#return-resolution"><i class="mdi mdi-comment-arrow-left"></i> Return Resolutions</button>
         
@@ -158,9 +158,11 @@
                                 <td>{{$complaint->complaint_id}}</td>
                                 <td>
                                     <?php 
-                                        $stage_flows = getComplaintWorkflow()[$custody->workflow_stage];
+                                        $stage_flows = is_numeric($custody->workflow_stage)
+                                            ? (getComplaintWorkflow()[$custody->workflow_stage] ?? $custody->workflow_stage)
+                                            : $custody->workflow_stage;
                                     ?>
-                                    {{$stage_flows}}
+                                    {{ $stage_flows }}
                                 </td>
                                 <td>
                                     <?php 
@@ -406,7 +408,7 @@
             <div class="tab-pane fade show p-3" id="resolution-tab" role="tabpanel" aria-labelledby="one-tab">
                 <h5 class="card-title">
                     {{$complaint->complaint_id}} Resolutions
-                    @if($workflow_stage == "Complaints Resolution")
+                    @if($workflow_stage == "Verification Review & CAPA")
                     <button class="btn btn-outline-primary btn-sm float-right" data-toggle="modal" data-target="#add-resolution"><i class="mdi mdi-plus"></i> Add</button>  
                     @endif
                 </h5>

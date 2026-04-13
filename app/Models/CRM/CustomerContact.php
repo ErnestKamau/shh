@@ -7,29 +7,15 @@ use OwenIt\Auditing\Contracts\Auditable;
 
 class CustomerContact extends Model implements Auditable
 {
-	use \OwenIt\Auditing\Auditable;
-    protected $table = "crm_customer_contacts";
-    
-    protected $fillable = [
-		'first_name',
-		'middle_name',
-		'last_name',
-		'job_occupation',
-		'unit_name',
-		'email',
-		'telephone',
-		'mobile',
-		'receive_price_list',
-		'receive_invoice',
-		'receive_report',
-		'company_id',
-		'crm_customer_id',
-		'active',
-		'can_login',
-		'can_submit_sample',
-		'signature',
-		'can_receive_schedule_of_analysis',
-		'can_receive_payment_reminders',
-		'title_id'
-	];
+    use \OwenIt\Auditing\Auditable;
+
+    protected $table = 'crm_customer_contacts';
+
+    /**
+     * @return \Illuminate\Database\Eloquent\Relations\BelongsTo<CRMCustomer, $this>
+     */
+    public function customer(): \Illuminate\Database\Eloquent\Relations\BelongsTo
+    {
+        return $this->belongsTo(CRMCustomer::class, 'crm_customer_id');
+    }
 }

@@ -1002,6 +1002,42 @@
             display: none !important;
         }
 
+        /* Global modal baseline: keep content below fixed header */
+        .modal {
+            top: 56px !important;
+            height: calc(100% - 56px) !important;
+        }
+
+        .modal-backdrop {
+            top: 56px !important;
+            height: calc(100vh - 56px) !important;
+        }
+
+        .modal.fade.show,
+        .modal.show {
+            display: block;
+            z-index: 2000 !important;
+        }
+
+        .modal-backdrop.show {
+            z-index: 1990 !important;
+        }
+
+        .modal-dialog {
+            position: relative;
+            z-index: 2001;
+            margin-top: 1rem;
+        }
+
+        /* Keep dropdown/select overlays visible inside modals */
+        .modal .dropdown-menu,
+        .modal .select2-dropdown,
+        .modal .select2-container--open,
+        .modal .tag-dropdown,
+        .modal .dropdown-list {
+            z-index: 2100 !important;
+        }
+
         .copyright-lims,
         #sidebar-container {
             background-color: #2a2a2a !important;

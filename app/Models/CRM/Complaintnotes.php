@@ -7,6 +7,29 @@ use OwenIt\Auditing\Contracts\Auditable;
 
 class Complaintnotes extends Model implements Auditable
 {
-	use \OwenIt\Auditing\Auditable;
-    //
+    use \OwenIt\Auditing\Auditable;
+
+    protected $table = 'complaintnotes';
+
+    protected $fillable = [
+        'notes',
+        'created_by',
+        'complaint_id',
+        'type',
+        'is_public',
+        'is_delete',
+    ];
+
+    protected function casts(): array
+    {
+        return [
+            'is_public' => 'boolean',
+            'is_delete' => 'boolean',
+        ];
+    }
+
+    public function complaint()
+    {
+        return $this->belongsTo(Complaint::class);
+    }
 }

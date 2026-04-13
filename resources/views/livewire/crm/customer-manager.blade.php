@@ -306,40 +306,30 @@
                                 <div class="col-md-6">
                                     <div class="form-group mb-3">
                                         <label class="form-label fw-bold"><i class="mdi mdi-earth text-primary"></i> Country <span class="text-danger">*</span></label>
-                                        <div class="searchable-dropdown-wrapper dropdown-wrapper-country">
-                                            <div class="single-select-container" wire:click.stop="toggleCountryDropdown">
-                                                <input 
-                                                    type="text" 
+                                        <div class="tag-select-container" wire:click="$set('showCountryDropdown', true); $set('showAccountDropdown', false); $set('showZohoCustomerDropdown', false)">
+                                            <div class="tag-select-input">
+                                                @if($this->selectedCountryName)
+                                                    <span class="tag-badge">
+                                                        {{ $this->selectedCountryName }}
+                                                        <i class="mdi mdi-close-circle" wire:click.stop="selectCountry(null)"></i>
+                                                    </span>
+                                                @endif
+                                                <input
+                                                    type="text"
                                                     wire:model.live.debounce.300ms="countrySearch"
-                                                    placeholder="{{ $this->selectedCountryName ?: 'Search countries...' }}"
-                                                    wire:click.stop="toggleCountryDropdown"
-                                                    wire:focus="toggleCountryDropdown"
-                                                    class="form-control searchable-input-single"
+                                                    class="tag-input"
+                                                    placeholder="{{ $this->selectedCountryName ? '' : 'Search countries...' }}"
+                                                    wire:focus="$set('showCountryDropdown', true)"
                                                     autocomplete="off"
                                                 >
-                                                <i class="mdi mdi-chevron-down dropdown-arrow {{ $showCountryDropdown ? 'rotated' : '' }}"></i>
                                             </div>
-
-                                            @if($showCountryDropdown)
-                                                <div class="dropdown-list dropdown-list-country" wire:click.stop>
-                                                    @if($this->filteredCountries->count() > 0)
-                                                        <div class="options-list">
-                                                            @foreach($this->filteredCountries as $country)
-                                                                <div wire:click.stop="selectCountry({{ $country->id }})" 
-                                                                     class="option-item {{ $customerForm['country_id'] == $country->id ? 'selected' : '' }}">
-                                                                    @if($customerForm['country_id'] == $country->id)
-                                                                        <i class="mdi mdi-check-circle text-primary"></i>
-                                                                    @endif
-                                                                    <span>{{ $country->name }}</span>
-                                                                </div>
-                                                            @endforeach
+                                            @if($showCountryDropdown && $this->filteredCountries->count() > 0)
+                                                <div class="tag-dropdown">
+                                                    @foreach($this->filteredCountries as $country)
+                                                        <div class="tag-dropdown-item" wire:click.stop="selectCountry({{ $country->id }})">
+                                                            {{ $country->name }}
                                                         </div>
-                                                    @else
-                                                        <div class="no-results">
-                                                            <i class="mdi mdi-alert-circle-outline"></i>
-                                                            <span>No countries found</span>
-                                                        </div>
-                                                    @endif
+                                                    @endforeach
                                                 </div>
                                             @endif
                                         </div>
@@ -349,40 +339,30 @@
                                 <div class="col-md-6">
                                     <div class="form-group mb-3">
                                         <label class="form-label fw-bold"><i class="mdi mdi-cog text-info"></i> Account Settings <span class="text-danger">*</span></label>
-                                        <div class="searchable-dropdown-wrapper dropdown-wrapper-account">
-                                            <div class="single-select-container" wire:click.stop="toggleAccountDropdown">
-                                                <input 
-                                                    type="text" 
+                                        <div class="tag-select-container" wire:click="$set('showAccountDropdown', true); $set('showCountryDropdown', false); $set('showZohoCustomerDropdown', false)">
+                                            <div class="tag-select-input">
+                                                @if($this->selectedAccountName)
+                                                    <span class="tag-badge">
+                                                        {{ $this->selectedAccountName }}
+                                                        <i class="mdi mdi-close-circle" wire:click.stop="selectAccount(null)"></i>
+                                                    </span>
+                                                @endif
+                                                <input
+                                                    type="text"
                                                     wire:model.live.debounce.300ms="accountSearch"
-                                                    placeholder="{{ $this->selectedAccountName ?: 'Search account settings...' }}"
-                                                    wire:click.stop="toggleAccountDropdown"
-                                                    wire:focus="toggleAccountDropdown"
-                                                    class="form-control searchable-input-single"
+                                                    class="tag-input"
+                                                    placeholder="{{ $this->selectedAccountName ? '' : 'Search account settings...' }}"
+                                                    wire:focus="$set('showAccountDropdown', true)"
                                                     autocomplete="off"
                                                 >
-                                                <i class="mdi mdi-chevron-down dropdown-arrow {{ $showAccountDropdown ? 'rotated' : '' }}"></i>
                                             </div>
-
-                                            @if($showAccountDropdown)
-                                                <div class="dropdown-list dropdown-list-account" wire:click.stop>
-                                                    @if($this->filteredAccounts->count() > 0)
-                                                        <div class="options-list">
-                                                            @foreach($this->filteredAccounts as $account)
-                                                                <div wire:click.stop="selectAccount({{ $account->id }})" 
-                                                                     class="option-item {{ $customerForm['account_status'] == $account->id ? 'selected' : '' }}">
-                                                                    @if($customerForm['account_status'] == $account->id)
-                                                                        <i class="mdi mdi-check-circle text-primary"></i>
-                                                                    @endif
-                                                                    <span>{{ $account->key }}</span>
-                                                                </div>
-                                                            @endforeach
+                                            @if($showAccountDropdown && $this->filteredAccounts->count() > 0)
+                                                <div class="tag-dropdown">
+                                                    @foreach($this->filteredAccounts as $account)
+                                                        <div class="tag-dropdown-item" wire:click.stop="selectAccount({{ is_object($account) ? $account->id : ($account['id'] ?? 0) }})">
+                                                            {{ is_object($account) ? ($account->key ?? '') : ($account['key'] ?? '') }}
                                                         </div>
-                                                    @else
-                                                        <div class="no-results">
-                                                            <i class="mdi mdi-alert-circle-outline"></i>
-                                                            <span>No account settings found</span>
-                                                        </div>
-                                                    @endif
+                                                    @endforeach
                                                 </div>
                                             @endif
                                         </div>
@@ -438,61 +418,38 @@
                                 <div class="col-md-12">
                                     <div class="form-group mb-3">
                                         <label class="form-label fw-bold"><i class="mdi mdi-link-variant text-success"></i> Dynamics Customer Mapping <small class="text-muted">(Optional)</small></label>
-                                        <div class="searchable-dropdown-wrapper dropdown-wrapper-zoho">
-                                            <div class="single-select-container" wire:click.stop="toggleZohoCustomerDropdown">
-                                                <input 
-                                                    type="text" 
+                                        <div class="tag-select-container" wire:click="openZohoCustomerDropdown">
+                                            <div class="tag-select-input">
+                                                @if($this->selectedZohoCustomerName)
+                                                    <span class="tag-badge">
+                                                        {{ $this->selectedZohoCustomerName }}
+                                                        <i class="mdi mdi-close-circle" wire:click.stop="clearZohoCustomer"></i>
+                                                    </span>
+                                                @endif
+                                                <input
+                                                    type="text"
                                                     wire:model.live.debounce.300ms="zohoCustomerSearch"
-                                                    placeholder="{{ $this->selectedZohoCustomerName ?: 'Search Dynamics customers...' }}"
-                                                    wire:click.stop="toggleZohoCustomerDropdown"
-                                                    wire:focus="toggleZohoCustomerDropdown"
-                                                    class="form-control searchable-input-single"
+                                                    class="tag-input"
+                                                    placeholder="{{ $this->selectedZohoCustomerName ? '' : 'Search Dynamics customers...' }}"
+                                                    wire:focus="openZohoCustomerDropdown"
                                                     autocomplete="off"
                                                 >
-                                                <i class="mdi mdi-chevron-down dropdown-arrow {{ $showZohoCustomerDropdown ? 'rotated' : '' }}"></i>
-                                                @if($customerForm['zoho_customer_id'])
-                                                    <button 
-                                                        type="button"
-                                                        wire:click.stop="clearZohoCustomer"
-                                                        class="clear-selection-btn"
-                                                        title="Clear selection">
-                                                        <i class="mdi mdi-close-circle"></i>
-                                                    </button>
-                                                @endif
                                             </div>
-
                                             @if($showZohoCustomerDropdown)
-                                                <div class="dropdown-list dropdown-list-zoho" wire:click.stop>
+                                                <div class="tag-dropdown" wire:click.stop>
                                                     <div wire:loading wire:target="toggleZohoCustomerDropdown" class="text-center py-3">
                                                         <i class="mdi mdi-loading mdi-spin"></i> Loading Dynamics customers...
                                                     </div>
                                                     <div wire:loading.remove wire:target="toggleZohoCustomerDropdown">
-                                                    @if($this->filteredZohoCustomers->count() > 0)
-                                                        <div class="options-list">
+                                                        @if($this->filteredZohoCustomers->count() > 0)
                                                             @foreach($this->filteredZohoCustomers as $zc)
-                                                                <div wire:click.stop="selectZohoCustomer({{ $zc->id }})" 
-                                                                     class="option-item {{ $customerForm['zoho_customer_id'] == $zc->id ? 'selected' : '' }}">
-                                                                    @if($customerForm['zoho_customer_id'] == $zc->id)
-                                                                        <i class="mdi mdi-check-circle text-primary"></i>
-                                                                    @endif
-                                                                    <div class="d-flex flex-column">
-                                                                        <span class="fw-bold">{{ $zc->name }}</span>
-                                                                        <small class="text-muted">
-                                                                            <span>{{ $zc->customer_no }}</span>
-                                                                            @if($zc->currency_code)
-                                                                                <span class="ms-2 badge bg-info">{{ $zc->currency_code }}</span>
-                                                                            @endif
-                                                                        </small>
-                                                                    </div>
+                                                                <div class="tag-dropdown-item" wire:click.stop="selectZohoCustomer({{ $zc->id }})">
+                                                                    {{ $zc->name }} ({{ $zc->customer_no }})
                                                                 </div>
                                                             @endforeach
-                                                        </div>
-                                                    @else
-                                                        <div class="no-results">
-                                                            <i class="mdi mdi-alert-circle-outline"></i>
-                                                            <span>No Dynamics customers found</span>
-                                                        </div>
-                                                    @endif
+                                                        @else
+                                                            <div class="tag-dropdown-item text-muted">No Dynamics customers found</div>
+                                                        @endif
                                                     </div>
                                                 </div>
                                             @endif
@@ -738,147 +695,97 @@
         display: block !important;
     }
     
-    /* Single-Select Searchable Dropdown Styling */
-    .searchable-input-single {
-        border: none;
-        outline: none;
-        box-shadow: none !important;
-        padding: 4px 0;
-        width: 100%;
-    }
-    
-    .searchable-input-single:focus {
-        border: none !important;
-        box-shadow: none !important;
-    }
-    
-    .single-select-container {
+    /* Equipment-style Tag Select Styling */
+    .tag-select-container {
         position: relative;
-        min-height: 45px;
-        border: 1px solid #ced4da;
-        border-radius: 12px;
-        padding: 8px 40px 8px 12px;
-        background: white;
-        cursor: pointer;
-        transition: all 0.3s ease;
+        cursor: text;
+    }
+
+    .tag-select-input {
         display: flex;
+        flex-wrap: wrap;
         align-items: center;
+        gap: 6px;
+        min-height: 42px;
+        padding: 6px 12px;
+        background: #fff;
+        border: 2px solid #e0e0e0;
+        border-radius: 8px;
+        transition: all 0.3s ease;
     }
-    
-    .single-select-container:hover {
+
+    .tag-select-input:hover {
         border-color: #007bff;
-        box-shadow: 0 2px 8px rgba(0, 123, 255, 0.1);
     }
-    
-    .single-select-container:has(.searchable-input-single:focus) {
+
+    .tag-select-input:focus-within {
         border-color: #007bff;
         box-shadow: 0 0 0 0.2rem rgba(0, 123, 255, 0.25);
+        outline: none;
     }
-    
-    .options-list {
-        padding: 8px;
-        max-height: 300px;
-        overflow-y: auto;
-    }
-    
-    .option-item {
-        display: flex;
+
+    .tag-badge {
+        display: inline-flex;
         align-items: center;
-        gap: 10px;
-        padding: 10px 12px;
-        border-radius: 8px;
-        cursor: pointer;
-        transition: all 0.2s ease;
-        font-size: 14px;
-    }
-    
-    .option-item:hover {
-        background: #f8f9fa;
-    }
-    
-    .option-item.selected {
-        background: rgba(0, 123, 255, 0.08);
+        gap: 4px;
+        padding: 4px 10px;
+        background-color: #007bff;
+        color: white;
+        border-radius: 16px;
+        font-size: 0.875rem;
         font-weight: 500;
+        white-space: nowrap;
     }
-    
-    .option-item i {
-        font-size: 18px;
+
+    .tag-badge i {
+        cursor: pointer;
+        font-size: 1rem;
+        opacity: 0.8;
+        transition: opacity 0.2s;
     }
-    
-    .dropdown-list {
+
+    .tag-badge i:hover {
+        opacity: 1;
+    }
+
+    .tag-input {
+        flex: 1;
+        min-width: 120px;
+        border: none;
+        outline: none;
+        padding: 4px;
+        font-size: 0.9rem;
+    }
+
+    .tag-dropdown {
         position: absolute;
         top: 100%;
         left: 0;
         right: 0;
         background: white;
-        border: 1px solid #ced4da;
-        border-radius: 12px;
-        margin-top: 4px;
-        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
-        z-index: 1055;
-        max-height: 300px;
+        border: 2px solid #007bff;
+        border-top: none;
+        border-radius: 0 0 8px 8px;
+        max-height: 250px;
         overflow-y: auto;
+        z-index: 1050;
+        box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        margin-top: -2px;
     }
-    
-    /* All wrappers start at the same z-index */
-    .searchable-dropdown-wrapper {
-        position: relative;
-        z-index: 1;
+
+    .tag-dropdown-item {
+        padding: 10px 16px;
+        cursor: pointer;
+        transition: background-color 0.2s;
+        border-bottom: 1px solid #f0f0f0;
     }
-    
-    /* Ensure dropdowns in modal appear above modal content but below modal itself */
-    .modal-content .dropdown-list {
-        z-index: 1055 !important;
+
+    .tag-dropdown-item:hover {
+        background-color: #f8f9fa;
     }
-    
-    /* Clear selection button */
-    .clear-selection-btn {
-        position: absolute;
-        right: 35px;
-        top: 50%;
-        transform: translateY(-50%);
-        padding: 0 !important;
-        color: #dc3545;
-        z-index: 5;
-        background: none !important;
-        border: none !important;
-        line-height: 1;
-    }
-    
-    .clear-selection-btn:hover {
-        color: #a71d2a !important;
-    }
-    
-    .clear-selection-btn:focus {
-        outline: none;
-        box-shadow: none !important;
-    }
-    
-    .no-results {
-        padding: 20px;
-        text-align: center;
-        color: #6c757d;
-    }
-    
-    .no-results i {
-        font-size: 24px;
-        display: block;
-        margin-bottom: 8px;
-    }
-    
-    .dropdown-arrow {
-        position: absolute;
-        right: 12px;
-        top: 50%;
-        transform: translateY(-50%);
-        transition: transform 0.3s ease;
-        pointer-events: none;
-        font-size: 20px;
-        color: #6c757d;
-    }
-    
-    .dropdown-arrow.rotated {
-        transform: translateY(-50%) rotate(180deg);
+
+    .tag-dropdown-item:last-child {
+        border-bottom: none;
     }
     </style>
 
@@ -886,7 +793,7 @@
         // Close dropdowns when clicking outside
         document.addEventListener('click', function(event) {
             // Check if click is outside any dropdown wrapper
-            if (!event.target.closest('.searchable-dropdown-wrapper')) {
+            if (!event.target.closest('.tag-select-container')) {
                 @this.resetDropdownStates();
             }
         });

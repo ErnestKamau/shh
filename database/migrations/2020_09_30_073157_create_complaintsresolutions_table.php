@@ -16,7 +16,7 @@ class CreateComplaintsresolutionsTable extends Migration {
 		Schema::create('complaintsresolutions', function(Blueprint $table)
 		{
 			$table->bigInteger('id', true)->unsigned();
-			$table->timestamps(10);
+			$table->timestamps();
 			$table->string('car_no');
 			$table->text('action');
 			$table->string('officer_responsible');

@@ -153,7 +153,7 @@
                     <table class="table table-sm table-bordered table-condensed">
                         <thead>
                             <tr>
-                                <th>Sample No</th>
+                                <th>Lab No</th>
                                 <th>Sample Description</th>
                                 <th>Sample Type</th>
                                 <th>Test(s) Required</th>
