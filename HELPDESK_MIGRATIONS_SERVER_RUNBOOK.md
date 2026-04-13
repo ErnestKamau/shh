@@ -44,6 +44,7 @@ php artisan migrate --path=database/migrations/2026_01_07_123000_add_missing_tic
 php artisan migrate --path=database/migrations/2026_01_07_160713_make_tat_required_in_ticket_assignments_table.php --force --no-interaction
 php artisan migrate --path=database/migrations/2026_01_08_173734_create_ticket_permissions_table.php --force --no-interaction
 php artisan migrate --path=database/migrations/2026_01_20_181500_make_user_id_nullable_in_ticket_change_history.php --force --no-interaction
+php artisan migrate --path=database/migrations/2026_01_24_094800_add_sync_fields_to_complaints_table.php --force --no-interaction
 php artisan migrate --path=database/migrations/2026_01_27_151712_add_external_id_to_ticket_chat_table.php --force --no-interaction
 php artisan migrate --path=database/migrations/2026_01_29_094627_make_user_id_nullable_in_ticket_chat_table.php --force --no-interaction
 php artisan migrate --path=database/migrations/2026_02_04_110441_add_developer_ticket_no_to_complaints.php --force --no-interaction

@@ -10,10 +10,24 @@ return new class extends Migration {
      */
     public function up(): void
     {
+        if (Schema::hasColumn('complaints', 'developer_ticket_no')) {
+            return;
+        }
+
         Schema::table('complaints', function (Blueprint $table) {
-            if (!Schema::hasColumn('complaints', 'developer_ticket_no')) {
+            if (Schema::hasColumn('complaints', 'developer_ticket_id')) {
                 $table->string('developer_ticket_no')->nullable()->after('developer_ticket_id');
+
+                return;
             }
+
+            if (Schema::hasColumn('complaints', 'ticket_no')) {
+                $table->string('developer_ticket_no')->nullable()->after('ticket_no');
+
+                return;
+            }
+
+            $table->string('developer_ticket_no')->nullable();
         });
     }
 
@@ -22,6 +36,10 @@ return new class extends Migration {
      */
     public function down(): void
     {
+        if (!Schema::hasColumn('complaints', 'developer_ticket_no')) {
+            return;
+        }
+
         Schema::table('complaints', function (Blueprint $table) {
             $table->dropColumn('developer_ticket_no');
         });
