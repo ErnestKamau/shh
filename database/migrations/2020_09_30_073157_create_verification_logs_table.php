@@ -13,6 +13,10 @@ class CreateVerificationLogsTable extends Migration {
 	 */
 	public function up()
 	{
+		if (Schema::hasTable('verification_logs')) {
+			return;
+		}
+
 		Schema::create('verification_logs', function(Blueprint $table)
 		{
 			$table->bigInteger('id', true)->unsigned();
@@ -37,7 +41,7 @@ class CreateVerificationLogsTable extends Migration {
 	 */
 	public function down()
 	{
-		Schema::drop('verification_logs');
+		Schema::dropIfExists('verification_logs');
 	}
 
 }
