@@ -148,6 +148,11 @@ class Samples extends Component
     public $assignSampleTypeName = '';
     public $assignAnalysisTypeNames = '';
 
+    // Comment Editing
+    public $showCommentModal = false;
+    public $editingCommentIndex = null;
+    public $tempCommentContent = '';
+
     // Search properties for Assignment Edit
     public $assignSubUnitSearch = '';
     public $showAssignSubUnitDropdown = false;
@@ -1422,6 +1427,32 @@ class Samples extends Component
             Log::error('Error saving new storage: ' . $e->getMessage());
             session()->flash('error', 'Error saving new storage.');
         }
+    }
+
+    public function openCommentModal($index)
+    {
+        $this->editingCommentIndex = $index;
+        // Check if it's a numeric index (main table) or a point ID (assignment table)
+        if (isset($this->sampleForms[$index])) {
+            $this->tempCommentContent = $this->sampleForms[$index]['comments'] ?? '';
+        } else {
+            // Assignment table uses pointId as index
+            $this->tempCommentContent = $this->assignComments[$index] ?? '';
+        }
+        $this->showCommentModal = true;
+    }
+
+    public function saveComment()
+    {
+        if ($this->editingCommentIndex !== null) {
+            if (isset($this->sampleForms[$this->editingCommentIndex])) {
+                $this->sampleForms[$this->editingCommentIndex]['comments'] = $this->tempCommentContent;
+            } else {
+                $this->assignComments[$this->editingCommentIndex] = $this->tempCommentContent;
+            }
+        }
+        $this->showCommentModal = false;
+        $this->editingCommentIndex = null;
     }
 
     /**

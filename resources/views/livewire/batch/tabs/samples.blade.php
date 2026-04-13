@@ -429,16 +429,16 @@
 
                         {{-- Description --}}
                         <td>
-                            @if($isReadOnly)
-                                <div class="p-2 border rounded" style="background: #f8f9fa; min-height: 31px; font-size: 0.875rem;">
-                                    {!! $sampleForm['comments'] ?? '' !!}
+                            <div class="d-flex align-items-start gap-2">
+                                <div class="p-2 border rounded flex-grow-1" style="background: #f8f9fa; min-height: 31px; font-size: 0.875rem; max-width: 300px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">
+                                    {!! $sampleForm['comments'] ?? '<span class="text-muted">No comments</span>' !!}
                                 </div>
-                            @else
-                                <textarea class="form-control form-control-sm modern-input"
-                                    wire:model.defer="sampleForms.{{ $index }}.comments" 
-                                    placeholder="Comments..."
-                                    rows="2"></textarea>
-                            @endif
+                                @if(!$isReadOnly)
+                                <button type="button" class="btn btn-sm btn-outline-primary" wire:click="openCommentModal({{ $index }})">
+                                    <i class="mdi mdi-pencil"></i>
+                                </button>
+                                @endif
+                            </div>
                         </td>
 
                         {{-- Time Sampled --}}
@@ -1726,41 +1726,7 @@
                             </div>
                         @endif
                         <div class="workflow-board-panel-body p-0">
-                            <div class="table-responsive" 
-                                x-data="{
-                                    initMCE() {
-                                        let tries = 0;
-                                        const runner = () => {
-                                            if (typeof tinymce !== 'undefined' && typeof tinymce.init === 'function') {
-                                                console.log('TinyMCE Found. Starting init...');
-                                                tinymce.remove('.assign-comment-editor');
-                                                tinymce.init({
-                                                    selector: '.assign-comment-editor',
-                                                    menubar: false,
-                                                    statusbar: false,
-                                                    height: 120,
-                                                    toolbar: 'bold italic underline | bullist numlist | forecolor',
-                                                    plugins: 'lists textcolor',
-                                                    setup: function (editor) {
-                                                        editor.on('change blur', function () {
-                                                            editor.save();
-                                                            var content = editor.getContent();
-                                                            var pointId = document.getElementById(editor.id).getAttribute('data-point-id');
-                                                            @this.set('assignComments.' + pointId, content);
-                                                        });
-                                                    }
-                                                });
-                                            } else {
-                                                tries++;
-                                                if(tries < 50) { // Try for 10 seconds
-                                                    setTimeout(runner, 200);
-                                                }
-                                            }
-                                        };
-                                        runner();
-                                    }
-                                }" 
-                                x-init="initMCE()">
+                            <div class="table-responsive">
                                 <table class="table table-hover workflow-table mb-0">
                                     <thead>
                                         <tr>
@@ -1779,7 +1745,7 @@
                                                 {{ $area['name'] }}
                                             </td>
                                         </tr>
-                                        @foreach($area['sample_points'] as $point)
+                                        @foreach($area['sample_points'] as $index => $point)
                                         <tr>
                                             <td class="text-center">
                                                 <div class="custom-control custom-checkbox">
@@ -1799,11 +1765,9 @@
                                                     {{ empty($assignSelectedPoints[$point['id']]) ? 'disabled' : '' }}>
                                             </td>
                                             <td>
-                                                <div wire:ignore>
-                                                    <textarea class="form-control form-control-sm assign-comment-editor" 
-                                                        id="assign_comment_{{ $point['id'] }}" 
-                                                        data-point-id="{{ $point['id'] }}"></textarea>
-                                                </div>
+                                                <button type="button" class="btn btn-sm btn-outline-secondary" wire:click="openCommentModal('{{ $point['id'] }}')">
+                                                    <i class="mdi mdi-pencil"></i> Edit Comment
+                                                </button>
                                             </td>
                                             <td>
                                                 <span class="badge badge-success">Active</span>
@@ -1836,6 +1800,53 @@
             </div>
         </div>
     </div>
+    </div>
+    @endif
+
+    {{-- Rich Text Comment Modal --}}
+    @if($showCommentModal)
+    <div class="modal fade show" style="display: block; background-color: rgba(0,0,0,0.5); z-index: 1100;" tabindex="-1" role="dialog">
+        <div class="modal-dialog modal-lg" role="document">
+            <div class="modal-content">
+                <div class="modal-header bg-dark text-white">
+                    <h5 class="modal-title">Edit Sample Comment</h5>
+                    <button type="button" class="close text-white" wire:click="$set('showCommentModal', false)">
+                        <span>&times;</span>
+                    </button>
+                </div>
+                <div class="modal-body p-0">
+                    <div wire:ignore 
+                         x-data="{
+                            initEditor() {
+                                if (typeof tinymce !== 'undefined') {
+                                    tinymce.remove('#comment-editor-main');
+                                    tinymce.init({
+                                        selector: '#comment-editor-main',
+                                        menubar: false,
+                                        statusbar: false,
+                                        height: 300,
+                                        toolbar: 'bold italic underline | bullist numlist | forecolor',
+                                        plugins: 'lists textcolor',
+                                        setup: function (editor) {
+                                            editor.on('change blur', function () {
+                                                editor.save();
+                                                @this.set('tempCommentContent', editor.getContent());
+                                            });
+                                        }
+                                    });
+                                }
+                            }
+                         }" 
+                         x-init="setTimeout(() => initEditor(), 100)">
+                        <textarea id="comment-editor-main" class="form-control">{{ $tempCommentContent }}</textarea>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" wire:click="$set('showCommentModal', false)">Cancel</button>
+                    <button type="button" class="btn btn-primary" wire:click="saveComment">Save Comment</button>
+                </div>
+            </div>
+        </div>
     </div>
     @endif
 
