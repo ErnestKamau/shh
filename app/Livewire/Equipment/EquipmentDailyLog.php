@@ -5,6 +5,7 @@ namespace App\Livewire\Equipment;
 use App\Models\Equipments\Equipment;
 use App\Models\Equipments\EquipmentDailyLogEntry;
 use Illuminate\Support\Collection;
+use Illuminate\Support\Facades\Auth;
 use Livewire\Component;
 
 class EquipmentDailyLog extends Component
@@ -31,6 +32,14 @@ class EquipmentDailyLog extends Component
 
     /** @var array<int, int> Counts per frequency */
     public array $freqCounts = [];
+
+    public string $nonConformanceFromDate = '';
+
+    public string $nonConformanceToDate = '';
+
+    public int $nonConformancePerPage = 10;
+
+    public int $nonConformancePage = 1;
 
     public function mount(): void
     {
@@ -68,6 +77,32 @@ class EquipmentDailyLog extends Component
         }
     }
 
+    public function updatedNonConformanceFromDate(): void
+    {
+        $this->nonConformancePage = 1;
+    }
+
+    public function updatedNonConformanceToDate(): void
+    {
+        $this->nonConformancePage = 1;
+    }
+
+    public function updatedNonConformancePerPage($value): void
+    {
+        $this->nonConformancePerPage = max(10, (int) $value);
+        $this->nonConformancePage = 1;
+    }
+
+    public function previousNonConformancePage(): void
+    {
+        $this->nonConformancePage = max(1, $this->nonConformancePage - 1);
+    }
+
+    public function nextNonConformancePage(): void
+    {
+        $this->nonConformancePage = min($this->nonConformanceTotalPages, $this->nonConformancePage + 1);
+    }
+
     public function updatedLogDate(): void
     {
         $this->savedFlags = [];
@@ -85,30 +120,28 @@ class EquipmentDailyLog extends Component
 
         foreach ($entries as $entry) {
             $key = "{$entry->equipment_id}_{$entry->slot_number}";
-            $isRange = $entry->equipment && $entry->equipment->daily_log_value_type === 'range';
-
-            if ($isRange && $entry->recorded_value !== null) {
-                // Split stored "min – max" back into separate fields
-                $parts = array_map('trim', explode('–', $entry->recorded_value));
-                $this->entryValues[$key . '_min'] = $parts[0] ?? '';
-                $this->entryValues[$key . '_max'] = $parts[1] ?? '';
-            } else {
-                $this->entryValues[$key] = $entry->recorded_value ?? '';
-            }
+            $this->entryValues[$key] = $entry->recorded_value ?? '';
         }
     }
 
-    public function saveEntry(int $equipmentId, int $slot, bool $isRange = false): void
+    public function updatedEntryValues($value, $key): void
+    {
+        if (!$this->isToday()) {
+            return;
+        }
+
+        if (!preg_match('/^(\d+)_(\d+)$/', (string) $key, $matches)) {
+            return;
+        }
+
+        $this->saveEntry((int) $matches[1], (int) $matches[2]);
+    }
+
+    public function saveEntry(int $equipmentId, int $slot): void
     {
         $key = "{$equipmentId}_{$slot}";
-
-        if ($isRange) {
-            $min = trim($this->entryValues[$key . '_min'] ?? '');
-            $max = trim($this->entryValues[$key . '_max'] ?? '');
-            $value = ($min !== '' || $max !== '') ? "{$min} – {$max}" : null;
-        } else {
-            $value = $this->entryValues[$key] ?? null;
-        }
+        $value = trim((string) ($this->entryValues[$key] ?? ''));
+        $value = $value !== '' ? $value : null;
 
         EquipmentDailyLogEntry::updateOrCreate(
             [
@@ -119,11 +152,32 @@ class EquipmentDailyLog extends Component
             ],
             [
                 'recorded_value' => $value,
-                'recorded_by'    => auth()->id(),
+                'recorded_by'    => Auth::id(),
             ]
         );
 
         $this->savedFlags[$key] = true;
+    }
+
+    public function getReadingRangeStatus(Equipment $equipment, ?string $reading): ?string
+    {
+        if ($equipment->daily_log_value_type !== 'range') {
+            return null;
+        }
+
+        if (!is_numeric($reading)) {
+            return null;
+        }
+
+        if ($equipment->daily_log_expected_min === null || $equipment->daily_log_expected_max === null) {
+            return null;
+        }
+
+        $readingValue = (float) $reading;
+        $expectedMin = (float) $equipment->daily_log_expected_min;
+        $expectedMax = (float) $equipment->daily_log_expected_max;
+
+        return ($readingValue >= $expectedMin && $readingValue <= $expectedMax) ? 'within' : 'outside';
     }
 
     public function getEquipmentForActiveTab(): Collection
@@ -136,9 +190,141 @@ class EquipmentDailyLog extends Component
             ->get();
     }
 
+    public function getNonConformanceRowsProperty(): array
+    {
+        if ($this->nonConformanceFromDate !== '' && $this->nonConformanceToDate !== ''
+            && $this->nonConformanceFromDate > $this->nonConformanceToDate) {
+            return [];
+        }
+
+        $query = EquipmentDailyLogEntry::where('company_id', getUserCompany())
+            ->whereNotNull('recorded_value')
+            ->where('recorded_value', '!=', '')
+            ->with('equipment')
+            ->whereHas('equipment', function ($q) {
+                $q->where('requires_daily_log', true)
+                    ->where('is_disposal', 0);
+            })
+            ->orderBy('log_date', 'desc')
+            ->orderBy('slot_number', 'desc');
+
+        if ($this->nonConformanceFromDate !== '') {
+            $query->whereDate('log_date', '>=', $this->nonConformanceFromDate);
+        }
+
+        if ($this->nonConformanceToDate !== '') {
+            $query->whereDate('log_date', '<=', $this->nonConformanceToDate);
+        }
+
+        $rows = [];
+
+        foreach ($query->get() as $entry) {
+            $equipment = $entry->equipment;
+            if (!$equipment) {
+                continue;
+            }
+
+            $reason = $this->getNonConformanceReason($equipment, $entry->recorded_value);
+
+            if ($reason === null) {
+                continue;
+            }
+
+            $rows[] = [
+                'date' => $entry->log_date ? $entry->log_date->format('D, M j Y') : '-',
+                'slot' => $entry->slot_number,
+                'equipment_name' => $equipment->name ?? '-',
+                'equipment_number' => $equipment->equipment_number ?? '-',
+                'recorded' => $entry->recorded_value,
+                'reason' => $reason,
+            ];
+        }
+
+        return $rows;
+    }
+
+    public function getNonConformanceRowsPageProperty(): array
+    {
+        $rows = $this->nonConformanceRows;
+        $perPage = max(10, $this->nonConformancePerPage);
+        $totalPages = max(1, (int) ceil(count($rows) / $perPage));
+        $currentPage = min(max(1, $this->nonConformancePage), $totalPages);
+
+        if ($currentPage !== $this->nonConformancePage) {
+            $this->nonConformancePage = $currentPage;
+        }
+
+        return array_slice($rows, ($currentPage - 1) * $perPage, $perPage);
+    }
+
+    public function getNonConformanceTotalPagesProperty(): int
+    {
+        $perPage = max(10, $this->nonConformancePerPage);
+
+        return max(1, (int) ceil(count($this->nonConformanceRows) / $perPage));
+    }
+
     public function isToday(): bool
     {
         return $this->logDate === now()->toDateString();
+    }
+
+    private function getNonConformanceReason(Equipment $equipment, ?string $recordedValue): ?string
+    {
+        $recordedValue = trim((string) $recordedValue);
+        if ($recordedValue === '') {
+            return null;
+        }
+
+        $type = $equipment->daily_log_value_type;
+        $nature = $equipment->daily_log_nature;
+        $tol = (int) ($equipment->daily_log_tolerance ?? 0);
+
+        if ($type === 'constant') {
+            if ($nature === 'qualitative') {
+                $expected = trim((string) ($equipment->daily_log_expected_value ?? ''));
+                if (strcasecmp($recordedValue, $expected) !== 0) {
+                    return 'Does not match expected "' . $expected . '"';
+                }
+
+                return null;
+            }
+
+            if ($nature === 'quantitative' && is_numeric($recordedValue) && is_numeric($equipment->daily_log_expected_value)) {
+                $expected = (float) $equipment->daily_log_expected_value;
+                $actual = (float) $recordedValue;
+
+                if ($tol > 0) {
+                    $lo = $expected * (1 - $tol / 100);
+                    $hi = $expected * (1 + $tol / 100);
+                    if ($actual < $lo || $actual > $hi) {
+                        return 'Value ' . $actual . ' outside tolerance ±' . $tol . '% of ' . $expected;
+                    }
+                } elseif ($actual != $expected) {
+                    return 'Recorded ' . $actual . ', expected ' . $expected;
+                }
+
+                return null;
+            }
+
+            return null;
+        }
+
+        if ($type === 'range' && is_numeric($recordedValue)
+            && $equipment->daily_log_expected_min !== null
+            && $equipment->daily_log_expected_max !== null) {
+            $actual = (float) $recordedValue;
+            $min = (float) $equipment->daily_log_expected_min;
+            $max = (float) $equipment->daily_log_expected_max;
+            $lo = $tol > 0 ? $min * (1 - $tol / 100) : $min;
+            $hi = $tol > 0 ? $max * (1 + $tol / 100) : $max;
+
+            if ($actual < $lo || $actual > $hi) {
+                return 'Recorded ' . $actual . ' outside ' . $min . '–' . $max . ($tol > 0 ? ' (±' . $tol . '% tol)' : '');
+            }
+        }
+
+        return null;
     }
 
     public function render()

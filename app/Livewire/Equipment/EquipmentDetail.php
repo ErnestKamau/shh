@@ -21,6 +21,7 @@ use App\Models\Assets\AssetLocation;
 use App\ReportingUnit;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Http\File;
+use Illuminate\Support\Str;
 use Maatwebsite\Excel\Facades\Excel;
 use Carbon\Carbon;
 
@@ -161,6 +162,11 @@ class EquipmentDetail extends Component
 
     public $fromDailyLog = false;
 
+    public $nonConformanceFromDate = '';
+    public $nonConformanceToDate = '';
+    public $nonConformancePerPage = 10;
+    public $nonConformancePage = 1;
+
     public function mount($equipmentId, bool $fromDailyLog = false): void
     {
         $this->equipmentId = $equipmentId;
@@ -192,6 +198,32 @@ class EquipmentDetail extends Component
     public function setActiveTab($tab): void
     {
         $this->activeTab = $tab;
+    }
+
+    public function updatedNonConformanceFromDate(): void
+    {
+        $this->nonConformancePage = 1;
+    }
+
+    public function updatedNonConformanceToDate(): void
+    {
+        $this->nonConformancePage = 1;
+    }
+
+    public function updatedNonConformancePerPage($value): void
+    {
+        $this->nonConformancePerPage = max(10, (int) $value);
+        $this->nonConformancePage = 1;
+    }
+
+    public function previousNonConformancePage(): void
+    {
+        $this->nonConformancePage = max(1, (int) $this->nonConformancePage - 1);
+    }
+
+    public function nextNonConformancePage(): void
+    {
+        $this->nonConformancePage = min($this->nonConformanceTotalPages, (int) $this->nonConformancePage + 1);
     }
 
     // Equipment Management
@@ -1020,9 +1052,10 @@ class EquipmentDetail extends Component
         $type   = $this->equipment->daily_log_value_type;
         $labels = [];
         $values = [];
-        $mins   = [];
-        $maxs   = [];
-        $means  = [];
+        $legacyMins   = [];
+        $legacyMaxs   = [];
+        $legacyMeans  = [];
+        $withinFlags  = [];
 
         foreach ($entries as $entry) {
             $label    = $freq > 1
@@ -1031,13 +1064,21 @@ class EquipmentDetail extends Component
             $labels[] = $label;
 
             if ($type === 'range') {
-                $parts   = array_map('trim', explode('–', $entry->recorded_value ?? ''));
-                $min     = is_numeric($parts[0] ?? null) ? (float) $parts[0] : null;
-                $max     = isset($parts[1]) && is_numeric($parts[1]) ? (float) $parts[1] : null;
-                $mean    = ($min !== null && $max !== null) ? round(($min + $max) / 2, 2) : null;
-                $mins[]  = $min;
-                $maxs[]  = $max;
-                $means[] = $mean;
+                $parsed = $this->parseRangeRecordedValue($entry->recorded_value);
+                $reading = $parsed['reading'];
+                $values[] = $reading;
+                $legacyMins[] = $parsed['min'];
+                $legacyMaxs[] = $parsed['max'];
+                $legacyMeans[] = $parsed['mean'];
+
+                if ($reading !== null
+                    && $this->equipment->daily_log_expected_min !== null
+                    && $this->equipment->daily_log_expected_max !== null) {
+                    $withinFlags[] = $reading >= (float) $this->equipment->daily_log_expected_min
+                        && $reading <= (float) $this->equipment->daily_log_expected_max;
+                } else {
+                    $withinFlags[] = null;
+                }
             } else {
                 $values[] = is_numeric($entry->recorded_value) ? (float) $entry->recorded_value : null;
             }
@@ -1051,11 +1092,14 @@ class EquipmentDetail extends Component
         ];
 
         if ($type === 'range') {
-            $data['mins']        = $mins;
-            $data['maxs']        = $maxs;
-            $data['means']       = $means;
+            $data['values']      = $values;
+            $data['withinFlags'] = $withinFlags;
             $data['expectedMin'] = (float) $this->equipment->daily_log_expected_min;
             $data['expectedMax'] = (float) $this->equipment->daily_log_expected_max;
+            // Backward-compatibility datasets for historical min-max style entries
+            $data['legacyMins']  = $legacyMins;
+            $data['legacyMaxs']  = $legacyMaxs;
+            $data['legacyMeans'] = $legacyMeans;
         } else {
             $data['values']        = $values;
             $data['expectedValue'] = $this->equipment->daily_log_expected_value;
@@ -1078,12 +1122,26 @@ class EquipmentDetail extends Component
             return [];
         }
 
-        $entries = EquipmentDailyLogEntry::where('equipment_id', $this->equipmentId)
+        if (!empty($this->nonConformanceFromDate) && !empty($this->nonConformanceToDate)
+            && $this->nonConformanceFromDate > $this->nonConformanceToDate) {
+            return [];
+        }
+
+        $entriesQuery = EquipmentDailyLogEntry::where('equipment_id', $this->equipmentId)
             ->whereNotNull('recorded_value')
             ->where('recorded_value', '!=', '')
             ->orderBy('log_date', 'desc')
-            ->orderBy('slot_number')
-            ->get();
+            ->orderBy('slot_number');
+
+        if (!empty($this->nonConformanceFromDate)) {
+            $entriesQuery->whereDate('log_date', '>=', $this->nonConformanceFromDate);
+        }
+
+        if (!empty($this->nonConformanceToDate)) {
+            $entriesQuery->whereDate('log_date', '<=', $this->nonConformanceToDate);
+        }
+
+        $entries = $entriesQuery->get();
 
         $type   = $this->equipment->daily_log_value_type;
         $nature = $this->equipment->daily_log_nature;
@@ -1119,17 +1177,16 @@ class EquipmentDetail extends Component
                     }
                 }
             } elseif ($type === 'range') {
-                $parts = array_map('trim', explode('–', $entry->recorded_value));
-                $rMin  = is_numeric($parts[0] ?? null) ? (float) $parts[0] : null;
-                $rMax  = isset($parts[1]) && is_numeric($parts[1]) ? (float) $parts[1] : null;
+                $parsed = $this->parseRangeRecordedValue($entry->recorded_value);
+                $reading = $parsed['reading'];
                 $eMin  = (float) $this->equipment->daily_log_expected_min;
                 $eMax  = (float) $this->equipment->daily_log_expected_max;
                 $loLim = $tol > 0 ? $eMin * (1 - $tol / 100) : $eMin;
                 $hiLim = $tol > 0 ? $eMax * (1 + $tol / 100) : $eMax;
 
-                if ($rMin !== null && $rMax !== null && ($rMin < $loLim || $rMax > $hiLim)) {
+                if ($reading !== null && ($reading < $loLim || $reading > $hiLim)) {
                     $fail   = true;
-                    $reason = 'Recorded ' . $rMin . '–' . $rMax . ' outside '
+                    $reason = 'Recorded ' . $reading . ' outside '
                         . $eMin . '–' . $eMax
                         . ($tol > 0 ? ' (±' . $tol . '% tol)' : '');
                 }
@@ -1146,6 +1203,27 @@ class EquipmentDetail extends Component
         }
 
         return $rows;
+    }
+
+    public function getNonConformanceReportPageProperty(): array
+    {
+        $rows = $this->nonConformanceReport;
+        $perPage = max(10, (int) $this->nonConformancePerPage);
+        $totalPages = max(1, (int) ceil(count($rows) / $perPage));
+        $currentPage = min(max(1, (int) $this->nonConformancePage), $totalPages);
+
+        if ($currentPage !== (int) $this->nonConformancePage) {
+            $this->nonConformancePage = $currentPage;
+        }
+
+        return array_slice($rows, ($currentPage - 1) * $perPage, $perPage);
+    }
+
+    public function getNonConformanceTotalPagesProperty(): int
+    {
+        $perPage = max(10, (int) $this->nonConformancePerPage);
+
+        return max(1, (int) ceil(count($this->nonConformanceReport) / $perPage));
     }
 
     public function exportNonConformanceReport()
@@ -1174,8 +1252,35 @@ class EquipmentDetail extends Component
                 public function headings(): array { return $this->headers; }
                 public function array(): array    { return $this->data; }
             },
-            'non-conformance-' . \Str::slug($name) . '.xlsx'
+            'non-conformance-' . Str::slug($name) . '.xlsx'
         );
+    }
+
+    private function parseRangeRecordedValue(?string $raw): array
+    {
+        $raw = trim((string) $raw);
+
+        if ($raw === '') {
+            return ['reading' => null, 'min' => null, 'max' => null, 'mean' => null];
+        }
+
+        if (is_numeric($raw)) {
+            $reading = (float) $raw;
+
+            return ['reading' => $reading, 'min' => null, 'max' => null, 'mean' => null];
+        }
+
+        $parts = preg_split('/\s*[–-]\s*/', $raw);
+        $min = is_numeric($parts[0] ?? null) ? (float) $parts[0] : null;
+        $max = is_numeric($parts[1] ?? null) ? (float) $parts[1] : null;
+        $mean = ($min !== null && $max !== null) ? round(($min + $max) / 2, 4) : null;
+
+        return [
+            'reading' => $mean,
+            'min' => $min,
+            'max' => $max,
+            'mean' => $mean,
+        ];
     }
 
     public function getMaintenanceLogsProperty()

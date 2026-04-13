@@ -1,22 +1,24 @@
-<div class="container-fluid">
+<div class="container-fluid eq-view-page">
     <!-- Header -->
     <div class="row mb-4">
         <div class="col-12">
-            <div class="card shadow-sm border-0" style="border-radius: 15px;">
+            <div class="card border-0 eq-hero-card">
                 <div class="card-body p-4">
-                    <div class="d-flex justify-content-between align-items-center">
+                    <div class="d-flex justify-content-between align-items-center flex-wrap" style="gap: 12px;">
                         <div>
-                            <h2 class="mb-0">
+                            <div class="eq-kicker mb-1">Equipment Management</div>
+                            <h2 class="mb-1 eq-hero-title">
                                 <i class="mdi mdi-tools text-primary"></i>
                                 {{ $equipment->name ?? 'Equipment' }}
                             </h2>
                             <p class="text-muted mb-0">Equipment Details and Management</p>
                         </div>
-                        <div>
-                            <button wire:click="showEditEquipmentModal" class="btn btn-primary btn-sm me-2">
+                        <div class="d-flex align-items-center" style="gap: 8px;">
+                            <span class="badge badge-light border px-3 py-2">{{ $equipment->equipment_number }}</span>
+                            <button wire:click="showEditEquipmentModal" class="btn btn-primary btn-sm">
                                 <i class="mdi mdi-pencil"></i> Edit
                             </button>
-                            <a href="{{ route('equipment-home') }}" class="btn btn-secondary btn-sm">
+                            <a href="{{ route('equipment-home') }}" class="btn btn-outline-secondary btn-sm">
                                 <i class="mdi mdi-arrow-left"></i> Back
                             </a>
                         </div>
@@ -37,10 +39,9 @@
     <div class="row">
         <!-- Sidebar -->
         <div class="col-md-3">
-            <div class="card shadow-lg border-0" style="border-radius: 20px; overflow: hidden;">
+            <div class="card shadow-sm border-0 eq-side-card">
                 <!-- Card Header with Gradient -->
-                <div class="card-header text-white text-center py-4" 
-                     style="background: linear-gradient(135deg, #6c757d 0%, #495057 100%); border: none;">
+                <div class="card-header text-white text-center py-4 eq-side-header">
                     <div class="equipment-image-wrapper mb-3">
                         @if($equipment->picture && $equipment->picture != '/images/placeholder.png' && file_exists(public_path($equipment->picture)))
                             <img src="{{ $equipment->picture }}" 
@@ -167,9 +168,9 @@
 
         <!-- Main Content -->
         <div class="col-md-9">
-            <div class="card shadow-sm border-0" style="border-radius: 15px;">
-                <div class="card-header bg-light border-0" style="border-radius: 15px 15px 0 0;">
-                    <ul class="nav nav-tabs">
+            <div class="card shadow-sm border-0 eq-main-card">
+                <div class="card-header bg-light border-0 eq-main-header">
+                    <ul class="nav nav-tabs eq-main-tabs">
                         @if(!$fromDailyLog)
                         <li class="nav-item">
                             <button class="nav-link {{ $activeTab === 'maintenance' ? 'active' : '' }}" 
@@ -218,7 +219,7 @@
                         @endif
                     </ul>
                 </div>
-                <div class="card-body">
+                <div class="card-body eq-main-body">
                     <!-- Maintenance Log Tab -->
                     @if($activeTab === 'maintenance')
                         <div class="d-flex justify-content-between align-items-center mb-3">
@@ -811,6 +812,25 @@
                                 </button>
                             @endif
                         </div>
+                        <div class="row align-items-end mb-2">
+                            <div class="col-md-3">
+                                <label class="small text-muted mb-1">From Date</label>
+                                <input type="date" wire:model.live="nonConformanceFromDate" class="form-control form-control-sm">
+                            </div>
+                            <div class="col-md-3">
+                                <label class="small text-muted mb-1">To Date</label>
+                                <input type="date" wire:model.live="nonConformanceToDate" class="form-control form-control-sm">
+                            </div>
+                            <div class="col-md-2">
+                                <label class="small text-muted mb-1">Per Page</label>
+                                <select wire:model.live="nonConformancePerPage" class="form-control form-control-sm">
+                                    <option value="10">10</option>
+                                    <option value="25">25</option>
+                                    <option value="50">50</option>
+                                    <option value="100">100</option>
+                                </select>
+                            </div>
+                        </div>
                         @if(empty($this->nonConformanceReport))
                             <div class="alert alert-success py-2">
                                 <i class="mdi mdi-check-circle-outline"></i> No non-conformances recorded for this equipment.
@@ -827,7 +847,7 @@
                                         </tr>
                                     </thead>
                                     <tbody>
-                                        @foreach($this->nonConformanceReport as $ncRow)
+                                        @foreach($this->nonConformanceReportPage as $ncRow)
                                         <tr>
                                             <td>{{ $ncRow['date'] }}</td>
                                             <td class="text-center">{{ $ncRow['slot'] }}</td>
@@ -837,6 +857,26 @@
                                         @endforeach
                                     </tbody>
                                 </table>
+                            </div>
+                            <div class="d-flex justify-content-between align-items-center mt-2">
+                                <small class="text-muted">
+                                    Showing {{ count($this->nonConformanceReportPage) }} of {{ count($this->nonConformanceReport) }} non-conformance entries
+                                </small>
+                                <div class="btn-group btn-group-sm">
+                                    <button type="button" class="btn btn-outline-secondary"
+                                            wire:click="previousNonConformancePage"
+                                            @disabled($nonConformancePage <= 1)>
+                                        <i class="mdi mdi-chevron-left"></i>
+                                    </button>
+                                    <button type="button" class="btn btn-outline-secondary" disabled>
+                                        Page {{ $nonConformancePage }} of {{ $this->nonConformanceTotalPages }}
+                                    </button>
+                                    <button type="button" class="btn btn-outline-secondary"
+                                            wire:click="nextNonConformancePage"
+                                            @disabled($nonConformancePage >= $this->nonConformanceTotalPages)>
+                                        <i class="mdi mdi-chevron-right"></i>
+                                    </button>
+                                </div>
                             </div>
                         @endif
 
@@ -1665,18 +1705,118 @@
         font-size: 0.875rem;
         color: #344767;
     }
+
+    /* Equipment view redesign */
+    .eq-view-page {
+        padding-top: 8px;
+        padding-bottom: 18px;
+    }
+    .eq-hero-card {
+        border-radius: 16px;
+        background: linear-gradient(120deg, #ffffff 0%, #f3f6fb 100%);
+        box-shadow: 0 8px 20px rgba(10, 33, 68, 0.08);
+    }
+    .eq-kicker {
+        display: inline-block;
+        font-size: 0.73rem;
+        letter-spacing: 0.12em;
+        text-transform: uppercase;
+        color: #5f6b7a;
+        font-weight: 700;
+    }
+    .eq-hero-title {
+        font-size: 2.1rem;
+        line-height: 1.1;
+        font-weight: 700;
+        color: #212a35;
+    }
+    .eq-side-card {
+        border-radius: 16px;
+        overflow: hidden;
+        box-shadow: 0 8px 20px rgba(10, 33, 68, 0.08);
+    }
+    .eq-side-header {
+        background: linear-gradient(135deg, #596574 0%, #3f4a56 100%);
+        border: none;
+    }
+    .eq-main-card {
+        border-radius: 16px;
+        overflow: hidden;
+        box-shadow: 0 8px 20px rgba(10, 33, 68, 0.08);
+    }
+    .eq-main-header {
+        padding: 0.55rem 1rem 0;
+        background: linear-gradient(120deg, #f7f9fc 0%, #edf2f8 100%);
+        border-bottom: 1px solid #e2e8f0;
+    }
+    .eq-main-body {
+        background: #ffffff;
+    }
+    .eq-main-tabs {
+        border-bottom: none;
+        gap: 6px;
+        flex-wrap: wrap;
+    }
+    .eq-main-tabs .nav-item {
+        margin-bottom: 0;
+    }
+    .eq-main-tabs .nav-link {
+        border: 1px solid transparent;
+        border-radius: 8px 8px 0 0;
+        padding: 0.45rem 0.8rem;
+        color: #4f5d6b;
+        font-size: 0.82rem;
+        font-weight: 600;
+        background: transparent;
+    }
+    .eq-main-tabs .nav-link:hover {
+        border-color: #d8e0eb;
+        background: #f6f9fd;
+        color: #2d3b49;
+    }
+    .eq-main-tabs .nav-link.active {
+        color: #0b4fb3;
+        border-color: #c9d8ef;
+        background: #ffffff;
+        box-shadow: 0 -1px 0 #ffffff;
+    }
+    @media (max-width: 768px) {
+        .eq-hero-title {
+            font-size: 1.55rem;
+        }
+        .eq-main-header {
+            padding-top: 0.7rem;
+        }
+    }
     </style>
 
     @script
     <script>
     (function () {
+        function buildDailyLogChart() {
         var chartDataEl = document.getElementById('dl-chart-data');
         var canvas = document.getElementById('dl-perf-chart');
-        if (!chartDataEl || !canvas) return;
+        if (!chartDataEl || !canvas) {
+            if (window._dlPerfChart) {
+                window._dlPerfChart.destroy();
+                window._dlPerfChart = null;
+            }
+            return;
+        }
 
         var chartData;
-        try { chartData = JSON.parse(chartDataEl.textContent || 'null'); } catch (e) { return; }
-        if (!chartData || !chartData.labels || chartData.labels.length === 0) return;
+        try {
+            chartData = JSON.parse(chartDataEl.textContent || 'null');
+        } catch (e) {
+            return;
+        }
+        if (!chartData || !chartData.labels || chartData.labels.length === 0) {
+            if (window._dlPerfChart) {
+                window._dlPerfChart.destroy();
+                window._dlPerfChart = null;
+            }
+            return;
+        }
 
         function buildChart() {
             if (window._dlPerfChart) {
@@ -1691,7 +1831,7 @@
             if (chartData.type === 'range') {
                 datasets = [
                     {
-                        label: 'Acceptable Max',
+                        label: 'Expected Upper Limit',
                         data: Array(n).fill(chartData.expectedMax),
                         borderColor: 'rgba(40,167,69,0.7)',
                         backgroundColor: 'rgba(40,167,69,0.12)',
@@ -1702,7 +1842,7 @@
                         order: 1,
                     },
                     {
-                        label: 'Acceptable Min',
+                        label: 'Expected Lower Limit',
                         data: Array(n).fill(chartData.expectedMin),
                         borderColor: 'rgba(40,167,69,0.7)',
                         backgroundColor: 'transparent',
@@ -1713,45 +1853,38 @@
                         order: 1,
                     },
                     {
-                        label: 'Recorded High',
-                        data: chartData.maxs,
-                        borderColor: 'rgba(220,53,69,0.85)',
-                        backgroundColor: 'transparent',
+                        label: 'Recorded Reading',
+                        data: chartData.values,
+                        borderColor: 'rgba(0,123,255,0.9)',
+                        backgroundColor: 'rgba(0,123,255,0.08)',
                         borderWidth: 2,
                         pointRadius: 3,
-                        fill: false,
-                        tension: 0.3,
-                        order: 0,
-                    },
-                    {
-                        label: 'Recorded Mean',
-                        data: chartData.means,
-                        borderColor: 'rgba(0,123,255,0.85)',
-                        backgroundColor: 'transparent',
-                        borderWidth: 2,
-                        borderDash: [4, 4],
-                        pointRadius: 3,
-                        fill: false,
-                        tension: 0.3,
-                        order: 0,
-                    },
-                    {
-                        label: 'Recorded Low',
-                        data: chartData.mins,
-                        borderColor: 'rgba(255,152,0,0.85)',
-                        backgroundColor: 'transparent',
-                        borderWidth: 2,
-                        pointRadius: 3,
-                        fill: false,
+                        pointHoverRadius: 5,
+                        fill: 'origin',
                         tension: 0.3,
                         order: 0,
                     },
                 ];
+
+                if (Array.isArray(chartData.legacyMeans) && chartData.legacyMeans.some(function (v) { return v !== null; })) {
+                    datasets.push({
+                        label: 'Historic Mean (legacy min-max)',
+                        data: chartData.legacyMeans,
+                        borderColor: 'rgba(108,117,125,0.8)',
+                        backgroundColor: 'transparent',
+                        borderWidth: 1.5,
+                        borderDash: [4, 4],
+                        pointRadius: 2,
+                        fill: false,
+                        tension: 0.25,
+                        order: 0,
+                    });
+                }
             } else {
                 // constant + quantitative
                 datasets = [
                     {
-                        label: 'Expected',
+                        label: 'Expected Target',
                         data: Array(n).fill(parseFloat(chartData.expectedValue) || 0),
                         borderColor: 'rgba(40,167,69,0.8)',
                         backgroundColor: 'transparent',
@@ -1775,7 +1908,7 @@
                 ];
                 if (chartData.tolHigh !== undefined) {
                     datasets.unshift({
-                        label: 'Tolerance High',
+                        label: 'Tolerance Upper Limit',
                         data: Array(n).fill(chartData.tolHigh),
                         borderColor: 'rgba(255,193,7,0.6)',
                         backgroundColor: 'rgba(255,193,7,0.08)',
@@ -1786,7 +1919,7 @@
                         order: 2,
                     });
                     datasets.splice(datasets.length - 1, 0, {
-                        label: 'Tolerance Low',
+                        label: 'Tolerance Lower Limit',
                         data: Array(n).fill(chartData.tolLow),
                         borderColor: 'rgba(255,193,7,0.6)',
                         backgroundColor: 'transparent',
@@ -1799,7 +1932,8 @@
                 }
             }
 
-            window._dlPerfChart = new Chart(canvas, {
+            var ctx = canvas.getContext('2d');
+            window._dlPerfChart = new Chart(ctx, {
                 type: 'line',
                 data: { labels: chartData.labels, datasets: datasets },
                 options: {
@@ -1813,6 +1947,17 @@
                                 label: function (ctx) {
                                     if (ctx.parsed.y === null) return null;
                                     return ctx.dataset.label + ': ' + ctx.parsed.y + (unit ? ' ' + unit : '');
+                                },
+                                afterBody: function (items) {
+                                    if (chartData.type !== 'range' || !Array.isArray(chartData.withinFlags) || !items.length) {
+                                        return;
+                                    }
+
+                                    var index = items[0].dataIndex;
+                                    var within = chartData.withinFlags[index];
+                                    if (within === true) return 'Status: Within expected range';
+                                    if (within === false) return 'Status: Outside expected range';
+                                    return null;
                                 }
                             }
                         }
@@ -1834,6 +1979,41 @@
             s.onload = buildChart;
             document.head.appendChild(s);
         }
+
+        }
+
+        window.initDailyLogPerformanceChart = buildDailyLogChart;
+
+        function scheduleBuild() {
+            setTimeout(function () {
+                if (typeof window.initDailyLogPerformanceChart === 'function') {
+                    window.initDailyLogPerformanceChart();
+                }
+            }, 120);
+        }
+
+        if (!window._dlPerfChartBindings) {
+            window._dlPerfChartBindings = true;
+
+            document.addEventListener('livewire:initialized', function () {
+                scheduleBuild();
+
+                if (window.Livewire && typeof window.Livewire.hook === 'function') {
+                    window.Livewire.hook('morph.updated', function () {
+                        scheduleBuild();
+                    });
+                }
+            });
+
+            document.addEventListener('click', function (event) {
+                var dailyLogTabButton = event.target.closest("[wire\\:click=\"setActiveTab('dailylog')\"]");
+                if (dailyLogTabButton) {
+                    scheduleBuild();
+                }
+            });
+        }
+
+        scheduleBuild();
     })();
     </script>
     @endscript

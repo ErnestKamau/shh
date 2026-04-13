@@ -68,10 +68,45 @@
             white-space: nowrap;
             padding: 10px 12px;
         }
+        .dl-table-wrapper {
+            overflow-x: auto;
+        }
+        .dl-table {
+            min-width: 1250px;
+            border-collapse: separate;
+            border-spacing: 0;
+        }
         .dl-table tbody td {
             font-size: 0.82rem;
             padding: 8px 12px;
             vertical-align: middle;
+        }
+        .dl-table .dl-sticky-index,
+        .dl-table .dl-sticky-name,
+        .dl-table .dl-sticky-number {
+            position: sticky;
+            background: #fff;
+        }
+        .dl-table thead .dl-sticky-index,
+        .dl-table thead .dl-sticky-name,
+        .dl-table thead .dl-sticky-number {
+            background: #f8f9fa;
+            z-index: 8;
+        }
+        .dl-table .dl-sticky-index {
+            left: 0;
+            min-width: 46px;
+            z-index: 6;
+        }
+        .dl-table .dl-sticky-name {
+            left: 46px;
+            min-width: 230px;
+            z-index: 5;
+        }
+        .dl-table .dl-sticky-number {
+            left: 276px;
+            min-width: 160px;
+            z-index: 5;
         }
         .dl-table tbody tr:hover {
             background-color: #f0f5ff;
@@ -140,6 +175,13 @@
             flex-shrink: 0;
             transition: all 0.15s ease;
         }
+        .dl-report-card {
+            background: #fff;
+            border-radius: 6px;
+            box-shadow: 0 2px 8px rgba(22,28,34,0.06);
+            margin-top: 18px;
+            padding: 14px;
+        }
     </style>
 
     <div class="d-flex align-items-center justify-content-between px-4 pt-4 pb-3">
@@ -205,19 +247,13 @@
 
             {{-- Tab Content Panel --}}
             <div class="dl-tab-panel">
-                <div class="table-responsive">
+                <div class="dl-table-wrapper">
                     <table class="table table-hover mb-0 dl-table">
                         <thead>
                             <tr>
-                                <th>#</th>
-                                <th>Equipment Name</th>
-                                <th>Equipment No.</th>
-                                <th>Make</th>
-                                <th>Department</th>
-                                <th>Assigned Employee</th>
-                                <th>Nature</th>
-                                <th>Expected</th>
-                                <th>Tolerance</th>
+                                <th class="dl-sticky-index">#</th>
+                                <th class="dl-sticky-name">Equipment Name</th>
+                                <th class="dl-sticky-number">Equipment No.</th>
                                 @for($slot = 1; $slot <= $activeFrequency; $slot++)
                                     <th style="min-width:170px;">
                                         @if($activeFrequency === 1)
@@ -227,6 +263,10 @@
                                         @endif
                                     </th>
                                 @endfor
+                                <th>Expected</th>
+                                <th>Tolerance</th>
+                                <th>Nature</th>
+                                <th>Department</th>
                                 <th>Status</th>
                                 <th></th>
                             </tr>
@@ -248,17 +288,60 @@
                                 $isEditable = $this->isToday();
                             @endphp
                             <tr>
-                                <td class="text-muted">{{ $index + 1 }}</td>
-                                <td>
+                                <td class="text-muted dl-sticky-index">{{ $index + 1 }}</td>
+                                <td class="dl-sticky-name">
                                     <a href="{{ route('view-equipment', ['equipmentId' => $item->id, 'from' => 'daily-log']) }}"
                                        class="font-weight-semibold" style="color:#007bff;">
                                         {{ $item->name }}
                                     </a>
                                 </td>
-                                <td><code style="font-size:0.78rem; color:#495057;">{{ $item->equipment_number }}</code></td>
-                                <td>{{ $item->make ?: '-' }}</td>
-                                <td>{{ getInventoryDepartmentByid($item->assigned_department)->name ?? '-' }}</td>
-                                <td>{{ optional(getUserById($item->assigned_employee_id))->name ?? '-' }}</td>
+                                <td class="dl-sticky-number"><code style="font-size:0.78rem; color:#495057;">{{ $item->equipment_number }}</code></td>
+
+                                {{-- Dynamic reading slots --}}
+                                @for($slot = 1; $slot <= $activeFrequency; $slot++)
+                                    @php
+                                        $key = "{$item->id}_{$slot}";
+                                        $unit = $item->daily_log_reporting_unit ?? '';
+                                        $readingValue = $entryValues[$key] ?? '';
+                                        $rangeStatus = $this->getReadingRangeStatus($item, $readingValue);
+                                    @endphp
+                                    <td style="min-width:170px;">
+                                        @if($isEditable)
+                                            <input type="text"
+                                                   wire:model.live.debounce.700ms="entryValues.{{ $key }}"
+                                                   class="form-control form-control-sm dl-reading-input {{ isset($savedFlags[$key]) ? 'dl-input-saved' : '' }}"
+                                                   placeholder="{{ $unit ?: 'Enter value' }}"
+                                                   style="max-width:130px; border-radius:5px;">
+                                            @if($item->daily_log_value_type === 'range' && $readingValue !== '')
+                                                <div class="mt-1">
+                                                    @if($rangeStatus === 'within')
+                                                        <span class="badge badge-success" style="font-size:0.65rem;">Within range</span>
+                                                    @elseif($rangeStatus === 'outside')
+                                                        <span class="badge badge-danger" style="font-size:0.65rem;">Outside range</span>
+                                                    @endif
+                                                </div>
+                                            @endif
+                                        @else
+                                            @if($readingValue !== '')
+                                                <span class="font-weight-semibold" style="color:#212529;">
+                                                    {{ $readingValue }}{{ $unit ? ' ' . $unit : '' }}
+                                                </span>
+                                                @if($item->daily_log_value_type === 'range' && $rangeStatus)
+                                                    <div class="mt-1">
+                                                        <span class="badge {{ $rangeStatus === 'within' ? 'badge-success' : 'badge-danger' }}" style="font-size:0.65rem;">
+                                                            {{ $rangeStatus === 'within' ? 'Within range' : 'Outside range' }}
+                                                        </span>
+                                                    </div>
+                                                @endif
+                                            @else
+                                                <span class="text-muted" style="font-size:0.78rem; font-style:italic;">Not recorded</span>
+                                            @endif
+                                        @endif
+                                    </td>
+                                @endfor
+
+                                <td style="white-space:nowrap;">{{ $expectedDisplay }}</td>
+                                <td>{{ $toleranceDisplay }}</td>
                                 <td>
                                     @if($item->daily_log_nature)
                                     <span class="badge badge-pill"
@@ -271,72 +354,7 @@
                                     <span class="text-muted">-</span>
                                     @endif
                                 </td>
-                                <td style="white-space:nowrap;">{{ $expectedDisplay }}</td>
-                                <td>{{ $toleranceDisplay }}</td>
-
-                                {{-- Dynamic reading slots --}}
-                                @for($slot = 1; $slot <= $activeFrequency; $slot++)
-                                    @php
-                                        $key = "{$item->id}_{$slot}";
-                                        $isRange = $item->daily_log_value_type === 'range';
-                                        $unit = $item->daily_log_reporting_unit ?? '';
-                                    @endphp
-                                    <td style="min-width:{{ $isRange ? '220px' : '170px' }};">
-                                        @if($isEditable)
-                                            @if($isRange)
-                                                <div class="d-flex align-items-center" style="gap:4px;">
-                                                    <input type="text"
-                                                           wire:model.defer="entryValues.{{ $key }}_min"
-                                                           class="form-control form-control-sm dl-reading-input {{ isset($savedFlags[$key]) ? 'dl-input-saved' : '' }}"
-                                                           placeholder="Min{{ $unit ? ' ('.$unit.')' : '' }}"
-                                                           style="max-width:80px; border-radius:5px;">
-                                                    <span class="text-muted" style="font-size:0.8rem;">–</span>
-                                                    <input type="text"
-                                                           wire:model.defer="entryValues.{{ $key }}_max"
-                                                           class="form-control form-control-sm dl-reading-input {{ isset($savedFlags[$key]) ? 'dl-input-saved' : '' }}"
-                                                           placeholder="Max{{ $unit ? ' ('.$unit.')' : '' }}"
-                                                           style="max-width:80px; border-radius:5px;">
-                                                    <button wire:click="saveEntry({{ $item->id }}, {{ $slot }}, true)"
-                                                            class="btn btn-sm {{ isset($savedFlags[$key]) ? 'btn-success' : 'btn-outline-secondary' }} dl-save-btn"
-                                                            title="{{ isset($savedFlags[$key]) ? 'Saved' : 'Save' }}"
-                                                            style="padding:3px 7px; border-radius:5px;">
-                                                        <i class="mdi {{ isset($savedFlags[$key]) ? 'mdi-check-bold' : 'mdi-content-save-outline' }}"></i>
-                                                    </button>
-                                                </div>
-                                            @else
-                                                <div class="d-flex align-items-center" style="gap:6px;">
-                                                    <input type="text"
-                                                           wire:model.defer="entryValues.{{ $key }}"
-                                                           class="form-control form-control-sm dl-reading-input {{ isset($savedFlags[$key]) ? 'dl-input-saved' : '' }}"
-                                                           placeholder="{{ $unit ?: 'Enter value' }}"
-                                                           style="max-width:110px; border-radius:5px;">
-                                                    <button wire:click="saveEntry({{ $item->id }}, {{ $slot }})"
-                                                            class="btn btn-sm {{ isset($savedFlags[$key]) ? 'btn-success' : 'btn-outline-secondary' }} dl-save-btn"
-                                                            title="{{ isset($savedFlags[$key]) ? 'Saved' : 'Save' }}"
-                                                            style="padding:3px 7px; border-radius:5px;">
-                                                        <i class="mdi {{ isset($savedFlags[$key]) ? 'mdi-check-bold' : 'mdi-content-save-outline' }}"></i>
-                                                    </button>
-                                                </div>
-                                            @endif
-                                        @else
-                                            @php
-                                                $val = $isRange
-                                                    ? (($entryValues[$key.'_min'] ?? '') . ' – ' . ($entryValues[$key.'_max'] ?? ''))
-                                                    : ($entryValues[$key] ?? null);
-                                                $isEmpty = $isRange
-                                                    ? (($entryValues[$key.'_min'] ?? '') === '' && ($entryValues[$key.'_max'] ?? '') === '')
-                                                    : ($val === null || $val === '');
-                                            @endphp
-                                            @if(!$isEmpty)
-                                                <span class="font-weight-semibold" style="color:#212529;">
-                                                    {{ $val }}{{ $unit ? ' ' . $unit : '' }}
-                                                </span>
-                                            @else
-                                                <span class="text-muted" style="font-size:0.78rem; font-style:italic;">Not recorded</span>
-                                            @endif
-                                        @endif
-                                    </td>
-                                @endfor
+                                <td>{{ getInventoryDepartmentByid($item->assigned_department)->name ?? '-' }}</td>
 
                                 <td class="text-center">
                                     @if($item->active)
@@ -357,6 +375,87 @@
                         </tbody>
                     </table>
                 </div>
+            </div>
+
+            <div class="dl-report-card">
+                <div class="d-flex justify-content-between align-items-center mb-2">
+                    <h6 class="mb-0">
+                        <i class="mdi mdi-alert-circle-outline text-danger"></i> Non-Conformance Report
+                    </h6>
+                </div>
+
+                <div class="row align-items-end mb-2">
+                    <div class="col-md-3">
+                        <label class="small text-muted mb-1">From Date</label>
+                        <input type="date" wire:model.live="nonConformanceFromDate" class="form-control form-control-sm">
+                    </div>
+                    <div class="col-md-3">
+                        <label class="small text-muted mb-1">To Date</label>
+                        <input type="date" wire:model.live="nonConformanceToDate" class="form-control form-control-sm">
+                    </div>
+                    <div class="col-md-2">
+                        <label class="small text-muted mb-1">Per Page</label>
+                        <select wire:model.live="nonConformancePerPage" class="form-control form-control-sm">
+                            <option value="10">10</option>
+                            <option value="25">25</option>
+                            <option value="50">50</option>
+                            <option value="100">100</option>
+                        </select>
+                    </div>
+                </div>
+
+                @if(empty($this->nonConformanceRows))
+                    <div class="alert alert-success py-2 mb-0">
+                        <i class="mdi mdi-check-circle-outline"></i> No non-conformances found for the selected date range.
+                    </div>
+                @else
+                    <div class="table-responsive">
+                        <table class="table table-sm table-bordered table-hover mb-0">
+                            <thead class="thead-light">
+                                <tr>
+                                    <th>Date</th>
+                                    <th>Equipment</th>
+                                    <th>Equipment No.</th>
+                                    <th style="width:70px">Slot #</th>
+                                    <th>Recorded Value</th>
+                                    <th>Reason</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                @foreach($this->nonConformanceRowsPage as $row)
+                                <tr>
+                                    <td>{{ $row['date'] }}</td>
+                                    <td>{{ $row['equipment_name'] }}</td>
+                                    <td><code>{{ $row['equipment_number'] }}</code></td>
+                                    <td class="text-center">{{ $row['slot'] }}</td>
+                                    <td><code>{{ $row['recorded'] }}</code></td>
+                                    <td class="text-danger small">{{ $row['reason'] }}</td>
+                                </tr>
+                                @endforeach
+                            </tbody>
+                        </table>
+                    </div>
+                    <div class="d-flex justify-content-between align-items-center mt-2">
+                        <small class="text-muted">
+                            Showing {{ count($this->nonConformanceRowsPage) }} of {{ count($this->nonConformanceRows) }} non-conformance entries
+                        </small>
+                        <div class="btn-group btn-group-sm">
+                            <button type="button" class="btn btn-outline-secondary"
+                                    wire:click="previousNonConformancePage"
+                                    @disabled($nonConformancePage <= 1)>
+                                <i class="mdi mdi-chevron-left"></i>
+                            </button>
+                            <button type="button" class="btn btn-outline-secondary" disabled>
+                                Page {{ $nonConformancePage }} of {{ $this->nonConformanceTotalPages }}
+                            </button>
+                            <button type="button" class="btn btn-outline-secondary"
+                                    wire:click="nextNonConformancePage"
+                                    @disabled($nonConformancePage >= $this->nonConformanceTotalPages)>
+                                <i class="mdi mdi-chevron-right"></i>
+                            </button>
+                        </div>
+                    </div>
+                @endif
             </div>
         </div>
     @endif

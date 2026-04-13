@@ -2,6 +2,94 @@
 
 @section('title2')
 <title>Equipment Daily Log</title>
+
+<style>
+    /* Equipment Daily Log View Styling */
+    .eq-hero-card {
+        background: linear-gradient(135deg, #ffffff 0%, #f8f9ff 100%);
+        border-radius: 16px !important;
+        box-shadow: 0 2px 8px rgba(0, 89, 187, 0.08) !important;
+    }
+
+    .eq-kicker {
+        font-size: 12px;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+        color: #9ca3af;
+        font-weight: 600;
+    }
+
+    .eq-hero-title {
+        font-size: 28px;
+        font-weight: 700;
+        color: #1f2937;
+        line-height: 1.3;
+    }
+
+    .eq-main-card {
+        background: #ffffff;
+        border-radius: 16px !important;
+        border: 1px solid #e5e7eb !important;
+        overflow: hidden;
+    }
+
+    .eq-main-header {
+        background: #f9fafb !important;
+        border-bottom: 1px solid #e5e7eb !important;
+        padding: 0 !important;
+    }
+
+    .eq-main-tabs {
+        border: none !important;
+        margin: 0;
+        padding: 0 20px;
+    }
+
+    .eq-main-tabs .nav-link {
+        color: #6b7280 !important;
+        border: none !important;
+        border-bottom: 3px solid transparent !important;
+        padding: 16px 12px !important;
+        font-weight: 500;
+        font-size: 14px;
+        transition: all 0.3s ease;
+    }
+
+    .eq-main-tabs .nav-link:hover {
+        color: #0059bb !important;
+        border-bottom-color: #0059bb !important;
+    }
+
+    .eq-main-tabs .nav-link.active {
+        color: #0059bb !important;
+        border-bottom-color: #0059bb !important;
+        background: transparent !important;
+    }
+
+    .eq-main-body {
+        padding: 0 !important;
+    }
+
+    .tab-content .tab-pane {
+        padding: 20px;
+    }
+
+    /* Responsive adjustments */
+    @media (max-width: 768px) {
+        .eq-hero-title {
+            font-size: 20px;
+        }
+
+        .eq-main-tabs {
+            padding: 0 12px;
+        }
+
+        .eq-main-tabs .nav-link {
+            padding: 12px 8px !important;
+            font-size: 12px;
+        }
+    }
+</style>
 @endsection
 
 @section('content2')
@@ -22,9 +110,31 @@
     ?>
     <x-bread-crumb :items="$items"></x-bread-crumb>
 
-    <h2 class="p-4">
-        <i class="mdi mdi-notebook-check-outline"></i> Equipment Daily Log
-    </h2>
+    <!-- Hero Header -->
+    <div class="row mb-4 px-4 pt-4">
+        <div class="col-12">
+            <div class="card border-0 eq-hero-card">
+                <div class="card-body p-4">
+                    <div class="d-flex justify-content-between align-items-center flex-wrap" style="gap: 12px;">
+                        <div>
+                            <div class="eq-kicker mb-1">Equipment Monitoring</div>
+                            <h2 class="mb-1 eq-hero-title">
+                                <i class="mdi mdi-notebook-check-outline text-primary"></i>
+                                Equipment Daily Log
+                            </h2>
+                            <p class="text-muted mb-0">Record and monitor equipment readings</p>
+                        </div>
+                        <div class="d-flex align-items-center" style="gap: 8px;">
+                            <span class="badge badge-light border px-3 py-2">Frequency Based</span>
+                            <a href="{{ route('equipment-home') }}" class="btn btn-outline-secondary btn-sm">
+                                <i class="mdi mdi-arrow-left"></i> Back
+                            </a>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
 
     @php
         $freqLabels = [
@@ -46,36 +156,38 @@
     @endphp
 
     <div class="px-4 pb-4">
-        <!-- Frequency Tabs -->
-        <ul class="nav nav-tabs" id="freqTabs" role="tablist" style="border-bottom: 2px solid #dee2e6;">
-            @foreach($freqLabels as $freq => $label)
-            @php $count = isset($equipmentByFrequency[$freq]) ? $equipmentByFrequency[$freq]->count() : 0; @endphp
-            <li class="nav-item" role="presentation">
-                <a class="nav-link {{ $freq === $defaultTab ? 'active' : '' }}"
-                   id="freq-tab-{{ $freq }}"
-                   data-toggle="tab"
-                   href="#freq-pane-{{ $freq }}"
-                   role="tab"
-                   aria-controls="freq-pane-{{ $freq }}"
-                   aria-selected="{{ $freq === $defaultTab ? 'true' : 'false' }}">
-                    {{ $label }}
-                    <span class="badge {{ $count > 0 ? 'badge-primary' : 'badge-secondary' }} ml-1">{{ $count }}</span>
-                </a>
-            </li>
-            @endforeach
-        </ul>
+        <!-- Frequency Tabs Container -->
+        <div class="card shadow-sm border-0 eq-main-card">
+            <div class="card-header bg-light border-0 eq-main-header">
+                <ul class="nav nav-tabs eq-main-tabs" id="freqTabs" role="tablist">
+                    @foreach($freqLabels as $freq => $label)
+                    @php $count = isset($equipmentByFrequency[$freq]) ? $equipmentByFrequency[$freq]->count() : 0; @endphp
+                    <li class="nav-item" role="presentation">
+                        <button class="nav-link {{ $freq === $defaultTab ? 'active' : '' }}"
+                           id="freq-tab-{{ $freq }}"
+                           data-toggle="tab"
+                           data-target="#freq-pane-{{ $freq }}"
+                           type="button"
+                           role="tab"
+                           aria-controls="freq-pane-{{ $freq }}"
+                           aria-selected="{{ $freq === $defaultTab ? 'true' : 'false' }}">
+                            {{ $label }}
+                            <span class="badge {{ $count > 0 ? 'badge-primary' : 'badge-secondary' }} ml-2">{{ $count }}</span>
+                        </button>
+                    </li>
+                    @endforeach
+                </ul>
+            </div>
+            <div class="card-body eq-main-body p-0">
 
-        <!-- Tab Panes -->
-        <div class="tab-content" id="freqTabContent">
-            @foreach($freqLabels as $freq => $label)
-            @php $items2 = isset($equipmentByFrequency[$freq]) ? $equipmentByFrequency[$freq] : collect(); @endphp
-            <div class="tab-pane fade {{ $freq === $defaultTab ? 'show active' : '' }}"
-                 id="freq-pane-{{ $freq }}"
-                 role="tabpanel"
-                 aria-labelledby="freq-tab-{{ $freq }}">
-
-                <div class="card border-0 shadow-sm mt-0" style="border-top-left-radius:0; border-top-right-radius:0;">
-                    <div class="card-body p-0">
+                <!-- Tab Panes -->
+                <div class="tab-content" id="freqTabContent">
+                    @foreach($freqLabels as $freq => $label)
+                    @php $items2 = isset($equipmentByFrequency[$freq]) ? $equipmentByFrequency[$freq] : collect(); @endphp
+                    <div class="tab-pane fade {{ $freq === $defaultTab ? 'show active' : '' }}"
+                         id="freq-pane-{{ $freq }}"
+                         role="tabpanel"
+                         aria-labelledby="freq-tab-{{ $freq }}">
                         @if($items2->isEmpty())
                         <div class="text-center text-muted py-5">
                             <i class="mdi mdi-information-outline" style="font-size:2rem;"></i>
@@ -150,12 +262,100 @@
                         </div>
                         @endif
                     </div>
+                    @endforeach
                 </div>
             </div>
-            @endforeach
         </div>
     </div>
 </main>
+
+<style>
+    /* Equipment Daily Log View Styling */
+    .eq-hero-card {
+        background: linear-gradient(135deg, #ffffff 0%, #f8f9ff 100%);
+        border-radius: 16px !important;
+        box-shadow: 0 2px 8px rgba(0, 89, 187, 0.08) !important;
+    }
+
+    .eq-kicker {
+        font-size: 12px;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+        color: #9ca3af;
+        font-weight: 600;
+    }
+
+    .eq-hero-title {
+        font-size: 28px;
+        font-weight: 700;
+        color: #1f2937;
+        line-height: 1.3;
+    }
+
+    .eq-main-card {
+        background: #ffffff;
+        border-radius: 16px !important;
+        border: 1px solid #e5e7eb !important;
+        overflow: hidden;
+    }
+
+    .eq-main-header {
+        background: #f9fafb !important;
+        border-bottom: 1px solid #e5e7eb !important;
+        padding: 0 !important;
+    }
+
+    .eq-main-tabs {
+        border: none !important;
+        margin: 0;
+        padding: 0 20px;
+    }
+
+    .eq-main-tabs .nav-link {
+        color: #6b7280 !important;
+        border: none !important;
+        border-bottom: 3px solid transparent !important;
+        padding: 16px 12px !important;
+        font-weight: 500;
+        font-size: 14px;
+        transition: all 0.3s ease;
+    }
+
+    .eq-main-tabs .nav-link:hover {
+        color: #0059bb !important;
+        border-bottom-color: #0059bb !important;
+    }
+
+    .eq-main-tabs .nav-link.active {
+        color: #0059bb !important;
+        border-bottom-color: #0059bb !important;
+        background: transparent !important;
+    }
+
+    .eq-main-body {
+        padding: 0 !important;
+    }
+
+    .tab-content .tab-pane {
+        padding: 20px;
+    }
+
+    /* Responsive adjustments */
+    @media (max-width: 768px) {
+        .eq-hero-title {
+            font-size: 20px;
+        }
+
+        .eq-main-tabs {
+            padding: 0 12px;
+        }
+
+        .eq-main-tabs .nav-link {
+            padding: 12px 8px !important;
+            font-size: 12px;
+        }
+    }
+</style>
 @endsection
 
 @section('script2')
@@ -184,6 +384,96 @@ $(document).ready(function () {
     });
 });
 </script>
+
+<style>
+    /* Equipment Daily Log View Styling */
+    .eq-hero-card {
+        background: linear-gradient(135deg, #ffffff 0%, #f8f9ff 100%);
+        border-radius: 16px !important;
+        box-shadow: 0 2px 8px rgba(0, 89, 187, 0.08) !important;
+    }
+
+    .eq-kicker {
+        font-size: 12px;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+        color: #9ca3af;
+        font-weight: 600;
+    }
+
+    .eq-hero-title {
+        font-size: 28px;
+        font-weight: 700;
+        color: #1f2937;
+        line-height: 1.3;
+    }
+
+    .eq-main-card {
+        background: #ffffff;
+        border-radius: 16px !important;
+        border: 1px solid #e5e7eb !important;
+        overflow: hidden;
+    }
+
+    .eq-main-header {
+        background: #f9fafb !important;
+        border-bottom: 1px solid #e5e7eb !important;
+        padding: 0 !important;
+    }
+
+    .eq-main-tabs {
+        border: none !important;
+        margin: 0;
+        padding: 0 20px;
+    }
+
+    .eq-main-tabs .nav-link {
+        color: #6b7280 !important;
+        border: none !important;
+        border-bottom: 3px solid transparent !important;
+        padding: 16px 12px !important;
+        font-weight: 500;
+        font-size: 14px;
+        transition: all 0.3s ease;
+    }
+
+    .eq-main-tabs .nav-link:hover {
+        color: #0059bb !important;
+        border-bottom-color: #0059bb !important;
+    }
+
+    .eq-main-tabs .nav-link.active {
+        color: #0059bb !important;
+        border-bottom-color: #0059bb !important;
+        background: transparent !important;
+    }
+
+    .eq-main-body {
+        padding: 0 !important;
+    }
+
+    .tab-content .tab-pane {
+        padding: 20px;
+    }
+
+    /* Responsive adjustments */
+    @media (max-width: 768px) {
+        .eq-hero-title {
+            font-size: 20px;
+        }
+
+        .eq-main-tabs {
+            padding: 0 12px;
+        }
+
+        .eq-main-tabs .nav-link {
+            padding: 12px 8px !important;
+            font-size: 12px;
+        }
+    }
+</style>
 @endsection
 
 
+
+<!-- Removed duplicate - CSS already added above in main content -->
