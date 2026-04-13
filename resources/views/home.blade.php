@@ -37,7 +37,7 @@
         left: 0;
         width: 100%;
         height: 100%;
-        background: 
+        background:
             radial-gradient(circle at 20% 80%, rgba(120, 119, 198, 0.1) 0%, transparent 50%),
             radial-gradient(circle at 80% 20%, rgba(255, 119, 198, 0.1) 0%, transparent 50%),
             radial-gradient(circle at 40% 40%, rgba(120, 219, 255, 0.08) 0%, transparent 50%);
@@ -46,9 +46,19 @@
     }
 
     @keyframes backgroundShift {
-        0%, 100% { transform: translateX(0) translateY(0) rotate(0deg); }
-        33% { transform: translateX(-30px) translateY(-30px) rotate(1deg); }
-        66% { transform: translateX(30px) translateY(30px) rotate(-1deg); }
+
+        0%,
+        100% {
+            transform: translateX(0) translateY(0) rotate(0deg);
+        }
+
+        33% {
+            transform: translateX(-30px) translateY(-30px) rotate(1deg);
+        }
+
+        66% {
+            transform: translateX(30px) translateY(30px) rotate(-1deg);
+        }
     }
 
     .floating-particles {
@@ -67,8 +77,17 @@
     }
 
     @keyframes float {
-        0%, 100% { transform: translateY(0px) rotate(0deg); opacity: 0.7; }
-        50% { transform: translateY(-20px) rotate(180deg); opacity: 1; }
+
+        0%,
+        100% {
+            transform: translateY(0px) rotate(0deg);
+            opacity: 0.7;
+        }
+
+        50% {
+            transform: translateY(-20px) rotate(180deg);
+            opacity: 1;
+        }
     }
 
     .welcome-section {
@@ -77,7 +96,8 @@
         text-align: center;
         padding: 4rem 0 2rem 0;
         animation: fadeInUp 1s ease-out;
-        margin-top: 60px; /* Account for navbar height */
+        margin-top: 60px;
+        /* Account for navbar height */
     }
 
     @keyframes fadeInUp {
@@ -85,6 +105,7 @@
             opacity: 0;
             transform: translateY(30px);
         }
+
         to {
             opacity: 1;
             transform: translateY(0);
@@ -113,8 +134,15 @@
     }
 
     @keyframes logoFloat {
-        0%, 100% { transform: translateY(0px); }
-        50% { transform: translateY(-10px); }
+
+        0%,
+        100% {
+            transform: translateY(0px);
+        }
+
+        50% {
+            transform: translateY(-10px);
+        }
     }
 
     .company-logo img {
@@ -145,6 +173,7 @@
             opacity: 0;
             transform: translateX(-50px);
         }
+
         to {
             opacity: 1;
             transform: translateX(0);
@@ -156,6 +185,7 @@
             opacity: 0;
             transform: translateX(50px);
         }
+
         to {
             opacity: 1;
             transform: translateX(0);
@@ -338,8 +368,13 @@
     }
 
     @keyframes spin {
-        0% { transform: rotate(0deg); }
-        100% { transform: rotate(360deg); }
+        0% {
+            transform: rotate(0deg);
+        }
+
+        100% {
+            transform: rotate(360deg);
+        }
     }
 
     .loading-text {
@@ -352,8 +387,15 @@
     }
 
     @keyframes pulse {
-        0%, 100% { opacity: 0.7; }
-        50% { opacity: 1; }
+
+        0%,
+        100% {
+            opacity: 0.7;
+        }
+
+        50% {
+            opacity: 1;
+        }
     }
 
     /* Responsive Design */
@@ -363,30 +405,30 @@
             gap: 1.2rem;
             padding: 0 1.5rem 1.5rem 1.5rem;
         }
-        
+
         .app-card {
             padding: 1.2rem;
         }
-        
+
         .app-icon {
             width: 50px;
             height: 50px;
             font-size: 1.8rem;
         }
-        
+
         .app-title {
             font-size: 0.9rem;
         }
-        
+
         .company-logo {
             width: 100px;
             height: 100px;
         }
-        
+
         .welcome-text {
             font-size: 2.2rem;
         }
-        
+
         .welcome-subtitle {
             font-size: 1.1rem;
         }
@@ -398,25 +440,25 @@
             gap: 1rem;
             padding: 0 1rem;
         }
-        
+
         .app-card {
             padding: 1.2rem;
         }
-        
+
         .app-icon {
             width: 45px;
             height: 45px;
             font-size: 1.6rem;
         }
-        
+
         .app-title {
             font-size: 0.85rem;
         }
-        
+
         .welcome-text {
             font-size: 1.8rem;
         }
-        
+
         .company-logo {
             width: 80px;
             height: 80px;
@@ -450,7 +492,7 @@
 <div class="landing-container" id="landingContainer" style="display: none;">
     <div class="animated-background"></div>
     <div class="floating-particles" id="particlesContainer"></div>
-    
+
     <div class="user-menu">
         <div class="dropdown">
             <button type="button" class="user-button dropdown-toggle" data-toggle="dropdown">
@@ -473,7 +515,7 @@
 
     <div class="welcome-section">
         <div class="company-logo">
-            <?php $active = getActiveCompany()?>
+            <?php $active = getActiveCompany() ?>
             <img src="{{$active->logo}}" alt="Company Logo" />
         </div>
         <h1 class="welcome-text">Welcome to IMARA LIMS</h1>
@@ -619,113 +661,113 @@
 
 @section('script')
 <script>
-document.addEventListener('DOMContentLoaded', function() {
-    // Initialize the landing page
-    initializeLandingPage();
-    
-    // Create floating particles
-    createFloatingParticles();
-    
-    // Add app card interactions
-    addAppCardInteractions();
-    
-    // Add smooth transitions
-    addSmoothTransitions();
-});
+    document.addEventListener('DOMContentLoaded', function() {
+        // Initialize the landing page
+        initializeLandingPage();
 
-function initializeLandingPage() {
-    // Hide loading overlay and show landing page
-    setTimeout(() => {
-        document.getElementById('loadingOverlay').style.opacity = '0';
-        setTimeout(() => {
-            document.getElementById('loadingOverlay').style.display = 'none';
-            document.getElementById('landingContainer').style.display = 'block';
-            
-            // Trigger entrance animations
-            triggerEntranceAnimations();
-        }, 500);
-    }, 2000);
-}
+        // Create floating particles
+        createFloatingParticles();
 
-function createFloatingParticles() {
-    const particlesContainer = document.getElementById('particlesContainer');
-    const particleCount = 50;
-    
-    for (let i = 0; i < particleCount; i++) {
-        const particle = document.createElement('div');
-        particle.className = 'particle';
-        
-        // Random size between 2px and 6px
-        const size = Math.random() * 4 + 2;
-        particle.style.width = size + 'px';
-        particle.style.height = size + 'px';
-        
-        // Random position
-        particle.style.left = Math.random() * 100 + '%';
-        particle.style.top = Math.random() * 100 + '%';
-        
-        // Random animation delay
-        particle.style.animationDelay = Math.random() * 6 + 's';
-        particle.style.animationDuration = (Math.random() * 3 + 3) + 's';
-        
-        particlesContainer.appendChild(particle);
-    }
-}
+        // Add app card interactions
+        addAppCardInteractions();
 
-function addAppCardInteractions() {
-    const appCards = document.querySelectorAll('.app-card');
-    
-    appCards.forEach((card, index) => {
-        // Staggered entrance animation
-        card.style.animationDelay = (index * 0.1) + 's';
-        
-        // Add hover sound effect (optional)
-        card.addEventListener('mouseenter', function() {
-            this.style.transform = 'translateY(-10px) scale(1.02)';
-        });
-        
-        card.addEventListener('mouseleave', function() {
-            this.style.transform = 'translateY(0) scale(1)';
-        });
-        
-        // Add click animation
-        card.addEventListener('click', function(e) {
-            // Create ripple effect
-            createRippleEffect(e, this);
-        });
+        // Add smooth transitions
+        addSmoothTransitions();
     });
-}
 
-function createRippleEffect(event, element) {
-    const ripple = document.createElement('span');
-    const rect = element.getBoundingClientRect();
-    const size = Math.max(rect.width, rect.height);
-    const x = event.clientX - rect.left - size / 2;
-    const y = event.clientY - rect.top - size / 2;
-    
-    ripple.style.width = ripple.style.height = size + 'px';
-    ripple.style.left = x + 'px';
-    ripple.style.top = y + 'px';
-    ripple.style.position = 'absolute';
-    ripple.style.borderRadius = '50%';
-    ripple.style.background = 'rgba(255, 255, 255, 0.3)';
-    ripple.style.transform = 'scale(0)';
-    ripple.style.animation = 'ripple 0.6s linear';
-    ripple.style.pointerEvents = 'none';
-    
-    element.style.position = 'relative';
-    element.style.overflow = 'hidden';
-    element.appendChild(ripple);
-    
-    setTimeout(() => {
-        ripple.remove();
-    }, 600);
-}
+    function initializeLandingPage() {
+        // Hide loading overlay and show landing page
+        setTimeout(() => {
+            document.getElementById('loadingOverlay').style.opacity = '0';
+            setTimeout(() => {
+                document.getElementById('loadingOverlay').style.display = 'none';
+                document.getElementById('landingContainer').style.display = 'block';
 
-function addSmoothTransitions() {
-    // Add CSS for ripple animation
-    const style = document.createElement('style');
-    style.textContent = `
+                // Trigger entrance animations
+                triggerEntranceAnimations();
+            }, 500);
+        }, 2000);
+    }
+
+    function createFloatingParticles() {
+        const particlesContainer = document.getElementById('particlesContainer');
+        const particleCount = 50;
+
+        for (let i = 0; i < particleCount; i++) {
+            const particle = document.createElement('div');
+            particle.className = 'particle';
+
+            // Random size between 2px and 6px
+            const size = Math.random() * 4 + 2;
+            particle.style.width = size + 'px';
+            particle.style.height = size + 'px';
+
+            // Random position
+            particle.style.left = Math.random() * 100 + '%';
+            particle.style.top = Math.random() * 100 + '%';
+
+            // Random animation delay
+            particle.style.animationDelay = Math.random() * 6 + 's';
+            particle.style.animationDuration = (Math.random() * 3 + 3) + 's';
+
+            particlesContainer.appendChild(particle);
+        }
+    }
+
+    function addAppCardInteractions() {
+        const appCards = document.querySelectorAll('.app-card');
+
+        appCards.forEach((card, index) => {
+            // Staggered entrance animation
+            card.style.animationDelay = (index * 0.1) + 's';
+
+            // Add hover sound effect (optional)
+            card.addEventListener('mouseenter', function() {
+                this.style.transform = 'translateY(-10px) scale(1.02)';
+            });
+
+            card.addEventListener('mouseleave', function() {
+                this.style.transform = 'translateY(0) scale(1)';
+            });
+
+            // Add click animation
+            card.addEventListener('click', function(e) {
+                // Create ripple effect
+                createRippleEffect(e, this);
+            });
+        });
+    }
+
+    function createRippleEffect(event, element) {
+        const ripple = document.createElement('span');
+        const rect = element.getBoundingClientRect();
+        const size = Math.max(rect.width, rect.height);
+        const x = event.clientX - rect.left - size / 2;
+        const y = event.clientY - rect.top - size / 2;
+
+        ripple.style.width = ripple.style.height = size + 'px';
+        ripple.style.left = x + 'px';
+        ripple.style.top = y + 'px';
+        ripple.style.position = 'absolute';
+        ripple.style.borderRadius = '50%';
+        ripple.style.background = 'rgba(255, 255, 255, 0.3)';
+        ripple.style.transform = 'scale(0)';
+        ripple.style.animation = 'ripple 0.6s linear';
+        ripple.style.pointerEvents = 'none';
+
+        element.style.position = 'relative';
+        element.style.overflow = 'hidden';
+        element.appendChild(ripple);
+
+        setTimeout(() => {
+            ripple.remove();
+        }, 600);
+    }
+
+    function addSmoothTransitions() {
+        // Add CSS for ripple animation
+        const style = document.createElement('style');
+        style.textContent = `
         @keyframes ripple {
             to {
                 transform: scale(4);
@@ -748,79 +790,79 @@ function addSmoothTransitions() {
             }
         }
     `;
-    document.head.appendChild(style);
-}
-
-function triggerEntranceAnimations() {
-    // Animate welcome section
-    const welcomeSection = document.querySelector('.welcome-section');
-    if (welcomeSection) {
-        welcomeSection.style.animation = 'fadeInUp 1s ease-out';
+        document.head.appendChild(style);
     }
-    
-    // Animate app cards with stagger
-    const appCards = document.querySelectorAll('.app-card');
-    appCards.forEach((card, index) => {
-        setTimeout(() => {
-            card.style.opacity = '1';
-            card.style.transform = 'translateY(0)';
-        }, index * 100);
-    });
-}
 
-// Add keyboard navigation
-document.addEventListener('keydown', function(e) {
-    if (e.key === 'Escape') {
-        // Add any escape key functionality
-        console.log('Escape pressed');
-    }
-});
-
-// Add touch gestures for mobile
-let touchStartY = 0;
-let touchEndY = 0;
-
-document.addEventListener('touchstart', function(e) {
-    touchStartY = e.changedTouches[0].screenY;
-});
-
-document.addEventListener('touchend', function(e) {
-    touchEndY = e.changedTouches[0].screenY;
-    handleSwipe();
-});
-
-function handleSwipe() {
-    const swipeThreshold = 50;
-    const diff = touchStartY - touchEndY;
-    
-    if (Math.abs(diff) > swipeThreshold) {
-        if (diff > 0) {
-            // Swipe up
-            console.log('Swipe up detected');
-        } else {
-            // Swipe down
-            console.log('Swipe down detected');
+    function triggerEntranceAnimations() {
+        // Animate welcome section
+        const welcomeSection = document.querySelector('.welcome-section');
+        if (welcomeSection) {
+            welcomeSection.style.animation = 'fadeInUp 1s ease-out';
         }
+
+        // Animate app cards with stagger
+        const appCards = document.querySelectorAll('.app-card');
+        appCards.forEach((card, index) => {
+            setTimeout(() => {
+                card.style.opacity = '1';
+                card.style.transform = 'translateY(0)';
+            }, index * 100);
+        });
     }
-}
 
-// Performance optimization: Intersection Observer for animations
-const observerOptions = {
-    threshold: 0.1,
-    rootMargin: '0px 0px -50px 0px'
-};
-
-const observer = new IntersectionObserver((entries) => {
-    entries.forEach(entry => {
-        if (entry.isIntersecting) {
-            entry.target.style.animationPlayState = 'running';
+    // Add keyboard navigation
+    document.addEventListener('keydown', function(e) {
+        if (e.key === 'Escape') {
+            // Add any escape key functionality
+            console.log('Escape pressed');
         }
     });
-}, observerOptions);
 
-// Observe all app cards
-document.querySelectorAll('.app-card').forEach(card => {
-    observer.observe(card);
-});
+    // Add touch gestures for mobile
+    let touchStartY = 0;
+    let touchEndY = 0;
+
+    document.addEventListener('touchstart', function(e) {
+        touchStartY = e.changedTouches[0].screenY;
+    });
+
+    document.addEventListener('touchend', function(e) {
+        touchEndY = e.changedTouches[0].screenY;
+        handleSwipe();
+    });
+
+    function handleSwipe() {
+        const swipeThreshold = 50;
+        const diff = touchStartY - touchEndY;
+
+        if (Math.abs(diff) > swipeThreshold) {
+            if (diff > 0) {
+                // Swipe up
+                console.log('Swipe up detected');
+            } else {
+                // Swipe down
+                console.log('Swipe down detected');
+            }
+        }
+    }
+
+    // Performance optimization: Intersection Observer for animations
+    const observerOptions = {
+        threshold: 0.1,
+        rootMargin: '0px 0px -50px 0px'
+    };
+
+    const observer = new IntersectionObserver((entries) => {
+        entries.forEach(entry => {
+            if (entry.isIntersecting) {
+                entry.target.style.animationPlayState = 'running';
+            }
+        });
+    }, observerOptions);
+
+    // Observe all app cards
+    document.querySelectorAll('.app-card').forEach(card => {
+        observer.observe(card);
+    });
 </script>
 @endsection

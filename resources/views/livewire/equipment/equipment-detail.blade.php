@@ -1,22 +1,24 @@
-<div class="container-fluid">
+<div class="container-fluid eq-view-page">
     <!-- Header -->
     <div class="row mb-4">
         <div class="col-12">
-            <div class="card shadow-sm border-0" style="border-radius: 15px;">
+            <div class="card border-0 eq-hero-card">
                 <div class="card-body p-4">
-                    <div class="d-flex justify-content-between align-items-center">
+                    <div class="d-flex justify-content-between align-items-center flex-wrap" style="gap: 12px;">
                         <div>
-                            <h2 class="mb-0">
+                            <div class="eq-kicker mb-1">Equipment Management</div>
+                            <h2 class="mb-1 eq-hero-title">
                                 <i class="mdi mdi-tools text-primary"></i>
                                 {{ $equipment->name ?? 'Equipment' }}
                             </h2>
                             <p class="text-muted mb-0">Equipment Details and Management</p>
                         </div>
-                        <div>
-                            <button wire:click="showEditEquipmentModal" class="btn btn-primary btn-sm me-2">
+                        <div class="d-flex align-items-center" style="gap: 8px;">
+                            <span class="badge badge-light border px-3 py-2">{{ $equipment->equipment_number }}</span>
+                            <button wire:click="showEditEquipmentModal" class="btn btn-primary btn-sm">
                                 <i class="mdi mdi-pencil"></i> Edit
                             </button>
-                            <a href="{{ route('equipment-home') }}" class="btn btn-secondary btn-sm">
+                            <a href="{{ route('equipment-home') }}" class="btn btn-outline-secondary btn-sm">
                                 <i class="mdi mdi-arrow-left"></i> Back
                             </a>
                         </div>
@@ -37,10 +39,9 @@
     <div class="row">
         <!-- Sidebar -->
         <div class="col-md-3">
-            <div class="card shadow-lg border-0" style="border-radius: 20px; overflow: hidden;">
+            <div class="card shadow-sm border-0 eq-side-card">
                 <!-- Card Header with Gradient -->
-                <div class="card-header text-white text-center py-4" 
-                     style="background: linear-gradient(135deg, #6c757d 0%, #495057 100%); border: none;">
+                <div class="card-header text-white text-center py-4 eq-side-header">
                     <div class="equipment-image-wrapper mb-3">
                         @if($equipment->picture && $equipment->picture != '/images/placeholder.png' && file_exists(public_path($equipment->picture)))
                             <img src="{{ $equipment->picture }}" 
@@ -167,9 +168,10 @@
 
         <!-- Main Content -->
         <div class="col-md-9">
-            <div class="card shadow-sm border-0" style="border-radius: 15px;">
-                <div class="card-header bg-light border-0" style="border-radius: 15px 15px 0 0;">
-                    <ul class="nav nav-tabs">
+            <div class="card shadow-sm border-0 eq-main-card">
+                <div class="card-header bg-light border-0 eq-main-header">
+                    <ul class="nav nav-tabs eq-main-tabs">
+                        @if(!$fromDailyLog)
                         <li class="nav-item">
                             <button class="nav-link {{ $activeTab === 'maintenance' ? 'active' : '' }}" 
                                     wire:click="setActiveTab('maintenance')" type="button">
@@ -206,9 +208,18 @@
                                 Notifications
                             </button>
                         </li>
+                        @endif
+                        @if($equipment->requires_daily_log)
+                        <li class="nav-item">
+                            <button class="nav-link {{ $activeTab === 'dailylog' ? 'active' : '' }}" 
+                                    wire:click="setActiveTab('dailylog')" type="button">
+                                <i class="mdi mdi-notebook-check-outline"></i> Daily Log Config
+                            </button>
+                        </li>
+                        @endif
                     </ul>
                 </div>
-                <div class="card-body">
+                <div class="card-body eq-main-body">
                     <!-- Maintenance Log Tab -->
                     @if($activeTab === 'maintenance')
                         <div class="d-flex justify-content-between align-items-center mb-3">
@@ -666,6 +677,210 @@
                             </table>
                         </div>
                     @endif
+
+                    <!-- Daily Log Configuration Tab -->
+                    @if($activeTab === 'dailylog' && $equipment->requires_daily_log)
+                        <div class="d-flex justify-content-between align-items-center mb-3">
+                            <h5 class="mb-0"><i class="mdi mdi-notebook-check-outline"></i> Daily Log Configuration</h5>
+                            <button wire:click="showEditEquipmentModal" class="btn btn-primary btn-sm">
+                                <i class="mdi mdi-pencil"></i> Edit Configuration
+                            </button>
+                        </div>
+                        @php
+                            $dlNatureLabel = match($equipment->daily_log_nature) {
+                                'qualitative'  => 'Qualitative',
+                                'quantitative' => 'Quantitative',
+                                default        => '-',
+                            };
+                            $dlTypeLabel = match($equipment->daily_log_value_type) {
+                                'constant' => 'Constant',
+                                'range'    => 'Range',
+                                default    => '-',
+                            };
+                        @endphp
+                        <div class="row">
+                            <div class="col-md-6">
+                                <table class="table table-sm table-borderless">
+                                    <tr>
+                                        <th class="text-muted" style="width:50%">Value Type</th>
+                                        <td>
+                                            <span class="badge badge-info">{{ $dlTypeLabel }}</span>
+                                        </td>
+                                    </tr>
+                                    <tr>
+                                        <th class="text-muted">Nature of Results</th>
+                                        <td>
+                                            <span class="badge badge-secondary">{{ $dlNatureLabel }}</span>
+                                        </td>
+                                    </tr>
+                                    <tr>
+                                        <th class="text-muted">Reporting Unit</th>
+                                        <td>{{ $equipment->daily_log_reporting_unit ?: '-' }}</td>
+                                    </tr>
+                                    @php
+                                        $freqLabels = [1=>'Once a day',2=>'Twice a day',3=>'Three times a day',4=>'Four times a day',5=>'Five times a day',6=>'Six times a day'];
+                                        $equipFreq = $equipment->daily_log_frequency ?? 1;
+                                    @endphp
+                                    <tr>
+                                        <th class="text-muted">Logging Frequency</th>
+                                        <td>{{ $freqLabels[$equipFreq] ?? 'Once a day' }}</td>
+                                    </tr>
+                                    @if($equipFreq >= 2)
+                                    <tr>
+                                        <th class="text-muted">Time Interval</th>
+                                        <td>Every {{ $equipment->daily_log_time_interval }} hours</td>
+                                    </tr>
+                                    @endif
+                                    @if($equipment->daily_log_value_type === 'constant')
+                                    <tr>
+                                        <th class="text-muted">Expected Value</th>
+                                        <td>
+                                            {{ $equipment->daily_log_expected_value ?: '-' }}
+                                            @if($equipment->daily_log_reporting_unit)
+                                                <small class="text-muted"> {{ $equipment->daily_log_reporting_unit }}</small>
+                                            @endif
+                                        </td>
+                                    </tr>
+                                    @if($equipment->daily_log_nature === 'quantitative')
+                                    <tr>
+                                        <th class="text-muted">Tolerance</th>
+                                        <td>
+                                            @if($equipment->daily_log_tolerance)
+                                                &plusmn;{{ $equipment->daily_log_tolerance }}%
+                                            @else
+                                                -
+                                            @endif
+                                        </td>
+                                    </tr>
+                                    @endif
+                                    @endif
+                                    @if($equipment->daily_log_value_type === 'range')
+                                    <tr>
+                                        <th class="text-muted">Acceptable Range</th>
+                                        <td>
+                                            {{ $equipment->daily_log_expected_min }} &ndash; {{ $equipment->daily_log_expected_max }}
+                                            @if($equipment->daily_log_reporting_unit)
+                                                <small class="text-muted"> {{ $equipment->daily_log_reporting_unit }}</small>
+                                            @endif
+                                        </td>
+                                    </tr>
+                                    @endif
+                                </table>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="alert alert-info" style="border-left: 4px solid #17a2b8;">
+                                    <p class="mb-1"><strong><i class="mdi mdi-information-outline"></i> Summary</strong></p>
+                                    @if($equipment->daily_log_value_type === 'constant' && $equipment->daily_log_nature === 'qualitative')
+                                        <p class="mb-0 small">This equipment requires a <strong>qualitative</strong> daily check. The expected result is <strong>"{{ $equipment->daily_log_expected_value }}"</strong>.</p>
+                                    @elseif($equipment->daily_log_value_type === 'constant' && $equipment->daily_log_nature === 'quantitative')
+                                        <p class="mb-0 small">This equipment requires a <strong>quantitative</strong> daily reading. Expected value: <strong>{{ $equipment->daily_log_expected_value }}{{ $equipment->daily_log_reporting_unit ? ' ' . $equipment->daily_log_reporting_unit : '' }}</strong>
+                                        @if($equipment->daily_log_tolerance), with a tolerance of &plusmn;{{ $equipment->daily_log_tolerance }}%@endif.</p>
+                                    @elseif($equipment->daily_log_value_type === 'range')
+                                        <p class="mb-0 small">This equipment requires a daily reading within the range <strong>{{ $equipment->daily_log_expected_min }} &ndash; {{ $equipment->daily_log_expected_max }}{{ $equipment->daily_log_reporting_unit ? ' ' . $equipment->daily_log_reporting_unit : '' }}</strong>.</p>
+                                    @else
+                                        <p class="mb-0 small">Configuration is incomplete. Click <strong>Edit Configuration</strong> to set up daily log parameters.</p>
+                                    @endif
+                                </div>
+                            </div>
+                        </div>
+
+                        {{-- ── Performance Chart ──────────────────────────────────────────── --}}
+                        @if($equipment->daily_log_value_type === 'range' || $equipment->daily_log_nature === 'quantitative')
+                            <script id="dl-chart-data" type="application/json">@json($this->dailyLogChartData)</script>
+                            <hr>
+                            <h6 class="mt-3 mb-2"><i class="mdi mdi-chart-line"></i> Performance Over Time <small class="text-muted">(last 60 days)</small></h6>
+                            @if(empty(($this->dailyLogChartData)['labels'] ?? []))
+                                <div class="alert alert-light py-2 text-muted small">
+                                    <i class="mdi mdi-information-outline"></i> No data recorded yet — entries will appear here once readings are saved.
+                                </div>
+                            @else
+                                <div wire:ignore>
+                                    <canvas id="dl-perf-chart" height="80"></canvas>
+                                </div>
+                            @endif
+                        @endif
+
+                        {{-- ── Non-Conformance Report ──────────────────────────────────────── --}}
+                        <hr>
+                        <div class="d-flex justify-content-between align-items-center mt-3 mb-2">
+                            <h6 class="mb-0">
+                                <i class="mdi mdi-alert-circle-outline text-danger"></i> Non-Conformance Report
+                            </h6>
+                            @if(!empty($this->nonConformanceReport))
+                                <button wire:click="exportNonConformanceReport" class="btn btn-sm btn-outline-success">
+                                    <i class="mdi mdi-file-excel-outline"></i> Export to Excel
+                                </button>
+                            @endif
+                        </div>
+                        <div class="row align-items-end mb-2">
+                            <div class="col-md-3">
+                                <label class="small text-muted mb-1">From Date</label>
+                                <input type="date" wire:model.live="nonConformanceFromDate" class="form-control form-control-sm">
+                            </div>
+                            <div class="col-md-3">
+                                <label class="small text-muted mb-1">To Date</label>
+                                <input type="date" wire:model.live="nonConformanceToDate" class="form-control form-control-sm">
+                            </div>
+                            <div class="col-md-2">
+                                <label class="small text-muted mb-1">Per Page</label>
+                                <select wire:model.live="nonConformancePerPage" class="form-control form-control-sm">
+                                    <option value="10">10</option>
+                                    <option value="25">25</option>
+                                    <option value="50">50</option>
+                                    <option value="100">100</option>
+                                </select>
+                            </div>
+                        </div>
+                        @if(empty($this->nonConformanceReport))
+                            <div class="alert alert-success py-2">
+                                <i class="mdi mdi-check-circle-outline"></i> No non-conformances recorded for this equipment.
+                            </div>
+                        @else
+                            <div class="table-responsive">
+                                <table class="table table-sm table-bordered table-hover">
+                                    <thead class="thead-light">
+                                        <tr>
+                                            <th>Date</th>
+                                            <th style="width:70px">Slot #</th>
+                                            <th>Recorded Value</th>
+                                            <th>Reason</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        @foreach($this->nonConformanceReportPage as $ncRow)
+                                        <tr>
+                                            <td>{{ $ncRow['date'] }}</td>
+                                            <td class="text-center">{{ $ncRow['slot'] }}</td>
+                                            <td><code>{{ $ncRow['recorded'] }}</code></td>
+                                            <td class="text-danger small">{{ $ncRow['reason'] }}</td>
+                                        </tr>
+                                        @endforeach
+                                    </tbody>
+                                </table>
+                            </div>
+                            <div class="d-flex justify-content-between align-items-center mt-2">
+                                <small class="text-muted">
+                                    Showing {{ count($this->nonConformanceReportPage) }} of {{ count($this->nonConformanceReport) }} non-conformance entries
+                                </small>
+                                <div class="btn-group btn-group-sm">
+                                    <button type="button" class="btn btn-outline-secondary"
+                                            wire:click="previousNonConformancePage"
+                                            @disabled($nonConformancePage <= 1)>
+                                        <i class="mdi mdi-chevron-left"></i>
+                                    </button>
+                                    <button type="button" class="btn btn-outline-secondary" disabled>
+                                        Page {{ $nonConformancePage }} of {{ $this->nonConformanceTotalPages }}
+                                    </button>
+                                    <button type="button" class="btn btn-outline-secondary"
+                                            wire:click="nextNonConformancePage"
+                                            @disabled($nonConformancePage >= $this->nonConformanceTotalPages)>
+                                        <i class="mdi mdi-chevron-right"></i>
+                                    </button>
+                                </div>
+                            </div>
+                        @endif
+
+                    @endif
                 </div>
             </div>
         </div>
@@ -676,12 +891,15 @@
         <div class="modal fade show d-block" tabindex="-1" style="background-color: rgba(0,0,0,0.5); overflow-y: auto;">
             <div class="modal-dialog modal-xl modal-dialog-scrollable">
                 <div class="modal-content">
-                    <div class="modal-header">
-                        <h5 class="modal-title"><i class="mdi mdi-pencil"></i> Edit Equipment</h5>
-                        <button type="button" class="btn-close" wire:click="$set('showEditModal', false)"></button>
+                    <div class="modal-header text-white" style="background-color: #001a41;">
+                        <h5 class="modal-title text-white"><i class="mdi mdi-pencil"></i> Edit Equipment</h5>
+                        <button type="button" class="btn-close btn-close-white" wire:click="$set('showEditModal', false)"></button>
                     </div>
-                    <div class="modal-body">
-                        <form wire:submit.prevent="saveEquipment">
+                    <div class="modal-body px-4 py-3">
+                        <form wire:submit.prevent="saveEquipment" class="eq-form">
+                            <div class="eq-section-header">
+                                <i class="mdi mdi-information-outline"></i> Basic Information
+                            </div>
                             <!-- Similar form fields as EquipmentManager but for editing -->
                             <div class="row">
                                 <div class="col-md-6">
@@ -700,6 +918,15 @@
                                 </div>
                             </div>
                             <div class="row">
+                                <div class="col-md-12">
+                                    <div class="form-group mb-3">
+                                        <label class="form-label">Description <span class="text-danger">*</span></label>
+                                        <textarea wire:model="equipmentForm.description" class="form-control" rows="2" required></textarea>
+                                        @error('equipmentForm.description') <span class="text-danger">{{ $message }}</span> @enderror
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="row">
                                 <div class="col-md-6">
                                     <div class="form-group mb-3">
                                         <label class="form-label">Photo</label>
@@ -710,15 +937,11 @@
                                         @error('photo') <span class="text-danger">{{ $message }}</span> @enderror
                                     </div>
                                 </div>
-                                <div class="col-md-6">
-                                    <div class="form-group mb-3">
-                                        <label class="form-label">Description <span class="text-danger">*</span></label>
-                                        <textarea wire:model="equipmentForm.description" class="form-control" rows="3" required></textarea>
-                                        @error('equipmentForm.description') <span class="text-danger">{{ $message }}</span> @enderror
-                                    </div>
-                                </div>
                             </div>
                             <!-- Add more fields similar to EquipmentManager -->
+                            <div class="eq-section-header mt-4">
+                                <i class="mdi mdi-cogs"></i> Specifications
+                            </div>
                             <div class="row">
                                 <div class="col-md-6">
                                     <div class="form-group mb-3">
@@ -734,46 +957,59 @@
                                 </div>
                             </div>
                             <div class="row">
-                                <div class="col-md-4">
+                                <div class="col-md-6">
                                     <div class="form-group mb-3">
                                         <label class="form-label">Serial Number</label>
                                         <input type="text" wire:model="equipmentForm.serial_number" class="form-control">
                                     </div>
                                 </div>
-                                <div class="col-md-4">
+                                <div class="col-md-6">
                                     <div class="form-group mb-3">
                                         <label class="form-label">Barcode Number</label>
                                         <input type="text" wire:model="equipmentForm.barcode_number" class="form-control">
                                     </div>
                                 </div>
-                                <div class="col-md-4">
+                            </div>
+                            <div class="row">
+                                <div class="col-md-6">
                                     <div class="form-group mb-3">
                                         <label class="form-label">Manufacturer</label>
                                         <input type="text" wire:model="equipmentForm.manufacturer" class="form-control">
                                     </div>
                                 </div>
                             </div>
+                            <div class="eq-section-header mt-4">
+                                <i class="mdi mdi-map-marker"></i> Assignment &amp; Location
+                            </div>
                             <div class="row">
-                                <div class="col-md-4">
+                                <div class="col-md-6">
                                     <div class="form-group mb-3">
                                         <label class="form-label">Status <span class="text-danger">*</span></label>
-                                        <select wire:model="equipmentForm.status" class="form-select" required>
+                                        <select wire:model="equipmentForm.status" class="form-control" required>
                                             @foreach($statuses as $status)
                                                 <option value="{{ $status }}">{{ $status }}</option>
                                             @endforeach
                                         </select>
                                     </div>
                                 </div>
-                                <div class="col-md-4">
+                                <div class="col-md-6">
                                     <div class="form-group mb-3">
                                         <label class="form-label">Condition <span class="text-danger">*</span></label>
                                         <input type="text" wire:model="equipmentForm.condition" class="form-control" required>
                                     </div>
                                 </div>
-                                <div class="col-md-4">
+                            </div>
+                            <div class="row">
+                                <div class="col-md-6">
                                     <div class="form-group mb-3">
                                         <label class="form-label">Warranty Date <span class="text-danger">*</span></label>
                                         <input type="date" wire:model="equipmentForm.warranty_date" class="form-control" required>
+                                    </div>
+                                </div>
+                                <div class="col-md-6">
+                                    <div class="form-group mb-3">
+                                        <label class="form-label">Date Purchased</label>
+                                        <input type="date" wire:model="equipmentForm.date_purchased" class="form-control">
                                     </div>
                                 </div>
                             </div>
@@ -781,7 +1017,7 @@
                                 <div class="col-md-6">
                                     <div class="form-group mb-3">
                                         <label class="form-label">Department <span class="text-danger">*</span></label>
-                                        <select wire:model="equipmentForm.assigned_department" class="form-select" required>
+                                        <select wire:model="equipmentForm.assigned_department" class="form-control" required>
                                             <option value="">Choose Department...</option>
                                             @foreach($departments as $department)
                                                 <option value="{{ $department->id }}">{{ $department->name }}</option>
@@ -792,7 +1028,7 @@
                                 <div class="col-md-6">
                                     <div class="form-group mb-3">
                                         <label class="form-label">Assigned Employee</label>
-                                        <select wire:model="equipmentForm.assigned_employee_id" class="form-select">
+                                        <select wire:model="equipmentForm.assigned_employee_id" class="form-control">
                                             <option value="">Choose Employee...</option>
                                             @foreach($employees as $employee)
                                                 <option value="{{ $employee->id }}">{{ $employee->name }}</option>
@@ -804,18 +1040,168 @@
                             <div class="row">
                                 <div class="col-md-6">
                                     <div class="form-group mb-3">
-                                        <label class="form-label">Date Purchased</label>
-                                        <input type="date" wire:model="equipmentForm.date_purchased" class="form-control">
+                                        <label class="form-label">Active</label>
+                                        <div class="d-flex align-items-center" style="height:38px;">
+                                            <div class="form-check">
+                                                <input type="checkbox" wire:model="equipmentForm.active" class="form-check-input" id="equipment_active">
+                                                <label class="form-check-label" for="equipment_active">Mark this equipment as active</label>
+                                            </div>
+                                        </div>
                                     </div>
                                 </div>
                                 <div class="col-md-6">
                                     <div class="form-group mb-3">
-                                        <div class="form-check mt-4">
-                                            <input type="checkbox" wire:model="equipmentForm.active" class="form-check-input" id="equipment_active">
-                                            <label class="form-check-label" for="equipment_active">Active</label>
+                                        <label class="form-label">Requires Daily Log</label>
+                                        <div class="d-flex align-items-center" style="height:38px;">
+                                            <div class="form-check">
+                                                <input type="checkbox" wire:model.live="equipmentForm.requires_daily_log" class="form-check-input" id="equipment_requires_daily_log">
+                                                <label class="form-check-label" for="equipment_requires_daily_log">Equipment appears on the Daily Log page</label>
+                                            </div>
                                         </div>
                                     </div>
                                 </div>
+                            </div>
+                            @if(!empty($equipmentForm['requires_daily_log']))
+                            @php $dlType = $equipmentForm['daily_log_value_type'] ?? ''; $dlNature = $equipmentForm['daily_log_nature'] ?? ''; $dlFreq = intval($equipmentForm['daily_log_frequency'] ?? 1); @endphp
+                            <div class="eq-section-header mt-4">
+                                <i class="mdi mdi-notebook-check-outline"></i> Daily Log Configuration
+                            </div>
+                            <div class="row">
+                                <div class="col-md-6">
+                                    <div class="form-group mb-3">
+                                        <label class="form-label">Logging Frequency <span class="text-danger">*</span></label>
+                                        <select wire:model.live="equipmentForm.daily_log_frequency" class="form-control">
+                                            <option value="1">Once a day</option>
+                                            <option value="2">Twice a day</option>
+                                            <option value="3">Three times a day</option>
+                                            <option value="4">Four times a day</option>
+                                            <option value="5">Five times a day</option>
+                                            <option value="6">Six times a day</option>
+                                        </select>
+                                        @error('equipmentForm.daily_log_frequency') <span class="text-danger">{{ $message }}</span> @enderror
+                                    </div>
+                                </div>
+                                @if($dlFreq >= 2)
+                                <div class="col-md-6">
+                                    <div class="form-group mb-3">
+                                        <label class="form-label">Time Interval (hours) <span class="text-danger">*</span></label>
+                                        <input type="number" wire:model="equipmentForm.daily_log_time_interval" class="form-control" min="1" placeholder="e.g. 4">
+                                        @error('equipmentForm.daily_log_time_interval') <span class="text-danger">{{ $message }}</span> @enderror
+                                        <small class="form-text text-muted">Number of hours between each reading.</small>
+                                    </div>
+                                </div>
+                                @endif
+                            </div>
+                            <div class="row">
+                                <div class="col-md-6">
+                                    <div class="form-group mb-3">
+                                        <label class="form-label">Value Type <span class="text-danger">*</span></label>
+                                        <select wire:model.live="equipmentForm.daily_log_value_type" class="form-control">
+                                            <option value="">-- Select --</option>
+                                            <option value="constant">Constant</option>
+                                            <option value="range">Range</option>
+                                        </select>
+                                        @error('equipmentForm.daily_log_value_type') <span class="text-danger">{{ $message }}</span> @enderror
+                                        <small class="form-text text-muted">Whether the expected value is a single constant or a range.</small>
+                                    </div>
+                                </div>
+                                <div class="col-md-6">
+                                    <div class="form-group mb-3">
+                                        <label class="form-label">Nature of Result <span class="text-danger">*</span></label>
+                                        <select wire:model.live="equipmentForm.daily_log_nature" class="form-control" {{ $dlType === 'range' ? 'disabled' : '' }}>
+                                            <option value="">-- Select --</option>
+                                            <option value="qualitative">Qualitative</option>
+                                            <option value="quantitative">Quantitative</option>
+                                        </select>
+                                        @error('equipmentForm.daily_log_nature') <span class="text-danger">{{ $message }}</span> @enderror
+                                        @if($dlType === 'range')
+                                            <small class="form-text text-muted"><i class="mdi mdi-information-outline"></i> Range values are always quantitative.</small>
+                                        @endif
+                                    </div>
+                                </div>
+                            </div>
+                            {{-- Constant + Qualitative: text expected value --}}
+                            @if($dlType === 'constant' && $dlNature === 'qualitative')
+                            <div class="row">
+                                <div class="col-md-6">
+                                    <div class="form-group mb-3">
+                                        <label class="form-label">Expected Value <span class="text-danger">*</span></label>
+                                        <input type="text" wire:model="equipmentForm.daily_log_expected_value" class="form-control" placeholder="e.g. Pass, Clear, Present">
+                                        @error('equipmentForm.daily_log_expected_value') <span class="text-danger">{{ $message }}</span> @enderror
+                                    </div>
+                                </div>
+                            </div>
+                            @endif
+                            {{-- Constant + Quantitative: numeric expected value + tolerance --}}
+                            @if($dlType === 'constant' && $dlNature === 'quantitative')
+                            <div class="row">
+                                <div class="col-md-6">
+                                    <div class="form-group mb-3">
+                                        <label class="form-label">Expected Value <span class="text-danger">*</span></label>
+                                        <input type="number" wire:model="equipmentForm.daily_log_expected_value" class="form-control" step="any" placeholder="e.g. 7.0">
+                                        @error('equipmentForm.daily_log_expected_value') <span class="text-danger">{{ $message }}</span> @enderror
+                                    </div>
+                                </div>
+                                <div class="col-md-6">
+                                    <div class="form-group mb-3">
+                                        <label class="form-label">Tolerance (&plusmn;) <span class="text-danger">*</span></label>
+                                        <input type="number" wire:model="equipmentForm.daily_log_tolerance" class="form-control" min="1" max="100" placeholder="e.g. 2">
+                                        @error('equipmentForm.daily_log_tolerance') <span class="text-danger">{{ $message }}</span> @enderror
+                                        <small class="form-text text-muted">Acceptable deviation from the expected value (e.g. &plusmn;2).</small>
+                                    </div>
+                                </div>
+                            </div>
+                            @endif
+                            {{-- Range + Quantitative: min, max and tolerance --}}
+                            @if($dlType === 'range' && $dlNature === 'quantitative')
+                            <div class="row">
+                                <div class="col-md-6">
+                                    <div class="form-group mb-3">
+                                        <label class="form-label">Minimum Value <span class="text-danger">*</span></label>
+                                        <input type="number" wire:model="equipmentForm.daily_log_expected_min" class="form-control" step="any" placeholder="e.g. 6.5">
+                                        @error('equipmentForm.daily_log_expected_min') <span class="text-danger">{{ $message }}</span> @enderror
+                                    </div>
+                                </div>
+                                <div class="col-md-6">
+                                    <div class="form-group mb-3">
+                                        <label class="form-label">Maximum Value <span class="text-danger">*</span></label>
+                                        <input type="number" wire:model="equipmentForm.daily_log_expected_max" class="form-control" step="any" placeholder="e.g. 7.5">
+                                        @error('equipmentForm.daily_log_expected_max') <span class="text-danger">{{ $message }}</span> @enderror
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="row">
+                                <div class="col-md-6">
+                                    <div class="form-group mb-3">
+                                        <label class="form-label">Tolerance (&plusmn;) <span class="text-danger">*</span></label>
+                                        <input type="number" wire:model="equipmentForm.daily_log_tolerance" class="form-control" min="1" max="100" placeholder="e.g. 2">
+                                        @error('equipmentForm.daily_log_tolerance') <span class="text-danger">{{ $message }}</span> @enderror
+                                        <small class="form-text text-muted">Acceptable deviation (&plusmn;).</small>
+                                    </div>
+                                </div>
+                            </div>
+                            @endif
+                            {{-- Reporting unit (shown whenever a value type is selected) --}}
+                            @if($dlType !== '')
+                            <div class="row">
+                                <div class="col-md-6">
+                                    <div class="form-group mb-3">
+                                        <label class="form-label">Reporting Unit</label>
+                                        <select wire:model="equipmentForm.daily_log_reporting_unit" class="form-control">
+                                            <option value="">-- Select Unit --</option>
+                                            @foreach($reportingUnits as $unit)
+                                                <option value="{{ $unit->name }}">{{ $unit->name }}</option>
+                                            @endforeach
+                                        </select>
+                                        @error('equipmentForm.daily_log_reporting_unit') <span class="text-danger">{{ $message }}</span> @enderror
+                                        <small class="form-text text-muted">Unit of measurement for the recorded value.</small>
+                                    </div>
+                                </div>
+                            </div>
+                            @endif
+                            @endif
+                            <div class="eq-section-header mt-4">
+                                <i class="mdi mdi-calendar-clock"></i> Maintenance &amp; Calibration Schedule
                             </div>
                             <div class="row">
                                 <div class="col-md-6">
@@ -1256,5 +1642,379 @@
         overflow-y: auto;
         max-height: calc(100vh - 200px);
     }
+
+    /* ── Uniform form section headers ───────────────────── */
+    .eq-section-header {
+        background-color: #f4f6fb;
+        border-left: 3px solid #001a41;
+        padding: 7px 12px;
+        margin-bottom: 16px;
+        border-radius: 0 4px 4px 0;
+        font-size: 11px;
+        font-weight: 700;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+        color: #344767;
+    }
+    .eq-section-header .mdi {
+        font-size: 13px;
+        color: #001a41;
+    }
+
+    /* ── Uniform label style ─────────────────────────────── */
+    .eq-form .form-label {
+        font-size: 0.78rem;
+        font-weight: 600;
+        color: #495057;
+        margin-bottom: 5px;
+        display: block;
+        text-transform: uppercase;
+        letter-spacing: 0.04em;
+    }
+
+    /* ── Uniform input / select / textarea height & style ─ */
+    .eq-form .form-control {
+        height: 38px;
+        border-radius: 6px;
+        border: 1px solid #d1d7e0;
+        font-size: 0.875rem;
+        color: #344767;
+        background-color: #fff;
+        transition: border-color 0.15s ease, box-shadow 0.15s ease;
+    }
+    .eq-form textarea.form-control {
+        height: auto;
+        min-height: 68px;
+        resize: vertical;
+    }
+    .eq-form .form-control:focus {
+        border-color: #001a41;
+        box-shadow: 0 0 0 0.15rem rgba(0, 26, 65, 0.15);
+        outline: none;
+    }
+
+    /* Helper text */
+    .eq-form .form-text {
+        font-size: 0.75rem;
+        color: #8898aa;
+        margin-top: 3px;
+    }
+
+    /* Checkbox label alignment */
+    .eq-form .form-check-label {
+        font-size: 0.875rem;
+        color: #344767;
+    }
+
+    /* Equipment view redesign */
+    .eq-view-page {
+        padding-top: 8px;
+        padding-bottom: 18px;
+    }
+    .eq-hero-card {
+        border-radius: 16px;
+        background: linear-gradient(120deg, #ffffff 0%, #f3f6fb 100%);
+        box-shadow: 0 8px 20px rgba(10, 33, 68, 0.08);
+    }
+    .eq-kicker {
+        display: inline-block;
+        font-size: 0.73rem;
+        letter-spacing: 0.12em;
+        text-transform: uppercase;
+        color: #5f6b7a;
+        font-weight: 700;
+    }
+    .eq-hero-title {
+        font-size: 2.1rem;
+        line-height: 1.1;
+        font-weight: 700;
+        color: #212a35;
+    }
+    .eq-side-card {
+        border-radius: 16px;
+        overflow: hidden;
+        box-shadow: 0 8px 20px rgba(10, 33, 68, 0.08);
+    }
+    .eq-side-header {
+        background: linear-gradient(135deg, #596574 0%, #3f4a56 100%);
+        border: none;
+    }
+    .eq-main-card {
+        border-radius: 16px;
+        overflow: hidden;
+        box-shadow: 0 8px 20px rgba(10, 33, 68, 0.08);
+    }
+    .eq-main-header {
+        padding: 0.55rem 1rem 0;
+        background: linear-gradient(120deg, #f7f9fc 0%, #edf2f8 100%);
+        border-bottom: 1px solid #e2e8f0;
+    }
+    .eq-main-body {
+        background: #ffffff;
+    }
+    .eq-main-tabs {
+        border-bottom: none;
+        gap: 6px;
+        flex-wrap: wrap;
+    }
+    .eq-main-tabs .nav-item {
+        margin-bottom: 0;
+    }
+    .eq-main-tabs .nav-link {
+        border: 1px solid transparent;
+        border-radius: 8px 8px 0 0;
+        padding: 0.45rem 0.8rem;
+        color: #4f5d6b;
+        font-size: 0.82rem;
+        font-weight: 600;
+        background: transparent;
+    }
+    .eq-main-tabs .nav-link:hover {
+        border-color: #d8e0eb;
+        background: #f6f9fd;
+        color: #2d3b49;
+    }
+    .eq-main-tabs .nav-link.active {
+        color: #0b4fb3;
+        border-color: #c9d8ef;
+        background: #ffffff;
+        box-shadow: 0 -1px 0 #ffffff;
+    }
+    @media (max-width: 768px) {
+        .eq-hero-title {
+            font-size: 1.55rem;
+        }
+        .eq-main-header {
+            padding-top: 0.7rem;
+        }
+    }
     </style>
+
+    @script
+    <script>
+    (function () {
+        function buildDailyLogChart() {
+        var chartDataEl = document.getElementById('dl-chart-data');
+        var canvas = document.getElementById('dl-perf-chart');
+        if (!chartDataEl || !canvas) {
+            if (window._dlPerfChart) {
+                window._dlPerfChart.destroy();
+                window._dlPerfChart = null;
+            }
+            return;
+        }
+
+        var chartData;
+        try {
+            chartData = JSON.parse(chartDataEl.textContent || 'null');
+        } catch (e) {
+            return;
+        }
+        if (!chartData || !chartData.labels || chartData.labels.length === 0) {
+            if (window._dlPerfChart) {
+                window._dlPerfChart.destroy();
+                window._dlPerfChart = null;
+            }
+            return;
+        }
+
+        function buildChart() {
+            if (window._dlPerfChart) {
+                window._dlPerfChart.destroy();
+                window._dlPerfChart = null;
+            }
+
+            var unit = chartData.unit || '';
+            var n    = chartData.labels.length;
+            var datasets = [];
+
+            if (chartData.type === 'range') {
+                datasets = [
+                    {
+                        label: 'Expected Upper Limit',
+                        data: Array(n).fill(chartData.expectedMax),
+                        borderColor: 'rgba(40,167,69,0.7)',
+                        backgroundColor: 'rgba(40,167,69,0.12)',
+                        borderDash: [6, 4],
+                        borderWidth: 1.5,
+                        pointRadius: 0,
+                        fill: '+1',
+                        order: 1,
+                    },
+                    {
+                        label: 'Expected Lower Limit',
+                        data: Array(n).fill(chartData.expectedMin),
+                        borderColor: 'rgba(40,167,69,0.7)',
+                        backgroundColor: 'transparent',
+                        borderDash: [6, 4],
+                        borderWidth: 1.5,
+                        pointRadius: 0,
+                        fill: false,
+                        order: 1,
+                    },
+                    {
+                        label: 'Recorded Reading',
+                        data: chartData.values,
+                        borderColor: 'rgba(0,123,255,0.9)',
+                        backgroundColor: 'rgba(0,123,255,0.08)',
+                        borderWidth: 2,
+                        pointRadius: 3,
+                        pointHoverRadius: 5,
+                        fill: 'origin',
+                        tension: 0.3,
+                        order: 0,
+                    },
+                ];
+
+                if (Array.isArray(chartData.legacyMeans) && chartData.legacyMeans.some(function (v) { return v !== null; })) {
+                    datasets.push({
+                        label: 'Historic Mean (legacy min-max)',
+                        data: chartData.legacyMeans,
+                        borderColor: 'rgba(108,117,125,0.8)',
+                        backgroundColor: 'transparent',
+                        borderWidth: 1.5,
+                        borderDash: [4, 4],
+                        pointRadius: 2,
+                        fill: false,
+                        tension: 0.25,
+                        order: 0,
+                    });
+                }
+            } else {
+                // constant + quantitative
+                datasets = [
+                    {
+                        label: 'Expected Target',
+                        data: Array(n).fill(parseFloat(chartData.expectedValue) || 0),
+                        borderColor: 'rgba(40,167,69,0.8)',
+                        backgroundColor: 'transparent',
+                        borderDash: [8, 4],
+                        borderWidth: 1.5,
+                        pointRadius: 0,
+                        fill: false,
+                        order: 1,
+                    },
+                    {
+                        label: 'Recorded Value',
+                        data: chartData.values,
+                        borderColor: 'rgba(0,123,255,0.85)',
+                        backgroundColor: 'rgba(0,123,255,0.08)',
+                        borderWidth: 2,
+                        pointRadius: 3,
+                        fill: 'origin',
+                        tension: 0.3,
+                        order: 0,
+                    },
+                ];
+                if (chartData.tolHigh !== undefined) {
+                    datasets.unshift({
+                        label: 'Tolerance Upper Limit',
+                        data: Array(n).fill(chartData.tolHigh),
+                        borderColor: 'rgba(255,193,7,0.6)',
+                        backgroundColor: 'rgba(255,193,7,0.08)',
+                        borderDash: [4, 4],
+                        borderWidth: 1,
+                        pointRadius: 0,
+                        fill: '+1',
+                        order: 2,
+                    });
+                    datasets.splice(datasets.length - 1, 0, {
+                        label: 'Tolerance Lower Limit',
+                        data: Array(n).fill(chartData.tolLow),
+                        borderColor: 'rgba(255,193,7,0.6)',
+                        backgroundColor: 'transparent',
+                        borderDash: [4, 4],
+                        borderWidth: 1,
+                        pointRadius: 0,
+                        fill: false,
+                        order: 2,
+                    });
+                }
+            }
+
+            var ctx = canvas.getContext('2d');
+            window._dlPerfChart = new Chart(ctx, {
+                type: 'line',
+                data: { labels: chartData.labels, datasets: datasets },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: true,
+                    interaction: { mode: 'index', intersect: false },
+                    plugins: {
+                        legend: { position: 'top' },
+                        tooltip: {
+                            callbacks: {
+                                label: function (ctx) {
+                                    if (ctx.parsed.y === null) return null;
+                                    return ctx.dataset.label + ': ' + ctx.parsed.y + (unit ? ' ' + unit : '');
+                                },
+                                afterBody: function (items) {
+                                    if (chartData.type !== 'range' || !Array.isArray(chartData.withinFlags) || !items.length) {
+                                        return;
+                                    }
+
+                                    var index = items[0].dataIndex;
+                                    var within = chartData.withinFlags[index];
+                                    if (within === true) return 'Status: Within expected range';
+                                    if (within === false) return 'Status: Outside expected range';
+                                    return null;
+                                }
+                            }
+                        }
+                    },
+                    scales: {
+                        y: {
+                            title: { display: !!unit, text: unit }
+                        }
+                    }
+                }
+            });
+        }
+
+        if (typeof Chart !== 'undefined') {
+            buildChart();
+        } else {
+            var s = document.createElement('script');
+            s.src = 'https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.js';
+            s.onload = buildChart;
+            document.head.appendChild(s);
+        }
+
+        }
+
+        window.initDailyLogPerformanceChart = buildDailyLogChart;
+
+        function scheduleBuild() {
+            setTimeout(function () {
+                if (typeof window.initDailyLogPerformanceChart === 'function') {
+                    window.initDailyLogPerformanceChart();
+                }
+            }, 120);
+        }
+
+        if (!window._dlPerfChartBindings) {
+            window._dlPerfChartBindings = true;
+
+            document.addEventListener('livewire:initialized', function () {
+                scheduleBuild();
+
+                if (window.Livewire && typeof window.Livewire.hook === 'function') {
+                    window.Livewire.hook('morph.updated', function () {
+                        scheduleBuild();
+                    });
+                }
+            });
+
+            document.addEventListener('click', function (event) {
+                var dailyLogTabButton = event.target.closest("[wire\\:click=\"setActiveTab('dailylog')\"]");
+                if (dailyLogTabButton) {
+                    scheduleBuild();
+                }
+            });
+        }
+
+        scheduleBuild();
+    })();
+    </script>
+    @endscript
 </div>

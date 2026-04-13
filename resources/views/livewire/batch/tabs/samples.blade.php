@@ -1,4 +1,7 @@
 <div>
+    <div wire:ignore>
+        <script type="text/javascript" src="/tinymce/tinymce.min.js"></script>
+    </div>
     {{-- Flash Messages --}}
     @if (session()->has('success'))
     <div class="alert alert-success alert-dismissible fade show mb-3" role="alert">
@@ -426,9 +429,16 @@
 
                         {{-- Description --}}
                         <td>
-                            <input type="text" class="form-control form-control-sm modern-input"
-                                wire:model.defer="sampleForms.{{ $index }}.comments" placeholder="Comments..."
-                                @if($isReadOnly) readonly style="background: #f8f9fa;" @endif>
+                            <div class="d-flex align-items-start gap-2">
+                                <div class="p-2 border rounded flex-grow-1" style="background: #f8f9fa; min-height: 31px; font-size: 0.875rem; max-width: 300px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">
+                                    {!! $sampleForm['comments'] ?? '<span class="text-muted">No comments</span>' !!}
+                                </div>
+                                @if(!$isReadOnly)
+                                <button type="button" class="btn btn-sm btn-outline-primary" wire:click="openCommentModal({{ $index }})">
+                                    <i class="mdi mdi-pencil"></i>
+                                </button>
+                                @endif
+                            </div>
                         </td>
 
                         {{-- Time Sampled --}}
@@ -1470,9 +1480,13 @@
     <!-- Assign Samples Modal -->
     <!-- Livewire Assign Samples Modal -->
     @if($showAssignSamplesModal)
+    <style>
+        .modal-xxl { max-width: 95%; }
+        .tox-tinymce { border-radius: 8px !important; }
+    </style>
     <div class="modal fade show" tabindex="-1" role="dialog"
         style="display: block; background-color: rgba(0,0,0,0.5); z-index: 1050; overflow-y: auto;">
-        <div class="modal-dialog modal-xl" role="document">
+        <div class="modal-dialog modal-xxl" role="document">
             <div class="modal-content" style="border-radius: 15px; border: none; position: relative;">
                 @if($toastMessage)
                     <div class="position-absolute" style="top: 10px; right: 10px; left: 10px; z-index: 2050;">
@@ -1718,19 +1732,20 @@
                                         <tr>
                                             <th style="width: 50px;" class="text-center">Select</th>
                                             <th>Sample Point</th>
-                                            <th style="width: 150px;">Quantity</th>
-                                            <th style="width: 150px;">Status</th>
+                                            <th style="width: 100px;">Quantity</th>
+                                            <th style="width: 600px;">Sample Comments</th>
+                                            <th style="width: 120px;">Status</th>
                                         </tr>
                                     </thead>
                                     <tbody>
                                         @forelse($assignAreas as $area)
                                         <tr>
-                                            <td colspan="4" class="bg-light font-weight-bold pl-4">
+                                            <td colspan="5" class="bg-light font-weight-bold pl-4">
                                                 <i class="mdi mdi-map-marker text-primary"></i> Area:
                                                 {{ $area['name'] }}
                                             </td>
                                         </tr>
-                                        @foreach($area['sample_points'] as $point)
+                                        @foreach($area['sample_points'] as $index => $point)
                                         <tr>
                                             <td class="text-center">
                                                 <div class="custom-control custom-checkbox">
@@ -1750,13 +1765,18 @@
                                                     {{ empty($assignSelectedPoints[$point['id']]) ? 'disabled' : '' }}>
                                             </td>
                                             <td>
+                                                <button type="button" class="btn btn-sm btn-outline-secondary" wire:click="openCommentModal('{{ $point['id'] }}')">
+                                                    <i class="mdi mdi-pencil"></i> Edit Comment
+                                                </button>
+                                            </td>
+                                            <td>
                                                 <span class="badge badge-success">Active</span>
                                             </td>
                                         </tr>
                                         @endforeach
                                         @empty
                                         <tr>
-                                            <td colspan="4" class="text-center py-4">No sample points available for this
+                                            <td colspan="5" class="text-center py-4">No sample points available for this
                                                 unit.</td>
                                         </tr>
                                         @endforelse
@@ -1776,6 +1796,54 @@
                             role="status" aria-hidden="true"></span>
                         Assign Samples
                     </button>
+                </div>
+            </div>
+        </div>
+    </div>
+    </div>
+    @endif
+
+    {{-- Rich Text Comment Modal --}}
+    @if($showCommentModal)
+    <div class="modal fade show" style="display: block; background-color: rgba(0,0,0,0.5); z-index: 1100;" tabindex="-1" role="dialog">
+        <div class="modal-dialog modal-lg" role="document">
+            <div class="modal-content">
+                <div class="modal-header bg-dark text-white">
+                    <h5 class="modal-title">Edit Sample Comment</h5>
+                    <button type="button" class="close text-white" wire:click="$set('showCommentModal', false)">
+                        <span>&times;</span>
+                    </button>
+                </div>
+                <div class="modal-body p-0">
+                    <div wire:ignore 
+                         x-data="{
+                            initEditor() {
+                                if (typeof tinymce !== 'undefined') {
+                                    tinymce.remove('#comment-editor-main');
+                                    tinymce.init({
+                                        selector: '#comment-editor-main',
+                                        menubar: false,
+                                        statusbar: false,
+                                        height: 300,
+                                        toolbar: 'bold italic underline | bullist numlist | forecolor',
+                                        plugins: 'lists textcolor',
+                                        setup: function (editor) {
+                                            editor.on('change blur', function () {
+                                                editor.save();
+                                                @this.set('tempCommentContent', editor.getContent());
+                                            });
+                                        }
+                                    });
+                                }
+                            }
+                         }" 
+                         x-init="setTimeout(() => initEditor(), 100)">
+                        <textarea id="comment-editor-main" class="form-control">{{ $tempCommentContent }}</textarea>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" wire:click="$set('showCommentModal', false)">Cancel</button>
+                    <button type="button" class="btn btn-primary" wire:click="saveComment">Save Comment</button>
                 </div>
             </div>
         </div>

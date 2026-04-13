@@ -117,9 +117,10 @@ class SampleCreationController extends Controller
                     'staged' => true
                 ];
 
-                if ($submissionFormAttachmentTypeId !== null) {
-                    $this->submissionFormPdfService->attachSubmissionFormPdfToBatch($instance, $sampleHeader, $submissionFormAttachmentTypeId);
-                }
+                // PDF generation to be done explicitly later, not during batch creation from form
+                // if ($submissionFormAttachmentTypeId !== null) {
+                //    $this->submissionFormPdfService->attachSubmissionFormPdfToBatch($instance, $sampleHeader, $submissionFormAttachmentTypeId);
+                // }
             }
 
             return response()->json([

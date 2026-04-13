@@ -12,6 +12,7 @@ use App\User;
 use App\InventoryDepartment;
 use App\Models\Assets\AssetType;
 use App\Models\Assets\AssetLocation;
+use App\ReportingUnit;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Validator;
@@ -65,6 +66,16 @@ class EquipmentManager extends Component
         'asset_type_id' => null,
         'asset_location_id' => null,
         'active' => true,
+        'requires_daily_log' => false,
+        'daily_log_value_type' => '',
+        'daily_log_nature' => '',
+        'daily_log_tolerance' => null,
+        'daily_log_expected_value' => '',
+        'daily_log_expected_min' => '',
+        'daily_log_expected_max' => '',
+        'daily_log_reporting_unit' => '',
+        'daily_log_frequency' => 1,
+        'daily_log_time_interval' => '',
     ];
 
 
@@ -78,6 +89,7 @@ class EquipmentManager extends Component
     public $departments = [];
     public $assetTypes = [];
     public $assetLocations = [];
+    public $reportingUnits = [];
 
     // Searchable Select Properties
     public $employeeSearch = '';
@@ -133,6 +145,32 @@ class EquipmentManager extends Component
             'photo' => 'nullable|image|max:10240', // 10MB max
         ];
 
+        if (!empty($this->equipmentForm['requires_daily_log'])) {
+            $type   = $this->equipmentForm['daily_log_value_type'] ?? '';
+            $nature = $this->equipmentForm['daily_log_nature'] ?? '';
+
+            $rules['equipmentForm.daily_log_value_type'] = 'required|in:constant,range';
+            $rules['equipmentForm.daily_log_nature']     = 'required|in:qualitative,quantitative';
+
+            if ($type === 'constant') {
+                $rules['equipmentForm.daily_log_expected_value'] = 'required|string|max:255';
+                if ($nature === 'quantitative') {
+                    $rules['equipmentForm.daily_log_tolerance'] = 'required|integer|min:1|max:100';
+                }
+            }
+
+            if ($type === 'range') {
+                $rules['equipmentForm.daily_log_expected_min'] = 'required|numeric';
+                $rules['equipmentForm.daily_log_expected_max'] = 'required|numeric|gte:equipmentForm.daily_log_expected_min';
+                $rules['equipmentForm.daily_log_tolerance'] = 'required|integer|min:1|max:100';
+            }
+
+            $rules['equipmentForm.daily_log_frequency'] = 'required|integer|min:1|max:6';
+            if (($this->equipmentForm['daily_log_frequency'] ?? 1) > 1) {
+                $rules['equipmentForm.daily_log_time_interval'] = 'required|integer|min:1';
+            }
+        }
+
         return $rules;
     }
 
@@ -149,6 +187,7 @@ class EquipmentManager extends Component
         $this->departments = InventoryDepartment::where('module', 'organizational')->get();
         $this->assetTypes = AssetType::where('is_active', 1)->get();
         $this->assetLocations = AssetLocation::where('is_active', 1)->get();
+        $this->reportingUnits = ReportingUnit::orderBy('name')->get();
     }
 
     public function getEquipmentProperty()
@@ -240,6 +279,16 @@ class EquipmentManager extends Component
             'asset_type_id' => $equipment->asset_type_id,
             'asset_location_id' => $equipment->asset_location_id,
             'active' => $equipment->active ?? true,
+            'requires_daily_log' => $equipment->requires_daily_log ?? false,
+            'daily_log_value_type' => $equipment->daily_log_value_type ?? '',
+            'daily_log_nature' => $equipment->daily_log_nature ?? '',
+            'daily_log_tolerance' => $equipment->daily_log_tolerance ?? null,
+            'daily_log_expected_value' => $equipment->daily_log_expected_value ?? '',
+            'daily_log_expected_min' => $equipment->daily_log_expected_min ?? '',
+            'daily_log_expected_max' => $equipment->daily_log_expected_max ?? '',
+            'daily_log_reporting_unit' => $equipment->daily_log_reporting_unit ?? '',
+            'daily_log_frequency' => $equipment->daily_log_frequency ?? 1,
+            'daily_log_time_interval' => $equipment->daily_log_time_interval ?? '',
         ];
 
         // Set selected names for searchable selects
@@ -349,6 +398,13 @@ class EquipmentManager extends Component
             'asset_type_id' => null,
             'asset_location_id' => null,
             'active' => true,
+            'requires_daily_log' => false,
+            'daily_log_value_type' => '',
+            'daily_log_nature' => '',
+            'daily_log_tolerance' => null,
+            'daily_log_expected_value' => '',
+            'daily_log_expected_min' => '',
+            'daily_log_expected_max' => '',
         ];
 
         $this->employeeSearch = '';
@@ -367,6 +423,51 @@ class EquipmentManager extends Component
         $this->showAssetLocationDropdown = false;
 
         $this->editingEquipment = null;
+    }
+
+    public function updatedEquipmentFormRequiresDailyLog(): void
+    {
+        if (empty($this->equipmentForm['requires_daily_log'])) {
+            $this->equipmentForm['daily_log_value_type'] = '';
+            $this->equipmentForm['daily_log_nature'] = '';
+            $this->equipmentForm['daily_log_tolerance'] = null;
+            $this->equipmentForm['daily_log_expected_value'] = '';
+            $this->equipmentForm['daily_log_expected_min'] = '';
+            $this->equipmentForm['daily_log_expected_max'] = '';
+            $this->equipmentForm['daily_log_reporting_unit'] = '';
+            $this->equipmentForm['daily_log_frequency'] = 1;
+            $this->equipmentForm['daily_log_time_interval'] = '';
+        }
+    }
+
+    public function updatedEquipmentFormDailyLogFrequency(): void
+    {
+        if (($this->equipmentForm['daily_log_frequency'] ?? 1) <= 1) {
+            $this->equipmentForm['daily_log_time_interval'] = '';
+        }
+    }
+
+    public function updatedEquipmentFormDailyLogValueType(): void
+    {
+        if (($this->equipmentForm['daily_log_value_type'] ?? '') === 'range') {
+            $this->equipmentForm['daily_log_nature'] = 'quantitative';
+            $this->equipmentForm['daily_log_expected_value'] = '';
+            $this->equipmentForm['daily_log_tolerance'] = null;
+        } else {
+            $this->equipmentForm['daily_log_expected_min'] = '';
+            $this->equipmentForm['daily_log_expected_max'] = '';
+        }
+    }
+
+    public function updatedEquipmentFormDailyLogNature(): void
+    {
+        if (($this->equipmentForm['daily_log_nature'] ?? '') !== 'quantitative') {
+            $this->equipmentForm['daily_log_tolerance'] = null;
+            $this->equipmentForm['daily_log_expected_min'] = '';
+            $this->equipmentForm['daily_log_expected_max'] = '';
+        } else {
+            $this->equipmentForm['daily_log_expected_value'] = '';
+        }
     }
 
     public function clearFilters(): void

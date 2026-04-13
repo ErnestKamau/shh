@@ -138,6 +138,7 @@ class Samples extends Component
     public $assignSelectedPoints = []; // ['point_id' => quantity]
     public $assignCurrentTotalQty = 0;
     public $assignQtyError = '';
+    public $assignComments = []; // Rich text comments for assignments
 
     // Assignment Edit Context
     public $assignSampleTypeId = '';
@@ -146,6 +147,11 @@ class Samples extends Component
     public $assignCompanySubUnitName = '';
     public $assignSampleTypeName = '';
     public $assignAnalysisTypeNames = '';
+
+    // Comment Editing
+    public $showCommentModal = false;
+    public $editingCommentIndex = null;
+    public $tempCommentContent = '';
 
     // Search properties for Assignment Edit
     public $assignSubUnitSearch = '';
@@ -486,6 +492,7 @@ class Samples extends Component
             $this->assignNewPointIds = [];
             $this->assignAreaSearch = '';
             $this->assignPointSearch = '';
+            $this->assignComments = []; // Reset comments
 
             // Load available areas/points for "Add New Query" (if needed later)
             // For now we just focus on assignment
@@ -939,7 +946,8 @@ class Samples extends Component
 
                 $selections[] = [
                     'sample_point_id' => $pointId,
-                    'quantity' => $qty
+                    'quantity' => $qty,
+                    'comments' => $this->assignComments[$pointId] ?? ''
                 ];
             }
         }
@@ -982,7 +990,8 @@ class Samples extends Component
                     $samplePointId,
                     $sampleIndex,
                     $totalSamples,
-                    $selection['quantity']
+                    $selection['quantity'],
+                    $selection['comments'] ?? ''
                 );
 
                 $createdSamples[] = $sampleDetail;
@@ -1008,6 +1017,7 @@ class Samples extends Component
 
             $this->showAssignSamplesModal = false;
             $this->dispatch('samplesUpdated');
+            $this->dispatch('batchUpdated')->to(\App\Livewire\Batch\Header::class);
             // Reload samples list
             $this->loadSamples();
 
@@ -1053,7 +1063,7 @@ class Samples extends Component
     }
 
     // Support methods for assignment (Simplification of Controller methods)
-    private function createSampleDetailsFromStagingLivewire($sampleHeader, $staging, $samplePointId, $index, $totalSamples, $quantity = 1)
+    private function createSampleDetailsFromStagingLivewire($sampleHeader, $staging, $samplePointId, $index, $totalSamples, $quantity = 1, $comments = '')
     {
         $dataJson = $staging->data_json;
         // Inject quantity into dataJson for creation
@@ -1103,6 +1113,7 @@ class Samples extends Component
             'quantity' => $dataJson['force_quantity'] ?? 1,
             'barcode' => $sampleHeader->date_collected ? date('H:i:s', strtotime($sampleHeader->date_collected)) : null,
             'disposal_date' => $disposal_date,
+            'comments' => $comments,
         ]);
         $sampleDetail->save();
 
@@ -1416,6 +1427,32 @@ class Samples extends Component
             Log::error('Error saving new storage: ' . $e->getMessage());
             session()->flash('error', 'Error saving new storage.');
         }
+    }
+
+    public function openCommentModal($index)
+    {
+        $this->editingCommentIndex = $index;
+        // Check if it's a numeric index (main table) or a point ID (assignment table)
+        if (isset($this->sampleForms[$index])) {
+            $this->tempCommentContent = $this->sampleForms[$index]['comments'] ?? '';
+        } else {
+            // Assignment table uses pointId as index
+            $this->tempCommentContent = $this->assignComments[$index] ?? '';
+        }
+        $this->showCommentModal = true;
+    }
+
+    public function saveComment()
+    {
+        if ($this->editingCommentIndex !== null) {
+            if (isset($this->sampleForms[$this->editingCommentIndex])) {
+                $this->sampleForms[$this->editingCommentIndex]['comments'] = $this->tempCommentContent;
+            } else {
+                $this->assignComments[$this->editingCommentIndex] = $this->tempCommentContent;
+            }
+        }
+        $this->showCommentModal = false;
+        $this->editingCommentIndex = null;
     }
 
     /**
@@ -1982,6 +2019,7 @@ class Samples extends Component
 
             session()->flash('success', 'All samples saved successfully!');
             $this->dispatch('samplesUpdated');
+            $this->dispatch('batchUpdated')->to(\App\Livewire\Batch\Header::class);
             $this->loadSamples();  // Reload to get fresh data
 
         } catch (\Exception $e) {

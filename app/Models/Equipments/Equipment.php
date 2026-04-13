@@ -39,6 +39,24 @@ class Equipment extends Model implements Auditable
 		'dispose_date',
 		'comment',
 		'is_disposal',
+		'requires_daily_log',
+		'daily_log_value_type',
+		'daily_log_nature',
+		'daily_log_tolerance',
+		'daily_log_expected_value',
+		'daily_log_expected_min',
+		'daily_log_expected_max',
+		'daily_log_reporting_unit',
+		'daily_log_frequency',
+		'daily_log_time_interval',
+	];
+
+	protected $casts = [
+		'requires_daily_log' => 'boolean',
+		'daily_log_tolerance' => 'integer',
+		'daily_log_expected_min' => 'float',
+		'daily_log_expected_max' => 'float',
+		'daily_log_frequency' => 'integer',
 	];
 
   public function calibration_date(){

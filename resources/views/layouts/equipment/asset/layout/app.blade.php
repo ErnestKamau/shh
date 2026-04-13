@@ -57,7 +57,7 @@
 @section('content')
 <div class="row" id="body-row">
 	<!-- Sidebar -->
-	<div id="sidebar-container" class="sidebar-expanded d-none d-md-block col-sm-4 col-md-3 col-lg-2">
+	<div id="sidebar-container" class="sidebar-expanded d-none d-md-block">
 		<!-- d-* hiddens the Sidebar in smaller devices. Its itens can be kept on the Navbar 'Menu' -->
 		<!-- Bootstrap List Group -->
 		<ul class="list-group">
@@ -71,41 +71,54 @@
 			</li> --}}
 			<!-- /END Separator -->
 			<!-- Menu with submenu -->
+
+			<a href="{{ route('equipment-dashboard') }}" class="bg-dark list-group-item list-group-item-action {{ request()->routeIs('equipment-dashboard') ? 'active' : '' }}">
+				<div class="d-flex w-100 justify-content-start align-items-center">
+					<span class="mdi mdi-view-dashboard fa-fw mr-1"></span>
+					<span class="menu-collapsed">Equipment Dashboard</span>
+				</div>
+			</a>
 			
-			<a href="/equipment-home" class="bg-dark list-group-item list-group-item-action">
+			<a href="/equipment-home" class="bg-dark list-group-item list-group-item-action {{ request()->is('equipment-home') ? 'active' : '' }}">
 				<div class="d-flex w-100 justify-content-start align-items-center">
 					<span class="mdi mdi-tools fa-fw mr-1"></span>
 					<span class="menu-collapsed">Equipment</span>
 				</div>
 			</a>
 			
-			<a href="{{ route('equipment-disposal-home') }}" class="bg-dark list-group-item list-group-item-action">
+			<a href="{{ route('equipment-disposal-home') }}" class="bg-dark list-group-item list-group-item-action {{ request()->routeIs('equipment-disposal-home') ? 'active' : '' }}">
 				<div class="d-flex w-100 justify-content-start align-items-center">
 					<span class="mdi mdi-delete-sweep fa-fw mr-1"></span>
 					<span class="menu-collapsed">Equipment Disposal</span>
 				</div>
 			</a>
 			
-			<a href="/asset-type-home" class="bg-dark list-group-item list-group-item-action">
+			<a href="/asset-type-home" class="bg-dark list-group-item list-group-item-action {{ request()->is('asset-type-home') ? 'active' : '' }}">
 				<div class="d-flex w-100 justify-content-start align-items-center">
 					<span class="mdi mdi-layers-triple fa-fw mr-1"></span>
 					<span class="menu-collapsed">Asset Type</span>
 				</div>
 			</a>
-			<a href="/asset-location-home" class="bg-dark list-group-item list-group-item-action">
+			<a href="/asset-location-home" class="bg-dark list-group-item list-group-item-action {{ request()->is('asset-location-home') ? 'active' : '' }}">
 				<div class="d-flex w-100 justify-content-start align-items-center">
 					<span class="mdi mdi-map-marker fa-fw mr-1"></span>
 					<span class="menu-collapsed">Asset Location</span>
 				</div>
 			</a>
-			<a href="{{ route('equipment-report-generate') }}" class="bg-dark list-group-item list-group-item-action">
+			<a href="{{ route('equipment-daily-log') }}" class="bg-dark list-group-item list-group-item-action {{ request()->routeIs('equipment-daily-log') ? 'active' : '' }}">
+				<div class="d-flex w-100 justify-content-start align-items-center">
+					<span class="mdi mdi-notebook-check-outline fa-fw mr-1"></span>
+					<span class="menu-collapsed">Daily Log</span>
+				</div>
+			</a>
+			<a href="{{ route('equipment-report-generate') }}" class="bg-dark list-group-item list-group-item-action {{ request()->routeIs('equipment-report-generate') ? 'active' : '' }}">
 				<div class="d-flex w-100 justify-content-start align-items-center">
 					<span class="mdi mdi-clipboard-text-multiple-outline fa-fw mr-1"></span>
 					<span class="menu-collapsed">Reports</span>
 				</div>
 			</a>
 		
-			<div class="list-group-item copyright-lims p-4 text-center text-white" style="position: fixed;bottom:0">
+			<div class="list-group-item copyright-lims p-4 text-center text-white">
 				Copyright {{ date('Y') }} <span class="text-red">Imara LIMS</span>
 			</div>
 			<!-- Submenu content -->
@@ -116,7 +129,7 @@
 	<!-- sidebar-container END -->
 
 	<!-- MAIN -->
-	<div class="col-sm-8 col-md-9 col-lg-10 py-3" id="main-container-body">
+	<div class="py-3" id="main-container-body">
 		<div id="message-section" style="padding: 10px 10px 0px 10px !important">
 			@if ($errors->any())
 				<div class="alert alert-danger">

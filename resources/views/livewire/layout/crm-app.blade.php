@@ -6,9 +6,59 @@
 
 @section('content2')
 <main>
+    <?php
+    $breadcrumbItems = [];
+    
+    // Always start with CRM Home
+    $breadcrumbItems[] = [
+        'link' => route('crm.dashboard'),
+        'name' => 'CRM',
+        'icon' => null
+    ];
+    
+    // Add Customer List
+    if ($componentType === 'customers') {
+        $breadcrumbItems[] = [
+            'link' => route('livewire.customers'),
+            'name' => 'Customer List',
+            'icon' => null
+        ];
+    }
+    
+    // Add Dashboard
+    if ($componentType === 'dashboard') {
+        $breadcrumbItems[] = [
+            'link' => route('crm.dashboard'),
+            'name' => 'Dashboard',
+            'icon' => null
+        ];
+    }
+    
+    // Add Customer Profile if we have a customer
+    if (isset($customer) && $customer) {
+        $breadcrumbItems[] = [
+            'link' => '#',
+            'name' => $customer->name,
+            'icon' => null
+        ];
+    }
+    
+    // Add Complaint Stage if viewing complaints
+    if ($componentType === 'complaints' && isset($stage) && $stage) {
+        $breadcrumbItems[] = [
+            'link' => route('crm.complaints-manager', ['stage' => $stage]),
+            'name' => $stage,
+            'icon' => null
+        ];
+    }
+    ?>
+    <x-bread-crumb :items="$breadcrumbItems"></x-bread-crumb>
+    
     <!-- Dynamic Livewire Component -->
-    @if($componentType === 'customers')
-        @livewire(\App\Livewire\Crm\Customer\CustomerList::class)
+    @if($componentType === 'dashboard')
+        @livewire(\App\Livewire\CRM\Dashboard::class)
+    @elseif($componentType === 'customers')
+        @livewire(\App\Livewire\CRM\CustomerManager::class)
     @elseif($componentType === 'customer-profile')
         @livewire(\App\Livewire\CRM\CustomerProfile::class, ['customerId' => $customerId])
     @elseif($componentType === 'sample-points')

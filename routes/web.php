@@ -251,6 +251,10 @@ Route::get('/livewire-test', function () {
 
 
 // Livewire CRM Management Routes
+Route::get('/crm/dashboard', [CRMAppController::class, 'dashboard'])
+    ->name('crm.dashboard')
+    ->middleware('haspermission:CRM.components.Customer-List.View');
+
 Route::get('/livewire/customers', [CRMAppController::class, 'customers'])
     ->name('livewire.customers')
     ->middleware('haspermission:CRM.components.Customer-List.View');
@@ -792,6 +796,7 @@ Route::get('/equipment/asset-locations', [EquipmentAppController::class, 'assetL
 //############################################EQUIPMENT##########################################################
 Route::get('/equipment-home', [EquipmentAppController::class, 'equipmentManager'])->name('equipment-home')->middleware('haspermission:Equipment.permission');
 Route::get('/equipment-dashboard', [EquipmentAppController::class, 'equipmentDashboard'])->name('equipment-dashboard')->middleware('haspermission:Equipment.permission');
+Route::get('/equipment-daily-log', [EquipmentAppController::class, 'dailyLogIndex'])->name('equipment-daily-log')->middleware('haspermission:Equipment.permission');
 Route::post('/equipment', 'Equipment\EquipmentController@add')->name('add-equipment')->middleware('haspermission:Equipment.components.Equipment-List.Add');
 Route::get('/equipment/{equipmentId}', [EquipmentAppController::class, 'equipmentDetail'])->name('view-equipment')->middleware('haspermission:Equipment.components.Equipment-List.View');
 Route::post('/equipment/{id}', 'Equipment\EquipmentController@edit')->name('edit-equipment')->middleware('haspermission:Equipment.components.Equipment-List.Edit');

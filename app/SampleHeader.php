@@ -280,6 +280,19 @@ class SampleHeader extends Model implements Auditable
 		return $this->submission_form_instance_id !== null && $this->submission_form_instance_id > 0;
 	}
 
+	public function hasSubmissionFormAttachment(): bool
+	{
+		$submissionFormAttachmentTypeId = \App\Models\System\SystemConfiguration::where('key', 'attachment_type')
+			->where('value', 'Submission Form')
+			->value('id');
+			
+		if ($submissionFormAttachmentTypeId === null) {
+            $submissionFormAttachmentTypeId = \App\Models\System\SystemConfiguration::where('key', 'attachment_type')->value('id');
+        }
+
+		return $this->batch_attachments()->where('attachment_type', $submissionFormAttachmentTypeId)->exists();
+	}
+
 	public function tracking_stage()
 	{
 		if ($this->sample_tracking_stage == 0) {
