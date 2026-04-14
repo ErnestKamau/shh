@@ -15,7 +15,6 @@ use App\Models\System\SystemConfiguration;
 use App\ModulePreConfigs;
 use App\CalendarEventsNotification;
 use App\EventHistory;
-use App\UserRole;
 
 use function GuzzleHttp\json_decode;
 

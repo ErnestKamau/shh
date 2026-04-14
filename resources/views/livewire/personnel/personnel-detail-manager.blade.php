@@ -36,8 +36,8 @@
                             @foreach($this->user->roles as $item)
                                 <tr>
                                     <td>{{ $loop->iteration }}</td>
-                                    <td>{{ $item->role->name }}</td>
-                                    <td>{{ $item->role->description }}</td>
+                                    <td>{{ $item->name }}</td>
+                                    <td>{{ $item->description ?? '-' }}</td>
                                     <td>
                                         <button type="button" class="btn btn-outline-danger btn-sm" wire:click="openDeleteRoleModal({{ $item->id }})" title="Delete">
                                             <i class="mdi mdi-delete"></i>

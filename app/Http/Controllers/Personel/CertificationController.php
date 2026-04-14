@@ -3,12 +3,9 @@
 namespace App\Http\Controllers\Personel;
 
 use App\Models\Personnel\RoleCertification;
-use App\Role;
-
-use App\Models\Lab\Qualification;
-
 use App\Http\Controllers\Controller;
 use Illuminate\Http\Request;
+use Spatie\Permission\Models\Role;
 
 class CertificationController extends Controller
 {

@@ -8,8 +8,8 @@ use App\Models\Equipments\EquipmentDisposalApprovalWorkflowStep;
 use App\Models\Assets\AssetType;
 use App\Models\Assets\AssetLocation;
 use App\User;
-use App\Role;
 use Illuminate\Support\Facades\DB;
+use Spatie\Permission\Models\Role as SpatieRole;
 
 class WorkflowForm extends Component
 {
@@ -44,8 +44,11 @@ class WorkflowForm extends Component
     {
         // Load Users and Roles
         $this->users = User::where('company_id', getUserCompany())->where('active', 1)->orderBy('name')->get();
-        // Assuming Roles don't have company_id (or are global), if they do, add filter
-        $this->roles = Role::orderBy('name')->get();
+        $this->roles = SpatieRole::query()
+            ->where('guard_name', 'web')
+            ->where('company_id', getUserCompany())
+            ->orderBy('name')
+            ->get();
 
         if ($id) {
             $this->workflowId = $id;
@@ -77,7 +80,7 @@ class WorkflowForm extends Component
         $this->steps[] = [
             'id' => null,
             'step_name' => 'Approval Step ' . (count($this->steps) + 1),
-            'assignee_type' => 'App\User',
+            'assignee_type' => User::class,
             'assignee_id' => '',
             'is_required' => true,
         ];

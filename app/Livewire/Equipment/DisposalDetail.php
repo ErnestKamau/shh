@@ -318,7 +318,7 @@ class DisposalDetail extends Component
     {
         return $this->disposal && 
                $this->disposal->status === 'approved' &&
-               auth()->user()->check_permission(['equipment', 'disposal', 'execute']);
+               auth()->user()->can('Equipment.components.Equipment-Disposal.Edit');
     }
 
     public function downloadReport(): void

@@ -12,9 +12,9 @@ use App\Services\DMS\DocumentNumberGenerator;
 use App\Services\DMS\PermissionResolver;
 use App\Services\DMS\PermissionManager;
 use App\User;
-use App\Role;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Validation\Rule;
+use Spatie\Permission\Models\Role as SpatieRole;
 
 class ActiveDocuments extends Component
 {
@@ -94,7 +94,16 @@ class ActiveDocuments extends Component
 
     public function loadRoles(): void
     {
-        $this->roles = Role::where('active', true)->orderBy('name')->get();
+        $roles = SpatieRole::query()
+            ->where('active', true)
+            ->orderBy('name');
+
+        $company = getUserCompany();
+        if ($company && isset($company->id)) {
+            $roles->where('company_id', $company->id);
+        }
+
+        $this->roles = $roles->get();
     }
 
     public function loadAvailableUsers(): void

@@ -2,7 +2,7 @@
 
 namespace App\Livewire\Personnel;
 
-use App\Role;
+use Spatie\Permission\Models\Role;
 use Livewire\Component;
 use Livewire\WithPagination;
 
@@ -48,7 +48,7 @@ class RoleManager extends Component
 
     public function openEditModal(int $roleId): void
     {
-        $role = Role::query()->where('company_id', getUserCompany())->findOrFail($roleId);
+        $role = Role::query()->where('guard_name', 'web')->where('company_id', getUserCompany())->findOrFail($roleId);
         $this->editingRoleId = $role->id;
         $this->roleName = (string) $role->name;
         $this->roleDescription = (string) $role->description;
@@ -72,10 +72,11 @@ class RoleManager extends Component
         ]);
 
         if ($this->editingRoleId) {
-            $role = Role::query()->where('company_id', getUserCompany())->findOrFail($this->editingRoleId);
+            $role = Role::query()->where('guard_name', 'web')->where('company_id', getUserCompany())->findOrFail($this->editingRoleId);
         } else {
             $role = new Role();
             $role->company_id = getUserCompany();
+            $role->guard_name = 'web';
         }
 
         $role->name = $this->roleName;
@@ -92,7 +93,7 @@ class RoleManager extends Component
 
     public function openDeleteModal(int $roleId): void
     {
-        $role = Role::query()->where('company_id', getUserCompany())->findOrFail($roleId);
+        $role = Role::query()->where('guard_name', 'web')->where('company_id', getUserCompany())->findOrFail($roleId);
         $this->editingRoleId = $role->id;
         $this->roleName = (string) $role->name;
         $this->showDeleteModal = true;
@@ -109,7 +110,7 @@ class RoleManager extends Component
             'editingRoleId' => 'required|integer',
         ]);
 
-        $role = Role::query()->where('company_id', getUserCompany())->findOrFail((int) $this->editingRoleId);
+        $role = Role::query()->where('guard_name', 'web')->where('company_id', getUserCompany())->findOrFail((int) $this->editingRoleId);
         $role->delete();
         $this->showDeleteModal = false;
         $this->message = 'Role deleted successfully.';
@@ -126,6 +127,7 @@ class RoleManager extends Component
     public function getRolesProperty()
     {
         $query = Role::query()
+            ->where('guard_name', 'web')
             ->where('company_id', getUserCompany())
             ->orderBy('name');
 

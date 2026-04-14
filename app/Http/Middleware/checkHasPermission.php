@@ -25,19 +25,11 @@ class checkHasPermission
 
     public function handle($request, Closure $next,$permissions)
     {
-			$parameter = $request->route('status');
 			$user = auth()->user();
 			$perm = explode('.',$permissions);
-			refreshPermissions(true);
+			$permissionName = $permissions;
 
-			if(sizeof($perm) == 2){
-				if($user->check_permission($perm)){
-					return $next($request);
-				}else{
-					return redirect()->back()->with('error','You have no permission to perform the designated task!');
-				}
-			}
-			else{
+			if(sizeof($perm) > 2){
 				$params = $request->route()->parameters();
 				$altVar = $this->getValueFromKey($params, $perm[2]);
 
@@ -48,16 +40,18 @@ class checkHasPermission
 				if($perms == false){
 					return redirect()->back()->with('error','Access Denied!');
 				}
+
+				if($perm[2] == 'All Samples'){
+					return $next($request);
+				}
+
+				$permissionName = implode('.', $perms);
 			}
 
-		if($perm[2] == 'All Samples'){
-			return $next($request);
-		}
-		if($user->check_permission($perms)){
-			return $next($request);
-		}else{
-			return redirect()->back()->with('error','You have no permission to perform the designated task!');
-		}
+			if($user->can($permissionName)){
+				return $next($request);
+			}
 
+			return redirect()->back()->with('error','You have no permission to perform the designated task!');
 	}
 }

@@ -4,11 +4,10 @@ namespace App\Livewire\Personnel;
 
 use App\InventoryDepartment;
 use App\ModulePreConfigs;
-use App\Role;
 use App\SampleAnalysisStage;
 use App\User;
-use App\UserRole;
 use Livewire\Component;
+use Spatie\Permission\Models\Role;
 
 class PersonnelDetailManager extends Component
 {
@@ -35,7 +34,7 @@ class PersonnelDetailManager extends Component
     public array $selectedLabSectionIds = [];
     public bool $showAddRoleModal = false;
     public bool $showDeleteRoleModal = false;
-    public ?int $selectedUserRoleId = null;
+    public ?int $selectedRoleId = null;
     public string $selectedRoleName = '';
     /** @var array<int, int> */
     public array $selectedRoleIds = [];
@@ -142,18 +141,14 @@ class PersonnelDetailManager extends Component
             'selectedRoleIds.*' => 'integer',
         ]);
 
-        foreach ($this->selectedRoleIds as $roleId) {
-            $exists = UserRole::query()
-                ->where('user_id', $this->userId)
-                ->where('role_id', $roleId)
-                ->exists();
+        $roles = Role::query()
+            ->where('guard_name', 'web')
+            ->whereIn('id', $this->selectedRoleIds)
+            ->pluck('name')
+            ->toArray();
 
-            if (!$exists) {
-                $userRole = new UserRole();
-                $userRole->user_id = $this->userId;
-                $userRole->role_id = $roleId;
-                $userRole->save();
-            }
+        if (!empty($roles)) {
+            $this->user->assignRole($roles);
         }
 
         $this->showAddRoleModal = false;
@@ -161,13 +156,11 @@ class PersonnelDetailManager extends Component
         $this->messageType = 'success';
     }
 
-    public function openDeleteRoleModal(int $userRoleId): void
+    public function openDeleteRoleModal(int $roleId): void
     {
-        $userRole = UserRole::query()
-            ->where('user_id', $this->userId)
-            ->findOrFail($userRoleId);
-        $this->selectedUserRoleId = $userRole->id;
-        $this->selectedRoleName = (string) ($userRole->role->name ?? 'this role');
+        $role = Role::query()->where('guard_name', 'web')->findOrFail($roleId);
+        $this->selectedRoleId = $role->id;
+        $this->selectedRoleName = (string) $role->name;
         $this->showDeleteRoleModal = true;
     }
 
@@ -179,16 +172,14 @@ class PersonnelDetailManager extends Component
     public function removeRole(): void
     {
         $this->validate([
-            'selectedUserRoleId' => 'required|integer',
+            'selectedRoleId' => 'required|integer',
         ]);
 
-        $userRole = UserRole::query()
-            ->where('user_id', $this->userId)
-            ->findOrFail((int) $this->selectedUserRoleId);
-        $userRole->delete();
+        $role = Role::query()->where('guard_name', 'web')->findOrFail((int) $this->selectedRoleId);
+        $this->user->removeRole($role->name);
 
         $this->showDeleteRoleModal = false;
-        $this->selectedUserRoleId = null;
+        $this->selectedRoleId = null;
         $this->selectedRoleName = '';
         $this->message = 'User role deleted successfully.';
         $this->messageType = 'success';
@@ -231,7 +222,12 @@ class PersonnelDetailManager extends Component
 
     public function getAllRolesProperty()
     {
-        return Role::query()->where('company_id', getUserCompany())->orderBy('name')->get(['id', 'name']);
+        return Role::query()
+            ->where('guard_name', 'web')
+            ->where('company_id', getUserCompany())
+            ->where('active', 1)
+            ->orderBy('name')
+            ->get(['id', 'name']);
     }
 
     public function getLicenseCountProperty(): array

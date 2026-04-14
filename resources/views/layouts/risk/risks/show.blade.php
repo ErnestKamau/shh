@@ -1000,7 +1000,7 @@
                             <i class="mdi mdi-alert-octagon text-danger"></i> {{ $risk->risk_number }}
                         </h4>
                         @if(!$isClosed)
-                        @if(auth()->user()->check_permission(['Risk-Management', 'components', 'Risks', 'Edit']))
+                        @if(auth()->user()->can('Risk-Management.components.Risks.Edit'))
                         <a href="{{ route('risk.risks.edit', $risk->id) }}" class="btn btn-outline-warning" style="border-radius: 8px; padding: 0.5rem; font-weight: 500; border: 1.5px solid #f59e0b; color: #1e293b; background: transparent; transition: all 0.2s ease; width: 40px; height: 40px; display: inline-flex; align-items: center; justify-content: center; margin-top: -2px;" title="{{ __('Edit Risk') }}">
                             <i class="mdi mdi-pencil" style="font-size: 1.125rem;"></i>
                         </a>
@@ -1015,7 +1015,7 @@
                 </div>
                 <div class="d-flex align-items-center gap-2">
                     @if(!$isClosed)
-                    @if(auth()->user()->check_permission(['Risk-Management', 'components', 'Risks', 'Edit']))
+                    @if(auth()->user()->can('Risk-Management.components.Risks.Edit'))
                     <button type="button" class="btn btn-modern btn-success" data-toggle="modal" data-target="#workflowActionModal">
                         <i class="mdi mdi-check-decagram"></i> Workflow Action
                     </button>
@@ -1233,7 +1233,7 @@
                         <i class="mdi mdi-information-outline"></i> {{ __('Details') }}
                     </a>
                 </li>
-                @if($risk->processLinks->count() > 0 || ($currentStep == 2 && !$isClosed && auth()->user()->check_permission(['Risk-Management', 'components', 'Risks', 'Edit'])))
+                @if($risk->processLinks->count() > 0 || ($currentStep == 2 && !$isClosed && auth()->user()->can('Risk-Management.components.Risks.Edit')))
                 <li class="nav-item">
                     <a class="nav-link" data-toggle="tab" href="#processes" role="tab">
                         <i class="mdi mdi-link-variant"></i> {{ __('Processes') }}
@@ -1629,7 +1629,7 @@
                                         <i class="mdi mdi-check-circle"></i> {{ __('Closure Justification') }}
                                     </h6>
                                     @if($currentStep >= 7 && !$isClosed)
-                                    @if(auth()->user()->check_permission(['Risk-Management', 'components', 'Risks', 'Edit']))
+                    @if(auth()->user()->can('Risk-Management.components.Risks.Edit'))
                                     <button type="button" class="btn btn-sm btn-outline-primary" data-toggle="modal" data-target="#editClosureJustificationModal" title="{{ __('Add/Edit Closure Justification') }}">
                                         <i class="mdi mdi-{{ !empty($risk->closure_justification) ? 'pencil' : 'plus' }}"></i>
                                     </button>
@@ -1761,7 +1761,7 @@
                         <h6 class="section-header mb-0">
                             <i class="mdi mdi-link-variant text-primary"></i> {{ __('Linked Business Processes') }}
                         </h6>
-                        @if($currentStep == 2 && !$isClosed && auth()->user()->check_permission(['Risk-Management', 'components', 'Risks', 'Edit']))
+                        @if($currentStep == 2 && !$isClosed && auth()->user()->can('Risk-Management.components.Risks.Edit'))
                         <button type="button" class="btn btn-modern btn-primary" data-toggle="modal" data-target="#addProcessLinkModal">
                             <i class="mdi mdi-plus"></i> {{ __('Link Process') }}
                         </button>
@@ -1777,7 +1777,7 @@
                                         <th>{{ __('Description') }}</th>
                                         <th>{{ __('Linked By') }}</th>
                                         <th>{{ __('Date Linked') }}</th>
-                                        @if($currentStep == 2 && !$isClosed && auth()->user()->check_permission(['Risk-Management', 'components', 'Risks', 'Edit']))
+                                        @if($currentStep == 2 && !$isClosed && auth()->user()->can('Risk-Management.components.Risks.Edit'))
                                         <th class="text-right">{{ __('Actions') }}</th>
                                         @endif
                                     </tr>
@@ -1789,7 +1789,7 @@
                                             <td>{{ $link->description ?? '-' }}</td>
                                             <td>{{ $link->creator->name ?? 'N/A' }}</td>
                                             <td>{{ $link->created_at->format('M d, Y') }}</td>
-                                            @if($currentStep == 2 && !$isClosed && auth()->user()->check_permission(['Risk-Management', 'components', 'Risks', 'Edit']))
+                                            @if($currentStep == 2 && !$isClosed && auth()->user()->can('Risk-Management.components.Risks.Edit'))
                                             <td class="text-right">
                                                 <button type="button" class="btn btn-sm btn-outline-warning mr-1 edit-process-link-btn" 
                                                         data-id="{{ $link->id }}" 
@@ -1834,7 +1834,7 @@
                             $hasAssessment = $likelihoodScore && $severityScore;
                         @endphp
                         @if($currentStep == 3 && !$isClosed)
-                        @if(auth()->user()->check_permission(['Risk-Management', 'components', 'Risks', 'Edit']))
+                    @if(auth()->user()->can('Risk-Management.components.Risks.Edit'))
                         <button type="button" class="btn btn-modern btn-primary" data-toggle="modal" data-target="#assessmentModal">
                             <i class="mdi mdi-{{ $hasAssessment ? 'pencil' : 'plus' }}"></i> 
                             {{ $hasAssessment ? __('Edit Assessment') : __('Add Assessment') }}
@@ -2005,7 +2005,7 @@
                             <i class="mdi mdi-scale-balance text-primary"></i> {{ __('Risk Evaluation') }}
                         </h6>
                         @if($currentStep == 4 && !$isClosed)
-                        @if(auth()->user()->check_permission(['Risk-Management', 'components', 'Risks', 'Edit']))
+                    @if(auth()->user()->can('Risk-Management.components.Risks.Edit'))
                         <button type="button" class="btn btn-modern btn-primary" data-toggle="modal" data-target="#evaluationModal">
                             <i class="mdi mdi-{{ $risk->evaluation_result ? 'pencil' : 'plus' }}"></i> 
                             {{ $risk->evaluation_result ? __('Edit Evaluation') : __('Add Evaluation') }}
@@ -2184,7 +2184,7 @@
                             <i class="mdi mdi-clipboard-list text-primary"></i> {{ __('Treatment Plans') }}
                         </h6>
                         @if(!$isClosed && $currentStep == 5)
-                        @if(auth()->user()->check_permission(['Risk-Management', 'components', 'Risks', 'Edit']))
+                    @if(auth()->user()->can('Risk-Management.components.Risks.Edit'))
                         <button type="button" class="btn btn-modern btn-primary" data-toggle="modal" data-target="#addTreatmentPlanModal">
                             <i class="mdi mdi-plus"></i> {{ __('Add Treatment Plan') }}
                         </button>
@@ -2239,7 +2239,7 @@
                                     <td class="actions-cell" style="text-align: center; vertical-align: middle;">
                                         <div class="btn-group btn-group-sm">
                                             {{-- View button - Always visible with View permission --}}
-                                            @if(auth()->user()->check_permission(['Risk-Management', 'components', 'Risks', 'View']) || auth()->user()->check_permission(['Risk-Management', 'components', 'Risks', 'Edit']))
+                                            @if(auth()->user()->can('Risk-Management.components.Risks.View') || auth()->user()->can('Risk-Management.components.Risks.Edit'))
                                             <button type="button" class="btn btn-outline-info btn-action" data-toggle="modal" data-target="#viewTreatmentPlanModal{{ $plan->id }}" title="{{ __('View Details') }}">
                                                 <i class="mdi mdi-eye"></i>
                                             </button>
@@ -2247,7 +2247,7 @@
                                             
                                             {{-- Edit Plan button - Only in Treatment Planning step (5) with Edit permission --}}
                                             @if(!$isClosed && $currentStep == 5)
-                                            @if(auth()->user()->check_permission(['Risk-Management', 'components', 'Risks', 'Edit']))
+                    @if(auth()->user()->can('Risk-Management.components.Risks.Edit'))
                                             <button type="button" class="btn btn-outline-primary btn-action" data-toggle="modal" data-target="#updateTreatmentPlanModal{{ $plan->id }}" title="{{ __('Edit Plan') }}">
                                                 <i class="mdi mdi-pencil"></i>
                                             </button>
@@ -2256,7 +2256,7 @@
                                             
                                             {{-- Record Implementation button - Only in Implementation step (6) with Edit permission --}}
                                             @if(!$isClosed && $currentStep == 6)
-                                            @if(auth()->user()->check_permission(['Risk-Management', 'components', 'Risks', 'Edit']))
+                    @if(auth()->user()->can('Risk-Management.components.Risks.Edit'))
                                             <button type="button" class="btn btn-outline-success btn-action" data-toggle="modal" data-target="#recordImplementationModal{{ $plan->id }}" title="{{ __('Record Implementation') }}">
                                                 <i class="mdi mdi-progress-check"></i>
                                             </button>
@@ -2941,7 +2941,7 @@
                             <i class="mdi mdi-eye text-primary"></i> {{ __('Risk Reviews') }}
                         </h6>
                         @if(!$isClosed && $currentStep == 7)
-                        @if(auth()->user()->check_permission(['Risk-Management', 'components', 'Risks', 'Edit']))
+                    @if(auth()->user()->can('Risk-Management.components.Risks.Edit'))
                         <button type="button" class="btn btn-modern btn-primary" data-toggle="modal" data-target="#addReviewModal">
                             <i class="mdi mdi-plus"></i> {{ __('Add Review') }}
                         </button>
@@ -3185,7 +3185,7 @@
                                     @if(!$isClosed)
                                     <td style="text-align: center;">
                                         @if($currentStep == 7)
-                                        @if(auth()->user()->check_permission(['Risk-Management', 'components', 'Risks', 'Edit']))
+                    @if(auth()->user()->can('Risk-Management.components.Risks.Edit'))
                                         <button type="button" class="btn btn-sm btn-outline-primary" 
                                                 data-toggle="modal" 
                                                 data-target="#editReviewModal{{ $review->id }}"
@@ -3218,7 +3218,7 @@
                             <i class="mdi mdi-paperclip text-primary"></i> {{ __('Attachments') }}
                         </h6>
                         @if(!$isClosed)
-                        @if(auth()->user()->check_permission(['Risk-Management', 'components', 'Risks', 'Edit']))
+                    @if(auth()->user()->can('Risk-Management.components.Risks.Edit'))
                         <button type="button" class="btn btn-modern btn-primary" data-toggle="modal" data-target="#uploadAttachmentModal">
                             <i class="mdi mdi-upload"></i> {{ __('Add Attachment') }}
                         </button>
@@ -3291,7 +3291,7 @@
                                                 </button>
                                                 @endif
                                                 @if(!$isClosed)
-                                                @if(auth()->user()->check_permission(['Risk-Management', 'components', 'Risks', 'Delete']))
+                                                @if(auth()->user()->can('Risk-Management.components.Risks.Delete'))
                                                 <form action="{{ route('risk.risks.attachments.delete', $attachment->id) }}" 
                                                       method="POST" 
                                                       class="d-inline"

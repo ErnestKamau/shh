@@ -3,8 +3,7 @@
 namespace Database\Seeders;
 
 use Illuminate\Database\Seeder;
-use App\User;
-use Illuminate\Support\Facades\DB;
+use Spatie\Permission\Models\Permission;
 
 class EquipmentDisposalPermissionsSeeder extends Seeder
 {
@@ -15,34 +14,28 @@ class EquipmentDisposalPermissionsSeeder extends Seeder
      */
     public function run(): void
     {
-        // Disposal permissions
         $permissions = [
+            'Equipment.permission',
             'Equipment.components.Equipment-Disposal.View',
-            'Equipment.components.Equipment-Disposal.Create',
-            'Equipment.components.Equipment-Disposal.Approve',
-            'Equipment.components.Equipment-Disposal.Execute',
-            'Equipment.components.Equipment-Disposal.Report.Download',
-            'Equipment.components.Equipment-Disposal.Report.Annual-Review',
-            'Equipment.components.Equipment-Evaluation.Create',
+            'Equipment.components.Equipment-Disposal.Add',
+            'Equipment.components.Equipment-Disposal.Edit',
+            'Equipment.components.Equipment-Disposal.Delete',
+            'Equipment.components.Equipment-Evaluation.Add',
             'Equipment.components.Equipment-Evaluation.View',
-            'Equipment.components.Equipment-Decommission.Perform',
+            'Equipment.components.Equipment-Evaluation.Edit',
+            'Equipment.components.Equipment-Evaluation.Delete',
+            'Equipment.components.Equipment-Decommission.Add',
+            'Equipment.components.Equipment-Decommission.View',
+            'Equipment.components.Equipment-Decommission.Edit',
+            'Equipment.components.Equipment-Decommission.Delete',
         ];
 
-        foreach ($permissions as $permission) {
-            // Check if permission already exists
-            $exists = DB::table('permissions')->where('name', $permission)->exists();
-            
-            if (!$exists) {
-                DB::table('permissions')->insert([
-                    'name' => $permission,
-                    'guard_name' => 'web',
-                    'created_at' => now(),
-                    'updated_at' => now(),
-                ]);
-                $this->command->info("Created permission: {$permission}");
-            } else {
-                $this->command->info("Permission already exists: {$permission}");
-            }
+        foreach ($permissions as $permissionName) {
+            Permission::query()->firstOrCreate([
+                'name' => $permissionName,
+                'guard_name' => 'web',
+            ]);
+            $this->command->info("Ensured permission: {$permissionName}");
         }
 
         $this->command->info('Equipment disposal permissions seeded successfully.');

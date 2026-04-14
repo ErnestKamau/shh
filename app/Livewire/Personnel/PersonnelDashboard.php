@@ -3,8 +3,6 @@
 namespace App\Livewire\Personnel;
 
 use App\User;
-use App\Role;
-use OwenIt\Auditing\Models\Audit;
 use Carbon\Carbon;
 use Livewire\Component;
 
@@ -16,10 +14,6 @@ class PersonnelDashboard extends Component
     public int $newThisMonth = 0;
     public int $namedUsers = 0;
     public int $sharedUsers = 0;
-    
-    public int $totalDepartments = 0;
-    public int $activeRolesCount = 0;
-    public int $recentAuditCount = 0;
 
     /** @var array<int, array{label: string, used: int, limit: int}> */
     public array $licenseUsage = [];
@@ -29,18 +23,12 @@ class PersonnelDashboard extends Component
 
     /** @var array<int, array{name: string, count: int}> */
     public array $designationDistribution = [];
-    
-    /** @var array<int, array{name: string, count: int}> */
-    public array $rolesDistribution = [];
 
     /** @var array<int, array{month: string, count: int}> */
     public array $hireTrend = [];
 
     /** @var array<int, array{id: int, name: string, department: string, date: string}> */
     public array $recentJoiners = [];
-    
-    /** @var array<int, array{id: int, event: string, auditable_type: string, user_name: string, date: string}> */
-    public array $recentAudits = [];
 
     public function mount(): void
     {
@@ -88,9 +76,6 @@ class PersonnelDashboard extends Component
             ->values()
             ->toArray();
 
-        // Department Info
-        $this->totalDepartments = \App\InventoryDepartment::where('company_id', $companyId)->count();
-        
         $this->departmentDistribution = User::query()
             ->from('users')
             ->leftJoin('inventory_departments as departments', 'departments.id', '=', 'users.department_id')
@@ -104,22 +89,6 @@ class PersonnelDashboard extends Component
             ->map(fn ($row): array => [
                 'name' => (string) $row->name,
                 'count' => (int) $row->count,
-            ])
-            ->toArray();
-
-        // Role Info
-        $this->activeRolesCount = Role::where('company_id', $companyId)->where('active', 1)->count();
-        
-        // Let's get Role assignments count if possible, if not just list the active roles
-        $this->rolesDistribution = Role::query()
-            ->where('company_id', $companyId)
-            ->where('active', 1)
-            ->selectRaw('name, 1 as count') // Placeholder if we don't have user_roles pivot readily available.
-            ->limit(6)
-            ->get()
-            ->map(fn ($row): array => [
-                'name' => (string) $row->name,
-                'count' => (int) 0, // In DB it might require a join on model_has_roles, we just list them.
             ])
             ->toArray();
 
@@ -184,38 +153,6 @@ class PersonnelDashboard extends Component
                 'date' => Carbon::parse($row->created_at)->format('M d, Y'),
             ])
             ->toArray();
-            
-        // Check Audits
-        try {
-            $user_ids = User::query()->where('company_id', $companyId)->pluck('id')->toArray();
-            $this->recentAuditCount = Audit::whereIn('user_id', $user_ids)
-                ->whereDate('created_at', '>=', Carbon::now()->subDays(7))
-                ->count();
-                
-            $this->recentAudits = Audit::query()
-                ->leftJoin('users as u', 'u.id', '=', 'audits.user_id')
-                ->whereIn('audits.user_id', $user_ids)
-                ->selectRaw('audits.id, audits.event, audits.auditable_type, u.name as user_name, audits.created_at')
-                ->orderByDesc('audits.created_at')
-                ->limit(6)
-                ->get()
-                ->map(function($row) {
-                    // Extract just the model name safely
-                    $typeArray = explode("\\", $row->auditable_type);
-                    $simpleModel = end($typeArray);
-                    
-                    return [
-                        'id' => (int) $row->id,
-                        'event' => (string) ucfirst($row->event),
-                        'auditable_type' => (string) $simpleModel,
-                        'user_name' => (string) $row->user_name,
-                        'date' => Carbon::parse($row->created_at)->diffForHumans(),
-                    ];
-                })
-                ->toArray();
-        } catch (\Exception $e) {
-            \Illuminate\Support\Facades\Log::warning("Error fetching Audits inside PersonnelDashboard: " . $e->getMessage());
-        }
     }
 
     public function render()
@@ -223,3 +160,4 @@ class PersonnelDashboard extends Component
         return view('livewire.personnel.personnel-dashboard');
     }
 }
+

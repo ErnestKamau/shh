@@ -9,8 +9,8 @@ use App\Models\DMS\DocumentAuditLog;
 use App\Services\DMS\DocumentNumberGenerator;
 use App\Services\DMS\PermissionManager;
 use App\User;
-use App\Role;
 use Illuminate\Validation\Rule;
+use Spatie\Permission\Models\Role as SpatieRole;
 
 class DocumentTypeManager extends Component
 {
@@ -75,7 +75,16 @@ class DocumentTypeManager extends Component
 
     public function loadRoles(): void
     {
-        $this->roles = Role::where('active', true)->orderBy('name')->get();
+        $roles = SpatieRole::query()
+            ->where('active', true)
+            ->orderBy('name');
+
+        $company = getUserCompany();
+        if ($company && isset($company->id)) {
+            $roles->where('company_id', $company->id);
+        }
+
+        $this->roles = $roles->get();
     }
 
     public function loadAvailableUsers(): void

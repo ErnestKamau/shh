@@ -4,8 +4,9 @@ namespace App\Livewire\Personnel;
 
 use App\Models\Lab\Qualification;
 use App\Models\Personnel\RoleCertification;
-use App\Role;
 use Livewire\Component;
+use Spatie\Permission\Models\Permission;
+use Spatie\Permission\Models\Role;
 
 class RoleDetailManager extends Component
 {
@@ -72,23 +73,32 @@ class RoleDetailManager extends Component
     public function savePermissions(): void
     {
         $role = $this->role;
-        $payload = [];
+        $permissionNames = [];
+
         foreach ($this->permissionsState as $module => $state) {
-            $payload[$module] = [
-                'permission' => !empty($state['permission']) ? 'true' : 'false',
-                'components' => [],
-            ];
+            if (!empty($state['permission'])) {
+                $permissionNames[] = $module . '.permission';
+            }
 
             foreach (($state['components'] ?? []) as $component => $actions) {
-                $payload[$module]['components'][$component] = [];
                 foreach ($actions as $action => $value) {
-                    $payload[$module]['components'][$component][$action] = $value ? 'true' : 'false';
+                    if ($value) {
+                        $permissionNames[] = $module . '.components.' . $component . '.' . $action;
+                    }
                 }
             }
         }
 
-        $role->permissions = json_encode($payload);
-        $role->save();
+        $permissionNames = array_values(array_unique($permissionNames));
+
+        foreach ($permissionNames as $permissionName) {
+            Permission::query()->firstOrCreate([
+                'name' => $permissionName,
+                'guard_name' => 'web',
+            ]);
+        }
+
+        $role->syncPermissions($permissionNames);
 
         $this->message = 'Role permissions were set successfully.';
         $this->messageType = 'success';
@@ -171,7 +181,7 @@ class RoleDetailManager extends Component
 
     public function getRoleProperty()
     {
-        return Role::query()->findOrFail($this->roleId);
+        return Role::query()->where('guard_name', 'web')->findOrFail($this->roleId);
     }
 
     public function getModuleRulesProperty(): array
@@ -206,19 +216,20 @@ class RoleDetailManager extends Component
     private function initializePermissionsState(): void
     {
         $rules = getModulePermissions();
-        $saved = json_decode((string) ($this->role->permissions ?? ''), true) ?: [];
         $actions = ['Add', 'Edit', 'View', 'Delete'];
+        $rolePermissionNames = $this->role->permissions->pluck('name')->flip()->toArray();
 
         foreach ($rules as $moduleName => $rule) {
             $this->permissionsState[$moduleName] = [
-                'permission' => (($saved[$moduleName]['permission'] ?? 'false') === 'true'),
+                'permission' => isset($rolePermissionNames[$moduleName . '.permission']),
                 'components' => [],
             ];
 
             foreach (($rule['components'] ?? []) as $component) {
                 $this->permissionsState[$moduleName]['components'][$component] = [];
                 foreach ($actions as $action) {
-                    $this->permissionsState[$moduleName]['components'][$component][$action] = (($saved[$moduleName]['components'][$component][$action] ?? 'false') === 'true');
+                    $permissionKey = $moduleName . '.components.' . $component . '.' . $action;
+                    $this->permissionsState[$moduleName]['components'][$component][$action] = isset($rolePermissionNames[$permissionKey]);
                 }
             }
         }

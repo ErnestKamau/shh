@@ -263,19 +263,20 @@
 								<tbody>
 									@foreach ($user->roles as $item)
 									<?php
-										$hasDepartmentalApprovals = \App\UserDepartmentalApproval::where('role_id', $item->role_id)->where('user_id', $user->id)->selectRaw('department_id')->get()->pluck('department_id');
+										$hasDepartmentalApprovals = \App\UserDepartmentalApproval::where('role_id', $item->id)->where('user_id', $user->id)->selectRaw('department_id')->get()->pluck('department_id');
 									?>
 									<tr>
 										<td>{{ $loop->iteration }}</td>
-										<td>{{ $item->role->name }}</td>
-										<td>{{ $item->role->description }}</td>
+										<td>{{ $item->name }}</td>
+										<td>{{ $item->description ?? '-' }}</td>
 										<td>
 											<form method="POST" class="btn btn-default text-danger submit-delete-form-btn" action="{{ route('remove-personnel-role', ['id'=>$item->id]) }}">
 												@csrf
+												<input type="hidden" name="user_id" value="{{ $user->id }}">
 												<i class="mdi mdi-delete"></i>
 											</form>
 											<span class="btn btn-transparent btn-sm text-primary"
-											data-departments='{{ json_encode($hasDepartmentalApprovals) }}' data-role="{{ $item->role_id }}"
+											data-departments='{{ json_encode($hasDepartmentalApprovals) }}' data-role="{{ $item->id }}"
 											data-target="#edit-approval-departments" data-toggle="modal">
 											<i class="mdi mdi-home-group {{ count($hasDepartmentalApprovals) == 0 ? 'text-muted' : '' }}"></i>
 										</span>
@@ -653,7 +654,7 @@
 					<label class="control-label">Select Roles</label>
 					<select name="roles[]" class="form-control" placeholder="Select Approval User..." multiple required>
 						<option></option>
-						@foreach (getRoles() as $item)
+						@foreach (\Spatie\Permission\Models\Role::query()->where('guard_name', 'web')->where('company_id', getUserCompany())->where('active', 1)->orderBy('name')->get(['id', 'name']) as $item)
 						<option value="{{ $item->id }}">{{ $item->name }}</option>
 						@endforeach
 					</select>

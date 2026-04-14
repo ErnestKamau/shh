@@ -96,7 +96,7 @@
         }
     }
     if (isset($componentType) && $componentType === 'organizational-role-detail') {
-        $role = \App\Role::find($roleId);
+        $role = \Spatie\Permission\Models\Role::query()->where('guard_name', 'web')->find($roleId);
         if ($role) {
             $breadcrumbItems[] = [
                 'link' => route('organizational-roles'),

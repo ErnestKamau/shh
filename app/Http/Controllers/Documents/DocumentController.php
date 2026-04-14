@@ -10,14 +10,28 @@ use App\Models\DocumentPublication;
 use App\Models\DocumentFolder;
 use App\Models\NotificationFrequency;
 use App\InventoryDepartment;
-use App\Role;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
+use Spatie\Permission\Models\Role as SpatieRole;
 
 class DocumentController extends Controller
 {
+    protected function getActiveRoles(): \Illuminate\Support\Collection
+    {
+        $roles = SpatieRole::query()
+            ->where('active', true)
+            ->orderBy('name');
+
+        $company = getUserCompany();
+        if ($company && isset($company->id)) {
+            $roles->where('company_id', $company->id);
+        }
+
+        return $roles->get();
+    }
+
     public function __construct()
     {
         $this->middleware(['auth', 'twofactor']);
@@ -44,7 +58,7 @@ class DocumentController extends Controller
                   })
                   ->orWhere(function($subQ) use ($user) {
                       // Role-specific documents
-                      $userRoleIds = $user->roles->pluck('role_id')->toArray();
+                      $userRoleIds = $user->roles->pluck('id')->toArray();
                       if (!empty($userRoleIds)) {
                           $subQ->where('publish_scope', 'role')
                                ->where(function($roleQ) use ($userRoleIds) {
@@ -56,7 +70,7 @@ class DocumentController extends Controller
                   })
                   ->orWhere(function($subQ) use ($user) {
                       // Mixed scope documents
-                      $userRoleIds = $user->roles->pluck('role_id')->toArray();
+                      $userRoleIds = $user->roles->pluck('id')->toArray();
                       $subQ->where('publish_scope', 'mixed')
                            ->where(function($mixedQ) use ($user, $userRoleIds) {
                                $mixedQ->whereJsonContains('publish_targets->departments', (string)$user->department_id)
@@ -146,7 +160,7 @@ class DocumentController extends Controller
         
         $documentTypes = DocumentType::where('is_active', true)->get();
         $departments = InventoryDepartment::where('active', true)->get();
-        $roles = Role::where('active', true)->get();
+        $roles = $this->getActiveRoles();
         $notificationFrequencies = NotificationFrequency::where('is_active', true)->get();
 
         // Check if creating a new version from parent document
@@ -401,10 +415,10 @@ class DocumentController extends Controller
                 } elseif ($document->publish_scope === 'department') {
                     $hasAccess = in_array($userDepartment->id, $document->publish_targets ?? []);
                 } elseif ($document->publish_scope === 'role') {
-                    $userRoleIds = $user->roles->pluck('role_id')->toArray();
+                    $userRoleIds = $user->roles->pluck('id')->toArray();
                     $hasAccess = !empty(array_intersect($userRoleIds, $document->publish_targets ?? []));
                 } elseif ($document->publish_scope === 'mixed') {
-                    $userRoleIds = $user->roles->pluck('role_id')->toArray();
+                    $userRoleIds = $user->roles->pluck('id')->toArray();
                     $targets = $document->publish_targets ?? [];
                     $hasAccess = in_array($userDepartment->id, $targets['departments'] ?? []) || 
                                 !empty(array_intersect($userRoleIds, $targets['roles'] ?? []));
@@ -440,7 +454,7 @@ class DocumentController extends Controller
 
         $documentTypes = DocumentType::where('is_active', true)->get();
         $departments = InventoryDepartment::where('active', true)->get();
-        $roles = Role::where('active', true)->get();
+        $roles = $this->getActiveRoles();
         $notificationFrequencies = NotificationFrequency::where('is_active', true)->get();
 
         $folders = DocumentFolder::where('department_id', $userDepartment->id)->orderBy('name')->get();
@@ -851,10 +865,10 @@ class DocumentController extends Controller
                 } elseif ($document->publish_scope === 'department') {
                     $hasAccess = in_array($userDepartment->id, $document->publish_targets ?? []);
                 } elseif ($document->publish_scope === 'role') {
-                    $userRoleIds = $user->roles->pluck('role_id')->toArray();
+                    $userRoleIds = $user->roles->pluck('id')->toArray();
                     $hasAccess = !empty(array_intersect($userRoleIds, $document->publish_targets ?? []));
                 } elseif ($document->publish_scope === 'mixed') {
-                    $userRoleIds = $user->roles->pluck('role_id')->toArray();
+                    $userRoleIds = $user->roles->pluck('id')->toArray();
                     $targets = $document->publish_targets ?? [];
                     $hasAccess = in_array($userDepartment->id, $targets['departments'] ?? []) || 
                                 !empty(array_intersect($userRoleIds, $targets['roles'] ?? []));
@@ -867,7 +881,7 @@ class DocumentController extends Controller
         }
 
         $departments = InventoryDepartment::where('active', true)->get();
-        $roles = Role::where('active', true)->get();
+        $roles = $this->getActiveRoles();
 
         return view('documents.publish', compact('document', 'departments', 'roles'));
     }
@@ -891,10 +905,10 @@ class DocumentController extends Controller
                 } elseif ($document->publish_scope === 'department') {
                     $hasAccess = in_array($userDepartment->id, $document->publish_targets ?? []);
                 } elseif ($document->publish_scope === 'role') {
-                    $userRoleIds = $user->roles->pluck('role_id')->toArray();
+                    $userRoleIds = $user->roles->pluck('id')->toArray();
                     $hasAccess = !empty(array_intersect($userRoleIds, $document->publish_targets ?? []));
                 } elseif ($document->publish_scope === 'mixed') {
-                    $userRoleIds = $user->roles->pluck('role_id')->toArray();
+                    $userRoleIds = $user->roles->pluck('id')->toArray();
                     $targets = $document->publish_targets ?? [];
                     $hasAccess = in_array($userDepartment->id, $targets['departments'] ?? []) || 
                                 !empty(array_intersect($userRoleIds, $targets['roles'] ?? []));

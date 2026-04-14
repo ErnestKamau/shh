@@ -9,11 +9,18 @@ use Illuminate\Database\Eloquent\Relations\HasOne;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 use Illuminate\Support\Facades\Log;
-use Session;
+use Spatie\Permission\Models\Role as SpatieRole;
+use Spatie\Permission\Traits\HasRoles;
 
 class User extends Authenticatable
 {
 	use Notifiable;
+	use HasRoles {
+		hasRole as private spatieHasRole;
+		hasPermissionTo as private spatieHasPermissionTo;
+	}
+
+	protected string $guard_name = 'web';
 
 	/**
 	 * The attributes that are mass assignable.
@@ -53,10 +60,6 @@ class User extends Authenticatable
 	public function audit_logs()
 	{
 		return \OwenIt\Auditing\Models\Audit::where('user_id', $this->id)->orderBy('created_at', 'desc')->get();
-	}
-
-	public function roles(){
-		return $this->hasMany('App\UserRole');
 	}
 
 	/**
@@ -116,11 +119,35 @@ class User extends Authenticatable
 	}
 
 	public function hasRole($role_id, $isAnID=false){
-		$role = Role::join('user_roles as ur', 'ur.role_id', 'roles.id')->where('ur.user_id', $this->id);
+		try {
+			$roleName = null;
 
-		$role = $isAnID ? $role->where('roles.id', $role_id)->get() : $role->where('roles.name', $role_id)->get();
-		// echo json_encode($role).$this->id;
-		return $role->count() > 0;
+			if (is_object($role_id)) {
+				if (isset($role_id->name) && is_string($role_id->name)) {
+					$roleName = trim($role_id->name);
+				} elseif (isset($role_id->id) && is_numeric($role_id->id)) {
+					$roleName = SpatieRole::query()
+						->where('guard_name', $this->guard_name)
+						->where('id', (int) $role_id->id)
+						->value('name');
+				}
+			} elseif ($isAnID === true || is_numeric($role_id)) {
+				$roleName = SpatieRole::query()
+					->where('guard_name', $this->guard_name)
+					->where('id', (int) $role_id)
+					->value('name');
+			} elseif (is_string($role_id)) {
+				$roleName = trim($role_id);
+			}
+
+			if (!is_string($roleName) || $roleName === '') {
+				return false;
+			}
+
+			return $this->spatieHasRole($roleName, $this->guard_name);
+		} catch (\Throwable $exception) {
+			return false;
+		}
 	}
 
 	public function department(){
@@ -144,44 +171,22 @@ class User extends Authenticatable
 		$this->save();
 	}
 	public function check_permission($role){
-		
-		$permissions = Session::get('permissions');
-		// return response()->json($permissions,200);
-		$data1 = json_encode($permissions);
-		$data = json_decode($data1,true);
-
-		if(sizeof($role) > 2){
-
-			if(isset($data[$role[0]][$role[1]][$role[2]][$role[3]])){
-				if($data[$role[0]][$role[1]][$role[2]][$role[3]] == "true"){
-					return true;
-				}else{
-					return false;
-				}
-			}else{
-				return false;
-			}
-		}elseif(sizeof($role)==2){
-			if(isset($data[$role[0]][$role[1]])){
-				if($data[$role[0]][$role[1]] == "true"){
-					return true;
-				}else{
-					return false;
-				}
-			}
-		}else{
+		if (!is_array($role) || count($role) < 2) {
 			return false;
 		}
-		// if ($permissions->$role == "true"){
-		// 	return true;
-		// }else{
-		// 	return false;
-		// }
+
+		$permissionName = implode('.', $role);
+
+		try {
+			return $this->spatieHasPermissionTo($permissionName, $this->guard_name);
+		} catch (\Throwable $exception) {
+			return false;
+		}
 	}
 	public function checkApproveLabSampleRole(){
 		$approve_role_id =SystemConfiguration::where('key','approve_lab_sample_role_id')->first();
 		if(isset($approve_role_id->id)){
-			if(isset(UserRole::where('user_id',$this->id)->where('role_id',$approve_role_id->value)->first()->id)){
+			if($this->hasRole((int) $approve_role_id->value, true)){
 				return true;
 			}
 			return false;
@@ -191,7 +196,7 @@ class User extends Authenticatable
 	public function checkVerifyLabSampleRole(){
 		$approve_role_id =SystemConfiguration::where('key','verify_lab_samples_role_id')->first();
 		if(isset($approve_role_id->id)){
-			if(isset(UserRole::where('user_id',$this->id)->where('role_id',$approve_role_id->value)->first()->id)){
+			if($this->hasRole((int) $approve_role_id->value, true)){
 				return true;
 			}
 			return false;
@@ -201,7 +206,7 @@ class User extends Authenticatable
 	public function CheckViewQcSample(){
 		$view_qc = SystemConfiguration::where('key','can_view_qc')->first();
 		if(isset($view_qc->id)){
-			if(isset(UserRole::where('user_id',$this->id)->where('role_id',$view_qc->value)->first()->id)){
+			if($this->hasRole((int) $view_qc->value, true)){
 				return true;
 			}else{
 				return false;
@@ -212,7 +217,7 @@ class User extends Authenticatable
 	public function CheckDeactivatePersonnel(){
 		$deactivate_config = SystemConfiguration::where('key','can_deactivate_personnel')->first();
 		if(isset($deactivate_config->id)){
-			if(isset(UserRole::where('user_id',$this->id)->where('role_id',$deactivate_config->value)->first()->id)){
+			if($this->hasRole((int) $deactivate_config->value, true)){
 				return true;
 			}else{
 				return false;

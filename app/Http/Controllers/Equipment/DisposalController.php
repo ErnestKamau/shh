@@ -24,8 +24,7 @@ class DisposalController extends Controller
     {
         $disposal = EquipmentDisposal::findOrFail($disposalId);
         
-        // Check permission
-        if (!auth()->user()->check_permission(['equipment', 'disposal', 'report', 'download'])) {
+        if (!auth()->user()->can('Equipment.components.Equipment-Disposal.View')) {
             abort(403, 'You do not have permission to download disposal reports.');
         }
 
@@ -44,8 +43,7 @@ class DisposalController extends Controller
     {
         $disposal = EquipmentDisposal::findOrFail($disposalId);
         
-        // Check permission
-        if (!auth()->user()->check_permission(['equipment', 'disposal', 'view'])) {
+        if (!auth()->user()->can('Equipment.components.Equipment-Disposal.View')) {
             abort(403, 'You do not have permission to view disposal reports.');
         }
 

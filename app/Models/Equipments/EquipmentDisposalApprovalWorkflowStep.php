@@ -6,6 +6,7 @@ use App\User;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\MorphTo;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Spatie\Permission\Models\Role as SpatieRole;
 
 class EquipmentDisposalApprovalWorkflowStep extends Model
 {
@@ -57,7 +58,7 @@ class EquipmentDisposalApprovalWorkflowStep extends Model
         }
 
         // If assigned to role
-        if ($this->assignee_type === 'App\\Models\\Role' || $this->assignee_type === 'App\\Role') {
+        if (in_array($this->assignee_type, ['App\\Models\\Role', 'App\\Role', SpatieRole::class], true)) {
             return $user->roles->pluck('id')->contains($this->assignee_id);
         }
 
@@ -76,8 +77,8 @@ class EquipmentDisposalApprovalWorkflowStep extends Model
             return $user ? $user->name : 'Unknown User';
         }
 
-        if ($this->assignee_type === 'App\\Models\\Role' || $this->assignee_type === 'App\\Role') {
-            $role = \App\Role::find($this->assignee_id);
+        if (in_array($this->assignee_type, ['App\\Models\\Role', 'App\\Role', SpatieRole::class], true)) {
+            $role = SpatieRole::query()->where('guard_name', 'web')->find($this->assignee_id);
             return $role ? $role->name : 'Unknown Role';
         }
 

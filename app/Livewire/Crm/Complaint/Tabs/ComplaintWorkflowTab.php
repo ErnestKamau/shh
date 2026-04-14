@@ -9,6 +9,7 @@ use Livewire\Attributes\On;
 use Illuminate\Support\Facades\Auth;
 use App\Livewire\Crm\BaseCrmComponent;
 use App\Exports\CRM\ComplaintTabExport;
+use Spatie\Permission\Models\Role as SpatieRole;
 
 class ComplaintWorkflowTab extends BaseCrmComponent
 {
@@ -748,28 +749,28 @@ class ComplaintWorkflowTab extends BaseCrmComponent
      */
     public function getResponsibleOfficersByStage()
     {
-        // Permission mappings for each stage
         $stages = [
-            1 => ['CRM', 'components', 'Open Complaint', 'Edit'],
-            2 => ['CRM', 'components', 'Complaint Investigation', 'Edit'],
-            3 => ['CRM', 'components', 'Complaint Verification', 'Edit'],
-            4 => ['CRM', 'components', 'Complaint Pending Closure', 'Edit'],
-            5 => ['CRM', 'components', 'Complaint Pending Closure', 'Edit'], // Closed complaints managed by pending closure approvers
+            1 => 'CRM.components.Open Complaints.Edit',
+            2 => 'CRM.components.Complaints Approval.Edit',
+            3 => 'CRM.components.Complaints Resolution.Edit',
+            4 => 'CRM.components.Resolution Approval.Edit',
+            5 => 'CRM.components.Resolution Approval.Edit',
         ];
 
-        $roles = \App\Role::all();
         $officers = [];
 
-        foreach ($stages as $stageId => $perm) {
+        foreach ($stages as $stageId => $permissionName) {
             $officers[$stageId] = [];
+
+            $roles = SpatieRole::query()
+                ->where('guard_name', 'web')
+                ->permission($permissionName)
+                ->with('users:id,name')
+                ->get();
+
             foreach ($roles as $role) {
-                $perms = json_decode($role->permissions, true);
-                // Navigate the nested array structure defined in User.php check_permission
-                if (isset($perms[$perm[0]][$perm[1]][$perm[2]][$perm[3]]) && $perms[$perm[0]][$perm[1]][$perm[2]][$perm[3]] == "true") {
-                    $roleUsers = $role->getUsersByRole();
-                    foreach ($roleUsers as $user) {
-                        $officers[$stageId][$user->id] = $user->name;
-                    }
+                foreach ($role->users as $user) {
+                    $officers[$stageId][$user->id] = $user->name;
                 }
             }
         }

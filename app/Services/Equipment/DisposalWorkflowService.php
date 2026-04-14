@@ -10,6 +10,7 @@ use App\Models\Equipments\EquipmentDisposalApprovalWorkflowStep;
 use App\Services\Equipment\DisposalAuditService;
 use App\Services\Equipment\DisposalNotificationService;
 use Illuminate\Support\Facades\DB;
+use Spatie\Permission\Models\Role as SpatieRole;
 
 class DisposalWorkflowService
 {
@@ -327,10 +328,10 @@ class DisposalWorkflowService
             return true;
         }
 
-        if (in_array($step->assignee_type, ['App\\Models\\Role', 'App\\Role'])) {
+        if (in_array($step->assignee_type, ['App\\Models\\Role', 'App\\Role', SpatieRole::class], true)) {
             $user = User::find($userId);
             if ($user) {
-                return $user->roles->pluck('role_id')->contains($step->assignee_id);
+                return $user->roles->pluck('id')->contains($step->assignee_id);
             }
         }
 

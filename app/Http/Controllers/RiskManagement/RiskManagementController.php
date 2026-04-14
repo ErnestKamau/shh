@@ -2543,8 +2543,7 @@ class RiskManagementController extends Controller
 
         $risk = Risk::forCompany()->findOrFail($riskId);
 
-        // Check permission (using a general edit permission for now)
-        if (!auth()->user()->check_permission(['Risk-Management', 'components', 'Risks', 'Edit'])) {
+        if (!auth()->user()->can('Risk-Management.components.Risks.Edit')) {
              return response()->json(['message' => 'Unauthorized'], 403);
         }
 
@@ -2573,8 +2572,7 @@ class RiskManagementController extends Controller
     {
         $link = \App\Models\RiskManagement\RiskProcessLink::findOrFail($id);
 
-        // Check permission
-        if (!auth()->user()->check_permission(['Risk-Management', 'components', 'Risks', 'Edit'])) {
+        if (!auth()->user()->can('Risk-Management.components.Risks.Edit')) {
              return response()->json(['message' => 'Unauthorized'], 403);
         }
 
@@ -2605,8 +2603,7 @@ class RiskManagementController extends Controller
     {
         $link = \App\Models\RiskManagement\RiskProcessLink::findOrFail($id);
         
-        // Use general risk edit permission or ensure user owns the link/risk
-        if (!auth()->user()->check_permission(['Risk-Management', 'components', 'Risks', 'Edit'])) {
+        if (!auth()->user()->can('Risk-Management.components.Risks.Edit')) {
              return response()->json(['message' => 'Unauthorized'], 403);
         }
 

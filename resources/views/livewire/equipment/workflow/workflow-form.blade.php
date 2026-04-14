@@ -114,7 +114,7 @@
                                                     <label class="form-label small fw-bold required">Assignee Type</label>
                                                     <select wire:model.live="steps.{{ $index }}.assignee_type" class="form-select form-select-sm">
                                                         <option value="App\User">Specific User</option>
-                                                        <option value="App\Role">Role</option>
+                                                        <option value="Spatie\Permission\Models\Role">Role</option>
                                                     </select>
                                                 </div>
                                             </div>

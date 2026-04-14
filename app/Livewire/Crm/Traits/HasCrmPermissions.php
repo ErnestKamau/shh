@@ -10,8 +10,7 @@ trait HasCrmPermissions
      */
     protected function checkPermission($permissionKey)
     {
-        $permissionArray = explode('.', $permissionKey);
-        if (!auth()->user()->check_permission($permissionArray)) {
+        if (!auth()->user()->can((string) $permissionKey)) {
             abort(403, 'You do not have permission to perform this action.');
         }
     }
@@ -23,8 +22,7 @@ trait HasCrmPermissions
      */
     protected function hasPermission($permissionKey)
     {
-        $permissionArray = explode('.', $permissionKey);
-        return auth()->user()->check_permission($permissionArray);
+        return auth()->user()->can((string) $permissionKey);
     }
 }
 

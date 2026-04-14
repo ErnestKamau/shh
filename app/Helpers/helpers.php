@@ -1061,17 +1061,22 @@ function getUsers($all = false)
 
 function getUsersByRole($role, $is_id = false)
 {
-	$users = App\User::orderBy('name')->join('user_roles as ur', 'ur.user_id', '=', 'users.id')
-		->join('roles as r', 'r.id', '=', 'ur.role_id');
+	$roleName = $role;
+
 	if ($is_id) {
-		$users = $users->where('r.id', $role)->selectRaw('users.*');
-	} else {
-		$users = $users->where('r.name', $role)->selectRaw('users.*');
+		$legacyRole = App\Role::find((int) $role);
+		if (! isset($legacyRole->id)) {
+			return collect();
+		}
+		$roleName = $legacyRole->name;
 	}
 
-	$users = $users->where('users.company_id', getUserCompany())->where('users.active', 1)->where('users.is_support_staff', 0)->get();
-
-	return $users;
+	return App\User::role($roleName)
+		->orderBy('name')
+		->where('users.company_id', getUserCompany())
+		->where('users.active', 1)
+		->where('users.is_support_staff', 0)
+		->get();
 }
 
 function getReportingUnitsByID($id)
@@ -1173,11 +1178,15 @@ function getModulePermissions()
 	return array(
 		"Laboratory" => array(
 			"permission" => false,
-			"components" => array_merge(array_diff(getSampleWorflowStages(), array("All Samples")), array("Analytes", "Labs", "Sample-Types", "Reporting-Units", "Methods", "Sample-Tracking-Stages", "Analysis Types", "Proforma Invoices", "Tax Regime", "Pricelists", "Quotation", "Approve For Analysis", "Generate Invoice", "RFT Form","Qc Sample"))
+			"components" => array_merge(array_diff(getSampleWorflowStages(), array("All Samples")), array("All Samples", "Analytes", "Labs", "Sample-Types", "Reporting-Units", "Methods", "Sample-Tracking-Stages", "Analysis Types", "Proforma Invoices", "Tax Regime", "Pricelists", "Quotation", "Approve For Analysis", "Generate Invoice", "RFT Form", "Qc Sample", "Dashboard", "Stock-Monitoring", "Lab-Reports", "Standards", "Inter-Lab-Logs", "Sales-Orders", "Customer-Focus", "Verification-Approvals"))
 		),
 		"Inventory" => array(
 			"permission" => false,
 			"components" => array_merge(getRequestToStoreWorkflow(), array_merge(getRequisitionWorkflow(), array("General Requisition", "Categories", "Inventory-Movement", "Departments", "Suppliers", "Store", "Stock-Taking", "Stock-Transfer", "Configuration", "Approval-Requests")))
+		),
+		"Skills-Matrix" => array(
+			"permission" => false,
+			"components" => array("Module-Preconfigs", "Skills-Matrix", "Capability", "Training-Needs", "Training-Plan", "Matrix-Configuration", "Other-Training")
 		),
 		"Equipment" => array(
 			"permission" => false,
@@ -1198,6 +1207,18 @@ function getModulePermissions()
 		"Sampling-Planner" => array(
 			"permission" => false,
 			"components" => array("All Events")
+		),
+		"Helpdesk" => array(
+			"permission" => false,
+			"components" => array("Dashboard", "Tickets", "Categories", "Archived Tickets", "Chat")
+		),
+		"Documents" => array(
+			"permission" => false,
+			"components" => array("Document Types", "Document Management", "Document Publishing", "Notification Frequencies", "Reports")
+		),
+		"System" => array(
+			"permission" => false,
+			"components" => array("System Settings", "Configuration Types", "Configurations")
 		),
 		"Audit" => array(
 			"permission" => false,
@@ -1840,8 +1861,7 @@ function isUserSomebody($USER)
 function refreshPermissions($refreshOnly = false){
 	if(\Auth::check()){
 		$user = \Auth::user();
-		$home = new App\Http\Controllers\HomeController;
-		$home->loadUserPermissions($user);
+		app(App\Services\Auth\LegacyPermissionSyncService::class)->syncUser($user);
 	}
 	return true;
 }

@@ -15,7 +15,8 @@ class SubmissionFormPolicy
      */
     public function viewAny(User $user): bool
     {
-        return $user->hasPermissionTo('Laboratory.permission') || 
+        return $user->hasPermissionTo('Laboratory.components.RFT Form.View') ||
+               $user->hasPermissionTo('Laboratory.components.All Samples.View') ||
                $user->hasRole('admin');
     }
 
@@ -38,7 +39,7 @@ class SubmissionFormPolicy
      */
     public function create(User $user): bool
     {
-        return $user->hasPermissionTo('Laboratory.components.Forms.Add') || 
+        return $user->hasPermissionTo('Laboratory.components.RFT Form.Add') || 
                $user->hasRole('admin');
     }
 
