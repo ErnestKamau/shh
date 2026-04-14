@@ -1759,7 +1759,12 @@
                                         runner();
                                     }
                                 }" 
-                                x-init="initMCE()">
+                                x-init="
+                                    initMCE();
+                                    Livewire.on('reinit-mce', () => {
+                                        setTimeout(() => initMCE(), 100);
+                                    });
+                                ">
                                 <table class="table table-hover workflow-table mb-0">
                                     <thead>
                                         <tr>
