@@ -5,6 +5,7 @@ namespace App\Services\Auth;
 use App\Role;
 use App\User;
 use App\UserRole;
+use Illuminate\Support\Facades\Schema;
 use Spatie\Permission\Models\Permission;
 use Spatie\Permission\Models\Role as SpatieRole;
 
@@ -86,6 +87,26 @@ class LegacyPermissionSyncService
             'guard_name' => $this->guardName,
         ]);
 
+        if (Schema::hasTable('spatie_roles')) {
+            if (Schema::hasColumn('spatie_roles', 'description')) {
+                $spatieRole->description = $legacyRole->description;
+            }
+
+            if (Schema::hasColumn('spatie_roles', 'level')) {
+                $spatieRole->level = (int) ($legacyRole->level ?? 1);
+            }
+
+            if (Schema::hasColumn('spatie_roles', 'company_id')) {
+                $spatieRole->company_id = $legacyRole->company_id;
+            }
+
+            if (Schema::hasColumn('spatie_roles', 'active')) {
+                $spatieRole->active = (int) ($legacyRole->active ?? 1);
+            }
+
+            $spatieRole->save();
+        }
+
         $permissionNames = $this->extractPermissionNames($legacyRole->permissions);
 
         foreach ($permissionNames as $permissionName) {
@@ -113,10 +134,32 @@ class LegacyPermissionSyncService
             ->values();
 
         foreach ($roleNames as $roleName) {
-            SpatieRole::query()->firstOrCreate([
+            $spatieRole = SpatieRole::query()->firstOrCreate([
                 'name' => $roleName,
                 'guard_name' => $this->guardName,
             ]);
+
+            $legacyRole = Role::query()->where('name', $roleName)->first();
+
+            if (Schema::hasTable('spatie_roles')) {
+                if (Schema::hasColumn('spatie_roles', 'description') && $spatieRole->description === null) {
+                    $spatieRole->description = $legacyRole?->description;
+                }
+
+                if (Schema::hasColumn('spatie_roles', 'level') && (int) ($spatieRole->level ?? 0) === 0) {
+                    $spatieRole->level = (int) ($legacyRole?->level ?? 1);
+                }
+
+                if (Schema::hasColumn('spatie_roles', 'company_id') && $spatieRole->company_id === null) {
+                    $spatieRole->company_id = $legacyRole?->company_id ?? $user->company_id;
+                }
+
+                if (Schema::hasColumn('spatie_roles', 'active') && $spatieRole->active === null) {
+                    $spatieRole->active = (int) ($legacyRole?->active ?? 1);
+                }
+
+                $spatieRole->save();
+            }
         }
 
         $user->syncRoles($roleNames->all());
