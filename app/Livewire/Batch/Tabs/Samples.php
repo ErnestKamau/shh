@@ -498,6 +498,7 @@ class Samples extends Component
             // For now we just focus on assignment
 
             $this->showAssignSamplesModal = true;
+            $this->dispatch('reinit-mce');
         } catch (\Exception $e) {
             Log::error('Error opening assign modal: ' . $e->getMessage());
             session()->flash('error', 'Failed to load assignment data.');
@@ -755,8 +756,6 @@ class Samples extends Component
                         'crm_area_id' => $areaId,
                         'crm_company_unit_id' => $companyUnitId,
                         'crm_company_sub_unit_id' => $subUnitId,
-                        'name' => $areaName,
-                        'code' => 'SPA-' . strtoupper(uniqid()),
                         'description' => 'Auto-created from sample assignment',
                         'active' => true,
                     ]);
@@ -811,6 +810,7 @@ class Samples extends Component
 
             $this->toastType = 'success';
             $this->toastMessage = 'Sample point(s) added to customer successfully.';
+            $this->dispatch('reinit-mce');
         } catch (\Exception $e) {
             DB::rollBack();
             Log::error('Error adding customer sample point: ' . $e->getMessage());
@@ -1099,12 +1099,6 @@ class Samples extends Component
             'sample_code' => $sampleCodeStr,
             'sample_no' => $sampleNo,
             'report_number' => $reportNumber,
-            'sample_point_id' => $samplePointId,
-            'analysis_type_id' => $dataJson['analysis_type_ids'] ?? '',
-            'company_product_id' => $companyProductId,
-            'sample_condition_id' => $sampleConditionId,
-            'lab_id' => $dataJson['lab_id'] ?? 1,
-            'barcode' => $sampleHeader->date_collected ? date('H:i:s', strtotime($sampleHeader->date_collected)) : null,
             'sample_point_id' => $samplePointId,
             'analysis_type_id' => $dataJson['analysis_type_ids'] ?? '',
             'company_product_id' => $companyProductId,
