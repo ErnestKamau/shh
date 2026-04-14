@@ -36,7 +36,9 @@
                         <ul class="nav nav-tabs card-header-tabs">
                             @foreach($this->moduleNames as $moduleName)
                                 <li class="nav-item">
-                                    <a class="nav-link {{ $loop->first ? 'active' : '' }}" data-toggle="tab" href="#module-{{ $loop->index }}">{{ $moduleName }}</a>
+                                    <button type="button" class="nav-link {{ $activeModuleTab === $loop->index ? 'active' : '' }}" wire:click="setActiveModuleTab({{ $loop->index }})">
+                                        {{ $moduleName }}
+                                    </button>
                                 </li>
                             @endforeach
                         </ul>
@@ -44,7 +46,7 @@
                     <div class="tab-content p-3">
                         @foreach($this->moduleNames as $moduleName)
                             @php($components = $this->moduleRules[$moduleName]['components'] ?? [])
-                            <div class="tab-pane fade {{ $loop->first ? 'show active' : '' }}" id="module-{{ $loop->index }}">
+                            <div class="{{ $activeModuleTab === $loop->index ? 'd-block' : 'd-none' }}">
                                 <h6>
                                     <button type="button" class="btn btn-sm btn-default" wire:click="toggleModulePermission('{{ $moduleName }}')">
                                         <i class="fas {{ ($permissionsState[$moduleName]['permission'] ?? false) ? 'fa-toggle-on text-success' : 'fa-toggle-off text-muted' }}"></i>

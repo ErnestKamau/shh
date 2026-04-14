@@ -12,6 +12,7 @@ class RoleDetailManager extends Component
 {
     public int $roleId;
     public string $activeTab = 'permissions';
+    public int $activeModuleTab = 0;
     public array $permissionsState = [];
     public bool $showCertificationModal = false;
     public bool $showDeleteCertificationModal = false;
@@ -30,6 +31,15 @@ class RoleDetailManager extends Component
     public function setActiveTab(string $tab): void
     {
         $this->activeTab = in_array($tab, ['permissions', 'certifications'], true) ? $tab : 'permissions';
+    }
+
+    public function setActiveModuleTab(int $tabIndex): void
+    {
+        if ($tabIndex < 0 || $tabIndex >= count($this->moduleNames)) {
+            return;
+        }
+
+        $this->activeModuleTab = $tabIndex;
     }
 
     public function toggleModulePermission(string $module): void
@@ -233,5 +243,7 @@ class RoleDetailManager extends Component
                 }
             }
         }
+
+        $this->activeModuleTab = 0;
     }
 }
