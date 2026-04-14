@@ -3,10 +3,22 @@
 namespace App\Http\Middleware;
 
 use Closure;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 
 class checkHasPermission
 {
+		protected function hasLegacyAdminRole(int $userId): bool
+		{
+			$adminRoleNames = ['admin', 'super admin', 'super-admin', 'system admin', 'system-admin'];
+
+			return DB::table('user_roles')
+				->join('roles', 'roles.id', '=', 'user_roles.role_id')
+				->where('user_roles.user_id', $userId)
+				->whereIn(DB::raw('LOWER(roles.name)'), $adminRoleNames)
+				->exists();
+		}
+
     /**
      * Handle an incoming request.
      *
@@ -27,7 +39,13 @@ class checkHasPermission
     {
 			$user = auth()->user();
 
-			if ($user && method_exists($user, 'isSystemAdmin') && $user->isSystemAdmin()) {
+			if (
+				$user &&
+				(
+					(method_exists($user, 'isSystemAdmin') && $user->isSystemAdmin()) ||
+					$this->hasLegacyAdminRole((int) $user->id)
+				)
+			) {
 				return $next($request);
 			}
 
