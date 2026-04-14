@@ -8,6 +8,7 @@ use OwenIt\Auditing\Contracts\Auditable;
 class CompanyProduct extends Model implements Auditable
 {
 	use \OwenIt\Auditing\Auditable;
+	protected $guarded = [];
   public function unit()
 	{
 		return $this->belongsTo('App\Models\CRM\CRMCompanyUnit', 'crm_company_unit_id');

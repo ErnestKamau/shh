@@ -13,6 +13,8 @@ class SamplePoint extends Model implements Auditable
 {
 	use \OwenIt\Auditing\Auditable;
 
+    protected $guarded = [];
+
     /**
      * Human-readable label for UIs when legacy `name` is absent on `sample_points`.
      *

@@ -1623,7 +1623,7 @@
 							<div id="submission-form-content" style="display: none;">
 								<div class="form-group">
 									<label for="submission-form-select" class="control-label">Choose a Form:</label>
-									<select class="form-control" id="submission-form-select" required>
+									<select class="form-control no-select2" id="submission-form-select" required>
 										<option value="">Select a submission form...</option>
 									</select>
 								</div>
@@ -3006,6 +3006,16 @@
 			$('#add-submission-form-modal').on('show.bs.modal', function() {
 				console.log('Modal is opening, loading forms...');
 				loadAvailableForms();
+				
+				// Initialize Select2 with dropdownParent to ensure it's above the modal
+				setTimeout(function() {
+					$('#submission-form-select').select2({
+						dropdownParent: $('#add-submission-form-modal'),
+						placeholder: 'Select a submission form...',
+						allowClear: true,
+						width: '100%'
+					});
+				}, 100);
 			});
 		
 			// Reset modal when hidden
@@ -3082,6 +3092,11 @@
 					console.log('Adding form option:', form.name, form.id);
 					select.append(`<option value="${form.id}">${form.name}</option>`);
 				});
+				
+				// Update Select2 if it's already initialized
+				if (select.hasClass('select2-hidden-accessible')) {
+					select.trigger('change');
+				}
 				console.log('Form select populated with', forms.length, 'options');
 			}
 		
