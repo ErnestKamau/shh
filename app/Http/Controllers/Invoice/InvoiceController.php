@@ -281,11 +281,8 @@ class InvoiceController extends Controller
     public function print_invoice(Request $request,$id){
         $invoice = Invoice::find($id);
         
-        if(!isset($invoice->id)){
+        if(!$invoice){
             return redirect()->back()->with('error','No Invoice with the specified ID');
-        }
-        if($invoice->id != $request->invoice_id){
-            return redirect()->back()->with('error','There is no Invoice with the specified route ID');
         }
         $header = SampleHeader::where('invoice_id',$invoice->id)->first();
         $customer = getCrmCustomerByID($header->crm_customer_id);

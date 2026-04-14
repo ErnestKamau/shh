@@ -1726,7 +1726,40 @@
                             </div>
                         @endif
                         <div class="workflow-board-panel-body p-0">
-                            <div class="table-responsive">
+                            <div class="table-responsive" 
+                                x-data="{
+                                    initMCE() {
+                                        let tries = 0;
+                                        const runner = () => {
+                                            if (typeof tinymce !== 'undefined' && typeof tinymce.init === 'function') {
+                                                tinymce.remove('.assign-comment-editor');
+                                                tinymce.init({
+                                                    selector: '.assign-comment-editor',
+                                                    menubar: false,
+                                                    statusbar: false,
+                                                    height: 120,
+                                                    toolbar: 'bold italic underline | bullist numlist | forecolor',
+                                                    plugins: 'lists textcolor',
+                                                    setup: function (editor) {
+                                                        editor.on('change blur', function () {
+                                                            editor.save();
+                                                            var content = editor.getContent();
+                                                            var pointId = document.getElementById(editor.id).getAttribute('data-point-id');
+                                                            @this.set('assignComments.' + pointId, content);
+                                                        });
+                                                    }
+                                                });
+                                            } else {
+                                                tries++;
+                                                if(tries < 50) { 
+                                                    setTimeout(runner, 200);
+                                                }
+                                            }
+                                        };
+                                        runner();
+                                    }
+                                }" 
+                                x-init="initMCE()">
                                 <table class="table table-hover workflow-table mb-0">
                                     <thead>
                                         <tr>
@@ -1765,9 +1798,11 @@
                                                     {{ empty($assignSelectedPoints[$point['id']]) ? 'disabled' : '' }}>
                                             </td>
                                             <td>
-                                                <button type="button" class="btn btn-sm btn-outline-secondary" wire:click="openCommentModal('{{ $point['id'] }}')">
-                                                    <i class="mdi mdi-pencil"></i> Edit Comment
-                                                </button>
+                                                <div wire:ignore>
+                                                    <textarea class="form-control form-control-sm assign-comment-editor" 
+                                                        id="assign_comment_{{ $point['id'] }}" 
+                                                        data-point-id="{{ $point['id'] }}"></textarea>
+                                                </div>
                                             </td>
                                             <td>
                                                 <span class="badge badge-success">Active</span>
