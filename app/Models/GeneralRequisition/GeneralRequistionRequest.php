@@ -2,11 +2,15 @@
 
 namespace App\Models\GeneralRequisition;
 
+use OwenIt\Auditing\Contracts\Auditable;
+
 use Illuminate\Database\Eloquent\Model;
 use App\EntityAttachment as Attachment;
 
-class GeneralRequistionRequest extends Model
+class GeneralRequistionRequest extends Model implements Auditable
 {
+    use \OwenIt\Auditing\Auditable;
+
 	public function items(){
 		return $this->hasMany(GeneralRequisitionRequestItem::class, 'request_id');
 	}

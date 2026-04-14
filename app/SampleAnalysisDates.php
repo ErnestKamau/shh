@@ -2,10 +2,14 @@
 
 namespace App;
 
+use OwenIt\Auditing\Contracts\Auditable;
+
 use Illuminate\Database\Eloquent\Model;
 
-class SampleAnalysisDates extends Model
+class SampleAnalysisDates extends Model implements Auditable
 {
+    use \OwenIt\Auditing\Auditable;
+
     protected $table = "sample_analysis_dates";
     
     protected $fillable = [

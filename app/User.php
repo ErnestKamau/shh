@@ -2,6 +2,8 @@
 
 namespace App;
 
+use OwenIt\Auditing\Contracts\Auditable;
+
 use App\Models\CRM\TicketPermission;
 use App\Models\System\SystemConfiguration;
 use Illuminate\Contracts\Auth\MustVerifyEmail;
@@ -12,8 +14,10 @@ use Illuminate\Support\Facades\Log;
 use Spatie\Permission\Models\Role as SpatieRole;
 use Spatie\Permission\Traits\HasRoles;
 
-class User extends Authenticatable
+class User extends Authenticatable implements Auditable
 {
+    use \OwenIt\Auditing\Auditable;
+
 	use Notifiable;
 	use HasRoles {
 		hasRole as private spatieHasRole;

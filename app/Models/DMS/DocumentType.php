@@ -2,13 +2,17 @@
 
 namespace App\Models\DMS;
 
+use OwenIt\Auditing\Contracts\Auditable;
+
 use App\User;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
-class DocumentType extends Model
+class DocumentType extends Model implements Auditable
 {
+    use \OwenIt\Auditing\Auditable;
+
     protected $fillable = [
         'name',
         'code',

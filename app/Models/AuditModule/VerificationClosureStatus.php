@@ -2,12 +2,16 @@
 
 namespace App\Models\AuditModule;
 
+use OwenIt\Auditing\Contracts\Auditable;
+
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 
-class VerificationClosureStatus extends Model
+class VerificationClosureStatus extends Model implements Auditable
 {
+    use \OwenIt\Auditing\Auditable;
+
     use SoftDeletes;
 
     protected $table = 'verification_closure_statuses';

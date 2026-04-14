@@ -2,10 +2,14 @@
 
 namespace App\Models\SkillsMatrix;
 
+use OwenIt\Auditing\Contracts\Auditable;
+
 use Illuminate\Database\Eloquent\Model;
 
-class TrainingDetailView extends Model
+class TrainingDetailView extends Model implements Auditable
 {
+    use \OwenIt\Auditing\Auditable;
+
     protected $table = "skill_train_detail_view";
 
     public function capabilitydetail(){

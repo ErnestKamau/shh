@@ -2,12 +2,16 @@
 
 namespace App\Models\AuditModule;
 
+use OwenIt\Auditing\Contracts\Auditable;
+
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 
-class WorkflowAction extends Model
+class WorkflowAction extends Model implements Auditable
 {
+    use \OwenIt\Auditing\Auditable;
+
     use SoftDeletes;
 
     protected $table = 'workflow_actions';

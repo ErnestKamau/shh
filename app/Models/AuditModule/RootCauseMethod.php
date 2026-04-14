@@ -2,12 +2,16 @@
 
 namespace App\Models\AuditModule;
 
+use OwenIt\Auditing\Contracts\Auditable;
+
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 
-class RootCauseMethod extends Model
+class RootCauseMethod extends Model implements Auditable
 {
+    use \OwenIt\Auditing\Auditable;
+
     use SoftDeletes;
 
     protected $table = 'root_cause_methods';

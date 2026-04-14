@@ -2,10 +2,14 @@
 
 namespace App\Models;
 
+use OwenIt\Auditing\Contracts\Auditable;
+
 use Illuminate\Database\Eloquent\Model;
 
-class BatchAttachmentAnnotation extends Model
+class BatchAttachmentAnnotation extends Model implements Auditable
 {
+    use \OwenIt\Auditing\Auditable;
+
     protected $table = 'batch_attachment_annotations';
     
     protected $fillable = [

@@ -2,10 +2,14 @@
 
 namespace App\Models;
 
+use OwenIt\Auditing\Contracts\Auditable;
+
 use Illuminate\Database\Eloquent\Model;
 
-class SampleSequence extends Model
+class SampleSequence extends Model implements Auditable
 {
+    use \OwenIt\Auditing\Auditable;
+
     protected $fillable = [
         'batch_code',
         'sample_sequence'

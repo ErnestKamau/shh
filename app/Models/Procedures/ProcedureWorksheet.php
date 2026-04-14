@@ -2,10 +2,14 @@
 
 namespace App\Models\Procedures;
 
+use OwenIt\Auditing\Contracts\Auditable;
+
 use Illuminate\Database\Eloquent\Model;
 
-class ProcedureWorksheet extends Model
+class ProcedureWorksheet extends Model implements Auditable
 {
+    use \OwenIt\Auditing\Auditable;
+
     protected $fillable = [
         'name',
         'description',

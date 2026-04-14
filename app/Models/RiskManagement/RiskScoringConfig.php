@@ -2,11 +2,15 @@
 
 namespace App\Models\RiskManagement;
 
+use OwenIt\Auditing\Contracts\Auditable;
+
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\SoftDeletes;
 
-class RiskScoringConfig extends Model
+class RiskScoringConfig extends Model implements Auditable
 {
+    use \OwenIt\Auditing\Auditable;
+
     use SoftDeletes;
 
     protected $table = 'risk_scoring_configs';

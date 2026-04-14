@@ -2,10 +2,14 @@
 
 namespace App;
 
+use OwenIt\Auditing\Contracts\Auditable;
+
 use Illuminate\Database\Eloquent\Model;
 
-class ReportFormatDetail extends Model
+class ReportFormatDetail extends Model implements Auditable
 {
+    use \OwenIt\Auditing\Auditable;
+
     protected $table = 'report_format_details';
 
     protected $fillable = [

@@ -2,13 +2,17 @@
 
 namespace App\Models\Procedures;
 
+use OwenIt\Auditing\Contracts\Auditable;
+
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 
-class ProcedureTestKitRow extends Model
+class ProcedureTestKitRow extends Model implements Auditable
 {
+    use \OwenIt\Auditing\Auditable;
+
     use HasFactory;
 
     protected $fillable = [

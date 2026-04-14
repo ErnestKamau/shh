@@ -2,10 +2,14 @@
 
 namespace App;
 
+use OwenIt\Auditing\Contracts\Auditable;
+
 use Illuminate\Database\Eloquent\Model;
 
-class LabSectionApproverRelationShip extends Model
+class LabSectionApproverRelationShip extends Model implements Auditable
 {
+    use \OwenIt\Auditing\Auditable;
+
     protected $table = "lab_section_approver_relation";
     protected $fillable = ['lab_section_id','user_id'];
 

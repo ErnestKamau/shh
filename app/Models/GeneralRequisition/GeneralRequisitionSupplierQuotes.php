@@ -2,10 +2,14 @@
 
 namespace App\Models\GeneralRequisition;
 
+use OwenIt\Auditing\Contracts\Auditable;
+
 use Illuminate\Database\Eloquent\Model;
 
-class GeneralRequisitionSupplierQuotes extends Model
+class GeneralRequisitionSupplierQuotes extends Model implements Auditable
 {
+    use \OwenIt\Auditing\Auditable;
+
     public function item(): HasOne
     {
         return $this->hasOne(GeneralRequisitionRequestItem::class, 'id', 'request_item_id');

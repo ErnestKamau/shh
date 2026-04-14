@@ -2,10 +2,14 @@
 
 namespace App\Models\Equipments;
 
+use OwenIt\Auditing\Contracts\Auditable;
+
 use Illuminate\Database\Eloquent\Model;
 
-class DisposalMethod extends Model
+class DisposalMethod extends Model implements Auditable
 {
+    use \OwenIt\Auditing\Auditable;
+
     protected $table = 'equipment_disposal_methods';
 
     protected $fillable = [

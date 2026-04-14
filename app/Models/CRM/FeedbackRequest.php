@@ -2,10 +2,14 @@
 
 namespace App\Models\CRM;
 
+use OwenIt\Auditing\Contracts\Auditable;
+
 use Illuminate\Database\Eloquent\Model;
 
-class FeedbackRequest extends Model
+class FeedbackRequest extends Model implements Auditable
 {
+    use \OwenIt\Auditing\Auditable;
+
     protected $table = 'feedback_requests';
     
     const STATUS_PENDING = 'PENDING';

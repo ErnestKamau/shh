@@ -14,6 +14,8 @@ use OwenIt\Auditing\Contracts\Auditable;
 
 class MethodSequence extends Model implements Auditable
 {
+    use \OwenIt\Auditing\Auditable;
+
     use HasFactory, SoftDeletes, \OwenIt\Auditing\Auditable;
 
     protected $fillable = [

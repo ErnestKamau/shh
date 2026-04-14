@@ -2,12 +2,16 @@
 
 namespace App\Models\Worksheets;
 
+use OwenIt\Auditing\Contracts\Auditable;
+
 use App\Models\Equipments\Equipment;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
-class MethodSequenceStageEquipmentUsage extends Model
+class MethodSequenceStageEquipmentUsage extends Model implements Auditable
 {
+    use \OwenIt\Auditing\Auditable;
+
     protected $table = 'method_sequence_stage_equipment_usage';
 
     protected $fillable = [

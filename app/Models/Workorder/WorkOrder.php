@@ -2,10 +2,14 @@
 
 namespace App\Models\Workorder;
 
+use OwenIt\Auditing\Contracts\Auditable;
+
 use Illuminate\Database\Eloquent\Model;
 
-class WorkOrder extends Model
+class WorkOrder extends Model implements Auditable
 {
+    use \OwenIt\Auditing\Auditable;
+
   protected $table = 'work_orders';
 
 	public function getSite($typ){

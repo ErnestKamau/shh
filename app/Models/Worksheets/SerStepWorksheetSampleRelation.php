@@ -2,13 +2,17 @@
 
 namespace App\Models\Worksheets;
 
+use OwenIt\Auditing\Contracts\Auditable;
+
 use Illuminate\Database\Eloquent\Model;
 use App\User;
 use App\Models\Equipments\Equipment;
 use App\Models\SerWorksheetStep;
 
-class SerStepWorksheetSampleRelation extends Model
+class SerStepWorksheetSampleRelation extends Model implements Auditable
 {
+    use \OwenIt\Auditing\Auditable;
+
     protected $guarded = ['id'];
 
     public function header()

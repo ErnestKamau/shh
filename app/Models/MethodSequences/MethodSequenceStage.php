@@ -2,6 +2,8 @@
 
 namespace App\Models\MethodSequences;
 
+use OwenIt\Auditing\Contracts\Auditable;
+
 use App\LabSubCategory;
 use App\Models\Equipments\Equipment;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
@@ -11,8 +13,10 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Casts\Attribute;
 use Illuminate\Support\Collection;
 
-class MethodSequenceStage extends Model
+class MethodSequenceStage extends Model implements Auditable
 {
+    use \OwenIt\Auditing\Auditable;
+
     use HasFactory, SoftDeletes;
 
     protected $fillable = [

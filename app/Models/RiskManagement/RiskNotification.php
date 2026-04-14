@@ -2,13 +2,17 @@
 
 namespace App\Models\RiskManagement;
 
+use OwenIt\Auditing\Contracts\Auditable;
+
 use App\User;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\MorphTo;
 
-class RiskNotification extends Model
+class RiskNotification extends Model implements Auditable
 {
+    use \OwenIt\Auditing\Auditable;
+
     protected $table = 'risk_notifications';
 
     protected $fillable = [

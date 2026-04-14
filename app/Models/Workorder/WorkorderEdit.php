@@ -2,9 +2,13 @@
 
 namespace App\Models\Workorder;
 
+use OwenIt\Auditing\Contracts\Auditable;
+
 use Illuminate\Database\Eloquent\Model;
 
-class WorkorderEdit extends Model
+class WorkorderEdit extends Model implements Auditable
 {
+    use \OwenIt\Auditing\Auditable;
+
     //
 }

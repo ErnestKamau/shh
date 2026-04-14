@@ -2,10 +2,14 @@
 
 namespace App\Models\Worksheets;
 
+use OwenIt\Auditing\Contracts\Auditable;
+
 use Illuminate\Database\Eloquent\Model;
 
-class SerTestkitWorksheetSampleRelation extends Model
+class SerTestkitWorksheetSampleRelation extends Model implements Auditable
 {
+    use \OwenIt\Auditing\Auditable;
+
     protected $guarded = ['id'];
 
     protected $casts = [

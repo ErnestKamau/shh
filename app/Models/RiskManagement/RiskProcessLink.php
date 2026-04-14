@@ -2,12 +2,16 @@
 
 namespace App\Models\RiskManagement;
 
+use OwenIt\Auditing\Contracts\Auditable;
+
 use App\User;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
-class RiskProcessLink extends Model
+class RiskProcessLink extends Model implements Auditable
 {
+    use \OwenIt\Auditing\Auditable;
+
     protected $table = 'risk_process_links';
 
     protected $fillable = [

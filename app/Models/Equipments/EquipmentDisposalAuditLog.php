@@ -2,12 +2,16 @@
 
 namespace App\Models\Equipments;
 
+use OwenIt\Auditing\Contracts\Auditable;
+
 use App\User;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
-class EquipmentDisposalAuditLog extends Model
+class EquipmentDisposalAuditLog extends Model implements Auditable
 {
+    use \OwenIt\Auditing\Auditable;
+
     protected $fillable = [
         'disposal_id',
         'action',

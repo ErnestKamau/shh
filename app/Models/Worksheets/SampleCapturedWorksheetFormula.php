@@ -2,6 +2,8 @@
 
 namespace App\Models\Worksheets;
 
+use OwenIt\Auditing\Contracts\Auditable;
+
 use App\CapturedResult;
 use App\Models\Formulars\Formula;
 use App\SampleDetails;
@@ -12,8 +14,10 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\SoftDeletes;
 
-class SampleCapturedWorksheetFormula extends Model
+class SampleCapturedWorksheetFormula extends Model implements Auditable
 {
+    use \OwenIt\Auditing\Auditable;
+
     use SoftDeletes;
 
     protected $fillable = [

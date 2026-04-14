@@ -2,12 +2,16 @@
 
 namespace App\Models;
 
+use OwenIt\Auditing\Contracts\Auditable;
+
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 
-class CertificateTemplateElementHolder extends Model
+class CertificateTemplateElementHolder extends Model implements Auditable
 {
+    use \OwenIt\Auditing\Auditable;
+
     protected $fillable = [
         'certificate_template_section_id',
         'parent_holder_id',

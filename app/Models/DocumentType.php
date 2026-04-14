@@ -8,6 +8,8 @@ use OwenIt\Auditing\Contracts\Auditable;
 
 class DocumentType extends Model implements Auditable
 {
+    use \OwenIt\Auditing\Auditable;
+
     use SoftDeletes, \OwenIt\Auditing\Auditable;
 
     protected $fillable = [

@@ -2,6 +2,8 @@
 
 namespace App\Models\Worksheets;
 
+use OwenIt\Auditing\Contracts\Auditable;
+
 use Illuminate\Database\Eloquent\Model;
 use App\Models\CRM\SamplePoint;
 use App\User;
@@ -10,8 +12,10 @@ use App\CapturedResult;
 use App\AnalysisType;
 use App\SampleDetails;
 
-class SerHeaderWorksheetSampleRelation extends Model
+class SerHeaderWorksheetSampleRelation extends Model implements Auditable
 {
+    use \OwenIt\Auditing\Auditable;
+
     protected $guarded = ['id'];
 
     protected $casts = [

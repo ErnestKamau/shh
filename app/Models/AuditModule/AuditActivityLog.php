@@ -2,14 +2,18 @@
 
 namespace App\Models\AuditModule;
 
+use OwenIt\Auditing\Contracts\Auditable;
+
 use App\User;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\MorphTo;
 use Illuminate\Support\Facades\Auth;
 
-class AuditActivityLog extends Model
+class AuditActivityLog extends Model implements Auditable
 {
+    use \OwenIt\Auditing\Auditable;
+
     protected $table = 'audit_activity_logs';
 
     protected $fillable = [

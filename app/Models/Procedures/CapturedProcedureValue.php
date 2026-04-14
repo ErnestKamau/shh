@@ -2,11 +2,15 @@
 
 namespace App\Models\Procedures;
 
+use OwenIt\Auditing\Contracts\Auditable;
+
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 
-class CapturedProcedureValue extends Model
+class CapturedProcedureValue extends Model implements Auditable
 {
+    use \OwenIt\Auditing\Auditable;
+
     use HasFactory;
 
     protected $fillable = [

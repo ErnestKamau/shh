@@ -2,10 +2,14 @@
 
 namespace App\Models;
 
+use OwenIt\Auditing\Contracts\Auditable;
+
 use Illuminate\Database\Eloquent\Model;
 
-class SampleTypeSamplePointRelation extends Model
+class SampleTypeSamplePointRelation extends Model implements Auditable
 {
+    use \OwenIt\Auditing\Auditable;
+
     protected $table = 'sampletype_sample_point_relation';
 
     protected $fillable = [

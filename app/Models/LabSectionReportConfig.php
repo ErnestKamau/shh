@@ -2,12 +2,16 @@
 
 namespace App\Models;
 
+use OwenIt\Auditing\Contracts\Auditable;
+
 use App\ReportFormat;
 use App\SampleAnalysisStage;
 use Illuminate\Database\Eloquent\Model;
 
-class LabSectionReportConfig extends Model
+class LabSectionReportConfig extends Model implements Auditable
 {
+    use \OwenIt\Auditing\Auditable;
+
     protected $table = 'report_format_sample_analysis_stage';
 
     protected $fillable = [

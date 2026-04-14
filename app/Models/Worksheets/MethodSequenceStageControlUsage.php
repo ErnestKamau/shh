@@ -2,13 +2,17 @@
 
 namespace App\Models\Worksheets;
 
+use OwenIt\Auditing\Contracts\Auditable;
+
 use App\LabSubCategory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 
-class MethodSequenceStageControlUsage extends Model
+class MethodSequenceStageControlUsage extends Model implements Auditable
 {
+    use \OwenIt\Auditing\Auditable;
+
     protected $table = 'method_sequence_stage_control_usage';
 
     protected $fillable = [

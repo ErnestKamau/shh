@@ -2,12 +2,16 @@
 
 namespace App\Models\DMS;
 
+use OwenIt\Auditing\Contracts\Auditable;
+
 use App\User;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
-class DocumentExpiryNotificationSetting extends Model
+class DocumentExpiryNotificationSetting extends Model implements Auditable
 {
+    use \OwenIt\Auditing\Auditable;
+
     protected $fillable = [
         'user_id',
         'email_notifications_enabled',

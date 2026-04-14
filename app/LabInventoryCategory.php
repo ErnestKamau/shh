@@ -2,10 +2,14 @@
 
 namespace App;
 
+use OwenIt\Auditing\Contracts\Auditable;
+
 use Illuminate\Database\Eloquent\Model;
 
-class LabInventoryCategory extends Model
+class LabInventoryCategory extends Model implements Auditable
 {
+    use \OwenIt\Auditing\Auditable;
+
     protected $table = 'lab_inventory_category';
     
     protected $fillable = [

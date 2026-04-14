@@ -2,6 +2,8 @@
 
 namespace App\Models\Equipments;
 
+use OwenIt\Auditing\Contracts\Auditable;
+
 use App\User;
 use App\Models\Assets\AssetType;
 use App\Models\Assets\AssetLocation;
@@ -9,8 +11,10 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
-class EquipmentDisposalApprovalWorkflow extends Model
+class EquipmentDisposalApprovalWorkflow extends Model implements Auditable
 {
+    use \OwenIt\Auditing\Auditable;
+
     protected $fillable = [
         'workflow_name',
         'description',

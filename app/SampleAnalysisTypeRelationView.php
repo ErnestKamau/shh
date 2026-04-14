@@ -2,11 +2,15 @@
 
 namespace App;
 
+use OwenIt\Auditing\Contracts\Auditable;
+
 use Illuminate\Database\Eloquent\Model;
 use App\CapturedResult;
 
-class SampleAnalysisTypeRelationView extends Model
+class SampleAnalysisTypeRelationView extends Model implements Auditable
 {
+    use \OwenIt\Auditing\Auditable;
+
     protected $table="samples_to_analysis_relation_view";
 
     public function getCapturedResults(){

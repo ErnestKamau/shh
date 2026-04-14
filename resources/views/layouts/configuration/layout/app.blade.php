@@ -83,9 +83,18 @@
 			<a href="{{ route('system-settings') }}" class="bg-dark list-group-item list-group-item-action">
 				<div class="d-flex w-100 justify-content-start align-items-center">
 					<span class="mdi mdi-view-dashboard fa-fw mr-1"></span>
-					<span class="menu-collapsed">Module Visibility</span>
+					<span class="menu-collapsed">System Dashboard</span>
 				</div>
 			</a>
+
+			@if(auth()->user()->is_support_staff && auth()->user()->can('System.components.System Settings.View'))
+			<a href="{{ route('system-settings.module-visibility') }}" class="bg-dark list-group-item list-group-item-action">
+				<div class="d-flex w-100 justify-content-start align-items-center">
+					<span class="mdi mdi-swap-horizontal fa-fw mr-1"></span>
+					<span class="menu-collapsed">Module Switching</span>
+				</div>
+			</a>
+			@endif
 			
 			<a href="#system-defaults" data-toggle="collapse" aria-expanded="false" class="bg-dark list-group-item list-group-item-action flex-column align-items-start">
 				<div class="d-flex w-100 justify-content-start align-items-center">

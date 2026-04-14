@@ -2,6 +2,8 @@
 
 namespace App\Models\Worksheets;
 
+use OwenIt\Auditing\Contracts\Auditable;
+
 use App\Models\MethodSequences\MethodSequence;
 use App\Models\MethodSequences\MethodSequenceStage;
 use App\SampleHeader;
@@ -11,8 +13,10 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\SoftDeletes;
 
-class MethodSequenceRun extends Model
+class MethodSequenceRun extends Model implements Auditable
 {
+    use \OwenIt\Auditing\Auditable;
+
     use SoftDeletes;
 
     protected $fillable = [

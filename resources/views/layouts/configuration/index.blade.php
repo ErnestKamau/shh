@@ -2,23 +2,26 @@
 
 @section('title2')
 <title>System Configuration</title>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/animate.css/3.7.2/animate.css">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/wow/1.1.2/wow.min.js"></script>
+<script>
+  new WOW().init();
+</script>
 @endsection
-
 @section('content2')
-<div class="container-fluid px-2">
-    <div class="card mb-3 border-0 shadow-sm">
-        <div class="card-body py-3">
-            <h4 class="mb-1"><i class="mdi mdi-cogs text-primary"></i> System Settings</h4>
-            <p class="mb-0 text-muted">Manage global system behavior and module access from one place.</p>
-        </div>
-    </div>
+<div class="card p-2 " style="width: 50%;">
 
-    @if(auth()->user()->is_support_staff)
-        @livewire('system.module-visibility-manager')
-    @else
-        <div class="alert alert-warning mb-0">
-            <i class="mdi mdi-alert"></i> Only support staff can manage module visibility.
-        </div>
-    @endif
+  <form action="{{ route('importUser') }}" enctype="multipart/form-data" method="post">
+  @csrf
+    <div class="form-group">
+      <label class="control-label">Choose excel file</label>
+      <input type="file" name="file" placeholder="Choose Excel File To Import..." class="form-control">
+    </div>
+    <button type="submit" class="btn-btn-outline-success">Upload</button>
+  </form>
+</div>
+<div style="position: fixed;top: 40%;left: 40%; background-color:white;text-align:center;padding:8em" class="wow bounceInDown card" data-wow-duration="2s" data-wow-delay="0s">
+  <div class="card-body"></div>
+  <h1 class="card-text">Welcome to the Lab</h1>
 </div>
 @endsection

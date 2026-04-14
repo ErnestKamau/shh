@@ -2,11 +2,15 @@
 
 namespace App\Models\Lab;
 
+use OwenIt\Auditing\Contracts\Auditable;
+
 use Illuminate\Database\Eloquent\Model;
 use App\User;
 
-class SubmissionForm extends Model
+class SubmissionForm extends Model implements Auditable
 {
+    use \OwenIt\Auditing\Auditable;
+
     protected $fillable = [
         'name', 
         'description', 

@@ -2,14 +2,18 @@
 
 namespace App;
 
+use OwenIt\Auditing\Contracts\Auditable;
+
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Support\Facades\DB;
 use App\Models\SubmissionForm;
 
-class CertificateTemplate extends Model
+class CertificateTemplate extends Model implements Auditable
 {
+    use \OwenIt\Auditing\Auditable;
+
     /**
      * The attributes that are mass assignable.
      *

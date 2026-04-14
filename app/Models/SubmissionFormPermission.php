@@ -2,13 +2,17 @@
 
 namespace App\Models;
 
+use OwenIt\Auditing\Contracts\Auditable;
+
 use App\Role;
 use App\User;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
-class SubmissionFormPermission extends Model
+class SubmissionFormPermission extends Model implements Auditable
 {
+    use \OwenIt\Auditing\Auditable;
+
 
     protected $fillable = [
         'submission_form_id',

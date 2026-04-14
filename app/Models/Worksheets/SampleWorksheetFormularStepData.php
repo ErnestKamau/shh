@@ -2,12 +2,16 @@
 
 namespace App\Models\Worksheets;
 
+use OwenIt\Auditing\Contracts\Auditable;
+
 use App\Models\Formulars\FormulaStep;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
-class SampleWorksheetFormularStepData extends Model
+class SampleWorksheetFormularStepData extends Model implements Auditable
 {
+    use \OwenIt\Auditing\Auditable;
+
     protected $fillable = [
         'worksheet_formular_id',
         'formula_step_id',

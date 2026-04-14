@@ -2,13 +2,17 @@
 
 namespace App\Models\DMS;
 
+use OwenIt\Auditing\Contracts\Auditable;
+
 use App\User;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\MorphTo;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
-class DocumentApprovalWorkflowStep extends Model
+class DocumentApprovalWorkflowStep extends Model implements Auditable
 {
+    use \OwenIt\Auditing\Auditable;
+
     protected $fillable = [
         'workflow_id',
         'step_order',

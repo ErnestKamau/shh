@@ -2,10 +2,14 @@
 
 namespace App\Models\CRM;
 
+use OwenIt\Auditing\Contracts\Auditable;
+
 use Illuminate\Database\Eloquent\Model;
 
-class CRMCompanySection extends Model
+class CRMCompanySection extends Model implements Auditable
 {
+    use \OwenIt\Auditing\Auditable;
+
     protected $table = 'crm_company_sections';
 
     protected $fillable = ['name', 'crm_customer_id', 'company_id', 'active'];

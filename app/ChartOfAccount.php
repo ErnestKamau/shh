@@ -2,9 +2,13 @@
 
 namespace App;
 
+use OwenIt\Auditing\Contracts\Auditable;
+
 use Illuminate\Database\Eloquent\Model;
 
-class ChartOfAccount extends Model
+class ChartOfAccount extends Model implements Auditable
 {
+    use \OwenIt\Auditing\Auditable;
+
     //
 }

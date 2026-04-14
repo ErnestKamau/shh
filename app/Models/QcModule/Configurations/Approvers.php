@@ -2,11 +2,15 @@
 
 namespace App\Models\QcModule\Configurations;
 
+use OwenIt\Auditing\Contracts\Auditable;
+
 use App\User;
 use Illuminate\Database\Eloquent\Model;
 
-class Approvers extends Model
+class Approvers extends Model implements Auditable
 {
+    use \OwenIt\Auditing\Auditable;
+
     protected $table = 'qc_approvers_config';
     protected $appends = ['name','creator'];
 

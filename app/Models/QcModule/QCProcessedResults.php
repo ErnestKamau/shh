@@ -2,6 +2,8 @@
 
 namespace App\Models\QcModule;
 
+use OwenIt\Auditing\Contracts\Auditable;
+
 use App\AnalysisMethod;
 use App\AnalysisType;
 use App\Analyte;
@@ -9,8 +11,10 @@ use App\Models\QcModule\Data\QcResults;
 use App\SampleType;
 use Illuminate\Database\Eloquent\Model;
 
-class QCProcessedResults extends Model
+class QCProcessedResults extends Model implements Auditable
 {
+    use \OwenIt\Auditing\Auditable;
+
     protected $table = "qc_processed_result";
     protected $guarded = ['id'];
 

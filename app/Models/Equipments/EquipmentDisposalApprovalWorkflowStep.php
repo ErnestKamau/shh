@@ -2,14 +2,18 @@
 
 namespace App\Models\Equipments;
 
+use OwenIt\Auditing\Contracts\Auditable;
+
 use App\User;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\MorphTo;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Spatie\Permission\Models\Role as SpatieRole;
 
-class EquipmentDisposalApprovalWorkflowStep extends Model
+class EquipmentDisposalApprovalWorkflowStep extends Model implements Auditable
 {
+    use \OwenIt\Auditing\Auditable;
+
     protected $fillable = [
         'workflow_id',
         'step_order',

@@ -2,13 +2,17 @@
 
 namespace App\Models\DMS;
 
+use OwenIt\Auditing\Contracts\Auditable;
+
 use App\User;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Support\Facades\Storage;
 
-class DocumentVersion extends Model
+class DocumentVersion extends Model implements Auditable
 {
+    use \OwenIt\Auditing\Auditable;
+
     public $timestamps = false;
 
     protected $fillable = [

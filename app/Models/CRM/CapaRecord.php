@@ -2,10 +2,14 @@
 
 namespace App\Models\CRM;
 
+use OwenIt\Auditing\Contracts\Auditable;
+
 use Illuminate\Database\Eloquent\Model;
 
-class CapaRecord extends Model
+class CapaRecord extends Model implements Auditable
 {
+    use \OwenIt\Auditing\Auditable;
+
     protected $fillable = [
         'complaint_id',
         'details_of_non_conformance',

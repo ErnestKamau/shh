@@ -631,7 +631,13 @@
         </a>
         @endif
         
-        @if(auth()->user()->is_support_staff && isSystemModuleVisible('settings'))
+        @if(
+            (
+                auth()->user()->is_support_staff
+                || (method_exists(auth()->user(), 'isSystemAdmin') && auth()->user()->isSystemAdmin())
+                || auth()->user()->can('System.components.System Settings.View')
+            ) && isSystemModuleVisible('settings')
+        )
         <a class="app-card settings" href="/system-settings" data-app="settings">
             <div class="app-icon" style="background: linear-gradient(135deg, #424242, #212121);">
                 <i class="fas fa-cogs"></i>

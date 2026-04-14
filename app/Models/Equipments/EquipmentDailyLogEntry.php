@@ -2,10 +2,14 @@
 
 namespace App\Models\Equipments;
 
+use OwenIt\Auditing\Contracts\Auditable;
+
 use Illuminate\Database\Eloquent\Model;
 
-class EquipmentDailyLogEntry extends Model
+class EquipmentDailyLogEntry extends Model implements Auditable
 {
+    use \OwenIt\Auditing\Auditable;
+
     protected $fillable = [
         'equipment_id',
         'company_id',

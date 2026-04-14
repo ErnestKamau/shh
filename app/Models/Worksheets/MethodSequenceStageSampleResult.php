@@ -2,12 +2,16 @@
 
 namespace App\Models\Worksheets;
 
+use OwenIt\Auditing\Contracts\Auditable;
+
 use App\CapturedResult;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
-class MethodSequenceStageSampleResult extends Model
+class MethodSequenceStageSampleResult extends Model implements Auditable
 {
+    use \OwenIt\Auditing\Auditable;
+
     protected $fillable = [
         'run_stage_data_id',
         'captured_result_id',

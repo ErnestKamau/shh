@@ -1,12 +1,16 @@
 <?php
 
 namespace App;
+
+use OwenIt\Auditing\Contracts\Auditable;
 use App\AnalysisMethod;
 
 use Illuminate\Database\Eloquent\Model;
 
-class CapturedResultView extends Model
+class CapturedResultView extends Model implements Auditable
 {
+    use \OwenIt\Auditing\Auditable;
+
     protected $table = "captured_results_view";
     protected $appends = ['standardRemarkValue','analyteMethods'];
 

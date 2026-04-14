@@ -1,4 +1,4 @@
-<div class="card shadow-sm border-0">
+<div class="card shadow-sm border-0" id="module-visibility">
     <div class="card-header bg-white border-bottom">
         <h5 class="mb-0 text-dark">
             <i class="mdi mdi-view-dashboard text-primary"></i>

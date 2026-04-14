@@ -2,6 +2,8 @@
 
 namespace App\Models\RiskManagement;
 
+use OwenIt\Auditing\Contracts\Auditable;
+
 use App\Models\AuditModule\CorrectiveAction;
 use App\User;
 use Illuminate\Database\Eloquent\Model;
@@ -10,8 +12,10 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\MorphMany;
 
-class RiskTreatmentPlan extends Model
+class RiskTreatmentPlan extends Model implements Auditable
 {
+    use \OwenIt\Auditing\Auditable;
+
     use SoftDeletes;
 
     protected $table = 'risk_treatment_plans';

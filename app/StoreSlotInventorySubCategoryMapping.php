@@ -2,9 +2,13 @@
 
 namespace App;
 
+use OwenIt\Auditing\Contracts\Auditable;
+
 use Illuminate\Database\Eloquent\Model;
 
-class StoreSlotInventorySubCategoryMapping extends Model
+class StoreSlotInventorySubCategoryMapping extends Model implements Auditable
 {
+    use \OwenIt\Auditing\Auditable;
+
     //
 }
