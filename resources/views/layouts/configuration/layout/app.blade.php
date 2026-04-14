@@ -87,7 +87,7 @@
 				</div>
 			</a>
 
-			@if(auth()->user()->is_support_staff && auth()->user()->can('System.components.System Settings.View'))
+			@if(auth()->user()->is_support_staff)
 			<a href="{{ route('system-settings.module-visibility') }}" class="bg-dark list-group-item list-group-item-action">
 				<div class="d-flex w-100 justify-content-start align-items-center">
 					<span class="mdi mdi-swap-horizontal fa-fw mr-1"></span>

@@ -2,7 +2,8 @@
 
 namespace App\Http\Controllers;
 
-use Illuminate\Http\Request;
+use Illuminate\Contracts\View\View;
+use Illuminate\Http\RedirectResponse;
 
 class ConfigurationController extends Controller
 {
@@ -11,7 +12,19 @@ class ConfigurationController extends Controller
     $this->middleware('auth');
   }
   
-  public function index(){
+  public function index(): View
+  {
     return view('layouts.configuration.index');
+  }
+
+  public function moduleVisibility(): View|RedirectResponse
+  {
+    if (!auth()->check() || !auth()->user()->is_support_staff) {
+      return redirect()
+        ->route('system-settings')
+        ->with('error', 'You have no permission to perform the designated task!');
+    }
+
+    return view('layouts.configuration.module-visibility');
   }
 }

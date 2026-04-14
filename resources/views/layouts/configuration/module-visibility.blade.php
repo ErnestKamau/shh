@@ -13,7 +13,7 @@
         </div>
     </div>
 
-    @if(auth()->user()->is_support_staff && auth()->user()->can('System.components.System Settings.View'))
+    @if(auth()->user()->is_support_staff)
         @livewire('system.module-visibility-manager')
     @else
         <div class="alert alert-warning mb-0">
