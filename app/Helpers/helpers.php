@@ -977,8 +977,20 @@ function getTotaltaxAmount($id)
 function getPricelistCurrency($id)
 {
 	$invoice = App\Invoice::find($id);
-	$pricelist =  App\Pricelist::find($invoice->pricelist_id);
-	return App\ModulePreConfigs::find($pricelist->currency_id);
+    if($invoice && $invoice->currency_id) {
+        return App\ModulePreConfigs::find($invoice->currency_id);
+    }
+    
+    if ($invoice && $invoice->pricelist_id) {
+        // Fallback for legacy if Pricelist class actually existed under a different name or if we can find it
+        // But for new ones, currency_id is directly on the invoice
+        $pricelist = DB::table('zoho_items_pricelist')->where('id', $invoice->pricelist_id)->first();
+        if ($pricelist && isset($pricelist->currency_id)) {
+            return App\ModulePreConfigs::find($pricelist->currency_id);
+        }
+    }
+
+	return App\ModulePreConfigs::where('type', 'Currency')->first();
 }
 function getPricelistByID($id)
 {

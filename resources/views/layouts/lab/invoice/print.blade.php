@@ -33,7 +33,7 @@
             $prices = explode(',', $invoice->sample_details_prices);
             $invoice_details = getInvoiceDetails($invoice->id);
 
-            $currency = getPricelistCurrency($invoice->id);
+            $currency = $invoice->currencyinfo ?? getPricelistCurrency($invoice->id);
             ?>
 
             <h5 class="card-title bg-light p-2" style="height:60%">

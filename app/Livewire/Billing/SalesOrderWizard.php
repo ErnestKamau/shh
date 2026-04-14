@@ -12,9 +12,11 @@ use App\SampleAnalysisTypeRelation;
 use App\Models\CRM\CRMCustomer;
 use App\ZohoCustomers;
 use App\Models\Currency;
+use App\SampleAnalysisTypeRelationView;
 use App\TaxRegime;
 use Livewire\Component;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 
 class SalesOrderWizard extends Component
 {
@@ -56,12 +58,19 @@ class SalesOrderWizard extends Component
     public $validationErrors = [];
     public $successMessage = '';
 
+    public function cancel()
+    {
+        return redirect()->route('dashboard-lab');
+    }
+
     public function mount($batchCodes = [])
     {
         if (!empty($batchCodes)) {
             $this->selectedBatches = is_array($batchCodes) ? $batchCodes : [$batchCodes];
             $this->loadBatchData();
             $this->validateBatches();
+            $this->loadAnalysisTypesData();
+            $this->autoMapAllAnalyses(false);
         }
     }
 
@@ -310,22 +319,43 @@ class SalesOrderWizard extends Component
     public function loadAnalysisTypesData(): void
     {
         $batchIds = array_column($this->batchData, 'id');
+        Log::info("SalesOrderWizard: Loading analysis types for batch IDs", ['batchIds' => $batchIds]);
         
-        // Get all analysis types from selected batches with their counts
-        $analysisData = SampleAnalysisTypeRelation::whereIn('batch_id', $batchIds)
-            ->join('analysis_types', 'analysis_types.id', '=', 'sample_analysis_type_relation.analysis_type_id')
-            ->select('analysis_types.id', 'analysis_types.name', 'analysis_types.code', DB::raw('COUNT(*) as count'))
-            ->groupBy('analysis_types.id', 'analysis_types.name', 'analysis_types.code')
-            ->get();
-
         $this->analysisTypesData = [];
-        foreach ($analysisData as $data) {
-            $this->analysisTypesData[$data->id] = [
-                'name' => $data->name,
-                'code' => $data->code,
-                'count' => $data->count,
-            ];
+
+        // In the billing workflow, we need to extract analysis types directly from the 
+        // sample_details 'analysis_type_id' column, which can contain a comma-separated list of IDs.
+        // The relational views might not be fully populated until lab tests actually begin.
+        $sampleDetails = SampleDetails::whereIn('sample_header_id', $batchIds)->get();
+        
+        foreach ($sampleDetails as $detail) {
+            if (empty($detail->analysis_type_id)) {
+                continue;
+            }
+
+            // Split comma-separated analysis IDs
+            $analysisIds = array_filter(array_map('trim', explode(',', $detail->analysis_type_id)));
+            
+            foreach ($analysisIds as $analysisId) {
+                if (!isset($this->analysisTypesData[$analysisId])) {
+                    $analysisType = AnalysisType::find($analysisId);
+                    if ($analysisType) {
+                        $this->analysisTypesData[$analysisId] = [
+                            'name' => $analysisType->name,
+                            'code' => $analysisType->code,
+                            'count' => 0,
+                        ];
+                    }
+                }
+                
+                // Increment the count for this analysis type
+                if (isset($this->analysisTypesData[$analysisId])) {
+                    $this->analysisTypesData[$analysisId]['count']++;
+                }
+            }
         }
+
+        Log::info("SalesOrderWizard: Final analysisTypesData populated", ['data' => $this->analysisTypesData]);
 
         // Pre-load Zoho data if customer has them
         if ($this->customer) {
@@ -340,25 +370,47 @@ class SalesOrderWizard extends Component
 
     public function autoMapAllAnalyses($showMessage = true): void
     {
+        $mappedCount = 0;
         foreach (array_keys($this->analysisTypesData) as $analysisTypeId) {
             $analysisType = AnalysisType::find($analysisTypeId);
-            $invoicableItem = $analysisType?->invoicableItems()->first();
+            $invoicableItems = $analysisType?->invoicableItems()->get();
             
-            if ($invoicableItem) {
-                $this->analysisMappings[$analysisTypeId] = $invoicableItem->id;
+            if ($invoicableItems && $invoicableItems->count() > 0) {
+                $this->analysisMappings[$analysisTypeId] = $invoicableItems->pluck('id')->toArray();
+                $mappedCount++;
+            } else {
+                $this->analysisMappings[$analysisTypeId] = [];
             }
         }
 
         if ($showMessage) {
-            $this->successMessage = 'Re-mapped ' . count($this->analysisMappings) . ' analysis type(s)';
+            if ($mappedCount > 0) {
+                $this->successMessage = "Successfully mapped {$mappedCount} Analysis Type(s) from system settings.";
+            } else {
+                $this->errorMessage = "No pre-configured mappings found for these Analysis Types.";
+            }
         }
     }
 
     public function selectInvoicableItemForAnalysis($analysisTypeId, $itemId): void
     {
-        $this->analysisMappings[$analysisTypeId] = $itemId;
+        if (!isset($this->analysisMappings[$analysisTypeId])) {
+            $this->analysisMappings[$analysisTypeId] = [];
+        }
+        if (!in_array($itemId, $this->analysisMappings[$analysisTypeId])) {
+            $this->analysisMappings[$analysisTypeId][] = $itemId;
+        }
         $this->showItemDropdowns[$analysisTypeId] = false;
         $this->itemSearches[$analysisTypeId] = '';
+    }
+
+    public function removeInvoicableItemFromAnalysis($analysisTypeId, $itemId): void
+    {
+        if (isset($this->analysisMappings[$analysisTypeId])) {
+            $this->analysisMappings[$analysisTypeId] = array_values(array_filter($this->analysisMappings[$analysisTypeId], function($id) use ($itemId) {
+                return $id != $itemId;
+            }));
+        }
     }
 
     public function validateAnalysisMappings(): bool
@@ -366,7 +418,7 @@ class SalesOrderWizard extends Component
         $this->validationErrors = [];
 
         foreach (array_keys($this->analysisTypesData) as $analysisTypeId) {
-            if (!isset($this->analysisMappings[$analysisTypeId])) {
+            if (empty($this->analysisMappings[$analysisTypeId])) {
                 $analysisName = $this->analysisTypesData[$analysisTypeId]['name'];
                 $this->validationErrors[] = "Analysis type '{$analysisName}' is not mapped to any invoicable item";
             }
@@ -399,13 +451,16 @@ class SalesOrderWizard extends Component
     public function getAnalysisTotalProperty()
     {
         $total = 0;
-        foreach ($this->analysisMappings as $analysisTypeId => $itemId) {
-            $item = $this->getInvoicableItemById($itemId);
-            if ($item) {
-                $count = $this->analysisTypesData[$analysisTypeId]['count'] ?? 0;
-                // Use custom price if set, otherwise use item price
-                $unitPrice = $this->analysisCustomPrices[$analysisTypeId] ?? $item->unit_price;
-                $total += $unitPrice * $count;
+        foreach ($this->analysisMappings as $analysisTypeId => $itemIds) {
+            $count = $this->analysisTypesData[$analysisTypeId]['count'] ?? 0;
+            if (is_array($itemIds)) {
+                foreach ($itemIds as $itemId) {
+                    $item = $this->getInvoicableItemById($itemId);
+                    if ($item) {
+                        $unitPrice = $this->analysisCustomPrices[$analysisTypeId][$itemId] ?? $item->unit_price;
+                        $total += $unitPrice * $count;
+                    }
+                }
             }
         }
         return $total;
@@ -413,7 +468,13 @@ class SalesOrderWizard extends Component
 
     public function getUnmappedAnalysisCountProperty()
     {
-        return count($this->analysisTypesData) - count($this->analysisMappings);
+        $unmappedCount = 0;
+        foreach ($this->analysisTypesData as $id => $data) {
+            if (empty($this->analysisMappings[$id])) {
+                $unmappedCount++;
+            }
+        }
+        return $unmappedCount;
     }
 
     // Step 4: Additional Items Methods
@@ -494,17 +555,24 @@ class SalesOrderWizard extends Component
         $preview = [];
 
         // Add analysis items
-        foreach ($this->analysisMappings as $analysisTypeId => $itemId) {
-            $item = $this->getInvoicableItemById($itemId);
-            $analysisData = $this->analysisTypesData[$analysisTypeId];
-            
-            $preview[] = [
-                'type' => 'analysis',
-                'description' => $analysisData['name'] . ' (' . $analysisData['code'] . ')',
-                'quantity' => $analysisData['count'],
-                'unit_price' => $item->unit_price,
-                'total' => $item->unit_price * $analysisData['count'],
-            ];
+        foreach ($this->analysisMappings as $analysisTypeId => $itemIds) {
+            if (is_array($itemIds)) {
+                $analysisData = $this->analysisTypesData[$analysisTypeId];
+                foreach ($itemIds as $itemId) {
+                    $item = $this->getInvoicableItemById($itemId);
+                    if (!$item) continue;
+                    
+                    $unitPrice = $this->analysisCustomPrices[$analysisTypeId][$itemId] ?? $item->unit_price;
+                    
+                    $preview[] = [
+                        'type' => 'analysis',
+                        'description' => $analysisData['name'] . ' (' . $analysisData['code'] . ')' . (count($itemIds) > 1 ? ' - ' . $item->item_name : ''),
+                        'quantity' => $analysisData['count'],
+                        'unit_price' => $unitPrice,
+                        'total' => $unitPrice * $analysisData['count'],
+                    ];
+                }
+            }
         }
 
         // Add additional items
@@ -526,21 +594,24 @@ class SalesOrderWizard extends Component
         $preview = [];
 
         // Add analysis items
-        foreach ($this->analysisMappings as $analysisTypeId => $itemId) {
-            $item = $this->getInvoicableItemById($itemId);
-            if (!$item) continue;
-            
-            $analysisData = $this->analysisTypesData[$analysisTypeId];
-            // Use custom price if set, otherwise use item price
-            $unitPrice = $this->analysisCustomPrices[$analysisTypeId] ?? $item->unit_price;
-            
-            $preview[] = [
-                'type' => 'analysis',
-                'description' => $analysisData['name'] . ' (' . $analysisData['code'] . ')',
-                'quantity' => $analysisData['count'],
-                'unit_price' => $unitPrice,
-                'total' => $unitPrice * $analysisData['count'],
-            ];
+        foreach ($this->analysisMappings as $analysisTypeId => $itemIds) {
+            if (is_array($itemIds)) {
+                $analysisData = $this->analysisTypesData[$analysisTypeId];
+                foreach ($itemIds as $itemId) {
+                    $item = $this->getInvoicableItemById($itemId);
+                    if (!$item) continue;
+                    
+                    $unitPrice = $this->analysisCustomPrices[$analysisTypeId][$itemId] ?? $item->unit_price;
+                    
+                    $preview[] = [
+                        'type' => 'analysis',
+                        'description' => $analysisData['name'] . ' (' . $analysisData['code'] . ')' . (count($itemIds) > 1 ? ' - ' . $item->item_name : ''),
+                        'quantity' => $analysisData['count'],
+                        'unit_price' => $unitPrice,
+                        'total' => $unitPrice * $analysisData['count'],
+                    ];
+                }
+            }
         }
 
         // Add additional items
@@ -604,7 +675,7 @@ class SalesOrderWizard extends Component
             $invoice = new Invoice();
             $invoice->customer_id = $this->customerId;
             $invoice->currency_id = $this->zohoCurrencyId;
-            $invoice->pricelist_id = null;
+            $invoice->pricelist_id = 0;
             $invoice->save();
 
             // Generate invoice number: FV-S-XXXX
@@ -615,45 +686,63 @@ class SalesOrderWizard extends Component
             $invoice->due_date = now()->addDays($creditDays);
 
             // Create invoice details from analysis mappings
-            foreach ($this->analysisMappings as $analysisTypeId => $itemId) {
-                $invoicableItem = InvoicableItem::find($itemId);
-                $analysisData = $this->analysisTypesData[$analysisTypeId];
+            foreach ($this->analysisMappings as $analysisTypeId => $itemIds) {
+                if (!is_array($itemIds)) continue;
                 
-                // Check if custom price is set, otherwise get price with currency conversion
-                if (isset($this->analysisCustomPrices[$analysisTypeId])) {
-                    $unitPrice = $this->analysisCustomPrices[$analysisTypeId];
-                    $unitCost = $invoicableItem->unit_cost ?? 0;
-                } else {
-                    $priceData = getPriceForAnalysisType($analysisTypeId, $this->zohoCurrencyId);
-                    $unitPrice = $priceData['unit_price'] ?? $invoicableItem->unit_price;
-                    $unitCost = $priceData['unit_cost'] ?? $invoicableItem->unit_cost;
+                foreach ($itemIds as $itemId) {
+                    $invoicableItem = InvoicableItem::find($itemId);
+                    if (!$invoicableItem) continue;
+                    
+                    $analysisData = $this->analysisTypesData[$analysisTypeId];
+                    
+                    // Check if custom price is set, otherwise get price
+                    if (isset($this->analysisCustomPrices[$analysisTypeId][$itemId])) {
+                        $unitPrice = $this->analysisCustomPrices[$analysisTypeId][$itemId];
+                        $unitCost = $invoicableItem->unit_cost ?? 0;
+                    } else {
+                        // The custom mapping to currency
+                        $unitPrice = $invoicableItem->unit_price;
+                        $unitCost = $invoicableItem->unit_cost;
+                    }
+
+                    // Get batch and sample IDs for this analysis type directly from sample_details
+                    $batchIds = array_column($this->batchData, 'id');
+                    $sampleDetails = SampleDetails::whereIn('sample_header_id', $batchIds)->get();
+                    
+                    $matchedHeaderIds = [];
+                    $matchedDetailIds = [];
+
+                    foreach ($sampleDetails as $detail) {
+                        if (!empty($detail->analysis_type_id)) {
+                            $typesInDetail = array_filter(array_map('trim', explode(',', $detail->analysis_type_id)));
+                            if (in_array((string)$analysisTypeId, $typesInDetail)) {
+                                $matchedHeaderIds[] = $detail->sample_header_id;
+                                $matchedDetailIds[] = $detail->id;
+                            }
+                        }
+                    }
+
+                    $sampleHeaderIds = implode(',', array_unique($matchedHeaderIds));
+                    $sampleDetailIds = implode(',', array_unique($matchedDetailIds));
+
+                    InvoiceDetails::create([
+                        'invoice_id' => $invoice->id,
+                        'analysis_type' => $analysisTypeId,
+                        // Add item name to description if multiple items
+                        'analysis_type_name' => count($itemIds) > 1 ? $analysisData['name'] . ' - ' . $invoicableItem->item_name : $analysisData['name'],
+                        'invoicable_item_id' => $itemId,
+                        'quantity' => $analysisData['count'],
+                        'selling_price' => $unitPrice,
+                        'cost_price' => $unitCost,
+                        'selling_amount' => $unitPrice,
+                        'total' => $unitPrice * $analysisData['count'],
+                        'sample_header_id' => $sampleHeaderIds,
+                        'sample_detail_id' => $sampleDetailIds,
+                        'crm_customer_id' => $this->customerId,
+                        'tax_rate' => '0',
+                        'tax_amount' => 0,
+                    ]);
                 }
-
-                // Get batch and sample IDs for this analysis type
-                $batchIds = array_column($this->batchData, 'id');
-                $relations = SampleAnalysisTypeRelation::whereIn('batch_id', $batchIds)
-                    ->where('analysis_type_id', $analysisTypeId)
-                    ->get();
-
-                $sampleHeaderIds = $relations->pluck('batch_id')->unique()->implode(',');
-                $sampleDetailIds = $relations->pluck('sample_detail_id')->unique()->implode(',');
-
-                InvoiceDetails::create([
-                    'invoice_id' => $invoice->id,
-                    'analysis_type' => $analysisTypeId,
-                    'analysis_type_name' => $analysisData['name'],
-                    'invoicable_item_id' => $itemId,
-                    'quantity' => $analysisData['count'],
-                    'selling_price' => $unitPrice,
-                    'cost_price' => $unitCost,
-                    'selling_amount' => $unitPrice,
-                    'total' => $unitPrice * $analysisData['count'],
-                    'sample_header_id' => $sampleHeaderIds,
-                    'sample_detail_id' => $sampleDetailIds,
-                    'crm_customer_id' => $this->customerId,
-                    'tax_rate' => '0',
-                    'tax_amount' => 0,
-                ]);
             }
 
             // Create invoice details for additional items
