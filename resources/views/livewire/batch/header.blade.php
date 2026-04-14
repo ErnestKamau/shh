@@ -247,6 +247,13 @@
                             <li><a class="btn btn-sm dropdown-item" target="_blank" href="{{ $reportpath }}"><i class="mdi mdi-subdirectory-arrow-right mr-2"></i> View Report</a></li>
                             @endif
                         @endif
+                        @if(isset($batch->status) && $batch->status == 'Samples In Lab' && ($batch->invoice_id == 0 || $batch->invoice_id == null))
+                        <li>
+                            <a href="{{ route('billing.sales-order.create', ['batches' => [$batch->batch_code]]) }}" class="dropdown-item">
+                                <i class="mdi mdi-check-decagram mr-2 text-success"></i> Generate Sales Order
+                            </a>
+                        </li>
+                        @endif
                         @if(isset($batch->status) && $batch->status == 'Samples In Lab' && $batch->prelim_report_status == 2 && $batch->invoice_number == '')
                             <li><span class="dropdown-item btn btn-sm" data-target="#add-batch-invoice" data-toggle="modal"><i class="mdi mdi-cash-plus mr-2"></i> Add Invoice Details</span></li>
                         @endif

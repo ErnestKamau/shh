@@ -74,6 +74,14 @@
         }
     }
 
+    if (isset($componentType) && $componentType === 'daily-log') {
+        $breadcrumbItems[] = [
+            'link' => null,
+            'name' => 'Daily Log',
+            'icon' => null
+        ];
+    }
+
     ?>
     <x-bread-crumb :items="$breadcrumbItems"></x-bread-crumb>
     
@@ -83,7 +91,7 @@
     @elseif($componentType === 'equipment-dashboard')
         @livewire('equipment.equipment-dashboard')
     @elseif($componentType === 'equipment-detail')
-        @livewire('equipment.equipment-detail', ['equipmentId' => $equipmentId])
+        @livewire('equipment.equipment-detail', ['equipmentId' => $equipmentId, 'fromDailyLog' => $fromDailyLog ?? false])
     @elseif($componentType === 'disposal-manager')
         @livewire('equipment.disposal-manager')
     @elseif($componentType === 'disposal-detail')
@@ -96,6 +104,8 @@
         @livewire('equipment.assets.asset-type-manager')
     @elseif($componentType === 'asset-location-manager')
         @livewire('equipment.assets.asset-location-manager')
+    @elseif($componentType === 'daily-log')
+        @livewire('equipment.equipment-daily-log')
     @endif
 </main>
 @endsection

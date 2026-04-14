@@ -797,6 +797,7 @@ Route::get('/equipment/asset-locations', [EquipmentAppController::class, 'assetL
 //############################################EQUIPMENT##########################################################
 Route::get('/equipment-home', [EquipmentAppController::class, 'equipmentManager'])->name('equipment-home')->middleware('haspermission:Equipment.permission');
 Route::get('/equipment-dashboard', [EquipmentAppController::class, 'equipmentDashboard'])->name('equipment-dashboard')->middleware('haspermission:Equipment.permission');
+Route::get('/equipment-daily-log', [EquipmentAppController::class, 'dailyLogIndex'])->name('equipment-daily-log')->middleware('haspermission:Equipment.permission');
 Route::post('/equipment', 'Equipment\EquipmentController@add')->name('add-equipment')->middleware('haspermission:Equipment.components.Equipment-List.Add');
 Route::get('/equipment/{equipmentId}', [EquipmentAppController::class, 'equipmentDetail'])->name('view-equipment')->middleware('haspermission:Equipment.components.Equipment-List.View');
 Route::post('/equipment/{id}', 'Equipment\EquipmentController@edit')->name('edit-equipment')->middleware('haspermission:Equipment.components.Equipment-List.Edit');
@@ -1393,7 +1394,7 @@ Route::get('delete/quotation-attachment/{id}', 'Suppliers\QuotationAttachmentCon
 Route::get('/invoice-home', 'Invoice\InvoiceController@index')->name('invoice-home')->middleware('haspermission:Laboratory.components.Proforma Invoices.View');
 Route::get('/invoice/sample/{id}', 'Invoice\InvoiceController@show')->name('invoice-sample-header')->middleware('haspermission:Laboratory.components.Proforma Invoices.View');
 Route::get('/invoice/generate/{id}', 'Invoice\InvoiceController@generateinvoice')->name('generate-invoice')->middleware('haspermission:Laboratory.components.Proforma Invoices.Add');
-Route::post('/print/invoice/{id}', 'Invoice\InvoiceController@print_invoice')->name('print-invoice');
+Route::get('/print/invoice/{id}', 'Invoice\InvoiceController@print_invoice')->name('print-invoice');
 Route::post('/upload/invoice', 'Invoice\InvoiceController@upload_invoice')->name('upload-invoice');
 Route::post('/email/invoice', 'Invoice\InvoiceController@email_invoice')->name('email-invoice');
 Route::post('/edit/invoice', 'Invoice\InvoiceController@edit_invoice')->name('edit_invoice');

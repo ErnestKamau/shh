@@ -58,6 +58,12 @@
 					<span class="menu-collapsed">Asset Locations</span>
 				</div>
 			</a>
+			<a href="{{ route('equipment-daily-log') }}" class="bg-dark list-group-item list-group-item-action {{ request()->routeIs('equipment-daily-log') ? 'active' : '' }}">
+				<div class="d-flex w-100 justify-content-start align-items-center">
+					<span class="mdi mdi-notebook-check-outline fa-fw mr-3"></span>
+					<span class="menu-collapsed">Daily Log</span>
+				</div>
+			</a>
 			<a href="{{ route('equipment-report-generate') }}" class="bg-dark list-group-item list-group-item-action">
 				<div class="d-flex w-100 justify-content-start align-items-center">
 					<span class="mdi mdi-file-chart fa-fw mr-3"></span>
