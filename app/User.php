@@ -144,7 +144,38 @@ class User extends Authenticatable
 				return false;
 			}
 
+			$canonicalRoleName = SpatieRole::query()
+				->where('guard_name', $this->guard_name)
+				->whereRaw('LOWER(name) = ?', [strtolower($roleName)])
+				->value('name');
+
+			if (is_string($canonicalRoleName) && $canonicalRoleName !== '') {
+				$roleName = $canonicalRoleName;
+			}
+
 			return $this->spatieHasRole($roleName, $this->guard_name);
+		} catch (\Throwable $exception) {
+			return false;
+		}
+	}
+
+	public function isSystemAdmin(): bool
+	{
+		try {
+			$adminRoleNames = ['admin', 'super admin', 'super-admin', 'system admin', 'system-admin'];
+			$userRoleNames = $this->roles
+				->pluck('name')
+				->filter(fn ($name) => is_string($name) && $name !== '')
+				->map(fn ($name) => strtolower(trim($name)))
+				->toArray();
+
+			foreach ($adminRoleNames as $adminRoleName) {
+				if (in_array($adminRoleName, $userRoleNames, true)) {
+					return true;
+				}
+			}
+
+			return false;
 		} catch (\Throwable $exception) {
 			return false;
 		}

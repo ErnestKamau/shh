@@ -26,6 +26,11 @@ class checkHasPermission
     public function handle($request, Closure $next,$permissions)
     {
 			$user = auth()->user();
+
+			if ($user && method_exists($user, 'isSystemAdmin') && $user->isSystemAdmin()) {
+				return $next($request);
+			}
+
 			$perm = explode('.',$permissions);
 			$permissionName = $permissions;
 
