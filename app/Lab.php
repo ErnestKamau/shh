@@ -3,6 +3,7 @@
 namespace App;
 
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use OwenIt\Auditing\Contracts\Auditable;
 
 class Lab extends Model implements Auditable
@@ -24,10 +25,29 @@ class Lab extends Model implements Auditable
     'phone3',
     'active',
     'start_sample_no',
+    'directorate_id',
+    'manager_id',
+    'analyst_ids',
+  ];
+
+  protected $casts = [
+    'active' => 'boolean',
+    'is_external' => 'boolean',
+    'analyst_ids' => 'array',
   ];
   
   public function company(){
     return $this->belongsTo('App\Company');
+  }
+
+  public function directorate(): BelongsTo
+  {
+    return $this->belongsTo('App\Directorate');
+  }
+
+  public function manager(): BelongsTo
+  {
+    return $this->belongsTo('App\User', 'manager_id');
   }
 
   public function analysis_types(){
