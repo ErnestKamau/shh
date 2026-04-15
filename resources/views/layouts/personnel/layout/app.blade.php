@@ -75,7 +75,7 @@
 			</a>
 			<div id="sample-workflow-menu" class="collapse sidebar-submenu">
 				<?php
-					$menuTotals = array("Educational Levels", "Job Description", "Designation");
+					$menuTotals = array("Educational Levels", "Job Description", "Designation", "Zones");
 				?>
 				@foreach ($menuTotals as $item)
 					<a href="{{ route('module-pre-configs', ['config'=>$item, 'module'=>'Personnel-Management']) }}" class="list-group-item list-group-item-action bg-dark text-white">

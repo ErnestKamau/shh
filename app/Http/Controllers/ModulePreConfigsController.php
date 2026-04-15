@@ -18,6 +18,16 @@ class ModulePreConfigsController extends Controller
 	}
 
 	public function index(Request $request, $config, $module){
+		if ($config === 'Zones') {
+			$layout = $module === 'Lab-Management' ? 'livewire.layout.lab-app' : 'livewire.layout.personnel-app';
+			return view($layout, [
+				'componentType' => 'zones',
+				'pageTitle' => 'Zones',
+				'config' => $config,
+				'module' => $module,
+			]);
+		}
+
 		if ($module === 'Personnel-Management') {
 			return view('livewire.layout.personnel-app', [
 				'componentType' => 'personnel-configurations',
@@ -94,6 +104,20 @@ class ModulePreConfigsController extends Controller
 	}
 
 	public function update(Request $request, $id, $config, $moduleT){
+		if ($config === 'Zones') {
+			$zone = \App\Zone::find($id) ?? new \App\Zone;
+			$zone->key = $request->name;
+			$zone->value = $request->value;
+			$zone->description = $request->description;
+			if (!$zone->exists) {
+				$zone->module = 'Global';
+			}
+			$zone->inventory_location_id = getCurrentUserLocation()->id;
+			$zone->save();
+
+			return redirect()->back()->with('success', 'Zone updated successfully.');
+		}
+
 		$module = ModulePreConfigs::find($id) ?? new ModulePreConfigs;
 		$module->name = $request->name;
 		$module->type = $config;

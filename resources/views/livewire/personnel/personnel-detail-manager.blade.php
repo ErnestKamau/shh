@@ -112,6 +112,17 @@
                             </div>
                         </div>
                         <div class="col-md-4">
+                            <div class="form-group">
+                                <label>Zone</label>
+                                <select name="zone_id" class="form-control">
+                                    <option value="">Select zone</option>
+                                    @foreach($this->zones as $zone)
+                                        <option value="{{ $zone->id }}" {{ $this->user->zone_id == $zone->id ? 'selected' : '' }}>{{ $zone->key }}{{ $zone->value ? ' - '.$zone->value : '' }}</option>
+                                    @endforeach
+                                </select>
+                            </div>
+                        </div>
+                        <div class="col-md-4">
                             <label>Department *</label>
                             <div class="tag-select-container" wire:click="$set('showDepartmentDropdown', true)">
                                 <div class="tag-select-input">

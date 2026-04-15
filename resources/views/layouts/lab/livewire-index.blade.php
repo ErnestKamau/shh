@@ -1,7 +1,7 @@
 @extends('layouts.lab.layout.app')
 
 @section('title2')
-    <title>Labs Management</title>
+    <title>Directorate Management</title>
 @endsection
 
 @section('content2')
@@ -15,14 +15,14 @@
                 ],
                 [
                     'link' => route('labs'),
-                    'name' => 'Labs',
+                    'name' => 'Directorates',
                     'icon' => null
                 ]
             ];
         ?>
         <x-bread-crumb :items="$items"></x-bread-crumb>
         
-        <livewire:lab.lab-manager />
+        <livewire:directorate.directorate-manager />
     </main>
 @endsection
 

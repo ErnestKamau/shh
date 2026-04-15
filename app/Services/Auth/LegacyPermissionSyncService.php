@@ -109,6 +109,9 @@ class LegacyPermissionSyncService
 
         $permissionNames = $this->extractPermissionNames($legacyRole->permissions);
 
+        // Expand permissions: if role has module.permission, auto-add all helper-defined components
+        $permissionNames = $this->expandModulePermissions($permissionNames);
+
         foreach ($permissionNames as $permissionName) {
             Permission::query()->firstOrCreate([
                 'name' => $permissionName,
@@ -119,6 +122,58 @@ class LegacyPermissionSyncService
         $spatieRole->syncPermissions($permissionNames);
 
         return $spatieRole;
+    }
+
+    /**
+     * Expand module.permission to include all components/actions if the module is enabled.
+     * @param array<int, string> $permissionNames
+     * @return array<int, string>
+     */
+    protected function expandModulePermissions(array $permissionNames): array
+    {
+        if (! function_exists('getModulePermissions')) {
+            return $permissionNames;
+        }
+
+        $modulePermisions = getModulePermissions();
+        if (! is_array($modulePermisions)) {
+            return $permissionNames;
+        }
+
+        $expanded = $permissionNames;
+
+        foreach ($modulePermisions as $moduleName => $moduleConfig) {
+            $moduleKey = trim((string) $moduleName);
+            if ($moduleKey === '') {
+                continue;
+            }
+
+            $modulePermKey = $moduleKey . '.permission';
+
+            // If role has module.permission set, automatically add all defined components/actions
+            if (in_array($modulePermKey, $expanded, true)) {
+                $components = $moduleConfig['components'] ?? [];
+                if (! is_array($components)) {
+                    continue;
+                }
+
+                foreach ($components as $componentName) {
+                    $componentKey = trim((string) $componentName);
+                    if ($componentKey === '') {
+                        continue;
+                    }
+
+                    foreach ($this->defaultActions as $action) {
+                        $permKey = $moduleKey . '.components.' . $componentKey . '.' . $action;
+                        if (! in_array($permKey, $expanded, true)) {
+                            $expanded[] = $permKey;
+                        }
+                    }
+                }
+            }
+        }
+
+        return array_values(array_unique($expanded));
     }
 
     public function syncUser(User $user): void

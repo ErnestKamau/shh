@@ -301,6 +301,15 @@
                                         </div>
                                     </div>
                                     <div class="form-group">
+                                        <label class="control-label">Zone</label>
+                                        <select class="form-control" wire:model="personnelForm.zone_id">
+                                            <option value="">Select zone</option>
+                                            @foreach($zones as $zone)
+                                                <option value="{{ $zone['id'] }}">{{ $zone['key'] }}{{ $zone['value'] ? ' - '.$zone['value'] : '' }}</option>
+                                            @endforeach
+                                        </select>
+                                    </div>
+                                    <div class="form-group">
                                         <label class="control-label">Lab Section</label>
                                         <div class="tag-select-container" wire:click="$set('showLabSectionDropdown', true)">
                                             <div class="tag-select-input">

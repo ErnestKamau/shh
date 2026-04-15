@@ -11,6 +11,7 @@ use App\SampleDetails;
 use App\Services\SubmissionFormBatchSyncService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Facades\Log;
@@ -118,15 +119,8 @@ class FormInstanceController extends Controller
      */
     public function fill(SubmissionForm $submissionForm, SubmissionFormInstance $instance)
     {
-        $user = auth()->user();
-
-        // Allow access if user has Sample Reception role or is admin
-        if (
-            !$user->hasRole('Sample Reception') &&
-            !$user->hasRole('admin')
-        ) {
-            abort(403, 'You are not authorized to access this form instance.');
-        }
+        $this->abortIfInstanceFormMismatch($submissionForm, $instance);
+        $this->authorizeManageInstance($submissionForm, $instance, 'You are not authorized to access this form instance.');
 
         // Check if form is still available
         if (!$submissionForm->isPublishedAndActive()) {
@@ -164,15 +158,8 @@ class FormInstanceController extends Controller
      */
     public function fillSample(SubmissionForm $submissionForm, SubmissionFormInstance $instance)
     {
-        $user = auth()->user();
-
-        // Allow access if user has Sample Reception role or is admin
-        if (
-            !$user->hasRole('Sample Reception') &&
-            !$user->hasRole('admin')
-        ) {
-            abort(403, 'You are not authorized to access this form instance.');
-        }
+        $this->abortIfInstanceFormMismatch($submissionForm, $instance);
+        $this->authorizeManageInstance($submissionForm, $instance, 'You are not authorized to access this form instance.');
 
         // Check if form is still available
         if (!$submissionForm->isPublishedAndActive()) {
@@ -207,15 +194,8 @@ class FormInstanceController extends Controller
      */
     public function update(Request $request, SubmissionForm $submissionForm, SubmissionFormInstance $instance)
     {
-        $user = auth()->user();
-
-        // Allow update if user has Sample Reception role or is admin
-        if (
-            !$user->hasRole('Sample Reception') &&
-            !$user->hasRole('admin')
-        ) {
-            abort(403, 'You are not authorized to update this form instance.');
-        }
+        $this->abortIfInstanceFormMismatch($submissionForm, $instance);
+        $this->authorizeManageInstance($submissionForm, $instance, 'You are not authorized to update this form instance.');
 
 
         // Check if instance can be updated
@@ -344,15 +324,8 @@ class FormInstanceController extends Controller
      */
     public function show(SubmissionForm $submissionForm, SubmissionFormInstance $instance)
     {
-        $user = auth()->user();
-
-        // Allow view if user has Sample Reception role or is admin
-        if (
-            !$user->hasRole('Sample Reception') &&
-            !$user->hasRole('admin')
-        ) {
-            abort(403, 'You are not authorized to view this form instance.');
-        }
+        $this->abortIfInstanceFormMismatch($submissionForm, $instance);
+        $this->authorizeViewInstance($submissionForm, $instance, 'You are not authorized to view this form instance.');
 
         // Load form with all relationships
         $submissionForm->load([
@@ -400,15 +373,8 @@ class FormInstanceController extends Controller
      */
     public function print(SubmissionForm $submissionForm, SubmissionFormInstance $instance)
     {
-        $user = auth()->user();
-
-        // Allow print if user has Sample Reception role or is admin
-        if (
-            !$user->hasRole('Sample Reception') &&
-            !$user->hasRole('admin')
-        ) {
-            abort(403, 'You are not authorized to print this form instance.');
-        }
+        $this->abortIfInstanceFormMismatch($submissionForm, $instance);
+        $this->authorizeViewInstance($submissionForm, $instance, 'You are not authorized to print this form instance.');
 
         // Load form with all relationships
         $submissionForm->load([
@@ -449,15 +415,8 @@ class FormInstanceController extends Controller
      */
     public function edit(SubmissionForm $submissionForm, SubmissionFormInstance $instance)
     {
-        $user = auth()->user();
-
-        // Allow edit if user has Sample Reception role or is admin
-        if (
-            !$user->hasRole('Sample Reception') &&
-            !$user->hasRole('admin')
-        ) {
-            abort(403, 'You are not authorized to edit this form instance.');
-        }
+        $this->abortIfInstanceFormMismatch($submissionForm, $instance);
+        $this->authorizeManageInstance($submissionForm, $instance, 'You are not authorized to edit this form instance.');
 
         // Check if instance can be edited
         if (!$instance->isDraft()) {
@@ -1519,5 +1478,68 @@ class FormInstanceController extends Controller
             'processedSampleData',
             'testsRequiredTableGroups'
         ));
+    }
+
+    private function abortIfInstanceFormMismatch(SubmissionForm $submissionForm, SubmissionFormInstance $instance): void
+    {
+        if ((int) $instance->submission_form_id !== (int) $submissionForm->id) {
+            abort(404);
+        }
+    }
+
+    private function authorizeViewInstance(SubmissionForm $submissionForm, SubmissionFormInstance $instance, string $message): void
+    {
+        if (! $this->canViewInstance(Auth::user(), $submissionForm, $instance)) {
+            abort(403, $message);
+        }
+    }
+
+    private function authorizeManageInstance(SubmissionForm $submissionForm, SubmissionFormInstance $instance, string $message): void
+    {
+        if (! $this->canManageInstance(Auth::user(), $submissionForm, $instance)) {
+            abort(403, $message);
+        }
+    }
+
+    private function canViewInstance($user, SubmissionForm $submissionForm, SubmissionFormInstance $instance): bool
+    {
+        if ($this->canManageInstance($user, $submissionForm, $instance)) {
+            return true;
+        }
+
+        if (! $user) {
+            return false;
+        }
+
+        if ($user->hasPermissionTo('Laboratory.components.All Samples.View')) {
+            return true;
+        }
+
+        return $submissionForm->canUserAccess($user, 'view');
+    }
+
+    private function canManageInstance($user, SubmissionForm $submissionForm, SubmissionFormInstance $instance): bool
+    {
+        if (! $user) {
+            return false;
+        }
+
+        if ($user->hasRole('admin') || $user->hasRole('Sample Reception')) {
+            return true;
+        }
+
+        if ($user->hasPermissionTo('Laboratory.components.All Samples.Edit')) {
+            return true;
+        }
+
+        if ((int) $submissionForm->created_by === (int) $user->id) {
+            return true;
+        }
+
+        if ((int) $instance->submitted_by === (int) $user->id) {
+            return true;
+        }
+
+        return $submissionForm->canUserAccess($user, 'edit');
     }
 }

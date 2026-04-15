@@ -16,26 +16,17 @@ vendor_old/*
 vendor_old
 /public/images
 .history/
-CLEANUP_COMPLETE.md
-DEVELOPER_DASHBOARD_REMOVED.md
-HELPDESK_API_ROLLBACK.md
-MIGRATION_STATUS.md
-PHASE2_COMPLETE.md
-QUICK_TEST_REFERENCE.md
-TESTING_GUIDE.md
-WEB_TESTING_GUIDE.md
+*.md
 helpdesk-developer.backup.20260111-183650/
 replace-create-ticket.sh
 tests/Unit/AutoRunCreationServiceTest.php
 .mcp.json
-CLAUDE.md
 boost.json
 docs/
 scripts/
 code-review.agent.md
 .github
 qpluslatest2.sql
-
 # Python artifacts
 __pycache__/
 *.py[cod]
@@ -87,3 +78,5 @@ dmypy.json
 
 # Pyre type checker
 .pyre/
+
+fivet_dump.sql

@@ -213,6 +213,12 @@
 			<a href="/labs" class="bg-dark list-group-item list-group-item-action">
 				<div class="d-flex w-100 justify-content-start align-items-center">
 					<span class="mdi mdi-flask fa-fw mr-3"></span>
+					<span class="menu-collapsed">Directorate Management</span>
+				</div>
+			</a>
+			<a href="/sample-analysis-stages" class="bg-dark list-group-item list-group-item-action">
+				<div class="d-flex w-100 justify-content-start align-items-center">
+					<span class="mdi mdi-sitemap fa-fw mr-3"></span>
 					<span class="menu-collapsed">Labs</span>
 				</div>
 			</a>
@@ -291,12 +297,12 @@
 
 	</div>
 
-	<a href="/sample-analysis-stages" class="bg-dark list-group-item list-group-item-action">
+	{{-- <a href="/sample-analysis-stages" class="bg-dark list-group-item list-group-item-action">
 		<div class="d-flex w-100 justify-content-start align-items-center">
 			<span class="mdi mdi-sitemap fa-fw mr-3"></span>
-			<span class="menu-collapsed">Lab Sections</span>
+			<span class="menu-collapsed">Labs</span>
 		</div>
-	</a>
+	</a> --}}
 	<a href="#configuration-menu" data-toggle="collapse" aria-expanded="false" class="bg-dark list-group-item list-group-item-action flex-column align-items-start">
 		<div class="d-flex w-100 justify-content-start align-items-center">
 			<span class="mdi mdi-cogs mr-3"></span>
@@ -318,6 +324,10 @@
 		</a>
 		<a href="{{route('sample-type-category-index')}}" class="list-group-item list-group-item-action bg-dark text-white">
 			<span class="menu-collapsed"><i class="mdi mdi-circle-medium"></i> Sample Type Category
+				<small class="float-right badge badge-pill"></small></span>
+		</a>
+		<a href="{{ route('module-pre-configs', ['config' => 'Zones', 'module' => 'Lab-Management']) }}" class="list-group-item list-group-item-action bg-dark text-white">
+			<span class="menu-collapsed"><i class="mdi mdi-circle-medium"></i> Zones
 				<small class="float-right badge badge-pill"></small></span>
 		</a>
 		<a href="{{route('submission-forms.index')}}" class="list-group-item list-group-item-action bg-dark text-white">

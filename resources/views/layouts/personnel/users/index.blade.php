@@ -257,6 +257,7 @@
     <div class="modal-dialog modal-lg">
       <!-- Modal content-->
       <form autocomplete="off" class="modal-content" method="POST" action="{{ route('add-personnel', ['id'=>time()]) }}" enctype="multipart/form-data">
+			@php $zones = \App\Zone::where('inventory_location_id', getCurrentUserLocation()->id)->orderBy('key')->get(); @endphp
 				@csrf
 				<input autocomplete="off" name="hidden" type="password" style="display:none;">
         <div class="modal-header">
@@ -372,9 +373,15 @@
 									@endforeach
 								</select>
 							</div>
-
-							<div class="form-group">
-								<label class="control-label">
+                            <div class="form-group">
+                                <label class="control-label">Zone</label>
+                                <select name="zone_id" class="form-control">
+                                    <option value="">Select zone</option>
+                                    @foreach($zones as $zone)
+                                        <option value="{{ $zone->id }}">{{ $zone->key }}{{ $zone->value ? ' - '.$zone->value : '' }}</option>
+                                    @endforeach
+                                </select>
+                            </div>
 									<input type="checkbox" name="has_credentials" value="1" /> Create User Passwords
 								</label>
 							</div>
