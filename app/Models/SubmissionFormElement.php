@@ -29,7 +29,11 @@ class SubmissionFormElement extends Model implements Auditable
         'sort_order',
         'mapping_table',
         'mapping_field',
-        'is_mapped'
+        'is_mapped',
+        'depends_on_type',
+        'depends_on_field',
+        'source_table',
+        'source_field',
     ];
 
     protected $casts = [
@@ -66,7 +70,8 @@ class SubmissionFormElement extends Model implements Auditable
             'text', 'number', 'email', 'date', 'datetime', 
             'textarea', 'select', 'radio', 'checkbox', 'file', 'signature',
             'client_select', 'sample_type_select', 'client_unit_select', 'client_contact_select',
-            'analysis_type_select', 'store_select', 'store_slot_select', 'sample_condition_select', 'standard_select'
+            'analysis_type_select', 'store_select', 'store_slot_select', 'sample_condition_select', 'standard_select',
+            'depended_field',
         ]);
     }
 

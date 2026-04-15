@@ -156,6 +156,9 @@
                   <div class="element-type" data-type="user_signature">
                     <i class="mdi mdi-account-check"></i> User Signature
                   </div>
+                  <div class="element-type" data-type="depended_field">
+                    <i class="mdi mdi-link-variant"></i> Depended Field
+                  </div>
                 </div>
               </div>
             </div>
@@ -347,6 +350,7 @@
                     <option value="company_sub_unit_select">Company Sub Unit Select</option>
                     <option value="user_select">User Select</option>
                     <option value="user_signature">User Signature</option>
+                    <option value="depended_field">Depended Field</option>
                   </select>
                 </div>
               </div>
@@ -447,6 +451,35 @@
                   <small class="form-text text-muted" id="depends-help-text">
                     Select which field this signature should depend on. The signature will automatically load when that field is filled.
                   </small>
+                </div>
+              </div>
+            </div>
+
+            <!-- Depended Field Configuration -->
+            <div class="card mt-3" id="depended-config" style="display: none;">
+              <div class="card-header">
+                <h6 class="mb-0">
+                  <i class="mdi mdi-link-variant"></i> Depended Field Configuration
+                </h6>
+              </div>
+              <div class="card-body">
+                <div class="form-group">
+                  <label for="depended-depends-on-field" class="required">Depends On Field</label>
+                  <select class="form-control" id="depended-depends-on-field">
+                    <option value="">Select a select-type field...</option>
+                  </select>
+                  <small class="form-text text-muted">Select which "select" field this element should depend on. The value will automatically load when that field changes.</small>
+                </div>
+                <div class="form-group">
+                  <label for="depended-source-table">Source Table</label>
+                  <input type="text" class="form-control" id="depended-source-table" readonly placeholder="Auto-resolved from the selected field">
+                </div>
+                <div class="form-group mb-0">
+                  <label for="depended-source-field" class="required">Source Field (Column)</label>
+                  <select class="form-control" id="depended-source-field">
+                    <option value="">Select a field above first...</option>
+                  </select>
+                  <small class="form-text text-muted">The column whose value will populate this element when the dependent select changes.</small>
                 </div>
               </div>
             </div>
@@ -957,6 +990,15 @@ const FormBuilder = {
             $('#element-depends').val(element.options.depends);
             this.loadContactSelectFields();
         }
+
+        // Handle depended_field configuration
+        if (element.element_type === 'depended_field') {
+            this.loadSelectTypeFields(element.depends_on_field);
+            if (element.depends_on_type) {
+                this.loadSourceFields(element.depends_on_type, element.source_field);
+                $('#depended-source-table').val(element.source_table || '');
+            }
+        }
     },
     
     loadUserSelectFields() {
@@ -1016,23 +1058,160 @@ const FormBuilder = {
             dependsSelect.append(`<option value="${field.name}"${selected}>${field.label} (${field.name})</option>`);
         });
     },
-    
+
+    loadSelectTypeFields(currentFieldName = '') {
+        const SELECT_TYPES = ['client_select', 'client_unit_select', 'client_contact_select',
+            'client_submission_officers_select', 'sample_type_select', 'analysis_type_select',
+            'analysis_elements_select', 'store_select', 'store_slot_select', 'sample_condition_select',
+            'standard_select', 'sample_point_select', 'user_select'];
+
+        const dependsSelect = $('#depended-depends-on-field');
+        const foundFields = [];
+
+        $('#sections-container .element-item').each(function() {
+            const elementTypeText = $(this).find('small.text-muted').text().trim();
+            const typeMatch = elementTypeText.match(/\((.+?)\)$/);
+            if (typeMatch && SELECT_TYPES.includes(typeMatch[1])) {
+                const label = $(this).find('.font-weight-medium').text().trim().replace(' *', '');
+                const nameMatch = elementTypeText.match(/^(.+?)\s*\(/);
+                if (nameMatch) {
+                    foundFields.push({ name: nameMatch[1].trim(), label, type: typeMatch[1] });
+                }
+            }
+        });
+
+        dependsSelect.html('<option value="">Select a select-type field...</option>');
+        foundFields.forEach(field => {
+            const selected = (currentFieldName === field.name) ? ' selected' : '';
+            dependsSelect.append(`<option value="${field.name}" data-element-type="${field.type}"${selected}>${field.label} (${field.name})</option>`);
+        });
+
+        // When a field is chosen, auto-fill source_table and source_field options
+        dependsSelect.off('change.depended-config').on('change.depended-config', () => {
+            const selectedType = dependsSelect.find('option:selected').data('element-type');
+            this.loadSourceFields(selectedType);
+        });
+    },
+
+    loadSourceFields(elementType, currentSourceField = '') {
+        const SOURCE_FIELD_MAP = {
+            client_select: {
+                table: 'crm_customers',
+                fields: [
+                    { value: 'name', label: 'Company Name' },
+                    { value: 'code', label: 'Code' },
+                    { value: 'email', label: 'Email' },
+                    { value: 'telephone1', label: 'Telephone 1' },
+                    { value: 'telephone2', label: 'Telephone 2' },
+                    { value: 'fax', label: 'Fax' },
+                    { value: 'postal_address', label: 'Postal Address' },
+                    { value: 'physical_address', label: 'Physical Address' },
+                    { value: 'website', label: 'Website' },
+                ]
+            },
+            client_unit_select: {
+                table: 'crm_company_units',
+                fields: [{ value: 'name', label: 'Name' }]
+            },
+            client_contact_select: {
+                table: 'crm_customer_contacts',
+                fields: [
+                    { value: 'first_name', label: 'First Name' },
+                    { value: 'middle_name', label: 'Middle Name' },
+                    { value: 'last_name', label: 'Last Name' },
+                    { value: 'email', label: 'Email' },
+                    { value: 'telephone', label: 'Telephone' },
+                    { value: 'mobile', label: 'Mobile' },
+                    { value: 'job_occupation', label: 'Job Occupation' },
+                ]
+            },
+            client_submission_officers_select: {
+                table: 'crm_customer_contacts',
+                fields: [
+                    { value: 'first_name', label: 'First Name' },
+                    { value: 'middle_name', label: 'Middle Name' },
+                    { value: 'last_name', label: 'Last Name' },
+                    { value: 'email', label: 'Email' },
+                    { value: 'telephone', label: 'Telephone' },
+                    { value: 'mobile', label: 'Mobile' },
+                ]
+            },
+            sample_type_select: {
+                table: 'sample_types',
+                fields: [{ value: 'name', label: 'Name' }]
+            },
+            analysis_type_select: {
+                table: 'analysis_types',
+                fields: [{ value: 'name', label: 'Name' }]
+            },
+            store_select: {
+                table: 'inventory_stores',
+                fields: [{ value: 'name', label: 'Name' }]
+            },
+            store_slot_select: {
+                table: 'inventory_store_slots',
+                fields: [{ value: 'name', label: 'Name' }]
+            },
+            user_select: {
+                table: 'users',
+                fields: [
+                    { value: 'name', label: 'Name' },
+                    { value: 'email', label: 'Email' },
+                ]
+            },
+            standard_select: {
+                table: 'standards',
+                fields: [{ value: 'name', label: 'Name' }]
+            },
+            sample_condition_select: {
+                table: 'sample_conditions',
+                fields: [{ value: 'name', label: 'Name' }]
+            },
+            sample_point_select: {
+                table: 'sample_points',
+                fields: [{ value: 'name', label: 'Name' }]
+            },
+        };
+
+        const config = SOURCE_FIELD_MAP[elementType];
+        if (!config) {
+            $('#depended-source-table').val('');
+            $('#depended-source-field').html('<option value="">Select a field above first...</option>');
+            return;
+        }
+
+        $('#depended-source-table').val(config.table);
+        const sourceFieldSelect = $('#depended-source-field');
+        sourceFieldSelect.html('<option value="">Select a column...</option>');
+        config.fields.forEach(f => {
+            const selected = (currentSourceField === f.value) ? ' selected' : '';
+            sourceFieldSelect.append(`<option value="${f.value}"${selected}>${f.label} (${f.value})</option>`);
+        });
+    },
+
     handleElementTypeChange() {
         const elementType = $('#element-type').val();
         const needsOptions = ['select', 'radio', 'checkbox'].includes(elementType);
-        const isCustomElement = ['client_select', 'sample_type_select', 'client_unit_select', 'client_contact_select', 'client_submission_officers_select', 'analysis_type_select', 'analysis_elements_select', 'store_select', 'store_slot_select', 'sample_condition_select', 'standard_select', 'sample_point_select', 'user_select', 'user_signature', 'contact_signature'].includes(elementType);
+        const isCustomElement = ['client_select', 'sample_type_select', 'client_unit_select', 'client_contact_select', 'client_submission_officers_select', 'analysis_type_select', 'analysis_elements_select', 'store_select', 'store_slot_select', 'sample_condition_select', 'standard_select', 'sample_point_select', 'user_select', 'user_signature', 'contact_signature', 'depended_field'].includes(elementType);
         
         // Show/hide depends configuration for user_signature and contact_signature
         if (elementType === 'user_signature') {
             $('#depends-config').show();
+            $('#depended-config').hide();
             $('#depends-help-text').text('Select which user_select field this signature should depend on. The signature will automatically load when that field is filled.');
             this.loadUserSelectFields();
         } else if (elementType === 'contact_signature') {
             $('#depends-config').show();
+            $('#depended-config').hide();
             $('#depends-help-text').text('Select which client_contact_select or client_submission_officers_select field this signature should depend on. The signature will automatically load when that field is filled.');
             this.loadContactSelectFields();
+        } else if (elementType === 'depended_field') {
+            $('#depends-config').hide();
+            $('#depended-config').show();
+            this.loadSelectTypeFields($('#depended-depends-on-field').val()|| '');
         } else {
             $('#depends-config').hide();
+            $('#depended-config').hide();
         }
         
         // Hide options for custom elements as they are loaded dynamically
@@ -1139,12 +1318,20 @@ const FormBuilder = {
         
         // Collect options if needed
         const needsOptions = ['select', 'radio', 'checkbox'].includes(formData.element_type);
-        const isCustomElement = ['client_select', 'sample_type_select', 'client_unit_select', 'client_contact_select', 'client_submission_officers_select', 'analysis_type_select', 'analysis_elements_select', 'store_select', 'store_slot_select', 'sample_condition_select', 'standard_select', 'sample_point_select', 'user_select', 'user_signature'].includes(formData.element_type);
+        const isCustomElement = ['client_select', 'sample_type_select', 'client_unit_select', 'client_contact_select', 'client_submission_officers_select', 'analysis_type_select', 'analysis_elements_select', 'store_select', 'store_slot_select', 'sample_condition_select', 'standard_select', 'sample_point_select', 'user_select', 'user_signature', 'depended_field'].includes(formData.element_type);
         
         // Handle user_signature and contact_signature - save depends in options
         if (formData.element_type === 'user_signature' || formData.element_type === 'contact_signature') {
             const depends = $('#element-depends').val();
             formData.options = depends ? { depends: depends } : {};
+        } else if (formData.element_type === 'depended_field') {
+            // Save depended_field-specific config as top-level fields
+            const selectedOption = $('#depended-depends-on-field option:selected');
+            formData.depends_on_type  = selectedOption.data('element-type') || null;
+            formData.depends_on_field = $('#depended-depends-on-field').val() || null;
+            formData.source_table     = $('#depended-source-table').val() || null;
+            formData.source_field     = $('#depended-source-field').val() || null;
+            formData.options = [];
         } else if (needsOptions && !isCustomElement) {
         // Only collect options for standard elements, not custom elements
             const options = [];
@@ -1358,7 +1545,11 @@ const FormBuilder = {
             is_mapped: isMapped,
             mapping_table: mappingTable,
             mapping_field: mappingField,
-            options: []
+            options: [],
+            depends_on_type:  elementItem.data('depends-on-type')  || null,
+            depends_on_field: elementItem.data('depends-on-field') || null,
+            source_table:     elementItem.data('source-table')     || null,
+            source_field:     elementItem.data('source-field')     || null,
         };
     },
 

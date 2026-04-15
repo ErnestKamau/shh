@@ -266,7 +266,7 @@ class FormBuilderController extends Controller
         Log::info('AddElement Request Data:', $request->all());
         
         $validated = $request->validate([
-            'element_type' => 'required|in:text,number,email,date,datetime,textarea,plain_text,select,radio,checkbox,file,signature,contact_signature,calculation,client_select,sample_type_select,client_unit_select,client_contact_select,client_submission_officers_select,analysis_type_select,analysis_elements_select,store_select,store_slot_select,sample_condition_select,standard_select,sample_point_select,company_sub_unit_select,user_select,user_signature',
+            'element_type' => 'required|in:text,number,email,date,datetime,textarea,plain_text,select,radio,checkbox,file,signature,contact_signature,calculation,client_select,sample_type_select,client_unit_select,client_contact_select,client_submission_officers_select,analysis_type_select,analysis_elements_select,store_select,store_slot_select,sample_condition_select,standard_select,sample_point_select,company_sub_unit_select,user_select,user_signature,depended_field',
             'label' => 'required|string|max:255',
             'name' => [
                 'required',
@@ -294,7 +294,11 @@ class FormBuilderController extends Controller
             'conditional_logic' => 'nullable|array',
             'mapping_table' => 'nullable|in:sample_headers,sample_details',
             'mapping_field' => 'nullable|string|max:255',
-            'is_mapped' => 'sometimes|in:true,false,1,0'
+            'is_mapped' => 'sometimes|in:true,false,1,0',
+            'depends_on_type' => 'nullable|string|max:100',
+            'depends_on_field' => 'nullable|string|max:255',
+            'source_table' => 'nullable|string|max:255',
+            'source_field' => 'nullable|string|max:255',
         ]);
 
         try {
@@ -322,6 +326,10 @@ class FormBuilderController extends Controller
                 'mapping_table' => $validated['mapping_table'] ?? null,
                 'mapping_field' => $validated['mapping_field'] ?? null,
                 'is_mapped' => filter_var($validated['is_mapped'] ?? false, FILTER_VALIDATE_BOOLEAN),
+                'depends_on_type' => $validated['depends_on_type'] ?? null,
+                'depends_on_field' => $validated['depends_on_field'] ?? null,
+                'source_table' => $validated['source_table'] ?? null,
+                'source_field' => $validated['source_field'] ?? null,
                 'sort_order' => SubmissionFormElement::getNextSortOrder($holder->id)
             ]);
             
@@ -359,7 +367,7 @@ class FormBuilderController extends Controller
         Log::info('UpdateElement Request Data:', $request->all());
         
         $validated = $request->validate([
-            'element_type' => 'required|in:text,number,email,date,datetime,textarea,plain_text,select,radio,checkbox,file,signature,contact_signature,calculation,client_select,sample_type_select,client_unit_select,client_contact_select,client_submission_officers_select,analysis_type_select,analysis_elements_select,store_select,store_slot_select,sample_condition_select,standard_select,sample_point_select,company_sub_unit_select,user_select,user_signature',
+            'element_type' => 'required|in:text,number,email,date,datetime,textarea,plain_text,select,radio,checkbox,file,signature,contact_signature,calculation,client_select,sample_type_select,client_unit_select,client_contact_select,client_submission_officers_select,analysis_type_select,analysis_elements_select,store_select,store_slot_select,sample_condition_select,standard_select,sample_point_select,company_sub_unit_select,user_select,user_signature,depended_field',
             'label' => 'required|string|max:255',
             'name' => [
                 'required',
@@ -388,7 +396,11 @@ class FormBuilderController extends Controller
             'mapping_table' => 'nullable|in:sample_headers,sample_details',
             'mapping_field' => 'nullable|string|max:255',
             'is_mapped' => 'sometimes|in:true,false,1,0',
-            'sort_order' => 'nullable|integer|min:0'
+            'sort_order' => 'nullable|integer|min:0',
+            'depends_on_type' => 'nullable|string|max:100',
+            'depends_on_field' => 'nullable|string|max:255',
+            'source_table' => 'nullable|string|max:255',
+            'source_field' => 'nullable|string|max:255',
         ]);
 
         try {

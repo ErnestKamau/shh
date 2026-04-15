@@ -532,6 +532,7 @@
         setupSampleTypeChangeHandlers();
         setupAnalysisTypeChangeHandlers();
         setupStoreChangeHandlers();
+        setupDependedFieldHandlers();
     }
 
     function initializeCustomElement(elementData) {
@@ -858,6 +859,27 @@
                     //console.log('Cleared dependent element:', dependentSelect.attr('id'));
                 });
             }
+        });
+    }
+
+    function setupDependedFieldHandlers() {
+        $('input[data-element-type="depended_field"][data-depends-on]').each(function() {
+            const $input = $(this);
+            const dependsOnField = $input.data('depends-on');
+            const elementId = $input.data('element-id');
+            if (!dependsOnField || !elementId) return;
+            $('select[name="' + dependsOnField + '"]').on('change.depended-field', function() {
+                const sourceId = $(this).val();
+                if (!sourceId) { $input.val(''); return; }
+                $.ajax({
+                    url: '{{ route("submission-forms.instances.depended-field-value") }}',
+                    method: 'GET',
+                    data: { element_id: elementId, source_id: sourceId },
+                    success: function(response) {
+                        if (response.success) { $input.val(response.value || ''); }
+                    }
+                });
+            });
         });
     }
 

@@ -638,6 +638,9 @@ Route::prefix('submission-forms')->name('submission-forms.')->middleware('auth')
         // Dynamic options route
         Route::get('/dynamic-options', 'FormInstanceController@getDynamicOptions')->name('dynamic-options');
 
+        // Depended field value route
+        Route::get('/depended-field-value', 'FormInstanceController@getDependedFieldValue')->name('depended-field-value');
+
         // Form creation routes
         Route::get('/{submissionForm}/create', 'FormInstanceController@create')->name('create');
         Route::post('/{submissionForm}', 'FormInstanceController@store')->name('store');
