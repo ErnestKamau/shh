@@ -78,6 +78,21 @@ return [
             'sslmode' => 'prefer',
         ],
 
+        'pgsql_ai' => [
+            'driver' => 'pgsql',
+            'url' => env('AI_DATABASE_URL'),
+            'host' => env('AI_DB_HOST', '127.0.0.1'),
+            'port' => env('AI_DB_PORT', '5432'),
+            'database' => env('AI_DB_DATABASE', 'forge'),
+            'username' => env('AI_DB_USERNAME', 'forge'),
+            'password' => env('AI_DB_PASSWORD', ''),
+            'charset' => 'utf8',
+            'prefix' => '',
+            'prefix_indexes' => true,
+            'schema' => env('AI_DB_SCHEMA', 'public'),
+            'sslmode' => env('AI_DB_SSLMODE', 'prefer'),
+        ],
+
         'sqlsrv' => [
             'driver' => 'sqlsrv',
             'url' => env('DATABASE_URL'),

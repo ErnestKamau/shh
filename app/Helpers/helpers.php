@@ -806,9 +806,14 @@ function getSystemModules()
 			'default_visible' => false,
 		),
 		'ai' => array(
-			'name' => 'Imara AI',
+			'name' => 'ImaraChat AI',
 			'route' => '/imara/ai/index',
-			'default_visible' => false,
+			'default_visible' => true,
+		),
+		'ai_analytics' => array(
+			'name' => 'AI Analytics',
+			'route' => '/mas',
+			'default_visible' => true,
 		),
 		'risk' => array(
 			'name' => 'Risk Management',
@@ -1249,7 +1254,12 @@ function getCompanies()
 }
 function getActiveCompany()
 {
-	return App\Company::where('active', 1)->first();
+	try {
+		return App\Company::where('active', 1)->first()
+			?? App\Company::orderBy('id')->first();
+	} catch (\Throwable $exception) {
+		return null;
+	}
 }
 
 function getClients($location = false)

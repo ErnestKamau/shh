@@ -1680,8 +1680,111 @@ Route::post('/validate/client-batches', 'SampleWorkFlowController@validateClient
 Route::post('/ajax/send-schedule', 'SampleWorkFlowController@sendScheduleAjax')->name('ajax-send-schedule')->middleware('haspermission:Laboratory.components.Sales-Orders.Add');
 #######################################################################################
 
-#####################################IMARA AI#######################
-Route::get('/imara/ai/index', 'HomeController@aiIndex')->name('imara-ai-index');
+##################################### IMARACHAT AI #######################
+Route::get('/imara-ai','HomeController@aiIndex')->middleware(['auth', 'twofactor'])->name('imara-ai');
+Route::prefix('imara-ai/settings')->name('ai.settings.')->middleware(['auth', 'twofactor'])->group(function () {
+    Route::get('/', 'KnowledgeBaseManagerController@settings')->name('index');
+    Route::get('/agent-personality', 'KnowledgeBaseManagerController@agentPersonality')->name('agent-personality');
+    Route::post('/agent-personality', 'KnowledgeBaseManagerController@updateAgentPersonality')->name('agent-personality.update');
+    Route::get('/model-config', 'KnowledgeBaseManagerController@modelConfig')->name('model-config');
+    Route::post('/model-config', 'KnowledgeBaseManagerController@updateModelConfig')->name('model-config.update');
+    Route::post('/model-config/sync', 'KnowledgeBaseManagerController@syncOllamaModels')->name('model-config.sync');
+});
+Route::get('/imara-ai/knowledge-manager','KnowledgeBaseManagerController@index')->middleware(['auth', 'twofactor'])->name('ai.knowledge.manager');
+Route::get('/imara/ai/index','HomeController@aiIndex')->middleware(['auth', 'twofactor'])->name('imara-ai-index');
+Route::post('/imara/ai/chat','HomeController@aiChat')->name('ai-chat-post');
+Route::post('/ai/predictions/{id}/feedback', 'AI\AiGovernanceController@recordFeedback')->name('ai-prediction-feedback');
+Route::post('/imara-ai/search', 'AI\KnowledgeAssistantController@search')
+  ->middleware(['auth', 'twofactor', 'throttle:20,1'])
+  ->name('ai.knowledge.search');
+Route::post('/imara-ai/ask', 'AI\KnowledgeAssistantController@ask')
+  ->middleware(['auth', 'twofactor', 'throttle:20,1'])
+  ->name('ai.knowledge.ask');
+Route::post('/imara-ai/ask-stream', 'AI\KnowledgeAssistantController@askStream')
+  ->middleware(['auth', 'twofactor', 'throttle:20,1'])
+  ->name('ai.knowledge.ask-stream');
+
+Route::post('/imara-ai/action/confirm', 'AI\KnowledgeAssistantController@confirmAction')
+  ->middleware(['auth', 'twofactor', 'throttle:20,1'])
+  ->name('ai.knowledge.action.confirm');
+
+// LiveData / Operational Assistant Routes
+Route::prefix('live-data')->middleware(['auth', 'twofactor'])->group(function () {
+    Route::post('/query', 'LiveData\OperationalAssistantController@query')->name('live-data.query');
+    Route::post('/search', 'LiveData\OperationalAssistantController@search')->name('live-data.search');
+    Route::get('/intents', 'LiveData\OperationalAssistantController@listIntents')->name('live-data.intents');
+});
+
+Route::get('/imara-ai/knowledge', 'AI\AiKnowledgeBaseController@index')
+  ->middleware(['auth', 'twofactor'])
+  ->name('ai.knowledge.dashboard');
+
+Route::get('/imara-ai/knowledge/{id}', 'AI\AiKnowledgeBaseController@show')
+  ->middleware(['auth', 'twofactor'])
+  ->name('ai.knowledge.show');
+
+Route::post('/imara-ai/knowledge', 'AI\AiKnowledgeBaseController@store')
+  ->middleware(['auth', 'twofactor'])
+  ->name('ai.knowledge.store');
+
+Route::put('/imara-ai/knowledge/{id}', 'AI\AiKnowledgeBaseController@update')
+  ->middleware(['auth', 'twofactor'])
+  ->name('ai.knowledge.update');
+
+Route::delete('/imara-ai/knowledge/{id}', 'AI\AiKnowledgeBaseController@destroy')
+  ->middleware(['auth', 'twofactor'])
+  ->name('ai.knowledge.destroy');
+
+Route::post('/imara-ai/knowledge/{id}/reindex', 'AI\AiKnowledgeBaseController@reindex')
+  ->middleware(['auth', 'twofactor'])
+  ->name('ai.knowledge.reindex');
+
+// AI conversation persistence
+Route::get('/imara-ai/conversations', 'AI\KnowledgeAssistantController@listConversations')
+  ->middleware(['auth', 'twofactor'])->name('ai.conversations.list');
+Route::post('/imara-ai/conversations', 'AI\KnowledgeAssistantController@createConversation')
+  ->middleware(['auth', 'twofactor'])->name('ai.conversations.create');
+Route::get('/imara-ai/conversations/{id}/messages', 'AI\KnowledgeAssistantController@getMessages')
+  ->middleware(['auth', 'twofactor'])->name('ai.conversations.messages');
+Route::post('/imara-ai/conversations/{id}/messages', 'AI\KnowledgeAssistantController@saveMessage')
+  ->middleware(['auth', 'twofactor'])->name('ai.conversations.save-message');
+Route::delete('/imara-ai/conversations/{id}', 'AI\KnowledgeAssistantController@deleteConversation')
+  ->middleware(['auth', 'twofactor'])->name('ai.conversations.delete');
+Route::delete('/imara-ai/conversations', 'AI\KnowledgeAssistantController@bulkDeleteConversations')
+  ->middleware(['auth', 'twofactor'])->name('ai.conversations.bulk-delete');
+Route::patch('/imara-ai/conversations/{id}', 'AI\KnowledgeAssistantController@renameConversation')
+  ->middleware(['auth', 'twofactor'])->name('ai.conversations.rename');
+Route::post('/imara-ai/conversations/{convoId}/messages/{messageId}/feedback', 'AI\KnowledgeAssistantController@saveFeedback')
+  ->middleware(['auth', 'twofactor'])->name('ai.conversations.feedback');
+Route::post('/imara-ai/conversations/{id}/attachments', 'AI\KnowledgeAssistantController@uploadAttachment')
+  ->middleware(['auth', 'twofactor'])->name('ai.conversations.upload-attachment');
+
+// ML Governance Dashboard — model registry, performance, and monitoring
+Route::prefix('/imara-ai/governance')->name('ai.governance.')->middleware(['auth', 'twofactor'])->group(function () {
+    Route::get('/dashboard', 'AI\AiGovernanceController@mlDashboard')->name('dashboard');
+    Route::get('/models', 'AI\AiGovernanceController@listModels')->name('models.index');
+    Route::get('/models/{id}/performance', 'AI\AiGovernanceController@modelPerformance')->name('models.performance');
+});
+
+########################################### AI ANALYTICS #######################################
+Route::group(['prefix' => 'mas', 'middleware' => ['web', 'auth']], function() {
+    Route::get('/', '\App\Livewire\Mas\Overview')->name('mas.index');
+    // Lab Insights (Nested structure for distinct URLs)
+    Route::get('/lab', function() { return redirect()->route('mas.lab.tat'); });
+    Route::get('/lab/tat', '\App\Livewire\Mas\LabTat')->name('mas.lab.tat');
+    Route::get('/lab/general', '\App\Livewire\Mas\LabGeneral')->name('mas.lab.general');
+    Route::get('/lab/qc', '\App\Livewire\Mas\LabQc')->name('mas.lab.qc');
+    Route::get('/inventory', '\App\Livewire\Mas\Inventory')->name('mas.inventory');
+    Route::get('/crm', '\App\Livewire\Mas\Crm')->name('mas.crm');
+    Route::get('/risk', '\App\Livewire\Mas\Risk')->name('mas.risk');
+    Route::get('/ai', '\App\Livewire\Mas\Ai')->name('mas.ai');
+    Route::get('/equipment', '\App\Livewire\Mas\Equipment')->name('mas.equipment');
+    Route::get('/personnel', '\App\Livewire\Mas\Personnel')->name('mas.personnel');
+    Route::get('/qc', '\App\Livewire\Mas\Qc')->name('mas.qc');
+    Route::get('/audit', '\App\Livewire\Mas\Audit')->name('mas.audit');
+    Route::get('/export/{module}', 'Mas\MasController@export')->name('mas.export');
+    Route::post('/export/{module}/visuals', 'Mas\MasController@exportWithVisuals')->name('mas.export.visuals');
+});
 
 
 
