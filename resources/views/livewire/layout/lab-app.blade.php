@@ -143,6 +143,13 @@
             'icon' => null
         ];
     }
+    if (isset($componentType) && $componentType === 'zones') {
+        $breadcrumbItems[] = [
+            'link' => route('module-pre-configs', ['config' => $config, 'module' => $module]),
+            'name' => 'Zones',
+            'icon' => null
+        ];
+    }
     ?>
     <x-bread-crumb :items="$breadcrumbItems"></x-bread-crumb>
 
@@ -165,6 +172,8 @@
     @livewire('ratings.rating-details-manager', ['ratingHeaderId' => $ratingHeaderId ?? null])
     @elseif($componentType === 'report-formats')
     @livewire('reports.report-format-manager')
+    @elseif($componentType === 'zones')
+    @livewire('zone-manager', ['module' => $module])
     @elseif($componentType === 'standards')
     @livewire('standards.standards-page')
     @elseif($componentType === 'standard-analytes')

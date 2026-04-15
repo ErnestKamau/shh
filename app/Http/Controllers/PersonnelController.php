@@ -12,6 +12,7 @@ use App\Http\Controllers\MailController as Mailers;
 use Illuminate\Http\Request;
 use Illuminate\Mail\Mailer;
 use Illuminate\Http\File;
+use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Facades\Storage;
 use Excel;
 use App\Imports\StandardsImport;
@@ -140,6 +141,10 @@ class PersonnelController extends Controller
 				return \redirect()->back()->with('error', 'Passwords did not match.');
 			}
 		}
+
+		$request->validate([
+			'zone_id' => 'nullable|integer|exists:zones,id',
+		]);
 		
 		$personnel = User::find($id) ?? new User();
 		$check_user = User::where('email',$request->email)->get();
@@ -201,6 +206,9 @@ class PersonnelController extends Controller
 		$personnel->lab_section_id = implode(',',$request->lab_section_id ?? []) ?? '';
 
 		$personnel->license_type = $request->user_license;
+		if (Schema::hasColumn('users', 'zone_id')) {
+			$personnel->zone_id = $request->zone_id ? (int) $request->zone_id : null;
+		}
 
 		if(!isset($personnel->id)){
 

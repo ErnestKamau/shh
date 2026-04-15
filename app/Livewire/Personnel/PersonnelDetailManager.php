@@ -6,6 +6,7 @@ use App\InventoryDepartment;
 use App\ModulePreConfigs;
 use App\SampleAnalysisStage;
 use App\User;
+use App\Zone;
 use Livewire\Component;
 use Spatie\Permission\Models\Role;
 
@@ -228,6 +229,14 @@ class PersonnelDetailManager extends Component
             ->where('active', 1)
             ->orderBy('name')
             ->get(['id', 'name']);
+    }
+
+    public function getZonesProperty()
+    {
+        return Zone::query()
+            ->where('inventory_location_id', getCurrentUserLocation()->id)
+            ->orderBy('key')
+            ->get(['id', 'key', 'value']);
     }
 
     public function getLicenseCountProperty(): array

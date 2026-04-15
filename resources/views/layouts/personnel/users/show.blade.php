@@ -288,6 +288,7 @@
 						</div>
 					</div>
 					<form autocomplete="off" action="{{ route('add-personnel', ['id'=>$user->id]) }}" method="POST" class="tab-pane fade p-3" id="User-Details" role="tabpanel" aria-labelledby="one-tab" enctype="multipart/form-data">
+                        @php $zones = \App\Zone::where('inventory_location_id', getCurrentUserLocation()->id)->orderBy('key')->get(); @endphp
 						<h5 class="card-title"><i class="mdi mdi-key"></i> User Details
 							<button class="btn btn-outline-primary btn-sm float-right"><i class="mdi mdi-content-save"></i> Save</button>
 						</h5>
@@ -435,6 +436,17 @@
 											<option></option>
 											@foreach (getUserLicenses() as $i=>$n)
 											<option value="{{ $i }}" {{ $i == $user->license_type ? 'selected' :'' }} {{ intval($license_count[$i]) == intval(mamboSawa($i.'s')) ? 'disabled' : '' }}>{{ $n }} {{ $license_count[$i]."/".mamboSawa($i.'s') }}</option>
+											@endforeach
+										</select>
+									</div>
+								</div>
+								<div class="col-sm-4">
+									<div class="form-group">
+										<label class="control-label">Zone</label>
+										<select name="zone_id" class="form-control">
+											<option value="">Select zone</option>
+											@foreach($zones as $zone)
+												<option value="{{ $zone->id }}" {{ $user->zone_id == $zone->id ? 'selected' : '' }}>{{ $zone->key }}{{ $zone->value ? ' - '.$zone->value : '' }}</option>
 											@endforeach
 										</select>
 									</div>

@@ -80,6 +80,13 @@
             'icon' => null,
         ];
     }
+    if (isset($componentType) && $componentType === 'zones') {
+        $breadcrumbItems[] = [
+            'link' => route('module-pre-configs', ['config' => $config, 'module' => $module]),
+            'name' => 'Zones',
+            'icon' => null,
+        ];
+    }
     if (isset($componentType) && $componentType === 'job-responsibility') {
         $designation = \App\ModulePreConfigs::find($designationId);
         if ($designation) {
@@ -127,6 +134,8 @@
         @livewire('personnel.audit-log-manager')
     @elseif($componentType === 'personnel-configurations')
         @livewire('personnel.configuration-manager', ['config' => $config, 'module' => $module])
+    @elseif($componentType === 'zones')
+        @livewire('zone-manager', ['module' => $module])
     @elseif($componentType === 'personnel-certifications')
         @livewire('personnel.certification-manager')
     @elseif($componentType === 'job-responsibility')

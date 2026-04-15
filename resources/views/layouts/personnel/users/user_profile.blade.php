@@ -154,6 +154,7 @@
             </h2>
             <br>
             <div class="card">
+                @php $zones = \App\Zone::where('inventory_location_id', getCurrentUserLocation()->id)->orderBy('key')->get(); @endphp
                 <form autocomplete="off" action="{{ route('add-personnel', ['id'=>$user->id]) }}" method="POST" class="p-3" enctype="multipart/form-data">
                     <h5 class="card-title"><i class="mdi mdi-key"></i> User Details
                         <button class="btn btn-outline-primary btn-sm float-right"><i class="mdi mdi-content-save"></i> Save</button>
@@ -200,6 +201,15 @@
                                 <option></option>
                                 @foreach (getUserLicenses() as $i=>$n)
                                 <option value="{{ $i }}" {{ $i == $user->license_type ? 'selected' :'' }} {{ intval($license_count[$i]) == intval(mamboSawa($i.'s')) ? 'disabled' : '' }}>{{ $n }} {{ $license_count[$i]."/".mamboSawa($i.'s') }}</option>
+                                @endforeach
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label class="control-label">Zone</label>
+                            <select name="zone_id" class="form-control">
+                                <option value=""></option>
+                                @foreach ($zones as $zone)
+                                    <option value="{{ $zone->id }}" {{ $zone->id == $user->zone_id ? 'selected' : '' }}>{{ $zone->name }}</option>
                                 @endforeach
                             </select>
                         </div>

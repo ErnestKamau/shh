@@ -1,4 +1,9 @@
-@extends($module == "Inventory-Management" ? 'layouts.inventory.layout.app' : 'layouts.personnel.layout.app', ['dataTable'=>true, 'select2'=>true])
+@php
+    $layout = $module == "Inventory-Management"
+        ? 'layouts.inventory.layout.app'
+        : ($module == 'Lab-Management' ? 'layouts.lab.layout.app' : 'layouts.personnel.layout.app');
+@endphp
+@extends($layout, ['dataTable'=>true, 'select2'=>true])
 <?php $module_text = implode(" ", explode("-", $module)); ?>
 @section('title2')
   <title>{{ $config }} | {{ $module_text }}</title>
@@ -6,9 +11,10 @@
 @section('content2')
   <main>
     <?php
+      $homeRoute = $module == 'Lab-Management' ? route('lab-home') : route('personnel-home');
       $items = array(
         array(
-          'link' => route('personnel-home'),
+          'link' => $homeRoute,
           'name' => $module_text,
           'icon' => null
         ),

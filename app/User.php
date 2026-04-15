@@ -6,6 +6,7 @@ use OwenIt\Auditing\Contracts\Auditable;
 
 use App\Models\CRM\TicketPermission;
 use App\Models\System\SystemConfiguration;
+use App\Zone;
 use Illuminate\Contracts\Auth\MustVerifyEmail;
 use Illuminate\Database\Eloquent\Relations\HasOne;
 use Illuminate\Foundation\Auth\User as Authenticatable;
@@ -32,7 +33,7 @@ class User extends Authenticatable implements Auditable
 	 * @var array
 	 */
 	protected $fillable = [
-		'name', 'email', 'password','veriify_code','verify_code_expires'
+		'name', 'email', 'password', 'zone_id', 'veriify_code', 'verify_code_expires'
 	];
 	protected $appends = ['labsectionname','labsectionids'];
 
@@ -191,6 +192,11 @@ class User extends Authenticatable implements Auditable
 
 	public function location(){
 		return InventoryLocation::find($this->location_id);
+	}
+
+	public function zone()
+	{
+		return $this->belongsTo(Zone::class, 'zone_id');
 	}
 
 	public function generateTwoFactorCode(){
