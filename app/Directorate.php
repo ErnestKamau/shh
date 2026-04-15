@@ -17,6 +17,7 @@ class Directorate extends Model implements Auditable
         'name',
         'code',
         'head_id',
+        'zone_id',
         'active',
     ];
 
@@ -27,6 +28,11 @@ class Directorate extends Model implements Auditable
     public function head(): BelongsTo
     {
         return $this->belongsTo('App\User', 'head_id');
+    }
+
+    public function zone(): BelongsTo
+    {
+        return $this->belongsTo('App\Zone', 'zone_id');
     }
 
     public function labs(): HasMany
