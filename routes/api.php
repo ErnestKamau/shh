@@ -3,6 +3,9 @@
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
 
+$ticketSyncController = 'App\\Http\\Controllers\\Api\\TicketSyncController';
+$developerWebhookController = 'App\\Http\\Controllers\\Api\\DeveloperWebhookController';
+
 /*
 |--------------------------------------------------------------------------
 | API Routes
@@ -14,32 +17,31 @@ use Illuminate\Support\Facades\Route;
 |
 */
 
-Route::post('/kcb/receive','KCBIntegrationController@receivepayment')->name('receive-payment');
+Route::post('/kcb/receive', 'KCBIntegrationController@receivepayment')->name('receive-payment');
 
-// API routes for custom element modals
-Route::get('/clients', 'Api\ClientController@index');
-Route::get('/clients/{id}', 'Api\ClientController@show');
-Route::post('/clients', 'Api\ClientController@store');
+// Include Knowledge Assistant routes (Phase 2 integration)
+require __DIR__ . '/api/knowledge.php';
 
-Route::get('/client-units', 'Api\ClientUnitController@index');
-Route::post('/client-units', 'Api\ClientUnitController@store');
+// Include AI insights orchestration and governance routes
+require __DIR__ . '/api/insights.php';
 
-Route::get('/company-sub-units', 'Api\CompanySubUnitController@index');
-Route::post('/company-sub-units', 'Api\CompanySubUnitController@store');
+// AI Predictions API
+Route::prefix('ai')->group(function () {
+    Route::post('/predictions/tat', 'AIPredictionsController@predictTAT')->name('ai.predict.tat');
+    Route::post('/predictions/maintenance', 'AIPredictionsController@predictMaintenance')->name('ai.predict.maintenance');
+    Route::get('/health', 'AIPredictionsController@health')->name('ai.health');
+});
 
-Route::get('/client-contacts', 'Api\ClientContactController@index');
-Route::post('/client-contacts', 'Api\ClientContactController@store');
+// Ticket/developer sync routes are optional in this branch. Only register
+// them when the backing controllers are available.
+if (class_exists($ticketSyncController, false)) {
+    Route::post('/tickets/sync', 'Api\TicketSyncController@sync')
+        ->middleware('api.key')
+        ->name('api.tickets.sync');
+}
 
-Route::get('/sample-points', 'Api\SamplePointController@index');
-Route::post('/sample-points', 'Api\SamplePointController@store');
-
-Route::get('/sample-conditions', 'Api\SampleConditionController@index');
-Route::post('/sample-conditions', 'Api\SampleConditionController@store');
-
-Route::get('/sample-types', 'Api\SampleTypeController@index');
-
-// Supporting data endpoints for client modal
-Route::get('/countries', 'Api\CountryController@index');
-Route::get('/account-settings', 'Api\AccountSettingsController@index');
-Route::get('/zoho-customers', 'Api\ZohoCustomerController@index');
-
+if (class_exists($developerWebhookController, false)) {
+    Route::post('/webhooks/developer', 'Api\DeveloperWebhookController@handleWebhook')
+        ->middleware('verify.developer.webhook')
+        ->name('api.webhooks.developer');
+}
