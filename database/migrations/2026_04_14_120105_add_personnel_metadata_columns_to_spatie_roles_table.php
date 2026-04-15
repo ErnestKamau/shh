@@ -12,6 +12,10 @@ return new class extends Migration
      */
     public function up(): void
     {
+        $legacyRoleColumns = Schema::hasTable('roles')
+            ? Schema::getColumnListing('roles')
+            : [];
+
         if (! Schema::hasColumn('spatie_roles', 'description')) {
             Schema::table('spatie_roles', function (Blueprint $table) {
                 $table->string('description')->nullable()->after('name');
@@ -36,19 +40,45 @@ return new class extends Migration
             });
         }
 
+        if (empty($legacyRoleColumns) || ! in_array('name', $legacyRoleColumns, true)) {
+            return;
+        }
+
+        $selectColumns = ['name'];
+        foreach (['description', 'level', 'company_id', 'active'] as $optionalColumn) {
+            if (in_array($optionalColumn, $legacyRoleColumns, true)) {
+                $selectColumns[] = $optionalColumn;
+            }
+        }
+
         $legacyRoles = DB::table('roles')
-            ->select('name', 'description', 'level', 'company_id', 'active')
+            ->select($selectColumns)
             ->get();
 
         foreach ($legacyRoles as $legacyRole) {
-            DB::table('spatie_roles')
-                ->where('name', $legacyRole->name)
-                ->update([
-                    'description' => $legacyRole->description,
-                    'level' => $legacyRole->level ?? 1,
-                    'company_id' => $legacyRole->company_id,
-                    'active' => $legacyRole->active ?? 1,
-                ]);
+            $payload = [];
+
+            if (property_exists($legacyRole, 'description')) {
+                $payload['description'] = $legacyRole->description;
+            }
+
+            if (property_exists($legacyRole, 'level')) {
+                $payload['level'] = $legacyRole->level ?? 1;
+            }
+
+            if (property_exists($legacyRole, 'company_id')) {
+                $payload['company_id'] = $legacyRole->company_id;
+            }
+
+            if (property_exists($legacyRole, 'active')) {
+                $payload['active'] = $legacyRole->active ?? 1;
+            }
+
+            if (! empty($payload)) {
+                DB::table('spatie_roles')
+                    ->where('name', $legacyRole->name)
+                    ->update($payload);
+            }
         }
     }
 

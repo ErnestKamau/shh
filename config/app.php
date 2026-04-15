@@ -178,6 +178,7 @@ return [
         // App\Providers\BroadcastServiceProvider::class,
         App\Providers\EventServiceProvider::class,
         App\Providers\RouteServiceProvider::class,
+        App\Providers\LiveDataServiceProvider::class,
 
         Milon\Barcode\BarcodeServiceProvider::class,
         Modules\TemplateEngine\Providers\TemplateEngineServiceProvider::class,

@@ -600,7 +600,16 @@
             <div class="app-icon" style="background: linear-gradient(135deg, #FF9800, #F57C00);">
                 <i class="mdi mdi-chip"></i>
             </div>
-            <h3 class="app-title">Imara AI</h3>
+            <h3 class="app-title">ImaraChat AI</h3>
+        </a>
+        @endif
+
+        @if(isSystemModuleVisible('ai_analytics'))
+        <a class="app-card ai-analytics" href="{{ Route::has('mas.index') ? route('mas.index') : url('/mas') }}" data-app="ai-analytics">
+            <div class="app-icon" style="background: linear-gradient(135deg, #3F51B5, #1A237E);">
+                <i class="mdi mdi-chart-line"></i>
+            </div>
+            <h3 class="app-title">AI Analytics</h3>
         </a>
         @endif
 
