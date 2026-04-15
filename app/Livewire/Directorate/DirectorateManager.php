@@ -5,6 +5,7 @@ namespace App\Livewire\Directorate;
 use App\Directorate;
 use App\Lab;
 use App\User;
+use App\Zone;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\Rule;
@@ -16,10 +17,12 @@ class DirectorateManager extends Component
         'name' => '',
         'code' => '',
         'head_id' => '',
+        'zone_id' => '',
         'active' => true,
     ];
 
     public array $labForm = [
+        'zone_id' => '',
         'directorate_id' => '',
         'name' => '',
         'code' => '',
@@ -53,6 +56,31 @@ class DirectorateManager extends Component
         $this->selectedDirectorateId = Directorate::query()->orderBy('name')->value('id');
     }
 
+    public function getZonesProperty(): Collection
+    {
+        return Zone::query()
+            ->where('inventory_location_id', getCurrentUserLocation()->id)
+            ->orderBy('key')
+            ->get(['id', 'key', 'value']);
+    }
+
+    public function getDirectoratesForLabProperty(): Collection
+    {
+        $query = Directorate::query()->with('labs')->where('active', 1);
+
+        if ($this->labForm['zone_id'] !== '') {
+            $query->where('zone_id', (int) $this->labForm['zone_id']);
+        }
+
+        return $query->orderBy('name')->get();
+    }
+
+    public function updatedLabFormZoneId(): void
+    {
+        $this->labForm['directorate_id'] = '';
+        $this->resetValidation('labForm.directorate_id');
+    }
+
     public function getUsersProperty(): Collection
     {
         return User::query()
@@ -64,7 +92,7 @@ class DirectorateManager extends Component
 
     public function getDirectoratesProperty(): Collection
     {
-        $query = Directorate::query()->with(['head', 'labs']);
+        $query = Directorate::query()->with(['head', 'labs', 'zone']);
 
         if ($this->directorateSearch !== '') {
             $query->where(function ($builder) {
@@ -98,7 +126,7 @@ class DirectorateManager extends Component
         }
 
         $query = Lab::query()
-            ->with('manager')
+            ->with('manager', 'zone')
             ->where('directorate_id', $this->selectedDirectorateId);
 
         if ($this->labSearch !== '') {
@@ -145,6 +173,7 @@ class DirectorateManager extends Component
             'name' => $directorate->name,
             'code' => $directorate->code,
             'head_id' => $directorate->head_id ? (string) $directorate->head_id : '',
+            'zone_id' => $directorate->zone_id ? (string) $directorate->zone_id : '',
             'active' => (bool) $directorate->active,
         ];
 
@@ -168,6 +197,7 @@ class DirectorateManager extends Component
                 Rule::unique('directorates', 'code')->ignore($this->editingDirectorateId),
             ],
             'directorateForm.head_id' => ['nullable', 'integer', 'exists:users,id'],
+            'directorateForm.zone_id' => ['nullable', 'integer', 'exists:zones,id'],
             'directorateForm.active' => ['boolean'],
         ]);
 
@@ -175,6 +205,7 @@ class DirectorateManager extends Component
             'name' => trim($validated['directorateForm']['name']),
             'code' => trim($validated['directorateForm']['code']),
             'head_id' => $validated['directorateForm']['head_id'] ?: null,
+            'zone_id' => $validated['directorateForm']['zone_id'] ?: null,
             'active' => !empty($validated['directorateForm']['active']),
         ];
 
@@ -203,15 +234,14 @@ class DirectorateManager extends Component
 
     public function showCreateLabModal(): void
     {
-        if (!$this->selectedDirectorateId) {
-            $this->message = 'Select a directorate before adding labs.';
-            $this->messageType = 'error';
-
-            return;
-        }
-
         $this->resetLabForm();
-        $this->labForm['directorate_id'] = (string) $this->selectedDirectorateId;
+        if ($this->selectedDirectorateId) {
+            $directorate = Directorate::query()->find($this->selectedDirectorateId);
+            if ($directorate) {
+                $this->labForm['zone_id'] = $directorate->zone_id ? (string) $directorate->zone_id : '';
+                $this->labForm['directorate_id'] = (string) $this->selectedDirectorateId;
+            }
+        }
         $this->showLabModal = true;
     }
 
@@ -220,6 +250,7 @@ class DirectorateManager extends Component
         $lab = Lab::query()->findOrFail($labId);
 
         $this->labForm = [
+            'zone_id' => $lab->zone_id ? (string) $lab->zone_id : '',
             'directorate_id' => (string) $lab->directorate_id,
             'name' => $lab->name,
             'code' => $lab->code,
@@ -239,6 +270,7 @@ class DirectorateManager extends Component
     public function saveLab(): void
     {
         $validated = $this->validate([
+            'labForm.zone_id' => ['nullable', 'integer', 'exists:zones,id'],
             'labForm.directorate_id' => ['required', 'integer', 'exists:directorates,id'],
             'labForm.name' => [
                 'required',
@@ -287,6 +319,7 @@ class DirectorateManager extends Component
         }
 
         $payload = [
+            'zone_id' => $this->labForm['zone_id'] !== '' ? (int) $this->labForm['zone_id'] : null,
             'directorate_id' => $directorateId,
             'name' => trim($validated['labForm']['name']),
             'code' => trim($validated['labForm']['code']),
@@ -460,6 +493,7 @@ class DirectorateManager extends Component
             'name' => '',
             'code' => '',
             'head_id' => '',
+            'zone_id' => '',
             'active' => true,
         ];
         $this->editingDirectorateId = null;
@@ -469,6 +503,7 @@ class DirectorateManager extends Component
     private function resetLabForm(): void
     {
         $this->labForm = [
+            'zone_id' => '',
             'directorate_id' => $this->selectedDirectorateId ? (string) $this->selectedDirectorateId : '',
             'name' => '',
             'code' => '',

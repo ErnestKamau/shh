@@ -183,6 +183,7 @@
                                     <tr>
                                         <th>Code</th>
                                         <th>Name</th>
+                                        <th>Zone</th>
                                         <th>Director</th>
                                         <th>Labs</th>
                                         <th>Status</th>
@@ -194,6 +195,7 @@
                                         <tr class="{{ $selectedDirectorateId === $directorate->id ? 'table-primary' : '' }}">
                                             <td>{{ $directorate->code }}</td>
                                             <td><strong>{{ $directorate->name }}</strong></td>
+                                            <td>{{ $directorate->zone?->key ?? '—' }}</td>
                                             <td>{{ $directorate->head?->name ?? 'Not assigned' }}</td>
                                             <td>{{ $directorate->labs->count() }}/7</td>
                                             <td>
@@ -255,6 +257,7 @@
                                         <tr>
                                             <th>Code</th>
                                             <th>Name</th>
+                                            <th>Zone</th>
                                             <th>Lab Manager</th>
                                             <th>Analysts</th>
                                             <th>Phone</th>
@@ -271,6 +274,7 @@
                                                     <strong>{{ $lab->name }}</strong>
                                                     <br><small class="text-muted">Start Sample No: {{ $lab->start_sample_no ?: $lab->code }}</small>
                                                 </td>
+                                                <td>{{ $lab->zone?->key ?? '—' }}</td>
                                                 <td>{{ $lab->manager?->name ?? 'Not assigned' }}</td>
                                                 <td>
                                                     <span title="{{ $this->analystNames($lab->analyst_ids ?? []) }}">
@@ -332,7 +336,7 @@
                                 <input type="text" wire:model="directorateForm.code" class="form-control @error('directorateForm.code') is-invalid @enderror">
                                 @error('directorateForm.code') <div class="invalid-feedback">{{ $message }}</div> @enderror
                             </div>
-                            <div class="col-md-12 mb-3">
+                            <div class="col-md-6 mb-3">
                                 <label class="form-label">Head / Director</label>
                                 <select wire:model="directorateForm.head_id" class="form-select @error('directorateForm.head_id') is-invalid @enderror">
                                     <option value="">Select a user</option>
@@ -341,6 +345,16 @@
                                     @endforeach
                                 </select>
                                 @error('directorateForm.head_id') <div class="invalid-feedback">{{ $message }}</div> @enderror
+                            </div>
+                            <div class="col-md-6 mb-3">
+                                <label class="form-label">Zone</label>
+                                <select wire:model="directorateForm.zone_id" class="form-select @error('directorateForm.zone_id') is-invalid @enderror">
+                                    <option value="">Select a zone</option>
+                                    @foreach($this->zones as $zone)
+                                        <option value="{{ $zone->id }}">{{ $zone->key }}</option>
+                                    @endforeach
+                                </select>
+                                @error('directorateForm.zone_id') <div class="invalid-feedback">{{ $message }}</div> @enderror
                             </div>
                             <div class="col-md-12">
                                 <div class="form-check">
@@ -369,11 +383,23 @@
                     </div>
                     <div class="modal-body">
                         <div class="row">
+                            <div class="col-md-12 mb-3">
+                                <label class="form-label">Zone</label>
+                                <select wire:model.live="labForm.zone_id" class="form-select @error('labForm.zone_id') is-invalid @enderror">
+                                    <option value="">— Select a zone (optional) —</option>
+                                    @foreach($this->zones as $zone)
+                                        <option value="{{ $zone->id }}">{{ $zone->key }}</option>
+                                    @endforeach
+                                </select>
+                                @error('labForm.zone_id') <div class="invalid-feedback">{{ $message }}</div> @enderror
+                            </div>
                             <div class="col-md-6 mb-3">
                                 <label class="form-label">Directorate <span class="text-danger">*</span></label>
-                                <select wire:model="labForm.directorate_id" class="form-select @error('labForm.directorate_id') is-invalid @enderror">
-                                    <option value="">Select directorate</option>
-                                    @foreach($this->directorates as $directorate)
+                                <select wire:model.live="labForm.directorate_id" class="form-select @error('labForm.directorate_id') is-invalid @enderror">
+                                    <option value="">
+                                        {{ $labForm['zone_id'] !== '' ? 'Select directorate in this zone' : 'Select directorate' }}
+                                    </option>
+                                    @foreach($this->directoratesForLab as $directorate)
                                         <option value="{{ $directorate->id }}">{{ $directorate->name }} ({{ $directorate->labs->count() }}/7)</option>
                                     @endforeach
                                 </select>

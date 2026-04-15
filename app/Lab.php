@@ -26,6 +26,7 @@ class Lab extends Model implements Auditable
     'active',
     'start_sample_no',
     'directorate_id',
+    'zone_id',
     'manager_id',
     'analyst_ids',
   ];
@@ -43,6 +44,11 @@ class Lab extends Model implements Auditable
   public function directorate(): BelongsTo
   {
     return $this->belongsTo('App\Directorate');
+  }
+
+  public function zone(): BelongsTo
+  {
+    return $this->belongsTo('App\Zone');
   }
 
   public function manager(): BelongsTo
