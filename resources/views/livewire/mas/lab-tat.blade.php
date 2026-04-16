@@ -145,7 +145,7 @@
                     <div class="dropdown">
                         <button class="btn btn-light btn-sm dropdown-toggle font-weight-bold" type="button" data-toggle="dropdown">
                             <i class="mdi mdi-filter-variant"></i> 
-                            {{ ucfirst($stats['period'] ?? __('mas/common.active')) }}
+                            {{ __('mas/lab.' . ($stats['period'] ?? 'active')) }}
                         </button>
                         <div class="dropdown-menu dropdown-menu-right">
                             <a class="dropdown-item {{ ($stats['period'] ?? '') == 'active' ? 'active' : '' }}" href="?period=active">{{ __('mas/common.active') }}</a>
@@ -298,13 +298,13 @@
             data: {
                 labels: @json($stats['charts']['stage_labels']),
                 datasets: [{
-                    label: 'Batch Count',
+                    label: '{{ __('mas/lab.batch_count') }}',
                     data: @json($stats['charts']['stage_totals']),
                     backgroundColor: '#4f46e5',
                     hoverBackgroundColor: '#4338ca',
                     borderRadius: 4
                 }, {
-                    label: 'Overdue',
+                    label: '{{ __('mas/lab.overdue') }}',
                     data: @json($stats['charts']['stage_overdue']),
                     backgroundColor: '#ef4444',
                     borderRadius: 4
@@ -329,12 +329,12 @@
                     xAxes: [{ 
                         gridLines: { display: false }, 
                         ticks: { fontSize: 11, fontStyle: 'bold' },
-                        scaleLabel: { display: true, labelString: 'Laboratory Workflow Stages', fontSize: 12, fontStyle: 'bold' }
+                        scaleLabel: { display: true, labelString: '{{ __('mas/lab.workflow_stages') }}', fontSize: 12, fontStyle: 'bold' }
                     }],
                     yAxes: [{ 
                         gridLines: { color: '#f1f5f9' }, 
                         ticks: { beginAtZero: true, stepSize: 5, fontSize: 11 },
-                        scaleLabel: { display: true, labelString: 'Batch Count', fontSize: 12, fontStyle: 'bold' }
+                        scaleLabel: { display: true, labelString: '{{ __('mas/lab.batch_count') }}', fontSize: 12, fontStyle: 'bold' }
                     }]
                 }
             }
@@ -387,7 +387,7 @@
             data: {
                 labels: @json($stats['charts']['throughput_labels']),
                 datasets: [{
-                    label: 'Tests Processed',
+                    label: '{{ __('mas/lab.tests_processed') }}',
                     data: @json($stats['charts']['throughput_counts']),
                     backgroundColor: '#6366f1',
                     borderRadius: 4

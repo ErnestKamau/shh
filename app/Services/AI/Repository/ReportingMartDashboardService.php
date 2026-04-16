@@ -100,7 +100,7 @@ class ReportingMartDashboardService
 
             if ($period === 'active') {
                 $throughputQuery->whereIn('results.sample_header_id', $activeSampleIds);
-                $periodLabel = 'Active Workload';
+                $periodLabel = __('mas/lab.period_active_workload');
             } else {
                 $dateLimit = match($period) {
                     'week' => now()->subDays(7),
@@ -111,9 +111,9 @@ class ReportingMartDashboardService
                 
                 if ($dateLimit) {
                     $throughputQuery->where('results.created_at', '>=', $dateLimit);
-                    $periodLabel = 'Last ' . ucfirst($period);
+                    $periodLabel = __('mas/lab.last_period', ['period' => ucfirst($period)]);
                 } else {
-                    $periodLabel = 'Lifetime Total';
+                    $periodLabel = __('mas/lab.lifetime_total');
                 }
             }
 
@@ -135,20 +135,20 @@ class ReportingMartDashboardService
                     'tests_pending' => max(0, $totalTestsRequested - $totalTestsCompleted),
                 ]),
                 'stage_summary' => $normalizedStageSummary->all(),
-                'stage_counts' => $normalizedStageSummary->pluck('total_batches', 'workflow_stage')->all(),
+                'stage_counts' => $normalizedStageSummary->mapWithKeys(fn($s) => [$this->translateStatus($s['workflow_stage']) => $s['total_batches']])->all(),
                 'aging_buckets' => $orderedBuckets->all(),
                 'overdue_batches' => $normalizedOverdueBatches->all(),
                 'sample_type_distribution' => $sampleTypeDistribution->all(),
                 'charts' => [
-                    'stage_labels' => $normalizedStageSummary->pluck('workflow_stage')->all(),
+                    'stage_labels' => $normalizedStageSummary->map(fn($s) => $this->translateStatus($s['workflow_stage']))->all(),
                     'stage_totals' => $normalizedStageSummary->pluck('total_batches')->all(),
                     'stage_overdue' => $normalizedStageSummary->pluck('overdue_batches')->all(),
                     'aging_labels' => $orderedBuckets->pluck('label')->all(),
                     'aging_counts' => $orderedBuckets->pluck('batch_count')->all(),
                     'type_labels' => $sampleTypeDistribution->pluck('sample_type')->all(),
                     'type_counts' => $sampleTypeDistribution->pluck('total_batches')->all(),
-                    'completion_labels' => ['Completed', 'Pending'],
-                    'completion_counts' => [$totalTestsCompleted, max(0, $totalTestsRequested - $totalTestsCompleted)],
+                    'completion_labels' => [__('mas/lab.completed'), __('mas/lab.pending')],
+                    'completion_counts' => [(int) $totalTestsCompleted, max(0, $totalTestsRequested - $totalTestsCompleted)],
                     'throughput_labels' => $throughputByAnalyte->pluck('analyte_name')->all(),
                     'throughput_counts' => $throughputByAnalyte->pluck('total_tests')->all(),
                 ],
@@ -293,7 +293,7 @@ class ReportingMartDashboardService
                 'batch_code' => $row->batch_code,
                 'client' => $row->client_name ?? 'N/A',
                 'type' => $row->sample_type_name ?? 'N/A',
-                'status' => $row->status,
+                'status' => $this->translateStatus($row->status),
                 'priority' => $row->priority,
                 'overdue' => $row->priority === 'Urgent'
             ];
@@ -1015,6 +1015,20 @@ class ReportingMartDashboardService
             'critical' => __('mas/qc.critical'),
             'unknown' => __('mas/qc.unknown'),
         ];
+    }
+
+    /**
+     * Map dynamic status strings to localized keys.
+     */
+    public function translateStatus(?string $status): string
+    {
+        if (!$status) return '';
+        
+        $slug = strtolower(str_replace(' ', '_', $status));
+        $key = "mas/lab.status_{$slug}";
+        $translated = __($key);
+
+        return $translated === $key ? $status : $translated;
     }
 
     protected function resolveDepartmentName($value, Collection $departmentNames): string
